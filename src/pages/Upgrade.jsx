@@ -80,6 +80,19 @@ const NAME_BY_TIER = {
     ultra: 'Suscripción Max',
 };
 
+/* [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre COMERCIAL por tier. El botón
+   componía el rótulo capitalizando la clave interna, así que la tarjeta "Max"
+   ofrecía "Cambiar a Ultra" y la "Básico", "Cambiar a Basic": el nombre de la
+   base de datos se colaba a la interfaz. La clave `ultra` no se renombra (la
+   usan PayPal, `user_profiles.plan_tier` y los knobs); lo que se traduce es
+   la capa visible. */
+const DISPLAY_BY_TIER = {
+    gratis: 'Gratis',
+    basic: 'Básico',
+    plus: 'Plus',
+    ultra: 'Max',
+};
+
 /* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner: el plan Gratis
    tiene acceso a TODAS las funciones (por ahora) — lo único que diferencia los
    tiers son los CRÉDITOS.
@@ -435,12 +448,12 @@ const Upgrade = () => {
             return tier === 'gratis' ? 'Invitado' : 'Crear cuenta';
         }
         if (!userProfile?.id) {
-            return tier === 'gratis' ? 'Empezar Gratis' : `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+            return tier === 'gratis' ? 'Empezar Gratis' : `Cambiar a ${DISPLAY_BY_TIER[tier] || tier}`;
         }
         if (currentTier === tier) return 'Tu Plan Actual';
         const targetRank = TIER_RANK[tier] || 1;
         if (targetRank < currentRank) return 'Incluido en tu Plan';
-        return tier === 'gratis' ? 'Empezar Gratis' : `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+        return tier === 'gratis' ? 'Empezar Gratis' : `Cambiar a ${DISPLAY_BY_TIER[tier] || tier}`;
     };
 
     const isButtonDisabled = (tier) => {
@@ -516,7 +529,7 @@ const Upgrade = () => {
                                 USD${LAUNCH_OFFER.futureMonthly[tier]}
                             </span>
                             <span className={styles.launchOfferPill}>
-                                Precio de lanzamiento · sube el {LAUNCH_OFFER.deadlineLabel}
+                                Lanzamiento · sube el {LAUNCH_OFFER.deadlineShort}
                             </span>
                         </div>
                     )}

@@ -43,6 +43,14 @@ const NAME_BY_TIER = {
     ultra: 'Suscripción Max',
 };
 
+// [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre comercial por tier (= Upgrade.jsx).
+const DISPLAY_BY_TIER = {
+    gratis: 'Gratis',
+    basic: 'Básico',
+    plus: 'Plus',
+    ultra: 'Max',
+};
+
 const Pricing = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -252,7 +260,10 @@ const Pricing = () => {
             return "Incluido en tu Plan";
         }
 
-        return `Cambiar a ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+        // [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre COMERCIAL, no la clave
+        // interna: capitalizar `ultra` ofrecía "Cambiar a Ultra" bajo una
+        // tarjeta titulada "Max" (y "Basic" bajo "Básico").
+        return `Cambiar a ${DISPLAY_BY_TIER[tier] || tier}`;
     };
 
     // Lógica de deshabilitación de botones

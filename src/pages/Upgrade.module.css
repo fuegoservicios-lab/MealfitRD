@@ -288,13 +288,20 @@
     margin: 0 auto 4rem;
     padding: 0 1.5rem;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* [P2-CARDS-EQUAL-COLUMNS · 2026-07-31] `1fr` es `minmax(AUTO, 1fr)`: el
+       suelo de cada columna es su contenido más ancho, así que un hijo que no
+       puede partirse ENSANCHA su columna y le roba el espacio a las hermanas.
+       Pasó en prod: el pill de lanzamiento con `white-space: nowrap` dejó la
+       tarjeta Gratis a media anchura, con su texto partido en 3 líneas.
+       `minmax(0, 1fr)` fija el suelo en 0 → las 4 columnas son idénticas
+       pase lo que pase dentro. NO revertir a `1fr` sin auditar el contenido. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1.5rem;
 }
 
 @media (max-width: 1024px) {
     .plansGrid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -326,6 +333,10 @@
        visible en prod como chip decapitado). visible + radius propio en
        ::before conserva la barra de acento sin desbordar las esquinas. */
     overflow: visible;
+    /* Los ítems de grid traen `min-width: auto`: un hijo largo desborda la
+       tarjeta aunque la columna sea `minmax(0, 1fr)`. Con 0, el contenido se
+       adapta a la columna en vez de al revés. */
+    min-width: 0;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .planCard::before {
@@ -430,7 +441,9 @@
     color: color-mix(in srgb, var(--tone) 78%, #0F172A);
     background: color-mix(in srgb, var(--tone) 14%, transparent);
     border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent);
-    white-space: nowrap;
+    /* Sin `white-space: nowrap`: era la causa del desbalance de columnas
+       (ver la nota en `.plansGrid`). El copy va corto para que quepa en una
+       línea sin necesitar la promesa de no-partirse. */
 }
 
 /* ============================================================
@@ -553,11 +566,14 @@
     line-height: 1.4;
 }
 
-/* [P3-PRICING-CARD-TONE · 2026-07-12] La primera feature (los CRÉDITOS) es el
-   diferenciador real entre tiers → énfasis: bold + tinta principal. */
+/* [P3-PRICING-CARD-TONE · 2026-07-12 · actualizado P1-CREDITS-LADDER 2026-07-31]
+   Énfasis en la primera feature. Antes esa feature ERA la línea de créditos;
+   hoy los créditos viven en `.creditBlock` y la primera de la lista es el
+   salto contra Gratis ("5× más créditos") — sigue siendo lo que decide la
+   compra, así que el énfasis se queda donde estaba. */
 .planFeatureItem:first-child {
     font-weight: 800;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     color: #0F172A;
 }
 
@@ -1015,13 +1031,16 @@
     margin: 0 auto 4rem;
     padding: 0 1.5rem;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* Misma cura que `.plansGrid`: hoy los 4 textos son cortos y parten bien,
+       así que el desbalance no se ve — pero el suelo `auto` de `1fr` sigue ahí
+       esperando a que alguien alargue un rótulo. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1rem;
 }
 
 @media (max-width: 700px) {
     .trustGrid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -1542,6 +1561,27 @@
     background: var(--primary);
     color: #0B1120;
     border-color: transparent;
+}
+
+/* [P2-CTA-PRIMARY-DARK · 2026-07-31] El CTA de la tarjeta destacada perdía su
+   relleno en OSCURO: la regla de arriba (`html[data-theme]` + `.planButton`)
+   le gana por especificidad a `.planButtonPrimary`, así que el botón al que
+   apunta la página entera se veía igual que los secundarios. Medido con
+   getComputedStyle sobre el mismo elemento: claro = gradiente violeta,
+   oscuro = slate-800 plano. Es la trampa que este archivo ya documenta para
+   `.planCardPopular` — repetir el estilo con la especificidad del tema.
+   El :hover repite por la misma razón (empata en especificidad y gana por
+   orden, así que va DESPUÉS del hover genérico). */
+:global(html[data-theme="dark"]) .planButtonPrimary {
+    background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
+    border-color: transparent;
+    color: #FFFFFF;
+}
+
+:global(html[data-theme="dark"]) .planButtonPrimary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%);
+    border-color: transparent;
+    color: #FFFFFF;
 }
 
 /* planButtonDisabled: preservar el estado, solo ajustar superficie */

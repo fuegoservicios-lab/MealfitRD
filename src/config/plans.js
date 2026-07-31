@@ -57,9 +57,13 @@ export const TIER_CREDITS = { gratis: 10, basic: 50, plus: 200, ultra: 500 };
 // en esa fecha (o mover la fecha ANTES de que llegue). Una urgencia que
 // nunca se cumple es un dark pattern y un riesgo de disputa. Apagar:
 // `active: false` (las tarjetas vuelven al precio simple).
+// `deadlineShort` es para las tarjetas (columnas estrechas: un texto largo que
+// no cabe empuja el ancho de su columna y desbalancea la grid — pasó en prod);
+// `deadlineLabel` es para la landing, que tiene más aire.
 export const LAUNCH_OFFER = {
     active: true,
     deadlineLabel: '15 de septiembre',
+    deadlineShort: '15 sep',
     futureMonthly: { basic: '14.99', plus: '29.99', ultra: '69.99' },
 };
 
