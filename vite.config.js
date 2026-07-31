@@ -1,6 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'fs'
+
+// [BIOBOROS-SENTRY-RELEASE · 2026-07-30] El release de Sentry se hornea aquí
+// como UNA cadena literal, derivada de package.json.
+//
+// Antes vivía en `main.jsx` como `` `mealfitrd@${APP_VERSION}` `` y el deploy
+// subía los sourcemaps con `--release <version>` a secas. Nunca casaron:
+// `mealfitrd@1.0.0` != `1.0.0`. Con 61 de 63 ficheros sin debug id, Sentry no
+// tenía por dónde enlazar — los sourcemaps se subían y no des-minificaban nada.
+//
+// Que sea un literal contiguo no es cosmético: el template literal de antes NO
+// se plegaba en el bundle (sólo aparecía el fragmento `mealfitrd@`), así que el
+// deploy no podía leer del artefacto qué release se había horneado. Ahora sí, y
+// por eso el deploy extrae el release del propio `dist/` en vez de recalcularlo
+// — dos mitades que no pueden discrepar porque sólo hay una.
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
+const APP_RELEASE = `bioboros@${pkg.version}`
 
 // https://vite.dev/config/
 //
@@ -89,6 +106,10 @@ export default defineConfig(({ mode }) => ({
       manifest: false,
     })
   ],
+  // Ver [BIOBOROS-SENTRY-RELEASE] arriba. Anchor: BIOBOROS-SENTRY-RELEASE-DEFINE.
+  define: {
+    __APP_RELEASE__: JSON.stringify(APP_RELEASE),
+  },
   server: {
     port: 5173,
     proxy: {

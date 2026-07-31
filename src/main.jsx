@@ -20,8 +20,6 @@ import { registerSW } from 'virtual:pwa-register'
 import { toast } from 'sonner'
 import './index.css'
 import App from './App.jsx'
-// [P2-SENTRY-RELEASE-ENV · 2026-07-09] release + environment en el init.
-import { APP_VERSION } from './config/appVersion'
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop compartido con los boundaries.
 import { shouldAutoReloadForChunkError } from './utils/chunkReloadGuard'
 // [POSTHOG-ANALYTICS · 2026-07-12] Analítica de producto (gated por VITE_POSTHOG_KEY).
@@ -284,9 +282,13 @@ sentryInit({
   // [P2-SENTRY-RELEASE-ENV · 2026-07-09] Sin `release` los stacks minificados
   // no se pueden asociar a una versión (ni a source maps si se suben después)
   // y no hay tracking de regresiones; sin `environment`, eventos dev/preview y
-  // prod caen mezclados en el mismo stream. APP_VERSION es el mismo string que
-  // muestra el footer (config/appVersion.js).
-  release: `mealfitrd@${APP_VERSION}`,
+  // prod caen mezclados en el mismo stream.
+  // [BIOBOROS-SENTRY-RELEASE · 2026-07-30] Inyectado por `define` en
+  // vite.config.js (= `bioboros@<version de package.json>`). Antes se componía
+  // aquí con un template literal que NO se plegaba en el bundle, y el deploy
+  // subía los sourcemaps bajo otro nombre de release: no casaban y ningún
+  // stack se des-minificaba. Ahora el deploy lee este mismo literal del `dist/`.
+  release: __APP_RELEASE__,
   environment: import.meta.env.MODE,
   // [P1-PERF-SENTRY-DEFER · 2026-05-31] integrations vacío al boot. browserTracing
   // + replay se adjuntan en idle (ver _attachSentryIntegrations abajo) para no

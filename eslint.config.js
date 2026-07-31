@@ -63,7 +63,9 @@ export default defineConfig([
     settings: { react: { version: 'detect' } },
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
+      // `__APP_RELEASE__` lo inyecta `define` en vite.config.js
+      // ([BIOBOROS-SENTRY-RELEASE]); sin declararlo aquí, `no-undef`.
+      globals: { ...globals.browser, __APP_RELEASE__: 'readonly' },
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },

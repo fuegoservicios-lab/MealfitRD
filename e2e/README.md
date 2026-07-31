@@ -13,7 +13,7 @@ npm run test:e2e                # headless
 npm run test:e2e:ui             # con UI interactiva
 
 # Override de baseURL (ej. contra staging):
-PLAYWRIGHT_BASE_URL=https://staging.mealfitrd.com npm run test:e2e
+PLAYWRIGHT_BASE_URL=https://staging.bioboros.com npm run test:e2e
 ```
 
 ## Scope intencional
