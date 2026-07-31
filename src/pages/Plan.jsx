@@ -7,6 +7,7 @@ import PropTypes from 'prop-types';
 
 import { useAssessment } from '../context/AssessmentContext';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
+import Wordmark from '../components/common/Wordmark';
 import RenewalCheckinModal from '../components/plan/RenewalCheckinModal';
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
 import { stripInternalFlags } from '../config/secureFormStorage';
@@ -2436,17 +2437,22 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 display: 'flex', justifyContent: 'center',
                 zIndex: 3, pointerEvents: 'none',
             }}>
+                {/* [P2-WORDMARK-BIOBOROS · 2026-07-31] Delegado a `<Wordmark/>`.
+                    Aquí sobrevivía el ÚLTIMO wordmark escrito a mano: "Bioboros" + una
+                    "R" indigo con puntito + una "D" rosa. Venía de "MealfitRD", donde
+                    "RD" era el país y separarlo significaba algo; sobre "Bioboros" era
+                    un sufijo sin referente y, además, el bicolor que el owner ya había
+                    descartado dos veces (ver el comentario de Wordmark.jsx). El rebrand
+                    automático no lo alcanzó porque los tres fragmentos están en líneas
+                    separadas — exactamente el mismo motivo por el que se le escapó
+                    `Logo.jsx`. La tipografía del contenedor se conserva; la tinta la
+                    pone el wordmark. */}
                 <span style={{
                     fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                    fontWeight: 800, fontSize: '1.3rem', letterSpacing: '-0.03em',
+                    fontWeight: 800, fontSize: '1.3rem',
                     color: '#F1F5F9', display: 'inline-flex', alignItems: 'baseline',
                 }}>
-                    Bioboros
-                    <span style={{ color: '#818CF8', position: 'relative', display: 'inline-block' }}>
-                        R
-                        <span style={{ position: 'absolute', bottom: '4px', right: '-5px', width: '4px', height: '4px', borderRadius: '50%', background: '#FB7185' }} />
-                    </span>
-                    <span style={{ color: '#FB7185', marginLeft: '0.16em' }}>D</span>
+                    <Wordmark />
                 </span>
             </div>
 
