@@ -773,15 +773,18 @@
     border-top: 1px solid rgba(148, 163, 184, 0.1);
 }
 
-/* Wordmark de marca (sin icono): "Mealfit" tenue + R/D en colores de la app. */
+/* Envoltorio del wordmark (sin icono): sólo tamaño y tinta atenuada — el texto
+   lo pone `<Wordmark/>`, que es el SSOT.
+   [P2-WORDMARK-BIOBOROS · 2026-07-31] Aquí vivían `.footR` y `.footD`, que
+   pintaban la "R" y la "D" con --primary/--accent. Quedaron muertas cuando el
+   markup pasó al componente, y una regla de color huérfana con el nombre de una
+   letra es una invitación a volver a partir la marca. */
 .footBrand {
     font-size: 0.78rem;
     font-weight: 800;
     letter-spacing: 0.01em;
     color: color-mix(in srgb, var(--text-light) 70%, transparent);
 }
-.footR { color: var(--primary); }
-.footD { color: var(--accent); }
 
 /* ============================ TEMA CLARO ============================ */
 :global(html:not([data-theme="dark"])) .handle {

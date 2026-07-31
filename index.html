@@ -202,13 +202,14 @@
       font-size: 44px;
       font-weight: 800;
       color: #0F172A;
-      letter-spacing: -0.04em;
+      /* -0.03em = el mismo tracking cerrado que `Wordmark.jsx`. Es el ÚNICO
+         recurso del wordmark ahora que es monocromo, así que las dos copias
+         tienen que llevarlo igual o el splash y la app se ven distintos. */
+      letter-spacing: -0.03em;
       line-height: 1;
       animation: splashRise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
       animation-delay: 0.05s;
     }
-    .splash-brand .splash-r { color: #4F46E5; }
-    .splash-brand .splash-d { color: #F43F5E; }
     .splash-tagline {
       font-size: 15px;
       font-weight: 500;
@@ -229,22 +230,19 @@
       animation: splashRise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
       animation-delay: 0.3s;
     }
+    /* Una sola tinta, como el wordmark: tres puntos indigo/violeta/rosa debajo
+       de una marca monocroma dejaban la pantalla a medio camino. El ritmo lo da
+       el desfase de la animación, no el color. */
     .splash-dots span {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #4F46E5;
+      background: #94A3B8;
       opacity: 0.35;
       animation: splashDot 1.2s ease-in-out infinite;
     }
-    .splash-dots span:nth-child(2) {
-      background: #7C3AED;
-      animation-delay: 0.15s;
-    }
-    .splash-dots span:nth-child(3) {
-      background: #F43F5E;
-      animation-delay: 0.3s;
-    }
+    .splash-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .splash-dots span:nth-child(3) { animation-delay: 0.3s; }
     @keyframes splashDot {
       0%, 80%, 100% { opacity: 0.35; transform: scale(0.85); }
       40% { opacity: 1; transform: scale(1.15); }
@@ -261,12 +259,8 @@
         #0B1120;
     }
     html[data-theme="dark"] .splash-brand { color: #F8FAFC; }
-    html[data-theme="dark"] .splash-brand .splash-r { color: #818CF8; }
-    html[data-theme="dark"] .splash-brand .splash-d { color: #FB7185; }
     html[data-theme="dark"] .splash-tagline { color: #94A3B8; }
-    html[data-theme="dark"] .splash-dots span { background: #818CF8; }
-    html[data-theme="dark"] .splash-dots span:nth-child(2) { background: #A78BFA; }
-    html[data-theme="dark"] .splash-dots span:nth-child(3) { background: #FB7185; }
+    html[data-theme="dark"] .splash-dots span { background: #CBD5E1; }
     @media (prefers-reduced-motion: reduce) {
       #pwa-splash, .splash-brand, .splash-tagline, .splash-dots { animation: none !important; }
       .splash-dots span { animation: splashDotReduced 1.6s ease-in-out infinite; }
@@ -284,9 +278,14 @@
   
   <!-- PWA Native Splash Screen placed OUTSIDE root so React doesn't destroy it -->
   <div id="pwa-splash" style="transition: opacity 0.5s ease; opacity: 1;">
-    <div class="splash-brand">
-      Bio<span class="splash-r">b</span><span class="splash-d">oros</span>
-    </div>
+    <!-- [P2-WORDMARK-BIOBOROS · 2026-07-31] La marca va en UNA pieza, sin spans.
+         Este splash corre antes de que React monte, así que no puede usar
+         `<Wordmark/>`; es la única copia legítima de la marca fuera del SSOT y
+         por eso el guard la vigila aparte. No volver a partirla: las clases
+         `splash-r`/`splash-d` eran la "R" y la "D" de MealfitRD (donde el país
+         significaba algo) y el rebrand heredó el bicolor partiendo "b"+"oros",
+         un corte sin referente. -->
+    <div class="splash-brand">Bioboros</div>
     <div class="splash-tagline">Nutrición personalizada con IA</div>
     <!-- [P3-NEW-SPLASH-A11Y · 2026-05-15] aria-live="polite" + aria-busy="true" + role="status" para que screen readers anuncien el loading state. Pre-fix solo aria-label. -->
     <div class="splash-dots" aria-label="Cargando" aria-live="polite" aria-busy="true" role="status">
