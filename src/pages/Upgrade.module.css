@@ -321,7 +321,11 @@
     flex-direction: column;
     gap: 1rem;
     position: relative;
-    overflow: hidden;
+    /* [P1-CARDS-VISUAL-2026-07-31] overflow:hidden RECORTABA el badge
+       "Más Popular" (position:absolute top:-0.65rem sobresale del borde —
+       visible en prod como chip decapitado). visible + radius propio en
+       ::before conserva la barra de acento sin desbordar las esquinas. */
+    overflow: visible;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .planCard::before {
@@ -331,6 +335,7 @@
     left: 0;
     right: 0;
     height: 3px;
+    border-radius: 1.25rem 1.25rem 0 0;
     background: linear-gradient(90deg, transparent, var(--tone), transparent);
     opacity: 0.75;
     pointer-events: none;
@@ -369,15 +374,18 @@
 
 .planCardBadge {
     position: absolute;
-    top: -0.65rem;
+    top: -0.8rem;
     left: 50%;
     transform: translateX(-50%);
-    padding: 0.3rem 0.85rem;
-    font-size: 0.65rem;
+    padding: 0.35rem 1rem;
+    font-size: 0.68rem;
     font-weight: 800;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     border-radius: 9999px;
+    white-space: nowrap;
+    z-index: 2;
+    box-shadow: 0 6px 18px -6px rgba(139, 92, 246, 0.6);
     white-space: nowrap;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -390,6 +398,91 @@
 .planCardBadgePopular {
     background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
     color: white;
+}
+
+/* ============================================================
+   [P1-LAUNCH-OFFER · 2026-07-31] Anclaje "precio de lanzamiento":
+   precio futuro tachado + pill con la fecha de subida.
+   ============================================================ */
+.launchOffer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.45rem;
+}
+
+.launchOfferOld {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #94A3B8;
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+}
+
+.launchOfferPill {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.6rem;
+    border-radius: 9999px;
+    color: color-mix(in srgb, var(--tone) 78%, #0F172A);
+    background: color-mix(in srgb, var(--tone) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent);
+    white-space: nowrap;
+}
+
+/* ============================================================
+   [P1-CREDITS-LADDER · 2026-07-31] Bloque hero de créditos:
+   los créditos son EL diferenciador entre tiers → cifra grande
+   + gauge en el tono del tier (la escalera 10→50→200→500 se VE).
+   ============================================================ */
+.creditBlock {
+    padding: 0.85rem 1rem;
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, var(--tone) 7%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tone) 18%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.creditRow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.creditNumber {
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: #0F172A;
+    font-variant-numeric: tabular-nums;
+}
+
+.creditLabel {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748B;
+}
+
+.creditGauge {
+    height: 5px;
+    border-radius: 9999px;
+    background: rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+
+.creditGaugeFill {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 65%, transparent), var(--tone));
 }
 
 .planName {
@@ -1386,6 +1479,36 @@
 
 :global(html[data-theme="dark"]) .planName {
     color: var(--text-main);
+}
+
+/* [P1-CREDITS-LADDER + P1-LAUNCH-OFFER · 2026-07-31] Overrides oscuros de los
+   bloques nuevos: cifra de créditos clara, tinte del tono un pelo más
+   presente, pill del anclaje legible sobre fondo oscuro. */
+:global(html[data-theme="dark"]) .creditNumber {
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .creditLabel {
+    color: var(--text-muted);
+}
+
+:global(html[data-theme="dark"]) .creditBlock {
+    background: color-mix(in srgb, var(--tone) 10%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 26%, transparent);
+}
+
+:global(html[data-theme="dark"]) .creditGauge {
+    background: rgba(255, 255, 255, 0.09);
+}
+
+:global(html[data-theme="dark"]) .launchOfferOld {
+    color: var(--text-light);
+}
+
+:global(html[data-theme="dark"]) .launchOfferPill {
+    color: color-mix(in srgb, var(--tone) 85%, white);
+    background: color-mix(in srgb, var(--tone) 16%, transparent);
+    border-color: color-mix(in srgb, var(--tone) 38%, transparent);
 }
 
 :global(html[data-theme="dark"]) .planPriceCurrency {

@@ -36,7 +36,6 @@ import { useAssessment } from '../context/AssessmentContext';
 import {
     ArrowLeft, Check, X, Zap, ChevronDown,
     ShieldCheck, RefreshCw, CreditCard, BadgeCheck,
-    Infinity as InfinityIcon,
 } from 'lucide-react';
 import styles from './Upgrade.module.css';
 // [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01] lazy + gate por isPaymentOpen → el
@@ -68,7 +67,9 @@ const TIER_RANK = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
 
 // [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
 // siempre mensual. El toggle "Anual" no aplica a esta tarjeta. (= Pricing.jsx)
-import { ANNUAL_DISABLED_TIERS } from '../config/plans';
+// [P1-CREDITS-LADDER + P1-LAUNCH-OFFER · 2026-07-31] Créditos por tier y
+// anclaje de precio de lanzamiento — SSOT compartido con Pricing.jsx.
+import { ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS } from '../config/plans';
 
 // [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local, = ctaName de
 // renderPlanCard) para re-derivar el `name` del modal al rehidratarlo desde la URL
@@ -81,15 +82,15 @@ const NAME_BY_TIER = {
 
 /* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner: el plan Gratis
    tiene acceso a TODAS las funciones (por ahora) — lo único que diferencia los
-   tiers son los CRÉDITOS. Se eliminan los falsos diferenciadores ("Memoria a
-   Largo Plazo"/"Memoria Infinita" como exclusivas de pago) y las descripciones
-   se resumen en clave vendedora. Max NO cambia (exclusivas reales: ilimitado,
-   acceso anticipado, VIP). */
+   tiers son los CRÉDITOS.
+   [P1-CREDITS-LADDER · 2026-07-31] Los créditos salen de la lista de features:
+   ahora son el HERO de cada tarjeta (bloque propio con cifra grande + gauge,
+   ver renderPlanCard) porque son el diferenciador real. Max deja de vender
+   "ilimitado": 500/mes acotado (paridad backend auth._TIER_LIMITS). */
 const PLAN_SUMMARY = {
     gratis: {
         description: 'Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.',
         features: [
-            '15 Créditos al mes',
             'Todas las funciones incluidas',
             'Plan de Comidas con IA',
             'Recetas + Lista de Compras PDF',
@@ -100,30 +101,32 @@ const PLAN_SUMMARY = {
     basic: {
         description: 'Más créditos para regenerar platos y días sin miedo a quedarte corto.',
         features: [
-            '50 Créditos al mes',
-            '3× más que Gratis',
+            '5× más créditos que Gratis',
             'Todo lo incluido en Gratis',
         ],
     },
     plus: {
         description: 'Combustible de sobra: ajusta, regenera y experimenta toda la semana.',
         features: [
-            '200 Créditos al mes',
-            '13× más que Gratis',
+            '20× más créditos que Gratis',
             'Todo lo incluido en Básico',
         ],
     },
     ultra: {
-        description: 'Sin límites. Genera, regenera y optimiza todo lo que necesites.',
+        description: 'El tope más alto: para quien ajusta y optimiza su plan todos los días.',
         features: [
-            'Créditos Ilimitados',
-            'Generación Ilimitada de Planes',
+            '50× más créditos que Gratis',
             'Acceso Anticipado a Funciones',
             'Soporte Prioritario VIP',
             'Todo lo incluido en Plus',
         ],
     },
 };
+
+/* [P1-CREDITS-LADDER · 2026-07-31] Ancho del gauge de créditos por tier —
+   escala sqrt(créditos/500) para que la escalera se LEA (una escala lineal
+   aplastaría a Gratis/Básico contra cero). */
+const CREDIT_GAUGE_PCT = { gratis: '14%', basic: '32%', plus: '63%', ultra: '100%' };
 
 /* [P3-PRICING-CARD-TONE · 2026-07-12] Hue de acento por tier (barra superior,
    glow de hover, iconos de features). Max en ámbar premium. */
@@ -143,9 +146,11 @@ const COMP_FEATURES = [
         category: 'Créditos & Generación',
         rows: [
             {
+                // [P1-CREDITS-LADDER · 2026-07-31] 15→10 y Max ∞→500 (paridad
+                // backend). El "ilimitado" era cola de costo sin acotar.
                 name: 'Créditos de IA al mes',
                 desc: 'Cada generación de plan consume 1 crédito',
-                values: { gratis: '15', basic: '50', plus: '200', ultra: '∞' },
+                values: { gratis: '10', basic: '50', plus: '200', ultra: '500' },
             },
             {
                 name: 'Regenerar plato individual',
@@ -155,7 +160,7 @@ const COMP_FEATURES = [
             {
                 name: 'Regenerar plan completo',
                 desc: 'Generar plan desde cero con nueva configuración',
-                values: { gratis: 'Limitado', basic: 'Limitado', plus: '✓', ultra: '∞' },
+                values: { gratis: 'Limitado', basic: 'Limitado', plus: '✓', ultra: '✓' },
             },
         ],
     },
@@ -255,21 +260,9 @@ const CompTableCell = ({ value, isCurrent }) => {
     if (value === false) {
         return <td className={cls}><X size={18} className={styles.compTableIconNo} aria-label="No incluido" /></td>;
     }
-    // [P3-UPGRADE-TABLE-INFINITY · 2026-05-26] Carácter Unicode `∞` se ve
-    // demasiado pequeño en celda de tabla. Reemplazado por icono Lucide
-    // `Infinity` con styling premium (dorado + halo + tamaño mayor).
-    if (value === '∞') {
-        return (
-            <td className={cls}>
-                <InfinityIcon
-                    size={22}
-                    strokeWidth={2.5}
-                    className={styles.compTableInfinity}
-                    aria-label="Ilimitado"
-                />
-            </td>
-        );
-    }
+    // [P1-CREDITS-LADDER · 2026-07-31] Rama '∞' + InfinityIcon eliminadas:
+    // Max ya no vende ilimitado (500/mes acotado) y ningún valor de la tabla
+    // usa el símbolo.
     // [P3-UPGRADE-TABLE-POLISH · 2026-07-01] Valor cualitativo (ej. "Limitado")
     // como chip sutil; los numéricos (15/50/200) quedan como cifra en negrita.
     if (typeof value === 'string' && !/^\d+$/.test(value)) {
@@ -512,9 +505,40 @@ const Upgrade = () => {
                             Disponible solo en facturación mensual
                         </div>
                     )}
+                    {/* [P1-LAUNCH-OFFER · 2026-07-31] Anclaje de lanzamiento: el
+                        precio FUTURO tachado + la fecha en que sube. Solo vista
+                        mensual (los anuales no tienen precio futuro definido).
+                        ⚠️ La subida debe ser real en esa fecha — ver config/plans.js. */}
+                    {!isFree && LAUNCH_OFFER.active && !isAnnualForTier(tier)
+                        && LAUNCH_OFFER.futureMonthly[tier] && (
+                        <div className={styles.launchOffer}>
+                            <span className={styles.launchOfferOld}>
+                                USD${LAUNCH_OFFER.futureMonthly[tier]}
+                            </span>
+                            <span className={styles.launchOfferPill}>
+                                Precio de lanzamiento · sube el {LAUNCH_OFFER.deadlineLabel}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <p className={styles.planDescription}>{summary.description}</p>
+
+                {/* [P1-CREDITS-LADDER · 2026-07-31] Los créditos son EL diferenciador
+                    real entre tiers (P3-PRICING-HONEST-COPY) → bloque hero propio:
+                    cifra grande + gauge en el tono del tier. La escalera se ve. */}
+                <div className={styles.creditBlock}>
+                    <div className={styles.creditRow}>
+                        <span className={styles.creditNumber}>{TIER_CREDITS[tier]}</span>
+                        <span className={styles.creditLabel}>créditos<br />al mes</span>
+                    </div>
+                    <div className={styles.creditGauge} aria-hidden="true">
+                        <div
+                            className={styles.creditGaugeFill}
+                            style={{ width: CREDIT_GAUGE_PCT[tier] }}
+                        />
+                    </div>
+                </div>
 
                 <ul className={styles.planFeatures}>
                     {summary.features.map((feat, idx) => (
@@ -648,7 +672,9 @@ const Upgrade = () => {
                                     <span className={styles.compTablePopularBadge}>Popular</span>
                                     Plus
                                 </th>
-                                <th>Ultra</th>
+                                {/* [P1-CREDITS-LADDER] El tier interno se llama `ultra`
+                                    pero el nombre comercial es Max (= tarjetas arriba). */}
+                                <th>Max</th>
                             </tr>
                         </thead>
                         <tbody>

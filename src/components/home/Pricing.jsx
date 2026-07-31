@@ -31,7 +31,9 @@ const PRICING = {
 // [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
 // siempre se factura mensual. El toggle "Anual" no aplica a esta tarjeta: cae a
 // su precio mensual y el checkout fuerza 'monthly'.
-import { ANNUAL_DISABLED_TIERS } from '../../config/plans';
+// [P1-CREDITS-LADDER + P1-LAUNCH-OFFER · 2026-07-31] Créditos por tier y
+// anclaje de precio de lanzamiento — SSOT compartido con Upgrade.jsx.
+import { ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS } from '../../config/plans';
 
 // [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local) para
 // re-derivar el `name` del modal al rehidratarlo desde la URL tras un refresh.
@@ -384,14 +386,22 @@ const Pricing = () => {
                             {isAnnual && (
                                 <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('basic')}/mes, facturado anual</p>
                             )}
+                            {/* [P1-LAUNCH-OFFER · 2026-07-31] Precio futuro tachado + fecha
+                                de subida (solo vista mensual). ⚠️ La subida debe ser real —
+                                ver config/plans.js. */}
+                            {!isAnnual && LAUNCH_OFFER.active && (
+                                <p className={styles.monthlyEquiv}>
+                                    <s>USD${LAUNCH_OFFER.futureMonthly.basic}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
+                                </p>
+                            )}
 
                             <p className={styles.description}>
                                 Más créditos para regenerar platos y días sin miedo a quedarte corto.
                             </p>
 
                             <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>50 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>3× más que Gratis</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.basic} Créditos al mes</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>5× más créditos que Gratis</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
                             </ul>
 
@@ -419,14 +429,19 @@ const Pricing = () => {
                             {isAnnual && (
                                 <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('plus')}/mes, facturado anual</p>
                             )}
+                            {!isAnnual && LAUNCH_OFFER.active && (
+                                <p className={styles.monthlyEquiv}>
+                                    <s>USD${LAUNCH_OFFER.futureMonthly.plus}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
+                                </p>
+                            )}
 
                             <p className={styles.description}>
                                 Combustible de sobra: ajusta, regenera y experimenta toda la semana.
                             </p>
 
                             <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>200 Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>13× más que Gratis</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.plus} Créditos al mes</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>20× más créditos que Gratis</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
                             </ul>
 
@@ -457,14 +472,22 @@ const Pricing = () => {
                             {isAnnual && (
                                 <p className={styles.monthlyEquiv}>Disponible solo en facturación mensual</p>
                             )}
+                            {!isAnnual && LAUNCH_OFFER.active && (
+                                <p className={styles.monthlyEquiv}>
+                                    <s>USD${LAUNCH_OFFER.futureMonthly.ultra}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
+                                </p>
+                            )}
 
+                            {/* [P1-CREDITS-LADDER · 2026-07-31] Max ya NO vende "ilimitado":
+                                500/mes acotado (paridad backend). El diferenciador real:
+                                el tope más alto + acceso anticipado + VIP. */}
                             <p className={styles.description}>
-                                Sin límites. Genera, regenera y optimiza todo lo que necesites, cuando quieras.
+                                El tope más alto: para quien ajusta y optimiza su plan todos los días.
                             </p>
 
                             <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>Créditos Ilimitados</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Generación Ilimitada de Planes</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.ultra} Créditos al mes</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>50× más créditos que Gratis</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Acceso Anticipado a Nuevas Funciones</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Soporte Prioritario VIP</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Plus</strong></li>

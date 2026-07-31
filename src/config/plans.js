@@ -43,4 +43,24 @@
 /** Tiers sin opción de pago anual. Vacío = todos ofrecen anual. */
 export const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
 
+// [P1-CREDITS-LADDER · 2026-07-31] Créditos/mes por tier — PARIDAD con
+// backend/auth.py::_TIER_LIMITS (test_p1_credits_ladder.py ancla ambos lados).
+// Vive aquí (módulo compartido) porque estaba a punto de duplicarse en
+// Upgrade.jsx + Pricing.jsx — dos copias del mismo número garantizan drift.
+// Max ya NO es "ilimitado": 500/mes (≈16/día) — inalcanzable para uso humano
+// real, acotado para abuso. El copy de venta usa estos números.
+export const TIER_CREDITS = { gratis: 10, basic: 50, plus: 200, ultra: 500 };
+
+// [P1-LAUNCH-OFFER · 2026-07-31] Anclaje "precio de lanzamiento": las
+// tarjetas muestran el precio FUTURO tachado + la fecha en que sube.
+// ⚠️ HONESTIDAD: mantener esto activo obliga a SUBIR los precios de verdad
+// en esa fecha (o mover la fecha ANTES de que llegue). Una urgencia que
+// nunca se cumple es un dark pattern y un riesgo de disputa. Apagar:
+// `active: false` (las tarjetas vuelven al precio simple).
+export const LAUNCH_OFFER = {
+    active: true,
+    deadlineLabel: '15 de septiembre',
+    futureMonthly: { basic: '14.99', plus: '29.99', ultra: '69.99' },
+};
+
 export default ANNUAL_DISABLED_TIERS;
