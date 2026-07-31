@@ -424,6 +424,63 @@ const LOW_BAND_MACRO_LABELS = {
     kcal: 'las calorías',
 };
 
+/* [P2-DEGRADED-HEADLINE-TRUTH · 2026-07-31] El titular del banner decía SIEMPRE
+   "La IA no logró un plan óptimo tras N intentos", pero los motivos son de dos
+   familias que no se parecen en nada:
+
+     A) La IA de verdad no convergió: se acabaron los intentos, el presupuesto
+        de tiempo o el contexto (los de este set).
+     B) La IA SÍ entregó y el revisor APROBÓ — una auditoría posterior marcó un
+        detalle (panel de micros, banda de macros, lista incompleta…).
+
+   Caso real que lo destapó (plan d476023a, 2026-07-31): revisor "APROBADO" en
+   el intento #1, calidad holística 0.925 con retry=1.00 y review=1.00, y el
+   banner acusando a la IA de no haber logrado un plan óptimo. El motivo real
+   era `micro_worst_day_ceiling`: un día se pasó del techo de sodio (gouda dos
+   veces + camarones). Culpar al motor de un fallo que no cometió confunde el
+   diagnóstico y desconfía del producto sin razón.
+
+   Para un motivo DESCONOCIDO se decide por los intentos: con 1 intento la IA
+   no pudo "quedarse sin intentos", así que el encuadre de agotamiento es falso
+   por construcción. */
+const Q_DEGRADED_RETRY_EXHAUSTION = new Set([
+    'high_contextual',
+    'max_attempts',
+    'invalid_pipeline_start',
+    'budget_exhausted',
+]);
+
+export function resolveQualityDegradedHeadline(reason, attempts) {
+    const n = Number(attempts) > 0 ? Number(attempts) : null;
+    // "Conocido" se mide contra el MAPA, no contra `resolveQualityDegradedLabel`:
+    // ese resolver nunca devuelve null para un motivo con texto (cae a un genérico
+    // "Calidad por debajo del óptimo"), así que usarlo aquí dejaba esta red de
+    // seguridad INERTE — verificado ejecutándola, no leyéndola.
+    const conocido = !!reason && (
+        Object.prototype.hasOwnProperty.call(Q_DEGRADED_REASON_MAP, reason)
+        || reason.startsWith('low_band_macro:')
+    );
+    // Motivo nuevo que nadie clasificó + hubo reintentos de verdad → se asume
+    // agotamiento (con 1 intento la IA no pudo "quedarse sin intentos", así que
+    // ahí el encuadre acusatorio es falso por construcción).
+    const agotado = Q_DEGRADED_RETRY_EXHAUSTION.has(reason) || (!conocido && n !== null && n > 1);
+
+    if (agotado) {
+        return {
+            title: n
+                ? `La IA no logró un plan óptimo tras ${n} intento${n === 1 ? '' : 's'}`
+                : 'La IA no logró un plan óptimo',
+            body: 'Te entregamos la mejor versión. Usa Cambiar Plato para reemplazar comidas o regenera el plan completo.',
+            exhausted: true,
+        };
+    }
+    return {
+        title: 'Plan listo, con un aviso',
+        body: 'Revisa el motivo aquí abajo y usa Cambiar Plato si quieres ajustar ese día.',
+        exhausted: false,
+    };
+}
+
 export function resolveQualityDegradedLabel(reason) {
     if (!reason) return null;
     if (Q_DEGRADED_REASON_MAP[reason]) return Q_DEGRADED_REASON_MAP[reason];
@@ -810,13 +867,19 @@ const DashboardInner = () => {
         const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
         // [P3-BANNER-REASON-COPY · 2026-07-10] prefix-match para low_band_macro:<macros>.
         const _reasonLabel = _reason ? resolveQualityDegradedLabel(_reason) : null;
+        // [P2-DEGRADED-HEADLINE-TRUTH · 2026-07-31] Mismo SSOT que el banner: la
+        // notificación decía "Plan no óptimo (1 intento)" incluso cuando el revisor
+        // había APROBADO y el degradado venía de una auditoría posterior.
+        const _head = resolveQualityDegradedHeadline(_reason, _attempts);
         const _reasonText = _reasonLabel
             ? `Motivo (${_sev}): ${_reasonLabel}`
-            : 'Te entregamos la mejor versión. Usa Cambiar Plato o regenera el plan completo.';
+            : _head.body;
         return {
             id: _planMicroSig ? `quality_${_planMicroSig}` : undefined,
             kind: 'quality',
-            title: `Plan no óptimo (${_attempts} intento${_attempts === 1 ? '' : 's'})`,
+            title: _head.exhausted
+                ? `Plan no óptimo (${_attempts} intento${_attempts === 1 ? '' : 's'})`
+                : 'Plan listo, con un aviso',
             message: _reasonText,
             severity: 'warning',
             // Payload estructurado para la vista expandida.
@@ -824,7 +887,9 @@ const DashboardInner = () => {
                 attempts: _attempts,
                 severityLabel: _sev,
                 reasonLabel: _reasonLabel,
-                guidance: 'Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.',
+                guidance: _head.exhausted
+                    ? 'Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.'
+                    : 'El plan está entregado; esto es un aviso sobre un punto a revisar. Usa “Cambiar Plato” en la comida señalada si quieres ajustarlo.',
             },
         };
     }, [planData?._quality_degraded, planData?._quality_degraded_attempts, planData?._quality_degraded_reason, planData?._quality_degraded_severity, _planMicroSig]);
@@ -6609,13 +6674,31 @@ const DashboardInner = () => {
                 >
                     <AlertCircle size={17} color={isDark ? '#FBBF24' : '#D97706'} style={{ flexShrink: 0, marginTop: '1px' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* [P3-ATTEMPTS-SINGULAR · 2026-07-04] "tras 1 intentos" era visible
+                            desde que MAX_ATTEMPTS puede entregar al primer intento.
+                            [P2-DEGRADED-HEADLINE-TRUTH · 2026-07-31] El titular ya no acusa
+                            a la IA cuando el plan SÍ fue aprobado y lo degradó una auditoría
+                            posterior — ver resolveQualityDegradedHeadline. */}
                         <span style={{ fontWeight: 700, color: isDark ? '#FDE68A' : '#92400E', fontSize: '0.82rem', display: 'block', marginBottom: '0.1rem' }}>
-                            {/* [P3-ATTEMPTS-SINGULAR · 2026-07-04] "tras 1 intentos" era visible
-                                desde que MAX_ATTEMPTS puede entregar al primer intento. */}
-                            La IA no logró un plan óptimo tras {planData?._quality_degraded_attempts || 3} intento{(planData?._quality_degraded_attempts || 3) === 1 ? '' : 's'}
+                            {resolveQualityDegradedHeadline(
+                                planData?._quality_degraded_reason,
+                                planData?._quality_degraded_attempts,
+                            ).title}
                         </span>
+                        {/* `span` por trozo, NO `React.Fragment`: este archivo importa sólo
+                            los hooks nombrados (`import { useState, … } from 'react'`), así
+                            que `React` no existe en scope y el fragmento explícito reventaría
+                            el render justo para quien ve este banner. */}
                         <span style={{ color: isDark ? '#FCD34D' : '#B45309', fontSize: '0.76rem', lineHeight: 1.4 }}>
-                            Te entregamos la mejor versión. Usa <strong>Cambiar Plato</strong> para reemplazar comidas o regenera el plan completo.
+                            {resolveQualityDegradedHeadline(
+                                planData?._quality_degraded_reason,
+                                planData?._quality_degraded_attempts,
+                            ).body.split('Cambiar Plato').map((parte, i, arr) => (
+                                <span key={i}>
+                                    {parte}
+                                    {i < arr.length - 1 && <strong>Cambiar Plato</strong>}
+                                </span>
+                            ))}
                         </span>
                         {/* [G10-QUALITY-DEGRADED-SURFACE · 2026-05-29] Surface de
                             _quality_degraded_reason / _quality_degraded_severity, escritos por
