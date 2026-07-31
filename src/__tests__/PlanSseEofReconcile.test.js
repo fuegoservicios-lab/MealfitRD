@@ -56,7 +56,11 @@ describe('[P1-SSE-EOF-RECONCILE] un stream cerrado sin resultado no regenera a c
     });
 
     it('el handler PREGUNTA al servidor antes de decidir', () => {
-        expect(cuerpoDelHandler()).toMatch(/pending-status/);
+        // Anclado al helper SSOT, no a la cadena '/pending-status': el fetch se movió a
+        // `utils/pendingStatusRetry.js` (P1-PENDING-STATUS-RETRY) para poder EJECUTARLO en
+        // tests, y este assert cazó ese movimiento — señal de que mira algo vivo.
+        expect(cuerpoDelHandler()).toMatch(/peekPendingStatusWithRetry\s*\(/);
+        expect(PLAN).toMatch(/^import \{ peekPendingStatusWithRetry \} from '\.\.\/utils\/pendingStatusRetry'/m);
     });
 
     it("con 'complete' o 'generating' reconcilia y NO cae al fallback", () => {

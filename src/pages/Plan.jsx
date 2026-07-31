@@ -8,6 +8,7 @@ import PropTypes from 'prop-types';
 import { useAssessment } from '../context/AssessmentContext';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
 import Wordmark from '../components/common/Wordmark';
+import { peekPendingStatusWithRetry } from '../utils/pendingStatusRetry';
 import RenewalCheckinModal from '../components/plan/RenewalCheckinModal';
 import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
 import { stripInternalFlags } from '../config/secureFormStorage';
@@ -1429,13 +1430,10 @@ const Plan = () => {
                         //                SIGUE siendo lo correcto, así que caemos a él.
                         //
                         // Preguntar es lo que separa "rescatar" de "pagar dos veces".
-                        let fasePorServidor = null;
-                        try {
-                            const sidEof = safeLocalStorageGet('mealfit_guest_session_id', null);
-                            const qsEof = sidEof ? `?session_id=${encodeURIComponent(sidEof)}` : '';
-                            const resEof = await fetchWithAuth(`/api/plans/pending-status${qsEof}`);
-                            if (resEof.ok) fasePorServidor = (await resEof.json())?.status ?? null;
-                        } catch { /* red caída → desconocido → cae al fallback, como antes */ }
+                        // [P1-PENDING-STATUS-RETRY · 2026-07-31] Con reintentos: si lo que
+                        // cerró el stream fue un reinicio del backend, preguntar una sola vez
+                        // cae en la misma ventana de indisponibilidad. `null` = "no sé".
+                        const fasePorServidor = await peekPendingStatusWithRetry();
 
                         if (fasePorServidor === 'complete' || fasePorServidor === 'generating') {
                             console.warn(`🔌 SSE cerrado sin resultado; el servidor dice '${fasePorServidor}' — reconciliando en vez de regenerar.`);
@@ -1473,26 +1471,27 @@ const Plan = () => {
                         // /pending-status ANTES de asumir lo peor: si hay pipeline vivo, el recovery lo maneja
                         // (loading si genera, dashboard si completó); SOLO caemos al form si de verdad no hay
                         // nada (backend realmente caído / pending-status también falla).
-                        try {
-                            const _sid = safeLocalStorageGet('mealfit_guest_session_id', null);
-                            const _qs = _sid ? `?session_id=${encodeURIComponent(_sid)}` : '';
-                            const _pr = await fetchWithAuth(`/api/plans/pending-status${_qs}`);
-                            if (_pr.ok) {
-                                const _pd = await _pr.json();
-                                if (_pd?.status === 'generating') {
-                                    // Pipeline deep-search vivo → quedarse en la pantalla de carga; el
-                                    // recovery poll-ea y redirige al dashboard al completar. NO limpiar flag.
-                                    setStatus('generating');
-                                    setStreamPhase('recovery_mode');
-                                    return;
-                                }
-                                if (_pd?.status === 'complete') {
-                                    // Plan ya listo → al dashboard (el recovery lo adopta/ackea).
-                                    navigate('/dashboard', { replace: true });
-                                    return;
-                                }
-                            }
-                        } catch { /* pending-status también falló → red realmente caída → cae al form abajo */ }
+                        // [P1-PENDING-STATUS-RETRY · 2026-07-31] Con reintentos. Antes era UNA
+                        // consulta, y por eso este guard no podía cubrir el caso que más lo
+                        // necesitaba: un reinicio del backend mata el SSE y deja
+                        // `/pending-status` inalcanzable EN EL MISMO INSTANTE, así que la
+                        // pregunta la disparaba el mismo evento que garantizaba su fallo.
+                        // Medido: 7s de indisponibilidad el 31 jul, con el plan ya persistido.
+                        const _fase = await peekPendingStatusWithRetry();
+                        if (_fase === 'generating') {
+                            // Pipeline deep-search vivo → quedarse en la pantalla de carga; el
+                            // recovery poll-ea y redirige al dashboard al completar. NO limpiar flag.
+                            setStatus('generating');
+                            setStreamPhase('recovery_mode');
+                            return;
+                        }
+                        if (_fase === 'complete') {
+                            // Plan ya listo → al dashboard (el recovery lo adopta/ackea).
+                            navigate('/dashboard', { replace: true });
+                            return;
+                        }
+                        // `_fase === null` (sigue inalcanzable tras los reintentos) o 'none':
+                        // ahí sí, backend realmente caído o nada que rescatar → cae al form.
                         // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Backend REALMENTE caído /
                         // ERR_CONNECTION_REFUSED y sin pipeline vivo confirmado. Limpiar el flag para que
                         // <PendingPipelineRecovery /> no poolee un KV stale + rebotar al form para reintentar.
