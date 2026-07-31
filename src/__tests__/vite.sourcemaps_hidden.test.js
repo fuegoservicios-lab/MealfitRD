@@ -80,7 +80,20 @@ describeDeploy('P2-SOURCEMAPS-HIDDEN · los .map no pueden quedar públicos', ()
         // Verificación post-hoc: no basta con ejecutar el `rm`, hay que
         // comprobar que surtió efecto. Un `rm` que falla en silencio deja el
         // fuente público y el deploy diría OK.
-        expect(_deploy).toMatch(/QUEDAN .*sourcemaps en dist/);
+        //
+        // [2026-07-31] Estaba anclado al literal `QUEDAN .*sourcemaps en dist`. El commit
+        // e955f8e ("inmunizar el bloque de sourcemaps contra CRLF") reescribió el mensaje
+        // a "QUEDABAN … PUBLICOS en dist/" y dejó este test rojo — y "QUEDAN" ni siquiera
+        // es subcadena de "QUEDABAN". Anclar a la REDACCIÓN de un mensaje de error lo hace
+        // caducar cada vez que alguien lo mejora. Ahora ancla el CONTRATO, que es lo que
+        // de verdad protege al usuario: se cuentan los `.map` que sobrevivieron, se borran
+        // de urgencia, y se ABORTA (throw) en vez de seguir y decir OK.
+        const i = _deploy.indexOf('rm -f /opt/mealfit/frontend/dist/assets/*.map');
+        expect(i, 'desapareció el borrado de urgencia de los .map en el VPS').toBeGreaterThan(-1);
+        const bloque = _deploy.slice(Math.max(0, i - 600), i + 800);
+        expect(bloque, 'el deploy ya no cuenta los .map que sobreviven').toMatch(/\*\.map[\s\S]*wc -l/);
+        expect(bloque, 'el deploy ya no ABORTA cuando sobreviven .map — diría OK con el fuente publicado')
+            .toMatch(/throw /);
     });
 
     it('la subida a Sentry apunta a la org y proyecto correctos', () => {
