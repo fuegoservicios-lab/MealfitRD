@@ -101,6 +101,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
     const cierreRef = useRef(null);
+    const stripRef = useRef(null);
+    const activoRef = useRef(null);
 
     const tzOffset = useMemo(() => new Date().getTimezoneOffset(), []);
 
@@ -167,6 +169,34 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
         })();
         return () => { vivo = false; };
     }, [open, userId, selected, tzOffset]);
+
+    // [P1-DIARY-STRIP-SCROLL · 2026-07-31] La tira arranca mostrando los días
+    // MÁS VIEJOS y eso es exactamente lo contrario de lo que hace falta.
+    //
+    // Reportado: el owner abrió el diario buscando su cena de ayer y vio
+    // "18 … 27" con todos los rieles vacíos. Hoy era 31. Los 14 días miden
+    // ~597px y en el cajón caben ~423, así que los 4 más recientes —hoy, ayer,
+    // y los dos anteriores: los ÚNICOS que alguien mira— quedaban fuera de
+    // pantalla a la derecha, en un contenedor cuya barra de scroll está oculta.
+    // Un overflow silencioso se lee como "no hay más días", no como "desliza".
+    //
+    // Se ancla al día ACTIVO y no a `scrollWidth` a secas: así también sigue al
+    // usuario cuando cambia de día con las flechas y sale del área visible.
+    useEffect(() => {
+        if (!open) return;
+        const nodo = activoRef.current;
+        const cinta = stripRef.current;
+        if (!nodo || !cinta) return;
+        // `scrollIntoView` con `block` movería TAMBIÉN el scroll vertical del
+        // drawer; aquí solo interesa el eje horizontal de la tira.
+        const izq = nodo.offsetLeft - (cinta.clientWidth - nodo.offsetWidth) / 2;
+        cinta.scrollTo({
+            left: Math.max(0, izq),
+            behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+                ? 'auto'
+                : 'smooth',
+        });
+    }, [open, selected, dias]);
 
     const moverDia = useCallback((delta) => {
         setSelected((actual) => {
@@ -249,7 +279,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
                     </button>
                 </header>
 
-                <div className={styles.strip} role="tablist" aria-label="Elegir día">
+                <div ref={stripRef} className={styles.strip} role="tablist" aria-label="Elegir día">
                     {dias.map((iso) => {
                         const d = desdeISO(iso);
                         const r = porFecha.get(iso);
@@ -264,6 +294,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000 }) => {
                         return (
                             <button
                                 key={iso}
+                                ref={activo ? activoRef : null}
                                 type="button"
                                 role="tab"
                                 aria-selected={activo}
