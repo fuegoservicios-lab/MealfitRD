@@ -68,7 +68,7 @@ const TIER_RANK = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
 
 // [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
 // siempre mensual. El toggle "Anual" no aplica a esta tarjeta. (= Pricing.jsx)
-const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
+import { ANNUAL_DISABLED_TIERS } from '../config/plans';
 
 // [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local, = ctaName de
 // renderPlanCard) para re-derivar el `name` del modal al rehidratarlo desde la URL

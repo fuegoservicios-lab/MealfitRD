@@ -31,7 +31,7 @@ const PRICING = {
 // [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
 // siempre se factura mensual. El toggle "Anual" no aplica a esta tarjeta: cae a
 // su precio mensual y el checkout fuerza 'monthly'.
-const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
+import { ANNUAL_DISABLED_TIERS } from '../../config/plans';
 
 // [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local) para
 // re-derivar el `name` del modal al rehidratarlo desde la URL tras un refresh.
