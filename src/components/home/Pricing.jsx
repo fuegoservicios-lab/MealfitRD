@@ -33,7 +33,10 @@ const PRICING = {
 // su precio mensual y el checkout fuerza 'monthly'.
 // [P1-CREDITS-LADDER + P1-LAUNCH-OFFER · 2026-07-31] Créditos por tier y
 // anclaje de precio de lanzamiento — SSOT compartido con Upgrade.jsx.
-import { ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS } from '../../config/plans';
+import {
+    ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME,
+    creditsVsPredecessor, includesPredecessor,
+} from '../../config/plans';
 
 // [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local) para
 // re-derivar el `name` del modal al rehidratarlo desde la URL tras un refresh.
@@ -43,13 +46,9 @@ const NAME_BY_TIER = {
     ultra: 'Suscripción Max',
 };
 
-// [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre comercial por tier (= Upgrade.jsx).
-const DISPLAY_BY_TIER = {
-    gratis: 'Gratis',
-    basic: 'Básico',
-    plus: 'Plus',
-    ultra: 'Max',
-};
+// [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre comercial por tier — SSOT en
+// `config/plans.js`, compartido con Upgrade.jsx.
+const DISPLAY_BY_TIER = TIER_DISPLAY_NAME;
 
 const Pricing = () => {
     const navigate = useNavigate();
@@ -411,9 +410,11 @@ const Pricing = () => {
                             </p>
 
                             <ul className={styles.features}>
+                                {/* [P2-LADDER-VS-PREDECESSOR · 2026-07-31] Salto contra el
+                                    escalón anterior, derivado de TIER_CREDITS. */}
                                 <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.basic} Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>5× más créditos que Gratis</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Gratis</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{creditsVsPredecessor('basic')}</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{includesPredecessor('basic')}</strong></li>
                             </ul>
 
                             <button
@@ -452,8 +453,8 @@ const Pricing = () => {
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.plus} Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>20× más créditos que Gratis</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Básico</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{creditsVsPredecessor('plus')}</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{includesPredecessor('plus')}</strong></li>
                             </ul>
 
                             <button
@@ -498,10 +499,10 @@ const Pricing = () => {
 
                             <ul className={styles.features}>
                                 <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.ultra} Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>50× más créditos que Gratis</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{creditsVsPredecessor('ultra')}</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Acceso Anticipado a Nuevas Funciones</strong></li>
                                 <li><Check size={18} className={styles.check} /> <strong>Soporte Prioritario VIP</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Todo lo incluido en Plus</strong></li>
+                                <li><Check size={18} className={styles.check} /> <strong>{includesPredecessor('ultra')}</strong></li>
                             </ul>
 
                             <button

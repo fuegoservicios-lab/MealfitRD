@@ -69,7 +69,10 @@ const TIER_RANK = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
 // siempre mensual. El toggle "Anual" no aplica a esta tarjeta. (= Pricing.jsx)
 // [P1-CREDITS-LADDER + P1-LAUNCH-OFFER · 2026-07-31] Créditos por tier y
 // anclaje de precio de lanzamiento — SSOT compartido con Pricing.jsx.
-import { ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS } from '../config/plans';
+import {
+    ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME,
+    creditsVsPredecessor, includesPredecessor,
+} from '../config/plans';
 
 // [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local, = ctaName de
 // renderPlanCard) para re-derivar el `name` del modal al rehidratarlo desde la URL
@@ -80,18 +83,12 @@ const NAME_BY_TIER = {
     ultra: 'Suscripción Max',
 };
 
-/* [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre COMERCIAL por tier. El botón
-   componía el rótulo capitalizando la clave interna, así que la tarjeta "Max"
-   ofrecía "Cambiar a Ultra" y la "Básico", "Cambiar a Basic": el nombre de la
-   base de datos se colaba a la interfaz. La clave `ultra` no se renombra (la
-   usan PayPal, `user_profiles.plan_tier` y los knobs); lo que se traduce es
-   la capa visible. */
-const DISPLAY_BY_TIER = {
-    gratis: 'Gratis',
-    basic: 'Básico',
-    plus: 'Plus',
-    ultra: 'Max',
-};
+/* [P2-TIER-DISPLAY-NAME · 2026-07-31] El botón componía el rótulo
+   capitalizando la clave interna, así que la tarjeta "Max" ofrecía "Cambiar a
+   Ultra" y la "Básico", "Cambiar a Basic": el nombre de la base de datos se
+   colaba a la interfaz. El mapa vive en `config/plans.js` (lo comparten
+   landing y dashboard). */
+const DISPLAY_BY_TIER = TIER_DISPLAY_NAME;
 
 /* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner: el plan Gratis
    tiene acceso a TODAS las funciones (por ahora) — lo único que diferencia los
@@ -111,27 +108,33 @@ const PLAN_SUMMARY = {
             'Nevera Inteligente',
         ],
     },
+    /* [P2-LADDER-VS-PREDECESSOR · 2026-07-31] El salto se mide contra el
+       escalón ANTERIOR (pedido del owner), no contra Gratis: quien está en
+       Básico quiere saber qué gana pasando a Plus, no cuánto lleva sobre el
+       plan gratis. Los múltiplos y los nombres se DERIVAN de `TIER_CREDITS`
+       (config/plans.js) — escribirlos a mano era garantizar que un día el
+       ladder cambiara y la página siguiera prometiendo el salto viejo. */
     basic: {
         description: 'Más créditos para regenerar platos y días sin miedo a quedarte corto.',
         features: [
-            '5× más créditos que Gratis',
-            'Todo lo incluido en Gratis',
+            creditsVsPredecessor('basic'),
+            includesPredecessor('basic'),
         ],
     },
     plus: {
         description: 'Combustible de sobra: ajusta, regenera y experimenta toda la semana.',
         features: [
-            '20× más créditos que Gratis',
-            'Todo lo incluido en Básico',
+            creditsVsPredecessor('plus'),
+            includesPredecessor('plus'),
         ],
     },
     ultra: {
         description: 'El tope más alto: para quien ajusta y optimiza su plan todos los días.',
         features: [
-            '50× más créditos que Gratis',
+            creditsVsPredecessor('ultra'),
             'Acceso Anticipado a Funciones',
             'Soporte Prioritario VIP',
-            'Todo lo incluido en Plus',
+            includesPredecessor('ultra'),
         ],
     },
 };
@@ -554,7 +557,10 @@ const Upgrade = () => {
                 </div>
 
                 <ul className={styles.planFeatures}>
-                    {summary.features.map((feat, idx) => (
+                    {/* `.filter(Boolean)`: los múltiplos derivados devuelven `null`
+                        si el ladder dejara de crecer — sin el filtro quedaría un
+                        bullet con su check y sin texto. */}
+                    {summary.features.filter(Boolean).map((feat, idx) => (
                         <li key={idx} className={styles.planFeatureItem}>
                             <Check size={16} className={styles.planFeatureIcon} />
                             <span>{feat}</span>

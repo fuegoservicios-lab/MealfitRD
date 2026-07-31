@@ -51,6 +51,44 @@ export const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
 // real, acotado para abuso. El copy de venta usa estos números.
 export const TIER_CREDITS = { gratis: 10, basic: 50, plus: 200, ultra: 500 };
 
+// [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre COMERCIAL por tier. La clave
+// `ultra` no se renombra (la usan PayPal, `user_profiles.plan_tier` y los
+// knobs); lo que se traduce es la capa visible. Vive aquí porque lo necesitan
+// la landing Y el dashboard: tenerlo dos veces es garantía de que un día
+// digan cosas distintas.
+export const TIER_DISPLAY_NAME = {
+    gratis: 'Gratis',
+    basic: 'Básico',
+    plus: 'Plus',
+    ultra: 'Max',
+};
+
+// [P2-LADDER-VS-PREDECESSOR · 2026-07-31] Cada plan se compara con el escalón
+// ANTERIOR, no con Gratis (pedido del owner: el salto que importa al decidir
+// es el que separa de donde estás, no del principio de la escalera).
+export const TIER_PREDECESSOR = { basic: 'gratis', plus: 'basic', ultra: 'plus' };
+
+/** Múltiplo de créditos frente al tier anterior, DERIVADO de `TIER_CREDITS`.
+ *  Se calcula en vez de escribirse porque los tres números y los créditos son
+ *  el mismo dato: tocar el ladder sin tocar el copy dejaría la página
+ *  prometiendo saltos que ya no existen. `null` si el tier no tiene anterior
+ *  (Gratis) o si el ladder dejara de crecer — nunca se inventa un salto. */
+export function creditsVsPredecessor(tier) {
+    const prev = TIER_PREDECESSOR[tier];
+    if (!prev) return null;
+    const ratio = TIER_CREDITS[tier] / TIER_CREDITS[prev];
+    if (!Number.isFinite(ratio) || ratio <= 1) return null;
+    const factor = Number.isInteger(ratio) ? String(ratio) : ratio.toFixed(1).replace('.', ',');
+    return `${factor}× más créditos que ${TIER_DISPLAY_NAME[prev]}`;
+}
+
+/** "Todo lo incluido en <anterior>" — misma razón: el nombre del escalón
+ *  anterior se deriva, no se repite. */
+export function includesPredecessor(tier) {
+    const prev = TIER_PREDECESSOR[tier];
+    return prev ? `Todo lo incluido en ${TIER_DISPLAY_NAME[prev]}` : null;
+}
+
 // [P1-LAUNCH-OFFER · 2026-07-31] Anclaje "precio de lanzamiento": las
 // tarjetas muestran el precio FUTURO tachado + la fecha en que sube.
 // ⚠️ HONESTIDAD: mantener esto activo obliga a SUBIR los precios de verdad
