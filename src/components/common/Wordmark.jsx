@@ -9,35 +9,33 @@
 // rebrandeada. Doce copias de una marca garantizan que la próxima vez pase
 // otra vez; esta es la única.
 //
-// EL DISEÑO
-// El bicolor anterior (indigo + rosa) venía de "MealfitRD", donde "RD" era el
-// país y separarlo SIGNIFICABA algo. Heredado a "Bioboros" el corte quedó en
-// "b" + "oros": un recurso estructural que no codifica nada, y por eso se leía
-// genérico.
+// EL DISEÑO: MONOCROMO
+// Decisión del owner (2026-07-30) tras ver dos versiones en vivo. Se
+// descartaron, en este orden:
 //
-// La palabra trae algo mejor: **Bi·o·b·o·r·o·s tiene tres "o" alternas**. Un
-// ouroboros es un anillo cerrado, y este producto ES cíclico — ciclos de plan
-// de 7/15/30 días, la ventana que rota cada día, y el bucle
-// comprar→nevera→consumir→comprar. Tres anillos repartidos por la palabra, en
-// un producto de ciclos: la estructura codifica algo verdadero en vez de
-// decorar.
+//   1. Bicolor indigo + rosa. Venía de "MealfitRD", donde "RD" era el país y
+//      separarlo SIGNIFICABA algo. Heredado a "Bioboros" el corte quedaba en
+//      "b" + "oros" — un recurso estructural que no codifica nada.
+//   2. Las tres "o" en verde. La idea era que Bi·o·b·o·r·o·s tiene tres "o"
+//      alternas y un ouroboros es un anillo cerrado, en un producto que es
+//      cíclico de verdad. Conceptualmente cerraba; visualmente no le gustó.
 //
-// Color: un solo acento, `--secondary` (emerald), que el sistema ya usa para
-// los estados "en verde" (micros al día, dentro de presupuesto). Es el color
-// de "bio" y NO se inventa nada nuevo. El cuerpo va en `--text-main`.
-// El tracking cerrado (-0.03em) hace que se lea como una marca, no como una
-// palabra suelta.
+// Queda monocromo: una sola tinta (`--text-main`) y el tracking cerrado
+// (-0.03em) como único recurso. La marca no necesita colorear letras para
+// verse seria — es lo que hacen Linear, Vercel o Stripe. Un wordmark que no
+// depende de un acento tampoco depende de que el tema lo resuelva bien, así
+// que funciona igual en claro y en oscuro sin condicionales.
+//
+// NO reintroducir acentos de color aquí sin hablarlo: es la tercera versión y
+// las dos anteriores se descartaron por eso mismo.
 import PropTypes from 'prop-types';
-
-/** Las tres "o" del nombre — los anillos. Único acento del wordmark. */
-const O = () => <span style={{ color: 'var(--secondary)' }}>o</span>;
 
 export const Wordmark = ({ className = '', style = {} }) => (
     <span
         className={className}
         style={{ letterSpacing: '-0.03em', ...style }}
     >
-        Bi<O />b<O />r<O />s
+        Bioboros
     </span>
 );
 
