@@ -1,7 +1,7 @@
 // [P0-ANNUAL-PLANS-MISCONFIGURED · 2026-07-30] SSOT de qué tiers NO ofrecen
 // plan anual.
 //
-// POR QUÉ ESTÁN LOS TRES APAGADOS AHORA MISMO
+// LO QUE PASÓ
 // Los tres planes "Anual" de PayPal estaban creados con `interval_unit: MONTH`
 // en vez de `YEAR`. O sea: cobraban el precio ANUAL todos los MESES.
 //
@@ -16,15 +16,24 @@
 //
 // Nadie llegó a ser cobrado: había CERO suscripciones activas (verificado en
 // `user_profiles.paypal_subscription_id` y en la columna "Active
-// subscriptions" del panel de PayPal). Los tres planes quedaron INACTIVE en
-// PayPal el 2026-07-30.
+// subscriptions" del panel de PayPal). Los tres quedaron INACTIVE.
 //
-// PayPal NO permite editar ni el nombre ni la frecuencia de un plan, así que
-// reactivar el anual exige CREARLOS DE NUEVO con `interval_unit: YEAR`. Cuando
-// eso ocurra:
-//   1. crear los 3 planes nuevos (y aprovechar para el nombre "Bioboros")
-//   2. actualizar `VITE_PAYPAL_PLAN_*_ANNUAL` y `PAYPAL_PLAN_*_ANNUAL_ID`
-//   3. quitar de este set los tiers que vuelvan a tener anual
+// CÓMO SE CERRÓ (mismo día)
+// PayPal no permite editar ni el nombre ni la frecuencia de un plan, así que
+// hubo que crearlos de nuevo. Se recrearon DOS, ya con la marca Bioboros y
+// verificados por API con `interval_unit: YEAR`:
+//
+//     Bioboros Básico Anual   89.99 USD / 1 YEAR   P-4GY51674NG929162SNJV7MIY
+//     Bioboros Plus Anual    179.99 USD / 1 YEAR   P-7U538659AK696615ENJV7OUA
+//
+// POR QUÉ `ultra` SIGUE EN EL SET
+// Max NO tiene plan anual y no es un descuido: nunca se recreó. Su env var
+// `VITE_PAYPAL_PLAN_ULTRA_ANNUAL` está comentada en `.env.production`, así que
+// ofrecer el anual de Max mandaría a PayPal un plan id `undefined`. El set y
+// la env var son dos mitades del mismo interruptor y el test las obliga a
+// coincidir: para encender el anual de Max hay que crear el plan en PayPal
+// (49.99 × 12 × 0.75 = 449.91, con `interval_unit: YEAR`), poner su id en la
+// env var y SÓLO ENTONCES quitarlo de aquí.
 //
 // Vive en un módulo propio porque estaba DUPLICADO en `Pricing.jsx` y
 // `Upgrade.jsx`: dos copias del mismo interruptor garantizan que un día se
@@ -32,6 +41,6 @@
 // que cobra nueve veces de más.
 
 /** Tiers sin opción de pago anual. Vacío = todos ofrecen anual. */
-export const ANNUAL_DISABLED_TIERS = new Set(['basic', 'plus', 'ultra']);
+export const ANNUAL_DISABLED_TIERS = new Set(['ultra']);
 
 export default ANNUAL_DISABLED_TIERS;
