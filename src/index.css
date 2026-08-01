@@ -319,6 +319,11 @@
   /* Typography */
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
+  /* [P1-PAPER-THEME · 2026-08-01] Monoespaciada del sistema — CERO woff2 nuevos.
+     Cierra además un bug latente: AboutPage.module.css invoca `var(--font-mono, …)`
+     contra una variable que nadie declaraba, y Engine.module.css repite esta misma
+     pila a mano en 12+ sitios. */
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
   /* Modern Shadows & Glows */
   --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
@@ -435,6 +440,98 @@ html[data-theme="dark"] {
 
   --shadow-glow-primary: 0 0 24px rgba(129, 140, 248, 0.28);
   --shadow-glow-secondary: 0 0 24px rgba(52, 211, 153, 0.25);
+}
+
+/* ============================================================================
+ * [P1-PAPER-THEME · 2026-08-01] SUPERFICIE PAPEL — blanco y negro estricto
+ * ----------------------------------------------------------------------------
+ * Cuarto valor de `data-theme`, emitido SOLO en las 6 rutas de
+ * src/utils/paperSurface.js. NO es una preferencia de usuario: `VALID_PREFS`
+ * en utils/theme.js sigue siendo ['system','light','dark'] a propósito —
+ * `applyThemePref` es booleano por construcción y 'paper' acabaría escribiendo
+ * dark o light según el SO.
+ *
+ * El efecto secundario ES el objetivo: los ~450 selectores
+ * html[data-theme="dark"] del repo dejan de aplicar en marketing → pizarra
+ * limpia sin repintar el dashboard. Los 2 módulos compartidos (Header, Footer)
+ * reciben su propio bloque `paper`.
+ *
+ * Regla del sistema: cero saturación, radio 0, cero blur. La profundidad la
+ * carga el grosor de línea, no la sombra.
+ * ==========================================================================*/
+html[data-theme="paper"] {
+  color-scheme: light;
+
+  /* — Tokens propios del sistema papel — */
+  --pa-paper: #FBFBFA;
+  --pa-sunk: #F4F4F2;
+  --pa-ink: #0B0B0B;
+  --pa-ink-2: #3D3D3B;
+  --pa-ink-3: #6A6A66;
+  --pa-rule: #0B0B0B;
+  --pa-rule-2: #8A8A84;
+  --pa-rule-3: #C9C9C4;
+  --pa-grid: #D8D8D3;
+  --pa-grid-major: #C4C4BE;
+
+  /* — Re-mapeo de los tokens heredados, para que todo lo que ya usa var(--*)
+       caiga en la paleta papel sin tocarlo — */
+  --primary: #0B0B0B;
+  --primary-dark: #0B0B0B;
+  --primary-light: #3D3D3B;
+  --secondary: #0B0B0B;
+  --secondary-dark: #0B0B0B;
+  --secondary-light: #3D3D3B;
+  --accent: #0B0B0B;
+
+  --bg-page: #FBFBFA;
+  --bg-card: #FBFBFA;
+  --bg-muted: #F4F4F2;
+  --bg-glass: #FBFBFA;
+
+  --text-main: #0B0B0B;
+  --text-muted: #3D3D3B;
+  --text-light: #6A6A66;
+
+  --border: #C9C9C4;
+  --border-light: #C9C9C4;
+
+  --toggle-track-off: #8A8A84;
+
+  --supplement-accent: #0B0B0B;
+  --supplement-accent-strong: #0B0B0B;
+  --supplement-tint: rgba(11, 11, 11, 0.06);
+  --supplement-tint-soft: rgba(11, 11, 11, 0.03);
+
+  /* Semánticos: también monocromos. En papel un estado se codifica por forma
+     (sólido / contorno / trama), no por tinta. */
+  --danger: #0B0B0B;
+  --danger-bg: #F4F4F2;
+  --danger-text: #0B0B0B;
+  --danger-border: #0B0B0B;
+  --warning: #0B0B0B;
+  --warning-bg: #F4F4F2;
+  --warning-text: #0B0B0B;
+  --warning-border: #8A8A84;
+  --success: #0B0B0B;
+  --success-bg: #F4F4F2;
+  --success-text: #0B0B0B;
+  --success-border: #0B0B0B;
+  --info: #0B0B0B;
+  --info-bg: #F4F4F2;
+  --info-text: #0B0B0B;
+  --info-border: #8A8A84;
+
+  /* Foco: anillo negro sólido, sin blur ni alfa. 19,01:1 sobre papel. */
+  --focus-ring: 0 0 0 2px #0B0B0B;
+
+  /* Sombras anuladas: la profundidad es grosor de línea. */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-glow-primary: none;
+  --shadow-glow-secondary: none;
 }
 
 /* Glass panel: en oscuro el borde blanco + el inset blanco delatan el tema
@@ -720,6 +817,18 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb {
 html[data-theme="dark"]::-webkit-scrollbar-thumb:hover,
 html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.42);
+}
+
+/* [P1-PAPER-THEME · 2026-08-01] En papel el thumb es una regla de construcción,
+   no una franja de color: gris de línea sobre track transparente. */
+html[data-theme="paper"]::-webkit-scrollbar-thumb,
+html[data-theme="paper"] ::-webkit-scrollbar-thumb {
+  background: var(--pa-rule-2);
+  border-radius: 0;
+}
+html[data-theme="paper"]::-webkit-scrollbar-thumb:hover,
+html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--pa-ink-2);
 }
 
 /* Soft inline scrollbar for components */
