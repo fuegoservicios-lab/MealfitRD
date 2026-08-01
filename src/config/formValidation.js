@@ -238,6 +238,15 @@ export const FIELD_LABELS = {
 // pero este validador global (usado al submit / navegación a campo faltante) miraba solo el array → rebotaba
 // al usuario al step ya completado, en bucle. El backend lo mergea downstream (espejo: _FREE_TEXT_COMPANION_FIELDS
 // en routers/plans.py). tooltip-anchor: P2-FORM-FREETEXT-SATISFIES
+//
+// [P1-MEDICAL-CONDITIONS-CAP · 2026-08-01] `medicalConditions: 'otherConditions'` se CONSERVA
+// aunque QMedical.jsx ya no renderiza el input "Otra condición médica..." (decisión de producto:
+// alcance clínico acotado al checklist). Es intencional, NO dead code: cubre compat con sesiones
+// en curso / formData restaurado de localStorage que aún trae `otherConditions` poblado de ANTES
+// del deploy — sin esto, ese usuario quedaría atascado en el step aunque ya lo hubiera completado
+// bajo las reglas viejas. El backend mantiene el mismo companion por la misma razón (ver comentario
+// de compatibilidad en `_FREE_TEXT_COMPANION_FIELDS`, routers/plans.py). Un usuario NUEVO nunca
+// puede popular `otherConditions` (no hay UI), así que este companion es un no-op para él.
 const FREE_TEXT_COMPANION = {
     allergies: 'otherAllergies',
     dislikes: 'otherDislikes',
@@ -322,6 +331,27 @@ export const isBiometricInRange = (rawValue, range, { optional = false } = {}) =
     if (!Number.isFinite(normalized)) return false;
     return normalized >= range.min && normalized <= range.max;
 };
+
+// ============================================================
+// [P1-MEDICAL-CONDITIONS-CAP · 2026-08-01] Cap de condiciones médicas
+// simultáneas (decisión de producto del owner).
+// ------------------------------------------------------------
+// Espejo de `MEALFIT_MAX_MEDICAL_CONDITIONS` (default 3, clamp [1,7]) en
+// `backend/routers/plans.py::_validate_medical_conditions_cap`. El backend
+// es source of truth (rechaza con 422 `too_many_medical_conditions` si un
+// cliente no oficial bypassa este gate); esta constante SOLO gatea UX —
+// deshabilitar chips no seleccionados + mensaje inline ANTES de quemar un
+// roundtrip. Si el knob backend cambia, actualizar aquí también (mismo
+// patrón que BIO_RANGES arriba).
+//
+// "Ninguna" (sentinel) y los chips de Embarazo/Lactancia (gender-gated,
+// PREGNANCY_CHIP_LABELS en QMedical.jsx) NO cuentan contra el cap — mismo
+// exemption que el backend (ver comentario `[SAFETY]` en
+// `_validate_medical_conditions_cap`): son un estado fisiológico que activa
+// un gate de seguridad aparte (déficit calórico fail-hard), no complejidad
+// clínica combinatoria que el cap busca acotar.
+// ============================================================
+export const MAX_MEDICAL_CONDITIONS = 3;
 
 // ============================================================
 // [P1-FORM-8] Enum de tipos de dieta — SSOT con backend

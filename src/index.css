@@ -540,6 +540,20 @@ html[data-theme="dark"] .glass-panel {
   box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.45);
 }
 
+/* [P1-MEDICAL-CONDITIONS-CAP · 2026-08-01] Chip deshabilitado (cap de
+   condiciones médicas alcanzado — QMedical.jsx). `aria-disabled` en vez de
+   una clase nueva: el atributo ya lo setea ChipOption cuando `disabled` es
+   true. Neutraliza el `:hover` de la clase base (sin esto, un chip que no
+   se puede seleccionar igual mostraba el highlight de hover — confuso). */
+.mf-opt-chip[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.mf-opt-chip[aria-disabled="true"]:hover {
+  background-color: var(--bg-card);
+  border-color: var(--border);
+}
+
 /* [CTA-HOVER-GLOW · 2026-05-31] CTA pill de EmptyState ("Generar nuevo plan", etc.,
    reutilizado en Dashboard/Historial/Recetas). Indigo var(--primary); el box-shadow
    vive aquí (no inline) para que :hover lo intensifique. Hover = glow indigo + brillo,

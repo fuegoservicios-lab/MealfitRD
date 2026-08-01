@@ -447,10 +447,14 @@ export const AssessmentProvider = ({ children }) => {
         // ni navega a un step inexistente. NO re-introducir un selector de
         // hogar sin revertir antes esta decisión (ver tests P0_12/P1_12).
         includeSupplements: false, selectedSupplements: [], groceryDuration: '', householdSize: 1,
+        // [P1-MEDICATION-FREETEXT · 2026-06-19 · input ELIMINADO P1-MEDICAL-CONDITIONS-CAP · 2026-08-01]
+        // `otherConditions`/`otherMedications` YA NO se popula desde ningún input del wizard (QMedical
+        // retiró "Otra condición médica..."/"Otro medicamento..." — decisión de producto: alcance
+        // clínico acotado al checklist). El default vacío se CONSERVA por compat: una sesión en curso
+        // o un `formData` restaurado de localStorage/DB de ANTES de este deploy puede traer estos
+        // campos poblados, y el backend los sigue leyendo como companion legacy
+        // (`_FREE_TEXT_COMPANION_FIELDS`, routers/plans.py) — no romper esa lectura quitando la key.
         otherConditions: '',
-        // [P1-MEDICATION-FREETEXT · 2026-06-19] Free-text de un medicamento no listado en los
-        // chips (QMedical). Mirror de otherConditions. Lo escanea medication_rules._norm_medications
-        // (backstop) + llega al prompt vía el JSON dump de form_data. PII médica → SENSITIVE_FIELDS.
         otherMedications: '',
         // [P1-B5] otherDislikes captura el free-text del step QDislikes (alimentos
         // no listados en los chips comunes, ej. "Apio, Curry, Picante").

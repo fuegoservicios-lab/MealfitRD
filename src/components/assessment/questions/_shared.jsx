@@ -51,12 +51,28 @@ export const DietOption = ({ val, label, icon: Icon, desc, isSelected, onSelect 
 
 // [FORM-OPT-HOVER · 2026-07-03] Base en `.mf-opt-chip` (index.css); inline solo
 // el estado seleccionado (ver DietOption).
-export const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle }) => (
+// [P1-MEDICAL-CONDITIONS-CAP · 2026-08-01] `disabled` opcional (default false,
+// cero cambio de comportamiento para los callers existentes que no lo pasan —
+// QAllergies/QDislikes/QStruggles). Usado por QMedical para greyear los chips
+// NO seleccionados cuando se alcanza el cap de condiciones médicas.
+//
+// DELIBERADO: click/teclado siguen llamando a `onToggle(val)` aunque
+// `disabled` sea true (NO se anula onClick/onKeyDown/tabIndex). El caller
+// (QMedical.handleToggle) es quien decide bloquear el intento y mostrar el
+// mensaje inline del cap — si aquí se anulara el handler, ese intento nunca
+// llegaría al caller y "al intentar el 4º: mensaje inline" (spec del cap)
+// sería imposible de disparar. `aria-disabled` (no `disabled` nativo/tabIndex
+// -1) mantiene el chip enfocable para lectores de pantalla — se anuncia como
+// deshabilitado pero sigue operable, que es justo el comportamiento que
+// necesitamos. El estilo visual (opacidad + cursor + hover neutralizado) vive
+// en CSS vía `aria-disabled` (index.css `.mf-opt-chip[aria-disabled="true"]`).
+export const ChipOption = ({ val, label, icon: Icon, isSelected, onToggle, disabled = false }) => (
     <div
         onClick={() => onToggle(val)}
         onKeyDown={handleActivationKey(() => onToggle(val))}
         role="button"
         aria-pressed={isSelected}
+        aria-disabled={disabled || undefined}
         tabIndex={0}
         className="mf-opt-chip"
         style={{
