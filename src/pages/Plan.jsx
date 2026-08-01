@@ -1349,6 +1349,52 @@ const Plan = () => {
                         navigate('/assessment', { replace: true });
                         return;
                     }
+                    // [P1-MEDICAL-CONDITIONS-CAP · 2026-08-01 · IMPORTANT-3-FIX] El
+                    // backend rechazó ANTES de iniciar pipeline (422, cap de
+                    // condiciones médicas — ver `_validate_medical_conditions_cap`,
+                    // backend/routers/plans.py). Trigger real: perfil LEGACY
+                    // guardado con >N condiciones (texto libre pre-P1-MEDICAL-
+                    // CONDITIONS-CAP) dándole a "renovar" — el form se re-envía con
+                    // el array viejo intacto.
+                    //
+                    // Bug que este branch cierra (encontrado en code review,
+                    // verificado ejecutando): SIN esta rama, `error.code ===
+                    // 'too_many_medical_conditions'` no matcheaba NINGÚN `if` de
+                    // arriba y caía por TODOS ellos hasta el check genérico de
+                    // `_hasInProgressFlag` — que es SIEMPRE `true` aquí porque el
+                    // flag se setea ANTES de disparar el fetch (ver arriba en este
+                    // mismo effect). Resultado: toast FALSO "tu plan se sigue
+                    // generando en segundo plano" + redirect a /dashboard SIN
+                    // limpiar el flag → `mealfit_plan_in_progress` queda huérfano y
+                    // `<PendingPipelineRecovery />` lo pollea indefinidamente sobre
+                    // un pipeline que NUNCA llegó a arrancar (el backend lo rechazó
+                    // en <1ms, antes de tocar el orquestador).
+                    //
+                    // Debe ir ANTES del branch genérico `_hasInProgressFlag` (más
+                    // abajo) — mismo motivo por el que los demás `error.code`
+                    // 422/402/409/429 de este catch also `return` antes de
+                    // llegar ahí.
+                    if (error.code === 'too_many_medical_conditions') {
+                        // NO `navigate(...)` aquí — a diferencia de los branches
+                        // hermanos (critical_restriction/budget_insufficient/etc.
+                        // que sí redirigen a /assessment), la corrección del
+                        // coordinador para este caso fue explícita: "NO redirect".
+                        // El usuario queda en la pantalla actual (`status` sigue
+                        // 'generating'/'analyzing', loadingUp true) con el botón
+                        // "Cancelar" ya visible ahí (`onCancel={cancelGeneration}`)
+                        // como salida manual, y el toast (10s) comunica la acción
+                        // correctiva. Lo crítico ya está resuelto con el clear del
+                        // flag: sin él, `<PendingPipelineRecovery />` seguiría
+                        // poleando un pipeline que nunca arrancó.
+                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        import('sonner').then(({ toast }) => {
+                            toast.error("Demasiadas condiciones médicas", {
+                                description: error.message || "Selecciona máximo 3 condiciones prioritarias para continuar.",
+                                duration: 10000,
+                            });
+                        });
+                        return;
+                    }
                     if (error.code === 'budget_insufficient' || error.code === 'budget_below_goal_floor' || error.code === 'form_invalid') {
                         // [P2-BUDGET-FLOOR · 2026-06-21] El presupuesto declarado no alcanza las metas
                         // (o un dato del form es inválido). Mensaje accionable + volver al formulario
