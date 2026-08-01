@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { isDarkActive } from '../../utils/theme';
+import { isPaperSurface } from '../../utils/paperSurface';
 
 /**
  * Dynamically updates the <meta name="theme-color"> based on the current route.
@@ -26,6 +27,13 @@ const useThemeColor = () => {
             let color;
             if (path === '/login' || path === '/register' || path === '/reset-password') {
                 color = '#020617'; // Auth pages: ya oscuras en ambos temas
+            } else if (isPaperSurface(path)) {
+                // [P1-PAPER-THEME · 2026-08-01] Superficie papel. Va ANTES de la
+                // rama `dark` porque `isDarkActive()` compara `=== 'dark'` en duro
+                // (theme.js:96) y bajo 'paper' devuelve false: sin esta rama, `/`
+                // caía a #F8FAFC (que ni siquiera es el papel del sistema) y las
+                // otras 5 rutas al #4F46E5 del else final.
+                color = '#FBFBFA';
             } else if (dark) {
                 // En oscuro, el chat usa la superficie de tarjeta (slate-900) y
                 // el resto el fondo de página (slate-950).

@@ -65,7 +65,7 @@
   <!-- SEO -->
   <title>Bioboros | Nutrición Personalizada con IA</title>
   <meta name="description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
-  <meta name="theme-color" content="#4F46E5" />
+  <meta name="theme-color" content="#FBFBFA" />
   <meta name="application-name" content="Bioboros" />
   <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
   <link rel="canonical" href="https://bioboros.com/" />
@@ -272,6 +272,15 @@
     html[data-theme="dark"] .splash-brand { color: #F8FAFC; }
     html[data-theme="dark"] .splash-tagline { color: #94A3B8; }
     html[data-theme="dark"] .splash-dots span { background: #CBD5E1; }
+    /* [P1-PAPER-THEME · 2026-08-01] El splash vive FUERA de #root (body, no
+       React), así que ningún CSS de la app lo alcanza: necesita su propia
+       copia de la paleta papel. Sin esto cae a su base — dos radiales indigo
+       + rosa sobre #F8FAFC — en cada carga directa o refresh de las 6 rutas.
+       Sin gradientes: el papel es plano. */
+    html[data-theme="paper"] #pwa-splash { background: #FBFBFA; }
+    html[data-theme="paper"] .splash-brand { color: #0B0B0B; }
+    html[data-theme="paper"] .splash-tagline { color: #3D3D3B; }
+    html[data-theme="paper"] .splash-dots span { background: #6A6A66; }
     @media (prefers-reduced-motion: reduce) {
       #pwa-splash, .splash-brand, .splash-tagline, .splash-dots { animation: none !important; }
       .splash-dots span { animation: splashDotReduced 1.6s ease-in-out infinite; }
