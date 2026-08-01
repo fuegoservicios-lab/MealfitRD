@@ -268,3 +268,17 @@
 :global(html[data-theme="dark"]) .col h4 {
     color: var(--text-main);
 }
+
+/* [P1-PAPER-THEME · 2026-08-01] El footer es la COPIA DE ARCHIVO: sigue siendo
+   el único bloque invertido del sistema. Su base ya usa var(--text-main), que
+   bajo paper es #0B0B0B, así que el fondo sale correcto sin tocarlo — pero las
+   tintas internas son #FFFFFF hardcodeado y hay que re-derivarlas. */
+:global(html[data-theme="paper"]) .footer {
+    --pa-paper: #0B0B0B;
+    --pa-ink: #FBFBFA;
+    --pa-ink-2: #B9B9B4;
+    --pa-ink-3: #8C8C84;
+    --pa-rule: #FBFBFA;
+    --pa-rule-2: #6A6A66;
+    --pa-grid: #2A2A28;
+}

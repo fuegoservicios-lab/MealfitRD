@@ -761,3 +761,167 @@
 :global(html[data-theme="dark"]) .accountItemDanger:hover {
     background: var(--danger-bg);
 }
+
+/* ============================================================================
+ * [P1-PAPER-THEME · 2026-08-01] Superficie papel — Header. Espejo funcional del
+ * bloque oscuro sobre las MISMAS clases (auditado: 27 reglas / 29 selectores
+ * `data-theme="dark"` arriba). Si una clase tiene regla dark y no tiene regla
+ * paper cae a su base clara, que aquí es peligrosa: la pastilla `.container`
+ * es rgba(255,255,255,.82) con blur — compone a ~#FEFEFE sobre --pa-paper
+ * (#FBFBFA) = 1,027:1, invisible. Por eso `.header` pasa a ser la superficie
+ * OPACA y `.container` se aplana a transparente (el header ya trae el
+ * hairline; el container solo aporta layout). Sin glass, sin backdrop-filter,
+ * sin radio, sin sombra con blur — la profundidad es grosor de línea.
+ * ==========================================================================*/
+:global(html[data-theme="paper"]) .header {
+    background: var(--pa-paper);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-bottom: 1px solid var(--pa-rule-2);
+}
+
+/* La pastilla flotante deja de ser una superficie propia — el header ya es
+   opaco por sí mismo (arriba); .container queda como wrapper de layout. */
+:global(html[data-theme="paper"]) .container {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+}
+
+:global(html[data-theme="paper"]) .navMarketing {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+:global(html[data-theme="paper"]) .navMarketingLink {
+    color: var(--pa-ink-3);
+}
+
+:global(html[data-theme="paper"]) .navMarketingLink:hover {
+    color: var(--pa-ink);
+}
+
+/* [P1-PAPER-THEME] El indicador de ruta activa daba 1,119:1 contra su pista
+   (texto var(--text-main) sobre fondo #1E293B propio del dark, caído a #FFFFFF
+   base bajo paper). Fondo plano + tinta oscura: el contraste lo da el color,
+   no una píldora rellena (Task 7 decide si necesita forma). */
+:global(html[data-theme="paper"]) .navMarketingLinkActive {
+    background: transparent;
+    box-shadow: none;
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .navLink {
+    color: var(--pa-ink-3);
+}
+
+:global(html[data-theme="paper"]) .navLink:hover {
+    color: var(--pa-ink);
+    background: var(--pa-sunk);
+}
+
+/* CTA: rectángulo de tinta sólida, sin gradiente ni glow. Sin este override,
+   la mezcla de var(--primary*) (remapeados a grises casi-negros en papel) con
+   el color de texto #1E1B4B hardcoded del bloque dark daría texto oscuro
+   sobre fondo oscuro — ilegible. La Task 7 decide la forma (radio, tamaño). */
+:global(html[data-theme="paper"]) .ctaButton,
+:global(html[data-theme="paper"]) .ctaButtonMobile {
+    background: var(--pa-ink);
+    background-image: none;
+    color: var(--pa-paper);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+:global(html[data-theme="paper"]) .ctaButton:hover,
+:global(html[data-theme="paper"]) .ctaButtonMobile:hover {
+    background: var(--pa-ink-2);
+    background-image: none;
+    box-shadow: none;
+}
+
+:global(html[data-theme="paper"]) .mobileToggle:hover {
+    background: var(--pa-sunk);
+}
+
+:global(html[data-theme="paper"]) .navMobile {
+    background: var(--pa-paper);
+    box-shadow: none;
+}
+
+:global(html[data-theme="paper"]) .navMobileClose:hover {
+    background: var(--pa-sunk);
+}
+
+:global(html[data-theme="paper"]) .navLinkMobile {
+    color: var(--pa-ink-3);
+}
+
+:global(html[data-theme="paper"]) .navLinkMobile:hover {
+    background: var(--pa-sunk);
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .logoutBtnMobile {
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .logoutBtnMobile:hover {
+    background: var(--pa-sunk);
+}
+
+:global(html[data-theme="paper"]) .accountTrigger {
+    border-color: var(--pa-rule-3);
+}
+
+:global(html[data-theme="paper"]) .accountTrigger:hover {
+    background: var(--pa-sunk);
+    border-color: var(--pa-rule-3);
+}
+
+:global(html[data-theme="paper"]) .accountAvatar {
+    color: var(--pa-paper);
+}
+
+:global(html[data-theme="paper"]) .accountChevron {
+    color: var(--pa-ink-3);
+}
+
+/* Único menú "glass" del Header (backdrop-filter + box-shadow difuminada +
+   radio en su base, línea 645-663). Se aplana igual que .container: fondo
+   sólido, borde fino, sin blur ni sombra ni radio. */
+:global(html[data-theme="paper"]) .accountDropdown {
+    background: var(--pa-paper);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: var(--pa-rule-3);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+:global(html[data-theme="paper"]) .accountIdentity {
+    border-bottom-color: var(--pa-rule-3);
+}
+
+:global(html[data-theme="paper"]) .accountItem {
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .accountItem:hover {
+    background: var(--pa-sunk);
+}
+
+:global(html[data-theme="paper"]) .accountItemDanger {
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .accountItemDanger:hover {
+    background: var(--pa-sunk);
+}
