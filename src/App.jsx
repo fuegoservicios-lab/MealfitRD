@@ -281,17 +281,19 @@ const DashboardAnimatedLayout = () => {
   );
 };
 
-// [P3-LANDING-DARK-ONLY · 2026-06-29] El landing/marketing es SIEMPRE oscuro (no tiene
-// configuración de apariencia; su único modo por defecto es oscuro). Mientras la ruta
-// activa sea de marketing forzamos html[data-theme]="dark"; al salir a cualquier otra
-// ruta (app, login, legal) restauramos la preferencia del usuario — la app sí respeta
-// el tema elegido. useLayoutEffect → se aplica antes del paint en navegación SPA, sin
-// parpadeo. El boot script de index.html cubre la carga directa/refresh.
+// [P3-LANDING-DARK-ONLY · 2026-06-29 · SUPERSEDED por P1-PAPER-THEME · 2026-08-01]
+// El landing/marketing ya NO es oscuro: es la SUPERFICIE PAPEL (blanco y negro
+// estricto). Sigue sin tener configuración de apariencia — el modo lo decide la
+// ruta, no el usuario. Mientras la ruta activa esté en paperSurface.js forzamos
+// html[data-theme]="paper"; al salir a cualquier otra ruta (app, login, legal)
+// restauramos la preferencia del usuario. useLayoutEffect → se aplica antes del
+// paint en navegación SPA, sin parpadeo. El boot script de index.html cubre la
+// carga directa/refresh.
 function PublicThemeLock() {
   const { pathname } = useLocation();
   useLayoutEffect(() => {
     if (isPaperSurface(pathname)) {
-      document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.setAttribute('data-theme', 'paper');
       window.dispatchEvent(new Event('mealfit-theme-change'));
     } else {
       applyThemePref(getStoredThemePref());
@@ -305,11 +307,12 @@ function App() {
   // guardada (idempotente con el boot script) y engancha el listener del SO.
   useEffect(() => {
     initTheme();
-    // [P3-LANDING-DARK-ONLY · 2026-06-29] Si la carga inicial cae en una ruta de
-    // marketing, initTheme() acaba de aplicar la pref guardada (que podría ser 'light');
-    // re-forzamos oscuro para no pisar el boot script ni el PublicThemeLock.
+    // [P3-LANDING-DARK-ONLY · 2026-06-29 · SUPERSEDED por P1-PAPER-THEME · 2026-08-01]
+    // Si la carga inicial cae en una ruta de la superficie papel, initTheme() acaba
+    // de aplicar la pref guardada (que podría ser 'light' u 'oscuro'); re-forzamos
+    // 'paper' para no pisar el boot script ni el PublicThemeLock.
     if (isPaperSurface(window.location.pathname)) {
-      document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.setAttribute('data-theme', 'paper');
       window.dispatchEvent(new Event('mealfit-theme-change'));
     }
   }, []);
@@ -321,7 +324,8 @@ function App() {
         {/* [P3-11] Primer elemento focusable: salta la navegación al #main-content. */}
         <SkipLink />
         <ScrollRestoration />
-        {/* [P3-LANDING-DARK-ONLY · 2026-06-29] Fuerza oscuro en rutas de marketing. */}
+        {/* [P3-LANDING-DARK-ONLY · 2026-06-29 · SUPERSEDED por P1-PAPER-THEME · 2026-08-01]
+            Fuerza la superficie papel (ya no oscuro) en rutas de marketing. */}
         <PublicThemeLock />
         {/* [P3-ROUTE-TITLE · 2026-06-29] Título de pestaña coherente por ruta. */}
         <RouteTitle />

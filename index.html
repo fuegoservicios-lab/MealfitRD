@@ -49,13 +49,14 @@
         var dark = pref === 'dark' ? true
           : pref === 'light' ? false
           : !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var theme = dark ? 'dark' : 'light';
         // [P1-PAPER-SURFACE-SSOT · 2026-08-01] Superficie papel: estas 6 rutas
         // fuerzan tema síncrono en carga directa/refresh para evitar el flash.
         // Copia literal de src/utils/paperSurface.js — anclada por
         // backend/tests/test_p1_paper_surface_ssot.py.
         var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor'];
-        if (PAPER.indexOf(location.pathname) !== -1) dark = true;
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        if (PAPER.indexOf(location.pathname) !== -1) theme = 'paper';
+        document.documentElement.setAttribute('data-theme', theme);
       } catch (e) {
         document.documentElement.setAttribute('data-theme', 'dark');
       }
