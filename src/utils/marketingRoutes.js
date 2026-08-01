@@ -1,12 +1,12 @@
-// [P3-LANDING-DARK-ONLY · 2026-06-29] SSOT de las rutas públicas de marketing
-// (landing + páginas de detalle + motor + precios). Dos cosas aplican a estas rutas:
-//   1) El header COMPLETO del landing (nav segmentada + CTA sticky) — ver Header.jsx.
-//   2) El tema OSCURO forzado (el landing no tiene configuración de apariencia y su
-//      único modo por defecto es oscuro) — ver PublicThemeLock en App.jsx.
+// [P3-LANDING-DARK-ONLY · 2026-06-29 · alcance recortado P1-PAPER-SURFACE-SSOT · 2026-08-01]
+// SSOT de las rutas públicas de marketing. Hoy gobierna UNA sola cosa:
+//   · El header COMPLETO del landing (nav segmentada + CTA sticky) — ver Header.jsx,
+//     donde `isLandingLike` la combina con legales + novedades + /supermercado
+//     hasta 19 patrones de ruta.
 //
-// IMPORTANTE: mantener en sync con el boot script inline de index.html (que fuerza
-// oscuro síncrono en estas rutas para evitar flash en carga directa/refresh). No se
-// puede importar este módulo desde index.html, así que ahí va una copia con comentario.
+// El TEMA ya NO se decide aquí: vive en src/utils/paperSurface.js (6 rutas).
+// Eran la misma lista sirviendo a dos alcances distintos; separarlas evita que
+// mover una superficie cambie el header de 13 rutas que no son marketing.
 export const MARKETING_ROUTES = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor'];
 
 export const isMarketingRoute = (pathname) => MARKETING_ROUTES.includes(pathname);

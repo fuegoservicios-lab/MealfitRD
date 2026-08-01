@@ -37,8 +37,9 @@ import ScrollRestoration from './components/ScrollRestoration';
 // preferencia es 'system'. El boot script inline en index.html ya evitó el
 // flash inicial; esto mantiene el tema vivo y reactivo.
 import { initTheme, applyThemePref, getStoredThemePref } from './utils/theme';
-// [P3-LANDING-DARK-ONLY · 2026-06-29] Rutas de marketing → tema oscuro forzado.
-import { isMarketingRoute } from './utils/marketingRoutes';
+// [P1-PAPER-SURFACE-SSOT · 2026-08-01] El TEMA lo gobierna paperSurface (6 rutas),
+// no marketingRoutes (que gobierna el header, 19 rutas).
+import { isPaperSurface } from './utils/paperSurface';
 import { APP_ORIGIN, isApexHost } from './config/site';
 
 // --- Lazy-loaded pages (code-split into separate chunks) ---
@@ -289,7 +290,7 @@ const DashboardAnimatedLayout = () => {
 function PublicThemeLock() {
   const { pathname } = useLocation();
   useLayoutEffect(() => {
-    if (isMarketingRoute(pathname)) {
+    if (isPaperSurface(pathname)) {
       document.documentElement.setAttribute('data-theme', 'dark');
       window.dispatchEvent(new Event('mealfit-theme-change'));
     } else {
@@ -307,7 +308,7 @@ function App() {
     // [P3-LANDING-DARK-ONLY · 2026-06-29] Si la carga inicial cae en una ruta de
     // marketing, initTheme() acaba de aplicar la pref guardada (que podría ser 'light');
     // re-forzamos oscuro para no pisar el boot script ni el PublicThemeLock.
-    if (isMarketingRoute(window.location.pathname)) {
+    if (isPaperSurface(window.location.pathname)) {
       document.documentElement.setAttribute('data-theme', 'dark');
       window.dispatchEvent(new Event('mealfit-theme-change'));
     }
