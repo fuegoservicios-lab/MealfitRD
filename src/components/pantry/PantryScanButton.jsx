@@ -30,8 +30,9 @@
 // iOS Safari: el <video> necesita `muted` (y `playsinline`) como CONTENT
 // ATTRIBUTE — no solo como prop de React, que solo escribe la property — o el
 // autoplay queda bloqueado en silencio. Mismo bug que P1-HERO-ORB-AUTOPLAY-MOBILE
-// (`frontend/src/components/home/Hero.jsx`, test
-// `frontend/src/__tests__/Hero.p1_orb_autoplay_mobile.test.jsx`): ahí también se
+// (2026-07-11), que vivía en el hero. Ese código y su test se borraron en
+// P1-PAPER-HERO-FIG00 (2026-08-01) al morir el vídeo del hero, así que ESTE
+// archivo es ahora el único sitio del repo donde queda el patrón: ahí también se
 // asigna `el.muted = true; el.defaultMuted = true; el.setAttribute('muted', '')`
 // en un effect al montar/arrancar el video, no confiando solo en el JSX prop.
 // Aquí replicamos la misma técnica + `setAttribute('playsinline', '')`.

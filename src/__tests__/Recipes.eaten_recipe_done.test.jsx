@@ -114,8 +114,9 @@ function _useMobileMatchMedia() {
 
 // Recorre desde el heading del título hasta el ancestro con la clase
 // `.detail` del CSS module (ambos módulos preservan el nombre original en
-// el identificador escaneable — mismo patrón que usa
-// Hero.p1_orb_autoplay_mobile.test.jsx con `orbBreath`).
+// el identificador escaneable — el patrón venía de
+// Hero.p1_orb_autoplay_mobile.test.jsx, que lo hacía con su clase de
+// animación; ese test se borró en P1-PAPER-HERO-FIG00 con el vídeo del hero).
 function _detailRootFor(mealName) {
     const heading = screen.getByText(mealName, { selector: 'h2' });
     return heading.closest('[class*="detail"]');

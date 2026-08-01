@@ -61,9 +61,23 @@ import styles from './PlateExploded.module.css';
  * techo duro de 1,4 s (grupo 7 × 70 ms + 900 ms = 1.390 ms).
  */
 
-/* Atributos que llevan TODOS los trazos: 1 px real a cualquier escala +
-   longitud normalizada para que el trazado comparta curva de tiempo. */
-const T = { vectorEffect: 'non-scaling-stroke', pathLength: 1 };
+/* `VE` lo lleva TODO lo que tiene stroke: 1 px CSS real a cualquier escala.
+   Sin esto, en la franja 900-1200 px la figura renderiza a ~321-380 px sobre un
+   viewBox de 420 y el trazo se adelgaza a 0,76-0,90 px — y lo hace SOLO en los
+   elementos que no lo lleven, así que la guía punteada se afinaría mientras las
+   piezas siguen en 1 px. Justo la línea que codifica «referencia, no materia»
+   sería la que se desvanece al achicar la figura. */
+const VE = { vectorEffect: 'non-scaling-stroke' };
+
+/* `T` = `VE` + longitud normalizada, para lo que se TRAZA. `pathLength={1}`
+   remapea la longitud del path a 1, así que los 27 trazos comparten curva de
+   tiempo en vez de que los cortos (una punta de flecha) se dibujen en el 2 %.
+                                                                            ⚠
+   NO añadir `T` a las guías punteadas ni a nada con `stroke-dasharray` propio:
+   bajo `pathLength=1` el `dasharray: 3 4` de `.guide` se interpreta en ese
+   espacio normalizado, el primer trazo de 3 cubre un path que mide 1, y la
+   guía se dibuja SÓLIDA. A las guías y a los nodos les toca `VE` a secas. */
+const T = { ...VE, pathLength: 1 };
 
 /* Eje vertical común del despiece. */
 const AXIS = 236;
@@ -178,9 +192,19 @@ const PlateExploded = () => {
         >
             <defs>
                 {/* Trama de material seccionado. `patternUnits="userSpaceOnUse"`
-                    FIJO a propósito: con `patternContentUnits` escalable el paso
-                    de 5 px cae en fracciones de píxel y produce moiré a DPR
-                    1,5×, que es medio parque de móviles. */}
+                    es OBLIGATORIO, y no por lo que suele decirse: no impide que
+                    el tile escale con el viewBox (escala todo el SVG, el tile
+                    incluido). Lo que evita es el DEFAULT, `objectBoundingBox`,
+                    donde width/height son fracciones del bbox de la forma que
+                    referencia el patrón. El bbox de este cuerpo de cilindro es
+                    88×40, así que un tile en fracciones saldría ANISÓTROPO: el
+                    paso horizontal y el vertical dejan de ser iguales, la trama
+                    deja de estar a 45° reales y cada forma que use el patrón la
+                    dibuja con una separación distinta. En `userSpaceOnUse` el
+                    tile son 5×5 unidades de usuario, isótropo e idéntico en
+                    todas las formas — y una separación predecible es lo que
+                    evita que a DPR fraccionario los pasos sub-píxel batan en
+                    moiré. */}
                 <pattern
                     id="paFig00Hatch"
                     patternUnits="userSpaceOnUse"
@@ -260,16 +284,16 @@ const PlateExploded = () => {
                    componentes quedan unidos al plato por esta misma guía; el
                    círculo final se apoya en el centro de la elipse. */}
             <g {...g('guides')}>
-                <line className={styles.guide} x1={AXIS} y1="80" x2={AXIS} y2="94" />
-                <line className={styles.guide} x1={AXIS} y1="142" x2={AXIS} y2="164" />
-                <line className={styles.guide} x1={AXIS} y1="212" x2={AXIS} y2="238" />
-                <line className={styles.guide} x1={AXIS} y1="274" x2={AXIS} y2="300" />
-                <line className={styles.guide} x1={AXIS} y1="360" x2={AXIS} y2="424" />
-                <circle className={styles.node} cx={AXIS} cy="94" r="2" />
-                <circle className={styles.node} cx={AXIS} cy="164" r="2" />
-                <circle className={styles.node} cx={AXIS} cy="238" r="2" />
-                <circle className={styles.node} cx={AXIS} cy="300" r="2" />
-                <circle className={styles.node} cx={AXIS} cy="424" r="2" />
+                <line className={styles.guide} x1={AXIS} y1="80" x2={AXIS} y2="94" {...VE} />
+                <line className={styles.guide} x1={AXIS} y1="142" x2={AXIS} y2="164" {...VE} />
+                <line className={styles.guide} x1={AXIS} y1="212" x2={AXIS} y2="238" {...VE} />
+                <line className={styles.guide} x1={AXIS} y1="274" x2={AXIS} y2="300" {...VE} />
+                <line className={styles.guide} x1={AXIS} y1="360" x2={AXIS} y2="424" {...VE} />
+                <circle className={styles.node} cx={AXIS} cy="94" r="2" {...VE} />
+                <circle className={styles.node} cx={AXIS} cy="164" r="2" {...VE} />
+                <circle className={styles.node} cx={AXIS} cy="238" r="2" {...VE} />
+                <circle className={styles.node} cx={AXIS} cy="300" r="2" {...VE} />
+                <circle className={styles.node} cx={AXIS} cy="424" r="2" {...VE} />
             </g>
 
             {/* ── COTAS ─────────────────────────────────────────────────────── */}

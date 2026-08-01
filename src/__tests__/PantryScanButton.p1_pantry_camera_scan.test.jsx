@@ -8,8 +8,9 @@
 //   3. permiso denegado cae al <input type="file"> preexistente con el copy
 //      exacto pedido, sin dejar al usuario en un callejón sin salida.
 //   4. el <video> lleva muted/playsinline como CONTENT ATTRIBUTE + defaultMuted
-//      (mismo fix que P1-HERO-ORB-AUTOPLAY-MOBILE — ver Hero.p1_orb_autoplay_
-//      mobile.test.jsx, que usa la misma técnica de aserción).
+//      (mismo fix que P1-HERO-ORB-AUTOPLAY-MOBILE, 2026-07-11, cuyo test se
+//      borró con el vídeo del hero en P1-PAPER-HERO-FIG00 — la técnica de
+//      aserción sobrevive aquí).
 //   5. la captura dibuja el <video> en un <canvas> a sus dimensiones REALES,
 //      la reescala con el MISMO `_downscaleToB64` que el <input type="file">
 //      y llama el MISMO POST — cero drift de payload entre orígenes.
@@ -26,7 +27,8 @@ import { fetchWithAuth } from '../config/api';
 
 // setupTests.js define window.matchMedia con matches:false; algunos tests lo
 // reemplazan por asignación directa para simular prefers-reduced-motion true
-// — mismo patrón que Hero.p1_orb_autoplay_mobile.test.jsx.
+// — el patrón venía de Hero.p1_orb_autoplay_mobile.test.jsx, borrado en
+// P1-PAPER-HERO-FIG00 junto con el vídeo que probaba.
 //
 // [P1-PANTRY-SCAN-MOBILE-ONLY · 2026-07-28 · vigente tras P1-PANTRY-SCAN-PC-
 // UPLOAD · 2026-07-28] Este archivo cubre el flujo de cámara EN VIVO, que

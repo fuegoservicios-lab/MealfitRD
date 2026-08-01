@@ -97,8 +97,11 @@ const Hero = () => {
 
     /* [P1-PAPER-HERO-FIG00] Los literales del CTA primario son los MISMOS que
        ata `Header.sticky_cta.test.jsx` ('Crear mi Plan Ahora' / 'Ver mi Plan').
-       No se reescriben ni se pasan a mayúsculas aquí: las versales las pone
-       `text-transform` en el CSS. */
+       No se reescriben. Y NO llevan versales: no hay `text-transform` ni aquí
+       ni en el .module.css, a propósito — el CTA del header quedó en caja
+       normal en la Task 3 (`Header.module.css`, bloque paper) y los dos botones
+       tienen que verse igual. En este sistema las versales son de la
+       rotulación mono, no de los controles. */
     const hasPlan = Boolean(planData);
 
     return (
@@ -174,6 +177,18 @@ const Hero = () => {
                     <PlateExploded />
                     <figcaption className={styles.caption}>
                         Fig. 00 — Despiece de un plato dominicano. Cada componente se calcula por separado y se acota contra tu objetivo.
+                        {/* El <svg> va aria-hidden porque un despiece leído nodo
+                            a nodo es ruido. Pero entonces el pie es el ÚNICO
+                            canal accesible de la figura, y sin esto un lector de
+                            pantalla se quedaba sin los dos números acotados —
+                            justo lo que el dibujo existe para decir. Va aquí y
+                            no en el SVG para que sea una frase, no una lista de
+                            rótulos sueltos. Los `140 g` se nombran siempre,
+                            aunque bajo 768 px la cota anidada no se dibuje: el
+                            dato del producto no depende del ancho de pantalla. */}
+                        <span className={styles.srOnly}>
+                            {' '}Los cinco componentes son arroz blanco, habichuela guisada, pollo guisado, ensalada verde y aguacate. El plato completo se acota en 2 000 kcal, y el pollo en 140 g de proteína.
+                        </span>
                     </figcaption>
                 </figure>
             </div>

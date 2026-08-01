@@ -282,6 +282,26 @@
     border-top: 1px solid var(--pa-rule-3);
 }
 
+/* Utilidad visually-hidden LOCAL al módulo: el repo no tiene una `sr-only`
+   global, y no es este P-fix quien debe inventarle una a todo el proyecto.
+   Si algún día nace la global, esta se borra y se apunta a ella.
+   `clip-path: inset(50%)` es la forma moderna; `clip` queda por los lectores
+   que aún no la implementan. `white-space: nowrap` evita que el contenido
+   colapsado en 1px se reparta en una columna de una letra por línea, que en
+   algunos motores cambia el orden de lectura. */
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* ── ≥900px: la figura entra en su columna ───────────────────────────────── */
 @media (min-width: 900px) {
     .container {
@@ -301,14 +321,36 @@
 
 /* ── MÓVIL ───────────────────────────────────────────────────────────────── */
 @media (max-width: 767px) {
-    /* 1rem, no 1.5rem, y NO es cosmética: la Fig. 00 rotula con <text> SVG,
-       que escala con el viewBox. Cada píxel de padding que se le quita al
-       contenedor engorda los rótulos. MEDIDO a 360 px: con 1.5rem el
-       `HABICHUELA GUISADA` caía en 10,7 px CSS, bajo el piso de 11 px del
-       sistema; con 1rem sube a 11,7 px. */
+    /* El padding horizontal se queda en 1.5rem, igual que
+       `HowItWorks.module.css` y `BenchmarkShowcase.module.css`. Bajarlo a 1rem
+       ensanchaba la figura, sí, pero arrastraba con ella la columna de texto:
+       el hero arrancaba 8 px a la izquierda de todas las secciones de abajo.
+       En un sistema donde la línea de margen es el elemento organizador, ese
+       escalón se ve. Los píxeles que la figura necesita se los toma ella sola,
+       sangrando — ver `.figure` más abajo. */
     .container {
-        padding: 2rem 1rem 0;
+        padding: 2rem 1.5rem 0;
         gap: 2.5rem;
+    }
+
+    /* La figura SANGRA 0,5rem a cada lado. No es estética: el <text> del SVG
+       escala con el viewBox, así que su tamaño CSS real es
+       `font-size × (ancho renderizado / ancho del viewBox)`. A 360 px, los
+       312 px de la columna sobre el viewBox de 364 dejaban los rótulos en
+       11,14 px — sobre el piso de 11, pero por 0,14. Sangrando, el encuadre
+       sube a 328 px y los rótulos a 11,7 px. Una figura puede salirse del
+       margen; un párrafo no. */
+    .figure {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+
+    /* El pie NO sangra: es texto, y su regla tiene que apoyarse en la misma
+       línea de margen que la columna de texto. Compensa exactamente la sangría
+       de `.figure` para volver al margen del contenedor. */
+    .caption {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
     }
 
     .strip {
