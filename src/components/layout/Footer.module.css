@@ -269,10 +269,25 @@
     color: var(--text-main);
 }
 
-/* [P1-PAPER-THEME · 2026-08-01] El footer es la COPIA DE ARCHIVO: sigue siendo
-   el único bloque invertido del sistema. Su base ya usa var(--text-main), que
-   bajo paper es #0B0B0B, así que el fondo sale correcto sin tocarlo — pero las
-   tintas internas son #FFFFFF hardcodeado y hay que re-derivarlas. */
+/* [P1-PAPER-THEME · 2026-08-01 · corregido P1-PAPER-THEME-FIX1 · 2026-08-01]
+   El footer es la COPIA DE ARCHIVO: sigue siendo el único bloque invertido del
+   sistema. Su base ya usa var(--text-main), que bajo paper es #0B0B0B, así que
+   el fondo sale correcto sin tocarlo.
+
+   Consumidor real de estos tokens: SOLO `.bottom` (regla siguiente), vía
+   --pa-ink-3. Antes este bloque declaraba las 7 custom properties sin que
+   ninguna regla del fichero las leyera (0 matches de `var(--pa-` fuera de
+   aquí) — código muerto que un futuro editor habría "ajustado" esperando un
+   efecto que no existía. `.logo` y `.col h4` (arriba) se dejan con su
+   #FFFFFF hardcoded A PROPÓSITO, sin cambiar: ya dan ~19:1 de contraste
+   contra el footer oscuro en cualquier tema — no hay nada que re-derivar ahí.
+
+   --pa-paper/--pa-ink/--pa-ink-2/--pa-rule/--pa-rule-2/--pa-grid siguen
+   declarados SIN consumidor propio en este fichero — mismo set de nombres
+   que usa Header.module.css, dejado como scaffolding para cuando una tarea
+   futura rediseñe la forma del footer. Si tocas este bloque sin añadirles
+   un consumidor, bórralos: un token declarado y no usado es exactamente el
+   bug que esta nota corrige. */
 :global(html[data-theme="paper"]) .footer {
     --pa-paper: #0B0B0B;
     --pa-ink: #FBFBFA;
@@ -281,4 +296,16 @@
     --pa-rule: #FBFBFA;
     --pa-rule-2: #6A6A66;
     --pa-grid: #2A2A28;
+}
+
+/* [P1-PAPER-THEME-FIX1 · 2026-08-01] Único consumidor real del bloque de
+   arriba. Sin este override, `.bottom` seguía leyendo var(--text-light)
+   global (base, línea 227) — Task 2 remapea ese token a #6A6A66 pensando en
+   tinta secundaria sobre PAPEL CLARO, no sobre este footer (que sigue
+   invertido/oscuro bajo paper): daba ~3,63:1 contra #0B0B0B, bajo el umbral
+   AA de texto normal (4.5:1). --pa-ink-3 (#8C8C84) sí está derivado para
+   ESTE fondo y sube el contraste por encima de AA (medido con
+   getComputedStyle, ver task-3-report.md). */
+:global(html[data-theme="paper"]) .bottom {
+    color: var(--pa-ink-3);
 }
