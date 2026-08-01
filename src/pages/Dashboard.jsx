@@ -3268,7 +3268,16 @@ const DashboardInner = () => {
                         // Escapamos los 5 metacaracteres HTML antes de interpolar
                         // para evitar markup roto en el PDF (categorías duplicadas,
                         // listado truncado, descarga malformada).
-                        const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: ${tagColor}; font-size: ${qtyFont}; background-color: ${tagBg}; border: 1px solid ${tagBorder}; padding: ${qtyPad}; border-radius: 4px; margin-left: 4px; white-space: nowrap; align-self: flex-start;">${escapeHtml(displayQty)}</span>` : '';
+                        // [P2-SHOPPING-PILLS-OVERFLOW · 2026-08-01] `white-space: nowrap` forzaba
+                        // una sola línea sin límite de ancho: cuando `display_qty` trae el sufijo
+                        // largo del backend ("· alcanza ~26 de 30 días — no recompres cada semana",
+                        // shopping_calculator.py P1-CAPPED-STAPLE-HONESTY) la píldora reventaba el
+                        // borde de la tarjeta/columna y el texto se cortaba (ilegible). `white-space:
+                        // normal` + `overflow-wrap: anywhere` + `max-width: 100%` dejan que el texto
+                        // haga wrap DENTRO de la píldora en vez de desbordar — el `flex-shrink: 0`
+                        // del contenedor (abajo) también se removió, porque impedía que la píldora
+                        // se angostara para dejar espacio al wrap.
+                        const qtyStr = displayQty && String(displayQty).trim() !== 'None' ? `<span style="font-weight: 700; color: ${tagColor}; font-size: ${qtyFont}; background-color: ${tagBg}; border: 1px solid ${tagBorder}; padding: ${qtyPad}; border-radius: 4px; margin-left: 4px; white-space: normal; overflow-wrap: anywhere; word-break: break-word; max-width: 100%; box-sizing: border-box; align-self: flex-start;">${escapeHtml(displayQty)}</span>` : '';
 
                         // [P3-SHOPPING-COST-TOTAL · 2026-06-20] Precio estimado por ítem (RD$, del motor de costeo).
                         const _costVal = item.item_ref && (item.item_ref.estimated_cost_rd ?? item.item_ref.estimated_cost);
@@ -3284,15 +3293,23 @@ const DashboardInner = () => {
                             ? `<div style="font-size: ${isUltraDense ? '7.5px' : (isDense ? '8.5px' : '9.5px')}; color: #059669; margin-top: 1px; font-weight: 500; line-height: 1.1;">💡 ${escapeHtml(item._inventoryNote)}</div>`
                             : '';
 
+                        // [P2-SHOPPING-PILLS-OVERFLOW · 2026-08-01] `flex-wrap: wrap` en la
+                        // fila del item es el respaldo de la píldora que hace wrap arriba: si
+                        // aun así no cabe al lado del nombre (columnas muy angostas en modo
+                        // hyper-dense/4-col), baja a línea propia debajo en vez de forzar el
+                        // ancho de la fila más allá de la tarjeta. `min-width: 0` en ambas
+                        // columnas es necesario para que el algoritmo flex pueda angostarlas
+                        // por debajo de su contenido — el default `min-width: auto` de un flex
+                        // item lo impide y anula el `overflow-wrap` de la píldora.
                         innerHtml += `
                             <li style="display: flex; align-items: flex-start; padding: ${ulPadding}; ${borderBottom} break-inside: avoid-column; page-break-inside: avoid;">
                                 <div style="width: ${checkboxSize}; height: ${checkboxSize}; border: 1.5px solid #d1d5db; border-radius: ${isDense ? '3px' : '4px'}; margin-right: ${checkboxMarginRight}; flex-shrink: 0; background-color: #ffffff; margin-top: 2px;"></div>
-                                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                                    <div style="display: flex; flex-direction: column;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; flex-wrap: wrap; row-gap: 2px; column-gap: 6px;">
+                                    <div style="display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0;">
                                         <span style="font-size: ${itemFont}; font-weight: 600; color: #374151; line-height: 1.2;">${escapeHtml(display)}${lowConfWarn}</span>
                                         ${noteHTML}
                                     </div>
-                                    <div style="display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0;">${qtyStr}${costStr}</div>
+                                    <div style="display: flex; flex-direction: column; align-items: flex-end; flex: 0 1 auto; min-width: 0; max-width: 100%;">${qtyStr}${costStr}</div>
                                 </div>
                             </li>
                         `;
