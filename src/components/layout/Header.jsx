@@ -7,9 +7,11 @@ import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 // [P1-GUEST-APPEARANCE · 2026-06-15] Selector de tema inline para invitados.
 import GuestAppearanceToggle from '../dashboard/GuestAppearanceToggle';
-// [P3-HEADER-FLOAT-REDESIGN] El consumo de heroCtaVisible se eliminó (el CTA del header
-// es siempre visible); por eso ya NO se importa useHeroCta aquí. Hero sigue siendo el
-// productor del valor vía su provider.
+// [P3-HEADER-FLOAT-REDESIGN] El consumo de heroCtaVisible se eliminó: el CTA del header
+// es siempre visible en marketing (`showStickyCta`, más abajo).
+// [P1-PAPER-HERO-FIG00 · 2026-08-01] Y el productor también murió: al quedarse sin
+// consumidor, `HeroCtaContext` era un IntersectionObserver en el Hero escribiendo un
+// estado que nadie leía. Contexto, provider y ref borrados — no hay puente que restaurar.
 // [P3-LANDING-DARK-ONLY · 2026-06-29] SSOT de rutas de marketing (header completo +
 // tema oscuro forzado + sin config de apariencia).
 import { isMarketingRoute } from '../../utils/marketingRoutes';

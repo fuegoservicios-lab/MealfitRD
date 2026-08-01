@@ -1,0 +1,177 @@
+/* ============================================================================
+   [P1-PAPER-HERO-FIG00 · 2026-08-01] Fig. 00 — despiece del plato dominicano.
+
+   Vocabulario de movimiento ÚNICO: TRAZADO. Nada se desliza; las cosas se
+   dibujan. `stroke-dashoffset` de `pathLength` (1, normalizado) a 0 en 900 ms,
+   stagger de 70 ms entre grupos vía la custom property `--d`, techo duro de
+   1,4 s por figura (grupo 7 → 490 ms + 900 ms = 1.390 ms).
+
+   El easing es de plóter: acelera y frena, no rebota. Por eso
+   cubic-bezier(0.65, 0, 0.35, 1) y no un spring.
+
+   REDUCED MOTION — DEFENSA (b). La (a) vive en el JSX (`useReducedMotion()`
+   gatea el estado `drawn` en su DEFINICIÓN: con `reduce` el
+   IntersectionObserver no llega a montarse). Esta es la segunda mitad, y hace
+   falta porque el guard global de index.css solo acorta DURACIONES: no anula
+   un `stroke-dashoffset: 1` que dejaría la figura en blanco para siempre.
+   Con `reduce` activo la hoja se ve exactamente igual, ya dibujada.
+   ========================================================================= */
+
+.fig00 {
+    display: block;
+    width: 100%;
+    /* Tope de 420 = ancho del viewBox → a tamaño completo la escala es 1:1 y
+       los rótulos aterrizan en su tamaño nominal. */
+    max-width: 420px;
+    height: auto;
+    margin: 0 auto;
+
+    /* Contrato de trazo del sistema, heredado por todos los hijos. */
+    stroke: var(--pa-ink);
+    fill: none;
+    stroke-width: 1;
+    stroke-linecap: butt;
+    stroke-linejoin: miter;
+}
+
+/* ── ESTADOS DE REPOSO (pre-trazado) ─────────────────────────────────────── */
+.stroke {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+}
+
+.guide,
+.node,
+.arrow,
+.hatchFill,
+.solidFill,
+.label,
+.value {
+    opacity: 0;
+}
+
+/* ── TRAZADO ─────────────────────────────────────────────────────────────── */
+.drawn .stroke {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 900ms cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0ms);
+}
+
+/* Lo que NO se puede trazar (rellenos, punteados con su propio dasharray,
+   texto) entra por opacidad, ya avanzado el trazo de su grupo. */
+.drawn .guide,
+.drawn .node,
+.drawn .arrow,
+.drawn .hatchFill,
+.drawn .solidFill {
+    opacity: 1;
+    transition: opacity 320ms linear calc(var(--d, 0ms) + 380ms);
+}
+
+.drawn .label,
+.drawn .value {
+    opacity: 1;
+    transition: opacity 200ms linear calc(var(--d, 0ms) + 450ms);
+}
+
+/* ── MATERIALES (§5.5) ───────────────────────────────────────────────────── */
+
+/* Trama 45° = material seccionado en un plano. */
+.hatchFill {
+    fill: url(#paFig00Hatch);
+    stroke: none;
+}
+
+.hatchLine {
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+}
+
+/* Sólido = lo medido, el dato que se acota. */
+.solidFill {
+    fill: var(--pa-ink);
+    stroke: none;
+}
+
+/* Aristas internas del bloque sólido: tinta papel sobre tinta negra. */
+.edgeLight {
+    stroke: var(--pa-paper);
+}
+
+/* Punteado = referencia, no es materia. */
+.guide {
+    stroke: var(--pa-ink);
+    stroke-dasharray: 3 4;
+}
+
+.node {
+    fill: var(--pa-paper);
+    stroke: var(--pa-ink);
+}
+
+.arrow {
+    fill: var(--pa-ink);
+    stroke: none;
+}
+
+/* ── ROTULACIÓN ──────────────────────────────────────────────────────────── */
+/* 13 unidades de usuario, no 12. El <text> escala con el viewBox, así que su
+   tamaño CSS real es 13 × (ancho renderizado / ancho del viewBox). MEDIDO:
+   420/420 = 13 px en escritorio; 328/364 = 0,90 → 11,7 px a 360 px de ancho.
+   El piso del sistema es 11 px, y a 12 unidades el móvil caería a 10,8.
+   No subir de 13,5: `HABICHUELA GUISADA` deja de caber a la izquierda del
+   ancla en x=152. */
+.label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    fill: var(--pa-ink-2);
+    stroke: none;
+}
+
+/* Los valores de cota van a tinta plena: son el dato, no el rótulo. */
+.value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    fill: var(--pa-ink);
+    stroke: none;
+}
+
+/* ── MÓVIL ───────────────────────────────────────────────────────────────
+   Riesgo 4 del spec: a 360 px y a pleno sol en Santo Domingo un trazo de 1 px
+   se lee desvaído. Con `vector-effect: non-scaling-stroke` el trazo NO se
+   adelgaza al escalar, así que este 1,25 es un engrosamiento real, no una
+   compensación. El recorte del viewBox (que saca la cota anidada de `140 g`)
+   vive en el JSX porque el viewBox no es una propiedad CSS. */
+@media (max-width: 767px) {
+    .fig00 {
+        stroke-width: 1.25;
+    }
+
+    .hatchLine {
+        stroke-width: 1.25;
+    }
+}
+
+/* ── REDUCED MOTION — defensa (b) ─────────────────────────────────────────
+   Pose de reposo = pose FINAL. La figura nace dibujada y las cotas
+   extendidas. Todos `!important`: framer-motion no toca este SVG, pero el
+   guard global de index.css tampoco lo salvaría, y una figura en blanco es
+   peor que una figura sin animar. */
+@media (prefers-reduced-motion: reduce) {
+    .fig00 .stroke {
+        stroke-dashoffset: 0 !important;
+        transition: none !important;
+    }
+
+    .fig00 .guide,
+    .fig00 .node,
+    .fig00 .arrow,
+    .fig00 .hatchFill,
+    .fig00 .solidFill,
+    .fig00 .label,
+    .fig00 .value {
+        opacity: 1 !important;
+        transition: none !important;
+    }
+}

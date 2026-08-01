@@ -1,212 +1,116 @@
-import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { BookOpen, Stethoscope, HeartPulse, ClipboardCheck, Wallet, Cpu } from 'lucide-react';
 import styles from './Hero.module.css';
-import { useHeroCta } from '../../context/HeroCtaContext';
+import PlateExploded from './figures/PlateExploded';
+import { LANDING_EASE } from './sectionMotion';
+import { useAssessment } from '../../context/AssessmentContext';
 
-// [HERO-KEYNOTE-STAGE · 2026-06-18] Rediseño "Premium spotlight + tipografía
-// kinética" (Keynote Stage). Reemplaza por completo el fondo con imagen raster
-// y, sobre todo, ELIMINA las rayas blancas diagonales del modo oscuro
-// (repeating-linear-gradient, antiguo P3-DARK-BG-STRIPES). El fondo ahora es un
-// "escenario": un SPOTLIGHT radial cae desde arriba-centro + una VIÑETA suave
-// oscurece los bordes, todo construido SOLO con gradientes radiales (cero rayas,
-// cero repeating-gradient). El 3D se logra con perspective + transform-style:
-// preserve-3d + translateZ + gradientes radiales/cónicos para iluminar esferas.
-//
-// REDUCED MOTION (lección P2-HERO-STATIC-CARDS + depth-parallax/aurora-mesh):
-// framer-motion escribe los transforms de entrada INLINE vía WAAPI, y el guard
-// global de index.css solo acorta la DURACIÓN — no anula el desplazamiento/blur
-// que framer ya escribió. Por eso `useReducedMotion()` gatea los variants en JS:
-// cuando el usuario lo pide, las entradas hacen fade puro (sin y/blur), y los
-// loops decorativos se congelan + se fijan en su pose de reposo vía el bloque
-// @media (prefers-reduced-motion) del .css (doble defensa).
+/* [P1-PAPER-HERO-FIG00 · 2026-08-01] EL VÍDEO DEL HERO MURIÓ.
+ *
+ * Antes: una esfera 3D en vídeo (5 assets en public/, 5.550.239 bytes
+ * medidos) sobre un escenario de spotlight + auroras + dot-grid + viñeta, con
+ * dos IntersectionObserver (montaje diferido y reintento), un listener
+ * `pointerdown` para reintentar la reproducción, una distinción entre el
+ * aborto que provocaba nuestro propio pause y el veto de reproducción del
+ * navegador, y un chequeo del modo ahorro de datos de `navigator.connection`.
+ *
+ * Nota para quien edite este comentario: el guard parser-based
+ * `test_p1_paper_hero_fig00.py` escanea el ARCHIVO ENTERO, comentarios
+ * incluidos. Nombrar aquí las APIs que se borraron (con su literal exacto)
+ * hace fallar el test contra su propio arreglo. Descríbelas, no las cites.
+ *
+ * Ahora: la Fig. 00 — el despiece de un plato dominicano acotado, ~2 KB de SVG
+ * inline. Cero red, cero decode, cero políticas de autoplay.
+ *
+ * Los 6 casos del test de autoplay móvil (P1-HERO-ORB-AUTOPLAY, 2026-07-11)
+ * se BORRARON con la feature, no se adaptaron: codificaban un bug real de
+ * Chrome Android e iOS Low Power Mode que deja de existir cuando no hay
+ * vídeo. Adaptarlos para que pasaran habría sido fingir cobertura.
+ *
+ * POR QUÉ COMIDA Y NO UN DIAGRAMA ABSTRACTO: el diagrama «perfil → motor →
+ * plan» que ilustraría esto igual de bien ilustra un CRM o una depuradora. Un
+ * despiece de arroz, habichuela y pollo guisado solo puede ser este producto.
+ *
+ * `useHeroCta`/`ctaRef` también murieron. El puente Hero→Header dejó de tener
+ * consumidor en P3-HEADER-FLOAT-REDESIGN (`Header.jsx`: el CTA del header es
+ * permanente, `showStickyCta = isLandingLike && !hideStartNow`, sin leer
+ * `heroCtaVisible`). Quedaba un IntersectionObserver escribiendo un estado que
+ * nadie leía. Se limpió ENTERO — ref, provider y contexto — porque limpiar
+ * solo el ref deja un provider huérfano que invita a recablearlo.
+ *
+ * REDUCED MOTION, DOBLE DEFENSA. El guard global de index.css solo acorta
+ * duraciones, y framer-motion escribe los transforms inline vía WAAPI: una
+ * sola capa deja el desplazamiento escrito. (a) `useReducedMotion()` gatea los
+ * variants en su DEFINICIÓN (abajo, `makeVariants(reduce)`), no en su consumo.
+ * (b) el bloque @media del .module.css fija la pose de reposo. Con `reduce`
+ * activo la hoja se ve exactamente igual, ya dibujada.
+ */
 
-// Factory de variants — recibe el flag de reduced-motion para anular el
-// desplazamiento/blur de entrada cuando corresponde.
+/* Franja acotada bajo las acciones. Cinco celdas, etiqueta mono arriba y valor
+   abajo — reemplaza a las trust pills con backdrop-filter.
+   La celda de PRECIO es literal de producto (P1-CREDITS-LADDER: gratis = 10
+   planes/mes). Si la escalera de créditos cambia, esta celda cambia con ella. */
+const STRIP = [
+    { label: 'MÉTODO', value: 'Evidencia clínica' },
+    { label: 'PERFIL', value: 'Tu salud y tus metas' },
+    { label: 'REVISIÓN', value: 'Profesional si aplica' },
+    { label: 'COCINA', value: 'Dominicana' },
+    { label: 'PRECIO', value: 'Gratis · 10 planes al mes' },
+];
+
 const makeVariants = (reduce) => ({
+    /* `settle` con stagger de 70 ms y TOPE DE 4 elementos: por eso las acciones
+       y la franja viajan juntas en `.tail` en vez de ser el 5.º y 6.º hijo. */
     container: {
         hidden: {},
         show: {
             transition: {
-                staggerChildren: reduce ? 0 : 0.09,
-                delayChildren: reduce ? 0 : 0.1,
+                staggerChildren: reduce ? 0 : 0.07,
+                delayChildren: reduce ? 0 : 0.06,
             },
         },
     },
-    rise: {
-        hidden: { opacity: 0, y: reduce ? 0 : 22 },
+    settle: {
+        hidden: { opacity: 0, y: reduce ? 0 : 12 },
         show: {
             opacity: 1,
             y: 0,
-            transition: { duration: reduce ? 0.001 : 0.7, ease: [0.22, 1, 0.36, 1] },
+            transition: { duration: reduce ? 0.001 : 0.42, ease: LANDING_EASE },
         },
     },
-    // Reveal editorial por línea del titular. Anima un WRAPPER (no el span que
-    // clipea el gradiente) para no combinar filter:blur con -webkit-background-
-    // clip:text en el mismo elemento (artefacto de repintado en WebKit/Safari).
-    titleLine: {
-        hidden: { opacity: 0, y: reduce ? 0 : 26, filter: reduce ? 'blur(0px)' : 'blur(10px)' },
+    /* La regla bajo el H1 se DIBUJA (scaleX desde la izquierda), no aparece.
+       520 ms con LANDING_EASE — el easing ya exportado por sectionMotion.js;
+       redefinirlo aquí crearía un segundo sitio de drift. */
+    rule: {
+        hidden: { scaleX: reduce ? 1 : 0 },
         show: {
-            opacity: 1,
-            y: 0,
-            filter: 'blur(0px)',
-            transition: { duration: reduce ? 0.001 : 0.85, ease: [0.22, 1, 0.36, 1] },
-        },
-    },
-    // Tarjetas-métrica: entran individualmente (conserva la coreografía de
-    // entrada del visual original) y luego viven en el plano 3D.
-    card: {
-        hidden: { opacity: 0, y: reduce ? 0 : 24, scale: reduce ? 1 : 0.92 },
-        show: {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            transition: { duration: reduce ? 0.001 : 0.7, ease: [0.22, 1, 0.36, 1] },
+            scaleX: 1,
+            transition: { duration: reduce ? 0.001 : 0.52, ease: LANDING_EASE },
         },
     },
 });
 
 const Hero = () => {
-    const { setHeroCtaVisible } = useHeroCta();
-    const ctaRef = useRef(null);
     const reduce = useReducedMotion();
     const V = makeVariants(reduce);
+    const { planData } = useAssessment();
 
-    // [P2-HERO-VIDEO-DEFER · 2026-07-09] El orbe-video (orb.webm 1.16MB /
-    // orb.mp4 2.78MB — el asset más pesado del sitio) se montaba con autoPlay
-    // → descarga completa compitiendo con el critical path en la primera
-    // pantalla, en un mercado móvil con datos caros. Ahora: el poster (27KB)
-    // pinta primero SIEMPRE; el <video> se monta recién cuando (a) el efecto
-    // post-mount corre (fuera del first paint), (b) el stage está en viewport
-    // (IntersectionObserver — cubre aterrizajes con scroll restaurado abajo),
-    // y (c) el usuario NO pidió ahorro de datos (Save-Data). Reduced-motion
-    // sigue mostrando solo el poster, como antes.
-    const stageRef = useRef(null);
-    const [videoOn, setVideoOn] = useState(false);
-    // [P1-HERO-ORB-AUTOPLAY · 2026-07-11] En móviles el orbe quedaba CONGELADO:
-    // Chrome Android evalúa el content attribute `muted` para permitir autoplay,
-    // pero React solo escribe la PROPIEDAD (bug conocido de React) → el <video>
-    // montaba con autoPlay y jamás arrancaba (reproducido vía CDP: paused=true /
-    // currentTime=0 bajo emulación móvil; desktop sí reproducía). videoAlive=false
-    // marca "autoplay denegado" → el orbe recibe un breath CSS (transform/opacity)
-    // para no verse muerto, y se reintenta play() en el primer gesto (cubre
-    // también iOS Low Power Mode).
-    const videoRef = useRef(null);
-    const [videoAlive, setVideoAlive] = useState(true);
-    // Assets móviles: orb-sm.* es un recorte cuadrado 640² (~2.25× menos costo de
-    // decode que el 1280×720 de desktop — clave en gama baja sin decode VP9 por
-    // hardware, y menos MB en un mercado con datos caros). Se decide una vez al
-    // montar: el breakpoint no cambia en la práctica sin remount del landing.
-    const [smallScreen] = useState(() => {
-        try {
-            return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
-        } catch {
-            return false;
-        }
-    });
-    useEffect(() => {
-        if (reduce || videoOn) return undefined;
-        const conn = typeof navigator !== 'undefined' ? navigator.connection : undefined;
-        if (conn && conn.saveData === true) return undefined;
-        const el = stageRef.current;
-        if (!el || typeof IntersectionObserver === 'undefined') {
-            setVideoOn(true);
-            return undefined;
-        }
-        const io = new IntersectionObserver((entries) => {
-            if (entries.some((e) => e.isIntersecting)) {
-                setVideoOn(true);
-                io.disconnect();
-            }
-        }, { rootMargin: '120px' });
-        io.observe(el);
-        return () => io.disconnect();
-    }, [reduce, videoOn]);
-
-    // [P1-HERO-ORB-AUTOPLAY · 2026-07-11] Arranque resiliente del video:
-    // 1) muted como attribute+prop+defaultMuted (la política de Chrome Android
-    //    mira el atributo, que React no escribe), 2) play() explícito con catch
-    //    → breath fallback, 3) retry en el primer gesto, 4) pausa fuera de
-    //    viewport (batería) y resume al volver.
-    useEffect(() => {
-        if (!videoOn || reduce) return undefined;
-        const el = videoRef.current;
-        if (!el) return undefined;
-        el.muted = true;
-        el.defaultMuted = true;
-        el.setAttribute('muted', '');
-        let disposed = false;
-        const tryPlay = () => {
-            const p = el.play();
-            if (p && typeof p.then === 'function') {
-                p.then(() => { if (!disposed) setVideoAlive(true); })
-                    .catch((err) => {
-                        // AbortError = play() interrumpido por nuestro propio
-                        // pause() (p.ej. el observer de visibilidad cuando el
-                        // orbe monta bajo el fold en móvil) — NO es un veto de
-                        // autoplay; no degradar a breath. Solo NotAllowedError
-                        // y afines marcan el video como no-vivo.
-                        if (!disposed && (!err || err.name !== 'AbortError')) setVideoAlive(false);
-                    });
-            }
-        };
-        tryPlay();
-        const onFirstGesture = () => tryPlay();
-        window.addEventListener('pointerdown', onFirstGesture, { once: true, passive: true });
-        const io = typeof IntersectionObserver !== 'undefined'
-            ? new IntersectionObserver((entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) tryPlay();
-                    else el.pause();
-                });
-            }, { threshold: 0 })
-            : null;
-        if (io) io.observe(el);
-        return () => {
-            disposed = true;
-            window.removeEventListener('pointerdown', onFirstGesture);
-            if (io) io.disconnect();
-        };
-    }, [videoOn, reduce]);
-
-    // [HEADER-STICKY-CTA · 2026-05-31] Reporta al Header (vía contexto) si el CTA
-    // principal del Hero está en pantalla. El rootMargin top negativo ≈ altura del
-    // header fixed (70px) para que el Header revele su CTA sticky justo cuando este
-    // botón se desliza por detrás del header — no cuando toca el borde del viewport.
-    useEffect(() => {
-        const el = ctaRef.current;
-        if (!el || typeof IntersectionObserver === 'undefined') return undefined;
-        const observer = new IntersectionObserver(
-            ([entry]) => setHeroCtaVisible(entry.isIntersecting),
-            { rootMargin: '-72px 0px 0px 0px', threshold: 0 }
-        );
-        observer.observe(el);
-        return () => {
-            observer.disconnect();
-            // Al desmontar (salir del landing) reseteamos a "visible" para que el
-            // sticky arranque oculto la próxima vez que se monte el Hero.
-            setHeroCtaVisible(true);
-        };
-    }, [setHeroCtaVisible]);
+    /* [P1-PAPER-HERO-FIG00] Los literales del CTA primario son los MISMOS que
+       ata `Header.sticky_cta.test.jsx` ('Crear mi Plan Ahora' / 'Ver mi Plan').
+       No se reescriben ni se pasan a mayúsculas aquí: las versales las pone
+       `text-transform` en el CSS. */
+    const hasPlan = Boolean(planData);
 
     return (
         <section className={styles.hero}>
-            {/* ── Escenario (fondo) ─────────────────────────────────────────
-                Capas puramente decorativas, aria-hidden. Sin imagen, sin rayas,
-                sin repeating-gradient. Todo gradientes radiales/cónicos.
-                1) spotlight: cono de luz radial desde arriba-centro.
-                2) auroraA/auroraB: dos blobs de color de marca (blur grande,
-                   deriva lentísima) → profundidad cromática sin distraer.
-                3) grid: malla de PUNTOS sutilísima (textura premium, NO líneas),
-                   enmascarada a los bordes para no competir con el contenido.
-                4) vignette: oscurecimiento suave hacia los bordes. */}
-            <div className={styles.stage} aria-hidden="true">
-                <div className={styles.spotlight} />
-                <div className={`${styles.aurora} ${styles.auroraA}`} />
-                <div className={`${styles.aurora} ${styles.auroraB}`} />
-                <div className={styles.grid} />
-                <div className={styles.vignette} />
+            {/* ── FILA-CARTUCHO ────────────────────────────────────────────
+                El cajetín de un plano: quién firma, qué es, dónde se hizo. */}
+            <div className={styles.cartridge}>
+                <span className={styles.cartridgeCell}>BIOBOROS</span>
+                <span className={`${styles.cartridgeCell} ${styles.cartridgeMid}`}>
+                    NUTRICIÓN DE PRECISIÓN
+                </span>
+                <span className={styles.cartridgeCell}>SANTO DOMINGO, RD</span>
             </div>
 
             <div className={styles.container}>
@@ -216,106 +120,62 @@ const Hero = () => {
                     initial="hidden"
                     animate="show"
                 >
-                    <h1 className={styles.title}>
-                        {/* Wrapper anima (y/opacity/blur); el span interno clipea
-                            el gradiente. Separar capas evita el artefacto WebKit
-                            de background-clip:text + filter:blur simultáneos. */}
-                        <motion.span className={styles.titleLine} variants={V.titleLine}>
-                            <span className={styles.titleInner}>Nutrición calculada,</span>
-                        </motion.span>
+                    <motion.h1 className={styles.title} variants={V.settle}>
+                        Nutrición calculada,
                         <br />
-                        <motion.span className={styles.titleLine} variants={V.titleLine}>
-                            <span className={`${styles.titleInner} ${styles.gradientText}`}>
-                                no improvisada
-                            </span>
-                        </motion.span>
-                    </h1>
+                        no improvisada
+                    </motion.h1>
 
-                    <motion.p className={styles.subtitle} variants={V.rise}>
-                        Planes personalizados a tu perfil de salud, con <strong>precisión de macronutrientes</strong> y criterios clínicos fundamentados en evidencia. Con revisión profesional cuando tu condición lo amerita.
-                    </motion.p>
+                    <motion.div className={styles.titleRule} variants={V.rule} aria-hidden="true" />
 
-                    {/* [P3-HERO-CTA-REFINE · 2026-06-28] El hero NO duplica el CTA de crear
-                        plan (ese vive siempre en el header). Aquí solo el botón explorar →
-                        página del motor (/motor). */}
-                    <motion.div className={styles.actions} ref={ctaRef} variants={V.rise}>
-                        <Link to="/motor" className={styles.secondaryBtn}>
-                            <span className={styles.btnLabel}><Cpu size={18} strokeWidth={2.25} /> Conoce el motor</span>
-                        </Link>
+                    <motion.div className={styles.copy} variants={V.settle}>
+                        <p className={styles.lead}>
+                            Planes personalizados a tu perfil de salud, con <strong>precisión de macronutrientes</strong> y criterios clínicos fundamentados en evidencia. Con revisión profesional cuando tu condición lo amerita.
+                        </p>
+                        {/* Línea de promesa en español llano, en la primera
+                            pantalla: sin ella, quien no conoce el nombre no sabe
+                            qué recibe en los 5 primeros segundos. */}
+                        <p className={styles.promise}>
+                            Plan semanal con comida dominicana, lista de compras con precios de colmado y recetas paso a paso.
+                        </p>
                     </motion.div>
 
-                    <motion.div className={styles.trust} variants={V.rise}>
-                        <div className={styles.trustItem}>
-                            <BookOpen size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Fundamentado en evidencia</span>
+                    <motion.div className={styles.tail} variants={V.settle}>
+                        <div className={styles.actions}>
+                            {hasPlan ? (
+                                <Link to="/dashboard" className={styles.primaryBtn}>
+                                    Ver mi Plan
+                                </Link>
+                            ) : (
+                                <Link to="/assessment" className={styles.primaryBtn}>
+                                    Crear mi Plan Ahora
+                                </Link>
+                            )}
+                            {/* Control FANTASMA: contorno = «el otro», lo que no
+                                es el dato acotado (§5.5). El hover lo rellena a
+                                negro en 140 ms — solo tinta, sin transform. */}
+                            <Link to="/motor" className={styles.ghostBtn}>
+                                Conoce el motor
+                            </Link>
                         </div>
-                        <div className={styles.trustItem}>
-                            <Stethoscope size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Criterios clínicos</span>
-                        </div>
-                        <div className={styles.trustItem}>
-                            <HeartPulse size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Personalizado a tu perfil</span>
-                        </div>
-                        <div className={styles.trustItem}>
-                            <ClipboardCheck size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Revisión profesional</span>
-                        </div>
-                        <div className={styles.trustItem}>
-                            <Wallet size={16} className={styles.trustIcon} strokeWidth={2.25} />
-                            <span>Adaptado a tu presupuesto</span>
-                        </div>
+
+                        <dl className={styles.strip}>
+                            {STRIP.map((cell) => (
+                                <div key={cell.label} className={styles.stripCell}>
+                                    <dt className={styles.stripLabel}>{cell.label}</dt>
+                                    <dd className={styles.stripValue}>{cell.value}</dd>
+                                </div>
+                            ))}
+                        </dl>
                     </motion.div>
                 </motion.div>
 
-                <motion.div
-                    className={styles.visual}
-                    variants={V.container}
-                    initial="hidden"
-                    animate="show"
-                >
-                    {/* Escena 3D: la perspective vive en .visual; .stage3d es el
-                        plano que rota muy sutil (±5°) en loop lento; los hijos se
-                        separan con translateZ para profundidad real (parallax al
-                        rotar). */}
-                    <div className={styles.stage3d} ref={stageRef}>
-                        {/* [P3-HERO-ORB-VIDEO · 2026-06-30] La esfera CSS (orb + ring +
-                            glow) se reemplazó por un video 3D (orb.webm/mp4) clipeado con
-                            máscara radial que funde el borde rectangular y el fondo dot-grid
-                            del video con el fondo del hero. Reduced-motion → poster estático.
-                            El landing es dark-only, así que el fondo navy del video coincide.
-                            [P2-HERO-VIDEO-DEFER · 2026-07-09] El video monta diferido
-                            (post-paint + en viewport + sin Save-Data); poster primero. */}
-                        {(reduce || !videoOn) ? (
-                            // Poster con breath sutil (transform/opacity, GPU-only) para
-                            // que el path sin video (Save-Data, pre-mount) no se vea
-                            // congelado. Reduced-motion → estático puro, como siempre.
-                            <img
-                                className={`${styles.orbVideo}${reduce ? '' : ` ${styles.orbBreath}`}`}
-                                src="/orb-poster.jpg"
-                                alt=""
-                                aria-hidden="true"
-                            />
-                        ) : (
-                            <video
-                                ref={videoRef}
-                                className={`${styles.orbVideo}${videoAlive ? '' : ` ${styles.orbBreath}`}`}
-                                autoPlay
-                                loop
-                                muted
-                                playsInline
-                                poster="/orb-poster.jpg"
-                                aria-hidden="true"
-                            >
-                                <source src={smallScreen ? '/orb-sm.webm' : '/orb.webm'} type="video/webm" />
-                                <source src={smallScreen ? '/orb-sm.mp4' : '/orb.mp4'} type="video/mp4" />
-                            </video>
-                        )}
-
-                        {/* [P3-HERO-ORB-SOLO · 2026-06-30] Tarjetas-métrica flotantes
-                            eliminadas a pedido — el orbe-video queda solo, protagonista. */}
-                    </div>
-                </motion.div>
+                <figure className={styles.figure}>
+                    <PlateExploded />
+                    <figcaption className={styles.caption}>
+                        Fig. 00 — Despiece de un plato dominicano. Cada componente se calcula por separado y se acota contra tu objetivo.
+                    </figcaption>
+                </figure>
             </div>
         </section>
     );
