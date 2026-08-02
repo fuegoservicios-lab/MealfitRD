@@ -1,341 +1,356 @@
-/* Page Wrapper to add background */
+/* ============================================================================
+   [P1-PAPER-LEGAL · 2026-08-02] Las 9 páginas legales, en superficie papel.
+   /terms · /privacy · /cookies · /medical · /acceptable-use · /ai-policy ·
+   /data-protection · /refunds · /responsible-disclosure
+
+   Eran lo último que quedaba del diseño anterior, y son la cara del sitio: el
+   footer de las 10 rutas de papel enlaza a TODAS ellas, así que el pliego
+   terminaba en una tarjeta glass (`backdrop-filter: blur(20px)`, radio 24px,
+   dos sombras) flotando sobre un degradado azulado.
+
+   ── Por qué se reescribe la BASE y no se añade un bloque escopado ───────────
+   El criterio del repo reserva `:global(html[data-theme="paper"])` para los
+   módulos COMPARTIDOS entre rutas de papel y rutas de app (Header, Footer,
+   HowItWorksPage — que también sirve a rutas fuera de la superficie). Este
+   módulo lo consume ÚNICAMENTE `LegalPages.jsx`, y sus 8 páginas (la novena,
+   /cookies, es un `<Navigate to="/privacy">`) están las 8 en
+   `utils/paperSurface.js`. No hay una segunda rama que preservar: un bloque
+   escopado aquí dejaría una base muerta que nadie sabría si aplica. Mismo
+   razonamiento —y mismo resultado— que `News.module.css`.
+
+   ── Qué es una página legal en este sistema ────────────────────────────────
+   Un DOCUMENTO, no una pantalla: pliego continuo sobre la misma cuadrícula de
+   40px del resto del sitio, columna de lectura estrecha, reglas de 1px como
+   única frontera, apartados numerados y rotulación mono para el metadato. La
+   tarjeta desaparece en TODAS las anchuras — en móvil ya no existía desde
+   LEGAL-MOBILE-NO-CARD (2026-06-23, pedido del dueño), así que esto extiende
+   a escritorio una decisión que ya estaba tomada, en vez de inventar una.
+
+   El copy NO se toca: tiene valor jurídico. Todo lo que cambia es maqueta y
+   jerarquía. La numeración de los apartados vive DENTRO del texto de cada
+   `<h3>` («1. Identidad del Responsable…»), así que aquí no hay ningún
+   `counter-reset` — añadirlo numeraría dos veces.
+
+   ── Código muerto BORRADO, no repintado ────────────────────────────────────
+   · `.metaIcon` — el `<CalendarDays>` salió del JSX. El metadato de un plano
+     se rotula, no se ilustra; y era el único sitio del módulo que pedía un
+     icono para decir «fecha».
+   · El bloque `@media (max-width: 768px)` del final que anulaba la tarjeta
+     glass (y su gemelo `data-theme="dark"`): sin tarjeta no hay nada que
+     anular.
+   · Las 15 reglas `:global(html[data-theme="dark"])`: estas 9 rutas ya no
+     tienen rama oscura — el tema lo decide `paperSurface.js`, no el usuario.
+   ========================================================================= */
+
+/* ── el pliego ─────────────────────────────────────────────────────────────
+   El punto de cuadrícula (`--pa-grid`, 1,38:1) es decorativo y continúa la
+   geometría del landing y del footer: paso 40px, la capa mayor. */
 .container {
     min-height: 80vh;
     width: 100%;
-    padding: 6rem 1.5rem 8rem;
-    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
-    color: #334155;
-    line-height: 1.8;
-    background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
+    padding: clamp(1.75rem, 5vh, 3rem) 1.5rem clamp(4rem, 10vh, 6.5rem);
+    font-family: var(--font-body);
+    color: var(--pa-ink);
+    background-color: var(--pa-paper);
+    background-image: radial-gradient(var(--pa-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
     display: flex;
     justify-content: center;
     align-items: flex-start;
 }
 
-/* Glassmorphism Card */
+/* Columna de lectura. 720px con los párrafos a 66ch (~594px en Plus Jakarta a
+   15px) deja que las reglas de apartado corran algo más anchas que el texto —
+   que es como se lee un apartado impreso, no un descuido de medida. */
 .contentWrapper {
-    max-width: 900px;
+    max-width: 720px;
     width: 100%;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow:
-        0 10px 25px -5px rgba(0, 0, 0, 0.05),
-        0 8px 10px -6px rgba(0, 0, 0, 0.01);
-    border-radius: 24px;
-    padding: 3rem;
 }
 
-/* [P3-LEGAL-BACK-LINK · 2026-05-26] Back-button arriba del título.
-   Estilo discreto: gris suave, hover oscurece + indent del icon. */
+/* Regla de cierre del documento: la última frontera antes del footer negro.
+   Sin ella el texto se acaba en el aire y el salto a `#0B0B0B` llega sin
+   aviso — el riesgo (b) del spec §4.7, que aquí es peor que en el landing
+   porque una legal larga llega al footer tras 700 líneas de texto corrido. */
+.contentWrapper::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: var(--pa-rule);
+    margin-top: clamp(2.5rem, 6vh, 3.5rem);
+}
+
+/* ── volver ────────────────────────────────────────────────────────────────
+   [P3-LEGAL-BACK-LINK · 2026-05-26] Back-button arriba del título.
+   [P3-LEGAL-BACK-DESKTOP-HIDE · 2026-06-30] Oculto en escritorio: estas
+   páginas se abren en pestaña nueva desde el login del app → no hay destino
+   útil al que volver. En móvil se mantiene (navegación in-app desde el
+   footer). Ninguna de las dos decisiones cambia aquí; solo el material. */
 .backButton {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.5rem;
     background: transparent;
-    border: none;
-    color: #64748B;
-    font-family: inherit;
-    font-size: 0.92rem;
-    font-weight: 600;
-    padding: 0.5rem 0.75rem;
-    margin: 0 0 1.25rem -0.75rem;  /* compensa padding-left para alinear con border del card */
-    border-radius: 0.5rem;
+    border: 0;
+    border-radius: 0;
+    color: var(--pa-ink-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.5rem 0;
+    margin: 0 0 1.5rem;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: color 120ms linear;
 }
 
 .backButton:hover {
-    background: rgba(79, 70, 229, 0.06);
-    color: #4338CA;
+    background: transparent;
+    color: var(--pa-ink);
 }
 
-.backButton:hover svg {
-    transform: translateX(-2px);
-}
-
+/* El icono deja de desplazarse en hover (§9: el estado se lee en la tinta) y
+   baja de `strokeWidth: 2.25` a la línea de 1px del sistema. La propiedad CSS
+   gana al atributo `stroke-width` que lucide escribe en el JSX. */
 .backButton svg {
-    transition: transform 0.15s ease;
+    stroke-width: 1.5;
 }
 
 .backButton:focus-visible {
-    outline: 2px solid #4F46E5;
+    outline: 2px solid var(--pa-ink);
     outline-offset: 2px;
 }
 
-/* [P3-LEGAL-BACK-DESKTOP-HIDE · 2026-06-30] En PC/desktop ocultamos "Volver": las páginas
-   legales se abren en pestaña nueva (desde el login del app) → no hay destino útil al que
-   volver. En móvil se mantiene (navegación in-app desde el footer/landing). */
 @media (min-width: 769px) {
     .backButton { display: none; }
 }
 
-/* Header Section */
+/* ── cabecera del documento ────────────────────────────────────────────────
+   Alineada a la izquierda: un documento no se centra. La hairline superior es
+   la línea de margen del pliego, el mismo gesto que la del header. */
 .header {
-    margin-bottom: 3rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    text-align: center;
+    margin-bottom: clamp(2.25rem, 5vh, 3rem);
+    text-align: left;
+}
+
+.header::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 1px;
+    background: var(--pa-rule);
+    margin-bottom: clamp(1.5rem, 4vh, 2.25rem);
 }
 
 .title {
-    font-size: 2.75rem;
-    font-weight: 800;
-    color: #0F172A;
-    margin-bottom: 0.75rem;
-    letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #0F172A 0%, #4338CA 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.meta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.78rem;
-    padding: 0.4rem 0.9rem 0.4rem 0.7rem;
-    border-radius: 99px;
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(67, 56, 202, 0.05));
-    border: 1px solid rgba(79, 70, 229, 0.18);
+    font-family: var(--font-heading);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 400;
+    letter-spacing: -0.028em;
+    line-height: 1.03;
+    color: var(--pa-ink);
     margin: 0;
+    text-wrap: balance;
 }
 
-.metaIcon {
-    color: #6366F1;
-    flex-shrink: 0;
+/* Cajetín del metadato: dos celdas mono separadas por una regla vertical,
+   entre dos hairlines. Mismo gesto que `.cartouche` de News.module.css y que
+   la fila-cartucho del hero. 12px + --pa-ink-2 (spec §2.5): la fecha de
+   vigencia decodifica el documento, así que no le vale el piso de 11px. */
+.meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    margin: clamp(1.5rem, 4vh, 2rem) 0 0;
+    border-top: 1px solid var(--pa-rule-2);
+    border-bottom: 1px solid var(--pa-rule-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .metaLabel {
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    font-weight: 600;
-    color: #64748B;
+    padding: 0.7rem 1.1rem 0.7rem 0;
+    color: var(--pa-ink-2);
 }
 
 .metaDate {
-    font-weight: 700;
-    color: #4338CA;
+    padding: 0.7rem 0 0.7rem 1.1rem;
+    border-left: 1px solid var(--pa-rule-3);
+    color: var(--pa-ink);
+    font-variant-numeric: tabular-nums lining;
 }
 
-/* Content Typography */
+/* ── cuerpo del documento ──────────────────────────────────────────────────
+   Apartado = hairline + título. La regla de 1px es la única frontera: ni
+   tarjeta, ni fondo, ni sangría. */
 .content h3 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1E293B;
-    margin-top: 2.5rem;
-    margin-bottom: 1.25rem;
-    letter-spacing: -0.01em;
-    display: flex;
-    align-items: center;
+    font-family: var(--font-heading);
+    font-size: clamp(1.15rem, 2.2vw, 1.35rem);
+    font-weight: 500;
+    color: var(--pa-ink);
+    letter-spacing: -0.015em;
+    line-height: 1.28;
+    margin: clamp(2.25rem, 5vh, 3rem) 0 1.1rem;
+    padding-top: clamp(1.25rem, 3vh, 1.75rem);
+    border-top: 1px solid var(--pa-rule-3);
 }
 
 .content p {
-    margin-bottom: 1.5rem;
-    color: #475569;
-    font-size: 1.05rem;
+    margin: 0 0 1.15rem;
+    max-width: 66ch;
+    color: var(--pa-ink-2);
+    font-size: 15px;
     line-height: 1.7;
 }
 
 .content ul {
-    margin-bottom: 2rem;
-    padding-left: 0;
-    list-style-type: none;
-    display: grid;
-    gap: 0.75rem;
+    margin: 0 0 1.6rem;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
 }
 
 .content li {
-    padding-left: 1.75rem;
     position: relative;
-    color: #475569;
+    padding-left: 1.5rem;
+    max-width: 66ch;
+    color: var(--pa-ink-2);
+    font-size: 15px;
+    line-height: 1.62;
 }
 
+/* Guion de 13px × 1px: una regla de construcción, no un bullet. Sustituye al
+   `✓` índigo, que además codificaba «correcto» sobre listas que enumeran
+   conductas PROHIBIDAS y contraindicaciones médicas. */
 .content li::before {
-    content: "✓";
-    color: #4F46E5;
-    font-weight: 900;
-    font-size: 1rem;
+    content: '';
     position: absolute;
     left: 0;
-    top: 0.1rem;
+    top: 0.72em;
+    width: 13px;
+    height: 1px;
+    background: var(--pa-ink);
 }
 
-/* Alert Box for Medical Disclaimer */
+.content strong {
+    color: var(--pa-ink);
+    font-weight: 600;
+}
+
+/* Los nombres de tabla y de campo que el copy cita (`health_profile`,
+   `consumed_meals`, `paypal_subscription_id`…) no tenían NINGUNA regla en
+   este módulo: caían a la monoespaciada por defecto del navegador, a un
+   tamaño distinto en cada motor. Ahora usan la mono del sistema, con el
+   filete interno de tabla como marco (decorativo, no portador). */
+.content code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--pa-ink);
+    background: var(--pa-sunk);
+    border: 1px solid var(--pa-rule-3);
+    border-radius: 0;
+    padding: 0.06em 0.34em;
+    white-space: nowrap;
+}
+
+/* ── nota destacada (Aviso Médico) ─────────────────────────────────────────
+   Era ámbar sobre `#FFFBEB` con radio 16px. En papel un estado se codifica
+   por FORMA: interior hundido + marco de tinta de 1px — el único marco negro
+   del documento, que es lo que lo separa del resto sin necesidad de color.
+   La tinta del texto se queda en `--pa-ink` (no `--pa-ink-2`): es la única
+   advertencia del sistema y no debe leerse como cuerpo secundario. */
 .alertBox {
-    background: #FFFBEB;
-    border: 1px solid #FCD34D;
-    padding: 1.5rem;
-    border-radius: 16px;
-    margin-bottom: 2.5rem;
+    background: var(--pa-sunk);
+    border: 1px solid var(--pa-ink);
+    border-radius: 0;
+    padding: 1.35rem 1.5rem;
+    margin-bottom: 2.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.7rem;
 }
 
 .alertTitle {
-    color: #B45309;
-    font-weight: 700;
-    font-size: 1.1rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--pa-ink);
     margin-bottom: 0 !important;
+}
+
+.alertTitle svg {
+    stroke-width: 1.5;
+    flex: none;
 }
 
 .alertText {
-    color: #92400E;
-    font-size: 1rem;
+    color: var(--pa-ink);
+    font-size: 15px;
+    line-height: 1.65;
+    max-width: 66ch;
     margin-bottom: 0 !important;
 }
 
-/* Links */
+/* ── enlaces ───────────────────────────────────────────────────────────────
+   Hover del §9: solo tinta y grosor de subrayado (1px → 2px). Cero
+   desplazamiento, cero cambio de fondo.
+
+   `:focus-visible` NO existía para `.link` — solo lo tenía `.backButton`, y
+   en indigo. Los 3 enlaces del cuerpo caían al anillo azul por defecto del
+   navegador: tinta saturada que ninguna revisión visual ni ningún escáner de
+   texto ve, y que solo aparece tabulando. Mismo fallo que ya costó una ronda
+   en /supermercado. */
 .link {
-    color: #4F46E5;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.2s;
-    border-bottom: 1px dashed rgba(79, 70, 229, 0.4);
+    color: var(--pa-ink);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: text-decoration-thickness 120ms linear;
 }
 
 .link:hover {
-    color: #4338CA;
-    border-bottom-style: solid;
+    color: var(--pa-ink);
+    text-decoration-thickness: 2px;
 }
 
+.link:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 3px;
+    border-radius: 0;
+}
+
+/* ── móvil ─────────────────────────────────────────────────────────────────
+   [LEGAL-MOBILE-SPACING · 2026-06-23] Menos aire arriba (`.main-content` ya
+   reserva ~90px para el header fijo) y 1,25rem de margen lateral. */
 @media (max-width: 768px) {
-    /* [LEGAL-MOBILE-SPACING · 2026-06-23] (a) menos gap arriba: el Header es FIJO y
-       .main-content ya reserva ~84px para él → el 5rem extra solo alejaba "Volver"
-       del encabezado. Baja a 1.5rem para acercarlo. (b) más aire lateral: 1rem→1.5rem
-       para que el texto no quede pegado a los bordes (la tarjeta se quitó en móvil). */
     .container {
-        padding: 1.5rem 1.5rem 4rem;
+        padding: 1.25rem 1.25rem 4rem;
     }
 
-    .contentWrapper {
-        padding: 2rem 1.5rem;
-    }
-
-    .title {
-        font-size: 2rem;
+    .content h3 {
+        margin-top: 2.25rem;
     }
 }
 
-/* ============================================================
-   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — LegalPages
-   ============================================================ */
-
-/* --- FONDO DE PÁGINA --- */
-:global(html[data-theme="dark"]) .container {
-    background: linear-gradient(135deg, var(--bg-page) 0%, #0F172A 100%);
-    color: var(--text-main);
-}
-
-/* --- TARJETA GLASSMORPHISM --- */
-:global(html[data-theme="dark"]) .contentWrapper {
-    background: rgba(17, 24, 39, 0.88);
-    border-color: rgba(31, 41, 55, 0.8);
-    box-shadow:
-        0 10px 25px -5px rgba(0, 0, 0, 0.35),
-        0 8px 10px -6px rgba(0, 0, 0, 0.2);
-}
-
-/* --- BACK BUTTON --- */
-:global(html[data-theme="dark"]) .backButton {
-    color: var(--text-muted);
-}
-
-:global(html[data-theme="dark"]) .backButton:hover {
-    background: rgba(99, 102, 241, 0.08);
-    color: var(--primary-light);
-}
-
-/* --- HEADER --- */
-:global(html[data-theme="dark"]) .header {
-    border-bottom-color: rgba(31, 41, 55, 0.6);
-}
-
-/* title usa background-clip:text — el gradiente termina en #4338CA (acento) →
-   en oscuro re-pintamos desde un gris claro al acento claro para mantener legibilidad */
-:global(html[data-theme="dark"]) .title {
-    background: linear-gradient(135deg, var(--text-main) 0%, var(--primary-light) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-:global(html[data-theme="dark"]) .meta {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(99, 102, 241, 0.08));
-    border-color: rgba(99, 102, 241, 0.3);
-}
-
-:global(html[data-theme="dark"]) .metaIcon {
-    color: var(--primary-light);
-}
-
-:global(html[data-theme="dark"]) .metaLabel {
-    color: var(--text-muted);
-}
-
-:global(html[data-theme="dark"]) .metaDate {
-    color: var(--primary-light);
-}
-
-/* --- TYPOGRAPHY --- */
-:global(html[data-theme="dark"]) .content h3 {
-    color: var(--text-main);
-}
-
-:global(html[data-theme="dark"]) .content p {
-    color: var(--text-muted);
-}
-
-:global(html[data-theme="dark"]) .content li {
-    color: var(--text-muted);
-}
-
-/* --- ALERT BOX (aviso médico — semántico ámbar, solo ajustamos fondos) --- */
-:global(html[data-theme="dark"]) .alertBox {
-    background: #1C1400;
-    border-color: #78350F;
-}
-
-:global(html[data-theme="dark"]) .alertTitle {
-    color: #FCD34D;
-}
-
-:global(html[data-theme="dark"]) .alertText {
-    color: #FDE68A;
-}
-
-/* --- LINKS --- */
-:global(html[data-theme="dark"]) .link {
-    color: var(--primary-light);
-    border-bottom-color: rgba(165, 180, 252, 0.4);
-}
-
-:global(html[data-theme="dark"]) .link:hover {
-    color: #C7D2FE;
-}
-
-/* [LEGAL-MOBILE-NO-CARD · 2026-06-23] En móvil, quitar la tarjeta glassmorphism
-   (fondo translúcido + borde + sombra) que rodea el texto legal → el contenido va
-   directo sobre el fondo de la página (pedido del owner: se ve mejor así). Va al
-   FINAL del archivo para ganar por ORDEN DE FUENTE al override dark de
-   .contentWrapper (línea ~209), que es más específico que la regla mobile base.
-   El back-button sigue alineado: su margin-left:-0.75rem cancela su padding-left
-   → el icono queda al borde del contenido, igual que el texto del cuerpo. */
-@media (max-width: 768px) {
-    .contentWrapper,
-    :global(html[data-theme="dark"]) .contentWrapper {
-        background: transparent;
-        border: none;
-        box-shadow: none;
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-        border-radius: 0;
-        padding: 0;
+/* ── REDUCED MOTION — defensa (b) del módulo ───────────────────────────────
+   Estas páginas no usan framer-motion (la defensa (a) no aplica), pero el
+   guard global de index.css solo ACORTA duraciones: sin esto el subrayado y
+   la tinta seguirían transicionando con `reduce` activo. */
+@media (prefers-reduced-motion: reduce) {
+    .backButton,
+    .link {
+        transition: none !important;
+        animation: none !important;
     }
 }

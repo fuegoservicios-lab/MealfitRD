@@ -26,6 +26,18 @@
 //   /about         — ídem, y su aurora animada era el último `filter: blur()`
 //                    de una ruta pública alcanzable desde el pliego.
 //
+// [P1-PAPER-LEGAL · 2026-08-02] Las 9 páginas legales entran a la superficie.
+// Eran lo último del diseño anterior: el footer de las 10 rutas de papel enlaza
+// a TODAS ellas, así que el pliego terminaba en una tarjeta glass sobre un
+// degradado azulado. Comparten `LegalPages.module.css` + `LegalPages.jsx`, cuya
+// BASE se reescribió a papel (no un bloque escopado): el módulo no tiene ningún
+// otro consumidor, y el criterio del repo reserva el escopado para los módulos
+// COMPARTIDOS (Header, Footer, HowItWorksPage).
+//   /cookies NO renderiza `LegalPages` — es un `<Navigate to="/privacy">`
+//   (P3-COOKIES-MERGE) y por eso tampoco está en `LEGAL_PATHS`. Entra igual:
+//   el boot script corre ANTES de que React resuelva el redirect, así que sin
+//   ella una carga en frío de /cookies pinta un frame oscuro antes de saltar.
+//
 // PREFIJOS: `/novedades/:slug` es una ruta DINÁMICA — un `includes()` exacto no
 // puede cubrirla y una entrada por slug drifta con `data/news.js`. Por eso hay
 // una segunda lista de prefijos, con el mismo criterio que `newsRoutes.js` ya
@@ -38,6 +50,8 @@
 export const PAPER_SURFACE_ROUTES = [
     '/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor',
     '/research', '/novedades', '/supermercado', '/about',
+    '/privacy', '/terms', '/cookies', '/medical', '/data-protection',
+    '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure',
 ];
 
 export const PAPER_SURFACE_PREFIXES = ['/novedades/'];

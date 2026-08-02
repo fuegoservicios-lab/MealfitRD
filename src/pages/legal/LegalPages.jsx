@@ -2,7 +2,9 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import styles from './LegalPages.module.css';
-import { AlertTriangle, ArrowLeft, CalendarDays } from 'lucide-react';
+// [P1-PAPER-LEGAL · 2026-08-02] `CalendarDays` salió con `.metaIcon`: bajo
+// papel el metadato de un pliego se ROTULA en mono, no se ilustra.
+import { AlertTriangle, ArrowLeft } from 'lucide-react';
 
 const LegalLayout = ({ title, lastUpdated, children }) => {
     const navigate = useNavigate();
@@ -94,7 +96,6 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
                         "Acerca de Bioboros" no es una política con fecha → sin meta. */}
                     {lastUpdated && (
                         <p className={styles.meta}>
-                            <CalendarDays size={14} strokeWidth={2.5} className={styles.metaIcon} />
                             <span className={styles.metaLabel}>Última actualización</span>
                             <span className={styles.metaDate}>{lastUpdated}</span>
                         </p>

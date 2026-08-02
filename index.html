@@ -53,7 +53,10 @@
       // y corregía, y entonces saltaba a blanco. Es exactamente el flash que
       // este bloque existe para evitar. Sacarla del try es lo que permite que
       // el catch consulte la MISMA lista, sin duplicarla en un cuarto sitio.
-      var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about'];
+      // [P1-PAPER-LEGAL · 2026-08-02] +9 legales. `/cookies` incluida aunque
+      // sea un redirect a /privacy: este script corre ANTES de que React lo
+      // resuelva, así que sin ella la carga en frío pinta un frame oscuro.
+      var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about', '/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure'];
       var PAPER_PFX = ['/novedades/'];
       function paperPath(p) {
         if (PAPER.indexOf(p) !== -1) return true;
