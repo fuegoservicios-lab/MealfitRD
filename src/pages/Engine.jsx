@@ -1,6 +1,13 @@
 import { useEffect, useLayoutEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Cpu, ArrowRight, ChevronRight, Info } from 'lucide-react';
+import { Cpu, Info } from 'lucide-react';
+// [P2-PAPER-NO-INK · 2026-08-02, Task 13] Banda de cierre: última hija de las 6
+// rutas papel. Componente propio, NUNCA dentro de Footer.jsx — el footer se
+// renderiza en 21 rutas, incluidas las 10 legales (ver ClosingBand.jsx).
+// Sustituye a la `<section className={styles.finalCta}>` que cerraba la página:
+// pedía el mismo clic, con el mismo literal, justo antes de la banda. `Link`,
+// `ChevronRight` y `ArrowRight` salieron del import con ella — eran sus únicos
+// usos en este archivo.
+import ClosingBand from '../components/home/ClosingBand';
 import styles from './Engine.module.css';
 
 /**
@@ -114,6 +121,7 @@ const Engine = () => {
     }, []);
 
     return (
+        <>
         <div className={styles.page}>
             {/* ---- intro + imagen abstracta del modelo ---- */}
             <section className={styles.intro}>
@@ -386,22 +394,9 @@ const Engine = () => {
                 </div>
             </section>
 
-            {/* ---- CTA final ---- */}
-            <section className={styles.finalCta}>
-                <h2 className={styles.finalTitle}>¿List@ para tu plan calculado?</h2>
-                <p className={styles.finalText}>
-                    Responde unas preguntas y deja que el motor haga el resto — en minutos.
-                </p>
-                <div className={styles.ctaRow}>
-                    <Link to="/assessment" className={styles.ctaPrimary}>
-                        Crear mi Plan <ChevronRight size={19} strokeWidth={2.5} />
-                    </Link>
-                    <Link to="/" className={styles.ctaGhost}>
-                        Volver al inicio <ArrowRight size={18} strokeWidth={2.25} />
-                    </Link>
-                </div>
-            </section>
         </div>
+        <ClosingBand />
+        </>
     );
 };
 

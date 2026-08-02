@@ -1,21 +1,33 @@
-/* [P3-PRICING-PAGE-BG-SEAM · 2026-06-29] Página /precios. El header es una barra
-   flotante (fixed) y el Layout añade padding-top al <main>. En el landing el Hero se
-   sube con margin-top negativo para que su fondo (gradiente+glows) llene DETRÁS de la
-   barra — por eso ahí no hay costura. Aquí replicamos ese truco para la sección de
-   precios: la subimos bajo la barra (su fondo + radiales superiores llenan detrás) y
-   restauramos el offset del contenido con padding-top para que el badge quede bien
-   debajo de la barra. `.wrap > section` (0,1,1) gana a `.pricing` (0,1,0). */
+/* ============================================================================
+   /precios — envoltorio de la página
+   [P3-PRICING-PAGE-BG-SEAM · 2026-06-29 · desmontado P2-PAPER-NO-INK · 2026-08-02]
+
+   Lo que había aquí y por qué se fue, para que nadie lo reintroduzca creyendo
+   que falta algo:
+
+       .wrap        { margin-top: calc(-72px - max(env(safe-area-inset-top), 18px)) }
+       .wrap > section { padding-top: calc(72px + ... + 6rem) }
+
+   Subía la sección de precios BAJO la barra del header y le devolvía el offset
+   con padding, para que su fondo (el blob de radiales) llenara por detrás de
+   una barra flotante translúcida y no se viera la costura. Neto: cero
+   desplazamiento, un fondo asomando tras un cristal.
+
+   Bajo la superficie papel el header es OPACO — `Header.module.css`, bloque
+   `:global(html[data-theme="paper"]) .header`: `background: var(--pa-paper)`
+   + hairline inferior, sin `backdrop-filter`. No hay cristal por el que se vea
+   nada, así que las dos reglas eran una parada de -72px seguida de una de
+   +72px sostenida por `calc()` duplicados en dos breakpoints. Es exactamente
+   el mismo `margin-top` negativo que el Hero borró en Task 3 y por la misma
+   razón (ver cabecera de `Hero.module.css`).
+
+   El offset real lo pone ahora `<main class="main-content">` (Layout.jsx) y el
+   aire superior el `padding` propio de `.pricing`, igual que en la home.
+
+   `.wrap` se conserva como clase VIVA (el JSX la referencia) en vez de dejar
+   `styles.wrap` en `undefined`: un `className` que evapora en silencio invita
+   a que el siguiente lector borre el div creyendo que sobra.
+   ========================================================================= */
 .wrap {
-    margin-top: calc(-72px - max(env(safe-area-inset-top), 18px));
-}
-.wrap > section {
-    padding-top: calc(72px + max(env(safe-area-inset-top), 18px) + 6rem);
-}
-@media (min-width: 768px) {
-    .wrap {
-        margin-top: -88px;
-    }
-    .wrap > section {
-        padding-top: calc(88px + 6rem);
-    }
+    position: relative;
 }

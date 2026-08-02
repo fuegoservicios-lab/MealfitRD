@@ -3,8 +3,13 @@ import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
     Gauge, Cpu, Target, ListChecks, ShieldCheck, ScanSearch, Scale,
-    Check, Minus, X, ChevronRight, ArrowRight, Info,
+    Check, Minus, X, Info,
 } from 'lucide-react';
+// [P2-PAPER-NO-INK · 2026-08-02, Task 13] Banda de cierre: última hija de las 6
+// rutas papel. Componente propio, NUNCA dentro de Footer.jsx (ver ClosingBand.jsx).
+// Sustituye al `.finalCta` local, que pedía el mismo clic con el mismo literal
+// justo antes de la banda; `ChevronRight`/`ArrowRight` salieron con él.
+import ClosingBand from '../components/home/ClosingBand';
 // Marco minimalista-científico compartido con /como-funciona y /funciones.
 import styles from './HowItWorksPage.module.css';
 // Estilos específicos de esta página (tabla comparativa + barras por macro).
@@ -86,6 +91,7 @@ const PrecisionPage = () => {
     }, []);
 
     return (
+        <>
         <div className={styles.page}>
             {/* ───────────────── hero ───────────────── */}
             <header className={styles.hero}>
@@ -253,17 +259,10 @@ const PrecisionPage = () => {
                         consejo médico. ¿Quieres ver el mecanismo? Mira <Link to="/motor">el motor por dentro</Link>.
                     </div>
                 </Reveal>
-
-                <Reveal className={styles.finalCta}>
-                    <h2 className={styles.finalTitle}>Mira tus propios números cuadrar</h2>
-                    <p className={styles.finalText}>Crea un plan y comprueba la precisión sobre tus objetivos reales.</p>
-                    <div className={styles.ctaRow}>
-                        <Link to="/assessment" className={styles.ctaPrimary}>Crear mi Plan <ChevronRight size={19} strokeWidth={2.5} /></Link>
-                        <Link to="/funciones" className={styles.ctaGhost}>Ver funciones <ArrowRight size={18} strokeWidth={2.25} /></Link>
-                    </div>
-                </Reveal>
             </div>
         </div>
+        <ClosingBand />
+        </>
     );
 };
 
