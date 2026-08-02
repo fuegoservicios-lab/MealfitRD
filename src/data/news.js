@@ -16,6 +16,12 @@
 //   art       → OPCIONAL. [c1, c2, c3] — tres colores hex del arte abstracto del
 //               thumbnail (estilo OpenAI news: campos de color difuminados). Sin
 //               art → NewsHighlight usa una paleta cíclica por índice.
+//               [P1-PAPER-THEME · 2026-08-01] El campo sigue VIVO para /novedades
+//               y /novedades/:slug (vía NewsArt), pero el landing YA NO lo
+//               consume: su registro (NewsHighlight) es una tabla en blanco y
+//               negro. Si añades una novedad, el `art` solo pinta en el índice —
+//               no reintroduce color en el landing.
+//               Deuda con fecha: migrar /novedades a papel en el PR siguiente al PR 3.
 //   image     → OPCIONAL. Ruta (public/) de una imagen REAL para el thumbnail
 //               (p.ej. el emblema del anuncio). Si existe, la tarjeta muestra la
 //               imagen (object-fit cover) y el gradiente `art` queda debajo como
