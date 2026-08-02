@@ -69,7 +69,17 @@ const NewsPage = () => {
                         `data/news.js` — conteo y fecha de la entrada 0 —, nunca
                         escritos: la regla moral del sistema es que solo se acota
                         lo que se mide. Si el array queda vacío, el cajetín no se
-                        dibuja en vez de acotar un cero. */}
+                        dibuja en vez de acotar un cero.
+
+                        SON DOS CELDAS, no tres. Un borrador llevaba una tercera
+                        con `ES-DO`, y se cayó por dos motivos que se refuerzan:
+                        (1) es atrezzo — el §4.7 del spec rechaza expresamente las
+                        celdas decorativas de cajetín («ESCALA — 1:1», «HOJA —
+                        01/01») y el dato ya vive DOS veces en esta misma página,
+                        en el cajetín del header y en el del footer; (2) medido a
+                        390px, la tercera celda envolvía y su `border-left`
+                        quedaba colgando al inicio de la segunda línea como una
+                        regla suelta. Con dos celdas caben en una línea. */}
                     {latest && (
                         <div className={styles.cartouche}>
                             <span className={styles.cartoucheCell}>
@@ -80,7 +90,6 @@ const NewsPage = () => {
                             <span className={styles.cartoucheCell}>
                                 Última — <span className={styles.cartoucheVal}>{latest.date}</span>
                             </span>
-                            <span className={styles.cartoucheCell}>ES-DO</span>
                         </div>
                     )}
                 </header>
