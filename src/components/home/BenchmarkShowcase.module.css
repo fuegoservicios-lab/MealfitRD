@@ -165,32 +165,47 @@
    motor» en las dos figuras de abajo. Eso DECODIFICA, y el spec sube entera
    esa capa a 12 px (§2.5). Un metadato que se puede ignorar sin perder la
    figura es otra cosa; esto no lo es. */
+/* [P1-SECCION-03-NEGATIVO · 2026-08-02] LA TIRA PASA A TINTA SÓLIDA.
+   La 03 se invierte entera (ver su módulo); esta sección se queda en papel
+   —dos secciones negras seguidas serían una sola mancha— pero necesitaba masa
+   por la misma razón: en 1.748px de alto no había una sola superficie sólida
+   salvo la barra de la Fig. 04.2.
+
+   La tira es el sitio correcto para ponerla. Ya era una banda reglada a todo
+   el ancho, ya iba en mono versalitas, y lo que dice —las condiciones bajo las
+   que se midió— es el CARTUCHO de la lámina. Rellenarla de tinta es la misma
+   gramática que la banda «MÁS POPULAR» de precios y que el segmento activo de
+   su conmutador: sólido = lo que rige.
+
+   Los divisores suben a `--pa-ink-3` (#6A6A66): sobre tinta, `--pa-rule-2`
+   quedaba a 1,4:1 y desaparecían. El texto sube de `--pa-ink-2` a papel puro,
+   que sobre #0B0B0B es el mismo 19:1 que tenía en negativo. */
 .strip {
     display: flex;
     flex-wrap: wrap;
     margin: 0 0 4rem;
     padding: 0;
     list-style: none;
-    border-top: 1px solid var(--pa-rule);
-    border-bottom: 1px solid var(--pa-rule);
+    background: var(--pa-ink);
+    border: 0;
 }
 
 .stripCell {
     flex: 1 1 auto;
-    padding: 0.7rem 1rem;
+    padding: 0.85rem 1rem;
     text-align: center;
     font-family: var(--font-mono);
     font-weight: 500;
     font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--pa-ink-2);
+    color: var(--pa-paper);
     font-variant-numeric: tabular-nums lining;
     white-space: nowrap;
 }
 
 .stripCell + .stripCell {
-    border-left: 1px solid var(--pa-rule-2);
+    border-left: 1px solid var(--pa-ink-3);
 }
 
 /* ── bloques de figura ──────────────────────────────────────────────────── */
@@ -213,16 +228,22 @@
     border-top: 1px solid var(--pa-rule);
 }
 
+/* [P1-SECCION-03-NEGATIVO · 2026-08-02] La cabecera de la tabla, también en
+   tinta. Segunda masa de la sección y en su mitad inferior: con la tira
+   arriba y esto abajo, el peso queda repartido en vez de concentrado en un
+   solo punto. Y una cabecera de tabla rellena es de lo más convencional que
+   hay — no estrena gramática, la aplica donde ya se esperaba. */
 .capsTh {
     text-align: left;
     padding: 0.85rem 0.9rem;
-    border-bottom: 1px solid var(--pa-rule);
+    background: var(--pa-ink);
+    border-bottom: 0;
     font-family: var(--font-mono);
     font-weight: 500;
     font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--pa-ink-2);
+    color: var(--pa-paper);
     white-space: nowrap;
 }
 

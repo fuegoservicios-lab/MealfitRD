@@ -62,7 +62,53 @@
    escalar: un mockup cortado por el marco es una vista de detalle, no un bug.
    ========================================================================= */
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   [P1-SECCION-03-NEGATIVO · 2026-08-02] LA SECCIÓN SE INVIERTE.
+
+   Tercer intento sobre la misma queja del dueño («se ven muy simples»). Los
+   dos anteriores —jerarquía de plumilla y tono, después titular de 38px— eran
+   correctos y siguen en pie, pero no atacaban la causa. La causa, mirando la
+   página entera y no la sección: TODO EL LANDING BAJO EL HERO ES ~97% BLANCO.
+   Lo único sólido en 5.000px de scroll son el botón del header, una barra de
+   la Fig. 04.2 y hairlines de 1px. En un sistema sin color la presencia solo
+   se compra con VALOR, y el diseño estaba usando el 5% más claro del rango.
+
+   NO SE INVENTA NADA PARA HACER ESTO. El sistema ya tenía el patrón: la
+   «COPIA DE ARCHIVO» del spec §2.2, que el footer usa desde Task 8 —
+   `Footer.module.css:287` declara los MISMOS NOMBRES de token con valores
+   re-derivados para tinta clara sobre fondo oscuro, y todo lo que cuelga por
+   debajo se invierte solo por herencia. Estos siete valores son literalmente
+   los suyos; el único que añado es `--pa-rule-3`, que el footer no declara
+   porque no lo usa (derivado al mismo 1,61:1 que tiene sobre papel).
+
+   Y con esto el landing gana un RITMO que no tenía:
+       hero blanco · 02 blanco · 03 NEGRO · 04 blanco · 05 blanco · footer negro
+
+   Los hex son neutros (los tres canales dentro de 24/255), así que el escáner
+   de tinta los deja pasar por diseño — mide saturación, no literales.
+   ═══════════════════════════════════════════════════════════════════════════ */
 .section {
+    --pa-paper: #0B0B0B;
+    --pa-ink: #FBFBFA;
+    --pa-ink-2: #B9B9B4;
+    --pa-ink-3: #8C8C84;
+    --pa-rule: #FBFBFA;
+    --pa-rule-2: #6A6A66;
+    --pa-rule-3: #353533;
+    --pa-grid: #2A2A28;
+
+    /* ⚠ EL ANILLO DE FOCO NECESITA SU PROPIO TOKEN, y no es una preferencia.
+       El `outline` de `.viewLink` se dibuja FUERA de la tarjeta —`outline-offset:
+       3px`— o sea sobre el fondo de LA SECCIÓN, pero lo resolvía con el
+       `--pa-ink` que la propia tarjeta restaura a tinta oscura. Medido tras
+       invertir: negro #0B0B0B sobre negro #0B0B0B, contraste 1:1. El anillo
+       existía y era literalmente invisible; WCAG 1.4.11 pide 3:1.
+
+       Este token se declara aquí y `.viewLink` NO lo redefine, así que
+       sobrevive al cambio de contexto. Si algún día la sección deja de estar
+       invertida, este valor vuelve a `#0B0B0B` con ella. */
+    --pa-ring: #FBFBFA;
+
     position: relative;
     padding: 6rem 0;
     background: var(--pa-paper);
@@ -212,7 +258,32 @@
     min-width: 0;
 }
 
+/* ── LAS CINCO VISTAS VUELVEN AL PAPEL ────────────────────────────────────
+   [P1-SECCION-03-NEGATIVO · 2026-08-02] La sección es la copia de archivo;
+   las cinco vistas no. Aquí se restauran los tokens originales y con eso
+   TODO lo que cuelga dentro —los cinco mockups, sus ~900 líneas de CSS, sus
+   cartuchos, filetes y pies— vuelve a tinta sobre papel sin tocar ni una de
+   esas reglas. Es el mismo mecanismo de herencia que invierte la sección,
+   aplicado en sentido contrario un nivel más abajo.
+
+   POR QUÉ NO SE INVIERTEN TAMBIÉN. Se probaron mentalmente las dos: en
+   negativo, los cinco mockups son ~100 nodos de texto de 12-13px en claro
+   sobre negro, que es exactamente donde la lectura se degrada; y perderían el
+   contraste CONTRA la sección, que es de donde sale el efecto. Blancas, se
+   leen como PRUEBAS IMPRESAS sobre una mesa oscura — el contenido salta al
+   frente y el chasis se retira, que es lo que una lámina de archivo hace.
+
+   `color: inherit` de abajo tenía que irse: heredaría el `--pa-ink` de la
+   sección (claro) y dejaría el texto de las vistas en blanco sobre blanco. */
 .viewLink {
+    --pa-paper: #FBFBFA;
+    --pa-ink: #0B0B0B;
+    --pa-ink-2: #3D3D3B;
+    --pa-ink-3: #6A6A66;
+    --pa-rule: #0B0B0B;
+    --pa-rule-2: #8A8A84;
+    --pa-rule-3: #C9C9C4;
+
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
@@ -220,12 +291,14 @@
     border: 1px solid var(--pa-rule);
     background: var(--pa-paper);
     border-radius: 0;
-    color: inherit;
+    color: var(--pa-ink);
     text-decoration: none;
 }
 
+/* `--pa-ring`, no `--pa-ink`: ver la nota en `.section`. El anillo cae sobre el
+   fondo de la sección, no sobre el papel de la tarjeta. */
 .viewLink:focus-visible {
-    outline: 2px solid var(--pa-ink);
+    outline: 2px solid var(--pa-ring);
     outline-offset: 3px;
 }
 
