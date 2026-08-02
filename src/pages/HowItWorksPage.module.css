@@ -10,17 +10,20 @@
        HowItWorksPage.jsx  → /como-funciona   ← papel
        FeaturesPage.jsx    → /funciones       ← papel
        PrecisionPage.jsx   → /precision       ← papel
-       ResearchPage.jsx    → /research        ← NO es papel
+       ResearchPage.jsx    → /research        ← papel desde 2026-08-02
 
-   `/research` no está en `utils/paperSurface.js` (SSOT), así que sigue sirviéndose
-   en claro/oscuro según la preferencia del usuario. Reescribir la base a
-   `var(--pa-*)` la habría dejado con variables INEXISTENTES fuera de
-   `html[data-theme="paper"]`: `border: 1px solid var(--pa-rule-2)` con la
-   custom property sin declarar es inválido en tiempo de valor computado y el
-   borde cae a `currentColor` — bordes blancos brillantes en oscuro. Es el mismo
-   criterio con el que Header y Footer llevan bloque `paper` (los módulos
-   COMPARTIDOS se escopan; los exclusivos de una ruta papel —Engine, Pricing,
-   PrecisionPage— se reescriben directos).
+   [P1-PAPER-SURFACE-EXTEND · 2026-08-02] `/research` entró en
+   `utils/paperSurface.js`, así que HOY las cuatro consumidoras son papel y la
+   base ya no la pinta nadie. **El bloque escopado se conserva igualmente**, y no
+   por inercia: colapsarlo a la base significaría escribir `var(--pa-rule-2)` en
+   reglas que se evalúan fuera de `html[data-theme="paper"]` si alguna de las
+   cuatro rutas sale de la superficie (o si mañana se añade una quinta página que
+   reuse este módulo). Una custom property sin declarar hace inválido el valor
+   computado y el borde cae a `currentColor` — bordes blancos brillantes en
+   oscuro, el fallo exacto que este escopado evita. El criterio del repo sigue
+   siendo: módulos COMPARTIDOS se escopan (Header, Footer, este); módulos
+   exclusivos de una ruta papel —Engine, Pricing, PrecisionPage— se reescriben
+   directos. Este es compartido por cuatro páginas, así que se escopa.
 
    NOTA de alcance: el comentario original decía «No toca Engine.module.css
    (Funciones/Precisión lo usan)». Es falso desde hace tiempo: FeaturesPage y
@@ -836,6 +839,25 @@
 :global(html[data-theme="paper"]) .figDotAccent { fill: var(--pa-ink); }
 :global(html[data-theme="paper"]) .figFill { fill: var(--pa-sunk); stroke: var(--pa-ink); }
 
+/* [P1-PAPER-SURFACE-EXTEND · 2026-08-02] `border-radius: 0` (spec §2.3) NO
+   alcanza un `<rect rx="12">`: el radio de un rect SVG es un ATRIBUTO que el
+   JSX escribe, no el `border-radius` de la caja. Los cuatro consumidores de
+   este módulo los tienen — 11 rects en `FeaturesPage.jsx` (rx 4 a 12) y 2 en
+   `ResearchPage.jsx` (rx="4" en las barras del histograma, rx="12" en el marco
+   del conjunto anónimo). `rx`/`ry` son propiedades de geometría CSS desde
+   Chrome 79 / Firefox 88 / Safari 16.4, así que declararlas aquí anula el
+   atributo; donde no se soporten el radio queda como estaba (cosmético, no
+   estructural). Mismo mecanismo y misma nota de soporte que
+   `Engine.module.css::.chartBarMf`. */
+:global(html[data-theme="paper"]) .figLine,
+:global(html[data-theme="paper"]) .figMuted,
+:global(html[data-theme="paper"]) .figDash,
+:global(html[data-theme="paper"]) .figAccent,
+:global(html[data-theme="paper"]) .figFill {
+    rx: 0px;
+    ry: 0px;
+}
+
 /* ── stepper ──────────────────────────────────────────────────────────────── */
 :global(html[data-theme="paper"]) .stepDot {
     border-radius: 0;
@@ -920,11 +942,14 @@
     border-bottom-color: var(--pa-ink);
 }
 
-/* [P2-PAPER-NO-INK · 2026-08-02] Bajo papel el JSX de las tres páginas ya NO
-   monta `.finalCta`: cierran con `<ClosingBand />`, que pide el mismo clic con
-   el mismo literal. Estas reglas quedan repintadas porque `/research` —que NO
-   es papel y NO lleva banda— sí lo monta, y porque un bloque a medio pintar es
-   una trampa para quien lo reviva. */
+/* [P2-PAPER-NO-INK · 2026-08-02 · revisado P1-PAPER-SURFACE-EXTEND] El JSX de
+   las tres páginas de marketing ya NO monta `.finalCta`: cierran con
+   `<ClosingBand />`, que pide el mismo clic con el mismo literal. Quien SÍ lo
+   monta es `/research`, que desde 2026-08-02 es papel y sigue SIN banda de
+   cierre — deliberadamente: `ClosingBand` es el CTA de conversión del pliego de
+   marketing, y `/research` es una política (vive en `LEGAL_PATHS`) cuyo cierre
+   propio enlaza a Protección de Datos. Su `.finalCta` es el cierre correcto
+   para esa página, así que estas reglas están vivas, no de reserva. */
 :global(html[data-theme="paper"]) .finalCta {
     border: 0;
     border-top: 1px solid var(--pa-rule);
