@@ -126,14 +126,26 @@
 }
 
 /* ───────────────────────── cabecera de la hoja ────────────────────────────
-   El rótulo, el H2 y el lead comparten el eje IZQUIERDO de las celdas de
-   abajo. Antes iban centrados en una columna de 600px: en un pliego con la
-   línea de margen como elemento organizador, un bloque centrado sobre una
-   tabla alineada a la izquierda se lee como un escalón. */
+   [P2-PRICING-HEADER-CENTER · 2026-08-02] CENTRADA por decisión del dueño.
+
+   La versión anterior alineaba el rótulo, el H2 y el lead al eje IZQUIERDO de
+   las celdas de abajo, con este argumento: en un pliego donde la línea de
+   margen organiza la página, un bloque centrado sobre una tabla alineada a la
+   izquierda se lee como un escalón. El argumento sigue siendo cierto y aun así
+   pierde — el dueño quiere la cabecera centrada y esa es la decisión.
+
+   Se deja escrito para que nadie lo «arregle» de vuelta a la izquierda creyendo
+   que fue un descuido del sistema: fue una anulación consciente, igual que la
+   de `P3-LANDING-DARK-ONLY`.
+
+   `margin: 0 auto` es la mitad que importa: sin él, `text-align: center` centra
+   el TEXTO dentro de una caja de 760px que sigue pegada a la izquierda de un
+   contenedor de 1280px — el bloque se vería descentrado a la derecha del
+   centro real de la página. */
 .header {
     max-width: 760px;
-    margin: 0 0 3.5rem;
-    text-align: left;
+    margin: 0 auto 3.5rem;
+    text-align: center;
 }
 
 /* `<span class="badge">Planes Flexibles</span>` — el mismo motivo de apertura
@@ -180,12 +192,15 @@
     margin: 0 0 1rem;
 }
 
+/* `margin: 0 auto` por la misma razón que en `.header`: el tope de 52ch le da
+   una caja más estrecha que la cabecera, y sin `auto` esa caja quedaría a la
+   izquierda mientras el H2 de arriba sí se ve centrado. */
 .subtitle {
     font-family: var(--font-body);
     font-size: 1.0625rem;
     line-height: 1.6;
     max-width: 52ch;
-    margin: 0;
+    margin: 0 auto;
     color: var(--pa-ink-2);
     text-wrap: pretty;
 }
