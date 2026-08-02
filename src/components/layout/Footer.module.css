@@ -66,10 +66,6 @@
     display: inline-block;
 }
 
-.highlight {
-    color: var(--primary-light);
-}
-
 .desc {
     color: var(--text-light);
     max-width: 300px;
@@ -269,25 +265,25 @@
     color: var(--text-main);
 }
 
-/* [P1-PAPER-THEME · 2026-08-01 · corregido P1-PAPER-THEME-FIX1 · 2026-08-01]
+/* [P1-PAPER-THEME · 2026-08-01 · corregido P1-PAPER-THEME-FIX1 · 2026-08-01
+   · reescrito P1-PAPER-FOOTER-REWRITE · 2026-08-01, Task 8]
    El footer es la COPIA DE ARCHIVO: sigue siendo el único bloque invertido del
-   sistema. Su base ya usa var(--text-main), que bajo paper es #0B0B0B, así que
-   el fondo sale correcto sin tocarlo.
+   sistema, y ahora eso significa algo — si toda la página es tinta sobre
+   papel, el cierre es papel sobre tinta. Su base ya usa var(--text-main), que
+   bajo paper es #0B0B0B, así que el fondo sale correcto sin tocarlo.
 
-   Consumidor real de estos tokens: SOLO `.bottom` (regla siguiente), vía
-   --pa-ink-3. Antes este bloque declaraba las 7 custom properties sin que
-   ninguna regla del fichero las leyera (0 matches de `var(--pa-` fuera de
-   aquí) — código muerto que un futuro editor habría "ajustado" esperando un
-   efecto que no existía. `.logo` y `.col h4` (arriba) se dejan con su
-   #FFFFFF hardcoded A PROPÓSITO, sin cambiar: ya dan ~19:1 de contraste
-   contra el footer oscuro en cualquier tema — no hay nada que re-derivar ahí.
+   --pa-paper/--pa-ink/--pa-ink-2/--pa-rule/--pa-rule-2/--pa-grid son la copia
+   LOCAL de la tabla "Copia de archivo" (spec §2.2): mismos NOMBRES que el
+   resto del sistema, pero re-derivados para tinta clara sobre fondo oscuro
+   (el footer es oscuro en TODOS los temas, no solo en papel). Se declaran
+   como custom properties en `.footer` y se heredan por el DOM hacia cada
+   regla de abajo — cero riesgo de fuga a dark/light: fuera de
+   html[data-theme="paper"] estas propiedades no existen en absoluto.
 
-   --pa-paper/--pa-ink/--pa-ink-2/--pa-rule/--pa-rule-2/--pa-grid siguen
-   declarados SIN consumidor propio en este fichero — mismo set de nombres
-   que usa Header.module.css, dejado como scaffolding para cuando una tarea
-   futura rediseñe la forma del footer. Si tocas este bloque sin añadirles
-   un consumidor, bórralos: un token declarado y no usado es exactamente el
-   bug que esta nota corrige. */
+   Todo lo de abajo es NUEVO en Task 8 y vive exclusivamente bajo este
+   selector. Ninguno de los 4 bloques `data-theme="dark"` de arriba se toca —
+   son de las 15 rutas no-papel — ni la base sin escopar (activa en luz/
+   oscuro para esas mismas 15 rutas). */
 :global(html[data-theme="paper"]) .footer {
     --pa-paper: #0B0B0B;
     --pa-ink: #FBFBFA;
@@ -296,16 +292,211 @@
     --pa-rule: #FBFBFA;
     --pa-rule-2: #6A6A66;
     --pa-grid: #2A2A28;
+    /* Único trazo grueso de toda la página (spec §4.7) — sustituye, solo
+       aquí, la hairline rgba(255,255,255,0.08) de la base (línea 7), que
+       sigue viva para dark/light: no se toca ni se borra, solo se sombrea. */
+    border-top: 2px solid var(--pa-ink);
 }
 
-/* [P1-PAPER-THEME-FIX1 · 2026-08-01] Único consumidor real del bloque de
-   arriba. Sin este override, `.bottom` seguía leyendo var(--text-light)
-   global (base, línea 227) — Task 2 remapea ese token a #6A6A66 pensando en
-   tinta secundaria sobre PAPEL CLARO, no sobre este footer (que sigue
-   invertido/oscuro bajo paper): daba ~3,63:1 contra #0B0B0B, bajo el umbral
-   AA de texto normal (4.5:1). --pa-ink-3 (#8C8C84) sí está derivado para
-   ESTE fondo y sube el contraste por encima de AA (medido con
-   getComputedStyle, ver task-3-report.md). */
-:global(html[data-theme="paper"]) .bottom {
+/* Cuadrícula de puntos a paso 40px — coincide con la capa mayor de la página
+   (--pa-grid-major en index.css). Antes iba a 20px, desalineada con el resto
+   del pliego. Solo color y paso cambian: el mask-image de desvanecimiento
+   (base, ::before de arriba) se hereda igual bajo papel. */
+:global(html[data-theme="paper"]) .footer::before {
+    background-image: radial-gradient(var(--pa-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+/* Verticales blancas de 1px entre las 5 columnas (spec §4.7). Solo en el
+   layout de 5 columnas real (desktop, >1024px): en el reflow a 2/1 columnas
+   de las media queries de abajo, `.col + .col` caería entre columnas que ya
+   no están en la misma fila — una regla flotante en el canto equivocado. */
+@media (min-width: 1025px) {
+    :global(html[data-theme="paper"]) .col + .col {
+        border-left: 1px solid var(--pa-rule);
+        /* Mitad del column-gap del .container base (3.25rem) — centra la
+           regla dentro del canalón en vez de pegarla al canto izquierdo. */
+        padding-left: 1.625rem;
+    }
+}
+
+/* Marca: el Wordmark no fija su propio color (hereda currentColor, ver
+   Wordmark.jsx), así que basta con pintar `.logo`. El #FFFFFF hardcoded de la
+   base (línea 64) seguía siendo correcto por accidente bajo papel — blanco
+   puro sobre #0B0B0B da ~21:1 — pero es un hex que no habla el lenguaje de
+   tokens del resto del sistema. var(--pa-ink) (#FBFBFA, 19,01:1 medido) es la
+   tinta que usa cada otro elemento de esta hoja. */
+:global(html[data-theme="paper"]) .logo {
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .desc {
+    color: var(--pa-ink-2);
+}
+
+/* Cabeceras: mono 11px, --pa-ink-3 (spec §4.7). La base las pinta Outfit 700
+   en blanco puro — bajo papel eso es rotulación de plóter, no un titular. */
+:global(html[data-theme="paper"]) .col h4 {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     color: var(--pa-ink-3);
+}
+
+/* Enlaces: PJS 14px a 32px de interlínea (spec §4.7). El `margin-bottom` de
+   la base se anula: con la interlínea ya reservando el espaciado, sumarle un
+   margen habría dado más aire del pedido — dos mecanismos por el mismo fin. */
+:global(html[data-theme="paper"]) .col a {
+    color: var(--pa-ink-2);
+    font-size: 14px;
+    line-height: 32px;
+    margin-bottom: 0;
+}
+
+/* Hover de enlace: la base usa var(--primary-light), que bajo papel remapea
+   a #3D3D3B — tinta pensada para HOJA clara (spec §2.1), casi invisible
+   sobre este footer, que es oscuro en todos los temas. Re-derivado a
+   var(--pa-ink) sin tocar la regla base (viva para light/dark, línea ~106). */
+:global(html[data-theme="paper"]) .col a:not(.socialIcon):hover {
+    color: var(--pa-ink);
+}
+
+/* Sociales: la base pinta el reposo con var(--text-muted) (misma trampa que
+   arriba: #3D3D3B bajo papel, casi invisible sobre #0B0B0B). Tamaño 18px y
+   strokeWidth 1,25 (spec §4.7) — "sin caja" ya lo cumple la base, que nunca
+   tuvo fondo ni borde propio. `stroke-width` en CSS gana sobre el atributo
+   que lucide escribe en el SVG (strokeWidth por defecto = 2) sin tocar
+   Footer.jsx; los glifos de TikTok/X son fill-based (sin stroke), así que la
+   propiedad no les afecta — siguen dimensionados por width/height. */
+:global(html[data-theme="paper"]) .socialIcon {
+    color: var(--pa-ink-2);
+}
+
+:global(html[data-theme="paper"]) .socialIcon svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 1.25;
+}
+
+:global(html[data-theme="paper"]) .socialIcon:hover {
+    color: var(--pa-ink);
+}
+
+/* Foco de teclado: outline 2px solid #FBFBFA (spec §4.7, 19,01:1) — vía
+   var(--pa-ink), que en este bloque YA vale #FBFBFA (no se hardcodea el hex
+   dos veces). Sin este override el anillo de la base (var(--primary-light),
+   línea ~155) desaparece junto con el indigo bajo papel: --primary-light
+   remapea a #3D3D3B, casi invisible sobre #0B0B0B. radio 0: papel prohíbe
+   border-radius en todo, incluido el foco (la base usa 4px). */
+:global(html[data-theme="paper"]) .col a:focus-visible,
+:global(html[data-theme="paper"]) .socialIcon:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 3px;
+    border-radius: 0;
+}
+
+/* Soporte: mismas dos trampas de arriba (--text-light / --primary-light),
+   re-derivadas a la escala local del footer. */
+:global(html[data-theme="paper"]) .supportIntro {
+    color: var(--pa-ink-2);
+}
+
+:global(html[data-theme="paper"]) .supportLink {
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .supportIcon {
+    color: var(--pa-ink);
+    border-color: var(--pa-rule-2);
+}
+
+:global(html[data-theme="paper"]) .supportLink:hover .supportIcon {
+    border-color: var(--pa-ink);
+    background: transparent;
+}
+
+/* [P1-PAPER-THEME-FIX1 · 2026-08-01, corregido Task 8] `.supportNote` usa
+   var(--text-muted) sobre el footer siempre-oscuro: #64748B/#0F172A da
+   3,75:1 a 0,8rem — FALLA AA HOY, antes de este rediseño; no es un problema
+   nuevo de papel. Bajo papel, --text-muted remapea a #3D3D3B: peor todavía
+   sobre #0B0B0B. var(--pa-ink-3) (aquí #8C8C84) sube a 5,81:1. El fallo de
+   AA en dark/light queda fuera de este PR — la base (línea ~210) no se toca. */
+:global(html[data-theme="paper"]) .supportNote {
+    color: var(--pa-ink-3);
+}
+
+:global(html[data-theme="paper"]) .supportNote svg {
+    color: var(--pa-ink-3);
+}
+
+/* Fila inferior: cajetín de 4 celdas regladas, mono 11px (spec §4.7).
+   Reemplaza el centrado único de la base (copyright) SOLO cuando Footer.jsx
+   monta el markup de 4 celdas (gateado por isPaperSurface, ver Footer.jsx).
+   Rechazado a propósito: "ESCALA — 1:1" y "HOJA — 01/01" — una web no tiene
+   escala y no es la hoja 1 de 1; el sistema acaba de prohibir el atrezzo con
+   la regla de la cota y esto sería exactamente eso. */
+:global(html[data-theme="paper"]) .bottom {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    text-align: left;
+    border-top: 1px solid var(--pa-rule-2);
+    border-bottom: 1px solid var(--pa-rule-2);
+    margin-top: 2.5rem;
+    padding: 0;
+}
+
+:global(html[data-theme="paper"]) .bottomCell {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--pa-ink-3);
+    padding: 0.85rem 1.25rem;
+    border-left: 1px solid var(--pa-rule-2);
+}
+
+:global(html[data-theme="paper"]) .bottomCell:first-child {
+    border-left: none;
+}
+
+/* [P1-PAPER-FOOTER-REWRITE · 2026-08-01] Bajo 640px, Términos y Privacidad
+   (2.º y 3.º `.col`) dejan de apilarse en torre y pasan a 2 columnas — con 12
+   destinos + el bloque de Soporte, 5 columnas en torre pesarían más que el
+   contenido (spec §4.7, riesgo b). Marca/Empresas/Soporte se quedan a ancho
+   completo; el cajetín inferior baja a 2×2. */
+@media (max-width: 639px) {
+    :global(html[data-theme="paper"]) .container {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    :global(html[data-theme="paper"]) .col:nth-child(1),
+    :global(html[data-theme="paper"]) .col:nth-child(4),
+    :global(html[data-theme="paper"]) .col:nth-child(5) {
+        grid-column: 1 / -1;
+    }
+
+    :global(html[data-theme="paper"]) .col:nth-child(2) {
+        grid-column: 1;
+    }
+
+    :global(html[data-theme="paper"]) .col:nth-child(3) {
+        grid-column: 2;
+        border-left: 1px solid var(--pa-rule);
+        /* Mitad del gap de este breakpoint (3rem, heredado de la regla
+           @media max-width:768px de la base). */
+        padding-left: 1.5rem;
+    }
+
+    :global(html[data-theme="paper"]) .bottom {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    :global(html[data-theme="paper"]) .bottomCell:nth-child(3) {
+        border-left: none;
+    }
+
+    :global(html[data-theme="paper"]) .bottomCell:nth-child(3),
+    :global(html[data-theme="paper"]) .bottomCell:nth-child(4) {
+        border-top: 1px solid var(--pa-rule-2);
+    }
 }

@@ -4,6 +4,11 @@ import styles from './Footer.module.css';
 // [P3-LEGAL-HEADER-PARITY · 2026-06-30] LEGAL_PATHS desde SSOT compartido con Header.
 import { LEGAL_PATHS } from '../../utils/legalRoutes';
 import Wordmark from '../common/Wordmark';
+// [P1-PAPER-THEME · 2026-08-01] Mismo SSOT de las 6 rutas papel que consume
+// Header.jsx — gatea el cajetín de 4 celdas (spec §4.7); las otras 15 rutas
+// conservan el copyright de una sola línea.
+import { isPaperSurface } from '../../utils/paperSurface';
+import { APP_VERSION } from '../../config/appVersion';
 
 // [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una página legal,
 // NO usar ese path como `from` del próximo Link (eso haría que "Volver" regrese de
@@ -14,6 +19,9 @@ import Wordmark from '../common/Wordmark';
 const Footer = () => {
     const location = useLocation();
     const isOnLegalPage = LEGAL_PATHS.includes(location.pathname);
+    // [P1-PAPER-THEME · 2026-08-01] ¿La ruta activa es superficie papel? Decide
+    // qué markup monta `.bottom` (cajetín de 4 celdas vs. copyright de 1 línea).
+    const isPaper = isPaperSurface(location.pathname);
     // Path origen real: si estoy en una legal, hereda el `from` previo;
     // si no, uso el path actual.
     const fromPath = isOnLegalPage
@@ -130,7 +138,21 @@ const Footer = () => {
                 </div>
 
                 <div className={styles.bottom}>
-                    &copy; {new Date().getFullYear()} Bioboros. Todos los derechos reservados.
+                    {/* [P1-PAPER-THEME · 2026-08-01] Bajo papel, el colofón es un
+                        cajetín de 4 celdas (spec §4.7) — NO "ESCALA — 1:1" ni
+                        "HOJA — 01/01": una web no tiene escala y no es la hoja 1
+                        de 1 (atrezzo prohibido por la propia regla de la cota).
+                        Las otras 15 rutas conservan el copyright de 1 línea. */}
+                    {isPaper ? (
+                        <>
+                            <span className={styles.bottomCell}>EMITIDO — 2026</span>
+                            <span className={styles.bottomCell}>REVISIÓN — R02</span>
+                            <span className={styles.bottomCell}>MOTOR — v{APP_VERSION}</span>
+                            <span className={styles.bottomCell}>ES-DO</span>
+                        </>
+                    ) : (
+                        <>&copy; {new Date().getFullYear()} Bioboros. Todos los derechos reservados.</>
+                    )}
                 </div>
             </div>
         </footer>

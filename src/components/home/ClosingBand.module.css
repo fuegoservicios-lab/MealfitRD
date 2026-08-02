@@ -1,0 +1,101 @@
+/* ============================================================================
+   BANDA DE CIERRE — «papel técnico»
+   [P1-PAPER-THEME · 2026-08-01]
+
+   Última hija de la página: regla negra de 1px a sangre → H2 corto → el mismo
+   CTA sólido negro que Header/Hero → una línea mono con el precio. Fondo
+   PAPEL, no invertido — el footer sigue siendo la única inversión del sistema.
+
+   Este módulo NO lleva bloque `data-theme`: como Hero.module.css, solo se
+   sirve bajo la superficie papel, así que consume var(--pa-*) directamente.
+   ========================================================================= */
+
+.closing {
+    position: relative;
+    background: var(--pa-paper);
+    color: var(--pa-ink);
+    /* Regla negra de 1px A SANGRE (spec §4.7): el borde vive en la sección
+       misma, que ocupa el ancho completo del viewport — sin envoltorio extra. */
+    border-top: 1px solid var(--pa-rule);
+    padding: 5rem 1.5rem 6rem;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+    gap: 1.75rem;
+}
+
+.title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.5rem, 3.2vw, 2rem);
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--pa-ink);
+    margin: 0;
+}
+
+/* Único rectángulo de tinta sólida de la banda — mismo tratamiento visual que
+   `.primaryBtn` de Hero.module.css y el `.ctaButton` del header en papel:
+   fondo/texto invertidos, radio 0, cero sombra. */
+.cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    padding: 0.875rem 1.75rem;
+    border: 1px solid var(--pa-ink);
+    border-radius: 0;
+    background: var(--pa-ink);
+    color: var(--pa-paper);
+    transition: background 140ms linear, border-color 140ms linear;
+}
+
+.cta:hover {
+    background: var(--pa-ink-2);
+    border-color: var(--pa-ink-2);
+}
+
+.cta:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 3px;
+}
+
+/* Línea mono con el precio (spec §4.7) — misma celda "PRECIO" del Hero
+   (`Gratis · 10 planes al mes`) en formato de enlace, rotulación de plóter. */
+.priceLine {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--pa-ink-3);
+    text-decoration: none;
+    transition: color 140ms linear;
+}
+
+.priceLine:hover {
+    color: var(--pa-ink);
+}
+
+.priceLine:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 3px;
+}
+
+@media (max-width: 599px) {
+    .closing {
+        padding: 4rem 1.25rem 4.5rem;
+    }
+
+    .container {
+        gap: 1.5rem;
+    }
+}
