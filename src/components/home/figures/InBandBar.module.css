@@ -144,10 +144,16 @@
     fill: var(--pa-ink-2);
 }
 
+/* [P2-COTA-LABEL-ABOVE · 2026-08-02] SIN HALO. Lo hereda del bloque de arriba,
+   que lo comparte con `.valueOn`/`.valueOff` — esos dos SÍ lo necesitan (caen
+   sobre la línea de la retícula del 100 %). Este ya no: desde que el rótulo va
+   encima de la cota no hay nada detrás que tapar, y el halo solo servía para
+   abrir un hueco que dejaba pasar la línea por los espacios entre palabras. */
 .cotaValue {
     font-size: 12px;
     font-weight: 500;
     fill: var(--pa-ink);
+    stroke: none;
 }
 
 /* ── TRAZADO ──────────────────────────────────────────────────────────── */

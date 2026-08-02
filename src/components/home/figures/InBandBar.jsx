@@ -164,14 +164,33 @@ const InBandBar = () => {
                         markerEnd="url(#paInBandArrowEnd)"
                         pathLength={1}
                     />
-                    {/* El «hueco» de la línea de cota lo abre el HALO DE PAPEL del
-                        propio rótulo (`paint-order: stroke`, ver el .module.css),
-                        no un rectángulo detrás. Partir la línea en dos tramos no
-                        es posible —sus extremos van en PORCENTAJE y el hueco en
-                        píxeles, y no se suman dentro de un mismo atributo— y un
-                        rectángulo de anchura fija se come tramo de cota útil a
-                        320 px de viewport, donde la cota entera mide 168 px. */}
-                    <text className={styles.cotaValue} x={pct(midPct)} y={COTA_Y + 4} textAnchor="middle">
+                    {/* [P2-COTA-LABEL-ABOVE · 2026-08-02] EL RÓTULO VA ENCIMA DE LA
+                        LÍNEA, no sentado sobre ella.
+
+                        Antes se apoyaba en la cota y abría su hueco con un HALO DE
+                        PAPEL (`paint-order: stroke`, `stroke-width: 3`). Un halo
+                        sigue el CONTORNO DE LOS GLIFOS, así que tapaba las letras
+                        pero no los espacios entre palabras: medido en producción, la
+                        línea asomaba 4,08 px en cada uno de los tres espacios del
+                        rótulo (espacio mono de 7,08 px menos los 3 px de halo). Se
+                        leía «+67,7-pp-de-planes», con tres guiones que nadie
+                        escribió — justo en la figura cuyo argumento es que los
+                        números se miden y no se inventan.
+
+                        Subirlo lo resuelve sin maquinaria: no hay hueco que abrir,
+                        así que no hay hueco que se pueda quedar a medias. La cota
+                        queda continua de punta a punta, que es como se dibuja una
+                        cota. Y desaparecen de golpe las dos objeciones que el
+                        comentario anterior documentaba: ya no hace falta partir la
+                        línea en dos tramos (imposible, sus extremos van en
+                        porcentaje y el hueco en píxeles) ni meter un rectángulo de
+                        anchura fija que a 320 px se comía tramo útil.
+
+                        Cabe: entre el pie de la barra tramada (124) y la cota (144)
+                        hay 20 px, y el rótulo de 12 px con la base en 139 ocupa
+                        ~130-142. Y va centrado en el 57,9 % del ancho, entre las dos
+                        líneas de extensión (24 % y 91,7 %) — no las toca. */}
+                    <text className={styles.cotaValue} x={pct(midPct)} y={COTA_Y - 5} textAnchor="middle">
                         {`+${es1(delta)} pp de planes`}
                     </text>
                 </svg>
