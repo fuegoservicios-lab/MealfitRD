@@ -98,13 +98,28 @@ const BAND_LABEL_Y = 13;     // línea base del rótulo `BANDA −10 / +12`
 const ANNOT = 36;
 const OBJ_Y = 11;            // línea base de `OBJETIVO`
 const LEG_Y = 27;            // línea base de `CON MOTOR` / `SIN MOTOR`
-const LEAD_Y1 = 31;          // guía de 10 px, del rótulo hacia su marcador
-const LEAD_Y2 = 41;
+const LEAD_Y1 = 31;          // guía, del rótulo hacia su marcador
+/* [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] LAS GUÍAS NO LLEGABAN.
+   `LEAD_Y2` valía 41 para las dos, y los marcadores de la fila guía empiezan
+   en `ANNOT + TICK_CY − alto/2`: el sólido (22px) en 36+30−11 = 55, y el de
+   contorno (14px) en 36+30−7 = 59. O sea, la guía moría 14px y 18px POR
+   ENCIMA de lo que señalaba, colgando en el aire.
+
+   El elemento cuyo trabajo entero es conectar era el único que no conectaba —
+   y un rótulo in situ despegado de su marca vuelve a ser una LEYENDA, que es
+   exactamente el artefacto que la cabecera de este fichero dice haber
+   eliminado. Dos constantes porque los dos marcadores tienen alturas
+   distintas; 2px de aire antes de tocar en ambos casos. */
+const LEAD_Y2_ON = 53;       // marcador sólido: empieza en 55
+const LEAD_Y2_OFF = 57;      // marcador de contorno: empieza en 59
 const RULER_H = 44;
 
 const AXIS_MIN = -20;
 const AXIS_MAX = 20;
 const TICKS = [-20, -10, 0, 10, 20];
+/* Marcas menores: parten cada intervalo mayor por la mitad. No llevan rótulo —
+   una marca menor rotulada es una marca mayor. */
+const TICKS_MED = [-15, -5, 5, 15];
 
 /* Valor → posición en el eje, en porcentaje del ancho del carril. */
 const xPct = (v) => `${(((v - AXIS_MIN) / (AXIS_MAX - AXIS_MIN)) * 100).toFixed(4)}%`;
@@ -206,14 +221,24 @@ const ToleranceChart = () => {
                                     <line className={styles.limit} x1={xPct(hi)} y1={top + LIMIT_Y1} x2={xPct(hi)} y2={top + LIMIT_Y2} pathLength={1} />
 
                                     {/* Guías de los rótulos in situ, solo en la primera
-                                        fila. Los dos anclan por el final y cuelgan del
-                                        marcador IZQUIERDO de su pareja: centrarlos los
-                                        hacía chocar en el carril estrecho del móvil. */}
+                                        fila. Las dos anclan por el final y cuelgan de UN
+                                        marcador de su pareja —no del centro— porque
+                                        centrarlas las hacía chocar en el carril estrecho
+                                        del móvil.
+
+                                        [fix · 2026-08-02] Este comentario decía que las
+                                        dos cuelgan del marcador IZQUIERDO. Es falso desde
+                                        siempre: `CON MOTOR` cuelga de `xPct(-m.mape)`, el
+                                        izquierdo de su par, pero `SIN MOTOR` cuelga de
+                                        `xPct(off)` —positivo— que es el DERECHO. Se
+                                        describe lo que hace el código; si alguien
+                                        «arreglara» la asimetría creyéndola un desliz,
+                                        devolvería la colisión que la motivó. */}
                                     {isLead && (
                                         <>
-                                            <line className={styles.leader} x1={xPct(-m.mape)} y1={LEAD_Y1} x2={xPct(-m.mape)} y2={LEAD_Y2} pathLength={1} />
+                                            <line className={styles.leader} x1={xPct(-m.mape)} y1={LEAD_Y1} x2={xPct(-m.mape)} y2={LEAD_Y2_ON} pathLength={1} />
                                             {off !== undefined && (
-                                                <line className={styles.leader} x1={xPct(off)} y1={LEAD_Y1} x2={xPct(off)} y2={LEAD_Y2} pathLength={1} />
+                                                <line className={styles.leader} x1={xPct(off)} y1={LEAD_Y1} x2={xPct(off)} y2={LEAD_Y2_OFF} pathLength={1} />
                                             )}
                                         </>
                                     )}
@@ -275,6 +300,24 @@ const ToleranceChart = () => {
                     <span className={styles.name} />
                     <div className={styles.plot}>
                         <svg className={styles.svg} width="100%" height={RULER_H} focusable="false">
+                            {/* [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] MARCAS
+                                INTERMEDIAS. La regla eran cinco rayitas sueltas y por
+                                eso se leía como un esquema, no como un instrumento;
+                                cuatro trazos de 4px la gradúan sin tocar semántica.
+
+                                Van en `--pa-rule-3` y a 4px, DEBAJO de las mayores
+                                (`--pa-rule-2`, 6px), no al mismo peso: la distinción
+                                construcción / especificación que documenta el módulo
+                                depende de que la tinta plena siga reservada a `.zero` y
+                                `.limit`.
+
+                                Y son CUATRO, no las 32 que darían resolución al 1%: una
+                                regla promete la resolución que dibuja, y esta figura no
+                                se lee al 1%. */}
+                            {TICKS_MED.map((v) => (
+                                <line key={`m${v}`} className={styles.tickMed}
+                                    x1={xPct(v)} y1="0" x2={xPct(v)} y2="4" pathLength={1} />
+                            ))}
                             {TICKS.map((v) => (
                                 <line key={v} className={v === 0 ? styles.zero : styles.tick}
                                     x1={xPct(v)} y1="0" x2={xPct(v)} y2="6" pathLength={1} />

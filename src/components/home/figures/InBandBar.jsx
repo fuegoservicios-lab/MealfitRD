@@ -40,21 +40,37 @@ import styles from './InBandBar.module.css';
 
 const AXIS_TICKS = [0, 25, 50, 75, 100];
 
+/* [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] Geometría recalculada para el
+   REGISTRO DE CIFRA. `91,7 %` y `24,0 %` son el argumento entero de la sección
+   y se dibujaban a 13px — por debajo del subtítulo (16px) y de las etiquetas de
+   la tabla de capacidades (15px). Suben a 1,5rem (24px), que es la fila «cifra
+   de fila» del spec §2.5 y que no tenía NI UN representante en toda la sección.
+
+   Las dos cifras siguen compartiendo LÍNEA BASE con el rótulo mono de su
+   carril: rótulo a la izquierda, cifra a la derecha, un solo renglón. Con la
+   base en 62, el alto de mayúscula de un mono de 24px (≈16,8) arranca en 45,2
+   — 4,2px por debajo del final de los ticks (41), así que no los toca.
+
+   ⚠ Si cambias el cuerpo de `.valueOn`/`.valueOff`, RECALCULA estas Y o la
+   cifra flota fuera de su carril. */
 const UNIT_Y = 12;
 const NUM_Y = 30;
 const TICK_Y1 = 35;
 const TICK_Y2 = 41;
 
-const LANE1_LABEL_Y = 58;
-const BAR1_Y = 64;
+const LANE1_LABEL_Y = 62;    /* era 58 */
+const BAR1_Y = 70;           /* era 64 */
 const BAR1_H = 22;
 
-const LANE2_LABEL_Y = 104;
-const BAR2_Y = 110;
+const LANE2_LABEL_Y = 116;   /* era 104 */
+const BAR2_Y = 124;          /* era 110 */
 const BAR2_H = 14;
 
-const COTA_Y = 144;
-const FIG_H = 160;
+/* Se conservan los 20px entre el pie de la barra tramada y la cota — que es
+   donde cabe el rótulo `+67,7 pp de planes` desde P2-COTA-LABEL-ABOVE — y los
+   16px de COTA_Y a FIG_H. */
+const COTA_Y = 158;          /* era 144 */
+const FIG_H = 174;           /* era 160 */
 
 const pct = (v) => `${v.toFixed(4)}%`;
 

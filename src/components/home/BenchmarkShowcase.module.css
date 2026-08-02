@@ -26,12 +26,57 @@
    ========================================================================= */
 
 .section {
+    position: relative;
     padding: 6rem 0;
     background: var(--pa-paper);
     color: var(--pa-ink);
 }
 
+/* ── PAPEL ────────────────────────────────────────────────────────────────
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] La cuadrícula del sistema entra
+   aquí. No se estrena vocabulario: se estrena CONSUMIDOR. `--pa-grid` a paso
+   40px es el mismo motivo y el mismo paso que ya viven en
+   `Pricing.module.css:113`, `Footer.module.css:306`,
+   `HowItWorksPage.module.css:660`, `LegalPages.module.css:55` y
+   `Engine.module.css:488` — las secciones 03 y 04 eran las dos únicas
+   superficies papel sin él, y por eso abrían sobre un blanco liso que se lee
+   como hoja sin empezar en vez de como margen.
+
+   (`--pa-grid-major` sigue huérfano y NO se estrena de paso: una segunda
+   escala haría que el mismo token signifique dos pasos en la misma página.)
+
+   ⚠ ACOTADA A LA BANDA SUPERIOR, y no por gusto. `--pa-grid` (#D8D8D3,
+   1,38:1) contra `--pa-rule-3` (#C9C9C4, 1,61:1) se diferencian 1,17:1, y las
+   cinco verticales de lectura de la Fig. 04.2 son `--pa-rule-3`: correr la
+   trama por debajo las disolvería. Muere ANTES de la Fig. 04.1 a propósito.
+   Es el patrón exacto de `Pricing.module.css:101-119`.
+
+   ⚠ T8 — ORDEN DE PINTADO. Un `::before` posicionado se pinta DESPUÉS del
+   contenido de su elemento. Sin el par `z-index: 0` aquí / `z-index: 1` en
+   `.container`, la trama cae ENCIMA del rótulo y la tira de cartucho. Ya
+   medido y arreglado una vez en `Engine.module.css:473-494`.
+
+   La máscara va en `var(--pa-ink)` y no en `#000`: una máscara solo lee el
+   canal ALFA, así que el resultado es idéntico y no queda ni un literal de
+   color que discutir con el escáner de tinta. */
+.section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 320px;
+    z-index: 0;
+    pointer-events: none;
+    background-image: radial-gradient(var(--pa-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    -webkit-mask-image: linear-gradient(to bottom, var(--pa-ink) 0 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, var(--pa-ink) 0 55%, transparent 100%);
+}
+
 .container {
+    position: relative;
+    z-index: 1;
     max-width: 1080px;
     margin: 0 auto;
     padding: 0 1.5rem;
@@ -47,7 +92,7 @@
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    margin: 0 0 1.5rem;
+    margin: 0 0 1rem;
 }
 
 .hLine {
@@ -69,7 +114,7 @@
 
 .subtitle {
     max-width: 52ch;
-    margin: 0 auto 2.25rem;
+    margin: 0 auto 1.5rem;
     text-align: center;
     font-family: var(--font-body);
     font-size: 1rem;
@@ -87,7 +132,7 @@
 .strip {
     display: flex;
     flex-wrap: wrap;
-    margin: 0 0 3rem;
+    margin: 0 0 4rem;
     padding: 0;
     list-style: none;
     border-top: 1px solid var(--pa-rule);
@@ -114,7 +159,7 @@
 
 /* ── bloques de figura ──────────────────────────────────────────────────── */
 .figBlock {
-    margin: 0 0 3.25rem;
+    margin: 0 0 4rem;
 }
 
 /* ── tabla de capacidades ─────────────────────────────────────────────────
@@ -123,7 +168,7 @@
    entrar en la celda es exactamente lo que hace legible esto sin ver los
    glifos. */
 .capsWrap {
-    margin: 0 0 2.5rem;
+    margin: 0 0 1.5rem;
 }
 
 .caps {
@@ -150,8 +195,12 @@
     text-align: center;
 }
 
+/* [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] De filete (1,61:1) a construcción
+   (3,35:1): las cuatro filas pasan a leerse como cuatro RENGLONES y no como
+   cuatro párrafos flotando. El canto superior ya va a `--pa-rule` en `.caps`,
+   así que el marco asimétrico se conserva. */
 .capsRow {
-    border-bottom: 1px solid var(--pa-rule-3);
+    border-bottom: 1px solid var(--pa-rule-2);
 }
 
 .capsRowHead {
@@ -161,12 +210,45 @@
     vertical-align: middle;
 }
 
+/* ── FILETE DE CONDUCCIÓN ─────────────────────────────────────────────────
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] La columna «Capacidad» mide 800
+   de los 1032px de la tabla y su etiqueta más larga ronda los 330: entre el
+   final del texto y las dos columnas de estado quedan 470-600px por fila,
+   cuatro veces seguidas, sin una sola regla que los cruce. Eso es la mitad de
+   la tabla en blanco, y es la razón mecánica de que las capacidades se lean
+   como cuatro frases sueltas en vez de como una tabla.
+
+   El punto de conducción NO inventa ningún dato: dice «esta etiqueta y ese
+   glifo son la misma fila», que es exactamente lo que el `<th scope="row">` ya
+   le dice a un lector de pantalla y lo que el ojo no tenía.
+
+   ⚠ RITMO Y TONO DELIBERADAMENTE DISTINTOS de la guía punteada del sistema.
+   El 3-ON/4-OFF en `--pa-ink` significa «referencia, no materia» (spec §5.5);
+   esto es 1-ON/3-OFF en `--pa-rule-3` y es un FILETE DE TABLA. Dos punteados
+   sin distinguir convertirían una regla memorizable en dos que hay que
+   consultar.
+
+   ⚠ T20 — `height` NO aplica a un elemento inline no reemplazado. El `::after`
+   funciona porque es item flex, y por tanto block-level. Es exactamente el
+   fallo que dejó micro-barras invisibles un mes en este repo. */
 .capLabel {
-    display: block;
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
     font-family: var(--font-body);
     font-size: 0.9375rem;
     line-height: 1.35;
     color: var(--pa-ink);
+}
+
+.capLabel::after {
+    content: '';
+    flex: 1 1 auto;
+    align-self: center;
+    min-width: 2rem;
+    height: 1px;
+    background-image: repeating-linear-gradient(to right,
+        var(--pa-rule-3) 0 1px, transparent 1px 4px);
 }
 
 .capSub {
@@ -240,8 +322,8 @@
    papel), solo agrupa. El marco de 1 px `--pa-rule-2` es lo que la delimita.
    El icono `FlaskConical` teal se fue con los otros 7 lucide. */
 .footnote {
-    margin: 0 auto 2.5rem;
-    max-width: 760px;
+    margin: 0 auto 4rem;
+    max-width: 68ch;
     padding: 1.1rem 1.3rem;
     background: var(--pa-sunk);
     border: 1px solid var(--pa-rule-2);
@@ -296,6 +378,13 @@
 @media (max-width: 639px) {
     .capsThState {
         width: 62px;
+    }
+
+    /* A 639px la etiqueta ya envuelve y la columna de estado baja a 62px: no
+       queda tramo que conducir, y un filete de 2rem entre una etiqueta partida
+       en dos líneas y un glifo apilado es ruido, no vínculo. */
+    .capLabel::after {
+        display: none;
     }
 
     .state {

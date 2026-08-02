@@ -63,12 +63,55 @@
    ========================================================================= */
 
 .section {
+    position: relative;
     padding: 6rem 0;
     background: var(--pa-paper);
     color: var(--pa-ink);
 }
 
+/* ── PAPEL ────────────────────────────────────────────────────────────────
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] La cuadrícula del sistema,
+   importada tal cual: `--pa-grid` a paso 40px, el MISMO motivo y el MISMO paso
+   que ya viven en `Pricing.module.css:113`, `Footer.module.css:306`,
+   `HowItWorksPage.module.css:660`, `LegalPages.module.css:55` y
+   `Engine.module.css:488`. No se estrena vocabulario: se estrena CONSUMIDOR —
+   las secciones 03 y 04 eran las dos únicas superficies papel sin él.
+
+   (`--pa-grid-major` sigue huérfano y NO se estrena de paso: una segunda
+   escala haría que el mismo token signifique dos pasos en la misma página.)
+
+   No añade ni un dato. Añade la SUPERFICIE sobre la que están dibujadas las
+   cinco vistas, y solo asoma donde hoy no hay absolutamente nada: los canales
+   de 32px de la retícula y la banda de guías. Los cinco `.viewLink` pintan
+   `background: var(--pa-paper)` OPACO encima, así que ningún mockup la ve.
+
+   ⚠ T8 — ORDEN DE PINTADO. Un `::before` posicionado se pinta DESPUÉS del
+   contenido de su elemento. Sin el par `z-index: 0` aquí / `z-index: 1` en
+   `.container`, la trama cae ENCIMA de los mockups. Ya medido y arreglado una
+   vez en `Engine.module.css:473-494`.
+
+   La máscara va en `var(--pa-ink)` y no en `#000`: una máscara solo lee el
+   canal ALFA, así que el resultado es idéntico y no queda ni un literal de
+   color que discutir con el escáner de tinta. */
+.section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: radial-gradient(var(--pa-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    -webkit-mask-image: linear-gradient(to bottom,
+        transparent 0, var(--pa-ink) 96px,
+        var(--pa-ink) calc(100% - 96px), transparent 100%);
+    mask-image: linear-gradient(to bottom,
+        transparent 0, var(--pa-ink) 96px,
+        var(--pa-ink) calc(100% - 96px), transparent 100%);
+}
+
 .container {
+    position: relative;
+    z-index: 1;
     max-width: 1280px;
     margin: 0 auto;
     padding: 0 1.5rem;
@@ -138,16 +181,11 @@
     flex-direction: column;
     flex: 1 1 auto;
     min-width: 0;
-    border: 1px solid var(--pa-rule-2);
+    border: 1px solid var(--pa-rule);
     background: var(--pa-paper);
     border-radius: 0;
     color: inherit;
     text-decoration: none;
-    transition: border-color 0.18s ease;
-}
-
-.viewLink:hover {
-    border-color: var(--pa-ink);
 }
 
 .viewLink:focus-visible {
@@ -168,7 +206,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    min-height: 34px;
+    min-height: 40px;
     padding: 0.4rem 0.9rem;
     border-bottom: 1px solid var(--pa-rule-2);
     font-family: var(--font-mono);
@@ -185,9 +223,39 @@
    absorber la compresión del cartucho es `.cartoucheLabel` (con su elipsis),
    nunca `VISTA 01`: un cartucho que se lee «VIST… · LISTA DE COMPRAS» pierde
    justo el dato que ordena la lámina. */
+/* ⚠ [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] EL HOVER DE BORDE SE BORRA, Y
+   NO ES OPCIONAL. `--pa-rule` y `--pa-ink` son EL MISMO VALOR (#0B0B0B,
+   index.css:470-471): con el marco ya a tinta plena en reposo,
+   `border-color: var(--pa-ink)` al pasar el ratón es un no-op que seguiría
+   leyéndose en el código como estado vivo. Un hover muerto que parece vivo es
+   peor que ninguno.
+
+   La respuesta se muda al ÍNDICE del cartucho, que se invierte a sólido — el
+   canal con el que este sistema marca «lo vigente» en todas partes. `padding`
+   constante más `margin-left` negativo del mismo tamaño ⇒ cero desplazamiento
+   de layout al entrar y salir.
+
+   Gateado en `@media (hover: hover)`: en táctil el `:hover` se queda pegado
+   tras el tap y dejaría una de las cinco vistas marcada al azar. El foco de
+   teclado sí va sin gate — ahí el estado es real y se va solo. */
 .cartoucheN {
     flex: none;
+    padding: 2px 5px;
+    margin-left: -5px;
     color: var(--pa-ink-2);
+    transition: background-color 140ms linear, color 140ms linear;
+}
+
+@media (hover: hover) {
+    .viewLink:hover .cartoucheN {
+        background: var(--pa-ink);
+        color: var(--pa-paper);
+    }
+}
+
+.viewLink:focus-visible .cartoucheN {
+    background: var(--pa-ink);
+    color: var(--pa-paper);
 }
 
 .cartoucheSep {
@@ -201,13 +269,43 @@
     white-space: nowrap;
 }
 
+/* ── LA VISTA GENERAL SE DIFERENCIA POR TIPOGRAFÍA, NO POR LAYOUT ──────────
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] Hasta aquí el ÚNICO diferenciador
+   entre la vista general y las cuatro de detalle era `grid-column`: el tamaño
+   de la celda. La cabecera de este fichero dice que el reparto asimétrico
+   existe «porque cinco celdas iguales es lo que la haría parecer una
+   plantilla» — pero el reparto solo no basta cuando las cinco comparten
+   cartucho, cuerpo, peso y tono de regla. La lámina se leía como cinco cajas
+   iguales, una más grande.
+
+   Tres canales, NINGUNO de layout, para no desalinear las dos columnas:
+     · cuerpo y peso del cartucho ..... mono 13/600  contra  mono 12/500
+     · tono de su regla inferior ...... --pa-rule (19,01:1) contra --pa-rule-2
+     · registro de la descripción ..... CUERPO (16/24 tinta) contra PIE (14/20)
+
+   `.cartoucheN` NO sube a tinta plena: hay un comentario explícito 20 líneas
+   más arriba de que numera y no titula, y romperlo desalinearía la simetría
+   con `.stationIndex` de HowItWorks. */
+.view01 .cartouche {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    border-bottom-color: var(--pa-rule);
+}
+
 .viewDesc {
     display: block;
     padding: 0.8rem 0.9rem 0.9rem;
     font-family: var(--font-body);
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 20px;
     color: var(--pa-ink-2);
+}
+
+.view01 .viewDesc {
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--pa-ink);
 }
 
 /* El encuadre del mockup.
@@ -224,7 +322,7 @@
     height: auto;
     overflow-x: auto;
     overflow-y: hidden;
-    border-top: 1px solid var(--pa-rule-3);
+    border-top: 1px solid var(--pa-rule-2);
     overscroll-behavior-x: contain;
 }
 
@@ -232,18 +330,33 @@
     transform-origin: top left;
 }
 
-/* Pie de figura: 12px + `--pa-ink-2`, la fila de «rótulo que decodifica una
-   figura» de la escala del sistema. */
+/* Pie de figura A DOS VOCES.
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] Antes era mono 12 de punta a
+   punta: cinco pies grises idénticos que se leían como una banda y que
+   divergían sin razón del pie de las dos figuras de la sección 04. Ahora es
+   exactamente el mismo par que `.caption`/`.captionTag` de allí, y el que el
+   spec §2.5 define para un pie: prefijo mono 12/500 en tinta, frase en PJS 13.
+
+   Es también el único sitio de la lámina donde entra contraste de CAJA
+   (versales mono contra caja normal), y entra en su unidad más pequeña. */
 .figCaption {
     display: block;
     margin-top: auto;
     padding: 0.55rem 0.9rem;
-    border-top: 1px solid var(--pa-rule-3);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 500;
+    border-top: 1px solid var(--pa-rule-2);
+    font-family: var(--font-body);
+    font-size: 13px;
     line-height: 1.45;
     color: var(--pa-ink-2);
+}
+
+.figTag {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--pa-ink);
+    font-variant-numeric: tabular-nums lining;
 }
 
 /* ── guías anotadas, forma MÓVIL ──────────────────────────────────────────
@@ -881,15 +994,20 @@
        de las dos columnas arrancan desalineados: en una lámina eso se lee
        como error de montaje, no como variación.
 
-       ⚠ EL PRESUPUESTO SON DOS LÍNEAS EXACTAS, y la holgura es de 0,8px:
-       70 − 27,2 de padding (0,8rem + 0,9rem) = 42,8, y la interlínea es
-       14px × 1,5 = 21 → 2,04 líneas. Las cinco descripciones actuales caben
-       en 2 a los anchos de 5, 6 y 7 columnas; una tercera línea en CUALQUIERA
-       de ellas desalinea otra vez esa columna, en silencio y sin test que lo
-       cace. Si una descripción crece: o se acorta el copy, o sube este número
-       en pasos de 21px (91 para tres líneas). */
+       ⚠ EL PRESUPUESTO SIGUEN SIENDO DOS LÍNEAS EXACTAS. Era 70px con 0,8px de
+       holgura para UN solo registro tipográfico; [P2-SECCIONES-03-04-DENSIDAD ·
+       2026-08-02] sube a 80 porque ahora hay DOS —la vista general va a 16/24 y
+       las de detalle a 14/20— y de paso multiplica por seis el margen de error:
+
+           80 − 27,2 de padding (0,8rem + 0,9rem) = 52,8 de contenido
+           · detalle  14/20 × 2 líneas = 40  →  12,8px de holgura
+           · general  16/24 × 2 líneas = 48  →   4,8px de holgura
+
+       Una TERCERA línea en cualquiera de las cinco sigue desalineando esa
+       columna en silencio y sin test que lo cace. Si el copy crece: acórtalo, o
+       sube este número (104 para tres líneas de la general). */
     .viewDesc {
-        min-height: 70px;
+        min-height: 80px;
     }
 
     /* Aquí sí: encuadre de altura fija, recortado por `overflow`. */
@@ -940,8 +1058,34 @@
         --vp-h: 348px;
     }
 
+    /* [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] La 05 deja de dejar banda
+       muerta. La 04 mide 348 y la 05 302: como las dos comparten fila y el pie
+       va con `margin-top: auto`, esos 42px de diferencia se convertían en 42 ×
+       ~600px de papel en blanco entre el encuadre de la 05 y su pie — el hueco
+       más grande de la lámina, y justo el que hace que la fila se lea coja.
+
+       Mismo patrón ya probado 40 líneas más arriba en la vista 01: el encuadre
+       se estira y el mockup SABE rellenar, en vez de flotar en su caja.
+
+       ⚠ `grid-auto-rows: 1fr` no es adorno. `.pantryGrid` es `auto-fill
+       minmax(150px, 1fr)`; sin él, el alto extra se reparte como huecos
+       desiguales entre filas de la nevera — el mismo fallo que obligó a
+       `flex: 1 1 0` (y no `space-between`) en la vista 01. */
     .view05 .viewport {
         --vp-h: 306px;
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 306px;
+    }
+
+    .view05 .scaleBox,
+    .view05 .mockFrame {
+        height: 100%;
+    }
+
+    .view05 .pantryGrid {
+        flex: 1 1 auto;
+        grid-auto-rows: 1fr;
     }
 
     /* ── banda de guías anotadas ──────────────────────────────────────────
@@ -1041,6 +1185,10 @@
     .sheet,
     .view,
     .viewLink,
+    /* [P2-SECCIONES-03-04-DENSIDAD] El índice del cartucho estrena una
+       `transition` de color al invertirse en hover/foco: entra aquí o el guard
+       global de index.css solo la acortaría en vez de anularla. */
+    .cartoucheN,
     .guideBand,
     .guideRow {
         opacity: 1 !important;

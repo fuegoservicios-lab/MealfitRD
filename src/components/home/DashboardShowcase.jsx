@@ -82,7 +82,8 @@ const VIEWS = [
         label: 'PLAN DIARIO',
         title: 'Plan diario personalizado',
         desc: 'Cada día con desayuno, almuerzo, cena y meriendas calibrados a tus macros exactos.',
-        fig: 'Fig. 03.1 — Vista del día: cuatro comidas contra tu objetivo.',
+        figTag: 'Fig. 03.1',
+        figText: 'Vista del día: cuatro comidas contra tu objetivo.',
     },
     {
         id: 'recipes',
@@ -90,7 +91,8 @@ const VIEWS = [
         label: 'RECETAS',
         title: 'Recetas paso a paso',
         desc: 'Cada plato con ingredientes en cantidades dominicanas y pasos claros para cocinarlo.',
-        fig: 'Fig. 03.2 — Ficha de plato: cantidades y preparación.',
+        figTag: 'Fig. 03.2',
+        figText: 'Ficha de plato: cantidades y preparación.',
     },
     {
         id: 'shopping',
@@ -98,7 +100,8 @@ const VIEWS = [
         label: 'LISTA DE COMPRAS',
         title: 'Lista de compras inteligente',
         desc: 'Generada automáticamente, agrupada por categorías y exportable a PDF.',
-        fig: 'Fig. 03.3 — Lista derivada del plan, por categoría.',
+        figTag: 'Fig. 03.3',
+        figText: 'Lista derivada del plan, por categoría.',
     },
     {
         id: 'chat',
@@ -106,7 +109,8 @@ const VIEWS = [
         label: 'NUTRICIONISTA IA',
         title: 'Nutricionista IA 24/7',
         desc: 'Pregunta, cambia comidas, registra lo que comiste — la IA responde al instante.',
-        fig: 'Fig. 03.4 — Consulta: un cambio y su efecto en la lista.',
+        figTag: 'Fig. 03.4',
+        figText: 'Consulta: un cambio y su efecto en la lista.',
     },
     {
         id: 'pantry',
@@ -114,7 +118,8 @@ const VIEWS = [
         label: 'NEVERA VIRTUAL',
         title: 'Nevera virtual',
         desc: 'La IA sabe qué tienes en casa y evita que compres lo que ya está en tu nevera.',
-        fig: 'Fig. 03.5 — Inventario de casa y avisos de uso.',
+        figTag: 'Fig. 03.5',
+        figText: 'Inventario de casa y avisos de uso.',
     },
 ];
 
@@ -336,7 +341,17 @@ const View = ({ view, rise }) => (
             <div className={styles.viewport}>
                 <div className={styles.scaleBox} aria-hidden="true">{MOCKUPS[view.id]}</div>
             </div>
-            <span className={styles.figCaption}>{view.fig}</span>
+            {/* [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] Pie a DOS VOCES: prefijo
+                mono en tinta + frase en PJS a --pa-ink-2. Es exactamente lo que
+                `.caption`/`.captionTag` de las dos figuras de la sección 04 ya
+                hacen, y lo que el spec §2.5 define para un pie de figura. Antes
+                los cinco pies iban en mono 12 completo: cinco líneas grises
+                idénticas que se leían como una banda, y que divergían del pie de
+                la 04 sin ninguna razón. */}
+            <span className={styles.figCaption}>
+                <span className={styles.figTag}>{view.figTag}</span>
+                {` — ${view.figText}`}
+            </span>
         </Link>
     </motion.article>
 );
@@ -348,7 +363,8 @@ View.propTypes = {
         label: PropTypes.string.isRequired,
         title: PropTypes.string.isRequired,
         desc: PropTypes.string.isRequired,
-        fig: PropTypes.string.isRequired,
+        figTag: PropTypes.string.isRequired,
+        figText: PropTypes.string.isRequired,
     }).isRequired,
     rise: PropTypes.object.isRequired,
 };

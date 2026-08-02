@@ -134,6 +134,26 @@
     font-variant-numeric: tabular-nums lining;
 }
 
+/* ── REGISTRO DE CIFRA ────────────────────────────────────────────────────
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] 1,5rem = 24px, la fila «cifra de
+   fila» del spec §2.5. Mono y no Outfit: esto es una MEDIDA, y las tabulares
+   que hereda del bloque de arriba son parte del contrato de la figura.
+
+   LAS DOS AL MISMO CUERPO, deliberadamente. Agrandar solo a `91,7 %` sería
+   codificar la comparación por SEGUNDA vez, en un canal que nadie midió — la
+   misma falta que hacer variar el grosor de una banda con el dato. La
+   jerarquía ya vive donde tiene que vivir: barra sólida de 22px contra barra
+   de contorno tramada de 14, más el peso y el tono del glifo.
+
+   El halo se queda en 3: bajo un glifo de 24px sigue siendo proporcionado, y
+   subirlo abriría un boquete más grande en la vertical de lectura del 100%,
+   que es justo lo que cruza estas dos cifras. */
+.valueOn,
+.valueOff {
+    font-size: 1.5rem;
+    letter-spacing: 0.02em;
+}
+
 .valueOn {
     font-weight: 600;
     fill: var(--pa-ink);
