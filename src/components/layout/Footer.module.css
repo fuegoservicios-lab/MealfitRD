@@ -344,6 +344,112 @@
     color: var(--pa-ink-3);
 }
 
+/* [P1-PAPER-THEME · 2026-08-01 · ronda de arreglo 1] <details> nativo para
+   las 4 columnas de destinos (Términos, Privacidad, Empresas, Soporte —
+   Footer.jsx, gateado por isPaper). Marca queda fuera a propósito: párrafo
+   + 5 iconos sociales en fila no tolera bien un ancho de media columna.
+   Fuera de <640px se fuerza SIEMPRE ABIERTO y NO-INTERACTIVO:
+   `pointer-events: none` en el summary + `display: block !important` sobre
+   la regla del UA `details:not([open]) > *:not(summary) { display: none }`
+   — el resultado es visualmente indistinguible de un `.col h4` plano en
+   tablet/desktop. Solo bajo 640px se restaura el toggle nativo real,
+   CERRADO por defecto (sin atributo `open` en el JSX): es la única fuente
+   de la altura ahorrada, cero JS, cero hydration mismatch. */
+:global(html[data-theme="paper"]) .colDetails {
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+:global(html[data-theme="paper"]) .colSummary {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--pa-ink-3);
+    list-style: none;
+    cursor: default;
+    pointer-events: none;
+    margin-bottom: 1.35rem;
+}
+
+:global(html[data-theme="paper"]) .colSummary::-webkit-details-marker {
+    display: none;
+}
+
+/* [RONDA 1 — fix] Chromium NO usa solo `display:none` para el contenido
+   colapsado de <details>: usa `content-visibility: hidden` (soporte del
+   toggle animado nativo). Sobreescribir solo `display` dejaba el bloque
+   con `display:block` pero seguía sin pintarse — medido en pantalla:
+   summary visible, cuerpo ausente. Hay que forzar las DOS propiedades. */
+:global(html[data-theme="paper"]) .colDetails > *:not(summary) {
+    display: block !important;
+    content-visibility: visible !important;
+}
+
+/* [RONDA 1 — fix 2] Lo de arriba NO bastó: Chrome ≥131 envuelve el
+   contenido no-summary en un pseudo-elemento interno `::details-content`
+   (soporta la animación nativa de alto). ES ESE pseudo-elemento, no mi div
+   `.colBody`, el que trae `content-visibility: hidden` + `height: 0px` del
+   UA — medido con `getComputedStyle(details, '::details-content')`. Mi
+   `.colBody` reportaba display:block/content-visibility:visible/height:160px
+   CORRECTOS y aun así no pintaba, porque su ANCESTRO (el pseudo-elemento)
+   seguía con contención de tamaño en cero. Hay que forzar el pseudo-elemento
+   directamente. */
+:global(html[data-theme="paper"]) .colDetails::details-content {
+    content-visibility: visible !important;
+}
+
+@media (max-width: 639px) {
+    /* Bajo 640px se revierte: el toggle nativo real gobierna
+       `::details-content` vía el atributo `[open]`, que es exactamente el
+       comportamiento correcto para ahorrar altura. */
+    :global(html[data-theme="paper"]) .colDetails::details-content {
+        content-visibility: hidden !important;
+    }
+
+    :global(html[data-theme="paper"]) .colDetails[open]::details-content {
+        content-visibility: visible !important;
+    }
+
+    :global(html[data-theme="paper"]) .colSummary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        cursor: pointer;
+        pointer-events: auto;
+        /* Objetivo táctil: 0.75rem arriba/abajo + line-height propio suman
+           ≥44px de alto tocable para el toggle. */
+        padding: 0.75rem 0;
+        margin-bottom: 0;
+    }
+
+    :global(html[data-theme="paper"]) .colSummary::after {
+        content: '+';
+        font-family: var(--font-mono);
+        color: var(--pa-ink-3);
+    }
+
+    :global(html[data-theme="paper"]) .colDetails[open] .colSummary::after {
+        content: '−';
+    }
+
+    :global(html[data-theme="paper"]) .colDetails > *:not(summary) {
+        display: none !important;
+        content-visibility: hidden !important;
+    }
+
+    :global(html[data-theme="paper"]) .colDetails[open] > *:not(summary) {
+        display: block !important;
+        content-visibility: visible !important;
+    }
+
+    :global(html[data-theme="paper"]) .colBody a:first-child {
+        margin-top: 0.25rem;
+    }
+}
+
 /* Enlaces: PJS 14px a 32px de interlínea (spec §4.7). El `margin-bottom` de
    la base se anula: con la interlínea ya reservando el espaciado, sumarle un
    margen habría dado más aire del pedido — dos mecanismos por el mismo fin. */
@@ -459,33 +565,61 @@
     border-left: none;
 }
 
-/* [P1-PAPER-FOOTER-REWRITE · 2026-08-01] Bajo 640px, Términos y Privacidad
-   (2.º y 3.º `.col`) dejan de apilarse en torre y pasan a 2 columnas — con 12
-   destinos + el bloque de Soporte, 5 columnas en torre pesarían más que el
-   contenido (spec §4.7, riesgo b). Marca/Empresas/Soporte se quedan a ancho
-   completo; el cajetín inferior baja a 2×2. */
+/* [P1-PAPER-FOOTER-REWRITE · 2026-08-01 · ronda de arreglo 1] Bajo 640px,
+   Términos+Privacidad Y Empresas+Soporte dejan de apilarse en torre y pasan
+   a 2×2 columnas — con 12 destinos, 5 bloques en torre pesan más que el
+   contenido (spec §4.7, riesgo b). Solo Marca queda a ancho completo (fila
+   propia): es la única columna con contenido que no tolera bien un ancho
+   de media columna (párrafo + 5 iconos sociales en fila).
+
+   [RONDA 1] La primera versión de este bloque solo comprimía Términos y
+   Privacidad — dejaba Marca/Empresas/Soporte apilados a ancho completo.
+   Medido: 1195,4px en móvil (375×812), 2,65× el desktop (450,5px) y 170%
+   del umbral de alarma del propio brief (~700px). Empresas y Soporte son,
+   después de los enlaces legales, los dos bloques con más altura propia —
+   comprimir solo Términos/Privacidad no bastaba. El cajetín inferior sigue
+   en 2×2. */
 @media (max-width: 639px) {
     :global(html[data-theme="paper"]) .container {
         grid-template-columns: 1fr 1fr;
     }
 
-    :global(html[data-theme="paper"]) .col:nth-child(1),
-    :global(html[data-theme="paper"]) .col:nth-child(4),
-    :global(html[data-theme="paper"]) .col:nth-child(5) {
+    /* [RONDA 1] `1fr` es `minmax(auto, 1fr)`: sin este reset, el min-content
+       de `.supportLink` (fuego.servicios@gmail.com, 25 caracteres sin
+       espacio — `overflow-wrap: break-word` no reduce el min-content que
+       el grid usa para dimensionar la pista) empujaba la columna 2 a
+       ~260px contra ~108px de la columna 1 — medido, no 50/50. `min-width:
+       0` en el ITEM del grid delega el ajuste al contenido (que sí envuelve
+       con break-word una vez que su ancho real es el del 1fr que le toca). */
+    :global(html[data-theme="paper"]) .col {
+        min-width: 0;
+    }
+
+    :global(html[data-theme="paper"]) .col:nth-child(1) {
         grid-column: 1 / -1;
     }
 
-    :global(html[data-theme="paper"]) .col:nth-child(2) {
+    :global(html[data-theme="paper"]) .col:nth-child(2),
+    :global(html[data-theme="paper"]) .col:nth-child(4) {
         grid-column: 1;
     }
 
-    :global(html[data-theme="paper"]) .col:nth-child(3) {
+    :global(html[data-theme="paper"]) .col:nth-child(3),
+    :global(html[data-theme="paper"]) .col:nth-child(5) {
         grid-column: 2;
         border-left: 1px solid var(--pa-rule);
         /* Mitad del gap de este breakpoint (3rem, heredado de la regla
            @media max-width:768px de la base). */
         padding-left: 1.5rem;
     }
+
+    /* [RONDA 1] Empresas (fila 2 del grid en este layout) necesita su
+       propio row-gap superior: antes heredaba el `gap` normal del
+       `.container` porque Términos/Privacidad eran la fila anterior en la
+       MISMA columna; ahora Empresas empieza una fila nueva bajo Marca+
+       Términos/Privacidad y el gap del grid ya lo resuelve solo (gap es
+       simétrico por fila) — sin regla adicional, verificado en la medición
+       de abajo (no hay solape). */
 
     :global(html[data-theme="paper"]) .bottom {
         grid-template-columns: 1fr 1fr;

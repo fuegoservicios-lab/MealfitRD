@@ -92,49 +92,127 @@ const Footer = () => {
                     Privacidad (sección 13). `state.from` preserva el origen real para el
                     back-link inteligente de LegalLayout (ver P3-LEGAL-BACK-LINK). */}
                 <div className={styles.col}>
-                    <h4>Términos y servicios</h4>
-                    <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
-                    <Link to="/acceptable-use" state={{ from: fromPath }}>Política de Uso</Link>
-                    <Link to="/refunds" state={{ from: fromPath }}>Reembolsos y Cancelaciones</Link>
-                    <Link to="/ai-policy" state={{ from: fromPath }}>Uso de Inteligencia Artificial</Link>
-                    <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
+                    {/* [P1-PAPER-THEME · 2026-08-01 · ronda de arreglo 1] Bajo papel, las 2
+                        columnas legales van en <details> nativo: cierra por defecto SOLO bajo
+                        el breakpoint <640px (Footer.module.css lo fuerza siempre-abierto y
+                        no-interactivo en tablet/desktop) — la primera palanca (Empresas+Soporte
+                        a 2 columnas) no bastaba por sí sola para bajar de 812px de alto en
+                        móvil. Los 5 links siguen siendo los mismos 5 destinos, un tap detrás.
+                        Las 15 rutas no-papel conservan el <h4> plano, sin cambios. */}
+                    {isPaper ? (
+                        <details className={styles.colDetails}>
+                            <summary className={styles.colSummary}>Términos y servicios</summary>
+                            <div className={styles.colBody}>
+                                <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
+                                <Link to="/acceptable-use" state={{ from: fromPath }}>Política de Uso</Link>
+                                <Link to="/refunds" state={{ from: fromPath }}>Reembolsos y Cancelaciones</Link>
+                                <Link to="/ai-policy" state={{ from: fromPath }}>Uso de Inteligencia Artificial</Link>
+                                <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
+                            </div>
+                        </details>
+                    ) : (
+                        <>
+                            <h4>Términos y servicios</h4>
+                            <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
+                            <Link to="/acceptable-use" state={{ from: fromPath }}>Política de Uso</Link>
+                            <Link to="/refunds" state={{ from: fromPath }}>Reembolsos y Cancelaciones</Link>
+                            <Link to="/ai-policy" state={{ from: fromPath }}>Uso de Inteligencia Artificial</Link>
+                            <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
+                        </>
+                    )}
                 </div>
 
                 <div className={styles.col}>
-                    <h4>Privacidad y datos</h4>
-                    <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
-                    <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
-                    <Link to="/responsible-disclosure" state={{ from: fromPath }}>Divulgación Responsable</Link>
+                    {isPaper ? (
+                        <details className={styles.colDetails}>
+                            <summary className={styles.colSummary}>Privacidad y datos</summary>
+                            <div className={styles.colBody}>
+                                <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
+                                <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
+                                <Link to="/responsible-disclosure" state={{ from: fromPath }}>Divulgación Responsable</Link>
+                            </div>
+                        </details>
+                    ) : (
+                        <>
+                            <h4>Privacidad y datos</h4>
+                            <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
+                            <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
+                            <Link to="/responsible-disclosure" state={{ from: fromPath }}>Divulgación Responsable</Link>
+                        </>
+                    )}
                 </div>
 
                 {/* [P3-ABOUT-PAGE · 2026-06-30] Columna "Empresas": página corporativa
                     (Acerca de Bioboros) + Investigación (movida desde "Privacidad y datos"). */}
                 <div className={styles.col}>
-                    <h4>Empresas</h4>
-                    <Link to="/about" state={{ from: fromPath }}>Bioboros</Link>
-                    <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
-                    {/* [P1-SUPERMARKET-DB · 2026-07-02] Base de datos pública del
-                        Supermercado RD (alimentos verificados + precios RD$). */}
-                    <Link to="/supermercado" state={{ from: fromPath }}>Supermercados RD</Link>
-                    <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
+                    {/* [P1-PAPER-THEME · 2026-08-01 · ronda de arreglo 1, 2ª iter] El
+                        <details> de Términos+Privacidad solo (868,9px) no bastaba para bajar
+                        de 812px: Empresas+Soporte, la fila siguiente, seguía a 249px de alto
+                        (el mayor bloque restante tras Marca). Mismo patrón aquí. */}
+                    {isPaper ? (
+                        <details className={styles.colDetails}>
+                            <summary className={styles.colSummary}>Empresas</summary>
+                            <div className={styles.colBody}>
+                                <Link to="/about" state={{ from: fromPath }}>Bioboros</Link>
+                                <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
+                                <Link to="/supermercado" state={{ from: fromPath }}>Supermercados RD</Link>
+                                <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
+                            </div>
+                        </details>
+                    ) : (
+                        <>
+                            <h4>Empresas</h4>
+                            <Link to="/about" state={{ from: fromPath }}>Bioboros</Link>
+                            <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
+                            {/* [P1-SUPERMARKET-DB · 2026-07-02] Base de datos pública del
+                                Supermercado RD (alimentos verificados + precios RD$). */}
+                            <Link to="/supermercado" state={{ from: fromPath }}>Supermercados RD</Link>
+                            <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
+                        </>
+                    )}
                 </div>
 
                 {/* [P3-FOOTER-SUPPORT · 2026-05-31] Contacto directo de soporte
                     en un clic (antes solo alcanzable enterrado en las legales /
                     en la página Upgrade). Mismo email canónico que Upgrade.jsx. */}
                 <div className={styles.col}>
-                    <h4>Soporte</h4>
-                    <p className={styles.supportIntro}>¿Dudas o problemas? Estamos para ayudarte.</p>
-                    <a href="mailto:fuego.servicios@gmail.com" className={styles.supportLink}>
-                        <span className={styles.supportIcon} aria-hidden="true">
-                            <Mail size={16} strokeWidth={2.25} />
-                        </span>
-                        fuego.servicios@gmail.com
-                    </a>
-                    <p className={styles.supportNote}>
-                        <Clock size={13} strokeWidth={2.25} aria-hidden="true" />
-                        Respondemos en menos de 24 horas
-                    </p>
+                    {/* [P1-PAPER-THEME · 2026-08-01 · ronda de arreglo 1, 2ª iter] Bajo
+                        <640px el contacto de soporte pasa a un tap detrás del summary — el
+                        mismo trade-off que Empresas. Sigue "alcanzable" (12/12 destinos), y
+                        en desktop/tablet se ve exactamente igual que antes (forzado abierto). */}
+                    {isPaper ? (
+                        <details className={styles.colDetails}>
+                            <summary className={styles.colSummary}>Soporte</summary>
+                            <div className={styles.colBody}>
+                                <p className={styles.supportIntro}>¿Dudas o problemas? Estamos para ayudarte.</p>
+                                <a href="mailto:fuego.servicios@gmail.com" className={styles.supportLink}>
+                                    <span className={styles.supportIcon} aria-hidden="true">
+                                        <Mail size={16} strokeWidth={2.25} />
+                                    </span>
+                                    fuego.servicios@gmail.com
+                                </a>
+                                <p className={styles.supportNote}>
+                                    <Clock size={13} strokeWidth={2.25} aria-hidden="true" />
+                                    Respondemos en menos de 24 horas
+                                </p>
+                            </div>
+                        </details>
+                    ) : (
+                        <>
+                            <h4>Soporte</h4>
+                            <p className={styles.supportIntro}>¿Dudas o problemas? Estamos para ayudarte.</p>
+                            <a href="mailto:fuego.servicios@gmail.com" className={styles.supportLink}>
+                                <span className={styles.supportIcon} aria-hidden="true">
+                                    <Mail size={16} strokeWidth={2.25} />
+                                </span>
+                                fuego.servicios@gmail.com
+                            </a>
+                            <p className={styles.supportNote}>
+                                <Clock size={13} strokeWidth={2.25} aria-hidden="true" />
+                                Respondemos en menos de 24 horas
+                            </p>
+                        </>
+                    )}
                 </div>
 
                 <div className={styles.bottom}>
