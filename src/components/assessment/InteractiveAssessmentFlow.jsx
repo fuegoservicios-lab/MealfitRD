@@ -13,6 +13,8 @@ import {
 // [P1-PANTRY-WIZARD-STEP · 2026-07-11] Import directo (convención del barrel:
 // imports nuevos NO pasan por InteractiveQuestions.jsx).
 import { QPantryBuilder } from './questions/QPantryBuilder';
+// [P1-STAPLE-FOODS · 2026-08-02] Import directo (mismo patrón que QPantryBuilder arriba).
+import { QStapleFoods } from './questions/QStapleFoods';
 // [FORM-CTA-UNIFY · 2026-07-02] Icono del botón "Saltar" (antes glyph ⏭ de texto,
 // que renderiza distinto por plataforma; lucide es consistente con el resto).
 import { ChevronsRight } from 'lucide-react';
@@ -346,6 +348,15 @@ const InteractiveAssessmentFlow = () => {
             hasInternalNext: true,
             fields: ['dislikes'],
             component: <QDislikes onManualAdvance={nextStep} />
+        },
+        {
+            // [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos" — OPCIONAL/skippeable (mismo patrón que
+            // QSupplements): NO en REQUIRED_FORM_FIELDS, SIN asterisco rojo, el NextButton interno
+            // nunca se deshabilita por falta de selección.
+            title: "Tus básicos de siempre (Opcional)",
+            subtitle: "Alimentos que comes seguido y quieres ver repetidos en tu plan sin que cuente como falta de variedad.",
+            hasInternalNext: true,
+            component: <QStapleFoods onManualAdvance={nextStep} />
         },
         {
             // [P1-FORM-7] Quitamos "(Opcional)" del title — era misleading:

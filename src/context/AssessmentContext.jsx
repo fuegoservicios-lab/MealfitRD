@@ -391,6 +391,13 @@ export const AssessmentProvider = ({ children }) => {
         habitAlcohol: '', habitSmoking: '', habitCaffeine: '', habitWater: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', budgetAmount: '', budgetCurrency: 'DOP', scheduleType: '',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
+        // [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos": alimentos que el usuario declara que come
+        // de siempre (chips del catálogo verificado, máx 8 — QStapleFoods, paso OPCIONAL del
+        // wizard). A diferencia de dislikes/allergies NO es sensible (sin texto libre, sin PII
+        // médica) — vive en el `mealfit_form` plano, NO en SENSITIVE_FIELDS. Persistencia durable
+        // vía PUT /api/user/preferences/staple-foods (Ajustes); el backend además la hidrata
+        // server-side para swap/regen-day (`_enrich_clinical_from_profile`).
+        stapleFoods: [],
         // [P1-MEDICATION-RULES · 2026-06-18] Medicamentos actuales (chips, OPCIONAL — array vacío = sin
         // medicamentos, sin sentinel "Ninguno"). Alimenta el motor de interacciones fármaco-alimento
         // (backend medication_rules.py): warfarina↔vit K, metformina↔B12, IECA/ARA-II↔potasio,
@@ -2483,6 +2490,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     activity_level: formData?.activityLevel,
                     allergies: formData?.allergies || [],
                     dislikes: formData?.dislikes || [],
+                    // [P1-STAPLE-FOODS · 2026-08-02] básicos del usuario — el gate same-day-
+                    // protein del swap (agent.py) los exime si la técnica difiere.
+                    staple_foods: formData?.stapleFoods || [],
                 }),
             });
             const data = resp.ok ? await resp.json() : null;
@@ -2985,6 +2995,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     diet_type: userDietType,
                     allergies: formData.allergies || [],
                     dislikes: formData.dislikes || [],
+                    // [P1-STAPLE-FOODS · 2026-08-02] básicos del usuario — el gate same-day-
+                    // protein del swap (agent.py) los exime si la técnica difiere.
+                    staple_foods: formData.stapleFoods || [],
                     liked_meals: Object.keys(likedMeals || {}),
                     disliked_meals: Object.keys(dislikedMeals || {}),
                     current_pantry_ingredients: currentIngredients,

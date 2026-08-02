@@ -38,6 +38,9 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 // [P1-SUPERPERSONALIZATION-1 · 2026-06-19] Panel opt-in de preferencias ricas
 // (gustos/cultura/equipo/sabor/nivel/texto libre) → health_profile.super_personalization.
 import SuperPersonalizationPanel from '../components/settings/SuperPersonalizationPanel';
+// [P1-STAPLE-FOODS · 2026-08-02] Edición post-onboarding de "Mis básicos" (mismo patrón que
+// SuperPersonalizationPanel — panel self-contained, carga/guarda vía endpoint dedicado).
+import StapleFoodsPanel from '../components/settings/StapleFoodsPanel';
 // [P1-CLINICAL-PANEL · 2026-07-03] Panel opt-in de perfil clínico avanzado
 // (labs, historia ponderal, digestión, entrenamiento) → health_profile.clinical_profile.
 import ClinicalProfilePanel from '../components/settings/ClinicalProfilePanel';
@@ -2455,6 +2458,12 @@ const Settings = () => {
                                 Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.
                             </p>
                             <SuperPersonalizationPanel />
+                            {/* [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos" — editable aquí
+                                (durable en health_profile.staple_foods) además del paso opcional
+                                del wizard (QStapleFoods). */}
+                            <div style={{ marginTop: '1.5rem' }}>
+                                <StapleFoodsPanel />
+                            </div>
                         </section>
                     )}
 

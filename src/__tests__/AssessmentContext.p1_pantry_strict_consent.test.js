@@ -31,7 +31,9 @@ describe('P1-PANTRY-STRICT-CONSENT (AssessmentContext.regenerateSingleMeal)', ()
     });
 
     it('el body del POST solo incluye allow_new_ingredients cuando hay contenido real', () => {
-        const win = _sliceFrom("const API_SWAP_URL = '/api/plans/swap-meal'", 2600);
+        // [P1-STAPLE-FOODS · 2026-08-02] ventana ampliada 2600→2900: se insertó el campo
+        // `staple_foods` (básicos del usuario) entre `dislikes` y `liked_meals` del mismo body.
+        const win = _sliceFrom("const API_SWAP_URL = '/api/plans/swap-meal'", 2900);
         expect(win).toContain('...(Array.isArray(allowNewIngredients) && allowNewIngredients.length > 0');
         expect(win).toContain('{ allow_new_ingredients: allowNewIngredients }');
     });
