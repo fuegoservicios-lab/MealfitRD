@@ -27,7 +27,7 @@ function _sliceFrom(marker, len = 3000) {
 
 describe('P1-FIX-SODIUM-DAY', () => {
     it('el handler existe y define el estado de carga', () => {
-        expect(_src).toContain('const handleFixSodiumDay = async ()');
+        expect(_src).toContain('const handleFixSodiumDay = async (allowNewIngredients = null)');
         expect(_src).toContain('const [fixSodiumDayLoading, setFixSodiumDayLoading] = useState(false)');
     });
 
@@ -61,7 +61,7 @@ describe('P1-FIX-SODIUM-DAY', () => {
     });
 
     it('POSTea al endpoint correcto con el plan_id activo', () => {
-        const win = _sliceFrom('const handleFixSodiumDay = async ()', 1200);
+        const win = _sliceFrom('const handleFixSodiumDay = async (allowNewIngredients = null)', 1200);
         expect(win).toContain('`${API_BASE}/api/plans/${planData.id}/fix-sodium-day`');
         expect(win).toContain("method: 'POST'");
     });
@@ -111,7 +111,7 @@ describe('P1-FIX-SODIUM-DAY', () => {
     });
 
     it('respuesta no-OK (red/5xx): toast.error honesto, no asume el shape de éxito', () => {
-        const win = _sliceFrom('const handleFixSodiumDay = async ()', 2000);
+        const win = _sliceFrom('const handleFixSodiumDay = async (allowNewIngredients = null)', 2000);
         expect(win).toContain('if (!resp.ok)');
         const iNotOk = win.indexOf('if (!resp.ok)');
         const notOkWin = win.slice(iNotOk, iNotOk + 500);

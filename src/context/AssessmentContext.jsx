@@ -2902,7 +2902,14 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     }, [session?.user?.id]);
 
     // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---
-    const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName, swapReason = 'dislike', liveInventory = null) => {
+    // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] `allowNewIngredients` (default null): nombres que
+    // el usuario YA consintió comprar (tras un `needs_new_ingredients` previo) — se reenvían tal
+    // cual al backend, que amplía el universo autorizado (Nevera real + estos nombres) y
+    // re-corre el swap. Sin consentimiento previo, el backend cocina SOLO desde la Nevera real y
+    // — si no converge — responde soft `needs_new_ingredients` en vez de introducir el
+    // ingrediente en silencio (caso real que motivó el fix: catibías de yuca que NO estaba en la
+    // Nevera física colándose sin preguntar).
+    const regenerateSingleMeal = async (dayIndex, mealIndex, mealType, currentName, swapReason = 'dislike', liveInventory = null, allowNewIngredients = null) => {
         const planDays = planData.days || [{ day: 1, meals: planData.meals || planData.perfectDay || [] }];
         const currentMeals = planDays[dayIndex]?.meals || [];
         const targetCalories = currentMeals[mealIndex]?.cals || 400;
@@ -2985,7 +2992,12 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     // el backend setea _meal_regen_inflight + persiste el plato él mismo.
                     plan_id: _swapResumable ? _swapPlanId : undefined,
                     day_index: _swapResumable ? dayIndex : undefined,
-                    meal_index: _swapResumable ? mealIndex : undefined
+                    meal_index: _swapResumable ? mealIndex : undefined,
+                    // [P1-PANTRY-STRICT-CONSENT] consentimiento explícito del usuario (solo se
+                    // manda cuando existe — un valor `null`/`undefined` no amplía nada).
+                    ...(Array.isArray(allowNewIngredients) && allowNewIngredients.length > 0
+                        ? { allow_new_ingredients: allowNewIngredients }
+                        : {}),
                 })
             });
 
@@ -3010,6 +3022,22 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             }
 
             const newMealData = await response.json();
+
+            // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] Backend retorna 200 con
+            // `needs_new_ingredients:true` cuando el chef NO encontró alternativa SOLO con la
+            // Nevera real — nombra QUÉ falta (nombre + cantidad + precio RD$ estimado) en vez de
+            // introducirlo en silencio. Distinto de `swap_failed` (que es un fallo genérico):
+            // aquí hay una acción CONCRETA que el usuario puede tomar (consentir o buscar otra
+            // opción). Se chequea ANTES de `swap_failed` — el caller (Dashboard) abre el modal de
+            // consentimiento en vez de tratarlo como error genérico. Retorna un objeto (no
+            // string/null) para que el caller lo distinga de un plato exitoso.
+            if (newMealData?.needs_new_ingredients === true) {
+                return {
+                    needsConsent: true,
+                    missing: newMealData.missing_ingredients || [],
+                    message: newMealData.message || 'El chef necesita ingredientes que no están en tu Nevera.',
+                };
+            }
 
             // [P3-SWAP-SOFT-FAIL-200 · 2026-05-23] Backend retorna 200 con
             // flag `swap_failed:true` cuando el swap no produjo un plato real

@@ -50,6 +50,11 @@ import OptionPickerModal from '../components/common/OptionPickerModal';
 // sigue usando OptionPickerModal (tiene la opción extra "similar").
 import MotivoActualizarModal from '../components/dashboard/MotivoActualizarModal';
 import EmptyState from '../components/common/EmptyState';
+// [P1-PANTRY-STRICT-CONSENT · 2026-08-02] "Nevera estricta + consentimiento": modal que nombra
+// el/los ingrediente(s) que el chef necesita fuera de la Nevera real (nombre + cantidad + precio
+// RD$ estimado) y ofrece añadir a la lista / buscar otra opción / cancelar — nada entra a la
+// lista de compras sin este consentimiento explícito.
+import PantryConsentModal from '../components/common/PantryConsentModal';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] Import de `el cliente anterior` eliminado: los
 // SELECTs/realtime directos a Postgres migraron a endpoints backend
 // (GET /api/inventory, GET /api/plans-data/{plan_id}) via fetchWithAuth.
@@ -912,14 +917,21 @@ const DashboardInner = () => {
     // completo), así que el éxito exige un re-fetch — mismo patrón que el resume server-side
     // de P1-DAY-REGEN-RESUME (`applyRegenPlan`, más abajo en este archivo).
     const [fixSodiumDayLoading, setFixSodiumDayLoading] = useState(false);
-    const handleFixSodiumDay = async () => {
+    // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] `allowNewIngredients` (default null): nombres que
+    // el usuario YA consintió comprar (modal "Tu Nevera no alcanza") — se reenvían al backend,
+    // que amplía el universo autorizado y re-corre el swap sodio-consciente.
+    const handleFixSodiumDay = async (allowNewIngredients = null) => {
         if (!planData?.id || fixSodiumDayLoading) return;
         setFixSodiumDayLoading(true);
         try {
             const resp = await fetchWithAuth(`${API_BASE}/api/plans/${planData.id}/fix-sodium-day`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}),
+                body: JSON.stringify(
+                    Array.isArray(allowNewIngredients) && allowNewIngredients.length > 0
+                        ? { allow_new_ingredients: allowNewIngredients }
+                        : {}
+                ),
             });
             let result = null;
             try { result = await resp.json(); } catch (_) { /* body vacío o no-JSON */ }
@@ -928,8 +940,24 @@ const DashboardInner = () => {
                     || (typeof result?.detail === 'string' ? result.detail : null)
                     || 'Inténtalo de nuevo en un momento.';
                 toast.error('No se pudo arreglar el día', { description: msg });
+                setPantryConsent(null);
+                pantryConsentContext.current = null;
                 return;
             }
+            // [P1-PANTRY-STRICT-CONSENT] El chef no encontró una comida menos salada SOLO con la
+            // Nevera real — nombra qué falta en vez de introducirlo en silencio. Se chequea ANTES
+            // de `fixed`/soft-fail genérico: hay una acción concreta (consentir o buscar otra vía).
+            if (result?.needs_new_ingredients === true) {
+                pantryConsentContext.current = { source: 'fix-sodium-day' };
+                setPantryConsent({
+                    missing: result.missing_ingredients || [],
+                    message: result.message || 'El chef necesita ingredientes que no están en tu Nevera.',
+                    busy: false,
+                });
+                return;
+            }
+            setPantryConsent(null);
+            pantryConsentContext.current = null;
             if (result?.fixed === true) {
                 // El endpoint YA persistió atómicamente (mismo mutator que /swap-meal/persist:
                 // day-band rebalance + micros/techos + listas inline) — solo falta traer el plan
@@ -979,6 +1007,93 @@ const DashboardInner = () => {
         } finally {
             setFixSodiumDayLoading(false);
         }
+    };
+
+    // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] Ejecuta (o re-ejecuta) un swap de UN plato con el
+    // flujo de "Nevera estricta + consentimiento" — SSOT usado por el modal "¿Por qué quieres
+    // cambiar?", la confirmación de "No me gusta" y el reintento/consentimiento del modal "Tu
+    // Nevera no alcanza". `allowNewIngredients` (default null) viaja tal cual a
+    // `regenerateSingleMeal` — si viene, el backend amplía el universo autorizado con esos
+    // nombres; si no, cocina SOLO desde la Nevera real.
+    const runSwapWithConsentFlow = async ({
+        dayIndex, mealIndex, mealType, mealName, swapReason, allowNewIngredients = null,
+        loadingTitle = '🔄 Consultando al Chef IA...',
+    }) => {
+        if (swapInFlightLock.current) return;
+        swapInFlightLock.current = true;
+        setRegeneratingId(mealIndex);
+        const toastId = toast.loading(loadingTitle, { description: 'Buscando una alternativa deliciosa...' });
+        try {
+            const result = await regenerateSingleMeal(
+                dayIndex, mealIndex, mealType, mealName,
+                swapReason,
+                liveInventory, // ← [P0-1] detectar ingredientes nuevos post-restock
+                allowNewIngredients,
+            );
+            trackEvent('plan_regeneration_triggered', {
+                reason: swapReason,
+                source: 'dashboard',
+                is_expired: isPlanExpired,
+                has_pantry: liveInventory && liveInventory.length > 0,
+                type: 'single_meal',
+            });
+            toast.dismiss(toastId);
+            if (result && typeof result === 'object' && result.needsConsent) {
+                // El chef no encontró alternativa SOLO con la Nevera real — abre (o refresca) el
+                // modal de consentimiento en vez de un toast. Nada se persiste todavía.
+                pantryConsentContext.current = { dayIndex, mealIndex, mealType, mealName, swapReason };
+                setPantryConsent({ missing: result.missing, message: result.message, busy: false });
+                return;
+            }
+            setPantryConsent(null);
+            pantryConsentContext.current = null;
+            // [P2-SWAP-TOAST-FIX · 2026-06-29] Solo "¡Menú Actualizado!" si HUBO cambio real —
+            // en soft-fail `regenerateSingleMeal` devuelve null y YA mostró su toast.error propio.
+            if (result) {
+                toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${result}`, icon: '👨‍🍳' });
+            }
+        } catch (error) {
+            console.error('Error al regenerar:', error);
+            toast.dismiss(toastId);
+            toast.error('No se pudo conectar con la IA', { description: 'Se usó una receta alternativa local.' });
+            setPantryConsent(null);
+            pantryConsentContext.current = null;
+        } finally {
+            setRegeneratingId(null);
+            swapInFlightLock.current = false;
+        }
+    };
+
+    // Handlers del modal "Tu Nevera no alcanza" — despachan a `runSwapWithConsentFlow` (swap de
+    // un plato) o a `handleFixSodiumDay` (botón "Arreglar este día") según quién lo abrió.
+    const handlePantryConsentConfirm = async () => {
+        const ctx = pantryConsentContext.current;
+        if (!ctx || !pantryConsent) return;
+        const names = (pantryConsent.missing || []).map((m) => m?.name).filter(Boolean);
+        if (names.length === 0) return;
+        setPantryConsent((prev) => (prev ? { ...prev, busy: true } : prev));
+        if (ctx.source === 'fix-sodium-day') {
+            await handleFixSodiumDay(names);
+        } else {
+            await runSwapWithConsentFlow({ ...ctx, allowNewIngredients: names });
+        }
+    };
+
+    const handlePantryConsentRetry = async () => {
+        const ctx = pantryConsentContext.current;
+        if (!ctx) return;
+        setPantryConsent((prev) => (prev ? { ...prev, busy: true } : prev));
+        if (ctx.source === 'fix-sodium-day') {
+            await handleFixSodiumDay(null);
+        } else {
+            await runSwapWithConsentFlow({ ...ctx, allowNewIngredients: null });
+        }
+    };
+
+    const handlePantryConsentClose = () => {
+        // Cancelar: el plato/día se queda como está — nada entró a la lista de compras.
+        setPantryConsent(null);
+        pantryConsentContext.current = null;
     };
 
     // [P1-COHERENCE-BANNER-NOTIF · 2026-06-16] Mismo patrón que el banner "plan no
@@ -1166,6 +1281,12 @@ const DashboardInner = () => {
     // Estado para el modal de razón de cambio de plato
     const [swapModal, setSwapModal] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
     const [swapDislikeConfirm, setSwapDislikeConfirm] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
+    // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] Estado del modal "Tu Nevera no alcanza":
+    // { missing, message, busy } | null. `pantryConsentContext` guarda el swap que lo disparó
+    // (dayIndex/mealIndex/mealType/mealName/swapReason **o** `source:'fix-sodium-day'`) para que
+    // "Añadir y continuar"/"Buscar otra opción" sepan QUÉ re-intentar.
+    const [pantryConsent, setPantryConsent] = useState(null);
+    const pantryConsentContext = useRef(null);
     const [showUpdatePlanModal, setShowUpdatePlanModal] = useState(false);
     const [showDislikeConfirmModal, setShowDislikeConfirmModal] = useState(false);
     const [sessionRestocked, setSessionRestocked] = useState(false);
@@ -8626,39 +8747,9 @@ const DashboardInner = () => {
                         setSwapDislikeConfirm({ dayIndex, mealIndex, mealType, mealName });
                         return;
                     }
-                    // [P5-LOADING-DISABLE] Candado síncrono contra doble-tap (setSwapModal es async).
-                    if (swapInFlightLock.current) return;
-                    swapInFlightLock.current = true;
-                    setRegeneratingId(mealIndex);
-                    const toastId = toast.loading('🔄 Consultando al Chef IA...', { description: 'Buscando una alternativa deliciosa...' });
-                    try {
-                        const newName = await regenerateSingleMeal(
-                            dayIndex, mealIndex, mealType, mealName,
-                            optionId, // ← swap_reason
-                            liveInventory // ← [P0-1] detectar ingredientes nuevos post-restock
-                        );
-                        trackEvent('plan_regeneration_triggered', {
-                            reason: optionId,
-                            source: 'dashboard',
-                            is_expired: isPlanExpired,
-                            has_pantry: liveInventory && liveInventory.length > 0,
-                            type: 'single_meal',
-                        });
-                        toast.dismiss(toastId);
-                        // [P2-SWAP-TOAST-FIX · 2026-06-29] Solo "¡Menú Actualizado!" si HUBO cambio real.
-                        // En soft-fail (422 / swap_failed) regenerateSingleMeal devuelve null y YA mostró su
-                        // toast.error específico → no dupliques con un success engañoso ("Cambiado por: <original>").
-                        if (newName) {
-                            toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${newName}`, icon: '👨‍🍳' });
-                        }
-                    } catch (error) {
-                        console.error('Error al regenerar:', error);
-                        toast.dismiss(toastId);
-                        toast.error('No se pudo conectar con la IA', { description: 'Se usó una receta alternativa local.' });
-                    } finally {
-                        setRegeneratingId(null);
-                        swapInFlightLock.current = false; // [P5-LOADING-DISABLE]
-                    }
+                    // [P5-LOADING-DISABLE] Candado síncrono contra doble-tap — vive DENTRO de
+                    // runSwapWithConsentFlow (early-return silencioso antes del toast.loading).
+                    await runSwapWithConsentFlow({ dayIndex, mealIndex, mealType, mealName, swapReason: optionId });
                 }}
             />
 
@@ -8860,45 +8951,30 @@ const DashboardInner = () => {
                     }
                     const { dayIndex, mealIndex, mealType, mealName } = swapDislikeConfirm;
                     setSwapDislikeConfirm(null);
-
-                    // [P5-LOADING-DISABLE] Candado síncrono contra doble-tap (mismo que el modal de razón).
-                    if (swapInFlightLock.current) return;
-                    swapInFlightLock.current = true;
-                    setRegeneratingId(mealIndex);
-                    const toastId = toast.loading('👎 Registrando preferencia...', { description: 'Buscando una alternativa deliciosa...' });
-
-                    try {
-                        const newName = await regenerateSingleMeal(
-                            dayIndex, mealIndex, mealType, mealName,
-                            'dislike',
-                            liveInventory // ← [P0-1] para detectar ingredientes nuevos post-restock
-                        );
-
-                        trackEvent('plan_regeneration_triggered', {
-                            reason: 'dislike',
-                            source: 'dashboard',
-                            is_expired: isPlanExpired,
-                            has_pantry: liveInventory && liveInventory.length > 0,
-                            type: 'single_meal'
-                        });
-
-                        toast.dismiss(toastId);
-                        // [P2-SWAP-TOAST-FIX · 2026-06-29] Solo "¡Menú Actualizado!" si HUBO cambio real.
-                        // En soft-fail (422 / swap_failed) regenerateSingleMeal devuelve null y YA mostró su
-                        // toast.error específico → no dupliques con un success engañoso ("Cambiado por: <original>").
-                        if (newName) {
-                            toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${newName}`, icon: '👨‍🍳' });
-                        }
-                    } catch (error) {
-                        console.error('Error al regenerar:', error);
-                        toast.dismiss(toastId);
-                        toast.error('No se pudo conectar con la IA', { description: 'Se usó una receta alternativa local.' });
-                    } finally {
-                        setRegeneratingId(null);
-                        swapInFlightLock.current = false; // [P5-LOADING-DISABLE]
-                    }
+                    // [P5-LOADING-DISABLE] Candado síncrono contra doble-tap — vive DENTRO de
+                    // runSwapWithConsentFlow (early-return silencioso antes del toast.loading).
+                    await runSwapWithConsentFlow({
+                        dayIndex, mealIndex, mealType, mealName, swapReason: 'dislike',
+                        loadingTitle: '👎 Registrando preferencia...',
+                    });
                 }}
             />
+
+            {/* ═══════════ MODAL: "Tu Nevera no alcanza" (Nevera estricta + consentimiento) ═══════════ */}
+            {/* [P1-PANTRY-STRICT-CONSENT · 2026-08-02] Se abre cuando el backend responde
+                needs_new_ingredients — Cambiar Plato (ambos pickers arriba) o "Arreglar este día"
+                (handleFixSodiumDay). Nada entra a la lista de compras sin que el usuario elija
+                "Añadir a la lista y continuar" aquí. */}
+            <PantryConsentModal
+                open={!!pantryConsent}
+                missing={pantryConsent?.missing || []}
+                message={pantryConsent?.message}
+                busy={!!pantryConsent?.busy}
+                onConfirm={handlePantryConsentConfirm}
+                onRetry={handlePantryConsentRetry}
+                onClose={handlePantryConsentClose}
+            />
+
             {/* ═══════════ MODAL: Confirmación permanente de "No me gustan estos platos" ═══════════ */}
             <OptionPickerModal
                 isOpen={showDislikeConfirmModal}
