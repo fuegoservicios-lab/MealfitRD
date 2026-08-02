@@ -125,13 +125,17 @@ const BenchmarkShowcase = () => {
             <div ref={ref} className={`${styles.container}${drawn ? ` ${styles.drawn}` : ''}`}>
                 <div className={styles.sectionHead}>
                     <span className={styles.hLine} aria-hidden="true" />
-                    <h2 className={styles.sectionLabel}>04 / LA MEDICIÓN</h2>
+                    {/* [P2-SECCIONES-TITULAR · 2026-08-02] Baja de `h2` a `p`: el
+                        titular de verdad es el de abajo. */}
+                    <p className={styles.sectionLabel}>04 / LA MEDICIÓN</p>
                     <span className={styles.hLine} aria-hidden="true" />
                 </div>
 
-                <p className={styles.subtitle} style={{ '--d': '0ms' }}>
-                    No prometemos números — los medimos, y los comparamos contra el mismo
-                    pipeline con el motor apagado.
+                <h2 className={styles.title} style={{ '--d': '0ms' }}>
+                    No prometemos números. Los medimos.
+                </h2>
+                <p className={styles.subtitle} style={{ '--d': '35ms' }}>
+                    Y los comparamos contra el mismo pipeline con el motor apagado.
                 </p>
 
                 {/* Tira de cartucho: sustituye al badge «MEDICIÓN EN VIVO» con

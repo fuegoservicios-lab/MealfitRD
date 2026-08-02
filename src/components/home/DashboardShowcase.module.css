@@ -144,6 +144,42 @@
     white-space: nowrap;
 }
 
+/* ── EL TITULAR ───────────────────────────────────────────────────────────
+   [P2-SECCIONES-TITULAR · 2026-08-02] Esta sección no tenía titular, y esa era
+   la razón de fondo de que se viera plana.
+
+   MEDIDO antes de escribir esto, con `getComputedStyle` sobre el landing en
+   producción: en los 1.941 de alto de la sección, el texto más grande medía
+   16px. El `<h2>` era el rótulo mono de 13px. Comparado con el resto del
+   MISMO sistema — la banda de cierre lleva 32px en 343px de alto, y el H2 de
+   `/precios` mide 38px — la desproporción no era de estilo, era estructural:
+   ninguna jerarquía de línea o de tono puede sustituir a un ancla tipográfica
+   que no existe.
+
+   El spec §4 decía «en una hoja de plano el rótulo del plano ES el título; no
+   hay H2 grande aparte». Se anula AQUÍ, y con precedente propio: `/precios` es
+   superficie papel y lleva su H2 de 38px desde el primer día, y la banda de
+   cierre también. La regla describía bien una lámina suelta; no una sección de
+   1.900px que tiene que organizarse sola dentro de una página larga.
+
+   Misma escala EXACTA que `Pricing.module.css:.title` — no un valor nuevo.
+   El rótulo mono se queda donde estaba, degradado a antetítulo (`<p>`): sigue
+   numerando la lámina, que es su trabajo, y deja de ser el encabezado del
+   documento. Un `<h2>` por sección, y ahora describe la sección en vez de
+   numerarla. */
+.title {
+    max-width: 20ch;
+    margin: 0 auto 0.75rem;
+    text-align: center;
+    font-family: var(--font-heading);
+    font-size: clamp(1.75rem, 3.4vw, 2.375rem);
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--pa-ink);
+    text-wrap: balance;
+}
+
 .subtitle {
     max-width: 46ch;
     margin: 0 auto 3rem;

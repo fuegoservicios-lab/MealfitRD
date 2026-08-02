@@ -410,11 +410,17 @@ const DashboardShowcase = () => {
                 >
                     <motion.div className={styles.sectionHead} variants={M.rise}>
                         <span className={styles.hLine} aria-hidden="true" />
-                        <h2 className={styles.sectionLabel}>03 / LAS PANTALLAS</h2>
+                        {/* [P2-SECCIONES-TITULAR · 2026-08-02] Baja de `h2` a `p`: el
+                            titular de verdad es el de abajo. Ver el comentario de
+                            `.title` en el .module.css para por qué existe. */}
+                        <p className={styles.sectionLabel}>03 / LAS PANTALLAS</p>
                         <span className={styles.hLine} aria-hidden="true" />
                     </motion.div>
+                    <motion.h2 className={styles.title} variants={M.rise}>
+                        La aplicación, por dentro
+                    </motion.h2>
                     <motion.p className={styles.subtitle} variants={M.rise}>
-                        Cinco superficies de la aplicación, dibujadas a la misma escala sobre la misma hoja.
+                        Cinco superficies dibujadas a la misma escala sobre la misma hoja.
                     </motion.p>
                 </motion.div>
 
