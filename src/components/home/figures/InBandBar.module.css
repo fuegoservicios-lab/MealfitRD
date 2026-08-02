@@ -93,17 +93,19 @@
     stroke: none;
 }
 
-.cotaGap {
-    fill: var(--pa-paper);
-    stroke: none;
-    rx: 0px;
-    ry: 0px;
-}
-
 /* ── rotulación ─────────────────────────────────────────────────────────
    12 px reales (el SVG no lleva `viewBox`, así que no hay escala) y
    `--pa-ink-2` para todo lo que DECODIFICA. La cifra de la cota y la de «con
-   motor» suben a `--pa-ink`: son el dato, no el rótulo. */
+   motor» suben a `--pa-ink`: son el dato, no el rótulo.
+
+   HALO DE PAPEL en todos (`paint-order: stroke`): tres rótulos caen
+   inevitablemente encima de una línea. Las cifras van ancladas al 100 % del
+   carril, que es exactamente donde está la última vertical de lectura — medido:
+   la vertical del 100 cruzaba el `%` de `24,0 %` y de `91,7 %`. Y el valor de
+   la cota va SOBRE la línea de cota, que es el «hueco» que pide el spec §5.3.
+   El halo lo abre del tamaño exacto del texto; un `<rect>` de papel detrás
+   habría necesitado saber el ancho del texto, y una anchura fija de más se
+   come tramo de cota a 320 px de viewport. */
 .axisLabel,
 .unit,
 .laneLabel {
@@ -112,7 +114,10 @@
     font-weight: 500;
     letter-spacing: 0.06em;
     fill: var(--pa-ink-2);
-    stroke: none;
+    stroke: var(--pa-paper);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    paint-order: stroke;
     font-variant-numeric: tabular-nums lining;
 }
 
@@ -122,7 +127,10 @@
     font-family: var(--font-mono);
     font-size: 13px;
     letter-spacing: 0.04em;
-    stroke: none;
+    stroke: var(--pa-paper);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    paint-order: stroke;
     font-variant-numeric: tabular-nums lining;
 }
 
@@ -159,7 +167,6 @@
 .laneLabel,
 .valueOn,
 .valueOff,
-.cotaGap,
 .cotaValue,
 .arrow {
     opacity: 0;
@@ -187,7 +194,6 @@
 
 /* El rótulo de la cota entra el último: la línea se traza, y solo cuando ya
    mide lo que mide aparece el número que la nombra. */
-.drawn .cotaGap,
 .drawn .cotaValue,
 .drawn .arrow {
     opacity: 1;

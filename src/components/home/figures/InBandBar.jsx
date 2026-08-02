@@ -164,11 +164,13 @@ const InBandBar = () => {
                         markerEnd="url(#paInBandArrowEnd)"
                         pathLength={1}
                     />
-                    {/* El «hueco» de la línea de cota es un rectángulo de papel
-                        detrás del rótulo: no se puede partir la línea en dos
-                        tramos porque sus extremos van en PORCENTAJE y el hueco
-                        en píxeles, y los dos no se suman en un mismo atributo. */}
-                    <rect className={styles.cotaGap} x={pct(midPct)} y={COTA_Y - 9} width="146" height="18" transform="translate(-73,0)" />
+                    {/* El «hueco» de la línea de cota lo abre el HALO DE PAPEL del
+                        propio rótulo (`paint-order: stroke`, ver el .module.css),
+                        no un rectángulo detrás. Partir la línea en dos tramos no
+                        es posible —sus extremos van en PORCENTAJE y el hueco en
+                        píxeles, y no se suman dentro de un mismo atributo— y un
+                        rectángulo de anchura fija se come tramo de cota útil a
+                        320 px de viewport, donde la cota entera mide 168 px. */}
                     <text className={styles.cotaValue} x={pct(midPct)} y={COTA_Y + 4} textAnchor="middle">
                         {`+${es1(delta)} pp de planes`}
                     </text>

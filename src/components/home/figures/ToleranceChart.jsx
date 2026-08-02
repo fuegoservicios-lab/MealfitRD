@@ -84,9 +84,23 @@ const LIMIT_Y1 = 15;
 const LIMIT_Y2 = 43;
 const BAND_LABEL_Y = 13;     // línea base del rótulo `BANDA −10 / +12`
 
-const TOP_H = 20;            // franja de `OBJETIVO`
-const LEGEND_H = 26;         // franja de `CON MOTOR` / `SIN MOTOR`
-const RULER_H = 26;
+/* Zona de anotación de la PRIMERA fila. `OBJETIVO` y los dos rótulos in situ
+   viven DENTRO del SVG de la fila de proteína, no en franjas propias por
+   encima de la figura.
+
+   Por qué, y es un fallo medido, no una preferencia: con franjas separadas, al
+   reflowar bajo 720 px cada `.row` se parte en dos líneas
+   (`nombre | cifras` arriba, carril debajo). Eso metía la línea
+   «Proteína  ±1,5 %  ±16,0 %» ENTRE la guía de `CON MOTOR` y el marcador al
+   que apunta: la guía dejaba de señalar nada. Un rótulo in situ que se
+   despega de su marca es una leyenda, que es justo el artefacto que esta
+   figura existe para no tener. */
+const ANNOT = 36;
+const OBJ_Y = 11;            // línea base de `OBJETIVO`
+const LEG_Y = 27;            // línea base de `CON MOTOR` / `SIN MOTOR`
+const LEAD_Y1 = 31;          // guía de 10 px, del rótulo hacia su marcador
+const LEAD_Y2 = 41;
+const RULER_H = 44;
 
 const AXIS_MIN = -20;
 const AXIS_MAX = 20;
@@ -138,55 +152,21 @@ const ToleranceChart = () => {
         return () => io.disconnect();
     }, [reduce]);
 
-    const protein = MACROS[0];
-    const proteinOff = OFF_ENGINE[protein.key];
-
     return (
         <figure className={styles.figure}>
             <div ref={ref} className={`${styles.grid}${drawn ? ` ${styles.drawn}` : ''}`}>
-
-                {/* ── franja superior: el objetivo ─────────────────────────── */}
-                <div className={styles.row} aria-hidden="true">
-                    <span className={styles.name} />
-                    <div className={styles.plot}>
-                        <svg className={styles.svg} width="100%" height={TOP_H} focusable="false">
-                            <text className={styles.axisLabel} x="50%" y="12" textAnchor="middle">OBJETIVO</text>
-                            <line className={styles.zero} x1="50%" y1="15" x2="50%" y2={TOP_H + 1} pathLength={1} />
-                        </svg>
-                    </div>
-                    <span className={styles.figures} />
-                </div>
-
-                {/* ── franja de leyenda IN SITU ────────────────────────────────
-                    Cero caja de leyenda: los dos marcadores se rotulan pegados
-                    al sitio donde caen, y solo en la primera fila. Una leyenda
-                    que hay que ir a consultar es exactamente el artefacto que
-                    obligaba a memorizar un color — el que este rediseño mata.
-                    Los DOS anclan por el final (`text-anchor: end`) y cada uno
-                    cuelga del marcador IZQUIERDO de su pareja: centrarlos los
-                    hacía chocar en el carril estrecho del móvil (medido: a
-                    264 px de carril, `CON MOTOR` centrado en el tick derecho
-                    solapaba `SIN MOTOR` por 1 px), y anclar `SIN MOTOR` al
-                    90 % del carril centrado lo sacaba del encuadre. */}
-                <div className={styles.row} aria-hidden="true">
-                    <span className={styles.name} />
-                    <div className={styles.plot}>
-                        <svg className={styles.svg} width="100%" height={LEGEND_H} focusable="false">
-                            <text className={styles.axisLabel} x={xPct(-protein.mape)} y="11" textAnchor="end">CON MOTOR</text>
-                            <line className={styles.leader} x1={xPct(-protein.mape)} y1="15" x2={xPct(-protein.mape)} y2={LEGEND_H} pathLength={1} />
-                            <text className={styles.axisLabel} x={xPct(proteinOff)} y="11" textAnchor="end">SIN MOTOR</text>
-                            <line className={styles.leader} x1={xPct(proteinOff)} y1="15" x2={xPct(proteinOff)} y2={LEGEND_H} pathLength={1} />
-                            <line className={styles.zero} x1="50%" y1="-1" x2="50%" y2={LEGEND_H + 1} pathLength={1} />
-                        </svg>
-                    </div>
-                    <span className={styles.figures} />
-                </div>
 
                 {/* ── las cuatro filas ─────────────────────────────────────── */}
                 {MACROS.map((m, i) => {
                     const [lo, hi] = bandOf(m.key);
                     const off = OFF_ENGINE[m.key];
                     const hatchId = `paTolHatch-${m.key}`;
+                    /* La primera fila es la única que rotula. Lleva encima una
+                       zona de anotación con `OBJETIVO` y los dos rótulos in
+                       situ; las otras tres ya no los necesitan. */
+                    const isLead = i === 0;
+                    const top = isLead ? ANNOT : 0;
+                    const rowH = top + ROW_H;
                     /* La lectura de un vistazo y la del lector de pantalla
                        tienen que coincidir: `role="img"` sobre la fila entera
                        hace que su contenido sea presentacional, así que el
@@ -199,14 +179,14 @@ const ToleranceChart = () => {
                     return (
                         <div
                             key={m.key}
-                            className={`${styles.row} ${styles.macroRow}`}
+                            className={`${styles.row} ${styles.macroRow}${isLead ? ` ${styles.leadRow}` : ''}`}
                             style={{ '--d': `${i * 70}ms` }}
                             role="img"
                             aria-label={aria}
                         >
                             <span className={styles.name}>{m.label}</span>
                             <div className={styles.plot}>
-                                <svg className={styles.svg} width="100%" height={ROW_H} focusable="false">
+                                <svg className={styles.svg} width="100%" height={rowH} focusable="false">
                                     <defs>
                                         {/* `userSpaceOnUse` + 5×5 SIN escalar: el default
                                             (`objectBoundingBox`) haría el tile anisótropo
@@ -219,29 +199,59 @@ const ToleranceChart = () => {
                                     </defs>
 
                                     {/* banda = ESPECIFICACIÓN */}
-                                    <rect className={styles.hatchFill} x={xPct(lo)} y={BAND_Y}
+                                    <rect className={styles.hatchFill} x={xPct(lo)} y={top + BAND_Y}
                                         width={`${(((hi - lo) / (AXIS_MAX - AXIS_MIN)) * 100).toFixed(4)}%`}
                                         height={BAND_H} fill={`url(#${hatchId})`} />
-                                    <line className={styles.limit} x1={xPct(lo)} y1={LIMIT_Y1} x2={xPct(lo)} y2={LIMIT_Y2} pathLength={1} />
-                                    <line className={styles.limit} x1={xPct(hi)} y1={LIMIT_Y1} x2={xPct(hi)} y2={LIMIT_Y2} pathLength={1} />
-                                    <text className={styles.bandLabel} x={xPct(lo)} y={BAND_LABEL_Y} transform="translate(3,0)">
+                                    <line className={styles.limit} x1={xPct(lo)} y1={top + LIMIT_Y1} x2={xPct(lo)} y2={top + LIMIT_Y2} pathLength={1} />
+                                    <line className={styles.limit} x1={xPct(hi)} y1={top + LIMIT_Y1} x2={xPct(hi)} y2={top + LIMIT_Y2} pathLength={1} />
+
+                                    {/* Guías de los rótulos in situ, solo en la primera
+                                        fila. Los dos anclan por el final y cuelgan del
+                                        marcador IZQUIERDO de su pareja: centrarlos los
+                                        hacía chocar en el carril estrecho del móvil. */}
+                                    {isLead && (
+                                        <>
+                                            <line className={styles.leader} x1={xPct(-m.mape)} y1={LEAD_Y1} x2={xPct(-m.mape)} y2={LEAD_Y2} pathLength={1} />
+                                            {off !== undefined && (
+                                                <line className={styles.leader} x1={xPct(off)} y1={LEAD_Y1} x2={xPct(off)} y2={LEAD_Y2} pathLength={1} />
+                                            )}
+                                        </>
+                                    )}
+
+                                    {/* El objetivo, a lo alto de toda la figura. Va ANTES
+                                        que los textos: el halo de papel de `.axisLabel` /
+                                        `.bandLabel` (`paint-order: stroke`) le abre el
+                                        hueco justo donde un rótulo lo cruzaría. Sin eso,
+                                        la regla del objetivo tachaba literalmente el
+                                        `BANDA −5 / +5` de la fila de calorías, cuya banda
+                                        es la única que empieza a la izquierda del cero. */}
+                                    <line className={styles.zero} x1="50%" y1="-1" x2="50%" y2={rowH + 1} pathLength={1} />
+
+                                    {isLead && (
+                                        <>
+                                            <text className={styles.axisLabel} x="50%" y={OBJ_Y} textAnchor="middle">OBJETIVO</text>
+                                            <text className={styles.axisLabel} x={xPct(-m.mape)} y={LEG_Y} textAnchor="end">CON MOTOR</text>
+                                            {off !== undefined && (
+                                                <text className={styles.axisLabel} x={xPct(off)} y={LEG_Y} textAnchor="end">SIN MOTOR</text>
+                                            )}
+                                        </>
+                                    )}
+
+                                    <text className={styles.bandLabel} x={xPct(lo)} y={top + BAND_LABEL_Y} transform="translate(3,0)">
                                         {`BANDA −${Math.abs(lo)} / +${hi}`}
                                     </text>
-
-                                    {/* el objetivo, a lo alto de toda la figura */}
-                                    <line className={styles.zero} x1="50%" y1="-1" x2="50%" y2={ROW_H + 1} pathLength={1} />
 
                                     {/* marcadores = DATO. Sólido y alto = con motor;
                                         contorno y bajo = sin motor. Tres canales
                                         redundantes: relleno, altura y posición. */}
                                     {off !== undefined && [-off, off].map((v) => (
                                         <rect key={`off${v}`} className={styles.markOff} x={xPct(v)}
-                                            y={TICK_CY - OUTLINE_H / 2} width="3" height={OUTLINE_H}
+                                            y={top + TICK_CY - OUTLINE_H / 2} width="3" height={OUTLINE_H}
                                             transform="translate(-1.5,0)" />
                                     ))}
                                     {[-m.mape, m.mape].map((v) => (
                                         <line key={`on${v}`} className={styles.markOn} x1={xPct(v)}
-                                            y1={TICK_CY - SOLID_H / 2} x2={xPct(v)} y2={TICK_CY + SOLID_H / 2} />
+                                            y1={top + TICK_CY - SOLID_H / 2} x2={xPct(v)} y2={top + TICK_CY + SOLID_H / 2} />
                                     ))}
                                 </svg>
                             </div>
@@ -253,7 +263,14 @@ const ToleranceChart = () => {
                     );
                 })}
 
-                {/* ── regla graduada + unidad ──────────────────────────────── */}
+                {/* ── regla graduada + unidad ──────────────────────────────────
+                    La unidad va DENTRO del SVG y en su propia línea, no en la
+                    columna de cifras. Medido: con `+20` centrado en el 100 % del
+                    carril, su mitad derecha invade los 12 px reservados y
+                    aterrizaba encima de `% DE DESVIACIÓN`, que empezaba a
+                    0,75 rem de la siguiente columna. Los 12 px reservados existen
+                    para que el rótulo no muerda el borde de la CELDA; no
+                    reservan sitio contra el texto de la columna de al lado. */}
                 <div className={`${styles.row} ${styles.rulerRow}`} aria-hidden="true">
                     <span className={styles.name} />
                     <div className={styles.plot}>
@@ -267,9 +284,10 @@ const ToleranceChart = () => {
                                     {signed(v)}
                                 </text>
                             ))}
+                            <text className={styles.axisLabel} x="100%" y="37" textAnchor="end">% DE DESVIACIÓN</text>
                         </svg>
                     </div>
-                    <span className={`${styles.figures} ${styles.unit}`}>% DE DESVIACIÓN</span>
+                    <span className={styles.figures} />
                 </div>
             </div>
 

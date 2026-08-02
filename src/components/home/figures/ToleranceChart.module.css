@@ -45,12 +45,27 @@
     border-top: 1px solid var(--pa-rule-3);
 }
 
+/* El nombre y las cifras se centran sobre el CARRIL, no sobre la fila entera.
+   La primera fila mide 36 px más (su zona de anotación: `OBJETIVO` y los dos
+   rótulos in situ), así que un `align-items: center` a secas dejaría su nombre
+   18 px por encima de sus marcadores. `align-self: stretch` + `padding-top` +
+   centrado interno da el mismo eje óptico en las cuatro filas sin depender de
+   cuántas líneas tenga el contenido: `TICK_CY` (30) menos media caja. */
 .name {
     grid-area: name;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding-top: 16px;
     font-family: var(--font-body);
     font-size: 0.9375rem;
     line-height: 1.2;
     color: var(--pa-ink);
+}
+
+.leadRow .name,
+.leadRow .figures {
+    padding-top: 52px;
 }
 
 /* Los 12 px reservados a cada extremo del eje viven AQUÍ, no en el SVG: un
@@ -76,9 +91,12 @@
 
 .figures {
     grid-area: figures;
+    align-self: stretch;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    justify-content: center;
+    padding-top: 16px;
     gap: 2px;
 }
 
@@ -86,8 +104,7 @@
    `±16,0 %` bailan de fila a fila, y un número que vibra en la sección que
    vende precisión es un mal chiste. */
 .figOn,
-.figOff,
-.unit {
+.figOff {
     font-family: var(--font-mono);
     font-size: 12px;
     letter-spacing: 0.04em;
@@ -102,13 +119,6 @@
 
 .figOff {
     color: var(--pa-ink-2);
-}
-
-.unit {
-    color: var(--pa-ink-2);
-    letter-spacing: 0.06em;
-    align-items: flex-end;
-    text-align: right;
 }
 
 /* ── materiales del dibujo (§5.5) ───────────────────────────────────────── */
@@ -172,7 +182,18 @@
    12 px reales (el SVG no lleva `viewBox`, así que no hay escala) y
    `--pa-ink-2`: es la capa que DECODIFICA la figura, y el spec la sube ahí
    entera — la fila de 11 px + `--pa-ink-3` está reservada a metadato que se
-   puede ignorar sin perder el dibujo. Aquí nada es ignorable. */
+   puede ignorar sin perder el dibujo. Aquí nada es ignorable.
+
+   Los dos llevan HALO DE PAPEL, y no es decoración: la regla del objetivo
+   cruza la figura a lo alto, y hay rótulos que caen encima de ella —
+   `OBJETIVO`, el `0` de la regla graduada y, sobre todo, el `BANDA −5 / +5`
+   de calorías, la única banda que empieza a la izquierda del cero. Sin halo,
+   la regla los TACHA literalmente (visto al medir la primera versión).
+   `paint-order: stroke` pinta primero un trazo de color papel alrededor de
+   cada glifo y encima el relleno: el hueco queda del tamaño exacto del texto.
+   Un `<rect>` de fondo habría necesitado saber el ancho del texto, que en SVG
+   no se conoce sin medirlo en runtime — y a lo ancho de una banda estrecha en
+   móvil habría abierto un boquete de 116 px en la regla del objetivo. */
 .axisLabel,
 .bandLabel {
     font-family: var(--font-mono);
@@ -180,7 +201,10 @@
     font-weight: 500;
     letter-spacing: 0.06em;
     fill: var(--pa-ink-2);
-    stroke: none;
+    stroke: var(--pa-paper);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    paint-order: stroke;
     font-variant-numeric: tabular-nums lining;
 }
 
@@ -251,9 +275,21 @@
         row-gap: 2px;
     }
 
+    /* El `padding-top` que centraba nombre y cifras sobre el carril no aplica
+       cuando el carril ya no está a su lado: aquí van encima, en su propia
+       línea. Dejarlo puesto abriría 52 px de aire en la primera fila. */
+    .name,
+    .figures,
+    .leadRow .name,
+    .leadRow .figures {
+        padding-top: 0;
+        align-self: auto;
+    }
+
     .figures {
         flex-direction: row;
         align-items: baseline;
+        justify-content: flex-end;
         gap: 0.6rem;
     }
 
