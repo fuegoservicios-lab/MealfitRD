@@ -1,544 +1,353 @@
-/* ============================================================
-   DashboardShowcase — section "Tu Dashboard"
-   Layout: lista de features (left) + mockup grande (right).
-   Mobile: stack vertical, lista arriba, mockup abajo.
-   ============================================================ */
+/* ============================================================================
+   [P2-PAPER-NO-INK · 2026-08-01] DashboardShowcase — «03 / LAS PANTALLAS»,
+   lámina de despiece.
+
+   Este módulo NO lleva bloque `data-theme`: la home solo se sirve como
+   superficie papel (`utils/paperSurface.js`), así que consume `var(--pa-*)`
+   directamente — su «rama clara» no es una rama, es el mismo código con otros
+   valores.
+
+   ── QUÉ SE BORRÓ (y por qué no se adaptó) ─────────────────────────────────
+
+   1.273 líneas → este archivo. Tres bloques distintos:
+
+   (a) ~230 LÍNEAS DE CÓDIGO MUERTO del layout anterior a `P3-DASHBOARD-3D`
+       (2026-06-29): `.grid`, `.featureList` con sus tres variantes de
+       `mask-image` por `data-fade-*`, `.featureItem`, `.featureActive`,
+       `.featureIcon`, `.featureText`, `.labelFull`/`.labelShort`,
+       `.featureDesc`, `.featureCaption`, `.mockupContainer`,
+       `.mockupWrapper`, y sus 90 líneas de override desktop. Verificado con
+       grep sobre el JSX antes de borrar: CERO referencias — el carrusel dejó
+       de renderizarlas hace dos meses y el CSS siguió pagándolas.
+       ⚠ Con ellas se fueron DOS overrides del tema oscuro
+       (`html[data-theme="dark"] .featureItem` + su `:hover`, y el
+       `.featureActive` dentro de `@media (min-width: 1024px)`) que pertenecían
+       a esas mismas clases muertas. Sin saberlo se traducen a papel con todo
+       cuidado: trabajo tirado sobre código que nadie renderiza, y encima
+       revive la clase para el siguiente que la lea.
+
+   (b) EL COVERFLOW 3D: `perspective: 1700px`, `transform-style: preserve-3d`,
+       el `translateX/translateZ/rotateY/scale` encadenado de `.card` con sus
+       tres juegos de `--tx/--tz/--ry` por breakpoint, `.navArrow`/`.navPrev`/
+       `.navNext` (con `backdrop-filter: blur(8px)`), `.nav`/`.navPill`/
+       `.navPillActive`, `.activeInfo`, `.stage3d`, `.deck`, `.cardActive`.
+       ⚠ Y `filter: brightness(calc(1 - var(--abs) * 0.12))`, que sobre papel
+       hace LO CONTRARIO que sobre oscuro: oscurecer una tarjeta la hunde si el
+       fondo es negro, pero sobre una hoja blanca la SACA al frente. Medido
+       para `|offset| = 2`: 1,006:1 hoy → 1,720:1 sobre papel, o sea las
+       tarjetas periféricas —las que el efecto existía para apagar— habrían
+       sido los objetos de más contraste de la sección. Su compañero
+       `drop-shadow(0 30px 52px rgba(0,0,0,0.45))` pasaba de casi invisible a
+       manchón gris pesado. Los dos borrados, no espejados.
+
+   (c) EL COLOR. 63 hex vivían aquí (más 5 acentos en el JSX, ver su cabecera).
+       Los que codificaban ESTADO y por tanto tenían que renacer con otra
+       forma: `#10B981` del check de «ya lo tienes» (→ cuadrado relleno),
+       `#F97316`→`#10B981` del degradado de la barra de progreso (→ pista de
+       1px + relleno sólido + % en mono tabular), `#8B5CF6` del chip de
+       cantidad (→ etiqueta mono con contorno), `rgba(249,115,22,…)` del ítem
+       «por vencer» de la nevera (→ contorno a tinta plena + etiqueta acotada),
+       `#2563EB` del tiempo de cocción y `#C2410C`/`#FDBA74` del aviso.
+       `.chatStatusDot`, `.shopItemDone`, `.mockBadgePrimary`,
+       `.mockBadgeAccent` y `.mockBadgeSuccess` no tienen equivalente: el
+       estado que decían ya lo dice la forma.
+
+   ── ESCALADO: SOLO BAJO 1024px ────────────────────────────────────────────
+
+   `transform: scale(.86)` es el camino barato, pero escalar por transform un
+   mockup lleno de texto de 12-13px lo deja borroso a DPR 1× y encoge los
+   objetivos táctiles. Por eso vive SOLO bajo 1024px, donde el texto del mockup
+   no es el punto y la vista entera es un único enlace (no hay objetivo
+   pequeño que encoger). En desktop las vistas se recortan por `overflow`, sin
+   escalar: un mockup cortado por el marco es una vista de detalle, no un bug.
+   ========================================================================= */
 
 .section {
-    position: relative;
-    padding: 6rem 0 7rem;
-    overflow: hidden;
-    /* [P1-LANDING-BG · 2026-07-11] Zona SKY del landing en claro (hint de azul
-       cielo a mitad de banda); el override dark de abajo lleva su propio wash. */
-    background: linear-gradient(180deg, #FAFAFA 0%, #F2F8FF 55%, #FFFFFF 100%);
-}
-
-/* [P3-DASHBOARD-POLISH · 2026-07-02] El glow radial ambiental se reemplaza por la
-   cuadrícula "papel milimetrado" del lenguaje minimalista-científico (misma firma que
-   BenchmarkShowcase, Novedades y footer), desvanecida radialmente tras el carrusel. */
-.bgGrid {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(color-mix(in srgb, var(--text-main) 8%, transparent) 1px, transparent 1px);
-    background-size: 20px 20px;
-    -webkit-mask-image: radial-gradient(62% 58% at 50% 52%, #000, transparent 76%);
-    mask-image: radial-gradient(62% 58% at 50% 52%, #000, transparent 76%);
-    pointer-events: none;
-    z-index: 0;
+    padding: 6rem 0;
+    background: var(--pa-paper);
+    color: var(--pa-ink);
 }
 
 .container {
-    position: relative;
-    z-index: 1;
-    width: 100%;
     max-width: 1280px;
     margin: 0 auto;
     padding: 0 1.5rem;
 }
 
-/* ---------- Header ---------- */
-.header {
-    text-align: center;
-    margin-bottom: 2.75rem;
-}
-
-/* [P3-DASHBOARD-POLISH · 2026-07-02] Eyebrow-pill hairline, consistente con el resto
-   del marketing (borde fino + tinte, font-heading, tracking amplio). */
-.badge {
-    display: inline-block;
-    padding: 0.42rem 0.9rem;
-    background: color-mix(in srgb, var(--primary) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
-    color: var(--primary);
-    border-radius: 999px;
-    font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    margin-bottom: 1.25rem;
-    text-transform: uppercase;
-}
-
-.title {
-    font-family: var(--font-heading);
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: var(--text-main);
-    line-height: 1.12;
-    letter-spacing: -0.03em;
-    margin: 0 0 1.25rem;
-}
-
-/* [P3-DASHBOARD-POLISH · 2026-07-02] Acento sólido indigo en vez de gradiente tricolor
-   (indigo→violeta→rosa) — una sola gama, consistente con el resto del marketing. */
-.titleAccent {
-    color: var(--primary);
-}
-
-.subtitle {
-    font-size: 1.1rem;
-    color: var(--text-muted);
-    max-width: 600px;
-    margin: 0 auto;
-    line-height: 1.6;
-}
-
-/* ---------- Grid principal ----------
-   Mobile: 3 filas (tabs → mockup → caption). Desktop: 2 columnas
-   (list a la izq, mockup a la der; caption hidden). */
-.grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    align-items: start;
-}
-
-/* ---------- Feature list ----------
-   MOBILE: tabs horizontales scrolleables (icon + shortLabel).
-   La descripción larga vive en .featureCaption debajo del mockup.
-   DESKTOP: override a columna vertical con descripción inline.
-
-   Nota: el padding lateral del container (1.5rem) ya da el respiro
-   visual al primer/último tab. Pre-fix usábamos `margin: 0 -1.5rem`
-   como bleed-out al viewport — quedaba pegado al borde y se veía mal.
-   El padding vertical 0.5rem + horizontal 0.25rem deja aire para el
-   focus ring (outline-offset: 2px) sin desalinear del contenido. */
-.featureList {
-    list-style: none;
-    margin: 0;
-    padding: 0.5rem 0.25rem;
-    display: flex;
-    flex-direction: row;
-    gap: 0.55rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-}
-
-.featureList::-webkit-scrollbar {
-    display: none;
-}
-
-/* Fade-mask en los bordes para señalizar scroll horizontal.
-   Solo aparece en el lado donde HAY más contenido oculto.
-   El estado lo controla useEffect del componente vía data-attrs.
-   En desktop el @media block más abajo limpia el mask-image. */
-.featureList[data-fade-right]:not([data-fade-left]) {
-    -webkit-mask-image: linear-gradient(to right,
-        #000 0%,
-        #000 calc(100% - 40px),
-        transparent 100%);
-    mask-image: linear-gradient(to right,
-        #000 0%,
-        #000 calc(100% - 40px),
-        transparent 100%);
-}
-
-.featureList[data-fade-left]:not([data-fade-right]) {
-    -webkit-mask-image: linear-gradient(to right,
-        transparent 0%,
-        #000 40px,
-        #000 100%);
-    mask-image: linear-gradient(to right,
-        transparent 0%,
-        #000 40px,
-        #000 100%);
-}
-
-.featureList[data-fade-left][data-fade-right] {
-    -webkit-mask-image: linear-gradient(to right,
-        transparent 0%,
-        #000 40px,
-        #000 calc(100% - 40px),
-        transparent 100%);
-    mask-image: linear-gradient(to right,
-        transparent 0%,
-        #000 40px,
-        #000 calc(100% - 40px),
-        transparent 100%);
-}
-
-.featureList > li {
-    flex-shrink: 0;
-    scroll-snap-align: start;
-}
-
-.featureItem {
-    /* Mobile: pill compacto. Desktop override re-expande a card vertical. */
-    width: auto;
+/* ───────────────────────── rótulo de sección ──────────────────────────────
+   Mismo motivo de apertura que las demás secciones: hairline / etiqueta mono /
+   hairline. En una hoja de plano el rótulo del plano ES el título. */
+.sectionHead {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 0.55rem 0.95rem 0.55rem 0.55rem;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    background: #FFFFFF;
-    border-radius: 99px;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    font-family: inherit;
-    position: relative;
-    overflow: hidden;
+    gap: 1.25rem;
+    margin: 0 0 1.5rem;
+}
+
+.hLine {
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--pa-rule);
+}
+
+.sectionLabel {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--pa-ink);
     white-space: nowrap;
 }
 
-.featureItem:hover {
-    border-color: rgba(79, 70, 229, 0.25);
-    box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.08);
+.subtitle {
+    max-width: 46ch;
+    margin: 0 auto 3rem;
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
 }
 
-.featureItem:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
+/* ───────────────────────────── la lámina ─────────────────────────────────
+   Móvil primero: una columna, las cinco vistas apiladas con las dos filas de
+   guía intercaladas justo antes de la vista a la que apuntan.
+
+   ⚠ El `gap` de 2rem NO es solo estética: los 32px son uno de los dos números
+   fijos (con la altura de la banda) de los que salen las Y de las guías
+   anotadas. Ver el ancla de retícula en DashboardShowcase.jsx. */
+.sheet {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
 }
 
-.featureActive {
-    border-color: var(--feature-color, var(--primary));
-    background: var(--feature-color, var(--primary));
-    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--feature-color, var(--primary)) 60%, transparent);
-}
-
-.featureActive:hover {
-    transform: none;
-}
-
-.featureIcon {
-    flex-shrink: 0;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
+/* ── una vista ────────────────────────────────────────────────────────────
+   Sin tarjeta, sin sombra, sin radio: marco de 1px e interior de papel. El
+   marco vive en el <a>, no en el <article>, para que hover y foco puedan
+   engrosarlo sin tocar al padre que lleva la colocación en la retícula. */
+.view {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in srgb, var(--feature-color, var(--primary)) 12%, transparent);
-    color: var(--feature-color, var(--primary));
-    transition: all 0.25s;
-}
-
-.featureActive .featureIcon {
-    background: rgba(255, 255, 255, 0.25);
-    color: #FFFFFF;
-    box-shadow: none;
-}
-
-.featureText {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
     min-width: 0;
 }
 
-.featureText > strong {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-main);
-    line-height: 1.2;
-}
-
-.featureActive .featureText > strong {
-    color: #FFFFFF;
-}
-
-/* Dual label: full visible en desktop, short visible en mobile */
-.labelFull {
-    display: none;
-}
-
-.labelShort {
-    display: inline;
-}
-
-/* Descripción: oculta en mobile (vive en caption), visible en desktop */
-.featureDesc {
-    display: none;
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    line-height: 1.45;
-    font-weight: 400;
-}
-
-/* ---------- Caption mobile-only ----------
-   Renderiza título completo + descripción de la feature activa
-   debajo del mockup. Reemplaza la descripción inline que existe
-   en desktop. Hidden en desktop. */
-.featureCaption {
-    text-align: center;
-    padding: 0.5rem 0.75rem 0;
-    min-height: 4.5rem;
-}
-
-.featureCaption strong {
-    display: block;
-    font-size: 1.05rem;
-    font-weight: 800;
-    line-height: 1.25;
-    margin-bottom: 0.4rem;
-    letter-spacing: -0.01em;
-}
-
-.featureCaption p {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    line-height: 1.5;
-    margin: 0;
-    max-width: 420px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   [P3-DASHBOARD-3D · 2026-06-29] COVERFLOW 3D. Las 5 pantallas en un
-   carrusel con perspectiva. El layout legacy (grid/featureList) queda sin
-   uso; se reusan los mockups (.mockFrame...). Theme-aware + responsive.
-   ════════════════════════════════════════════════════════════════════ */
-.carousel {
-    position: relative;
-}
-.stage3d {
-    position: relative;
-    perspective: 1700px;
-    perspective-origin: 50% 42%;
-    margin-top: 1.5rem;
-}
-.deck {
-    position: relative;
-    transform-style: preserve-3d;
-    width: 100%;
-    height: 500px;
-}
-.card {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 340px;
-    cursor: pointer;
-    transform-style: preserve-3d;
-    --tx: 62%;
-    --tz: 175px;
-    --ry: 34deg;
-    transform:
-        translate(-50%, -50%)
-        translateX(calc(var(--offset) * var(--tx)))
-        translateZ(calc(var(--abs) * -1 * var(--tz)))
-        rotateY(calc(var(--sign) * -1 * var(--ry)))
-        scale(calc(1 - var(--abs) * 0.085));
-    transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease, filter 0.5s ease;
-    filter: brightness(calc(1 - var(--abs) * 0.12));
-    border-radius: 20px;
-}
-.card > * { width: 100%; }
-.card .mockFrame { width: 100%; max-width: none; margin: 0; }
-.cardActive {
-    cursor: default;
-    filter: drop-shadow(0 30px 52px rgba(0, 0, 0, 0.45));
-}
-
-/* flechas prev/next (overlay a los lados) */
-.navArrow {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 20;
-    width: 46px;
-    height: 46px;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    cursor: pointer;
-    color: var(--text-main);
-    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 12px 26px -14px rgba(0, 0, 0, 0.5);
-    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-}
-.navPrev { left: 0.25rem; }
-.navNext { right: 0.25rem; }
-.navArrow:hover {
-    transform: translateY(-50%) scale(1.08);
-    border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
-}
-.navArrow:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-}
-
-/* info de la feature activa (panel accesible) */
-.activeInfo {
-    text-align: center;
-    margin-top: 1.75rem;
-    min-height: 5rem;
-}
-.activeInfo h3 {
-    font-family: var(--font-heading);
-    font-size: 1.3rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0 0 0.45rem;
-}
-.activeInfo p {
-    font-size: 0.96rem;
-    line-height: 1.55;
-    color: var(--text-muted);
-    max-width: 460px;
-    margin: 0 auto;
-}
-
-/* pills de navegación (tablist) */
-.nav {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 1.25rem;
-}
-.navPill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    background: color-mix(in srgb, var(--text-main) 4%, transparent);
-    border: 1px solid var(--border);
-    padding: 0.5rem 0.9rem;
-    border-radius: 999px;
-    transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-}
-.navPill:hover { color: var(--text-main); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
-.navPill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.navPillActive {
-    color: #fff;
-    background: var(--accent);
-    border-color: var(--accent);
-    box-shadow: 0 10px 22px -10px var(--accent);
-}
-
-/* responsive: deck + offsets más compactos en móvil */
-@media (max-width: 760px) {
-    .deck { height: 460px; }
-    .card { width: min(300px, 78vw); --tx: 58%; --tz: 115px; --ry: 30deg; }
-    .navArrow { width: 40px; height: 40px; }
-    .navPrev { left: -0.25rem; }
-    .navNext { right: -0.25rem; }
-}
-@media (max-width: 460px) {
-    .card { width: 82vw; --tx: 52%; --tz: 80px; --ry: 26deg; }
-    .activeInfo h3 { font-size: 1.15rem; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .card { transition: opacity 0.3s ease, filter 0.3s ease; }
-    .navArrow, .navPill { transition: none; }
-}
-
-/* ---------- Mockup container (right) ---------- */
-.mockupContainer {
-    position: relative;
-    width: 100%;
-    min-height: 460px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.mockupWrapper {
-    width: 100%;
-    max-width: 540px;
-}
-
-/* ============================================================
-   Mockup frame (shared shell de los 5 mockups)
-   ============================================================ */
-.mockFrame {
-    background: #FFFFFF;
-    border-radius: 1.5rem;
-    padding: 1.25rem 1.4rem;
-    box-shadow:
-        0 30px 60px -20px rgba(15, 23, 42, 0.25),
-        0 0 0 1px rgba(15, 23, 42, 0.04);
+.viewLink {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid var(--pa-rule-2);
+    background: var(--pa-paper);
+    border-radius: 0;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.18s ease;
+}
+
+.viewLink:hover {
+    border-color: var(--pa-ink);
+}
+
+.viewLink:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 3px;
+}
+
+/* Cartucho: el cajetín de la vista, arriba a la izquierda. */
+.cartouche {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 34px;
+    padding: 0.4rem 0.9rem;
+    border-bottom: 1px solid var(--pa-rule-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--pa-ink);
+}
+
+.cartoucheSep {
+    color: var(--pa-rule-2);
+}
+
+.cartoucheLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.viewDesc {
+    display: block;
+    padding: 0.8rem 0.9rem 0.9rem;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--pa-ink-2);
+}
+
+/* El encuadre del mockup.
+
+   MÓVIL: altura AUTOMÁTICA — la pantalla se ve entera. Recortar aquí no
+   ahorraría scroll (cada vista va sola en su fila) y sí cortaría una fila de
+   comida por la mitad, que se lee como error, no como vista de detalle.
+   DESKTOP (≥1024px): altura fija y recorte por `overflow`, ver más abajo.
+
+   En ambos, si el mockup aún no cabe de ancho desborda EN HORIZONTAL DENTRO
+   de este marco — nunca haciendo que el body scrollee. */
+.viewport {
+    position: relative;
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-top: 1px solid var(--pa-rule-3);
+    overscroll-behavior-x: contain;
+}
+
+.scaleBox {
+    transform-origin: top left;
+}
+
+/* Pie de figura: 12px + `--pa-ink-2`, la fila de «rótulo que decodifica una
+   figura» de la escala del sistema. */
+.figCaption {
+    display: block;
+    margin-top: auto;
+    padding: 0.55rem 0.9rem;
+    border-top: 1px solid var(--pa-rule-3);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--pa-ink-2);
+}
+
+/* ── guías anotadas, forma MÓVIL ──────────────────────────────────────────
+   Bajo 1024px el SVG absoluto no tiene dónde apoyarse (las vistas están
+   apiladas), pero la información no se apaga: se reimprime como una fila de
+   texto entre vistas. Misma regla punteada (3 on / 4 off, el mismo ritmo que
+   el `stroke-dasharray: 3 4` del sistema) y el mismo rótulo mono. */
+.guideRow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+}
+
+.guideRowRule {
+    flex: 0 0 28px;
+    height: 1px;
+    background-image: repeating-linear-gradient(to right,
+        var(--pa-rule) 0 3px, transparent 3px 7px);
+}
+
+.guideRowText {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+    color: var(--pa-ink-2);
+}
+
+/* La banda de guías (forma DESKTOP) no existe bajo 1024px. */
+.guideBand {
+    display: none;
+}
+
+/* ============================================================================
+   MOCKUPS — el interior de cada vista.
+   Se conservan los cinco enteros; lo que cambia es que ningún estado viaja ya
+   en el color.
+   ========================================================================= */
+.mockFrame {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 0.9rem 1rem 1.1rem;
+    background: var(--pa-paper);
+    border-radius: 0;
 }
 
 .mockHeader {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
-    padding-bottom: 0.85rem;
-    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--pa-rule-3);
 }
 
 .mockHeader strong {
     display: block;
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--text-main);
-    line-height: 1.2;
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.25;
     letter-spacing: -0.01em;
+    color: var(--pa-ink);
 }
 
 .mockHeaderSub {
     display: block;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    font-weight: 500;
-    margin-top: 2px;
+    margin-top: 3px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink-2);
 }
 
-.mockBadgePrimary,
-.mockBadgeAccent,
-.mockBadgeSuccess,
-.mockBadgeNeutral {
+/* Badge → valor mono, sin caja. */
+.mockValue {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--pa-ink);
+    white-space: nowrap;
+}
+
+/* Chip → etiqueta mono con contorno de 1px. Reservada a lo que en la app real
+   es un control (exportar, añadir): el contorno es lo que dice «esto se
+   pulsa», ya que aquí no hay ni relleno ni radio que lo digan. */
+.mockTag {
     display: inline-flex;
     align-items: center;
+    flex: none;
     gap: 0.3rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 0.3rem 0.6rem;
-    border-radius: 0.5rem;
-    border: none;
-    cursor: default;
-    font-family: inherit;
+    padding: 0.2rem 0.45rem;
+    border: 1px solid var(--pa-rule-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink);
+    white-space: nowrap;
 }
 
-.mockBadgePrimary {
-    color: var(--primary);
-    background: rgba(79, 70, 229, 0.1);
+/* Subtítulo interno de un mockup (Ingredientes, Proteínas…). Era un `<h5>` en
+   indigo / verde; ahora es un `<span>`: dentro de un dibujo `aria-hidden` un
+   heading no aporta estructura de documento, solo ensucia el esquema con un
+   salto h2 → h5. */
+.mockSubhead {
+    display: block;
+    margin: 0 0 0.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--pa-rule-3);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
 }
 
-.mockBadgeAccent {
-    color: #8B5CF6;
-    background: rgba(139, 92, 246, 0.1);
-}
-
-.mockBadgeSuccess {
-    color: #FFFFFF;
-    background: #10B981;
-    cursor: pointer;
-}
-
-.mockBadgeNeutral {
-    color: var(--text-main);
-    background: #F1F5F9;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    cursor: pointer;
-}
-
-/* ============================================================
-   Mockup 1: Plan Diario
-   ============================================================ */
+/* ── Mockup 01 — Plan diario ─────────────────────────────────────────────── */
 .planMeals {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
 }
 
 .planMeal {
@@ -546,117 +355,127 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    padding: 0.7rem 0.85rem;
-    background: #F8FAFC;
-    border: 1px solid rgba(15, 23, 42, 0.05);
-    border-radius: 0.75rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--pa-rule-3);
 }
 
 .planMealLeft {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.15rem;
     min-width: 0;
 }
 
 .planMealTag {
-    font-size: 0.6rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--pa-ink-2);
 }
 
 .planMealName {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-main);
-    line-height: 1.25;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--pa-ink);
 }
 
 .planMealTime {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: #2563EB;
-    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink-2);
 }
 
 .planMealKcal {
-    text-align: right;
-    line-height: 1;
     flex-shrink: 0;
+    text-align: right;
+    line-height: 1.1;
 }
 
 .planMealKcal strong {
-    font-size: 0.95rem;
-    font-weight: 800;
-    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--pa-ink);
     font-variant-numeric: tabular-nums;
 }
 
 .planMealKcal small {
     display: block;
-    font-size: 0.6rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink-2);
 }
 
 .planFooter {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    padding-top: 0.5rem;
+    padding-top: 0.15rem;
+    font-size: 12px;
+    color: var(--pa-ink-2);
 }
 
 .planFooter svg {
-    color: #F97316;
     flex-shrink: 0;
+    color: var(--pa-ink-2);
 }
 
 .planFooter strong {
-    color: var(--text-main);
-    font-weight: 800;
+    font-weight: 600;
+    color: var(--pa-ink);
+    font-variant-numeric: tabular-nums;
 }
 
+/* Barra de progreso: pista de 1px + relleno sólido. El degradado
+   naranja→verde no se retiñó, se sustituyó — y el dato dejó de estar
+   codificado solo en el largo: ahora va también en `.planPct`. */
 .planProgress {
-    flex: 1;
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 36px;
     height: 6px;
-    background: rgba(15, 23, 42, 0.06);
-    border-radius: 99px;
-    overflow: hidden;
-    margin-left: 0.4rem;
+    margin-left: 0.3rem;
 }
 
-.planProgress span {
-    display: block;
-    height: 100%;
-    background: linear-gradient(90deg, #F97316 0%, #10B981 100%);
-    border-radius: 99px;
+.planProgress::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--pa-rule-2);
 }
 
-/* ============================================================
-   Mockup 2: Recetas
-   ============================================================ */
+.planProgress > span {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 6px;
+    background: var(--pa-ink);
+}
+
+.planPct {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Mockup 02 — Recetas ──────────────────────────────────────────────────
+   Una sola columna a cualquier ancho: esta vista ocupa 5 de 12 columnas, así
+   que el override a dos columnas del layout anterior (que miraba el ancho del
+   VIEWPORT, no el de la vista) habría partido la ficha en dos tiras de ~230px
+   justo en desktop. */
 .recipeBody {
     display: grid;
     grid-template-columns: 1fr;
     gap: 1rem;
-}
-
-.recipeIngredients h5,
-.recipeSteps h5 {
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: var(--primary);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin: 0 0 0.5rem;
 }
 
 .recipeIngredients ul {
@@ -672,21 +491,19 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.78rem;
-    color: var(--text-main);
-    font-weight: 500;
+    font-size: 13px;
+    color: var(--pa-ink);
 }
 
 .recipeQty {
     flex-shrink: 0;
-    min-width: 2.6rem;
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: #8B5CF6;
-    background: rgba(139, 92, 246, 0.1);
-    padding: 0.2rem 0.45rem;
-    border-radius: 0.4rem;
+    min-width: 3.4rem;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid var(--pa-rule-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
     text-align: center;
+    color: var(--pa-ink);
     font-variant-numeric: tabular-nums;
 }
 
@@ -696,50 +513,39 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    gap: 0.5rem;
 }
 
 .recipeSteps li {
     display: flex;
     align-items: flex-start;
-    gap: 0.55rem;
-    font-size: 0.78rem;
-    color: var(--text-main);
-    line-height: 1.4;
-    font-weight: 500;
+    gap: 0.5rem;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--pa-ink);
 }
 
 .recipeStepNum {
     flex-shrink: 0;
-    width: 1.4rem;
-    height: 1.4rem;
-    border-radius: 50%;
-    background: var(--primary);
-    color: #FFFFFF;
-    font-size: 0.7rem;
-    font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 1px;
+    width: 1.35rem;
+    height: 1.35rem;
+    border: 1px solid var(--pa-rule-2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink);
 }
 
-/* ============================================================
-   Mockup 3: Shopping list
-   ============================================================ */
+/* ── Mockup 03 — Lista de compras ─────────────────────────────────────────
+   El estado pasa de tinta a forma: cuadrado RELLENO = ya está en tu nevera,
+   cuadrado VACÍO = por comprar. `.shopItemPending` es el gancho que el JSX ya
+   invocaba y que no existía (renderizaba `class="undefined"`). */
 .shopBody {
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
-}
-
-.shopGroup h5 {
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: #10B981;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin: 0 0 0.45rem;
 }
 
 .shopGroup ul {
@@ -755,519 +561,469 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--text-main);
+    font-size: 13px;
 }
 
-.shopGroup li span {
+/* Clase propia, no `li span`: un selector de tipo se habría comido también el
+   `<span>` del cuadrado de estado (mismo elemento) y `flex: 1` lo estiraba a
+   una barra negra de 400px de ancho. */
+.shopName {
     flex: 1;
+    min-width: 0;
 }
 
 .shopGroup li small {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink-2);
     font-variant-numeric: tabular-nums;
 }
 
-.shopItemDone {
-    color: var(--text-muted) !important;
-}
-
-.shopItemDone span {
-    text-decoration: line-through;
-    opacity: 0.7;
-}
-
-.shopItemDone svg {
-    color: #10B981;
-    flex-shrink: 0;
-}
-
-.shopBullet {
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(15, 23, 42, 0.2);
-    flex-shrink: 0;
+.shopMark {
+    flex: none;
     display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--pa-ink);
+    background: transparent;
 }
 
-/* Leyenda al final de la lista que explica el código visual:
-   check verde = ya en nevera, círculo vacío = por comprar.
-   Cierra el gap UX del usuario nuevo que ve items tachados con
-   ✓ y no sabe si significa "comprado" o "ya lo tienes". */
+.shopItemHave {
+    color: var(--pa-ink-2);
+}
+
+.shopItemHave .shopMark,
+.shopMarkHave {
+    background: var(--pa-ink);
+}
+
+.shopItemPending {
+    color: var(--pa-ink);
+}
+
+.shopItemPending .shopMark,
+.shopMarkPending {
+    background: transparent;
+    border-color: var(--pa-ink);
+}
+
+/* Leyenda impresa DENTRO del mockup: el código no se aprende fuera del
+   dibujo. 12px + `--pa-ink-2` porque decodifica la figura. */
 .shopLegend {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.8rem;
-    padding-top: 0.65rem;
-    margin-top: 0.25rem;
-    border-top: 1px solid rgba(15, 23, 42, 0.06);
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    font-weight: 600;
+    gap: 0.9rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--pa-rule-3);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink-2);
 }
 
 .shopLegendItem {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.35rem;
 }
 
-.shopLegendItem svg {
-    color: #10B981;
-    flex-shrink: 0;
-}
-
-/* ============================================================
-   Mockup 4: Chat IA
-   ============================================================ */
+/* ── Mockup 04 — Nutricionista IA ─────────────────────────────────────────
+   Los dos interlocutores se distinguen sin color: el usuario a la derecha en
+   CONTORNO, la IA a la izquierda con fondo hundido y una barra de tinta a la
+   izquierda. */
 .chatHeaderRow {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.6rem;
 }
 
 .chatAvatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-    color: #FFFFFF;
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    box-shadow: 0 4px 10px -2px rgba(79, 70, 229, 0.4);
-}
-
-.chatStatusDot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #10B981;
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-    margin-right: 0.3rem;
-    vertical-align: middle;
+    width: 30px;
+    height: 30px;
+    background: var(--pa-ink);
+    color: var(--pa-paper);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
 }
 
 .chatSparkle {
-    color: #F97316;
     flex-shrink: 0;
+    color: var(--pa-ink-2);
 }
 
 .chatBody {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    gap: 0.5rem;
 }
 
 .chatBubbleUser,
 .chatBubbleBot {
-    max-width: 82%;
-    padding: 0.6rem 0.85rem;
-    font-size: 0.82rem;
-    line-height: 1.4;
-    font-weight: 500;
+    max-width: 86%;
+    padding: 0.5rem 0.7rem;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--pa-ink);
 }
 
 .chatBubbleUser {
     align-self: flex-end;
-    color: #FFFFFF;
-    background: var(--primary);
-    border-radius: 1rem 1rem 0.3rem 1rem;
+    border: 1px solid var(--pa-rule-2);
+    background: var(--pa-paper);
 }
 
 .chatBubbleBot {
     align-self: flex-start;
-    color: var(--text-main);
-    background: #F1F5F9;
-    border-radius: 1rem 1rem 1rem 0.3rem;
+    border-left: 2px solid var(--pa-ink);
+    background: var(--pa-sunk);
 }
 
 .chatBubbleBot strong {
-    color: var(--primary);
-    font-weight: 700;
+    font-weight: 600;
+    color: var(--pa-ink);
 }
 
-/* Input bar fake al final del chat — señaliza visualmente que el
-   usuario puede escribir. Sin esto el mockup parece imagen estática. */
 .chatInputBar {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 0.5rem;
-    padding: 0.55rem 0.7rem 0.55rem 0.95rem;
-    background: #F8FAFC;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 99px;
+    margin-top: 0.3rem;
+    padding: 0.35rem 0.35rem 0.35rem 0.7rem;
+    border: 1px solid var(--pa-rule-2);
+    background: var(--pa-paper);
 }
 
 .chatInputPlaceholder {
     flex: 1;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-weight: 500;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--pa-ink-3);
 }
 
 .chatInputSend {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: var(--primary);
-    color: #FFFFFF;
     flex-shrink: 0;
-    box-shadow: 0 4px 8px -2px rgba(79, 70, 229, 0.4);
+    width: 26px;
+    height: 26px;
+    background: var(--pa-ink);
+    color: var(--pa-paper);
 }
 
-/* ============================================================
-   Mockup 5: Pantry
-   ============================================================ */
+/* ── Mockup 05 — Nevera virtual ───────────────────────────────────────────
+   `auto-fill` con mínimo de 150px: a 3 columnas fijas la etiqueta acotada de
+   «Usar en 2 días» no cabía en la celda al escalar en móvil. */
 .pantrySearch {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.55rem 0.85rem;
-    background: #F8FAFC;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 0.65rem;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-weight: 500;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--pa-rule-2);
+    background: var(--pa-paper);
+    font-size: 13px;
+    color: var(--pa-ink-3);
 }
 
 .pantrySearch svg {
-    color: var(--text-muted);
     flex-shrink: 0;
+    color: var(--pa-ink-2);
 }
 
 .pantryGrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.55rem;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
 }
 
 .pantryItem {
-    padding: 0.65rem 0.7rem;
-    background: #F8FAFC;
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    border-radius: 0.65rem;
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    position: relative;
+    padding: 0.55rem 0.6rem;
+    border: 1px solid var(--pa-rule-3);
+    background: var(--pa-paper);
 }
 
 .pantryItem strong {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--text-main);
-    line-height: 1.2;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--pa-ink);
 }
 
 .pantryItem small {
-    font-size: 0.68rem;
-    color: var(--text-muted);
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--pa-ink-2);
     font-variant-numeric: tabular-nums;
 }
 
+/* «Por vencer» era un tinte naranja del contenedor. Ahora es peso de línea:
+   contorno a tinta plena en vez del gris de construcción. */
 .pantryItem[data-state="soon"] {
-    border-color: rgba(249, 115, 22, 0.3);
-    background: rgba(249, 115, 22, 0.04);
+    border-color: var(--pa-ink);
 }
 
 .pantryWarn {
     display: inline-flex;
     align-items: center;
+    align-self: flex-start;
     gap: 0.25rem;
     margin-top: 0.3rem;
-    font-size: 0.6rem;
-    font-weight: 700;
-    color: #C2410C;
-    background: rgba(249, 115, 22, 0.15);
-    padding: 0.18rem 0.45rem;
-    border-radius: 0.3rem;
-    align-self: flex-start;
-    line-height: 1;
+    padding: 0.1rem 0.3rem;
+    border: 1px solid var(--pa-ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--pa-ink);
 }
 
 .pantryWarn svg {
     flex-shrink: 0;
 }
 
-/* ============================================================
-   Responsive (Desktop)
-   ============================================================ */
+/* ============================================================================
+   ESCALADO — SOLO BAJO 1024px (ver la cabecera).
+   `width: calc(100% / .86)` + `margin-right` negativo del mismo tamaño deja el
+   ancho de LAYOUT en 100% exactos mientras el interior se dibuja al 86%: sin
+   ese par, `overflow-x: auto` heredaría un scroll fantasma de ~14% que no
+   corresponde a ningún contenido.
+   ========================================================================= */
+@media (max-width: 1023.98px) {
+    .scaleBox {
+        --sc: 0.86;
+        width: calc(100% / var(--sc));
+        margin-right: calc(100% - 100% / var(--sc));
+        /* Lo mismo por abajo, pero en px: los márgenes en % se resuelven
+           contra el ANCHO del contenedor, también el vertical, así que aquí no
+           sirven. El transform deja el 14% de la altura de layout como papel
+           en blanco al pie del marco (50-63px medidos en los cinco mockups a
+           375px); -36px se come la mayor parte y NUNCA recorta: haría falta un
+           mockup de menos de 257px de alto de layout para que 0,86·H cayera
+           por debajo de H-36, y el más corto de los cinco mide 358. */
+        margin-bottom: -36px;
+        transform: scale(var(--sc));
+    }
+}
+
+/* ============================================================================
+   LA LÁMINA — ≥1024px.
+   Reparto asimétrico sobre 12 columnas: 01 a 7 columnas y dos filas de alto,
+   02 y 03 a 5 en la columna derecha, 04 y 05 a 6 abajo. Entre medias, la
+   banda de las guías anotadas.
+
+   ⚠ Estos cinco `grid-column` son el ancla de la que cuelgan las X de las
+   guías (porcentajes del ancho de la lámina, ver DashboardShowcase.jsx). Si
+   cambian, las guías apuntan al vacío sin que nada falle.
+   ========================================================================= */
 @media (min-width: 1024px) {
     .section {
-        padding: 8rem 0 9rem;
+        padding: 7rem 0 8rem;
     }
 
-    .title {
-        font-size: 3.5rem;
+    .sheet {
+        grid-template-columns: repeat(12, 1fr);
     }
 
-    .subtitle {
-        font-size: 1.2rem;
+    .view01 {
+        grid-column: 1 / span 7;
+        grid-row: 1 / span 2;
     }
 
-    .header {
-        margin-bottom: 3.25rem;
+    .view02 {
+        grid-column: 8 / span 5;
+        grid-row: 1;
     }
 
-    .grid {
-        grid-template-columns: 0.85fr 1.15fr;
-        gap: 4rem;
-        align-items: center;
+    .view03 {
+        grid-column: 8 / span 5;
+        grid-row: 2;
     }
 
-    /* Lista vuelve a columna vertical sticky (override mobile horizontal) */
-    .featureList,
-    .featureList[data-fade-left],
-    .featureList[data-fade-right],
-    .featureList[data-fade-left][data-fade-right] {
-        margin: 0;
-        padding: 0;
-        flex-direction: column;
-        gap: 0.75rem;
-        overflow: visible;
-        scroll-snap-type: none;
-        position: sticky;
-        top: 6rem;
-        -webkit-mask-image: none;
-        mask-image: none;
+    .view04 {
+        grid-column: 1 / span 6;
+        grid-row: 4;
     }
 
-    .featureList > li {
-        flex-shrink: initial;
-        scroll-snap-align: none;
-        width: 100%;
+    .view05 {
+        grid-column: 7 / span 6;
+        grid-row: 4;
     }
 
-    /* Item vuelve a card vertical con descripción inline (override pill) */
-    .featureItem {
-        width: 100%;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-        border-radius: 1rem;
-        white-space: normal;
+    /* Los tres bloques de texto de una vista (cartucho / descripción / pie)
+       miden lo mismo en las cinco, así que los cinco encuadres empiezan y
+       acaban a la misma altura dentro de su fila. Sin este `min-height` la
+       descripción de la 01 ocupa una línea y la de la 02 dos, y los mockups
+       de las dos columnas arrancan desalineados: en una lámina eso se lee
+       como error de montaje, no como variación. */
+    .viewDesc {
+        min-height: 70px;
     }
 
-    .featureItem:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 8px 16px -8px rgba(15, 23, 42, 0.08);
+    /* Aquí sí: encuadre de altura fija, recortado por `overflow`. */
+    .viewport {
+        height: var(--vp-h, 300px);
     }
 
-    .featureActive {
-        background: linear-gradient(135deg, rgba(79, 70, 229, 0.04) 0%, rgba(255, 255, 255, 1) 100%);
-        box-shadow:
-            0 12px 24px -12px rgba(79, 70, 229, 0.2),
-            inset 4px 0 0 0 var(--feature-color, var(--primary));
+    /* La vista general no fija altura: la estira la retícula (dos filas). Es
+       lo que la hace «más alta» sin ningún número mágico que mantener — y por
+       eso su interior tiene que SABER rellenar: el mockup se estira a la
+       altura del encuadre y reparte el aire sobrante entre las cuatro
+       comidas, en vez de dejar 200px de papel en blanco bajo la última. */
+    .view01 .viewport {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 320px;
     }
 
-    .featureActive:hover {
-        transform: translateY(-1px);
+    .view01 .scaleBox,
+    .view01 .mockFrame {
+        height: 100%;
     }
 
-    .featureIcon {
-        width: 42px;
-        height: 42px;
-        border-radius: 0.7rem;
+    /* El aire sobrante se reparte como FILAS IGUALES, no como huecos entre
+       ellas: con `space-between` los separadores de 1px quedaban a distancias
+       distintas del texto y la lista parecía rota. Con `flex: 1 1 0` la vista
+       general es una tabla reglada de filas anchas — que es exactamente lo
+       que una vista general es. */
+    .view01 .planMeals {
+        flex: 1 1 auto;
     }
 
-    .featureActive .featureIcon {
-        background: var(--feature-color, var(--primary));
-        color: #FFFFFF;
-        box-shadow: 0 6px 12px -4px color-mix(in srgb, var(--feature-color, var(--primary)) 50%, transparent);
+    .view01 .planMeal {
+        flex: 1 1 0;
     }
 
-    /* Labels: full visible, short hidden */
-    .labelFull {
-        display: inline;
+    /* 02 y 03 se recortan: son vistas de DETALLE. Cuanto más alto sea este
+       número, más papel en blanco le sobra a la vista 01, que abarca a las
+       dos filas. */
+    .view02 .viewport,
+    .view03 .viewport {
+        --vp-h: 230px;
     }
 
-    .labelShort {
-        display: none;
+    /* 04 y 05 caben enteras (344 y 302 medidos): no hay razón para cortarlas,
+       la fila 4 no la abarca ninguna vista. */
+    .view04 .viewport {
+        --vp-h: 348px;
     }
 
-    /* Texto del item: vuelve a colores normales (no white sobre primary) */
-    .featureText > strong {
-        font-size: 1.05rem;
-        color: var(--text-main);
+    .view05 .viewport {
+        --vp-h: 306px;
     }
 
-    .featureActive .featureText > strong {
-        color: var(--text-main);
-    }
-
-    /* Descripción visible inline en desktop */
-    .featureDesc {
+    /* ── banda de guías anotadas ──────────────────────────────────────────
+       104px de papel entre el bloque de arriba y el de abajo. Es la fila 3 de
+       la retícula y ocupa las 12 columnas; el SVG va absoluto encima con
+       `overflow: visible` porque las guías salen de la banda por arriba (a
+       tocar el borde inferior de las vistas 01 y 03, a -32px = un `gap`) y
+       por abajo (borde superior de la 05, a 136px = 104 + un `gap`). */
+    .guideBand {
         display: block;
-        font-size: 0.88rem;
+        position: relative;
+        grid-column: 1 / -1;
+        grid-row: 3;
+        height: 104px;
     }
 
-    /* Caption hidden en desktop (la descripción ya está en la lista lateral) */
-    .featureCaption {
+    .guideSvg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        pointer-events: none;
+        fill: none;
+        stroke-width: 1;
+    }
+
+    /* Punteado = referencia, no materia (§5.5). Sin `pathLength` en el JSX:
+       normalizar a 1 dibujaría este dasharray SÓLIDO. */
+    .guideLine {
+        stroke: var(--pa-ink);
+        stroke-dasharray: 3 4;
+    }
+
+    .guideNode {
+        fill: var(--pa-paper);
+        stroke: var(--pa-ink);
+    }
+
+    .guideLabel {
+        position: absolute;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 16px;
+        letter-spacing: 0.02em;
+        color: var(--pa-ink-2);
+        white-space: nowrap;
+    }
+
+    /* Cada rótulo se apoya SOBRE su tramo horizontal (y = 40 y y = 84 en el
+       SVG), 6px por encima y 8px a la derecha de la esquina de entrada. */
+    .guideLabel1 {
+        top: 18px;
+        left: calc(20% + 8px);
+    }
+
+    .guideLabel2 {
+        top: 62px;
+        left: calc(10% + 8px);
+    }
+
+    /* La forma móvil de las guías desaparece: aquí manda el SVG. */
+    .guideRow {
         display: none;
     }
 
-    .mockupContainer {
-        min-height: 540px;
+    .cartouche {
+        padding: 0.4rem 1rem;
     }
 
-    .recipeBody {
-        grid-template-columns: 1fr 1.2fr;
-        gap: 1.5rem;
-    }
-}
-
-/* ============================================================
-   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — DashboardShowcase
-   Aditivo: solo propiedades de color hardcodeadas en claro.
-   ============================================================ */
-
-/* section: gradiente #FAFAFA→#FFFFFF (fondo muy claro) → bg-page oscuro */
-:global(html[data-theme="dark"]) .section {
-    /* [P1-LANDING-BG · 2026-07-11] Zona SKY/CYAN en oscuro — wash 5% del hue de
-       la Nevera/Dashboard sobre bg-page, fundido a bg-page en los bordes. */
-    background: linear-gradient(180deg,
-        var(--bg-page) 0%,
-        color-mix(in srgb, #38BDF8 7%, var(--bg-page)) 45%,
-        var(--bg-page) 100%);
-}
-
-/* featureItem (mobile pill / desktop card base):
-   background:#FFFFFF, border rgba(15,23,42,0.08) claros → bg-card + border oscuro */
-:global(html[data-theme="dark"]) .featureItem {
-    background: var(--bg-card);
-    border-color: var(--border);
-}
-
-:global(html[data-theme="dark"]) .featureItem:hover {
-    border-color: rgba(129, 140, 248, 0.3);
-    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.3);
-}
-
-/* featureActive desktop: gradiente termina en #FFFFFF hardcodeado → bg-card.
-   La línea izquierda de acento (inset 4px) se conserva. */
-@media (min-width: 1024px) {
-    :global(html[data-theme="dark"]) .featureActive {
-        background: linear-gradient(135deg, rgba(129, 140, 248, 0.08) 0%, var(--bg-card) 100%);
-        box-shadow:
-            0 12px 24px -12px rgba(0, 0, 0, 0.4),
-            inset 4px 0 0 0 var(--feature-color, var(--primary));
+    .viewDesc,
+    .figCaption {
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 }
 
-/* mockFrame: superficie principal del mockup — #FFFFFF → bg-card */
-:global(html[data-theme="dark"]) .mockFrame {
-    background: var(--bg-card);
-    box-shadow:
-        0 30px 60px -20px rgba(0, 0, 0, 0.55),
-        0 0 0 1px var(--border);
+/* ── móvil estrecho ─────────────────────────────────────────────────────── */
+@media (max-width: 599px) {
+    .section {
+        padding: 4.5rem 0;
+    }
 }
 
-/* mockHeader border-bottom: rgba(15,23,42,0.06) apenas visible en claro →
-   usar la variable de borde oscuro para que sea legible */
-:global(html[data-theme="dark"]) .mockHeader {
-    border-bottom-color: var(--border);
-}
+/* ── REDUCED MOTION — defensa (b) del módulo ──────────────────────────────
+   La (a) vive en el JSX: `makeSectionMotion(reduce)` gatea las variants en su
+   DEFINICIÓN. Esta capa fija la pose de reposo, porque el guard global de
+   index.css solo acorta duraciones y framer-motion escribe los transforms
+   INLINE vía WAAPI — una declaración `!important` de hoja de autor sí gana a
+   ambos. Sin esto, un `whileInView` que no llegue a disparar deja la lámina en
+   `opacity: 0` para siempre. */
+@media (prefers-reduced-motion: reduce) {
+    .head,
+    .sectionHead,
+    .subtitle,
+    .sheet,
+    .view,
+    .viewLink {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
 
-/* mockBadgeNeutral: #F1F5F9 (color claro) → bg-muted oscuro */
-:global(html[data-theme="dark"]) .mockBadgeNeutral {
-    background: var(--bg-muted);
-    border-color: var(--border);
-    color: var(--text-main);
-}
-
-/* Mockup 1 — Plan Diario
-   planMeal: bg:#F8FAFC (muy claro) → bg-muted oscuro */
-:global(html[data-theme="dark"]) .planMeal {
-    background: var(--bg-muted);
-    border-color: var(--border);
-}
-
-/* planProgress track: rgba(15,23,42,0.06) invisible en oscuro → sutil */
-:global(html[data-theme="dark"]) .planProgress {
-    background: rgba(241, 245, 249, 0.08);
-}
-
-/* Mockup 2 — Recetas (recipeQty chip morado: ya lee bien en oscuro, no tocar) */
-
-/* Mockup 3 — Shopping list
-   shopBullet: borde rgba(15,23,42,0.2) → usar border var */
-:global(html[data-theme="dark"]) .shopBullet {
-    border-color: var(--border);
-}
-
-/* shopLegend separator: rgba(15,23,42,0.06) invisible en oscuro */
-:global(html[data-theme="dark"]) .shopLegend {
-    border-top-color: var(--border);
-}
-
-/* Mockup 4 — Chat IA
-   chatBubbleBot: bg:#F1F5F9 (claro) → bg-muted oscuro */
-:global(html[data-theme="dark"]) .chatBubbleBot {
-    background: var(--bg-muted);
-    color: var(--text-main);
-}
-
-/* chatInputBar: bg:#F8FAFC, border rgba(15,23,42,0.08) → bg-muted + border */
-:global(html[data-theme="dark"]) .chatInputBar {
-    background: var(--bg-muted);
-    border-color: var(--border);
-}
-
-/* Mockup 5 — Pantry
-   pantrySearch: bg:#F8FAFC → bg-muted */
-:global(html[data-theme="dark"]) .pantrySearch {
-    background: var(--bg-muted);
-    border-color: var(--border);
-}
-
-/* pantryItem base: bg:#F8FAFC → bg-muted */
-:global(html[data-theme="dark"]) .pantryItem {
-    background: var(--bg-muted);
-    border-color: var(--border);
-}
-
-/* pantryItem[data-state="soon"]: tinte naranja sobre muted oscuro.
-   El borde naranja ya se conserva (es color semántico, no hardcoded claro). */
-:global(html[data-theme="dark"]) .pantryItem[data-state="soon"] {
-    background: rgba(249, 115, 22, 0.07);
-    border-color: rgba(249, 115, 22, 0.35);
-}
-
-/* [P2-DARK-PANTRYWARN · 2026-05-31] pantryWarn era naranja-700 #C2410C (luminancia
-   muy baja) sobre tinte naranja sobre slate oscuro → contraste <3:1, ilegible. El
-   padre soon se oscurece arriba, agravándolo. Subimos a orange-300 (legible). */
-:global(html[data-theme="dark"]) .pantryWarn {
-    color: #FDBA74;
-    background: rgba(249, 115, 22, 0.18);
-}
-
-/* [P3-DARK-ACCENTS · 2026-05-31] Acentos de marca hardcodeados en claro que en
-   dark pierden jerarquía (siguen legibles, es polish de cohesión: aclaramos el
-   brand color como en el resto del tema oscuro). */
-:global(html[data-theme="dark"]) .mockBadgeAccent,
-:global(html[data-theme="dark"]) .recipeQty {
-    color: #C4B5FD;
-    background: rgba(139, 92, 246, 0.18);
-}
-
-:global(html[data-theme="dark"]) .planMealTime {
-    color: #60A5FA;
-}
-
-:global(html[data-theme="dark"]) .planFooter svg,
-:global(html[data-theme="dark"]) .chatSparkle {
-    color: #FB923C;
+    /* El escalado del mockup NO es animación: es layout. Se preserva a
+       propósito — anularlo aquí desbordaría la vista en móvil. */
+    .scaleBox {
+        transition: none !important;
+        animation: none !important;
+    }
 }
