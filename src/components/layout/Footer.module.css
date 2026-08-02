@@ -419,10 +419,18 @@
         gap: 0.5rem;
         cursor: pointer;
         pointer-events: auto;
-        /* Objetivo táctil: 0.75rem arriba/abajo + line-height propio suman
-           ≥44px de alto tocable para el toggle. */
         padding: 0.75rem 0;
         margin-bottom: 0;
+        /* [RONDA 2 — fix piso táctil] `0.75rem` arriba/abajo + line-height
+           propio solo suman ≥44px cuando el texto envuelve a 2 líneas
+           ("Términos y servicios"/"Privacidad y datos", 59,19px medido). Con
+           una sola palabra ("Empresas"/"Soporte", ambas 1 línea en la
+           columna de 139,5px) el resultado medido era 41,59px — 2,41px bajo
+           el piso de 44px. `min-height` no toca los dos casos que ya
+           superaban el piso (min-height no encoge, solo evita que se
+           encoja) y `align-items: center` (ya presente arriba) centra el
+           texto en el espacio extra en vez de dejarlo pegado arriba. */
+        min-height: 44px;
     }
 
     :global(html[data-theme="paper"]) .colSummary::after {
