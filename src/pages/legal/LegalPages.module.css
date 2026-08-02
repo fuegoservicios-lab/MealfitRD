@@ -99,7 +99,12 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 0.5rem 0;
-    margin: 0 0 1.5rem;
+    /* Solo se ve en móvil (ver el @media de abajo): 44px de alto real, medido
+       tabulando. Al pasar de 0,92rem a la mono de 12px la caja caía a 32px —
+       la rotulación encoge el texto, pero el objetivo táctil no puede encoger
+       con él. `align-items: center` mantiene la línea donde estaba. */
+    min-height: 44px;
+    margin: 0 0 1.25rem;
     cursor: pointer;
     transition: color 120ms linear;
 }
