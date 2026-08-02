@@ -35,10 +35,14 @@
        migra a 'dark' one-time. Defensivo: cualquier excepción cae a 'dark'. -->
   <script>
     (function () {
-      // [P1-PAPER-SURFACE-SSOT · 2026-08-01] Superficie papel: estas 6 rutas
-      // fuerzan tema síncrono en carga directa/refresh para evitar el flash.
-      // Copia literal de src/utils/paperSurface.js — anclada por
-      // backend/tests/test_p1_paper_surface_ssot.py.
+      // [P1-PAPER-SURFACE-SSOT · 2026-08-01 · ampliado 2026-08-02] Superficie
+      // papel: estas rutas fuerzan tema síncrono en carga directa/refresh para
+      // evitar el flash. Copia literal de src/utils/paperSurface.js — anclada
+      // por backend/tests/test_p1_paper_surface_ssot.py.
+      // [P1-PAPER-SURFACE-EXTEND · 2026-08-02] `PAPER_PFX` cubre las rutas
+      // DINÁMICAS (/novedades/<slug>), que un `indexOf` exacto no puede ver.
+      // `paperPath()` es el ÚNICO predicado: lo consultan tanto el camino
+      // normal como el `catch`, para que no puedan divergir.
       // [P1-PAPER-THEME fix · 2026-08-02] La declaración vive FUERA del try a
       // propósito. Antes estaba dentro y el `catch` fijaba 'dark' a ciegas: si
       // localStorage lanza (Safari privado, ITP, algunos webviews) la excepción
@@ -49,7 +53,15 @@
       // y corregía, y entonces saltaba a blanco. Es exactamente el flash que
       // este bloque existe para evitar. Sacarla del try es lo que permite que
       // el catch consulte la MISMA lista, sin duplicarla en un cuarto sitio.
-      var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor'];
+      var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about'];
+      var PAPER_PFX = ['/novedades/'];
+      function paperPath(p) {
+        if (PAPER.indexOf(p) !== -1) return true;
+        for (var i = 0; i < PAPER_PFX.length; i++) {
+          if (p.indexOf(PAPER_PFX[i]) === 0) return true;
+        }
+        return false;
+      }
       try {
         // [P3-DEFAULT-DARK · 2026-06-01] Migración one-time: un 'system' previo
         // pasa a 'dark' una sola vez (decisión: oscuro por defecto). Tras esto,
@@ -65,16 +77,16 @@
           : pref === 'light' ? false
           : !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
         var theme = dark ? 'dark' : 'light';
-        if (PAPER.indexOf(location.pathname) !== -1) theme = 'paper';
+        if (paperPath(location.pathname)) theme = 'paper';
         document.documentElement.setAttribute('data-theme', theme);
       } catch (e) {
         // El fallback defensivo sigue siendo 'dark', pero la ruta manda: en la
         // superficie papel un fallback a 'dark' NO es defensivo, es la
-        // regresión. `PAPER` está declarada arriba, fuera del try, justamente
+        // regresión. `paperPath` está declarada arriba, fuera del try, justamente
         // para que esta línea no pueda quedarse sin ella.
         document.documentElement.setAttribute(
           'data-theme',
-          PAPER.indexOf(location.pathname) !== -1 ? 'paper' : 'dark'
+          paperPath(location.pathname) ? 'paper' : 'dark'
         );
       }
     })();
