@@ -599,10 +599,15 @@
     }
 }
 
+/* [P2-PAPER-NO-INK fix1 · 2026-08-02] `.tocCta` salió de esta lista: no tiene
+   ninguna regla en este módulo y no existe ningún `styles.toc*` en ningún JSX
+   del repo (verificado con Grep). Es un resto del índice lateral con scroll-spy
+   que la página tuvo en junio. Se borra en el origen porque en fix1 se descubrió
+   que YO lo había copiado al bloque papel de más abajo: una referencia muerta
+   que nadie limpia acaba propagándose sola. */
 @media (prefers-reduced-motion: reduce) {
     .card,
-    .ctaPrimary,
-    .tocCta {
+    .ctaPrimary {
         transition: none;
     }
 }
@@ -996,7 +1001,7 @@
     :global(html[data-theme="paper"]) .ctaPrimary,
     :global(html[data-theme="paper"]) .ctaGhost,
     :global(html[data-theme="paper"]) .faqIcon,
-    :global(html[data-theme="paper"]) .tocCta {
+    :global(html[data-theme="paper"]) .disclaimerText a {
         transition: none !important;
         animation: none !important;
     }

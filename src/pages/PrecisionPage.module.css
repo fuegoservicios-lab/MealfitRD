@@ -21,7 +21,23 @@
 
    Barras y pistas usan `--pa-rule-2` (3,35:1) y no `--pa-rule-3` (1,61:1):
    una barra PORTA información, así que le aplica el mínimo de 3:1 de WCAG
-   1.4.11 — el mismo criterio que el gráfico de `/motor`.
+   1.4.11 — el mismo criterio que el gráfico de `/motor`. Y la PISTA entra en
+   esa regla igual que el relleno: es el DENOMINADOR («98,5% → 140px» solo se
+   lee si se percibe la extensión total contra la que se mide). Corregido en
+   fix1: las tres pistas —`.bar`, `.macroTrack` y `.macroBarTrack` de
+   `Engine.module.css`— habían quedado en `--pa-rule-3`, contradiciendo este
+   mismo párrafo.
+
+   ── Por qué este módulo NO lleva bloque `prefers-reduced-motion` ───────────
+   [fix1] No es un olvido, y conviene que quede escrito porque el resto de
+   módulos de esta tarea sí lo llevan: aquí no hay NADA que apagar. Cero
+   `transition`, cero `animation`, cero `transform` — la tabla y las barras son
+   estáticas, y los `Reveal` que las envuelven viven en `PrecisionPage.jsx` con
+   su propio `useReducedMotion()` gateando las variants en su DEFINICIÓN
+   (defensa (a)) y con la capa (b) en el bloque papel de
+   `HowItWorksPage.module.css`, que es el módulo que aporta `.card`/`.ctaPrimary`
+   a esta página. Un bloque aquí sería una lista de selectores sin nada que
+   anular: código muerto que aparenta una defensa.
    ========================================================================= */
 
 /* ───────────────── tabla comparativa (benchmark) ───────────────── */
@@ -111,6 +127,12 @@
    `.macroTrack` es el mismo patrón de `<span>` y NO tiene el bug: es hijo
    directo de `.macroRow`, que es `display: grid`, y los ítems de grid se
    blockifican solos. */
+/* La PISTA va en `--pa-rule-2`, no en `--pa-rule-3`. No es simetría con el
+   relleno: la pista es el DENOMINADOR. «98,5% → 140px» solo se lee si se
+   percibe la extensión total contra la que se mide; a 1,61:1 esa extensión
+   desaparece y la barra deja de significar una proporción para pasar a ser un
+   trazo suelto de longitud arbitraria. Le aplica el mínimo de 3:1 de WCAG
+   1.4.11 por la misma razón que al relleno. */
 .bar {
     display: block;
     margin-top: 0.45rem;
@@ -118,7 +140,7 @@
     height: 6px;
     border-radius: 0;
     background: var(--pa-paper);
-    border: 1px solid var(--pa-rule-3);
+    border: 1px solid var(--pa-rule-2);
     overflow: hidden;
 }
 .barFill {
@@ -164,11 +186,12 @@
     color: var(--pa-ink);
     font-weight: 600;
 }
+/* Misma razón que `.bar`: la pista es el denominador de la proporción. */
 .macroTrack {
     height: 8px;
     border-radius: 0;
     background: var(--pa-paper);
-    border: 1px solid var(--pa-rule-3);
+    border: 1px solid var(--pa-rule-2);
     overflow: hidden;
 }
 .macroFill {

@@ -1,12 +1,14 @@
 import { useEffect, useLayoutEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Cpu, Info } from 'lucide-react';
 // [P2-PAPER-NO-INK · 2026-08-02, Task 13] Banda de cierre: última hija de las 6
 // rutas papel. Componente propio, NUNCA dentro de Footer.jsx — el footer se
 // renderiza en 21 rutas, incluidas las 10 legales (ver ClosingBand.jsx).
 // Sustituye a la `<section className={styles.finalCta}>` que cerraba la página:
-// pedía el mismo clic, con el mismo literal, justo antes de la banda. `Link`,
-// `ChevronRight` y `ArrowRight` salieron del import con ella — eran sus únicos
-// usos en este archivo.
+// pedía el mismo clic, con el mismo literal, justo antes de la banda.
+// `ChevronRight` y `ArrowRight` salieron del import con ella. `Link` VOLVIÓ en
+// fix1: al quitar el bloque, esta página se quedó con cero enlaces en el cuerpo
+// (su disclaimer era prosa plana) — ver el comentario del disclaimer abajo.
 import ClosingBand from '../components/home/ClosingBand';
 import styles from './Engine.module.css';
 
@@ -384,12 +386,21 @@ const Engine = () => {
             <section className={styles.section}>
                 <div className={styles.disclaimer}>
                     <Info size={22} strokeWidth={2.25} className={styles.disclaimerIcon} />
+                    {/* [P2-PAPER-NO-INK fix1 · 2026-08-02] Los enlaces contextuales de este
+                        párrafo son la ÚNICA salida del cuerpo de /motor. Al retirar el
+                        `.finalCta` local (lo sustituye <ClosingBand />) esta página se quedó
+                        con CERO `<Link to=` en su cuerpo: el disclaimer, a diferencia del de
+                        /como-funciona y /funciones, era prosa plana sin un solo enlace. La
+                        banda de cierre aporta /assessment y /precios; lo que faltaba era el
+                        camino lateral a las otras páginas del método. */}
                     <div className={styles.disclaimerText}>
                         <strong>Con los pies en la tierra.</strong> Bioboros es una herramienta
                         de apoyo nutricional, no un sustituto de un nutricionista o médico. El motor
                         aplica criterios fundamentados en evidencia, pero recomendamos revisión
                         profesional cuando tu condición lo amerita. Las cantidades y micronutrientes
-                        son estimaciones, no mediciones de laboratorio.
+                        son estimaciones, no mediciones de laboratorio. Si quieres el recorrido
+                        completo, mira <Link to="/como-funciona">cómo funciona el método</Link> o
+                        la <Link to="/precision">precisión que medimos</Link>.
                     </div>
                 </div>
             </section>

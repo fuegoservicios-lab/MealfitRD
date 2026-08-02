@@ -320,95 +320,43 @@
     color: var(--pa-ink-2);
 }
 
-/* ------------------------------------------------------------ final CTA
-   [P2-PAPER-NO-INK · 2026-08-02] El JSX ya NO monta este bloque: la página
-   cierra con `<ClosingBand />`, que pide el mismo clic con el mismo literal.
-   Tener las dos cosas seguidas era pedirlo dos veces. Las reglas quedan
-   repintadas por si otra página del grupo las reusa. */
-.finalCta {
-    margin-top: 4rem;
-    text-align: center;
-    background: var(--pa-paper);
-    border-top: 1px solid var(--pa-rule);
-    border-bottom: 0;
-    border-left: 0;
-    border-right: 0;
-    border-radius: 0;
-    padding: 3rem 1.5rem;
-}
-.finalTitle {
-    font-family: var(--font-heading);
-    font-size: clamp(1.5rem, 3.2vw, 2rem);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    margin: 0;
+/* Enlaces contextuales dentro del disclaimer. Son la única salida lateral del
+   cuerpo de /motor (ver el comentario del disclaimer en Engine.jsx): subrayado
+   por hairline, no por color, igual que `.disclaimerText a` de
+   HowItWorksPage.module.css. */
+.disclaimerText a {
     color: var(--pa-ink);
-    text-wrap: balance;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid var(--pa-rule-2);
+    transition: border-color 140ms linear;
 }
-.finalText {
-    color: var(--pa-ink-2);
-    margin: 0.75rem auto 1.7rem;
-    max-width: 52ch;
-    line-height: 1.6;
-    text-wrap: balance;
+.disclaimerText a:hover {
+    border-bottom-color: var(--pa-ink);
 }
-.ctaRow {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    flex-wrap: wrap;
+.disclaimerText a:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 2px;
 }
 
-/* Mismo par que el Hero: sólido = la acción real; contorno = «el otro». */
-.ctaPrimary {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--pa-ink);
-    color: var(--pa-paper);
-    font-family: var(--font-heading);
-    font-weight: 600;
-    font-size: 0.875rem;
-    letter-spacing: 0.01em;
-    padding: 0.875rem 1.75rem;
-    border: 1px solid var(--pa-ink);
-    border-radius: 0;
-    text-decoration: none;
-    box-shadow: none;
-    transition: background 140ms linear, border-color 140ms linear;
-}
-.ctaPrimary:hover {
-    transform: none;
-    background: var(--pa-ink-2);
-    border-color: var(--pa-ink-2);
-    box-shadow: none;
-}
-.ctaGhost {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: transparent;
-    color: var(--pa-ink);
-    border: 1px solid var(--pa-ink);
-    border-radius: 0;
-    font-family: var(--font-heading);
-    font-weight: 600;
-    font-size: 0.875rem;
-    letter-spacing: 0.01em;
-    padding: 0.875rem 1.5rem;
-    text-decoration: none;
-    transition: background 140ms linear, color 140ms linear;
-}
-.ctaGhost:hover {
-    background: var(--pa-ink);
-    color: var(--pa-paper);
-    border-color: var(--pa-ink);
-}
-.ctaPrimary:focus-visible,
-.ctaGhost:focus-visible {
-    outline: 2px solid var(--pa-ink);
-    outline-offset: 3px;
-}
+/* ------------------------------------------------------------ final CTA
+   [P2-PAPER-NO-INK · 2026-08-02 · borrado en fix1] Aquí vivían `.finalCta`,
+   `.finalTitle`, `.finalText`, `.ctaRow`, `.ctaPrimary` y `.ctaGhost`. El JSX
+   dejó de montarlas al cerrar la página con `<ClosingBand />` (pedían el mismo
+   clic con el mismo literal, seguidas).
+
+   En fix1 se BORRAN en vez de conservarse «por si otra página del grupo las
+   reusa», que era la razón que dejé escrita y que es falsa: `Engine.jsx` es el
+   ÚNICO importador de este módulo — lo establece la corrección de cabecera de
+   este mismo trabajo, que desmintió el comentario de junio que decía que las
+   páginas de detalle lo compartían. Sin importador que las monte, eran ~90
+   líneas inalcanzables detrás de un comentario caduco: exactamente la clase de
+   cosa que este commit fue a cazar.
+
+   OJO — la retención SÍ es correcta en `HowItWorksPage.module.css`: allí
+   `ResearchPage.jsx` (ruta NO papel, sin banda de cierre) sigue montando su
+   `.finalCta`. No borrar aquellas creyendo que este borrado sienta precedente.
+   ========================================================================= */
 
 /* ----------------------------------------------------------- responsive */
 @media (max-width: 760px) {
@@ -659,7 +607,11 @@
 .macroBars { margin-top: 3.4rem; display: grid; gap: 0.65rem; }
 .macroBar { display: grid; grid-template-columns: 78px minmax(0, 1fr) 54px; align-items: center; gap: 0.85rem; }
 .macroBarLabel { font-size: 0.875rem; color: var(--pa-ink); font-weight: 600; }
-.macroBarTrack { height: 8px; border-radius: 0; background: var(--pa-sunk); border: 1px solid var(--pa-rule-3); overflow: hidden; }
+/* Pista en `--pa-rule-2`: es el DENOMINADOR de la proporción, no un adorno del
+   relleno. A `--pa-rule-3` (1,61:1) la extensión total contra la que se mide el
+   relleno desaparece, y una barra sin denominador visible deja de ser una
+   proporción. Mismo criterio que `.bar`/`.macroTrack` de PrecisionPage. */
+.macroBarTrack { height: 8px; border-radius: 0; background: var(--pa-sunk); border: 1px solid var(--pa-rule-2); overflow: hidden; }
 .macroBarFill { display: block; height: 100%; border-radius: 0; background: var(--pa-ink); }
 .macroBarVal { font-family: var(--font-mono); font-size: 12px; color: var(--pa-ink-2); text-align: right; font-variant-numeric: tabular-nums lining; }
 
@@ -678,12 +630,15 @@
    Este módulo no usa framer-motion (la página no tiene reveals propios), así
    que no hay defensa (a) en el JSX: todo su movimiento son las `transition`
    de color declaradas aquí. El guard global de `index.css` solo ACORTA
-   `transition-duration`; este bloque las anula. */
+   `transition-duration`; este bloque las anula.
+
+   [fix1] Salen `.ctaPrimary` y `.ctaGhost`: se borraron con el bloque de CTA
+   final. Entra `.disclaimerText a`, la única `transition` que ese borrado
+   dejó viva junto a `.card`/`.feature`. */
 @media (prefers-reduced-motion: reduce) {
     .card,
     .feature,
-    .ctaPrimary,
-    .ctaGhost {
+    .disclaimerText a {
         transition: none !important;
         animation: none !important;
     }

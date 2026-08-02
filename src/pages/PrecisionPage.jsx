@@ -256,7 +256,12 @@ const PrecisionPage = () => {
                         pedirle el plan directamente a un modelo de lenguaje, sin nada que cuadre tus macros. Son
                         métricas de <strong>precisión de macros</strong> —qué tan cerca queda el plan de tus
                         números—, medidas sobre una muestra de planes reales; no son corrección clínica ni
-                        consejo médico. ¿Quieres ver el mecanismo? Mira <Link to="/motor">el motor por dentro</Link>.
+                        consejo médico. ¿Quieres ver el mecanismo? Mira <Link to="/motor">el motor por
+                        dentro</Link> o <Link to="/funciones">todas las funciones</Link>.
+                        {/* [P2-PAPER-NO-INK fix1 · 2026-08-02] El enlace a /funciones se
+                            reinstala aquí: era el CTA fantasma del `.finalCta` local que
+                            retiró <ClosingBand />, y este disclaimer solo enlazaba a /motor.
+                            La banda aporta /assessment y /precios, no el camino lateral. */}
                     </div>
                 </Reveal>
             </div>

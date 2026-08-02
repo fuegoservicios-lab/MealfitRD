@@ -237,10 +237,29 @@
     box-shadow: none;
 }
 
-/* `-25%` — etiqueta accesoria (spec §2.5: mono 11px, 0,14em, uppercase). En
-   reposo va contorneada sobre papel; dentro del segmento vigente se invierte a
-   contorno de papel sobre tinta. Antes era verde pálido en reposo y una
-   píldora blanca con `#047857` y sombra dentro del botón activo. */
+/* `-25%` — 12px + `--pa-ink-2`, el piso de DECODIFICACIÓN, no los 11px de la
+   fila «etiqueta accesoria».
+
+   [P2-PAPER-NO-INK fix1 · 2026-08-02] La primera versión decía «etiqueta
+   accesoria (spec §2.5: mono 11px, 0,14em)» y ponía 11px con 0,08em: el
+   comentario citaba una fila de la escala que el código no seguía, y encima
+   contradecía la regla de al lado — `.monthlyEquiv` sube a 12px con el
+   argumento explícito de que «lleva el ahorro». Las dos lecturas no pueden
+   valer a la vez sobre el mismo dato.
+
+   Resuelto a favor de decodificación: la fila accesoria está reservada a
+   metadato que se puede ignorar sin perder la figura, y `-25%` es justo lo
+   contrario — es la razón entera para pulsar «Anual». Mismo tamaño y mismo
+   tono que `.monthlyEquiv`, que lleva ese mismo ahorro desglosado.
+
+   El tracking se queda en 0,08em y NO sube a los 0,14em de la fila accesoria:
+   ese valor está calibrado para palabras en versalitas («PLANES FLEXIBLES»),
+   y sobre un token numérico corto con signo y `%` separa los glifos hasta que
+   dejan de leerse como una cifra.
+
+   En reposo va contorneada sobre papel; dentro del segmento vigente se
+   invierte a contorno de papel sobre tinta. Antes era verde pálido en reposo y
+   una píldora blanca con `#047857` y sombra dentro del botón activo. */
 .discountBadge {
     display: inline-flex;
     align-items: center;
@@ -250,7 +269,7 @@
     border-radius: 0;
     box-shadow: none;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     line-height: 1.2;
     letter-spacing: 0.08em;
