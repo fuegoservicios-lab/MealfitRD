@@ -41,6 +41,21 @@ import { NEWS } from '../../data/news';
    destino habría dado dos enlaces por fila anunciados por separado a un
    lector de pantalla, para el mismo lugar.
 
+   EL EMBLEMA (`/model-v1.webp`, `n.image`) vive DENTRO de la celda de
+   TÍTULO — NO en columna propia. Añadir una sexta columna solo para el
+   emblema habría exigido un `<th>` extra (¿con qué rótulo? ninguno de los
+   cinco nombres de columna le queda) y un ancho fijo que la mayoría de las
+   filas — las que no traen `image` — dejarían en blanco; con el emblema
+   dentro de TÍTULO, el `<th>` de ENTRADA lo cubre gratis y una fila sin
+   `image` simplemente no reserva el hueco (no hay columna vacía que
+   delate la ausencia). 48×48, `grayscale(1) contrast(1.08)` + borde de
+   1px — es un emblema real (la foto/logo del anuncio), no un dato que
+   codificar en forma, así que colapsar sus colores por luma es intencional
+   AQUÍ Y SOLO AQUÍ (misma excepción declarada para `/model-v1.webp` en
+   Hero/PlateExploded). `alt=""`: es redundante con el título, que ya
+   identifica la entrada por texto — un lector de pantalla no pierde
+   información si el emblema calla.
+
    LA "PESTAÑA DE REVISIÓN VIGENTE": la fila más reciente (`i === 0`) lleva una
    barra sólida de 24px en la canaleta de REV — el gesto de un plano real
    marcando cuál es la revisión activa entre varias archivadas.
@@ -95,7 +110,7 @@ const NewsHighlight = () => {
                         Registro de revisiones del producto, de la más reciente a la más antigua.
                     </caption>
                     <thead>
-                        <tr className={styles.headRow}>
+                        <tr>
                             <th scope="col" className={`${styles.th} ${styles.thRev}`}>Rev</th>
                             <th scope="col" className={`${styles.th} ${styles.thDate}`}>Fecha</th>
                             <th scope="col" className={`${styles.th} ${styles.thTag}`}>Categoría</th>
@@ -125,20 +140,36 @@ const NewsHighlight = () => {
                                     </td>
                                     <td className={`${styles.cell} ${styles.cellTag}`}>{n.tag}</td>
                                     <td className={`${styles.cell} ${styles.cellTitle}`}>
-                                        {/* Sustituye a las columnas FECHA/TAG cuando estas se ocultan
-                                            (<719px, ver .module.css) — MISMA información, no un adorno:
-                                            `aria-label` con el dateLabel legible es lo que anuncia un
-                                            lector de pantalla; los `<span>` visuales (ISO + tag) van
-                                            aria-hidden para no duplicar el anuncio. */}
-                                        <p className={styles.metaMobile} aria-label={`${n.dateLabel} · ${n.tag}`}>
-                                            <span aria-hidden="true">{n.date}</span>
-                                            <span className={styles.metaSep} aria-hidden="true">·</span>
-                                            <span aria-hidden="true">{n.tag}</span>
-                                        </p>
-                                        <Link to={dest} className={styles.titleLink} title={n.dateLabel}>
-                                            {n.title}
-                                        </Link>
-                                        <p className={styles.excerpt}>{n.excerpt}</p>
+                                        {/* El emblema (cuando la entrada trae `image`) vive DENTRO de la
+                                            celda de TÍTULO, no en una columna propia: así el `<th>` de
+                                            ENTRADA lo cubre gratis y ningún ancho de columna cambia por
+                                            tenerlo o no — filas con y sin emblema conviven en la misma
+                                            rejilla sin que las cabeceras se desalineen. */}
+                                        <div className={styles.titleRow}>
+                                            {n.image && (
+                                                <img
+                                                    src={n.image}
+                                                    alt=""
+                                                    className={styles.emblem}
+                                                />
+                                            )}
+                                            <div className={styles.titleBlock}>
+                                                {/* Sustituye a las columnas FECHA/TAG cuando estas se ocultan
+                                                    (<719px, ver .module.css) — MISMA información, no un adorno:
+                                                    `aria-label` con el dateLabel legible es lo que anuncia un
+                                                    lector de pantalla; los `<span>` visuales (ISO + tag) van
+                                                    aria-hidden para no duplicar el anuncio. */}
+                                                <p className={styles.metaMobile} aria-label={`${n.dateLabel} · ${n.tag}`}>
+                                                    <span aria-hidden="true">{n.date}</span>
+                                                    <span className={styles.metaSep} aria-hidden="true">·</span>
+                                                    <span aria-hidden="true">{n.tag}</span>
+                                                </p>
+                                                <Link to={dest} className={styles.titleLink} title={n.dateLabel}>
+                                                    {n.title}
+                                                </Link>
+                                                <p className={styles.excerpt}>{n.excerpt}</p>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className={`${styles.cell} ${styles.cellGo}`}>
                                         <ArrowRight size={16} strokeWidth={2.25} className={styles.goIcon} aria-hidden="true" />

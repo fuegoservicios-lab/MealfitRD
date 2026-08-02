@@ -117,8 +117,18 @@
     background: var(--pa-sunk);
 }
 
+/* `min-height` es una REGLA, no un accidente de contenido: sin ella, la fila
+   se sostiene por el tamaño real de la tabla (2 filas de excerpt largo hoy),
+   no por el conteo del brief — un excerpt corto futuro daría una fila más
+   baja sin que nada lo impida. `box-sizing: border-box` es global (index.css),
+   así que 64/72px son la caja ENTERA (incluye los dos `1rem`/`1.15rem` de
+   padding vertical), no una altura de contenido adicional. Va en `.cell`
+   (`<td>`), no en `.row` (`<tr>`): `min-height` sobre `table-row` tiene
+   soporte más inconsistente entre motores que sobre `table-cell`, y la fila
+   ya hereda la altura de su celda más alta. */
 .cell {
     padding: 1rem 0.9rem;
+    min-height: 64px;
     vertical-align: top;
 }
 
@@ -177,6 +187,32 @@
 /* ── TÍTULO — la única ancla de la fila ──────────────────────────────────── */
 .cellTitle {
     min-width: 0;
+}
+
+.titleRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+}
+
+.titleBlock {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+/* El emblema (`n.image`, hoy solo R01): 48×48, EXCEPCIÓN declarada del
+   sistema — colapsar sus colores por luma es intencional aquí y SOLO aquí
+   porque es una foto/logo real (dato visual propio del anuncio), no una
+   codificación de estado que debiera vivir en forma. `object-fit: cover`
+   porque `/model-v1.webp` no nace cuadrado. `flex: none` para que nunca
+   ceda espacio al bloque de texto ni se lo quite. */
+.emblem {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border: 1px solid var(--pa-rule-2);
+    filter: grayscale(1) contrast(1.08);
 }
 
 /* Línea de meta (fecha · tag) que sustituye a las columnas FECHA/TAG cuando
@@ -274,6 +310,7 @@
 
     .cell {
         padding: 1.15rem 0.6rem;
+        min-height: 72px;
     }
 
     .titleLink {
