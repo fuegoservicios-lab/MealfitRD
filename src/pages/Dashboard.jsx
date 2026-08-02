@@ -903,6 +903,76 @@ const DashboardInner = () => {
         if (_planMicroSig) safeLocalStorageSet(`mealfit_qdeg_dismissed_${_planMicroSig}`, '1');
     };
 
+    // [P1-FIX-SODIUM-DAY · 2026-08-02] "Arreglar este día" — puente de un clic entre el banner
+    // `micro_worst_day_ceiling` y el swap sodio-consciente ya desplegado
+    // (P1-SODIUM-AWARE-PLACEMENT). Caso real que lo motiva: banner "1 de 3 días se pasa del
+    // techo (peor: Día 1)" con ricotta+camarones — el usuario tuvo que ADIVINAR qué plato
+    // cambiar (y cambió el de OTRO día). El backend identifica el día/comida y hace TODO
+    // (swap LLM + persist) server-side; el endpoint responde solo un resumen (no el plan
+    // completo), así que el éxito exige un re-fetch — mismo patrón que el resume server-side
+    // de P1-DAY-REGEN-RESUME (`applyRegenPlan`, más abajo en este archivo).
+    const [fixSodiumDayLoading, setFixSodiumDayLoading] = useState(false);
+    const handleFixSodiumDay = async () => {
+        if (!planData?.id || fixSodiumDayLoading) return;
+        setFixSodiumDayLoading(true);
+        try {
+            const resp = await fetchWithAuth(`${API_BASE}/api/plans/${planData.id}/fix-sodium-day`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+            let result = null;
+            try { result = await resp.json(); } catch (_) { /* body vacío o no-JSON */ }
+            if (!resp.ok) {
+                const msg = result?.detail?.message
+                    || (typeof result?.detail === 'string' ? result.detail : null)
+                    || 'Inténtalo de nuevo en un momento.';
+                toast.error('No se pudo arreglar el día', { description: msg });
+                return;
+            }
+            if (result?.fixed === true) {
+                // El endpoint YA persistió atómicamente (mismo mutator que /swap-meal/persist:
+                // day-band rebalance + micros/techos + listas inline) — solo falta traer el plan
+                // fresco. Mismo mecanismo de refresh que usa el resume server-side del swap
+                // individual: GET /api/plans-data/latest + setPlanData.
+                try {
+                    const latestResp = await fetchWithAuth('/api/plans-data/latest');
+                    if (latestResp.ok) {
+                        const { plan } = await latestResp.json();
+                        const pdNew = plan?.plan_data;
+                        if (pdNew) {
+                            if (pdNew.id == null && plan?.id != null) pdNew.id = plan.id;
+                            setPlanData(pdNew);
+                            safeLocalStorageSet('mealfit_plan', pdNew);
+                        }
+                    }
+                } catch (_) { /* no-op: el toast ya confirma el éxito; el próximo poll refresca */ }
+                const underCeilingCopy = result.day_under_ceiling ? ', bajo el techo ✓' : '';
+                toast.success(`Día ${Number(result.day) + 1} arreglado`, {
+                    description: `${result.old_meal} → ${result.new_meal} `
+                        + `(${result.sodio_antes_mg}→${result.sodio_despues_mg} mg de sodio${underCeilingCopy}).`,
+                    duration: 8000,
+                });
+            } else if (result?.code === 'no_day_over_ceiling') {
+                // Honesto: puede que el panel ya estuviera stale (el usuario resolvió el día a
+                // mano). Refrescamos igual — si el banner seguía vivo por caché local, desaparece.
+                try { await hydrateLatestPlan?.({ force: true, src: 'fix-sodium-day-noop' }); } catch (_) { /* no-op */ }
+                toast(result.message || 'Ya está bajo el techo de sodio.', { duration: 6000 });
+            } else {
+                // Soft-fail del chef (retries agotados / clínico / nevera vacía / IA ocupada):
+                // el banner queda, el plan está intacto.
+                toast.error('El chef IA no pudo arreglar este día', {
+                    description: result?.error_message || 'Inténtalo de nuevo en un momento.',
+                    duration: 8000,
+                });
+            }
+        } catch (_e) {
+            toast.error('No se pudo arreglar el día', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
+        } finally {
+            setFixSodiumDayLoading(false);
+        }
+    };
+
     // [P1-COHERENCE-BANNER-NOTIF · 2026-06-16] Mismo patrón que el banner "plan no
     // óptimo": el aviso "Revisa tu lista de compras" (`_swap_coherence_warnings`)
     // se puede CERRAR con su X — al cerrarlo se ARCHIVA en el centro de
@@ -6761,6 +6831,39 @@ const DashboardInner = () => {
                                     }}
                                 >
                                     Agregar ítems a mi Nevera →
+                                </button>
+                            </span>
+                        )}
+                        {/* [P1-FIX-SODIUM-DAY · 2026-08-02] Botón "Arreglar este día" — SOLO para la
+                            clase de motivo sodio/micro-ceiling (`micro_worst_day_ceiling`). El copy de
+                            `micro_worst_day_ceiling` ya le dice al usuario "usa Cambiar Plato en la
+                            comida más salada de ese día" — este botón hace exactamente eso por él, sin
+                            que tenga que adivinar cuál día ni cuál plato (caso real: adivinó mal y
+                            cambió el de otro día). */}
+                        {planData?._quality_degraded_reason === 'micro_worst_day_ceiling' && (
+                            <span style={{ display: 'block', marginTop: '0.5rem' }}>
+                                <button
+                                    type="button"
+                                    onClick={handleFixSodiumDay}
+                                    disabled={fixSodiumDayLoading}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        border: 'none',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.32rem 0.6rem',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        cursor: fixSodiumDayLoading ? 'default' : 'pointer',
+                                        opacity: fixSodiumDayLoading ? 0.7 : 1,
+                                        background: isDark ? 'rgba(251,191,36,0.18)' : '#FDE68A',
+                                        color: isDark ? '#FDE68A' : '#92400E'
+                                    }}
+                                >
+                                    {fixSodiumDayLoading
+                                        ? 'El chef está reformulando la comida más salada… ~30 s'
+                                        : 'Arreglar este día →'}
                                 </button>
                             </span>
                         )}
