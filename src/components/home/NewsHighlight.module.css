@@ -102,12 +102,53 @@
     color: var(--pa-ink-2);
 }
 
-.thRev { width: 76px; }
-.thDate { width: 130px; }
-.thTag { width: 140px; }
+/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] Anchos apretados contra su contenido
+   real. Estaban en 76/130/140 y medido a 1440px sobraban ~200px repartidos
+   entre las tres: «R02» pide 26px de 76, «2026-07-02» 68 de 130 y la etiqueta
+   más larga de hoy («PRODUCTO») 66 de 140. Ese aire no era respiración, era una
+   zanja entre la fecha y la entrada que partía la fila en dos mitades sin
+   relación. Los 50px liberados van a ENTRADA, que es la columna que se lee. */
+.thRev { width: 64px; }
+.thDate { width: 112px; }
+.thTag { width: 120px; }
 .thGo { width: 44px; }
 
+/* El rótulo de ENTRADA se sangra hasta donde empiezan los títulos.
+   Al reservar el hueco del emblema dentro de la celda (ver el JSX), el texto de
+   todas las filas arrancó 64px a la derecha del borde de su columna — y el
+   `<th>` se quedó atrás, rotulando una canaleta de emblemas en vez de las
+   entradas que nombra. Una cabecera que no cae sobre su dato es peor que no
+   tenerla: dice que la columna empieza donde no empieza.
+
+   64px = los 48 del hueco + los 0,85rem de `gap` de `.titleRow`. Si cambia el
+   tamaño del emblema, este número cambia con él. */
+.thEntry { padding-left: calc(0.9rem + 48px + 0.85rem); }
+
+/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] `position: relative` convierte la FILA
+   en el bloque contenedor del enlace estirado de `.titleLink::after`.
+
+   El problema que cierra: la fila ya se hundía en `:hover` y la flecha ya se
+   desplazaba, así que prometía ser pulsable entera — y solo lo era el texto del
+   título. En móvil eso son ~22px de alto de objetivo táctil bajo una fila de
+   72px que parece un botón. Una afordancia que miente es peor que ninguna.
+
+   Sigue habiendo UN SOLO `<a>` en el DOM, que es la decisión que defiende la
+   cabecera del .jsx (dos anclas al mismo destino se anuncian dos veces). Lo que
+   crece es su área de pulsación, no su número.
+
+   MEDIDO, no supuesto: `position: relative` sobre `<tr>` fue históricamente
+   inconsistente entre motores, y el modo de fallo aquí es feo — si la fila no
+   estableciera bloque contenedor, el `inset: 0` se resolvería contra el
+   ancestro posicionado más cercano y podría tapar media página con un overlay
+   que se traga los clics. Comprobado con `elementFromPoint` en Chromium,
+   Firefox y WebKit: en los tres el overlay cubre la fila exacta y no se
+   derrama fuera de la tabla.
+
+   COSTE ACEPTADO: el texto del excerpt deja de poder seleccionarse (el overlay
+   lo cubre). En una fila de índice cuyo excerpt ya va recortado a 2 líneas,
+   seleccionar no es un caso de uso; poder pulsarla sí. */
 .row {
+    position: relative;
     border-bottom: 1px solid var(--pa-rule-3);
     transition: background 120ms linear;
 }
@@ -115,6 +156,15 @@
 .row:hover,
 .row:focus-within {
     background: var(--pa-sunk);
+}
+
+/* `--pa-sunk` contra el papel es 1,064:1 — por sí solo no informa de nada (el
+   spec §3 lo dice de esa variable). No va solo: el título se subraya, la flecha
+   se desplaza y el código REV sube a tinta plena. Cuatro señales a la vez, y
+   las tres que informan sobreviven en escala de grises y sin color. */
+.row:hover .revCode,
+.row:focus-within .revCode {
+    color: var(--pa-ink);
 }
 
 /* `min-height` es una REGLA, no un accidente de contenido: sin ella, la fila
@@ -138,13 +188,22 @@
     padding-left: 22px;
 }
 
+/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] La pestaña de revisión vigente recorre
+   la fila ENTERA. Antes eran 24px centrados con `top: 50%`, y como la celda va
+   con `vertical-align: top` la marca quedaba flotando a media altura, sin tocar
+   el código `R02` que califica ni ninguna otra cosa — un tick suelto en el
+   margen. Con la fila completa se lee como lo que es: la pestaña de un plano
+   señalando cuál de las revisiones archivadas es la activa.
+
+   `top/bottom: 0` en vez de `height: 100%` para que siga la altura real de la
+   celda sin depender de que un `<td>` resuelva porcentajes de altura, que es
+   justo el rincón donde los motores discrepan. */
 .currentBar {
     position: absolute;
     left: 0;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 0;
+    bottom: 0;
     width: 4px;
-    height: 24px;
     background: var(--pa-ink);
 }
 
@@ -200,6 +259,15 @@
     flex: 1 1 auto;
 }
 
+/* El hueco del emblema, SIEMPRE presente (ver el JSX): es lo que mantiene los
+   títulos en columna cuando unas entradas traen `image` y otras no. `flex:
+   none` para que no ceda ni robe ancho al bloque de texto. */
+.emblemSlot {
+    flex: none;
+    width: 48px;
+    height: 48px;
+}
+
 /* El emblema (`n.image`, hoy solo R01): 48×48, EXCEPCIÓN declarada del
    sistema — colapsar sus colores por luma es intencional aquí y SOLO aquí
    porque es una foto/logo real (dato visual propio del anuncio), no una
@@ -207,9 +275,9 @@
    porque `/model-v1.webp` no nace cuadrado. `flex: none` para que nunca
    ceda espacio al bloque de texto ni se lo quite. */
 .emblem {
-    flex: none;
-    width: 48px;
-    height: 48px;
+    display: block;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     border: 1px solid var(--pa-rule-2);
     filter: grayscale(1) contrast(1.08);
@@ -243,11 +311,25 @@
     text-decoration: none;
 }
 
+/* El enlace estirado. Ver el bloque de `.row` para el porqué y para la
+   comprobación en los tres motores. */
+.titleLink::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+/* Con el `::after` cubriendo la fila, `:hover` del enlace ya se dispara desde
+   cualquier punto de ella — el subrayado deja de exigir apuntar al texto. */
 .titleLink:hover {
     text-decoration: underline;
     text-underline-offset: 3px;
 }
 
+/* El anillo de foco se queda ceñido al TEXTO y no se estira con el `::after`
+   (`outline` sigue la caja del elemento, no la de su pseudo). Es lo correcto:
+   quien navega con teclado necesita saber en qué palabra está, no que se le
+   ilumine una banda de 980px. */
 .titleLink:focus-visible {
     outline: 2px solid var(--pa-ink);
     outline-offset: 3px;
@@ -267,12 +349,28 @@
 
 /* ── → — decorativo, reacciona a la fila entera (hover o foco del enlace de
    TÍTULO, único elemento tabulable de la fila) ───────────────────────────── */
+/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] La flecha se alinea con la PRIMERA
+   LÍNEA DEL TÍTULO, no con el centro de la fila.
+
+   Iba en `vertical-align: middle` mientras las otras cuatro celdas van en
+   `top`, así que en cuanto dos filas tenían alturas distintas —lo normal: un
+   excerpt de 2 líneas contra uno de 1— la flecha quedaba a una altura propia,
+   sin nada a su izquierda a lo que corresponder. Apunta al título: ahí es donde
+   tiene que estar.
+
+   El desplazamiento salió MEDIDO, no calculado. La cuenta sobre el papel —
+   `padding-top` de la celda (16px) + media línea de título (17 × 1,35 ÷ 2 =
+   11,5) − medio icono (8) = 3,5px— dejaba la flecha 2px por encima del centro
+   real del título: la caja de línea de un `inline-block` no empieza donde
+   empieza el `padding` de la celda. 5,5px es lo que cuadra en el navegador. */
 .cellGo {
     text-align: right;
-    vertical-align: middle;
+    vertical-align: top;
 }
 
 .goIcon {
+    display: block;
+    margin: 5.5px 0 0 auto;
     color: var(--pa-ink-2);
     transition: transform 120ms linear, color 120ms linear;
 }
@@ -302,6 +400,28 @@
 
     .thRev { width: 44px; }
     .thGo { width: 32px; }
+
+    /* El emblema y su hueco DESAPARECEN bajo 719px. En una columna de 390px el
+       hueco de 64px se lleva el 26% del ancho útil de la entrada: el título
+       pasaba de 249px a 185px y de 2 líneas a 3. Y donde en escritorio esos
+       64px vacíos se leen como una canaleta reservada, aquí —pegados al borde,
+       sin más filas alrededor que los expliquen— se leen como una imagen que no
+       cargó.
+       En vertical la fila ya es un bloque apilado (meta / título / excerpt), no
+       una línea de tabla, así que no necesita canaleta: nada que alinear. */
+    .emblemSlot {
+        display: none;
+    }
+
+    /* Sin hueco que saltar, el rótulo vuelve al borde de su columna. */
+    .thEntry { padding-left: 0.6rem; }
+
+    /* La etiqueta iba en versales en su columna de escritorio (`.cellTag`) y en
+       caja normal aquí, así que la misma categoría se leía «DATOS» o «Datos»
+       según el ancho de la ventana. Es la MISMA información: se ve igual. */
+    .metaMobile {
+        text-transform: uppercase;
+    }
 
     .cellRev {
         padding-left: 18px;

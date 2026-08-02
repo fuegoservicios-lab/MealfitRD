@@ -127,7 +127,7 @@ const NewsHighlight = () => {
                             <th scope="col" className={`${styles.th} ${styles.thRev}`}>Rev</th>
                             <th scope="col" className={`${styles.th} ${styles.thDate}`}>Fecha</th>
                             <th scope="col" className={`${styles.th} ${styles.thTag}`}>Categoría</th>
-                            <th scope="col" className={styles.th}>Entrada</th>
+                            <th scope="col" className={`${styles.th} ${styles.thEntry}`}>Entrada</th>
                             <th scope="col" className={`${styles.th} ${styles.thGo}`}>
                                 <span className={styles.srOnly}>Ir al anuncio</span>
                             </th>
@@ -159,13 +159,28 @@ const NewsHighlight = () => {
                                             tenerlo o no — filas con y sin emblema conviven en la misma
                                             rejilla sin que las cabeceras se desalineen. */}
                                         <div className={styles.titleRow}>
-                                            {n.image && (
-                                                <img
-                                                    src={n.image}
-                                                    alt=""
-                                                    className={styles.emblem}
-                                                />
-                                            )}
+                                            {/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] El hueco del
+                                                emblema se RESERVA aunque la entrada no traiga
+                                                `image`. Antes el <img> se renderizaba condicional y
+                                                el bloque de texto ocupaba su sitio: los títulos de
+                                                filas con y sin emblema arrancaban a 62px de
+                                                distancia entre sí, escalonados en la única columna
+                                                que se lee en vertical. Un registro cuya columna de
+                                                entradas no forma columna deja de ser un registro.
+
+                                                El comentario de arriba defiende que ninguna anchura
+                                                de COLUMNA cambie por tener emblema o no — y sigue
+                                                siendo cierto, porque el hueco vive dentro de la
+                                                celda. Lo que no cubría era el interior. */}
+                                            <div className={styles.emblemSlot} aria-hidden="true">
+                                                {n.image && (
+                                                    <img
+                                                        src={n.image}
+                                                        alt=""
+                                                        className={styles.emblem}
+                                                    />
+                                                )}
+                                            </div>
                                             <div className={styles.titleBlock}>
                                                 {/* Sustituye a las columnas FECHA/TAG cuando estas se ocultan
                                                     (<719px, ver .module.css) — MISMA información, no un adorno:
