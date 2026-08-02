@@ -80,6 +80,20 @@ describe('P1-FIX-SODIUM-DAY', () => {
         expect(win).toContain('bajo el techo ✓');
     });
 
+    it('ceiling_not_sodium: toast informativo (NO error), SIN refresh — el banner queda tal cual', () => {
+        // [P1-FIX-SODIUM-DAY-HONEST · 2026-08-02] micro_worst_day_ceiling no es sodio-exclusivo
+        // (finding de review): cuando el backend dice que el techo roto del peor día es OTRO
+        // nutriente, el frontend NO debe tratarlo como error ni refrescar el plan (nada cambió).
+        const i = _src.indexOf("result?.code === 'ceiling_not_sodium'");
+        expect(i).toBeGreaterThan(-1);
+        const iNext = _src.indexOf("result?.code === 'no_day_over_ceiling'", i);
+        const win = _src.slice(i, iNext);
+        expect(win).toContain('toast(result.message');
+        expect(win).not.toContain('toast.error');
+        expect(win).not.toContain('setPlanData');
+        expect(win).not.toContain('hydrateLatestPlan');
+    });
+
     it('no_day_over_ceiling: toast informativo (NO error) + refresco honesto (puede ser stale)', () => {
         const win = _sliceFrom("result?.code === 'no_day_over_ceiling'", 500);
         expect(win).toContain('hydrateLatestPlan?.(');

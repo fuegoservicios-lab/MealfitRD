@@ -953,6 +953,14 @@ const DashboardInner = () => {
                         + `(${result.sodio_antes_mg}→${result.sodio_despues_mg} mg de sodio${underCeilingCopy}).`,
                     duration: 8000,
                 });
+            } else if (result?.code === 'ceiling_not_sodium') {
+                // [P1-FIX-SODIUM-DAY-HONEST · 2026-08-02] `micro_worst_day_ceiling` no es
+                // sodio-exclusivo: el backend leyó la MISMA fuente que armó el banner y el
+                // techo roto del peor día es OTRO nutriente (azúcar añadida/grasa saturada/
+                // potasio). No es un error — es información honesta: este botón no aplica
+                // aquí. El plan quedó intacto (el backend no tocó nada), así que NO
+                // refrescamos; el banner se queda tal cual.
+                toast(result.message || 'El aviso de este día no es por sodio.', { duration: 7000 });
             } else if (result?.code === 'no_day_over_ceiling') {
                 // Honesto: puede que el panel ya estuviera stale (el usuario resolvió el día a
                 // mano). Refrescamos igual — si el banner seguía vivo por caché local, desaparece.
