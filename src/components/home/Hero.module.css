@@ -400,10 +400,20 @@
         display: none;
     }
 
+    /* [P1-PAPER-THEME fix · 2026-08-02] 11px, NO 10px. El piso absoluto del
+       spec (§2.5) es 11px «sin excepciones de rol», y esta es la PRIMERA
+       línea de texto del sitio en móvil — que es donde está el mercado.
+       El aire para que quepa se compra en el tracking y el padding, no
+       encogiendo la letra.
+       MEDIDO con emulación real de dispositivo (`resize_page` miente en esta
+       máquina: devuelve 500). A 360×3 las dos celdas que sobreviven aquí —la
+       del medio ya está en `display:none` arriba— necesitan 83,4px y 145,8px
+       de ancho intrínseco: 229px de los 360. Repetido a 320×2, sin recorte y
+       sin scroll horizontal del documento. */
     .cartridgeCell {
-        font-size: 10px;
-        letter-spacing: 0.1em;
-        padding: 0 1rem;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        padding: 0 0.875rem;
     }
 
     .cartridgeCell + .cartridgeCell {

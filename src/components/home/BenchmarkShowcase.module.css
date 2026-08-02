@@ -5,16 +5,32 @@
    Radar (Mealfit llena / LLM colapsa) + tilt 3D + count-up + scanlines.
    ============================================================ */
 
+/* [P1-PAPER-THEME · piel de contención · 2026-08-02] ─────────────────────────
+   Esta sección NO está migrada a papel: sigue siendo el instrumento oscuro de
+   junio, y su migración (Task 11) está BLOQUEADA esperando una decisión del
+   dueño sobre las cifras (`llm: 0` vs `llm: 55`). Ver `_PENDING_REWORK` en
+   `backend/tests/test_p2_paper_no_ink.py`.
+
+   Lo que este bloque de cambios hace y lo que NO hace:
+     SÍ  — que la sección deje de romper las tres reglas ABSOLUTAS del spec
+           (§2.3: cero saturación a toda anchura, radio 0, cero blur) en el
+           perímetro que toca el papel: fondo, titular, badge, marco y nota.
+     NO  — tocar la consola, el radar, las cifras, el copy ni las animaciones.
+           Todo eso lo gobierna la tarea bloqueada.
+
+   La metáfora es deliberada: la consola oscura pasa de ser un BOQUETE en el
+   pliego (banda lavanda a sangre + esquinas redondeadas + 80px de blur gris
+   derramados sobre #FBFBFA) a ser una LÁMINA PEGADA sobre la hoja — un
+   rectángulo de bordes rectos, con marco de 1px, apoyado sobre papel limpio. */
 .section {
     position: relative;
     padding: 5rem 0 6rem;
     overflow: hidden;
-    /* [P1-LANDING-BG · 2026-07-11] Zona VIOLETA del landing (instrumento/radar):
-       wash 5% fundido a bg-page — ver P1-LANDING-BG en HowItWorks.module.css. */
-    background: linear-gradient(180deg,
-        var(--bg-page) 0%,
-        color-mix(in srgb, #A78BFA 7%, var(--bg-page)) 48%,
-        var(--bg-page) 100%);
+    /* Era un `linear-gradient` con `color-mix(#A78BFA 7%, …)` [P1-LANDING-BG ·
+       2026-07-11]: una banda lavanda A TODA ANCHURA en la posición 4 de 6 de
+       la home, entre dos secciones papel. Sobre `--bg-page` oscuro era un wash
+       ambiental; sobre papel es el único color saturado del pliego. */
+    background: var(--pa-paper, var(--bg-page));
 }
 /* [P3-BENCHMARK-POLISH · 2026-07-02] El glow radial ambiental se reemplaza por la
    cuadrícula "papel milimetrado" del lenguaje minimalista-científico (misma firma que
@@ -40,26 +56,35 @@
 
 /* ---------- Header ---------- */
 .header { text-align: center; max-width: 660px; margin: 0 auto 3rem; }
+/* [P1-PAPER-THEME · piel de contención · 2026-08-02] El badge vive SOBRE el
+   papel, no dentro de la consola: era teal `#2DD4BF` a 1,65:1 con radio 99px.
+   Pasa a etiqueta mono con contorno de 1px y radio 0 — el vocabulario de
+   rotulación del pliego (spec §2.5, "etiqueta accesoria": mono 500, 11px,
+   0,14em, uppercase). La tinta sube a --pa-ink-2 (10,51:1). */
 .modelBadge {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.4rem 0.9rem;
-    background: color-mix(in srgb, #2DD4BF 14%, transparent);
-    border: 1px solid color-mix(in srgb, #2DD4BF 32%, transparent);
-    color: #2DD4BF;
-    border-radius: 99px;
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
+    background: transparent;
+    border: 1px solid var(--pa-rule-2, var(--border));
+    color: var(--pa-ink-2, var(--text-muted));
+    border-radius: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     margin-bottom: 1.2rem;
 }
+/* El punto vivía DENTRO del badge: teal con `box-shadow: 0 0 8px` (blur) y un
+   `bmPulse` infinito. Los tres están prohibidos en papel (§2.3 blur, §9 cero
+   bucles infinitos). Se reduce a un cuadrado SÓLIDO de tinta, que es como
+   §5.5 codifica «Bioboros» sin color. La animación se retira aquí, no se
+   gatea: `bmPulse` sigue viva para `.liveDot`, dentro de la consola. */
 .modelDot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #2DD4BF; box-shadow: 0 0 8px #2DD4BF;
-    animation: bmPulse 2s ease-in-out infinite;
+    width: 7px; height: 7px; border-radius: 0;
+    background: var(--pa-ink, var(--text-main));
 }
 .title {
     font-family: var(--font-heading);
@@ -70,10 +95,14 @@
     letter-spacing: -0.03em;
     margin: 0 0 1.1rem;
 }
-/* [P3-BENCHMARK-POLISH · 2026-07-02] Acento sólido (teal de la consola) en vez de
-   gradiente indigo→teal — una sola gama, consistente con el resto del marketing. */
+/* [P1-PAPER-THEME · piel de contención · 2026-08-02] Era `#2DD4BF`
+   [P3-BENCHMARK-POLISH · 2026-07-02], que sobre papel mide 1,80:1 — falla
+   incluso el umbral de texto grande (3:1). Y no es un adorno: es la mitad de
+   la frase del H2 («Precisión que **puedes medir**»), así que media frase del
+   titular dejaba de leerse. En papel el énfasis lo carga el peso y la tinta,
+   nunca el color (§D4/D5). */
 .titleAccent {
-    color: #2DD4BF;
+    color: var(--pa-ink, var(--text-main));
 }
 .subtitle { font-size: 1.02rem; color: var(--text-muted); line-height: 1.55; margin: 0; }
 
@@ -94,13 +123,22 @@
     --c-llm: #64748B;
     position: relative;
     overflow: hidden;
-    border-radius: 24px;
+    /* [P1-PAPER-THEME · piel de contención · 2026-08-02] Aquí está la
+       diferencia entre «lámina pegada» y «boquete». Eran `border-radius: 24px`
+       y `box-shadow: 0 40px 80px -40px rgba(0,0,0,0.8)`: sobre el fondo oscuro
+       de junio esa sombra era casi invisible; sobre `#FBFBFA` es un manchón
+       gris de 80px de blur derramándose por los cuatro costados, y las
+       esquinas redondeadas hacen que el rectángulo flote en vez de apoyarse.
+       Radio 0 + marco de 1px `--pa-rule-2` (3,35:1, cumple 1.4.11 para el
+       objeto gráfico) + cero sombra externa. El `inset` blanco de 1px se
+       conserva: pertenece al INTERIOR de la consola, que no se toca. */
+    border-radius: 0;
     padding: 1.5rem;
     background:
         radial-gradient(120% 80% at 50% -10%, rgba(99, 102, 241, 0.16), transparent 55%),
         linear-gradient(160deg, #0F1628 0%, #0A0F1C 100%);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--pa-rule-2, rgba(255, 255, 255, 0.09));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     color: var(--c-ink);
     transform-style: preserve-3d;
     transition: transform 0.25s ease-out;
@@ -359,10 +397,24 @@
     margin: 2rem auto 0;
     max-width: 760px;
     padding: 1.1rem 1.3rem;
-    border: 1px solid var(--border);
-    border-radius: 14px;
+    /* [P1-PAPER-THEME · piel de contención · 2026-08-02] La nota vive sobre el
+       papel, no dentro de la consola. `--border` bajo papel es `#C9C9C4` =
+       1,61:1 — el token que el spec (§2.1) declara «filete interno, decorativo,
+       NUNCA portador»; aquí porta el marco entero de un bloque de texto. Sube a
+       `--pa-rule-2` (3,35:1, hairline real) y el radio cae a 0. */
+    border: 1px solid var(--pa-rule-2, var(--border));
+    border-radius: 0;
 }
-.footnoteIcon { flex: none; color: #2DD4BF; margin-top: 2px; }
+/* [P1-PAPER-THEME · piel de contención · 2026-08-02] 6º cambio, FUERA de la
+   lista de 5 que enumeró la revisión — lo dejo señalado para que se pueda
+   revertir en una línea si no se quiere. Razón para incluirlo: es el MISMO
+   defecto que `.titleAccent` (item 2) — `#2DD4BF` a 1,80:1 — y, tras los otros
+   cinco cambios, era el ÚNICO color saturado que seguía PINTANDO SOBRE EL
+   PAPEL. Los 9 que quedan viven todos dentro de la consola oscura, que es lo
+   que la tarea bloqueada gobierna. Un icono teal suelto en la hoja rompe
+   justamente la metáfora de «lámina pegada» que estos cambios compran. El spec
+   §4.5 ya lo lista entre lo que se elimina. */
+.footnoteIcon { flex: none; color: var(--pa-ink-2, var(--text-muted)); margin-top: 2px; }
 .footnoteText {
     margin: 0;
     text-align: left;

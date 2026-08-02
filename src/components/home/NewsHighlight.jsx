@@ -51,10 +51,20 @@ import { NEWS } from '../../data/news';
    delate la ausencia). 48×48, `grayscale(1) contrast(1.08)` + borde de
    1px — es un emblema real (la foto/logo del anuncio), no un dato que
    codificar en forma, así que colapsar sus colores por luma es intencional
-   AQUÍ Y SOLO AQUÍ (misma excepción declarada para `/model-v1.webp` en
-   Hero/PlateExploded). `alt=""`: es redundante con el título, que ya
-   identifica la entrada por texto — un lector de pantalla no pierde
-   información si el emblema calla.
+   AQUÍ Y SOLO AQUÍ. La excepción la declara el spec del rediseño
+   (`docs/superpowers/specs/2026-08-01-landing-papel-tecnico-design.md` §4.6 y
+   §8, "Lo que NO se borra"): `/model-v1.webp` sigue vivo a todo color en
+   `/motor` y solo se despinta como emblema de 48px en el registro.
+
+   [fix · 2026-08-02] Este paréntesis decía "misma excepción declarada para
+   `/model-v1.webp` en Hero/PlateExploded". Es FALSO: ninguno de esos dos
+   ficheros menciona `model-v1` — el único otro consumidor real es
+   `Engine.jsx:144`, y hace lo CONTRARIO (color pleno, 671×671, `alt`
+   descriptivo). Un precedente inventado es peor que ninguno: invita a
+   reañadirlo citando la doc (CLAUDE.md, invariante I6).
+
+   `alt=""`: es redundante con el título, que ya identifica la entrada por
+   texto — un lector de pantalla no pierde información si el emblema calla.
 
    LA "PESTAÑA DE REVISIÓN VIGENTE": la fila más reciente (`i === 0`) lleva una
    barra sólida de 24px en la canaleta de REV — el gesto de un plano real
