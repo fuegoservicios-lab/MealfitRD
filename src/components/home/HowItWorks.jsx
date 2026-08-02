@@ -91,6 +91,17 @@ const STEPS = [
    custom properties — no hace falta repetirlo en cada trazo. */
 const delayOf = (i) => `${i * 70}ms`;
 
+/* [P2-PAPER-NO-INK fix1] Mismas constantes que `figures/PlateExploded.jsx`
+   (`VE`/`T`), extraídas aquí en vez de repetir los dos atributos a mano en
+   cada trazo: es exactamente la confusión que costó una ronda de revisión
+   en el hero (mezclar `pathLength` en una guía punteada re-interpreta su
+   `stroke-dasharray` sobre un path normalizado a longitud 1 y la dibuja
+   sólida). `VE` va SOLO en lo que trae su propio dasharray (`.guide`) o no
+   se traza (nodos, nada que anime `stroke-dashoffset`); `T` va en lo que SÍ
+   se traza (`.stroke`). */
+const VE = { vectorEffect: 'non-scaling-stroke' };
+const T = { ...VE, pathLength: 1 };
+
 /* ───────────────────────────── Fig. 01 — Perfil ────────────────────────────
    Cuatro barras en CONTORNO (no es el dato acotado, es la variedad de
    entradas) de largo distinto. Los 4 rótulos son las restricciones reales
@@ -108,8 +119,7 @@ function ProfileFigure() {
             <svg className={styles.fig} viewBox="0 0 88 64" role="presentation" aria-hidden="true" focusable="false">
                 {rows.map((r) => (
                     <rect key={r.label} className={styles.stroke}
-                        x="4" y={r.y} width={r.w} height="8"
-                        pathLength="1" vectorEffect="non-scaling-stroke" />
+                        x="4" y={r.y} width={r.w} height="8" {...T} />
                 ))}
             </svg>
             <ul className={styles.figLegend}>
@@ -129,21 +139,21 @@ function EngineFigure() {
         <svg className={styles.fig} viewBox="0 0 88 64" role="presentation" aria-hidden="true" focusable="false">
             <defs>
                 <pattern id="howEngineHatch" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
-                    <line className={styles.hatchLine} x1="0" y1="0" x2="0" y2="5" vectorEffect="non-scaling-stroke" />
+                    <line className={styles.hatchLine} x1="0" y1="0" x2="0" y2="5" {...VE} />
                 </pattern>
             </defs>
             <rect className={styles.hatchFill} x="24" y="8" width="40" height="40" fill="url(#howEngineHatch)" />
-            <rect className={styles.stroke} x="24" y="8" width="40" height="40" pathLength="1" vectorEffect="non-scaling-stroke" />
+            <rect className={styles.stroke} x="24" y="8" width="40" height="40" {...T} />
             {/* guías entrando: arriba / derecha / abajo / izquierda, cada una
                 rematada en el nodo donde «empieza a medirse» */}
-            <line className={styles.stroke} x1="44" y1="0" x2="44" y2="8" pathLength="1" vectorEffect="non-scaling-stroke" />
-            <line className={styles.stroke} x1="88" y1="28" x2="64" y2="28" pathLength="1" vectorEffect="non-scaling-stroke" />
-            <line className={styles.stroke} x1="44" y1="64" x2="44" y2="48" pathLength="1" vectorEffect="non-scaling-stroke" />
-            <line className={styles.stroke} x1="0" y1="28" x2="24" y2="28" pathLength="1" vectorEffect="non-scaling-stroke" />
-            <circle className={styles.node} cx="44" cy="0" r="1.6" vectorEffect="non-scaling-stroke" />
-            <circle className={styles.node} cx="88" cy="28" r="1.6" vectorEffect="non-scaling-stroke" />
-            <circle className={styles.node} cx="44" cy="64" r="1.6" vectorEffect="non-scaling-stroke" />
-            <circle className={styles.node} cx="0" cy="28" r="1.6" vectorEffect="non-scaling-stroke" />
+            <line className={styles.stroke} x1="44" y1="0" x2="44" y2="8" {...T} />
+            <line className={styles.stroke} x1="88" y1="28" x2="64" y2="28" {...T} />
+            <line className={styles.stroke} x1="44" y1="64" x2="44" y2="48" {...T} />
+            <line className={styles.stroke} x1="0" y1="28" x2="24" y2="28" {...T} />
+            <circle className={styles.node} cx="44" cy="0" r="1.6" {...VE} />
+            <circle className={styles.node} cx="88" cy="28" r="1.6" {...VE} />
+            <circle className={styles.node} cx="44" cy="64" r="1.6" {...VE} />
+            <circle className={styles.node} cx="0" cy="28" r="1.6" {...VE} />
         </svg>
     );
 }
@@ -166,14 +176,14 @@ function CalibrationFigure() {
         <svg className={styles.fig} viewBox="0 0 88 64" role="presentation" aria-hidden="true" focusable="false">
             <defs>
                 <pattern id="howCalibHatch" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
-                    <line className={styles.hatchLine} x1="0" y1="0" x2="0" y2="5" vectorEffect="non-scaling-stroke" />
+                    <line className={styles.hatchLine} x1="0" y1="0" x2="0" y2="5" {...VE} />
                 </pattern>
             </defs>
             {bands.map((b, i) => (
                 <g key={i}>
                     <rect className={styles.hatchFill} x="4" y={b.y} width={b.w} height="8" fill="url(#howCalibHatch)" />
-                    <line className={styles.stroke} x1="4" y1={b.y - 2} x2="4" y2={b.y + 10} pathLength="1" vectorEffect="non-scaling-stroke" />
-                    <line className={styles.stroke} x1={4 + b.w} y1={b.y - 2} x2={4 + b.w} y2={b.y + 10} pathLength="1" vectorEffect="non-scaling-stroke" />
+                    <line className={styles.stroke} x1="4" y1={b.y - 2} x2="4" y2={b.y + 10} {...T} />
+                    <line className={styles.stroke} x1={4 + b.w} y1={b.y - 2} x2={4 + b.w} y2={b.y + 10} {...T} />
                     <rect className={styles.solidFill} x={4 + b.tick - 1.5} y={b.y - 2} width="3" height="12" />
                 </g>
             ))}
@@ -195,16 +205,16 @@ function AdaptationFigure() {
     const poly = pts.map((p) => p.join(',')).join(' ');
     return (
         <svg className={styles.fig} viewBox="0 0 88 64" role="presentation" aria-hidden="true" focusable="false">
-            <line className={styles.guide} x1="4" y1="52" x2="84" y2="52" vectorEffect="non-scaling-stroke" />
-            <polyline className={styles.stroke} points={poly} pathLength="1" vectorEffect="non-scaling-stroke" />
+            <line className={styles.guide} x1="4" y1="52" x2="84" y2="52" {...VE} />
+            <polyline className={styles.stroke} points={poly} {...T} />
             {pts.map((p) => (
-                <circle key={p.join(',')} className={styles.node} cx={p[0]} cy={p[1]} r="1.8" vectorEffect="non-scaling-stroke" />
+                <circle key={p.join(',')} className={styles.node} cx={p[0]} cy={p[1]} r="1.8" {...VE} />
             ))}
             {/* tramo de construcción entre la referencia y el punto más alto */}
             <g className={styles.bracket}>
-                <line x1="80" y1="52" x2="88" y2="52" vectorEffect="non-scaling-stroke" />
-                <line x1="84" y1="52" x2="84" y2="14" vectorEffect="non-scaling-stroke" />
-                <line x1="80" y1="14" x2="88" y2="14" vectorEffect="non-scaling-stroke" />
+                <line x1="80" y1="52" x2="88" y2="52" {...VE} />
+                <line x1="84" y1="52" x2="84" y2="14" {...VE} />
+                <line x1="80" y1="14" x2="88" y2="14" {...VE} />
             </g>
         </svg>
     );

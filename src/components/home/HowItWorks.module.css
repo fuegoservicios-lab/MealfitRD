@@ -316,7 +316,12 @@
 }
 
 /* Rótulos de la Fig. 01 (Perfil): HTML real, no <text> del SVG — a 88
-   unidades de ancho ninguna palabra cabe por encima del piso de 11px. */
+   unidades de ancho ninguna palabra cabe por encima del piso de 11px.
+   [P2-PAPER-NO-INK fix1] Son la leyenda que hace legible la figura, así que
+   caen bajo la fila «Rótulo de figura» de la escala (spec §2.5): 12px +
+   `--pa-ink-2`, NO la fila de «Etiqueta accesoria» (11px + `--pa-ink-3`,
+   reservada a metadato ignorable sin perder la figura — este texto no es
+   ignorable, ES la figura). */
 .figLegend {
     width: 100%;
     max-width: 190px;
@@ -327,10 +332,10 @@
     flex-direction: column;
     gap: 0.3rem;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--pa-ink-3);
+    color: var(--pa-ink-2);
     text-align: left;
 }
 
@@ -462,7 +467,6 @@
     .figureBox {
         grid-area: figure;
         margin-top: 0.75rem;
-        min-width: 0;
     }
 
     .axisVMark {
@@ -473,9 +477,12 @@
         margin-top: 0.35rem;
     }
 
+    /* [P2-PAPER-NO-INK fix1] Mismo rótulo que `.stationIndex` en desktop
+       (12px + `--pa-ink-2`) — decodifica la misma estación, solo cambia de
+       orientación. Caía a 11px aquí, inconsistente con su propio hermano. */
     .axisVIndex {
         font-family: var(--font-mono);
-        font-size: 11px;
+        font-size: 12px;
         letter-spacing: 0.04em;
         color: var(--pa-ink-2);
         margin-right: 3px;
