@@ -6,7 +6,14 @@ import { getNewsBySlug } from '../data/news';
 
 /* [P3-NEWS-1 · 2026-07-01] Página de un anuncio (/novedades/<slug>). Como la ruta es
    dinámica, RouteTitle la ignora (prefijo /novedades/) y aquí auto-gestionamos
-   título + description + canonical por artículo. */
+   título + description + canonical por artículo.
+
+   [P1-PAPER-SURFACE-EXTEND · 2026-08-02] La ruta es SUPERFICIE PAPEL. Por ser
+   dinámica NO cabe en la lista exacta de `utils/paperSurface.js`: entra por
+   `PAPER_SURFACE_PREFIXES` (`/novedades/`), y el boot script de `index.html`
+   lleva la misma lista de prefijos — si solo la llevara una de las dos, abrir un
+   anuncio en frío parpadearía a oscuro un frame. El repintado vive entero en
+   `News.module.css` (compartido con el índice); este JSX no cambió de estructura. */
 
 const BRAND = 'Bioboros';
 import { APEX_ORIGIN as ORIGIN } from '../config/site';

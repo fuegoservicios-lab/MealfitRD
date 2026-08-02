@@ -13,25 +13,36 @@
 //   title     → titular del anuncio.
 //   excerpt   → resumen de 1–2 líneas (landing + índice + meta description).
 //   readTime  → opcional, p.ej. "3 min de lectura".
-//   art       → OPCIONAL. [c1, c2, c3] — tres colores hex del arte abstracto del
-//               thumbnail (estilo OpenAI news: campos de color difuminados). Sin
-//               art → NewsHighlight usa una paleta cíclica por índice.
-//               [P1-PAPER-THEME · 2026-08-01] El campo sigue VIVO para /novedades
-//               y /novedades/:slug (vía NewsArt), pero el landing YA NO lo
-//               consume: su registro (NewsHighlight) es una tabla en blanco y
-//               negro. Si añades una novedad, el `art` solo pinta en el índice —
-//               no reintroduce color en el landing.
-//               Deuda con fecha: migrar /novedades a papel en el PR siguiente al PR 3.
 //   image     → OPCIONAL. Ruta (public/) de una imagen REAL para el thumbnail
-//               (p.ej. el emblema del anuncio). Si existe, la tarjeta muestra la
-//               imagen (object-fit cover) y el gradiente `art` queda debajo como
-//               placeholder de carga; el `badge` no se superpone (la imagen manda).
-//   href      → OPCIONAL. Ruta INTERNA a la que apunta "Leer el anuncio" en vez de la
-//               página genérica /novedades/<slug> (p.ej. '/motor'). Si se define, la
-//               página /novedades/<slug> redirige a ese destino (útil cuando el anuncio
-//               ya tiene una página propia y rica). Sin href → usa la página del artículo.
+//               (p.ej. el emblema del anuncio). Si existe, se pinta como emblema
+//               de 48×48 con `grayscale(1)` en la celda de ENTRADA, tanto en el
+//               registro del landing como en el índice. Sin `image`, la fila
+//               simplemente no reserva el hueco.
+//   badge     → OPCIONAL. Texto corto (p.ej. "v1.0"). HOY SIN CONSUMIDOR: lo
+//               pintaba el monograma "glass" del thumbnail, borrado con NewsArt.
+//   href      → OPCIONAL. Ruta INTERNA a la que apunta la fila del registro en
+//               vez de la página genérica /novedades/<slug> (p.ej. '/motor'). Si
+//               se define, /novedades/<slug> redirige a ese destino (útil cuando
+//               el anuncio ya tiene página propia). Sin href → página del artículo.
 //   content   → array de bloques: { h?: string, body?: string[], list?: string[] }.
 //               (Se ignora si hay `href`, pero conviene mantenerlo por si se quita el href.)
+//
+// [P1-PAPER-SURFACE-EXTEND · 2026-08-02] EL CAMPO `art` YA NO EXISTE.
+// Era `[hex, hex, hex]` — los tres colores del arte abstracto difuminado del
+// thumbnail. Su único consumidor era `components/news/NewsArt`, que a su vez
+// solo lo consumía `/novedades`. Con las dos rutas de Novedades en la
+// SUPERFICIE PAPEL (`utils/paperSurface.js`), el índice pasó a ser un registro
+// de revisiones en blanco y negro: `NewsArt` se quedó sin consumidores y se
+// borró, y el campo con él.
+//
+// Se borra en vez de dejarse documentado como inerte, y la razón está escrita
+// en el propio spec del rediseño (§4.6, riesgo b): un campo de COLOR que
+// sobrevive sin consumidor es la puerta trasera por la que el color vuelve —
+// alguien añade una novedad copiando la anterior, incluye `art`, y nadie lo
+// nota porque no rompe nada. Hoy, si lo añades, no hace absolutamente nada.
+// Si algún día la marca vuelve a querer color en Novedades, la decisión se
+// toma de nuevo y el campo se reintroduce con su consumidor delante — no
+// heredado de un array que sobrevivió a su motivo.
 
 export const NEWS = [
     {
@@ -43,7 +54,6 @@ export const NEWS = [
         excerpt: 'Casi 2,000 productos reales de supermercados dominicanos, conectados a más de 200 alimentos verificados de nuestro catálogo. Ya puedes explorarla en Supermercados RD.',
         readTime: '2 min de lectura',
         badge: '≈2K',
-        art: ['#34D399', '#38BDF8', '#6366F1'],
         content: [
             {
                 body: [
@@ -83,12 +93,10 @@ export const NEWS = [
         title: 'Presentamos el Motor Bioboros',
         excerpt: 'Nuestro motor de nutrición de precisión llega a su versión 1.0: generación validada paso a paso, macros que cuadran de verdad y un catálogo dominicano verificado.',
         readTime: '3 min de lectura',
-        // badge → texto grande del "cover" de la tarjeta destacada (opcional).
         badge: 'v1.0',
-        art: ['#6366F1', '#A78BFA', '#FB7185'],
-        // Emblema real del anuncio (mismo asset que usa /motor).
+        // Emblema real del anuncio (mismo asset que usa /motor, ahí a todo color).
         image: '/model-v1.webp',
-        // El Motor ya tiene su propia página completa → "Leer el anuncio" va ahí.
+        // El Motor ya tiene su propia página completa → la fila del registro va ahí.
         href: '/motor',
         content: [
             {

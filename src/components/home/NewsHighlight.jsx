@@ -14,9 +14,12 @@ import { NEWS } from '../../data/news';
    2026-07-11): 15 blobs radiales con `filter: blur()` por tarjeta — 3 por
    noticia × 5 noticias visibles — el peor coste de pintado permanente de la
    sección en gama baja, más el monograma "glass" del badge sobre el thumbnail
-   destacado. El landing DEJA DE CONSUMIR `NewsArt` (el componente NO se toca:
-   lo comparten /novedades y /novedades/:slug, fuera de alcance de este PR —
-   ver el comentario en `data/news.js` sobre el campo `art`).
+   destacado. El landing DEJÓ DE CONSUMIR `NewsArt` aquí, sin tocar el
+   componente, porque entonces `/novedades` seguía fuera de alcance.
+   [P1-PAPER-SURFACE-EXTEND · 2026-08-02] Ese «fuera de alcance» se cerró:
+   `/novedades` y `/novedades/:slug` pasaron a papel, `NewsArt` se quedó sin
+   consumidores y se borró junto con el campo `art` de `data/news.js`. Ya no
+   queda un índice a color al otro lado de este enlace.
 
    POR QUÉ TABLA Y NO TARJETAS: una tabla es robusta con n=1, n=2 o n=17. El
    layout anterior renderizaba "destacado + UNA tarjeta suelta" con las 2
