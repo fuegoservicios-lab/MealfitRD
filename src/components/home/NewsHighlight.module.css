@@ -113,16 +113,12 @@
 .thTag { width: 120px; }
 .thGo { width: 44px; }
 
-/* El rótulo de ENTRADA se sangra hasta donde empiezan los títulos.
-   Al reservar el hueco del emblema dentro de la celda (ver el JSX), el texto de
-   todas las filas arrancó 64px a la derecha del borde de su columna — y el
-   `<th>` se quedó atrás, rotulando una canaleta de emblemas en vez de las
-   entradas que nombra. Una cabecera que no cae sobre su dato es peor que no
-   tenerla: dice que la columna empieza donde no empieza.
-
-   64px = los 48 del hueco + los 0,85rem de `gap` de `.titleRow`. Si cambia el
-   tamaño del emblema, este número cambia con él. */
-.thEntry { padding-left: calc(0.9rem + 48px + 0.85rem); }
+/* [P2-NEWS-NO-EMBLEM · 2026-08-02] Aquí vivía `.thEntry`, que sangraba el
+   rótulo de ENTRADA 64px para que cayera sobre unos títulos desplazados por el
+   hueco del emblema. Sin emblema no hay hueco, así que el rótulo vuelve al
+   borde de su columna por el padding normal de `.th` y la clase sobra. La regla
+   que la motivaba sigue en pie y por eso se anota: una cabecera que no cae
+   sobre su dato dice que la columna empieza donde no empieza. */
 
 /* [P2-NEWS-ROW-INTERACTION · 2026-08-02] `position: relative` convierte la FILA
    en el bloque contenedor del enlace estirado de `.titleLink::after`.
@@ -248,40 +244,20 @@
     min-width: 0;
 }
 
-.titleRow {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.85rem;
-}
+/* [P2-NEWS-NO-EMBLEM · 2026-08-02] Aquí vivían `.titleRow` (el flex que ponía
+   el emblema a la izquierda del texto), `.titleBlock` (su hermano flexible),
+   `.emblemSlot` (el hueco reservado de 48px) y `.emblem` con su
+   `filter: grayscale(1) contrast(1.08)`.
 
-.titleBlock {
-    min-width: 0;
-    flex: 1 1 auto;
-}
+   Se van los cuatro. Sin emblema, `.titleRow` sería un contenedor flex de un
+   solo hijo y `.titleBlock` un `flex: 1 1 auto` sin nada contra lo que
+   flexionar: dos `<div>` de maquetación que ya no maquetan nada. El bloque de
+   texto es ahora hijo directo del `<td>`, que es donde estaba antes de que
+   hiciera falta hacerle sitio a una imagen.
 
-/* El hueco del emblema, SIEMPRE presente (ver el JSX): es lo que mantiene los
-   títulos en columna cuando unas entradas traen `image` y otras no. `flex:
-   none` para que no ceda ni robe ancho al bloque de texto. */
-.emblemSlot {
-    flex: none;
-    width: 48px;
-    height: 48px;
-}
-
-/* El emblema (`n.image`, hoy solo R01): 48×48, EXCEPCIÓN declarada del
-   sistema — colapsar sus colores por luma es intencional aquí y SOLO aquí
-   porque es una foto/logo real (dato visual propio del anuncio), no una
-   codificación de estado que debiera vivir en forma. `object-fit: cover`
-   porque `/model-v1.webp` no nace cuadrado. `flex: none` para que nunca
-   ceda espacio al bloque de texto ni se lo quite. */
-.emblem {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border: 1px solid var(--pa-rule-2);
-    filter: grayscale(1) contrast(1.08);
-}
+   El `filter: grayscale()` era la ÚNICA excepción viva al blanco y negro
+   estricto dentro de esta sección, declarada en el spec §4.6. Al irse, la
+   sección queda sin excepciones. */
 
 /* Línea de meta (fecha · tag) que sustituye a las columnas FECHA/TAG cuando
    éstas se ocultan bajo 719px. `display:none` en reposo desktop — nunca
@@ -401,20 +377,23 @@
     .thRev { width: 44px; }
     .thGo { width: 32px; }
 
-    /* El emblema y su hueco DESAPARECEN bajo 719px. En una columna de 390px el
-       hueco de 64px se lleva el 26% del ancho útil de la entrada: el título
-       pasaba de 249px a 185px y de 2 líneas a 3. Y donde en escritorio esos
-       64px vacíos se leen como una canaleta reservada, aquí —pegados al borde,
-       sin más filas alrededor que los expliquen— se leen como una imagen que no
-       cargó.
-       En vertical la fila ya es un bloque apilado (meta / título / excerpt), no
-       una línea de tabla, así que no necesita canaleta: nada que alinear. */
-    .emblemSlot {
-        display: none;
-    }
+    /* [P2-NEWS-NO-EMBLEM · 2026-08-02] Aquí se ocultaban `.emblemSlot` y se
+       recalculaba la sangría de `.thEntry` con el padding de ESTE breakpoint.
+       Las dos reglas se van con el emblema.
 
-    /* Sin hueco que saltar, el rótulo vuelve al borde de su columna. */
-    .thEntry { padding-left: 0.6rem; }
+       Pero al quitarlas asomó un descuadre PREEXISTENTE que la segunda tapaba
+       sin querer: `.cell` baja a `0.6rem` de padding horizontal en este
+       breakpoint y `.th` se queda en los `0.9rem` de escritorio, así que TODA
+       cabecera caía 4,8px a la derecha de su dato. En escritorio los dos valen
+       0,9rem y por eso nunca se vio. Se igualan aquí, que es donde divergían.
+
+       (`REV` sigue siendo la excepción a propósito: su celda lleva `padding-left`
+       en píxeles para dejar la canaleta de la pestaña de revisión vigente, así
+       que su código va sangrado respecto a su rótulo por diseño.) */
+    .th {
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+    }
 
     /* La etiqueta iba en versales en su columna de escritorio (`.cellTag`) y en
        caja normal aquí, así que la misma categoría se leía «DATOS» o «Datos»

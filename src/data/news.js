@@ -14,10 +14,13 @@
 //   excerpt   → resumen de 1–2 líneas (landing + índice + meta description).
 //   readTime  → opcional, p.ej. "3 min de lectura".
 //   image     → OPCIONAL. Ruta (public/) de una imagen REAL para el thumbnail
-//               (p.ej. el emblema del anuncio). Si existe, se pinta como emblema
-//               de 48×48 con `grayscale(1)` en la celda de ENTRADA, tanto en el
-//               registro del landing como en el índice. Sin `image`, la fila
-//               simplemente no reserva el hueco.
+//               (p.ej. el emblema del anuncio). Se pinta como emblema de 48×48
+//               con `grayscale(1)` SOLO en el índice `/novedades`
+//               (`NewsPage.jsx`). [P2-NEWS-NO-EMBLEM · 2026-08-02] El registro
+//               del landing (`NewsHighlight.jsx`) dejó de pintarlo por decisión
+//               del dueño — despintada a 48px sobre papel, la foto quedaba como
+//               la mancha de más peso de la sección. El campo NO se borra: la
+//               retirada es de una superficie, no del dato.
 //   badge     → OPCIONAL. Texto corto (p.ej. "v1.0"). HOY SIN CONSUMIDOR: lo
 //               pintaba el monograma "glass" del thumbnail, borrado con NewsArt.
 //   href      → OPCIONAL. Ruta INTERNA a la que apunta la fila del registro en

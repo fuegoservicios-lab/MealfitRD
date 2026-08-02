@@ -44,30 +44,22 @@ import { NEWS } from '../../data/news';
    destino habría dado dos enlaces por fila anunciados por separado a un
    lector de pantalla, para el mismo lugar.
 
-   EL EMBLEMA (`/model-v1.webp`, `n.image`) vive DENTRO de la celda de
-   TÍTULO — NO en columna propia. Añadir una sexta columna solo para el
-   emblema habría exigido un `<th>` extra (¿con qué rótulo? ninguno de los
-   cinco nombres de columna le queda) y un ancho fijo que la mayoría de las
-   filas — las que no traen `image` — dejarían en blanco; con el emblema
-   dentro de TÍTULO, el `<th>` de ENTRADA lo cubre gratis y una fila sin
-   `image` simplemente no reserva el hueco (no hay columna vacía que
-   delate la ausencia). 48×48, `grayscale(1) contrast(1.08)` + borde de
-   1px — es un emblema real (la foto/logo del anuncio), no un dato que
-   codificar en forma, así que colapsar sus colores por luma es intencional
-   AQUÍ Y SOLO AQUÍ. La excepción la declara el spec del rediseño
-   (`docs/superpowers/specs/2026-08-01-landing-papel-tecnico-design.md` §4.6 y
-   §8, "Lo que NO se borra"): `/model-v1.webp` sigue vivo a todo color en
-   `/motor` y solo se despinta como emblema de 48px en el registro.
+   [P2-NEWS-NO-EMBLEM · 2026-08-02] SIN EMBLEMA. Aquí se dibujaba `n.image`
+   (`/model-v1.webp`) como cuadrado de 48×48 con `grayscale(1) contrast(1.08)`,
+   una excepción al B/N que el spec §4.6 declaraba explícitamente. Lo retira el
+   dueño: la foto es oscura casi hasta el negro, y despintada a 48px sobre papel
+   quedaba como la mancha de más peso de toda la sección — el ojo aterrizaba
+   ahí antes que en cualquier titular, sin que el emblema aportara nada que el
+   título no dijera ya.
 
-   [fix · 2026-08-02] Este paréntesis decía "misma excepción declarada para
-   `/model-v1.webp` en Hero/PlateExploded". Es FALSO: ninguno de esos dos
-   ficheros menciona `model-v1` — el único otro consumidor real es
-   `Engine.jsx:144`, y hace lo CONTRARIO (color pleno, 671×671, `alt`
-   descriptivo). Un precedente inventado es peor que ninguno: invita a
-   reañadirlo citando la doc (CLAUDE.md, invariante I6).
+   Nada más cambia de sitio: el `<td>` de ENTRADA vuelve a llevar el bloque de
+   texto directo, sin los dos `<div>` de maquetación que existían solo para
+   colocar el emblema a su izquierda, y su `<th>` deja de necesitar sangría.
 
-   `alt=""`: es redundante con el título, que ya identifica la entrada por
-   texto — un lector de pantalla no pierde información si el emblema calla.
+   `n.image` SIGUE VIVO en `data/news.js` y lo consume `NewsPage.jsx`
+   (`/novedades`), que es el índice completo y tiene aire para una imagen. El
+   campo no se borra: retirarlo aquí es una decisión de esta sección, no del
+   dato. `/motor` lo sigue usando a todo color (`Engine.jsx`).
 
    LA "PESTAÑA DE REVISIÓN VIGENTE": la fila más reciente (`i === 0`) lleva una
    barra sólida de 24px en la canaleta de REV — el gesto de un plano real
@@ -127,7 +119,7 @@ const NewsHighlight = () => {
                             <th scope="col" className={`${styles.th} ${styles.thRev}`}>Rev</th>
                             <th scope="col" className={`${styles.th} ${styles.thDate}`}>Fecha</th>
                             <th scope="col" className={`${styles.th} ${styles.thTag}`}>Categoría</th>
-                            <th scope="col" className={`${styles.th} ${styles.thEntry}`}>Entrada</th>
+                            <th scope="col" className={styles.th}>Entrada</th>
                             <th scope="col" className={`${styles.th} ${styles.thGo}`}>
                                 <span className={styles.srOnly}>Ir al anuncio</span>
                             </th>
@@ -158,46 +150,20 @@ const NewsHighlight = () => {
                                             ENTRADA lo cubre gratis y ningún ancho de columna cambia por
                                             tenerlo o no — filas con y sin emblema conviven en la misma
                                             rejilla sin que las cabeceras se desalineen. */}
-                                        <div className={styles.titleRow}>
-                                            {/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] El hueco del
-                                                emblema se RESERVA aunque la entrada no traiga
-                                                `image`. Antes el <img> se renderizaba condicional y
-                                                el bloque de texto ocupaba su sitio: los títulos de
-                                                filas con y sin emblema arrancaban a 62px de
-                                                distancia entre sí, escalonados en la única columna
-                                                que se lee en vertical. Un registro cuya columna de
-                                                entradas no forma columna deja de ser un registro.
-
-                                                El comentario de arriba defiende que ninguna anchura
-                                                de COLUMNA cambie por tener emblema o no — y sigue
-                                                siendo cierto, porque el hueco vive dentro de la
-                                                celda. Lo que no cubría era el interior. */}
-                                            <div className={styles.emblemSlot} aria-hidden="true">
-                                                {n.image && (
-                                                    <img
-                                                        src={n.image}
-                                                        alt=""
-                                                        className={styles.emblem}
-                                                    />
-                                                )}
-                                            </div>
-                                            <div className={styles.titleBlock}>
-                                                {/* Sustituye a las columnas FECHA/TAG cuando estas se ocultan
-                                                    (<719px, ver .module.css) — MISMA información, no un adorno:
-                                                    `aria-label` con el dateLabel legible es lo que anuncia un
-                                                    lector de pantalla; los `<span>` visuales (ISO + tag) van
-                                                    aria-hidden para no duplicar el anuncio. */}
-                                                <p className={styles.metaMobile} aria-label={`${n.dateLabel} · ${n.tag}`}>
-                                                    <span aria-hidden="true">{n.date}</span>
-                                                    <span className={styles.metaSep} aria-hidden="true">·</span>
-                                                    <span aria-hidden="true">{n.tag}</span>
-                                                </p>
-                                                <Link to={dest} className={styles.titleLink} title={n.dateLabel}>
-                                                    {n.title}
-                                                </Link>
-                                                <p className={styles.excerpt}>{n.excerpt}</p>
-                                            </div>
-                                        </div>
+                                        {/* Sustituye a las columnas FECHA/TAG cuando estas se ocultan
+                                            (<719px, ver .module.css) — MISMA información, no un adorno:
+                                            `aria-label` con el dateLabel legible es lo que anuncia un
+                                            lector de pantalla; los `<span>` visuales (ISO + tag) van
+                                            aria-hidden para no duplicar el anuncio. */}
+                                        <p className={styles.metaMobile} aria-label={`${n.dateLabel} · ${n.tag}`}>
+                                            <span aria-hidden="true">{n.date}</span>
+                                            <span className={styles.metaSep} aria-hidden="true">·</span>
+                                            <span aria-hidden="true">{n.tag}</span>
+                                        </p>
+                                        <Link to={dest} className={styles.titleLink} title={n.dateLabel}>
+                                            {n.title}
+                                        </Link>
+                                        <p className={styles.excerpt}>{n.excerpt}</p>
                                     </td>
                                     <td className={`${styles.cell} ${styles.cellGo}`}>
                                         <ArrowRight size={16} strokeWidth={2.25} className={styles.goIcon} aria-hidden="true" />
