@@ -1,7 +1,13 @@
-/* [P1-LANDING-MOTION · 2026-07-11] Lenguaje de motion COMPARTIDO de las secciones
-   del landing (HowItWorks, DashboardShowcase, BenchmarkShowcase, NewsHighlight;
-   Hero mantiene su factory propia por sus variantes de titular). Un solo easing y
-   una sola cadencia → el landing se siente como UNA pieza, no secciones sueltas.
+/* [P1-LANDING-MOTION · 2026-07-11 · consumidores actualizados P1-PAPER-BENCHMARK · 2026-08-02]
+   Lenguaje de motion COMPARTIDO de las secciones del landing. Hoy lo consumen
+   DOS: `DashboardShowcase` y `NewsHighlight`. `HowItWorks` y `BenchmarkShowcase`
+   se pasaron a un `IntersectionObserver` propio + transiciones CSS al migrar a
+   papel —su vocabulario es TRAZADO (`stroke-dashoffset`), que framer-motion no
+   aporta nada a orquestar— pero **reutilizan este mismo easing escrito a mano**:
+   `cubic-bezier(0.22, 1, 0.36, 1)` es `LANDING_EASE`. Si cambias el valor de
+   aquí, esos dos módulos hay que tocarlos también o el landing deja de sentirse
+   como UNA pieza, que es justo lo que este fichero existe para garantizar.
+   (Hero mantiene su factory propia por sus variantes de titular.)
 
    Contrato:
    - GPU-only (opacity/transform); nada de layout props.

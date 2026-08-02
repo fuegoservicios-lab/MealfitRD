@@ -10,6 +10,12 @@ import {
 // Sustituye al `.finalCta` local, que pedía el mismo clic con el mismo literal
 // justo antes de la banda; `ChevronRight`/`ArrowRight` salieron con él.
 import ClosingBand from '../components/home/ClosingBand';
+// [P1-PAPER-BENCHMARK · 2026-08-02] Las cifras vienen del SSOT. Vivían escritas
+// a mano aquí, en `components/home/BenchmarkShowcase.jsx` y en `pages/Engine.jsx`
+// —tres ficheros— y ya habían drifteado: esta página decía `llm: 55` en la fila
+// de «cuadran al recalcular» donde las otras dos decían `llm: 0`. El dueño fijó
+// el valor el 2026-08-02: era 0, y esta página era la que mentía.
+import { MACROS, VERSUS, CAPS, BANDS, HEADLINE_FIGURES, es1 } from '../data/benchmark';
 // Marco minimalista-científico compartido con /como-funciona y /funciones.
 import styles from './HowItWorksPage.module.css';
 // Estilos específicos de esta página (tabla comparativa + barras por macro).
@@ -25,31 +31,37 @@ import t from './PrecisionPage.module.css';
    «0% fallback = siempre» suavizado a «tiende a 0% en operación normal». «LLM solo» =
    mismo pipeline con el motor apagado, NO un competidor. Precisión de MACROS, no clínica. */
 
-const HERO_STATS = [
-    { num: '98.5%', label: 'Precisión de proteína' },
-    { num: '91.7%', label: 'Planes con 4 macros en banda' },
-    { num: '100%', label: 'Cálculo determinista' },
-    { num: '±3.2%', label: 'Error medio · peor macro' },
-];
+/* [P1-PAPER-BENCHMARK · 2026-08-02] Todo lo de abajo se DERIVA del SSOT
+   (`src/data/benchmark.js`). Las ETIQUETAS siguen siendo copy de esta página
+   —difieren a propósito de las del landing— pero ningún NÚMERO se escribe aquí.
 
-const PER_MACRO = [
-    { label: 'Proteína', pct: 98.5, err: '±1.5%' },
-    { label: 'Calorías', pct: 98.0, err: '±2.0%' },
-    { label: 'Grasas', pct: 96.9, err: '±3.1%' },
-    { label: 'Carbohidratos', pct: 96.8, err: '±3.2%' },
-];
+   La fila «Macros que cuadran al recalcular» ya no es una fila de barras: era
+   `100 vs 55` (mentira) contra `100 vs 0` (verdad), y en cualquiera de las dos
+   versiones era una CAPACIDAD BINARIA dibujada en un eje 0-100 junto a un
+   `100 − MAPE` y a un porcentaje de planes. Bajó a la sección de capacidades de
+   esta misma tabla, donde se responde con ✓/✗ y sin diferencia inventada. */
+const PROTEIN = MACROS.find((m) => m.key === 'protein');
 
-const VERSUS = [
-    { metric: 'Precisión de proteína', sub: 'el macro más difícil de cuadrar', mealfit: 98.5, llm: 84 },
-    { metric: 'Planes con los 4 macros en banda', sub: 'kcal + proteína + carbos + grasas', mealfit: 91.7, llm: 24 },
-    { metric: 'Macros que cuadran al recalcular', sub: 'calculados de los ingredientes, no estimados a ojo', mealfit: 100, llm: 55 },
-];
+const HERO_STATS = VERSUS.map((v) => ({
+    num: `${es1(v.mealfit)}%`,
+    label: v.key === 'protein' ? 'Precisión de proteína' : 'Planes con 4 macros en banda',
+})).concat([
+    { num: `${HEADLINE_FIGURES.deterministic}%`, label: 'Cálculo determinista' },
+    { num: `±${es1(HEADLINE_FIGURES.worstMacroError)}%`, label: 'Error medio · peor macro' },
+]);
 
-const CAPS = [
-    { metric: 'Se ajusta a tus condiciones', sub: 'DM2 · renal · HTA · alergias', llm: 'partial' },
-    { metric: 'Lista de compras + Nevera', sub: 'automática, sin que la armes tú', llm: 'x' },
-    { metric: 'Coach que ajusta tu plan', sub: 'cambia comidas, registra, responde', llm: 'partial' },
-];
+const PER_MACRO = MACROS.map((m) => ({
+    label: m.label,
+    pct: Number((100 - m.mape).toFixed(1)),
+    err: `±${es1(m.mape)}%`,
+}));
+
+/* Subtítulo por métrica: copy de esta página, no dato. Se indexa por la clave
+   del SSOT para que renombrar una etiqueta no lo desemparejen en silencio. */
+const VERSUS_SUB = {
+    protein: 'el macro más difícil de cuadrar',
+    inBand: 'kcal + proteína + carbos + grasas',
+};
 
 const HOW = [
     { Icon: Cpu, title: 'Motor determinista', text: 'Tras la generación con IA, un motor calcula los macros — no los estima a ojo. En operación normal el fallback tiende a 0%, así el plan se cuadra de forma consistente.' },
@@ -60,10 +72,14 @@ const HOW = [
     { Icon: ScanSearch, title: 'Solo ingredientes verificados', text: 'El motor usa únicamente alimentos del catálogo con datos nutricionales reales — base de que los números sean confiables.' },
 ];
 
-/* marca de capacidad para «LLM solo» (Bioboros siempre cumple) */
+/* Marca de capacidad. [P1-PAPER-BENCHMARK · 2026-08-02] Ahora lee los TRES
+   estados del SSOT (`yes` | `partial` | `no`) en vez de asumir que la columna
+   de Bioboros siempre cumple: con la fila binaria bajada aquí desde el
+   gráfico, esa suposición dejó de ser gratis. */
 const Mark = ({ v }) => {
-    if (v === 'x') return <X size={16} strokeWidth={2.5} className={t.capNo} aria-label="No" />;
-    return <Minus size={16} strokeWidth={3} className={t.capPartial} aria-label="Parcial" />;
+    if (v === 'no') return <X size={16} strokeWidth={2.5} className={t.capNo} aria-label="No" />;
+    if (v === 'partial') return <Minus size={16} strokeWidth={3} className={t.capPartial} aria-label="Parcial" />;
+    return <Check size={17} strokeWidth={3} className={t.capCheck} aria-label="Sí" />;
 };
 
 function Reveal({ children, className, delay = 0 }) {
@@ -130,12 +146,14 @@ const PrecisionPage = () => {
                                     <Check size={15} strokeWidth={3} className={styles.bulletIcon} />
                                     <span><strong>MAPE (error absoluto porcentual medio):</strong> el promedio de
                                     |entregado − objetivo| ÷ objetivo en cada macro. 0% sería exacto; nuestra
-                                    proteína ronda 1.5% de error medio.</span>
+                                    proteína ronda {es1(PROTEIN.mape)}% de error medio.</span>
                                 </li>
                                 <li className={styles.bullet}>
                                     <Check size={15} strokeWidth={3} className={styles.bulletIcon} />
-                                    <span><strong>«En banda»:</strong> el plan cae dentro del 90–112% del objetivo
-                                    en proteína, carbos y grasas (95–105% en calorías).</span>
+                                    <span><strong>«En banda»:</strong> el plan cae dentro del{' '}
+                                    {`${100 + BANDS.macros[0]}–${100 + BANDS.macros[1]}%`} del objetivo
+                                    en proteína, carbos y grasas
+                                    {` (${100 + BANDS.kcal[0]}–${100 + BANDS.kcal[1]}% en calorías)`}.</span>
                                 </li>
                                 <li className={styles.bullet}>
                                     <Check size={15} strokeWidth={3} className={styles.bulletIcon} />
@@ -168,28 +186,28 @@ const PrecisionPage = () => {
                                 </thead>
                                 <tbody>
                                     {VERSUS.map((r) => (
-                                        <tr key={r.metric}>
+                                        <tr key={r.key}>
                                             <td>
-                                                <span className={t.metric}>{r.metric}</span>
-                                                <span className={t.metricSub}>{r.sub}</span>
+                                                <span className={t.metric}>{r.label}</span>
+                                                <span className={t.metricSub}>{VERSUS_SUB[r.key]}</span>
                                             </td>
                                             <td className={`${t.numCell} ${t.colHi}`}>
-                                                <span className={`${t.numVal} ${t.numHi}`}>{r.mealfit}%</span>
+                                                <span className={`${t.numVal} ${t.numHi}`}>{es1(r.mealfit)}%</span>
                                                 <span className={t.bar}><span className={`${t.barFill} ${t.barHi}`} style={{ width: `${r.mealfit}%` }} /></span>
                                             </td>
                                             <td className={t.numCell}>
-                                                <span className={`${t.numVal} ${t.numLo}`}>{r.llm}%</span>
+                                                <span className={`${t.numVal} ${t.numLo}`}>{es1(r.llm)}%</span>
                                                 <span className={t.bar}><span className={`${t.barFill} ${t.barLo}`} style={{ width: `${r.llm}%` }} /></span>
                                             </td>
                                         </tr>
                                     ))}
                                     {CAPS.map((r) => (
-                                        <tr key={r.metric}>
+                                        <tr key={r.key}>
                                             <td>
-                                                <span className={t.metric}>{r.metric}</span>
+                                                <span className={t.metric}>{r.label}</span>
                                                 <span className={t.metricSub}>{r.sub}</span>
                                             </td>
-                                            <td className={`${t.capCell} ${t.colHi}`}><Check size={17} strokeWidth={3} className={t.capCheck} aria-label="Sí" /></td>
+                                            <td className={`${t.capCell} ${t.colHi}`}><Mark v={r.mealfit} /></td>
                                             <td className={t.capCell}><Mark v={r.llm} /></td>
                                         </tr>
                                     ))}
@@ -214,7 +232,7 @@ const PrecisionPage = () => {
                                     <span className={t.macroLabel}>{m.label}</span>
                                     <span className={t.macroTrack}><span className={t.macroFill} style={{ width: `${m.pct}%` }} /></span>
                                     <span className={t.macroMeta}>
-                                        <span className={t.macroPct}>{m.pct}%</span>
+                                        <span className={t.macroPct}>{es1(m.pct)}%</span>
                                         <span className={t.macroErr}>{m.err} error</span>
                                     </span>
                                 </div>
