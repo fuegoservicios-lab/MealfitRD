@@ -355,15 +355,23 @@ View.propTypes = {
 
 /* Fila de guía para vistas apiladas (<1024px). No es una alternativa pobre al
    SVG: es la MISMA información con otra forma — regla punteada + el mismo
-   rótulo mono. Se coloca justo antes de la vista a la que apunta. */
-const GuideRow = ({ children }) => (
-    <p className={styles.guideRow}>
+   rótulo mono. Se coloca justo antes de la vista a la que apunta.
+
+   Lleva `variants` como las vistas y no por simetría de estilo: es un hijo
+   directo del contenedor que orquesta el stagger, así que sin ellas entra a
+   opacidad plena mientras los cinco marcos aún están subiendo — la guía
+   llegaría ANTES que aquello a lo que apunta, que en una sección cuya tesis
+   es «las guías explican el producto» es exactamente la inversión que no
+   queremos. */
+const GuideRow = ({ rise, children }) => (
+    <motion.p className={styles.guideRow} variants={rise}>
         <span className={styles.guideRowRule} aria-hidden="true" />
         <span className={styles.guideRowText}>{children}</span>
-    </p>
+    </motion.p>
 );
 
 GuideRow.propTypes = {
+    rise: PropTypes.object.isRequired,
     children: PropTypes.node.isRequired,
 };
 
@@ -401,10 +409,10 @@ const DashboardShowcase = () => {
                 >
                     <View view={VIEWS[0]} rise={M.rise} />
                     <View view={VIEWS[1]} rise={M.rise} />
-                    <GuideRow>{GUIDE_1}</GuideRow>
+                    <GuideRow rise={M.rise}>{GUIDE_1}</GuideRow>
                     <View view={VIEWS[2]} rise={M.rise} />
                     <View view={VIEWS[3]} rise={M.rise} />
-                    <GuideRow>{GUIDE_2}</GuideRow>
+                    <GuideRow rise={M.rise}>{GUIDE_2}</GuideRow>
                     <View view={VIEWS[4]} rise={M.rise} />
 
                     {/* ── BANDA DE GUÍAS ANOTADAS (≥1024px) ───────────────────
@@ -415,6 +423,13 @@ const DashboardShowcase = () => {
                           · 20% y 10% caen dentro de la vista 01 (0 → 58,3%)
                           · 78% cae dentro de la vista 03 (58,3% → 100%)
                           · 88% cae dentro de la vista 05 (50% → 100%)
+                        ⚠ Esos tres tramos son NOMINALES: 7/12, 5/12 y 6/12 SIN
+                        descontar el `gap`. Los bordes reales a 1232px de lámina
+                        (columna = 73,33px, gap = 32px) caen en 57,25% para el
+                        canto derecho de la 01, 59,85% para el izquierdo de la 03
+                        y 51,3% para el de la 05 — no en 58,3% y 50%. Las cuatro
+                        X siguen dentro con holgura de sobra; si alguien las
+                        mueve al filo, hay que rehacer la cuenta CON el gap.
                         Si alguien cambia esos `grid-column`, las guías se siguen
                         dibujando igual de bien — apuntando al vacío, y NADA
                         falla. No hay test que lo cace: hay que mirarlo.
@@ -426,7 +441,7 @@ const DashboardShowcase = () => {
                         una cota con flechas es una afirmación de MEDIDA (ver la
                         cabecera de `figures/PlateExploded.jsx`). La flecha vive
                         en el texto del rótulo, que es lo que sí es una frase. */}
-                    <div className={styles.guideBand}>
+                    <motion.div className={styles.guideBand} variants={M.rise}>
                         <svg className={styles.guideSvg} role="presentation" aria-hidden="true" focusable="false">
                             {/* guía 1 — vista 01 → vista 03 */}
                             <circle className={styles.guideNode} cx="20%" cy="-32" r="2.5" {...VE} />
@@ -447,7 +462,7 @@ const DashboardShowcase = () => {
                             SVG va aria-hidden) y no dependen del escalado. */}
                         <span className={`${styles.guideLabel} ${styles.guideLabel1}`}>{GUIDE_1}</span>
                         <span className={`${styles.guideLabel} ${styles.guideLabel2}`}>{GUIDE_2}</span>
-                    </div>
+                    </motion.div>
                 </motion.div>
 
                 <SeeMoreLink to="/funciones">Explorar todas las funciones</SeeMoreLink>

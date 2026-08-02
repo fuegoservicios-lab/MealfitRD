@@ -155,7 +155,15 @@
     outline-offset: 3px;
 }
 
-/* Cartucho: el cajetín de la vista, arriba a la izquierda. */
+/* Cartucho: el cajetín de la vista, arriba a la izquierda.
+
+   Va a TINTA PLENA, no a `--pa-ink-2`, y es una decisión, no un descuido: el
+   cartucho TITULA la vista (es el hermano de `.sectionLabel` y de `.cellTitle`
+   de HowItWorks, los dos en `--pa-ink`). La fila de 12px + `--pa-ink-2` del
+   §2.5 es la de lo que DECODIFICA una figura, y en esta sección esa fila la
+   ocupan el pie `Fig. 03.N —`, la leyenda de la lista de compras, los rótulos
+   de las guías y la descripción. La única parte del cartucho que no titula
+   —el índice— sí baja a `--pa-ink-2`, abajo. */
 .cartouche {
     display: flex;
     align-items: center;
@@ -169,6 +177,17 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--pa-ink);
+}
+
+/* El índice de la vista. Mismo papel y mismo tono que `.stationIndex` en
+   `HowItWorks.module.css`: numera, no titula — por eso baja a `--pa-ink-2` y
+   deja la tinta plena para el nombre. `flex: none` porque la que tiene que
+   absorber la compresión del cartucho es `.cartoucheLabel` (con su elipsis),
+   nunca `VISTA 01`: un cartucho que se lee «VIST… · LISTA DE COMPRAS» pierde
+   justo el dato que ordena la lámina. */
+.cartoucheN {
+    flex: none;
+    color: var(--pa-ink-2);
 }
 
 .cartoucheSep {
@@ -860,7 +879,15 @@
        acaban a la misma altura dentro de su fila. Sin este `min-height` la
        descripción de la 01 ocupa una línea y la de la 02 dos, y los mockups
        de las dos columnas arrancan desalineados: en una lámina eso se lee
-       como error de montaje, no como variación. */
+       como error de montaje, no como variación.
+
+       ⚠ EL PRESUPUESTO SON DOS LÍNEAS EXACTAS, y la holgura es de 0,8px:
+       70 − 27,2 de padding (0,8rem + 0,9rem) = 42,8, y la interlínea es
+       14px × 1,5 = 21 → 2,04 líneas. Las cinco descripciones actuales caben
+       en 2 a los anchos de 5, 6 y 7 columnas; una tercera línea en CUALQUIERA
+       de ellas desalinea otra vez esa columna, en silencio y sin test que lo
+       cace. Si una descripción crece: o se acorta el copy, o sube este número
+       en pasos de 21px (91 para tres líneas). */
     .viewDesc {
         min-height: 70px;
     }
@@ -1013,7 +1040,9 @@
     .subtitle,
     .sheet,
     .view,
-    .viewLink {
+    .viewLink,
+    .guideBand,
+    .guideRow {
         opacity: 1 !important;
         transform: none !important;
         transition: none !important;
