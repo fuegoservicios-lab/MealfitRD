@@ -283,17 +283,19 @@
     box-shadow: none;
 }
 
-/* [P1-PRICING-TABLE-ROWS · 2026-08-02] Aquí vivía `.monthlyEquiv` — la línea
-   que llevaba a la vez el equivalente mensual del anual Y el precio de
-   lanzamiento tachado. Se borra con su marcado: la sustituye `.priceNote`, que
-   es la misma idea con una diferencia que importa — existe en las CUATRO
-   columnas y mide una sola línea. `.monthlyEquiv` no se renderizaba en Gratis
-   (que no tiene precio futuro) y envolvía a dos líneas en las otras tres, que
-   es exactamente por lo que la regla de la celda caía a tres alturas.
-
-   No se renombra la clase por gusto: dejar el nombre viejo describiendo una
-   fila que ya no es «el equivalente mensual» sino «la nota de precio, siempre
-   presente» habría sido un nombre que miente. */
+/* Equivalente mensual / precio de lanzamiento tachado: metadato bajo la cifra.
+   12px es el piso del sistema para todo lo que sirva para decodificar un dato
+   (spec §2.5); 11px queda reservado a lo verdaderamente ignorable, y esta
+   línea lleva el ahorro y la fecha de subida de precio. */
+.monthlyEquiv {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+    color: var(--pa-ink-2);
+    margin: -0.5rem 0 1.25rem;
+}
 
 /* ─────────────────────────── tabla de planes ────────────────────────────── */
 .grid {
@@ -384,7 +386,7 @@
 .price {
     display: flex;
     align-items: baseline;
-    margin-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
     color: var(--pa-ink);
 }
 
@@ -418,124 +420,36 @@
     color: var(--pa-ink-3);
 }
 
-/* [P1-PRICING-TABLE-ROWS · 2026-08-02] La línea bajo la cifra. SIEMPRE presente
-   y SIEMPRE de una línea — de eso depende que la regla de abajo caiga a la
-   misma altura en las cuatro columnas (ver el comentario de `priceNote` en el
-   JSX). El `min-height` es el cinturón: si un copy futuro se queda corto o
-   `LAUNCH_OFFER` se apaga, la fila conserva su alto y la tabla no se descuadra.
-
-   No lleva `nowrap`: a lo ancho de esta columna un `nowrap` no evitaría el
-   desbordamiento, lo escondería empujando la celda — el modo de fallo que
-   `config/plans.js` documenta («un texto largo que no cabe empuja el ancho de
-   su columna y desbalancea la grid — pasó en prod»). Si un día no cabe, tiene
-   que verse envolviendo, no romper la rejilla en silencio. */
-.priceNote {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 1.45;
-    letter-spacing: 0.02em;
-    font-weight: 500;
-    color: var(--pa-ink-3);
-    margin: 0 0 1.125rem;
-    min-height: calc(12px * 1.45);
-}
-
-/* ── LA REGLA DE LA CELDA ───────────────────────────────────────────────────
-   Antes colgaba de `.description`, que medía 2 o 3 líneas según la columna: la
-   línea que declara «esto es una fila de tabla» caía a tres alturas distintas
-   (227,2 / 274 / 298 px, medido en prod a 1440px). Ahora es un borde de
-   `.quota`, y todo lo que tiene encima —nombre, cifra y nota— mide exactamente
-   una línea en las cuatro columnas. La fila lo es por construcción, no por
-   suerte del copy.
-
-   Y significa algo: separa LO QUE PAGAS de LO QUE RECIBES. Es el único corte
-   horizontal de la celda, que es lo que le da peso. */
-.quota {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    padding-top: 1.125rem;
-    border-top: 1px solid var(--pa-rule-3);
-    color: var(--pa-ink);
-}
-
-/* Cifra de celda: 1,75rem según la escala del spec §2.5 — deliberadamente por
-   debajo de los 2,75rem del precio. Las dos son lecturas del mismo instrumento
-   y el precio manda; empatarlas obligaría a elegir por tamaño de fuente cuál
-   se lee primero, que es justo la decisión que la jerarquía debe tomar sola. */
-.quotaFigure {
-    font-family: var(--font-heading);
-    font-size: 1.75rem;
-    font-weight: 500;
-    line-height: 1;
-    letter-spacing: -0.01em;
-    font-variant-numeric: tabular-nums lining;
-    color: var(--pa-ink);
-}
-
-/* Unidad del dato. 12px + `--pa-ink-2` porque DECODIFICA una cifra, no es
-   metadato ignorable: el piso de 11px / `--pa-ink-3` del spec está reservado a
-   lo segundo. Un «200» sin su unidad no dice nada. */
-.quotaUnit {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--pa-ink-2);
-}
-
-/* El salto contra el escalón anterior. `min-height` reservado porque
-   `creditsVsPredecessor` devuelve `null` por diseño cuando el ladder deja de
-   crecer («nunca se inventa un salto») — sin la reserva, ese día una columna
-   se acortaría una línea y arrastraría a la descripción fuera de su fila. */
-.quotaDelta {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 1.45;
-    letter-spacing: 0.02em;
-    font-weight: 500;
-    color: var(--pa-ink-2);
-    margin: 0.5rem 0 1.5rem;
-    min-height: calc(12px * 1.45);
-}
-
 .description {
     font-family: var(--font-body);
     font-size: 0.9375rem;
     line-height: 1.6;
     color: var(--pa-ink-2);
-    margin: 0 0 1.5rem;
-    text-wrap: pretty;
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.5rem;
+    min-height: 3.5rem;
+    /* Era `1px dashed var(--border)`. El punteado en este sistema significa
+       «referencia, no materia» (ver `.guide` de HowItWorks.module.css); aquí
+       es un separador real, así que va continuo. */
+    border-bottom: 1px solid var(--pa-rule-3);
 }
 
-/* Los dos extras REALES de Max. Se quedan en la columna —y no bajan al zócalo—
-   porque no son funciones del producto: son acceso y soporte, y sí varían. */
-.extras {
+.features {
     list-style: none;
     padding: 0;
-    margin: 0 0 1.5rem;
+    margin: 0 0 2rem;
+    flex-grow: 1;
 }
 
-.extras li {
+.features li {
     display: flex;
     align-items: flex-start;
-    gap: 0.6rem;
-    margin-bottom: 0.6rem;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
     font-family: var(--font-body);
     font-size: 0.9375rem;
     line-height: 1.5;
     color: var(--pa-ink);
-}
-
-/* [P1-PRICING-TABLE-ROWS · 2026-08-02] El botón se ancla abajo con `margin-top:
-   auto`. Antes ese trabajo lo hacía `flex-grow: 1` sobre `.features`, la lista
-   que acaba de irse al zócalo: la consecuencia era que el sobrante se acumulaba
-   DENTRO de la lista, y Básico —con 3 items contra los 9 de Gratis— abría un
-   hueco medido de ~170px entre su último item y el botón. El aire ahora es del
-   contenedor, no de un elemento de contenido. */
-.cardContent > button {
-    margin-top: auto;
 }
 
 /* El icono `<Check>` de lucide se queda: una marca de verificación es un
@@ -548,61 +462,6 @@
     padding: 0;
     flex-shrink: 0;
     margin-top: 3px;
-}
-
-/* ─────────────────── zócalo: lo que traen las cuatro ──────────────────────
-   [P1-PRICING-TABLE-ROWS · 2026-08-02] Va PEGADO bajo la regla inferior de la
-   tabla, sin `gap` y sin caja propia: se lee como el pie de la tabla, que es
-   lo que es. Darle un marco lo convertiría en una quinta tarjeta compitiendo
-   con las cuatro, y el sistema no tiene cajas.
-
-   NO usa el motivo de apertura (hairline / rótulo / hairline) de `.badge`: ese
-   motivo abre una SECCIÓN, y gastarlo aquí dentro lo devaluaría a decoración.
-   Aquí basta el rótulo mono alineado al mismo eje izquierdo que todo lo demás. */
-.shared {
-    padding: 2rem 0 0;
-}
-
-.sharedLabel {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--pa-ink-3);
-    margin: 0 0 1.25rem;
-}
-
-/* `auto-fit` con mínimo de 15rem: en la tabla de 4 columnas caen 4 por fila y
-   los rótulos quedan bajo su columna; al estrecharse, la lista se reacomoda
-   sola sin heredar los breakpoints de la rejilla de arriba. */
-.sharedList {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 1.5rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: 0.75rem 1.5rem;
-}
-
-.sharedList li {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    font-family: var(--font-body);
-    font-size: 0.9375rem;
-    line-height: 1.5;
-    color: var(--pa-ink);
-}
-
-.sharedNote {
-    font-family: var(--font-body);
-    font-size: 0.9375rem;
-    line-height: 1.6;
-    max-width: 62ch;
-    margin: 0;
-    color: var(--pa-ink-2);
-    text-wrap: pretty;
 }
 
 /* ──────────────────────────────── botones ─────────────────────────────────
