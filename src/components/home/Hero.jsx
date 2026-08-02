@@ -113,7 +113,19 @@ const Hero = () => {
                 <span className={`${styles.cartridgeCell} ${styles.cartridgeMid}`}>
                     NUTRICIÓN DE PRECISIÓN
                 </span>
-                <span className={styles.cartridgeCell}>SANTO DOMINGO, RD</span>
+                {/* [P1-PAPER-CARTRIDGE-ORIGIN · 2026-08-02] Decía «SANTO DOMINGO, RD»
+                    y era falso: el origen es San Pedro de Macorís. Se CORRIGE en vez de
+                    retirarse porque bajo 600px la celda del medio ya se oculta, así que
+                    quitar el lugar dejaría el cajetín en UNA celda — y un cajetín sin
+                    dónde deja de ser un cajetín.
+                    VA SIN «, RD» a propósito, y no es estética: medido a 360×3, con el
+                    sufijo la celda pide 276,6px y `BIOBOROS` 83,4 → 360,0 exactos, cero
+                    holgura. A 320px se desbordaba 40px, y `.cartridgeCell` no lleva
+                    `overflow: hidden` (solo `.cartridgeMid`), así que habría metido
+                    scroll horizontal al documento en un iPhone SE. El país ya lo dice
+                    el `ES-DO / V1` del header, a unos píxeles de aquí; un cajetín real
+                    rotula la ciudad cuando el país está establecido en otra parte. */}
+                <span className={styles.cartridgeCell}>SAN PEDRO DE MACORÍS</span>
             </div>
 
             <div className={styles.container}>
