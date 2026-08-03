@@ -212,7 +212,17 @@ describe('la apertura por scroll', () => {
     it('la transicion es solo de transform: nada de layout', () => {
         const t = desktop.match(/\.viewLink\s*\{[^}]*transition:\s*([^;]+);/);
         expect(t).not.toBeNull();
-        expect(t[1]).toMatch(/^transform\s/);
+        /* La coma que importa es la que SEPARA transiciones, no la que separa
+           argumentos. `cubic-bezier(0.22, 1, 0.36, 1)` lleva tres comas y es
+           el easing que este plan obliga a reusar: un test que prohíba comas a
+           secas rechaza el código correcto. Por eso se vacían primero los
+           paréntesis y se busca la coma en lo que queda.
+
+           Con solo `/^transform\s/` (la versión anterior) una regresión como
+           `transition: transform 900ms ease, top 200ms ease` pasaba — justo la
+           propiedad de layout que este test dice impedir. */
+        const sinArgumentos = t[1].replace(/\([^)]*\)/g, '');
+        expect(sinArgumentos.trim()).toMatch(/^transform\s[^,]*$/);
     });
 
     it('usa LANDING_EASE, no un easing nuevo', () => {
@@ -224,6 +234,14 @@ describe('la apertura por scroll', () => {
     });
 
     it('el observer se desconecta (once + cleanup)', () => {
-        expect(JSX_03).toMatch(/io\.disconnect\(\)/);
+        /* `io.disconnect()` aparece DOS veces y legítimamente: una en el
+           callback (el «once») y otra en el cleanup del efecto. Buscar la
+           cadena a secas daría verde aunque se borrara la del callback — y ahí
+           el observer seguiría disparando tras la primera intersección, que es
+           precisamente el «once» que este test dice vigilar. Se exige la que
+           cuelga de `isIntersecting`. */
+        expect(JSX_03).toMatch(/isIntersecting[\s\S]{0,200}?io\.disconnect\(\)/);
+        /* Y la del cleanup, que es la que evita fugas al desmontar. */
+        expect(JSX_03).toMatch(/return\s*\(\)\s*=>\s*io\.disconnect\(\)/);
     });
 });
