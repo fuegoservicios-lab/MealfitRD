@@ -17,7 +17,8 @@
 //   2. HYPOTHESIS_LABELS — `hypothesis` de cada divergencia detectada por
 //      `_classify_divergence_hypothesis` en shopping_calculator.py:
 //        - "cap_swallowed_modifier" / "unit_mismatch" / "yield_uncovered" /
-//          "pantry_overdeduct" / "unknown".
+//          "pantry_overdeduct" / "magnitude_undersupply" /
+//          "recipe_unquantified" / "unknown".
 //
 // Cuando el backend agrega un nuevo code, agregar la entrada aquí también.
 // El test `tests/test_p1_3_coherence_labels_cross_language.py` parsea las 3
@@ -84,6 +85,14 @@ const COHERENCE_HYPOTHESIS_LABELS = {
     // los rangos de yield ni en zero (que quedan cubiertos por las hipótesis
     // anteriores).
     pantry_overdeduct: 'Nevera dedujo de más',
+
+    // [P2-GUARD-UNDERSUPPLY-CANONICAL · 2026-08-03] La MISMA magnitud que
+    // `pantry_overdeduct` (actual < expected/2) pero sobre una lista que no
+    // dedujo nevera: ahí no hay nevera a la que culpar, la lista sencillamente
+    // compra menos de lo que las recetas piden. Antes se etiquetaba
+    // `pantry_overdeduct` y le echaba la culpa a un inventario que ni
+    // participó — y de paso heredaba su exención de escalada en el backend.
+    magnitude_undersupply: 'Compra menor que la receta',
 
     // [P1-COHERENCE-UNQUANTIFIED-LABEL · 2026-07-26] El alimento está en la
     // lista pero las recetas no le ponen cantidad: es el condimento, que la

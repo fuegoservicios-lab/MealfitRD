@@ -56,7 +56,8 @@ import { getCoherenceHypothesisLabel } from './coherenceLabels.js';
  *
  * Política de severidad:
  *   - Si AL MENOS UN warning tiene hypothesis ∈ {cap_swallowed_modifier,
- *     yield_uncovered, pantry_overdeduct, unit_mismatch} → severity=warning.
+ *     yield_uncovered, pantry_overdeduct, magnitude_undersupply,
+ *     unit_mismatch} → severity=warning.
  *   - Si TODOS son hypothesis=unknown → severity=info (drift sin
  *     diagnóstico, usuario probablemente no necesita acción).
  *
@@ -79,6 +80,12 @@ export const buildCoherenceToast = (warnings) => {
         'cap_swallowed_modifier',
         'yield_uncovered',
         'pantry_overdeduct',
+        // [P2-GUARD-UNDERSUPPLY-CANONICAL · 2026-08-03] Es la MISMA divergencia
+        // que `pantry_overdeduct` (compra < mitad de lo que pide la receta),
+        // solo que sobre una lista sin nevera deducida. Sin esta línea, el
+        // renombre del backend degradaba el toast de `warning` a `info` en
+        // silencio — mismo caso, menos aviso.
+        'magnitude_undersupply',
         'unit_mismatch',
     ]);
 
@@ -225,6 +232,13 @@ const _HISTORICAL_ACTION_BLACKLIST = new Set([
 const _ACTIONABLE_HYPOTHESES = new Set([
     'cap_swallowed_modifier',
     'pantry_overdeduct',
+    // [P2-GUARD-UNDERSUPPLY-CANONICAL · 2026-08-03] El sub-suministro severo de una
+    // lista SIN deducción de nevera. Hasta hoy el backend lo etiquetaba
+    // `pantry_overdeduct` (culpando a un inventario que no participó) y por eso YA
+    // contaba para este toast; al renombrarlo, omitirlo aquí lo habría sacado del
+    // conteo en silencio — el usuario dejaría de enterarse justo del caso en que se
+    // queda corto de comida. Espejo de `summarize_divergences_for_ui` en el backend.
+    'magnitude_undersupply',
 ]);
 
 /**
