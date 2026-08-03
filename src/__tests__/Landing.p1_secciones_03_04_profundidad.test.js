@@ -235,13 +235,22 @@ describe('la apertura por scroll', () => {
 
     it('el observer se desconecta (once + cleanup)', () => {
         /* `io.disconnect()` aparece DOS veces y legítimamente: una en el
-           callback (el «once») y otra en el cleanup del efecto. Buscar la
-           cadena a secas daría verde aunque se borrara la del callback — y ahí
-           el observer seguiría disparando tras la primera intersección, que es
-           precisamente el «once» que este test dice vigilar. Se exige la que
-           cuelga de `isIntersecting`. */
-        expect(JSX_03).toMatch(/isIntersecting[\s\S]{0,200}?io\.disconnect\(\)/);
-        /* Y la del cleanup, que es la que evita fugas al desmontar. */
+           callback (el «once») y otra en el cleanup del efecto.
+
+           ⚠ NADA DE VENTANAS DE PROXIMIDAD. El intento anterior era
+           `/isIntersecting[\s\S]{0,200}?io\.disconnect\(\)/`, y la revisión lo
+           tumbó MUTANDO el código: borrada la llamada del callback, los dos
+           sitios reales distan 118 caracteres, así que la ventana de 200
+           saltaba por encima del callback vacío y enganchaba la del cleanup.
+           Verde con el «once» roto — el observer seguiría disparando en cada
+           intersección.
+
+           Se ancla a la SECUENCIA exacta del callback y se cuentan los dos
+           sitios. Verificado por mutación: con el código real da 2/true/true;
+           borrando la del callback da 1/false/true y el test cae. */
+        const desconexiones = (JSX_03.match(/io\.disconnect\(\)/g) || []).length;
+        expect(desconexiones).toBeGreaterThanOrEqual(2);
+        expect(JSX_03).toMatch(/setOpen\(true\);\s*io\.disconnect\(\)/);
         expect(JSX_03).toMatch(/return\s*\(\)\s*=>\s*io\.disconnect\(\)/);
     });
 });
