@@ -1273,15 +1273,34 @@
     .subtitle,
     .sheet,
     .view,
-    .viewLink,
     /* [P2-SECCIONES-03-04-DENSIDAD] El índice del cartucho estrena una
        `transition` de color al invertirse en hover/foco: entra aquí o el guard
        global de index.css solo la acortaría en vez de anularla. */
     .cartoucheN,
-    .guideBand,
     .guideRow {
         opacity: 1 !important;
         transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+    /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] `.viewLink` y `.guideBand`
+       salen de la lista de arriba por la MISMA razón que `.scaleBox`: su
+       transform NO es animación, es layout — la pose axonométrica de la hoja y
+       el plano de la mesa sobre el que se apoya. Anularlo aquí devolvería la
+       lámina a la rejilla plana, que es justamente lo que este cambio existe
+       para dejar atrás.
+
+       ⚠ LAS DOS JUNTAS, NO SOLO `.viewLink`. Si se libera la hoja y se deja la
+       banda en el reset, las hojas conservan su pose y las guías vuelven al
+       plano frontal: apuntarían al sitio equivocado SOLO con `reduce` puesto,
+       que es el modo en el que menos gente lo miraría y más tardaría en
+       detectarse.
+
+       Lo que sí se anula es la TRANSICIÓN que las anima: con `reduce` la pila
+       queda abierta y quieta, no plana. */
+    .viewLink,
+    .guideBand {
         transition: none !important;
         animation: none !important;
     }
