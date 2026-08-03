@@ -32,3 +32,10 @@ export { MinimalAvatar } from '../src/components/avatars/minimalAvatars.jsx';
 // ── Other presentational ──────────────────────────────────────────────────
 export { default as HowItWorks } from '../src/components/home/HowItWorks.jsx';
 export { default as AuthBackground } from '../src/components/auth/AuthBackground.jsx';
+
+// ── Preview provider (NOT a DS component) ─────────────────────────────────
+// HowItWorks renders <SeeMoreLink> → react-router <Link>, which throws
+// "Cannot destructure property 'basename'" outside a Router. Re-exported only
+// so cfg.provider can wrap previews; excluded from the component list via
+// cfg.componentSrcMap.MemoryRouter = null.
+export { MemoryRouter } from 'react-router-dom';
