@@ -1058,6 +1058,18 @@
            que hay que reservarlo a mano. Si se sube el `--z` de la 01, este
            numero hay que volver a MEDIRLO, no estimarlo. */
         margin-top: 9.5rem;
+        /* Y AIRE POR ABAJO por la misma fisica: la fila inferior (view04/05)
+           proyecta su borde bajo la caja de layout y tapaba el "Explorar todas
+           las funciones" 13-16px (medido a 1024/1280/1440/1920, reportado por
+           el dueno en prod).
+
+           ⚠ PADDING, NO MARGIN, y no es estilo: el SeeMoreLink es HERMANO de
+           esta lamina y los margenes entre hermanos COLAPSAN — un
+           margin-bottom de 40px aqui se lo tragaba entero el margin-top del
+           wrap del link. Medido: identico 1371/1355 antes y despues, efecto
+           CERO. El padding no colapsa. Mismo aviso: si cambian --z o rotateX,
+           re-MEDIR. */
+        padding-bottom: 2.5rem;
         perspective: 1500px;
         /* El origen se corrige los 2.25rem del padding-right que reserva el canal
            de la cota: sin la corrección, el punto de fuga queda 36px a la derecha
