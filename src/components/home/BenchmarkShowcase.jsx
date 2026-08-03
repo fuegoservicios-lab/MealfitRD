@@ -153,6 +153,29 @@ const BenchmarkShowcase = () => {
                     <ToleranceChart />
                 </div>
 
+                {/* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] El cosido. Las
+                    dos figuras son el MISMO experimento A/B y hasta ahora no lo
+                    decían en ninguna parte: la 04.1 da la desviación por macro y
+                    la 04.2 el % de planes en banda. Estas dos guías punteadas lo
+                    dibujan. Mismo `dasharray 3 4` del sistema.
+
+                    Lleva `--d` como sus vecinas porque entra por el MISMO
+                    revelado (`.drawn`, :397-417): sin él aparecería a peso
+                    completo mientras las dos figuras que une aún se trazan — la
+                    guía llegaría antes que aquello que cose.
+
+                    `aria-hidden`: la relación ya está dicha en los dos pies. */}
+                <svg
+                    className={styles.stitch}
+                    style={{ '--d': '175ms' }}
+                    viewBox="0 0 100 48"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                >
+                    <path className={styles.stitchLine} d="M45.7 0 L45.7 24 L87.3 24 L87.3 48" />
+                    <path className={styles.stitchLine} d="M74.6 0 L74.6 32 L26.6 32 L26.6 48" />
+                </svg>
+
                 <div className={styles.figBlock} style={{ '--d': '210ms' }}>
                     <InBandBar />
                 </div>

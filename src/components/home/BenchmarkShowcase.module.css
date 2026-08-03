@@ -198,6 +198,15 @@
     margin: 0 0 4rem;
 }
 
+/* ── el cosido ────────────────────────────────────────────────────────────
+   [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] Dos guías punteadas que unen
+   los marcadores `CON MOTOR` / `SIN MOTOR` de la Fig. 04.1 con sus barras
+   homónimas de la Fig. 04.2. Oculto bajo 1024px porque las dos figuras
+   reflowan solas ahí y la correspondencia geométrica deja de sostenerse. */
+.stitch {
+    display: none;
+}
+
 /* ── tabla de capacidades ─────────────────────────────────────────────────
    `<table>` semántica de verdad (`<thead>` + `<th scope>`), no una rejilla de
    divs: es una tabla, y un lector de pantalla que anuncia «Con motor, Sí» al
@@ -388,6 +397,7 @@
 .subtitle,
 .strip,
 .figBlock,
+.stitch,
 .capsWrap,
 .footnote {
     opacity: 0;
@@ -397,6 +407,7 @@
 .drawn .subtitle,
 .drawn .strip,
 .drawn .figBlock,
+.drawn .stitch,
 .drawn .capsWrap,
 .drawn .footnote {
     opacity: 1;
@@ -509,8 +520,16 @@
 
     /* El eje. Δx = +2,5rem y Δy = −1rem en CADA salto: si el vertical solo se
        aplica a uno de los dos, la diagonal se dobla y se lee como tres
-       sangrados arbitrarios en vez de una pila. */
-    .figBlock + .figBlock {
+       sangrados arbitrarios en vez de una pila.
+
+       [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] `~`, NO `+`. El cosido
+       metió el `<svg class="stitch">` EN MEDIO de los dos `.figBlock` en el
+       JSX. `+` exige adyacencia estricta en el DOM — medido: con `+` el
+       segundo `.figBlock` volvía a `x=200` igual que el primero, offset
+       perdido entero, porque ya no lo sigue directamente. `~` (hermano
+       general) no exige adyacencia y sigue seleccionando solo al segundo
+       `.figBlock` (es el único que tiene un `.figBlock` anterior). */
+    .figBlock ~ .figBlock {
         margin-left: 2.5rem;
         margin-top: -1rem;
     }
@@ -522,5 +541,26 @@
         margin-left: 5rem;
         margin-top: -1rem;
         border-right: 2px solid var(--pa-ink);
+    }
+
+    /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] El cosido entra en flujo
+       normal ENTRE los dos `.figBlock`: su propio alto (48px) y el `margin`
+       0 por defecto se suman a la pila — el `margin-top: -1rem` de arriba
+       sigue tirando del segundo `.figBlock` hacia el cosido, que es
+       exactamente el mismo desplazamiento visual que tiraba del primero
+       antes de que el cosido existiera. */
+    .stitch {
+        display: block;
+        width: 100%;
+        height: 48px;
+        overflow: visible;
+    }
+
+    .stitchLine {
+        fill: none;
+        stroke: var(--pa-ink-3);
+        stroke-width: 1px;
+        stroke-dasharray: 3 4;
+        vector-effect: non-scaling-stroke;
     }
 }
