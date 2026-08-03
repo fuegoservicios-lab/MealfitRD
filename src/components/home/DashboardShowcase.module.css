@@ -1031,14 +1031,56 @@
         transform-origin: 50% 50%;
     }
 
-    /* Reparto en Z. El grosor del borde y el `--z` van SIEMPRE en el mismo
-       sentido: una hoja de 1,5px no puede estar detrás de una de 0,75px, o la
-       línea deja de significar profundidad. */
-    .view01 .viewLink { --ry: -13deg; --z: 56px;  border-width: 1.5px; }
-    .view02 .viewLink { --ry:  11deg; --z: 20px;  border-width: 1px; }
-    .view03 .viewLink { --ry:  11deg; --z: -28px; border-width: 0.75px; }
-    .view04 .viewLink { --ry: -10deg; --z: 8px;   border-width: 1px; }
-    .view05 .viewLink { --ry:   9deg; --z: -40px; border-width: 0.75px; }
+    /* Reparto en Z. La profundidad la sigue cargando la LÍNEA, pero por TONO,
+       no por grosor.
+
+       ⚠ MEDIDO EN NAVEGADOR, NO SUPUESTO: Chrome redondea los `border-width`
+       fraccionarios a entero. `1.5px` → 1px y `0.75px` → 1px, a DPR 1 Y a
+       DPR 2 (aislado con una página mínima: solo `2px` sobrevive). Con la
+       escalera 1,5 / 1 / 0,75 las cinco hojas se dibujaban con EXACTAMENTE el
+       mismo borde: el mecanismo era inerte y ningún test de CSS podía verlo.
+
+       Además los grosores fraccionarios nunca fueron del sistema: el spec
+       padre §2.3 solo reconoce 1px de construcción, 1px estructural negro y
+       2px reservado al cajetín del footer.
+
+       El tono sí es vocabulario propio y tiene exactamente tres peldaños
+       (`index.css:471-473`): `--pa-rule` #0B0B0B → `--pa-rule-2` #8A8A84 →
+       `--pa-rule-3` #C9C9C4. Cuanto más lejos, más clara la línea — que es
+       como se dibuja la profundidad a plumilla desde siempre.
+
+       El tono y el `--z` van SIEMPRE en el mismo sentido: una hoja a tinta
+       plena no puede estar detrás de una gris clara, o la línea deja de
+       significar profundidad. */
+    .view01 .viewLink {
+        --ry: -13deg;
+        --z: 56px;
+        border-color: var(--pa-rule) !important;
+    }
+
+    .view02 .viewLink {
+        --ry: 11deg;
+        --z: 20px;
+        border-color: var(--pa-rule-2) !important;
+    }
+
+    .view03 .viewLink {
+        --ry: 11deg;
+        --z: -28px;
+        border-color: var(--pa-rule-3) !important;
+    }
+
+    .view04 .viewLink {
+        --ry: -10deg;
+        --z: 8px;
+        border-color: var(--pa-rule-2) !important;
+    }
+
+    .view05 .viewLink {
+        --ry: 9deg;
+        --z: -40px;
+        border-color: var(--pa-rule-3) !important;
+    }
 
     /* ENDEREZADO AL LEER. No es adorno: es la mitigación del texto borroso
        convertida en interacción. Rotar en 3D rasteriza el texto, y estos

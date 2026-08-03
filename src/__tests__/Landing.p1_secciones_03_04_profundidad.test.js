@@ -82,10 +82,11 @@ describe('03 — la escena 3D', () => {
            las reglas por vista solo aportan el valor. Por eso se busca rotateY
            en `.viewLink` y NO en `.viewNN .viewLink`. */
         expect(desktop).toMatch(/\.viewLink\s*\{[^}]*rotateY\(var\(--ry/);
-        /* Y cada vista tiene que aportar su angulo y su Z. */
+        /* Y cada vista tiene que aportar su angulo, su Z, y su tono de línea. */
         for (const n of ['01', '02', '03', '04', '05']) {
             expect(desktop).toMatch(new RegExp(`\\.view${n}\\s+\\.viewLink[^{]*\\{[^}]*--ry:`));
             expect(desktop).toMatch(new RegExp(`\\.view${n}\\s+\\.viewLink[^{]*\\{[^}]*--z:`));
+            expect(desktop).toMatch(new RegExp(`\\.view${n}\\s+\\.viewLink[^{]*\\{[^}]*border-color:`));
         }
         /* `.viewNN` a secas NO puede llevar transform: es el motion.article y
            framer-motion lo pisaria inline. */
@@ -119,6 +120,16 @@ describe('reglas absolutas del papel — no se relajan', () => {
             for (const r of radios) expect(r).toMatch(/border-radius:\s*0\s*;/);
         });
     }
+
+    it('03: ningun border-width fraccionario (Chrome los redondea, haciéndolo inerte)', () => {
+        /* Chrome redondea fraccionarios: 1.5px → 1px, 0.75px → 1px (DPR 1 y 2).
+           La profundidad vive en border-color, no en border-width. */
+        const widths = CSS_03.match(/border-width:[^;]+;/g) || [];
+        for (const w of widths) {
+            expect(w).toMatch(/border-width:\s*(?:\d+px|inherit|initial|unset)\s*;/);
+            expect(w).not.toMatch(/\d+\.\d+px/);
+        }
+    });
 });
 
 describe('reduced-motion — conserva la geometria, quita la animacion', () => {
