@@ -523,11 +523,21 @@ const DashboardShowcase = () => {
                         Declara la profundidad como MAGNITUD, que es lo que la
                         convierte en dibujo técnico y no en un efecto. `aria-hidden`:
                         es aparejo de dibujo, no información. */}
-                    <svg className={styles.depthCota} viewBox="0 0 40 320" aria-hidden="true" preserveAspectRatio="none">
-                        <line className={styles.depthRule} x1="20" y1="8" x2="20" y2="312" {...VE} />
-                        <path className={styles.depthArrow} d="M14 14 L20 6 L26 14" {...VE} />
-                        <path className={styles.depthArrow} d="M14 306 L20 314 L26 306" {...VE} />
-                    </svg>
+                    {/* ⚠ LA REGLA ES CSS Y LAS PUNTAS SON SVG, A PROPÓSITO. Un solo
+                        SVG estirado con `preserveAspectRatio="none"` deforma las
+                        flechas: el viewBox sería 1:8 y la caja renderizada ~1:14,5, o
+                        sea que cada ala pasaría de ~37° a ~23° y saldrían alargadas y
+                        finas. Una recta vertical no tiene relación de aspecto que
+                        romper — la hace `border-left`, que se estira a cualquier
+                        altura — y las dos puntas van en SVGs de tamaño FIJO. */}
+                    <span className={styles.depthCota} aria-hidden="true">
+                        <svg className={styles.depthArrowTop} viewBox="0 0 12 10" width="12" height="10">
+                            <path className={styles.depthArrow} d="M1 9 L6 1 L11 9" {...VE} />
+                        </svg>
+                        <svg className={styles.depthArrowEnd} viewBox="0 0 12 10" width="12" height="10">
+                            <path className={styles.depthArrow} d="M1 1 L6 9 L11 1" {...VE} />
+                        </svg>
+                    </span>
                     <span className={styles.depthLabel} aria-hidden="true">5 SUPERFICIES</span>
                 </motion.div>
 
