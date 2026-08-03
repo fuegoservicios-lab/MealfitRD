@@ -1001,10 +1001,6 @@
         padding: 7rem 0 8rem;
     }
 
-    .sheet {
-        grid-template-columns: repeat(12, 1fr);
-    }
-
     /* ========================================================================
        [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] LA LÁMINA SE LEVANTA.
 
@@ -1021,27 +1017,62 @@
        ⚠ NADA DE SOMBRA NI `brightness()`. Está medido en la cabecera de este
        fichero: sobre papel blanco oscurecer una tarjeta la SACA al frente
        (1,006:1 → 1,720:1) y el `drop-shadow` se vuelve manchón gris. La
-       profundidad la carga el GROSOR DE LÍNEA, que aquí codifica Z. */
-    /* ⚠ `.sheet` NO declara `position` hoy. Sin esto la cota se posiciona
-       contra el primer ancestro posicionado (`.container`) y aterriza en otro
-       sitio. Añadirlo al mismo bloque `.sheet` de la Task 2. */
+       profundidad la carga el GROSOR DE LÍNEA, que aquí codifica Z.
+
+       ⚠ `position: relative` NO ES DECORATIVO: es el ancla de la cota. Sin él
+       la cota se posiciona contra el primer ancestro posicionado
+       (`.container`) y aterriza en otro sitio.
+
+       ⚠ `padding-right` RESERVA EL MARGEN DE ACOTACIÓN, y la revisión de
+       2026-08-03 lo estrenó arreglando un recorte. La cota y su rótulo colgaban
+       FUERA de la lámina (`right: -2.25rem` y `-3.4rem`), y `.sheet` ya vive 24px
+       dentro de `.container` (`max-width: 1280px` + `padding: 0 1.5rem`): los 12px
+       sobrantes no tenían dónde ir y `index.css` declara
+       `html, body { overflow-x: clip }`, o sea que se CORTABAN — no se podía
+       llegar a ellos haciendo scroll. Medido en navegador antes del arreglo:
+
+           clientWidth 1024   cota recortada 12px   rótulo recortado 30,4px
+           clientWidth 1272   cota recortada 12px   rótulo recortado 30,4px
+           clientWidth 1432   los dos visibles
+
+       1440 —el único ancho donde entraba entero— es justo el que se usó en las
+       nueve verificaciones anteriores. Por eso sobrevivió tanto.
+
+       El aparejo se mete DENTRO de la caja de la lámina: 72px de papel a la
+       derecha de la retícula, que es exactamente lo que una lámina técnica
+       reserva para acotar. Medido: en reposo el canto derecho de las vistas
+       02/03/05 se proyecta a 76px del borde de `.sheet` y en hover
+       (`translateZ(72px)`) a 55px — las puntas de flecha viven a 42px, así que
+       ni siquiera la hoja enderezada las alcanza. Ese margen es el que hace
+       verdadera la nota del `z-index` de más abajo.
+       ⚠ NO se compensa metiendo `padding` en `.container`: es compartido con
+       el resto del landing. */
     .sheet {
+        grid-template-columns: repeat(12, 1fr);
         position: relative;
+        padding-right: 4.5rem;
         perspective: 2400px;
         perspective-origin: 50% 42%;
         transform-style: preserve-3d;
     }
 
-    /* ⚠ `z-index: 3` NO ES DECORATIVO. Añadir `position: relative` a
-       `.viewLink` (necesario para las bajantes) ACTIVA un `z-index: 2` de
-       hover que llevaba muerto: el `z-index` solo surte efecto en elementos
-       posicionados, así que hasta ahora esa regla no hacía nada. Sin este 3,
-       pasar el ratón por las tarjetas de la columna derecha las pintaría
-       ENCIMA de la cota. El aparejo anota el dibujo: va siempre delante. */
+    /* ⚠ `z-index: 3` NO SE PUEDE BORRAR, PERO TAMPOCO GARANTIZA NADA POR SÍ
+       SOLO. Añadir `position: relative` a `.viewLink` (necesario para las
+       bajantes) ACTIVA un `z-index: 2` de hover que llevaba muerto: el
+       `z-index` solo surte efecto en elementos posicionados, así que hasta
+       entonces esa regla no hacía nada.
+
+       Lo que NO hace este 3 es ordenar el pintado contra una hoja levantada.
+       Dentro de un contexto `preserve-3d` el pintado se ordena por
+       PROFUNDIDAD, y el `z-index` solo desempata entre elementos coplanares:
+       una tarjeta en `translateZ(72px)` con `z-index: 2` se pinta ENCIMA de un
+       hermano coplanar con `z-index: 3`. Lo que de verdad protege a la cota es
+       que NO SE SOLAPAN — vive en el margen de acotación que reserva el
+       `padding-right` de `.sheet`, medido arriba. */
     .depthCota {
         display: block;
         position: absolute;
-        right: -2.25rem;
+        right: 1.5rem;
         top: 4%;
         width: 12px;
         height: 62%;
@@ -1049,11 +1080,14 @@
         border-left: 1px solid var(--pa-ink-2);
     }
 
-    /* Las puntas, centradas sobre la recta y a tamaño fijo. */
+    /* Las puntas, centradas sobre la recta y a tamaño fijo.
+       ⚠ -6,5px, NO -5,5px. Un `left` absoluto se resuelve contra el borde del
+       PADDING, no contra el del borde, y `.depthCota` lleva `border-left: 1px`:
+       con -5,5 el SVG de 12px quedaba 1px a la derecha del eje de la recta. */
     .depthArrowTop,
     .depthArrowEnd {
         position: absolute;
-        left: -5.5px;
+        left: -6.5px;
     }
 
     .depthArrowTop { top: -1px; }
@@ -1065,11 +1099,15 @@
         fill: none;
     }
 
+    /* El rótulo, girado sobre su esquina superior derecha: el `right` fija su
+       canto derecho y el giro lo hace crecer hacia la IZQUIERDA (medido: 17,6px
+       de ancho proyectado), así que 0,25rem lo deja entero dentro de la lámina
+       y a 8px de las puntas de la cota. */
     .depthLabel {
         display: block;
         position: absolute;
         z-index: 3;
-        right: -3.4rem;
+        right: 0.25rem;
         top: 36%;
         transform: rotate(90deg);
         transform-origin: 100% 0;
@@ -1080,23 +1118,62 @@
         white-space: nowrap;
     }
 
-    /* `.view` solo propaga el espacio 3D. Su transform es de framer-motion. */
+    /* `.view` solo propaga el espacio 3D. Su transform es de framer-motion.
+
+       ⚠ Y POR ESO `.view` NO PUEDE ANIMAR `opacity` A ESTE ANCHO. `opacity`
+       distinta de 1 es una propiedad de AGRUPACIÓN: fuerza el valor USADO de
+       `transform-style` a `flat` aunque el computado siga diciendo
+       `preserve-3d` (medido: `getComputedStyle` sigue devolviendo
+       `preserve-3d`, así que ningún test de CSS puede verlo). Con `.view`
+       aplanado, `.viewLink` deja de estar en el espacio 3D de `.sheet` y su
+       `rotateY`/`translateZ` se proyecta SIN perspectiva. Medido en la pose
+       cerrada, sobre el cartucho de la vista 01: 551,48 × 119,90 con
+       perspectiva → 621,00 × 57,23 aplanado (+12,6% de ancho, −52% de alto), y
+       en la pose abierta las vistas 02 y 03 —que solo se distinguen por su
+       `--z`— salen EXACTAMENTE iguales (485,58 × 394,39 las dos). Es decir:
+       mientras dura el fade, la profundidad no existe.
+
+       La corrección NO está aquí sino en el JSX: a ≥1024px la variant de
+       `.view` y `.guideBand` pierde el canal `opacity`
+       (`DashboardShowcase.jsx`, `withoutFade`). Escribirla en esta hoja no
+       serviría — framer-motion pone la opacidad INLINE y una declaración de
+       autor sin `!important` no la pisa. Está medido: con la regla
+       `.view { opacity: 1 }` puesta y `style="opacity:.6"`, el computado
+       seguía siendo 0,6. */
     .view {
         transform-style: preserve-3d;
     }
 
     /* ⚠ `.viewLink` no declaraba `position` — hace falta para anclar la
-       bajante (`::after`, más abajo). */
+       bajante (`::after`, más abajo).
+
+       La `transition` y su `transition-delay` vivían en un SEGUNDO bloque
+       `.viewLink` 95 líneas más abajo; se fusionaron aquí (revisión
+       2026-08-03) porque entre uno y otro no había ninguna regla que declarase
+       esas dos propiedades, así que la cascada no cambia. El easing es
+       `LANDING_EASE` de `sectionMotion.js` escrito a mano, el mismo que ya
+       comparten HowItWorks y BenchmarkShowcase: si cambia allí, cambia aquí.
+       La apertura anima SOLO `transform` — GPU, cero propiedades de layout. */
     .viewLink {
         position: relative;
         transform: rotateX(3deg) rotateY(var(--ry, 0deg)) translateZ(var(--z, 0px));
         transform-origin: 50% 50%;
+        transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+        transition-delay: var(--open-delay, 0ms);
     }
 
     /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] La bajante. Cuelga del
-       borde inferior de la hoja y se contrarrota para quedar de cara al
-       observador — sin eso se vería en escorzo con la propia hoja y dejaría
-       de leerse como una vertical.
+       borde inferior de la hoja y se queda EN EL PLANO DE LA HOJA, en escorzo
+       con ella: es una bajante dibujada sobre la propia lámina, no un aparejo
+       que flote de cara al observador.
+
+       ⚠ No intentes contrarrotarla. Llevaba un
+       `transform: rotateY(calc(-1 * var(--ry)))` con un comentario que decía
+       que la ponía «de cara al observador», y era INERTE: `.viewLink` no
+       declara `transform-style: preserve-3d` —ni puede, lo prohíbe el guard, y
+       el `overflow` de `.viewport` lo aplanaría igual— así que el
+       pseudoelemento se aplana en el plano de su padre y el giro no hacía
+       nada. Se borró en la revisión de 2026-08-03.
 
        Su altura sale de `--z`: una hoja que flota más alto deja una bajante
        más larga. Es la misma idea que el grosor de borde — el aparejo MIDE,
@@ -1110,8 +1187,6 @@
         width: 0;
         height: calc(18px + var(--z, 0px) * 0.28);
         border-left: 1px dashed var(--pa-ink-3);
-        transform: rotateY(calc(-1 * var(--ry, 0deg)));
-        transform-origin: 50% 0;
         pointer-events: none;
     }
 
@@ -1174,17 +1249,11 @@
     }
 
     /* La apertura: de la pila casi cerrada y muy escorzada a la pose de
-       reposo. Solo `transform` — GPU, cero propiedades de layout. El easing es
-       `LANDING_EASE` de `sectionMotion.js` escrito a mano, el mismo que ya
-       comparten HowItWorks y BenchmarkShowcase: si cambia allí, cambia aquí. */
+       reposo. La `transition` que la anima vive en el bloque `.viewLink` de
+       más arriba, junto al transform que interpola. */
     .sheet[data-open='0'] .viewLink {
         --ry: -28deg;
         --z: -240px;
-    }
-
-    .viewLink {
-        transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
-        transition-delay: var(--open-delay, 0ms);
     }
 
     .view01 .viewLink { --open-delay: 0ms; }
@@ -1193,20 +1262,25 @@
     .view04 .viewLink { --open-delay: 270ms; }
     .view05 .viewLink { --open-delay: 360ms; }
 
-    /* El enderezado al leer NO espera al escalonado. */
-    .viewLink:hover,
-    .viewLink:focus-visible {
-        transition-delay: 0ms;
-    }
-
     /* ENDEREZADO AL LEER. No es adorno: es la mitigación del texto borroso
        convertida en interacción. Rotar en 3D rasteriza el texto, y estos
        mockups son ~100 nodos de 12-13px — la misma razón por la que
        `scale(.86)` vive solo bajo 1024px. La hoja que vas a leer es la que te
-       mira de frente, y por tanto la única que necesita estar nítida. */
+       mira de frente, y por tanto la única que necesita estar nítida.
+
+       NO ESPERA AL ESCALONADO Y NO DURA LO QUE LA APERTURA. Los 900ms son el
+       tiempo de una ENTRADA que ocurre una vez; apuntar a una hoja —o tabular
+       por los cinco enlaces— es una respuesta, y a 900ms se siente pegajosa.
+       240ms con el mismo `LANDING_EASE`. La vuelta sí conserva los 900ms y el
+       `--open-delay`: una transición lee su duración del estado de DESTINO, y
+       el destino de la vuelta es indistinguible del final de la apertura.
+       Rápido al entrar y lento al salir es además el reparto que se quiere —
+       lo que interrumpe la lectura es el retardo al llegar, no al irse. */
     .viewLink:hover,
     .viewLink:focus-visible {
         transform: rotateX(0deg) rotateY(0deg) translateZ(72px);
+        transition-duration: 240ms;
+        transition-delay: 0ms;
         z-index: 2;
     }
 
@@ -1367,7 +1441,14 @@
 
        Y por eso `transform-style: preserve-3d` SÍ hace falta en `.guideBand`:
        es lo que impide que el transform inline de framer-motion aplane el
-       espacio 3D antes de que su hijo lo use. */
+       espacio 3D antes de que su hijo lo use.
+
+       ⚠ MISMA TRAMPA QUE EN `.view`, Y SE CIERRA EN EL MISMO SITIO: `opacity`
+       distinta de 1 fuerza el valor USADO de `transform-style` a `flat`, así
+       que mientras durase el fade de `M.rise` esta banda dibujaría sus guías
+       en el plano frontal —sin el `rotateX(3deg)` de la mesa— y luego saltaría
+       a su sitio. A ≥1024px la variant que recibe pierde el canal `opacity`
+       (`withoutFade` en el JSX). */
     .guideBand {
         display: block;
         position: relative;
@@ -1509,7 +1590,13 @@
        `.view`, que es su padre y sí sigue en la lista.
 
        Sacarlos JUNTOS del reset era correcto para el transform y equivocado
-       para la opacidad. */
+       para la opacidad.
+
+       ⚠ Y SIGUE HACIENDO FALTA aunque desde 2026-08-03 la variant de desktop
+       ya no lleve `opacity`: `withoutFade` se elige con `useMediaQuery`, y si
+       `window.matchMedia` no existe el hook devuelve `false` mientras la media
+       query de ESTA hoja sí aplica — la banda volvería a recibir `M.rise` con
+       su `opacity: 0`. La red se queda. */
     .guideBand {
         opacity: 1 !important;
     }

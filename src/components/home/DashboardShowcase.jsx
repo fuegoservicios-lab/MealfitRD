@@ -6,6 +6,7 @@ import {
     Clock, Flame, FileDown, Search, Plus, Sparkles, Send, AlertTriangle,
 } from 'lucide-react';
 import SeeMoreLink from './SeeMoreLink';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { makeSectionMotion } from './sectionMotion';
 import styles from './DashboardShowcase.module.css';
 
@@ -392,6 +393,40 @@ GuideRow.propTypes = {
     children: PropTypes.node.isRequired,
 };
 
+/* El breakpoint de la escena 3D, EL MISMO que el `@media (min-width: 1024px)`
+   del .module.css. Si cambia allí, cambia aquí o el fade vuelve a aplanar la
+   perspectiva sin que nada falle. */
+const MQ_ESCENA_3D = '(min-width: 1024px)';
+
+/* [P1-SECCIONES-03-04-PROFUNDIDAD · revisión 2026-08-03] La misma variant SIN
+   el canal `opacity`.
+
+   `opacity` es una propiedad de AGRUPACIÓN: en cuanto vale algo distinto de 1,
+   el valor USADO de `transform-style` pasa a `flat` por mucho que el computado
+   siga diciendo `preserve-3d`. `.view` y `.guideBand` son justo los dos
+   elementos que propagan el espacio 3D de la lámina Y los dos que animaban
+   `opacity: 0 → 1` con `M.rise`: durante TODA la entrada las cinco hojas se
+   dibujaban planas —sin perspectiva y sin que su `--z` cambiara nada— y cada
+   una saltaba a su proyección al terminar su propio fade, escalonadas cinco
+   veces. Medido sobre la pose cerrada: 551,48 × 119,90 con perspectiva contra
+   621,00 × 57,23 aplanado.
+
+   ⚠ ESTO NO SE PUEDE ARREGLAR DESDE EL CSS. Framer-motion escribe la opacidad
+   INLINE, y una declaración de hoja de autor sin `!important` no la pisa —
+   medido en navegador: con `.view { opacity: 1 }` aplicada y
+   `style="opacity: .6"`, el computado seguía siendo 0,6. La única forma de que
+   la opacidad no exista es que no exista en la VARIANT.
+
+   A ≥1024px la entrada de cada hoja ES la apertura de la lámina (los 900ms de
+   CSS desde `--z: -240px`), así que el fade sobraba. El desplazamiento `y` se
+   conserva: es un transform, no aplana nada, y es lo que el `staggerChildren`
+   de `.sheet` sigue escalonando. Bajo 1024px no hay escena 3D y la entrada
+   sigue siendo la de siempre, fade incluido. */
+const withoutFade = (rise) => ({
+    hidden: { y: rise.hidden.y },
+    show: { y: rise.show.y, transition: rise.show.transition },
+});
+
 const DashboardShowcase = () => {
     /* Reduced motion, defensa (a): `makeSectionMotion(reduce)` gatea las
        variants en su DEFINICIÓN (sin desplazamiento y duración ~0). La (b) es
@@ -400,6 +435,13 @@ const DashboardShowcase = () => {
        escribe los transforms inline vía WAAPI. */
     const reduce = useReducedMotion();
     const M = makeSectionMotion(reduce);
+
+    /* Ver `withoutFade`: a ≥1024px los hijos de la lámina entran SIN fade
+       porque el fade aplana la escena 3D. `useMediaQuery` es el hook SSOT del
+       repo (P2-14); si `matchMedia` no existe devuelve `false` y todo cae al
+       comportamiento de móvil, que es el seguro. */
+    const escena3D = useMediaQuery(MQ_ESCENA_3D);
+    const rise = escena3D ? withoutFade(M.rise) : M.rise;
 
     /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] La apertura de la lámina.
        `IntersectionObserver` + transición CSS, igual que ya hacen HowItWorks y
@@ -453,13 +495,13 @@ const DashboardShowcase = () => {
                     variants={M.container} initial="hidden" whileInView="show"
                     viewport={{ once: true, amount: 0.12 }}
                 >
-                    <View view={VIEWS[0]} rise={M.rise} />
-                    <View view={VIEWS[1]} rise={M.rise} />
-                    <GuideRow rise={M.rise}>{GUIDE_1}</GuideRow>
-                    <View view={VIEWS[2]} rise={M.rise} />
-                    <View view={VIEWS[3]} rise={M.rise} />
-                    <GuideRow rise={M.rise}>{GUIDE_2}</GuideRow>
-                    <View view={VIEWS[4]} rise={M.rise} />
+                    <View view={VIEWS[0]} rise={rise} />
+                    <View view={VIEWS[1]} rise={rise} />
+                    <GuideRow rise={rise}>{GUIDE_1}</GuideRow>
+                    <View view={VIEWS[2]} rise={rise} />
+                    <View view={VIEWS[3]} rise={rise} />
+                    <GuideRow rise={rise}>{GUIDE_2}</GuideRow>
+                    <View view={VIEWS[4]} rise={rise} />
 
                     {/* ── BANDA DE GUÍAS ANOTADAS (≥1024px) ───────────────────
                         ⚠ ANCLA DE RETÍCULA — LEER ANTES DE TOCAR LOS SPANS.
@@ -494,7 +536,7 @@ const DashboardShowcase = () => {
                         cambian los `grid-column`, esto sigue apuntando al
                         vacío igual que antes — el aviso de :988-990 sigue
                         vigente. */}
-                    <motion.div className={styles.guideBand} variants={M.rise}>
+                    <motion.div className={styles.guideBand} variants={rise}>
                         <svg className={styles.guideSvg} role="presentation" aria-hidden="true" focusable="false">
                             {/* guía 1 — vista 01 → vista 03 */}
                             <circle className={styles.guideNode} cx="20%" cy="-32" r="2.5" {...VE} />
