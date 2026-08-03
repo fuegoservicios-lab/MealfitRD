@@ -8,14 +8,36 @@ import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 const read = (p) => readFileSync(resolve(__dirname, '..', p), 'utf8');
-const CSS_03 = read('components/home/DashboardShowcase.module.css');
-const JSX_03 = read('components/home/DashboardShowcase.jsx');
-const CSS_04 = read('components/home/BenchmarkShowcase.module.css');
 
-/* Extrae el cuerpo de un @media por su condicion. */
+/* ⚠ SIN ESTO EL GUARD ES INSERVIBLE, Y YA NOS HA PASADO CUATRO VECES.
+   Estos ficheros documentan por extenso lo que se BORRÓ al migrar a papel, con
+   los literales dentro: `DashboardShowcase.module.css:24` menciona
+   «@media (min-width: 1024px)» en prosa, y :32/:34/:40 citan
+   `backdrop-filter: blur(8px)`, `filter: brightness(...)` y `drop-shadow(...)`
+   como ejemplos de lo ELIMINADO. Un escáner que mire el texto crudo confunde
+   el obituario con el cadáver: daría por violada una regla que se cumple, y
+   solo se «arreglaría» borrando documentación que vale oro.
+
+   Un comentario que documenta algo borrado NO es una violación. */
+const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+/* RAW conserva los comentarios: el marcador del P-fix vive en uno. */
+const CSS_03_RAW = read('components/home/DashboardShowcase.module.css');
+const JSX_03_RAW = read('components/home/DashboardShowcase.jsx');
+const CSS_04_RAW = read('components/home/BenchmarkShowcase.module.css');
+
+/* Y estas son las que se interrogan por REGLAS: solo código vivo. */
+const CSS_03 = stripComments(CSS_03_RAW);
+const CSS_04 = stripComments(CSS_04_RAW);
+
+/* Extrae el cuerpo de un @media por su condición, sobre CSS ya sin
+   comentarios. Se ancla a un `@media` que empiece línea para no morder una
+   condición citada dentro de una regla. */
 const mediaBlock = (css, condition) => {
-    const start = css.indexOf(`@media ${condition}`);
-    if (start === -1) return '';
+    const re = new RegExp(`^@media\\s+${condition.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'm');
+    const m = re.exec(css);
+    if (!m) return '';
+    const start = m.index;
     let depth = 0;
     for (let i = css.indexOf('{', start); i < css.length; i++) {
         if (css[i] === '{') depth++;
@@ -26,9 +48,18 @@ const mediaBlock = (css, condition) => {
 
 describe('P1-SECCIONES-03-04-PROFUNDIDAD — marcador', () => {
     it('el marcador vive en los tres ficheros que el guard parsea', () => {
-        expect(CSS_03).toContain('P1-SECCIONES-03-04-PROFUNDIDAD');
-        expect(JSX_03).toContain('P1-SECCIONES-03-04-PROFUNDIDAD');
-        expect(CSS_04).toContain('P1-SECCIONES-03-04-PROFUNDIDAD');
+        /* RAW a propósito: el marcador vive en un comentario. */
+        expect(CSS_03_RAW).toContain('P1-SECCIONES-03-04-PROFUNDIDAD');
+        expect(JSX_03_RAW).toContain('P1-SECCIONES-03-04-PROFUNDIDAD');
+        expect(CSS_04_RAW).toContain('P1-SECCIONES-03-04-PROFUNDIDAD');
+    });
+
+    it('stripComments no se lleva por delante el codigo vivo', () => {
+        /* Sonda del propio helper: si algún día se rompe, el guard entero
+           empezaría a dar por buenas las violaciones en silencio. */
+        expect(stripComments('a{color:red} /* x */ b{color:blue}')).toBe('a{color:red}  b{color:blue}');
+        expect(CSS_03).toContain('.viewLink');
+        expect(CSS_03).not.toContain('QUÉ SE BORRÓ');
     });
 });
 
@@ -113,11 +144,16 @@ describe('reduced-motion — conserva la geometria, quita la animacion', () => {
 describe('las guias anotadas no pueden quedar fuera de la escena', () => {
     it('los porcentajes ancla siguen intactos', () => {
         for (const pct of ['20%', '78%', '10%', '88%']) {
-            expect(JSX_03).toContain(pct);
+            expect(JSX_03_RAW).toContain(pct);
         }
     });
 
-    it('la banda de guias declara que viaja con la escena', () => {
-        expect(CSS_03).toMatch(/\.guideBand[^{]*\{[^}]*transform:/);
+    it('la banda de guias viaja con la escena — en el bloque de desktop', () => {
+        /* Acotado al bloque >=1024px A PROPÓSITO: `.guideBand` también aparece
+           en el reset de reduced-motion, que le pone `transform: none`. Buscar
+           en todo el fichero daría verde por la regla que BORRA el transform,
+           que es exactamente lo contrario de lo que este test afirma. */
+        const desktop = mediaBlock(CSS_03, '(min-width: 1024px)');
+        expect(desktop).toMatch(/\.guideBand[^{]*\{[^}]*transform:\s*rotateX/);
     });
 });
