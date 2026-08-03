@@ -1055,31 +1055,31 @@
     .view01 .viewLink {
         --ry: -13deg;
         --z: 56px;
-        border-color: var(--pa-rule) !important;
+        border-color: var(--pa-rule);
     }
 
     .view02 .viewLink {
         --ry: 11deg;
         --z: 20px;
-        border-color: var(--pa-rule-2) !important;
+        border-color: var(--pa-rule-2);
     }
 
     .view03 .viewLink {
         --ry: 11deg;
         --z: -28px;
-        border-color: var(--pa-rule-3) !important;
+        border-color: var(--pa-rule-3);
     }
 
     .view04 .viewLink {
         --ry: -10deg;
         --z: 8px;
-        border-color: var(--pa-rule-2) !important;
+        border-color: var(--pa-rule-2);
     }
 
     .view05 .viewLink {
         --ry: 9deg;
         --z: -40px;
-        border-color: var(--pa-rule-3) !important;
+        border-color: var(--pa-rule-3);
     }
 
     /* ENDEREZADO AL LEER. No es adorno: es la mitigación del texto borroso
