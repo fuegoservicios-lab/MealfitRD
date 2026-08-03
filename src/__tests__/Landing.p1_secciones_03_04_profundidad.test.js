@@ -137,16 +137,17 @@ describe('reduced-motion — conserva la geometria, quita la animacion', () => {
     });
 
     it('la exclusion esta justificada por escrito, como la de .scaleBox', () => {
-        /* ⚠ RAW A PROPÓSITO, y es la excepción que confirma la regla de arriba.
-           Este test no interroga por una REGLA: exige que exista un COMENTARIO
-           que justifique la exclusión. Leerlo del CSS sin comentarios lo dejaría
-           en rojo para siempre — el mismo error que `stripComments` vino a
-           arreglar, pero en la dirección contraria.
-
-           El ancla `^@media` es segura sobre texto crudo: en este fichero solo
-           hay cinco `@media` a columna 0 y todos son reglas reales; las
-           menciones en prosa viven indentadas dentro de comentarios. */
         const reduceRaw = mediaBlock(CSS_03_RAW, '(prefers-reduced-motion: reduce)');
+
+        /* ⚠ NO BASTA con buscar «NO es animación»: esa frase YA existe en el
+           bloque desde antes, justificando la exclusión de `.scaleBox`. Un test
+           que se conforme con ella pasa desde el primer día y no comprueba
+           nada — verde por la razón equivocada, igual que el `perspective:
+           1700px` que vivía en un comentario.
+
+           Se exige el marcador de ESTE P-fix dentro del bloque: solo puede
+           ponerlo la Task 3 al escribir su propia justificación. */
+        expect(reduceRaw).toMatch(/P1-SECCIONES-03-04-PROFUNDIDAD/);
         expect(reduceRaw).toMatch(/NO es animaci[oó]n/i);
     });
 });
