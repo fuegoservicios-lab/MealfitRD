@@ -1305,6 +1305,28 @@
         animation: none !important;
     }
 
+    /* ⚠ PERO `.guideBand` SÍ CONSERVA SU RED DE OPACIDAD, y `.viewLink` no la
+       necesita. No son simétricos aunque lo parezcan:
+
+       `.guideBand` es un `motion.div` con `variants={M.rise}`
+       (`DashboardShowcase.jsx:466`), y `rise.hidden` es `opacity: 0`. Con
+       `reduce`, `makeSectionMotion` solo acorta la duración y quita el
+       desplazamiento — NO pre-siembra la opacidad. Así que si el
+       `whileInView` de `.sheet` no llega a disparar, la banda se queda
+       invisible para siempre: exactamente el modo de fallo que la cabecera de
+       este bloque documenta y contra el que `.sheet`, `.view`, `.guideRow`,
+       `.head` y `.subtitle` siguen protegidos.
+
+       `.viewLink`, en cambio, es un `<Link>` normal sin una sola prop de
+       framer-motion: su visibilidad ya la cubre el `opacity: 1 !important` de
+       `.view`, que es su padre y sí sigue en la lista.
+
+       Sacarlos JUNTOS del reset era correcto para el transform y equivocado
+       para la opacidad. */
+    .guideBand {
+        opacity: 1 !important;
+    }
+
     /* El escalado del mockup NO es animación: es layout. Se preserva a
        propósito — anularlo aquí desbordaría la vista en móvil. */
     .scaleBox {

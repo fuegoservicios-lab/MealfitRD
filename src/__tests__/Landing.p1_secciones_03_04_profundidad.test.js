@@ -150,6 +150,17 @@ describe('reduced-motion — conserva la geometria, quita la animacion', () => {
         expect(reduceRaw).toMatch(/P1-SECCIONES-03-04-PROFUNDIDAD/);
         expect(reduceRaw).toMatch(/NO es animaci[oó]n/i);
     });
+
+    it('.guideBand CONSERVA su red de opacidad aunque pierda la del transform', () => {
+        /* `.guideBand` es un `motion.div` con `variants={M.rise}`, y
+           `rise.hidden` es `opacity: 0`. Sin la protección `opacity: 1 !important`,
+           si el `whileInView` de `.sheet` no llega a disparar, la banda se queda
+           invisible para siempre bajo `reduce`. `.viewLink`, en cambio, es un
+           `<Link>` normal cuya visibilidad ya cubre el `opacity: 1 !important`
+           de `.view`, que es su padre. Así que no son simétricos: `.guideBand`
+           necesita su propia protección, `.viewLink` no. */
+        expect(reduce).toMatch(/\.guideBand[^{]*\{[^}]*opacity:\s*1\s*!important[^}]*\}/);
+    });
 });
 
 describe('las guias anotadas no pueden quedar fuera de la escena', () => {
