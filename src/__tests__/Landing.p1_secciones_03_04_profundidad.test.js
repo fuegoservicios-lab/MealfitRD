@@ -29,7 +29,15 @@ const CSS_04_RAW = read('components/home/BenchmarkShowcase.module.css');
 /* Y estas son las que se interrogan por REGLAS: solo código vivo. */
 const CSS_03 = stripComments(CSS_03_RAW);
 const CSS_04 = stripComments(CSS_04_RAW);
-const JSX_03 = stripComments(JSX_03_RAW);
+/* ⚠ Y el JSX necesita ADEMÁS los comentarios de línea. `stripComments` solo
+   entiende `/* *​/`, así que un `// io.disconnect();` —el caso realista: alguien
+   comenta la línea depurando y la commitea— seguía contando como código vivo.
+   Probado por mutación: comentando el callback, el guard del «once» pasaba.
+
+   Los `//` se quitan SOLO del JSX: en CSS no son comentario y `url(//cdn/…)`
+   es legítimo. El `[^:]` protege `https://`. */
+const stripLineComments = (src) => src.replace(/(^|[^:])\/\/.*$/gm, '$1');
+const JSX_03 = stripLineComments(stripComments(JSX_03_RAW));
 
 /* Extrae el cuerpo de un @media por su condición, sobre CSS ya sin
    comentarios. Se ancla a un `@media` que empiece línea para no morder una
