@@ -1059,7 +1059,11 @@
            numero hay que volver a MEDIRLO, no estimarlo. */
         margin-top: 9.5rem;
         perspective: 1500px;
-        perspective-origin: 50% 42%;
+        /* El origen se corrige los 2.25rem del padding-right que reserva el canal
+           de la cota: sin la corrección, el punto de fuga queda 36px a la derecha
+           del centro óptico de la rejilla (medido: ~3,6px de deriva proyectada en
+           la pose cerrada). */
+        perspective-origin: calc(50% - 2.25rem) 42%;
         transform-style: preserve-3d;
     }
 
@@ -1439,7 +1443,7 @@
 
        ⚠ EL TRANSFORM VA EN `.guideSvg`, NO EN `.guideBand` — Y ES LA MISMA
        RAZÓN QUE EN `.view`/`.viewLink`, UN NIVEL MÁS ABAJO. `.guideBand` es
-       un `motion.div` con `variants={M.rise}` (`DashboardShowcase.jsx:473`):
+       un `motion.div` (variants `rise`: `M.rise` en móvil, `withoutFade` a ≥1024px):
        framer-motion compone `y` en un `transform` INLINE y lo escribe en el
        nodo, así que una regla de hoja de autor sin `!important` no sobrevive.
        Puesto ahí, la banda no fallaría — seguiría dibujándose plana, y ningún
@@ -1583,8 +1587,8 @@
     /* ⚠ PERO `.guideBand` SÍ CONSERVA SU RED DE OPACIDAD, y `.viewLink` no la
        necesita. No son simétricos aunque lo parezcan:
 
-       `.guideBand` es un `motion.div` con `variants={M.rise}`
-       (`DashboardShowcase.jsx:466`), y `rise.hidden` es `opacity: 0`. Con
+       `.guideBand` es un `motion.div` (variants `rise`), y en el camino móvil
+       `rise.hidden` es `opacity: 0`. Con
        `reduce`, `makeSectionMotion` solo acorta la duración y quita el
        desplazamiento — NO pre-siembra la opacidad. Así que si el
        `whileInView` de `.sheet` no llega a disparar, la banda se queda

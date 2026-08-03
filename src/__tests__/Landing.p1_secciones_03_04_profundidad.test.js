@@ -172,8 +172,8 @@ describe('reduced-motion — conserva la geometria, quita la animacion', () => {
     });
 
     it('.guideBand CONSERVA su red de opacidad aunque pierda la del transform', () => {
-        /* `.guideBand` es un `motion.div` con `variants={M.rise}`, y
-           `rise.hidden` es `opacity: 0`. Sin la protección `opacity: 1 !important`,
+        /* `.guideBand` es un `motion.div` (variants `rise`; en móvil `M.rise`,
+           cuyo `hidden` es `opacity: 0`). Sin la protección `opacity: 1 !important`,
            si el `whileInView` de `.sheet` no llega a disparar, la banda se queda
            invisible para siempre bajo `reduce`. `.viewLink`, en cambio, es un
            `<Link>` normal cuya visibilidad ya cubre el `opacity: 1 !important`
@@ -192,7 +192,7 @@ describe('las guias anotadas no pueden quedar fuera de la escena', () => {
 
     it('la banda de guias viaja con la escena — en el bloque de desktop', () => {
         /* Acotado al bloque >=1024px A PROPÓSITO: `.guideBand` es un
-           `motion.div` con `variants={M.rise}` que framer-motion escribe inline,
+           `motion.div` cuyo transform framer-motion escribe inline,
            así que su transform de CSS se pisaría. El transform de la escena vive
            en `.guideSvg`, que es un `<svg>` normal sin props de framer-motion. */
         const desktop = mediaBlock(CSS_03, '(min-width: 1024px)');
