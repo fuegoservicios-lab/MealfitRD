@@ -1183,12 +1183,27 @@
        `overflow: visible` porque las guías salen de la banda por arriba (a
        tocar el borde inferior de las vistas 01 y 03, a -32px = un `gap`) y
        por abajo (borde superior de la 05, a 136px = 104 + un `gap`). */
+    /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] LAS GUÍAS SON ANOTACIÓN DE
+       LA MESA, NO DE LAS HOJAS.
+
+       Sus X son porcentajes fijos (20/78/10/88%) clavados a los `grid-column`
+       y sus Y son píxeles atados al `gap: 2rem` — el propio CSS avisa dos
+       veces de que si la retícula cambia «apuntan al vacío sin que nada
+       falle». Y un `transform` NO altera el layout: las hojas se ven movidas
+       mientras la retícula sigue donde estaba.
+
+       La solución no es recalcular los porcentajes (frágil y a mantener a
+       mano), sino que la banda VIAJE con la escena: se queda en el plano de
+       la mesa, con la misma inclinación que el tablero. Las hojas flotan
+       sobre ella y la cota de profundidad es lo que une ambas cosas. */
     .guideBand {
         display: block;
         position: relative;
         grid-column: 1 / -1;
         grid-row: 3;
         height: 104px;
+        transform: rotateX(3deg) translateZ(0);
+        transform-style: preserve-3d;
     }
 
     .guideSvg {

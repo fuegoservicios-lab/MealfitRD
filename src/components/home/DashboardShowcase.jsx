@@ -463,6 +463,13 @@ const DashboardShowcase = () => {
                         una cota con flechas es una afirmación de MEDIDA (ver la
                         cabecera de `figures/PlateExploded.jsx`). La flecha vive
                         en el texto del rótulo, que es lo que sí es una frase. */}
+                    {/* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] Los
+                        porcentajes de abajo (20/78/10/88%) siguen siendo el
+                        ancla de la retícula y NO se tocan: la banda entera se
+                        transforma al plano de la mesa en el CSS. Si algún día
+                        cambian los `grid-column`, esto sigue apuntando al
+                        vacío igual que antes — el aviso de :988-990 sigue
+                        vigente. */}
                     <motion.div className={styles.guideBand} variants={M.rise}>
                         <svg className={styles.guideSvg} role="presentation" aria-hidden="true" focusable="false">
                             {/* guía 1 — vista 01 → vista 03 */}
