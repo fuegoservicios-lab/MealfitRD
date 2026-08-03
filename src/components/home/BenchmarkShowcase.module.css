@@ -482,26 +482,45 @@
    axonometría: es un marco. */
 @media (min-width: 1024px) {
     .figBlock {
-        position: relative;
         border-right: 2px solid var(--pa-ink);
         border-bottom: 2px solid var(--pa-ink);
     }
 
-    /* El desplazamiento sobre el eje diagonal común. La SEGUNDA lámina se
-       corre para que se lea como una capa distinta y no como continuación.
-       `.figBlock + .figBlock` y no `:nth-of-type(2)`: el hermano adyacente es
-       inequívoco aunque mañana entre otro elemento entre medias. */
+    /* ⚠ EL ANCHO EXPLÍCITO ES LO QUE HACE QUE EL DESPLAZAMIENTO EXISTA.
+       Un bloque con `width: auto` responde a `margin-left` ESTRECHÁNDOSE, no
+       moviéndose: el borde derecho sigue clavado al contenedor. Sin esto, las
+       tres láminas acaban con el canto derecho en LA MISMA vertical —medido:
+       1232px las tres— y el filo que justifica poner borde solo en dos lados
+       no asoma por ninguna parte. No serían capas escalonadas sino cajas cada
+       vez más estrechas.
+
+       Con un ancho común y menor que el contenedor, las tres miden igual y
+       cada `margin-left` las corre de verdad. La última acaba justo en el
+       borde del contenedor, así que no hay desbordamiento horizontal.
+
+       ⚠ Y NO se puede hacer con `transform: translateX()`: `.figBlock` y
+       `.capsWrap` ya llevan `transform: translateY()` del revelado
+       (`:388-407`), que al entrar lo reescribe a `translateY(0)` y se llevaría
+       el desplazamiento por delante. */
+    .figBlock,
+    .capsWrap {
+        width: calc(100% - 5rem);
+    }
+
+    /* El eje. Δx = +2,5rem y Δy = −1rem en CADA salto: si el vertical solo se
+       aplica a uno de los dos, la diagonal se dobla y se lee como tres
+       sangrados arbitrarios en vez de una pila. */
     .figBlock + .figBlock {
         margin-left: 2.5rem;
         margin-top: -1rem;
     }
 
-    /* La tabla de capacidades es la TERCERA capa, la de más abajo. Z somero:
-       su cabecera se despega apenas de las filas. Sin canto — tres láminas con
-       filo seguidas volverían a ser la mancha que el revert rechazó. */
+    /* La tabla de capacidades es la TERCERA capa, la de más abajo. Sin canto
+       inferior — tres láminas con filo completo seguidas volverían a ser la
+       mancha que el revert rechazó. */
     .capsWrap {
-        position: relative;
         margin-left: 5rem;
+        margin-top: -1rem;
         border-right: 2px solid var(--pa-ink);
     }
 }

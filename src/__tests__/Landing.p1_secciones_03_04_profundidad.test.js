@@ -264,13 +264,30 @@ describe('la apertura por scroll', () => {
 });
 
 describe('04 — capas axonometricas', () => {
-    it('el canto existe y es de 2px a tinta plena', () => {
-        expect(CSS_04).toMatch(/border-right:\s*2px solid var\(--pa-ink\)/);
-        expect(CSS_04).toMatch(/border-bottom:\s*2px solid var\(--pa-ink\)/);
+    const desktop04 = mediaBlock(CSS_04, '(min-width: 1024px)');
+
+    it('el canto existe, es de 2px a tinta plena y vive en el bloque de desktop', () => {
+        expect(desktop04).toMatch(/border-right:\s*2px solid var\(--pa-ink\)/);
+        expect(desktop04).toMatch(/border-bottom:\s*2px solid var\(--pa-ink\)/);
+    });
+
+    it('el canto va en DOS lados, no en cuatro: una lamina no es un marco', () => {
+        expect(desktop04).not.toMatch(/border-top:\s*2px/);
+        expect(desktop04).not.toMatch(/border-left:\s*2px/);
+    });
+
+    it('las laminas llevan ancho explicito: sin el, margin-left ESTRECHA en vez de desplazar', () => {
+        /* El defecto que este test existe para impedir es invisible en el
+           código y en la captura: los tres cantos derechos caen en la misma
+           vertical (medido: 1232px las tres) y el escalonado no existe. */
+        expect(desktop04).toMatch(/width:\s*calc\(100% - 5rem\)/);
     });
 
     it('NADA en la 04 rota: los datos no se deforman', () => {
-        expect(CSS_04).not.toMatch(/rotate[XYZ]?\(/);
+        /* Cubre las cuatro formas de rotar en CSS, no solo `rotate(`:
+           `rotate3d()`, `rotateX/Y/Z()` y la propiedad suelta `rotate:`. */
+        expect(desktop04).not.toMatch(/rotate(3d)?[XYZ]?\(/);
+        expect(CSS_04).not.toMatch(/\brotate\s*:/);
         expect(CSS_04).not.toMatch(/perspective:/);
     });
 });
