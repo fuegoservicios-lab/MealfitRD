@@ -26,6 +26,26 @@ test.describe('03/04 — profundidad', () => {
         );
         if (fueraDePantalla) {
             await expect(sheetPre).toHaveAttribute('data-open', '0');
+
+            /* ⚠ Y AQUI, QUE ES EL UNICO SITIO DONDE SE PUEDE COMPROBAR: a
+               >=1024px las vistas NO deben tener fade de opacidad.
+
+               `transform-style: preserve-3d` se degrada a `flat` en cuanto el
+               elemento tiene `opacity` distinta de 1 -- opacity es propiedad
+               de agrupacion. Con el fade puesto, TODA la apertura se dibujaba
+               plana y cada hoja pegaba un salto del ~11% al acabar su fundido.
+               Se arreglo quitando el canal de opacidad de la variante
+               (`withoutFade`), y hasta ahora eso no lo vigilaba NADA: borrarlo
+               dejaba la suite entera en verde.
+
+               Fuera de pantalla la variante `hidden` esta activa, asi que con
+               fade la opacidad seria 0 y sin fade es 1. Deterministico: no
+               depende de pillar la animacion a medias. */
+            const opacidades = await page
+                .locator('#dashboard article[class*="_view0"]')
+                .evaluateAll((els) => els.map((el) => getComputedStyle(el).opacity));
+            expect(opacidades).toHaveLength(5);
+            expect([...new Set(opacidades)]).toEqual(['1']);
         }
 
         await link.scrollIntoViewIfNeeded();
