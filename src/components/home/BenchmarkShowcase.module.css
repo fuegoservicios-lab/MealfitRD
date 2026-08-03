@@ -466,6 +466,7 @@
     .subtitle,
     .strip,
     .figBlock,
+    .stitch,
     .capsWrap,
     .footnote {
         opacity: 1 !important;
@@ -556,11 +557,14 @@
         overflow: visible;
     }
 
+    /* [fix · 2026-08-03] Sin `vector-effect`: solo hacía falta para compensar
+       el escalado no-uniforme del `viewBox` estirado que este fichero ya no
+       usa (ver el comentario del JSX). Sin `viewBox` no hay escala que
+       normalizar — añadirlo por costumbre sería ruido. */
     .stitchLine {
         fill: none;
         stroke: var(--pa-ink-3);
         stroke-width: 1px;
         stroke-dasharray: 3 4;
-        vector-effect: non-scaling-stroke;
     }
 }

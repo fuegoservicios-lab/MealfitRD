@@ -165,15 +165,30 @@ const BenchmarkShowcase = () => {
                     guía llegaría antes que aquello que cose.
 
                     `aria-hidden`: la relación ya está dicha en los dos pies. */}
-                <svg
-                    className={styles.stitch}
-                    style={{ '--d': '175ms' }}
-                    viewBox="0 0 100 48"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                >
-                    <path className={styles.stitchLine} d="M45.7 0 L45.7 24 L87.3 24 L87.3 48" />
-                    <path className={styles.stitchLine} d="M74.6 0 L74.6 32 L26.6 32 L26.6 48" />
+                {/* ⚠ SIN `viewBox` Y CON X EN PORCENTAJE, como las guías de la
+                    03 (`DashboardShowcase.jsx:497-512`) — y por la misma razón
+                    por la que la cota de la Task 6 dejó de ser un SVG estirado.
+
+                    Con `viewBox="0 0 100 48"` + `preserveAspectRatio="none"` la
+                    X se estira ~10× (100 unidades → ~1032px) mientras la Y va
+                    1:1. `vector-effect` normaliza el GROSOR del trazo, no la
+                    longitud de arco del `dasharray`: los tramos horizontales
+                    salían con guiones ~10× más largos que los verticales, o
+                    sea que la frase «mismo `dasharray 3 4` del sistema» era
+                    falsa en la mitad del dibujo. [fix · 2026-08-03]
+
+                    Sin viewBox no hay escalado, así que `<line>` con X en `%` y
+                    Y en px da el ritmo correcto en los dos ejes. `path` no
+                    acepta porcentajes; por eso cada guía son tres `<line>`. */}
+                <svg className={styles.stitch} style={{ '--d': '175ms' }} aria-hidden="true">
+                    {/* CON MOTOR: marcador de la 04.1 → punta de su barra en la 04.2 */}
+                    <line className={styles.stitchLine} x1="45.7%" y1="0" x2="45.7%" y2="24" />
+                    <line className={styles.stitchLine} x1="45.7%" y1="24" x2="87.3%" y2="24" />
+                    <line className={styles.stitchLine} x1="87.3%" y1="24" x2="87.3%" y2="48" />
+                    {/* SIN MOTOR: idem, y cruza a la primera porque su barra es corta */}
+                    <line className={styles.stitchLine} x1="74.6%" y1="0" x2="74.6%" y2="32" />
+                    <line className={styles.stitchLine} x1="74.6%" y1="32" x2="26.6%" y2="32" />
+                    <line className={styles.stitchLine} x1="26.6%" y1="32" x2="26.6%" y2="48" />
                 </svg>
 
                 <div className={styles.figBlock} style={{ '--d': '210ms' }}>
