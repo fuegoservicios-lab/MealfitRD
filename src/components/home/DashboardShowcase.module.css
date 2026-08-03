@@ -1051,7 +1051,7 @@
         grid-template-columns: repeat(12, 1fr);
         position: relative;
         padding-right: 4.5rem;
-        perspective: 2400px;
+        perspective: 1500px;
         perspective-origin: 50% 42%;
         transform-style: preserve-3d;
     }
@@ -1156,7 +1156,7 @@
        La apertura anima SOLO `transform` — GPU, cero propiedades de layout. */
     .viewLink {
         position: relative;
-        transform: rotateX(3deg) rotateY(var(--ry, 0deg)) translateZ(var(--z, 0px));
+        transform: rotateX(6deg) rotateY(var(--ry, 0deg)) translateZ(var(--z, 0px));
         transform-origin: 50% 50%;
         transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
         transition-delay: var(--open-delay, 0ms);
@@ -1219,32 +1219,32 @@
        plena no puede estar detrás de una gris clara, o la línea deja de
        significar profundidad. */
     .view01 .viewLink {
-        --ry: -13deg;
-        --z: 56px;
+        --ry: -19deg;
+        --z: 140px;
         border-color: var(--pa-rule);
     }
 
     .view02 .viewLink {
-        --ry: 11deg;
-        --z: 20px;
+        --ry: 16deg;
+        --z: 40px;
         border-color: var(--pa-rule-2);
     }
 
     .view03 .viewLink {
-        --ry: 11deg;
-        --z: -28px;
+        --ry: 17deg;
+        --z: -90px;
         border-color: var(--pa-rule-3);
     }
 
     .view04 .viewLink {
-        --ry: -10deg;
-        --z: 8px;
+        --ry: -15deg;
+        --z: 16px;
         border-color: var(--pa-rule-2);
     }
 
     .view05 .viewLink {
-        --ry: 9deg;
-        --z: -40px;
+        --ry: 14deg;
+        --z: -120px;
         border-color: var(--pa-rule-3);
     }
 
@@ -1252,8 +1252,8 @@
        reposo. La `transition` que la anima vive en el bloque `.viewLink` de
        más arriba, junto al transform que interpola. */
     .sheet[data-open='0'] .viewLink {
-        --ry: -28deg;
-        --z: -240px;
+        --ry: -42deg;
+        --z: -420px;
     }
 
     .view01 .viewLink { --open-delay: 0ms; }
@@ -1467,7 +1467,7 @@
         pointer-events: none;
         fill: none;
         stroke-width: 1;
-        transform: rotateX(3deg) translateZ(0);
+        transform: rotateX(6deg) translateZ(0);
     }
 
     /* Punteado = referencia, no materia (§5.5). Sin `pathLength` en el JSX:

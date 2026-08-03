@@ -214,7 +214,32 @@ describe('la apertura por scroll', () => {
     const desktop = mediaBlock(CSS_03, '(min-width: 1024px)');
 
     it('existe un estado cerrado mas escorzado que el reposo', () => {
-        expect(desktop).toMatch(/\[data-open='0'\][^{]*\.viewLink[^{]*\{[^}]*--ry:\s*-28deg/);
+        /* ⚠ SE COMPRUEBA LA RELACION, NO EL VALOR. La version anterior fijaba
+           el literal `-28deg`, asi que prohibia afinar un parametro que el
+           plan declara explicitamente afinable: subir el drama hacia rojo el
+           guard sin que nada estuviera mal. Un test que impide el cambio que
+           existe para permitir no vigila una invariante, fija una constante.
+
+           La invariante real es la que dice su nombre: el estado cerrado tiene
+           que estar MAS escorzado y MAS hundido que cualquier pose de reposo. */
+        const cerrado = desktop.match(/\[data-open='0'\][^{]*\.viewLink[^{]*\{([^}]*)\}/);
+        expect(cerrado).not.toBeNull();
+        const ryCerrado = Math.abs(parseFloat(cerrado[1].match(/--ry:\s*(-?[\d.]+)deg/)[1]));
+        const zCerrado = parseFloat(cerrado[1].match(/--z:\s*(-?[\d.]+)px/)[1]);
+
+        /* Cada vista tiene DOS bloques `.viewNN .viewLink`: el de la pose y el
+           del `--open-delay`. Solo el primero declara `--ry`, asi que hay que
+           filtrar o el `.match` revienta contra el segundo. */
+        const reposo = [...desktop.matchAll(/\.view0\d\s+\.viewLink[^{]*\{([^}]*)\}/g)]
+            .filter((m) => /--ry:/.test(m[1]))
+            .map((m) => ({
+                ry: Math.abs(parseFloat(m[1].match(/--ry:\s*(-?[\d.]+)deg/)[1])),
+                z: parseFloat(m[1].match(/--z:\s*(-?[\d.]+)px/)[1]),
+            }));
+        expect(reposo).toHaveLength(5);
+
+        expect(ryCerrado).toBeGreaterThan(Math.max(...reposo.map((v) => v.ry)));
+        expect(zCerrado).toBeLessThan(Math.min(...reposo.map((v) => v.z)));
     });
 
     it('la transicion es solo de transform: nada de layout', () => {

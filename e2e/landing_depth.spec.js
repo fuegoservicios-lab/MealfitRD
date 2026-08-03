@@ -11,9 +11,22 @@ test.describe('03/04 — profundidad', () => {
         await page.goto('/');
         const link = page.locator('#dashboard a').first();
         /* Antes de hacer scroll la lamina tiene que estar CERRADA: sin esto,
-           una mutacion que arranque `open` en true pasaria el test entero. */
+           una mutacion que arranque `open` en true pasaria el test entero.
+
+           ⚠ CONDICIONADO A QUE LA SECCION ESTE FUERA DE PANTALLA, y no por
+           pereza: el observer dispara por interseccion, asi que si el layout
+           deja la 03 dentro del viewport inicial el atributo YA vale '1' y la
+           asercion es una carrera. Medido: fallaba 1 de cada ~4 pasadas con el
+           fichero completo en paralelo, y pasaba siempre en aislamiento. Un
+           test intermitente es peor que ninguno; asi solo afirma lo que puede
+           afirmar de forma determinista. */
         const sheetPre = page.locator('#dashboard [class*="sheet"]').first();
-        await expect(sheetPre).toHaveAttribute('data-open', '0');
+        const fueraDePantalla = await sheetPre.evaluate(
+            (el) => el.getBoundingClientRect().top > window.innerHeight,
+        );
+        if (fueraDePantalla) {
+            await expect(sheetPre).toHaveAttribute('data-open', '0');
+        }
 
         await link.scrollIntoViewIfNeeded();
         await page.waitForTimeout(1400); // la apertura dura 900ms + escalonado
