@@ -45,34 +45,17 @@
     flex: none;
 }
 
-.highlight {
-    color: var(--primary);
-    position: relative;
-    display: inline-block;
-}
-
-/* Add a little dot to logo for flair */
-.highlight::after {
-    content: '';
-    position: absolute;
-    bottom: 6px;
-    right: -6px;
-    width: 4px;
-    height: 4px;
-    background: var(--accent);
-    border-radius: 50%;
-}
-
-/* [P3-SEO-MARKETING-NAV · 2026-06-28] Cluster izquierdo (logo + nav de secciones)
-   y enlaces de marketing del landing. El nav vive en el DOM siempre que isHome
-   (mobile-first indexing lo lee); display:none <768px lo oculta visualmente sin
-   sacarlo del HTML. Desktop: fila de enlaces junto al logo (patrón SaaS). */
-.headerLeft {
+/* [P1-PAPER-THEME · 2026-08-01] Cluster izquierdo (Wordmark + cajetín editorial
+   en papel). Wrapper puramente de layout — hug del contenido, sin theming
+   propio — para que .container mantenga sus 3 bloques lógicos bajo
+   justify-content:space-between (izquierda / centro / derecha) al añadir el
+   cajetín ES-DO/V1 junto al logo (spec §4.1). Inerte en las 15 rutas no-papel:
+   un solo hijo (el Link), mismo tamaño que antes. */
+.brandCluster {
     display: flex;
     align-items: center;
-    /* [P3-SEO-MARKETING-NAV] Separación logo↔nav responsiva: ~48px en laptop,
-       hasta ~96px en pantallas anchas. Antes 2rem/3.5rem se veía pegado al logo. */
-    gap: clamp(3rem, 4vw, 6rem);
+    gap: 14px;
+    flex: none;
     min-width: 0;
 }
 
@@ -121,22 +104,6 @@
    Mayor especificidad que la regla .navDesktop del @media → gana en desktop. */
 .navDesktop:empty {
     display: none;
-}
-
-.navLink {
-    color: #475569;
-    text-decoration: none;
-    font-weight: 500;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
-}
-
-.navLink:hover {
-    color: #0f172a;
-    background: rgba(241, 245, 249, 0.8);
-    /* Slate 100 with opacity */
 }
 
 .ctaButton {
@@ -318,7 +285,6 @@
 /* [P2-A11Y-FOCUS-VISIBLE · 2026-05-31] Anillo de foco de teclado (WCAG 2.4.7)
    en todos los controles del Header (el landing no los tenía propios). */
 .logo:focus-visible,
-.navLink:focus-visible,
 .ctaButton:focus-visible,
 .ctaButtonMobile:focus-visible,
 .logoutBtnMobile:focus-visible,
@@ -531,13 +497,6 @@
     color: var(--text-main);
     background: #1E293B;
     box-shadow: none;
-}
-:global(html[data-theme="dark"]) .navLink {
-    color: var(--text-muted);
-}
-:global(html[data-theme="dark"]) .navLink:hover {
-    color: var(--text-main);
-    background: var(--bg-muted);
 }
 :global(html[data-theme="dark"]) .navMarketingLink {
     color: var(--text-muted);
@@ -760,4 +719,281 @@
 }
 :global(html[data-theme="dark"]) .accountItemDanger:hover {
     background: var(--danger-bg);
+}
+
+/* ============================================================================
+ * [P1-PAPER-THEME · 2026-08-01 · forma definitiva P1-PAPER-HEADER-SHAPE ·
+ * 2026-08-01] Superficie papel — Header. La rama de arriba (P1-PAPER-THEME)
+ * era una red de seguridad: espejo funcional 1:1 de las 27 clases del bloque
+ * oscuro, para que nada quedara invisible al encender el tema. Esta sección
+ * es Task 7: la FORMA final de spec §4.1 (barra 56px, nav sin pastilla,
+ * ítem activo "pestañeado" en la hairline, CTA rectángulo sólido, hairline
+ * que se afila al scrollear).
+ *
+ * `position: fixed` se CONSERVA (no `sticky`, pese a que la spec dice
+ * "barra sticky top:0"): Layout.jsx compensa el header fixed con un
+ * `padding-top` fijo en `.main-content` (72px móvil / 88px desktop, tunado
+ * para la pastilla flotante ~64-78px de alto). Layout.jsx está fuera del
+ * alcance de esta tarea (solo Header.jsx + este módulo). Si `.header` pasara
+ * a `sticky` volvería a ocupar 56px de flujo normal Y Layout seguiría
+ * sumando su padding-top encima → un hueco en blanco de ~72-88px extra bajo
+ * el header en las 6 rutas papel, mucho peor que la imprecisión actual
+ * (~16-32px de aire de más, cosmético, no un hueco). "Sticky" se lee aquí
+ * como comportamiento (pegado arriba al hacer scroll), no como el valor
+ * literal de `position` — `fixed` ya lo cumple.
+ * ==========================================================================*/
+:global(html[data-theme="paper"]) .header {
+    padding: 0;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    background: var(--pa-paper);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-bottom: 1px solid var(--pa-rule-2);
+}
+
+/* [P1-PAPER-HEADER-SHAPE] Al scrollear 8px (Header.jsx, isScrolled) la
+   hairline se afila: --pa-rule-2 (gris, 3,35:1) → --pa-rule (negro, 19,01:1).
+   Cambio de estado, no transición — spec §4.1 es explícita: "no aparece una
+   sombra, y no es una animación". */
+:global(html[data-theme="paper"]) .header[data-scrolled="true"] {
+    border-bottom-color: var(--pa-rule);
+}
+
+/* La pastilla flotante deja de ser una superficie propia — el header ya es
+   opaco por sí mismo (arriba); .container queda como wrapper de layout, con
+   la altura exacta de 56px (el header ya no aporta padding vertical). */
+:global(html[data-theme="paper"]) .container {
+    height: 56px;
+    padding: 0 1.5rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+}
+
+/* [P1-PAPER-HEADER-SHAPE] Cajetín editorial izquierdo (spec §4.1): regla
+   vertical de 1px × 20px + rótulo mono. Solo se monta cuando Header.jsx
+   resuelve `isPaper` (isPaperSurface) — no necesita rama dark/light porque
+   nunca se renderiza fuera de las 6 rutas papel. Oculto <768px: el header
+   móvil ya compite por espacio entre logo, CTA y hamburguesa (spec no pide
+   el cajetín en móvil, solo "Izquierda" en la descripción de escritorio). */
+:global(html[data-theme="paper"]) .editionTag {
+    display: none;
+    align-items: center;
+    gap: 10px;
+}
+
+:global(html[data-theme="paper"]) .editionRule {
+    width: 1px;
+    height: 20px;
+    background: var(--pa-rule-3);
+    flex: none;
+}
+
+:global(html[data-theme="paper"]) .editionLabel {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--pa-ink-3);
+    white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+    :global(html[data-theme="paper"]) .editionTag {
+        display: flex;
+    }
+}
+
+/* [P1-PAPER-HEADER-SHAPE] Sin pastilla ni fondo segmentado (spec §4.1): la
+   pista pasa de gap:4px/padding:4px (base, @media 768) a gap:24px/padding:0,
+   y pierde el borde de la pastilla (sin esto, la 1px de la pista sobreviviría
+   bajo el fondo transparente ya puesto por P1-PAPER-THEME). */
+:global(html[data-theme="paper"]) .navMarketing {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    border: none;
+    gap: 24px;
+    padding: 0;
+}
+
+/* [P1-PAPER-HEADER-SHAPE] PJS 500 14px (spec exacto; la base 0.92rem ≈
+   14,7px). Altura = la del header completo: el link se convierte en una
+   columna flex de 56px para que el ::after del activo (abajo) pueda apoyarse
+   en bottom:0 y caer exactamente sobre la hairline del header, no sobre el
+   borde de una línea de texto centrada a medias. */
+:global(html[data-theme="paper"]) .navMarketingLink {
+    color: var(--pa-ink-3);
+    font-size: 14px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 0;
+    border-radius: 0;
+}
+
+:global(html[data-theme="paper"]) .navMarketingLink:hover {
+    color: var(--pa-ink);
+}
+
+/* [P1-PAPER-HEADER-SHAPE] El indicador de ruta activa daba 1,119:1 contra su
+   pista (texto var(--text-main) sobre fondo #1E293B propio del dark, caído a
+   #FFFFFF base bajo paper). Fondo plano + tinta oscura + un ::after de 1px
+   "pestañeado" en la hairline inferior — no una píldora rellena. */
+:global(html[data-theme="paper"]) .navMarketingLinkActive {
+    background: transparent;
+    box-shadow: none;
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .navMarketingLinkActive::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--pa-ink);
+}
+
+/* CTA: rectángulo de tinta sólida, sin gradiente ni glow. Sin este override,
+   la mezcla de var(--primary*) (remapeados a grises casi-negros en papel) con
+   el color de texto #1E1B4B hardcoded del bloque dark daría texto oscuro
+   sobre fondo oscuro — ilegible. */
+:global(html[data-theme="paper"]) .ctaButton,
+:global(html[data-theme="paper"]) .ctaButtonMobile {
+    background: var(--pa-ink);
+    background-image: none;
+    color: var(--pa-paper);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* [P1-PAPER-HEADER-SHAPE] Forma exacta de spec §4.1 — solo el CTA de la
+   barra (NO .ctaButtonMobile: ese vive en el overlay a pantalla completa,
+   con su propio tamaño de toque, ya cubierto arriba). */
+:global(html[data-theme="paper"]) .ctaButton {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 18px;
+}
+
+/* [P1-PAPER-HEADER-SHAPE] El barrido de brillo (::after, HEADER-CTA-POLISH)
+   es exactamente el "sheen" que spec §4.1 pide eliminar del CTA en papel.
+   content:none retira el pseudo-elemento entero (no solo lo hace invisible:
+   sin content no hay caja, así que tampoco reserva composición/paint). */
+:global(html[data-theme="paper"]) .ctaButton::after {
+    content: none;
+}
+
+/* [P1-PAPER-HEADER-SHAPE] La base .ctaButton:active (línea ~199) deja un
+   box-shadow indigo (rgba(79,70,229,…)) sin cubrir en ningún override
+   anterior — un flash de color en cada click/tap bajo "blanco y negro
+   estricto". Neutralizado igual que :hover. */
+:global(html[data-theme="paper"]) .ctaButton:active {
+    box-shadow: none;
+}
+
+:global(html[data-theme="paper"]) .mobileToggle {
+    border-radius: 0;
+}
+
+:global(html[data-theme="paper"]) .mobileToggle:hover {
+    background: var(--pa-sunk);
+}
+
+:global(html[data-theme="paper"]) .navMobile {
+    background: var(--pa-paper);
+    box-shadow: none;
+}
+
+:global(html[data-theme="paper"]) .navMobileClose:hover {
+    background: var(--pa-sunk);
+}
+
+:global(html[data-theme="paper"]) .navLinkMobile {
+    color: var(--pa-ink-3);
+}
+
+:global(html[data-theme="paper"]) .navLinkMobile:hover {
+    background: var(--pa-sunk);
+    color: var(--pa-ink);
+}
+
+/* [P1-PAPER-HEADER-SHAPE] "Se rechaza numerar el nav" en escritorio (spec
+   §4.1) — "los números viven en el menú móvil, donde sí funcionan como
+   índice". `.navLinkMobile` ya es flex + gap:0.75rem (base), así que el
+   índice solo necesita su propia tipografía; el layout lo hereda gratis. */
+:global(html[data-theme="paper"]) .navLinkMobileIndex {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--pa-ink-3);
+    min-width: 1.4em;
+}
+
+:global(html[data-theme="paper"]) .logoutBtnMobile {
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .logoutBtnMobile:hover {
+    background: var(--pa-sunk);
+}
+
+:global(html[data-theme="paper"]) .accountTrigger {
+    border-color: var(--pa-rule-3);
+}
+
+:global(html[data-theme="paper"]) .accountTrigger:hover {
+    background: var(--pa-sunk);
+    border-color: var(--pa-rule-3);
+}
+
+:global(html[data-theme="paper"]) .accountAvatar {
+    color: var(--pa-paper);
+}
+
+:global(html[data-theme="paper"]) .accountChevron {
+    color: var(--pa-ink-3);
+}
+
+/* Único menú "glass" del Header (backdrop-filter + box-shadow difuminada +
+   radio en su base, línea 645-663). Se aplana igual que .container: fondo
+   sólido, borde fino, sin blur ni sombra ni radio. */
+:global(html[data-theme="paper"]) .accountDropdown {
+    background: var(--pa-paper);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: var(--pa-rule-3);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+:global(html[data-theme="paper"]) .accountIdentity {
+    border-bottom-color: var(--pa-rule-3);
+}
+
+:global(html[data-theme="paper"]) .accountItem {
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .accountItem:hover {
+    background: var(--pa-sunk);
+}
+
+:global(html[data-theme="paper"]) .accountItemDanger {
+    color: var(--pa-ink);
+}
+
+:global(html[data-theme="paper"]) .accountItemDanger:hover {
+    background: var(--pa-sunk);
 }

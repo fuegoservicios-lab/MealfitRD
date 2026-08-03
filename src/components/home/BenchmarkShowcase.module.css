@@ -1,395 +1,570 @@
-/* ============================================================
-   BenchmarkShowcase — [P3-BENCHMARK-RADAR · 2026-06-30]
-   RADAR DE PRECISIÓN dentro de una consola de telemetría. La consola es
-   oscura SIEMPRE (instrumento); el header de sección es theme-aware.
-   Radar (Mealfit llena / LLM colapsa) + tilt 3D + count-up + scanlines.
-   ============================================================ */
+/* ============================================================================
+   [P1-PAPER-BENCHMARK · 2026-08-02] BenchmarkShowcase — «04 / LA MEDICIÓN».
+
+   Reescritura completa. Lo que había aquí era la CONSOLA OSCURA de junio
+   (`P3-BENCHMARK-RADAR`): un instrumento de 447 líneas con radar teal, tilt
+   3D, scanlines en bucle, glow pulsante y una caja de leyenda con puntos de
+   color. Sobrevivió al rediseño entero del landing porque su tarea estaba
+   bloqueada esperando una decisión del dueño sobre una cifra; en agosto se
+   resolvió y la sección entra al pliego.
+
+   La «piel de contención» del 2026-08-02 (fondo papel, titular en tinta, marco
+   de 1px, sin sombra ni radio) hizo que la sección dejara de romper las reglas
+   absolutas del §2.3 mientras estaba bloqueada. Ese perímetro SE QUEDA — lo
+   que se migra es el interior, que es lo que la piel no podía tocar.
+
+   Este módulo NO lleva bloque `data-theme`: la home solo se sirve como
+   superficie papel (`utils/paperSurface.js`), así que consume `var(--pa-*)`
+   directamente — su «rama clara» no es una rama, es el mismo código con otros
+   valores. Mismo criterio que `HowItWorks.module.css` y `NewsHighlight.module.css`.
+
+   Vocabulario de movimiento: `settle` (opacidad + 12 px de subida, 420 ms,
+   `cubic-bezier(0.22,1,0.36,1)` = el `LANDING_EASE` que exporta
+   `sectionMotion.js`, escrito a mano aquí porque este módulo ya no usa
+   framer-motion). El TRAZADO de las dos figuras vive en sus propios módulos.
+   Cero bucles infinitos, cero SMIL, cero `backdrop-filter`, cero blur.
+   ========================================================================= */
 
 .section {
     position: relative;
-    padding: 5rem 0 6rem;
-    overflow: hidden;
-    /* [P1-LANDING-BG · 2026-07-11] Zona VIOLETA del landing (instrumento/radar):
-       wash 5% fundido a bg-page — ver P1-LANDING-BG en HowItWorks.module.css. */
-    background: linear-gradient(180deg,
-        var(--bg-page) 0%,
-        color-mix(in srgb, #A78BFA 7%, var(--bg-page)) 48%,
-        var(--bg-page) 100%);
+    padding: 6rem 0;
+    background: var(--pa-paper);
+    color: var(--pa-ink);
 }
-/* [P3-BENCHMARK-POLISH · 2026-07-02] El glow radial ambiental se reemplaza por la
-   cuadrícula "papel milimetrado" del lenguaje minimalista-científico (misma firma que
-   figuras de /como-funciona, Novedades y footer), desvanecida radialmente tras la consola. */
-.bgGrid {
+
+/* ── PAPEL ────────────────────────────────────────────────────────────────
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] La cuadrícula del sistema entra
+   aquí. No se estrena vocabulario: se estrena CONSUMIDOR. `--pa-grid` a paso
+   40px es el mismo motivo y el mismo paso que ya viven en
+   `Pricing.module.css:113`, `Footer.module.css:306`,
+   `HowItWorksPage.module.css:660`, `LegalPages.module.css:55` y
+   `Engine.module.css:488` — las secciones 03 y 04 eran las dos únicas
+   superficies papel sin él, y por eso abrían sobre un blanco liso que se lee
+   como hoja sin empezar en vez de como margen.
+
+   (`--pa-grid-major` sigue huérfano y NO se estrena de paso: una segunda
+   escala haría que el mismo token signifique dos pasos en la misma página.)
+
+   ⚠ ACOTADA A LA BANDA SUPERIOR, y no por gusto. `--pa-grid` (#D8D8D3,
+   1,38:1) contra `--pa-rule-3` (#C9C9C4, 1,61:1) se diferencian 1,17:1, y las
+   cinco verticales de lectura de la Fig. 04.2 son `--pa-rule-3`: correr la
+   trama por debajo las disolvería. Muere ANTES de la Fig. 04.1 a propósito.
+   Es el patrón exacto de `Pricing.module.css:101-119`.
+
+   ⚠ T8 — ORDEN DE PINTADO. Un `::before` posicionado se pinta DESPUÉS del
+   contenido de su elemento. Sin el par `z-index: 0` aquí / `z-index: 1` en
+   `.container`, la trama cae ENCIMA del rótulo y la tira de cartucho. Ya
+   medido y arreglado una vez en `Engine.module.css:473-494`.
+
+   La máscara va en `var(--pa-ink)` y no en `#000`: una máscara solo lee el
+   canal ALFA, así que el resultado es idéntico y no queda ni un literal de
+   color que discutir con el escáner de tinta. */
+.section::before {
+    content: '';
     position: absolute;
-    inset: 0;
-    background-image: radial-gradient(color-mix(in srgb, var(--text-main) 8%, transparent) 1px, transparent 1px);
-    background-size: 20px 20px;
-    -webkit-mask-image: radial-gradient(62% 58% at 50% 46%, #000, transparent 76%);
-    mask-image: radial-gradient(62% 58% at 50% 46%, #000, transparent 76%);
-    pointer-events: none;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 320px;
     z-index: 0;
+    pointer-events: none;
+    background-image: radial-gradient(var(--pa-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    -webkit-mask-image: linear-gradient(to bottom, var(--pa-ink) 0 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, var(--pa-ink) 0 55%, transparent 100%);
 }
+
 .container {
     position: relative;
     z-index: 1;
-    width: 100%;
     max-width: 1080px;
     margin: 0 auto;
     padding: 0 1.5rem;
 }
 
-/* ---------- Header ---------- */
-.header { text-align: center; max-width: 660px; margin: 0 auto 3rem; }
-.modelBadge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.9rem;
-    background: color-mix(in srgb, #2DD4BF 14%, transparent);
-    border: 1px solid color-mix(in srgb, #2DD4BF 32%, transparent);
-    color: #2DD4BF;
-    border-radius: 99px;
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 1.2rem;
-}
-.modelDot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #2DD4BF; box-shadow: 0 0 8px #2DD4BF;
-    animation: bmPulse 2s ease-in-out infinite;
-}
-.title {
-    font-family: var(--font-heading);
-    font-size: clamp(1.9rem, 4.5vw, 3rem);
-    font-weight: 800;
-    color: var(--text-main);
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-    margin: 0 0 1.1rem;
-}
-/* [P3-BENCHMARK-POLISH · 2026-07-02] Acento sólido (teal de la consola) en vez de
-   gradiente indigo→teal — una sola gama, consistente con el resto del marketing. */
-.titleAccent {
-    color: #2DD4BF;
-}
-.subtitle { font-size: 1.02rem; color: var(--text-muted); line-height: 1.55; margin: 0; }
-
-/* ---------- Stage 3D ---------- */
-.stage {
-    position: relative;
-    perspective: 1500px;
-    perspective-origin: 50% 28%;
-}
-
-/* ---------- Consola (oscura siempre) ---------- */
-.console {
-    --c-ink: #E8EDF6;
-    --c-muted: #8A97AE;
-    --c-line: rgba(255, 255, 255, 0.08);
-    --c-good: #2DD4BF;
-    --c-good2: #34D399;
-    --c-llm: #64748B;
-    position: relative;
-    overflow: hidden;
-    border-radius: 24px;
-    padding: 1.5rem;
-    background:
-        radial-gradient(120% 80% at 50% -10%, rgba(99, 102, 241, 0.16), transparent 55%),
-        linear-gradient(160deg, #0F1628 0%, #0A0F1C 100%);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    color: var(--c-ink);
-    transform-style: preserve-3d;
-    transition: transform 0.25s ease-out;
-    will-change: transform;
-}
-
-/* scanlines + barrido animado */
-.scanlines {
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    overflow: hidden;
-    pointer-events: none;
-    background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(255, 255, 255, 0.015) 3px, rgba(255, 255, 255, 0.015) 4px);
-}
-.scanlines::after {
-    content: '';
-    position: absolute;
-    left: 0; right: 0;
-    height: 90px;
-    background: linear-gradient(180deg, transparent, rgba(45, 212, 191, 0.07), transparent);
-    animation: bmScan 5.5s linear infinite;
-}
-
-/* ---------- Console head ---------- */
-.consoleHead {
-    position: relative;
-    z-index: 1;
+/* ── rótulo de sección ────────────────────────────────────────────────────
+   Mismo motivo de apertura que las otras superficies: hairline / etiqueta
+   mono / hairline. En una hoja de plano el rótulo del plano ES el título; no
+   hay H2 grande aparte. Con él se fue «Precisión que puedes medir», cuya
+   segunda mitad iba en `#2DD4BF` (1,80:1 sobre papel — media frase del titular
+   por debajo incluso del umbral de texto grande). */
+.sectionHead {
     display: flex;
     align-items: center;
-    gap: 0.9rem;
-    flex-wrap: wrap;
-    padding-bottom: 1.1rem;
-    margin-bottom: 1.3rem;
-    border-bottom: 1px solid var(--c-line);
+    gap: 1.25rem;
+    margin: 0 0 1rem;
 }
-.live {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    color: var(--c-good);
+
+.hLine {
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--pa-rule);
 }
-.liveDot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--c-good); box-shadow: 0 0 10px var(--c-good);
-    animation: bmPulse 1.8s ease-in-out infinite;
-}
-.consoleVer {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.74rem;
+
+.sectionLabel {
+    margin: 0;
+    font-family: var(--font-mono);
     font-weight: 600;
-    letter-spacing: 0.06em;
-    color: var(--c-muted);
-}
-.consoleBadge {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.74rem;
-    font-weight: 700;
-    color: var(--c-good2);
-    background: color-mix(in srgb, var(--c-good2) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c-good2) 32%, transparent);
-    padding: 0.32rem 0.7rem;
-    border-radius: 99px;
-}
-
-/* ---------- Body: radar + datos ---------- */
-.consoleBody {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    grid-template-columns: 1.02fr 0.98fr;
-    gap: 1.75rem;
-    align-items: center;
-}
-.panelLabel {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-family: var(--font-heading);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.13em;
+    font-size: 0.8125rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--c-muted);
-    margin-bottom: 0.4rem;
-}
-.panelLabelSub {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-family: var(--font-heading);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-    color: var(--c-muted);
-    margin: 0.3rem 0 0.1rem;
+    color: var(--pa-ink);
+    white-space: nowrap;
 }
 
-/* ---------- Radar (columna izq) ---------- */
-.radarCol { display: flex; flex-direction: column; align-items: center; }
-.radarWrap { width: 100%; max-width: 400px; }
-.radarSvg { width: 100%; height: auto; display: block; overflow: visible; }
-.radarGrid { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 1; }
-.radarSpoke { stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; }
-.radarLlm {
-    fill: rgba(148, 163, 184, 0.16);
-    stroke: var(--c-llm);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-}
-.radarMealfit {
-    fill: color-mix(in srgb, var(--c-good) 22%, transparent);
-    stroke: var(--c-good);
-    stroke-width: 2;
-    stroke-linejoin: round;
-    filter: drop-shadow(0 0 9px color-mix(in srgb, var(--c-good) 55%, transparent));
-    /* [P3-BENCHMARK-RADAR-POLISH · 2026-06-30] El poligono "respira" (glow que pulsa). */
-    animation: bmRadarGlow 3.2s ease-in-out infinite;
-}
-/* [P3-BENCHMARK-RADAR-POLISH · 2026-06-30] Linea del barrido tipo scanner (gira via SMIL). */
-.radarSweepEdge {
-    stroke: var(--c-good);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    opacity: 0.6;
-    filter: drop-shadow(0 0 4px var(--c-good));
-}
-.radarDotMealfit { fill: var(--c-good); }
-.radarDotLlm { fill: var(--c-llm); }
-.radarAxisLabel {
-    fill: var(--c-ink);
-    font-family: var(--font-heading);
-    font-size: 12.5px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-}
+/* ── EL TITULAR ───────────────────────────────────────────────────────────
+   [P2-SECCIONES-TITULAR · 2026-08-02] Esta sección no tenía titular, y esa era
+   la razón de fondo de que se viera plana.
 
-/* leyenda */
-.legend { display: flex; gap: 1.4rem; margin-top: 0.5rem; }
-.legendItem { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.76rem; color: var(--c-muted); font-weight: 600; }
-.legendDot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
-.legendMealfit { background: var(--c-good); box-shadow: 0 0 8px color-mix(in srgb, var(--c-good) 55%, transparent); }
-.legendLlm { background: var(--c-llm); }
+   MEDIDO antes de escribir esto, con `getComputedStyle` sobre el landing en
+   producción: en los 1.748 de alto de la sección, el texto más grande medía
+   24px. El `<h2>` era el rótulo mono de 13px. Comparado con el resto del
+   MISMO sistema — la banda de cierre lleva 32px en 343px de alto, y el H2 de
+   `/precios` mide 38px — la desproporción no era de estilo, era estructural:
+   ninguna jerarquía de línea o de tono puede sustituir a un ancla tipográfica
+   que no existe.
 
-/* ---------- Datos (columna der) ---------- */
-.dataCol { display: flex; flex-direction: column; gap: 0.85rem; }
+   El spec §4 decía «en una hoja de plano el rótulo del plano ES el título; no
+   hay H2 grande aparte». Se anula AQUÍ, y con precedente propio: `/precios` es
+   superficie papel y lleva su H2 de 38px desde el primer día, y la banda de
+   cierre también. La regla describía bien una lámina suelta; no una sección de
+   1.900px que tiene que organizarse sola dentro de una página larga.
 
-/* versus — números exactos. [P3-BENCHMARK-POLISH · 2026-07-02] Separadores hairline
-   entre filas (lectura de hoja de especificaciones, no textos flotando). */
-.versus { display: flex; flex-direction: column; }
-.vRow { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.5rem 0; }
-.vRow:first-child { padding-top: 0; }
-.vRow + .vRow { border-top: 1px solid var(--c-line); }
-.vLabel { font-size: 0.8rem; color: var(--c-ink); font-weight: 500; flex: 1; min-width: 0; line-height: 1.3; }
-.vVals { display: inline-flex; align-items: baseline; gap: 0.4rem; flex: none; }
-.vMealfit { font-family: var(--font-heading); font-weight: 800; font-size: 1.08rem; color: var(--c-good); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.vVs { font-size: 0.66rem; color: var(--c-muted); }
-.vLlm { font-weight: 700; font-size: 0.86rem; color: var(--c-muted); font-variant-numeric: tabular-nums; }
-
-/* precisión por macro (2×2) */
-.macroGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.55rem; }
-.macroCell {
-    display: flex;
-    flex-direction: column;
-    padding: 0.6rem 0.7rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--c-line);
-    border-radius: 10px;
-}
-.macroVal { font-family: var(--font-heading); font-weight: 800; font-size: 1rem; color: var(--c-good2); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.macroLabel { font-size: 0.68rem; color: var(--c-ink); margin-top: 0.12rem; }
-.macroErr { font-size: 0.62rem; color: var(--c-muted); font-variant-numeric: tabular-nums; margin-top: 0.05rem; }
-
-/* capacidades */
-.caps {
-    padding-top: 0.85rem;
-    border-top: 1px solid var(--c-line);
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-/* [P3-BENCHMARK-POLISH · 2026-07-02] Cabecera micro de la tabla de capacidades: aclara
-   que la marca de la derecha es del "LLM solo" (antes los —/× quedaban sin columna). */
-.capsHead {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-.capsLlmHead {
-    flex: none;
-    width: 48px;
+   Misma escala EXACTA que `Pricing.module.css:.title` — no un valor nuevo.
+   El rótulo mono se queda donde estaba, degradado a antetítulo (`<p>`): sigue
+   numerando la lámina, que es su trabajo, y deja de ser el encabezado del
+   documento. Un `<h2>` por sección, y ahora describe la sección en vez de
+   numerarla. */
+.title {
+    max-width: 24ch;
+    margin: 0 auto 0.75rem;
     text-align: center;
     font-family: var(--font-heading);
-    font-size: 0.6rem;
-    font-weight: 700;
+    font-size: clamp(1.75rem, 3.4vw, 2.375rem);
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--pa-ink);
+    text-wrap: balance;
+}
+
+.subtitle {
+    max-width: 52ch;
+    margin: 0 auto 1.5rem;
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
+}
+
+/* ── tira de cartucho ─────────────────────────────────────────────────────
+   Cuatro celdas regladas con las condiciones de la serie. 12 px y
+   `--pa-ink-2`, NO la fila de 11 px + `--pa-ink-3` de «etiqueta accesoria»:
+   `A/B CON EL MOTOR APAGADO` es lo que le dice al lector qué significa «sin
+   motor» en las dos figuras de abajo. Eso DECODIFICA, y el spec sube entera
+   esa capa a 12 px (§2.5). Un metadato que se puede ignorar sin perder la
+   figura es otra cosa; esto no lo es. */
+.strip {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 0 4rem;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--pa-rule);
+    border-bottom: 1px solid var(--pa-rule);
+}
+
+.stripCell {
+    flex: 1 1 auto;
+    padding: 0.7rem 1rem;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--c-muted);
+    color: var(--pa-ink-2);
+    font-variant-numeric: tabular-nums lining;
+    white-space: nowrap;
 }
-.capRow { display: flex; align-items: center; gap: 0.55rem; font-size: 0.78rem; color: var(--c-ink); }
-.capCheck {
-    flex: none;
-    width: 20px; height: 20px;
-    border-radius: 6px;
-    display: grid; place-items: center;
-    color: var(--c-good);
-    background: color-mix(in srgb, var(--c-good) 16%, transparent);
-}
-.capLabel { flex: 1; min-width: 0; }
-.capLlm { flex: none; width: 48px; color: var(--c-muted); display: grid; place-items: center; }
 
-/* ---------- Highlights ---------- */
-.highlights {
-    position: relative;
-    z-index: 1;
-    margin-top: 1.6rem;
-    padding-top: 1.4rem;
-    border-top: 1px solid var(--c-line);
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+.stripCell + .stripCell {
+    border-left: 1px solid var(--pa-rule-2);
 }
-.highlight { display: flex; align-items: center; gap: 0.7rem; }
-.highlightIcon {
-    flex: none;
-    width: 38px; height: 38px;
-    border-radius: 10px;
-    display: grid; place-items: center;
-    color: var(--c-good);
-    background: color-mix(in srgb, var(--c-good) 14%, transparent);
-}
-.highlightText { display: flex; flex-direction: column; }
-.highlightText strong { font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800; color: var(--c-ink); font-variant-numeric: tabular-nums; }
-.highlightText span { font-size: 0.72rem; color: var(--c-muted); line-height: 1.3; }
 
-/* ---------- Footnote ---------- */
-/* [P3-BENCHMARK-POLISH · 2026-07-02] De párrafo largo centrado (difícil de leer) a nota
-   enmarcada hairline alineada a la izquierda, patrón .disclaimer de las páginas de detalle. */
-.footnote {
-    position: relative;
-    z-index: 1;
+/* ── bloques de figura ──────────────────────────────────────────────────── */
+.figBlock {
+    margin: 0 0 4rem;
+}
+
+/* ── el cosido ────────────────────────────────────────────────────────────
+   [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] Dos guías punteadas que unen
+   los marcadores `CON MOTOR` / `SIN MOTOR` de la Fig. 04.1 con sus barras
+   homónimas de la Fig. 04.2. Oculto bajo 1024px porque las dos figuras
+   reflowan solas ahí y la correspondencia geométrica deja de sostenerse. */
+.stitch {
+    display: none;
+}
+
+/* ── tabla de capacidades ─────────────────────────────────────────────────
+   `<table>` semántica de verdad (`<thead>` + `<th scope>`), no una rejilla de
+   divs: es una tabla, y un lector de pantalla que anuncia «Con motor, Sí» al
+   entrar en la celda es exactamente lo que hace legible esto sin ver los
+   glifos. */
+.capsWrap {
+    margin: 0 0 1.5rem;
+}
+
+.caps {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: 1px solid var(--pa-rule);
+}
+
+.capsTh {
+    text-align: left;
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid var(--pa-rule);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
+    white-space: nowrap;
+}
+
+.capsThState {
+    width: 116px;
+    text-align: center;
+}
+
+/* [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] De filete (1,61:1) a construcción
+   (3,35:1): las cuatro filas pasan a leerse como cuatro RENGLONES y no como
+   cuatro párrafos flotando. El canto superior ya va a `--pa-rule` en `.caps`,
+   así que el marco asimétrico se conserva. */
+.capsRow {
+    border-bottom: 1px solid var(--pa-rule-2);
+}
+
+.capsRowHead {
+    text-align: left;
+    font-weight: 400;
+    padding: 0.95rem 0.9rem;
+    vertical-align: middle;
+}
+
+/* ── FILETE DE CONDUCCIÓN ─────────────────────────────────────────────────
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] La columna «Capacidad» mide 800
+   de los 1032px de la tabla y su etiqueta más larga ronda los 330: entre el
+   final del texto y las dos columnas de estado quedan 470-600px por fila,
+   cuatro veces seguidas, sin una sola regla que los cruce. Eso es la mitad de
+   la tabla en blanco, y es la razón mecánica de que las capacidades se lean
+   como cuatro frases sueltas en vez de como una tabla.
+
+   El punto de conducción NO inventa ningún dato: dice «esta etiqueta y ese
+   glifo son la misma fila», que es exactamente lo que el `<th scope="row">` ya
+   le dice a un lector de pantalla y lo que el ojo no tenía.
+
+   ⚠ RITMO Y TONO DELIBERADAMENTE DISTINTOS de la guía punteada del sistema.
+   El 3-ON/4-OFF en `--pa-ink` significa «referencia, no materia» (spec §5.5);
+   esto es 1-ON/3-OFF en `--pa-rule-3` y es un FILETE DE TABLA. Dos punteados
+   sin distinguir convertirían una regla memorizable en dos que hay que
+   consultar.
+
+   ⚠ T20 — `height` NO aplica a un elemento inline no reemplazado. El `::after`
+   funciona porque es item flex, y por tanto block-level. Es exactamente el
+   fallo que dejó micro-barras invisibles un mes en este repo. */
+.capLabel {
     display: flex;
-    align-items: flex-start;
-    gap: 0.85rem;
-    margin: 2rem auto 0;
-    max-width: 760px;
-    padding: 1.1rem 1.3rem;
-    border: 1px solid var(--border);
-    border-radius: 14px;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    line-height: 1.35;
+    color: var(--pa-ink);
 }
-.footnoteIcon { flex: none; color: #2DD4BF; margin-top: 2px; }
+
+.capLabel::after {
+    content: '';
+    flex: 1 1 auto;
+    align-self: center;
+    min-width: 2rem;
+    height: 1px;
+    background-image: repeating-linear-gradient(to right,
+        var(--pa-rule-3) 0 1px, transparent 1px 4px);
+}
+
+.capSub {
+    display: block;
+    margin-top: 0.15rem;
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--pa-ink-2);
+}
+
+.capsCell {
+    padding: 0.95rem 0.9rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.glyph {
+    display: block;
+    flex: none;
+    overflow: visible;
+}
+
+/* Sólido / tramado / contorno — los tres canales del sistema, cero color.
+   `rx`/`ry` explícitos a 0: `border-radius` no alcanza a un `<rect>`. */
+.glyphSolid {
+    fill: var(--pa-ink);
+    stroke: none;
+    rx: 0px;
+    ry: 0px;
+}
+
+.glyphOutline {
+    fill: none;
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+    rx: 0px;
+    ry: 0px;
+}
+
+.glyphHatchFill {
+    stroke: none;
+    rx: 0px;
+    ry: 0px;
+}
+
+.glyphHatchLine {
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+}
+
+/* La palabra, obligatoria junto al glifo. A 360 px de ancho un cuadrado
+   tramado de 12 px y uno vacío se confunden; esta es la celda donde eso pasa. */
+.stateWord {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--pa-ink);
+    white-space: nowrap;
+}
+
+/* ── nota metodológica ────────────────────────────────────────────────────
+   Nota hundida: `--pa-sunk` no porta información sola (mide 1,064 contra el
+   papel), solo agrupa. El marco de 1 px `--pa-rule-2` es lo que la delimita.
+   El icono `FlaskConical` teal se fue con los otros 7 lucide. */
+.footnote {
+    margin: 0 auto 4rem;
+    max-width: 68ch;
+    padding: 1.1rem 1.3rem;
+    background: var(--pa-sunk);
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
+}
+
 .footnoteText {
     margin: 0;
     text-align: left;
-    font-size: 0.8rem;
-    line-height: 1.58;
-    color: var(--text-muted);
-}
-.footnoteText strong { color: var(--text-main); font-weight: 600; }
-
-/* ---------- Keyframes ---------- */
-@keyframes bmPulse { 0%, 100% { opacity: 0.5; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } }
-@keyframes bmScan { 0% { top: -90px; } 100% { top: 100%; } }
-@keyframes bmRadarGlow {
-    0%, 100% { filter: drop-shadow(0 0 7px color-mix(in srgb, var(--c-good) 42%, transparent)); }
-    50% { filter: drop-shadow(0 0 17px color-mix(in srgb, var(--c-good) 68%, transparent)); }
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
+    font-variant-numeric: tabular-nums lining;
 }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 820px) {
-    .consoleBody { grid-template-columns: 1fr; gap: 1.75rem; }
-    .radarWrap { max-width: 340px; }
-    .highlights { grid-template-columns: 1fr; gap: 0.85rem; }
-    .stage { perspective: none; }
-    .console { transform: none !important; }
+.footnoteText strong {
+    color: var(--pa-ink);
+    font-weight: 600;
 }
 
+/* ── SETTLE ───────────────────────────────────────────────────────────────
+   Stagger de 70 ms con TOPE de 4 escalones (0/70/140/210): sin el tope, seis
+   bloques encadenados dejan el último entrando 350 ms tarde y la sección se
+   siente perezosa en vez de ordenada. Los `--d` los fija el JSX. */
+.subtitle,
+.strip,
+.figBlock,
+.stitch,
+.capsWrap,
+.footnote {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.drawn .subtitle,
+.drawn .strip,
+.drawn .figBlock,
+.drawn .stitch,
+.drawn .capsWrap,
+.drawn .footnote {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+        opacity 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms),
+        transform 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms);
+}
+
+/* ── reflow ──────────────────────────────────────────────────────────────
+   Las dos figuras reflowan solas (ver sus módulos). Aquí solo la tabla: a
+   360 px, `PARCIAL` en línea con su glifo empuja la columna de la capacidad
+   por debajo de lo legible, así que el glifo sube encima de la palabra y la
+   columna de estado baja de 116 a 62 px. */
+@media (max-width: 639px) {
+    .capsThState {
+        width: 62px;
+    }
+
+    /* A 639px la etiqueta ya envuelve y la columna de estado baja a 62px: no
+       queda tramo que conducir, y un filete de 2rem entre una etiqueta partida
+       en dos líneas y un glifo apilado es ruido, no vínculo. */
+    .capLabel::after {
+        display: none;
+    }
+
+    .state {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .capsTh,
+    .capsRowHead,
+    .capsCell {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    .capLabel {
+        font-size: 0.875rem;
+    }
+
+    .stripCell {
+        flex: 1 1 45%;
+        white-space: normal;
+    }
+}
+
+/* ── REDUCED MOTION — defensa (b) ────────────────────────────────────────
+   La (a) vive en el JSX (`useReducedMotion()` gatea el estado `drawn` en su
+   DEFINICIÓN: con `reduce` el IntersectionObserver ni se monta). Esta capa
+   hace falta porque el guard global de `index.css` solo acorta duraciones: no
+   anula un `transition-delay`, así que sin ella la sección seguiría tardando
+   sus ~600 ms en aparecer para quien pidió que nada se moviera. */
 @media (prefers-reduced-motion: reduce) {
-    .modelDot, .liveDot, .scanlines::after, .radarMealfit { animation: none; }
-    .console { transition: none; }
+    .subtitle,
+    .strip,
+    .figBlock,
+    .stitch,
+    .capsWrap,
+    .footnote {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+/* ============================================================================
+   [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] LAS DOS FIGURAS SE LEVANTAN.
+
+   ⚠ AQUÍ NO SE INCLINA NADA. Inclinar la Fig. 04.1 pone las barras en escorzo
+   y rompe la comparación directa CON MOTOR / SIN MOTOR, que es el activo de
+   esta sección entera. Se puede deformar el dibujo de una pantalla; no se
+   puede deformar una medición. Por eso la 04 usa AXONOMETRÍA — capas
+   paralelas desplazadas — y no la perspectiva de la 03.
+
+   La masa de tinta sale del CANTO, no de relleno: el intento de dársela con
+   bandas negras a todo el ancho (P1-SECCION-03-NEGATIVO) se revirtió por
+   pesado. Un filo de 2px pesa donde tiene que pesar y en ningún sitio más.
+
+   El canto va SOLO en los dos lados que el desplazamiento deja a la vista
+   (derecho e inferior). Espesor en los cuatro lados no es una lámina en
+   axonometría: es un marco. */
+@media (min-width: 1024px) {
+    .figBlock {
+        border-right: 2px solid var(--pa-ink);
+        border-bottom: 2px solid var(--pa-ink);
+    }
+
+    /* ⚠ EL ANCHO EXPLÍCITO ES LO QUE HACE QUE EL DESPLAZAMIENTO EXISTA.
+       Un bloque con `width: auto` responde a `margin-left` ESTRECHÁNDOSE, no
+       moviéndose: el borde derecho sigue clavado al contenedor. Sin esto, las
+       tres láminas acaban con el canto derecho en LA MISMA vertical —medido:
+       1232px las tres— y el filo que justifica poner borde solo en dos lados
+       no asoma por ninguna parte. No serían capas escalonadas sino cajas cada
+       vez más estrechas.
+
+       Con un ancho común y menor que el contenedor, las tres miden igual y
+       cada `margin-left` las corre de verdad. La última acaba justo en el
+       borde del contenedor, así que no hay desbordamiento horizontal.
+
+       ⚠ Y NO se puede hacer con `transform: translateX()`: `.figBlock` y
+       `.capsWrap` ya llevan `transform: translateY()` del revelado
+       (`:388-407`), que al entrar lo reescribe a `translateY(0)` y se llevaría
+       el desplazamiento por delante. */
+    .figBlock,
+    .capsWrap {
+        width: calc(100% - 5rem);
+    }
+
+    /* El eje. Δx = +2,5rem y Δy = −1rem en CADA salto: si el vertical solo se
+       aplica a uno de los dos, la diagonal se dobla y se lee como tres
+       sangrados arbitrarios en vez de una pila.
+
+       [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] `~`, NO `+`. El cosido
+       metió el `<svg class="stitch">` EN MEDIO de los dos `.figBlock` en el
+       JSX. `+` exige adyacencia estricta en el DOM — medido: con `+` el
+       segundo `.figBlock` volvía a `x=200` igual que el primero, offset
+       perdido entero, porque ya no lo sigue directamente. `~` (hermano
+       general) no exige adyacencia y sigue seleccionando solo al segundo
+       `.figBlock` (es el único que tiene un `.figBlock` anterior). */
+    .figBlock ~ .figBlock {
+        margin-left: 2.5rem;
+        margin-top: -1rem;
+    }
+
+    /* La tabla de capacidades es la TERCERA capa, la de más abajo. Sin canto
+       inferior — tres láminas con filo completo seguidas volverían a ser la
+       mancha que el revert rechazó. */
+    .capsWrap {
+        margin-left: 5rem;
+        margin-top: -1rem;
+        border-right: 2px solid var(--pa-ink);
+    }
+
+    /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] El cosido entra en flujo
+       normal ENTRE los dos `.figBlock`: su propio alto (48px) y el `margin`
+       0 por defecto se suman a la pila — el `margin-top: -1rem` de arriba
+       sigue tirando del segundo `.figBlock` hacia el cosido, que es
+       exactamente el mismo desplazamiento visual que tiraba del primero
+       antes de que el cosido existiera. */
+    .stitch {
+        display: block;
+        width: 100%;
+        height: 48px;
+        overflow: visible;
+    }
+
+    /* [fix · 2026-08-03] Sin `vector-effect`: solo hacía falta para compensar
+       el escalado no-uniforme del `viewBox` estirado que este fichero ya no
+       usa (ver el comentario del JSX). Sin `viewBox` no hay escala que
+       normalizar — añadirlo por costumbre sería ruido. */
+    .stitchLine {
+        fill: none;
+        stroke: var(--pa-ink-3);
+        stroke-width: 1px;
+        stroke-dasharray: 3 4;
+    }
 }

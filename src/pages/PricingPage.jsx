@@ -1,5 +1,10 @@
 import { useLayoutEffect } from 'react';
 import Pricing from '../components/home/Pricing';
+// [P2-PAPER-NO-INK · 2026-08-02, Task 13] Banda de cierre: última hija de las 6
+// rutas papel. Va en componente propio y NUNCA dentro de Footer.jsx — el footer
+// se renderiza en 21 rutas, incluidas las 10 legales, y un CTA de conversión no
+// pinta en la política de privacidad (ver ClosingBand.jsx).
+import ClosingBand from '../components/home/ClosingBand';
 import styles from './PricingPage.module.css';
 
 /* [P3-PRICING-PAGE-BG-SEAM · 2026-06-29] Página /precios. Envuelve el componente de
@@ -15,9 +20,12 @@ const PricingPage = () => {
     }, []);
 
     return (
-        <div className={styles.wrap}>
-            <Pricing />
-        </div>
+        <>
+            <div className={styles.wrap}>
+                <Pricing />
+            </div>
+            <ClosingBand />
+        </>
     );
 };
 

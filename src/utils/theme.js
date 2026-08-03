@@ -98,3 +98,15 @@ export function isDarkActive() {
         return false;
     }
 }
+
+/** True si la superficie PAPEL está activa (lee el DOM, no la ruta).
+ *  Simétrica de `isDarkActive`. Ojo: preguntar por la RUTA en vez de por el
+ *  atributo es un bug real — mientras `PublicThemeLock` fuerza 'dark' en las
+ *  rutas de marketing, una ruta elegible para papel NO significa papel activo. */
+export function isPaperActive() {
+    try {
+        return document.documentElement.getAttribute('data-theme') === 'paper';
+    } catch {
+        return false;
+    }
+}

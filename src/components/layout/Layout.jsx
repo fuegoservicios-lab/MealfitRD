@@ -2,7 +2,17 @@ import Header from './Header';
 import Footer from './Footer';
 import PropTypes from 'prop-types';
 import { useLocation } from 'react-router-dom';
-import { HeroCtaProvider } from '../../context/HeroCtaContext';
+
+/* [P1-PAPER-HERO-FIG00 · 2026-08-01] Fuera `HeroCtaProvider`.
+ * El puente Hero→Header (HEADER-STICKY-CTA · 2026-05-31) llevaba sin
+ * consumidor desde P3-HEADER-FLOAT-REDESIGN: el CTA del header pasó a ser
+ * permanente (`Header.jsx`: `showStickyCta = isLandingLike && !hideStartNow`,
+ * sin leer `heroCtaVisible`). Quedaba un IntersectionObserver en el Hero
+ * escribiendo un estado que nadie leía, y un provider envolviendo TODAS las
+ * páginas para transportarlo. Se retiraron los tres a la vez — ref, provider
+ * y `context/HeroCtaContext.jsx` — porque limpiar solo el ref deja un
+ * provider huérfano que invita a recablearlo.
+ */
 
 const Layout = ({ children }) => {
     // [P3-PLAN-LOADING-NO-CHROME · 2026-06-29] La pantalla de generación de plan
@@ -12,31 +22,26 @@ const Layout = ({ children }) => {
     const isPlanLoading = pathname === '/plan' || pathname.startsWith('/plan/');
 
     return (
-        // [HEADER-STICKY-CTA · 2026-05-31] Provider que comparte la visibilidad del
-        // CTA del Hero entre <Header/> y la página (Hero). Vive aquí (no en App.jsx)
-        // porque el Layout es justo el componente que compone Header + página.
-        <HeroCtaProvider>
-            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                {!isPlanLoading && <Header />}
-                <main id="main-content" tabIndex={-1} className="main-content" style={isPlanLoading ? { flex: 1, paddingTop: 0 } : { flex: 1 }}>
-                    <style>{`
-                        /* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El header es una barra
-                           flotante (wrapper con padding + pastilla). Subimos el offset
-                           para que el contenido arranque con aire bajo la barra. */
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            {!isPlanLoading && <Header />}
+            <main id="main-content" tabIndex={-1} className="main-content" style={isPlanLoading ? { flex: 1, paddingTop: 0 } : { flex: 1 }}>
+                <style>{`
+                    /* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El header es una barra
+                       flotante (wrapper con padding + pastilla). Subimos el offset
+                       para que el contenido arranque con aire bajo la barra. */
+                    .main-content {
+                        padding-top: calc(72px + max(env(safe-area-inset-top), 18px));
+                    }
+                    @media (min-width: 768px) {
                         .main-content {
-                            padding-top: calc(72px + max(env(safe-area-inset-top), 18px));
+                            padding-top: 88px;
                         }
-                        @media (min-width: 768px) {
-                            .main-content {
-                                padding-top: 88px;
-                            }
-                        }
-                    `}</style>
-                    {children}
-                </main>
-                {!isPlanLoading && <Footer />}
-            </div>
-        </HeroCtaProvider>
+                    }
+                `}</style>
+                {children}
+            </main>
+            {!isPlanLoading && <Footer />}
+        </div>
     );
 };
 

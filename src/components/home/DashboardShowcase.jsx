@@ -1,30 +1,138 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import PropTypes from 'prop-types';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
-    CalendarDays, ChefHat, ShoppingCart, Bot, Refrigerator,
-    Clock, CheckCircle2, FileDown, Flame, Search, Plus,
-    Sparkles, Send, AlertTriangle, ChevronLeft, ChevronRight,
+    Clock, Flame, FileDown, Search, Plus, Sparkles, Send, AlertTriangle,
 } from 'lucide-react';
 import SeeMoreLink from './SeeMoreLink';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { makeSectionMotion } from './sectionMotion';
 import styles from './DashboardShowcase.module.css';
 
-/* [P3-DASHBOARD-3D · 2026-06-29] Rediseño RADICAL: coverflow 3D. Las 5 pantallas
-   de la app en un carrusel con perspectiva — la activa al frente, las demás
-   giradas/recibidas a los lados (rotateY + translateZ). Reusa los 5 mockups.
-   Navegación: clic en una tarjeta lateral, flechas, o pills. Mobile-adaptive
-   (offsets y profundidad reducidos por breakpoint) + accesible (pills = tablist). */
+/* ============================================================================
+   [P2-PAPER-NO-INK · 2026-08-01] DashboardShowcase → «03 / LAS PANTALLAS»,
+   LÁMINA DE DESPIECE.
 
-const FEATURES = [
-    { id: 'plan', icon: CalendarDays, title: 'Plan Diario Personalizado', shortLabel: 'Plan', desc: 'Cada día con desayuno, almuerzo, cena y meriendas calibrados a tus macros exactos.', color: '#6366F1' },
-    { id: 'recipes', icon: ChefHat, title: 'Recetas Paso a Paso', shortLabel: 'Recetas', desc: 'Cada plato con ingredientes en cantidades dominicanas y pasos claros para cocinarlo.', color: '#A78BFA' },
-    { id: 'shopping', icon: ShoppingCart, title: 'Lista de Compras Inteligente', shortLabel: 'Lista', desc: 'Generada automáticamente, agrupada por categorías y exportable a PDF.', color: '#34D399' },
-    { id: 'chat', icon: Bot, title: 'Nutricionista IA 24/7', shortLabel: 'Chat IA', desc: 'Pregunta, cambia comidas, registra lo que comiste — la IA responde al instante.', color: '#FB923C' },
-    { id: 'pantry', icon: Refrigerator, title: 'Nevera Virtual', shortLabel: 'Nevera', desc: 'La IA sabe qué tienes en casa y evita que compres lo que ya está en tu nevera.', color: '#38BDF8' },
+   Las cinco superficies de la app dejan de turnarse en un carrusel y pasan a
+   estar las cinco a la vez sobre la misma hoja, como vistas ortográficas.
+   Reparto DELIBERADAMENTE asimétrico sobre 12 columnas — 01 a 7 columnas y
+   más alta, 02 y 03 a 5, 04 y 05 a 6 — porque una lámina real tiene una vista
+   general grande y detalles pequeños; cinco celdas iguales es lo que la haría
+   parecer una plantilla.
+
+   MURIÓ EL COVERFLOW 3D ENTERO (`P3-DASHBOARD-3D`, 2026-06-29): `perspective`,
+   `transform-style: preserve-3d`, los `rotateY`/`translateZ` con sus offsets
+   por breakpoint, las flechas prev/next, las pills tablist con su
+   `handleKeyDown`, el panel `activeInfo` con su `AnimatePresence`, los estados
+   `active`/`paused` y el temporizador `RHYTHM` (`P3-DASHBOARD-RHYTHM`,
+   2026-06-30) con su `setTimeout` recursivo de ráfagas y cooldown. Con ellos
+   se fueron los 5 acentos de color, que NO vivían en el CSS: vivían aquí, en
+   el array `FEATURES`, como `color: '#6366F1' | '#A78BFA' | '#34D399' |
+   '#FB923C' | '#38BDF8'`, inyectados a la tarjeta y a la pill como
+   `style={{'--accent': f.color}}` y al `<h3>` como `style={{color}}`. Un pase
+   solo-CSS no habría tocado ni uno.
+
+   Y MURIÓ `filter: brightness(calc(1 - var(--abs) * 0.12))`, que sobre papel
+   hace LO CONTRARIO que sobre fondo oscuro. Oscurecer una tarjeta la hunde
+   cuando el fondo es negro; sobre una hoja blanca la SACA al frente. Medido
+   para `|offset| = 2`: 1,006:1 de contraste contra su fondo hoy → 1,720:1
+   sobre papel, es decir, las tarjetas periféricas —las que el efecto existía
+   para apagar— habrían sido los objetos de más contraste de la sección. Su
+   compañero, el `drop-shadow(0 30px 52px …)` de la tarjeta activa, pasaba de
+   casi invisible a manchón gris. Los dos borrados, no adaptados.
+
+   EL ESTADO SE RECODIFICA POR FORMA, NUNCA POR TINTA:
+     chips de color        → etiqueta mono con contorno de 1px
+     barras de progreso    → pista de 1px + relleno sólido + % en mono tabular
+     badges                → valor mono, sin caja
+     avatar del chat       → cuadrado sólido con iniciales en mono
+     iconos lucide         → strokeWidth 1.25, currentColor
+     check verde/círculo   → CUADRADO RELLENO vs CUADRADO VACÍO, con la
+                             leyenda impresa dentro del propio mockup
+
+   `styles.shopItemPending` renderizaba `class="undefined"`: el JSX lo usaba y
+   la regla no existía en el módulo. Inocuo, pero es exactamente el gancho que
+   «por comprar» necesita para el contorno — cableado, no borrado. Su gemela
+   `.shopItemDone` sí murió: el ítem que YA tienes no está «hecho», está en tu
+   nevera, y ahora se llama `.shopItemHave`.
+
+   Los 5 mockups se conservan enteros. Son el activo más caro de la sección y
+   evitan cinco rásters en un mercado donde los datos móviles son caros.
+   ========================================================================= */
+
+/* Contrato de trazo, heredado de `figures/PlateExploded.jsx`. Aquí NO se traza
+   nada: las dos guías anotadas son PUNTEADAS, así que llevan `VE` a secas y
+   jamás `pathLength`. Bajo `pathLength={1}` un `stroke-dasharray: 3 4` se
+   interpreta sobre un path normalizado a longitud 1, el primer trazo de 3 lo
+   cubre entero y la guía se dibuja SÓLIDA — que es justo perder lo único que
+   codifica «referencia, no materia» (§5.5).
+   El SVG de las guías no lleva `viewBox` a propósito (ver el .module.css), así
+   que hoy no hay escalado y `VE` es un no-op; va igualmente para que el
+   contrato siga en pie si alguien le añade uno. */
+const VE = { vectorEffect: 'non-scaling-stroke' };
+
+/* Trazo de icono del sistema papel: 1,25 y color heredado. Los lucide venían
+   a 2,4-3 y con color propio — a ese grosor un icono pesa más que la regla de
+   1px que lo rodea. */
+const ICON = { strokeWidth: 1.25 };
+
+const VIEWS = [
+    {
+        id: 'plan',
+        n: '01',
+        label: 'PLAN DIARIO',
+        title: 'Plan diario personalizado',
+        desc: 'Cada día con desayuno, almuerzo, cena y meriendas calibrados a tus macros exactos.',
+        figTag: 'Fig. 03.1',
+        figText: 'Vista del día: cuatro comidas contra tu objetivo.',
+    },
+    {
+        id: 'recipes',
+        n: '02',
+        label: 'RECETAS',
+        title: 'Recetas paso a paso',
+        desc: 'Cada plato con ingredientes en cantidades dominicanas y pasos claros para cocinarlo.',
+        figTag: 'Fig. 03.2',
+        figText: 'Ficha de plato: cantidades y preparación.',
+    },
+    {
+        id: 'shopping',
+        n: '03',
+        label: 'LISTA DE COMPRAS',
+        title: 'Lista de compras inteligente',
+        desc: 'Generada automáticamente, agrupada por categorías y exportable a PDF.',
+        figTag: 'Fig. 03.3',
+        figText: 'Lista derivada del plan, por categoría.',
+    },
+    {
+        id: 'chat',
+        n: '04',
+        label: 'NUTRICIONISTA IA',
+        title: 'Nutricionista IA 24/7',
+        desc: 'Pregunta, cambia comidas, registra lo que comiste — la IA responde al instante.',
+        figTag: 'Fig. 03.4',
+        figText: 'Consulta: un cambio y su efecto en la lista.',
+    },
+    {
+        id: 'pantry',
+        n: '05',
+        label: 'NEVERA VIRTUAL',
+        title: 'Nevera virtual',
+        desc: 'La IA sabe qué tienes en casa y evita que compres lo que ya está en tu nevera.',
+        figTag: 'Fig. 03.5',
+        figText: 'Inventario de casa y avisos de uso.',
+    },
 ];
 
+/* Los dos rótulos de las guías anotadas. Son la única pieza de la lámina que
+   dice qué HACE el producto en vez de qué preciso es, así que no se apagan
+   bajo 1024px: cambian de forma (fila de texto entre vistas apiladas). */
+const GUIDE_1 = '→ genera la lista con precios de colmado';
+const GUIDE_2 = '→ descuenta lo que ya tienes en la nevera';
+
 // ============================================================
-//  Sub-componentes: un mockup por feature (compactos).
+//  Sub-componentes: un mockup por vista (compactos).
 // ============================================================
 
 export const PlanMockup = () => (
@@ -34,7 +142,7 @@ export const PlanMockup = () => (
                 <strong>Tu plan de hoy</strong>
                 <span className={styles.mockHeaderSub}>Lunes · Meta: 2,000 kcal</span>
             </div>
-            <span className={styles.mockBadgePrimary}>4 comidas</span>
+            <span className={styles.mockValue}>4 comidas</span>
         </div>
         <div className={styles.planMeals}>
             {[
@@ -47,16 +155,20 @@ export const PlanMockup = () => (
                     <div className={styles.planMealLeft}>
                         <span className={styles.planMealTag}>{m.tag}</span>
                         <strong className={styles.planMealName}>{m.name}</strong>
-                        <span className={styles.planMealTime}><Clock size={11} strokeWidth={2.5} /> {m.time}</span>
+                        <span className={styles.planMealTime}><Clock size={12} {...ICON} /> {m.time}</span>
                     </div>
                     <div className={styles.planMealKcal}><strong>{m.kcal}</strong><small>kcal</small></div>
                 </div>
             ))}
         </div>
+        {/* Barra de progreso → pista de 1px, relleno sólido y el porcentaje en
+            mono tabular a la derecha: el número deja de estar codificado solo
+            en el largo de una barra de color. */}
         <div className={styles.planFooter}>
-            <Flame size={14} strokeWidth={2.5} />
+            <Flame size={13} {...ICON} />
             <span>Total: <strong>1,860 / 2,000 kcal</strong></span>
-            <div className={styles.planProgress}><span style={{ width: '93%' }} /></div>
+            <span className={styles.planProgress} aria-hidden="true"><span style={{ width: '93%' }} /></span>
+            <span className={styles.planPct}>93%</span>
         </div>
     </div>
 );
@@ -68,11 +180,11 @@ export const RecipesMockup = () => (
                 <strong>Pollo guisado con moro</strong>
                 <span className={styles.mockHeaderSub}>Rinde 2 porciones · 35 min de cocción</span>
             </div>
-            <span className={styles.mockBadgeAccent}>Fácil</span>
+            <span className={styles.mockValue}>Fácil</span>
         </div>
         <div className={styles.recipeBody}>
             <div className={styles.recipeIngredients}>
-                <h5>Ingredientes</h5>
+                <span className={styles.mockSubhead}>Ingredientes</span>
                 <ul>
                     <li><span className={styles.recipeQty}>1 lb</span> Pechuga de pollo</li>
                     <li><span className={styles.recipeQty}>1 tz</span> Arroz blanco</li>
@@ -82,7 +194,7 @@ export const RecipesMockup = () => (
                 </ul>
             </div>
             <div className={styles.recipeSteps}>
-                <h5>Preparación</h5>
+                <span className={styles.mockSubhead}>Preparación</span>
                 <ol>
                     <li><span className={styles.recipeStepNum}>1</span> Sofríe la cebolla y el ajo a fuego medio hasta dorar.</li>
                     <li><span className={styles.recipeStepNum}>2</span> Añade el pollo cortado en cubos y dora por 8 min.</li>
@@ -100,30 +212,40 @@ export const ShoppingMockup = () => (
                 <strong>Tu lista de compras</strong>
                 <span className={styles.mockHeaderSub}>Para 7 días · 28 ingredientes</span>
             </div>
-            <span className={styles.mockBadgeSuccess}><FileDown size={12} strokeWidth={2.5} /> PDF</span>
+            <span className={styles.mockTag}><FileDown size={12} {...ICON} /> PDF</span>
+        </div>
+        {/* La leyenda va ARRIBA, no al pie: en desktop esta vista se recorta
+            por el marco, y una clave de lectura que el recorte se puede comer
+            no es una clave. Además es donde va la leyenda en una lámina. */}
+        <div className={styles.shopLegend}>
+            <span className={styles.shopLegendItem}>
+                <span className={`${styles.shopMark} ${styles.shopMarkHave}`} aria-hidden="true" /> ya está en tu nevera
+            </span>
+            <span className={styles.shopLegendItem}>
+                <span className={`${styles.shopMark} ${styles.shopMarkPending}`} aria-hidden="true" /> por comprar
+            </span>
         </div>
         <div className={styles.shopBody}>
             {[
-                { cat: 'Proteínas', items: [{ name: 'Pechuga de pollo', qty: '2 lb', done: true }, { name: 'Huevos', qty: '12 und', done: true }, { name: 'Pescado fresco', qty: '1 lb', done: false }] },
-                { cat: 'Vegetales', items: [{ name: 'Plátano maduro', qty: '3 und', done: true }, { name: 'Cebolla', qty: '2 und', done: false }, { name: 'Cilantro fresco', qty: '1 atado', done: false }] },
+                { cat: 'Proteínas', items: [{ name: 'Pechuga de pollo', qty: '2 lb', have: true }, { name: 'Huevos', qty: '12 und', have: true }, { name: 'Pescado fresco', qty: '1 lb', have: false }] },
+                { cat: 'Vegetales', items: [{ name: 'Plátano maduro', qty: '3 und', have: true }, { name: 'Cebolla', qty: '2 und', have: false }, { name: 'Cilantro fresco', qty: '1 atado', have: false }] },
             ].map((group) => (
                 <div key={group.cat} className={styles.shopGroup}>
-                    <h5>{group.cat}</h5>
+                    <span className={styles.mockSubhead}>{group.cat}</span>
                     <ul>
+                        {/* Sólido = ya está; contorno = falta. El estado NO viaja
+                            en el color del icono: viaja en el relleno del
+                            cuadrado, y la leyenda de abajo lo dice impreso. */}
                         {group.items.map((item) => (
-                            <li key={item.name} className={item.done ? styles.shopItemDone : styles.shopItemPending}>
-                                {item.done ? <CheckCircle2 size={13} strokeWidth={2.5} /> : <span className={styles.shopBullet} aria-hidden="true" />}
-                                <span>{item.name}</span>
+                            <li key={item.name} className={item.have ? styles.shopItemHave : styles.shopItemPending}>
+                                <span className={styles.shopMark} aria-hidden="true" />
+                                <span className={styles.shopName}>{item.name}</span>
                                 <small>{item.qty}</small>
                             </li>
                         ))}
                     </ul>
                 </div>
             ))}
-        </div>
-        <div className={styles.shopLegend}>
-            <span className={styles.shopLegendItem}><CheckCircle2 size={12} strokeWidth={2.5} /> Ya está en tu nevera</span>
-            <span className={styles.shopLegendItem}><span className={styles.shopBullet} aria-hidden="true" /> Por comprar</span>
         </div>
     </div>
 );
@@ -132,13 +254,15 @@ export const ChatMockup = () => (
     <div className={styles.mockFrame}>
         <div className={styles.mockHeader}>
             <div className={styles.chatHeaderRow}>
-                <div className={styles.chatAvatar} aria-hidden="true"><Bot size={16} strokeWidth={2.5} /></div>
+                {/* Cuadrado sólido con iniciales en mono: era un círculo con
+                    degradado indigo y un icono dentro. */}
+                <span className={styles.chatAvatar} aria-hidden="true">IA</span>
                 <div>
                     <strong>Nutricionista IA</strong>
-                    <span className={styles.mockHeaderSub}><span className={styles.chatStatusDot} aria-hidden="true" /> En línea</span>
+                    <span className={styles.mockHeaderSub}>En línea</span>
                 </div>
             </div>
-            <Sparkles size={16} className={styles.chatSparkle} strokeWidth={2.5} />
+            <Sparkles size={15} className={styles.chatSparkle} {...ICON} />
         </div>
         <div className={styles.chatBody}>
             <div className={styles.chatBubbleUser}>¿Puedo cambiar el almuerzo de mañana? Hoy almorcé pollo.</div>
@@ -148,7 +272,7 @@ export const ChatMockup = () => (
         </div>
         <div className={styles.chatInputBar} aria-hidden="true">
             <span className={styles.chatInputPlaceholder}>Escribe lo que necesites…</span>
-            <span className={styles.chatInputSend}><Send size={14} strokeWidth={2.5} /></span>
+            <span className={styles.chatInputSend}><Send size={13} {...ICON} /></span>
         </div>
     </div>
 );
@@ -160,12 +284,14 @@ export const PantryMockup = () => (
                 <strong>Lo que tienes en casa</strong>
                 <span className={styles.mockHeaderSub}>18 ingredientes guardados</span>
             </div>
-            <span className={styles.mockBadgeNeutral}><Plus size={12} strokeWidth={3} /> Añadir</span>
+            <span className={styles.mockTag}><Plus size={12} {...ICON} /> Añadir</span>
         </div>
         <div className={styles.pantrySearch}>
-            <Search size={13} strokeWidth={2.5} />
+            <Search size={13} {...ICON} />
             <span>Buscar en la nevera…</span>
         </div>
+        {/* `data-state="soon"` ya no tiñe de naranja: sube el contorno del ítem
+            a tinta plena y saca la etiqueta acotada. Peso de línea, no color. */}
         <div className={styles.pantryGrid}>
             {[
                 { name: 'Arroz blanco', qty: '5 lb', state: 'fresh' },
@@ -179,7 +305,7 @@ export const PantryMockup = () => (
                     <strong>{item.name}</strong>
                     <small>{item.qty}</small>
                     {item.state === 'soon' && (
-                        <span className={styles.pantryWarn}><AlertTriangle size={10} strokeWidth={2.5} /> {item.warn}</span>
+                        <span className={styles.pantryWarn}><AlertTriangle size={11} {...ICON} /> {item.warn}</span>
                     )}
                 </div>
             ))}
@@ -195,198 +321,266 @@ const MOCKUPS = {
     pantry: <PantryMockup />,
 };
 
-const PANEL_ID = 'dashboard-showcase-panel';
+/* Una vista de la lámina. El marco ENTERO es un solo enlace a /funciones — no
+   hay objetivos táctiles pequeños dentro (ningún mockup es enlazable celda a
+   celda), que es lo que permite escalar el interior bajo 1024px sin encoger
+   nada pulsable. El mockup va `aria-hidden`: es un dibujo de una pantalla, y
+   leerlo campo por campo con lector de pantalla es ruido — el cartucho, la
+   descripción y el pie de figura sí son texto real. */
+const View = ({ view, rise }) => (
+    <motion.article className={`${styles.view} ${styles[`view${view.n}`]}`} variants={rise}>
+        <Link
+            to="/funciones"
+            className={styles.viewLink}
+            aria-label={`${view.title} — ver todas las funciones`}
+        >
+            <span className={styles.cartouche}>
+                <span className={styles.cartoucheN}>{`VISTA ${view.n}`}</span>
+                <span className={styles.cartoucheSep} aria-hidden="true">·</span>
+                <span className={styles.cartoucheLabel}>{view.label}</span>
+            </span>
+            <span className={styles.viewDesc}>{view.desc}</span>
+            <div className={styles.viewport}>
+                <div className={styles.scaleBox} aria-hidden="true">{MOCKUPS[view.id]}</div>
+            </div>
+            {/* [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] Pie a DOS VOCES: prefijo
+                mono en tinta + frase en PJS a --pa-ink-2. Es exactamente lo que
+                `.caption`/`.captionTag` de las dos figuras de la sección 04 ya
+                hacen, y lo que el spec §2.5 define para un pie de figura. Antes
+                los cinco pies iban en mono 12 completo: cinco líneas grises
+                idénticas que se leían como una banda, y que divergían del pie de
+                la 04 sin ninguna razón. */}
+            <span className={styles.figCaption}>
+                <span className={styles.figTag}>{view.figTag}</span>
+                {` — ${view.figText}`}
+            </span>
+        </Link>
+    </motion.article>
+);
 
-// [P3-DASHBOARD-RHYTHM · 2026-06-30] Cadencia "impredecible" del auto-rotado: alterna un
-// dwell normal (~3.2-4.9s por tarjeta) con ráfagas rápidas (3-5 flips a ~0.4-0.55s) que
-// barren varias tarjetas "de golpe" y luego vuelven a velocidad normal. Jitter + cooldown
-// → ritmo orgánico, único, nunca dos ráfagas seguidas. (Antes: setInterval fijo de 3.8s.)
-const RHYTHM = {
-    normalMin: 3200, normalSpan: 1700,   // dwell normal: 3.2–4.9 s
-    burstMin: 400, burstSpan: 150,        // flip dentro de ráfaga: 0.40–0.55 s
-    burstProb: 0.45,                      // prob. de iniciar ráfaga (tras el cooldown)
+View.propTypes = {
+    view: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        n: PropTypes.string.isRequired,
+        label: PropTypes.string.isRequired,
+        title: PropTypes.string.isRequired,
+        desc: PropTypes.string.isRequired,
+        figTag: PropTypes.string.isRequired,
+        figText: PropTypes.string.isRequired,
+    }).isRequired,
+    rise: PropTypes.object.isRequired,
 };
 
-// ============================================================
-//  Componente principal — coverflow 3D
-// ============================================================
+/* Fila de guía para vistas apiladas (<1024px). No es una alternativa pobre al
+   SVG: es la MISMA información con otra forma — regla punteada + el mismo
+   rótulo mono. Se coloca justo antes de la vista a la que apunta.
+
+   Lleva `variants` como las vistas y no por simetría de estilo: es un hijo
+   directo del contenedor que orquesta el stagger, así que sin ellas entra a
+   opacidad plena mientras los cinco marcos aún están subiendo — la guía
+   llegaría ANTES que aquello a lo que apunta, que en una sección cuya tesis
+   es «las guías explican el producto» es exactamente la inversión que no
+   queremos. */
+const GuideRow = ({ rise, children }) => (
+    <motion.p className={styles.guideRow} variants={rise}>
+        <span className={styles.guideRowRule} aria-hidden="true" />
+        <span className={styles.guideRowText}>{children}</span>
+    </motion.p>
+);
+
+GuideRow.propTypes = {
+    rise: PropTypes.object.isRequired,
+    children: PropTypes.node.isRequired,
+};
+
+/* El breakpoint de la escena 3D, EL MISMO que el `@media (min-width: 1024px)`
+   del .module.css. Si cambia allí, cambia aquí o el fade vuelve a aplanar la
+   perspectiva sin que nada falle. */
+const MQ_ESCENA_3D = '(min-width: 1024px)';
+
+/* [P1-SECCIONES-03-04-PROFUNDIDAD · revisión 2026-08-03] La misma variant SIN
+   el canal `opacity`.
+
+   `opacity` es una propiedad de AGRUPACIÓN: en cuanto vale algo distinto de 1,
+   el valor USADO de `transform-style` pasa a `flat` por mucho que el computado
+   siga diciendo `preserve-3d`. `.view` y `.guideBand` son justo los dos
+   elementos que propagan el espacio 3D de la lámina Y los dos que animaban
+   `opacity: 0 → 1` con `M.rise`: durante TODA la entrada las cinco hojas se
+   dibujaban planas —sin perspectiva y sin que su `--z` cambiara nada— y cada
+   una saltaba a su proyección al terminar su propio fade, escalonadas cinco
+   veces. Medido sobre la pose cerrada: 551,48 × 119,90 con perspectiva contra
+   621,00 × 57,23 aplanado.
+
+   ⚠ ESTO NO SE PUEDE ARREGLAR DESDE EL CSS. Framer-motion escribe la opacidad
+   INLINE, y una declaración de hoja de autor sin `!important` no la pisa —
+   medido en navegador: con `.view { opacity: 1 }` aplicada y
+   `style="opacity: .6"`, el computado seguía siendo 0,6. La única forma de que
+   la opacidad no exista es que no exista en la VARIANT.
+
+   A ≥1024px la entrada de cada hoja ES la apertura de la lámina (los 900ms de
+   CSS desde `--z: -240px`), así que el fade sobraba. El desplazamiento `y` se
+   conserva: es un transform, no aplana nada, y es lo que el `staggerChildren`
+   de `.sheet` sigue escalonando. Bajo 1024px no hay escena 3D y la entrada
+   sigue siendo la de siempre, fade incluido. */
+const withoutFade = (rise) => ({
+    hidden: { y: rise.hidden.y },
+    show: { y: rise.show.y, transition: rise.show.transition },
+});
 
 const DashboardShowcase = () => {
-    const [active, setActive] = useState(0);
-    const tabRefs = useRef([]);
-    // [P1-LANDING-MOTION · 2026-07-11] Reveal on-scroll compartido del landing.
+    /* Reduced motion, defensa (a): `makeSectionMotion(reduce)` gatea las
+       variants en su DEFINICIÓN (sin desplazamiento y duración ~0). La (b) es
+       el bloque `@media (prefers-reduced-motion: reduce)` del .module.css: el
+       guard global de index.css solo acorta duraciones, y framer-motion
+       escribe los transforms inline vía WAAPI. */
     const reduce = useReducedMotion();
     const M = makeSectionMotion(reduce);
-    // [P3-DASHBOARD-RHYTHM] Estado del ritmo (persiste entre re-arms del efecto):
-    // burst = flips rápidos restantes; cooldown = dwells normales antes de re-armar ráfaga.
-    const rhythmRef = useRef({ burst: 0, cooldown: 1 });
-    const count = FEATURES.length;
-    const current = FEATURES[active];
-    const [paused, setPaused] = useState(false);
 
-    // [P3-DASHBOARD-RHYTHM · 2026-06-30] Auto-rota el coverflow con cadencia variable
-    // (ráfagas + dwell). Loop auto-reprogramado: cada tick avanza y agenda el siguiente con
-    // un delay que sale de la máquina de ritmo (rhythmRef). Se pausa al interactuar
-    // (hover/focus) y se desactiva con prefers-reduced-motion (a11y). El estado del ritmo
-    // vive en rhythmRef para sobrevivir a los re-arms del efecto (pausa/reanudación).
+    /* Ver `withoutFade`: a ≥1024px los hijos de la lámina entran SIN fade
+       porque el fade aplana la escena 3D. `useMediaQuery` es el hook SSOT del
+       repo (P2-14); si `matchMedia` no existe devuelve `false` y todo cae al
+       comportamiento de móvil, que es el seguro. */
+    const escena3D = useMediaQuery(MQ_ESCENA_3D);
+    const rise = escena3D ? withoutFade(M.rise) : M.rise;
+
+    /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] La apertura de la lámina.
+       `IntersectionObserver` + transición CSS, igual que ya hacen HowItWorks y
+       BenchmarkShowcase desde que migraron a papel — no se estrena mecanismo.
+       `once`: se abre y se queda abierta.
+
+       Con `reduce` arranca ABIERTA (no cerrada-y-sin-animar): la geometría no
+       es animación, y dejarla cerrada la devolvería a una rejilla plana. */
+    const sheetRef = useRef(null);
+    const [open, setOpen] = useState(reduce);
+
     useEffect(() => {
-        if (paused) return undefined;
-        if (typeof window !== 'undefined' &&
-            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
-        let id;
-        const nextDelay = () => {
-            const r = rhythmRef.current;
-            if (r.burst > 0) {
-                // dentro de una ráfaga: flips rápidos encadenados
-                r.burst -= 1;
-                return RHYTHM.burstMin + Math.random() * RHYTHM.burstSpan;
-            }
-            if (r.cooldown > 0) {
-                // descanso obligatorio tras una ráfaga (nunca dos ráfagas pegadas)
-                r.cooldown -= 1;
-                return RHYTHM.normalMin + Math.random() * RHYTHM.normalSpan;
-            }
-            if (Math.random() < RHYTHM.burstProb) {
-                // arranca una ráfaga: este flip + 2-4 más (3-5 "de golpe"), luego 1-2 dwells
-                r.burst = 2 + Math.floor(Math.random() * 3);
-                r.cooldown = 1 + Math.floor(Math.random() * 2);
-                return RHYTHM.burstMin + Math.random() * RHYTHM.burstSpan;
-            }
-            return RHYTHM.normalMin + Math.random() * RHYTHM.normalSpan;
-        };
-        const tick = () => {
-            setActive((a) => (a + 1) % count);
-            id = setTimeout(tick, nextDelay());
-        };
-        id = setTimeout(tick, nextDelay());
-        return () => clearTimeout(id);
-    }, [paused, count]);
-
-    const go = (i) => setActive(((i % count) + count) % count);
-
-    const handleKeyDown = (e, index) => {
-        let next = null;
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (index + 1) % count;
-        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (index - 1 + count) % count;
-        else if (e.key === 'Home') next = 0;
-        else if (e.key === 'End') next = count - 1;
-        if (next === null) return;
-        e.preventDefault();
-        setActive(next);
-        tabRefs.current[next]?.focus();
-    };
+        if (reduce) { setOpen(true); return undefined; }
+        const el = sheetRef.current;
+        if (!el || typeof IntersectionObserver === 'undefined') { setOpen(true); return undefined; }
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) { setOpen(true); io.disconnect(); }
+        }, { rootMargin: '0px 0px -15% 0px' });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [reduce]);
 
     return (
         <section className={styles.section} id="dashboard">
-            <div className={styles.bgGrid} aria-hidden="true" />
-
             <div className={styles.container}>
-                <motion.div className={styles.header}
+                <motion.div
+                    className={styles.head}
                     variants={M.container} initial="hidden" whileInView="show"
-                    viewport={{ once: true, amount: 0.6 }}>
-                    <motion.span className={styles.badge} variants={M.rise}>Tu Dashboard</motion.span>
+                    viewport={{ once: true, amount: 0.6 }}
+                >
+                    <motion.div className={styles.sectionHead} variants={M.rise}>
+                        <span className={styles.hLine} aria-hidden="true" />
+                        {/* [P2-SECCIONES-TITULAR · 2026-08-02] Baja de `h2` a `p`: el
+                            titular de verdad es el de abajo. Ver el comentario de
+                            `.title` en el .module.css para por qué existe. */}
+                        <p className={styles.sectionLabel}>03 / LAS PANTALLAS</p>
+                        <span className={styles.hLine} aria-hidden="true" />
+                    </motion.div>
                     <motion.h2 className={styles.title} variants={M.rise}>
-                        Todo lo que necesitas, <br />
-                        <span className={styles.titleAccent}>en un solo lugar</span>
+                        La aplicación, por dentro
                     </motion.h2>
                     <motion.p className={styles.subtitle} variants={M.rise}>
-                        Más que un plan: una herramienta diaria que aprende contigo, organiza tus compras y te ahorra tiempo en la cocina.
+                        Cinco superficies dibujadas a la misma escala sobre la misma hoja.
                     </motion.p>
                 </motion.div>
 
-                {/* [P3-DASHBOARD-3D-AUTOCYCLE] Wrapper que pausa el auto-rotado mientras
-                    el usuario interactúa (hover o foco de teclado).
-                    [P1-LANDING-MOTION] Entra con fade-rise; el coverflow interno
-                    conserva sus transforms CSS (el motion vive en el wrapper). */}
                 <motion.div
-                    className={styles.carousel}
-                    variants={M.rise} initial="hidden" whileInView="show"
-                    viewport={{ once: true, amount: 0.2 }}
-                    onMouseEnter={() => setPaused(true)}
-                    onMouseLeave={() => setPaused(false)}
-                    onFocusCapture={() => setPaused(true)}
-                    onBlurCapture={() => setPaused(false)}
+                    ref={sheetRef}
+                    className={styles.sheet}
+                    data-open={open ? '1' : '0'}
+                    variants={M.container} initial="hidden" whileInView="show"
+                    viewport={{ once: true, amount: 0.12 }}
                 >
-                {/* ── Coverflow 3D (visual; controlado por las pills de abajo) ── */}
-                <div className={styles.stage3d}>
-                    <button type="button" className={`${styles.navArrow} ${styles.navPrev}`} aria-label="Anterior" onClick={() => go(active - 1)}>
-                        <ChevronLeft size={22} strokeWidth={2.5} />
-                    </button>
+                    <View view={VIEWS[0]} rise={rise} />
+                    <View view={VIEWS[1]} rise={rise} />
+                    <GuideRow rise={rise}>{GUIDE_1}</GuideRow>
+                    <View view={VIEWS[2]} rise={rise} />
+                    <View view={VIEWS[3]} rise={rise} />
+                    <GuideRow rise={rise}>{GUIDE_2}</GuideRow>
+                    <View view={VIEWS[4]} rise={rise} />
 
-                    <div className={styles.deck} aria-hidden="true">
-                        {FEATURES.map((f, i) => {
-                            let offset = i - active;
-                            if (offset > count / 2) offset -= count;
-                            if (offset < -count / 2) offset += count;
-                            const abs = Math.abs(offset);
-                            const isActive = i === active;
-                            return (
-                                <div
-                                    key={f.id}
-                                    className={`${styles.card} ${isActive ? styles.cardActive : ''}`}
-                                    style={{
-                                        '--accent': f.color,
-                                        '--offset': offset,
-                                        '--abs': abs,
-                                        '--sign': Math.sign(offset),
-                                        opacity: abs === 0 ? 1 : abs === 1 ? 0.82 : 0.5,
-                                        zIndex: 10 - abs,
-                                        pointerEvents: isActive ? 'none' : 'auto',
-                                    }}
-                                    onClick={() => setActive(i)}
-                                >
-                                    {MOCKUPS[f.id]}
-                                </div>
-                            );
-                        })}
-                    </div>
+                    {/* ── BANDA DE GUÍAS ANOTADAS (≥1024px) ───────────────────
+                        ⚠ ANCLA DE RETÍCULA — LEER ANTES DE TOCAR LOS SPANS.
+                        Las X de estas dos guías son PORCENTAJES DEL ANCHO DE LA
+                        LÁMINA y están acopladas al reparto de columnas que fija
+                        `.view01`…`.view05` en el .module.css (7 / 5 / 5 / 6 / 6):
+                          · 20% y 10% caen dentro de la vista 01 (0 → 58,3%)
+                          · 78% cae dentro de la vista 03 (58,3% → 100%)
+                          · 88% cae dentro de la vista 05 (50% → 100%)
+                        ⚠ Esos tres tramos son NOMINALES: 7/12, 5/12 y 6/12 SIN
+                        descontar el `gap`. Los bordes reales a 1232px de lámina
+                        (columna = 73,33px, gap = 32px) caen en 57,25% para el
+                        canto derecho de la 01, 59,85% para el izquierdo de la 03
+                        y 51,3% para el de la 05 — no en 58,3% y 50%. Las cuatro
+                        X siguen dentro con holgura de sobra; si alguien las
+                        mueve al filo, hay que rehacer la cuenta CON el gap.
+                        Si alguien cambia esos `grid-column`, las guías se siguen
+                        dibujando igual de bien — apuntando al vacío, y NADA
+                        falla. No hay test que lo cace: hay que mirarlo.
+                        Las Y van en px y salen de dos números fijos del layout:
+                        la altura de la banda (104px) y el `gap` de la rejilla
+                        (32px) — de ahí el -32 (borde inferior de las vistas 01 y
+                        03) y el 136 (borde superior de la vista 05).
+                        Sin flechas en las líneas a propósito: en este sistema
+                        una cota con flechas es una afirmación de MEDIDA (ver la
+                        cabecera de `figures/PlateExploded.jsx`). La flecha vive
+                        en el texto del rótulo, que es lo que sí es una frase. */}
+                    {/* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] Los
+                        porcentajes de abajo (20/78/10/88%) siguen siendo el
+                        ancla de la retícula y NO se tocan: la banda entera se
+                        transforma al plano de la mesa en el CSS. Si algún día
+                        cambian los `grid-column`, esto sigue apuntando al
+                        vacío igual que antes — el aviso de :988-990 sigue
+                        vigente. */}
+                    <motion.div className={styles.guideBand} variants={rise}>
+                        <svg className={styles.guideSvg} role="presentation" aria-hidden="true" focusable="false">
+                            {/* guía 1 — vista 01 → vista 03 */}
+                            <circle className={styles.guideNode} cx="20%" cy="-32" r="2.5" {...VE} />
+                            <line className={styles.guideLine} x1="20%" y1="-32" x2="20%" y2="40" {...VE} />
+                            <line className={styles.guideLine} x1="20%" y1="40" x2="78%" y2="40" {...VE} />
+                            <line className={styles.guideLine} x1="78%" y1="40" x2="78%" y2="-32" {...VE} />
+                            <circle className={styles.guideNode} cx="78%" cy="-32" r="2.5" {...VE} />
 
-                    <button type="button" className={`${styles.navArrow} ${styles.navNext}`} aria-label="Siguiente" onClick={() => go(active + 1)}>
-                        <ChevronRight size={22} strokeWidth={2.5} />
-                    </button>
-                </div>
+                            {/* guía 2 — vista 01 → vista 05 */}
+                            <circle className={styles.guideNode} cx="10%" cy="-32" r="2.5" {...VE} />
+                            <line className={styles.guideLine} x1="10%" y1="-32" x2="10%" y2="84" {...VE} />
+                            <line className={styles.guideLine} x1="10%" y1="84" x2="88%" y2="84" {...VE} />
+                            <line className={styles.guideLine} x1="88%" y1="84" x2="88%" y2="136" {...VE} />
+                            <circle className={styles.guideNode} cx="88%" cy="136" r="2.5" {...VE} />
+                        </svg>
+                        {/* Los rótulos son HTML real, no `<text>` del SVG: así
+                            siguen en el árbol de accesibilidad en desktop (el
+                            SVG va aria-hidden) y no dependen del escalado. */}
+                        <span className={`${styles.guideLabel} ${styles.guideLabel1}`}>{GUIDE_1}</span>
+                        <span className={`${styles.guideLabel} ${styles.guideLabel2}`}>{GUIDE_2}</span>
+                    </motion.div>
 
-                {/* ── Info de la feature activa (panel accesible) ── */}
-                <div className={styles.activeInfo} id={PANEL_ID} role="tabpanel" aria-live="polite">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={active}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <h3 style={{ color: current.color }}>{current.title}</h3>
-                            <p>{current.desc}</p>
-                        </motion.div>
-                    </AnimatePresence>
-                </div>
-
-                {/* ── Pills de navegación (control accesible: tablist) ── */}
-                <div className={styles.nav} role="tablist" aria-label="Funciones del Dashboard">
-                    {FEATURES.map((f, i) => {
-                        const Icon = f.icon;
-                        const isActive = i === active;
-                        return (
-                            <button
-                                key={f.id}
-                                type="button"
-                                role="tab"
-                                ref={(el) => { tabRefs.current[i] = el; }}
-                                aria-selected={isActive}
-                                aria-controls={PANEL_ID}
-                                tabIndex={isActive ? 0 : -1}
-                                className={`${styles.navPill} ${isActive ? styles.navPillActive : ''}`}
-                                style={{ '--accent': f.color }}
-                                onClick={() => setActive(i)}
-                                onKeyDown={(e) => handleKeyDown(e, i)}
-                            >
-                                <Icon size={15} strokeWidth={2.4} />
-                                <span>{f.shortLabel}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                    {/* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] Cota de
+                        profundidad. Mismo vocabulario que la cota de `PlateExploded`
+                        en el hero: flechas en los topes, regla de 1px, rótulo mono.
+                        Declara la profundidad como MAGNITUD, que es lo que la
+                        convierte en dibujo técnico y no en un efecto. `aria-hidden`:
+                        es aparejo de dibujo, no información. */}
+                    {/* ⚠ LA REGLA ES CSS Y LAS PUNTAS SON SVG, A PROPÓSITO. Un solo
+                        SVG estirado con `preserveAspectRatio="none"` deforma las
+                        flechas: el viewBox sería 1:8 y la caja renderizada ~1:14,5, o
+                        sea que cada ala pasaría de ~37° a ~23° y saldrían alargadas y
+                        finas. Una recta vertical no tiene relación de aspecto que
+                        romper — la hace `border-left`, que se estira a cualquier
+                        altura — y las dos puntas van en SVGs de tamaño FIJO. */}
+                    <span className={styles.depthCota} aria-hidden="true">
+                        <svg className={styles.depthArrowTop} viewBox="0 0 12 10" width="12" height="10">
+                            <path className={styles.depthArrow} d="M1 9 L6 1 L11 9" {...VE} />
+                        </svg>
+                        <svg className={styles.depthArrowEnd} viewBox="0 0 12 10" width="12" height="10">
+                            <path className={styles.depthArrow} d="M1 1 L6 9 L11 1" {...VE} />
+                        </svg>
+                    </span>
+                    <span className={styles.depthLabel} aria-hidden="true">5 SUPERFICIES</span>
                 </motion.div>
 
                 <SeeMoreLink to="/funciones">Explorar todas las funciones</SeeMoreLink>

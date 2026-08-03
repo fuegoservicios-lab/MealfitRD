@@ -8,6 +8,10 @@ import BenchmarkShowcase from '../components/home/BenchmarkShowcase';
 // "Novedades" (anuncios de Bioboros, estilo Anthropic/OpenAI). El detalle de planes sigue
 // en /precios (link en la nav).
 import NewsHighlight from '../components/home/NewsHighlight';
+// [P1-PAPER-THEME · 2026-08-01] Banda de cierre: última hija del landing. Pide
+// el clic una última vez antes del footer (componente propio, no vive en
+// Footer.jsx — ver ClosingBand.jsx).
+import ClosingBand from '../components/home/ClosingBand';
 
 function Home() {
     return (
@@ -17,6 +21,7 @@ function Home() {
             <DashboardShowcase />
             <BenchmarkShowcase />
             <NewsHighlight />
+            <ClosingBand />
         </>
     );
 }

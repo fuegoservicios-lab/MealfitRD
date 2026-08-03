@@ -1,23 +1,51 @@
-/* [P3-NEWS-SCIENTIFIC · 2026-07-02] Estilos de Novedades (índice /novedades + artículo
-   /novedades/<slug>) en clave minimalista-científica (lenguaje P3-HOWITWORKS-PAGE-SCIENTIFIC):
-   una sola gama (indigo + neutros), hairlines, figura SVG line-art sobre cuadrícula tipo
-   papel milimetrado con pie "Fig. NN —". Sin glows, gradientes ni glass. Theme-aware. */
+/* ============================================================================
+   [P3-NEWS-SCIENTIFIC · 2026-07-02 · reescrito P1-PAPER-SURFACE-EXTEND 2026-08-02]
+   Novedades: índice (/novedades) + artículo (/novedades/<slug>).
+
+   Las dos rutas pasaron a la SUPERFICIE PAPEL, lo que CIERRA la deuda con fecha
+   del spec §10.3 («queda una inconsistencia visible y aceptada: el landing en
+   B/N enlazando a un índice con color»). Este módulo lo consumen únicamente esas
+   dos páginas y ambas son papel siempre, así que se reescribe la BASE — el
+   criterio del repo reserva el bloque escopado para los módulos COMPARTIDOS
+   (Header, Footer, HowItWorksPage).
+
+   ── El índice es la VERSIÓN LARGA del registro de la home ───────────────────
+   `components/home/NewsHighlight.jsx` ya resolvió esta misma información como
+   «05 / REGISTRO»: una tabla de revisiones (REV / FECHA / TAG / ENTRADA / →).
+   El índice adopta esa misma gramática, columna por columna, con la única
+   diferencia de alcance: la home muestra las entradas y remata con un «Ver
+   todas»; aquí están todas y hay cabecera de página. Si al entrar desde el
+   landing la página se sintiera «otra cosa», el enlace estaría mintiendo.
+
+   Se elimina el layout OpenAI-style de julio: destacado a dos columnas +
+   parrilla 2×2 de tarjetas con arte abstracto. Con las 2 entradas que
+   `data/news.js` tiene hoy renderizaba «destacado + UNA tarjeta suelta», y
+   volvería a salir cojo con cualquier número impar. Una tabla es robusta con
+   n=1, n=2 o n=17 — el mismo argumento que ya se aceptó para la home.
+
+   DUPLICACIÓN CONSCIENTE, con criterio de salida: la tabla de aquí y la de
+   `NewsHighlight.module.css` son dos implementaciones de la misma gramática.
+   NO se comparten hoy porque extraer un componente obligaría a reescribir una
+   superficie ya revisada (la home) para ganar ~120 líneas. El criterio de
+   extracción es explícito: **al tercer consumidor** de esta tabla, extraerla a
+   `components/news/RevisionTable.jsx`. Con dos, la duplicación es más barata
+   que el acoplamiento páginas→components/home.
+
+   Utilidad `.srOnly` LOCAL al módulo: el repo no tiene una `sr-only` global
+   (ver la cabecera de Hero.module.css) — se copia, no se importa.
+   ========================================================================= */
 
 .page {
     position: relative;
     min-height: 70vh;
-    color: var(--text-main);
-    /* [P1-LANDING-BG · 2026-07-11] Anti-flat: tinte radial de marca bajo el hero
-       de la página + fundido a bg-page (misma zona que la banda del landing). */
-    background:
-        radial-gradient(56% 34% at 50% 0%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 70%),
-        var(--bg-page);
+    color: var(--pa-ink);
+    background: var(--pa-paper);
     padding: 0 0 clamp(4rem, 10vh, 6.5rem);
 }
 
 .inner {
     position: relative;
-    max-width: 960px;
+    max-width: 1020px;
     margin: 0 auto;
     padding: clamp(2.5rem, 6vh, 4.25rem) 1.5rem 0;
 }
@@ -25,248 +53,317 @@
     max-width: 720px;
 }
 
+/* Utilidad visually-hidden LOCAL al módulo (ver Hero.module.css). */
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* ─────────────── back link (artículo) ─────────────── */
 .back {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
     text-decoration: none;
     margin-bottom: 1.75rem;
-    transition: color 0.18s ease, gap 0.18s ease;
+    transition: color 120ms linear;
 }
-.back:hover { color: var(--primary); gap: 0.6rem; }
+/* Era `gap: 0.4rem → 0.6rem`: un desplazamiento en hover. El §9 solo lo permite
+   en la flecha de una fila del registro; aquí el estado se lee en la tinta y el
+   subrayado. */
+.back:hover {
+    color: var(--pa-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
 
 /* ─────────────── encabezado (índice) ─────────────── */
 .pageHead {
-    max-width: 640px;
-    margin: 0 auto clamp(2.5rem, 6vh, 4rem);
-    text-align: center;
+    margin-bottom: clamp(2rem, 5vh, 3rem);
 }
+/* Era una píldora tintada con un punto pulsante al lado. El pulso era una
+   animación en bucle infinito (§9) y la píldora, un radio de 999px (§2.3). */
 .eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 700;
+    gap: 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
-    padding: 0.42rem 0.9rem;
-    border-radius: 999px;
+    color: var(--pa-ink);
 }
-.pulse {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--primary);
+.eyebrow::before {
+    content: '';
+    width: 30px;
+    height: 1px;
+    background: var(--pa-rule);
 }
 .pageTitle {
     font-family: var(--font-heading);
     font-size: clamp(2.2rem, 5.4vw, 3.3rem);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1.06;
+    font-weight: 400;
+    letter-spacing: -0.028em;
+    line-height: 1.02;
     margin: 1.25rem 0 0;
-    color: var(--text-main);
+    color: var(--pa-ink);
 }
 .titleAccent {
-    color: var(--primary);
+    font-weight: 500;
+    color: var(--pa-ink);
 }
 .lead {
-    max-width: 560px;
-    margin: 1.1rem auto 0;
-    font-size: clamp(1rem, 1.4vw, 1.1rem);
-    line-height: 1.62;
-    color: var(--text-muted);
+    max-width: 52ch;
+    margin: 1.1rem 0 0;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
 }
 
-/* ─────────────── meta compartida ─────────────── */
-.tag {
-    font-family: var(--font-heading);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
+/* Cajetín de la hoja: celdas mono separadas por reglas verticales, mismo gesto
+   que la fila-cartucho del hero y que el pie del footer. Los DOS valores son
+   DERIVADOS de `data/news.js` (conteo y fecha de la entrada 0) — nada escrito a
+   mano, que es la regla moral del sistema: si no lo medimos, no lo acotamos. */
+.cartouche {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+    border-top: 1px solid var(--pa-rule-2);
+    border-bottom: 1px solid var(--pa-rule-2);
+}
+.cartoucheCell {
+    padding: 0.7rem 1.1rem 0.7rem 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--primary);
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-    padding: 0.26rem 0.62rem;
-    border-radius: 999px;
+    color: var(--pa-ink-2);
+    font-variant-numeric: tabular-nums lining;
+}
+.cartoucheCell + .cartoucheCell {
+    padding-left: 1.1rem;
+    border-left: 1px solid var(--pa-rule-3);
+}
+.cartoucheVal {
+    color: var(--pa-ink);
+}
+
+/* ───────────────────────────── la tabla ────────────────────────────────── */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border-top: 1px solid var(--pa-rule);
+}
+
+/* Cabeceras de columna: 12px + --pa-ink-2 (spec §2.5, «todo lo que decodifique
+   una tabla») — NO el piso de 11px, que vale para metadato ignorable. */
+.th {
+    text-align: left;
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid var(--pa-rule);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
+}
+
+.thRev { width: 76px; }
+.thDate { width: 130px; }
+.thTag { width: 140px; }
+.thGo { width: 44px; }
+
+.row {
+    border-bottom: 1px solid var(--pa-rule-3);
+    transition: background 120ms linear;
+}
+
+.row:hover,
+.row:focus-within {
+    background: var(--pa-sunk);
+}
+
+/* `min-height` va en `.cell` (`<td>`) y no en `.row` (`<tr>`): sobre
+   `table-row` el soporte es más inconsistente entre motores, y la fila ya
+   hereda la altura de su celda más alta. `box-sizing: border-box` es global. */
+.cell {
+    padding: 1rem 0.9rem;
+    min-height: 64px;
+    vertical-align: top;
+}
+
+/* ── REV — canaleta con la pestaña de revisión vigente ─────────────────────
+   REV ES POSICIONAL, NO UN IDENTIFICADOR ESTABLE: se deriva de
+   `NEWS.length - i`. Insertar una entrada VIEJA en medio del array renumera
+   todas las filas por debajo. El identificador estable es `slug`. */
+.cellRev {
+    position: relative;
+    padding-left: 22px;
+}
+
+.currentBar {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 24px;
+    background: var(--pa-ink);
+}
+
+.revCode {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--pa-ink-2);
+}
+
+.rowCurrent .revCode {
+    color: var(--pa-ink);
+    font-weight: 600;
+}
+
+/* ── FECHA — ISO en pantalla; el dateLabel legible vive en el `title` del
+   enlace de ENTRADA y en un `span` solo-para-lectores-de-pantalla. */
+.cellDate time {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--pa-ink-2);
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
-.metaText { font-size: 0.82rem; color: var(--text-muted); }
-.metaSep {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--text-main) 32%, transparent);
-    flex: none;
-}
-.dot { color: color-mix(in srgb, var(--text-main) 35%, transparent); }
 
-/* ─────────────── destacado (último anuncio) — texto | figura ─────────────── */
-.featured {
-    display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
-    gap: clamp(1.5rem, 3.2vw, 2.75rem);
-    align-items: center;
-    padding: clamp(1.5rem, 3vw, 2.25rem);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    text-decoration: none;
-    background: transparent;
-    transition: border-color 0.2s ease, transform 0.2s ease;
+/* ── TAG ──────────────────────────────────────────────────────────────────── */
+.cellTag {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.featured:hover {
-    border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
-    transform: translateY(-2px);
-}
-.featuredBody {
-    display: flex;
-    flex-direction: column;
+
+/* ── ENTRADA — la única ancla de la fila ──────────────────────────────────── */
+.cellTitle {
     min-width: 0;
 }
-.featuredMeta {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    margin-bottom: 1.05rem;
-    flex-wrap: wrap;
-}
-.featuredTitle {
-    font-family: var(--font-heading);
-    font-size: clamp(1.7rem, 3.2vw, 2.4rem);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1.08;
-    margin: 0;
-    color: var(--text-main);
-    transition: color 0.18s ease;
-}
-.featured:hover .featuredTitle { color: var(--primary); }
-.featuredExcerpt {
-    margin: 0.85rem 0 0;
-    font-size: clamp(0.98rem, 1.4vw, 1.05rem);
-    line-height: 1.6;
-    color: var(--text-muted);
-}
-.featuredCta {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    margin-top: 1.5rem;
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: var(--primary);
-    transition: gap 0.18s ease;
-}
-.featured:hover .featuredCta { gap: 0.7rem; }
 
-/* arte del destacado (base compartida en components/news/NewsArt.module.css;
-   aquí solo tamaño + hover — mismas reglas que la banda del landing) */
-.featuredArt {
-    width: 100%;
-    aspect-ratio: 16 / 10;
-}
-.featured:hover .featuredArt { transform: scale(1.015); }
-
-/* ─────────────── separador "Registro" ─────────────── */
-.sep {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin: clamp(2.75rem, 6vh, 3.75rem) 0 0;
-    color: var(--text-muted);
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-}
-.sep::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-}
-
-/* ─────────────── grid de anuncios anteriores (OpenAI-style) ───────────────
-   [P3-NEWS-OPENAI · 2026-07-11] Reemplaza el "registro" de filas hairline:
-   tarjetas con thumbnail de arte cuadrado + título + resumen + tag/fecha. */
-.newsGrid {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem 1.5rem;
-    margin: 1.25rem 0 0;
-    padding: 0;
-}
-.newsCell { min-width: 0; }
-.newsCard {
+.titleRow {
     display: flex;
     align-items: flex-start;
-    gap: 1.1rem;
-    padding: 0.85rem;
-    border-radius: 18px;
-    text-decoration: none;
-    border: 1px solid transparent;
-    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    gap: 0.85rem;
 }
-.newsCard:hover {
-    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
-    border-color: var(--border);
-    transform: translateY(-2px);
-}
-.newsCard:hover .newsThumb { transform: scale(1.03); }
-.newsThumb {
-    width: 128px;
-    aspect-ratio: 1;
-}
-.newsBody {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+
+.titleBlock {
     min-width: 0;
+    flex: 1 1 auto;
 }
-.newsTitle {
+
+/* El emblema (`n.image`) vive DENTRO de la celda de ENTRADA, no en columna
+   propia: una sexta columna necesitaría un `<th>` sin rótulo razonable y
+   dejaría ancho fijo en blanco en las filas sin imagen. 48×48 con
+   `grayscale(1)`: es una foto/logo real del anuncio —un EMBLEMA—, no una
+   codificación de estado, así que colapsar sus colores por luma es la
+   excepción declarada del sistema (spec §4.6 y §8). El mismo asset sigue a
+   todo color en `/motor` (`Engine.jsx`). */
+.emblem {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border: 1px solid var(--pa-rule-2);
+    filter: grayscale(1) contrast(1.08);
+}
+
+/* Línea de meta (fecha · tag) que sustituye a las columnas FECHA/TAG cuando
+   éstas se ocultan bajo 719px. `display:none` en reposo desktop — nunca
+   coexiste con las columnas dedicadas. */
+.metaMobile {
+    display: none;
+    align-items: baseline;
+    gap: 0.45rem;
+    margin: 0 0 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--pa-ink-2);
+}
+
+.metaSep {
+    color: var(--pa-rule-2);
+}
+
+.titleLink {
+    display: inline-block;
     font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 1.08rem;
-    line-height: 1.28;
-    color: var(--text-main);
-    transition: color 0.18s ease;
+    font-weight: 500;
+    font-size: 17px;
+    line-height: 1.35;
+    color: var(--pa-ink);
+    text-decoration: none;
 }
-.newsCard:hover .newsTitle { color: var(--primary); }
-.newsExcerpt {
-    font-size: 0.88rem;
+
+.titleLink:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.titleLink:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 3px;
+}
+
+.excerpt {
+    margin: 0.4rem 0 0;
+    font-family: var(--font-body);
+    font-size: 14px;
     line-height: 1.5;
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-.newsMeta {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
+
+/* ── → — decorativo, reacciona a la fila entera. Única excepción del §9 a
+   «cero transform en hover». ─────────────────────────────────────────────── */
+.cellGo {
+    text-align: right;
+    vertical-align: middle;
 }
-.newsTag {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-main);
+
+.goIcon {
+    color: var(--pa-ink-2);
+    transition: transform 120ms linear, color 120ms linear;
 }
-.newsDate { font-size: 0.8rem; color: var(--text-muted); }
+
+.row:hover .goIcon,
+.row:focus-within .goIcon {
+    transform: translateX(4px);
+    color: var(--pa-ink);
+}
 
 /* ─────────────── artículo ─────────────── */
 .articleMeta {
@@ -275,43 +372,61 @@
     gap: 0.75rem;
     margin-bottom: 1.2rem;
     flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
 }
+/* Era una píldora de 999px con tinta índigo. Rótulo mono con contorno. */
+.tag {
+    color: var(--pa-ink);
+    border: 1px solid var(--pa-rule-2);
+    padding: 0.26rem 0.62rem;
+    border-radius: 0;
+    white-space: nowrap;
+}
+.metaText { font-variant-numeric: tabular-nums lining; }
+.dot { color: var(--pa-rule-2); }
 .articleTitle {
     font-family: var(--font-heading);
     font-size: clamp(2rem, 5vw, 3.1rem);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1.06;
+    font-weight: 400;
+    letter-spacing: -0.028em;
+    line-height: 1.03;
     margin: 0;
-    color: var(--text-main);
+    color: var(--pa-ink);
     text-wrap: balance;
 }
 .articleExcerpt {
+    max-width: 52ch;
     margin: 1.2rem 0 0;
-    font-size: clamp(1.06rem, 1.7vw, 1.25rem);
-    line-height: 1.58;
-    color: var(--text-muted);
-    font-weight: 500;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
+    font-weight: 400;
 }
 .divider {
     height: 1px;
     margin: clamp(1.75rem, 4vh, 2.5rem) 0;
-    background: var(--border);
+    background: var(--pa-rule);
 }
 .body h2 {
     font-family: var(--font-heading);
     font-size: clamp(1.3rem, 2.5vw, 1.6rem);
-    font-weight: 800;
+    font-weight: 500;
     letter-spacing: -0.02em;
     line-height: 1.22;
     margin: 2.2rem 0 0;
-    color: var(--text-main);
+    color: var(--pa-ink);
 }
 .body p {
     margin: 1rem 0 0;
-    font-size: 1.05rem;
+    font-size: 15px;
     line-height: 1.72;
-    color: var(--text-muted);
+    max-width: 66ch;
+    color: var(--pa-ink-2);
 }
 .body ul {
     margin: 1.1rem 0 0;
@@ -324,43 +439,46 @@
 .body li {
     position: relative;
     padding-left: 1.5rem;
-    font-size: 1.02rem;
+    font-size: 15px;
     line-height: 1.6;
-    color: var(--text-muted);
+    max-width: 66ch;
+    color: var(--pa-ink-2);
 }
+/* Guion de 13px × 1px: una regla de construcción, no un bullet. */
 .body li::before {
     content: '';
     position: absolute;
     left: 0;
     top: 0.72em;
     width: 13px;
-    height: 1.5px;
-    background: var(--primary);
+    height: 1px;
+    background: var(--pa-ink);
 }
 
 /* cierre / CTA del artículo */
 .cta {
     margin-top: clamp(3rem, 8vh, 4.5rem);
-    padding: clamp(2rem, 5vw, 3rem) 1.5rem;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: transparent;
+    padding: clamp(2rem, 5vw, 3rem) 0 0;
+    border: 0;
+    border-top: 1px solid var(--pa-rule);
+    border-radius: 0;
+    background: none;
     text-align: center;
 }
 .ctaTitle {
     font-family: var(--font-heading);
     font-size: clamp(1.5rem, 3.4vw, 2.05rem);
-    font-weight: 800;
-    letter-spacing: -0.028em;
+    font-weight: 500;
+    letter-spacing: -0.02em;
     margin: 0;
-    color: var(--text-main);
+    color: var(--pa-ink);
 }
 .ctaText {
     max-width: 460px;
     margin: 0.85rem auto 0;
-    font-size: 1rem;
+    font-size: 15px;
     line-height: 1.55;
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
 }
 .ctaRow {
     display: flex;
@@ -375,69 +493,115 @@
     align-items: center;
     gap: 0.5rem;
     font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 0.98rem;
-    padding: 0.85rem 1.5rem;
-    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.875rem 1.75rem;
+    border-radius: 0;
     text-decoration: none;
-    transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    transition: background 140ms linear, border-color 140ms linear, color 140ms linear;
 }
+/* Sólido = la acción real; contorno = «el otro». Mismo par que el CTA del
+   header y que `.ctaPrimary`/`.ctaGhost` de las páginas de detalle. */
 .ctaPrimary {
-    color: #fff;
-    background: var(--primary);
+    color: var(--pa-paper);
+    background: var(--pa-ink);
+    border: 1px solid var(--pa-ink);
 }
-.ctaPrimary:hover { transform: translateY(-2px); background: var(--primary-dark); }
+.ctaPrimary:hover { background: var(--pa-ink-2); border-color: var(--pa-ink-2); }
 .ctaGhost {
-    color: var(--text-main);
-    border: 1px solid var(--border);
+    color: var(--pa-ink);
+    background: transparent;
+    border: 1px solid var(--pa-ink);
 }
-.ctaGhost:hover {
-    border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
-    background: color-mix(in srgb, var(--primary) 6%, transparent);
-}
+.ctaGhost:hover { background: var(--pa-ink); color: var(--pa-paper); }
 
-/* enlace textual (no encontrado / índice) */
+/* enlace textual (no encontrado) */
 .cardMore {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     font-family: var(--font-heading);
-    font-weight: 700;
+    font-weight: 600;
     font-size: 0.92rem;
-    color: var(--primary);
-    text-decoration: none;
+    color: var(--pa-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: text-decoration-thickness 120ms linear;
 }
-.cardMore:hover { text-decoration: underline; }
+.cardMore:hover { text-decoration-thickness: 2px; }
 
 /* estado vacío / no encontrado */
 .empty {
     margin-top: 1.5rem;
-    font-size: 1.05rem;
-    color: var(--text-muted);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .featured, .newsCard, .featuredCta, .ctaPrimary { transition: none; }
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
 }
 
 /* focos accesibles */
 .back:focus-visible,
-.featured:focus-visible,
-.newsCard:focus-visible,
+.cardMore:focus-visible,
 .ctaPrimary:focus-visible,
 .ctaGhost:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--pa-ink);
     outline-offset: 3px;
-    border-radius: 12px;
+    border-radius: 0;
 }
 
-/* ─────────────── responsive ─────────────── */
-@media (max-width: 760px) {
-    .featured { grid-template-columns: 1fr; gap: 1.35rem; }
-    /* arte arriba, texto debajo (patrón OpenAI móvil) */
-    .featuredArt { order: -1; aspect-ratio: 16 / 9; }
-    .newsGrid { grid-template-columns: 1fr; gap: 0.5rem; }
-    .newsThumb { width: 96px; }
-    .newsTitle { font-size: 1rem; }
-    .newsExcerpt { display: none; }
+/* ─────────────────────────── reflow <719px ─────────────────────────────────
+   Sin sitio para 5 columnas rígidas: FECHA y TAG desaparecen como columna
+   ENTERA (`<th>` y `<td>` a la vez, misma técnica que `.axisVRule` de
+   HowItWorks — así la semántica de `<table>` nunca sale de
+   display:table/table-row/table-cell) y su información reaparece como
+   `.metaMobile` dentro de la celda de ENTRADA. Nunca las dos formas a la vez. */
+@media (max-width: 719px) {
+    .thDate,
+    .thTag,
+    .cellDate,
+    .cellTag {
+        display: none;
+    }
+
+    .metaMobile {
+        display: flex;
+    }
+
+    .thRev { width: 44px; }
+    .thGo { width: 32px; }
+
+    .cellRev {
+        padding-left: 18px;
+        padding-right: 0.5rem;
+    }
+
+    .cell {
+        padding: 1.15rem 0.6rem;
+        min-height: 72px;
+    }
+
+    .titleLink {
+        font-size: 16px;
+    }
+}
+
+/* ── REDUCED MOTION — defensa (b) del módulo ─────────────────────────────
+   Estas páginas no usan framer-motion (la defensa (a) no aplica), pero el guard
+   global de index.css solo ACORTA duraciones: sin esto la flecha seguiría
+   desplazándose 4px con `reduce` activo. */
+@media (prefers-reduced-motion: reduce) {
+    .row,
+    .goIcon,
+    .back,
+    .cardMore,
+    .ctaPrimary,
+    .ctaGhost {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .row:hover .goIcon,
+    .row:focus-within .goIcon {
+        transform: none !important;
+    }
 }

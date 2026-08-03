@@ -1,418 +1,562 @@
-/* [P3-HOWITWORKS-REDESIGN · 2026-06-29] Panel interactivo (acordeón): visual que
-   cambia según el paso activo + lista de pasos. Theme-aware vía variables del DS. */
+/* ============================================================================
+   [P2-PAPER-NO-INK · 2026-08-01] HowItWorks — «02 / CÓMO SE CALCULA»,
+   hoja de proceso estática.
+
+   Este módulo NO lleva bloque `data-theme`: la home solo se sirve como
+   superficie papel (`utils/paperSurface.js`), así que consume `var(--pa-*)`
+   directamente — su «rama clara» no es una rama, es el mismo código con
+   otros valores (ver riesgo (d) de la sección 4.3 del spec).
+
+   Vocabulario de movimiento: TRAZADO para las 4 figuras SVG (`.fig .stroke`,
+   `stroke-dashoffset` de `pathLength` normalizado a 1, 900ms,
+   cubic-bezier(0.65,0,0.35,1)); construcción geométrica simple (regla,
+   estaciones, líneas de extensión) por `transform` con
+   cubic-bezier(0.4,0,0.2,1); los bloques de texto (`.cell`) hacen `settle`
+   con el mismo cubic-bezier(0.22,1,0.36,1) que exporta `sectionMotion.js`
+   como `LANDING_EASE`, escrito aquí a mano porque este módulo no usa
+   framer-motion (evita reabrir el bug de `pathLength` + `stroke-dasharray`
+   de las guías punteadas, ver cabecera de `figures/PlateExploded.jsx`).
+
+   Todo el disparo es UN solo `IntersectionObserver` (ver HowItWorks.jsx),
+   gateado por `useReducedMotion()`: con `reduce` la clase `.drawn` se aplica
+   de inmediato y este archivo la fija en pose final en el bloque
+   `@media (prefers-reduced-motion: reduce)` de más abajo.
+   ========================================================================= */
 
 .section {
-    position: relative;
     padding: 6rem 0;
-    /* [P1-LANDING-BG · 2026-07-11] Zona INDIGO del landing (anti-flat): cada
-       sección lleva un wash de su hue de acento a 4-6% sobre bg-page — zonas de
-       color que se funden entre sí en vez de un negro plano continuo.
-       Theme-aware vía color-mix con el token. */
-    background: linear-gradient(180deg,
-        var(--bg-page) 0%,
-        color-mix(in srgb, #6366F1 9%, var(--bg-page)) 42%,
-        color-mix(in srgb, #8B5CF6 6%, var(--bg-page)) 78%,
-        var(--bg-page) 100%);
-    overflow: hidden;
-}
-
-.bgGlow {
-    position: absolute;
-    top: 8%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 70%;
-    max-width: 900px;
-    height: 55%;
-    background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.13), transparent 70%);
-    filter: blur(40px);
-    pointer-events: none;
-    z-index: 0;
+    background: var(--pa-paper);
+    color: var(--pa-ink);
 }
 
 .container {
-    position: relative;
-    z-index: 1;
     max-width: 1120px;
     margin: 0 auto;
     padding: 0 1.5rem;
 }
 
-/* ───────────────────────────── header ─────────────────────────── */
-.header {
-    text-align: center;
-    max-width: 640px;
-    margin: 0 auto 3.25rem;
+/* ───────────────────────── rótulo de sección ──────────────────────────────
+   Motivo recurrente de apertura del sistema: hairline / etiqueta mono /
+   hairline. Es la ÚNICA cabecera de la sección — no hay H2 grande aparte:
+   en una hoja de plano el rótulo del plano ES el título. */
+.sectionHead {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin: 0 0 1.5rem;
 }
-.badge {
-    display: inline-block;
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+
+.hLine {
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--pa-rule);
+}
+
+.sectionLabel {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
-    padding: 0.4rem 0.95rem;
-    border-radius: 999px;
+    color: var(--pa-ink);
+    white-space: nowrap;
 }
-.title {
-    font-family: var(--font-heading);
-    font-size: clamp(1.9rem, 4.5vw, 3rem);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1.08;
-    margin: 1.1rem 0 0;
-    color: var(--text-main);
-}
+
 .subtitle {
-    margin: 1rem auto 0;
-    font-size: 1.02rem;
-    line-height: 1.55;
-    color: var(--text-muted);
+    max-width: 46ch;
+    margin: 0 auto 3rem;
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
 }
 
-/* [P1-LANDING-MOTION · 2026-07-11] Subrayado del título: se dibuja (scaleX 0→1,
-   vía framer-motion) al entrar en viewport. Decorativo, GPU-only. */
-.titleUnderline {
-    display: block;
-    width: 84px;
-    height: 3px;
-    margin: 1.05rem auto 0;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--primary), #A78BFA);
-    transform-origin: center;
-}
-
-/* ───────────────────────────── panel ──────────────────────────── */
-.panel {
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: 1.5rem;
-    align-items: stretch;
-}
-
-/* ── visual (izquierda) ── */
-.visualCol {
+/* ───────────────────────────── hoja de proceso ─────────────────────────── */
+.sheet {
     position: relative;
-    border-radius: 24px;
-    /* [P3-HOWITWORKS-POLISH · 2026-06-30] Cuadrícula de puntos sutil + tinte del color
-       del paso activo → más profundidad/textura que el fondo plano. */
-    background:
-        radial-gradient(circle, color-mix(in srgb, var(--text-main) 6%, transparent) 1px, transparent 1.5px) 0 0 / 22px 22px,
-        linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, var(--bg-card)), var(--bg-card));
-    border: 1px solid var(--border);
-    min-height: 420px;
+}
+
+/* ── eje de proceso horizontal (≥720px) ──────────────────────────────────
+   Geometría pura en HTML/CSS, no SVG: un único <svg> con
+   `preserveAspectRatio="none"` habría escalado X e Y por separado y el
+   rombo de la estación habría dejado de ser un cuadrado. */
+.axis {
+    position: relative;
+    height: 56px;
+}
+
+.axisRule {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--pa-ink);
+    transform: scaleX(0);
+    transform-origin: left center;
+}
+
+.sheet.drawn .axisRule {
+    transform: scaleX(1);
+    transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stationGroup {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+}
+
+.stationIndex {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translateX(-50%);
+    width: 28px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--pa-ink-2);
+    line-height: 14px;
+    opacity: 0;
+}
+
+.sheet.drawn .stationIndex {
+    opacity: 1;
+    transition: opacity 200ms linear calc(var(--d, 0ms) + 300ms);
+}
+
+.extUp {
+    position: absolute;
+    top: 14px;
+    left: 0;
+    margin-left: -0.5px;
+    width: 1px;
+    height: 16px;
+    background: var(--pa-rule-2);
+    transform: scaleY(0);
+    transform-origin: top;
+}
+
+.sheet.drawn .extUp {
+    transform: scaleY(1);
+    transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1) var(--d, 0ms);
+}
+
+/* El rombo (punto de medida): `clip-path`, no `transform: rotate(45deg)`.
+   El bloque de reduced-motion tiene que poder escribir `transform: none`
+   sobre este elemento sin des-rotarlo — si el giro viviera en `transform`,
+   `!important` lo habría deshecho junto con la animación. */
+.station {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    margin-top: -4.5px;
+    margin-left: -4.5px;
+    width: 9px;
+    height: 9px;
+    background: var(--pa-ink);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    transform: scale(0);
+    opacity: 0;
+}
+
+.sheet.drawn .station {
+    transform: scale(1);
+    opacity: 1;
+    transition:
+        transform 260ms cubic-bezier(0.4, 0, 0.2, 1) calc(var(--d, 0ms) + 200ms),
+        opacity 200ms linear calc(var(--d, 0ms) + 200ms);
+}
+
+.extDown {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    margin-left: -0.5px;
+    width: 1px;
+    height: 24px;
+    background: var(--pa-rule-2);
+    transform: scaleY(0);
+    transform-origin: top;
+}
+
+.sheet.drawn .extDown {
+    transform: scaleY(1);
+    transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1) calc(var(--d, 0ms) + 260ms);
+}
+
+/* ── celdas ───────────────────────────────────────────────────────────── */
+.cells {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--pa-rule-2);
+    border-bottom: 1px solid var(--pa-rule-2);
+}
+
+.cell {
+    position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2.25rem;
-    overflow: hidden;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 7%, transparent);
-    transition: border-color 0.4s ease;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.75rem 1.25rem 1.5rem;
+    opacity: 0;
+    transform: translateY(14px);
 }
-.visualCol::before {
+
+.cell + .cell {
+    border-left: 1px solid var(--pa-rule-3);
+}
+
+.sheet.drawn .cell {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+        opacity 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms),
+        transform 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms);
+}
+
+/* ── eje de proceso vertical (<720px) — oculto en desktop ────────────────── */
+.axisVRule,
+.axisVMark {
+    display: none;
+}
+
+/* ── figura (88×64) ───────────────────────────────────────────────────────
+   Contrato de trazo heredado por los 4 hijos, igual que `figures/
+   PlateExploded.module.css`. */
+.figureBox {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: none;
+    min-width: 128px;
+}
+
+.fig {
+    display: block;
+    width: 100%;
+    max-width: 88px;
+    height: auto;
+    stroke: var(--pa-ink);
+    fill: none;
+    stroke-width: 1;
+    stroke-linecap: butt;
+    stroke-linejoin: miter;
+}
+
+/* Reposo (pre-trazado). */
+.stroke {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+}
+
+.guide,
+.node,
+.hatchFill,
+.solidFill,
+.bracket {
+    opacity: 0;
+}
+
+.sheet.drawn .fig .stroke {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 900ms cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0ms);
+}
+
+.sheet.drawn .fig .guide,
+.sheet.drawn .fig .node,
+.sheet.drawn .fig .hatchFill,
+.sheet.drawn .fig .solidFill,
+.sheet.drawn .fig .bracket {
+    opacity: 1;
+    transition: opacity 320ms linear calc(var(--d, 0ms) + 380ms);
+}
+
+.hatchLine {
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+}
+
+/* El `fill: url(#...)` va como atributo HTML en el JSX (referencia local al
+   <pattern> de cada figura); aquí solo se apaga el trazo. */
+.hatchFill {
+    stroke: none;
+}
+
+/* Sólido = el dato dentro de tolerancia (Fig. 03), eco de §5.5. */
+.solidFill {
+    fill: var(--pa-ink);
+    stroke: none;
+}
+
+.node {
+    fill: var(--pa-paper);
+    stroke: var(--pa-ink);
+}
+
+/* Punteado = referencia, no materia (Fig. 04, la línea base). */
+.guide {
+    stroke: var(--pa-ink);
+    stroke-dasharray: 3 4;
+}
+
+/* Tramo de CONSTRUCCIÓN entre la polilínea y su referencia (Fig. 04): tono
+   `--pa-rule-2`, sin flechas ni cifra a propósito — una cota con flechas es
+   una afirmación de medida en este sistema (ver cabecera de
+   `figures/PlateExploded.jsx`), y esta miniatura no mide nada real. */
+.bracket {
+    stroke: var(--pa-rule-2);
+    stroke-width: 1;
+}
+
+/* Rótulos de la Fig. 01 (Perfil): HTML real, no <text> del SVG — a 88
+   unidades de ancho ninguna palabra cabe por encima del piso de 11px.
+   [P2-PAPER-NO-INK fix1] Son la leyenda que hace legible la figura, así que
+   caen bajo la fila «Rótulo de figura» de la escala (spec §2.5): 12px +
+   `--pa-ink-2`, NO la fila de «Etiqueta accesoria» (11px + `--pa-ink-3`,
+   reservada a metadato ignorable sin perder la figura — este texto no es
+   ignorable, ES la figura). */
+.figLegend {
+    width: 100%;
+    max-width: 190px;
+    margin: 0.6rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
+    text-align: left;
+}
+
+/* ── texto de la celda ────────────────────────────────────────────────── */
+.cellText {
+    flex: 1;
+    min-width: 0;
+}
+
+.cellTitle {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-weight: 500;
+    font-size: 1.125rem;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--pa-ink);
+}
+
+.cellDesc {
+    margin: 0.6rem 0 0;
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    color: var(--pa-ink-2);
+}
+
+/* ── mini-cota del `tag` ──────────────────────────────────────────────────
+   Línea de 1px con topes en T (pseudo-elementos) y el valor mono centrado
+   debajo — la misma gramática de cota que el resto del sistema, a escala
+   de celda. */
+.miniCota {
+    position: relative;
+    margin-top: 1.1rem;
+    padding-top: 0.7rem;
+}
+
+.miniCotaLine {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--pa-rule-2);
+}
+
+.miniCotaLine::before,
+.miniCotaLine::after {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0.9;
-}
-.visualGlow {
-    position: absolute;
-    inset: 0;
-    background:
-        radial-gradient(85% 65% at 50% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
-        radial-gradient(70% 55% at 50% 100%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 62%);
-    transition: background 0.4s ease;
-    pointer-events: none;
-}
-.visualInner {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 200px;
-}
-.visualTag {
-    position: relative;
-    z-index: 1;
-    margin-top: 1.75rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--text-main);
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    padding: 0.42rem 0.9rem;
-    border-radius: 999px;
-}
-.visualDot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
+    top: -3px;
+    width: 1px;
+    height: 7px;
+    background: var(--pa-rule-2);
 }
 
-/* ── acordeón (derecha) ── */
-.steps {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-}
-/* [P1-LANDING-MOTION · 2026-07-11] Wrapper de entrada por paso (framer escribe el
-   transform aquí; el <button> conserva su translateY de :hover sin conflicto). */
-.stepWrap {
-    display: grid;
-}
-.stepWrap > .step {
-    width: 100%;
-}
-.step {
-    position: relative;
-    overflow: hidden;
-    appearance: none;
-    text-align: left;
-    cursor: pointer;
-    font: inherit;
-    color: inherit;
-    display: flex;
-    gap: 0.9rem;
-    align-items: flex-start;
-    padding: 1.05rem 1.2rem;
-    border-radius: 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-.step:hover {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-    transform: translateY(-2px);
-}
-.stepActive {
-    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-    background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
-    box-shadow: 0 20px 44px -24px var(--accent), inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
-    transform: translateY(-2px);
-}
-.stepNum {
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: 0.9rem;
-    color: var(--text-light);
-    padding-top: 0.5rem;
-    min-width: 1.5rem;
-    font-variant-numeric: tabular-nums;
-    transition: color 0.2s ease;
-}
-.stepActive .stepNum { color: var(--accent); }
-.stepIcon {
-    flex: none;
-    width: 40px; height: 40px;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 15%, transparent);
-    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-}
-.stepActive .stepIcon {
-    transform: scale(1.06);
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-    box-shadow: 0 0 22px -4px color-mix(in srgb, var(--accent) 55%, transparent);
-}
-/* [P3-HOWITWORKS-POLISH · 2026-06-30] Barra de progreso del auto-avance (scaleX 0→1 en
-   AUTO_ADVANCE_MS vía framer-motion). Solo en el paso activo y cuando no está pausado. */
-.stepProgress {
-    position: absolute;
+.miniCotaLine::before {
     left: 0;
-    bottom: 0;
-    width: 100%;
-    height: 2.5px;
-    transform-origin: left center;
-    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #ffffff));
-    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
-    border-radius: 999px;
 }
-.stepMain {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    padding-top: 0.35rem;
+
+.miniCotaLine::after {
+    right: 0;
 }
-.stepTitle {
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: var(--text-main);
-}
-.stepDescWrap {
-    overflow: hidden;
+
+.miniCotaValue {
     display: block;
-}
-.stepDesc {
-    display: block;
-    margin-top: 0.5rem;
-    font-size: 0.92rem;
-    line-height: 1.52;
-    color: var(--text-muted);
-}
-
-/* ─────────────────────── visuales por paso ─────────────────────── */
-
-/* (1) Perfil — barras de variables */
-.vProfile {
-    width: 100%;
-    max-width: 320px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.95rem;
-}
-.vRow { display: flex; flex-direction: column; gap: 0.4rem; }
-.vRowLabel { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
-.vRowTrack {
-    height: 8px;
-    border-radius: 999px;
-    background: rgba(148, 163, 184, 0.18);
-    overflow: hidden;
-}
-.vRowFill {
-    display: block;
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #ffffff));
-}
-
-/* (2) Motor — chip + anillos + tokens */
-.vEngine {
-    position: relative;
-    width: 180px;
-    height: 180px;
-    display: grid;
-    place-items: center;
-}
-.vEngineCore {
-    width: 78px;
-    height: 78px;
-    border-radius: 20px;
-    display: grid;
-    place-items: center;
-    color: #ffffff;
-    background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #000000));
-    box-shadow: 0 14px 32px -10px var(--accent);
-    z-index: 2;
-}
-.vEngineRing, .vEngineRing2 {
-    position: absolute;
-    top: 50%; left: 50%;
-    border-radius: 50%;
-    border: 1.5px solid color-mix(in srgb, var(--accent) 38%, transparent);
-}
-.vEngineRing { width: 128px; height: 128px; animation: hiwRingPulse 2.6s ease-in-out infinite; }
-.vEngineRing2 { width: 180px; height: 180px; animation: hiwRingPulse 2.6s ease-in-out infinite 0.6s; }
-.vToken {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    transform: translate(-50%, -50%) rotate(calc(var(--i) * 60deg)) translateX(74px);
-    animation: hiwTokenPulse 2.4s ease-in-out infinite;
-    animation-delay: calc(var(--i) * 0.2s);
-}
-/* [P1-AI-CONFIDENTIAL · 2026-07-11] Sheen cónico que orbita el núcleo sellado:
-   cuenta la rotación de modelos confidenciales. Anillo por máscara radial;
-   solo rota transform (GPU). Linear: rotación ambiental continua tipo spinner. */
-.vEngineSheen {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 154px;
-    height: 154px;
-    margin: -77px 0 0 -77px;
-    border-radius: 50%;
-    background: conic-gradient(from 0deg,
-        transparent 0deg,
-        color-mix(in srgb, var(--accent) 85%, #ffffff) 55deg,
-        transparent 130deg 360deg);
-    -webkit-mask-image: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 2.5px));
-    mask-image: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 2.5px));
-    animation: hiwSheenSpin 5.5s linear infinite;
-    opacity: 0.9;
-}
-
-/* (3) Calibración — anillos de macros */
-.vMacros {
-    display: flex;
-    gap: 1.5rem;
-    align-items: flex-start;
-}
-.vRingItem {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.55rem;
-}
-.vRingPct {
-    position: absolute;
-    top: 39px; left: 0; right: 0;
-    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--pa-ink);
     text-align: center;
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: 0.92rem;
-    color: var(--text-main);
-}
-.vRingLabel {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    font-weight: 500;
 }
 
-/* (4) Adaptación — gráfico de línea */
-.vChart {
-    width: 100%;
-    max-width: 320px;
-}
-.vChart svg { display: block; overflow: visible; }
-.vChartAxis {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 0.75rem;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-weight: 600;
+/* ─────────────────────────── reflow ────────────────────────────────────
+   Por encima de 900px hay sitio para leer una figura de 88px de ancho ANTES
+   del texto sin que la columna (280px a 4 arriba) se sienta apretada.
+   Por debajo, la figura baja BAJO el texto en vez de encogerse — un trazo de
+   1px se vuelve mancha por debajo de `min-width: 128px`. `column-reverse`
+   invierte el orden VISUAL de los dos únicos hijos flex (`.axisVMark` sigue
+   `display:none` aquí) sin tocar el DOM ni el orden de lectura de un lector
+   de pantalla, que sigue el DOM, no el CSS. */
+@media (max-width: 899px) {
+    .cell {
+        flex-direction: column-reverse;
+    }
+
+    .figLegend {
+        max-width: none;
+    }
 }
 
-/* ─────────────────────── keyframes ─────────────────────── */
-@keyframes hiwRingPulse {
-    0%, 100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.5; }
-    50% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
-}
-@keyframes hiwTokenPulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
-}
-@keyframes hiwSheenSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+/* 720px: el eje horizontal con estaciones no tiene donde reconstruirse en
+   una rejilla que ya se rompió — se reconstruye como eje VERTICAL a la
+   izquierda, una sola espina para las 4 celdas apiladas. `.cell` pasa de
+   flex a grid: `mark` ocupa las dos filas (rótulo de texto + figura), así
+   que la estación queda a la altura de cabecera de cada celda sin
+   necesitar que las 4 celdas midan lo mismo. */
+@media (max-width: 719px) {
+    .axis {
+        display: none;
+    }
+
+    .cells {
+        grid-template-columns: 1fr;
+        border-left: none;
+        border-right: none;
+    }
+
+    .cell {
+        display: grid;
+        grid-template-columns: 40px 1fr;
+        grid-template-areas:
+            'mark text'
+            'mark figure';
+        column-gap: 0.9rem;
+        row-gap: 0;
+        align-items: start;
+    }
+
+    .cell + .cell {
+        border-left: 0;
+        border-top: 1px solid var(--pa-rule-3);
+    }
+
+    .cellText {
+        grid-area: text;
+    }
+
+    .figureBox {
+        grid-area: figure;
+        margin-top: 0.75rem;
+    }
+
+    .axisVMark {
+        display: flex;
+        grid-area: mark;
+        align-items: center;
+        justify-content: flex-end;
+        margin-top: 0.35rem;
+    }
+
+    /* [P2-PAPER-NO-INK fix1] Mismo rótulo que `.stationIndex` en desktop
+       (12px + `--pa-ink-2`) — decodifica la misma estación, solo cambia de
+       orientación. Caía a 11px aquí, inconsistente con su propio hermano. */
+    .axisVIndex {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        color: var(--pa-ink-2);
+        margin-right: 3px;
+    }
+
+    .axisVTick {
+        width: 8px;
+        height: 1px;
+        background: var(--pa-rule-2);
+        flex: none;
+    }
+
+    .axisVDiamond {
+        width: 9px;
+        height: 9px;
+        margin-left: 3px;
+        flex: none;
+        background: var(--pa-ink);
+        clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    }
+
+    .axisVRule {
+        display: block;
+        position: absolute;
+        left: 36px;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--pa-ink);
+    }
 }
 
-/* ─────────────────────── responsive ─────────────────────── */
-@media (max-width: 820px) {
-    .section { padding: 4.5rem 0; }
-    .panel { grid-template-columns: 1fr; }
-    .visualCol { min-height: 320px; order: -1; }
+/* 480px: con las 4 descripciones ya desplegadas (no hay acordeón que las
+   esconda), la sección pasaba de una pantalla a ~3 en móvil — riesgo de
+   scroll fatigue, no de fealdad. Se recorta a 3 líneas; el enlace de salida
+   ya existe (`<SeeMoreLink to="/como-funciona">` al pie de la sección, no
+   uno por celda). */
+@media (max-width: 479px) {
+    .cellDesc {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
 }
 
+/* ── REDUCED MOTION — defensa (b) del módulo ─────────────────────────────
+   La (a) vive en el JSX: `useReducedMotion()` gatea el estado `drawn` en su
+   DEFINICIÓN (con `reduce`, el `IntersectionObserver` ni se monta). Esta
+   capa fija la pose de reposo: el guard global de `index.css` solo acorta
+   `transition-duration`, no anula `transition-delay` ni un
+   `stroke-dashoffset` que dejaría una figura en blanco — sin esto, con
+   `reduce` activo la hoja tardaría igual los ~600-1000ms de delay/duración
+   en aparecer, que es justo lo que la defensa (b) existe para evitar. */
 @media (prefers-reduced-motion: reduce) {
-    .vEngineRing, .vEngineRing2, .vToken, .vEngineSheen { animation: none; }
+    .fig path, .fig line, .fig rect, .fig polyline,
+    .axis, .station, .cell {
+        transform: none !important;
+        opacity: 1 !important;
+        stroke-dashoffset: 0 !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+    /* Cobertura adicional: `circle`/`g` (los nodos y el tramo de Fig. 04) no
+       entran en el selector de arriba, y los elementos propios del eje
+       (regla, extensiones, índice, variante vertical) tampoco son `.fig`
+       ni `.cell`. */
+    .fig circle, .fig g,
+    .axisRule, .extUp, .extDown, .stationIndex,
+    .axisVRule, .axisVMark {
+        transform: none !important;
+        opacity: 1 !important;
+        transition: none !important;
+        animation: none !important;
+    }
 }

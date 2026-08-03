@@ -3,10 +3,15 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import styles from './AboutPage.module.css';
 
-/* [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] "Acerca de Bioboros" con un lenguaje visual propio,
-   intencionalmente distinto de las políticas (LegalLayout) y del marketing científico
-   (papel milimetrado + figuras SVG). La atmósfera es 100% CSS —una aurora de gradientes en
-   deriva, SIN imágenes— sobre tipografía editorial, numerales fantasma y layout asimétrico.
+/* [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30 · P1-PAPER-SURFACE-EXTEND · 2026-08-02]
+   "Acerca de Bioboros". Conserva su estructura editorial —numerales fantasma,
+   layout asimétrico, manifiesto en filas— pero ya NO su atmósfera propia: /about
+   entró en la superficie papel (`utils/paperSurface.js`) y la aurora de
+   gradientes en deriva se borró entera, con sus dos `<div>` de lienzo. El porqué
+   detallado (era gris bajo papel y aun así rompía §2.3 y §9) está en la cabecera
+   de `AboutPage.module.css`; aquí solo queda la consecuencia: si vuelves a
+   necesitar un fondo en esta página, la respuesta del sistema es una regla de
+   1px, no un blob.
    El <title>/description de /about los fija RouteTitle (no self-managed). */
 
 const HOW = [
@@ -103,10 +108,6 @@ const AboutPage = () => {
 
     return (
         <div className={styles.page}>
-            {/* atmósfera abstracta: aurora + velo (todo CSS, sin imágenes) */}
-            <div className={styles.canvas} aria-hidden="true" />
-            <div className={styles.veil} aria-hidden="true" />
-
             <div className={styles.inner}>
                 {/* ───────────── hero ───────────── */}
                 <header className={styles.hero}>

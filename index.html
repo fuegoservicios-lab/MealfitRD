@@ -35,6 +35,36 @@
        migra a 'dark' one-time. Defensivo: cualquier excepción cae a 'dark'. -->
   <script>
     (function () {
+      // [P1-PAPER-SURFACE-SSOT · 2026-08-01 · ampliado 2026-08-02] Superficie
+      // papel: estas rutas fuerzan tema síncrono en carga directa/refresh para
+      // evitar el flash. Copia literal de src/utils/paperSurface.js — anclada
+      // por backend/tests/test_p1_paper_surface_ssot.py.
+      // [P1-PAPER-SURFACE-EXTEND · 2026-08-02] `PAPER_PFX` cubre las rutas
+      // DINÁMICAS (/novedades/<slug>), que un `indexOf` exacto no puede ver.
+      // `paperPath()` es el ÚNICO predicado: lo consultan tanto el camino
+      // normal como el `catch`, para que no puedan divergir.
+      // [P1-PAPER-THEME fix · 2026-08-02] La declaración vive FUERA del try a
+      // propósito. Antes estaba dentro y el `catch` fijaba 'dark' a ciegas: si
+      // localStorage lanza (Safari privado, ITP, algunos webviews) la excepción
+      // salta en la PRIMERA lectura, antes de esta línea, así que en el catch
+      // `PAPER` ni siquiera existía todavía. Consecuencia: una carga directa de
+      // /precios pintaba el splash ENTERO en navy — el splash vive fuera de
+      // #root, así que ningún CSS de React lo alcanza — hasta que React montaba
+      // y corregía, y entonces saltaba a blanco. Es exactamente el flash que
+      // este bloque existe para evitar. Sacarla del try es lo que permite que
+      // el catch consulte la MISMA lista, sin duplicarla en un cuarto sitio.
+      // [P1-PAPER-LEGAL · 2026-08-02] +9 legales. `/cookies` incluida aunque
+      // sea un redirect a /privacy: este script corre ANTES de que React lo
+      // resuelva, así que sin ella la carga en frío pinta un frame oscuro.
+      var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about', '/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure'];
+      var PAPER_PFX = ['/novedades/'];
+      function paperPath(p) {
+        if (PAPER.indexOf(p) !== -1) return true;
+        for (var i = 0; i < PAPER_PFX.length; i++) {
+          if (p.indexOf(PAPER_PFX[i]) === 0) return true;
+        }
+        return false;
+      }
       try {
         // [P3-DEFAULT-DARK · 2026-06-01] Migración one-time: un 'system' previo
         // pasa a 'dark' una sola vez (decisión: oscuro por defecto). Tras esto,
@@ -49,14 +79,18 @@
         var dark = pref === 'dark' ? true
           : pref === 'light' ? false
           : !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        // [P3-LANDING-DARK-ONLY · 2026-06-29] El landing/marketing es SIEMPRE oscuro
-        // (no tiene config de apariencia). Forzar síncrono en carga directa/refresh
-        // evita el flash claro→oscuro. Sync con src/utils/marketingRoutes.js.
-        var MK = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor'];
-        if (MK.indexOf(location.pathname) !== -1) dark = true;
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        var theme = dark ? 'dark' : 'light';
+        if (paperPath(location.pathname)) theme = 'paper';
+        document.documentElement.setAttribute('data-theme', theme);
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'dark');
+        // El fallback defensivo sigue siendo 'dark', pero la ruta manda: en la
+        // superficie papel un fallback a 'dark' NO es defensivo, es la
+        // regresión. `paperPath` está declarada arriba, fuera del try, justamente
+        // para que esta línea no pueda quedarse sin ella.
+        document.documentElement.setAttribute(
+          'data-theme',
+          paperPath(location.pathname) ? 'paper' : 'dark'
+        );
       }
     })();
   </script>
@@ -64,7 +98,7 @@
   <!-- SEO -->
   <title>Bioboros | Nutrición Personalizada con IA</title>
   <meta name="description" content="Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis." />
-  <meta name="theme-color" content="#4F46E5" />
+  <meta name="theme-color" content="#FBFBFA" />
   <meta name="application-name" content="Bioboros" />
   <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
   <link rel="canonical" href="https://bioboros.com/" />
@@ -271,6 +305,15 @@
     html[data-theme="dark"] .splash-brand { color: #F8FAFC; }
     html[data-theme="dark"] .splash-tagline { color: #94A3B8; }
     html[data-theme="dark"] .splash-dots span { background: #CBD5E1; }
+    /* [P1-PAPER-THEME · 2026-08-01] El splash vive FUERA de #root (body, no
+       React), así que ningún CSS de la app lo alcanza: necesita su propia
+       copia de la paleta papel. Sin esto cae a su base — dos radiales indigo
+       + rosa sobre #F8FAFC — en cada carga directa o refresh de las 6 rutas.
+       Sin gradientes: el papel es plano. */
+    html[data-theme="paper"] #pwa-splash { background: #FBFBFA; }
+    html[data-theme="paper"] .splash-brand { color: #0B0B0B; }
+    html[data-theme="paper"] .splash-tagline { color: #3D3D3B; }
+    html[data-theme="paper"] .splash-dots span { background: #6A6A66; }
     @media (prefers-reduced-motion: reduce) {
       #pwa-splash, .splash-brand, .splash-tagline, .splash-dots { animation: none !important; }
       .splash-dots span { animation: splashDotReduced 1.6s ease-in-out infinite; }

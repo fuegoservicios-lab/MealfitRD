@@ -1,221 +1,386 @@
+/* ============================================================================
+   PRICING — «papel técnico» · la ruta /precios
+   [P2-PAPER-NO-INK · 2026-08-02, Task 13]
+
+   Este módulo NO se monta en la home: `Home.jsx` no incluye <Pricing />. Su
+   único consumidor es `PricingPage.jsx` (`/precios`), que ES ruta papel
+   (`utils/paperSurface.js`). Por eso se reescribe DIRECTO a `var(--pa-*)` en
+   vez de añadir un bloque `:global(html[data-theme="paper"])`: un bloque
+   escopado aquí serviría a cero rutas adicionales y solo añadiría una capa de
+   indirección que el próximo lector tendría que descartar a mano.
+
+   ── Lo que se fue, y por qué, para que nadie lo reintroduzca ────────────────
+
+   1. `.pricing::before` — el BLOB. Tres `radial-gradient` a toda anchura
+      (índigo `rgba(79,70,229,.18)` arriba-izquierda, rosa `rgba(244,63,94,.12)`
+      arriba-derecha, esmeralda `rgba(16,185,129,.12)` abajo) que caían JUSTO
+      detrás del header: lo primero que veía quien llegaba desde una home
+      blanco y negro. Borrado entero, no recoloreado. En papel la profundidad
+      es grosor de línea, no glow, y un degradado neutro sigue siendo un glow.
+      El blob además existía para tapar una COSTURA que ya no existe: el header
+      era una barra flotante translúcida y el fondo tenía que llenar por detrás
+      (ver PricingPage.module.css). Bajo papel el header es OPACO
+      (`Header.module.css`, bloque paper: `background: var(--pa-paper)` +
+      hairline inferior), así que no hay nada que llenar.
+
+   2. `.pricing::after` — la retícula de puntos en `rgba(15,23,42,.1)` a paso
+      24px. No se borra: se re-encuadra como la CUADRÍCULA MILIMETRADA del
+      sistema — `var(--pa-grid)` a paso 40px, la misma capa mayor que usa el
+      footer (spec §4.7) — y se acota a la banda superior con un `mask-image`
+      lineal. Es la única cosa que queda detrás del header, y es geometría del
+      pliego, no decoración de marca.
+
+   3. El ANILLO VIOLETA de la tarjeta «Plus». Era `border: 2px solid #8B5CF6`
+      + `box-shadow: 0 0 0 4px rgba(139,92,246,.14), 0 14px 40px -10px
+      rgba(139,92,246,.45)` (y su gemelo en `:hover`). La jerarquía ahora se
+      resuelve por FORMA — ver «Más Popular» más abajo.
+
+   4. La píldora `-25%` verde (`rgba(16,185,129,.15)` + `#047857` sobre blanco)
+      y la píldora lavanda de `.badge` (`rgba(79,70,229,.1)`). Radio 99px,
+      tinte y borde tintado: las tres cosas que el sistema prohíbe.
+
+   5. Los DOS bloques `:global(html[data-theme="dark"])` (`.pricing::after` y
+      `.btnOutline:hover`). Se borran en este mismo commit, no «luego»:
+      `/precios` solo se sirve bajo papel, así que eran código que nadie podía
+      saber si aplicaba. Los cubría `test_p2_paper_theme_blocks.py`, que hasta
+      hoy excluía este archivo por eso mismo.
+
+   6. Todo `box-shadow` con blur (`--shadow-lg`, `--shadow-md`, los glows de
+      los botones) y todo `border-radius` distinto de 0.
+
+   ── «Más Popular» sin una gota de color ────────────────────────────────────
+
+   El brief ofrecía tres salidas (regla más gruesa / relleno sólido en la
+   cabecera / etiqueta en negativo). Se eligen las DOS últimas juntas, y se
+   descarta la primera a propósito:
+
+   · La etiqueta pasa a NEGATIVO y ocupa el ancho de la columna: una banda de
+     tinta sólida rematando la celda, con `MÁS POPULAR` en mono sobre papel.
+     Sólido = «lo vigente» es gramática ya asentada del sistema (`.currentBar`
+     de NewsHighlight marca la revisión en curso, `.primaryBtn` del Hero es el
+     único rectángulo sólido de su columna, `.solidFill` de HowItWorks es el
+     dato dentro de tolerancia). No hay que inventar un código nuevo.
+   · La columna se hunde a `--pa-sunk`. Sola no informaría (1,064:1 contra el
+     papel — spec §3 lo dice explícitamente), pero no va sola: la banda de
+     tinta es la que porta el dato.
+   · Las dos reglas verticales que la flanquean suben de `--pa-rule-3`
+     (1,61:1) a `--pa-rule` (19,01:1). Es un salto de CONTRASTE, no de GROSOR.
+   · NO se usa un trazo de 2px: la spec §4.7 reserva ese grosor al borde
+     superior del footer como «el único trazo grueso de toda la página», y el
+     footer se renderiza en esta misma ruta. Gastarlo aquí lo dejaría de ser.
+
+   Y a diferencia del anillo violeta, esto sobrevive en escala de grises, en
+   impresión y para un daltónico — que es el argumento entero del sistema.
+
+   ── Rejilla ────────────────────────────────────────────────────────────────
+
+   `repeat(4, minmax(0, 1fr))`, no `repeat(4, 1fr)`. `1fr` es
+   `minmax(AUTO, 1fr)`: el mínimo automático es el contenido, así que un solo
+   `white-space: nowrap` dentro de una celda ensancha su columna y encoge a las
+   hermanas. Ya pasó en producción con la rejilla HERMANA de `Upgrade.module
+   .css` (una tarjeta a 188px contra 340px) y el test que vigila ese patrón
+   solo cubría aquel archivo. `minmax(0, …)` deja que la columna encoja por
+   debajo de su contenido y el reparto vuelve a ser el que dice el `1fr`.
+
+   Las tarjetas ya no son cajas separadas por `gap`: son CELDAS de una tabla
+   reglada (mismo patrón que `.cells` de HowItWorks.module.css), con la regla
+   negra arriba y abajo y hairlines verticales entre columnas.
+   ========================================================================= */
+
 .pricing {
-    padding: 6rem 1.5rem;
     position: relative;
+    /* 3rem arriba = el mismo aire que `.container` del Hero bajo el offset del
+       <main>. Sin esto /precios arrancaba ~48px más abajo que la home y el
+       salto desde el nav se notaba. */
+    padding: 3rem 1.5rem 6rem;
+    background: var(--pa-paper);
+    color: var(--pa-ink);
     overflow: hidden;
-    background: var(--bg-page);
 }
 
-/* --- Visual Background Elements --- */
-.pricing::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: 
-        radial-gradient(ellipse at 0% 0%, rgba(79, 70, 229, 0.18) 0%, transparent 50%),
-        radial-gradient(ellipse at 100% 0%, rgba(244, 63, 94, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 100%, rgba(16, 185, 129, 0.12) 0%, transparent 60%);
-    pointer-events: none;
-    z-index: 0;
-}
-
+/* Cuadrícula milimetrada — capa MAYOR (paso 40px, `--pa-grid`), la misma que
+   el footer. Decorativa por definición (1,38:1, spec §3): no porta ninguna
+   información, así que el ratio bajo es correcto y no un descuido. Se acota a
+   los 420px superiores y se desvanece: el pliego se «ve» donde la página
+   arranca y desaparece bajo el contenido, en vez de teñirla entera. */
 .pricing::after {
     content: '';
     position: absolute;
-    inset: 0;
-    background-image: radial-gradient(rgba(15, 23, 42, 0.1) 1px, transparent 1px);
-    background-size: 24px 24px;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 420px;
+    background-image: radial-gradient(var(--pa-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 40%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 40%, transparent 100%);
     pointer-events: none;
     z-index: 0;
 }
 
 .container {
+    position: relative;
+    z-index: 1;
     max-width: 1280px;
     margin: 0 auto;
-    position: relative;
-    z-index: 10;
 }
 
+/* ───────────────────────── cabecera de la hoja ────────────────────────────
+   [P2-PRICING-HEADER-CENTER · 2026-08-02] CENTRADA por decisión del dueño.
+
+   La versión anterior alineaba el rótulo, el H2 y el lead al eje IZQUIERDO de
+   las celdas de abajo, con este argumento: en un pliego donde la línea de
+   margen organiza la página, un bloque centrado sobre una tabla alineada a la
+   izquierda se lee como un escalón. El argumento sigue siendo cierto y aun así
+   pierde — el dueño quiere la cabecera centrada y esa es la decisión.
+
+   Se deja escrito para que nadie lo «arregle» de vuelta a la izquierda creyendo
+   que fue un descuido del sistema: fue una anulación consciente, igual que la
+   de `P3-LANDING-DARK-ONLY`.
+
+   `margin: 0 auto` es la mitad que importa: sin él, `text-align: center` centra
+   el TEXTO dentro de una caja de 760px que sigue pegada a la izquierda de un
+   contenedor de 1280px — el bloque se vería descentrado a la derecha del
+   centro real de la página. */
 .header {
+    max-width: 760px;
+    margin: 0 auto 3.5rem;
     text-align: center;
-    max-width: 600px;
-    margin: 0 auto 5rem;
 }
 
+/* `<span class="badge">Planes Flexibles</span>` — el mismo motivo de apertura
+   que el resto del sistema (hairline / etiqueta mono / hairline), montado con
+   pseudo-elementos porque el JSX solo tiene el span. Antes era una píldora
+   lavanda de radio 99px. */
 .badge {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    background: rgba(79, 70, 229, 0.1);
-    color: var(--primary);
-    border: 1px solid rgba(79, 70, 229, 0.2);
-    border-radius: 99px;
-    font-weight: 700;
-    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    width: 100%;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 1.5rem;
+    color: var(--pa-ink);
+    white-space: nowrap;
 }
 
+.badge::before,
+.badge::after {
+    content: '';
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--pa-rule);
+}
+
+/* H2 de sección (spec §2.5). Antes era peso 800 con el titular recortado
+   sobre un `linear-gradient` (`-webkit-text-fill-color: transparent`) — un
+   degradado de marca dentro de la letra. */
 .title {
     font-family: var(--font-heading);
-    font-size: 3rem;
-    font-weight: 800;
-    color: var(--text-main);
-    margin-bottom: 1.25rem;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    background: linear-gradient(135deg, var(--text-main) 0%, var(--primary-dark) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: clamp(1.75rem, 3.4vw, 2.375rem);
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--pa-ink);
+    margin: 0 0 1rem;
 }
 
+/* `margin: 0 auto` por la misma razón que en `.header`: el tope de 52ch le da
+   una caja más estrecha que la cabecera, y sin `auto` esa caja quedaría a la
+   izquierda mientras el H2 de arriba sí se ve centrado. */
 .subtitle {
-    font-size: 1.125rem;
-    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
     line-height: 1.6;
+    max-width: 52ch;
+    margin: 0 auto;
+    color: var(--pa-ink-2);
+    text-wrap: pretty;
 }
 
-/* --- Billing Period Toggle --- */
+/* ─────────────────────── conmutador mensual / anual ───────────────────────
+   Control segmentado de 1px, radio 0, sin sombra. El segmento vigente se
+   rellena de tinta (mismo código que la banda de «Más Popular»: sólido = lo
+   que está en curso). */
 .billingToggle {
     display: inline-flex;
-    align-items: center;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 99px;
-    padding: 4px;
+    align-items: stretch;
     margin-top: 2rem;
-    box-shadow: var(--shadow-sm);
+    padding: 0;
+    background: var(--pa-paper);
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
+    box-shadow: none;
 }
 
 .toggleOption {
-    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1.5rem;
-    border-radius: 99px;
-    border: none;
+    padding: 0.6875rem 1.5rem;
     background: transparent;
-    color: var(--text-muted);
+    border: none;
+    border-radius: 0;
+    color: var(--pa-ink-2);
     font-family: var(--font-heading);
-    font-size: 0.95rem;
+    font-size: 0.875rem;
     font-weight: 600;
+    letter-spacing: 0.01em;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 140ms linear, color 140ms linear;
+}
+
+.toggleOption + .toggleOption {
+    border-left: 1px solid var(--pa-rule-2);
 }
 
 .toggleOption:hover {
-    color: var(--text-main);
+    color: var(--pa-ink);
 }
 
-.toggleActive {
-    background: var(--primary);
-    color: #FFFFFF;
-    box-shadow: var(--shadow-md);
-}
-
+.toggleActive,
 .toggleActive:hover {
-    color: #FFFFFF;
+    background: var(--pa-ink);
+    color: var(--pa-paper);
+    box-shadow: none;
 }
 
+/* `-25%` — 12px + `--pa-ink-2`, el piso de DECODIFICACIÓN, no los 11px de la
+   fila «etiqueta accesoria».
+
+   [P2-PAPER-NO-INK fix1 · 2026-08-02] La primera versión decía «etiqueta
+   accesoria (spec §2.5: mono 11px, 0,14em)» y ponía 11px con 0,08em: el
+   comentario citaba una fila de la escala que el código no seguía, y encima
+   contradecía la regla de al lado — `.monthlyEquiv` sube a 12px con el
+   argumento explícito de que «lleva el ahorro». Las dos lecturas no pueden
+   valer a la vez sobre el mismo dato.
+
+   Resuelto a favor de decodificación: la fila accesoria está reservada a
+   metadato que se puede ignorar sin perder la figura, y `-25%` es justo lo
+   contrario — es la razón entera para pulsar «Anual». Mismo tamaño y mismo
+   tono que `.monthlyEquiv`, que lleva ese mismo ahorro desglosado.
+
+   El tracking se queda en 0,08em y NO sube a los 0,14em de la fila accesoria:
+   ese valor está calibrado para palabras en versalitas («PLANES FLEXIBLES»),
+   y sobre un token numérico corto con signo y `%` separa los glifos hasta que
+   dejan de leerse como una cifra.
+
+   En reposo va contorneada sobre papel; dentro del segmento vigente se
+   invierte a contorno de papel sobre tinta. Antes era verde pálido en reposo y
+   una píldora blanca con `#047857` y sombra dentro del botón activo. */
 .discountBadge {
     display: inline-flex;
     align-items: center;
-    padding: 0.18rem 0.5rem;
-    border-radius: 99px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: 0.02em;
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--secondary-dark);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-/* [PRICING-TOGGLE-BADGE · 2026-06-19] El badge "-25%" vive DENTRO del botón
-   activo (fondo púrpura). El verde tenue + texto verde-oscuro perdía contraste
-   sobre el púrpura y se veía lavado/ilegible. Píldora blanca sólida + texto
-   emerald oscuro → alto contraste y el ahorro resalta. Vale para claro y oscuro
-   (el botón activo es púrpura en ambos temas). */
-.toggleActive .discountBadge {
-    background: #FFFFFF;
-    color: #047857;
-    border-color: transparent;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
-}
-
-/* [P3-PRICING-MONTHLY-EQUIV · 2026-05-31] Equivalente mensual mostrado bajo el
-   precio anual (antes `monthlyEquiv` era dato muerto en el objeto PRICING).
-   Hace tangible el ahorro del plan anual — el número que motiva el switch.
-   Reemplaza la clase muerta `.savingsNote` (0 usos en JSX). */
-.monthlyEquiv {
-    font-size: 0.85rem;
-    color: var(--secondary-dark);
+    padding: 0.15rem 0.4rem;
+    background: transparent;
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
+    box-shadow: none;
+    font-family: var(--font-mono);
+    font-size: 12px;
     font-weight: 600;
-    margin: -0.75rem 0 1.5rem;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    color: var(--pa-ink-2);
 }
 
+.toggleActive .discountBadge {
+    background: transparent;
+    border-color: var(--pa-paper);
+    color: var(--pa-paper);
+    box-shadow: none;
+}
+
+/* Equivalente mensual / precio de lanzamiento tachado: metadato bajo la cifra.
+   12px es el piso del sistema para todo lo que sirva para decodificar un dato
+   (spec §2.5); 11px queda reservado a lo verdaderamente ignorable, y esta
+   línea lleva el ahorro y la fecha de subida de precio. */
+.monthlyEquiv {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+    color: var(--pa-ink-2);
+    margin: -0.5rem 0 1.25rem;
+}
+
+/* ─────────────────────────── tabla de planes ────────────────────────────── */
 .grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: stretch;
+    border-top: 1px solid var(--pa-rule);
+    border-bottom: 1px solid var(--pa-rule);
 }
 
-/* --- Premium Card Styles --- */
+/* El `padding-top` de 3rem es la ZONA DE CABECERA de la celda, y la llevan
+   LAS CUATRO, no solo la vigente. Medido en navegador: con la reserva solo en
+   `.popular`, los cuatro nombres de plan quedaban escalonados (Plus 28px por
+   debajo de sus hermanas) y la fila dejaba de leerse como una fila de tabla.
+   Ahora la zona existe siempre y lo que cambia es si está RELLENA de tinta. */
 .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 2rem;
     position: relative;
-    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
     height: 100%;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 3rem 1.5rem 2rem;
+    background: var(--pa-paper);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transition: background 140ms linear;
 }
 
-/* [APPEARANCE-THEME · 2026-05-29] Cards ESTÁTICAS: hover sin lift, sin glow,
-   sin cambio de borde (igual que el estado base). */
+.card + .card {
+    border-left: 1px solid var(--pa-rule-3);
+}
+
+/* Cards estáticas desde [APPEARANCE-THEME · 2026-05-29]: el hover no levanta
+   ni cambia el borde. Se conserva la decisión. */
 .card:hover {
     transform: none;
 }
 
-/* Popular Card Override */
-/* [PRICING-POPULAR-GLOW · 2026-05-31] La tarjeta más popular (Plus) se rodea de un
-   halo morado para destacarla del resto: borde violeta + un anillo cercano sutil +
-   un glow difuso. El glow es de color (no la sombra negra var(--shadow-xl) previa,
-   que no aportaba realce) → se ve igual de bien en claro y en oscuro. */
+/* ── la columna vigente ──────────────────────────────────────────────────── */
+/* La zona de cabecera ya la reserva `.card` para las cuatro; aquí solo se
+   RELLENA (banda de tinta, más abajo) y la celda se hunde. */
 .popular {
-    border: 2px solid #8B5CF6;
-    box-shadow:
-        0 0 0 4px rgba(139, 92, 246, 0.14),
-        0 14px 40px -10px rgba(139, 92, 246, 0.45);
-    z-index: 10;
+    background: var(--pa-sunk);
 }
 
-/* Popular estática en hover (cards sin movimiento): conserva el mismo halo. */
-.popular:hover {
-    border-color: #8B5CF6;
-    box-shadow:
-        0 0 0 4px rgba(139, 92, 246, 0.14),
-        0 14px 40px -10px rgba(139, 92, 246, 0.45);
+/* Las dos hairlines que flanquean la columna suben a tinta negra. Van con el
+   selector de hermandad (0,2,0) porque `.card + .card` (0,2,0) las pisaría de
+   otro modo — un `.popular` a secas (0,1,0) pierde la especificidad. */
+.card + .popular,
+.popular + .card {
+    border-left-color: var(--pa-rule);
 }
 
 .popularBadge {
     position: absolute;
-    top: -14px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    color: white;
-    padding: 0.35rem 1.25rem;
-    border-radius: 99px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-    letter-spacing: 0.02em;
+    top: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    padding: 0.5rem 0.75rem;
+    background: var(--pa-ink);
+    color: var(--pa-paper);
+    border-radius: 0;
+    box-shadow: none;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-align: center;
 }
 
 .cardContent {
@@ -226,160 +391,187 @@
 
 .planName {
     font-family: var(--font-heading);
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--text-main);
-    margin-bottom: 1rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--pa-ink);
+    margin: 0 0 1rem;
 }
 
 .price {
     display: flex;
     align-items: baseline;
     margin-bottom: 1.5rem;
-    color: var(--text-main);
+    color: var(--pa-ink);
 }
 
+/* `tabular-nums lining` en toda cifra comparable (spec §2.4): sin esto las
+   cuatro columnas de precio bailan de ancho entre mensual y anual. */
 .currency {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-right: 4px;
-    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    margin-right: 6px;
+    color: var(--pa-ink-3);
 }
 
 .amount {
     font-family: var(--font-heading);
-    font-size: 3rem;
-    font-weight: 800;
+    font-size: 2.75rem;
+    font-weight: 500;
     line-height: 1;
-    letter-spacing: -0.04em;
-    color: var(--text-main);
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums lining;
+    color: var(--pa-ink);
 }
 
 .period {
-    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
     font-weight: 500;
-    font-size: 1rem;
+    letter-spacing: 0.06em;
     margin-left: 0.5rem;
+    color: var(--pa-ink-3);
 }
 
 .description {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    font-size: 0.95rem;
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
     line-height: 1.6;
+    color: var(--pa-ink-2);
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.5rem;
     min-height: 3.5rem;
-    font-weight: 500;
-    border-bottom: 1px dashed var(--border);
+    /* Era `1px dashed var(--border)`. El punteado en este sistema significa
+       «referencia, no materia» (ver `.guide` de HowItWorks.module.css); aquí
+       es un separador real, así que va continuo. */
+    border-bottom: 1px solid var(--pa-rule-3);
 }
 
 .features {
     list-style: none;
     padding: 0;
-    margin: 0 0 2.5rem;
+    margin: 0 0 2rem;
     flex-grow: 1;
 }
 
 .features li {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-    color: var(--text-main);
-    font-size: 0.95rem;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
     line-height: 1.5;
-    font-weight: 500;
+    color: var(--pa-ink);
 }
 
+/* El icono `<Check>` de lucide se queda: una marca de verificación es un
+   SIGNO, no un color. Lo que se va es la burbuja redonda tintada de índigo
+   que lo envolvía. */
 .check {
-    color: var(--primary);
-    background: rgba(79, 70, 229, 0.1);
-    border-radius: 50%;
-    padding: 2px;
+    color: var(--pa-ink);
+    background: none;
+    border-radius: 0;
+    padding: 0;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 3px;
 }
 
-/* --- Buttons --- */
+/* ──────────────────────────────── botones ─────────────────────────────────
+   Mismo par que el Hero: sólido = la acción real, contorno = «el otro». */
 .btnPrimary {
     width: 100%;
-    padding: 1rem;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
+    padding: 0.875rem 1.5rem;
+    background: var(--pa-ink);
+    color: var(--pa-paper);
     font-family: var(--font-heading);
+    font-size: 0.875rem;
     font-weight: 600;
-    border-radius: 14px;
-    border: none;
-    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.25);
+    letter-spacing: 0.01em;
+    border: 1px solid var(--pa-ink);
+    border-radius: 0;
+    box-shadow: none;
     cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 1rem;
+    transition: background 140ms linear, border-color 140ms linear;
 }
 
 .btnPrimary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+    transform: none;
+    background: var(--pa-ink-2);
+    border-color: var(--pa-ink-2);
+    box-shadow: none;
 }
 
 .btnOutline {
     width: 100%;
-    padding: 1rem;
-    background: var(--bg-page);
-    color: var(--text-main);
+    padding: 0.875rem 1.5rem;
+    background: transparent;
+    color: var(--pa-ink);
     font-family: var(--font-heading);
-    font-weight: 700;
-    border-radius: 14px;
-    border: 1px solid var(--border);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border: 1px solid var(--pa-ink);
+    border-radius: 0;
     cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 1.05rem;
+    transition: background 140ms linear, color 140ms linear;
 }
 
 .btnOutline:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: rgba(79, 70, 229, 0.05);
+    background: var(--pa-ink);
+    color: var(--pa-paper);
+    border-color: var(--pa-ink);
 }
 
-/* [P2-A11Y-FOCUS-VISIBLE · 2026-05-31] Anillo de foco de teclado (WCAG 2.4.7). */
+/* [P2-A11Y-FOCUS-VISIBLE · 2026-05-31] Anillo de foco de teclado (WCAG 2.4.7).
+   Sigue vivo; solo cambia de índigo a tinta. */
 .btnPrimary:focus-visible,
 .btnOutline:focus-visible,
 .toggleOption:focus-visible {
-    outline: 3px solid var(--primary);
+    outline: 2px solid var(--pa-ink);
     outline-offset: 3px;
 }
 
+/* ──────────────────────────────── reflow ──────────────────────────────────
+   La tabla se rompe en 2 columnas y luego en 1. Cada vez, las hairlines
+   cambian de eje: `.card + .card` dibujaría una vertical a la izquierda de una
+   celda que ya abre fila. */
 @media (max-width: 1200px) {
     .grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 2rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .popular {
-        transform: scale(1);
+    .card + .card {
+        border-left: 0;
     }
 
-    .popular:hover {
-        transform: scale(1);
+    .card:nth-child(2n) {
+        border-left: 1px solid var(--pa-rule-3);
     }
 
-    .title {
-        font-size: 2.5rem;
+    .card:nth-child(n + 3) {
+        border-top: 1px solid var(--pa-rule-3);
+    }
+
+    /* La columna vigente es la 3ª: en 2 columnas abre la segunda fila, así que
+       su marca deja de ser una vertical y pasa a ser la regla que la corona.
+       `.card.popular` (0,2,0) — NO `.popular` a secas (0,1,0), que perdería
+       contra `.card:nth-child(n + 3)` de arriba y dejaría la regla en gris. */
+    .card + .popular,
+    .popular + .card {
+        border-left-color: var(--pa-rule-3);
+    }
+
+    .card.popular {
+        border-top-color: var(--pa-rule);
     }
 }
 
 @media (max-width: 768px) {
     .pricing {
-        padding: 4rem 1rem;
-    }
-
-    .title {
-        font-size: 2rem;
-    }
-
-    .subtitle {
-        font-size: 1rem;
-        padding: 0 0.5rem;
+        padding: 2rem 1rem 4rem;
     }
 
     .header {
@@ -387,93 +579,48 @@
     }
 
     .grid {
-        grid-template-columns: 1fr;
-        gap: 2rem;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .card {
-        padding: 1.5rem;
-        border-radius: 20px;
+        padding: 2.75rem 1.25rem 2rem;
     }
 
-    /* Popular Override Mobile */
-    .popular {
-        padding: 1.75rem 1.5rem;
+    .card:nth-child(2n) {
+        border-left: 0;
+    }
+
+    .card + .card {
+        border-left: 0;
+        border-top: 1px solid var(--pa-rule-3);
+    }
+
+    /* Misma razón de especificidad que en el breakpoint de arriba: aquí compite
+       con `.card + .card` (0,2,0). */
+    .card.popular {
+        border-top: 1px solid var(--pa-rule);
     }
 
     .amount {
-        font-size: 2.75rem;
+        font-size: 2.5rem;
     }
 
-    .cardContent {
-        align-items: center;
-        text-align: center;
+    .billingToggle {
+        margin-top: 1.5rem;
     }
+}
 
-    .planName {
-        font-size: 1.35rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .price {
-        justify-content: center;
-        margin-bottom: 1rem;
-    }
-
-    .description {
-        font-size: 0.95rem;
-        margin-bottom: 1.5rem;
-        max-width: 280px;
-        min-height: auto;
-    }
-
-    .features {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        width: max-content;
-        max-width: 100%;
-        margin: 0 auto 2rem;
-    }
-
-    .features li {
-        font-size: 0.9rem;
-        margin-bottom: 0.8rem;
-    }
-
+/* ── REDUCED MOTION — defensa (b) del módulo ─────────────────────────────
+   Este módulo no usa framer-motion, así que no tiene defensa (a) en el JSX:
+   todo su movimiento son `transition` de color/fondo declaradas aquí. El
+   guard global de `index.css` solo ACORTA `transition-duration`; este bloque
+   las anula. */
+@media (prefers-reduced-motion: reduce) {
+    .card,
+    .toggleOption,
     .btnPrimary,
     .btnOutline {
-        width: 100%;
-        padding: 0.875rem;
+        transition: none !important;
+        animation: none !important;
     }
-
-    .popularBadge {
-        font-size: 0.75rem;
-        padding: 0.3rem 1.25rem;
-        top: -14px;
-        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4);
-    }
-}
-
-/* ============================================================
-   [APPEARANCE-THEME · 2026-05-28] TEMA OSCURO — Pricing
-   Aditivo: solo propiedades de color hardcodeadas en claro.
-   ============================================================ */
-
-/* pricing::after — dot grid usa rgba(15,23,42,0.1) visible sobre bg claro.
-   En oscuro ese color desaparece; usamos un tono muy sutil del primary para
-   que el patrón sea levemente visible sin distraer. */
-:global(html[data-theme="dark"]) .pricing::after {
-    background-image: radial-gradient(rgba(129, 140, 248, 0.06) 1px, transparent 1px);
-}
-
-/* [APPEARANCE-THEME · 2026-05-29] Sin cambio en hover (cards estáticas). El
-   override oscuro de .card:hover se eliminó. */
-
-/* btnOutline: background es var(--bg-page) y color/border leen vars → ya ok.
-   Ajustamos el :hover para que el tint funcione sobre el bg oscuro. */
-:global(html[data-theme="dark"]) .btnOutline:hover {
-    background: rgba(129, 140, 248, 0.08);
-    color: var(--primary-light);
-    border-color: var(--primary-light);
 }

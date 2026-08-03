@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { isDarkActive } from '../../utils/theme';
+import { isDarkActive, isPaperActive } from '../../utils/theme';
 
 /**
  * Dynamically updates the <meta name="theme-color"> based on the current route.
@@ -26,6 +26,17 @@ const useThemeColor = () => {
             let color;
             if (path === '/login' || path === '/register' || path === '/reset-password') {
                 color = '#020617'; // Auth pages: ya oscuras en ambos temas
+            } else if (isPaperActive()) {
+                // [P1-PAPER-THEME · 2026-08-01 · fix1] Pregunta por el TEMA activo
+                // (`data-theme` en el DOM), NO por si la ruta es "elegible" para
+                // papel: el helper anterior (ruta → booleano, del módulo
+                // paperSurface) daba false positive HOY, porque `PublicThemeLock`
+                // (App.jsx) fuerza data-theme="dark" en estas mismas 6 rutas
+                // mientras nadie emite 'paper' — la rama disparaba con el tema
+                // oscuro puesto y pisaba #0B1120 con #FBFBFA antes de que exista
+                // ningún flip. `isPaperActive()` es simétrica de `isDarkActive()`:
+                // ambas leen el atributo del DOM, ninguna la ruta.
+                color = '#FBFBFA';
             } else if (dark) {
                 // En oscuro, el chat usa la superficie de tarjeta (slate-900) y
                 // el resto el fondo de página (slate-950).

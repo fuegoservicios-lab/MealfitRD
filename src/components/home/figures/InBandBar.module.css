@@ -1,0 +1,262 @@
+/* ============================================================================
+   [P1-PAPER-BENCHMARK · 2026-08-02] Fig. 04.2 — Planes con los 4 macros en banda.
+
+   Sin bloque `data-theme`: la home solo se sirve como superficie papel
+   (`utils/paperSurface.js`), así que consume `var(--pa-*)` directo.
+
+   Vocabulario de movimiento: TRAZADO de la CONSTRUCCIÓN (regla graduada,
+   verticales, líneas de extensión, línea de cota) con `stroke-dashoffset`
+   sobre `pathLength` normalizado a 1. Las BARRAS y las cifras entran por
+   opacidad — animar el ancho de una barra dibuja todos los valores
+   intermedios por el camino, que es la misma mentira que un contador subiendo
+   de 0 a 91,7.
+   ========================================================================= */
+
+.figure {
+    margin: 0;
+}
+
+/* Los 12 px reservados a cada extremo del eje: sin ellos el rótulo `100`,
+   centrado en su tick, se come el borde de la celda — a 320 px de viewport el
+   carril mide 248 px y el mordisco se ve. */
+.plot {
+    padding: 0 12px;
+}
+
+/* `overflow: visible` deja que los rótulos de los extremos usen esos 12 px
+   reservados y que la punta de flecha del extremo derecho no se recorte. */
+.svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+    fill: none;
+}
+
+/* ── materiales (§5.5) ──────────────────────────────────────────────────── */
+
+/* CON MOTOR = SÓLIDO. Es el canal con el que este sistema codifica «Bioboros /
+   lo medido», en las 7 superficies. `rx`/`ry` explícitos a 0: `border-radius`
+   NO alcanza a un `<rect>`, y un `rx="4"` heredado de un copy-paste sería la
+   única esquina redondeada del pliego sin que ningún test de CSS lo viera. */
+.barOn {
+    fill: var(--pa-ink);
+    stroke: none;
+    rx: 0px;
+    ry: 0px;
+}
+
+/* SIN MOTOR = CONTORNO + TRAMA, y 8 px más bajo. Tres canales redundantes. */
+.barOff {
+    fill: none;
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+    rx: 0px;
+    ry: 0px;
+}
+
+.barOffFill {
+    stroke: none;
+    rx: 0px;
+    ry: 0px;
+}
+
+.hatchLine {
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+}
+
+/* Regla graduada y verticales de lectura: línea de construcción, nunca dato. */
+.tick {
+    stroke: var(--pa-rule-2);
+    stroke-width: 1;
+}
+
+.gridline {
+    stroke: var(--pa-rule-3);
+    stroke-width: 1;
+}
+
+.ext {
+    stroke: var(--pa-rule-2);
+    stroke-width: 1;
+}
+
+/* La cota SÍ es tinta plena: es una afirmación de medida, y en este sistema
+   una cota con flechas solo se dibuja si hay un número real detrás. */
+.cota {
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+}
+
+.arrow {
+    fill: var(--pa-ink);
+    stroke: none;
+}
+
+/* ── rotulación ─────────────────────────────────────────────────────────
+   12 px reales (el SVG no lleva `viewBox`, así que no hay escala) y
+   `--pa-ink-2` para todo lo que DECODIFICA. La cifra de la cota y la de «con
+   motor» suben a `--pa-ink`: son el dato, no el rótulo.
+
+   HALO DE PAPEL en todos (`paint-order: stroke`): tres rótulos caen
+   inevitablemente encima de una línea. Las cifras van ancladas al 100 % del
+   carril, que es exactamente donde está la última vertical de lectura — medido:
+   la vertical del 100 cruzaba el `%` de `24,0 %` y de `91,7 %`. Y el valor de
+   la cota va SOBRE la línea de cota, que es el «hueco» que pide el spec §5.3.
+   El halo lo abre del tamaño exacto del texto; un `<rect>` de papel detrás
+   habría necesitado saber el ancho del texto, y una anchura fija de más se
+   come tramo de cota a 320 px de viewport. */
+.axisLabel,
+.unit,
+.laneLabel {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    fill: var(--pa-ink-2);
+    stroke: var(--pa-paper);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    font-variant-numeric: tabular-nums lining;
+}
+
+.valueOn,
+.valueOff,
+.cotaValue {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    stroke: var(--pa-paper);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    font-variant-numeric: tabular-nums lining;
+}
+
+/* ── REGISTRO DE CIFRA ────────────────────────────────────────────────────
+   [P2-SECCIONES-03-04-DENSIDAD · 2026-08-02] 1,5rem = 24px, la fila «cifra de
+   fila» del spec §2.5. Mono y no Outfit: esto es una MEDIDA, y las tabulares
+   que hereda del bloque de arriba son parte del contrato de la figura.
+
+   LAS DOS AL MISMO CUERPO, deliberadamente. Agrandar solo a `91,7 %` sería
+   codificar la comparación por SEGUNDA vez, en un canal que nadie midió — la
+   misma falta que hacer variar el grosor de una banda con el dato. La
+   jerarquía ya vive donde tiene que vivir: barra sólida de 22px contra barra
+   de contorno tramada de 14, más el peso y el tono del glifo.
+
+   El halo se queda en 3: bajo un glifo de 24px sigue siendo proporcionado, y
+   subirlo abriría un boquete más grande en la vertical de lectura del 100%,
+   que es justo lo que cruza estas dos cifras. */
+.valueOn,
+.valueOff {
+    font-size: 1.5rem;
+    letter-spacing: 0.02em;
+}
+
+.valueOn {
+    font-weight: 600;
+    fill: var(--pa-ink);
+}
+
+.valueOff {
+    font-weight: 500;
+    fill: var(--pa-ink-2);
+}
+
+/* [P2-COTA-LABEL-ABOVE · 2026-08-02] SIN HALO. Lo hereda del bloque de arriba,
+   que lo comparte con `.valueOn`/`.valueOff` — esos dos SÍ lo necesitan (caen
+   sobre la línea de la retícula del 100 %). Este ya no: desde que el rótulo va
+   encima de la cota no hay nada detrás que tapar, y el halo solo servía para
+   abrir un hueco que dejaba pasar la línea por los espacios entre palabras. */
+.cotaValue {
+    font-size: 12px;
+    font-weight: 500;
+    fill: var(--pa-ink);
+    stroke: none;
+}
+
+/* ── TRAZADO ──────────────────────────────────────────────────────────── */
+.tick,
+.gridline,
+.ext,
+.cota {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+}
+
+.barOn,
+.barOff,
+.barOffFill,
+.axisLabel,
+.unit,
+.laneLabel,
+.valueOn,
+.valueOff,
+.cotaValue,
+.arrow {
+    opacity: 0;
+}
+
+.drawn .tick,
+.drawn .gridline,
+.drawn .ext,
+.drawn .cota {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.drawn .barOn,
+.drawn .barOff,
+.drawn .barOffFill,
+.drawn .axisLabel,
+.drawn .unit,
+.drawn .laneLabel,
+.drawn .valueOn,
+.drawn .valueOff {
+    opacity: 1;
+    transition: opacity 320ms linear 420ms;
+}
+
+/* El rótulo de la cota entra el último: la línea se traza, y solo cuando ya
+   mide lo que mide aparece el número que la nombra. */
+.drawn .cotaValue,
+.drawn .arrow {
+    opacity: 1;
+    transition: opacity 200ms linear 900ms;
+}
+
+/* ── pie de figura ──────────────────────────────────────────────────────── */
+.caption {
+    margin: 0.9rem 0 0;
+    max-width: 72ch;
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--pa-ink-2);
+}
+
+.captionTag {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--pa-ink);
+}
+
+/* ── REDUCED MOTION — defensa (b) ────────────────────────────────────────
+   La (a) vive en el JSX (`useReducedMotion()` gatea `drawn` en su DEFINICIÓN).
+   Esta capa hace falta porque el guard global de `index.css` solo acorta
+   duraciones: no anula un `stroke-dashoffset: 1` (figura en blanco para
+   siempre) ni un `transition-delay`. */
+@media (prefers-reduced-motion: reduce) {
+    .svg line,
+    .svg rect,
+    .svg path,
+    .svg text {
+        stroke-dashoffset: 0 !important;
+        opacity: 1 !important;
+        transition: none !important;
+        animation: none !important;
+    }
+}

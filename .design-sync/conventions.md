@@ -4,8 +4,10 @@ MealfitRD is a Dominican-Spanish (es-DO) nutrition app. This library is a **cura
 
 ## Setup & theming
 
-- **No React provider is required.** These components are prop-driven and style themselves from **global CSS custom properties** (design tokens) and `@font-face` rules shipped in `styles.css`. As long as `styles.css` is loaded, components render on-brand. There is no ThemeProvider/context to wrap.
-- **Theme** is switched by setting `data-theme="dark"` on the `<html>` element. The default (no attribute) is the **light** theme. Tokens remap automatically — never hardcode hex colors; use the token variables below so a component works in both themes.
+- **No theme provider is required.** These components are prop-driven and style themselves from **global CSS custom properties** (design tokens) and `@font-face` rules shipped in `styles.css`. As long as `styles.css` is loaded, components render on-brand. There is no ThemeProvider/context to wrap.
+- **One exception — `HowItWorks` needs a router.** It renders an internal `<Link to="/como-funciona">` (react-router). Outside a router it throws `Cannot destructure property 'basename'` and renders nothing. Wrap it (or your whole app) in a `MemoryRouter`/`BrowserRouter`. No other component in this library touches the router.
+- **Theme** is switched by setting `data-theme` on the `<html>` element. The default (no attribute) is the **light** theme; `data-theme="dark"` is the dark theme. Tokens remap automatically — never hardcode hex colors; use the token variables below so a component works in both themes.
+- **`data-theme="paper"`** is a third value used **only on the public marketing routes** — a strict black-and-white "technical paper" surface. `HowItWorks` is a marketing section and is authored for it. Don't apply `paper` to dashboard/app screens.
 - **Fonts**: headings use **Outfit** (`var(--font-heading)`), body uses **Plus Jakarta Sans** (`var(--font-body)`). Both ship in the bundle.
 
 ## Styling idiom — CSS custom properties (tokens)

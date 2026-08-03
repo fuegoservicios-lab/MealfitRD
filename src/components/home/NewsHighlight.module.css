@@ -1,222 +1,441 @@
-/* [P3-NEWS-1 · rediseño OpenAI-style 2026-07-11] Banda de "Novedades" del landing
-   al estilo del news grid de OpenAI: arte abstracto de campos de color difuminados
-   (CSS puro, sin imágenes raster) + título + categoría/fecha. Theme-aware.
+/* ============================================================================
+   [P2-PAPER-NO-INK · 2026-08-01] NewsHighlight — «05 / REGISTRO», tabla de
+   revisiones. Ver la cabecera del .jsx para el razonamiento completo
+   (por qué tabla y no tarjetas, por qué REV es posicional, el reflow <719px).
 
-   Arte: cada tarjeta define --a1/--a2/--a3 (data/news.js `art`). El bloque .art
-   pinta un gradiente base y dos blobs radiales con blur — blur ESTÁTICO (se
-   rasteriza una vez, costo runtime ≈0; la lección de perf del hero aplica a
-   blur ANIMADO, no a este). El hover solo mueve transform (GPU). */
+   Este módulo NO lleva bloque `data-theme`: la home solo se sirve como
+   superficie papel (`utils/paperSurface.js`), así que consume `var(--pa-*)`
+   directamente — su «rama clara» no es una rama, es el mismo código con
+   otros valores (mismo patrón que HowItWorks.module.css / DashboardShowcase
+   .module.css).
+
+   Utilidad `.srOnly` LOCAL a este módulo: el repo no tiene una `sr-only`
+   global (ver la cabecera de Hero.module.css) — se copia, no se importa.
+   ========================================================================= */
 
 .section {
-    position: relative;
-    padding: 5rem 1.5rem 6rem;
-    /* [P1-LANDING-BG · 2026-07-11] Banda elevada anti-flat: lift de slate sobre
-       bg-page + tinte radial de marca arriba-centro + hairline superior que
-       delimita la zona. Theme-aware vía color-mix con tokens. */
-    background:
-        radial-gradient(58% 42% at 50% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 72%),
-        linear-gradient(180deg, color-mix(in srgb, var(--text-main) 5%, var(--bg-page)) 0%, var(--bg-page) 100%);
-    border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    padding: 6rem 0;
+    background: var(--pa-paper);
+    color: var(--pa-ink);
 }
 
-.inner {
+.container {
     max-width: 1020px;
     margin: 0 auto;
+    padding: 0 1.5rem;
 }
 
-/* ───────── encabezado: "Novedades" + "Ver todas" ───────── */
+/* ───────────────────────── rótulo de sección ──────────────────────────────
+   Mismo motivo de apertura que el resto del sistema: hairline / etiqueta mono
+   / hairline. Es la ÚNICA cabecera de la sección. */
 .head {
+    margin-bottom: 3rem;
+}
+
+.sectionHead {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 1.25rem;
+    margin: 0 0 1.5rem;
 }
-.eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 700;
+
+.hLine {
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--pa-rule);
+}
+
+.sectionLabel {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.8125rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
-    padding: 0.42rem 0.9rem;
-    border-radius: 999px;
-}
-.pulse {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--primary);
-}
-.allLink {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-decoration: none;
-    transition: color 0.18s ease, gap 0.18s ease;
-}
-.allLink:hover { color: var(--primary); gap: 0.6rem; }
-
-/* ───────── arte abstracto: base compartida en components/news/NewsArt.module.css
-   (aquí solo viven los TAMAÑOS .artFeatured/.artThumb y los hovers, aplicados
-   sobre el mismo elemento — CSS modules no cruzan selectores entre archivos). */
-
-/* ───────── tarjeta destacada — texto | arte grande ───────── */
-.feature {
-    display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
-    gap: clamp(1.5rem, 3.2vw, 2.75rem);
-    align-items: center;
-    padding: clamp(1.25rem, 2.6vw, 1.9rem);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    text-decoration: none;
-    background: color-mix(in srgb, var(--bg-card) 55%, transparent);
-    transition: border-color 0.2s ease, transform 0.2s ease;
-}
-.feature:hover {
-    border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
-    transform: translateY(-2px);
-}
-.feature:hover .artFeatured { transform: scale(1.015); }
-
-.artFeatured {
-    width: 100%;
-    aspect-ratio: 16 / 10;
-}
-
-.body {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-.meta {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-}
-.tag {
-    font-family: var(--font-heading);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--primary);
-    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-    padding: 0.26rem 0.62rem;
-    border-radius: 999px;
+    color: var(--pa-ink);
     white-space: nowrap;
 }
-.date { font-size: 0.82rem; color: var(--text-muted); }
-.title {
-    font-family: var(--font-heading);
-    font-size: clamp(1.55rem, 3vw, 2.2rem);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    color: var(--text-main);
-    transition: color 0.18s ease;
-}
-.feature:hover .title { color: var(--primary); }
-.excerpt {
-    margin-top: 0.85rem;
-    font-size: clamp(0.95rem, 1.4vw, 1.02rem);
+
+.subtitle {
+    max-width: 46ch;
+    margin: 0 auto;
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 1rem;
     line-height: 1.6;
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
 }
 
-/* ───────── grid de anteriores (OpenAI-style: thumb | texto) ───────── */
-.grid {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem 1.5rem;
-    margin: 1.5rem 0 0;
+/* Utilidad visually-hidden LOCAL al módulo (ver Hero.module.css). */
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
     padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
 }
-.cell { min-width: 0; }
-.card {
-    display: flex;
-    align-items: center;
-    gap: 1.1rem;
-    padding: 0.85rem;
-    border-radius: 18px;
-    text-decoration: none;
-    border: 1px solid transparent;
-    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+
+/* ───────────────────────────── la tabla ────────────────────────────────── */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border-top: 1px solid var(--pa-rule);
 }
-.card:hover {
-    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
-    border-color: var(--border);
-    transform: translateY(-2px);
+
+/* Cabeceras de columna: 12px + --pa-ink-2 (spec §2.5, «todo lo que decodifique
+   una tabla») — NO el piso de 11px que sí vale para metadato ignorable. */
+.th {
+    text-align: left;
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid var(--pa-rule);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
 }
-.card:hover .artThumb { transform: scale(1.03); }
-.artThumb {
-    width: 118px;
-    aspect-ratio: 1;
+
+/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] Anchos apretados contra su contenido
+   real. Estaban en 76/130/140 y medido a 1440px sobraban ~200px repartidos
+   entre las tres: «R02» pide 26px de 76, «2026-07-02» 68 de 130 y la etiqueta
+   más larga de hoy («PRODUCTO») 66 de 140. Ese aire no era respiración, era una
+   zanja entre la fecha y la entrada que partía la fila en dos mitades sin
+   relación. Los 50px liberados van a ENTRADA, que es la columna que se lee. */
+.thRev { width: 64px; }
+.thDate { width: 112px; }
+.thTag { width: 120px; }
+.thGo { width: 44px; }
+
+/* [P2-NEWS-NO-EMBLEM · 2026-08-02] Aquí vivía `.thEntry`, que sangraba el
+   rótulo de ENTRADA 64px para que cayera sobre unos títulos desplazados por el
+   hueco del emblema. Sin emblema no hay hueco, así que el rótulo vuelve al
+   borde de su columna por el padding normal de `.th` y la clase sobra. La regla
+   que la motivaba sigue en pie y por eso se anota: una cabecera que no cae
+   sobre su dato dice que la columna empieza donde no empieza. */
+
+/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] `position: relative` convierte la FILA
+   en el bloque contenedor del enlace estirado de `.titleLink::after`.
+
+   El problema que cierra: la fila ya se hundía en `:hover` y la flecha ya se
+   desplazaba, así que prometía ser pulsable entera — y solo lo era el texto del
+   título. En móvil eso son ~22px de alto de objetivo táctil bajo una fila de
+   72px que parece un botón. Una afordancia que miente es peor que ninguna.
+
+   Sigue habiendo UN SOLO `<a>` en el DOM, que es la decisión que defiende la
+   cabecera del .jsx (dos anclas al mismo destino se anuncian dos veces). Lo que
+   crece es su área de pulsación, no su número.
+
+   MEDIDO, no supuesto: `position: relative` sobre `<tr>` fue históricamente
+   inconsistente entre motores, y el modo de fallo aquí es feo — si la fila no
+   estableciera bloque contenedor, el `inset: 0` se resolvería contra el
+   ancestro posicionado más cercano y podría tapar media página con un overlay
+   que se traga los clics. Comprobado con `elementFromPoint` en Chromium,
+   Firefox y WebKit: en los tres el overlay cubre la fila exacta y no se
+   derrama fuera de la tabla.
+
+   COSTE ACEPTADO: el texto del excerpt deja de poder seleccionarse (el overlay
+   lo cubre). En una fila de índice cuyo excerpt ya va recortado a 2 líneas,
+   seleccionar no es un caso de uso; poder pulsarla sí. */
+.row {
+    position: relative;
+    border-bottom: 1px solid var(--pa-rule-3);
+    transition: background 120ms linear;
 }
-.cardBody {
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
+
+.row:hover,
+.row:focus-within {
+    background: var(--pa-sunk);
+}
+
+/* `--pa-sunk` contra el papel es 1,064:1 — por sí solo no informa de nada (el
+   spec §3 lo dice de esa variable). No va solo: el título se subraya, la flecha
+   se desplaza y el código REV sube a tinta plena. Cuatro señales a la vez, y
+   las tres que informan sobreviven en escala de grises y sin color. */
+.row:hover .revCode,
+.row:focus-within .revCode {
+    color: var(--pa-ink);
+}
+
+/* `min-height` es una REGLA, no un accidente de contenido: sin ella, la fila
+   se sostiene por el tamaño real de la tabla (2 filas de excerpt largo hoy),
+   no por el conteo del brief — un excerpt corto futuro daría una fila más
+   baja sin que nada lo impida. `box-sizing: border-box` es global (index.css),
+   así que 64/72px son la caja ENTERA (incluye los dos `1rem`/`1.15rem` de
+   padding vertical), no una altura de contenido adicional. Va en `.cell`
+   (`<td>`), no en `.row` (`<tr>`): `min-height` sobre `table-row` tiene
+   soporte más inconsistente entre motores que sobre `table-cell`, y la fila
+   ya hereda la altura de su celda más alta. */
+.cell {
+    padding: 1rem 0.9rem;
+    min-height: 64px;
+    vertical-align: top;
+}
+
+/* ── REV — canaleta con la pestaña de revisión vigente ───────────────────── */
+.cellRev {
+    position: relative;
+    padding-left: 22px;
+}
+
+/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] La pestaña de revisión vigente recorre
+   la fila ENTERA. Antes eran 24px centrados con `top: 50%`, y como la celda va
+   con `vertical-align: top` la marca quedaba flotando a media altura, sin tocar
+   el código `R02` que califica ni ninguna otra cosa — un tick suelto en el
+   margen. Con la fila completa se lee como lo que es: la pestaña de un plano
+   señalando cuál de las revisiones archivadas es la activa.
+
+   `top/bottom: 0` en vez de `height: 100%` para que siga la altura real de la
+   celda sin depender de que un `<td>` resuelva porcentajes de altura, que es
+   justo el rincón donde los motores discrepan. */
+.currentBar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--pa-ink);
+}
+
+.revCode {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--pa-ink-2);
+}
+
+.rowCurrent .revCode {
+    color: var(--pa-ink);
+    font-weight: 600;
+}
+
+/* ── FECHA — ISO en pantalla; el dateLabel legible vive en el `title` del
+   enlace de TÍTULO y en el `span` solo-para-lectores-de-pantalla de abajo. */
+.cellDate time {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--pa-ink-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ── TAG ──────────────────────────────────────────────────────────────────── */
+.cellTag {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── TÍTULO — la única ancla de la fila ──────────────────────────────────── */
+.cellTitle {
     min-width: 0;
 }
-.cardTitle {
+
+/* [P2-NEWS-NO-EMBLEM · 2026-08-02] Aquí vivían `.titleRow` (el flex que ponía
+   el emblema a la izquierda del texto), `.titleBlock` (su hermano flexible),
+   `.emblemSlot` (el hueco reservado de 48px) y `.emblem` con su
+   `filter: grayscale(1) contrast(1.08)`.
+
+   Se van los cuatro. Sin emblema, `.titleRow` sería un contenedor flex de un
+   solo hijo y `.titleBlock` un `flex: 1 1 auto` sin nada contra lo que
+   flexionar: dos `<div>` de maquetación que ya no maquetan nada. El bloque de
+   texto es ahora hijo directo del `<td>`, que es donde estaba antes de que
+   hiciera falta hacerle sitio a una imagen.
+
+   El `filter: grayscale()` era la ÚNICA excepción viva al blanco y negro
+   estricto dentro de esta sección, declarada en el spec §4.6. Al irse, la
+   sección queda sin excepciones. */
+
+/* Línea de meta (fecha · tag) que sustituye a las columnas FECHA/TAG cuando
+   éstas se ocultan bajo 719px. `display:none` en reposo desktop — nunca
+   coexiste con las columnas dedicadas (ver el @media de abajo). */
+.metaMobile {
+    display: none;
+    align-items: baseline;
+    gap: 0.45rem;
+    margin: 0 0 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--pa-ink-2);
+}
+
+.metaSep {
+    color: var(--pa-rule-2);
+}
+
+.titleLink {
+    display: inline-block;
     font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 1.05rem;
-    line-height: 1.3;
-    color: var(--text-main);
+    font-weight: 500;
+    font-size: 17px;
+    line-height: 1.35;
+    color: var(--pa-ink);
+    text-decoration: none;
+}
+
+/* El enlace estirado. Ver el bloque de `.row` para el porqué y para la
+   comprobación en los tres motores. */
+.titleLink::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+/* Con el `::after` cubriendo la fila, `:hover` del enlace ya se dispara desde
+   cualquier punto de ella — el subrayado deja de exigir apuntar al texto. */
+.titleLink:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* El anillo de foco se queda ceñido al TEXTO y no se estira con el `::after`
+   (`outline` sigue la caja del elemento, no la de su pseudo). Es lo correcto:
+   quien navega con teclado necesita saber en qué palabra está, no que se le
+   ilumine una banda de 980px. */
+.titleLink:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 3px;
+}
+
+.excerpt {
+    margin: 0.4rem 0 0;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--pa-ink-2);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    transition: color 0.18s ease;
 }
-.card:hover .cardTitle { color: var(--primary); }
-.cardMeta {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-}
-.cardTag {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-main);
-}
-.cardDate { font-size: 0.8rem; color: var(--text-muted); }
 
+/* ── → — decorativo, reacciona a la fila entera (hover o foco del enlace de
+   TÍTULO, único elemento tabulable de la fila) ───────────────────────────── */
+/* [P2-NEWS-ROW-INTERACTION · 2026-08-02] La flecha se alinea con la PRIMERA
+   LÍNEA DEL TÍTULO, no con el centro de la fila.
+
+   Iba en `vertical-align: middle` mientras las otras cuatro celdas van en
+   `top`, así que en cuanto dos filas tenían alturas distintas —lo normal: un
+   excerpt de 2 líneas contra uno de 1— la flecha quedaba a una altura propia,
+   sin nada a su izquierda a lo que corresponder. Apunta al título: ahí es donde
+   tiene que estar.
+
+   El desplazamiento salió MEDIDO, no calculado. La cuenta sobre el papel —
+   `padding-top` de la celda (16px) + media línea de título (17 × 1,35 ÷ 2 =
+   11,5) − medio icono (8) = 3,5px— dejaba la flecha 2px por encima del centro
+   real del título: la caja de línea de un `inline-block` no empieza donde
+   empieza el `padding` de la celda. 5,5px es lo que cuadra en el navegador. */
+.cellGo {
+    text-align: right;
+    vertical-align: top;
+}
+
+.goIcon {
+    display: block;
+    margin: 5.5px 0 0 auto;
+    color: var(--pa-ink-2);
+    transition: transform 120ms linear, color 120ms linear;
+}
+
+.row:hover .goIcon,
+.row:focus-within .goIcon {
+    transform: translateX(4px);
+    color: var(--pa-ink);
+}
+
+/* ─────────────────────────── reflow <719px ─────────────────────────────────
+   Sin sitio para 5 columnas rígidas: FECHA y TAG desaparecen como columna
+   entera (misma técnica que `.axisVRule`/`.axisVMark` de HowItWorks) y su
+   información reaparece como `.metaMobile` dentro de la celda de TÍTULO —
+   nunca las dos formas a la vez. */
+@media (max-width: 719px) {
+    .thDate,
+    .thTag,
+    .cellDate,
+    .cellTag {
+        display: none;
+    }
+
+    .metaMobile {
+        display: flex;
+    }
+
+    .thRev { width: 44px; }
+    .thGo { width: 32px; }
+
+    /* [P2-NEWS-NO-EMBLEM · 2026-08-02] Aquí se ocultaban `.emblemSlot` y se
+       recalculaba la sangría de `.thEntry` con el padding de ESTE breakpoint.
+       Las dos reglas se van con el emblema.
+
+       Pero al quitarlas asomó un descuadre PREEXISTENTE que la segunda tapaba
+       sin querer: `.cell` baja a `0.6rem` de padding horizontal en este
+       breakpoint y `.th` se queda en los `0.9rem` de escritorio, así que TODA
+       cabecera caía 4,8px a la derecha de su dato. En escritorio los dos valen
+       0,9rem y por eso nunca se vio. Se igualan aquí, que es donde divergían.
+
+       (`REV` sigue siendo la excepción a propósito: su celda lleva `padding-left`
+       en píxeles para dejar la canaleta de la pestaña de revisión vigente, así
+       que su código va sangrado respecto a su rótulo por diseño.) */
+    .th {
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+    }
+
+    /* La etiqueta iba en versales en su columna de escritorio (`.cellTag`) y en
+       caja normal aquí, así que la misma categoría se leía «DATOS» o «Datos»
+       según el ancho de la ventana. Es la MISMA información: se ve igual. */
+    .metaMobile {
+        text-transform: uppercase;
+    }
+
+    .cellRev {
+        padding-left: 18px;
+        padding-right: 0.5rem;
+    }
+
+    .cell {
+        padding: 1.15rem 0.6rem;
+        min-height: 72px;
+    }
+
+    .titleLink {
+        font-size: 16px;
+    }
+}
+
+/* ── REDUCED MOTION — defensa (b) del módulo ─────────────────────────────
+   La (a) vive en el JSX: `makeSectionMotion(reduce)` gatea las variants en su
+   DEFINICIÓN. Esta capa fija la pose de reposo: el guard global de index.css
+   solo acorta `transition-duration`, y framer-motion escribe los transforms
+   INLINE vía WAAPI — un `whileInView` que no llegue a disparar dejaría la
+   tabla en `opacity: 0` para siempre sin este bloque. */
 @media (prefers-reduced-motion: reduce) {
-    .feature, .card, .allLink { transition: none; }
-}
+    .head,
+    .sectionHead,
+    .subtitle,
+    .table,
+    .row {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
 
-/* focos accesibles */
-.feature:focus-visible,
-.card:focus-visible,
-.allLink:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 3px;
-    border-radius: 12px;
-}
-
-/* ───────── responsive ───────── */
-@media (max-width: 760px) {
-    .feature { grid-template-columns: 1fr; gap: 1.25rem; }
-    /* arte arriba, texto debajo (patrón OpenAI móvil) */
-    .artFeatured { order: -1; aspect-ratio: 16 / 9; }
-    .grid { grid-template-columns: 1fr; gap: 0.5rem; }
-    .artThumb { width: 92px; }
-    .cardTitle { font-size: 0.98rem; }
+    .goIcon {
+        transition: none !important;
+    }
 }

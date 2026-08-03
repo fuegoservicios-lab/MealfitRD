@@ -5,8 +5,8 @@
   "lang": "es-DO",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#4F46E5",
+  "background_color": "#FBFBFA",
+  "theme_color": "#FBFBFA",
   "orientation": "portrait",
   "_comment_icons": "[P3-AUDIT-3 · 2026-05-15] Reducidos de 6 entries (72/96/128/144/192/512) todos apuntando a /favicon.png a los 2 mínimos viables (192 + 512). Lighthouse PWA audit penaliza cuando una entry declara `sizes` que el archivo NO tiene — antes 4 entries (72/96/128/144) eran falsas porque el archivo es 512x512. 192 + 512 son los mínimos exigidos por Chrome (Add to Home Screen) e iOS Safari. La entry 512 con `purpose: any maskable` permite que Android adapte el icono al shape de cada launcher (circle, squircle, etc.) sin distorsión.",
   "icons": [

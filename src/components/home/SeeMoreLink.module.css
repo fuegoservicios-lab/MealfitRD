@@ -1,29 +1,60 @@
-/* [P3-DETAIL-PAGES · 2026-06-29] Botón "Ver más" que enlaza cada sección del landing
-   con su página de detalle. Theme-aware. */
-.wrap { display: flex; justify-content: center; margin-top: 2.75rem; }
+/* [P2-PAPER-NO-INK · 2026-08-01] SeeMoreLink -> CONTROL FANTASMA. Sin pastilla,
+   sin fondo, radio 0: texto en --pa-ink + una regla de 1px bajo el enlace. La
+   flecha se desplaza 4px en hover (120ms linear) -- la UNICA excepcion del
+   sistema a "cero transform en hover" (spec, restricciones globales).
+
+   Lo consumen TRES secciones (HowItWorks, DashboardShowcase, BenchmarkShowcase)
+   que viven en el landing, servido SIEMPRE como superficie papel
+   (utils/paperSurface.js) -- igual que esos tres modulos, este consume
+   var(--pa-*) directo, sin bloque data-theme (su "rama clara" no es una rama).
+   Antes era la pastilla gris-primary redondeada de junio (P3-DETAIL-PAGES):
+   sobrevivio entera a un rediseno completo del landing porque ningun task del
+   plan la tenia asignada -- ninguna de las tres secciones que la usan es su
+   dueña.
+
+   Sin framer-motion en este componente (a diferencia de sus 3 consumidores):
+   la unica animacion es la transicion CSS del hover de abajo, asi que la
+   "doble defensa" de reduced-motion vive entera en el @media de este archivo
+   -- no hay variants de JS que gatear porque no hay JS de por medio. */
+.wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 2.75rem;
+}
+
 .link {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--primary);
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--pa-ink);
+    border-radius: 0;
+    background: none;
+    color: var(--pa-ink);
     font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 0.98rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: -0.005em;
     text-decoration: none;
-    padding: 0.72rem 1.5rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
-    background: color-mix(in srgb, var(--primary) 8%, transparent);
-    transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
 }
-.link:hover {
-    background: color-mix(in srgb, var(--primary) 16%, transparent);
-    border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
-    transform: translateY(-2px);
+
+/* La flecha es la unica excepcion del sistema a "cero transform en hover". */
+.link svg {
+    flex: none;
+    transition: transform 120ms linear;
 }
-.link svg { transition: transform 0.18s ease; }
-.link:hover svg { transform: translateX(3px); }
+
+.link:hover svg {
+    transform: translateX(4px);
+}
+
+.link:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 4px;
+}
 
 @media (prefers-reduced-motion: reduce) {
-    .link, .link svg { transition: none; }
+    .link svg {
+        transition: none;
+    }
 }

@@ -1,629 +1,450 @@
 /* ============================================================================
-   HERO — "Premium spotlight + tipografía kinética" (Keynote Stage)
-   [HERO-KEYNOTE-STAGE · 2026-06-18]
+   HERO — «papel técnico»
+   [P1-PAPER-HERO-FIG00 · 2026-08-01]
 
-   Brief: eliminar el fondo con rayas blancas diagonales (antiguo
-   P3-DARK-BG-STRIPES) y entregar un inicio minimalista, profesional y en 3D,
-   extravagante/impactante en AMBOS temas.
+   Reemplaza por completo a HERO-KEYNOTE-STAGE (2026-06-18). Lo que se fue y
+   por qué, para que nadie lo reintroduzca creyendo que falta algo:
 
-   Concepto: escenario tipo "stage". Un SPOTLIGHT radial ilumina el héroe desde
-   arriba-centro; una VIÑETA suave oscurece los bordes (cero rayas, cero
-   repeating-gradient — el fondo es 100% gradientes radiales/cónicos). Titular
-   gigante con gradiente KINÉTICO de marca + reveal editorial por línea
-   (framer-motion). Orbe de producto refinado (esfera CSS con highlight
-   especular + oclusión inset) rodeado de un anillo de luz cónico. Tres
-   tarjetas-métrica glass en un plano 3D con leve rotación continua → parallax
-   real por translateZ. Mucho espacio negativo; tipografía protagonista.
+   - El ESCENARIO entero: `.spotlight` (cono radial indigo), `.auroraA`/
+     `.auroraB` (dos blobs con blur(80px) derivando en loop), el dot-grid
+     indigo, la viñeta, y el plano 3D (`perspective` + `preserve-3d` +
+     `.stage3d` rotando ±5° en loop). Eran seis capas decorativas animándose
+     en bucle infinito para sostener un vídeo que ya no existe.
+   - La capa del vídeo enmascarada en radial, y la «respiración» que latía
+     sobre el póster cuando el navegador vetaba la reproducción, con sus
+     keyframes.
+   - `.gradientText` (gradiente kinético de marca sobre el titular),
+     `.subtitle strong` en indigo, `.secondaryBtn` esmeralda con box-shadow, y
+     `.trustIcon`.
+   - Las trust pills: `backdrop-filter: blur(10px)` + radio 99px + dos
+     box-shadow. El sistema papel prohíbe las tres cosas.
+   - **El fondo del hero estaba DUPLICADO LITERAL**: una vez en la base
+     (`.hero`) y otra dentro del ÚNICO bloque `data-theme="light"` del módulo.
+     Se borraron LOS DOS. Cambiar uno solo dejaba el sitio correcto hasta que
+     alguien entrara con preferencia `light` explícita — un bug que solo se ve
+     en la mitad del parque de usuarios.
+   - `margin-top` negativo. Existía para que el fondo del hero llenara DETRÁS
+     de la barra flotante transparente. En papel el header es OPACO
+     (`Header.module.css`, bloque paper): mantenerlo escondería la
+     fila-cartucho bajo la barra.
 
-   Reglas: tokens de marca var(--*) (los efectos decorativos con alfa usan los
-   mismos hues de marca en rgba); 3D solo CSS (perspective/preserve-3d/
-   translateZ/gradientes); anima transform/opacity (+ filter solo en wrappers,
-   nunca sobre el clip de texto); will-change con moderación; respeta
-   prefers-reduced-motion (guard global en index.css + overrides locales que
-   FIJAN poses de reposo, al final del archivo).
+   Movimiento: vocabulario único TRAZADO. Aquí solo la regla bajo el H1 se
+   dibuja (`scaleX` 520 ms) y los bloques de texto hacen `settle`; el trazado
+   de verdad vive en la Fig. 00. Cero bucles infinitos, cero blur, cero
+   backdrop-filter, radio 0 en todo.
 
-   Temas: el componente lee var(--*), así que hereda el tema automáticamente.
-   Las capas decorativas con alfa se re-mapean por tema vía
-   html[data-theme="dark"] / html[data-theme="light"]; el bloque base (.hero,
-   .spotlight, etc.) es el default neutral que ambos temas refinan.
-   ============================================================================ */
+   Este módulo NO lleva bloque `data-theme`: la home solo se sirve como
+   superficie papel (`utils/paperSurface.js`), así que consume `var(--pa-*)`
+   directamente.
+   ========================================================================= */
 
 .hero {
     position: relative;
-    /* [P3-HERO-TOP-SPACING · 2026-06-28] +140px al alto: el hero se sube con margin-top
-       para que el fondo (gradiente+spotlight) llene detrás de la barra flotante; eso
-       movía el contenido CENTRADO hacia arriba (pegado al header). Este alto extra hace
-       que el centro vertical caiga más abajo → el contenido queda bien debajo de la barra. */
-    min-height: calc(100dvh + 80px);
-    display: flex;
+    background: var(--pa-paper);
+    color: var(--pa-ink);
+    padding: 0 0 4.5rem;
+}
+
+/* ── FILA-CARTUCHO ───────────────────────────────────────────────────────
+   El cajetín de un plano, a sangre: quién firma / qué es / dónde se hizo.
+   40px rematados por la hairline que hace de línea de margen del pliego. */
+.cartridge {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
+    height: 40px;
+    border-bottom: 1px solid var(--pa-rule-2);
+}
+
+.cartridgeCell {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--pa-ink-3);
+    white-space: nowrap;
+    padding: 0 1.25rem;
+    line-height: 40px;
+}
+
+.cartridgeCell + .cartridgeCell {
+    border-left: 1px solid var(--pa-rule-2);
+}
+
+.cartridgeMid {
+    text-align: center;
     overflow: hidden;
-    overflow-x: clip;
-    /* [P3-HERO-TOP-SPACING · 2026-06-28] Más aire arriba: tras subir el hero bajo la
-       barra flotante, el contenido centrado quedaba pegado al header. Este padding-top
-       lo baja para que el título "respire" debajo de la barra. */
-    padding: calc(2rem + max(env(safe-area-inset-top), 24px)) 0 4rem;
-    /* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] El header es una barra FLOTANTE fija y
-       transparente alrededor. Subimos el hero para que su fondo (gradiente + spotlight)
-       llene DETRÁS de la barra y NO quede una franja plana arriba que no calza con la
-       página. El margin-top cancela EXACTAMENTE el padding-top del <main> (Layout.jsx),
-       así el hero arranca en y=0 (bajo el header). El contenido sigue centrado (align-
-       items:center) y libre del header. Solo aplica al .hero (home). */
-    margin-top: calc(-72px - max(env(safe-area-inset-top), 18px));
-    isolation: isolate;
-    /* Base del escenario (tema claro por defecto): gradiente vertical limpísimo
-       page → blanco que el spotlight reforzará. El tema oscuro se re-mapea abajo
-       a slate profundo. Usa var(--bg-page) para heredar el token. */
-    background:
-        radial-gradient(125% 90% at 50% -12%, #FFFFFF 0%, var(--bg-page) 56%, #EBF0FB 100%);
-    color: var(--text-main);
+    text-overflow: ellipsis;
 }
 
-/* [P3-HEADER-FLOAT-REDESIGN] En desktop el offset del <main> es 88px fijo (sin
-   safe-area) → el margin-top del hero lo cancela con el mismo valor. */
-@media (min-width: 768px) {
-    .hero {
-        margin-top: -88px;
-    }
-}
-
-/* [P3-HERO-TOP-SPACING · 2026-06-29] En MÓVIL el contenido es alto y casi llena la
-   pantalla; con `center` + min-height el título se metía bajo la barra flotante.
-   Solución confiable: alineación ARRIBA (flex-start) → el padding-top controla la
-   posición de forma DIRECTA (no se reparte). min-height vuelve a 100dvh (el +80 de
-   desktop no aplica aquí). Así el texto SIEMPRE queda debajo del header. */
-@media (max-width: 767px) {
-    .hero {
-        align-items: flex-start;
-        min-height: 100dvh;
-        padding-top: calc(6rem + max(env(safe-area-inset-top), 24px));
-    }
-}
-
-/* ── ESCENARIO (capas decorativas de fondo) ─────────────────────────────── */
-.stage {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-}
-
-/* Spotlight: cono de luz radial desde arriba-centro. En claro es un realce
-   indigo muy suave; en oscuro se vuelve el alma del hero (luz indigo que cae
-   sobre el escenario casi-negro). */
-.spotlight {
-    position: absolute;
-    top: -28%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 140%;
-    height: 130%;
-    background:
-        radial-gradient(closest-side at 50% 0%,
-            rgba(129, 140, 248, 0.28) 0%,
-            rgba(129, 140, 248, 0.13) 32%,
-            rgba(129, 140, 248, 0.04) 55%,
-            transparent 72%);
-    filter: blur(8px);
-    animation: spotlightBreath 11s ease-in-out infinite;
-    will-change: opacity, transform;
-}
-
-/* Auroras: dos blobs de color de marca, blur grande, deriva lentísima.
-   Aportan vida y profundidad cromática sin textura dura. Solo 2 (no 4) para
-   mantener el presupuesto de blur bajo control en gama baja. */
-.aurora {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    will-change: transform;
-}
-
-.auroraA {
-    width: 44vw;
-    max-width: 600px;
-    aspect-ratio: 1;
-    top: -8%;
-    right: -6%;
-    background: radial-gradient(circle at 38% 36%, var(--primary-light), transparent 70%);
-    opacity: 0.5;
-    animation: auroraDriftA 24s ease-in-out infinite;
-}
-
-.auroraB {
-    width: 40vw;
-    max-width: 540px;
-    aspect-ratio: 1;
-    bottom: -14%;
-    left: -8%;
-    background: radial-gradient(circle at 60% 42%, var(--secondary), transparent 70%);
-    opacity: 0.36;
-    animation: auroraDriftB 28s ease-in-out infinite;
-}
-
-/* Grid de PUNTOS: textura premium sutilísima (NO líneas → estructuralmente
-   imposible que reintroduzca rayas). Radial-gradient de puntos diminutos con
-   máscara radial que la desvanece a los bordes. */
-.grid {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(rgba(79, 70, 229, 0.10) 1px, transparent 1.4px);
-    background-size: 30px 30px;
-    -webkit-mask-image: radial-gradient(80% 70% at 50% 40%, #000 0%, transparent 78%);
-    mask-image: radial-gradient(80% 70% at 50% 40%, #000 0%, transparent 78%);
-    opacity: 0.5;
-}
-
-/* Viñeta: oscurece/atenúa los bordes para concentrar la atención en el centro.
-   En claro es muy tenue (slate translúcido); en oscuro profundiza al negro. */
-.vignette {
-    position: absolute;
-    inset: 0;
-    background:
-        radial-gradient(115% 95% at 50% 38%, transparent 52%, rgba(15, 23, 42, 0.05) 100%);
-}
-
-/* ── LAYOUT ──────────────────────────────────────────────────────────────── */
+/* ── REJILLA 12 → 7 DE TEXTO / 5 DE FIGURA ───────────────────────────────── */
 .container {
-    position: relative;
-    z-index: 1;
     display: grid;
     grid-template-columns: 1fr;
-    gap: 3.5rem;
-    align-items: center;
+    gap: 3rem;
+    align-items: start;
     width: 100%;
     max-width: 1280px;
     margin: 0 auto;
-    padding: 0 1.5rem;
+    padding: 3rem 1.5rem 0;
 }
 
 .content {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    z-index: 1;
+    align-items: flex-start;
+    text-align: left;
+    min-width: 0;
 }
 
-/* ── TITULAR ─────────────────────────────────────────────────────────────── */
+/* ── TITULAR ─────────────────────────────────────────────────────────────
+   Tinta plana. Es el LCP desde que murió el vídeo: Outfit ya va precargada
+   (index.html, P3-SELF-HOST-FONTS), así que no lo retrasa la fuente. */
 .title {
     font-family: var(--font-heading);
-    font-size: clamp(2.6rem, 9vw, 3.6rem);
-    font-weight: 800;
-    margin-bottom: 1.5rem;
-    letter-spacing: -0.035em;
-    line-height: 1.04;
-    color: var(--text-main);
-}
-
-/* Wrapper que framer anima (y/opacity/filter). NO clipea texto → seguro animar
-   filter:blur aquí. */
-.titleLine {
-    display: inline-block;
-    will-change: transform, opacity, filter;
-}
-
-/* Capa interna: el texto en sí. Cuando lleva .gradientText, ES el elemento que
-   clipea el gradiente — y NUNCA recibe filter animado (vive en el wrapper). */
-.titleInner {
-    display: inline-block;
-}
-
-/* Gradiente kinético: paleta de marca que se desliza horizontalmente en loop.
-   Aislado del wrapper que blurea (sin artefacto de clip en WebKit). */
-.gradientText {
-    background: linear-gradient(100deg,
-        var(--primary) 0%,
-        var(--primary-light) 28%,
-        var(--secondary) 55%,
-        var(--accent) 82%,
-        var(--primary) 100%);
-    background-size: 220% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    animation: gradientMove 7s linear infinite;
-}
-
-/* ── SUBTÍTULO ───────────────────────────────────────────────────────────── */
-.subtitle {
-    font-size: 1.15rem;
-    color: var(--text-muted);
-    max-width: 540px;
-    margin-bottom: 2.5rem;
-    line-height: 1.7;
+    font-size: clamp(2.5rem, 5.8vw, 4rem);
     font-weight: 400;
-    letter-spacing: 0.01em;
-    /* [P3-HERO-DETAIL-POLISH · 2026-07-02] Evita viudas/última línea de 1-2
-       palabras en el párrafo (progressive enhancement — se ignora sin soporte). */
+    line-height: 1.06;
+    letter-spacing: -0.02em;
+    color: var(--pa-ink);
+    margin: 0;
+}
+
+.titleRule {
+    width: 100%;
+    height: 1px;
+    background: var(--pa-rule);
+    transform-origin: left center;
+    margin: 1.5rem 0 1.75rem;
+}
+
+/* ── CUERPO ──────────────────────────────────────────────────────────────── */
+.copy {
+    margin: 0;
+}
+
+.lead {
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: var(--pa-ink-2);
+    max-width: 52ch;
+    margin: 0;
     text-wrap: pretty;
 }
 
-.subtitle strong {
-    color: var(--primary);
-    font-weight: 700;
+/* Antes esto era `.subtitle strong { color: var(--primary) }` en indigo. En
+   papel el énfasis es TINTA, no color. */
+.lead strong {
+    font-weight: 600;
+    color: var(--pa-ink);
 }
 
-/* ── CTA ─────────────────────────────────────────────────────────────────── */
-/* [P3-HERO-CTA-REFINE · 2026-06-28] Fila de 2 botones (antes 1 botón gigante a
-   ancho completo): primario refinado + secundario ghost → /motor. */
+.promise {
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
+    max-width: 52ch;
+    margin: 1rem 0 0;
+    text-wrap: pretty;
+}
+
+/* ── ACCIONES + FRANJA ────────────────────────────────────────────────────
+   Viajan juntas en `.tail` para que el stagger de `settle` no pase de 4
+   elementos (§9 del spec: tope de 4). */
+.tail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    margin-top: 2.25rem;
+}
+
 .actions {
     display: flex;
-    flex-direction: row;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 0.85rem;
-    margin-bottom: 3rem;
+    align-items: stretch;
+    gap: 0.75rem;
 }
 
-.btnLabel {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    position: relative;
-    z-index: 1;
-}
-
-/* [P3-HERO-DETAIL-POLISH · 2026-07-02] Limpieza: .primaryBtn/.activePlanBtn (CTA
-   primario del hero, retirado en P3-HERO-CTA-REFINE — el CTA de crear plan vive
-   en el header) eliminados como código muerto, junto a sus overrides dark/media. */
-
-/* [P3-HERO-CTA-REFINE · 2026-06-28] Botón secundario → página del motor.
-   [HERO-CTA-EMERALD-ACCENT · 2026-06-29] Relleno verde profundo (var(--secondary-dark))
-   para que destaque sin competir con el indigo del CTA principal.
-   [HERO-CTA-EMERALD-MUTE · 2026-06-29] Bajado de tono: el esmeralda brillante
-   (#10B981) + glow neón se veía chillón. Ahora arranca en verde profundo
-   (var(--secondary-dark) → teal más oscuro), sin resplandor de color — solo
-   una sombra neutra de elevación. */
-.secondaryBtn {
+/* Único rectángulo de tinta sólida de la columna: sólido = lo vigente, la
+   acción real (§5.5). Los literales los ata `Header.sticky_cta.test.jsx`. */
+.primaryBtn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    text-decoration: none;
-    color: #fff;
-    /* [P3-HERO-BTN-HALF-SHADE · 2026-07-01] Capa superpuesta de sombreado diagonal
-       muy leve sobre la mitad inferior-derecha (transparent 50% → 10% negro),
-       alineada al mismo eje 135° del degradado base → profundidad sin brusquedad. */
-    background:
-        linear-gradient(135deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.10) 100%),
-        linear-gradient(135deg, var(--secondary-dark) 0%, #035e45 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0.95rem 1.6rem;
-    border-radius: 99px;
+    font-family: var(--font-heading);
+    font-size: 0.875rem;
     font-weight: 600;
-    font-size: 1.02rem;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.12),
-        0 8px 20px -12px rgba(2, 44, 34, 0.7);
-    transition: box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    padding: 0.875rem 1.5rem;
+    border: 1px solid var(--pa-ink);
+    border-radius: 0;
+    background: var(--pa-ink);
+    color: var(--pa-paper);
+    transition: background 140ms linear, border-color 140ms linear;
 }
-.secondaryBtn:hover {
-    transform: translateY(-2px);
-    background:
-        linear-gradient(135deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.10) 100%),
-        linear-gradient(135deg, #0a7a5c 0%, #046c50 100%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.14),
-        0 14px 28px -14px rgba(2, 44, 34, 0.75);
+
+.primaryBtn:hover {
+    background: var(--pa-ink-2);
+    border-color: var(--pa-ink-2);
 }
-.secondaryBtn:focus-visible {
-    outline: 3px solid var(--primary);
+
+/* Control FANTASMA: contorno = «el otro», lo que no es el dato acotado. El
+   hover lo rellena a negro en 140 ms — solo tinta, cero transform. */
+.ghostBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    padding: 0.875rem 1.5rem;
+    border: 1px solid var(--pa-ink);
+    border-radius: 0;
+    background: transparent;
+    color: var(--pa-ink);
+    transition: background 140ms linear, color 140ms linear;
+}
+
+.ghostBtn:hover {
+    background: var(--pa-ink);
+    color: var(--pa-paper);
+}
+
+.primaryBtn:focus-visible,
+.ghostBtn:focus-visible {
+    outline: 2px solid var(--pa-ink);
     outline-offset: 3px;
 }
 
-/* En móvil estrecho, apila los botones a ancho completo. */
-@media (max-width: 540px) {
-    .actions {
-        flex-direction: column;
-        align-items: stretch;
+/* ── FRANJA ACOTADA ──────────────────────────────────────────────────────
+   Sustituye a las trust pills. Etiqueta mono arriba, valor abajo, celdas
+   separadas por reglas verticales de 1px. */
+.strip {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    width: 100%;
+    margin: 2.5rem 0 0;
+    border-top: 1px solid var(--pa-rule-2);
+    border-bottom: 1px solid var(--pa-rule-2);
+}
+
+.stripCell {
+    padding: 0.875rem 0.875rem 0.9375rem;
+    min-width: 0;
+}
+
+.stripCell + .stripCell {
+    border-left: 1px solid var(--pa-rule-3);
+}
+
+.stripLabel {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--pa-ink-3);
+    margin: 0 0 0.5rem;
+}
+
+.stripValue {
+    font-family: var(--font-heading);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--pa-ink);
+    margin: 0;
+}
+
+/* ── FIGURA ──────────────────────────────────────────────────────────────── */
+.figure {
+    margin: 0;
+    min-width: 0;
+}
+
+/* Pie de figura: lleva EN TEXTO la información que el SVG no expone (va
+   aria-hidden). Mono 12px sobre --pa-ink-2 — el piso del sistema para
+   cualquier cosa que sirva para decodificar una figura. */
+.caption {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--pa-ink-2);
+    /* Mismo ancho que el viewBox de la figura (`.fig00 { max-width: 420px }`)
+       y mismo centrado: así la regla del pie coincide con el encuadre del
+       dibujo en vez de sobresalir por la izquierda. */
+    max-width: 420px;
+    margin: 1.25rem auto 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--pa-rule-3);
+}
+
+/* Utilidad visually-hidden LOCAL al módulo: el repo no tiene una `sr-only`
+   global, y no es este P-fix quien debe inventarle una a todo el proyecto.
+   Si algún día nace la global, esta se borra y se apunta a ella.
+   `clip-path: inset(50%)` es la forma moderna; `clip` queda por los lectores
+   que aún no la implementan. `white-space: nowrap` evita que el contenido
+   colapsado en 1px se reparta en una columna de una letra por línea, que en
+   algunos motores cambia el orden de lectura. */
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ── ≥900px: la figura entra en su columna ───────────────────────────────── */
+@media (min-width: 900px) {
+    .container {
+        grid-template-columns: 7fr 5fr;
+        gap: 4rem;
+        padding: 4rem 2rem 0;
+        align-items: center;
     }
-    .secondaryBtn {
+}
+
+@media (min-width: 1200px) {
+    .container {
+        gap: 5rem;
+        padding: 5rem 4rem 0;
+    }
+}
+
+/* ── MÓVIL ───────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+    /* El padding horizontal se queda en 1.5rem, igual que
+       `HowItWorks.module.css` y `BenchmarkShowcase.module.css`. Bajarlo a 1rem
+       ensanchaba la figura, sí, pero arrastraba con ella la columna de texto:
+       el hero arrancaba 8 px a la izquierda de todas las secciones de abajo.
+       En un sistema donde la línea de margen es el elemento organizador, ese
+       escalón se ve. Los píxeles que la figura necesita se los toma ella sola,
+       sangrando — ver `.figure` más abajo. */
+    .container {
+        padding: 2rem 1.5rem 0;
+        gap: 2.5rem;
+    }
+
+    /* La figura SANGRA 0,5rem a cada lado. No es estética: el <text> del SVG
+       escala con el viewBox, así que su tamaño CSS real es
+       `font-size × (ancho renderizado / ancho del viewBox)`. A 360 px, los
+       312 px de la columna sobre el viewBox de 364 dejaban los rótulos en
+       11,14 px — sobre el piso de 11, pero por 0,14. Sangrando, el encuadre
+       sube a 328 px y los rótulos a 11,7 px. Una figura puede salirse del
+       margen; un párrafo no. */
+    .figure {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+
+    /* El pie NO sangra: es texto, y su regla tiene que apoyarse en la misma
+       línea de margen que la columna de texto. Compensa exactamente la sangría
+       de `.figure` para volver al margen del contenedor. */
+    .caption {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+    }
+
+    .strip {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Con 5 celdas en 2 columnas la última queda suelta: PRECIO ocupa la fila
+       entera, que además es la celda que más importa que se lea. */
+    .stripCell:nth-child(5) {
+        grid-column: 1 / -1;
+    }
+
+    /* Hairlines internas de la rejilla 2×3: el `+ .stripCell` de escritorio
+       dibujaría una regla a la izquierda de las celdas 3 y 5, que aquí abren
+       fila. */
+    .stripCell + .stripCell {
+        border-left: 0;
+    }
+
+    .stripCell:nth-child(2n) {
+        border-left: 1px solid var(--pa-rule-3);
+    }
+
+    .stripCell:nth-child(n + 3) {
+        border-top: 1px solid var(--pa-rule-3);
+    }
+
+    .actions {
         width: 100%;
     }
-}
 
-/* ── TRUST PILLS ─────────────────────────────────────────────────────────── */
-/* [P3-HERO-DETAIL-POLISH · 2026-07-02] Píldoras un punto más compactas y con gap
-   uniforme → el wrap en 2-3 filas se lee ordenado, no regado. Look intacto. */
-.trust {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.6rem;
-    font-size: 0.85rem;
-}
-
-.trustItem {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    padding: 0.5rem 1rem;
-    border-radius: 99px;
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    box-shadow:
-        0 6px 18px -8px rgba(15, 23, 42, 0.18),
-        inset 0 1px 1px rgba(255, 255, 255, 0.8);
-    color: var(--text-main);
-    font-weight: 600;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        border-color 0.3s ease;
-    cursor: default;
-}
-
-.trustItem:hover {
-    transform: translateY(-3px);
-    box-shadow:
-        0 12px 26px -8px rgba(79, 70, 229, 0.28),
-        inset 0 1px 1px rgba(255, 255, 255, 1);
-    border-color: rgba(129, 140, 248, 0.5);
-}
-
-.trustIcon {
-    color: var(--secondary);
-    flex-shrink: 0;
-}
-
-/* ── VISUAL 3D ───────────────────────────────────────────────────────────── */
-.visual {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    perspective: 1400px;
-    transform-style: preserve-3d;
-}
-
-/* Plano 3D que rota muy sutil (±5°) de forma continua → da parallax a los hijos
-   separados por translateZ. Lento y minúsculo para no marear. */
-.stage3d {
-    position: relative;
-    width: 100%;
-    max-width: 460px;
-    aspect-ratio: 1 / 1.05;
-    transform-style: preserve-3d;
-    animation: stageTilt 16s ease-in-out infinite;
-    will-change: transform;
-}
-
-/* [P3-HERO-DETAIL-POLISH · 2026-07-02] Limpieza: la esfera CSS (.orb + .orbRing +
-   .orbGlow + .orbSheen) quedó muerta al llegar el orbe-video (P3-HERO-ORB-VIDEO)
-   — eliminada junto a sus keyframes y overrides dark/reduced-motion. */
-
-/* [P3-HERO-ORB-VIDEO · 2026-06-30] Video 3D del orbe (reemplaza .orb + .orbRing +
-   .orbGlow). El video es 16:9 con la esfera centrada sobre un fondo navy con dot-grid;
-   se recorta a cuadrado (object-fit cover) y una máscara radial funde el borde
-   rectangular + el dot-grid del video con el fondo del hero, y oculta el ✦ de la esquina.
-   Vive en translateZ(0) → rota con .stage3d (±5°). El bloom/anillo ya vienen en el video. */
-.orbVideo {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 98%;
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%) translateZ(0);
-    object-fit: cover;
-    object-position: center;
-    border: none;
-    background: transparent;
-    pointer-events: none;
-    /* [P3-HERO-ORB-SEAM · 2026-06-30] `closest-side` → la máscara es un CÍRCULO inscrito en
-       el cuadrado del video: los bordes/esquinas del rectángulo quedan fuera del círculo y
-       NUNCA se ven (cero costura, aunque el aura pulse). El feather muere justo en el lado
-       (transparent 100%), disolviendo el borde del aura en el fondo del hero. Sólido hasta
-       72% preserva esfera + anillo + bloom. */
-    -webkit-mask-image: radial-gradient(circle closest-side at 50% 50%, #000 72%, transparent 100%);
-    mask-image: radial-gradient(circle closest-side at 50% 50%, #000 72%, transparent 100%);
-}
-
-/* [P3-HERO-DETAIL-POLISH · 2026-07-02] Limpieza: tarjetas-métrica flotantes
-   (.floatCard* + .iconBox + .cardText) eliminadas del DOM en P3-HERO-ORB-SOLO —
-   su CSS muerto se retira junto a los keyframes cardBob*. */
-
-/* ── KEYFRAMES ───────────────────────────────────────────────────────────── */
-@keyframes gradientMove {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-@keyframes spotlightBreath {
-    0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
-    50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
-}
-
-@keyframes auroraDriftA {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(-3%, 4%) scale(1.08); }
-}
-
-@keyframes auroraDriftB {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(4%, -3%) scale(1.1); }
-}
-
-@keyframes stageTilt {
-    0%, 100% { transform: rotateY(-5deg) rotateX(3deg); }
-    50% { transform: rotateY(5deg) rotateX(-2deg); }
-}
-
-/* [P1-HERO-ORB-AUTOPLAY · 2026-07-11] Respiración sutil del orbe cuando el video
-   NO corre (autoplay denegado: Low Power Mode iOS / políticas móviles; o poster
-   pre-mount / Save-Data). Transform+opacity puros (GPU-only) — preserva el
-   centrado base translate(-50%,-50%). Sin esto, el fallback se percibe como un
-   frame congelado (el bug reportado). */
-@keyframes orbBreath {
-    0%, 100% { transform: translate(-50%, -50%) translateZ(0) scale(1); opacity: 1; }
-    50% { transform: translate(-50%, -50%) translateZ(0) scale(1.025); opacity: 0.92; }
-}
-
-.orbBreath {
-    animation: orbBreath 7s ease-in-out infinite;
-}
-
-/* ── MÓVIL: presupuesto de compositing ──────────────────────────────────────
-   [P1-HERO-ORB-AUTOPLAY · 2026-07-11] En ≤767px el tilt 3D (±5°) es imperceptible
-   pero fuerza re-composición por frame del video enmascarado, y las auroras
-   derivando re-rasterizan blur(80px) continuo — en gama baja eso compite con el
-   decode del video (VP9 por software) y produce stutter. Las capas quedan
-   ESTÁTICAS (misma pose visual); el movimiento del hero móvil lo llevan el video
-   y el spotlight (opacity/transform baratos). */
-@media (max-width: 767px) {
-    .stage3d {
-        animation: none;
-        transform: none;
-        will-change: auto;
-    }
-
-    .aurora {
-        animation: none;
-        will-change: auto;
+    .primaryBtn,
+    .ghostBtn {
+        flex: 1 1 100%;
     }
 }
 
-/* ── DESKTOP ─────────────────────────────────────────────────────────────── */
-@media (min-width: 1024px) {
-    .container {
-        grid-template-columns: 1.05fr 0.95fr;
-        text-align: left;
-        padding: 0 4rem;
-        gap: 5rem;
+/* Bajo 600px las tres celdas del cartucho no caben: se retira la del medio
+   (el `<h1>` y la línea de promesa dicen lo mismo con más precisión) y
+   quedan firma + lugar, que es lo que un cajetín no puede perder. */
+@media (max-width: 599px) {
+    .cartridge {
+        grid-template-columns: auto 1fr;
     }
 
-    .hero {
-        padding: 5.5rem 0 4rem;
+    .cartridgeMid {
+        display: none;
     }
 
-    .content {
-        align-items: flex-start;
-        text-align: left;
+    /* [P1-PAPER-THEME fix · 2026-08-02] 11px, NO 10px. El piso absoluto del
+       spec (§2.5) es 11px «sin excepciones de rol», y esta es la PRIMERA
+       línea de texto del sitio en móvil — que es donde está el mercado.
+       El aire para que quepa se compra en el tracking y el padding, no
+       encogiendo la letra.
+       MEDIDO con emulación real de dispositivo (`resize_page` miente en esta
+       máquina: devuelve 500). A 360×3 las dos celdas que sobreviven aquí —la
+       del medio ya está en `display:none` arriba— necesitan 83,4px y 145,8px
+       de ancho intrínseco: 229px de los 360. Repetido a 320×2, sin recorte y
+       sin scroll horizontal del documento. */
+    .cartridgeCell {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        padding: 0 0.875rem;
     }
 
-    .title {
-        font-size: clamp(3.5rem, 5vw, 5rem);
-        line-height: 1.02;
-        margin-bottom: 2rem;
-    }
-
-    .subtitle {
-        font-size: 1.3rem;
-        margin-bottom: 3rem;
-        max-width: 580px;
-    }
-
-    .actions {
-        flex-direction: row;
-        width: auto;
-        max-width: none;
-    }
-
-    .trust {
-        justify-content: flex-start;
-        /* [P3-HERO-DETAIL-POLISH · 2026-07-02] Acota el ancho del bloque de píldoras
-           para que el wrap quede en filas parejas alineadas al texto (no una fila
-           larga + una corta suelta). */
-        max-width: 560px;
-    }
-
-    .visual {
-        justify-content: flex-end;
-    }
-
-    .stage3d {
-        max-width: 540px;
+    .cartridgeCell + .cartridgeCell {
+        text-align: right;
     }
 }
 
-/* ============================================================================
-   TEMA OSCURO — el "stage" cobra su máximo dramatismo aquí.
-   Slate profundo + spotlight indigo intenso + viñeta marcada. CERO RAYAS.
-   ============================================================================ */
-:global(html[data-theme="dark"]) .hero {
-    background:
-        radial-gradient(125% 95% at 50% -12%, #131A2E 0%, #0B1120 52%, #070B16 100%);
-}
-
-/* Spotlight protagonista en oscuro: luz indigo que cae sobre el escenario. */
-:global(html[data-theme="dark"]) .spotlight {
-    background:
-        radial-gradient(closest-side at 50% 0%,
-            rgba(129, 140, 248, 0.42) 0%,
-            rgba(129, 140, 248, 0.20) 30%,
-            rgba(99, 102, 241, 0.06) 56%,
-            transparent 74%);
-}
-
-/* Viñeta marcada hacia el negro absoluto en los bordes. */
-:global(html[data-theme="dark"]) .vignette {
-    background:
-        radial-gradient(120% 100% at 50% 36%, transparent 46%, rgba(0, 0, 0, 0.55) 100%);
-}
-
-:global(html[data-theme="dark"]) .auroraA {
-    opacity: 0.42;
-}
-
-:global(html[data-theme="dark"]) .auroraB {
-    opacity: 0.3;
-}
-
-/* Grid de puntos: en oscuro, puntos de luz tenue (índigo claro). */
-:global(html[data-theme="dark"]) .grid {
-    background-image: radial-gradient(rgba(165, 180, 252, 0.14) 1px, transparent 1.4px);
-    opacity: 0.45;
-}
-
-:global(html[data-theme="dark"]) .subtitle {
-    color: var(--text-muted);
-}
-
-/* Trust pills → tarjetas slate translúcidas con borde sutil. */
-:global(html[data-theme="dark"]) .trustItem {
-    background: rgba(17, 24, 39, 0.7);
-    border-color: var(--border);
-    box-shadow:
-        0 8px 22px -10px rgba(0, 0, 0, 0.6),
-        inset 0 1px 1px rgba(255, 255, 255, 0.04);
-    color: var(--text-main);
-}
-
-:global(html[data-theme="dark"]) .trustItem:hover {
-    border-color: rgba(129, 140, 248, 0.5);
-    box-shadow:
-        0 14px 30px -10px rgba(0, 0, 0, 0.7),
-        inset 0 1px 1px rgba(255, 255, 255, 0.06);
-}
-
-/* ============================================================================
-   TEMA CLARO — override explícito.
-   Aunque .hero ya es claro por defecto, fijamos el override para el caso en que
-   html lleve data-theme="light" explícito (motor de tema). El default neutral y
-   este override convergen al mismo look aireado y profesional.
-   ============================================================================ */
-:global(html[data-theme="light"]) .hero {
-    background:
-        radial-gradient(125% 90% at 50% -12%, #FFFFFF 0%, var(--bg-page) 56%, #EBF0FB 100%);
-}
-
-/* ── REDUCED MOTION — doble defensa (además del guard global de index.css) ────
-   El guard global ya acorta duration→0.01ms e itera 1 vez; aquí además
-   FIJAMOS los transforms 3D en su pose de reposo para que el layout quede
-   limpio y centrado (sin tilt residual ni cards a medio frame). Si alguien
-   borrara este bloque, el guard global sigue siendo la red de seguridad.   */
+/* ── REDUCED MOTION — defensa (b) del módulo ─────────────────────────────
+   La (a) vive en el JSX: `useReducedMotion()` gatea los variants en su
+   DEFINICIÓN (`makeVariants(reduce)`), así framer no llega a escribir un
+   `translateY` inline. Esta capa fija además la pose de reposo, porque el
+   guard global de index.css solo acorta duraciones — sin ella, una regla que
+   quedara en `scaleX(0)` sería una regla invisible para siempre. */
 @media (prefers-reduced-motion: reduce) {
-    .spotlight,
-    .aurora,
-    .gradientText,
-    .orbBreath {
+    .titleRule {
+        transform: none !important;
+        transition: none !important;
         animation: none !important;
     }
 
-    .stage3d {
+    .title,
+    .copy,
+    .tail {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
         animation: none !important;
-        transform: none;
+    }
+
+    .primaryBtn,
+    .ghostBtn {
+        transition: none !important;
     }
 }

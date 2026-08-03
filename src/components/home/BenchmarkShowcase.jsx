@@ -1,318 +1,252 @@
-import { useRef, useState, useEffect } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { Cpu, Target, Layers, Check, X, Minus, TrendingUp, Activity, Gauge, Radio, FlaskConical } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { APP_VERSION } from '../../config/appVersion';
+import { SERIES, BANDS, CAPS } from '../../data/benchmark';
+import ToleranceChart from './figures/ToleranceChart';
+import InBandBar from './figures/InBandBar';
 import SeeMoreLink from './SeeMoreLink';
-import { makeSectionMotion } from './sectionMotion';
 import styles from './BenchmarkShowcase.module.css';
 
-/* [P3-BENCHMARK-RADAR · 2026-06-30] Rediseño RADICAL: RADAR DE PRECISIÓN. El corazón es
-   un radar/telaraña donde el polígono de Bioboros casi llena el gráfico y el de «LLM solo»
-   colapsa (sobre todo el 24% de planes-en-banda) — la brecha se ve de un vistazo. Ejes =
-   las 3 métricas del A/B (con dato real de AMBOS lados, honesto). Alrededor: los números
-   exactos + precisión por macro + capacidades + highlights. Mantiene el shell "instrumento"
-   (tilt 3D + scanlines) high-tech. Mismos datos REALES (benchmark N=8 jun 2026, motor
-   P3-MACRO-REBALANCE). «LLM solo» = A/B interno con el motor apagado. Precisión de MACROS. */
+/* ============================================================================
+   [P1-PAPER-BENCHMARK · 2026-08-02] BenchmarkShowcase → «04 / LA MEDICIÓN».
 
-const VERSION_SHORT = `V${String(APP_VERSION).split('.')[0]}`;
+   Era la última sección del landing con la CONSOLA OSCURA de junio
+   (`P3-BENCHMARK-RADAR`) en mitad de una home ya en blanco y negro estricto.
+   Estuvo bloqueada semanas porque una cifra se contradecía entre ficheros; el
+   dueño la resolvió el 2026-08-02 y aquí se cierra entera.
 
-const MACROS = [
-    { key: 'kcal', label: 'Calorías', mape: 2.0 },
-    { key: 'fat', label: 'Grasas', mape: 3.1 },
-    { key: 'carbs', label: 'Carbohidratos', mape: 3.2 },
-    { key: 'protein', label: 'Proteína', mape: 1.5 },
-];
+   ─────────────────────────────────────────────────────────────────────────────
+   LA CORRECCIÓN QUE MÁS IMPORTA NO ES DE COLOR, ES ESTRUCTURAL.
 
-// Ejes del radar = métricas Bioboros vs «LLM solo» (A/B con el motor apagado). Cada eje
-// tiene dato REAL de ambos lados. `axis` = etiqueta corta para el vértice.
-const VERSUS = [
-    { label: 'Precisión de proteína', axis: 'Proteína', mealfit: 98.5, llm: 84 },
-    { label: 'Los 4 macros en banda', axis: '4 macros', mealfit: 91.7, llm: 24 },
-    { label: 'Macros que cuadran al recalcular', axis: 'Recalcular', mealfit: 100, llm: 0 },
-];
+   Las tres filas del `VERSUS` se dibujaban sobre UN MISMO eje 0-100. Pero
+   `98,5` es `100 − MAPE` de proteína, `91,7` es un porcentaje de PLANES, y
+   `100 vs 0` es una CAPACIDAD BINARIA. Un eje compartido es una afirmación de
+   comparabilidad, y esa afirmación era falsa: hacía parecer que la tercera
+   mejora era 7× la primera y fabricaba un «Δ 100 pts» que no significa nada.
+   Eso es PEOR que el teal que sustituye — el teal al menos no fingía ser una
+   especificación.
 
-const CAPS = [
-    { label: 'Se ajusta a tus condiciones (DM2 · renal · HTA)', llm: 'partial' },
-    { label: 'Lista de compras + Nevera automática', llm: 'x' },
-    { label: 'Coach que ajusta tu plan', llm: 'partial' },
-];
+   Resultado: la fila binaria bajó a la tabla de capacidades (`■ SÍ / □ NO`),
+   la de proteína se reexpresó como ERROR y se fundió con la figura de macros
+   (±1,5 % contra ±16,0 %, más honesto y más fuerte), y queda UNA sola
+   comparación de barras, unívoca.
 
-const HIGHLIGHTS = [
-    { icon: Cpu, value: '100%', label: 'planes con macros calculados, no a ojo' },
-    { icon: Target, value: '±3.2%', label: 'error medio en el peor macro' },
-    { icon: Layers, value: '4', label: 'macros calibrados a la vez en cada comida' },
-];
+   ─────────────────────────────────────────────────────────────────────────────
+   LO QUE MURIÓ, Y LO QUE ESO ARREGLA
 
-/* Contador que sube de 0 al valor cuando entra en pantalla (IntersectionObserver +
-   requestAnimationFrame, sin dependencias). easeOutCubic. */
-function CountUp({ to, decimals = 1, suffix = '%', duration = 1600 }) {
-    const ref = useRef(null);
-    const [text, setText] = useState(() => (
-        typeof IntersectionObserver === 'undefined' ? to.toFixed(decimals) : (0).toFixed(decimals)
-    ));
-    useEffect(() => {
-        const el = ref.current;
-        if (!el || typeof IntersectionObserver === 'undefined') return undefined;
-        let raf;
-        let started = false;
-        const obs = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && !started) {
-                started = true;
-                obs.disconnect();
-                const t0 = performance.now();
-                const tick = (now) => {
-                    const p = Math.min(1, (now - t0) / duration);
-                    const eased = 1 - Math.pow(1 - p, 3);
-                    setText((to * eased).toFixed(decimals));
-                    if (p < 1) raf = requestAnimationFrame(tick);
-                };
-                raf = requestAnimationFrame(tick);
-            }
-        }, { threshold: 0.4 });
-        obs.observe(el);
-        return () => { obs.disconnect(); if (raf) cancelAnimationFrame(raf); };
-    }, [to, decimals, duration]);
-    return <span ref={ref}>{text}{suffix}</span>;
-}
+   · `PrecisionRadar` entero y su `<radialGradient>` teal con
+     `<animateTransform repeatCount="indefinite">` de 4,5 s. **Ese barrido era
+     SMIL, y SMIL ignora `prefers-reduced-motion` por completo**: giraba
+     eternamente incluso para quien había pedido que nada se moviera. Borrarlo
+     cierra un fallo de accesibilidad que estaba VIVO en producción — no es
+     limpieza estética.
+   · El tilt 3D por `onMouseMove`/`onMouseLeave` escribiendo transforms inline,
+     `.scanlines` con su barrido en bucle, el marco de consola, el badge
+     `MEDICIÓN EN VIVO` con punto pulsante (afirmaba algo falso: son 8 planes
+     de junio, no una medición en vivo) y el badge `3.8× más precisos`.
+   · **La caja de leyenda con puntos de color** — el artefacto exacto que
+     obligaba a memorizar un color para leer el gráfico. En su lugar, cada
+     marcador se rotula PEGADO al sitio donde cae, y solo una vez.
+   · Los 8 iconos lucide y el `CountUp`. El contador no se retira por
+     minimalismo: una cifra que sube de 0 a 91,7 dibuja todos los valores
+     intermedios por el camino, que es la misma clase de mentira que animar la
+     posición de un marcador. En la sección cuyo argumento es la honestidad de
+     la medición, no cabe.
 
-/* ── Radar de precisión (3 ejes = las 3 métricas del versus) ── */
-function PrecisionRadar() {
-    const reduce = useReducedMotion();
-    // [P3-BENCHMARK-RADAR-CENTER · 2026-07-02] viewBox ajustado al contenido real
-    // (triángulo + etiquetas): antes 420×384 con cy=176 dejaba ~116px de aire muerto
-    // abajo y el radar se sentía descentrado/asimétrico dentro de su columna.
-    const cx = 210;
-    const cy = 181;
-    const R = 138;
-    const ang = (i) => ((-90 + i * 120) * Math.PI) / 180; // 0=arriba, +120 horario
-    const pt = (i, frac) => [cx + R * frac * Math.cos(ang(i)), cy + R * frac * Math.sin(ang(i))];
-    const ptA = (a, frac) => [cx + R * frac * Math.cos(a), cy + R * frac * Math.sin(a)];
-    const poly = (fracs) => fracs.map((f, i) => pt(i, f).join(',')).join(' ');
-    // barrido tipo scanner: cono de 52° desde el eje superior, gira sobre el radar.
-    const sweepLead = pt(0, 1);
-    const sweepTrail = ptA(ang(0) - (52 * Math.PI) / 180, 1);
+   ─────────────────────────────────────────────────────────────────────────────
+   CIFRAS: CERO EN ESTE ARCHIVO. Todas viven en `src/data/benchmark.js` (SSOT).
+   Estaban escritas a mano aquí, en `PrecisionPage.jsx` y en `Engine.jsx`, y ya
+   habían drifteado. `backend/tests/test_p1_paper_benchmark_ssot.py` falla si
+   alguien vuelve a declarar una aquí.
 
-    const mealfit = VERSUS.map((v) => v.mealfit / 100);
-    const llm = VERSUS.map((v) => v.llm / 100);
-    const rings = [0.25, 0.5, 0.75, 1];
+   TRES `IntersectionObserver`, a propósito: uno por figura (cada una se traza
+   cuando SE VE, no cuando se ve la sección — están a ~400 px de distancia) y
+   uno aquí para el `settle` de los bloques de texto. Los tres con
+   `{once: true}` y `disconnect()`.
+   ========================================================================= */
 
-    const grow = reduce
-        ? {}
-        : {
-            initial: { opacity: 0, scale: 0.4 },
-            whileInView: { opacity: 1, scale: 1 },
-            viewport: { once: true, amount: 0.5 },
-            style: { transformBox: 'fill-box', transformOrigin: 'center' },
-        };
+const STATE_WORD = { yes: 'SÍ', partial: 'PARCIAL', no: 'NO' };
 
-    return (
-        <svg viewBox="0 0 420 285" className={styles.radarSvg} role="img"
-            aria-label="Radar de precisión: el polígono de Bioboros casi llena el gráfico; el de un LLM solo colapsa.">
-            {/* grid concéntrico + ejes (sin escala numérica — los números chocaban con el
-                polígono lleno de Bioboros; los valores exactos viven en la columna derecha) */}
-            {rings.map((g) => <polygon key={g} points={poly([g, g, g])} className={styles.radarGrid} />)}
-            {[0, 1, 2].map((i) => {
-                const [x, y] = pt(i, 1);
-                return <line key={i} x1={cx} y1={cy} x2={x} y2={y} className={styles.radarSpoke} />;
-            })}
-
-            {/* LLM (atrás, colapsado) */}
-            <motion.polygon points={poly(llm)} className={styles.radarLlm}
-                {...grow} transition={reduce ? undefined : { duration: 0.9, delay: 0.45, ease: 'easeOut' }} />
-            {/* Bioboros (adelante, casi lleno) */}
-            <motion.polygon points={poly(mealfit)} className={styles.radarMealfit}
-                {...grow} transition={reduce ? undefined : { duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} />
-
-            {/* barrido tipo radar (scanner) que gira sobre el gráfico */}
-            {!reduce && (
-                <g>
+/* Tres estados por FORMA pura — ■ sólido / ▨ tramado / □ contorno — MÁS la
+   palabra en mono. La redundancia no es cinturón y tirantes: a 360 px de ancho
+   los tres glifos solos se caen (un cuadrado de 12 px tramado y uno vacío se
+   distinguen mal a esa densidad), y este es el sitio exacto donde eso pasa. */
+const StateCell = ({ state, patternId }) => (
+    <span className={styles.state}>
+        <svg className={styles.glyph} width="12" height="12" aria-hidden="true" focusable="false">
+            {state === 'partial' && (
+                <>
                     <defs>
-                        <radialGradient id="hiwRadarSweep" cx={cx} cy={cy} r={R} gradientUnits="userSpaceOnUse">
-                            <stop offset="0" stopColor="#2DD4BF" stopOpacity="0.32" />
-                            <stop offset="1" stopColor="#2DD4BF" stopOpacity="0" />
-                        </radialGradient>
+                        <pattern id={patternId} patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+                            <line className={styles.glyphHatchLine} x1="0" y1="0" x2="0" y2="5" />
+                        </pattern>
                     </defs>
-                    <polygon points={`${cx},${cy} ${sweepLead.join(',')} ${sweepTrail.join(',')}`} fill="url(#hiwRadarSweep)" />
-                    <line x1={cx} y1={cy} x2={sweepLead[0]} y2={sweepLead[1]} className={styles.radarSweepEdge} />
-                    <animateTransform attributeName="transform" attributeType="XML" type="rotate"
-                        from={`0 ${cx} ${cy}`} to={`360 ${cx} ${cy}`} dur="4.5s" repeatCount="indefinite" />
-                </g>
+                    <rect className={styles.glyphHatchFill} x="0.5" y="0.5" width="11" height="11" fill={`url(#${patternId})`} />
+                </>
             )}
-
-            {/* vértices */}
-            {llm.map((f, i) => { const [x, y] = pt(i, f); return <circle key={`l${i}`} cx={x} cy={y} r="3.5" className={styles.radarDotLlm} />; })}
-            {mealfit.map((f, i) => { const [x, y] = pt(i, f); return <circle key={`m${i}`} cx={x} cy={y} r="4.5" className={styles.radarDotMealfit} />; })}
-
-            {/* etiquetas de eje */}
-            {VERSUS.map((v, i) => {
-                const [x, y] = pt(i, 1.14);
-                const anchor = Math.abs(x - cx) < 6 ? 'middle' : (x > cx ? 'start' : 'end');
-                return (
-                    <text key={v.axis} x={x} y={y} className={styles.radarAxisLabel}
-                        textAnchor={anchor} dominantBaseline={y < cy ? 'auto' : 'hanging'}>
-                        {v.axis}
-                    </text>
-                );
-            })}
+            {state === 'yes'
+                ? <rect className={styles.glyphSolid} x="0" y="0" width="12" height="12" />
+                : <rect className={styles.glyphOutline} x="0.5" y="0.5" width="11" height="11" />}
         </svg>
-    );
-}
-
-const Mark = ({ v }) => (v === 'x'
-    ? <X size={12} strokeWidth={2.5} />
-    : <Minus size={12} strokeWidth={3} />);
+        <span className={styles.stateWord}>{STATE_WORD[state]}</span>
+    </span>
+);
 
 const BenchmarkShowcase = () => {
-    const stageRef = useRef(null);
-    const consoleRef = useRef(null);
-    // [P1-LANDING-MOTION · 2026-07-11] Reveal on-scroll compartido del landing.
-    // El motion vive en el header y en .stage (wrapper): .console conserva su
-    // tilt 3D por inline style sin conflicto de transforms.
-    const reduceMotion = useReducedMotion();
-    const M = makeSectionMotion(reduceMotion);
+    const reduce = useReducedMotion();
+    const ref = useRef(null);
+    const [drawn, setDrawn] = useState(false);
 
-    // Tilt 3D siguiendo el mouse (solo desktop; touch → estático).
-    const onMove = (e) => {
-        const stage = stageRef.current;
-        const panel = consoleRef.current;
-        if (!stage || !panel) return;
-        const r = stage.getBoundingClientRect();
-        const x = (e.clientX - r.left) / r.width - 0.5;
-        const y = (e.clientY - r.top) / r.height - 0.5;
-        panel.style.transform = `rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 6).toFixed(2)}deg)`;
-    };
-    const onLeave = () => {
-        if (consoleRef.current) consoleRef.current.style.transform = 'rotateX(0deg) rotateY(0deg)';
-    };
+    /* Reduced motion, defensa (a): el gate está en la DEFINICIÓN del estado —
+       con `reduce` el observer ni se monta y todo nace en su pose final. La
+       (b) es el bloque @media del .module.css. */
+    useEffect(() => {
+        if (reduce) {
+            setDrawn(true);
+            return undefined;
+        }
+        const el = ref.current;
+        if (!el || typeof IntersectionObserver === 'undefined') {
+            setDrawn(true);
+            return undefined;
+        }
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) {
+                setDrawn(true);
+                io.disconnect();
+            }
+        }, { threshold: 0.2 });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [reduce]);
 
     return (
         <section className={styles.section} id="benchmarks">
-            <div className={styles.bgGrid} aria-hidden="true" />
+            <div ref={ref} className={`${styles.container}${drawn ? ` ${styles.drawn}` : ''}`}>
+                <div className={styles.sectionHead}>
+                    <span className={styles.hLine} aria-hidden="true" />
+                    {/* [P2-SECCIONES-TITULAR · 2026-08-02] Baja de `h2` a `p`: el
+                        titular de verdad es el de abajo. */}
+                    <p className={styles.sectionLabel}>04 / LA MEDICIÓN</p>
+                    <span className={styles.hLine} aria-hidden="true" />
+                </div>
 
-            <div className={styles.container}>
-                <motion.div className={styles.header}
-                    variants={M.container} initial="hidden" whileInView="show"
-                    viewport={{ once: true, amount: 0.6 }}>
-                    <motion.span className={styles.modelBadge} variants={M.rise}>
-                        <span className={styles.modelDot} aria-hidden="true" />
-                        Bioboros {VERSION_SHORT}
-                    </motion.span>
-                    <motion.h2 className={styles.title} variants={M.rise}>
-                        Precisión que <span className={styles.titleAccent}>puedes medir</span>
-                    </motion.h2>
-                    <motion.p className={styles.subtitle} variants={M.rise}>
-                        No prometemos números — los medimos. Y los comparamos contra lo que hay afuera:
-                        pedirle un plan a un LLM, sin un motor que cuadre tus macros.
-                    </motion.p>
-                </motion.div>
+                <h2 className={styles.title} style={{ '--d': '0ms' }}>
+                    No prometemos números. Los medimos.
+                </h2>
+                <p className={styles.subtitle} style={{ '--d': '35ms' }}>
+                    Y los comparamos contra el mismo pipeline con el motor apagado.
+                </p>
 
-                {/* ── Consola de telemetría (radar) ── */}
-                <motion.div className={styles.stage} ref={stageRef} onMouseMove={onMove} onMouseLeave={onLeave}
-                    variants={M.rise} initial="hidden" whileInView="show"
-                    viewport={{ once: true, amount: 0.2 }}>
-                    <div className={styles.console} ref={consoleRef}>
-                        <div className={styles.scanlines} aria-hidden="true" />
+                {/* Tira de cartucho: sustituye al badge «MEDICIÓN EN VIVO» con
+                    punto pulsante. La medición NO es en vivo, y decir lo
+                    contrario en la sección que vende honestidad era el peor
+                    sitio posible para una licencia de marketing. */}
+                <ul className={styles.strip} style={{ '--d': '70ms' }}>
+                    <li className={styles.stripCell}>{`SERIE N=${SERIES.n}`}</li>
+                    <li className={styles.stripCell}>{SERIES.month}</li>
+                    <li className={styles.stripCell}>{`MOTOR v${APP_VERSION}`}</li>
+                    <li className={styles.stripCell}>A/B CON EL MOTOR APAGADO</li>
+                </ul>
 
-                        <div className={styles.consoleHead}>
-                            <span className={styles.live}>
-                                <span className={styles.liveDot} aria-hidden="true" /> MEDICIÓN EN VIVO
-                            </span>
-                            <span className={styles.consoleVer}><Radio size={11} strokeWidth={2.5} /> Motor v{APP_VERSION}</span>
-                            <span className={styles.consoleBadge}>
-                                <TrendingUp size={12} strokeWidth={2.75} /> 3.8× más precisos
-                            </span>
-                        </div>
+                <div className={styles.figBlock} style={{ '--d': '140ms' }}>
+                    <ToleranceChart />
+                </div>
 
-                        <div className={styles.consoleBody}>
-                            {/* Radar (izquierda) */}
-                            <div className={styles.radarCol}>
-                                <span className={styles.panelLabel}><Gauge size={12} strokeWidth={2.5} /> Bioboros vs LLM solo</span>
-                                <div className={styles.radarWrap}>
-                                    <PrecisionRadar />
-                                </div>
-                                <div className={styles.legend}>
-                                    <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.legendMealfit}`} /> Bioboros</span>
-                                    <span className={styles.legendItem}><span className={`${styles.legendDot} ${styles.legendLlm}`} /> LLM solo</span>
-                                </div>
-                            </div>
+                {/* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] El cosido. Las
+                    dos figuras son el MISMO experimento A/B y hasta ahora no lo
+                    decían en ninguna parte: la 04.1 da la desviación por macro y
+                    la 04.2 el % de planes en banda. Estas dos guías punteadas lo
+                    dibujan. Mismo `dasharray 3 4` del sistema.
 
-                            {/* Datos (derecha) */}
-                            <div className={styles.dataCol}>
-                                {/* versus — números exactos */}
-                                <div className={styles.versus}>
-                                    {VERSUS.map((v) => (
-                                        <div key={v.label} className={styles.vRow}>
-                                            <span className={styles.vLabel}>{v.label}</span>
-                                            <span className={styles.vVals}>
-                                                <span className={styles.vMealfit}><CountUp to={v.mealfit} decimals={v.mealfit === 100 ? 0 : 1} /></span>
-                                                <span className={styles.vVs}>vs</span>
-                                                <span className={styles.vLlm}>{v.llm}%</span>
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
+                    Lleva `--d` como sus vecinas porque entra por el MISMO
+                    revelado (`.drawn`, :397-417): sin él aparecería a peso
+                    completo mientras las dos figuras que une aún se trazan — la
+                    guía llegaría antes que aquello que cose.
 
-                                {/* precisión por macro */}
-                                <span className={styles.panelLabelSub}><Activity size={12} strokeWidth={2.5} /> Precisión por macro</span>
-                                <div className={styles.macroGrid}>
-                                    {MACROS.map((m) => {
-                                        const pct = Number((100 - m.mape).toFixed(1));
-                                        return (
-                                            <div key={m.key} className={styles.macroCell}>
-                                                <span className={styles.macroVal}><CountUp to={pct} decimals={1} /></span>
-                                                <span className={styles.macroLabel}>{m.label}</span>
-                                                <span className={styles.macroErr}>±{m.mape}%</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                    `aria-hidden`: la relación ya está dicha en los dos pies. */}
+                {/* ⚠ SIN `viewBox` Y CON X EN PORCENTAJE, como las guías de la
+                    03 (`DashboardShowcase.jsx:497-512`) — y por la misma razón
+                    por la que la cota de la Task 6 dejó de ser un SVG estirado.
 
-                                {/* capacidades — cabecera micro aclara de quién es la marca
-                                    de la derecha (antes los —/× quedaban sin columna). */}
-                                <div className={styles.caps}>
-                                    <div className={styles.capsHead}>
-                                        <span className={styles.panelLabelSub}>Capacidades</span>
-                                        <span className={styles.capsLlmHead}>LLM solo</span>
-                                    </div>
-                                    {CAPS.map((c) => (
-                                        <div key={c.label} className={styles.capRow}>
-                                            <span className={styles.capCheck}><Check size={13} strokeWidth={3} /></span>
-                                            <span className={styles.capLabel}>{c.label}</span>
-                                            <span className={styles.capLlm}><Mark v={c.llm} /></span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                    Con `viewBox="0 0 100 48"` + `preserveAspectRatio="none"` la
+                    X se estira ~10× (100 unidades → ~1032px) mientras la Y va
+                    1:1. `vector-effect` normaliza el GROSOR del trazo, no la
+                    longitud de arco del `dasharray`: los tramos horizontales
+                    salían con guiones ~10× más largos que los verticales, o
+                    sea que la frase «mismo `dasharray 3 4` del sistema» era
+                    falsa en la mitad del dibujo. [fix · 2026-08-03]
 
-                        <div className={styles.highlights}>
-                            {HIGHLIGHTS.map((h) => {
-                                const Icon = h.icon;
-                                return (
-                                    <div key={h.label} className={styles.highlight}>
-                                        <span className={styles.highlightIcon} aria-hidden="true"><Icon size={16} strokeWidth={2.5} /></span>
-                                        <div className={styles.highlightText}>
-                                            <strong>{h.value}</strong>
-                                            <span>{h.label}</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </motion.div>
+                    Sin viewBox no hay escalado, así que `<line>` con X en `%` y
+                    Y en px da el ritmo correcto en los dos ejes. `path` no
+                    acepta porcentajes; por eso cada guía son tres `<line>`. */}
+                <svg className={styles.stitch} style={{ '--d': '175ms' }} aria-hidden="true">
+                    {/* CON MOTOR: marcador de la 04.1 → punta de su barra en la 04.2 */}
+                    <line className={styles.stitchLine} x1="45.7%" y1="0" x2="45.7%" y2="24" />
+                    <line className={styles.stitchLine} x1="45.7%" y1="24" x2="87.3%" y2="24" />
+                    <line className={styles.stitchLine} x1="87.3%" y1="24" x2="87.3%" y2="48" />
+                    {/* SIN MOTOR: idem, y cruza a la primera porque su barra es corta */}
+                    <line className={styles.stitchLine} x1="74.6%" y1="0" x2="74.6%" y2="32" />
+                    <line className={styles.stitchLine} x1="74.6%" y1="32" x2="26.6%" y2="32" />
+                    <line className={styles.stitchLine} x1="26.6%" y1="32" x2="26.6%" y2="48" />
+                </svg>
 
-                <div className={styles.footnote}>
-                    <FlaskConical size={15} strokeWidth={2.25} className={styles.footnoteIcon} aria-hidden="true" />
+                <div className={styles.figBlock} style={{ '--d': '210ms' }}>
+                    <InBandBar />
+                </div>
+
+                {/* ── capacidades: tabla semántica de verdad ─────────────────
+                    Aquí entra «Macros que cuadran al recalcular», que antes se
+                    dibujaba como 100-contra-0 en un eje de porcentajes. Es una
+                    capacidad: se responde con ■ SÍ / □ NO, sin Δ inventada. */}
+                {/* El stagger se TOPA en 210 ms (4 escalones): encadenar los seis
+                    bloques dejaría el último entrando 350 ms tarde. */}
+                <div className={styles.capsWrap} style={{ '--d': '210ms' }}>
+                    <table className={styles.caps}>
+                        <thead>
+                            <tr>
+                                <th scope="col" className={styles.capsTh}>Capacidad</th>
+                                <th scope="col" className={`${styles.capsTh} ${styles.capsThState}`}>Con motor</th>
+                                <th scope="col" className={`${styles.capsTh} ${styles.capsThState}`}>Sin motor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {CAPS.map((c) => (
+                                <tr key={c.key} className={styles.capsRow}>
+                                    <th scope="row" className={styles.capsRowHead}>
+                                        <span className={styles.capLabel}>{c.label}</span>
+                                        <span className={styles.capSub}>{c.sub}</span>
+                                    </th>
+                                    <td className={styles.capsCell}>
+                                        <StateCell state={c.mealfit} patternId={`paCapOn-${c.key}`} />
+                                    </td>
+                                    <td className={styles.capsCell}>
+                                        <StateCell state={c.llm} patternId={`paCapOff-${c.key}`} />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className={styles.footnote} style={{ '--d': '210ms' }}>
                     <p className={styles.footnoteText}>
                         <strong>Metodología.</strong> Es una prueba A/B del mismo pipeline de generación, con y sin
                         nuestro motor de optimización determinista — comparamos <strong>enfoques</strong>, no productos
                         con nombre. «Sin motor (LLM solo)» es lo que obtienes al pedirle el plan directamente a un
-                        modelo de lenguaje, sin nada que cuadre tus macros. La precisión se mide con el{' '}
-                        <strong>MAPE</strong> (error absoluto porcentual medio); «en banda» = dentro del 90–112% del
-                        objetivo (95–105% en calorías). Son métricas de <strong>precisión de macros</strong> —qué tan
-                        cerca queda el plan de tus números—, no de corrección clínica, y no constituyen consejo médico.
-                        Medición continua sobre planes reales.
+                        modelo de lenguaje, sin nada que cuadre tus macros. El error se mide con el{' '}
+                        <strong>MAPE</strong> (error absoluto porcentual medio); «en banda» = dentro del{' '}
+                        {`${100 + BANDS.macros[0]}–${100 + BANDS.macros[1]}%`} del objetivo
+                        {` (${100 + BANDS.kcal[0]}–${100 + BANDS.kcal[1]}% en calorías)`}. Son métricas de{' '}
+                        <strong>precisión de macros</strong> —qué tan cerca queda el plan de tus números—, no de
+                        corrección clínica, y no constituyen consejo médico.{' '}
+                        {/* [P1-PAPER-BENCHMARK · 2026-08-02] Decía «Medición continua sobre planes
+                            reales». Es la MISMA afirmación falsa que el badge «MEDICIÓN EN VIVO»
+                            que el dueño aprobó retirar (spec §10.1), en el mismo bloque: dejarla
+                            aquí habría sido corregir el titular y no el cuerpo. Revertible en una
+                            línea si el dueño prefiere el copy anterior. */}
+                        La serie es de {`N=${SERIES.n}`} planes dominicanos generados en{' '}
+                        {SERIES.monthLong}: no es una medición en vivo.
                     </p>
                 </div>
 

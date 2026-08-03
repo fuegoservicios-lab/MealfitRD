@@ -1,81 +1,58 @@
-/* [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30 · pulido 2026-06-30] "Acerca de MealfitRD" con un
-   lenguaje visual PROPIO, distinto de dos que ya viven en el sitio:
-     · POLÍTICAS (LegalLayout): tarjeta plana + "Volver" + badge de fecha + prosa.
-     · MARKETING científico (HowItWorksPage): papel milimetrado + figuras SVG line-art.
-   Aquí: aurora de gradientes en deriva (CSS puro, SIN imágenes) concentrada arriba y fundida
-   con suavidad, tipografía editorial, numerales fantasma y layout asimétrico. Theme-aware por
-   tokens (claro/oscuro). Respeta prefers-reduced-motion. */
+/* [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30 · repintado P1-PAPER-SURFACE-EXTEND 2026-08-02]
+   "Acerca de Bioboros". El módulo lo consume UNA sola página y esa página es
+   SUPERFICIE PAPEL siempre (SSOT: `utils/paperSurface.js`), así que se reescribe
+   la BASE en vez de añadir un bloque escopado — mismo criterio que Engine,
+   Pricing, PrecisionPage y Supermarket.
+
+   ── La aurora: qué era y por qué no se «repinta» ──────────────────────────────
+   El diseño de junio era una *aurora de gradientes en deriva*: dos blooms radiales
+   + un velo, animados en bucle infinito (`drift` 30s / `drift2` 38s, ambos
+   `alternate infinite`), construidos con `color-mix` sobre `--primary`,
+   `--primary-light`, `--secondary` y `--accent` A LA VEZ.
+
+   Bajo papel esos cuatro tokens resuelven al MISMO neutro, así que técnicamente
+   ya no pintaba color — y esa es justo la trampa: habría pasado el escáner de
+   tinta en verde siendo, aun así, una mancha difusa gris en deriva permanente.
+   El §2.3 del spec no prohíbe «color»: prohíbe el blur y el degradado como forma
+   de profundidad («la profundidad la carga el grosor de línea»), y el §9 prohíbe
+   los bucles infinitos. Un blob difuminado viola las dos aunque sea gris.
+
+   Se BORRA, no se atenúa. Lo que ocupa su sitio no es otro fondo: son las reglas
+   de 1px que ahora separan las filas del manifiesto, y los numerales fantasma —
+   que ya eran de CONTORNO (`-webkit-text-stroke`) y encajan sin cambiar de idea
+   en el canal sólido/contorno del §5.5.
+
+   Con la aurora se van también `.canvas`, `.veil`, los dos `@keyframes` y el
+   truco de `margin-top` negativo que existía SOLO para que el fondo sangrara por
+   detrás del header fijo (ver `P3-ABOUT-HEADER-SEAM`): sin fondo propio no hay
+   costura que esconder, y el contenido queda exactamente donde estaba porque el
+   `padding-top` que se cancelaba y se reponía era el mismo número.
+
+   Otros cambios que no son cosméticos:
+     · Radio 0 en los 8 sitios que lo tenían (999px de los CTA, 26px del cierre,
+       20px del panel de principios, 14px de las capas).
+     · Cero `backdrop-filter`: lo tenían `.layer`, `.principles` y `.closing`.
+     · Cero `box-shadow` con blur: `.ctaPrimary` colgaba 30-40px.
+     · El único hex del archivo (`#fff` del CTA) pasa a `var(--pa-paper)`.
+     · `.asideLabel` y `.pIndex` iban a 0,7rem = 11,2px con la tinta de cuerpo:
+       suben a 12px + `--pa-ink-2`. Son la capa que dice QUÉ es cada numeral
+       fantasma y cada principio — el piso de decodificación del §2.5.
+     · `.reveal` baja de 0,7s/18px a 0,42s/12px: es el `settle` del §9, con la
+       duración y el desplazamiento que el sistema ya usa en las 6 superficies. */
 
 .page {
     position: relative;
+    /* Se conserva: los numerales fantasma llegan a 10rem y desbordan su columna
+       en anchos intermedios. Sin esto el `body` scrollea en horizontal. */
     overflow: hidden;
-    isolation: isolate;
-    color: var(--text-main);
-    background: var(--bg-page);
-    /* [P3-ABOUT-HEADER-SEAM · 2026-06-30] El Header es una barra flotante `fixed` y el
-       .main-content reserva su alto con padding-top (Layout.jsx). Sin esto, el fondo
-       (aurora) de la página arrancaba JUSTO bajo la barra → costura visible que "no
-       cuadra" con el header. Cancelamos ese padding con un margin-top negativo idéntico
-       y lo reponemos como padding-top del propio .page: el CONTENIDO queda en el mismo
-       sitio, pero el fondo sube por detrás de la barra (como en el landing). Los valores
-       DEBEN coincidir con Layout.jsx (72px+safe-area móvil / 88px desktop). */
-    margin-top: calc(-1 * (72px + max(env(safe-area-inset-top), 18px)));
-    padding: calc(72px + max(env(safe-area-inset-top), 18px)) 0 clamp(4rem, 10vh, 7rem);
-}
-@media (min-width: 768px) {
-    .page {
-        margin-top: -88px;
-        padding-top: 88px;
-    }
-}
-
-/* ───────────────────── aurora abstracta (sin imágenes) ─────────────────────
-   Dos blooms indigo arriba + un velo verde muy tenue, todo con color-mix sobre tokens.
-   Concentrada en la parte superior y fundida al fondo por .veil → sin bandas ni líneas. */
-.canvas {
-    position: absolute;
-    inset: -28% -14% auto;
-    height: 135%;
-    z-index: -2;
-    pointer-events: none;
-    background:
-        radial-gradient(44% 40% at 22% 6%, color-mix(in srgb, var(--primary) 30%, transparent), transparent 66%),
-        radial-gradient(38% 36% at 84% 2%, color-mix(in srgb, var(--primary-light) 22%, transparent), transparent 66%),
-        radial-gradient(50% 46% at 62% 26%, color-mix(in srgb, var(--secondary) 11%, transparent), transparent 72%);
-    animation: drift 30s ease-in-out infinite alternate;
-}
-.canvas::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(24% 28% at 40% 18%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 62%);
-    animation: drift2 38s ease-in-out infinite alternate;
-}
-/* funde la aurora con el fondo antes de que empiecen las filas inferiores */
-.veil {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: linear-gradient(180deg,
-        transparent 0%,
-        color-mix(in srgb, var(--bg-page) 62%, transparent) 42%,
-        var(--bg-page) 76%);
-}
-
-@keyframes drift {
-    from { transform: translate3d(-2%, -1%, 0) scale(1); }
-    to   { transform: translate3d(3%, 2%, 0) scale(1.08); }
-}
-@keyframes drift2 {
-    from { transform: translate3d(2%, 1%, 0) scale(1.05); }
-    to   { transform: translate3d(-3%, -2%, 0) scale(1); }
+    color: var(--pa-ink);
+    background: var(--pa-paper);
+    padding: 0 0 clamp(4rem, 10vh, 7rem);
 }
 
 /* contenedor */
 .inner {
     position: relative;
-    z-index: 1;
     max-width: 1080px;
     margin: 0 auto;
     padding: 0 1.5rem;
@@ -83,52 +60,51 @@
 
 /* ─────────────────────────────────── hero ─────────────────────────────────── */
 .hero {
-    padding: clamp(4.5rem, 13vh, 9rem) 0 clamp(3rem, 7vh, 5rem);
+    padding: clamp(3rem, 9vh, 6rem) 0 clamp(3rem, 7vh, 5rem);
     max-width: 940px;
 }
 .eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 0.7rem;
-    font-family: var(--font-mono, ui-monospace, "SFMono-Regular", Menlo, monospace);
-    font-size: 0.74rem;
-    font-weight: 600;
-    letter-spacing: 0.24em;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--primary);
+    color: var(--pa-ink);
 }
+/* Era un degradado de 1,5px con radio. Ahora es una regla de construcción. */
 .eyebrow::before {
     content: '';
     width: 30px;
-    height: 1.5px;
-    border-radius: 2px;
-    background: linear-gradient(90deg, var(--primary), transparent);
+    height: 1px;
+    border-radius: 0;
+    background: var(--pa-rule);
 }
 .headline {
     font-family: var(--font-heading);
     font-size: clamp(2.5rem, 7.4vw, 5.4rem);
-    font-weight: 800;
-    letter-spacing: -0.042em;
-    line-height: 0.98;
+    font-weight: 400;
+    letter-spacing: -0.028em;
+    line-height: 0.99;
     margin: 1.5rem 0 0;
+    color: var(--pa-ink);
     text-wrap: balance;
 }
+/* Era texto recortado sobre un degradado de tres paradas. Bajo papel las tres
+   son la misma tinta: el énfasis pasa a PESO, como `.accent` de las páginas de
+   detalle y `.titleAccent` de /supermercado. */
 .grad {
-    background: linear-gradient(102deg,
-        var(--primary-light) 0%,
-        var(--primary) 50%,
-        color-mix(in srgb, var(--secondary) 68%, var(--primary)) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
+    font-weight: 500;
+    color: var(--pa-ink);
 }
 .lead {
-    max-width: 640px;
+    max-width: 52ch;
     margin: 1.9rem 0 0;
     font-size: clamp(1.06rem, 1.6vw, 1.3rem);
     line-height: 1.62;
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
 }
 
 /* ticker de palabras clave (reemplaza la clásica "stats strip" del marketing) */
@@ -138,18 +114,21 @@
     align-items: center;
     gap: 0.6rem 0.4rem;
     margin-top: 2.8rem;
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-    font-size: 0.8rem;
-    letter-spacing: 0.01em;
-    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--pa-ink-2);
 }
 .ticker span { display: inline-flex; align-items: center; }
+/* Punto de 4px → regla vertical de 1px, el separador del sistema (mismo gesto
+   que `.statSep` de /supermercado y las verticales del cajetín del footer). */
 .ticker span:not(:last-child)::after {
     content: '';
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--primary) 75%, transparent);
+    width: 1px;
+    height: 11px;
+    background: var(--pa-rule-2);
     margin: 0 0.85rem;
 }
 
@@ -157,15 +136,20 @@
 .rows {
     display: flex;
     flex-direction: column;
-    gap: clamp(4rem, 10vh, 7rem);
-    margin-top: clamp(3.5rem, 9vh, 6.5rem);
+    gap: clamp(2.75rem, 7vh, 4.5rem);
+    margin-top: clamp(3rem, 8vh, 5rem);
 }
+/* La regla de 1px que separa fila de fila ocupa el sitio que dejó la aurora:
+   es la frontera del sistema (spec §1), y aquí además hace legible el layout
+   asimétrico — sin ella dos filas alternadas se leen como una sola mancha. */
 .row {
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, 0.4fr) minmax(0, 0.6fr);
     gap: clamp(1.5rem, 5vw, 4.5rem);
     align-items: start;
+    border-top: 1px solid var(--pa-rule-2);
+    padding-top: clamp(1.75rem, 4vh, 2.75rem);
 }
 /* alterna el lado del numeral fantasma → rompe la simetría */
 .row:nth-child(even) {
@@ -175,46 +159,48 @@
 .row:nth-child(even) .rowBody { order: 1; }
 
 .rowAside { user-select: none; }
+/* Numeral de CONTORNO. Ya lo era (`-webkit-text-stroke` sobre relleno
+   transparente): lo que se va es el degradado que además le teñía el interior.
+   El contorno es el canal del §5.5 para «lo que no es materia». */
 .ghost {
     font-family: var(--font-heading);
-    font-weight: 800;
+    font-weight: 500;
     font-size: clamp(4.5rem, 13vw, 10rem);
     line-height: 0.8;
-    letter-spacing: -0.06em;
+    letter-spacing: -0.05em;
     color: transparent;
-    -webkit-text-stroke: 1.5px color-mix(in srgb, var(--primary) 38%, transparent);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 15%, transparent), transparent 72%);
-    -webkit-background-clip: text;
-    background-clip: text;
+    -webkit-text-stroke: 1px var(--pa-rule-2);
+    font-variant-numeric: tabular-nums lining;
 }
 .asideLabel {
     display: block;
     margin-top: 0.85rem;
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-    font-size: 0.7rem;
-    letter-spacing: 0.22em;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
 }
 .rowTitle {
     font-family: var(--font-heading);
     font-size: clamp(1.6rem, 3.2vw, 2.4rem);
-    font-weight: 800;
-    letter-spacing: -0.032em;
-    line-height: 1.06;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
     margin: 0.35rem 0 0;
-    color: var(--text-main);
+    color: var(--pa-ink);
 }
 .rowText {
     margin: 1.2rem 0 0;
     font-size: clamp(1rem, 1.4vw, 1.13rem);
     line-height: 1.7;
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
     max-width: 56ch;
 }
-.rowText strong { color: var(--text-main); font-weight: 700; }
+.rowText strong { color: var(--pa-ink); font-weight: 600; }
 
-/* "Cómo lo hacemos": pila abstracta de capas (sin diagramas) */
+/* "Cómo lo hacemos": pila de capas. Sin vidrio, sin desplazamiento. */
 .stack {
     margin: 1.8rem 0 0;
     display: flex;
@@ -227,134 +213,115 @@
     gap: 1rem;
     align-items: baseline;
     padding: 1rem 1.2rem;
-    border: 1px solid color-mix(in srgb, var(--text-main) 11%, transparent);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--text-main) 3%, transparent);
-    backdrop-filter: blur(7px);
-    -webkit-backdrop-filter: blur(7px);
-    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.28s ease, background 0.28s ease;
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
+    background: var(--pa-paper);
+    transition: border-color 0.14s linear, background 0.14s linear;
 }
+/* Era `translateX(7px)` + tinte índigo. En papel una capa no se desliza: se
+   hunde y su marco se afila (mismo hover que `.card` de las páginas de detalle). */
 .layer:hover {
-    transform: translateX(7px);
-    border-color: color-mix(in srgb, var(--primary) 48%, transparent);
-    background: color-mix(in srgb, var(--primary) 8%, transparent);
+    border-color: var(--pa-rule);
+    background: var(--pa-sunk);
 }
 .layerIdx {
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-    font-size: 0.76rem;
-    font-weight: 600;
-    color: var(--primary);
-    letter-spacing: 0.06em;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--pa-ink);
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums lining;
 }
-.layerText { font-size: 0.99rem; line-height: 1.5; color: var(--text-muted); }
-.layerText strong { color: var(--text-main); font-weight: 700; }
+.layerText { font-size: 0.99rem; line-height: 1.5; color: var(--pa-ink-2); }
+.layerText strong { color: var(--pa-ink); font-weight: 600; }
 
-/* principios: panel de vidrio único con divisores internos (no el truco de gap) */
+/* principios: una sola caja reglada con divisiones internas */
 .principles {
     margin: 1.7rem 0 0;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    border: 1px solid color-mix(in srgb, var(--text-main) 11%, transparent);
-    border-radius: 20px;
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
     overflow: hidden;
-    background: color-mix(in srgb, var(--text-main) 3%, transparent);
-    backdrop-filter: blur(9px);
-    -webkit-backdrop-filter: blur(9px);
+    background: var(--pa-paper);
 }
 .principle {
     position: relative;
     padding: 1.6rem 1.65rem 1.85rem;
     overflow: hidden;
+    transition: background 0.14s linear;
 }
-/* divisores internos hairline */
-.principle:nth-child(odd) { border-right: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent); }
+/* divisores internos: filete de tabla, no portan información */
+.principle:nth-child(odd) { border-right: 1px solid var(--pa-rule-3); }
 .principle:nth-child(1),
-.principle:nth-child(2) { border-bottom: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent); }
-/* glow suave al hover, anclado a la esquina superior */
-.principle::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(75% 95% at 12% 0%, color-mix(in srgb, var(--primary) 15%, transparent), transparent 68%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-}
-.principle:hover::before { opacity: 1; }
+.principle:nth-child(2) { border-bottom: 1px solid var(--pa-rule-3); }
+/* El hover era un `radial-gradient` que aparecía por opacidad: un glow. Ahora
+   la celda se hunde, igual que la fila de una tabla del sistema. */
+.principle:hover { background: var(--pa-sunk); }
 .pIndex {
     position: relative;
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
-    color: var(--primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--pa-ink-2);
+    font-variant-numeric: tabular-nums lining;
 }
 .pTitle {
     position: relative;
     margin: 0.75rem 0 0.5rem;
     font-family: var(--font-heading);
     font-size: 1.18rem;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: -0.012em;
-    color: var(--text-main);
+    color: var(--pa-ink);
 }
-.pText { position: relative; margin: 0; font-size: 0.95rem; line-height: 1.56; color: var(--text-muted); }
+.pText { position: relative; margin: 0; font-size: 0.95rem; line-height: 1.56; color: var(--pa-ink-2); }
 
 /* ─────────────────────────────────── cierre ─────────────────────────────────── */
+/* Regla estructural negra a lo ancho + contenido centrado, igual que `.finalCta`
+   de las páginas de detalle. Se borra el `::before` (una barra de 84×3px con
+   degradado y radio que marcaba la caja): la caja ya no existe, la marca es la
+   regla. */
 .closing {
     position: relative;
     margin-top: clamp(4rem, 11vh, 7.5rem);
-    padding: clamp(2.75rem, 6vw, 4.75rem);
-    border: 1px solid color-mix(in srgb, var(--text-main) 11%, transparent);
-    border-radius: 26px;
-    background:
-        radial-gradient(90% 150% at 100% 0%, color-mix(in srgb, var(--primary) 15%, transparent), transparent 58%),
-        color-mix(in srgb, var(--text-main) 3%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    padding: clamp(2.75rem, 6vw, 4.75rem) 1.5rem 0;
+    border: 0;
+    border-top: 1px solid var(--pa-rule);
+    border-radius: 0;
+    background: none;
     text-align: center;
-    overflow: hidden;
-}
-/* acento de línea INTENCIONAL centrado arriba (marca de diseño, no una raya suelta) */
-.closing::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 84px;
-    height: 3px;
-    border-radius: 0 0 4px 4px;
-    background: linear-gradient(90deg, transparent, var(--primary), transparent);
 }
 .closingTitle {
     font-family: var(--font-heading);
     font-size: clamp(2.1rem, 5vw, 3.3rem);
-    font-weight: 800;
-    letter-spacing: -0.038em;
-    line-height: 1.02;
+    font-weight: 500;
+    letter-spacing: -0.028em;
+    line-height: 1.04;
     margin: 0;
-    color: var(--text-main);
+    color: var(--pa-ink);
 }
 .closingText {
     max-width: 540px;
     margin: 1.2rem auto 0;
     font-size: 1.07rem;
     line-height: 1.62;
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
 }
 .mail {
     display: inline-block;
     margin-top: 1.5rem;
-    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+    font-family: var(--font-mono);
     font-size: 0.96rem;
-    font-weight: 600;
-    color: var(--primary);
+    font-weight: 500;
+    color: var(--pa-ink);
     text-decoration: none;
-    border-bottom: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+    border-bottom: 1px solid var(--pa-rule-2);
     padding-bottom: 2px;
-    transition: color 0.2s ease, border-color 0.2s ease;
+    transition: border-color 0.12s linear;
 }
-.mail:hover { color: var(--primary-light); border-color: var(--primary-light); }
+.mail:hover { border-bottom-width: 2px; border-color: var(--pa-ink); }
 
 .ctaRow {
     display: flex;
@@ -368,47 +335,63 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    font-weight: 700;
+    font-family: var(--font-heading);
+    font-weight: 600;
     font-size: 0.98rem;
     padding: 0.85rem 1.55rem;
-    border-radius: 999px;
+    border-radius: 0;
     text-decoration: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    transition: background 0.14s linear, border-color 0.14s linear, color 0.14s linear;
 }
+/* Sólido = la acción real. Ni degradado ni sombra de 30px. */
 .ctaPrimary {
-    color: #fff;
-    background: linear-gradient(120deg, var(--primary), color-mix(in srgb, var(--primary) 58%, var(--primary-dark)));
-    box-shadow: 0 10px 30px -12px color-mix(in srgb, var(--primary) 70%, transparent);
+    color: var(--pa-paper);
+    background: var(--pa-ink);
+    border: 1px solid var(--pa-ink);
 }
-.ctaPrimary:hover { transform: translateY(-2px); box-shadow: 0 16px 40px -12px color-mix(in srgb, var(--primary) 82%, transparent); }
+.ctaPrimary:hover { background: var(--pa-ink-2); border-color: var(--pa-ink-2); }
 .ctaGhost {
-    color: var(--text-main);
-    border: 1px solid color-mix(in srgb, var(--text-main) 22%, transparent);
+    color: var(--pa-ink);
+    border: 1px solid var(--pa-ink);
     background: transparent;
 }
-.ctaGhost:hover { border-color: var(--primary); color: var(--primary); }
+.ctaGhost:hover { background: var(--pa-ink); color: var(--pa-paper); }
 
 .mail:focus-visible,
 .ctaPrimary:focus-visible,
 .ctaGhost:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--pa-ink);
     outline-offset: 3px;
-    border-radius: 999px;
+    border-radius: 0;
 }
 
-/* ─────────────────────── entrada suave (reduce-motion aware) ─────────────────────── */
+/* ─────────────────────── entrada suave (reduce-motion aware) ───────────────────────
+   El `settle` del §9: opacidad + 12px, 420ms, `LANDING_EASE`. La página no usa
+   framer-motion, así que la defensa (a) —variants gateadas en su definición— aquí
+   es la propia media query `no-preference`: con `reduce` activo la regla NI SE
+   DECLARA, y el elemento nace visible sin necesidad de `!important`. */
 @media (prefers-reduced-motion: no-preference) {
     .reveal {
         opacity: 0;
-        transform: translateY(18px);
-        animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transform: translateY(12px);
+        animation: rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
     @keyframes rise {
         to { opacity: 1; transform: translateY(0); }
     }
 }
+/* Defensa (b): las transiciones que este módulo INTRODUCE (hover de capa,
+   principio, CTA y correo) no las cubre el guard global de index.css, que solo
+   acorta duraciones. */
 @media (prefers-reduced-motion: reduce) {
-    .canvas, .canvas::after { animation: none; }
+    .layer,
+    .principle,
+    .ctaPrimary,
+    .ctaGhost,
+    .mail {
+        transition: none !important;
+        animation: none !important;
+    }
 }
 
 /* ─────────────────────────────── responsive ─────────────────────────────── */
@@ -425,5 +408,5 @@
     .principle:nth-child(odd) { border-right: none; }
     .principle:nth-child(1),
     .principle:nth-child(2),
-    .principle:nth-child(3) { border-bottom: 1px solid color-mix(in srgb, var(--text-main) 10%, transparent); }
+    .principle:nth-child(3) { border-bottom: 1px solid var(--pa-rule-3); }
 }

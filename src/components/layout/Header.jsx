@@ -1,15 +1,17 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import styles from './Header.module.css';
-import { Menu, X, LayoutDashboard, LogOut, ChevronRight, ChevronDown, Settings as SettingsIcon } from 'lucide-react';
+import { Menu, X, Equal, LayoutDashboard, LogOut, ChevronRight, ChevronDown, Settings as SettingsIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
 import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 // [P1-GUEST-APPEARANCE · 2026-06-15] Selector de tema inline para invitados.
 import GuestAppearanceToggle from '../dashboard/GuestAppearanceToggle';
-// [P3-HEADER-FLOAT-REDESIGN] El consumo de heroCtaVisible se eliminó (el CTA del header
-// es siempre visible); por eso ya NO se importa useHeroCta aquí. Hero sigue siendo el
-// productor del valor vía su provider.
+// [P3-HEADER-FLOAT-REDESIGN] El consumo de heroCtaVisible se eliminó: el CTA del header
+// es siempre visible en marketing (`showStickyCta`, más abajo).
+// [P1-PAPER-HERO-FIG00 · 2026-08-01] Y el productor también murió: al quedarse sin
+// consumidor, `HeroCtaContext` era un IntersectionObserver en el Hero escribiendo un
+// estado que nadie leía. Contexto, provider y ref borrados — no hay puente que restaurar.
 // [P3-LANDING-DARK-ONLY · 2026-06-29] SSOT de rutas de marketing (header completo +
 // tema oscuro forzado + sin config de apariencia).
 import { isMarketingRoute } from '../../utils/marketingRoutes';
@@ -18,6 +20,13 @@ import { isMarketingRoute } from '../../utils/marketingRoutes';
 import { isLegalRoute } from '../../utils/legalRoutes';
 // [P3-NEWS-1 · 2026-07-01] Rutas de Novedades → header completo del landing (nav + CTA).
 import { isNewsRoute } from '../../utils/newsRoutes';
+// [P1-PAPER-THEME · 2026-08-01] SSOT de las 6 rutas que reciben la superficie
+// papel — subconjunto de isLandingLike (esa cubre 19 patrones: marketing +
+// legales + novedades + supermercado). Gatea los 3 elementos NUEVOS de este
+// header (etiqueta ES-DO/V1, índice del menú móvil, glifo de 2 trazos del
+// toggle) para que legales/novedades/supermercado, que siguen en su propio
+// claro/oscuro sin forzar papel, no hereden un vocabulario que no les toca.
+import { isPaperSurface } from '../../utils/paperSurface';
 import Wordmark from '../common/Wordmark';
 
 // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
@@ -48,6 +57,26 @@ const Header = () => {
     const { planData, session, resetApp, userProfile, isGuest, exitGuestSession } = useAssessment();
     const location = useLocation();
     const navigate = useNavigate();
+
+    // [P1-PAPER-THEME · 2026-08-01] ¿La ruta activa es superficie papel?
+    const isPaper = isPaperSurface(location.pathname);
+
+    // [P1-PAPER-THEME · 2026-08-01] La hairline inferior del header se afila
+    // (--pa-rule-2 → --pa-rule) a los 8px de scroll — cambio de estado, no
+    // animación (spec §4.1). El listener corre en todas las rutas (barato,
+    // passive) pero solo el CSS bajo data-theme="paper" reacciona a él.
+    const [isScrolled, setIsScrolled] = useState(false);
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled((prev) => {
+                const next = window.scrollY > 8;
+                return prev === next ? prev : next;
+            });
+        };
+        handleScroll();
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     // No mostrar el botón "Empezar Ahora" si estamos en las rutas de evaluación o plan
     const hideStartNow = location.pathname.startsWith('/assessment') || location.pathname.startsWith('/plan');
@@ -130,12 +159,23 @@ const Header = () => {
 
     return (
         <>
-        <header className={styles.header}>
+        <header className={styles.header} data-scrolled={isScrolled}>
             <div className={styles.container}>
                 {/* [P3-HEADER-LOGO-LINK · 2026-05-31] El logo es Link a "/" (lleva al inicio). */}
-                <Link to="/" className={styles.logo} aria-label="Bioboros — Inicio">
-                    <Wordmark />
-                </Link>
+                <div className={styles.brandCluster}>
+                    <Link to="/" className={styles.logo} aria-label="Bioboros — Inicio">
+                        <Wordmark />
+                    </Link>
+                    {/* [P1-PAPER-THEME · 2026-08-01] Cajetín editorial: regla vertical de
+                        1px × 20px + rótulo mono (spec §4.1). Decorativo — aria-hidden para
+                        que el nombre accesible del header lo siga dando solo el Link. */}
+                    {isPaper && (
+                        <div className={styles.editionTag} aria-hidden="true">
+                            <span className={styles.editionRule} />
+                            <span className={styles.editionLabel}>ES-DO / V1</span>
+                        </div>
+                    )}
+                </div>
 
                 {/* [P3-HEADER-FLOAT-REDESIGN · 2026-06-28 · rutas P3-DETAIL-PAGES] Nav
                     SEGMENTADA CENTRADA (entre logo y CTA). En el DOM también en móvil para
@@ -143,12 +183,18 @@ const Header = () => {
                     enlace de RUTA a su página de detalle; el activo se marca por pathname. */}
                 {isLandingLike && (
                     <nav className={styles.navMarketing} aria-label="Páginas">
+                        {/* [P1-PAPER-THEME · 2026-08-01] `aria-current` baja de `'true'` a
+                            `'page'`: este link SÍ representa "la página actual dentro de un
+                            set de páginas" — el token ARIA correcto es `page` (spec
+                            WAI-ARIA), no el genérico `true`/`false`. Ya coincidía así en el
+                            nav móvil (unas líneas más abajo), en BottomTabBar.jsx y en
+                            Settings.jsx — este desktop era el único con drift. */}
                         {NAV_SECTIONS.map((s) => (
                             <Link
                                 key={s.id}
                                 to={s.to}
                                 className={`${styles.navMarketingLink} ${s.to === location.pathname ? styles.navMarketingLinkActive : ''}`}
-                                aria-current={s.to === location.pathname ? 'true' : undefined}
+                                aria-current={s.to === location.pathname ? 'page' : undefined}
                             >
                                 {s.label}
                             </Link>
@@ -272,18 +318,24 @@ const Header = () => {
                         aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
                         aria-expanded={isMenuOpen}
                     >
-                        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        {/* [P1-PAPER-THEME · 2026-08-01] En papel el glifo baja a "dos
+                            trazos de 1px" (spec §4.1): Equal (2 líneas) reemplaza el
+                            hamburger de 3 líneas de lucide; X no cambia (ya son 2 trazos).
+                            Fuera de papel el icono sigue igual. */}
+                        {isMenuOpen
+                            ? <X size={24} strokeWidth={isPaper ? 1 : 2} />
+                            : (isPaper ? <Equal size={24} strokeWidth={1} /> : <Menu size={24} />)}
                     </button>
                 )}
                 </div>
 
-                {/* Navegación Móvil — [P3-HEADER-MOBILE-FULLSCREEN-PORTAL · 2026-06-29]
-                    Se renderiza con createPortal a document.body. El overlay es
-                    position:fixed inset:0, pero .container tiene backdrop-filter (y el
-                    layout animado usa transform) → un ancestro filtrado/transformado hace
-                    que `fixed` se posicione RELATIVO a ese ancestro, no al viewport, y el
-                    menú quedaba atrapado dentro de la pastilla del header. El portal lo
-                    saca a body → fixed real, pantalla completa de verdad. */}
+                {/* Navegación Móvil —
+                    [P3-HEADER-MOBILE-PORTAL · conservado a propósito P1-PAPER-THEME · 2026-08-01]
+                    El menú móvil se renderiza con createPortal a document.body. El motivo
+                    ORIGINAL era que el backdrop-filter de la pastilla del header rompía
+                    position:fixed — y ese filtro ya no existe en la superficie papel.
+                    SE CONSERVA IGUALMENTE: quitarlo reabre el bug de position:fixed atrapado
+                    en cuanto alguien reintroduzca cualquier filtro o transform en el header. */}
                 {isMenuOpen && hasMobileMenuItems && typeof document !== 'undefined' && createPortal(
                     <nav className={styles.navMobile}>
                         {/* [P3-HEADER-MOBILE-FULLSCREEN · 2026-06-29] Menú full-screen:
@@ -305,7 +357,7 @@ const Header = () => {
                         {/* [P3-HEADER-MOBILE-HAMBURGER · 2026-06-29] Opciones del nav de
                             marketing dentro del menú móvil (landing-like): Cómo funciona,
                             Funciones, Precisión, Precios. */}
-                        {isLandingLike && NAV_SECTIONS.map((s) => (
+                        {isLandingLike && NAV_SECTIONS.map((s, i) => (
                             <Link
                                 key={s.id}
                                 to={s.to}
@@ -313,6 +365,15 @@ const Header = () => {
                                 aria-current={s.to === location.pathname ? 'page' : undefined}
                                 onClick={() => setIsMenuOpen(false)}
                             >
+                                {/* [P1-PAPER-THEME · 2026-08-01] El índice vive AQUÍ, no en
+                                    el nav de escritorio (spec §4.1 rechaza numerarlo ahí):
+                                    en el menú a pantalla completa sí funciona como tabla de
+                                    contenido. aria-hidden lo saca del nombre accesible. */}
+                                {isPaper && (
+                                    <span className={styles.navLinkMobileIndex} aria-hidden="true">
+                                        {String(i + 1).padStart(2, '0')}
+                                    </span>
+                                )}
                                 {s.label}
                             </Link>
                         ))}

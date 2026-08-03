@@ -3,10 +3,16 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
     LayoutGrid, Check, FileDown, History, Sparkles, Gauge, Droplet,
-    Lightbulb, HeartPulse, UserPlus, ChevronRight, ArrowRight, Info, Plus,
+    Lightbulb, HeartPulse, UserPlus, Info, Plus,
 } from 'lucide-react';
-// Comparte el design system minimalista-científico de la página "Cómo funciona"
-// (mismo patrón de módulo CSS compartido que Engine.module.css en el repo).
+// [P2-PAPER-NO-INK · 2026-08-02, Task 13] Banda de cierre: última hija de las 6
+// rutas papel. Componente propio, NUNCA dentro de Footer.jsx (ver ClosingBand.jsx).
+// Sustituye al `.finalCta` local, que pedía el mismo clic con el mismo literal
+// justo antes de la banda; `ChevronRight`/`ArrowRight` salieron con él.
+import ClosingBand from '../components/home/ClosingBand';
+// Comparte el design system minimalista-científico de la página "Cómo funciona".
+// OJO: el módulo compartido es HowItWorksPage.module.css — Engine.module.css lo
+// importa SOLO Engine.jsx (el comentario anterior decía lo contrario).
 import styles from './HowItWorksPage.module.css';
 
 /* [P3-FEATURES-PAGE-SCIENTIFIC · 2026-06-30] Rediseño de "Funciones" en la misma clave
@@ -239,6 +245,7 @@ const FeaturesPage = () => {
     }, []);
 
     return (
+        <>
         <div className={styles.page}>
             {/* ───────────────── hero ───────────────── */}
             <header className={styles.hero}>
@@ -396,17 +403,10 @@ const FeaturesPage = () => {
                         completo está en Precios.
                     </div>
                 </Reveal>
-
-                <Reveal className={styles.finalCta}>
-                    <h2 className={styles.finalTitle}>Pruébalo con tu propio plan</h2>
-                    <p className={styles.finalText}>Gratis para empezar, sin tarjeta. Crea tu primer plan en minutos.</p>
-                    <div className={styles.ctaRow}>
-                        <Link to="/assessment" className={styles.ctaPrimary}>Crear mi Plan <ChevronRight size={19} strokeWidth={2.5} /></Link>
-                        <Link to="/precios" className={styles.ctaGhost}>Ver planes <ArrowRight size={18} strokeWidth={2.25} /></Link>
-                    </div>
-                </Reveal>
             </div>
         </div>
+        <ClosingBand />
+        </>
     );
 };
 

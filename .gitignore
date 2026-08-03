@@ -62,3 +62,4 @@ coverage/
 
 # Artefactos de redirects fallidos a NUL en Windows (p.ej. nul.css)
 nul*
+test-results/

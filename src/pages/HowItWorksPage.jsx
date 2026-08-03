@@ -2,9 +2,17 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-    ClipboardList, ChevronRight, ArrowRight, Check, ShieldCheck, Gauge,
+    ClipboardList, Check, ShieldCheck, Gauge,
     Repeat, Soup, CalendarClock, Info, Plus, Cpu, Salad,
 } from 'lucide-react';
+// [P2-PAPER-NO-INK · 2026-08-02, Task 13] Banda de cierre: última hija de las 6
+// rutas papel. Componente propio, NUNCA dentro de Footer.jsx — el footer se
+// renderiza en 21 rutas, incluidas las 10 legales (ver ClosingBand.jsx).
+// Sustituye al `.finalCta` local, que pedía el mismo clic con el mismo literal
+// justo antes de la banda. `ChevronRight`/`ArrowRight` salieron del import con
+// él — eran sus únicos usos aquí. `/research` conserva SU `.finalCta`: no es
+// ruta papel y no lleva banda.
+import ClosingBand from '../components/home/ClosingBand';
 import styles from './HowItWorksPage.module.css';
 
 /* [P3-HOWITWORKS-PAGE-SCIENTIFIC · 2026-06-30] Página de detalle de "Cómo funciona"
@@ -242,6 +250,7 @@ const HowItWorksPage = () => {
     }, []);
 
     return (
+        <>
         <div className={styles.page}>
             {/* ───────────────── hero ───────────────── */}
             <header className={styles.hero}>
@@ -447,17 +456,10 @@ const HowItWorksPage = () => {
                         profesional de la salud.
                     </div>
                 </Reveal>
-
-                <Reveal className={styles.finalCta}>
-                    <h2 className={styles.finalTitle}>¿List@ para tu plan calculado?</h2>
-                    <p className={styles.finalText}>Responde unas preguntas y deja que el motor haga el resto.</p>
-                    <div className={styles.ctaRow}>
-                        <Link to="/assessment" className={styles.ctaPrimary}>Crear mi Plan <ChevronRight size={19} strokeWidth={2.5} /></Link>
-                        <Link to="/precios" className={styles.ctaGhost}>Ver planes <ArrowRight size={18} strokeWidth={2.25} /></Link>
-                    </div>
-                </Reveal>
             </div>
         </div>
+        <ClosingBand />
+        </>
     );
 };
 

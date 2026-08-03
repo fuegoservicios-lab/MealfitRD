@@ -1,11 +1,68 @@
-/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Página informativa del motor MealfitRD v1.0.0.
-   Theme-aware vía variables del DS (claro/oscuro automático). Diseño tipo "landing
-   técnica": intro + stats + pipeline + guardas clínicas + precisión + honestidad + CTA. */
+/* ============================================================================
+   /motor — «papel técnico»
+   [P3-ENGINE-INFO-PAGE · 2026-06-28 · repintado P2-PAPER-NO-INK · 2026-08-02, Task 13]
+
+   `Engine.jsx` es el ÚNICO importador de este módulo y `/motor` es ruta papel
+   (`utils/paperSurface.js`), así que se reescribe DIRECTO a `var(--pa-*)` en
+   vez de añadir un bloque `:global(html[data-theme="paper"])`. Contrasta con
+   `HowItWorksPage.module.css`, que sí lo lleva escopado porque además sirve a
+   `/research`, que NO es papel.
+
+   Lo que cambia es el MATERIAL, no la maqueta: la página conserva su
+   estructura (intro centrada → prosa técnica → gráfico → tabla → disclaimer),
+   y lo que se sustituye es tinta por color, hairline por borde blando,
+   rectángulo por píldora y regla por sombra.
+
+   ── Lo que se fue ──────────────────────────────────────────────────────────
+
+   · Todo `border-radius` distinto de 0 (píldoras de 999px, tarjetas de 16-24px).
+   · Todo `box-shadow` con blur: los glows `0 10px 20px -10px var(--primary)`,
+     `0 18px 32px -16px`, el `0 40px 80px -40px rgba(0,0,0,.7)` del emblema y
+     el `inset 0 1px 0` del lienzo.
+   · Los gradientes de marca: `.accent` y `.statNum` recortaban un
+     `linear-gradient(var(--primary), var(--accent))` DENTRO de la letra
+     (`-webkit-background-clip: text`); `.finalCta` y `.ctaPrimary` lo llevaban
+     de fondo; `.modelCanvas` mezclaba un radial índigo con `#05070E`.
+   · `#0B1120` (el plafón navy del emblema) y `#EEF2FF`.
+   · El bloque entero de clases `.m*` del diagrama SVG del modelo, con sus 5
+     `@keyframes` (`mspin`, `mspinRev`, `mFlow`, `mseq`, `mCorePulse`) y
+     `.modelSvg`. El diagrama lo borró `P3-ENGINE-DIAGRAM-REMOVED · 2026-07-01`
+     del JSX y su CSS quedó huérfano: ~30 selectores inalcanzables, cuatro
+     animaciones en bucle infinito que ya no animaban nada, y el `#EEF2FF` de
+     arriba. Verificado antes de borrar: cero `styles.m*` en `Engine.jsx`.
+
+   ── El emblema del modelo (`/model-v1`) ────────────────────────────────────
+
+   `.modelImg` es un mandala botánico a todo color (navy, verdes, rojos, glow
+   púrpura) de 671×671 servido `eager`. Es la ÚNICA excepción declarada al
+   «cero filtros» del sistema, y la excepción ya existía: `NewsHighlight
+   .module.css` aplica `filter: grayscale(1) contrast(1.08)` a ESTA MISMA
+   imagen en el registro de la home. El tratamiento nunca se replicó aquí.
+   La razón de la excepción: un emblema no es un dato. Colapsar sus colores
+   por luma es intencional donde la imagen es una foto/logo real, y está
+   prohibido donde el color codifica estado.
+
+   El plafón que lo enmarcaba (`background: #0B1120` + dos sombras, una de
+   ellas un glow índigo de 70px) pasa a papel con hairline de 1px: la imagen
+   ya es oscura de por sí; sumarle un marco oscuro la convertía en un bloque
+   de tinta compitiendo con el footer, que es la única inversión del sistema.
+
+   ── Piso tipográfico ───────────────────────────────────────────────────────
+
+   Los rótulos del gráfico (`.chartYLabel` 10px, `.chartXLabel` 11px,
+   `.chartLegend` 11px) suben a 12px + `--pa-ink-2`. Spec §2.5: 11px es el piso
+   ABSOLUTO, pero cualquier cosa que sirva para DECODIFICAR una figura tiene
+   piso 12px. Un eje sin el cual no se sabe qué mide una barra decodifica.
+   El SVG va en un viewBox de 640×360 renderizado hasta 720px, así que 12px de
+   viewBox salen a ~13,5px reales — el piso se cumple con margen.
+   ========================================================================= */
+
 .page {
     max-width: 1000px;
     margin: 0 auto;
     padding: 1.5rem 1.25rem 5rem;
-    color: var(--text-main);
+    background: var(--pa-paper);
+    color: var(--pa-ink);
 }
 
 /* ---------------------------------------------------------------- intro */
@@ -13,75 +70,91 @@
     text-align: center;
     padding: 1.5rem 0 1rem;
 }
+
+/* Rótulo de apertura. Antes: píldora índigo de radio 999px con fondo y borde
+   tintados (`color-mix(var(--primary) 12% / 28%)`). Ahora la misma etiqueta
+   mono que abre cada sección de la home. */
 .eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 700;
+    gap: 0.5rem;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.8125rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
-    padding: 0.42rem 0.9rem;
-    border-radius: 999px;
+    color: var(--pa-ink);
 }
+
 .title {
     font-family: var(--font-heading);
     font-size: clamp(2.1rem, 5.5vw, 3.4rem);
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1.04;
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
     margin: 1.2rem 0 0;
+    color: var(--pa-ink);
     text-wrap: balance;
 }
+
+/* Era el degradado recortado dentro de la letra. En papel el énfasis es
+   tinta, no color: el nombre del modelo se distingue por PESO. */
 .accent {
-    background: linear-gradient(110deg, var(--primary), var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    font-weight: 500;
+    color: var(--pa-ink);
 }
+
 .lead {
-    max-width: 640px;
+    max-width: 52ch;
     margin: 1.2rem auto 0;
-    font-size: 1.06rem;
-    line-height: 1.62;
-    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    color: var(--pa-ink-2);
     /* [P3-ENGINE-AXIS · 2026-07-11] Texto centrado multilínea: balancear el
        quiebre de líneas (sin esto las 3 líneas salen desiguales/"dobladas"). */
     text-wrap: balance;
 }
 
-/* ---------------------------------------------------------------- stats */
+/* ---------------------------------------------------------------- stats
+   [P3-ENGINE-MINIMAL · 2026-07-01] La fila de stats se retiró del JSX; estas
+   reglas ya no las alcanza nadie. Se repintan igual (en vez de borrarlas en
+   esta tarea, que no es su dueña) para que quien las reviva no herede un
+   degradado índigo. */
 .stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin: 2.6rem 0 0;
+    border-top: 1px solid var(--pa-rule);
+    border-bottom: 1px solid var(--pa-rule);
 }
 .stat {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
+    background: var(--pa-paper);
+    border-radius: 0;
     padding: 1.15rem 0.9rem;
     text-align: center;
+}
+.stat + .stat {
+    border-left: 1px solid var(--pa-rule-3);
 }
 .statNum {
     font-family: var(--font-heading);
     font-size: 1.75rem;
-    font-weight: 800;
+    font-weight: 500;
     letter-spacing: -0.02em;
     line-height: 1;
-    background: linear-gradient(120deg, var(--primary), var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    font-variant-numeric: tabular-nums lining;
+    color: var(--pa-ink);
 }
 .statLabel {
-    font-size: 0.8rem;
-    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--pa-ink-2);
     margin-top: 0.4rem;
     line-height: 1.3;
 }
@@ -101,20 +174,26 @@
 }
 .sectionTitle {
     font-family: var(--font-heading);
-    font-size: clamp(1.55rem, 3.6vw, 2.05rem);
-    font-weight: 800;
-    letter-spacing: -0.025em;
+    font-size: clamp(1.75rem, 3.4vw, 2.05rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
     margin: 0;
+    color: var(--pa-ink);
 }
 .sectionLead {
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
+    font-family: var(--font-body);
     font-size: 1rem;
-    line-height: 1.55;
+    line-height: 1.6;
     margin: 0.65rem 0 0;
-    max-width: 660px;
+    max-width: 66ch;
 }
 
-/* ------------------------------------------------------------- pipeline */
+/* ------------------------------------------------------------- pipeline
+   Los pasos numerados salieron del JSX en `P3-ENGINE-ARCH-PROSE · 2026-07-01`
+   (los sustituyó `.prose`). Mismo criterio que `.stats`: repintados, no
+   borrados por esta tarea. */
 .steps {
     margin-top: 1.9rem;
 }
@@ -129,23 +208,23 @@
     flex: none;
 }
 .stepNum {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    border-radius: 0;
     flex: none;
     display: grid;
     place-items: center;
-    font-family: var(--font-heading);
-    font-weight: 800;
-    font-size: 1.05rem;
-    color: #fff;
-    background: linear-gradient(150deg, var(--primary), var(--primary-dark));
-    box-shadow: 0 10px 20px -10px var(--primary);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--pa-paper);
+    background: var(--pa-ink);
+    box-shadow: none;
 }
 .stepLine {
     flex: 1;
-    width: 2px;
-    background: var(--border);
+    width: 1px;
+    background: var(--pa-rule-2);
     margin: 8px 0;
     min-height: 18px;
 }
@@ -159,53 +238,61 @@
     padding-bottom: 0;
 }
 .stepTitle {
-    font-weight: 700;
-    font-size: 1.08rem;
+    font-family: var(--font-heading);
+    font-weight: 500;
+    font-size: 1.125rem;
     margin-top: 0.45rem;
+    color: var(--pa-ink);
 }
 .stepText {
-    color: var(--text-muted);
-    font-size: 0.96rem;
-    line-height: 1.5;
+    color: var(--pa-ink-2);
+    font-size: 0.9375rem;
+    line-height: 1.55;
     margin-top: 0.3rem;
 }
 
 /* ----------------------------------------------------------- cards grid */
 .cards {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.85rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-top: 1.9rem;
+    border-top: 1px solid var(--pa-rule);
+    border-bottom: 1px solid var(--pa-rule);
 }
 .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.25rem;
-    transition: transform 0.18s ease, border-color 0.18s ease;
+    background: var(--pa-paper);
+    border: 0;
+    border-radius: 0;
+    padding: 1.5rem 1.25rem;
+    transition: background 140ms linear;
+}
+.card + .card {
+    border-left: 1px solid var(--pa-rule-3);
 }
 .card:hover {
-    transform: translateY(-3px);
-    border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+    transform: none;
 }
 .cardIcon {
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 0;
     display: grid;
     place-items: center;
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--pa-ink);
+    background: none;
+    border: 1px solid var(--pa-rule-2);
     margin-bottom: 0.9rem;
 }
 .cardTitle {
-    font-weight: 700;
-    font-size: 1.02rem;
+    font-family: var(--font-heading);
+    font-weight: 500;
+    font-size: 1.0625rem;
+    color: var(--pa-ink);
 }
 .cardText {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    line-height: 1.5;
+    color: var(--pa-ink-2);
+    font-size: 0.9375rem;
+    line-height: 1.55;
     margin-top: 0.4rem;
 }
 
@@ -215,145 +302,121 @@
     display: flex;
     gap: 1rem;
     align-items: flex-start;
-    background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
-    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    border-radius: 18px;
+    background: var(--pa-sunk);
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
     padding: 1.4rem 1.5rem;
 }
 .disclaimerIcon {
-    color: var(--accent);
+    color: var(--pa-ink);
     flex: none;
     margin-top: 2px;
 }
 .disclaimerText {
-    font-size: 0.94rem;
-    line-height: 1.58;
-    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    /* Nota hundida: `--pa-ink-2` sobre `--pa-sunk` da 9,89:1 (spec §3). */
+    color: var(--pa-ink-2);
 }
 
-/* ------------------------------------------------------------ final CTA */
-.finalCta {
-    margin-top: 4rem;
-    text-align: center;
-    background: linear-gradient(150deg, color-mix(in srgb, var(--primary) 16%, var(--bg-card)), var(--bg-card));
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 3rem 1.5rem;
-}
-.finalTitle {
-    font-family: var(--font-heading);
-    font-size: clamp(1.6rem, 4.2vw, 2.3rem);
-    font-weight: 800;
-    letter-spacing: -0.025em;
-    margin: 0;
-    text-wrap: balance;
-}
-.finalText {
-    color: var(--text-muted);
-    margin: 0.75rem auto 1.7rem;
-    max-width: 460px;
-    line-height: 1.55;
-    text-wrap: balance;
-}
-.ctaRow {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-.ctaPrimary {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    color: #fff;
-    font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 1.02rem;
-    padding: 0.95rem 1.8rem;
-    border-radius: 999px;
-    text-decoration: none;
-    box-shadow: 0 18px 32px -16px var(--primary);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.ctaPrimary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 22px 40px -16px var(--primary);
-}
-.ctaGhost {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: transparent;
-    color: var(--text-main);
-    border: 1px solid var(--border);
+/* Enlaces contextuales dentro del disclaimer. Son la única salida lateral del
+   cuerpo de /motor (ver el comentario del disclaimer en Engine.jsx): subrayado
+   por hairline, no por color, igual que `.disclaimerText a` de
+   HowItWorksPage.module.css. */
+.disclaimerText a {
+    color: var(--pa-ink);
     font-weight: 600;
-    font-size: 1.02rem;
-    padding: 0.95rem 1.6rem;
-    border-radius: 999px;
     text-decoration: none;
-    transition: border-color 0.18s ease, background 0.18s ease;
+    border-bottom: 1px solid var(--pa-rule-2);
+    transition: border-color 140ms linear;
 }
-.ctaGhost:hover {
-    border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
-    background: color-mix(in srgb, var(--primary) 6%, transparent);
+.disclaimerText a:hover {
+    border-bottom-color: var(--pa-ink);
 }
+.disclaimerText a:focus-visible {
+    outline: 2px solid var(--pa-ink);
+    outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------ final CTA
+   [P2-PAPER-NO-INK · 2026-08-02 · borrado en fix1] Aquí vivían `.finalCta`,
+   `.finalTitle`, `.finalText`, `.ctaRow`, `.ctaPrimary` y `.ctaGhost`. El JSX
+   dejó de montarlas al cerrar la página con `<ClosingBand />` (pedían el mismo
+   clic con el mismo literal, seguidas).
+
+   En fix1 se BORRAN en vez de conservarse «por si otra página del grupo las
+   reusa», que era la razón que dejé escrita y que es falsa: `Engine.jsx` es el
+   ÚNICO importador de este módulo — lo establece la corrección de cabecera de
+   este mismo trabajo, que desmintió el comentario de junio que decía que las
+   páginas de detalle lo compartían. Sin importador que las monte, eran ~90
+   líneas inalcanzables detrás de un comentario caduco: exactamente la clase de
+   cosa que este commit fue a cazar.
+
+   OJO — la retención SÍ es correcta en `HowItWorksPage.module.css`: allí
+   `ResearchPage.jsx` (ruta NO papel, sin banda de cierre) sigue montando su
+   `.finalCta`. No borrar aquellas creyendo que este borrado sienta precedente.
+   ========================================================================= */
 
 /* ----------------------------------------------------------- responsive */
 @media (max-width: 760px) {
     .stats {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .cards {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .card, .ctaPrimary { transition: none; }
+    .card + .card {
+        border-left: 0;
+        border-top: 1px solid var(--pa-rule-3);
+    }
 }
 
 /* ============================================================
-   [P3-DETAIL-PAGES · 2026-06-29] Extras compartidos por las
-   páginas de detalle (/como-funciona, /funciones, /precision).
-   Reusan el patrón de Engine para consistencia visual.
+   [P3-DETAIL-PAGES · 2026-06-29] Extras que nacieron para las páginas de
+   detalle. OJO: hoy `/como-funciona`, `/funciones` y `/precision` importan
+   `HowItWorksPage.module.css`, NO este archivo — el comentario original
+   quedó caduco. De estas clases, `Engine.jsx` solo usa `.cmpTableWrap`,
+   `.cmpTable`, `.cmpColHi` y `.cmpBad`.
    ============================================================ */
 
-/* listas de viñetas con check */
 .bullets { list-style: none; padding: 0; margin: 1.1rem 0 0; display: grid; gap: 0.6rem; }
-.bullet { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.95rem; line-height: 1.5; color: var(--text-muted); }
-.bulletIcon { color: var(--primary); flex: none; margin-top: 2px; }
-.bullet strong { color: var(--text-main); font-weight: 650; }
+.bullet { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.9375rem; line-height: 1.55; color: var(--pa-ink-2); }
+.bulletIcon { color: var(--pa-ink); flex: none; margin-top: 2px; }
+.bullet strong { color: var(--pa-ink); font-weight: 600; }
 
-/* bloque de función (deep-dive de cada feature) */
-.feature { margin-top: 1.4rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 1.6rem 1.7rem; transition: border-color 0.18s ease; }
-.feature:hover { border-color: color-mix(in srgb, var(--primary) 36%, var(--border)); }
+.feature { margin-top: 1.4rem; background: var(--pa-paper); border: 1px solid var(--pa-rule-2); border-radius: 0; padding: 1.6rem 1.7rem; }
+.feature:hover { border-color: var(--pa-rule); }
 .featureHead { display: flex; align-items: center; gap: 0.9rem; }
-.featureIcon { width: 50px; height: 50px; border-radius: 14px; display: grid; place-items: center; color: #fff; flex: none; box-shadow: 0 10px 22px -12px currentColor; }
-.featureTitle { font-family: var(--font-heading); font-weight: 800; font-size: 1.2rem; letter-spacing: -0.02em; }
-.featureSub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem; }
-.featureText { color: var(--text-muted); font-size: 0.97rem; line-height: 1.56; margin-top: 0.95rem; }
+.featureIcon { width: 44px; height: 44px; border-radius: 0; display: grid; place-items: center; color: var(--pa-ink); border: 1px solid var(--pa-rule-2); flex: none; box-shadow: none; }
+.featureTitle { font-family: var(--font-heading); font-weight: 500; font-size: 1.1875rem; letter-spacing: -0.02em; color: var(--pa-ink); }
+.featureSub { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; color: var(--pa-ink-2); margin-top: 0.15rem; }
+.featureText { color: var(--pa-ink-2); font-size: 0.9375rem; line-height: 1.6; margin-top: 0.95rem; }
 
-/* tags / pills */
+/* Etiquetas accesorias: contorno de 1px, radio 0. */
 .tagRow { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1.1rem; }
-.tag { font-size: 0.73rem; font-weight: 600; color: var(--text-muted); background: color-mix(in srgb, var(--text-main) 6%, transparent); border: 1px solid var(--border); border-radius: 999px; padding: 0.3rem 0.7rem; }
+.tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pa-ink-2); background: transparent; border: 1px solid var(--pa-rule-2); border-radius: 0; padding: 0.3rem 0.6rem; }
 
-/* tabla comparativa */
-.cmpTableWrap { margin-top: 1.9rem; overflow-x: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--bg-card); }
+/* Tabla comparativa — misma gramática que la tabla de revisiones de la home
+   (`NewsHighlight.module.css`): regla negra arriba, cabeceras mono 12px sobre
+   `--pa-ink-2`, filas separadas por `--pa-rule-3`. */
+.cmpTableWrap { margin-top: 1.9rem; overflow-x: auto; border: 0; border-top: 1px solid var(--pa-rule); border-radius: 0; background: var(--pa-paper); }
 .cmpTable { width: 100%; border-collapse: collapse; min-width: 480px; }
-.cmpTable th, .cmpTable td { padding: 0.85rem 1.1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.93rem; }
-.cmpTable thead th { font-family: var(--font-heading); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.02em; color: var(--text-main); }
-.cmpTable tbody tr:last-child td { border-bottom: none; }
-.cmpTable td:first-child, .cmpTable th:first-child { color: var(--text-main); }
-.cmpGood { color: var(--primary); font-weight: 800; font-variant-numeric: tabular-nums; }
-.cmpBad { color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.cmpColHi { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.cmpTable th, .cmpTable td { padding: 0.85rem 1.1rem; text-align: left; border-bottom: 1px solid var(--pa-rule-3); font-size: 0.9375rem; color: var(--pa-ink-2); }
+.cmpTable thead th { font-family: var(--font-mono); font-weight: 500; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pa-ink-2); border-bottom: 1px solid var(--pa-rule); }
+.cmpTable tbody tr:last-child td { border-bottom: 1px solid var(--pa-rule); }
+.cmpTable td:first-child, .cmpTable th:first-child { color: var(--pa-ink); }
+.cmpGood { color: var(--pa-ink); font-weight: 600; font-variant-numeric: tabular-nums lining; }
+.cmpBad { color: var(--pa-ink-2); font-variant-numeric: tabular-nums lining; }
+/* Columna destacada: hundida, no tintada. Sola no informa (1,064:1) — el dato
+   lo lleva la cabecera de la columna, en texto. */
+.cmpColHi { background: var(--pa-sunk); }
 
 /* FAQ */
-.faq { margin-top: 1.9rem; display: grid; gap: 0.7rem; }
-.faqItem { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem; }
-.faqQ { font-weight: 700; font-size: 1rem; }
-.faqA { color: var(--text-muted); font-size: 0.93rem; line-height: 1.55; margin-top: 0.4rem; }
+.faq { margin-top: 1.9rem; border-top: 1px solid var(--pa-rule); }
+.faqItem { background: var(--pa-paper); border: 0; border-bottom: 1px solid var(--pa-rule-3); border-radius: 0; padding: 1.1rem 0; }
+.faqQ { font-family: var(--font-heading); font-weight: 500; font-size: 1.0625rem; color: var(--pa-ink); }
+.faqA { color: var(--pa-ink-2); font-size: 0.9375rem; line-height: 1.6; margin-top: 0.4rem; }
 
 /* mockup de pantalla real por feature (reusa los componentes de DashboardShowcase) */
 .featureMockup { display: flex; justify-content: center; margin-top: 1.5rem; }
@@ -361,70 +424,83 @@
 
 @media (max-width: 760px) {
     .feature { padding: 1.3rem 1.25rem; }
-    .featureIcon { width: 44px; height: 44px; }
+    .featureIcon { width: 40px; height: 40px; }
     .cmpTable { min-width: 420px; }
 }
 
 /* ============================================================
-   [P3-ENGINE-MODEL-DIAGRAM · 2026-06-30] Lenguaje visual PROPIO de /motor
-   (distinto al line-art sobre dot-grid del resto): estética "blueprint" +
-   la imagen abstracta grande del modelo v1.0. Marketing → dark-only.
+   [P3-ENGINE-MODEL-DIAGRAM · 2026-06-30 · repintado 2026-08-02]
+   Lo que era el lenguaje «blueprint» propio de /motor (rejilla índigo sobre
+   plafón navy, glow radial, marco con halo) pasa a ser lo que ya era el resto
+   del sistema: hoja de papel con cuadrícula y hairline.
    ============================================================ */
 
-/* kicker de sección tipo esquema (monospace, "01 / pipeline") */
+/* Kicker de sección tipo esquema («01 / arquitectura»). Decodifica la
+   sección → 12px + `--pa-ink-2` (spec §2.5). La pila mono hecha a mano en
+   12+ sitios de este archivo se sustituye por `var(--font-mono)`, que
+   `index.css` ya declara en `:root`. */
 .kicker {
     display: inline-block;
-    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--primary) 78%, var(--text-muted));
+    color: var(--pa-ink-2);
     margin-bottom: 0.7rem;
 }
 
-/* figura del modelo (una sola imagen abstracta al inicio) */
 .modelFigure {
     margin: 2.6rem 0 0;
 }
+
+/* Lienzo de figura: hairline + cuadrícula del pliego. Antes era un plafón
+   `color-mix(var(--bg-page) 60%, #05070E)` con radial índigo encima, sombra
+   interior blanca y una sombra exterior de 60px de blur. */
 .modelCanvas {
     position: relative;
-    border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
-    border-radius: 20px;
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
     padding: 0.5rem 0.5rem 0.25rem;
     overflow: hidden;
-    background:
-        radial-gradient(120% 90% at 50% 40%, color-mix(in srgb, var(--primary) 12%, transparent) 0%, transparent 60%),
-        color-mix(in srgb, var(--bg-page) 60%, #05070E);
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent), 0 30px 60px -30px rgba(0, 0, 0, 0.6);
+    background: var(--pa-paper);
+    box-shadow: none;
 }
-/* rejilla blueprint: líneas finas (NO puntos) — el diferenciador vs las otras páginas */
+
+/* La rejilla del lienzo: líneas finas de la cuadrícula milimetrada. Se
+   conserva el `mask-image` de desvanecimiento (no es blur: recorta alfa).
+
+   `z-index: 0` + `.chartSvg { position: relative; z-index: 1 }` NO es
+   defensivo: un pseudo-elemento `::before` posicionado se pinta DESPUÉS del
+   contenido del elemento, así que la rejilla caía ENCIMA del gráfico.
+   Medido en navegador: cada barra negra aparecía partida por una costura
+   vertical blanca cada 40px. Antes no se veía porque la rejilla era índigo al
+   16% con `opacity: 0.5` sobre un plafón oscuro — invisible por accidente, no
+   por orden de pintado. Al pasar a `--pa-grid` sólido sobre papel, el
+   accidente dejó de taparlo. */
 .blueprint::before {
     content: '';
     position: absolute;
     inset: 0;
+    z-index: 0;
     pointer-events: none;
     background-image:
-        linear-gradient(color-mix(in srgb, var(--primary) 16%, transparent) 1px, transparent 1px),
-        linear-gradient(90deg, color-mix(in srgb, var(--primary) 16%, transparent) 1px, transparent 1px);
-    background-size: 34px 34px;
+        linear-gradient(var(--pa-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--pa-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
     -webkit-mask-image: radial-gradient(120% 100% at 50% 45%, #000 30%, transparent 82%);
     mask-image: radial-gradient(120% 100% at 50% 45%, #000 30%, transparent 82%);
-    opacity: 0.5;
+    opacity: 1;
 }
-.modelSvg {
-    position: relative;
-    display: block;
-    width: 100%;
-    height: auto;
-}
+
+/* Pie de figura: mono 12px, la misma fila «Rótulo de figura» de la escala. */
 .modelCaption {
     margin-top: 0.85rem;
     text-align: center;
-    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
     letter-spacing: 0.04em;
-    color: var(--text-muted);
+    color: var(--pa-ink-2);
 }
 
 /* [P3-ENGINE-MODEL-IMAGE · 2026-07-01] fecha/versión de publicación (bajo el título) */
@@ -435,110 +511,135 @@
     flex-wrap: wrap;
     gap: 0.65rem;
     margin-top: 1.15rem;
-    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-    font-size: 0.78rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
 }
 .releaseTag {
-    color: var(--primary);
+    color: var(--pa-ink);
     font-weight: 600;
-    letter-spacing: 0.04em;
-    padding: 0.32rem 0.72rem;
-    border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
+    background: transparent;
 }
-.releaseDate { color: var(--text-muted); letter-spacing: 0.02em; }
+.releaseDate { color: var(--pa-ink-2); letter-spacing: 0.04em; }
 
-/* imagen del modelo (emblema) — marco con glow, encaja con el fondo oscuro */
+/* Emblema del modelo. Ver la cabecera del archivo para por qué el
+   `grayscale()` es una excepción DECLARADA y no una grieta en el «cero
+   filtros»: la referencia viva es `NewsHighlight.module.css:.emblem`, que
+   aplica exactamente este filtro a esta misma imagen. */
 .modelImgWrap {
     max-width: 540px;
     margin: 0 auto;
-    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
-    border-radius: 24px;
+    border: 1px solid var(--pa-rule-2);
+    border-radius: 0;
     overflow: hidden;
-    background: #0B1120;
-    box-shadow:
-        0 40px 80px -40px rgba(0, 0, 0, 0.7),
-        0 0 70px -34px color-mix(in srgb, var(--primary) 45%, transparent);
+    background: var(--pa-paper);
+    box-shadow: none;
 }
-.modelImg { display: block; width: 100%; height: auto; }
+/* El filtro lleva `invert(1)`, y eso NO es un capricho — es lo que dijo la
+   medición. Muestreada la imagen real (671×671, `/model-v1.webp`) en el
+   navegador, sobre canvas:
+
+       luma media de la lámina .................... 55/255  (mayormente tinta)
+       luma del fondo de la lámina ................  6/255
+       contraste fondo-lámina vs papel #FBFBFA .... 19,53:1   ← solo grayscale
+       contraste con invert(1) ....................  1,02:1   ← sobre el pliego
+
+   Con `grayscale(1)` a secas la lámina NO queda «gris sucio» (esa era la
+   hipótesis a descartar): queda LIMPIA, pero queda un bloque de 540×540 a
+   19,53:1 contra el papel. Eso es, por la definición del propio sistema, una
+   INVERSIÓN — y la spec §4.7 reserva esa figura al footer, «el único bloque
+   invertido del sistema». Un segundo bloque invertido, encima por encima del
+   pliegue, se lo lleva por delante.
+
+   Con `invert(1)` el fondo cae a 1,02:1: la lámina se apoya EN la hoja y el
+   mandala pasa a leerse como una plancha de atlas botánico grabada — el
+   registro exacto de «papel técnico». El `contrast()` baja de 1,08 a 1,05
+   porque tras invertir el material ya nace más contrastado.
+
+   Alternativa evaluada y descartada: dejarla oscura y encogerla a ~240px para
+   que leyera como un SELLO en vez de como una inversión. Funciona, pero
+   convierte en miniatura la única pieza gráfica grande de la página.
+
+   Este `filter` es la ÚNICA excepción declarada al «cero filtros» del sistema
+   (la otra instancia viva es `NewsHighlight.module.css:.emblem`, sobre ESTA
+   MISMA imagen). Razón: un emblema no es un dato. Donde el color codifica
+   estado, colapsarlo está prohibido.
+
+   ⚠️ Lo que el CSS NO puede arreglar: el raster lleva «MEALFITRD · MODELO»
+   rotulado EN LOS PÍXELES, bajo un H1 que dice «Presentamos a Bioboros v1».
+   Ningún grep alcanza eso. Requiere re-generar el asset. */
+.modelImg {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: grayscale(1) invert(1) contrast(1.05);
+}
 
 /* [P3-ENGINE-COMPARISON · 2026-07-01] gráfico comparativo (barras) + barras por macro */
 .chartFigure { margin: 1.9rem 0 0; }
-.chartSvg { display: block; width: 100%; height: auto; }
-.chartGrid { stroke: color-mix(in srgb, var(--text-muted) 16%, transparent); stroke-width: 1; stroke-dasharray: 2 4; }
-.chartYLabel { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10px; text-anchor: end; }
-.chartXLabel { fill: var(--text-main); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.02em; text-anchor: middle; }
-.chartVal { fill: var(--primary); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 700; text-anchor: middle; }
-.chartValDim { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; text-anchor: middle; }
-.chartLegend { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; }
-.chartBarMf { fill: var(--primary); }
-.chartBarLlm { fill: color-mix(in srgb, var(--text-muted) 42%, transparent); }
-.chartNote { margin-top: 0.9rem; font-size: 0.82rem; line-height: 1.5; color: var(--text-muted); }
+/* `position: relative` + `z-index: 1` levantan el gráfico POR ENCIMA de la
+   rejilla del lienzo (ver `.blueprint::before`). */
+.chartSvg { position: relative; z-index: 1; display: block; width: 100%; height: auto; }
+.chartGrid { stroke: var(--pa-rule-3); stroke-width: 1; stroke-dasharray: 2 4; }
+
+/* Rótulos de eje y leyenda: 12px + `--pa-ink-2`, el piso para todo lo que
+   decodifique una figura. Venían de 10-11px. */
+.chartYLabel { fill: var(--pa-ink-2); font-family: var(--font-mono); font-size: 12px; text-anchor: end; }
+.chartXLabel { fill: var(--pa-ink-2); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; text-anchor: middle; }
+.chartLegend { fill: var(--pa-ink-2); font-family: var(--font-mono); font-size: 12px; }
+.chartVal { fill: var(--pa-ink); font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-anchor: middle; }
+.chartValDim { fill: var(--pa-ink-2); font-family: var(--font-mono); font-size: 12px; text-anchor: middle; }
+
+/* Barra SÓLIDA = el dato acotado; barra en gris de regla = «el otro».
+   `--pa-rule-2` (3,35:1) y no `--pa-rule-3` (1,61:1): una barra PORTA
+   información, así que le aplica el mínimo 3:1 de WCAG 1.4.11.
+   `rx: 0px` en CSS anula el `rx="3.5"` que el JSX escribe como atributo —
+   `rx`/`ry` son propiedades de geometría CSS desde Chrome 79 / Firefox 88 /
+   Safari 16.4; donde no se soporten, el radio queda en 3,5px (cosmético). */
+.chartBarMf { fill: var(--pa-ink); rx: 0px; }
+.chartBarLlm { fill: var(--pa-rule-2); rx: 0px; }
+.chartNote { margin-top: 0.9rem; font-size: 0.875rem; line-height: 1.55; color: var(--pa-ink-2); }
 
 .macroBars { margin-top: 3.4rem; display: grid; gap: 0.65rem; }
-.macroBar { display: grid; grid-template-columns: 78px 1fr 54px; align-items: center; gap: 0.85rem; }
-.macroBarLabel { font-size: 0.86rem; color: var(--text-main); font-weight: 600; }
-.macroBarTrack { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--text-muted) 15%, transparent); overflow: hidden; }
-.macroBarFill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
-.macroBarVal { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+.macroBar { display: grid; grid-template-columns: 78px minmax(0, 1fr) 54px; align-items: center; gap: 0.85rem; }
+.macroBarLabel { font-size: 0.875rem; color: var(--pa-ink); font-weight: 600; }
+/* Pista en `--pa-rule-2`: es el DENOMINADOR de la proporción, no un adorno del
+   relleno. A `--pa-rule-3` (1,61:1) la extensión total contra la que se mide el
+   relleno desaparece, y una barra sin denominador visible deja de ser una
+   proporción. Mismo criterio que `.bar`/`.macroTrack` de PrecisionPage. */
+.macroBarTrack { height: 8px; border-radius: 0; background: var(--pa-sunk); border: 1px solid var(--pa-rule-2); overflow: hidden; }
+.macroBarFill { display: block; height: 100%; border-radius: 0; background: var(--pa-ink); }
+.macroBarVal { font-family: var(--font-mono); font-size: 12px; color: var(--pa-ink-2); text-align: right; font-variant-numeric: tabular-nums lining; }
 
 /* [P3-ENGINE-ARCH-PROSE · 2026-07-01] prosa técnica (reemplaza los pasos numerados) */
-.prose { margin-top: 1.4rem; max-width: 720px; }
-.prose p { color: var(--text-muted); font-size: 1rem; line-height: 1.7; margin: 0 0 1.05rem; }
+.prose { margin-top: 1.4rem; max-width: 66ch; }
+.prose p { color: var(--pa-ink-2); font-family: var(--font-body); font-size: 1rem; line-height: 1.7; margin: 0 0 1.05rem; }
 .prose p:last-child { margin-bottom: 0; }
-.prose strong { color: var(--text-main); font-weight: 650; }
-.prose em { color: color-mix(in srgb, var(--primary) 82%, var(--text-main)); font-style: normal; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.94em; }
-
-/* ---- elementos del SVG del modelo ---- */
-.mFrame line { stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.4; }
-.mCoreGlow { opacity: 0.9; }
-.mCalRing { fill: none; stroke: color-mix(in srgb, var(--text-muted) 26%, transparent); stroke-width: 1; }
-.mTick { stroke: color-mix(in srgb, var(--text-muted) 32%, transparent); stroke-width: 1; }
-.mTickLong { stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.2; }
-.mDash { fill: none; stroke: color-mix(in srgb, var(--text-muted) 40%, transparent); stroke-width: 1.1; stroke-dasharray: 2 7; }
-.mNode { fill: color-mix(in srgb, var(--text-muted) 60%, transparent); }
-.mNodeHi { fill: var(--accent); }
-.mRing { fill: none; stroke: color-mix(in srgb, var(--primary) 30%, transparent); stroke-width: 1.1; }
-.mRingInner { fill: none; stroke: color-mix(in srgb, var(--primary) 16%, transparent); stroke-width: 1; }
-.mRingPoly { fill: color-mix(in srgb, var(--primary) 6%, transparent); stroke: color-mix(in srgb, var(--primary) 34%, transparent); stroke-width: 1; stroke-linejoin: round; }
-.mAxis { stroke: color-mix(in srgb, var(--primary) 24%, transparent); stroke-width: 1.1; }
-.mStage { fill: var(--primary); }
-.mStageHalo { fill: color-mix(in srgb, var(--primary) 40%, transparent); }
-.mHex { fill: none; stroke: color-mix(in srgb, var(--primary) 70%, transparent); stroke-width: 1.4; stroke-linejoin: round; }
-.mHexInner { fill: color-mix(in srgb, var(--primary) 10%, transparent); stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.1; stroke-linejoin: round; }
-.mSpoke { stroke: color-mix(in srgb, var(--primary) 32%, transparent); stroke-width: 1; }
-.mCore { fill: #EEF2FF; }
-.mCorePulse { fill: none; stroke: var(--primary); stroke-width: 1.6; transform-box: view-box; transform-origin: 390px 238px; animation: mCorePulse 3s ease-out infinite; }
-.mInput { fill: none; stroke: color-mix(in srgb, var(--text-muted) 34%, transparent); stroke-width: 1.1; }
-.mOutput { fill: none; stroke: color-mix(in srgb, var(--primary) 34%, transparent); stroke-width: 1.2; }
-.mFlow { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 1 12; animation: mFlow 1.4s linear infinite; }
-.mArrow { fill: var(--primary); }
-.mPlanCard { fill: color-mix(in srgb, var(--primary) 10%, transparent); stroke: color-mix(in srgb, var(--primary) 55%, transparent); stroke-width: 1.2; }
-.mPlanLine { stroke: color-mix(in srgb, var(--text-muted) 60%, transparent); stroke-width: 1.4; stroke-linecap: round; }
-.mAnno { fill: color-mix(in srgb, var(--text-main) 78%, transparent); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; letter-spacing: 0.14em; }
-.mAnnoDim { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9.5px; letter-spacing: 0.12em; }
-.mAnnoMid { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: 0.06em; text-anchor: middle; }
-.mAnnoMidPlan { fill: var(--text-muted); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9.5px; letter-spacing: 0.12em; text-anchor: middle; }
-
-/* rotaciones de anillos (alrededor del centro 390,238 en unidades del viewBox) */
-.mSpinCw { transform-box: view-box; transform-origin: 390px 238px; animation: mspin 44s linear infinite; }
-.mSpinCcw { transform-box: view-box; transform-origin: 390px 238px; animation: mspinRev 66s linear infinite; }
-.mSeq { animation: mseq 3.4s ease-in-out infinite; }
-
-@keyframes mspin { to { transform: rotate(360deg); } }
-@keyframes mspinRev { to { transform: rotate(-360deg); } }
-@keyframes mFlow { to { stroke-dashoffset: -13; } }
-@keyframes mseq { 0%, 100% { opacity: 0.45; } 42% { opacity: 1; } }
-@keyframes mCorePulse { 0% { transform: scale(0.7); opacity: 0.9; } 70%, 100% { transform: scale(2.4); opacity: 0; } }
+.prose strong { color: var(--pa-ink); font-weight: 600; }
+.prose em { color: var(--pa-ink); font-style: normal; font-family: var(--font-mono); font-size: 0.94em; }
 
 @media (max-width: 620px) {
-    .blueprint::before { background-size: 26px 26px; }
-    .modelCaption { font-size: 0.66rem; }
+    .blueprint::before { background-size: 28px 28px; }
 }
 
+/* ── REDUCED MOTION — defensa (b) del módulo ─────────────────────────────
+   Este módulo no usa framer-motion (la página no tiene reveals propios), así
+   que no hay defensa (a) en el JSX: todo su movimiento son las `transition`
+   de color declaradas aquí. El guard global de `index.css` solo ACORTA
+   `transition-duration`; este bloque las anula.
+
+   [fix1] Salen `.ctaPrimary` y `.ctaGhost`: se borraron con el bloque de CTA
+   final. Entra `.disclaimerText a`, la única `transition` que ese borrado
+   dejó viva junto a `.card`/`.feature`. */
 @media (prefers-reduced-motion: reduce) {
-    .mSpinCw, .mSpinCcw, .mSeq, .mFlow, .mCorePulse { animation: none !important; }
-    .mCorePulse { opacity: 0; }
-    .mSeq { opacity: 1; }
+    .card,
+    .feature,
+    .disclaimerText a {
+        transition: none !important;
+        animation: none !important;
+    }
 }

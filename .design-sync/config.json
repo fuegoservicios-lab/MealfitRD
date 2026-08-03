@@ -1,10 +1,15 @@
 {
-  "projectId": "98197eed-d85d-4c98-9501-6c85ac061c45",
+  "projectId": "8b06f890-e455-47ab-989a-9ac280ded7b1",
   "shape": "package",
   "pkg": "mealfit-rd-ia",
   "globalName": "MealfitUI",
   "cssEntry": "src/index.css",
   "readmeHeader": ".design-sync/conventions.md",
+  "provider": { "component": "MemoryRouter" },
+  "overrides": {
+    "HowItWorks": { "cardMode": "single", "primaryStory": "Default", "viewport": "1040x920" }
+  },
+  "runtimeFontPrefixes": ["JetBrains Mono"],
   "extraFonts": [
     "public/fonts/QGYvz_MVcBeNP4NJtEtq.woff2",
     "public/fonts/QGYvz_MVcBeNP4NJuktqQ4E.woff2",
@@ -14,6 +19,7 @@
     "public/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko70yyygA.woff2"
   ],
   "componentSrcMap": {
+    "MemoryRouter": null,
     "ProteinIcon": "src/components/icons/ProteinIcon.jsx",
     "FlameMacroIcon": "src/components/icons/FlameMacroIcon.jsx",
     "FatDropIcon": "src/components/icons/FatDropIcon.jsx",

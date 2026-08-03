@@ -1,6 +1,21 @@
 import { useEffect, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Cpu, ArrowRight, ChevronRight, Info } from 'lucide-react';
+import { Cpu, Info } from 'lucide-react';
+// [P2-PAPER-NO-INK · 2026-08-02, Task 13] Banda de cierre: última hija de las 6
+// rutas papel. Componente propio, NUNCA dentro de Footer.jsx — el footer se
+// renderiza en 21 rutas, incluidas las 10 legales (ver ClosingBand.jsx).
+// Sustituye a la `<section className={styles.finalCta}>` que cerraba la página:
+// pedía el mismo clic, con el mismo literal, justo antes de la banda.
+// `ChevronRight` y `ArrowRight` salieron del import con ella. `Link` VOLVIÓ en
+// fix1: al quitar el bloque, esta página se quedó con cero enlaces en el cuerpo
+// (su disclaimer era prosa plana) — ver el comentario del disclaimer abajo.
+import ClosingBand from '../components/home/ClosingBand';
+// [P1-PAPER-BENCHMARK · 2026-08-02] Las cifras vienen del SSOT. Esta página era
+// el TERCER sitio donde estaban escritas a mano (las otras dos:
+// `components/home/BenchmarkShowcase.jsx` y `pages/PrecisionPage.jsx`), y el
+// drift era a tres bandas, no a dos: aquí y en el landing decía `llm: 0`, en
+// /precision decía `llm: 55`. El dueño fijó el 0 el 2026-08-02.
+import { VERSUS, MACROS, BANDS, SERIES, HEADLINE_FIGURES, es1 } from '../data/benchmark';
 import styles from './Engine.module.css';
 
 /**
@@ -22,21 +37,17 @@ const RELEASE_DATE = '1 de julio de 2026';
 // [P3-ENGINE-MINIMAL · 2026-07-01] La fila de stats-tarjetas se eliminó (minimalismo);
 // sus cifras viven en la prosa técnica y en las secciones (clínica, precisión).
 
-// [P3-ENGINE-COMPARISON · 2026-07-01] Datos REALES del A/B interno (motor on vs off),
-// mismos números que BenchmarkShowcase. N=8, jun 2026. "LLM solo" = pedirle el plan al
-// modelo sin el motor determinista. Precisión = 100 − MAPE. "En banda" = 90-112% (95-105% kcal).
-const VERSUS = [
-    { label: 'Proteína', full: 'Precisión de proteína', mealfit: 98.5, llm: 84 },
-    { label: 'macros', full: 'Los 4 macros en banda', mealfit: 91.7, llm: 24 },
-    { label: 'Recalcular', full: 'Cuadran al recalcular', mealfit: 100, llm: 0 },
-];
-
-const MACROS_PREC = [
-    { label: 'Calorías', mape: 2.0 },
-    { label: 'Grasas', mape: 3.1 },
-    { label: 'Carbos', mape: 3.2 },
-    { label: 'Proteína', mape: 1.5 },
-];
+// [P3-ENGINE-COMPARISON · 2026-07-01 · repuntado al SSOT P1-PAPER-BENCHMARK · 2026-08-02]
+// Datos REALES del A/B interno (motor on vs off). "LLM solo" = pedirle el plan al modelo
+// sin el motor determinista. Precisión = 100 − MAPE. Ahora se leen de
+// `src/data/benchmark.js`: `v.axis` es la etiqueta corta del eje X y `v.label` la larga.
+//
+// El gráfico pasa de TRES barras agrupadas a DOS, y no por estética: la tercera era
+// «Cuadran al recalcular», 100 contra 0 — una capacidad BINARIA dibujada en el mismo eje
+// 0-100 que un `100 − MAPE` y que un porcentaje de planes. Un eje compartido es una
+// afirmación de comparabilidad; con esas tres magnitudes era falsa. La capacidad no se
+// pierde: la fila «Motor de macros» de la tabla de diferencias de más abajo ya dice que
+// el motor recalcula desde los gramos reales.
 
 const DIFF = [
     { m: 'Catálogo verificado', llm: 'x', mf: 'Solo alimentos catalogados con precio real; nunca inventa comida.' },
@@ -70,7 +81,7 @@ function ComparisonChart() {
     const yOf = (v) => baseY - (v / MAX) * plotH;
     return (
         <svg viewBox={`0 0 ${W} ${H}`} className={styles.chartSvg} role="img"
-            aria-label="Comparación de precisión de macros: Bioboros frente a un LLM solo, en tres métricas.">
+            aria-label="Comparación de precisión de macros: Bioboros frente a un LLM solo, en dos métricas.">
             {[0, 25, 50, 75, 100].map((v) => (
                 <g key={v}>
                     <line x1={padL} y1={yOf(v)} x2={W - padR} y2={yOf(v)} className={styles.chartGrid} />
@@ -82,19 +93,24 @@ function ComparisonChart() {
                 const x1 = gx - bw - gap / 2;
                 const x2 = gx + gap / 2;
                 return (
-                    <g key={d.label}>
-                        <rect x={x1} y={yOf(d.mealfit)} width={bw} height={baseY - yOf(d.mealfit)} rx="3.5" className={styles.chartBarMf} />
-                        <rect x={x2} y={yOf(d.llm)} width={bw} height={Math.max(0.5, baseY - yOf(d.llm))} rx="3.5" className={styles.chartBarLlm} />
-                        <text x={x1 + bw / 2} y={yOf(d.mealfit) - 7} className={styles.chartVal}>{d.mealfit}%</text>
-                        <text x={x2 + bw / 2} y={yOf(d.llm) - 7} className={styles.chartValDim}>{d.llm}%</text>
-                        <text x={gx} y={baseY + 22} className={styles.chartXLabel}>{d.label}</text>
+                    /* [P1-PAPER-BENCHMARK · 2026-08-02] `rx` fuera de las barras y de
+                       los cuadros de la leyenda: eran `3.5` y `2.5`, las últimas
+                       esquinas redondeadas de una ruta de papel. `border-radius: 0`
+                       NO alcanza a un `<rect rx="…">` — es geometría del elemento, no
+                       caja CSS, así que ningún escáner de CSS del repo las veía. */
+                    <g key={d.key}>
+                        <rect x={x1} y={yOf(d.mealfit)} width={bw} height={baseY - yOf(d.mealfit)} className={styles.chartBarMf} />
+                        <rect x={x2} y={yOf(d.llm)} width={bw} height={Math.max(0.5, baseY - yOf(d.llm))} className={styles.chartBarLlm} />
+                        <text x={x1 + bw / 2} y={yOf(d.mealfit) - 7} className={styles.chartVal}>{es1(d.mealfit)}%</text>
+                        <text x={x2 + bw / 2} y={yOf(d.llm) - 7} className={styles.chartValDim}>{es1(d.llm)}%</text>
+                        <text x={gx} y={baseY + 22} className={styles.chartXLabel}>{d.axis}</text>
                     </g>
                 );
             })}
             <g>
-                <rect x={padL} y={14} width={12} height={12} rx="2.5" className={styles.chartBarMf} />
+                <rect x={padL} y={14} width={12} height={12} className={styles.chartBarMf} />
                 <text x={padL + 18} y={24} className={styles.chartLegend}>Bioboros</text>
-                <rect x={padL + 122} y={14} width={12} height={12} rx="2.5" className={styles.chartBarLlm} />
+                <rect x={padL + 122} y={14} width={12} height={12} className={styles.chartBarLlm} />
                 <text x={padL + 140} y={24} className={styles.chartLegend}>LLM solo</text>
             </g>
         </svg>
@@ -114,6 +130,7 @@ const Engine = () => {
     }, []);
 
     return (
+        <>
         <div className={styles.page}>
             {/* ---- intro + imagen abstracta del modelo ---- */}
             <section className={styles.intro}>
@@ -175,7 +192,8 @@ const Engine = () => {
                         que no exista. Sobre ese catálogo, un motor de optimización
                         <strong> recalcula los macros desde los gramos reales</strong> de cada
                         ingrediente y reescala las porciones para clavar tus objetivos —con un error
-                        medio de apenas <strong>±3.2% en el peor macro</strong>—, compara el plan
+                        medio de apenas <strong>±{es1(HEADLINE_FIGURES.worstMacroError)}% en el peor
+                        macro</strong>—, compara el plan
                         contra 17 micronutrientes y cuadra la lista de compras con las recetas.
                         Según tu plan, la generación usa un modelo <strong>estándar</strong> (gratis)
                         o uno <strong>avanzado</strong> (planes de pago), priorizando siempre el costo
@@ -244,23 +262,28 @@ const Engine = () => {
                     </figcaption>
                 </figure>
                 <p className={styles.chartNote}>
-                    Medición continua sobre planes reales (N=8, jun 2026). «LLM solo» = pedirle el
-                    plan al modelo sin el motor. Precisión = 100 − error medio (MAPE); «en banda» =
-                    90-112% del objetivo (95-105% en calorías). Compara enfoques, no productos con
+                    {/* [P1-PAPER-BENCHMARK · 2026-08-02] Decía «Medición continua sobre
+                        planes reales». No lo es, y el dueño ya aprobó retirar esa misma
+                        afirmación del landing (spec §10.1): es una serie cerrada de 8
+                        planes de junio. */}
+                    Serie de {`N=${SERIES.n}`} planes reales, {SERIES.monthLong}. «LLM solo» = pedirle el
+                    plan al modelo sin el motor. Precisión = 100 − error medio (MAPE); «en banda» ={' '}
+                    {`${100 + BANDS.macros[0]}-${100 + BANDS.macros[1]}%`} del objetivo
+                    {` (${100 + BANDS.kcal[0]}-${100 + BANDS.kcal[1]}% en calorías)`}. Compara enfoques, no productos con
                     nombre — y son métricas de precisión, no de corrección clínica.
                 </p>
 
                 {/* precisión por macro */}
                 <div className={styles.macroBars}>
-                    {MACROS_PREC.map((mp) => {
+                    {MACROS.map((mp) => {
                         const prec = +(100 - mp.mape).toFixed(1);
                         return (
-                            <div key={mp.label} className={styles.macroBar}>
+                            <div key={mp.key} className={styles.macroBar}>
                                 <div className={styles.macroBarLabel}>{mp.label}</div>
                                 <div className={styles.macroBarTrack}>
                                     <span className={styles.macroBarFill} style={{ width: `${prec}%` }} />
                                 </div>
-                                <div className={styles.macroBarVal}>{prec}%</div>
+                                <div className={styles.macroBarVal}>{es1(prec)}%</div>
                             </div>
                         );
                     })}
@@ -376,32 +399,28 @@ const Engine = () => {
             <section className={styles.section}>
                 <div className={styles.disclaimer}>
                     <Info size={22} strokeWidth={2.25} className={styles.disclaimerIcon} />
+                    {/* [P2-PAPER-NO-INK fix1 · 2026-08-02] Los enlaces contextuales de este
+                        párrafo son la ÚNICA salida del cuerpo de /motor. Al retirar el
+                        `.finalCta` local (lo sustituye <ClosingBand />) esta página se quedó
+                        con CERO `<Link to=` en su cuerpo: el disclaimer, a diferencia del de
+                        /como-funciona y /funciones, era prosa plana sin un solo enlace. La
+                        banda de cierre aporta /assessment y /precios; lo que faltaba era el
+                        camino lateral a las otras páginas del método. */}
                     <div className={styles.disclaimerText}>
                         <strong>Con los pies en la tierra.</strong> Bioboros es una herramienta
                         de apoyo nutricional, no un sustituto de un nutricionista o médico. El motor
                         aplica criterios fundamentados en evidencia, pero recomendamos revisión
                         profesional cuando tu condición lo amerita. Las cantidades y micronutrientes
-                        son estimaciones, no mediciones de laboratorio.
+                        son estimaciones, no mediciones de laboratorio. Si quieres el recorrido
+                        completo, mira <Link to="/como-funciona">cómo funciona el método</Link> o
+                        la <Link to="/precision">precisión que medimos</Link>.
                     </div>
                 </div>
             </section>
 
-            {/* ---- CTA final ---- */}
-            <section className={styles.finalCta}>
-                <h2 className={styles.finalTitle}>¿List@ para tu plan calculado?</h2>
-                <p className={styles.finalText}>
-                    Responde unas preguntas y deja que el motor haga el resto — en minutos.
-                </p>
-                <div className={styles.ctaRow}>
-                    <Link to="/assessment" className={styles.ctaPrimary}>
-                        Crear mi Plan <ChevronRight size={19} strokeWidth={2.5} />
-                    </Link>
-                    <Link to="/" className={styles.ctaGhost}>
-                        Volver al inicio <ArrowRight size={18} strokeWidth={2.25} />
-                    </Link>
-                </div>
-            </section>
         </div>
+        <ClosingBand />
+        </>
     );
 };
 

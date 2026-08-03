@@ -1,0 +1,332 @@
+/* ============================================================================
+   [P1-PAPER-BENCHMARK · 2026-08-02] Fig. 04.1 — Tolerancia por macro.
+
+   Este módulo NO lleva bloque `data-theme`: la home solo se sirve como
+   superficie papel (`utils/paperSurface.js`), así que consume `var(--pa-*)`
+   directamente — igual que `HowItWorks.module.css` y `PlateExploded.module.css`.
+
+   Vocabulario de movimiento: TRAZADO. Se trazan las líneas de CONSTRUCCIÓN
+   (el objetivo, los límites de banda, los ticks del eje, las guías de la
+   leyenda) con `stroke-dashoffset` sobre `pathLength` normalizado a 1, 900 ms,
+   cubic-bezier(0.65,0,0.35,1). Los MARCADORES y las cifras entran por
+   opacidad, nunca por posición.
+
+   ⚠️ LO QUE ESTE ARCHIVO TIENE PROHIBIDO ANIMAR, Y NO ES UNA PREFERENCIA:
+   la posición de un dato. Un tick que entra desde el hueco hasta su valor real
+   dibuja un número FALSO durante 700 ms, en la figura cuyo argumento entero es
+   que no fabricamos números. Por la misma razón no hay CountUp en esta sección
+   (lo tenía la consola de junio): una cifra que sube de 0 a 91,7 es la misma
+   mentira, en texto.
+   ========================================================================= */
+
+.figure {
+    margin: 0;
+}
+
+/* ── retícula ────────────────────────────────────────────────────────────
+   Tres columnas: nombre del macro · carril · cifras. Las filas se apilan en
+   un contenedor normal (no un grid único) para que cada `.row` reparta sus
+   propias columnas con la MISMA plantilla: así los carriles de las 6 filas
+   quedan alineados sin que el alto variable de ninguna arrastre a las demás. */
+.grid {
+    width: 100%;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: minmax(88px, 132px) 1fr minmax(64px, 88px);
+    grid-template-areas: 'name plot figures';
+    align-items: center;
+    column-gap: 0.75rem;
+}
+
+/* La regla entre filas separa MACROS, no las franjas de rotulación. */
+.macroRow + .macroRow {
+    border-top: 1px solid var(--pa-rule-3);
+}
+
+/* El nombre y las cifras se centran sobre el CARRIL, no sobre la fila entera.
+   La primera fila mide 36 px más (su zona de anotación: `OBJETIVO` y los dos
+   rótulos in situ), así que un `align-items: center` a secas dejaría su nombre
+   18 px por encima de sus marcadores. `align-self: stretch` + `padding-top` +
+   centrado interno da el mismo eje óptico en las cuatro filas sin depender de
+   cuántas líneas tenga el contenido: `TICK_CY` (30) menos media caja. */
+.name {
+    grid-area: name;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding-top: 16px;
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    line-height: 1.2;
+    color: var(--pa-ink);
+}
+
+.leadRow .name,
+.leadRow .figures {
+    padding-top: 52px;
+}
+
+/* Los 12 px reservados a cada extremo del eje viven AQUÍ, no en el SVG: un
+   rótulo `+20` centrado en el 100 % se comería el borde de la celda, y a
+   320 px de viewport el carril mide 288 px, donde ese mordisco es visible. */
+.plot {
+    grid-area: plot;
+    padding: 0 12px;
+    min-width: 0;
+}
+
+/* `overflow: visible` es LOAD-BEARING, no higiene: la línea del objetivo se
+   dibuja de y=−1 a y=alto+1 para cruzar sin corte la regla de 1 px que separa
+   dos filas (esa regla es un `border-top` del padre y se pinta antes que el
+   contenido del hijo). También deja que los rótulos `−20`/`+20` usen los 12 px
+   reservados. */
+.svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+    fill: none;
+}
+
+.figures {
+    grid-area: figures;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    padding-top: 16px;
+    gap: 2px;
+}
+
+/* Toda cifra comparable en tabulares: sin esto las columnas de `±1,5 %` y
+   `±16,0 %` bailan de fila a fila, y un número que vibra en la sección que
+   vende precisión es un mal chiste. */
+.figOn,
+.figOff {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums lining;
+    white-space: nowrap;
+}
+
+.figOn {
+    color: var(--pa-ink);
+    font-weight: 500;
+}
+
+.figOff {
+    color: var(--pa-ink-2);
+}
+
+/* ── materiales del dibujo (§5.5) ───────────────────────────────────────── */
+
+/* El objetivo: la única regla de tinta plena que cruza la figura entera. */
+.zero {
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+}
+
+/* Límites de la banda: tinta plena, porque son la ESPECIFICACIÓN, no una
+   línea de construcción. */
+.limit {
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+}
+
+/* [P2-SECCIONES-03-04-DENSIDAD] Marca MENOR de la regla: más fina de tono y
+   más corta que la mayor (4px contra 6). Un escalón por debajo en tono
+   además de en longitud, para que grade sin competir. La tinta plena sigue
+   reservada a `.zero` y `.limit`. */
+.tickMed {
+    stroke: var(--pa-rule-3);
+    stroke-width: 1;
+}
+
+/* Ticks del eje y guías de la leyenda: línea de construcción. */
+.tick,
+.leader {
+    stroke: var(--pa-rule-2);
+    stroke-width: 1;
+}
+
+.hatchLine {
+    stroke: var(--pa-ink);
+    stroke-width: 1;
+}
+
+/* `rx`/`ry` explícitos a 0 en los dos `<rect>` de la figura: `border-radius`
+   NO alcanza a un `<rect>` (es geometría del elemento, no caja CSS), así que
+   un `rx="4"` llegado de un copy-paste sería la única esquina redondeada del
+   pliego sin que ningún escáner de CSS lo viera. */
+.hatchFill {
+    stroke: none;
+    rx: 0px;
+    ry: 0px;
+}
+
+/* CON MOTOR — tick SÓLIDO de 3×22 px. Es un `<line>` con `stroke-width: 3` y
+   no un `<rect>` a propósito: el trazo se centra solo sobre su `x`, mientras
+   que un `<rect x="53.75%" width="3">` apoya su BORDE en el valor y hay que
+   corregirlo con un `transform` (ver `.markOff`). */
+.markOn {
+    stroke: var(--pa-ink);
+    stroke-width: 3;
+    stroke-linecap: butt;
+}
+
+/* SIN MOTOR — tick de CONTORNO de 3×14 px. Contorno + más bajo + otra
+   posición: tres canales redundantes, ninguno de ellos color. */
+.markOff {
+    fill: none;
+    stroke: var(--pa-ink);
+    stroke-width: 1.5;
+    rx: 0px;
+    ry: 0px;
+}
+
+/* ── rotulación dentro del SVG ──────────────────────────────────────────
+   12 px reales (el SVG no lleva `viewBox`, así que no hay escala) y
+   `--pa-ink-2`: es la capa que DECODIFICA la figura, y el spec la sube ahí
+   entera — la fila de 11 px + `--pa-ink-3` está reservada a metadato que se
+   puede ignorar sin perder el dibujo. Aquí nada es ignorable.
+
+   Los dos llevan HALO DE PAPEL, y no es decoración: la regla del objetivo
+   cruza la figura a lo alto, y hay rótulos que caen encima de ella —
+   `OBJETIVO`, el `0` de la regla graduada y, sobre todo, el `BANDA −5 / +5`
+   de calorías, la única banda que empieza a la izquierda del cero. Sin halo,
+   la regla los TACHA literalmente (visto al medir la primera versión).
+   `paint-order: stroke` pinta primero un trazo de color papel alrededor de
+   cada glifo y encima el relleno: el hueco queda del tamaño exacto del texto.
+   Un `<rect>` de fondo habría necesitado saber el ancho del texto, que en SVG
+   no se conoce sin medirlo en runtime — y a lo ancho de una banda estrecha en
+   móvil habría abierto un boquete de 116 px en la regla del objetivo. */
+.axisLabel,
+.bandLabel {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    fill: var(--pa-ink-2);
+    stroke: var(--pa-paper);
+    stroke-width: 3;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    font-variant-numeric: tabular-nums lining;
+}
+
+/* ── TRAZADO ──────────────────────────────────────────────────────────── */
+.zero,
+.limit,
+.tick,
+.tickMed,
+.leader {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+}
+
+.markOn,
+.markOff,
+.hatchFill,
+.axisLabel,
+.bandLabel {
+    opacity: 0;
+}
+
+.drawn .zero,
+.drawn .limit,
+.drawn .tick,
+.drawn .tickMed,
+.drawn .leader {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 900ms cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0ms);
+}
+
+.drawn .markOn,
+.drawn .markOff,
+.drawn .hatchFill,
+.drawn .axisLabel,
+.drawn .bandLabel {
+    opacity: 1;
+    transition: opacity 320ms linear calc(var(--d, 0ms) + 420ms);
+}
+
+/* ── pie de figura ──────────────────────────────────────────────────────── */
+.caption {
+    margin: 0.9rem 0 0;
+    max-width: 72ch;
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--pa-ink-2);
+}
+
+.captionTag {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--pa-ink);
+}
+
+/* ── reflow ──────────────────────────────────────────────────────────────
+   Por debajo de 720 px las tres columnas dejan de caber: medido a 320 px de
+   viewport, la columna del nombre (88 px) más la de cifras (64 px) dejan un
+   carril de ~104 px, donde los dos ticks de `±1,5 %` caen a 4 px uno del otro
+   y se leen como una sola mancha. El nombre y las cifras suben a una línea
+   propia y el carril pasa a ancho completo (~264 px de eje). */
+@media (max-width: 719px) {
+    .row {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            'name figures'
+            'plot plot';
+        row-gap: 2px;
+    }
+
+    /* El `padding-top` que centraba nombre y cifras sobre el carril no aplica
+       cuando el carril ya no está a su lado: aquí van encima, en su propia
+       línea. Dejarlo puesto abriría 52 px de aire en la primera fila. */
+    .name,
+    .figures,
+    .leadRow .name,
+    .leadRow .figures {
+        padding-top: 0;
+        align-self: auto;
+    }
+
+    .figures {
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: flex-end;
+        gap: 0.6rem;
+    }
+
+    .macroRow + .macroRow {
+        padding-top: 0.65rem;
+    }
+
+    .macroRow {
+        padding-bottom: 0.35rem;
+    }
+}
+
+/* ── REDUCED MOTION — defensa (b) ────────────────────────────────────────
+   La (a) vive en el JSX (`useReducedMotion()` gatea el estado `drawn` en su
+   DEFINICIÓN: con `reduce` el IntersectionObserver ni se monta). Esta capa
+   hace falta porque el guard global de `index.css` solo acorta DURACIONES: no
+   anula un `stroke-dashoffset: 1`, que dejaría la figura en blanco para
+   siempre, ni un `transition-delay`. Con `reduce` activo la hoja se ve
+   exactamente igual, ya dibujada. */
+@media (prefers-reduced-motion: reduce) {
+    .svg line,
+    .svg rect,
+    .svg text {
+        stroke-dashoffset: 0 !important;
+        opacity: 1 !important;
+        transition: none !important;
+        animation: none !important;
+    }
+}

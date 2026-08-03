@@ -1,34 +1,62 @@
 import { useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import styles from './News.module.css';
-import NewsArt from '../components/news/NewsArt';
 import { NEWS } from '../data/news';
 
-/* [P3-NEWS-SCIENTIFIC · 2026-07-02 · rediseño OpenAI-style 2026-07-11] Índice de
-   Novedades (/novedades) alineado al news grid de OpenAI (mismo lenguaje que la
-   banda del landing): hero centrado, último anuncio destacado con arte abstracto
-   de campos de color (o imagen real vía `image`) + monograma glass del `badge`,
-   y los anteriores en grid de tarjetas con thumbnail cuadrado + título +
-   categoría/fecha + resumen. Arte compartido: components/news/NewsArt. Se
-   alimenta del SSOT data/news.js. El <title>/description los fija RouteTitle. */
+/* ============================================================================
+   [P3-NEWS-1 · 2026-07-01 · reescrito P1-PAPER-SURFACE-EXTEND · 2026-08-02]
+   Índice de Novedades (/novedades) — REGISTRO DE REVISIONES.
+
+   Sustituye el news grid estilo OpenAI de julio (hero centrado + destacado a dos
+   columnas con arte abstracto + parrilla 2×2 de tarjetas). Dos razones, y
+   ninguna es estética:
+
+   1. LA RUTA ES PAPEL. /novedades y /novedades/<slug> entraron en
+      `utils/paperSurface.js`, lo que cierra la deuda con fecha del spec §10.3
+      («el landing en B/N enlazando a un índice con color»). El arte de las
+      tarjetas eran 3 blobs radiales con `filter: blur()` por noticia, prohibidos
+      por el §2.3 sin excepción.
+
+   2. ES LA VERSIÓN LARGA DEL REGISTRO DE LA HOME. `NewsHighlight` («05 /
+      REGISTRO») ya resolvió esta información como tabla de revisiones. El
+      visitante que pulsa «Ver todas las revisiones» tiene que aterrizar en la
+      MISMA tabla con todas las filas, no en otro lenguaje: si cambiara de
+      idioma visual al cruzar el enlace, el enlace estaría mintiendo.
+
+   Y de paso arregla el mismo defecto estructural que motivó la tabla en la
+   home: con `NEWS.length` impar, «destacado + parrilla de pares» renderiza una
+   tarjeta huérfana. Hoy, con 2 entradas, salía destacado + UNA suelta.
+
+   COLUMNAS (idénticas a la home): REV (mono, posicional) · FECHA (mono ISO; el
+   `dateLabel` legible vive en el `title` del enlace y en un `span` para lectores
+   de pantalla) · CATEGORÍA (mono uppercase) · ENTRADA (Outfit 500, ES el enlace
+   — la única ancla de la fila) + excerpt a 2 líneas · → (decorativo,
+   `aria-hidden`, reacciona al hover/foco de la FILA vía CSS).
+
+   Deliberado, igual que en la home: NO se envuelve la flecha en un segundo
+   `<Link>` al mismo destino — serían dos enlaces por fila anunciados por
+   separado al mismo sitio.
+
+   `NewsArt` DEJA DE EXISTIR: este era su último consumidor (el landing lo soltó
+   en Task 12). El componente y su `.module.css` se borran en este mismo commit
+   — código muerto se borra, no se recolorea. El campo `art` de `data/news.js`
+   se va con él por la misma razón: un campo inerte que documenta colores es la
+   puerta trasera por la que vuelve el color.
+   ========================================================================= */
 
 const newsTo = (n) => n.href || `/novedades/${n.slug}`;
 
 const NewsPage = () => {
     useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
 
-    const featured = NEWS[0];
-    const rest = NEWS.slice(1);
+    const latest = NEWS[0];
 
     return (
         <div className={styles.page}>
             <div className={styles.inner}>
                 <header className={styles.pageHead}>
-                    <span className={styles.eyebrow}>
-                        <span className={styles.pulse} aria-hidden="true" />
-                        Novedades
-                    </span>
+                    <span className={styles.eyebrow}>Registro de revisiones</span>
                     <h1 className={styles.pageTitle}>
                         Novedades de <span className={styles.titleAccent}>Bioboros</span>
                     </h1>
@@ -36,64 +64,106 @@ const NewsPage = () => {
                         Anuncios, mejoras del motor y todo lo nuevo. Cada avance,
                         documentado a medida que sucede.
                     </p>
+
+                    {/* Cajetín de la hoja. Los dos valores son DERIVADOS de
+                        `data/news.js` — conteo y fecha de la entrada 0 —, nunca
+                        escritos: la regla moral del sistema es que solo se acota
+                        lo que se mide. Si el array queda vacío, el cajetín no se
+                        dibuja en vez de acotar un cero.
+
+                        SON DOS CELDAS, no tres. Un borrador llevaba una tercera
+                        con `ES-DO`, y se cayó por dos motivos que se refuerzan:
+                        (1) es atrezzo — el §4.7 del spec rechaza expresamente las
+                        celdas decorativas de cajetín («ESCALA — 1:1», «HOJA —
+                        01/01») y el dato ya vive DOS veces en esta misma página,
+                        en el cajetín del header y en el del footer; (2) medido a
+                        390px, la tercera celda envolvía y su `border-left`
+                        quedaba colgando al inicio de la segunda línea como una
+                        regla suelta. Con dos celdas caben en una línea. */}
+                    {latest && (
+                        <div className={styles.cartouche}>
+                            <span className={styles.cartoucheCell}>
+                                Revisiones — <span className={styles.cartoucheVal}>
+                                    {String(NEWS.length).padStart(2, '0')}
+                                </span>
+                            </span>
+                            <span className={styles.cartoucheCell}>
+                                Última — <span className={styles.cartoucheVal}>{latest.date}</span>
+                            </span>
+                        </div>
+                    )}
                 </header>
 
-                {!featured ? (
+                {!latest ? (
                     <p className={styles.empty}>Aún no hay novedades. ¡Vuelve pronto!</p>
                 ) : (
-                    <>
-                        {/* último anuncio — texto | arte */}
-                        <Link
-                            to={newsTo(featured)}
-                            className={styles.featured}
-                            aria-label={`Leer: ${featured.title}`}
-                        >
-                            <div className={styles.featuredBody}>
-                                <div className={styles.featuredMeta}>
-                                    <span className={styles.tag}>{featured.tag}</span>
-                                    <span className={styles.metaSep} aria-hidden="true" />
-                                    <span className={styles.metaText}>{featured.dateLabel}</span>
-                                    {featured.readTime && (
-                                        <>
-                                            <span className={styles.metaSep} aria-hidden="true" />
-                                            <span className={styles.metaText}>{featured.readTime}</span>
-                                        </>
-                                    )}
-                                </div>
-                                <h2 className={styles.featuredTitle}>{featured.title}</h2>
-                                <p className={styles.featuredExcerpt}>{featured.excerpt}</p>
-                                <span className={styles.featuredCta}>
-                                    Leer el anuncio <ArrowUpRight size={16} strokeWidth={2.5} />
-                                </span>
-                            </div>
-
-                            <NewsArt n={featured} i={0} className={styles.featuredArt} withBadge />
-                        </Link>
-
-                        {/* anuncios anteriores — grid de tarjetas con arte */}
-                        {rest.length > 0 && (
-                            <section>
-                                <div className={styles.sep}>Anteriores</div>
-                                <ul className={styles.newsGrid}>
-                                    {rest.map((n, i) => (
-                                        <li key={n.slug} className={styles.newsCell}>
-                                            <Link to={newsTo(n)} className={styles.newsCard} aria-label={`Leer: ${n.title}`}>
-                                                <NewsArt n={n} i={i + 1} className={styles.newsThumb} />
-                                                <span className={styles.newsBody}>
-                                                    <span className={styles.newsTitle}>{n.title}</span>
-                                                    <span className={styles.newsExcerpt}>{n.excerpt}</span>
-                                                    <span className={styles.newsMeta}>
-                                                        <span className={styles.newsTag}>{n.tag}</span>
-                                                        <span className={styles.newsDate}>{n.dateLabel}</span>
-                                                    </span>
-                                                </span>
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
-                        )}
-                    </>
+                    <table className={styles.table}>
+                        <caption className={styles.srOnly}>
+                            Registro de revisiones del producto, de la más reciente a la más antigua.
+                        </caption>
+                        <thead>
+                            <tr>
+                                <th scope="col" className={`${styles.th} ${styles.thRev}`}>Rev</th>
+                                <th scope="col" className={`${styles.th} ${styles.thDate}`}>Fecha</th>
+                                <th scope="col" className={`${styles.th} ${styles.thTag}`}>Categoría</th>
+                                <th scope="col" className={styles.th}>Entrada</th>
+                                <th scope="col" className={`${styles.th} ${styles.thGo}`}>
+                                    <span className={styles.srOnly}>Ir al anuncio</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {NEWS.map((n, i) => {
+                                const rev = `R${String(NEWS.length - i).padStart(2, '0')}`;
+                                const isLatest = i === 0;
+                                return (
+                                    <tr key={n.slug}
+                                        className={`${styles.row} ${isLatest ? styles.rowCurrent : ''}`}>
+                                        <td className={`${styles.cell} ${styles.cellRev}`}>
+                                            {isLatest && <span className={styles.currentBar} aria-hidden="true" />}
+                                            <span className={styles.revCode}>{rev}</span>
+                                        </td>
+                                        <td className={`${styles.cell} ${styles.cellDate}`}>
+                                            <time dateTime={n.date}>
+                                                <span aria-hidden="true">{n.date}</span>
+                                                <span className={styles.srOnly}>{n.dateLabel}</span>
+                                            </time>
+                                        </td>
+                                        <td className={`${styles.cell} ${styles.cellTag}`}>{n.tag}</td>
+                                        <td className={`${styles.cell} ${styles.cellTitle}`}>
+                                            <div className={styles.titleRow}>
+                                                {n.image && (
+                                                    <img src={n.image} alt="" className={styles.emblem} />
+                                                )}
+                                                <div className={styles.titleBlock}>
+                                                    {/* Sustituye a las columnas FECHA/CATEGORÍA cuando
+                                                        se ocultan (<719px). MISMA información, no un
+                                                        adorno: el `aria-label` con el dateLabel legible
+                                                        es lo que anuncia un lector de pantalla; los
+                                                        `<span>` visuales van aria-hidden para no
+                                                        duplicar el anuncio. */}
+                                                    <p className={styles.metaMobile}
+                                                       aria-label={`${n.dateLabel} · ${n.tag}`}>
+                                                        <span aria-hidden="true">{n.date}</span>
+                                                        <span className={styles.metaSep} aria-hidden="true">·</span>
+                                                        <span aria-hidden="true">{n.tag}</span>
+                                                    </p>
+                                                    <Link to={newsTo(n)} className={styles.titleLink} title={n.dateLabel}>
+                                                        {n.title}
+                                                    </Link>
+                                                    <p className={styles.excerpt}>{n.excerpt}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className={`${styles.cell} ${styles.cellGo}`}>
+                                            <ArrowRight size={16} strokeWidth={2.25}
+                                                className={styles.goIcon} aria-hidden="true" />
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 )}
             </div>
         </div>
