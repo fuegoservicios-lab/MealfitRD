@@ -516,6 +516,19 @@ const DashboardShowcase = () => {
                         <span className={`${styles.guideLabel} ${styles.guideLabel1}`}>{GUIDE_1}</span>
                         <span className={`${styles.guideLabel} ${styles.guideLabel2}`}>{GUIDE_2}</span>
                     </motion.div>
+
+                    {/* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] Cota de
+                        profundidad. Mismo vocabulario que la cota de `PlateExploded`
+                        en el hero: flechas en los topes, regla de 1px, rótulo mono.
+                        Declara la profundidad como MAGNITUD, que es lo que la
+                        convierte en dibujo técnico y no en un efecto. `aria-hidden`:
+                        es aparejo de dibujo, no información. */}
+                    <svg className={styles.depthCota} viewBox="0 0 40 320" aria-hidden="true" preserveAspectRatio="none">
+                        <line className={styles.depthRule} x1="20" y1="8" x2="20" y2="312" {...VE} />
+                        <path className={styles.depthArrow} d="M14 14 L20 6 L26 14" {...VE} />
+                        <path className={styles.depthArrow} d="M14 306 L20 314 L26 306" {...VE} />
+                    </svg>
+                    <span className={styles.depthLabel} aria-hidden="true">5 SUPERFICIES</span>
                 </motion.div>
 
                 <SeeMoreLink to="/funciones">Explorar todas las funciones</SeeMoreLink>

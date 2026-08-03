@@ -428,6 +428,13 @@
     display: none;
 }
 
+/* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] La cota de profundidad y su
+   rótulo tampoco existen bajo 1024px: no hay escena 3D que acotar. */
+.depthCota,
+.depthLabel {
+    display: none;
+}
+
 /* ============================================================================
    MOCKUPS — el interior de cada vista.
    Se conservan los cinco enteros; lo que cambia es que ningún estado viaja ya
@@ -1015,10 +1022,45 @@
        fichero: sobre papel blanco oscurecer una tarjeta la SACA al frente
        (1,006:1 → 1,720:1) y el `drop-shadow` se vuelve manchón gris. La
        profundidad la carga el GROSOR DE LÍNEA, que aquí codifica Z. */
+    /* ⚠ `.sheet` NO declara `position` hoy. Sin esto la cota se posiciona
+       contra el primer ancestro posicionado (`.container`) y aterriza en otro
+       sitio. Añadirlo al mismo bloque `.sheet` de la Task 2. */
     .sheet {
+        position: relative;
         perspective: 2400px;
         perspective-origin: 50% 42%;
         transform-style: preserve-3d;
+    }
+
+    .depthCota {
+        display: block;
+        position: absolute;
+        right: -2.25rem;
+        top: 4%;
+        width: 40px;
+        height: 62%;
+        overflow: visible;
+    }
+
+    .depthRule,
+    .depthArrow {
+        stroke: var(--pa-ink-2);
+        stroke-width: 1px;
+        fill: none;
+    }
+
+    .depthLabel {
+        display: block;
+        position: absolute;
+        right: -3.4rem;
+        top: 36%;
+        transform: rotate(90deg);
+        transform-origin: 100% 0;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        color: var(--pa-ink-2);
+        white-space: nowrap;
     }
 
     /* `.view` solo propaga el espacio 3D. Su transform es de framer-motion. */
@@ -1026,9 +1068,41 @@
         transform-style: preserve-3d;
     }
 
+    /* ⚠ `.viewLink` no declaraba `position` — hace falta para anclar la
+       bajante (`::after`, más abajo). */
     .viewLink {
+        position: relative;
         transform: rotateX(3deg) rotateY(var(--ry, 0deg)) translateZ(var(--z, 0px));
         transform-origin: 50% 50%;
+    }
+
+    /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] La bajante. Cuelga del
+       borde inferior de la hoja y se contrarrota para quedar de cara al
+       observador — sin eso se vería en escorzo con la propia hoja y dejaría
+       de leerse como una vertical.
+
+       Su altura sale de `--z`: una hoja que flota más alto deja una bajante
+       más larga. Es la misma idea que el grosor de borde — el aparejo MIDE,
+       no decora. `border-left` punteado y no un SVG porque es una recta sin
+       remate: el remate lo pone la banda de guías, que ya está en la mesa. */
+    .viewLink::after {
+        content: '';
+        position: absolute;
+        left: 1.25rem;
+        top: 100%;
+        width: 0;
+        height: calc(18px + var(--z, 0px) * 0.28);
+        border-left: 1px dashed var(--pa-ink-3);
+        transform: rotateY(calc(-1 * var(--ry, 0deg)));
+        transform-origin: 50% 0;
+        pointer-events: none;
+    }
+
+    /* Al enderezar la hoja para leerla, la bajante sobra: ya no hay altura
+       que explicar porque la hoja vino al frente. */
+    .viewLink:hover::after,
+    .viewLink:focus-visible::after {
+        opacity: 0;
     }
 
     /* Reparto en Z. La profundidad la sigue cargando la LÍNEA, pero por TONO,
