@@ -57,6 +57,17 @@ test.describe('03/04 — profundidad', () => {
         await sheet.scrollIntoViewIfNeeded();
         await expect(sheet).toHaveAttribute('data-open', '1');
 
+        /* ⚠ Y HAY QUE ESPERAR A QUE ASIENTE, NO SOLO A QUE ABRA. El atributo
+           cambia SÍNCRONAMENTE con el callback del observer, pero la pose
+           tarda hasta ~1.260 ms en llegar (900 de transición + 360 de
+           escalonado): `view05` ni siquiera arranca hasta 360 ms después.
+           Midiendo al vuelo se toma un estado intermedio, y como el easing es
+           monótono hacia el valor final, ese estado es SIEMPRE más estrecho.
+           El sesgo va todo en la misma dirección: el test podría pasar aunque
+           la pose asentada desbordara. Los 1.400 ms son los mismos que ya
+           espera el primer test. */
+        await page.waitForTimeout(1400);
+
         const overflow = await page.evaluate(
             () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
         );
