@@ -29,6 +29,7 @@ const CSS_04_RAW = read('components/home/BenchmarkShowcase.module.css');
 /* Y estas son las que se interrogan por REGLAS: solo código vivo. */
 const CSS_03 = stripComments(CSS_03_RAW);
 const CSS_04 = stripComments(CSS_04_RAW);
+const JSX_03 = stripComments(JSX_03_RAW);
 
 /* Extrae el cuerpo de un @media por su condición, sobre CSS ya sin
    comentarios. Se ancla a un `@media` que empiece línea para no morder una
@@ -198,5 +199,31 @@ describe('las guias anotadas no pueden quedar fuera de la escena', () => {
         const desktop = mediaBlock(CSS_03, '(min-width: 1024px)');
         expect(desktop).toMatch(/\.guideBand[^{]*\{[^}]*transform-style:\s*preserve-3d/);
         expect(desktop).not.toMatch(/\.guideBand[^{]*\{[^}]*transform:\s*rotateX/);
+    });
+});
+
+describe('la apertura por scroll', () => {
+    const desktop = mediaBlock(CSS_03, '(min-width: 1024px)');
+
+    it('existe un estado cerrado mas escorzado que el reposo', () => {
+        expect(desktop).toMatch(/\[data-open='0'\][^{]*\.viewLink[^{]*\{[^}]*--ry:\s*-28deg/);
+    });
+
+    it('la transicion es solo de transform: nada de layout', () => {
+        const t = desktop.match(/\.viewLink\s*\{[^}]*transition:\s*([^;]+);/);
+        expect(t).not.toBeNull();
+        expect(t[1]).toMatch(/^transform\s/);
+    });
+
+    it('usa LANDING_EASE, no un easing nuevo', () => {
+        expect(desktop).toContain('cubic-bezier(0.22, 1, 0.36, 1)');
+    });
+
+    it('con reduce la lamina arranca ABIERTA', () => {
+        expect(JSX_03).toMatch(/useState\(reduce\)/);
+    });
+
+    it('el observer se desconecta (once + cleanup)', () => {
+        expect(JSX_03).toMatch(/io\.disconnect\(\)/);
     });
 });

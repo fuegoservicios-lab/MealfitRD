@@ -1082,6 +1082,32 @@
         border-color: var(--pa-rule-3);
     }
 
+    /* La apertura: de la pila casi cerrada y muy escorzada a la pose de
+       reposo. Solo `transform` — GPU, cero propiedades de layout. El easing es
+       `LANDING_EASE` de `sectionMotion.js` escrito a mano, el mismo que ya
+       comparten HowItWorks y BenchmarkShowcase: si cambia allí, cambia aquí. */
+    .sheet[data-open='0'] .viewLink {
+        --ry: -28deg;
+        --z: -240px;
+    }
+
+    .viewLink {
+        transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+        transition-delay: var(--open-delay, 0ms);
+    }
+
+    .view01 .viewLink { --open-delay: 0ms; }
+    .view02 .viewLink { --open-delay: 90ms; }
+    .view03 .viewLink { --open-delay: 180ms; }
+    .view04 .viewLink { --open-delay: 270ms; }
+    .view05 .viewLink { --open-delay: 360ms; }
+
+    /* El enderezado al leer NO espera al escalonado. */
+    .viewLink:hover,
+    .viewLink:focus-visible {
+        transition-delay: 0ms;
+    }
+
     /* ENDEREZADO AL LEER. No es adorno: es la mitigación del texto borroso
        convertida en interacción. Rotar en 3D rasteriza el texto, y estos
        mockups son ~100 nodos de 12-13px — la misma razón por la que

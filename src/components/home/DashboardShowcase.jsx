@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -400,6 +401,27 @@ const DashboardShowcase = () => {
     const reduce = useReducedMotion();
     const M = makeSectionMotion(reduce);
 
+    /* [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] La apertura de la lámina.
+       `IntersectionObserver` + transición CSS, igual que ya hacen HowItWorks y
+       BenchmarkShowcase desde que migraron a papel — no se estrena mecanismo.
+       `once`: se abre y se queda abierta.
+
+       Con `reduce` arranca ABIERTA (no cerrada-y-sin-animar): la geometría no
+       es animación, y dejarla cerrada la devolvería a una rejilla plana. */
+    const sheetRef = useRef(null);
+    const [open, setOpen] = useState(reduce);
+
+    useEffect(() => {
+        if (reduce) { setOpen(true); return undefined; }
+        const el = sheetRef.current;
+        if (!el || typeof IntersectionObserver === 'undefined') { setOpen(true); return undefined; }
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) { setOpen(true); io.disconnect(); }
+        }, { rootMargin: '0px 0px -15% 0px' });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [reduce]);
+
     return (
         <section className={styles.section} id="dashboard">
             <div className={styles.container}>
@@ -425,7 +447,9 @@ const DashboardShowcase = () => {
                 </motion.div>
 
                 <motion.div
+                    ref={sheetRef}
                     className={styles.sheet}
+                    data-open={open ? '1' : '0'}
                     variants={M.container} initial="hidden" whileInView="show"
                     viewport={{ once: true, amount: 0.12 }}
                 >
