@@ -463,3 +463,45 @@
         animation: none !important;
     }
 }
+
+/* ============================================================================
+   [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] LAS DOS FIGURAS SE LEVANTAN.
+
+   ⚠ AQUÍ NO SE INCLINA NADA. Inclinar la Fig. 04.1 pone las barras en escorzo
+   y rompe la comparación directa CON MOTOR / SIN MOTOR, que es el activo de
+   esta sección entera. Se puede deformar el dibujo de una pantalla; no se
+   puede deformar una medición. Por eso la 04 usa AXONOMETRÍA — capas
+   paralelas desplazadas — y no la perspectiva de la 03.
+
+   La masa de tinta sale del CANTO, no de relleno: el intento de dársela con
+   bandas negras a todo el ancho (P1-SECCION-03-NEGATIVO) se revirtió por
+   pesado. Un filo de 2px pesa donde tiene que pesar y en ningún sitio más.
+
+   El canto va SOLO en los dos lados que el desplazamiento deja a la vista
+   (derecho e inferior). Espesor en los cuatro lados no es una lámina en
+   axonometría: es un marco. */
+@media (min-width: 1024px) {
+    .figBlock {
+        position: relative;
+        border-right: 2px solid var(--pa-ink);
+        border-bottom: 2px solid var(--pa-ink);
+    }
+
+    /* El desplazamiento sobre el eje diagonal común. La SEGUNDA lámina se
+       corre para que se lea como una capa distinta y no como continuación.
+       `.figBlock + .figBlock` y no `:nth-of-type(2)`: el hermano adyacente es
+       inequívoco aunque mañana entre otro elemento entre medias. */
+    .figBlock + .figBlock {
+        margin-left: 2.5rem;
+        margin-top: -1rem;
+    }
+
+    /* La tabla de capacidades es la TERCERA capa, la de más abajo. Z somero:
+       su cabecera se despega apenas de las filas. Sin canto — tres láminas con
+       filo seguidas volverían a ser la mancha que el revert rechazó. */
+    .capsWrap {
+        position: relative;
+        margin-left: 5rem;
+        border-right: 2px solid var(--pa-ink);
+    }
+}

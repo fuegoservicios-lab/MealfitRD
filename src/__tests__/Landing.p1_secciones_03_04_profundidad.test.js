@@ -262,3 +262,15 @@ describe('la apertura por scroll', () => {
         expect(JSX_03).toMatch(/return\s*\(\)\s*=>\s*io\.disconnect\(\)/);
     });
 });
+
+describe('04 — capas axonometricas', () => {
+    it('el canto existe y es de 2px a tinta plena', () => {
+        expect(CSS_04).toMatch(/border-right:\s*2px solid var\(--pa-ink\)/);
+        expect(CSS_04).toMatch(/border-bottom:\s*2px solid var\(--pa-ink\)/);
+    });
+
+    it('NADA en la 04 rota: los datos no se deforman', () => {
+        expect(CSS_04).not.toMatch(/rotate[XYZ]?\(/);
+        expect(CSS_04).not.toMatch(/perspective:/);
+    });
+});
