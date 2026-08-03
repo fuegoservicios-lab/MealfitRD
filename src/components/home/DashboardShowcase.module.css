@@ -1195,14 +1195,26 @@
        La solución no es recalcular los porcentajes (frágil y a mantener a
        mano), sino que la banda VIAJE con la escena: se queda en el plano de
        la mesa, con la misma inclinación que el tablero. Las hojas flotan
-       sobre ella y la cota de profundidad es lo que une ambas cosas. */
+       sobre ella y la cota de profundidad es lo que une ambas cosas.
+
+       ⚠ EL TRANSFORM VA EN `.guideSvg`, NO EN `.guideBand` — Y ES LA MISMA
+       RAZÓN QUE EN `.view`/`.viewLink`, UN NIVEL MÁS ABAJO. `.guideBand` es
+       un `motion.div` con `variants={M.rise}` (`DashboardShowcase.jsx:473`):
+       framer-motion compone `y` en un `transform` INLINE y lo escribe en el
+       nodo, así que una regla de hoja de autor sin `!important` no sobrevive.
+       Puesto ahí, la banda no fallaría — seguiría dibujándose plana, y ningún
+       test que parsee CSS podría verlo. `.guideSvg` es un `<svg>` normal, sin
+       una sola prop de framer-motion: ahí el transform manda.
+
+       Y por eso `transform-style: preserve-3d` SÍ hace falta en `.guideBand`:
+       es lo que impide que el transform inline de framer-motion aplane el
+       espacio 3D antes de que su hijo lo use. */
     .guideBand {
         display: block;
         position: relative;
         grid-column: 1 / -1;
         grid-row: 3;
         height: 104px;
-        transform: rotateX(3deg) translateZ(0);
         transform-style: preserve-3d;
     }
 
@@ -1215,6 +1227,7 @@
         pointer-events: none;
         fill: none;
         stroke-width: 1;
+        transform: rotateX(3deg) translateZ(0);
     }
 
     /* Punteado = referencia, no materia (§5.5). Sin `pathLength` en el JSX:

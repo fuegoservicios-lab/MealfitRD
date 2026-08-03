@@ -171,11 +171,21 @@ describe('las guias anotadas no pueden quedar fuera de la escena', () => {
     });
 
     it('la banda de guias viaja con la escena — en el bloque de desktop', () => {
-        /* Acotado al bloque >=1024px A PROPÓSITO: `.guideBand` también aparece
-           en el reset de reduced-motion, que le pone `transform: none`. Buscar
-           en todo el fichero daría verde por la regla que BORRA el transform,
-           que es exactamente lo contrario de lo que este test afirma. */
+        /* Acotado al bloque >=1024px A PROPÓSITO: `.guideBand` es un
+           `motion.div` con `variants={M.rise}` que framer-motion escribe inline,
+           así que su transform de CSS se pisaría. El transform de la escena vive
+           en `.guideSvg`, que es un `<svg>` normal sin props de framer-motion. */
         const desktop = mediaBlock(CSS_03, '(min-width: 1024px)');
-        expect(desktop).toMatch(/\.guideBand[^{]*\{[^}]*transform:\s*rotateX/);
+        expect(desktop).toMatch(/\.guideSvg[^{]*\{[^}]*transform:\s*rotateX/);
+    });
+
+    it('el transform NO va en .guideBand: framer-motion lo pisaria inline', () => {
+        /* `.guideBand` conserva `transform-style: preserve-3d` para que el
+           espacio 3D que anida `.guideSvg` no quede aplanado por el transform
+           inline de framer-motion — pero NO lleva el transform de rotación.
+           Eso está en `.guideSvg`. */
+        const desktop = mediaBlock(CSS_03, '(min-width: 1024px)');
+        expect(desktop).toMatch(/\.guideBand[^{]*\{[^}]*transform-style:\s*preserve-3d/);
+        expect(desktop).not.toMatch(/\.guideBand[^{]*\{[^}]*transform:\s*rotateX/);
     });
 });
