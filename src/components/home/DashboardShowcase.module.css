@@ -998,6 +998,59 @@
         grid-template-columns: repeat(12, 1fr);
     }
 
+    /* ========================================================================
+       [P1-SECCIONES-03-04-PROFUNDIDAD · 2026-08-02] LA LÁMINA SE LEVANTA.
+
+       Quinta pasada sobre «se ven muy simple». Las cuatro anteriores movieron
+       superficie (plumilla, titular, densidad) o valor (invertir a negro, que
+       se revirtió por pesado). Ninguna movió la GEOMETRÍA: la sección seguía
+       siendo una rejilla plana vista de frente.
+
+       ⚠ EL TRANSFORM VA EN `.viewLink`, NO EN `.view`. `.view` es un
+       `motion.article`: framer-motion le escribe el transform INLINE vía WAAPI
+       y eso gana a cualquier regla de hoja de autor sin `!important`. Puesto
+       ahí, el 3D no fallaría — sencillamente no aparecería.
+
+       ⚠ NADA DE SOMBRA NI `brightness()`. Está medido en la cabecera de este
+       fichero: sobre papel blanco oscurecer una tarjeta la SACA al frente
+       (1,006:1 → 1,720:1) y el `drop-shadow` se vuelve manchón gris. La
+       profundidad la carga el GROSOR DE LÍNEA, que aquí codifica Z. */
+    .sheet {
+        perspective: 2400px;
+        perspective-origin: 50% 42%;
+        transform-style: preserve-3d;
+    }
+
+    /* `.view` solo propaga el espacio 3D. Su transform es de framer-motion. */
+    .view {
+        transform-style: preserve-3d;
+    }
+
+    .viewLink {
+        transform: rotateX(3deg) rotateY(var(--ry, 0deg)) translateZ(var(--z, 0px));
+        transform-origin: 50% 50%;
+    }
+
+    /* Reparto en Z. El grosor del borde y el `--z` van SIEMPRE en el mismo
+       sentido: una hoja de 1,5px no puede estar detrás de una de 0,75px, o la
+       línea deja de significar profundidad. */
+    .view01 .viewLink { --ry: -13deg; --z: 56px;  border-width: 1.5px; }
+    .view02 .viewLink { --ry:  11deg; --z: 20px;  border-width: 1px; }
+    .view03 .viewLink { --ry:  11deg; --z: -28px; border-width: 0.75px; }
+    .view04 .viewLink { --ry: -10deg; --z: 8px;   border-width: 1px; }
+    .view05 .viewLink { --ry:   9deg; --z: -40px; border-width: 0.75px; }
+
+    /* ENDEREZADO AL LEER. No es adorno: es la mitigación del texto borroso
+       convertida en interacción. Rotar en 3D rasteriza el texto, y estos
+       mockups son ~100 nodos de 12-13px — la misma razón por la que
+       `scale(.86)` vive solo bajo 1024px. La hoja que vas a leer es la que te
+       mira de frente, y por tanto la única que necesita estar nítida. */
+    .viewLink:hover,
+    .viewLink:focus-visible {
+        transform: rotateX(0deg) rotateY(0deg) translateZ(72px);
+        z-index: 2;
+    }
+
     .view01 {
         grid-column: 1 / span 7;
         grid-row: 1 / span 2;
