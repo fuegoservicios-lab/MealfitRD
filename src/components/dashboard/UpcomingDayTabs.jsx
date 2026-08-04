@@ -23,8 +23,9 @@
 // estado se resuelve contra la COLA (`/chunk-status`), en este orden:
 //
 //   1. atrasado  → `overdue` (hoy debería existir un día que no existe y NADA
-//                  corre). Único estado con CTA, porque es el único donde el
-//                  usuario puede hacer algo.
+//                  corre). INFORMATIVO, sin control: el reintento real ya lo
+//                  hace `triggerShift` en cada montaje del Dashboard — ver los
+//                  tres hechos en `renderGhost` antes de añadir un botón aquí.
 //   2. pausado   → `pending_user_action_count > 0 && in_flight_count === 0`.
 //                  Solo MARCA el día: el detalle y el CTA de la pausa los da el
 //                  banner de arriba. No duplicamos ese copy aquí.
@@ -75,7 +76,9 @@ function num(value, fallback) {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
-const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
+// Sin `onRetry`: el estado `atrasado` es INFORMATIVO. La razón, con sus tres
+// hechos verificados, está escrita en `renderGhost` — no la borres al refactorizar.
+const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     const [popoverOpen, setPopoverOpen] = useState(false);
     const popoverWrapRef = useRef(null);
     const popoverId = useId();
@@ -125,8 +128,9 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
 
     const offset = num(next?.days_offset, generatedCount);
     // Sin chunk en cola pero `overdue` ⇒ hay al menos un día que debería
-    // existir. Dibujamos ese uno: es el que lleva el CTA. Y es el caso NORMAL,
-    // no el borde — ver la cadena de imposibilidad en `renderGhost`.
+    // existir. Dibujamos ese uno: es el que se marca como atrasado. Y la cola
+    // vacía es el caso NORMAL aquí, no el borde — `compute_chunk_overdue`
+    // devuelve False en cuanto hay algo en vuelo (ver `renderGhost`).
     const rawCount = num(next?.days_count, overdue ? 1 : 0);
     const ghostCount = Math.max(0, Math.min(rawCount, MAX_GHOSTS));
     // Todo lo que queda DESPUÉS de los fantasmas visibles va al resumen — si
@@ -210,76 +214,65 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
         const state = stateFor(i);
         const name = ghostName(i);
 
+        let suffix; let ariaSuffix; let titleText; let showSpinner = false; let extraStyle = {};
         if (state === 'atrasado') {
-            // POR QUÉ ESTE CTA NO REINTENTA UN CHUNK. Cadena de imposibilidad,
-            // verificada leyendo el backend: `upcoming_chunks` filtra
-            // `status IN ('pending','processing')`; `in_flight_count` cuenta
-            // `('pending','processing','stale')`; y `compute_chunk_overdue`
-            // devuelve `(False, None)` en cuanto `in_flight_count > 0`. Por
-            // tanto `overdue === true` ⟹ `upcoming_chunks === []` ⟹ no existe
-            // `chunk_id` que reintentar. Un CTA cableado a `/retry-chunk`
-            // sería inerte el 100% de las veces, no en un borde raro.
+            // ─────────────────────────────────────────────────────────────
+            // AQUÍ NO VA UN BOTÓN. Ya se intentó dos veces; esto es lo que
+            // impide la tercera. Tres hechos, los tres verificados:
             //
-            // La vía real de recuperación es `POST /api/plans/shift-plan`: su
-            // rama `not is_partial and needs_fill`
-            // (`routers/plans.py::api_shift_plan`, el catch-up P0-5) encola
-            // chunks nuevos para TODOS los días faltantes, y su guard "ya
-            // existe chunk para esta semana" solo salta cuando hay uno vivo en
-            // ('pending','processing','stale','failed') — es decir, encola
-            // precisamente en la condición `overdue`. Además `is_partial` es
-            // `generation_status in ('partial','generating_next')`, así que un
-            // plan `complete_partial` (20 de 24 planes vivos) entra en la rama.
+            // 1. `overdue` implica `needsFill && needsShift`, así que cuando
+            //    este chip es visible el `triggerShift` de `Dashboard.jsx`
+            //    YA hizo el mismo `POST /api/plans/shift-plan` al montar.
+            //    Medido mutando el handler: `expected 1 to be greater than 1`
+            //    — ese 1 es la llamada del montaje. Un botón aquí repite una
+            //    request que el usuario ya disparó al abrir la pantalla.
             //
-            // Por eso `onRetry` se invoca SIN argumentos: esto es una acción de
-            // PLAN, no de chunk. Si alguien vuelve a pasar un `chunk_id` aquí,
-            // que sea después de romper la cadena de arriba, no antes.
-            return (
-                <button
-                    key={`ghost-${i}`}
-                    type="button"
-                    onClick={() => onRetry?.()}
-                    aria-label={`${name}: atrasado${overdueSinceLabel ? ` desde el ${overdueSinceLabel}` : ''}. Toca para reintentar.`}
-                    title={`Este día ya debería estar listo${overdueSinceLabel ? ` (desde el ${overdueSinceLabel})` : ''} y nada está corriendo. Toca para reintentar.`}
-                    style={{
-                        ...BASE_STYLE,
-                        opacity: 1,
-                        cursor: 'pointer',
-                        background: '#FFFBEB',
-                        color: '#B45309',
-                        borderColor: '#F59E0B',
-                    }}
-                >
-                    <span>{name}</span>
-                    <span role="status" style={CHIP_STYLE}>· atrasado</span>
-                    <span style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: '6px',
-                        background: '#FEF3C7',
-                        color: '#92400E',
-                    }}>
-                        Reintentar
-                    </span>
-                </button>
-            );
-        }
-
-        let suffix; let titleText; let showSpinner = false; let extraStyle = {};
-        if (state === 'pausado') {
+            // 2. Por tanto el chip solo PERSISTE visible cuando aquel shift
+            //    no encoló nada. Repetirlo tampoco encolará: el escenario en
+            //    que el botón sería útil es exactamente aquel en el que ya
+            //    sabemos que no sirve.
+            //
+            // 3. Y puede hacer daño: en `partial`/`generating_next` el click
+            //    archiva la ventana viva entera ⇒ `days = []` ⇒ el predicado
+            //    `compute_chunk_overdue` devuelve False ⇒ el chip DESAPARECE
+            //    y el toast celebra sin haberse generado un solo día. Un
+            //    control que puede borrar la señal que esta feature existe
+            //    para mostrar no se arregla: se retira.
+            //
+            // El usuario no pierde palanca: `[P2-δ] «Refrescar próximos días»`
+            // (Dashboard.jsx) ya ofrece el mismo endpoint con copy neutral, y
+            // el reintento automático ocurre en cada montaje. Por eso el copy
+            // de abajo promete exactamente eso y nada más — ni un reintento
+            // que no ocurre, ni un canal de soporte que no existe.
+            //
+            // Si alguien quiere volver a poner un control aquí: primero hay
+            // que refutar los tres hechos, no añadir el botón y ver qué pasa.
+            // ─────────────────────────────────────────────────────────────
+            const desde = overdueSinceLabel ? ` desde el ${overdueSinceLabel}` : '';
+            suffix = `· atrasado${desde}`;
+            ariaSuffix = `atrasado${desde}`;
+            titleText = `Este día no se generó a tiempo${desde}. El sistema lo reintenta solo la próxima vez que abras la app.`;
+            extraStyle = { background: '#FFFBEB', color: '#B45309', borderColor: '#F59E0B', opacity: 1 };
+        } else if (state === 'pausado') {
             // Solo marca el día. El detalle (reason_code → copy) y el CTA los
             // da el banner de arriba, que desde 2026-08-04 ya NO se auto-oculta
             // por el temporal-gate V3 — si no, esta frase remitiría a un aviso
             // invisible.
             suffix = '⏸ pausado';
+            ariaSuffix = 'pausado';
             titleText = 'Este día está pausado. Revisa el aviso de arriba para continuar.';
             extraStyle = { background: '#FFFBEB', color: '#B45309', borderColor: '#F59E0B', opacity: 0.85 };
         } else if (state === 'en proceso') {
             suffix = '· en proceso';
+            ariaSuffix = 'en proceso';
             titleText = 'Este día se está generando ahora mismo.';
             showSpinner = true;
         } else {
             suffix = scheduledLabel ? `· se genera ${scheduledLabel}` : '· se genera pronto';
+            // El aria-label decía solo "programado", una palabra que el texto
+            // visible no usa en ningún sitio: quien oye la pestaña se enteraba
+            // de MENOS que quien la ve. Ahora dicen lo mismo.
+            ariaSuffix = scheduledLabel ? `se genera ${scheduledLabel}` : 'se genera pronto';
             titleText = 'Este día todavía no existe. Se generará en su turno.';
         }
 
@@ -295,13 +288,14 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
                              style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
                 )}
                 <span>{name}</span>
-                {/* El chip es ahora el ÚNICO canal por el que un lector de
-                    pantalla se entera de que este día está pausado o en
-                    proceso: la pestaña que lo envuelve es `presentation`. Por
-                    eso conserva el `role="status"` + `aria-label` que tenía el
-                    bloque viejo, con el nombre del día dentro (el chip solo
-                    dice "⏸ pausado" y fuera de contexto no se sabe de cuál). */}
-                <span role="status" aria-label={`${name}: ${state}`} style={CHIP_STYLE}>
+                {/* El chip es el ÚNICO canal por el que un lector de pantalla
+                    se entera del estado de este día: la pestaña que lo envuelve
+                    es `presentation`. Por eso conserva el `role="status"` +
+                    `aria-label` que tenía el bloque viejo, con el nombre del día
+                    dentro (el chip solo dice "⏸ pausado" y fuera de contexto no
+                    se sabe de cuál). `ariaSuffix` refleja el MISMO contenido que
+                    el texto visible, incluida la fecha de `atrasado`. */}
+                <span role="status" aria-label={`${name}: ${ariaSuffix}`} style={CHIP_STYLE}>
                     {suffix}
                 </span>
             </div>
@@ -352,6 +346,11 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
                         >
                             Tu plan se genera por etapas cada 3-4 días.
                             {scheduledLabel ? ` Próximo lote: ${scheduledLabel}.` : ''}
+                            {/* Copy del estado atrasado: dice lo que de verdad
+                                pasa (`triggerShift` corre en cada montaje) y
+                                nada más — ni un reintento que no ocurre, ni un
+                                canal de soporte inventado. */}
+                            {overdue ? ' Hay días que no se generaron a tiempo; el sistema lo reintenta solo cada vez que abres la app.' : ''}
                         </div>
                     )}
                 </div>
@@ -364,7 +363,6 @@ UpcomingDayTabs.propTypes = {
     planData: PropTypes.object,
     chunkStatusInfo: PropTypes.object,
     isGuest: PropTypes.bool,
-    onRetry: PropTypes.func,
 };
 
 export default UpcomingDayTabs;

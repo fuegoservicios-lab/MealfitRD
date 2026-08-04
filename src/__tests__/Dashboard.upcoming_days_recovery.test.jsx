@@ -120,34 +120,46 @@ describe('[P2-CHUNK-OVERDUE-SIGNAL] recuperación de días atrasados desde el Da
         window.scrollTo = vi.fn();
     });
 
-    it('el CTA de un día atrasado dispara /shift-plan (NO /retry-chunk)', async () => {
+    it('la fila de días NO ofrece ningún control que dispare /shift-plan', async () => {
         vi.mocked(getPlanChunkStatus).mockResolvedValue(_chunkStatus({
             overdue: true,
             overdue_since: '2026-08-04',
             upcoming_chunks: [],   // la cola vacía es lo que HACE que sea overdue
         }));
 
-        render(<Dashboard />, { customContext: { ..._baseContext, planData: _planRolling() } });
-
-        const cta = await screen.findByRole('button', { name: /atrasado|reintentar/i });
-
-        // El `triggerShift` automático del Dashboard también llama a shift-plan
-        // al montar; contamos desde AQUÍ para atribuir la llamada al click.
-        const before = vi.mocked(fetchWithAuth).mock.calls
-            .filter(([url]) => typeof url === 'string' && url.includes('/api/plans/shift-plan')).length;
-
-        fireEvent.click(cta);
-
-        await waitFor(() => {
-            const after = vi.mocked(fetchWithAuth).mock.calls
-                .filter(([url]) => typeof url === 'string' && url.includes('/api/plans/shift-plan')).length;
-            expect(after).toBeGreaterThan(before);
+        const { container } = render(<Dashboard />, {
+            customContext: { ..._baseContext, planData: _planRolling() },
         });
 
-        // Y jamás por la vía inerte.
-        const retryCalls = vi.mocked(fetchWithAuth).mock.calls
-            .filter(([url]) => typeof url === 'string' && url.includes('/retry-chunk'));
-        expect(retryCalls).toHaveLength(0);
+        // El chip atrasado SÍ está: la señal se muestra, solo que no se acciona.
+        await waitFor(() => {
+            expect(screen.getAllByText(/atrasado/i).length).toBeGreaterThan(0);
+        });
+        expect(screen.queryByRole('button', { name: /atrasado|reintentar/i })).toBeNull();
+
+        // El `triggerShift` automático ya llamó a shift-plan al montar — ESE es
+        // el reintento real, y es justamente por lo que un botón aquí sobra.
+        // Contamos desde este punto para atribuir cualquier llamada nueva a los
+        // clicks de abajo, no al montaje.
+        const shiftCalls = () => vi.mocked(fetchWithAuth).mock.calls
+            .filter(([url]) => typeof url === 'string' && url.includes('/api/plans/shift-plan')).length;
+        const before = shiftCalls();
+
+        // Clickeamos TODO lo clickeable de la fila de días (pestañas reales,
+        // fantasmas y el toggle del popover). Ninguno puede lanzar un shift.
+        const fila = container.querySelector('.days-navigation-container');
+        expect(fila).not.toBeNull();
+        const botones = fila.querySelectorAll('button');
+        expect(botones.length).toBeGreaterThan(0);
+        botones.forEach((b) => fireEvent.click(b));
+
+        await waitFor(() => {
+            expect(vi.mocked(getPlanChunkStatus)).toHaveBeenCalled();
+        });
+        expect(shiftCalls()).toBe(before);
+        // Y jamás por la vía inerte (`/retry-chunk` con la cola vacía).
+        expect(vi.mocked(fetchWithAuth).mock.calls
+            .filter(([url]) => typeof url === 'string' && url.includes('/retry-chunk'))).toHaveLength(0);
     });
 
     it('el banner de chunks pausados se ve aunque el usuario siga consumiendo el chunk actual (V3 SUPERSEDED)', async () => {

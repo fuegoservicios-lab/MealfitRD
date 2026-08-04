@@ -1996,64 +1996,15 @@ const DashboardInner = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData?.generation_status, refreshProfileAndPlan]);
 
-    // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] CTA del único estado accionable de
-    // `UpcomingDayTabs`: `atrasado` (la cola dice que hoy debería existir un día
-    // que no existe y NADA está corriendo).
-    //
-    // NO usa `/retry-chunk`, y la razón es estructural, no de gusto. Cadena
-    // verificada en el backend: `upcoming_chunks` filtra
-    // `status IN ('pending','processing')`; `in_flight_count` cuenta
-    // `('pending','processing','stale')`; `compute_chunk_overdue` devuelve
-    // `(False, None)` en cuanto `in_flight_count > 0`. Luego `overdue === true`
-    // implica cola vacía ⇒ NO hay `chunk_id` que reintentar. Un CTA cableado a
-    // `/retry-chunk` habría contestado "no hay nada que reintentar" el 100% de
-    // las veces: un botón inerte con aspecto de arreglo.
-    //
-    // La vía real es `POST /api/plans/shift-plan` → rama
-    // `not is_partial and needs_fill` de `api_shift_plan` (catch-up P0-5), que
-    // encola chunks para TODOS los días faltantes y cuyo guard "ya existe chunk"
-    // solo salta si hay uno vivo — o sea, encola exactamente en la condición
-    // `overdue`. Es la misma llamada (idempotente, quota-exempt) que ya hacen el
-    // `triggerShift` automático y el botón [P2-δ] "Refrescar próximos días";
-    // aquí es explícita y nace del día que el usuario ve atrasado.
-    const handleRetryUpcomingDays = useCallback(async () => {
-        if (!userProfile?.id) return;
-        const tId = toast.loading('Reintentando los próximos días…', { position: 'top-center' });
-        try {
-            const res = await fetchWithAuth(`${API_BASE}/api/plans/shift-plan`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: userProfile.id,
-                    tzOffset: new Date().getTimezoneOffset(),
-                }),
-            });
-            if (res?.ok) {
-                const data = await res.json().catch(() => null);
-                if (data?.plan_data) setPlanData(data.plan_data);
-                toast.success('Volvimos a poner en cola tus próximos días', { id: tId });
-                // Refresco inmediato del estado de la cola: sin esto el chip
-                // seguiría diciendo "atrasado" hasta el siguiente tick del poll.
-                // NO hacemos `window.location.reload()` (Plan.jsx sí lo hace):
-                // el Dashboard tiene polling propio.
-                const planId = planData?.id || data?.plan_data?.id;
-                if (planId) {
-                    try {
-                        const r = await getPlanChunkStatus(planId);
-                        if (r?.ok) {
-                            const body = await r.json().catch(() => null);
-                            if (body && typeof body === 'object') setChunkStatusInfo(body);
-                        }
-                    } catch { /* best-effort: el poll normal lo recoge */ }
-                }
-            } else {
-                toast.error('No se pudo reintentar', { id: tId, description: 'Inténtalo de nuevo en unos minutos.' });
-            }
-        } catch (e) {
-            console.error('[P2-CHUNK-OVERDUE-SIGNAL] handleRetryUpcomingDays:', e);
-            toast.error('No se pudo reintentar', { id: tId });
-        }
-    }, [userProfile?.id, planData?.id, setPlanData]);
+    // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Aquí vivió un `handleRetryUpcomingDays`
+    // que `UpcomingDayTabs` usaba como CTA del estado `atrasado`. Se retiró: el
+    // `triggerShift` de más abajo YA hace ese mismo POST en cada montaje, así que
+    // cuando el chip es visible la llamada ya ocurrió y repetirla no encola nada;
+    // y en `partial`/`generating_next` el click archivaba la ventana viva entera,
+    // dejando `days = []` y apagando el propio chip con un toast de éxito. La
+    // cadena completa está en `components/dashboard/UpcomingDayTabs.jsx`
+    // (`renderGhost`, rama `atrasado`). El control equivalente y neutral que sí
+    // sobrevive es `[P2-δ] «Refrescar próximos días»`, más abajo en este archivo.
 
     // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Lectura fresca de `planData` dentro del `tick`
     // de abajo sin listarlo como dep del effect (mismo motivo que en AssessmentContext).
@@ -7552,7 +7503,6 @@ const DashboardInner = () => {
                                                     planData={planData}
                                                     chunkStatusInfo={chunkStatusInfo}
                                                     isGuest={isGuest}
-                                                    onRetry={handleRetryUpcomingDays}
                                                 />
                                             )}
                                         </div>
