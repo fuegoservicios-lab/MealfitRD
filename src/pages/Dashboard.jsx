@@ -1893,11 +1893,35 @@ const DashboardInner = () => {
         // post-first-chunk-completed. Sin esto, un plan en
         // 'generating_next' con todos los chunks pausados se quedaba
         // sin polling de chunkStatusInfo (chip seguía mintiendo).
+        //
+        // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] 'complete_partial' añadido, y
+        // no por simetría: medición read-only sobre los 24 planes vivos de
+        // producción (2026-08-04) →
+        //
+        //     status              planes   con días faltantes
+        //     complete_partial        20                   20
+        //     partial                  3                    3
+        //     complete                 1                    0
+        //
+        // `complete_partial` es la población DOMINANTE (20 de 24) y sus 20
+        // planes tienen días sin generar — exactamente la forma que el
+        // predicado `overdue` del backend existe para detectar. Con el gate
+        // previo esos 20 planes nunca pedían `/chunk-status`, así que
+        // `chunkStatusInfo` se quedaba en `null` y `UpcomingDayTabs` devolvía
+        // `null`: los días futuros habrían sido invisibles justo en el caso
+        // para el que se construyeron.
+        //
+        // Ojo con la rama `else if` de abajo: limpia el snapshot SOLO en
+        // 'complete' puro (igualdad estricta, NO un `startsWith('complete')`).
+        // Un plan de verdad terminado tiene que seguir botando sus
+        // paused_chunks viejos; lo que entra al polling es `complete_partial`,
+        // que es otra cosa: plan servible con trabajo pendiente en la cola.
         const _isActiveForChunkPoll = (
             status === 'partial'
             || status === 'generating'
             || status === 'generating_next'
             || status === 'rolling'
+            || status === 'complete_partial'
         );
 
         // [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] AbortController scoped
@@ -2056,9 +2080,22 @@ const DashboardInner = () => {
         };
     }, [refreshProfileAndPlan]);
 
+    // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] El contador de la línea de abajo
+    // subió de 3 a 4 al entrar 'complete_partial' en `_isActiveForChunkPoll`.
+    // El gate de ESTE hook NO se toca: añadir un estado allá arriba no crea un
+    // poll recurrente nuevo — aquel fetch es one-shot, piggyback del refresh de
+    // plan, y el único bucle periódico sigue gateado a 'partial'.
+    //
+    // Este bloque vive FUERA del objeto a propósito: `Dashboard.plan_poll_bounded.
+    // test.js` localiza la llamada de abajo y lee sus primeros 400 bytes para
+    // anclar `enabled/resetKey/tick`; un comentario dentro del objeto empuja
+    // `enabled:` fuera de esa ventana. Es la caducidad por ventana fija que ese
+    // mismo test documenta — no la reintroduzcamos por dentro. (Y por eso este
+    // párrafo tampoco escribe la firma literal de la llamada: el test la busca
+    // con `indexOf` y engancharía este comentario en vez del código.)
     usePlanPollLoop({
         // Paridad exacta con el gate del `setInterval` reemplazado: SOLO 'partial'
-        // (los otros 3 estados "activos" ya tienen su fetch inicial one-shot arriba).
+        // (los otros 4 estados "activos" ya tienen su fetch inicial one-shot arriba).
         enabled: planData?.generation_status === 'partial' && !!planData?.id,
         resetKey: planData?.id,
         tick: _dashPollTick,
