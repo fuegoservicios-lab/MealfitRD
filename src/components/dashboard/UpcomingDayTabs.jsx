@@ -11,7 +11,10 @@
 //
 // LO QUE CAMBIA (spec 2026-08-04): los días futuros se muestran SIEMPRE. El
 // temporal-gate V3 (la mitad VISUAL, no la operacional del backend) queda
-// SUPERSEDED — no ocultamos el futuro, lo etiquetamos con la verdad.
+// SUPERSEDED — no ocultamos el futuro, lo etiquetamos con la verdad. La misma
+// reversión se aplicó al banner de chunks pausados de `Dashboard.jsx`, que
+// conservaba su propia copia del gate: si esta pestaña dice «revisa el aviso de
+// arriba», ese aviso tiene que estar ahí.
 //
 // LO QUE NO CAMBIA (y no se puede debilitar): la jerarquía de honestidad de
 // P0-DASH-CHIP-HONESTY. El chip viejo decía "en camino" leyendo solo
@@ -23,9 +26,8 @@
 //                  corre). Único estado con CTA, porque es el único donde el
 //                  usuario puede hacer algo.
 //   2. pausado   → `pending_user_action_count > 0 && in_flight_count === 0`.
-//                  Solo MARCA el día: el detalle y el CTA de la pausa ya los
-//                  da el banner P0-DASH-CHIP-HONESTY-V2 arriba del menú. No
-//                  duplicamos ese copy aquí.
+//                  Solo MARCA el día: el detalle y el CTA de la pausa los da el
+//                  banner de arriba. No duplicamos ese copy aquí.
 //   3. en proceso→ chunk `processing` o `in_flight_count > 0`. Es la única
 //                  etiqueta que afirma actividad, y solo la afirma cuando la
 //                  cola lo confirma.
@@ -36,7 +38,7 @@
 // knob `MEALFIT_UPCOMING_DAYS_UI` está apagado o el backend es más viejo que
 // este bundle. En ese caso renderizamos `null`, que es el comportamiento de
 // hoy. Nunca inferimos estados que no podemos verificar contra la cola.
-import { useState } from 'react';
+import { useState, useRef, useEffect, useId } from 'react';
 import PropTypes from 'prop-types';
 import { Loader2 } from 'lucide-react';
 
@@ -50,8 +52,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // `new Date('2026-08-05')` se parsea como MEDIANOCHE UTC; en cualquier TZ al
 // oeste de Greenwich (toda RD y las Américas) `toLocaleDateString` local
-// retrocede un día y el fantasma diría "lunes" donde el plan dice "martes".
+// retrocede un día y el fantasma diría "martes" donde el plan dice "miércoles".
 // Parseamos los componentes a mano para construir una fecha LOCAL.
+//
+// Solo para valores FECHA (`YYYY-MM-DD`, como `day.date`). Para timestamps
+// (`execute_after`) hay que hacer lo CONTRARIO: `new Date(iso)` respeta el
+// instante y `toLocaleDateString` ya lo baja a la fecha local correcta — ver
+// `scheduledLabel`.
 function parseIsoDateLocal(value) {
     if (typeof value !== 'string') return null;
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
@@ -70,6 +77,26 @@ function num(value, fallback) {
 
 const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
     const [popoverOpen, setPopoverOpen] = useState(false);
+    const popoverWrapRef = useRef(null);
+    const popoverId = useId();
+
+    // Cierre por Esc y por click fuera. Va ANTES de cualquier early-return: un
+    // hook detrás de un `return null` condicional rompe el orden de hooks.
+    useEffect(() => {
+        if (!popoverOpen) return undefined;
+        const onKeyDown = (e) => { if (e.key === 'Escape') setPopoverOpen(false); };
+        const onPointerDown = (e) => {
+            if (popoverWrapRef.current && !popoverWrapRef.current.contains(e.target)) {
+                setPopoverOpen(false);
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('mousedown', onPointerDown);
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener('mousedown', onPointerDown);
+        };
+    }, [popoverOpen]);
 
     // [P1-GUEST-MODE · 2026-06-15, preservado] En modo invitado NO hay chunking
     // en background (plan efímero capado a 3 días): un fantasma "se genera el
@@ -98,7 +125,8 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
 
     const offset = num(next?.days_offset, generatedCount);
     // Sin chunk en cola pero `overdue` ⇒ hay al menos un día que debería
-    // existir. Dibujamos ese uno: es el que lleva el CTA.
+    // existir. Dibujamos ese uno: es el que lleva el CTA. Y es el caso NORMAL,
+    // no el borde — ver la cadena de imposibilidad en `renderGhost`.
     const rawCount = num(next?.days_count, overdue ? 1 : 0);
     const ghostCount = Math.max(0, Math.min(rawCount, MAX_GHOSTS));
     // Todo lo que queda DESPUÉS de los fantasmas visibles va al resumen — si
@@ -120,11 +148,23 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
         anchor = parseIsoDateLocal(days[i]?.date);
     }
 
+    // `execute_after` es un TIMESTAMP, no una fecha: hay que resolver el
+    // instante y dejar que `toLocaleDateString` lo baje a la fecha LOCAL. Tomar
+    // sus 10 primeros caracteres sería leer la fecha en UTC — y los ~12 paths
+    // de recovery que escriben `execute_after = NOW()` producen horas UTC
+    // < 04:00 que en RD (UTC−4) caen el día local ANTERIOR: diríamos "se genera
+    // mié" cuando localmente todavía es martes.
     const scheduledLabel = (() => {
-        const d = parseIsoDateLocal(next?.execute_after)
-            || (typeof next?.execute_after === 'string' ? new Date(next.execute_after) : null);
-        if (!d || Number.isNaN(d.getTime())) return null;
+        if (typeof next?.execute_after !== 'string') return null;
+        const d = new Date(next.execute_after);
+        if (Number.isNaN(d.getTime())) return null;
         return d.toLocaleDateString('es-DO', { weekday: 'short' });
+    })();
+
+    const overdueSinceLabel = (() => {
+        const d = parseIsoDateLocal(chunkStatusInfo?.overdue_since);
+        if (!d) return null;
+        return d.toLocaleDateString('es-DO', { day: 'numeric', month: 'long' });
     })();
 
     const ghostName = (i) => {
@@ -164,20 +204,42 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
         borderColor: 'var(--border)',
     };
 
+    const CHIP_STYLE = { fontSize: '0.7rem', opacity: 0.85 };
+
     const renderGhost = (i) => {
         const state = stateFor(i);
         const name = ghostName(i);
 
         if (state === 'atrasado') {
-            const since = typeof chunkStatusInfo?.overdue_since === 'string'
-                ? chunkStatusInfo.overdue_since : null;
+            // POR QUÉ ESTE CTA NO REINTENTA UN CHUNK. Cadena de imposibilidad,
+            // verificada leyendo el backend: `upcoming_chunks` filtra
+            // `status IN ('pending','processing')`; `in_flight_count` cuenta
+            // `('pending','processing','stale')`; y `compute_chunk_overdue`
+            // devuelve `(False, None)` en cuanto `in_flight_count > 0`. Por
+            // tanto `overdue === true` ⟹ `upcoming_chunks === []` ⟹ no existe
+            // `chunk_id` que reintentar. Un CTA cableado a `/retry-chunk`
+            // sería inerte el 100% de las veces, no en un borde raro.
+            //
+            // La vía real de recuperación es `POST /api/plans/shift-plan`: su
+            // rama `not is_partial and needs_fill`
+            // (`routers/plans.py::api_shift_plan`, el catch-up P0-5) encola
+            // chunks nuevos para TODOS los días faltantes, y su guard "ya
+            // existe chunk para esta semana" solo salta cuando hay uno vivo en
+            // ('pending','processing','stale','failed') — es decir, encola
+            // precisamente en la condición `overdue`. Además `is_partial` es
+            // `generation_status in ('partial','generating_next')`, así que un
+            // plan `complete_partial` (20 de 24 planes vivos) entra en la rama.
+            //
+            // Por eso `onRetry` se invoca SIN argumentos: esto es una acción de
+            // PLAN, no de chunk. Si alguien vuelve a pasar un `chunk_id` aquí,
+            // que sea después de romper la cadena de arriba, no antes.
             return (
                 <button
                     key={`ghost-${i}`}
                     type="button"
-                    onClick={() => onRetry?.(next?.chunk_id ?? null)}
-                    aria-label={`${name}: atrasado${since ? ` desde ${since}` : ''}. Toca para reintentar.`}
-                    title={`Este día ya debería estar listo${since ? ` (desde ${since})` : ''} y nada está corriendo. Toca para reintentar.`}
+                    onClick={() => onRetry?.()}
+                    aria-label={`${name}: atrasado${overdueSinceLabel ? ` desde el ${overdueSinceLabel}` : ''}. Toca para reintentar.`}
+                    title={`Este día ya debería estar listo${overdueSinceLabel ? ` (desde el ${overdueSinceLabel})` : ''} y nada está corriendo. Toca para reintentar.`}
                     style={{
                         ...BASE_STYLE,
                         opacity: 1,
@@ -188,7 +250,7 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
                     }}
                 >
                     <span>{name}</span>
-                    <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>· atrasado</span>
+                    <span role="status" style={CHIP_STYLE}>· atrasado</span>
                     <span style={{
                         fontSize: '0.65rem',
                         fontWeight: 700,
@@ -206,7 +268,9 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
         let suffix; let titleText; let showSpinner = false; let extraStyle = {};
         if (state === 'pausado') {
             // Solo marca el día. El detalle (reason_code → copy) y el CTA los
-            // da el banner de arriba; duplicarlos aquí sería ruido.
+            // da el banner de arriba, que desde 2026-08-04 ya NO se auto-oculta
+            // por el temporal-gate V3 — si no, esta frase remitiría a un aviso
+            // invisible.
             suffix = '⏸ pausado';
             titleText = 'Este día está pausado. Revisa el aviso de arriba para continuar.';
             extraStyle = { background: '#FFFBEB', color: '#B45309', borderColor: '#F59E0B', opacity: 0.85 };
@@ -231,7 +295,15 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
                              style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
                 )}
                 <span>{name}</span>
-                <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>{suffix}</span>
+                {/* El chip es ahora el ÚNICO canal por el que un lector de
+                    pantalla se entera de que este día está pausado o en
+                    proceso: la pestaña que lo envuelve es `presentation`. Por
+                    eso conserva el `role="status"` + `aria-label` que tenía el
+                    bloque viejo, con el nombre del día dentro (el chip solo
+                    dice "⏸ pausado" y fuera de contexto no se sabe de cuál). */}
+                <span role="status" aria-label={`${name}: ${state}`} style={CHIP_STYLE}>
+                    {suffix}
+                </span>
             </div>
         );
     };
@@ -241,11 +313,12 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
             {Array.from({ length: ghostCount }).map((_, i) => renderGhost(i))}
 
             {remaining > 0 && (
-                <div style={{ position: 'relative', flexShrink: 0 }}>
+                <div ref={popoverWrapRef} style={{ position: 'relative', flexShrink: 0 }}>
                     <button
                         type="button"
                         onClick={() => setPopoverOpen((v) => !v)}
                         aria-expanded={popoverOpen}
+                        aria-controls={popoverId}
                         title="Los días que faltan de tu plan"
                         style={{
                             ...BASE_STYLE,
@@ -258,6 +331,7 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest, onRetry }) => {
                     </button>
                     {popoverOpen && (
                         <div
+                            id={popoverId}
                             role="tooltip"
                             style={{
                                 position: 'absolute',

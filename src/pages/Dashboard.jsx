@@ -66,7 +66,7 @@ import PantryConsentModal from '../components/common/PantryConsentModal';
 // abajo. Pre-fix era import estático top-level: el chunk se fetch eager
 // al entrar al Dashboard, 100% de usuarios pagan el costo aunque jamás
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
-import { API_BASE, fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
+import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 // [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
 import { minBudgetFor, budgetCycleDays } from '../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo de presupuesto personalizado por las metas
@@ -1998,45 +1998,62 @@ const DashboardInner = () => {
 
     // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] CTA del único estado accionable de
     // `UpcomingDayTabs`: `atrasado` (la cola dice que hoy debería existir un día
-    // que no existe y NADA está corriendo). Mismo patrón que `Plan.jsx::handleRetry`
-    // — `retryPlanChunk` re-encola el chunk — con dos diferencias deliberadas:
-    //   · `chunkId` puede venir null (overdue SIN chunk en cola: la fila se
-    //     perdió o nunca se creó). El endpoint /retry-chunk exige un id, así que
-    //     en ese caso no hay reintento posible desde aquí y lo decimos en vez de
-    //     lanzar una request que va a fallar con 404.
-    //   · NO hacemos `window.location.reload()` (Plan.jsx sí): el Dashboard tiene
-    //     polling propio; refrescamos `/chunk-status` en el sitio y el fantasma
-    //     pasa de `atrasado` a `en proceso` solo.
-    const handleRetryChunk = useCallback(async (chunkId) => {
-        const planId = planData?.id;
-        if (!planId) return;
-        if (!chunkId) {
-            toast.info('Estamos reprogramando estos días', {
-                description: 'No hay nada que reintentar todavía. Vuelve en unos minutos.',
-            });
-            return;
-        }
+    // que no existe y NADA está corriendo).
+    //
+    // NO usa `/retry-chunk`, y la razón es estructural, no de gusto. Cadena
+    // verificada en el backend: `upcoming_chunks` filtra
+    // `status IN ('pending','processing')`; `in_flight_count` cuenta
+    // `('pending','processing','stale')`; `compute_chunk_overdue` devuelve
+    // `(False, None)` en cuanto `in_flight_count > 0`. Luego `overdue === true`
+    // implica cola vacía ⇒ NO hay `chunk_id` que reintentar. Un CTA cableado a
+    // `/retry-chunk` habría contestado "no hay nada que reintentar" el 100% de
+    // las veces: un botón inerte con aspecto de arreglo.
+    //
+    // La vía real es `POST /api/plans/shift-plan` → rama
+    // `not is_partial and needs_fill` de `api_shift_plan` (catch-up P0-5), que
+    // encola chunks para TODOS los días faltantes y cuyo guard "ya existe chunk"
+    // solo salta si hay uno vivo — o sea, encola exactamente en la condición
+    // `overdue`. Es la misma llamada (idempotente, quota-exempt) que ya hacen el
+    // `triggerShift` automático y el botón [P2-δ] "Refrescar próximos días";
+    // aquí es explícita y nace del día que el usuario ve atrasado.
+    const handleRetryUpcomingDays = useCallback(async () => {
+        if (!userProfile?.id) return;
+        const tId = toast.loading('Reintentando los próximos días…', { position: 'top-center' });
         try {
-            const res = await retryPlanChunk(planId, chunkId);
+            const res = await fetchWithAuth(`${API_BASE}/api/plans/shift-plan`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userProfile.id,
+                    tzOffset: new Date().getTimezoneOffset(),
+                }),
+            });
             if (res?.ok) {
-                toast.success('Reintento iniciado', { description: 'Generando los próximos días…' });
+                const data = await res.json().catch(() => null);
+                if (data?.plan_data) setPlanData(data.plan_data);
+                toast.success('Volvimos a poner en cola tus próximos días', { id: tId });
                 // Refresco inmediato del estado de la cola: sin esto el chip
                 // seguiría diciendo "atrasado" hasta el siguiente tick del poll.
-                try {
-                    const r = await getPlanChunkStatus(planId);
-                    if (r?.ok) {
-                        const body = await r.json().catch(() => null);
-                        if (body && typeof body === 'object') setChunkStatusInfo(body);
-                    }
-                } catch { /* best-effort: el poll normal lo recoge */ }
+                // NO hacemos `window.location.reload()` (Plan.jsx sí lo hace):
+                // el Dashboard tiene polling propio.
+                const planId = planData?.id || data?.plan_data?.id;
+                if (planId) {
+                    try {
+                        const r = await getPlanChunkStatus(planId);
+                        if (r?.ok) {
+                            const body = await r.json().catch(() => null);
+                            if (body && typeof body === 'object') setChunkStatusInfo(body);
+                        }
+                    } catch { /* best-effort: el poll normal lo recoge */ }
+                }
             } else {
-                toast.error('No se pudo reintentar', { description: 'Inténtalo de nuevo en unos minutos.' });
+                toast.error('No se pudo reintentar', { id: tId, description: 'Inténtalo de nuevo en unos minutos.' });
             }
         } catch (e) {
-            console.error('[P2-CHUNK-OVERDUE-SIGNAL] handleRetryChunk:', e);
-            toast.error('No se pudo reintentar');
+            console.error('[P2-CHUNK-OVERDUE-SIGNAL] handleRetryUpcomingDays:', e);
+            toast.error('No se pudo reintentar', { id: tId });
         }
-    }, [planData?.id]);
+    }, [userProfile?.id, planData?.id, setPlanData]);
 
     // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Lectura fresca de `planData` dentro del `tick`
     // de abajo sin listarlo como dep del effect (mismo motivo que en AssessmentContext).
@@ -7224,23 +7241,27 @@ const DashboardInner = () => {
                             ? _csi.paused_chunks[0] : null;
                         if (!_pc) return null;
 
-                        // [P0-DASH-CHIP-HONESTY-V3 · 2026-05-09] Mismo
-                        // temporal_gate UX que aplica al slot del día.
-                        // Si el usuario aún está consumiendo días del
-                        // chunk actual (daysSinceCreation < generated),
-                        // NO mostrar el banner — la pausa del próximo
-                        // bloque no es urgente todavía. Reduce ansiedad
-                        // anticipada. SSOT con la lógica del slot.
-                        const _planDaysLen = Array.isArray(planData?.days) ? planData.days.length : 0;
-                        if (
-                            typeof daysSinceCreation === 'number'
-                            && Number.isFinite(daysSinceCreation)
-                            && _planDaysLen > 0
-                            && daysSinceCreation < _planDaysLen
-                        ) {
-                            return null;
-                        }
-
+                        // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Aquí vivía la
+                        // copia del temporal_gate V3 que el slot del día tenía
+                        // (`daysSinceCreation < planData.days.length → return
+                        // null`): mientras el usuario aún consumiera días del
+                        // chunk actual, el banner se ocultaba "para reducir
+                        // ansiedad anticipada".
+                        //
+                        // Queda SUPERSEDED, igual que su gemelo en las
+                        // pestañas. La reversión del owner (spec 2026-08-04) es
+                        // "los días futuros se ven siempre", y el banner es
+                        // parte de esa superficie: la pestaña fantasma de un
+                        // día pausado dice «⏸ pausado · revisa el aviso de
+                        // arriba», y ese gate garantizaba que durante ~el 90%
+                        // del tiempo NO hubiera ningún aviso arriba. Una
+                        // instrucción que remite a algo invisible es peor que
+                        // no decir nada.
+                        //
+                        // El resto de la lógica del banner NO cambia: sigue
+                        // apareciendo solo con `pending_user_action > 0 &&
+                        // in_flight === 0` (los dos guards de arriba), con su
+                        // razón y su CTA derivados del primer paused_chunk.
                         const _reasonCopy = {
                             empty_pantry: { title: 'Tu próximo bloque está pausado', body: 'Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.', cta: 'Actualizar nevera', url: '/inventory' },
                             empty_pantry_proactive: { title: 'Tu próximo bloque está pausado', body: 'Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.', cta: 'Actualizar nevera', url: '/inventory' },
@@ -7531,7 +7552,7 @@ const DashboardInner = () => {
                                                     planData={planData}
                                                     chunkStatusInfo={chunkStatusInfo}
                                                     isGuest={isGuest}
-                                                    onRetry={handleRetryChunk}
+                                                    onRetry={handleRetryUpcomingDays}
                                                 />
                                             )}
                                         </div>
