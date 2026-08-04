@@ -111,7 +111,8 @@ export function projectRemaining(entries, totalDaysRequested) {
 // Agrupa por semana NATURAL (lunes–domingo). Las semanas parciales dejan `null`
 // en las celdas que el plan no cubre: ese hueco es lo que hace visible que la
 // semana empieza o termina a medias. Un plan de 30 días que arranca jueves
-// ocupa CINCO semanas (3+7+7+7+6), no cuatro.
+// ocupa CINCO semanas (4+7+7+7+5), no cuatro: de jueves a domingo hay cuatro
+// días, no tres.
 export function groupIntoWeeks(entries, today) {
     if (!Array.isArray(entries) || entries.length === 0) return [];
 
@@ -136,4 +137,111 @@ export function groupIntoWeeks(entries, today) {
         }
         return { ordinal: i + 1, start, end, cells, hasToday, readyCount };
     });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Estado de un día. Hereda íntegra la jerarquía de P0-DASH-CHIP-HONESTY tal
+// como la dejó P2-CHUNK-OVERDUE-SIGNAL:
+//
+//   atrasado > pausado > en proceso > programado
+//
+// y su regla dura: NINGUNA etiqueta afirma actividad si nada corre. Solo un
+// chunk en `processing` dice "en proceso". `stale` NO: es un chunk encolado
+// esperando que el worker lo re-pickee, y `in_flight_count` lo suma — por eso
+// el estado se decide por EL CHUNK QUE CUBRE ESE DÍA y nunca por contadores
+// globales. Esa distinción costó dos rondas de revisión; no la colapses.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ⚠️ `days_offset` es relativo a la VENTANA VIVA post-shift (el backend lo
+// calcula como `len(shifted_days)` en los chunks de catch-up), NO a la posición
+// absoluta del plan. Confundirlo ya produjo un "+11 días" donde la verdad eran
+// 9. Por eso el mapeo va por FECHA: un chunk cubre `fecha(days[0]) +
+// days_offset + k`, con k en [0, days_count).
+export function chunkCoveringDate(iso, firstLiveIso, chunkStatusInfo) {
+    const target = parseIsoDateLocal(iso);
+    const anchor = parseIsoDateLocal(firstLiveIso);
+    if (!target || !anchor || !chunkStatusInfo) return null;
+
+    const offsetDays = Math.round((target - anchor) / DAY_MS);
+    const paused = Array.isArray(chunkStatusInfo.paused_chunks) ? chunkStatusInfo.paused_chunks : [];
+    const upcoming = Array.isArray(chunkStatusInfo.upcoming_chunks) ? chunkStatusInfo.upcoming_chunks : [];
+
+    const covers = (c) => {
+        const start = Number(c?.days_offset);
+        const count = Number(c?.days_count);
+        if (!Number.isFinite(start) || !Number.isFinite(count)) return false;
+        return offsetDays >= start && offsetDays < start + count;
+    };
+
+    // El pausado gana el empate: un día bloqueado esperando al usuario no debe
+    // anunciar la hora de otro chunk. `paused_chunks` no trae `status` (el
+    // backend lo omite porque la lista ya lo implica), así que lo añadimos aquí
+    // para que el consumidor tenga una sola forma que mirar.
+    const hit = paused.find(covers);
+    if (hit) return { ...hit, status: 'pending_user_action' };
+    return upcoming.find(covers) || null;
+}
+
+function formatDayEs(date) {
+    return date.toLocaleDateString('es-DO', { weekday: 'long' });
+}
+
+export function resolveDayState(entry, ctx) {
+    const { chunkStatusInfo = {}, firstLiveIso, today } = ctx || {};
+
+    if (entry.origen === 'archivado') {
+        return { key: 'pasado', label: 'ya pasó', navegable: true, editable: false };
+    }
+    if (entry.origen === 'vivo') {
+        const hoy = today && new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (hoy && entry.date.getTime() === hoy.getTime()) {
+            return { key: 'hoy', label: 'hoy', navegable: true, editable: true };
+        }
+        return { key: 'listo', label: 'listo', navegable: true, editable: true };
+    }
+
+    // origen === 'futuro': el día no existe todavía. `overdue` solo puede
+    // aplicar aquí — un día ya generado nunca está atrasado.
+    if (chunkStatusInfo.overdue === true) {
+        return { key: 'atrasado', label: 'atrasado', navegable: false, editable: false };
+    }
+
+    const chunk = chunkCoveringDate(entry.iso, firstLiveIso, chunkStatusInfo);
+    if (chunk?.status === 'pending_user_action') {
+        return { key: 'pausado', label: 'pausado', navegable: false, editable: false };
+    }
+    if (chunk?.status === 'processing') {
+        return { key: 'en_proceso', label: 'en proceso', navegable: false, editable: false };
+    }
+    if (chunk) {
+        const when = parseIsoDateLocal(String(chunk.execute_after || '').slice(0, 10));
+        return {
+            key: 'sin_plan',
+            label: when ? `se genera ${formatDayEs(when)}` : 'en cola',
+            navegable: false,
+            editable: false,
+        };
+    }
+    return { key: 'sin_plan', label: 'aún sin plan', navegable: false, editable: false };
+}
+
+// [P1-DASH-WEEK-NAV] LA regla que impide corromper datos.
+//
+// `activeDayIndex` nunca fue solo selección visual: es la DIRECCIÓN DE
+// ESCRITURA. Viaja al backend en `{ dayIndex, mealIndex, … }` y
+// `/swap-meal/persist` escribe con la ruta jsonb `{days,<i>,meals,<j>}`; lo
+// mismo `regenerateDay(dayIndex, …)`. Ver P2-SWAP-INDEX-COUPLING en Dashboard.
+//
+// Con la navegación por semanas la vista también muestra días ARCHIVADOS, que
+// viven en `_archived_days` y tienen su PROPIO rango de índices. Si los dos
+// rangos se mezclaran, el índice 0 dejaría de ser `days[0]` y un "Cambiar
+// Plato" reescribiría otro día en silencio.
+//
+// Este helper es el ÚNICO sitio que deriva un índice de escritura. Devuelve
+// `null` para todo lo que no sea un día vivo. Ningún callsite lo construye a
+// mano. Vive aquí y no en Dashboard.jsx para que sea testeable sin arrastrar
+// un componente de ~8.900 líneas con todas sus dependencias.
+export function writableDayIndex(selectedDay) {
+    if (!selectedDay || selectedDay.origen !== 'vivo') return null;
+    return Number.isInteger(selectedDay.idx) ? selectedDay.idx : null;
 }
