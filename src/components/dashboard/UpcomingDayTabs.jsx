@@ -29,11 +29,16 @@
 //   2. pausado   → `pending_user_action_count > 0 && in_flight_count === 0`.
 //                  Solo MARCA el día: el detalle y el CTA de la pausa los da el
 //                  banner de arriba. No duplicamos ese copy aquí.
-//   3. en proceso→ chunk `processing` o `in_flight_count > 0`. Es la única
-//                  etiqueta que afirma actividad, y solo la afirma cuando la
-//                  cola lo confirma.
-//   4. programado→ fecha de `execute_after`. El default honesto: "no corre
-//                  nada, y no debería — le toca el <día>".
+//   3. en proceso→ SOLO si ESTE chunk está en `processing`. Es la única
+//                  etiqueta que afirma actividad, así que se decide por el
+//                  estado del propio chunk y NUNCA por `in_flight_count`, que
+//                  suma ('pending','processing','stale') y por tanto puede ser
+//                  > 0 sin que nada corra.
+//   4. programado→ el resto de la cola. Con `pending` anuncia su
+//                  `execute_after` ("le toca el <día>"); con `stale` —un chunk
+//                  encolado esperando que el worker lo re-pickee— dice «en
+//                  cola», porque esa fecha ya venció y no responde cuándo lo
+//                  verá el usuario.
 //
 // DEGRADACIÓN POR AUSENCIA: `upcoming_chunks` viene AUSENTE (no null) cuando el
 // knob `MEALFIT_UPCOMING_DAYS_UI` está apagado o el backend es más viejo que
@@ -142,7 +147,21 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     const puac = num(chunkStatusInfo?.pending_user_action_count, 0);
     const inFlight = num(chunkStatusInfo?.in_flight_count, 0);
     const isPausedFromQueue = puac > 0 && inFlight === 0;
-    const isProcessing = next?.status === 'processing' || inFlight > 0;
+    // [Ronda 4] La etiqueta de la pestaña la decide el estado del PROPIO chunk,
+    // nunca el contador global `in_flight_count`. Ese contador suma
+    // `('pending','processing','stale')`, así que con `|| inFlight > 0` un chunk
+    // en cola heredaba la etiqueta «en proceso» —con spinner y un title que
+    // afirma «se está generando ahora mismo»— porque OTRO chunk (o él mismo, en
+    // `stale`) hacía subir el contador. Es justo el cruce que la cabecera de
+    // este componente se compromete a no hacer: afirmar actividad sin que la
+    // cola la confirme. No se veía mientras `stale` quedaba fuera del payload;
+    // al hacerlo visible, la afirmación falsa pasaba a ser nuestra.
+    const nextStatus = typeof next?.status === 'string' ? next.status : null;
+    const isProcessing = nextStatus === 'processing';
+    // `stale` NO está corriendo: es un chunk encolado para que el worker lo
+    // re-pickee al refrescar la pantry (`db_plans.py`: "el worker los re-pickea
+    // al refrescar pantry"). Se trata como encolado, igual que `pending`.
+    const isStale = nextStatus === 'stale';
 
     // Ancla de nombres: la ÚLTIMA fecha estampada de la ventana viva. Planes
     // pre-`date` (P1-CHAT-PAST-DAYS estampó `date` en los 3 sitios de
@@ -268,12 +287,27 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
             titleText = 'Este día se está generando ahora mismo.';
             showSpinner = true;
         } else {
-            suffix = scheduledLabel ? `· se genera ${scheduledLabel}` : '· se genera pronto';
+            // [Ronda 4] Un chunk `stale` va sin fecha, a propósito. Su
+            // `execute_after` no responde "cuándo verás este día": es la reja de
+            // elegibilidad con la que el worker reclama
+            // (`WHERE status IN ('pending','stale') AND execute_after <= now`),
+            // y en un chunk que espera re-pickeo esa hora ya pasó — de hecho el
+            // TZ-sync la reescribe a `NOW()`. Anunciar «se genera <día>» con una
+            // fecha vencida sería cambiar una afirmación falsa por otra. «En
+            // cola» es exacto y no estrena estado: la jerarquía sigue siendo
+            // atrasado > pausado > en proceso > programado, y esto es una
+            // variante de copy del último, no un quinto nivel.
+            const _label = isStale
+                ? 'en cola'
+                : (scheduledLabel ? `se genera ${scheduledLabel}` : 'en cola');
+            suffix = `· ${_label}`;
             // El aria-label decía solo "programado", una palabra que el texto
             // visible no usa en ningún sitio: quien oye la pestaña se enteraba
             // de MENOS que quien la ve. Ahora dicen lo mismo.
-            ariaSuffix = scheduledLabel ? `se genera ${scheduledLabel}` : 'se genera pronto';
-            titleText = 'Este día todavía no existe. Se generará en su turno.';
+            ariaSuffix = _label;
+            titleText = isStale
+                ? 'Este día está en cola. El sistema lo retomará en su próxima pasada.'
+                : 'Este día todavía no existe. Se generará en su turno.';
         }
 
         return (

@@ -102,11 +102,69 @@ test('nunca dice "en proceso" con la cola parada (la mentira del chip viejo)', (
   expect(screen.queryByText(/en camino/i)).toBeNull();
 });
 
-test('en proceso solo cuando la cola tiene algo corriendo', () => {
+// [Ronda 4] Este test decía «en proceso solo cuando la cola tiene algo
+// corriendo» y lo comprobaba con un chunk `pending` + `in_flight_count: 1`.
+// Codificaba el defecto: `in_flight_count` suma ('pending','processing',
+// 'stale'), así que "el contador es > 0" NO significa "este chunk corre".
+// La etiqueta la decide ahora el estado del propio chunk.
+test('en proceso solo cuando ESTE chunk está processing', () => {
   render(<UpcomingDayTabs planData={plan30}
-                          chunkStatusInfo={csi({ in_flight_count: 1 })}
+                          chunkStatusInfo={csi({
+                            in_flight_count: 1,
+                            upcoming_chunks: [{ days_offset: 3, days_count: 4, status: 'processing', execute_after: '2026-08-05T09:00:00Z' }],
+                          })}
                           isGuest={false} />);
   expect(screen.getAllByText(/en proceso/i).length).toBeGreaterThan(0);
+});
+
+test('un chunk pending NO hereda "en proceso" del contador global', () => {
+  render(<UpcomingDayTabs planData={plan30}
+                          chunkStatusInfo={csi({ in_flight_count: 3 })}
+                          isGuest={false} />);
+  expect(screen.queryByText(/en proceso/i)).toBeNull();
+  expect(screen.getAllByText(/se genera/i).length).toBeGreaterThan(0);
+});
+
+// ---------------------------------------------------------------------------
+// [Ronda 4] `stale`. El backend dejó de excluirlo de `upcoming_chunks` (antes
+// un chunk stale apagaba el aviso de atrasado SIN pintar pestaña: días
+// encolados invisibles, el bug de origen). Al hacerse visible hay que
+// etiquetarlo con la verdad: `stale` NO corre — es un chunk encolado para que
+// el worker lo re-pickee al refrescar la pantry.
+// ---------------------------------------------------------------------------
+const csiStale = (extra = {}) => csi({
+  in_flight_count: 1,   // el contador SÍ suma los stale — por eso engañaba
+  upcoming_chunks: [{ days_offset: 3, days_count: 4, status: 'stale', execute_after: '2026-08-05T09:00:00Z' }],
+  ...extra,
+});
+
+test('un chunk stale NO dice "en proceso" ni afirma que se está generando', () => {
+  render(<UpcomingDayTabs planData={plan30} chunkStatusInfo={csiStale()} isGuest={false} />);
+  expect(screen.queryByText(/en proceso/i)).toBeNull();
+  const tab = screen.getAllByRole('presentation')[0];
+  expect(tab.getAttribute('title')).not.toMatch(/gener[aá]ndo|ahora mismo/i);
+});
+
+test('un chunk stale se muestra como encolado, sin prometer una fecha vencida', () => {
+  render(<UpcomingDayTabs planData={plan30} chunkStatusInfo={csiStale()} isGuest={false} />);
+  expect(screen.getAllByText(/en cola/i).length).toBeGreaterThan(0);
+  // `execute_after` en un stale es la reja de elegibilidad del worker, ya
+  // vencida: no se anuncia como si fuera el día en que el usuario lo verá.
+  expect(screen.queryByText(/se genera/i)).toBeNull();
+});
+
+test('stale sigue por debajo de pausado y de atrasado en la jerarquía', () => {
+  const { unmount } = render(<UpcomingDayTabs planData={plan30}
+                          chunkStatusInfo={csiStale({ pending_user_action_count: 1, in_flight_count: 0 })}
+                          isGuest={false} />);
+  expect(screen.getAllByText(/pausado/i).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/en cola/i)).toBeNull();
+  unmount();
+
+  render(<UpcomingDayTabs planData={plan30}
+                          chunkStatusInfo={csiStale({ overdue: true, overdue_since: '2026-08-04' })}
+                          isGuest={false} />);
+  expect(screen.getAllByRole('presentation')[0]).toHaveTextContent(/atrasado/i);
 });
 
 test('atrasado gana sobre pausado y sobre en proceso', () => {
