@@ -186,43 +186,50 @@ function formatDayEs(date) {
     return date.toLocaleDateString('es-DO', { weekday: 'long' });
 }
 
+// Devuelve `label` (frase completa, para el `aria-label` y para la etiqueta de
+// la SEMANA) y `short` (marca compacta de la celda del día).
+//
+// ⚠️ La celda usa `short` y NUNCA `label`. La fila anterior repetía "se genera
+// vie" en cada uno de los cuatro días — la queja original del owner. La fecha
+// del lote se dice UNA vez, a nivel de semana; en la celda solo cabe una marca.
 export function resolveDayState(entry, ctx) {
     const { chunkStatusInfo = {}, firstLiveIso, today } = ctx || {};
 
     if (entry.origen === 'archivado') {
-        return { key: 'pasado', label: 'ya pasó', navegable: true, editable: false };
+        return { key: 'pasado', label: 'ya pasó', short: '✓', navegable: true, editable: false };
     }
     if (entry.origen === 'vivo') {
         const hoy = today && new Date(today.getFullYear(), today.getMonth(), today.getDate());
         if (hoy && entry.date.getTime() === hoy.getTime()) {
-            return { key: 'hoy', label: 'hoy', navegable: true, editable: true };
+            return { key: 'hoy', label: 'hoy', short: 'hoy', navegable: true, editable: true };
         }
-        return { key: 'listo', label: 'listo', navegable: true, editable: true };
+        return { key: 'listo', label: 'listo', short: 'listo', navegable: true, editable: true };
     }
 
     // origen === 'futuro': el día no existe todavía. `overdue` solo puede
     // aplicar aquí — un día ya generado nunca está atrasado.
     if (chunkStatusInfo.overdue === true) {
-        return { key: 'atrasado', label: 'atrasado', navegable: false, editable: false };
+        return { key: 'atrasado', label: 'atrasado', short: 'atrasado', navegable: false, editable: false };
     }
 
     const chunk = chunkCoveringDate(entry.iso, firstLiveIso, chunkStatusInfo);
     if (chunk?.status === 'pending_user_action') {
-        return { key: 'pausado', label: 'pausado', navegable: false, editable: false };
+        return { key: 'pausado', label: 'pausado', short: 'pausado', navegable: false, editable: false };
     }
     if (chunk?.status === 'processing') {
-        return { key: 'en_proceso', label: 'en proceso', navegable: false, editable: false };
+        return { key: 'en_proceso', label: 'en proceso', short: 'en proceso', navegable: false, editable: false };
     }
     if (chunk) {
         const when = parseIsoDateLocal(String(chunk.execute_after || '').slice(0, 10));
         return {
             key: 'sin_plan',
             label: when ? `se genera ${formatDayEs(when)}` : 'en cola',
+            short: 'en cola',
             navegable: false,
             editable: false,
         };
     }
-    return { key: 'sin_plan', label: 'aún sin plan', navegable: false, editable: false };
+    return { key: 'sin_plan', label: 'aún sin plan', short: '·', navegable: false, editable: false };
 }
 
 // [P1-DASH-WEEK-NAV] LA regla que impide corromper datos.
