@@ -177,4 +177,23 @@ describe('[P2-CHUNK-OVERDUE-SIGNAL] recuperación de días atrasados desde el Da
         expect(await screen.findByText(/Tu próximo bloque está pausado/i)).toBeInTheDocument();
         expect(screen.getByText(/Tu nevera está vacía/i)).toBeInTheDocument();
     });
+
+    // [Ronda extra] El gate del banner exigía además `in_flight_count === 0`,
+    // asumiendo que una pausa deja la cola quieta. El payload real de
+    // producción desmiente esa premisa: un chunk pausado convive con 8
+    // pendientes. Con el gate viejo el banner no se pintaba, y la pestaña
+    // fantasma del día pausado —que dice «revisa el aviso de arriba»— remitía a
+    // un aviso invisible: el mismo defecto que ya cerramos al quitar el gate V3.
+    it('el banner se ve aunque haya chunks en vuelo (la pausa convive con pendientes)', async () => {
+        vi.mocked(getPlanChunkStatus).mockResolvedValue(_chunkStatus({
+            pending_user_action_count: 1,
+            in_flight_count: 8,
+            paused_chunks: [{ reason_code: 'learning_zero_logs', days_offset: 3, days_count: 3 }],
+            upcoming_chunks: [{ days_offset: 6, days_count: 3, status: 'pending', execute_after: '2026-08-09T09:00:00Z' }],
+        }));
+
+        render(<Dashboard />, { customContext: { ..._baseContext, planData: _planRolling() } });
+
+        expect(await screen.findByText(/Registra tus comidas para continuar/i)).toBeInTheDocument();
+    });
 });

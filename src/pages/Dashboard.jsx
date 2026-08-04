@@ -7187,7 +7187,19 @@ const DashboardInner = () => {
                             ? _csi.pending_user_action_count : 0;
                         const _inFlight = (_csi && typeof _csi.in_flight_count === 'number')
                             ? _csi.in_flight_count : 0;
-                        if (!(_puac > 0 && _inFlight === 0)) return null;
+                        // [P2-CHUNK-OVERDUE-SIGNAL · ronda extra] El gate exigía
+                        // además `_inFlight === 0`, partiendo de que una pausa
+                        // deja la cola quieta. Es falso: la forma normal es un
+                        // chunk pausado conviviendo con N pendientes (payload
+                        // real de producción: `in_flight_count: 8` con
+                        // `pending_user_action_count: 1`), así que el banner no
+                        // se pintaba casi nunca. Y la pestaña fantasma del día
+                        // pausado dice «⏸ pausado · revisa el aviso de arriba»:
+                        // sin este arreglo remitiría a un aviso invisible, el
+                        // mismo defecto que ya cerramos al quitar el gate V3.
+                        // Que haya otros chunks avanzando no cambia el hecho de
+                        // que ESTE espera una acción del usuario.
+                        if (!(_puac > 0)) return null;
                         const _pc = (_csi && Array.isArray(_csi.paused_chunks) && _csi.paused_chunks.length > 0)
                             ? _csi.paused_chunks[0] : null;
                         if (!_pc) return null;

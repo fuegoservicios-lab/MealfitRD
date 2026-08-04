@@ -473,3 +473,116 @@ describe('resumen +N días con días archivados', () => {
     expect(screen.queryByText(/Día 2/)).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// [Ronda extra · N-2] La forma REAL de una pausa, tomada del handler ejecutado
+// contra el único plan de producción con un chunk pausado (`9cf5e313`):
+//
+//   in_flight_count = 8            <-- NO es 0
+//   pending_user_action_count = 1
+//   paused_chunks   = [ week 2, days_offset 3, days_count 3, learning_zero_logs ]
+//   upcoming_chunks = 8 pending; upcoming[0] = week 3, days_offset 6
+//
+// Lo normal es un chunk pausado CONVIVIENDO con N pendientes, no una cola
+// vacía. Antes de esto el gate `puac > 0 && inFlight === 0` daba false, así que
+// `pausado` no se pintaba nunca; y los fantasmas salían de `upcoming[0]`, o sea
+// se anunciaban los días 4-6 —que SON el chunk pausado— con el ETA del chunk de
+// la semana 3. Le poníamos a un día bloqueado la hora de otro.
+// ---------------------------------------------------------------------------
+describe('pausa real: chunk pausado conviviendo con pendientes', () => {
+  const csiReal = (extra = {}) => ({
+    in_flight_count: 8,
+    pending_user_action_count: 1,
+    paused_chunks: [{
+      chunk_id: 'c-pausado', week_number: 2,
+      days_offset: 3, days_count: 3,
+      reason_code: 'learning_zero_logs',
+      execute_after: '2026-08-05T09:00:00Z',
+    }],
+    upcoming_chunks: [
+      { chunk_id: 'c-w3', week_number: 3, days_offset: 6, days_count: 3, status: 'pending', execute_after: '2026-08-09T09:00:00Z' },
+      { chunk_id: 'c-w4', week_number: 4, days_offset: 9, days_count: 3, status: 'pending', execute_after: '2026-08-12T09:00:00Z' },
+    ],
+    overdue: false, overdue_since: null,
+    ...extra,
+  });
+
+  test('los fantasmas salen del chunk de days_offset MENOR (el pausado)', () => {
+    render(<UpcomingDayTabs planData={plan30} chunkStatusInfo={csiReal()} isGuest={false} />);
+    // `days_count: 3` del pausado, no los 3 del chunk de la semana 3 (que
+    // también son 3 — lo que distingue es la ETIQUETA, abajo).
+    expect(screen.getAllByRole('presentation')).toHaveLength(3);
+    expect(screen.getAllByText(/⏸ pausado/).length).toBe(3);
+  });
+
+  test('no se anuncia el ETA de otro chunk sobre un día bloqueado', () => {
+    render(<UpcomingDayTabs planData={plan30} chunkStatusInfo={csiReal()} isGuest={false} />);
+    expect(screen.queryByText(/se genera/i)).toBeNull();
+    expect(screen.queryByText(/en proceso/i)).toBeNull();
+    const tab = screen.getAllByRole('presentation')[0];
+    expect(tab.getAttribute('title')).not.toMatch(/gener[aá]ndo|ahora mismo|su turno/i);
+  });
+
+  test('in_flight_count alto NO tapa el estado pausado', () => {
+    render(<UpcomingDayTabs planData={plan30} chunkStatusInfo={csiReal({ in_flight_count: 42 })} isGuest={false} />);
+    expect(screen.getAllByText(/pausado/i).length).toBeGreaterThan(0);
+  });
+
+  test('si el pausado va DESPUÉS, manda el pendiente más cercano', () => {
+    // Pausado en offset 9, pendiente en offset 3: el usuario verá primero el
+    // pendiente, así que la etiqueta es la suya.
+    render(<UpcomingDayTabs planData={plan30} chunkStatusInfo={csiReal({
+      paused_chunks: [{ chunk_id: 'c-lejos', days_offset: 9, days_count: 3, reason_code: 'empty_pantry' }],
+      upcoming_chunks: [{ chunk_id: 'c-cerca', days_offset: 3, days_count: 3, status: 'pending', execute_after: '2026-08-05T09:00:00Z' }],
+    })} isGuest={false} />);
+    expect(screen.queryByText(/pausado/i)).toBeNull();
+    expect(screen.getAllByText(/se genera/i).length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// [Ronda extra · N-3] Cuarta instancia de la ventana rolling. `_archived_days`
+// NUNCA se vacía, así que tras una renovación acumula los DOS ciclos: contar
+// `archived.length + days.length` daba «Día 34» donde el coach dice «día 4», y
+// apagaba `+N días` por completo (remaining ≤ 0).
+//
+// El backend estampa `_cycle_started_at` al renovar y mide por FECHAS
+// («último día vivo − inicio de ciclo + 1»); esta pestaña usa la misma cascada
+// para que las dos superficies no puedan divergir.
+// ---------------------------------------------------------------------------
+describe('plan renovado: el conteo es del ciclo vigente', () => {
+  // 30 días archivados del ciclo anterior + 3 vivos del nuevo, renovado el 02.
+  const planRenovado = {
+    total_days_requested: 30,
+    _cycle_started_at: '2026-08-02',
+    _archived_days: Array.from({ length: 30 }, (_, i) => ({ date: `2026-07-${String(i + 2).padStart(2, '0')}` })),
+    days: [{ date: '2026-08-02' }, { date: '2026-08-03' }, { date: '2026-08-04' }],
+    generation_status: 'generating_next',
+  };
+
+  test('numera desde el inicio del ciclo, no desde la vida entera del plan', () => {
+    const sinFechas = { ...planRenovado, days: [{}, {}, {}] };
+    render(<UpcomingDayTabs planData={sinFechas} chunkStatusInfo={csi()} isGuest={false} />);
+    // Sin `date` en los vivos no hay medición por fechas ⇒ degrada al conteo de
+    // arrays. Lo que NO puede pasar es quedarse mudo.
+    expect(screen.getAllByRole('presentation').length).toBeGreaterThan(0);
+  });
+
+  test('el resumen cuenta los días que faltan del ciclo, no del historial', () => {
+    render(<UpcomingDayTabs planData={planRenovado} chunkStatusInfo={csi()} isGuest={false} />);
+    // 30 del ciclo − 3 entregados − 4 fantasmas = 23. Contando arrays serían
+    // 30 − 33 − 4 < 0 ⇒ el resumen habría desaparecido.
+    expect(screen.getByText(/\+23 días/)).toBeInTheDocument();
+  });
+
+  test('los fantasmas siguen al ciclo vigente aunque haya 30 archivados', () => {
+    const sinFechasVivas = {
+      ...planRenovado,
+      days: [{ date: '2026-08-02' }, { date: '2026-08-03' }, {}],
+    };
+    render(<UpcomingDayTabs planData={sinFechasVivas} chunkStatusInfo={csi()} isGuest={false} />);
+    // El ancla `_cycle_started_at` + última fecha viva mandan: 2 días de span
+    // ⇒ 3 entregados (nunca por debajo de los vivos) ⇒ resumen 30−3−4 = 23.
+    expect(screen.getByText(/\+23 días/)).toBeInTheDocument();
+  });
+});

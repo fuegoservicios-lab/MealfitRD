@@ -26,9 +26,12 @@
 //                  corre). INFORMATIVO, sin control: el reintento real ya lo
 //                  hace `triggerShift` en cada montaje del Dashboard — ver los
 //                  tres hechos en `renderGhost` antes de añadir un botón aquí.
-//   2. pausado   → `pending_user_action_count > 0 && in_flight_count === 0`.
-//                  Solo MARCA el día: el detalle y el CTA de la pausa los da el
-//                  banner de arriba. No duplicamos ese copy aquí.
+//   2. pausado   → el chunk FUENTE salió de `paused_chunks`. Ojo: NO se decide
+//                  con `pending_user_action_count > 0 && in_flight_count === 0`
+//                  (era el gate viejo). Un chunk pausado convive normalmente
+//                  con N pendientes, así que `in_flight_count` casi nunca es 0
+//                  y ese gate hacía el estado inalcanzable. Solo MARCA el día:
+//                  el detalle y el CTA de la pausa los da el banner de arriba.
 //   3. en proceso→ SOLO si ESTE chunk está en `processing`. Es la única
 //                  etiqueta que afirma actividad, así que se decide por el
 //                  estado del propio chunk y NUNCA por `in_flight_count`, que
@@ -128,27 +131,76 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     const generatedCount = archived.length + days.length;
     const total = num(planData.total_days_requested, generatedCount);
 
+    // [Ronda extra · N-3] Días ENTREGADOS del ciclo VIGENTE. `archived.length +
+    // days.length` es la cuarta instancia del malentendido de la ventana
+    // rolling: `_archived_days` NUNCA se vacía, así que tras una renovación
+    // acumula los dos ciclos y el conteo se dispara — el frontend diría «Día
+    // 34» mientras el coach dice «día 4», y `+N días` se apagaría por completo.
+    //
+    // Se mide por FECHAS, no contando arrays, que es como lo hace el backend
+    // (`chat_history_context.plan_cycle_pending_days`: «último día vivo −
+    // inicio de ciclo + 1»). Misma cascada de ancla que allí, para que las dos
+    // superficies no puedan divergir:
+    //   1. `_cycle_started_at` — lo estampa la renovación. Autoritativo.
+    //   2. la primera fecha entregada (archivados + vivos); para un plan que
+    //      nunca renovó ES el inicio del ciclo.
+    //   3. `primer_día_vivo − len(archivados)` si los archivados no llevan
+    //      fecha; se toma la MÁS TEMPRANA de 2 y 3.
+    // Sin ninguna fecha utilizable (planes legacy pre-`date`) degrada al
+    // conteo de arrays, que es el comportamiento de hoy.
+    const deliveredCount = (() => {
+        const toTime = (d) => d.getTime();
+        const liveDates = days.map((d) => parseIsoDateLocal(d?.date)).filter(Boolean);
+        const archDates = archived.map((d) => parseIsoDateLocal(d?.date)).filter(Boolean);
+
+        let start = parseIsoDateLocal(planData._cycle_started_at);
+        if (!start) {
+            const all = archDates.concat(liveDates);
+            let s = all.length > 0 ? new Date(Math.min(...all.map(toTime))) : null;
+            if (liveDates.length > 0 && archived.length > 0) {
+                const firstLive = Math.min(...liveDates.map(toTime));
+                const byCount = new Date(firstLive - archived.length * DAY_MS);
+                s = s ? new Date(Math.min(s.getTime(), byCount.getTime())) : byCount;
+            }
+            start = s;
+        }
+        if (!start || liveDates.length === 0) return generatedCount;
+        const lastLive = Math.max(...liveDates.map(toTime));
+        const spanned = Math.round((lastLive - start.getTime()) / DAY_MS) + 1;
+        // Nunca por debajo de los días vivos: eso sería imposible y solo puede
+        // salir de fechas corruptas.
+        return Math.max(days.length, spanned);
+    })();
+
     const overdue = chunkStatusInfo?.overdue === true;
-    const puac = num(chunkStatusInfo?.pending_user_action_count, 0);
-    const inFlight = num(chunkStatusInfo?.in_flight_count, 0);
-    const isPausedFromQueue = puac > 0 && inFlight === 0;
     const pausedChunks = Array.isArray(chunkStatusInfo?.paused_chunks)
         ? chunkStatusInfo.paused_chunks : [];
 
-    // [Ronda 5 · F1] De qué chunk salen los fantasmas. NO siempre de
-    // `upcoming_chunks`: esa lista y `in_flight_count` se calculan sobre el
-    // MISMO plan con el MISMO conjunto de estados, así que "lista no vacía"
-    // implica "contador > 0". Y como `isPausedFromQueue` exige `inFlight === 0`,
-    // en una pausa real `upcoming_chunks` viene SIEMPRE vacía: sacar de ahí los
-    // fantasmas hacía el estado `pausado` literalmente inalcanzable — el
-    // usuario veía `atrasado` (prioridad 1) con un title que le prometía un
-    // reintento automático, cuando lo que el sistema espera es una acción SUYA.
-    // Los chunks pausados vienen en `paused_chunks`, con el mismo
-    // `days_offset`/`days_count` (routers/plans.py: `paused_chunks.append`).
-    const sourceChunk = isPausedFromQueue
-        ? (pausedChunks.length > 0 ? pausedChunks[0] : null)
-        : (upcoming.length > 0 ? upcoming[0] : null);
-    const next = sourceChunk;
+    // [Ronda extra · N-2] De qué chunk salen los fantasmas: del de `days_offset`
+    // MENOR entre pausados y próximos, y la etiqueta la decide ESE chunk.
+    //
+    // El gate anterior (`pending_user_action_count > 0 && in_flight_count === 0`)
+    // partía de que en una pausa la cola queda vacía. Es falso, verificado
+    // contra el handler real: la forma normal de una pausa es un chunk pausado
+    // CONVIVIENDO con N pendientes (payload real: `in_flight_count: 8`,
+    // `pending_user_action_count: 1`, pausado en `days_offset 3`, primer
+    // pendiente en `days_offset 6`). Con aquel gate `pausado` no se pintaba
+    // nunca, y encima los fantasmas salían del chunk de la semana 3: le
+    // poníamos a los días 4-6 —que SON el chunk pausado— el ETA de otro.
+    //
+    // Elegir por `days_offset` mínimo es el mismo principio de la ronda 4 («la
+    // etiqueta la decide el estado del propio chunk, no un contador global»),
+    // que allí se aplicó al estado y aquí faltaba aplicar a la FUENTE.
+    const candidates = pausedChunks
+        .filter((c) => c && typeof c === 'object').map((c) => ({ chunk: c, paused: true }))
+        .concat(upcoming.filter((c) => c && typeof c === 'object').map((c) => ({ chunk: c, paused: false })));
+    // Orden estable: ante el mismo offset gana el pausado (va primero en el
+    // array), que es el que bloquea de verdad.
+    candidates.sort((a, b) => num(a.chunk.days_offset, Number.MAX_SAFE_INTEGER)
+                            - num(b.chunk.days_offset, Number.MAX_SAFE_INTEGER));
+    const picked = candidates.length > 0 ? candidates[0] : null;
+    const next = picked ? picked.chunk : null;
+    const sourceIsPaused = picked ? picked.paused === true : false;
 
     // Sin chunk en cola pero `overdue` ⇒ hay al menos un día que debería
     // existir. Dibujamos ese uno: es el que se marca como atrasado. Y la cola
@@ -164,7 +216,7 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     // archivados + 1 vivo y un chunk `{days_offset:1, days_count:3}` anunciaba
     // «+11 días» cuando la verdad son «+9». Es el mismo malentendido de la
     // ventana rolling que `generatedCount` ya corrige un renglón más arriba.
-    const remaining = Math.max(0, total - generatedCount - ghostCount);
+    const remaining = Math.max(0, total - deliveredCount - ghostCount);
 
     if (ghostCount <= 0 && remaining <= 0) return null;
 
@@ -177,12 +229,14 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     // este componente se compromete a no hacer: afirmar actividad sin que la
     // cola la confirme. No se veía mientras `stale` quedaba fuera del payload;
     // al hacerlo visible, la afirmación falsa pasaba a ser nuestra.
+    // Un chunk de `paused_chunks` no trae `status` (no lo necesita: su
+    // provenance ya lo dice). `sourceIsPaused` manda sobre cualquier lectura.
     const nextStatus = typeof next?.status === 'string' ? next.status : null;
-    const isProcessing = nextStatus === 'processing';
+    const isProcessing = !sourceIsPaused && nextStatus === 'processing';
     // `stale` NO está corriendo: es un chunk encolado para que el worker lo
     // re-pickee al refrescar la pantry (`db_plans.py`: "el worker los re-pickea
     // al refrescar pantry"). Se trata como encolado, igual que `pending`.
-    const isStale = nextStatus === 'stale';
+    const isStale = !sourceIsPaused && nextStatus === 'stale';
 
     // Ancla de nombres: la ÚLTIMA fecha estampada de la ventana viva. Planes
     // pre-`date` (P1-CHAT-PAST-DAYS estampó `date` en los 3 sitios de
@@ -199,6 +253,10 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     // < 04:00 que en RD (UTC−4) caen el día local ANTERIOR: diríamos "se genera
     // mié" cuando localmente todavía es martes.
     const scheduledLabel = (() => {
+        // Un chunk pausado no tiene ETA honesto: espera una acción del
+        // usuario, no un reloj. Anunciar su `execute_after` (o el de otro
+        // chunk) sería justo el defecto que N-2 cierra.
+        if (sourceIsPaused) return null;
         if (typeof next?.execute_after !== 'string') return null;
         const d = new Date(next.execute_after);
         if (Number.isNaN(d.getTime())) return null;
@@ -220,7 +278,7 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
         // `days_offset` cuenta desde la ventana viva post-shift, así que con
         // días archivados habría numerado el primer fantasma como «Día 2»
         // cuando es el día 4 del plan.
-        return `Día ${generatedCount + i + 1}`;
+        return `Día ${deliveredCount + i + 1}`;
     };
 
     // Estado por fantasma. `atrasado` aplica SOLO al primero: es el día que
@@ -228,7 +286,7 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     // los 4 están atrasados sería la misma clase de mentira que el chip viejo.
     const stateFor = (i) => {
         if (overdue && i === 0) return 'atrasado';
-        if (isPausedFromQueue) return 'pausado';
+        if (sourceIsPaused) return 'pausado';
         if (isProcessing) return 'en proceso';
         return 'programado';
     };
