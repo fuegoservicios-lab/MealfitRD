@@ -83,15 +83,48 @@ test('plan de 7 dias sin resumen', () => {
 // código: "en proceso" solo cuando algo corre de verdad.
 // ---------------------------------------------------------------------------
 
+// [Ronda 5 · F1] La forma REAL de una pausa. `upcoming_chunks` e
+// `in_flight_count` se calculan sobre el mismo plan con el mismo conjunto de
+// estados, así que "lista no vacía" ⟹ "contador > 0". Como una pausa exige
+// `in_flight_count === 0`, en una pausa real `upcoming_chunks` viene SIEMPRE
+// vacía y los chunks pausados llegan por `paused_chunks`.
+//
+// Los tests de este archivo usaban `in_flight_count: 0` CON un chunk en
+// `upcoming_chunks`: un payload que el backend no puede emitir. Certificaban un
+// estado que en producción era inalcanzable — el usuario veía `atrasado` y un
+// texto prometiéndole un reintento automático, cuando el sistema esperaba una
+// acción SUYA (consentimiento de nevera).
+const csiPausa = (extra = {}) => csi({
+  in_flight_count: 0,
+  pending_user_action_count: 1,
+  upcoming_chunks: [],
+  paused_chunks: [{
+    chunk_id: 'chunk-pausado-1', week_number: 2,
+    days_offset: 3, days_count: 4,
+    reason_code: 'empty_pantry',
+  }],
+  ...extra,
+});
+
 test('pausado gana sobre en proceso y NO ofrece CTA (el banner de arriba ya lo da)', () => {
-  render(<UpcomingDayTabs planData={plan30}
-                          chunkStatusInfo={csi({ pending_user_action_count: 1, in_flight_count: 0 })}
-                          isGuest={false} />);
+  render(<UpcomingDayTabs planData={plan30} chunkStatusInfo={csiPausa()} isGuest={false} />);
   expect(screen.getAllByText(/pausado/i).length).toBeGreaterThan(0);
   expect(screen.queryByText(/en proceso/i)).toBeNull();
   // El chip solo MARCA el día; el detalle y el CTA de la pausa viven en el
   // banner P0-DASH-CHIP-HONESTY-V2 de Dashboard.jsx. Sin botón aquí.
   expect(screen.queryByRole('button', { name: /pausado|reintentar/i })).toBeNull();
+});
+
+test('con el payload real de una pausa se pintan los fantasmas del chunk pausado', () => {
+  render(<UpcomingDayTabs planData={plan30} chunkStatusInfo={csiPausa()} isGuest={false} />);
+  // `days_count: 4` sale de `paused_chunks`, no de `upcoming_chunks` (vacía).
+  expect(screen.getAllByRole('presentation')).toHaveLength(4);
+  expect(screen.getAllByText(/⏸ pausado/).length).toBe(4);
+  // Y jamás el copy de atrasado, que prometería un reintento automático que en
+  // una pausa NO ocurre: el sistema espera una acción del usuario.
+  expect(screen.queryByText(/atrasado/i)).toBeNull();
+  const tab = screen.getAllByRole('presentation')[0];
+  expect(tab.getAttribute('title')).not.toMatch(/reintenta/i);
 });
 
 test('nunca dice "en proceso" con la cola parada (la mentira del chip viejo)', () => {
@@ -154,9 +187,10 @@ test('un chunk stale se muestra como encolado, sin prometer una fecha vencida', 
 });
 
 test('stale sigue por debajo de pausado y de atrasado en la jerarquía', () => {
+  // Pausa real: el chunk sale de `paused_chunks` y la etiqueta es `pausado`,
+  // nunca la de la cola.
   const { unmount } = render(<UpcomingDayTabs planData={plan30}
-                          chunkStatusInfo={csiStale({ pending_user_action_count: 1, in_flight_count: 0 })}
-                          isGuest={false} />);
+                          chunkStatusInfo={csiPausa()} isGuest={false} />);
   expect(screen.getAllByText(/pausado/i).length).toBeGreaterThan(0);
   expect(screen.queryByText(/en cola/i)).toBeNull();
   unmount();
@@ -322,7 +356,7 @@ describe('nombres de día: rama con `date` estampada (TZ fija UTC−4)', () => {
 describe('a11y', () => {
   test('el chip de estado conserva role="status" con el día nombrado', () => {
     render(<UpcomingDayTabs planData={plan30}
-                            chunkStatusInfo={csi({ pending_user_action_count: 1, in_flight_count: 0 })}
+                            chunkStatusInfo={csiPausa()}
                             isGuest={false} />);
     const chips = screen.getAllByRole('status');
     expect(chips.length).toBe(4);
@@ -399,5 +433,43 @@ describe('higiene del pin de TZ', () => {
   test('la zona queda restaurada, no con la cadena "undefined"', () => {
     expect(process.env.TZ).not.toBe('undefined');
     expect(Intl.DateTimeFormat().resolvedOptions().timeZone).not.toBe('Etc/Unknown');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// [Ronda 5 · F2] El resumen `+N días` contra un plan que YA ROTÓ.
+//
+// `total_days_requested` es ABSOLUTO, pero `days_offset` se mide desde la
+// ventana viva post-shift (en los chunks de catch-up es literalmente
+// `len(shifted_days)`). Restar uno del otro cuenta dos veces los días
+// archivados. La forma es real, no inventada: existe un plan `76a6836d` con
+// total 15, 1 día vivo, 2 archivados y 3 chunks en cola.
+//
+//   total 15 − offset 1 − 3 fantasmas = «+11»   (lo que decía: mal)
+//   total 15 − 3 generados − 3 fantasmas = «+9» (la verdad)
+// ---------------------------------------------------------------------------
+describe('resumen +N días con días archivados', () => {
+  const planRotado = {
+    total_days_requested: 15,
+    _archived_days: [{ date: '2026-07-31' }, { date: '2026-08-01' }],
+    days: [{ date: '2026-08-02' }],
+    generation_status: 'complete_partial',
+  };
+  const csiRotado = csi({
+    upcoming_chunks: [{ days_offset: 1, days_count: 3, status: 'pending', execute_after: '2026-08-05T09:00:00Z' }],
+  });
+
+  test('no suma dos veces los días ya archivados', () => {
+    render(<UpcomingDayTabs planData={planRotado} chunkStatusInfo={csiRotado} isGuest={false} />);
+    expect(screen.getByText(/\+9 días/)).toBeInTheDocument();
+    expect(screen.queryByText(/\+11 días/)).toBeNull();
+  });
+
+  test('la numeración "Día N" del fallback también es absoluta', () => {
+    const sinFechas = { ...planRotado, _archived_days: [{}, {}], days: [{}] };
+    render(<UpcomingDayTabs planData={sinFechas} chunkStatusInfo={csiRotado} isGuest={false} />);
+    // 2 archivados + 1 vivo ⇒ el primer fantasma es el día 4, no el día 2.
+    expect(screen.getAllByText(/Día 4/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Día 2/)).toBeNull();
   });
 });

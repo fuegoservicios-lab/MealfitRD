@@ -128,25 +128,46 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     const generatedCount = archived.length + days.length;
     const total = num(planData.total_days_requested, generatedCount);
 
-    const next = upcoming.length > 0 ? upcoming[0] : null;
     const overdue = chunkStatusInfo?.overdue === true;
+    const puac = num(chunkStatusInfo?.pending_user_action_count, 0);
+    const inFlight = num(chunkStatusInfo?.in_flight_count, 0);
+    const isPausedFromQueue = puac > 0 && inFlight === 0;
+    const pausedChunks = Array.isArray(chunkStatusInfo?.paused_chunks)
+        ? chunkStatusInfo.paused_chunks : [];
 
-    const offset = num(next?.days_offset, generatedCount);
+    // [Ronda 5 · F1] De qué chunk salen los fantasmas. NO siempre de
+    // `upcoming_chunks`: esa lista y `in_flight_count` se calculan sobre el
+    // MISMO plan con el MISMO conjunto de estados, así que "lista no vacía"
+    // implica "contador > 0". Y como `isPausedFromQueue` exige `inFlight === 0`,
+    // en una pausa real `upcoming_chunks` viene SIEMPRE vacía: sacar de ahí los
+    // fantasmas hacía el estado `pausado` literalmente inalcanzable — el
+    // usuario veía `atrasado` (prioridad 1) con un title que le prometía un
+    // reintento automático, cuando lo que el sistema espera es una acción SUYA.
+    // Los chunks pausados vienen en `paused_chunks`, con el mismo
+    // `days_offset`/`days_count` (routers/plans.py: `paused_chunks.append`).
+    const sourceChunk = isPausedFromQueue
+        ? (pausedChunks.length > 0 ? pausedChunks[0] : null)
+        : (upcoming.length > 0 ? upcoming[0] : null);
+    const next = sourceChunk;
+
     // Sin chunk en cola pero `overdue` ⇒ hay al menos un día que debería
     // existir. Dibujamos ese uno: es el que se marca como atrasado. Y la cola
     // vacía es el caso NORMAL aquí, no el borde — `compute_chunk_overdue`
     // devuelve False en cuanto hay algo en vuelo (ver `renderGhost`).
     const rawCount = num(next?.days_count, overdue ? 1 : 0);
     const ghostCount = Math.max(0, Math.min(rawCount, MAX_GHOSTS));
-    // Todo lo que queda DESPUÉS de los fantasmas visibles va al resumen — si
-    // el chunk trae más días de los que dibujamos, el excedente cuenta ahí.
-    const remaining = Math.max(0, total - offset - ghostCount);
+    // [Ronda 5 · F2] El resumen cuenta sobre la base ABSOLUTA `generatedCount`,
+    // nunca sobre `days_offset`. `total_days_requested` es absoluto, pero
+    // `days_offset` se mide desde la ventana VIVA post-shift (en los chunks de
+    // catch-up es literalmente `len(shifted_days)`, plans.py), así que restar
+    // uno del otro suma dos veces los días archivados: un plan de 15 con 2
+    // archivados + 1 vivo y un chunk `{days_offset:1, days_count:3}` anunciaba
+    // «+11 días» cuando la verdad son «+9». Es el mismo malentendido de la
+    // ventana rolling que `generatedCount` ya corrige un renglón más arriba.
+    const remaining = Math.max(0, total - generatedCount - ghostCount);
 
     if (ghostCount <= 0 && remaining <= 0) return null;
 
-    const puac = num(chunkStatusInfo?.pending_user_action_count, 0);
-    const inFlight = num(chunkStatusInfo?.in_flight_count, 0);
-    const isPausedFromQueue = puac > 0 && inFlight === 0;
     // [Ronda 4] La etiqueta de la pestaña la decide el estado del PROPIO chunk,
     // nunca el contador global `in_flight_count`. Ese contador suma
     // `('pending','processing','stale')`, así que con `|| inFlight > 0` un chunk
@@ -195,7 +216,11 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
             const d = new Date(anchor.getTime() + (i + 1) * DAY_MS);
             return capitalize(d.toLocaleDateString('es-DO', { weekday: 'long' }));
         }
-        return `Día ${offset + i + 1}`;
+        // [Ronda 5 · F2] Numeración ABSOLUTA, por la misma razón que `remaining`:
+        // `days_offset` cuenta desde la ventana viva post-shift, así que con
+        // días archivados habría numerado el primer fantasma como «Día 2»
+        // cuando es el día 4 del plan.
+        return `Día ${generatedCount + i + 1}`;
     };
 
     // Estado por fantasma. `atrasado` aplica SOLO al primero: es el día que
