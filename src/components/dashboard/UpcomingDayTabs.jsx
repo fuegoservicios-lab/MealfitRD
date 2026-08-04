@@ -350,7 +350,7 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
                                 pasa (`triggerShift` corre en cada montaje) y
                                 nada más — ni un reintento que no ocurre, ni un
                                 canal de soporte inventado. */}
-                            {overdue ? ' Hay días que no se generaron a tiempo; el sistema lo reintenta solo cada vez que abres la app.' : ''}
+                            {overdue ? ' Hay días que no se generaron a tiempo; el sistema los reintenta automáticamente cada vez que abres la app.' : ''}
                         </div>
                     )}
                 </div>
