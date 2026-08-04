@@ -560,12 +560,19 @@ describe('plan renovado: el conteo es del ciclo vigente', () => {
     generation_status: 'generating_next',
   };
 
+  // [Ronda final · C-1] Este test antes solo comprobaba `length > 0`: renderizaba
+  // «Día 34» y pasaba igual, y pasaba IDÉNTICO contra el commit padre. Certificaba
+  // su propia existencia, no el comportamiento. Ahora ancla el número exacto —
+  // con 30 archivados del ciclo anterior, el primer fantasma es el día 4 del
+  // ciclo vigente, no el 34 de la vida del plan.
   test('numera desde el inicio del ciclo, no desde la vida entera del plan', () => {
     const sinFechas = { ...planRenovado, days: [{}, {}, {}] };
     render(<UpcomingDayTabs planData={sinFechas} chunkStatusInfo={csi()} isGuest={false} />);
-    // Sin `date` en los vivos no hay medición por fechas ⇒ degrada al conteo de
-    // arrays. Lo que NO puede pasar es quedarse mudo.
-    expect(screen.getAllByRole('presentation').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Día 4/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Día 34/)).toBeNull();
+    // Los 30 archivados son de julio, anteriores al ancla del 02-08: ninguno
+    // cuenta como entregado en este ciclo.
+    expect(screen.getByText(/\+23 días/)).toBeInTheDocument();
   });
 
   test('el resumen cuenta los días que faltan del ciclo, no del historial', () => {
@@ -585,4 +592,73 @@ describe('plan renovado: el conteo es del ciclo vigente', () => {
     // ⇒ 3 entregados (nunca por debajo de los vivos) ⇒ resumen 30−3−4 = 23.
     expect(screen.getByText(/\+23 días/)).toBeInTheDocument();
   });
+});
+
+// ---------------------------------------------------------------------------
+// [Ronda final · C-2] El ancla del ciclo en su SEGUNDO shape. La flota persiste
+// `_cycle_started_at` como date-only y como timestamp UTC; el backend lo
+// resuelve con `_to_local_date` (10 chars ⇒ tal cual; con hora ⇒ instante →
+// fecha local). Mi primera copia cortaba los 10 primeros chars siempre, así que
+// para un plan shifteado a las 22:00 RD —persistido como 02:00 UTC del día
+// SIGUIENTE— el backend anclaba el 01 y esta pestaña el 02.
+//
+// TZ fijada a UTC−4 porque la divergencia solo existe al oeste de Greenwich, y
+// es donde vive el producto.
+// ---------------------------------------------------------------------------
+describe('ancla del ciclo en formato timestamp (TZ fija UTC−4)', () => {
+  const _TZ_ORIGINAL = process.env.TZ;
+  beforeAll(() => { process.env.TZ = 'America/La_Paz'; });
+  afterAll(() => {
+    if (_TZ_ORIGINAL === undefined) delete process.env.TZ;
+    else process.env.TZ = _TZ_ORIGINAL;
+  });
+
+  // 02:00 UTC del 02-08 == 22:00 local del 01-08 ⇒ el ciclo empezó el 01.
+  const planTimestamp = {
+    total_days_requested: 30,
+    _cycle_started_at: '2026-08-02T02:00:00+00:00',
+    _archived_days: [{ date: '2026-07-30' }, { date: '2026-07-31' }],
+    days: [{ date: '2026-08-02' }, { date: '2026-08-03' }, { date: '2026-08-04' }],
+    generation_status: 'generating_next',
+  };
+
+  test('resuelve el instante a fecha local, como hace el backend', () => {
+    render(<UpcomingDayTabs planData={planTimestamp} chunkStatusInfo={csi()} isGuest={false} />);
+    // ancla 01-08 → último vivo 04-08 ⇒ 4 entregados ⇒ 30 − 4 − 4 = 22.
+    // Cortando los 10 primeros chars el ancla sería el 02 ⇒ 3 ⇒ «+23».
+    expect(screen.getByText(/\+22 días/)).toBeInTheDocument();
+    expect(screen.queryByText(/\+23 días/)).toBeNull();
+  });
+
+  test('el shape date-only sigue tomándose tal cual', () => {
+    const planDateOnly = { ...planTimestamp, _cycle_started_at: '2026-08-02' };
+    render(<UpcomingDayTabs planData={planDateOnly} chunkStatusInfo={csi()} isGuest={false} />);
+    expect(screen.getByText(/\+23 días/)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// [Ronda final · C-3] Sin `total_days_requested` no se puede saber cuántos días
+// faltan. El fallback mezclaba bases (`generatedCount` para el total,
+// `deliveredCount` para la resta) e inventaba un resumen que el código previo a
+// N-3 no pintaba.
+// ---------------------------------------------------------------------------
+// El fixture necesita un plan RENOVADO: es cuando `generatedCount` (33, los dos
+// ciclos) y `deliveredCount` (3, el vigente) divergen de verdad, y la resta de
+// bases cruzadas inventa «+26 días» de un plan cuyo total ni siquiera conocemos.
+// Mi primer fixture (2 archivados) no reproducía nada: con las dos bases casi
+// iguales el resultado salía negativo y el resumen no se pintaba en ninguna de
+// las dos versiones — un test verde por accidente.
+test('sin total_days_requested no se inventa un resumen', () => {
+  const planSinTotal = {
+    _cycle_started_at: '2026-08-02',
+    _archived_days: Array.from({ length: 30 }, (_, i) => ({ date: `2026-07-${String(i + 2).padStart(2, '0')}` })),
+    days: [{ date: '2026-08-02' }, { date: '2026-08-03' }, { date: '2026-08-04' }],
+    generation_status: 'generating_next',
+  };
+  render(<UpcomingDayTabs planData={planSinTotal} chunkStatusInfo={csi()} isGuest={false} />);
+  // Los fantasmas del chunk en cola sí se pintan; lo que no puede aparecer es
+  // un total inventado.
+  expect(screen.getAllByRole('presentation').length).toBeGreaterThan(0);
+  expect(screen.queryByText(/\+\d+ días/)).toBeNull();
 });

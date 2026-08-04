@@ -7174,7 +7174,8 @@ const DashboardInner = () => {
                     {/* Indicador de generación → skeleton tab(s) inline en la fila de días (más abajo) */}
 
                     {/* [P0-DASH-CHIP-HONESTY-V2 · 2026-05-09] Banner contextual
-                        cuando la queue tiene chunks pausados sin nada in-flight.
+                        cuando la queue tiene chunks pausados (con o sin otros
+                        chunks in-flight: la pausa convive con pendientes).
                         Reemplaza el slot fantasma "Lunes · nevera vacía" que
                         antes se renderizaba en la fila de días. UX: el día
                         futuro NO debe aparecer (aún no llegó), pero el usuario
@@ -7185,8 +7186,6 @@ const DashboardInner = () => {
                         const _csi = chunkStatusInfo;
                         const _puac = (_csi && typeof _csi.pending_user_action_count === 'number')
                             ? _csi.pending_user_action_count : 0;
-                        const _inFlight = (_csi && typeof _csi.in_flight_count === 'number')
-                            ? _csi.in_flight_count : 0;
                         // [P2-CHUNK-OVERDUE-SIGNAL · ronda extra] El gate exigía
                         // además `_inFlight === 0`, partiendo de que una pausa
                         // deja la cola quieta. Es falso: la forma normal es un
@@ -7222,9 +7221,10 @@ const DashboardInner = () => {
                         // no decir nada.
                         //
                         // El resto de la lógica del banner NO cambia: sigue
-                        // apareciendo solo con `pending_user_action > 0 &&
-                        // in_flight === 0` (los dos guards de arriba), con su
-                        // razón y su CTA derivados del primer paused_chunk.
+                        // apareciendo solo con `pending_user_action > 0` y un
+                        // `paused_chunks` no vacío (los dos guards de arriba),
+                        // con su razón y su CTA derivados del primer chunk
+                        // pausado.
                         const _reasonCopy = {
                             empty_pantry: { title: 'Tu próximo bloque está pausado', body: 'Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.', cta: 'Actualizar nevera', url: '/inventory' },
                             empty_pantry_proactive: { title: 'Tu próximo bloque está pausado', body: 'Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.', cta: 'Actualizar nevera', url: '/inventory' },

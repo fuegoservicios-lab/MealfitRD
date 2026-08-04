@@ -76,6 +76,29 @@ function parseIsoDateLocal(value) {
     return Number.isNaN(d.getTime()) ? null : d;
 }
 
+// [Ronda final · C-2] El ancla del ciclo se persiste en DOS shapes en la flota:
+// date-only (`"2026-08-02"`) y timestamp UTC (`"2026-08-02T02:00:00+00:00"`).
+// El backend la resuelve con `_to_local_date`: los strings de 10 chars YA son
+// fecha local y se toman tal cual; el resto se convierte del instante a fecha
+// LOCAL. Mi primera copia de la cascada usaba `parseIsoDateLocal` para ambos, y
+// ese corta los 10 primeros chars: con un plan shifteado a las 22:00 RD —que se
+// guarda como 02:00 UTC del día siguiente— el backend resolvía `2026-08-01` y
+// esta pestaña `2026-08-02`. Un día de diferencia en el ancla del ciclo entero,
+// con el comentario de al lado prometiendo que las dos superficies «no pueden
+// divergir». Una garantía que el código no da es lo que autoriza el próximo
+// error, así que aquí se cubre el segundo shape.
+//
+// (El backend fija RD = UTC−4; aquí usamos la zona local del navegador. Para el
+// producto —es-DO, mercado único— coinciden.)
+function parseCycleAnchorLocal(value) {
+    if (typeof value !== 'string') return null;
+    const text = value.trim();
+    if (text.length === 10) return parseIsoDateLocal(text);
+    const dt = new Date(text);
+    if (Number.isNaN(dt.getTime())) return parseIsoDateLocal(text);
+    return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+
 function capitalize(s) {
     return typeof s === 'string' && s.length > 0 ? s[0].toUpperCase() + s.slice(1) : s;
 }
@@ -129,7 +152,6 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
     // que ya rotó (mismo defecto que la Ronda 2 arregló en el predicado
     // backend `compute_chunk_overdue`).
     const generatedCount = archived.length + days.length;
-    const total = num(planData.total_days_requested, generatedCount);
 
     // [Ronda extra · N-3] Días ENTREGADOS del ciclo VIGENTE. `archived.length +
     // days.length` es la cuarta instancia del malentendido de la ventana
@@ -153,7 +175,8 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
         const liveDates = days.map((d) => parseIsoDateLocal(d?.date)).filter(Boolean);
         const archDates = archived.map((d) => parseIsoDateLocal(d?.date)).filter(Boolean);
 
-        let start = parseIsoDateLocal(planData._cycle_started_at);
+        let start = parseCycleAnchorLocal(planData._cycle_started_at);
+        const hasAnchor = start !== null;
         if (!start) {
             const all = archDates.concat(liveDates);
             let s = all.length > 0 ? new Date(Math.min(...all.map(toTime))) : null;
@@ -164,13 +187,33 @@ const UpcomingDayTabs = ({ planData, chunkStatusInfo, isGuest }) => {
             }
             start = s;
         }
-        if (!start || liveDates.length === 0) return generatedCount;
-        const lastLive = Math.max(...liveDates.map(toTime));
-        const spanned = Math.round((lastLive - start.getTime()) / DAY_MS) + 1;
-        // Nunca por debajo de los días vivos: eso sería imposible y solo puede
-        // salir de fechas corruptas.
-        return Math.max(days.length, spanned);
+        if (!start) return generatedCount;
+
+        if (liveDates.length > 0) {
+            const lastLive = Math.max(...liveDates.map(toTime));
+            const spanned = Math.round((lastLive - start.getTime()) / DAY_MS) + 1;
+            // Nunca por debajo de los días vivos: eso sería imposible y solo
+            // puede salir de fechas corruptas.
+            return Math.max(days.length, spanned);
+        }
+        // [Ronda final · C-1] Con ancla pero SIN fechas en los días vivos, el
+        // ancla sigue sirviendo: los archivados anteriores a ella son del ciclo
+        // ANTERIOR y no cuentan como entregados. Caer aquí al conteo de arrays
+        // volvía a mezclar ciclos justo en el caso que N-3 existe para arreglar
+        // (un plan renovado con 30 archivados numeraba «Día 34»).
+        if (hasAnchor) {
+            const inCycle = archDates.filter((d) => d.getTime() >= start.getTime()).length;
+            return inCycle + days.length;
+        }
+        return generatedCount;
     })();
+
+    // [Ronda final · C-3] El fallback de `total` es `deliveredCount`, NO
+    // `generatedCount`: `remaining` resta `deliveredCount`, y mezclar las dos
+    // bases inventaba días. Sin `total_days_requested` la respuesta honesta es
+    // "no sé cuántos faltan" ⇒ `remaining` sale 0 y no se pinta resumen, que es
+    // lo que hacía el código antes de que N-3 tocara la base.
+    const total = num(planData.total_days_requested, deliveredCount);
 
     const overdue = chunkStatusInfo?.overdue === true;
     const pausedChunks = Array.isArray(chunkStatusInfo?.paused_chunks)
