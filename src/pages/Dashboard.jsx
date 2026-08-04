@@ -49,6 +49,9 @@ import OptionPickerModal from '../components/common/OptionPickerModal';
 // "actualizar día completo" (plan vigente). El "Nuevo Ciclo" (plan vencido)
 // sigue usando OptionPickerModal (tiene la opción extra "similar").
 import MotivoActualizarModal from '../components/dashboard/MotivoActualizarModal';
+// [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Pestañas fantasma de los días del plan
+// que aún no existen (absorbe el skeleton que vivía inline en la fila de días).
+import UpcomingDayTabs from '../components/dashboard/UpcomingDayTabs';
 import EmptyState from '../components/common/EmptyState';
 // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] "Nevera estricta + consentimiento": modal que nombra
 // el/los ingrediente(s) que el chef necesita fuera de la Nevera real (nombre + cantidad + precio
@@ -63,7 +66,7 @@ import PantryConsentModal from '../components/common/PantryConsentModal';
 // abajo. Pre-fix era import estático top-level: el chunk se fetch eager
 // al entrar al Dashboard, 100% de usuarios pagan el costo aunque jamás
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
-import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
+import { API_BASE, fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
 // [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
 import { minBudgetFor, budgetCycleDays } from '../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo de presupuesto personalizado por las metas
@@ -1968,6 +1971,48 @@ const DashboardInner = () => {
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData?.generation_status, refreshProfileAndPlan]);
+
+    // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] CTA del único estado accionable de
+    // `UpcomingDayTabs`: `atrasado` (la cola dice que hoy debería existir un día
+    // que no existe y NADA está corriendo). Mismo patrón que `Plan.jsx::handleRetry`
+    // — `retryPlanChunk` re-encola el chunk — con dos diferencias deliberadas:
+    //   · `chunkId` puede venir null (overdue SIN chunk en cola: la fila se
+    //     perdió o nunca se creó). El endpoint /retry-chunk exige un id, así que
+    //     en ese caso no hay reintento posible desde aquí y lo decimos en vez de
+    //     lanzar una request que va a fallar con 404.
+    //   · NO hacemos `window.location.reload()` (Plan.jsx sí): el Dashboard tiene
+    //     polling propio; refrescamos `/chunk-status` en el sitio y el fantasma
+    //     pasa de `atrasado` a `en proceso` solo.
+    const handleRetryChunk = useCallback(async (chunkId) => {
+        const planId = planData?.id;
+        if (!planId) return;
+        if (!chunkId) {
+            toast.info('Estamos reprogramando estos días', {
+                description: 'No hay nada que reintentar todavía. Vuelve en unos minutos.',
+            });
+            return;
+        }
+        try {
+            const res = await retryPlanChunk(planId, chunkId);
+            if (res?.ok) {
+                toast.success('Reintento iniciado', { description: 'Generando los próximos días…' });
+                // Refresco inmediato del estado de la cola: sin esto el chip
+                // seguiría diciendo "atrasado" hasta el siguiente tick del poll.
+                try {
+                    const r = await getPlanChunkStatus(planId);
+                    if (r?.ok) {
+                        const body = await r.json().catch(() => null);
+                        if (body && typeof body === 'object') setChunkStatusInfo(body);
+                    }
+                } catch { /* best-effort: el poll normal lo recoge */ }
+            } else {
+                toast.error('No se pudo reintentar', { description: 'Inténtalo de nuevo en unos minutos.' });
+            }
+        } catch (e) {
+            console.error('[P2-CHUNK-OVERDUE-SIGNAL] handleRetryChunk:', e);
+            toast.error('No se pudo reintentar');
+        }
+    }, [planData?.id]);
 
     // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Lectura fresca de `planData` dentro del `tick`
     // de abajo sin listarlo como dep del effect (mismo motivo que en AssessmentContext).
@@ -7443,275 +7488,15 @@ const DashboardInner = () => {
                                             })}
                                             </AnimatePresence>
 
-                                            {/* [P0-DASH-MISSING-DAY-SLOT · 2026-05-09] Skeleton tab(s) para
-                                                días que faltan dentro de la ventana visible. Antes solo se
-                                                mostraban si `generation_status === 'generating_next'`, pero
-                                                hay 2 escenarios MUCHO más comunes donde plan_data.days está
-                                                corto vs total_days_requested:
-                                                  (a) chunk siguiente en `pending_user_action` (dead-lettered
-                                                      esperando regeneración manual del usuario) — el banner
-                                                      P1-CHUNKS-1 ya alerta arriba pero los slots de día se
-                                                      caían silenciosamente.
-                                                  (b) initial generation con generation_status='complete' del
-                                                      primer chunk pero chunks restantes pendientes/dead-letter.
-                                                Ambos casos resultaban en ventana colapsada (e.g., solo Sábado
-                                                visible cuando Domingo es el día 2 del plan pero su chunk no
-                                                se mergeo a plan_data.days). El nuevo predicate dispara el
-                                                skeleton también cuando `total_days_requested > planDays.length`
-                                                o `_user_action_required` está set. */}
-                                            {(() => {
-                                                if (weekIdx !== 0) return null;
-                                                // [P3-DASH-WINDOW-FROM-TODAY · 2026-05-18] Skeleton se calcula
-                                                // contra `_MAX_WINDOW` (4) en vez del antiguo `_WINDOW_SIZE` (3).
-                                                // El skeleton solo aparece cuando hay días "futuros" en el plan
-                                                // que aún no se generaron — NO cuando la ventana se achicó
-                                                // legítimamente al final del chunk vivo. La condición de
-                                                // `total_days_requested > planDays.length` (3 líneas abajo en
-                                                // `_isGenerating`) garantiza que el skeleton no se dispare por
-                                                // colapso natural (e.g., miércoles último día del chunk 1
-                                                // mostrando solo [Mi]).
-                                                const _missingSlots = _MAX_WINDOW - visiblePlanDays.length;
-                                                if (_missingSlots <= 0) return null;
-                                                // [P1-GUEST-MODE · 2026-06-15] En modo invitado NO hay
-                                                // chunking en background (plan efímero capado a 3 días),
-                                                // así que los slots "en camino" nunca resolverían y solo
-                                                // mienten. Mostrar SOLO los días disponibles. El gancho
-                                                // de la semana completa se comunica con el CTA de crear
-                                                // cuenta más abajo, no con un spinner colgado.
-                                                if (isGuest) return null;
-                                                const _genStatus = planData?.generation_status;
-                                                const _isGenerating = _genStatus === 'generating_next'
-                                                    || _genStatus === 'generating'
-                                                    || _genStatus === 'partial';
-                                                const _hasActionReq = !!planData?._user_action_required;
-                                                // [P0-DASH-CHIP-HONESTY · 2026-05-09] Tooltip-anchor:
-                                                // P0-DASH-CHIP-HONESTY-FE | test_p0_dash_chip_honesty
-                                                //
-                                                // Reconciliación con la queue real: plan_data.
-                                                // generation_status='generating_next' puede
-                                                // coexistir con TODOS los chunks pausados
-                                                // (pending_user_action por empty_pantry, snapshot
-                                                // stale, etc). El chip "en camino" mentía cuando
-                                                // realmente nada estaba corriendo — el usuario
-                                                // veía spinner para días pausados y no se enteraba
-                                                // de que tenía que actualizar la nevera.
-                                                //
-                                                // Reglas (prioridad descendente):
-                                                //   1. dead-letter / _user_action_required → chip
-                                                //      "Acción" (ya cubierto). Mismo nivel que
-                                                //      pending_user_action_count > 0 cuando NO
-                                                //      hay nada in-flight.
-                                                //   2. pending_user_action_count > 0 Y in_flight=0
-                                                //      → "Pausado: <reason>". Reason resuelto
-                                                //      del primer paused_chunk con reason válido.
-                                                //   3. _isGenerating Y in_flight > 0 → "en camino"
-                                                //      (el caso histórico, ahora honesto).
-                                                //   4. _isGenerating pero in_flight=0 y nada
-                                                //      pausado → fallback "en camino" (estado
-                                                //      transitorio entre chunks; no esperar a
-                                                //      tener queue counters para mostrar algo).
-                                                const _csi = chunkStatusInfo;
-                                                const _puac = (_csi && typeof _csi.pending_user_action_count === 'number')
-                                                    ? _csi.pending_user_action_count : 0;
-                                                const _inFlight = (_csi && typeof _csi.in_flight_count === 'number')
-                                                    ? _csi.in_flight_count : 0;
-                                                const _failedQ = (_csi && typeof _csi.failed_count === 'number')
-                                                    ? _csi.failed_count : 0;
-                                                const _isPausedFromQueue = (_puac > 0 && _inFlight === 0);
-
-                                                // [P0-DASH-MISSING-DAY-SLOT-V4 · 2026-05-09] Regla
-                                                // "el siguiente chunk se crea SOLO cuando termina
-                                                // el actual" (rolling refill). Implicación visual:
-                                                // los slots de skeleton solo se renderizan si hay
-                                                // automatización en curso o acción explícita
-                                                // requerida — NO para llenar la ventana hasta
-                                                // total_days_requested cuando el plan está
-                                                // 'complete'.
-                                                if (!_isGenerating && !_hasActionReq) return null;
-
-                                                // [P0-DASH-CHIP-HONESTY-V3 · 2026-05-09] Tooltip-anchor:
-                                                // P0-DASH-CHIP-HONESTY-V3 | test_p0_dash_chip_honesty
-                                                //
-                                                // **temporal_gate UX-side**: NO renderizar slots de
-                                                // días futuros hasta que el último día del chunk
-                                                // actual haya llegado en TZ del usuario. Regla
-                                                // operacional fundamental del producto: el rolling
-                                                // refill solo trabaja en chunks cuyos días previos
-                                                // ya concluyeron. Mostrar "Lunes · en camino"
-                                                // cuando aún es Sábado (Domingo no ha terminado)
-                                                // miente sobre lo que el sistema realmente está
-                                                // haciendo — los chunks pueden estar técnicamente
-                                                // `in_flight`, pero el `temporal_gate` los va a
-                                                // diferir hasta que el día previo concluya.
-                                                // Honestidad UX: si el usuario aún consume días
-                                                // del chunk actual, el siguiente bloque NO debe
-                                                // aparecer en pantalla.
-                                                //
-                                                // Algoritmo: usamos `daysSinceCreation` (offset
-                                                // del día activo en el rolling window, calculado
-                                                // arriba en línea ~541 desde grocery_start_date —
-                                                // SSOT del resto del Dashboard para los índices
-                                                // de día). Si `daysSinceCreation < visiblePlanDays.length`
-                                                // → hoy es uno de los días generados → ocultar
-                                                // slot. La igualdad NO se incluye porque
-                                                // daysSinceCreation == length significa que ya
-                                                // pasamos del último día generado (siguiente bloque).
-                                                //
-                                                // Fallback: si daysSinceCreation no es finito o
-                                                // visiblePlanDays está vacío, preserva V4.
-                                                if (
-                                                    typeof daysSinceCreation === 'number'
-                                                    && Number.isFinite(daysSinceCreation)
-                                                    && visiblePlanDays
-                                                    && visiblePlanDays.length > 0
-                                                    && daysSinceCreation < visiblePlanDays.length
-                                                ) {
-                                                    return null;
-                                                }
-
-                                                // [P0-DASH-CHIP-HONESTY-V2 · 2026-05-09] Si el
-                                                // chunk actual ya terminó pero la queue dice
-                                                // "pausado y nada in_flight", el slot no se
-                                                // renderiza tampoco — la pausa se comunica vía
-                                                // el banner contextual arriba del menú.
-                                                if (_isPausedFromQueue) return null;
-
-                                                const _diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                                                // [P0-DASH-CHIP-HONESTY · 2026-05-09] 3 estados
-                                                // visuales (antes 2):
-                                                //   - "en camino" (gris shimmer + spinner): plan
-                                                //     activo Y queue tiene in_flight > 0. Honesto:
-                                                //     algo está corriendo de verdad.
-                                                //   - "pausado: <reason>" (ámbar punteado): la
-                                                //     queue tiene pending_user_action y nada
-                                                //     in-flight. El usuario debe actuar (nevera,
-                                                //     diario, etc). Banner detalle según reason.
-                                                //   - "acción requerida" (ámbar más fuerte):
-                                                //     _user_action_required del plan_data
-                                                //     (escalación dead-letter). Banner P1-CHUNKS-1
-                                                //     arriba detalla.
-                                                const _isPending = _hasActionReq && !_isGenerating;
-                                                // Reason resuelto del primer paused_chunk: el
-                                                // backend ya devuelve reason_code canónico
-                                                // (empty_pantry, stale_snapshot, learning_zero_logs,
-                                                // tz_unresolved, missing_prior_lessons,
-                                                // empty_pantry_proactive, _unknown).
-                                                const _firstPausedReason = (_isPausedFromQueue && _csi
-                                                    && Array.isArray(_csi.paused_chunks)
-                                                    && _csi.paused_chunks.length > 0
-                                                    && typeof _csi.paused_chunks[0].reason_code === 'string')
-                                                    ? _csi.paused_chunks[0].reason_code
-                                                    : null;
-                                                // Map reason_code → copy del chip (corto). Para
-                                                // detalle completo el banner /blocked_reasons
-                                                // (cuando se monte) usará el dict reason_to_text.
-                                                const _PAUSED_LABELS = {
-                                                    empty_pantry: 'nevera vacía',
-                                                    empty_pantry_proactive: 'nevera vacía',
-                                                    stale_snapshot: 'inventario',
-                                                    stale_snapshot_live_unreachable: 'inventario',
-                                                    learning_zero_logs: 'sin registros',
-                                                    tz_unresolved: 'zona horaria',
-                                                    missing_prior_lessons: 'aprendizaje',
-                                                    missing_start_date_no_anchor: 'fecha inicio',
-                                                    pantry_violation_post_merge: 'cantidades',
-                                                    synthesis_ratio_exceeded: 'síntesis',
-                                                };
-                                                const _pausedShortLabel = _firstPausedReason
-                                                    ? (_PAUSED_LABELS[_firstPausedReason] || 'pausado')
-                                                    : 'pausado';
-                                                return Array.from({ length: _missingSlots }).map((_, sIdx) => {
-                                                    const _slotVisibleIdx = visiblePlanDays.length + sIdx;
-                                                    const _d = new Date();
-                                                    _d.setDate(_d.getDate() + _slotVisibleIdx);
-                                                    const _dayName = _diasSemana[_d.getDay()];
-
-                                                    let _suffix; let _ariaSuffix; let _titleText;
-                                                    let _border; let _background; let _backgroundSize;
-                                                    let _animation; let _color; let _showSpinner;
-                                                    if (_isPending) {
-                                                        _suffix = '· acción';
-                                                        _ariaSuffix = 'requiere acción';
-                                                        _titleText = 'Este día está dead-letteado. Revisa el banner "Acción requerida" arriba para regenerar.';
-                                                        _border = '1px dashed #F59E0B';
-                                                        _background = '#FFFBEB';
-                                                        _backgroundSize = 'auto';
-                                                        _animation = 'none';
-                                                        _color = '#B45309';
-                                                        _showSpinner = false;
-                                                    } else if (_isPausedFromQueue) {
-                                                        // [P0-DASH-CHIP-HONESTY · 2026-05-09]
-                                                        // Queue tiene pending_user_action y NADA
-                                                        // in-flight. NO mentir con shimmer; usar
-                                                        // ámbar punteado estático con reason corto.
-                                                        // Detalle vía /blocked_reasons (banner
-                                                        // arriba o tooltip).
-                                                        _suffix = `· ${_pausedShortLabel}`;
-                                                        _ariaSuffix = `pausado, ${_pausedShortLabel}`;
-                                                        _titleText = `Este día está pausado (${_pausedShortLabel}). El sistema espera tu acción para continuar.`;
-                                                        _border = '1px dashed #F59E0B';
-                                                        _background = '#FFFBEB';
-                                                        _backgroundSize = 'auto';
-                                                        _animation = 'none';
-                                                        _color = '#B45309';
-                                                        _showSpinner = false;
-                                                    } else {
-                                                        // _isGenerating con queue in_flight > 0
-                                                        // (o sin info de queue todavía — fallback
-                                                        // honesto durante la primera carga).
-                                                        _suffix = '· en camino';
-                                                        _ariaSuffix = 'en camino';
-                                                        _titleText = 'Este día se está generando en background.';
-                                                        _border = '1px dashed var(--border)';
-                                                        _background = 'linear-gradient(90deg, var(--bg-muted) 0%, var(--border) 50%, var(--bg-muted) 100%)';
-                                                        _backgroundSize = '200% 100%';
-                                                        _animation = 'skeleton-shimmer 1.4s ease-in-out infinite';
-                                                        _color = 'var(--text-light)';
-                                                        _showSpinner = true;
-                                                    }
-
-                                                    return (
-                                                        <div
-                                                            key={`skeleton-${sIdx}`}
-                                                            role="status"
-                                                            aria-label={`${_dayName}: ${_ariaSuffix}`}
-                                                            title={_titleText}
-                                                            style={{
-                                                                flexShrink: 0,
-                                                                minWidth: '88px',
-                                                                padding: '8px 16px',
-                                                                borderRadius: '8px',
-                                                                border: _border,
-                                                                background: _background,
-                                                                backgroundSize: _backgroundSize,
-                                                                animation: _animation,
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                gap: '6px',
-                                                                color: _color,
-                                                                fontSize: '0.8rem',
-                                                                fontWeight: 500,
-                                                                cursor: 'default',
-                                                            }}
-                                                        >
-                                                            {_showSpinner && (
-                                                                <Loader2 size={12} strokeWidth={2.5} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
-                                                            )}
-                                                            <span>{_dayName}</span>
-                                                            <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>
-                                                                {_suffix}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                });
-                                            })()}
-                                            <style>{`
-                                                @keyframes skeleton-shimmer {
-                                                    0% { background-position: 200% 0; }
-                                                    100% { background-position: -200% 0; }
-                                                }
-                                            `}</style>
+                                            {/* [P2-CHUNK-OVERDUE-SIGNAL] skeleton absorbido por UpcomingDayTabs; V3 temporal-gate SUPERSEDED (mitad visual) — ver spec 2026-08-04 */}
+                                            {weekIdx === 0 && (
+                                                <UpcomingDayTabs
+                                                    planData={planData}
+                                                    chunkStatusInfo={chunkStatusInfo}
+                                                    isGuest={isGuest}
+                                                    onRetry={handleRetryChunk}
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 );
