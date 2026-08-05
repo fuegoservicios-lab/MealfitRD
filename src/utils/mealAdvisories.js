@@ -50,7 +50,10 @@ export function getMealAdvisories(meal) {
     out.push({ key: 'combo', label: 'Combinación inusual (fruta dulce + salado)' });
   }
   if (meal._macro_band_low) {
-    out.push({ key: 'macro_band', label: 'Macros algo fuera de la banda objetivo' });
+    // [2026-08-05] Copy en llano a pedido del dueño: «banda objetivo» es
+    // jerga interna (la banda ±15% del validador) que a un usuario normal no
+    // le dice nada. La key NO cambia — tests y estilos cuelgan de ella.
+    out.push({ key: 'macro_band', label: 'Este plato se desvía un poco de tus macros' });
   }
   if (meal._name_honesty_degraded) {
     out.push({ key: 'name_honesty', label: 'El nombre puede no reflejar la proteína real' });
