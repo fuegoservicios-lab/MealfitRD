@@ -2562,7 +2562,19 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     action: { label: 'Mi Nevera', onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
                 });
             } else if (kept.length > 0) {
-                toast.success('Día actualizado', { description: `Algunos platos se conservaron porque tu Nevera no daba para cambiarlos.` });
+                // [P1-KEPT-REASON-HONEST · 2026-08-05] El motivo lo dice el BACKEND, no lo
+                // asumimos aquí. Antes esta línea culpaba siempre a la Nevera; medido en
+                // producción, 26 de 28 reintentos fueron rechazo del guardrail de macros y
+                // ninguno de despensa, con la Nevera llena — mandábamos al usuario a comprar
+                // comida para arreglar un problema de porciones. `slots_kept_reason` viene de
+                // la misma clasificación (`_kept_reasons`) que la rama de fallo total ya usaba.
+                // Sin el campo (backend viejo) conservamos el copy anterior.
+                const _motivo = data?.slots_kept_reason;
+                toast.success('Día actualizado', {
+                    description: _motivo === 'ai'
+                        ? 'Algunos platos se conservaron: el chef IA no encontró alternativas que cuadraran con tus macros. Puedes reintentar.'
+                        : 'Algunos platos se conservaron porque tu Nevera no daba para cambiarlos.',
+                });
             } else {
                 toast.success('¡Día actualizado con lo que tienes en tu Nevera!');
             }
