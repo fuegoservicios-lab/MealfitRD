@@ -76,14 +76,22 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                         role="tab"
                         aria-selected={i === semanaAbierta}
                         onClick={() => setSemanaAbierta(i)}
+                        aria-label={`Semana ${w.ordinal}, ${w.start.toLocaleDateString('es-DO', RANGO)} a ${w.end.toLocaleDateString('es-DO', RANGO)}, ${w.readyCount} de ${w.cells.filter(Boolean).length} días listos`}
                         className={`plan-week-pill${i === semanaAbierta ? ' is-active' : ''}${w.hasToday ? ' has-today' : ''}`}
                     >
                         <span className="plan-week-pill__title">Semana {w.ordinal}</span>
                         <span className="plan-week-pill__range">
                             {w.start.toLocaleDateString('es-DO', RANGO)} – {w.end.toLocaleDateString('es-DO', RANGO)}
                         </span>
-                        <span className="plan-week-pill__progress">
-                            {w.readyCount} de {w.cells.filter(Boolean).length} listos
+                        {/* El conteo era una TERCERA línea de texto en cada
+                            pastilla: cinco semanas × tres líneas llenaban el
+                            bloque de ruido y obligaban a envolver, dejando la
+                            última huérfana en una segunda fila. Como barra
+                            ocupa 3px, se lee de un vistazo y encaja con el
+                            lenguaje de instrumento de la marca. La cifra exacta
+                            sigue estando, en el `aria-label` del tab. */}
+                        <span className="plan-week-pill__bar" aria-hidden="true">
+                            <i style={{ width: `${Math.round((w.readyCount / Math.max(1, w.cells.filter(Boolean).length)) * 100)}%` }} />
                         </span>
                     </button>
                 ))}
@@ -134,7 +142,16 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                                 en cada día, que es la queja que originó este
                                 rediseño. El texto completo sigue disponible en
                                 el `aria-label`. */}
-                            <span className="plan-week-cell__state">{st.short}</span>
+                            {/* El estado solo se ESCRIBE cuando aporta algo. Un
+                                día ya generado no necesita que le pongan
+                                "listo" debajo: se ve. Repetirlo siete veces era
+                                lo que volvía la fila un formulario. Los estados
+                                excepcionales (en cola, pausado, atrasado, en
+                                proceso) sí se dicen, y el `aria-label` de la
+                                celda lleva SIEMPRE la frase completa. */}
+                            {st.key !== 'listo' && st.key !== 'hoy' && st.key !== 'pasado' && (
+                                <span className="plan-week-cell__state">{st.short}</span>
+                            )}
                         </button>
                     );
                 })}

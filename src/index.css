@@ -1097,123 +1097,197 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
    Sustituye a la fila deslizante de 4 pestañas, que se desbordaba y cortaba
    los días por ambos lados. Aquí no hay scroll horizontal en ninguna parte:
    los días son una rejilla de 7 columnas iguales (el `grid-template-columns`
-   va inline en el componente) y las semanas envuelven si no caben.
+   va inline en el componente) y las semanas se reparten el ancho.
+
+   [pulido 2026-08-04, feedback del owner: "se ve como muy raro"] La primera
+   versión eran DOCE cajas con borde —cinco semanas y siete días— todas al
+   mismo peso visual, sobre un cuaderno que en el resto de la pantalla es aire
+   y líneas finas. Además las pastillas envolvían y dejaban la última huérfana
+   en una segunda fila. El arreglo no es decorar: es QUITAR. Una sola caja para
+   la fila de días en vez de siete, el conteo como barra en vez de texto, y una
+   única cosa acentuada a la vez.
    ───────────────────────────────────────────────────────────────────────── */
 
 .plan-week-nav {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   margin-bottom: 24px;
 }
 
+/* Las 5 semanas se REPARTEN el ancho en una sola fila: sin envolver no hay
+   huérfana, y sin scroll no hay nada cortado. */
 .plan-week-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
 }
 
 .plan-week-pill {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px 9px 8px;
+  border: 0;
+  border-radius: 9px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  text-align: left;
+  transition: background 0.18s, color 0.18s;
 }
 
-.plan-week-pill:hover { border-color: var(--primary-light); }
+.plan-week-pill:hover { background: rgba(139, 92, 246, 0.07); }
 
+/* Activa: fondo tenue + texto de acento. Sin relleno sólido — el bloque de
+   color plano competía con "Cambiar Plato", que sí debe ser el botón que grita. */
 .plan-week-pill.is-active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  background: rgba(139, 92, 246, 0.13);
+  color: var(--text-main);
 }
+
+.plan-week-pill__title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.plan-week-pill.is-active .plan-week-pill__title { color: #A78BFA; }
+
+.plan-week-pill__range {
+  font-size: 0.66rem;
+  opacity: 0.62;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* El conteo de días listos, como barra de 3px. */
+.plan-week-pill__bar {
+  display: block;
+  width: 100%;
+  height: 3px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.16;
+  overflow: hidden;
+}
+.plan-week-pill__bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #A78BFA;
+  opacity: 1;
+}
+.plan-week-pill.is-active .plan-week-pill__bar { opacity: 0.28; }
 
 /* La semana que contiene hoy se marca aunque no esté abierta. */
-.plan-week-pill.has-today:not(.is-active) { border-color: var(--primary-light); }
-
-.plan-week-pill__title { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em; }
-.plan-week-pill__range { font-size: 0.72rem; opacity: 0.85; }
-.plan-week-pill__progress { font-size: 0.68rem; opacity: 0.7; }
+.plan-week-pill.has-today:not(.is-active) .plan-week-pill__title { color: var(--text-main); }
 
 .plan-week-nav__lote {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
+  opacity: 0.8;
+  letter-spacing: 0.01em;
+}
+
+/* UNA caja para los siete días, no siete. */
+.plan-week-grid {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.04);
 }
 
 .plan-week-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-width: 0; /* sin esto una celda ancha rompe el reparto de la rejilla */
-  padding: 8px 4px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 9px;
   background: transparent;
   color: var(--text-main);
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  transition: background 0.18s;
 }
 
-.plan-week-cell:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--primary-light); }
+.plan-week-cell:hover:not(:disabled) { background: rgba(139, 92, 246, 0.08); }
+.plan-week-cell:disabled { cursor: default; }
 
-.plan-week-cell:disabled { cursor: default; opacity: 0.55; }
-
-.plan-week-cell__dow { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; }
-.plan-week-cell__num { font-size: 1rem; font-weight: 700; line-height: 1.1; }
-
-/* El estado se dice con TEXTO, no solo con color: en móvil se recorta con
-   ellipsis pero el `aria-label` de la celda lleva siempre la frase completa. */
-.plan-week-cell__state {
-  font-size: 0.6rem;
+.plan-week-cell__dow {
+  font-size: 0.64rem;
+  font-weight: 600;
   color: var(--text-muted);
+  opacity: 0.75;
+}
+.plan-week-cell__num { font-size: 1.05rem; font-weight: 700; line-height: 1.15; }
+
+/* El estado, cuando se escribe, va en voz baja. */
+.plan-week-cell__state {
+  font-size: 0.56rem;
+  color: var(--text-muted);
+  opacity: 0.7;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* HOY se distingue por CONTRASTE y peso, no solo por tono. */
-.plan-week-cell[data-state="hoy"] {
-  border-color: var(--primary);
-  border-width: 2px;
-  font-weight: 700;
-}
+/* HOY: el único día con relleno. Es el ancla de la fila. */
+.plan-week-cell[data-state="hoy"] { background: rgba(139, 92, 246, 0.16); }
+.plan-week-cell[data-state="hoy"] .plan-week-cell__num { color: #A78BFA; }
 
-.plan-week-cell[data-state="pasado"] { opacity: 0.7; }
-.plan-week-cell[data-state="atrasado"] { border-color: var(--warning); }
-.plan-week-cell[data-state="pausado"] { border-style: dashed; }
-.plan-week-cell[data-state="sin_plan"] { border-style: dashed; opacity: 0.5; }
+/* Ya vivido: presente pero en segundo plano. */
+.plan-week-cell[data-state="pasado"] { opacity: 0.45; }
+.plan-week-cell[data-state="pasado"] .plan-week-cell__num { font-weight: 500; }
 
+/* Aún sin generar: se ve que el sitio existe, no que haya algo dentro. */
+.plan-week-cell[data-state="sin_plan"],
+.plan-week-cell[data-state="en_proceso"],
+.plan-week-cell[data-state="pausado"] { opacity: 0.5; }
+.plan-week-cell[data-state="sin_plan"] .plan-week-cell__num,
+.plan-week-cell[data-state="en_proceso"] .plan-week-cell__num,
+.plan-week-cell[data-state="pausado"] .plan-week-cell__num { font-weight: 500; }
+
+.plan-week-cell[data-state="atrasado"] .plan-week-cell__num { color: var(--warning); }
+.plan-week-cell[data-state="atrasado"] { opacity: 0.85; }
+
+/* Seleccionado: contorno, no relleno — así no pelea con HOY. */
 .plan-week-cell.is-active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+  box-shadow: inset 0 0 0 1.5px #A78BFA;
+  background: rgba(139, 92, 246, 0.1);
 }
-.plan-week-cell.is-active .plan-week-cell__dow,
-.plan-week-cell.is-active .plan-week-cell__state { color: rgba(255, 255, 255, 0.85); }
 
-/* Hueco de una semana parcial: ocupa su columna para que el día caiga bajo su
-   letra real, pero no finge ser un día. */
+/* Hueco de una semana parcial: guarda la columna para que cada día caiga bajo
+   su día real, sin fingir que hay algo ahí. */
 .plan-week-cell.is-empty {
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  opacity: 0.3;
-  padding: 8px 4px;
-  min-height: 56px;
+  min-height: 52px;
+  opacity: 0.28;
+  border: 0;
+  background: transparent;
 }
 
-@media (max-width: 480px) {
-  .plan-week-cell { padding: 6px 2px; }
-  .plan-week-cell__num { font-size: 0.9rem; }
-  .plan-week-cell__state { font-size: 0.55rem; }
-  .plan-week-pill { padding: 6px 10px; }
+@media (max-width: 560px) {
+  .plan-week-pills { gap: 3px; }
+  .plan-week-pill { padding: 6px 5px 7px; }
+  .plan-week-pill__title { font-size: 0.68rem; }
+  .plan-week-pill__range { font-size: 0.58rem; }
+  .plan-week-cell { min-height: 46px; padding: 5px 1px; }
+  .plan-week-cell__num { font-size: 0.95rem; }
+  .plan-week-cell__dow { font-size: 0.56rem; }
+  .plan-week-cell__state { font-size: 0.5rem; }
 }
