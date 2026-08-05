@@ -24,9 +24,60 @@
  * coherencia, day_quality_warning) SÍ se renderean. Este helper los traduce a chips es-DO. Devuelve `[]`
  * cuando no hay advisories → el caller no renderea nada.
  */
-export function getMealAdvisories(meal) {
+// [P1-MACRO-BADGE-DIA-EN-BANDA · 2026-08-05] Banda del backend
+// (`MEALFIT_BAND_SCORE_LOWER` / `_UPPER`). Se replican aquí porque el cliente NO recibe el
+// `band_score` por día — solo las comidas y los objetivos del plan. Si el backend mueve su
+// banda, esto queda desalineado: la consecuencia sería mostrar u ocultar un chip
+// informativo, nunca un error de datos.
+const BANDA_BAJA = 0.9;
+const BANDA_ALTA = 1.12;
+
+const _num = (v) => {
+  const n = parseFloat(String(v ?? '').replace(/[^\d.-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * ¿Los macros del DÍA caen dentro de la banda objetivo del plan?
+ *
+ * Suma las comidas del día y compara los cuatro ejes contra los objetivos del plan. Ante
+ * cualquier dato ausente devuelve `false` — «no sé» no es «está en banda», y equivocarse
+ * hacia mostrar el aviso es el lado seguro (se pierde silencio, no información).
+ *
+ * @param {Array} comidas comidas del día
+ * @param {object} objetivos `{protein, carbs, fats}` del plan (acepta "123g")
+ * @param {number|string} kcalObjetivo calorías objetivo del plan
+ */
+export function diaEnBandaObjetivo(comidas, objetivos, kcalObjetivo) {
+  if (!Array.isArray(comidas) || comidas.length === 0 || !objetivos) return false;
+  const metas = {
+    protein: _num(objetivos.protein),
+    carbs: _num(objetivos.carbs),
+    fats: _num(objetivos.fats),
+    calories: _num(kcalObjetivo),
+  };
+  const suma = { protein: 0, carbs: 0, fats: 0, calories: 0 };
+  for (const c of comidas) {
+    if (!c || typeof c !== 'object') continue;
+    suma.protein += _num(c.protein);
+    suma.carbs += _num(c.carbs);
+    suma.fats += _num(c.fats);
+    suma.calories += _num(c.calories ?? c.cals);
+  }
+  const ejes = ['protein', 'carbs', 'fats', 'calories'];
+  if (ejes.some((k) => metas[k] <= 0 || suma[k] <= 0)) return false;
+  return ejes.every((k) => {
+    const r = suma[k] / metas[k];
+    return r >= BANDA_BAJA && r <= BANDA_ALTA;
+  });
+}
+
+export function getMealAdvisories(meal, opciones) {
   if (!meal || typeof meal !== 'object') return [];
   const out = [];
+  // [P1-MACRO-BADGE-DIA-EN-BANDA · 2026-08-05] ¿El DÍA de este plato cierra en banda?
+  // Ver el gate de `_macro_band_low` más abajo para por qué importa.
+  const diaEnBanda = opciones && opciones.diaEnBanda === true;
   if (meal._dish_quality_degraded) {
     // [P1-SWAP-PROSE-HONEST · 2026-07-29] `_dish_quality_degraded` lo setean 5 backstops
     // distintos del backend; solo ALGUNOS significan "receta básica" (evidencia viva
@@ -49,10 +100,23 @@ export function getMealAdvisories(meal) {
   if (meal._appetibility_combo_warning) {
     out.push({ key: 'combo', label: 'Combinación inusual (fruta dulce + salado)' });
   }
-  if (meal._macro_band_low) {
+  if (meal._macro_band_low && !diaEnBanda) {
     // [2026-08-05] Copy en llano a pedido del dueño: «banda objetivo» es
     // jerga interna (la banda ±15% del validador) que a un usuario normal no
     // le dice nada. La key NO cambia — tests y estilos cuelgan de ella.
+    //
+    // ⚠️ [P1-MACRO-BADGE-DIA-EN-BANDA · 2026-08-05] Y no se muestra si el DÍA cierra en
+    // banda. El flag lo pone el backend cuando la proteína de UNA comida se aleja >15% del
+    // objetivo de SU slot — pero las comidas se compensan entre sí, y la unidad que cuenta
+    // nutricionalmente es el día: nadie se come un slot aislado.
+    //
+    // Caso real (owner, 2026-08-05): un día con `band_score=1.0` y los CUATRO macros en
+    // banda mostraba «este plato se desvía de tus macros». El aviso contradecía al propio
+    // sistema y no era accionable — cambiar ese plato habría empeorado un día que ya estaba
+    // exacto. Mismo criterio que P1-COHERENCE-BANNER-NOISE: surface solo lo accionable.
+    //
+    // La telemetría per-comida NO se toca (sigue en el log y en el flag persistido): lo que
+    // deja de existir es la etiqueta visible cuando el día ya está donde debe.
     out.push({ key: 'macro_band', label: 'Este plato se desvía un poco de tus macros' });
   }
   if (meal._name_honesty_degraded) {

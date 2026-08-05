@@ -134,7 +134,7 @@ import { useLatestRef } from '../hooks/useLatestRef';
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
-import { getMealAdvisories } from '../utils/mealAdvisories';
+import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
 // diario en cada render (nunca escrito a plan_data). Ver docstring del
 // módulo para la regla de match + la regla de ambigüedad (mismas que
@@ -7788,7 +7788,14 @@ const DashboardInner = () => {
                                                 (feedback directo del owner). Amber (≠ rojo del pantry-urgent);
                                                 sigue informando sin bloquear. */}
                                             {(() => {
-                                                const _advisories = getMealAdvisories(meal);
+                                                // [P1-MACRO-BADGE-DIA-EN-BANDA · 2026-08-05] El chip de
+                                                // «se desvia de tus macros» se calla si el DIA cierra en
+                                                // banda: las comidas se compensan y la unidad que cuenta
+                                                // es el dia (caso real: band_score=1.0 con el chip puesto).
+                                                const _advisories = getMealAdvisories(meal, {
+                                                    diaEnBanda: diaEnBandaObjetivo(
+                                                        currentDayMeals, planData?.macros, planData?.calories),
+                                                });
                                                 // [P1-TODAY-REMAINING · 2026-07-28] Chip "ya registraste tu
                                                 // <slot>" — reusa la MISMA fila de chips que las advisories
                                                 // (mecanismo existente) en vez de inventar un bloque nuevo.

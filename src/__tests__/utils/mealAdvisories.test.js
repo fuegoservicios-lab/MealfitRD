@@ -80,6 +80,10 @@ describe('P2 — getMealAdvisories', () => {
       path.resolve(__dirname, '../../pages/Dashboard.jsx'), 'utf-8'
     );
     expect(/import\s*\{[^}]*\bgetMealAdvisories\b[^}]*\}\s*from\s*['"][^'"]*mealAdvisories/.test(dash)).toBe(true);
-    expect(dash.includes('getMealAdvisories(meal)')).toBe(true);
+    // [P1-MACRO-BADGE-DIA-EN-BANDA · 2026-08-05] Tolera argumentos extra: el call site
+    // ahora pasa el contexto del día (`{diaEnBanda}`) para poder callar el chip de macros
+    // cuando el día ya cierra en banda. Lo vigilado es que se llame CON la comida, no la
+    // lista exacta de argumentos.
+    expect(/getMealAdvisories\(\s*meal\s*[,)]/.test(dash)).toBe(true);
   });
 });
