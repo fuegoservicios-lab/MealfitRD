@@ -1167,7 +1167,7 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 
 .plan-week-cell:disabled { cursor: default; opacity: 0.55; }
 
-.plan-week-cell__initial { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; }
+.plan-week-cell__dow { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; }
 .plan-week-cell__num { font-size: 1rem; font-weight: 700; line-height: 1.1; }
 
 /* El estado se dice con TEXTO, no solo con color: en móvil se recorta con
@@ -1198,7 +1198,7 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   border-color: var(--primary);
   color: #fff;
 }
-.plan-week-cell.is-active .plan-week-cell__initial,
+.plan-week-cell.is-active .plan-week-cell__dow,
 .plan-week-cell.is-active .plan-week-cell__state { color: rgba(255, 255, 255, 0.85); }
 
 /* Hueco de una semana parcial: ocupa su columna para que el día caiga bajo su

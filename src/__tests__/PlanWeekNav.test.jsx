@@ -93,6 +93,23 @@ describe('[P1-DASH-WEEK-NAV] PlanWeekNav', () => {
         expect(screen.getByTestId('day-cell-2026-08-06')).toBeTruthy();
     });
 
+    // [P1-DASH-WEEK-NAV · 2026-08-04] Reporte del owner sobre la version
+    // desplegada: con iniciales sueltas la "M" no se lee como martes y la "X"
+    // de miercoles se entiende menos todavia. Este test impide volver a una
+    // sola letra "por compactar".
+    it('los dias se nombran con abreviaturas legibles, no con iniciales sueltas', () => {
+        render(<PlanWeekNav planData={plan(30, [], ['2026-08-06'])} {...base} />);
+        const jueves = screen.getByTestId('day-cell-2026-08-06');
+        expect(jueves.textContent).toMatch(/Jue/);
+        // Ninguna celda puede quedarse en un solo caracter de dia de semana.
+        const celdas = within(screen.getByTestId('week-day-grid')).getAllByTestId(/^day-cell-/);
+        celdas.forEach((c) => {
+            const dow = c.querySelector('.plan-week-cell__dow');
+            expect(dow).not.toBeNull();
+            expect(dow.textContent.trim().length).toBeGreaterThan(1);
+        });
+    });
+
     it('el dia seleccionado se marca con aria-current', () => {
         render(<PlanWeekNav planData={plan(30, [], ['2026-08-06'])} {...base} />);
         expect(screen.getByTestId('day-cell-2026-08-06').getAttribute('aria-current')).toBe('date');

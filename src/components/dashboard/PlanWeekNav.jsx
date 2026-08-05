@@ -19,7 +19,7 @@ import {
     projectRemaining,
     groupIntoWeeks,
     resolveDayState,
-    WEEKDAY_INITIALS,
+    WEEKDAY_LABELS,
 } from '../../utils/planWeeks';
 
 const RANGO = { month: 'short', day: 'numeric' };
@@ -105,7 +105,7 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                                 data-empty="true"
                                 className="plan-week-cell is-empty"
                             >
-                                <span className="plan-week-cell__initial">{WEEKDAY_INITIALS[i]}</span>
+                                <span className="plan-week-cell__dow">{WEEKDAY_LABELS[i]}</span>
                             </div>
                         );
                     }
@@ -122,11 +122,11 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                             data-state={st.key}
                             disabled={!st.navegable}
                             aria-current={activo ? 'date' : undefined}
-                            aria-label={`${WEEKDAY_INITIALS[i]} ${cell.date.getDate()}: ${st.label}`}
+                            aria-label={`${WEEKDAY_LABELS[i]} ${cell.date.getDate()}: ${st.label}`}
                             onClick={() => { if (st.navegable) onSelect(cell); }}
                             className={`plan-week-cell${activo ? ' is-active' : ''}`}
                         >
-                            <span className="plan-week-cell__initial">{WEEKDAY_INITIALS[i]}</span>
+                            <span className="plan-week-cell__dow">{WEEKDAY_LABELS[i]}</span>
                             <span className="plan-week-cell__num">{cell.date.getDate()}</span>
                             {/* `short`, NUNCA `label`: la frase completa
                                 ("se genera viernes") va una sola vez en la

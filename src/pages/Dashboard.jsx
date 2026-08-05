@@ -4474,6 +4474,23 @@ const DashboardInner = () => {
                     font-size: 0.85rem;
                     line-height: 1.5;
                 }
+                /* [P1-DASH-WEEK-NAV · 2026-08-04] La navegación por semanas vive
+                   DENTRO del cuaderno, así que tiene que respetar su geometría:
+                   sin esto arrancaba en 0 —pegada al lomo y a la IZQUIERDA de la
+                   línea de margen roja (.meals-container::before, left 2.5rem)—
+                   y se estiraba hasta el borde derecho. El owner lo reportó como
+                   "las semanas pegan del borde izquierdo y los días del derecho".
+                   Mismos insets que .meal-card (4.5rem / 2.5rem) para que las
+                   pastillas, la fila de días y las comidas de abajo compartan
+                   exactamente el mismo eje.
+                   Va por CLASE y no inline por la razón de
+                   P1-EATEN-SLOT-POLISH-ALIGN-FIX, justo arriba: un inline style
+                   no recibe el override responsive y se queda ~3rem más adentro
+                   que lo que alinea. */
+                .plan-week-nav {
+                    padding-left: 4.5rem;
+                    padding-right: 2.5rem;
+                }
                 /* [P3-DASH-LAST-SEPARATOR-FIX · 2026-07-12] :last-child → :last-of-type.
                    El wrapper de comidas termina con un nodo <style> inline (hover de
                    .meal-act-btn): con :last-child la ÚLTIMA comida nunca era "última"
@@ -5027,6 +5044,11 @@ const DashboardInner = () => {
                         border-radius: 0;
                         grid-template-columns: 1fr;
                         gap: 1rem;
+                    }
+                    /* [P1-DASH-WEEK-NAV] Sigue a .meal-card: mismos insets. */
+                    .plan-week-nav {
+                        padding-left: 2.25rem;
+                        padding-right: 1.25rem;
                     }
                     .skipped-lunch {
                         padding: 2rem 1.25rem 2rem 2.25rem;

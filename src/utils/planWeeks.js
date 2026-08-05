@@ -23,8 +23,13 @@
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Iniciales de lunes a domingo, en el orden en que se pintan las columnas.
-export const WEEKDAY_INITIALS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+// Abreviaturas de lunes a domingo, en el orden en que se pintan las columnas.
+//
+// ⚠️ TRES letras, no una. Con iniciales sueltas el owner reportó que "M" no se
+// lee como martes y que "X" para miércoles se entiende todavía menos — son
+// convención de calendario impreso, no algo que nadie descifre de un vistazo.
+// El ancho de la celda da de sobra para tres caracteres.
+export const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 // `new Date('2026-08-05')` se parsea como MEDIANOCHE UTC; en RD (UTC−4)
 // `toLocaleDateString` retrocede un día y el día se vería corrido. Construimos
