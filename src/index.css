@@ -1090,3 +1090,130 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   color: var(--text-main);
   padding: 5px 12px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   [P1-DASH-WEEK-NAV · 2026-08-04] Navegación de "Tu Menú" por semanas.
+
+   Sustituye a la fila deslizante de 4 pestañas, que se desbordaba y cortaba
+   los días por ambos lados. Aquí no hay scroll horizontal en ninguna parte:
+   los días son una rejilla de 7 columnas iguales (el `grid-template-columns`
+   va inline en el componente) y las semanas envuelven si no caben.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.plan-week-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.plan-week-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plan-week-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.plan-week-pill:hover { border-color: var(--primary-light); }
+
+.plan-week-pill.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* La semana que contiene hoy se marca aunque no esté abierta. */
+.plan-week-pill.has-today:not(.is-active) { border-color: var(--primary-light); }
+
+.plan-week-pill__title { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em; }
+.plan-week-pill__range { font-size: 0.72rem; opacity: 0.85; }
+.plan-week-pill__progress { font-size: 0.68rem; opacity: 0.7; }
+
+.plan-week-nav__lote {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.plan-week-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0; /* sin esto una celda ancha rompe el reparto de la rejilla */
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+
+.plan-week-cell:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--primary-light); }
+
+.plan-week-cell:disabled { cursor: default; opacity: 0.55; }
+
+.plan-week-cell__initial { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; }
+.plan-week-cell__num { font-size: 1rem; font-weight: 700; line-height: 1.1; }
+
+/* El estado se dice con TEXTO, no solo con color: en móvil se recorta con
+   ellipsis pero el `aria-label` de la celda lleva siempre la frase completa. */
+.plan-week-cell__state {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* HOY se distingue por CONTRASTE y peso, no solo por tono. */
+.plan-week-cell[data-state="hoy"] {
+  border-color: var(--primary);
+  border-width: 2px;
+  font-weight: 700;
+}
+
+.plan-week-cell[data-state="pasado"] { opacity: 0.7; }
+.plan-week-cell[data-state="atrasado"] { border-color: var(--warning); }
+.plan-week-cell[data-state="pausado"] { border-style: dashed; }
+.plan-week-cell[data-state="sin_plan"] { border-style: dashed; opacity: 0.5; }
+
+.plan-week-cell.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.plan-week-cell.is-active .plan-week-cell__initial,
+.plan-week-cell.is-active .plan-week-cell__state { color: rgba(255, 255, 255, 0.85); }
+
+/* Hueco de una semana parcial: ocupa su columna para que el día caiga bajo su
+   letra real, pero no finge ser un día. */
+.plan-week-cell.is-empty {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  opacity: 0.3;
+  padding: 8px 4px;
+  min-height: 56px;
+}
+
+@media (max-width: 480px) {
+  .plan-week-cell { padding: 6px 2px; }
+  .plan-week-cell__num { font-size: 0.9rem; }
+  .plan-week-cell__state { font-size: 0.55rem; }
+  .plan-week-pill { padding: 6px 10px; }
+}
