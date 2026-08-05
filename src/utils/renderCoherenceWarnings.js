@@ -27,7 +27,11 @@
 //     hypothesis: string,            // "cap_swallowed_modifier" | "unit_mismatch" | "unknown" | ...
 //     side: string,                  // "left" | "right" | ""
 //     magnitude: boolean,            // true si la divergencia es de magnitud
-//     delta_pct?: number             // -0.45 = -45%, presente solo si magnitude=true
+//     delta_pct?: number             // MAGNITUD sin signo: 0.45 = 45% de
+//                                    // diferencia. El backend la calcula como
+//                                    // `abs(act - exp) / exp`, así que NUNCA es
+//                                    // negativa — la dirección la da `hypothesis`,
+//                                    // no el signo. Presente solo si magnitude=true.
 //   }
 
 import { getCoherenceHypothesisLabel } from './coherenceLabels.js';
@@ -98,10 +102,19 @@ export const buildCoherenceToast = (warnings) => {
     const summary = validItems.slice(0, 2).map((w) => {
         const label = getCoherenceHypothesisLabel(w.hypothesis) || 'revisar';
         // Si hay delta_pct y es significativo, anexar la magnitud.
+        //
+        // [P1-COHERENCE-DELTA-SIGN · 2026-08-05] SIN signo. `delta_pct` no es un
+        // delta con signo: el backend lo calcula como
+        // `abs(act_qty - exp_qty) / exp_qty` (shopping_calculator.py), o sea una
+        // MAGNITUD de divergencia, siempre ≥ 0. Anteponerle "+" producía un "+"
+        // en el 100% de los casos y, peor, contradecía la etiqueta: el owner
+        // reportó el toast «Ajo (Compra menor que la receta, +88%)» — dice
+        // "menor" y muestra "+". La dirección ya la da la etiqueta
+        // (`Compra menor que la receta` / `Nevera dedujo de más`); el número
+        // solo aporta CUÁNTO se separa de lo que piden las recetas.
         if (typeof w.delta_pct === 'number' && Math.abs(w.delta_pct) >= 0.10) {
-            const sign = w.delta_pct > 0 ? '+' : '';
-            const pct = Math.round(w.delta_pct * 100);
-            return `${w.food.trim()} (${label}, ${sign}${pct}%)`;
+            const pct = Math.round(Math.abs(w.delta_pct) * 100);
+            return `${w.food.trim()} (${label}, ${pct}% de diferencia)`;
         }
         return `${w.food.trim()} (${label})`;
     });
