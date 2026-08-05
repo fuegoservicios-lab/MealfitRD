@@ -24,9 +24,17 @@ describe('P3-BANNER-REASON-COPY', () => {
         expect(_src).toContain('export function resolveQualityDegradedLabel(reason)');
     });
 
-    it('el helper prueba exact-match antes de prefix-match', () => {
+    // [2026-08-05] Las ventanas fijas de chars caducan con cualquier comentario
+    // nuevo (CUARTA vez de la clase en este repo): se extrae hasta el CIERRE
+    // real de la función — `}` a columna 0 — que no se mueve con el contenido.
+    const _fnBody = () => {
         const i = _src.indexOf('export function resolveQualityDegradedLabel');
-        const body = _src.slice(i, i + 900);
+        const end = _src.indexOf('\n}', i);
+        return _src.slice(i, end + 2);
+    };
+
+    it('el helper prueba exact-match antes de prefix-match', () => {
+        const body = _fnBody();
         const iExact = body.indexOf('Q_DEGRADED_REASON_MAP[reason]');
         const iPrefix = body.indexOf("reason.startsWith('low_band_macro:')");
         expect(iExact).toBeGreaterThan(-1);
@@ -56,8 +64,6 @@ describe('P3-BANNER-REASON-COPY', () => {
     });
 
     it('fallback genérico se preserva para reasons desconocidos', () => {
-        const i = _src.indexOf('export function resolveQualityDegradedLabel');
-        const body = _src.slice(i, i + 900);
-        expect(body).toContain("'Calidad por debajo del óptimo.'");
+        expect(_fnBody()).toContain("'Calidad por debajo del óptimo.'");
     });
 });

@@ -389,7 +389,9 @@ const Q_DEGRADED_REASON_MAP = {
     invalid_pipeline_start: 'Hubo un problema técnico al iniciar la generación. Intenta regenerar el plan.',
     budget_exhausted: 'Se alcanzó el límite de tiempo de generación. Te dimos la mejor versión disponible.',
     // [P2-BAND-SCORE-GATE · 2026-06-15] motivo emitido por _maybe_mark_low_band_degraded
-    low_band_score: 'La precisión de macros de este plan quedó por debajo de la banda objetivo (90-112% del target). Las porciones pueden no ser exactas; ajústalas a tu medida.',
+    // [2026-08-05] Copy en llano (hermano del chip de mealAdvisories): «banda
+    // objetivo (90-112% del target)» era doble jerga para el usuario final.
+    low_band_score: 'Este plan se desvía de tu objetivo de macros más de lo habitual. Las porciones pueden no ser exactas; ajústalas a tu medida.',
     // [P2-PANEL-SOFT-REJECT · 2026-06-15] motivos de _maybe_mark_panel_degraded
     condition_panel_gap: 'El balance de tu condición (grasa saturada / potasio / magnesio / fibra) quedó fuera de la meta tras los ajustes automáticos. Revísalo con tu profesional.',
     low_micros: 'Algunos micronutrientes (fibra / potasio / magnesio / calcio) quedaron por debajo del objetivo diario.',
@@ -499,7 +501,10 @@ export function resolveQualityDegradedLabel(reason) {
         const joined = names.length > 1
             ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`
             : (names[0] || 'algunos macros');
-        return `La precisión de ${joined} de este plan quedó por debajo de la banda objetivo en varios días. Las porciones pueden no ser exactas; ajústalas a tu medida.`;
+        // [2026-08-05] «Este plan se desvía en X» funciona igual con uno o
+        // varios macros — la forma anterior («la precisión de X quedó») era el
+        // mismo esquive de concordancia, pero con jerga.
+        return `Este plan se desvía de tu objetivo en ${joined} durante varios días. Las porciones pueden no ser exactas; ajústalas a tu medida.`;
     }
     return 'Calidad por debajo del óptimo.';
 }
