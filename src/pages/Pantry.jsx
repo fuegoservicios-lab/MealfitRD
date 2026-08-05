@@ -1182,6 +1182,12 @@ const Pantry = () => {
             //
             // Patrón best-effort: cualquier fallo del pre-check NO debe
             // abortar el recalc — caemos al comportamiento previo.
+            // [P1-PLANDATA-ID-HYDRATE · 2026-08-05] El id del plan segun el
+            // SERVIDOR, capturado del pre-check de abajo. No basta el id del
+            // localStorage: un recalc anterior con este mismo bug pudo haberlo
+            // persistido ya despojado, y entonces el "fallback local" repara
+            // con null. Esto permite auto-repararse de estados ya rotos.
+            let _serverKnownPlanId = null;
             try {
                 // calc_household_size / calc_grocery_duration NO son columnas
                 // top-level en meal_plans — viven dentro de plan_data jsonb.
@@ -1192,6 +1198,7 @@ const Pantry = () => {
                 const _latestJson = await _apiJson('/api/plans-data/latest?include_plan_data=true');
                 const latest = _latestJson?.plan;
                 if (latest && latest.id) {
+                    _serverKnownPlanId = latest.id;
                     const localId = planData?.id;
                     const localUpdatedAt = planData?.updated_at;
                     if (
@@ -1276,6 +1283,19 @@ const Pantry = () => {
                     // individual no tocamos este flag (el restock parcial
                     // sigue siendo válido).
                     delete result.plan_data.is_restocked;
+                }
+                // [P1-PLANDATA-ID-HYDRATE · 2026-08-05] plan_data del recalc
+                // llega SIN id (vive en la columna, no en el JSONB) — adoptarlo
+                // pelado dejaba el contexto Y el localStorage sin plan_id, y el
+                // siguiente regenerateDay moría con "No encontramos tu plan
+                // activo" hasta refrescar (vivo 2026-08-05: vaciar la Nevera +
+                // importar de la lista). Es el mismo contrato que los hydrates
+                // del contexto (test ancla test_p1_plandata_id_hydrate.py) — y
+                // la ironía que delató la clase: la rama de drift de arriba SÍ
+                // adjuntaba (`fresh.id = latest.id`) mientras esta adopción no.
+                if (result.plan_data.id == null) {
+                    const _healId = planData?.id ?? _serverKnownPlanId;
+                    if (_healId != null) result.plan_data.id = _healId;
                 }
                 // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorageSet — raw
                 // setItem post-recalc lanzaba en iOS Private Mode; el plan
