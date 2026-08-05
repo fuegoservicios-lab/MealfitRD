@@ -2543,11 +2543,24 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 }
             }
             const kept = (data?.slots_kept || []).filter(Boolean);
+            // [P1-REGEN-DAY-TOAST-AFTER-RECALC · 2026-08-05] El aviso de desenlace se DIFIERE
+            // hasta que la operación termina de verdad.
+            //
+            // Antes se emitía aquí y a continuación corría el recalc de la lista de compras
+            // (hasta 2 intentos con una espera entre medias). El overlay "Rediseñando tu día…"
+            // vive hasta que esta función retorna, así que el usuario veía el toast verde
+            // "Día actualizado" ENCIMA del modal que seguía diciendo "Actualizando tu día…
+            // puede tomar de 3 a 5 minutos". Reportado con captura por el owner el 2026-08-05.
+            //
+            // Anunciar el éxito antes de terminar no es un detalle cosmético: invita a cerrar
+            // la pestaña a mitad del recalc, que es justo lo que deja la lista desincronizada.
+            // Se difiere solo el ANUNCIO; nada del trabajo cambia de orden.
+            let _emitirDesenlace = () => {};
             if (data?.ai_interrupted === true) {
                 // [P1-REGEN-DAY-PARTIAL-AI-DEGRADE · 2026-06-24] La IA se cayó a mitad del día: se persistió
                 // lo logrado SIN cobrar crédito y SIN perder platos. Aviso accionable "Reintentar" (distinto
                 // del toast de slots_kept, que comunica falta de inventario, no caída del proveedor).
-                toast.warning('La IA se interrumpió', {
+                _emitirDesenlace = () => toast.warning('La IA se interrumpió', {
                     description: data.ai_interrupted_message || 'Algunos platos no se actualizaron. Reintenta para completar el día (no se descontó tu crédito).',
                     duration: 9000,
                     action: { label: 'Reintentar', onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
@@ -2556,7 +2569,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // [P1-REGEN-DAY-WARNING-SURFACE · 2026-06-24] (re-audit P1-3) El backend computa este aviso
                 // honesto cuando el día quedó por debajo del objetivo de proteína; antes el frontend lo
                 // descartaba y mostraba "¡Día actualizado!" verde sobre un día sub-objetivo.
-                toast.warning('Día actualizado, pero por debajo de tu objetivo', {
+                _emitirDesenlace = () => toast.warning('Día actualizado, pero por debajo de tu objetivo', {
                     description: data.day_quality_warning,
                     duration: 9000,
                     action: { label: 'Mi Nevera', onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
@@ -2570,13 +2583,13 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // la misma clasificación (`_kept_reasons`) que la rama de fallo total ya usaba.
                 // Sin el campo (backend viejo) conservamos el copy anterior.
                 const _motivo = data?.slots_kept_reason;
-                toast.success('Día actualizado', {
+                _emitirDesenlace = () => toast.success('Día actualizado', {
                     description: _motivo === 'ai'
                         ? 'Algunos platos se conservaron: el chef IA no encontró alternativas que cuadraran con tus macros. Puedes reintentar.'
                         : 'Algunos platos se conservaron porque tu Nevera no daba para cambiarlos.',
                 });
             } else {
-                toast.success('¡Día actualizado con lo que tienes en tu Nevera!');
+                _emitirDesenlace = () => toast.success('¡Día actualizado con lo que tienes en tu Nevera!');
             }
             // Recalcular la lista de compras (el backend strippeó las listas agregadas).
             // [P5-REGEN-DAY-RECALC-RETRY · 2026-06-23] El día ya quedó persistido atómicamente
@@ -2618,6 +2631,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     await new Promise((res) => setTimeout(res, 700));
                 }
             }
+            // [P1-REGEN-DAY-TOAST-AFTER-RECALC · 2026-08-05] AQUÍ, no arriba: el día y su lista
+            // ya están hechos, así que el anuncio coincide con el final del overlay.
+            try { _emitirDesenlace(); } catch (_) { /* un toast no puede tumbar el flujo */ }
             if (!_recalcOk) {
                 // No dejamos al usuario con un PDF/lista potencialmente desincronizada sin aviso.
                 toast('Tu lista de compras se está actualizando', {
