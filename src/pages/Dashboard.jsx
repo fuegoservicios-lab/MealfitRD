@@ -100,6 +100,7 @@ import {
     resolveActiveDayIndex,
     MAX_WINDOW,
 } from '../utils/planWindow';
+import { writableDayIndex } from '../utils/planWeeks';
 // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
 // para el effect de onboarding de push (línea ~1139). Pre-fix era raw
 // `localStorage.getItem(...)` sin try/catch → iOS Private Mode lanzaba
@@ -1350,7 +1351,22 @@ const DashboardInner = () => {
     }, []);
 
     // Estado local para la navegación por pestañas (Días)
-    const [activeDayIndex, setActiveDayIndex] = useState(0);
+    //
+    // [P1-DASH-WEEK-NAV · 2026-08-04] "Qué día miro" y "qué día escribo" dejan
+    // de ser el mismo número. La navegación por semanas muestra también días
+    // ARCHIVADOS (`_archived_days`), que tienen su PROPIO rango de índices; si
+    // los dos rangos se mezclaran, el índice 0 dejaría de ser `days[0]` y un
+    // "Cambiar Plato" reescribiría otro día en silencio — `/swap-meal/persist`
+    // escribe con la ruta jsonb `{days,<i>,meals,<j>}`.
+    //
+    // `selectedDay` es la SELECCIÓN. `activeDayIndex` sigue existiendo como
+    // valor DERIVADO para los consumidores de lectura, y `writableIdx` es lo
+    // único que puede viajar a una escritura. Ver `writableDayIndex` en
+    // utils/planWeeks.js, que es el único sitio que deriva ese índice.
+    const [selectedDay, setSelectedDay] = useState({ origen: 'vivo', idx: 0 });
+    const writableIdx = writableDayIndex(selectedDay);
+    const isReadOnlyDay = writableIdx === null;
+    const activeDayIndex = writableIdx ?? 0;
     const [isRecalculating, setIsRecalculating] = useState(false);
     // [P1-TODAY-REMAINING · 2026-07-28] Comidas del diario de HOY, para
     // atenuar en "Tu Menú" el card cuyo slot ya se comió (derivado, NUNCA
@@ -4222,11 +4238,18 @@ const DashboardInner = () => {
             maxWindow: _MAX_WINDOW,
         });
         _prevTodayPlanDayIndexRef.current = todayPlanDayIndex;
-        if (next !== null) setActiveDayIndex(next);
+        if (next !== null) setSelectedDay({ origen: 'vivo', idx: next });
     }, [planData?.days, todayPlanDayIndex, visibleStartIndex]);
 
-    const currentDayMeals = planDays[activeDayIndex]?.meals || [];
-    const currentDaySupplements = planDays[activeDayIndex]?.supplements || [];
+    // [P1-DASH-WEEK-NAV] El día mostrado puede venir de `days` o de
+    // `_archived_days`, y cada colección tiene su propio rango de índices. No
+    // usar `activeDayIndex` para leer un archivado: ahí vale 0 y pintaría el
+    // primer día vivo.
+    const currentDayRecord = selectedDay?.origen === 'archivado'
+        ? (planData?._archived_days || [])[selectedDay.idx]
+        : planDays[activeDayIndex];
+    const currentDayMeals = currentDayRecord?.meals || [];
+    const currentDaySupplements = currentDayRecord?.supplements || [];
 
     // [P1-TODAY-REMAINING · 2026-07-28] Solo aplica al tab de HOY — un día
     // pasado o futuro no tiene "ya comido hoy" que atenuar. `currentDayMeals`
@@ -7411,7 +7434,7 @@ const DashboardInner = () => {
                                                         animate={{ opacity: (isPastDay && !isActive) ? 0.55 : 1, scale: 1, y: isActive ? -2 : 0 }}
                                                         exit={{ opacity: 0, scale: 0.8 }}
                                                         transition={{ duration: tabsSettled ? 0.2 : 0, ease: 'easeOut' }}
-                                                        onClick={() => setActiveDayIndex(globalIdx)}
+                                                        onClick={() => setSelectedDay({ origen: 'vivo', idx: globalIdx })}
                                                         className="option-btn"
                                                         title={
                                                             isPastDay ? 'Este día ya pasó'
@@ -7834,6 +7857,8 @@ const DashboardInner = () => {
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: cambiar plato (IA) requiere cuenta.
                                                         if (isGuest) { toast('Crea tu cuenta para cambiar platos con IA'); return; }
                                                         if (regeneratingId === index || isDayUpdating) return;
+                                                        // [P1-DASH-WEEK-NAV] Un dia archivado no se edita.
+                                                        if (isReadOnlyDay) return;
                                                         // [2026-05-29] Abrir el modal al instante; validar cuota
                                                         // en paralelo y cerrar solo si no hay créditos (evita el
                                                         // delay del fetch en cache-miss).
@@ -8621,7 +8646,10 @@ const DashboardInner = () => {
                         setShowUpdatePlanModal(false);
                         setIsDayUpdating(true); // [P5-LOADING-DISABLE] botón "Actualizando…" + disabled
                         try {
-                            await regenerateDay(activeDayIndex, optionId);
+                            // [P1-DASH-WEEK-NAV] `writableIdx`, no `activeDayIndex`: el derivado
+                            // cae a 0 y regeneraria el dia equivocado.
+                            if (writableIdx === null) return;
+                            await regenerateDay(writableIdx, optionId);
                         } finally {
                             setIsDayUpdating(false);
                             dayUpdateLock.current = false;
@@ -8712,7 +8740,10 @@ const DashboardInner = () => {
                     setIsDayUpdating(true);
                     try {
                         if (typeof regenerateDay === 'function') {
-                            await regenerateDay(activeDayIndex, optionId);
+                            // [P1-DASH-WEEK-NAV] `writableIdx`, no `activeDayIndex`: el derivado
+                            // cae a 0 y regeneraria el dia equivocado.
+                            if (writableIdx === null) return;
+                            await regenerateDay(writableIdx, optionId);
                         } else {
                             await handleNewPlan(optionId, null, 'dashboard_refresh');
                         }
@@ -8820,7 +8851,10 @@ const DashboardInner = () => {
                         setShowDislikeConfirmModal(false);
                         setIsDayUpdating(true); // [P5-LOADING-DISABLE]
                         try {
-                            await regenerateDay(activeDayIndex, 'dislike');
+                            // [P1-DASH-WEEK-NAV] `writableIdx`, no `activeDayIndex`: el derivado
+                            // cae a 0 y regeneraria el dia equivocado.
+                            if (writableIdx === null) return;
+                            await regenerateDay(writableIdx, 'dislike');
                         } finally {
                             setIsDayUpdating(false);
                             dayUpdateLock.current = false;
