@@ -2448,9 +2448,13 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // ciegas. Se descarta en el `finally` (éxito, soft-fail o error).
         // [P1-DAY-REGEN-RESUME · 2026-07-10] Copy honesto (medido en vivo: ~4.4 min; decía
         // "~1 minuto") + el marker de abajo hace verdad lo de "puedes salir".
+        // [2026-08-05] Acortado a pedido del dueño. Las DOS cosas que no se
+        // negocian sobreviven: la duración honesta y el "puedes salir" (que el
+        // resume respalda). Se cae "con lo que tienes en tu Nevera", que además
+        // solo era cierto en el modo pantry — este toast también sale con
+        // reason='variety'.
         const _dayLoadingId = toast.loading('Actualizando tu día…', {
-            description: 'Cocinando con lo que tienes en tu Nevera. Puede tomar de 3 a 5 minutos — '
-                + 'puedes salir o refrescar: seguimos cocinando y al volver retomamos el progreso.',
+            description: 'Tarda de 3 a 5 minutos. Puedes salir — seguimos cocinando.',
         });
         // [P1-DAY-REGEN-RESUME · 2026-07-10] Marker persistente del regen in-flight: si el
         // usuario refresca/cierra, el BACKEND sigue generando (el POST corre server-side hasta
