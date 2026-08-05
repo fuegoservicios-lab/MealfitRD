@@ -101,6 +101,7 @@ import {
     MAX_WINDOW,
 } from '../utils/planWindow';
 import { writableDayIndex, buildTimeline } from '../utils/planWeeks';
+import { fixDayCtaApplies } from '../utils/fixDayCta';
 // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
 // para el effect de onboarding de push (línea ~1139). Pre-fix era raw
 // `localStorage.getItem(...)` sin try/catch → iOS Private Mode lanzaba
@@ -419,7 +420,12 @@ const Q_DEGRADED_REASON_MAP = {
     // (P2-PANEL-SOFT-REJECT) caían al genérico "Calidad por debajo del óptimo" — el owner vio el
     // banner y no supo que era el SODIO del peor día (pregunta real 2026-07-04). Copy específico
     // y accionable, alineado con lo que el panel de micros muestra abajo.
-    micro_worst_day_ceiling: 'Un día se pasa del techo de sodio o azúcar añadida (revisa el panel de micros: enlatados, queso y embutidos son los sospechosos típicos). Usa Cambiar Plato en la comida más salada de ese día.',
+    // [P1-FIX-DAY-ONLY-IF-SODIUM · 2026-08-05] El copy ya no da por hecho que el techo
+    // roto es sodio. Decía «usa Cambiar Plato en la comida más SALADA de ese día», y este
+    // motivo cubre cuatro techos: con uno de azúcar añadida (caso real del owner) esa
+    // instrucción manda al usuario a mirar el plato equivocado. El nutriente concreto
+    // viaja en `_quality_degraded_panel_detail` y el panel de micros ya lo marca.
+    micro_worst_day_ceiling: 'Un día se pasa de uno de tus techos (sodio, azúcar añadida, grasa saturada o potasio). Mira cuál en el panel de micros de arriba y usa Cambiar Plato en la comida de ese día que más lo aporte.',
     micro_worst_day: 'Un día quedó por debajo del piso en algunos micronutrientes (fibra, potasio, magnesio…). Revisa el panel de micros y usa Cambiar Plato si quieres reforzar ese día.',
 };
 
@@ -7077,7 +7083,23 @@ const DashboardInner = () => {
                             comida más salada de ese día" — este botón hace exactamente eso por él, sin
                             que tenga que adivinar cuál día ni cuál plato (caso real: adivinó mal y
                             cambió el de otro día). */}
-                        {planData?._quality_degraded_reason === 'micro_worst_day_ceiling' && (
+                        {/* [P1-FIX-DAY-ONLY-IF-SODIUM · 2026-08-05] El botón solo aparece si el
+                            techo roto ES sodio.
+
+                            `micro_worst_day_ceiling` cubre CUATRO techos (sodio, azúcar añadida,
+                            grasa saturada, potasio renal) pero el endpoint detrás solo sabe
+                            arreglar sodio: para los otros tres devuelve `ceiling_not_sodium` y el
+                            usuario recibe «este arreglo no aplica». Reportado en vivo por el owner
+                            el 2026-08-05 con un techo de azúcar añadida: pulsó «Arreglar este día»
+                            y lo único que obtuvo fue un mensaje diciéndole que el botón no servía.
+                            Es la misma clase que el CTA de reintento retirado en
+                            P2-CHUNK-OVERDUE-SIGNAL: un control que solo puede fallar en el estado
+                            en que se muestra.
+
+                            El dato para saberlo YA viaja: `_quality_degraded_panel_detail` trae
+                            "día N: <nutriente>" (medido en prod: "día 1: free_sugars_g"). No hace
+                            falta pulsar para descubrir que no aplica. */}
+                        {fixDayCtaApplies(planData) && (
                             <span style={{ display: 'block', marginTop: '0.5rem' }}>
                                 <button
                                     type="button"
