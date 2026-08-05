@@ -94,6 +94,15 @@ const COHERENCE_HYPOTHESIS_LABELS = {
     // participó — y de paso heredaba su exención de escalada en el backend.
     magnitude_undersupply: 'Compra menor que la receta',
 
+    // [P1-COHERENCE-MILD-SHORT · 2026-08-05] El hueco entre el sub-suministro
+    // severo (<50% de lo que piden las recetas) y la tolerancia (~90%): compra
+    // por debajo, pero dentro del ruido de envase y redondeo. Nada lo nombraba,
+    // así que caía en `unknown` — el 28,2% de TODAS las hipótesis sobre 25
+    // planes, y el 98,5% de esas incógnitas eran exactamente esta banda.
+    // NO es accionable (no entra en `_ACTIONABLE_HYPOTHESES`): se etiqueta para
+    // que las métricas de coherencia signifiquen algo, no para avisar al usuario.
+    magnitude_mild_short: 'Compra algo por debajo de la receta',
+
     // [P1-COHERENCE-UNQUANTIFIED-LABEL · 2026-07-26] El alimento está en la
     // lista pero las recetas no le ponen cantidad: es el condimento, que la
     // receta escribe como "Sal al gusto" y parsea a `0.0 pizca`. No es una
