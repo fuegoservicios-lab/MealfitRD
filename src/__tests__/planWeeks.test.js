@@ -255,3 +255,22 @@ describe('[P1-DASH-WEEK-NAV] resolveDayState', () => {
         expect(s.label).not.toMatch(/se genera/i);
     });
 });
+
+describe('[P1-DASH-WEEK-NAV] chunkStatusInfo null (arranque del Dashboard)', () => {
+    const today = new Date(2026, 7, 6);
+    const entry = (iso, origen, idx = null) => ({ iso, date: parseIsoDateLocal(iso), origen, idx, day: {} });
+
+    // El Dashboard arranca con `chunkStatusInfo = null` hasta que responde
+    // /chunk-status. Un default de destructuring NO cubre null y reventaba.
+    it('no revienta y degrada a sin_plan', () => {
+        const ctx = { chunkStatusInfo: null, firstLiveIso: '2026-08-06', today };
+        expect(() => resolveDayState(entry('2026-08-20', 'futuro'), ctx)).not.toThrow();
+        expect(resolveDayState(entry('2026-08-20', 'futuro'), ctx).key).toBe('sin_plan');
+    });
+
+    it('los dias ya generados siguen resolviendo bien sin payload', () => {
+        const ctx = { chunkStatusInfo: null, firstLiveIso: '2026-08-06', today };
+        expect(resolveDayState(entry('2026-08-06', 'vivo', 0), ctx).key).toBe('hoy');
+        expect(resolveDayState(entry('2026-08-04', 'archivado', 0), ctx).key).toBe('pasado');
+    });
+});

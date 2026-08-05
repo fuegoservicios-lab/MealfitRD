@@ -135,7 +135,12 @@ describe('[P2-CHUNK-OVERDUE-SIGNAL] recuperación de días atrasados desde el Da
         await waitFor(() => {
             expect(screen.getAllByText(/atrasado/i).length).toBeGreaterThan(0);
         });
-        expect(screen.queryByRole('button', { name: /atrasado|reintentar/i })).toBeNull();
+        // [P1-DASH-WEEK-NAV] El nombre buscado es el de un CONTROL de reintento.
+        // `atrasado` salió de este regex: ahora es la etiqueta de ESTADO de una
+        // celda de día, que además va `disabled`. Confundir "aparece la palabra"
+        // con "hay un botón que reintenta" haría fallar el test por la razón
+        // equivocada. La protección de verdad es el click sobre TODO, más abajo.
+        expect(screen.queryByRole('button', { name: /reintentar/i })).toBeNull();
 
         // El `triggerShift` automático ya llamó a shift-plan al montar — ESE es
         // el reintento real, y es justamente por lo que un botón aquí sobra.
@@ -147,7 +152,10 @@ describe('[P2-CHUNK-OVERDUE-SIGNAL] recuperación de días atrasados desde el Da
 
         // Clickeamos TODO lo clickeable de la fila de días (pestañas reales,
         // fantasmas y el toggle del popover). Ninguno puede lanzar un shift.
-        const fila = container.querySelector('.days-navigation-container');
+        // [P1-DASH-WEEK-NAV · 2026-08-04] La fila puede ser la navegación por
+        // semanas o, en planes legacy sin fechas, la fila de siempre. El
+        // contrato es el mismo en ambas: ningún control dispara un shift.
+        const fila = container.querySelector('.plan-week-nav, .days-navigation-container');
         expect(fila).not.toBeNull();
         const botones = fila.querySelectorAll('button');
         expect(botones.length).toBeGreaterThan(0);

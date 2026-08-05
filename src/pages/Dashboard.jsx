@@ -51,7 +51,7 @@ import OptionPickerModal from '../components/common/OptionPickerModal';
 import MotivoActualizarModal from '../components/dashboard/MotivoActualizarModal';
 // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Pestañas fantasma de los días del plan
 // que aún no existen (absorbe el skeleton que vivía inline en la fila de días).
-import UpcomingDayTabs from '../components/dashboard/UpcomingDayTabs';
+import PlanWeekNav from '../components/dashboard/PlanWeekNav';
 import EmptyState from '../components/common/EmptyState';
 // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] "Nevera estricta + consentimiento": modal que nombra
 // el/los ingrediente(s) que el chef necesita fuera de la Nevera real (nombre + cantidad + precio
@@ -100,7 +100,7 @@ import {
     resolveActiveDayIndex,
     MAX_WINDOW,
 } from '../utils/planWindow';
-import { writableDayIndex } from '../utils/planWeeks';
+import { writableDayIndex, buildTimeline } from '../utils/planWeeks';
 // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
 // para el effect de onboarding de push (línea ~1139). Pre-fix era raw
 // `localStorage.getItem(...)` sin try/catch → iOS Private Mode lanzaba
@@ -1923,9 +1923,9 @@ const DashboardInner = () => {
         // planes tienen días sin generar — exactamente la forma que el
         // predicado `overdue` del backend existe para detectar. Con el gate
         // previo esos 20 planes nunca pedían `/chunk-status`, así que
-        // `chunkStatusInfo` se quedaba en `null` y `UpcomingDayTabs` devolvía
-        // `null`: los días futuros habrían sido invisibles justo en el caso
-        // para el que se construyeron.
+        // `chunkStatusInfo` se quedaba en `null` y la fila de días futuros
+        // devolvía `null`: habrían sido invisibles justo en el caso para el
+        // que se construyeron. Hoy ese consumidor es `PlanWeekNav`.
         //
         // Ojo con la rama `else if` de abajo: limpia el snapshot SOLO en
         // 'complete' puro (igualdad estricta, NO un `startsWith('complete')`).
@@ -2018,9 +2018,12 @@ const DashboardInner = () => {
     // cuando el chip es visible la llamada ya ocurrió y repetirla no encola nada;
     // y en `partial`/`generating_next` el click archivaba la ventana viva entera,
     // dejando `days = []` y apagando el propio chip con un toast de éxito. La
-    // cadena completa está en `components/dashboard/UpcomingDayTabs.jsx`
-    // (`renderGhost`, rama `atrasado`). El control equivalente y neutral que sí
-    // sobrevive es `[P2-δ] «Refrescar próximos días»`, más abajo en este archivo.
+    // cadena completa quedó escrita en el spec 2026-08-04 (§C1). El control
+    // equivalente y neutral que sí sobrevive es `[P2-δ] «Refrescar próximos
+    // días»`, más abajo en este archivo.
+    // [P1-DASH-WEEK-NAV · 2026-08-04] `UpcomingDayTabs` ya no existe: su
+    // maquetación la sustituyó `PlanWeekNav` y su resolución de estados vive
+    // en `utils/planWeeks.js::resolveDayState`.
 
     // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Lectura fresca de `planData` dentro del `tick`
     // de abajo sin listarlo como dep del effect (mismo motivo que en AssessmentContext).
@@ -4248,6 +4251,11 @@ const DashboardInner = () => {
     const currentDayRecord = selectedDay?.origen === 'archivado'
         ? (planData?._archived_days || [])[selectedDay.idx]
         : planDays[activeDayIndex];
+    // La vista por semanas solo aplica si TODOS los días llevan su fecha
+    // estampada. Sin eso degradamos a la fila de siempre: no inferimos fechas
+    // (la razón, en utils/planWeeks.js).
+    const weekNavReady = useMemo(() => buildTimeline(planData).ok, [planData]);
+
     const currentDayMeals = currentDayRecord?.meals || [];
     const currentDaySupplements = currentDayRecord?.supplements || [];
 
@@ -7380,7 +7388,15 @@ const DashboardInner = () => {
                     )}
 
                     {/* BOTONES NAVEGACIÓN DÍAS (AGRUPADOS POR SEMANA) — Rolling Window */}
-                    {visiblePlanDays.length >= 1 && (
+                    {weekNavReady ? (
+                        <PlanWeekNav
+                            planData={planData}
+                            chunkStatusInfo={chunkStatusInfo}
+                            today={todayDate}
+                            selected={selectedDay}
+                            onSelect={(entry) => setSelectedDay({ origen: entry.origen, idx: entry.idx })}
+                        />
+                    ) : visiblePlanDays.length >= 1 && (
                         <div className="days-navigation-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                             {Array.from({ length: Math.ceil(visiblePlanDays.length / 7) }).map((_, weekIdx) => {
                                 const weekDays = visiblePlanDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
@@ -7531,15 +7547,6 @@ const DashboardInner = () => {
                                                 );
                                             })}
                                             </AnimatePresence>
-
-                                            {/* [P2-CHUNK-OVERDUE-SIGNAL] skeleton absorbido por UpcomingDayTabs; V3 temporal-gate SUPERSEDED (mitad visual) — ver spec 2026-08-04 */}
-                                            {weekIdx === 0 && (
-                                                <UpcomingDayTabs
-                                                    planData={planData}
-                                                    chunkStatusInfo={chunkStatusInfo}
-                                                    isGuest={isGuest}
-                                                />
-                                            )}
                                         </div>
                                     </div>
                                 );

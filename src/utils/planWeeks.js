@@ -193,7 +193,11 @@ function formatDayEs(date) {
 // vie" en cada uno de los cuatro días — la queja original del owner. La fecha
 // del lote se dice UNA vez, a nivel de semana; en la celda solo cabe una marca.
 export function resolveDayState(entry, ctx) {
-    const { chunkStatusInfo = {}, firstLiveIso, today } = ctx || {};
+    // ⚠️ `|| {}` y NO un default de destructuring: el Dashboard arranca con
+    // `chunkStatusInfo = null` (no `undefined`) hasta que responde
+    // `/chunk-status`, y un default solo cubre `undefined`.
+    const { firstLiveIso, today } = ctx || {};
+    const chunkStatusInfo = (ctx && ctx.chunkStatusInfo) || {};
 
     if (entry.origen === 'archivado') {
         return { key: 'pasado', label: 'ya pasó', short: '✓', navegable: true, editable: false };
