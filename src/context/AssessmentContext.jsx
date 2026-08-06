@@ -239,6 +239,30 @@ const _clearUserScopedCaches = () => {
     safeLocalStorageRemove('mealfit_wizard_step');
 };
 
+
+// [P1-PLANDATA-ID-HYDRATE-2 · 2026-08-05] TERCERA aparicion de la misma clase.
+//
+// `plan_data` del servidor NO trae el `id`: vive en la COLUMNA `meal_plans.id`, no dentro
+// del JSON. Cualquier `setPlanData(respuesta.plan_data)` pelado deja el estado sin id, y el
+// guard de `regenerateDay`/`swap` falla con «No encontramos tu plan activo» hasta que el
+// poll de fondo repone el plan completo.
+//
+// Reportado en vivo (2026-08-05): el dueno anadio items a la Nevera y pulso «Actualizar
+// platos» de inmediato -> error rojo; a los pocos segundos funcionaba. No era lentitud del
+// servidor: era una CARRERA entre el refresco que dispara la Nevera y el boton.
+//
+// P1-PLANDATA-ID-HYDRATE (2026-07-12) cerro esta clase en el merge nocturno de chunks, y
+// el commit de hoy la cerro en el recalc de la Nevera. Reaparece porque se parcheo sitio
+// por sitio. Este helper es el punto unico: todo callsite que adopte `plan_data` crudo debe
+// pasar por aqui.
+export const conservarPlanId = (nuevo, previo) => {
+    if (!nuevo || typeof nuevo !== 'object') return nuevo;
+    if (nuevo.id != null || nuevo.plan_id != null) return nuevo;
+    const heredado = previo?.id ?? previo?.plan_id;
+    if (heredado == null) return nuevo;
+    return { ...nuevo, id: heredado };
+};
+
 export const AssessmentProvider = ({ children }) => {
     // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
     // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] Usar `safeLocalStorageGet`.
@@ -1374,8 +1398,9 @@ export const AssessmentProvider = ({ children }) => {
                 if (r.ok) {
                     const _j = await r.json().catch(() => null);
                     if (_j && _j.success && _j.plan_data) {
-                        setPlanData(_j.plan_data);
-                        safeLocalStorageSet('mealfit_plan', _j.plan_data);
+                        // [P1-PLANDATA-ID-HYDRATE-2] conservar el id (no viene en plan_data)
+                        setPlanData(prev => conservarPlanId(_j.plan_data, prev));
+                        safeLocalStorageSet('mealfit_plan', conservarPlanId(_j.plan_data, planData));
                         console.log('✅ [P1-GUEST-SHOPPING-SELFHEAL] Lista de compras reconstruida para plan adoptado.');
                     }
                 }
@@ -2620,8 +2645,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 if (!r.ok) return false;
                 const rd = await r.json();
                 if (rd.success && rd.plan_data) {
-                    setPlanData(rd.plan_data);
-                    safeLocalStorageSet('mealfit_plan', rd.plan_data);
+                    // [P1-PLANDATA-ID-HYDRATE-2] conservar el id (no viene en plan_data)
+                    setPlanData(prev => conservarPlanId(rd.plan_data, prev));
+                    safeLocalStorageSet('mealfit_plan', conservarPlanId(rd.plan_data, planData));
                     emitCoherenceToast(toast, rd._coherence_warnings);
                     return true;
                 }
@@ -3323,7 +3349,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                                     if (!r.ok) return false;
                                     const rd = await r.json();
                                     if (rd.success && rd.plan_data) {
-                                        setPlanData(rd.plan_data);
+                                        // [P1-PLANDATA-ID-HYDRATE-2] tercer callsite de la misma clase
+                                        setPlanData(prev => conservarPlanId(rd.plan_data, prev));
                                         safeLocalStorageSet('mealfit_plan', rd.plan_data);
                                         // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir `_coherence_warnings` post-swap-recalc.
                                         emitCoherenceToast(toast, rd._coherence_warnings);
