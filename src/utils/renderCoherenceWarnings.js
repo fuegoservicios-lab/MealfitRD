@@ -75,6 +75,29 @@ export const buildCoherenceToast = (warnings) => {
 
     const validItems = warnings.filter(
         (w) => w && typeof w === 'object' && typeof w.food === 'string' && w.food.trim()
+            // ⚠️ [P1-UNIT-MISMATCH-NO-ES-FALTANTE · 2026-08-05] `unit_mismatch === true` NO
+            // es una divergencia: es el backend diciendo «no puedo comparar estas dos
+            // cantidades». Lo calcula en shopping_calculator.py:
+            //
+            //     _unit_mismatch = (act_qty == 0 and any(v > 0 for v in act_units.values()))
+            //
+            // o sea: cero en ESTA unidad, pero el alimento SÍ se compró en otras. La
+            // comparación cae en casillas distintas del mismo alimento, no en un faltante.
+            //
+            // Caso real (owner, 2026-08-05): «Ajo — compra menor que la receta, 78% de
+            // diferencia». Las recetas lo pedían en `diente` (7) + `g` (10); la lista lo
+            // traía en `paquete (4 uds.)` (1) + `g` (23,33). Al comparar la casilla
+            // `diente` el guard veía 7 esperados y 0 comprados. El ajo estaba comprado.
+            //
+            // El backend YA marcaba estas filas — las etiquetaba y las emitía igual. Se
+            // filtran aquí, en el surface, y no en el guard: su `hypothesis` sigue viajando
+            // a la telemetría (`_shopping_coherence_block_history`) y las decisiones de
+            // bloqueo/retry NO cambian. Lo único que desaparece es un aviso que le pide al
+            // usuario revisar a mano una compra que está bien.
+            //
+            // ⚠️ NO silencia «no se compró nada»: ahí `act_units` está vacío o todo a cero,
+            // `_unit_mismatch` es False y el aviso sigue saliendo.
+            && w.unit_mismatch !== true
     );
     if (validItems.length === 0) {
         return null;
