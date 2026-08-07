@@ -31,7 +31,7 @@
 //     browser) dispara un fetch fresco. Se simula acá desmontando y
 //     volviendo a montar con una respuesta de diario distinta.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from './utils/test-utils';
+import { render, screen, fireEvent, waitFor } from './utils/test-utils';
 import Recipes from '../pages/Recipes';
 import * as router from 'react-router-dom';
 import { fetchWithAuth } from '../config/api';

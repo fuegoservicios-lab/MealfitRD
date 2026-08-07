@@ -31,7 +31,7 @@
 //     `styles.detail`/`styles.eaten` — se prueba EJECUTANDO el flujo real de
 //     descarga (con html2pdf.js mockeado) y capturando el string que recibe
 //     `.from(...)`, no solo leyendo el código.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from './utils/test-utils';
 import Recipes from '../pages/Recipes';
 import * as router from 'react-router-dom';

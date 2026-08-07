@@ -85,3 +85,145 @@ GHSA-86j7-9j95-vpqj  GHSA-g38m-r43w-p2q7  GHSA-fmh4-wcc4-5jm3
 
 Si `npm audit` reporta un GHSA critical/high de better-auth que NO esté en esta lista,
 significa un advisory nuevo → re-triage antes de allowlistear.
+
+---
+
+# Re-triage 2026-08-07 — 3 GHSA nuevos
+
+[P1-DEPS-TRIAGE-2 · 2026-08-07] El gate falló con 3 advisories fuera de allowlist. Es el
+comportamiento diseñado ("al aparecer un GHSA NUEVO el gate falla a propósito"). Uno se
+cerró con un bump, uno no aplica, y **uno sí aplica y no tiene remediación desde este
+repo** — ese último merece lectura completa, no un vistazo a la tabla.
+
+| GHSA | Paquete | Veredicto | Acción |
+|---|---|---|---|
+| `GHSA-r28c-9q8g-f849` + `GHSA-fxqj-rqcc-2cmp` | postcss | Cerrado | override `^8.5.23` → resuelve 8.5.26 |
+| `GHSA-qwww-vcr4-c8h2` | react-router | No aplica | allowlist |
+| **`GHSA-qq9h-g4jm-xgf3`** | **better-auth** | **APLICA** | allowlist + acción pendiente con Neon |
+
+## postcss — cerrado con override
+
+`GHSA-r28c-9q8g-f849` (high, ≤8.5.17, path traversal vía `sourceMappingURL` → lectura
+arbitraria de `.map`) y `GHSA-fxqj-rqcc-2cmp` (moderate, ≤8.5.22, fix incompleto del
+anterior).
+
+Llegaba por una cadena que vale la pena mirar antes de asustarse:
+
+```
+@neondatabase/neon-js → @neondatabase/auth → better-auth@1.4.18 → vitest@4.1.10 → vite → postcss
+```
+
+`better-auth` declara **vitest como dependencia de producción**, y por eso todo el
+toolchain de build aparece bajo `npm audit --omit=dev`. postcss no entra al bundle del
+navegador: es superficie de *build*, no de runtime. Aun así el override es de una línea y
+sin riesgo, así que se aplicó en vez de allowlistear ruido.
+
+`overrides.postcss = "^8.5.23"` (mismo mecanismo ya usado para `jspdf` y `dompurify`).
+
+## react-router `GHSA-qwww-vcr4-c8h2` — no aplica
+
+El advisory es de **RSC Mode** (CSRF bypass: la action se ejecuta antes del 400). Este
+repo no usa RSC ni Framework Mode:
+
+- 61/61 imports son `from 'react-router-dom'` (Declarative Mode).
+- Cero `createBrowserRouter`, `@react-router/rsc`, `RSCHydratedRouter`,
+  `matchRSCServerRequest`, `routeRSCServerRequest`, `useFetcher`, `<Form>`, `loader:`,
+  `action:` de ruta.
+
+Es la misma razón por la que `GHSA-84g9-w2xq-vcv6` fue "puro cumplimiento" en el triage
+anterior. Además, el "fix" que propone npm es **bajar a 7.11.0** (`isSemVerMajor: true`),
+que reintroduciría justamente `GHSA-84g9-w2xq-vcv6` — el advisory que el bump 7.12→7.18
+cerró. Downgrade = estrictamente peor. Allowlist.
+
+## better-auth `GHSA-qq9h-g4jm-xgf3` — ⚠ APLICA
+
+**Este no encaja en el argumento del triage anterior, y conviene decirlo explícito.**
+
+Los 9 GHSA de better-auth ya allowlisteados se aceptaron porque apuntan a plugins de
+**servidor** que esta arquitectura no corre (oidcProvider, mcp, organization, admin,
+SCIM). Ese razonamiento sigue siendo correcto para esos 9. **No cubre a este.**
+
+### El mecanismo
+
+> "When an account already exists for an address, magic-link verification and email-OTP
+> sign-in both sign in to that account. Neither one removed a password set while the
+> account was still unverified."
+
+1. El atacante registra la dirección de la víctima con **una contraseña suya**. La cuenta
+   queda sin verificar.
+2. La víctima entra después por email-OTP. Better Auth la loguea **en esa misma cuenta** y
+   verifica el correo.
+3. La contraseña del atacante sigue viva. Acceso persistente, en paralelo al de la víctima.
+
+Rango vulnerable `>=1.1.3 <1.6.22`; el árbol resuelve **1.4.18**. Parcheado en 1.6.22 /
+1.7.0-beta.10: el fix borra la contraseña y revoca sesiones cuando el flujo encuentra una
+cuenta nunca confirmada.
+
+### Por qué aplica aquí y no es teórico
+
+- **El login de esta app ES email-OTP, y es el único.** [P1-EMAIL-OTP · 2026-06-21]
+  retiró `/register` (hoy `<Navigate to="/login">`) y `Login.jsx` es correo → código. No
+  es un flujo de esquina: es la puerta.
+- **La precondición 1 está documentada en nuestro propio código.** `authClient.js`:
+  *"El primer código de un correo nuevo AUTO-CREA la cuenta (Better Auth
+  `disableSignUp=false`, y Neon no expone forma de apagarlo)"*.
+- **La superficie de contraseña está viva.** `AccountSettings.jsx` permite fijar/cambiar
+  contraseña y `verifyCurrentPassword` hace POST a `<base>/sign-in/email` contra la
+  instancia real de Neon.
+- Que el SPA no tenga página de registro **no cierra nada**: el ataque es un POST directo
+  a `<base>/sign-up/email`, y `VITE_NEON_AUTH_URL` viaja en el bundle.
+
+Lo que expone una cuenta tomada: `meal_plans`, `health_profile`, `user_facts`,
+`consumed_meals` — datos de salud.
+
+### Por qué no hay remediación desde este repo
+
+Dos capas, y la que importa no es la nuestra:
+
+1. `better-auth@1.4.18` está pineado por `@neondatabase/auth@0.4.2-beta`; `neon-js@0.6.2-beta`
+   es la última publicada. Un `overrides` subiría la copia del bundle.
+2. **Pero la lógica vulnerable es del servidor de auth, y ese lo opera Neon.** Subir la
+   copia cliente no parchea el sign-in de Neon. Aquí un override sería cosmético: pondría
+   el gate en verde sin mover la exposición real.
+
+Por eso va a la allowlist **como riesgo aceptado y rastreado**, no como "no aplica".
+
+### Verificación pendiente (30 segundos, la puede correr el dueño)
+
+Confirma la precondición 1 — sign-up abierto con contraseña. Usar **un correo propio sin
+cuenta**, no el de un tercero:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$VITE_NEON_AUTH_URL/sign-up/email" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"TU-CORREO-SIN-CUENTA@ejemplo.com","password":"pruebaLarga123!","name":"probe"}'
+```
+
+`200`/`201` → sign-up abierto, precondición confirmada, la cadena completa es explotable.
+`403`/`404`/`422` → Neon lo cerró y el ataque se queda sin paso 1.
+
+### Acciones (necesitan a Neon, no a este repo)
+
+1. Abrir ticket con Neon pidiendo better-auth ≥1.6.22 en la instancia gestionada. Es el
+   único arreglo real.
+2. Preguntar si pueden **deshabilitar email+password** en la instancia. La app es
+   passwordless para entrar, así que sin contraseña que plantar el ataque se queda sin
+   carga útil. **Ojo:** rompería el cambio de contraseña de `AccountSettings.jsx` — es
+   una decisión de producto, no un flip gratis.
+3. Mitigación parcial mientras tanto (la sugiere el propio advisory): borrar cuentas sin
+   verificar de forma agresiva, para achicar la ventana. También depende de Neon.
+
+Nota de severidad: `npm audit` lo reporta **high** (el paquete `better-auth` agrega a
+`critical` por otros advisories). Un comentario previo en el PR #137 lo llamó "critical" y
+sugirió que probablemente no aplicaba si no se usaba magic-link/email-OTP — **sí se usa
+email-OTP**, y esa lectura era incorrecta.
+
+## Allowlist tras este re-triage
+
+```
+GHSA-wxw3-q3m9-c3jr  GHSA-pw9m-5jxm-xr6h  GHSA-2vg6-77g8-24mp
+GHSA-7w99-5wm4-3g79  GHSA-392p-2q2v-4372  GHSA-9h47-pqcx-hjr4
+GHSA-86j7-9j95-vpqj  GHSA-g38m-r43w-p2q7  GHSA-fmh4-wcc4-5jm3
+GHSA-qq9h-g4jm-xgf3  ← APLICA, aceptado y rastreado (no "no aplica")
+GHSA-qwww-vcr4-c8h2  ← no aplica (RSC Mode; este repo es Declarative)
+```
