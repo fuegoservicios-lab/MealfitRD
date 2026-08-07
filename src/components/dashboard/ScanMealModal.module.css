@@ -510,3 +510,56 @@
 @media (prefers-reduced-motion: reduce) {
     .optionCard, .optionChev, .pickRow { transition: none; }
 }
+
+/* [P1-PHOTO-DEDUCTS · 2026-08-07] Checklist de componentes detectados en el
+   plato. Sólo los marcados se descuentan de la Nevera. */
+.componentsBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+}
+
+.componentsHint {
+    margin: 0 0 0.15rem;
+    font-size: 0.72rem;
+    opacity: 0.7;
+    line-height: 1.35;
+}
+
+.componentRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.componentRow input[type="checkbox"] {
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.componentQty {
+    width: 4.2rem;
+    flex-shrink: 0;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.82rem;
+    border-radius: 0.35rem;
+    border: 1px solid var(--border-color, #d1d5db);
+    background: var(--input-bg, transparent);
+    color: inherit;
+}
+
+/* Deshabilitado = la fila no se va a descontar; atenuar deja claro que el
+   número dejó de importar sin ocultarlo. */
+.componentQty:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.componentName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

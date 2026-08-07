@@ -932,6 +932,77 @@ const DashboardInner = () => {
     // completo), así que el éxito exige un re-fetch — mismo patrón que el resume server-side
     // de P1-DAY-REGEN-RESUME (`applyRegenPlan`, más abajo en este archivo).
     const [fixSodiumDayLoading, setFixSodiumDayLoading] = useState(false);
+
+    // [P1-EAT-PLAN-MEAL · 2026-08-07] "Me lo comí" — el camino de consumo MÁS
+    // preciso del sistema y el único sin adivinanza: el plato del plan ya trae
+    // su lista de ingredientes con cantidades, así que el backend descuenta la
+    // Nevera con aritmética sobre datos que él mismo escribió (cero LLM, cero
+    // visión, cero porción inferida).
+    //
+    // Mandamos COORDENADAS (plan_id + índices), nunca el contenido del plato:
+    // si el cliente pudiera declarar `ingredients`, podría descontar de la
+    // Nevera lo que quisiera. El backend relee `plan_data` filtrando por dueño.
+    //
+    // `index` es el índice REAL dentro de `currentDayMeals` (el mismo que
+    // protege P2-SWAP-INDEX-COUPLING y que consume `todaysEatenIndices`), y
+    // `activeDayIndex` el del día vivo — por eso el botón sólo existe en la
+    // pestaña de HOY: en un día archivado esas coordenadas no apuntan a
+    // `plan_data.days`.
+    const [eatMealInFlight, setEatMealInFlight] = useState(null);
+    const handleEatPlanMeal = async (meal, index) => {
+        if (isGuest) { toast('Crea tu cuenta para registrar lo que comes'); return; }
+        if (!planData?.id || eatMealInFlight !== null) return;
+        setEatMealInFlight(index);
+        try {
+            const resp = await fetchWithAuth('/api/diary/consumed-from-plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    plan_id: planData.id,
+                    day_index: activeDayIndex,
+                    meal_index: index,
+                }),
+            });
+            let result = null;
+            try { result = await resp.json(); } catch (_) { /* body vacío o no-JSON */ }
+            if (!resp.ok || !result?.success) {
+                const msg = (typeof result?.detail === 'string' ? result.detail : null)
+                    || 'Inténtalo de nuevo en un momento.';
+                toast.error('No se pudo registrar', { description: msg });
+                return;
+            }
+            if (result.already_logged) {
+                toast('Ya lo tenías registrado', {
+                    description: 'No lo contamos dos veces.',
+                });
+            } else {
+                // [P1-PANTRY-NAME-RESOLUTION · 2026-08-07] Decir QUÉ no bajó de
+                // la Nevera. Callar los ausentes dejaría al usuario creyendo que
+                // todo se descontó — exactamente la mentira que aquel P-fix
+                // eliminó del lado del chat. No es un error: comer algo que no
+                // tenías registrado es normal.
+                const ausentes = Array.isArray(result.not_in_pantry) ? result.not_in_pantry : [];
+                const descontados = (Array.isArray(result.deducted) ? result.deducted.length : 0)
+                    + (Array.isArray(result.inferred) ? result.inferred.length : 0);
+                toast.success(`${result.meal_name} registrado`, {
+                    description: ausentes.length > 0
+                        ? `Descontamos ${descontados} de tu Nevera. No estaban registrados: ${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`
+                        : (descontados > 0
+                            ? `Descontamos ${descontados} ingrediente${descontados === 1 ? '' : 's'} de tu Nevera.`
+                            : 'Sumado a tu diario de hoy.'),
+                });
+            }
+            // TrackingProgress escucha `refresh-inventory` → refetch del diario →
+            // despacha `today-consumed-updated` → este Dashboard re-deriva
+            // `todaysEatenIndices` y atenúa la card. Un solo evento basta.
+            window.dispatchEvent(new Event('mealfit:refresh-inventory'));
+        } catch (err) {
+            console.error('Error registrando plato del plan:', err);
+            toast.error('No se pudo registrar', { description: 'Revisa tu conexión.' });
+        } finally {
+            setEatMealInFlight(null);
+        }
+    };
     // [P1-PANTRY-STRICT-CONSENT · 2026-08-02] `allowNewIngredients` (default null): nombres que
     // el usuario YA consintió comprar (modal "Tu Nevera no alcanza") — se reenvían al backend,
     // que amplía el universo autorizado y re-corre el swap sodio-consciente.
@@ -8013,6 +8084,53 @@ const DashboardInner = () => {
                                                 >
                                                     <Heart size={20} color={isLiked ? '#FFFFFF' : (isDark ? '#F472B6' : '#EC4899')} fill={isLiked ? '#FFFFFF' : 'none'} strokeWidth={2.25} />
                                                 </button>
+
+                                                {/* [P1-EAT-PLAN-MEAL · 2026-08-07] ME LO COMÍ.
+
+                                                    ⚠ ORDEN: va AL FINAL del row a propósito. Seis
+                                                    aserciones de `Dashboard.today_remaining` y
+                                                    `Dashboard.eaten_slot_unlock` destructuran
+                                                    `getAllByRole('button')` POSICIONALMENTE asumiendo
+                                                    `[Ver Receta, Cambiar Plato, Me gusta]`; ponerlo antes
+                                                    corre esos índices y hace que un test de swap acabe
+                                                    clickeando "Ver Receta". Si reordenas el row, migra
+                                                    primero esas aserciones a `getByLabelText`.
+
+                                                    Sólo en la pestaña de HOY y sólo si el slot no está
+                                                    ya registrado: `activeDayIndex` + `index` son
+                                                    coordenadas dentro de `plan_data.days`, y en un día
+                                                    archivado no apuntan a nada.
+
+                                                    Por qué esto no compite con el chip verde de
+                                                    `isEatenToday`: ese chip DERIVA el estado comparando
+                                                    `meal_type` del diario contra el slot del plan
+                                                    (P1-TODAY-REMAINING), y se declara ambiguo cuando hay
+                                                    ≥2 slots iguales. Este botón es lo contrario: una
+                                                    DECLARACIÓN del usuario sobre un plato concreto, que
+                                                    es justo el dato que al heurístico le falta. */}
+                                                {isTodayTabActive && !isEatenToday && (
+                                                    <button
+                                                        className="meal-act-btn"
+                                                        onClick={() => handleEatPlanMeal(meal, index)}
+                                                        disabled={eatMealInFlight !== null}
+                                                        style={{
+                                                            background: isDark ? 'rgba(16, 185, 129, 0.22)' : '#ECFDF5',
+                                                            border: isDark ? '1.5px solid rgba(110, 231, 183, 0.6)' : '1.5px solid #A7F3D0',
+                                                            borderRadius: '50%',
+                                                            width: 44, height: 44,
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            cursor: eatMealInFlight !== null ? 'not-allowed' : 'pointer',
+                                                            opacity: eatMealInFlight !== null && eatMealInFlight !== index ? 0.5 : 1,
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                        title="Me lo comí — lo registra en tu diario y lo descuenta de tu Nevera"
+                                                        aria-label={`Registrar que te comiste ${meal.name}`}
+                                                    >
+                                                        {eatMealInFlight === index
+                                                            ? <Loader2 size={20} className="animate-spin" color={isDark ? '#6EE7B7' : '#059669'} />
+                                                            : <CheckCircle size={20} color={isDark ? '#6EE7B7' : '#059669'} />}
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

@@ -6,10 +6,9 @@
 //   3. Quitar un básico ya elegido llama `updateData` con el array sin ese ítem.
 //   4. Tope de 8: con 8 ya elegidos, el buscador se deshabilita (no se puede agregar un 9º).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from './utils/test-utils';
+import { render, screen, waitFor } from './utils/test-utils';
 import userEvent from '@testing-library/user-event';
 import { QStapleFoods } from '../components/assessment/questions/QStapleFoods';
-import { fetchWithAuth } from '../config/api';
 import { _resetPantryCacheForTests, setCachedMasterList } from '../utils/pantryCache';
 
 vi.mock('../config/api', () => ({

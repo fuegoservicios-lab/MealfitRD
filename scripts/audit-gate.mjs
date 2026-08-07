@@ -10,10 +10,21 @@ import { execSync } from 'node:child_process';
 // GHSA aceptados: better-auth bundled en @neondatabase/neon-js (sin fix upstream).
 // Triage: docs/security/deps-triage.md [P1-DEPS-TRIAGE]. Al aparecer un GHSA NUEVO
 // (no listado) el gate falla a propósito → re-triage antes de allowlistear.
+//
+// ⚠ Estar en esta lista NO significa "no aplica". Significa "triado y sin vía de
+// remediación desde este repo". Las dos cosas se mezclan fácil y la diferencia
+// importa: GHSA-qq9h-g4jm-xgf3 SÍ aplica a esta app (el login es email-OTP) y está
+// aquí porque la lógica vulnerable corre en el servidor de auth de Neon, donde un
+// bump de la copia cliente no llega. El veredicto por advisory vive en el doc.
 const ALLOWLIST = new Set([
   'GHSA-wxw3-q3m9-c3jr', 'GHSA-pw9m-5jxm-xr6h', 'GHSA-2vg6-77g8-24mp',
   'GHSA-7w99-5wm4-3g79', 'GHSA-392p-2q2v-4372', 'GHSA-9h47-pqcx-hjr4',
   'GHSA-86j7-9j95-vpqj', 'GHSA-g38m-r43w-p2q7', 'GHSA-fmh4-wcc4-5jm3',
+  // [P1-DEPS-TRIAGE-2 · 2026-08-07]
+  'GHSA-qq9h-g4jm-xgf3', // APLICA — account takeover vía pre-account hijacking en
+                         // email-OTP. Server-side de Neon; acción pendiente con ellos.
+  'GHSA-qwww-vcr4-c8h2', // No aplica — RSC Mode; este repo es Declarative puro. El
+                         // "fix" de npm es bajar a 7.11.0 y reabre GHSA-84g9-w2xq-vcv6.
 ]);
 
 let report;

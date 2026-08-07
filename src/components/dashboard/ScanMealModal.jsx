@@ -106,6 +106,20 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
     const [error, setError] = useState(null);
     const [preview, setPreview] = useState(null);
     const [base, setBase] = useState({ calories: 0, protein: 0, carbs: 0, healthy_fats: 0 });
+    // [P1-PHOTO-DEDUCTS · 2026-08-07] Componentes del plato que el vision agent
+    // detectó, con un check por fila. Sólo los MARCADOS se mandan al backend
+    // para descontar de la Nevera.
+    //
+    // Por qué opt-in explícito y no automático: la cantidad la estimó un modelo
+    // mirando una foto. Descontar sin que el usuario lo vea repetiría el pecado
+    // que P1-PANTRY-NAME-RESOLUTION acaba de cerrar — mover la Nevera por algo
+    // que el usuario no puede auditar. Aquí lo ve, lo corrige y lo acepta; esa
+    // confirmación ES la autorización que el backend ejecuta.
+    //
+    // Forma: [{ name, quantity, unit, checked }]. El string que viaja se arma
+    // en el submit ("2 unidades de huevo"), no aquí, para que editar la
+    // cantidad no obligue a re-serializar en cada tecla.
+    const [components, setComponents] = useState([]);
     const [multiplier, setMultiplier] = useState(1);
     const [form, setForm] = useState({
         meal_name: '',
@@ -144,6 +158,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             setPhase('select');
             setError(null);
             setBase({ calories: 0, protein: 0, carbs: 0, healthy_fats: 0 });
+            setComponents([]);
             setMultiplier(1);
             setForm({
                 meal_name: '',
@@ -242,6 +257,24 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 healthy_fats: _clampMacro('healthy_fats', m.healthy_fats || 0),
             };
             setBase(nextBase);
+            // [P1-PHOTO-DEDUCTS · 2026-08-07] `items` ya viajaba en la respuesta
+            // (lo usaba el modo 'items'), pero para 'plato' el backend lo mandaba
+            // SIEMPRE vacío — ver P1-VISION-PLATO-ITEMS. Ahora trae los
+            // componentes del plato. Nacen MARCADOS: el caso común es que la
+            // detección sea correcta y descontar sea lo que el usuario quiere;
+            // desmarcar es la excepción (no tenía ese ingrediente, o el modelo
+            // lo alucinó).
+            setComponents(
+                (Array.isArray(data.items) ? data.items : [])
+                    .filter((it) => it && it.name)
+                    .slice(0, 30)
+                    .map((it) => ({
+                        name: String(it.name).slice(0, 60),
+                        quantity: Number(it.quantity) > 0 ? Number(it.quantity) : 1,
+                        unit: String(it.unit || 'unidad').slice(0, 20),
+                        checked: true,
+                    }))
+            );
             setMultiplier(1);
             setForm((prev) => ({
                 ...prev,
@@ -287,6 +320,13 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
         }
         setError(null);
         setPhase('saving');
+        // Componentes marcados → strings que el backend puede parsear. Si el
+        // usuario los desmarcó todos, se manda `undefined` (no `[]`) para que
+        // el backend trate el caso como "no hay nada que descontar" por la
+        // misma rama que un registro sin componentes.
+        const ingredientStrings = components
+            .filter((c) => c.checked && c.name && Number(c.quantity) > 0)
+            .map((c) => `${c.quantity} ${c.unit} de ${c.name}`);
         try {
             const res = await fetchWithAuth('/api/diary/consumed', {
                 method: 'POST',
@@ -299,6 +339,12 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                     protein: form.protein,
                     carbs: form.carbs,
                     healthy_fats: form.healthy_fats,
+                    // [P1-PHOTO-DEDUCTS · 2026-08-07] Solo los MARCADOS. Se
+                    // serializan aquí (no en el state) para que editar una
+                    // cantidad no re-serialice en cada tecla. El formato es el
+                    // mismo que emite el chat y que `_parse_quantity` entiende
+                    // desde siempre: "<qty> <unit> de <nombre>".
+                    ingredients: ingredientStrings,
                 }),
             });
             const data = await res.json();
@@ -307,14 +353,31 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             }
             // Refresca la tarjeta de progreso (mismo evento que usa el chat).
             window.dispatchEvent(new Event('mealfit:refresh-inventory'));
-            toast.success(`${name} registrada (${form.calories} kcal).`);
+            // [P1-PHOTO-DEDUCTS · 2026-08-07] Decir QUÉ no bajó de la Nevera.
+            // Callarlo dejaría al usuario creyendo que se descontó todo lo que
+            // confirmó — la misma mentira que P1-PANTRY-NAME-RESOLUTION eliminó
+            // del chat. Que un ingrediente no esté registrado es normal, no un
+            // error: por eso va en el `success`, no en un `error`.
+            const ausentes = Array.isArray(data.not_in_pantry) ? data.not_in_pantry : [];
+            const bajaron = (Array.isArray(data.deducted) ? data.deducted.length : 0)
+                + (Array.isArray(data.inferred) ? data.inferred.length : 0);
+            let descripcion;
+            if (ausentes.length > 0) {
+                descripcion = `Descontamos ${bajaron} de tu Nevera. No estaban registrados: ${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`;
+            } else if (bajaron > 0) {
+                descripcion = `Descontamos ${bajaron} ingrediente${bajaron === 1 ? '' : 's'} de tu Nevera.`;
+            }
+            toast.success(
+                `${name} registrada (${form.calories} kcal).`,
+                descripcion ? { description: descripcion } : undefined
+            );
             onClose();
         } catch (err) {
             console.error('Error registrando comida:', err);
             setPhase('review');
             setError('No pudimos registrar la comida. Intenta de nuevo.');
         }
-    }, [form, userId, onClose]);
+    }, [form, userId, onClose, components]);
 
     const handleOverlayClick = useCallback((e) => {
         if (e.target === e.currentTarget && !isBusy) onClose();
@@ -501,6 +564,63 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                             <MacroInput label="Grasas" unit="g" value={form.healthy_fats}
                                 onChange={(v) => handleMacroChange('healthy_fats', v)} />
                         </div>
+
+                        {/* [P1-PHOTO-DEDUCTS · 2026-08-07] Componentes detectados,
+                            confirmables uno a uno. Sólo los marcados se descuentan
+                            de la Nevera.
+
+                            Se renderiza sólo si el vision agent detectó algo: un
+                            bloque vacío con el título "De tu Nevera" sugeriría que
+                            el escáner falló, cuando lo normal en platos difíciles
+                            de desglosar es simplemente registrar macros. */}
+                        {components.length > 0 && (
+                            <div className={styles.componentsBlock}>
+                                <span className={styles.fieldLabel}>
+                                    Descontar de tu Nevera
+                                </span>
+                                <p className={styles.componentsHint}>
+                                    Lo detectamos en la foto. Desmarca lo que no lleve
+                                    o ajusta la cantidad.
+                                </p>
+                                {components.map((c, i) => (
+                                    <label key={`${c.name}-${i}`} className={styles.componentRow}>
+                                        <input
+                                            type="checkbox"
+                                            checked={c.checked}
+                                            disabled={phase === 'saving'}
+                                            onChange={() => setComponents((prev) => prev.map(
+                                                (x, j) => (j === i ? { ...x, checked: !x.checked } : x)
+                                            ))}
+                                            aria-label={`Descontar ${c.name} de tu Nevera`}
+                                        />
+                                        <input
+                                            type="number"
+                                            className={styles.componentQty}
+                                            value={c.quantity}
+                                            min="0"
+                                            step="0.5"
+                                            disabled={phase === 'saving' || !c.checked}
+                                            onChange={(e) => {
+                                                // Number('') es 0 y Number('abc') es NaN:
+                                                // ambos dejarían una fila que el filtro
+                                                // del submit descarta en silencio. Se
+                                                // clampa a 0 y el filtro (>0) la excluye
+                                                // de forma explícita.
+                                                const n = Number(e.target.value);
+                                                const q = Number.isFinite(n) && n > 0 ? n : 0;
+                                                setComponents((prev) => prev.map(
+                                                    (x, j) => (j === i ? { ...x, quantity: q } : x)
+                                                ));
+                                            }}
+                                            aria-label={`Cantidad de ${c.name}`}
+                                        />
+                                        <span className={styles.componentName}>
+                                            {c.unit} de {c.name}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
 
                         <div className={styles.actions}>
                             <button

@@ -29,13 +29,21 @@ const CSS_04_RAW = read('components/home/BenchmarkShowcase.module.css');
 /* Y estas son las que se interrogan por REGLAS: solo código vivo. */
 const CSS_03 = stripComments(CSS_03_RAW);
 const CSS_04 = stripComments(CSS_04_RAW);
-/* ⚠ Y el JSX necesita ADEMÁS los comentarios de línea. `stripComments` solo
-   entiende `/* *​/`, así que un `// io.disconnect();` —el caso realista: alguien
-   comenta la línea depurando y la commitea— seguía contando como código vivo.
-   Probado por mutación: comentando el callback, el guard del «once» pasaba.
-
-   Los `//` se quitan SOLO del JSX: en CSS no son comentario y `url(//cdn/…)`
-   es legítimo. El `[^:]` protege `https://`. */
+// ⚠ Y el JSX necesita ADEMÁS los comentarios de línea. `stripComments` solo
+// entiende los de bloque, así que un `// io.disconnect();` —el caso realista:
+// alguien comenta la línea depurando y la commitea— seguía contando como
+// código vivo. Probado por mutación: comentando el callback, el guard del
+// «once» pasaba.
+//
+// Los `//` se quitan SOLO del JSX: en CSS no son comentario y `url(//cdn/…)`
+// es legítimo. El `[^:]` protege `https://`.
+//
+// [lint] Este bloque era `/* … */` y citaba el delimitador de cierre literal,
+// que dentro de un bloque lo habría cerrado a mitad de frase; se colaba un
+// U+200B invisible entre el `*` y el `/` para impedirlo. Funcionaba, pero
+// `no-irregular-whitespace` lo marcaba y un `--fix` a ciegas habría borrado el
+// U+200B —cerrando el comentario y rompiendo el archivo—. En comentarios de
+// línea el delimitador no es especial y el truco deja de hacer falta.
 const stripLineComments = (src) => src.replace(/(^|[^:])\/\/.*$/gm, '$1');
 const JSX_03 = stripLineComments(stripComments(JSX_03_RAW));
 
