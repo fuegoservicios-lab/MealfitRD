@@ -1,5 +1,9 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+// [P1-LANDING-BENCH-1 · 2026-08-07] Hechos estructurales desde el SSOT — las
+// meta descriptions escribían «17 micronutrientes» y «+200 alimentos» a mano
+// (esta última era la 4ª grafía distinta del mismo catálogo).
+import { MICROS_TRACKED, VERIFIED_FOODS_LABEL } from '../../data/systemFacts';
 
 /* [P3-ROUTE-TITLE · 2026-06-29] Título de pestaña por ruta, minimalista y coherente.
    Fuente única: antes solo index.html (estático) + 4 páginas de marketing seteaban
@@ -68,7 +72,7 @@ const DESCRIPTIONS = {
     // Marketing (title self-managed; description gestionada aquí)
     '/funciones': 'Todo lo que hace Bioboros: plan diario calibrado, recetas paso a paso, lista de compras costeada en RD$, coach IA 24/7 y nevera inteligente.',
     '/como-funciona': 'El método de Bioboros paso a paso: de tu perfil clínico-metabólico al plato, con validación nutricional determinista en cada etapa.',
-    '/precision': 'La precisión que medimos en Bioboros: banda de macros, piso de proteína, 17 micronutrientes vs DRI y guardas clínicas por condición.',
+    '/precision': `La precisión que medimos en Bioboros: banda de macros, piso de proteína, ${MICROS_TRACKED} micronutrientes vs DRI y guardas clínicas por condición.`,
     '/motor': 'El motor de Bioboros por dentro: orquestación por grafos, validación nutricional y un catálogo verificado de alimentos dominicanos.',
     // Legales
     '/privacy': 'Política de Privacidad de Bioboros: qué datos recopilamos, cómo los ciframos y protegemos, qué cookies usamos, con quién los compartimos y tus derechos.',
@@ -83,7 +87,7 @@ const DESCRIPTIONS = {
     '/responsible-disclosure': 'Política de Divulgación Responsable de Bioboros: cómo reportar vulnerabilidades de seguridad, nuestro compromiso de puerto seguro y el alcance del programa.',
     '/novedades': 'Novedades de Bioboros: anuncios, mejoras del motor y todo lo nuevo, a medida que sucede.',
     // [P1-SUPERMARKET-DB · 2026-07-02]
-    '/supermercado': 'El supermercado dominicano de Bioboros: +200 alimentos verificados con presentaciones, marcas y precios reales en RD$ que alimentan tu lista de compras.',
+    '/supermercado': `El supermercado dominicano de Bioboros: ${VERIFIED_FOODS_LABEL} alimentos verificados con presentaciones, marcas y precios reales en RD$ que alimentan tu lista de compras.`,
 };
 
 // [P3-RESEARCH-PAGE-SCIENTIFIC · 2026-06-30] /research ahora es página propia (estilo científico)

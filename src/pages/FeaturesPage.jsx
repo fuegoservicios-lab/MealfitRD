@@ -10,6 +10,10 @@ import {
 // Sustituye al `.finalCta` local, que pedía el mismo clic con el mismo literal
 // justo antes de la banda; `ChevronRight`/`ArrowRight` salieron con él.
 import ClosingBand from '../components/home/ClosingBand';
+// [P1-LANDING-BENCH-1 · 2026-08-07] Hechos estructurales desde el SSOT — el
+// «200+» y el «3-6» estaban escritos a mano aquí (y en otros 3 ficheros con
+// otras grafías). Ver data/systemFacts.js.
+import { MEALS_PER_DAY_LABEL, VERIFIED_FOODS_LABEL } from '../data/systemFacts';
 // Comparte el design system minimalista-científico de la página "Cómo funciona".
 // OJO: el módulo compartido es HowItWorksPage.module.css — Engine.module.css lo
 // importa SOLO Engine.jsx (el comentario anterior decía lo contrario).
@@ -124,8 +128,8 @@ function FigPantry() {
 /* ──────────────────────────────── datos ──────────────────────────────── */
 
 const STATS = [
-    { num: '3-6', label: 'Comidas calibradas a tu condición' },
-    { num: '200+', label: 'Alimentos verificados' },
+    { num: MEALS_PER_DAY_LABEL, label: 'Comidas calibradas a tu condición' },
+    { num: VERIFIED_FOODS_LABEL, label: 'Alimentos verificados' },
     { num: '100%', label: 'Precios reales en RD$, no estimados' },
     { num: '24/7', label: 'Coach nutricional IA' },
 ];

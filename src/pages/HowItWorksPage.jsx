@@ -13,6 +13,15 @@ import {
 // él — eran sus únicos usos aquí. `/research` conserva SU `.finalCta`: no es
 // ruta papel y no lleva banda.
 import ClosingBand from '../components/home/ClosingBand';
+// [P1-LANDING-BENCH-1 · 2026-08-07] Cifras desde los SSOT: las bandas se derivan
+// de data/benchmark.js (aquí vivían duplicadas como prosa «95–105% / 90–112%» —
+// justo la clase de drift que benchmark.js cerró) y los hechos estructurales
+// («17 micros», «200+ alimentos», «20+ variables») de data/systemFacts.js.
+import { BANDS } from '../data/benchmark';
+import {
+    AI_MODELS_LABEL, CYCLE_DAYS_LABEL, INPUT_VARIABLES_LABEL,
+    MICROS_TRACKED, VERIFIED_FOODS_LABEL,
+} from '../data/systemFacts';
 import styles from './HowItWorksPage.module.css';
 
 /* [P3-HOWITWORKS-PAGE-SCIENTIFIC · 2026-06-30] Página de detalle de "Cómo funciona"
@@ -130,10 +139,10 @@ function FigAdaptation() {
 /* ──────────────────────────────── datos ──────────────────────────────── */
 
 const STATS = [
-    { num: '20+', label: 'Variables de entrada' },
-    { num: '3+', label: 'Modelos IA orquestados' },
-    { num: '17', label: 'Micronutrientes vs DRI' },
-    { num: '7/15/30', label: 'días · recálculo' },
+    { num: INPUT_VARIABLES_LABEL, label: 'Variables de entrada' },
+    { num: AI_MODELS_LABEL, label: 'Modelos IA orquestados' },
+    { num: String(MICROS_TRACKED), label: 'Micronutrientes vs DRI' },
+    { num: CYCLE_DAYS_LABEL, label: 'días · recálculo' },
 ];
 
 const STAGES = [
@@ -155,7 +164,7 @@ const STAGES = [
         Fig: FigEngine, figLabel: 'Red de inferencia',
         title: 'Motor de inferencia',
         sub: 'IA de frontera · en minutos',
-        text: 'Modelos de IA de última generación —su identidad exacta es confidencial y evoluciona a medida que adoptamos mejores— resuelven tu plan día por día contra un catálogo de 200+ alimentos verificados, optimizando macronutrientes, coste y adherencia. Clave: el motor solo usa alimentos que existen en el catálogo — nunca inventa comida.',
+        text: `Modelos de IA de última generación —su identidad exacta es confidencial y evoluciona a medida que adoptamos mejores— resuelven tu plan día por día contra un catálogo de ${VERIFIED_FOODS_LABEL} alimentos verificados, optimizando macronutrientes, coste y adherencia. Clave: el motor solo usa alimentos que existen en el catálogo — nunca inventa comida.`,
         bullets: [
             ['Generación por chunks', 'el plan se arma por bloques para entregarte resultado rápido y robusto.'],
             ['Solo alimentos verificados', 'cada ingrediente tiene datos nutricionales reales (curados desde USDA).'],
@@ -166,14 +175,14 @@ const STAGES = [
     {
         Fig: FigCalibration, figLabel: 'Cobertura vs DRI',
         title: 'Calibración nutricional',
-        sub: '17 micronutrientes · DRI',
-        text: 'Cada plato se ajusta a tus macronutrientes objetivo y se compara contra 17 micronutrientes (vs las referencias diarias, DRI), con un medidor de cobertura. Aquí entra el motor determinista que cuadra los números.',
+        sub: `${MICROS_TRACKED} micronutrientes · DRI`,
+        text: `Cada plato se ajusta a tus macronutrientes objetivo y se compara contra ${MICROS_TRACKED} micronutrientes (vs las referencias diarias, DRI), con un medidor de cobertura. Aquí entra el motor determinista que cuadra los números.`,
         bullets: [
             ['Banda de macros', 'proteína, carbohidratos, grasas y calorías dentro de un rango objetivo.'],
             ['Piso de proteína', 'una guarda garantiza que nunca quedes por debajo de tu mínimo.'],
             ['Coherencia receta ↔ lista', 'si la receta pide 200 g de pollo, la lista tiene ≈200 g × tu hogar.'],
         ],
-        tags: ['Macros en banda', 'Piso de proteína', '17 micros'],
+        tags: ['Macros en banda', 'Piso de proteína', `${MICROS_TRACKED} micros`],
     },
     {
         Fig: FigAdaptation, figLabel: 'Recálculo por ciclo',
@@ -198,7 +207,7 @@ const PIPELINE = [
 ];
 
 const GUARDS = [
-    { Icon: Gauge, title: 'Banda de macros', text: 'Calorías en 95–105% del objetivo y cada macro —proteína, carbos y grasas— dentro del 90–112%. No es a ojo: se mide celda por celda (cada día contra cada macro), y un plan con demasiadas celdas fuera de banda se corrige o se regenera.' },
+    { Icon: Gauge, title: 'Banda de macros', text: `Calorías en ${100 + BANDS.kcal[0]}–${100 + BANDS.kcal[1]}% del objetivo y cada macro —proteína, carbos y grasas— dentro del ${100 + BANDS.macros[0]}–${100 + BANDS.macros[1]}%. No es a ojo: se mide celda por celda (cada día contra cada macro), y un plan con demasiadas celdas fuera de banda se corrige o se regenera.` },
     { Icon: ShieldCheck, title: 'Piso de proteína', text: 'Tu proteína mínima se fija en gramos por kilo de peso —el rango que preserva masa muscular, sobre todo cuando estás en déficit—. Si un día queda corto, un cierre determinista re-apunta las porciones hasta alcanzarlo.' },
     { Icon: Soup, title: 'Variedad y coherencia del plato', text: 'Reglas deterministas evitan repetir la misma fuente de proteína —y su perfil de aminoácidos— dentro de un mismo día, y verifican que cada plato sea coherente: su nombre refleja los ingredientes reales (sin proteínas fantasma) y sus componentes combinan entre sí.' },
     { Icon: Cpu, title: 'Capa clínica', text: 'Diabetes, enfermedad renal, hipertensión, dislipidemia, embarazo o cirugía bariátrica activan reglas deterministas sobre cada comida —tope de proteína renal (KDIGO), sodio, carga glucémica, mercurio en el embarazo—. Es código que se ejecuta, no solo un prompt.' },

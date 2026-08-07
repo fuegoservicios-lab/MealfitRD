@@ -4,6 +4,9 @@ import styles from './Hero.module.css';
 import PlateExploded from './figures/PlateExploded';
 import { LANDING_EASE } from './sectionMotion';
 import { useAssessment } from '../../context/AssessmentContext';
+// [P1-LANDING-BENCH-1 · 2026-08-07] El «10 planes al mes» ahora sale del SSOT
+// de créditos (P1-CREDITS-LADDER) en vez de vivir duplicado como literal.
+import { TIER_CREDITS } from '../../config/plans';
 
 /* [P1-PAPER-HERO-FIG00 · 2026-08-01] EL VÍDEO DEL HERO MURIÓ.
  *
@@ -48,14 +51,14 @@ import { useAssessment } from '../../context/AssessmentContext';
 
 /* Franja acotada bajo las acciones. Cinco celdas, etiqueta mono arriba y valor
    abajo — reemplaza a las trust pills con backdrop-filter.
-   La celda de PRECIO es literal de producto (P1-CREDITS-LADDER: gratis = 10
-   planes/mes). Si la escalera de créditos cambia, esta celda cambia con ella. */
+   La celda de PRECIO se deriva de TIER_CREDITS (P1-CREDITS-LADDER): si la
+   escalera de créditos cambia, esta celda cambia sola. */
 const STRIP = [
     { label: 'MÉTODO', value: 'Evidencia clínica' },
     { label: 'PERFIL', value: 'Tu salud y tus metas' },
     { label: 'REVISIÓN', value: 'Profesional si aplica' },
     { label: 'COCINA', value: 'Dominicana' },
-    { label: 'PRECIO', value: 'Gratis · 10 planes al mes' },
+    { label: 'PRECIO', value: `Gratis · ${TIER_CREDITS.gratis} planes al mes` },
 ];
 
 const makeVariants = (reduce) => ({
