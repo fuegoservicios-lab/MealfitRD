@@ -298,6 +298,21 @@ const Pantry = () => {
     // Pre-fix: dos queries el backend anterior serializadas bloqueaban render con
     // skeleton 300-1500ms cada entrada al apartado.
     const [inventory, setInventory] = useState(() => getCachedInventory() || []);
+
+    // [P1-PANTRY-RECONCILIATION · 2026-08-07] "Esto no se ha movido en N días:
+    // ¿lo usaste, se dañó, o sigue ahí?".
+    //
+    // Por qué preguntar y no descontar solo: la regla del producto es que la
+    // Nevera baja SOLO por lo que el usuario registra. Descontar automático la
+    // rompería y repetiría el pecado que P1-PANTRY-NAME-RESOLUTION cerró —
+    // mover la Nevera por algo que el usuario no puede auditar. Aquí la
+    // reducción sigue exigiendo una acción suya; lo único que hacemos es que
+    // cueste un tap.
+    //
+    // El backend ya capea el lote (8 por defecto): una lista de 40 preguntas
+    // no se contesta, se ignora.
+    const [reconcileItems, setReconcileItems] = useState([]);
+    const [reconcileBusyId, setReconcileBusyId] = useState(null);
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
     const [loading, setLoading] = useState(() => !getCachedInventory());
     const [searchQuery, setSearchQuery] = useState('');
@@ -1047,6 +1062,59 @@ const Pantry = () => {
             window.removeEventListener('focus', refreshInventoryOnFocus);
         };
     }, [session?.user?.id]);
+
+    // Se recarga tras cada respuesta y en cada fetch de inventario: si el
+    // usuario resuelve un item, el banner debe encogerse solo.
+    const loadReconcileCandidates = useCallback(async () => {
+        if (!session?.user?.id) return;
+        try {
+            const res = await fetchWithAuth(`${API_BASE}/api/plans/inventory/reconcile`);
+            if (!res.ok) return;               // silencioso: es un extra, no bloquea la Nevera
+            const data = await res.json();
+            setReconcileItems(Array.isArray(data?.items) ? data.items : []);
+        } catch (_e) { /* idem: nunca romper la página por el banner */ }
+    }, [session?.user?.id]);
+
+    useEffect(() => { loadReconcileCandidates(); }, [loadReconcileCandidates]);
+
+    const handleReconcile = useCallback(async (item, action) => {
+        if (reconcileBusyId !== null) return;
+        setReconcileBusyId(item.id);
+        try {
+            const res = await fetchWithAuth(`${API_BASE}/api/plans/inventory/reconcile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_id: item.id, action }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data?.success) {
+                toast.error('No se pudo actualizar', {
+                    description: data?.detail || 'Inténtalo de nuevo en un momento.',
+                });
+                return;
+            }
+            // Quitar del banner al instante; el refetch reconcilia.
+            setReconcileItems((prev) => prev.filter((x) => x.id !== item.id));
+            if (action === 'keep') {
+                toast.success(`${item.ingredient_name}: anotado, sigue en tu Nevera.`);
+            } else {
+                toast.success(
+                    action === 'spoiled'
+                        ? `${item.ingredient_name} fuera de la Nevera (se dañó).`
+                        : `${item.ingredient_name} fuera de la Nevera.`
+                );
+                // used/spoiled SÍ cambian el inventario → recargar la lista.
+                invalidateInventoryCache();
+                fetchData(false);
+            }
+            loadReconcileCandidates();
+        } catch (err) {
+            console.error('Error resolviendo reconciliación:', err);
+            toast.error('No se pudo actualizar', { description: 'Revisa tu conexión.' });
+        } finally {
+            setReconcileBusyId(null);
+        }
+    }, [reconcileBusyId, loadReconcileCandidates]);
 
     const fetchData = async (isInitial = true) => {
         if (isInitial) setLoading(true);
@@ -2670,6 +2738,54 @@ const Pantry = () => {
                                     Te recomendamos tener <strong>~{pantryStatus.recommended_target || 20}</strong> para que tus planes aprovechen mejor tu nevera.
                                     Mientras tanto, tus próximas listas de mantenimiento comprarán lo que falte automáticamente.
                                 </span>
+                            </div>
+                        )}
+
+                        {/* [P1-PANTRY-RECONCILIATION · 2026-08-07] Banner que PREGUNTA.
+                            Va después del de "nevera baja" a propósito: ese informa,
+                            este pide una acción, y lo accionable debe quedar más
+                            cerca de la lista sobre la que se actúa. */}
+                        {reconcileItems.length > 0 && (
+                            <div role="status" className={fstyles.reconcileBanner}>
+                                <div className={fstyles.reconcileHead}>
+                                    <AlertCircle size={18} strokeWidth={2.5} />
+                                    <span>
+                                        {reconcileItems.length === 1
+                                            ? 'Este alimento lleva tiempo sin moverse. ¿Qué pasó con él?'
+                                            : `Estos ${reconcileItems.length} alimentos llevan tiempo sin moverse. ¿Qué pasó con ellos?`}
+                                    </span>
+                                </div>
+                                {reconcileItems.map((it) => (
+                                    <div key={it.id} className={fstyles.reconcileRow}>
+                                        <span className={fstyles.reconcileName}>
+                                            {it.ingredient_name}
+                                            <em> · {it.days_quiet} días</em>
+                                        </span>
+                                        <div className={fstyles.reconcileActions}>
+                                            <button
+                                                onClick={() => handleReconcile(it, 'used')}
+                                                disabled={reconcileBusyId !== null}
+                                                aria-label={`Ya usé ${it.ingredient_name}`}
+                                            >
+                                                Lo usé
+                                            </button>
+                                            <button
+                                                onClick={() => handleReconcile(it, 'spoiled')}
+                                                disabled={reconcileBusyId !== null}
+                                                aria-label={`${it.ingredient_name} se dañó`}
+                                            >
+                                                Se dañó
+                                            </button>
+                                            <button
+                                                onClick={() => handleReconcile(it, 'keep')}
+                                                disabled={reconcileBusyId !== null}
+                                                aria-label={`${it.ingredient_name} sigue en la nevera`}
+                                            >
+                                                Sigue ahí
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
 
