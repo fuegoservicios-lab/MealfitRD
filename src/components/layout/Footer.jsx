@@ -5,10 +5,9 @@ import styles from './Footer.module.css';
 import { LEGAL_PATHS } from '../../utils/legalRoutes';
 import Wordmark from '../common/Wordmark';
 // [P1-PAPER-THEME · 2026-08-01] Mismo SSOT de las 6 rutas papel que consume
-// Header.jsx — gatea el cajetín de 4 celdas (spec §4.7); las otras 15 rutas
-// conservan el copyright de una sola línea.
+// Header.jsx — gatea el <details> de Soporte y la ausencia de fila inferior;
+// las rutas no-papel conservan el copyright de una sola línea.
 import { isPaperSurface } from '../../utils/paperSurface';
-import { APP_VERSION } from '../../config/appVersion';
 
 // [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una página legal,
 // NO usar ese path como `from` del próximo Link (eso haría que "Volver" regrese de
@@ -20,7 +19,7 @@ const Footer = () => {
     const location = useLocation();
     const isOnLegalPage = LEGAL_PATHS.includes(location.pathname);
     // [P1-PAPER-THEME · 2026-08-01] ¿La ruta activa es superficie papel? Decide
-    // qué markup monta `.bottom` (cajetín de 4 celdas vs. copyright de 1 línea).
+    // el markup de Soporte y si se monta la fila inferior (copyright) o ninguna.
     const isPaper = isPaperSurface(location.pathname);
     // Path origen real: si estoy en una legal, hereda el `from` previo;
     // si no, uso el path actual.
@@ -215,23 +214,20 @@ const Footer = () => {
                     )}
                 </div>
 
-                <div className={styles.bottom}>
-                    {/* [P1-PAPER-THEME · 2026-08-01] Bajo papel, el colofón es un
-                        cajetín de 4 celdas (spec §4.7) — NO "ESCALA — 1:1" ni
-                        "HOJA — 01/01": una web no tiene escala y no es la hoja 1
-                        de 1 (atrezzo prohibido por la propia regla de la cota).
-                        Las otras 15 rutas conservan el copyright de 1 línea. */}
-                    {isPaper ? (
-                        <>
-                            <span className={styles.bottomCell}>EMITIDO — 2026</span>
-                            <span className={styles.bottomCell}>REVISIÓN — R02</span>
-                            <span className={styles.bottomCell}>MOTOR — v{APP_VERSION}</span>
-                            <span className={styles.bottomCell}>ES-DO</span>
-                        </>
-                    ) : (
-                        <>&copy; {new Date().getFullYear()} Bioboros. Todos los derechos reservados.</>
-                    )}
-                </div>
+                {/* [P1-PAPER-THEME · 2026-08-01 · cajetín retirado 2026-08-07]
+                    Bajo papel el colofón era un cajetín reglado de 4 celdas
+                    (EMITIDO — 2026 / REVISIÓN — R02 / MOTOR — vX / ES-DO, spec
+                    §4.7). Retirado por decisión del dueño: ruido visual sin
+                    función — igual que en su día se rechazaron "ESCALA — 1:1" y
+                    "HOJA — 01/01" por atrezzo. Bajo papel el footer ya no monta
+                    fila inferior; las rutas no-papel conservan el copyright de
+                    1 línea. Si vuelve a hacer falta, el CSS del cajetín está en
+                    el historial de Footer.module.css (regla §4.7). */}
+                {!isPaper && (
+                    <div className={styles.bottom}>
+                        &copy; {new Date().getFullYear()} Bioboros. Todos los derechos reservados.
+                    </div>
+                )}
             </div>
         </footer>
     );

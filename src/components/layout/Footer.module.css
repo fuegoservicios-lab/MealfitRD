@@ -544,34 +544,13 @@
     color: var(--pa-ink-3);
 }
 
-/* Fila inferior: cajetín de 4 celdas regladas, mono 11px (spec §4.7).
-   Reemplaza el centrado único de la base (copyright) SOLO cuando Footer.jsx
-   monta el markup de 4 celdas (gateado por isPaperSurface, ver Footer.jsx).
-   Rechazado a propósito: "ESCALA — 1:1" y "HOJA — 01/01" — una web no tiene
-   escala y no es la hoja 1 de 1; el sistema acaba de prohibir el atrezzo con
-   la regla de la cota y esto sería exactamente eso. */
-:global(html[data-theme="paper"]) .bottom {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    text-align: left;
-    border-top: 1px solid var(--pa-rule-2);
-    border-bottom: 1px solid var(--pa-rule-2);
-    margin-top: 2.5rem;
-    padding: 0;
-}
-
-:global(html[data-theme="paper"]) .bottomCell {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    color: var(--pa-ink-3);
-    padding: 0.85rem 1.25rem;
-    border-left: 1px solid var(--pa-rule-2);
-}
-
-:global(html[data-theme="paper"]) .bottomCell:first-child {
-    border-left: none;
-}
+/* [cajetín retirado · 2026-08-07] Aquí vivía la fila inferior de papel:
+   cajetín de 4 celdas regladas, mono 11px (spec §4.7). Footer.jsx ya no monta
+   `.bottom` bajo papel (ruido visual sin función, decisión del dueño), así que
+   estas reglas quedaban muertas. Lo que NO vuelve si alguien lo restaura:
+   "ESCALA — 1:1" y "HOJA — 01/01" siguen rechazados — una web no tiene escala
+   y no es la hoja 1 de 1; es exactamente el atrezzo que la regla de la cota
+   prohíbe. */
 
 /* [P1-PAPER-FOOTER-REWRITE · 2026-08-01 · ronda de arreglo 1] Bajo 640px,
    Términos+Privacidad Y Empresas+Soporte dejan de apilarse en torre y pasan
@@ -585,8 +564,8 @@
    Medido: 1195,4px en móvil (375×812), 2,65× el desktop (450,5px) y 170%
    del umbral de alarma del propio brief (~700px). Empresas y Soporte son,
    después de los enlaces legales, los dos bloques con más altura propia —
-   comprimir solo Términos/Privacidad no bastaba. El cajetín inferior sigue
-   en 2×2. */
+   comprimir solo Términos/Privacidad no bastaba. (El cajetín inferior, que
+   esta ronda dejaba en 2×2, ya no existe — ver el bloque de arriba.) */
 @media (max-width: 639px) {
     :global(html[data-theme="paper"]) .container {
         grid-template-columns: 1fr 1fr;
@@ -629,16 +608,4 @@
        simétrico por fila) — sin regla adicional, verificado en la medición
        de abajo (no hay solape). */
 
-    :global(html[data-theme="paper"]) .bottom {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    :global(html[data-theme="paper"]) .bottomCell:nth-child(3) {
-        border-left: none;
-    }
-
-    :global(html[data-theme="paper"]) .bottomCell:nth-child(3),
-    :global(html[data-theme="paper"]) .bottomCell:nth-child(4) {
-        border-top: 1px solid var(--pa-rule-2);
-    }
 }
