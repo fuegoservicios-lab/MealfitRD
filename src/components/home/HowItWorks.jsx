@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import SeeMoreLink from './SeeMoreLink';
+// [P1-LANDING-BENCH-1 · 2026-08-07] «17 micronutrientes» y «20+ variables»
+// vivían escritos a mano aquí y en otros 6 sitios — ver data/systemFacts.js.
+import { INPUT_VARIABLES_LABEL, MICROS_TRACKED } from '../../data/systemFacts';
 import styles from './HowItWorks.module.css';
 
 /* ============================================================================
@@ -64,7 +67,7 @@ const STEPS = [
     {
         title: 'Perfil clínico-metabólico',
         desc: 'Más que tu peso: composición, gasto energético, condiciones, alergias IgE, presupuesto y estilo de vida. Es el sustrato de cada decisión del motor.',
-        tag: '20+ variables de entrada',
+        tag: `${INPUT_VARIABLES_LABEL} variables de entrada`,
     },
     {
         title: 'Motor de inferencia',
@@ -76,8 +79,8 @@ const STEPS = [
     },
     {
         title: 'Calibración nutricional',
-        desc: 'Cada plato se ajusta a tus macronutrientes objetivo y a 17 micronutrientes (vs DRI), con coherencia receta↔lista validada.',
-        tag: '17 micronutrientes · DRI',
+        desc: `Cada plato se ajusta a tus macronutrientes objetivo y a ${MICROS_TRACKED} micronutrientes (vs DRI), con coherencia receta↔lista validada.`,
+        tag: `${MICROS_TRACKED} micronutrientes · DRI`,
     },
     {
         title: 'Adaptación longitudinal',

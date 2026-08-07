@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
 import styles from './ClosingBand.module.css';
 import { useAssessment } from '../../context/AssessmentContext';
+// [P1-LANDING-BENCH-1 · 2026-08-07] El «10 planes al mes» sale del SSOT de
+// créditos (P1-CREDITS-LADDER) — vivía duplicado aquí y en Hero.jsx.
+import { TIER_CREDITS } from '../../config/plans';
 
 /* [P1-PAPER-THEME · 2026-08-01] BANDA DE CIERRE — última hija de las páginas de
  * marketing (hoy solo Home.jsx; las restantes 5 rutas papel la montan en la
@@ -50,7 +53,7 @@ const ClosingBand = () => {
                 )}
 
                 <Link to="/precios" className={styles.priceLine}>
-                    GRATIS · 10 PLANES AL MES · VER PLANES →
+                    {`GRATIS · ${TIER_CREDITS.gratis} PLANES AL MES · VER PLANES →`}
                 </Link>
             </div>
         </section>
