@@ -102,7 +102,7 @@ const _eatOk = ({ mealName = 'Mangú con los tres golpes', deducted = ['2 huevos
 
 /** Enruta por URL: el diario de TrackingProgress vs nuestro POST. */
 function _routeFetch(eatResponse = _eatOk()) {
-    return vi.fn(async (url, opts) => {
+    return vi.fn(async (url) => {
         if (typeof url === 'string' && url.includes('/api/diary/consumed-from-plan')) {
             return eatResponse;
         }
