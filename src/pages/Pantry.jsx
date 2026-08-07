@@ -1077,7 +1077,14 @@ const Pantry = () => {
 
     useEffect(() => { loadReconcileCandidates(); }, [loadReconcileCandidates]);
 
-    const handleReconcile = useCallback(async (item, action) => {
+    // Función plana a propósito, NO `useCallback`. Sus tres usos son onClick
+    // inline del render: no la recibe ningún hijo memoizado ni ningún array de
+    // dependencias, así que memoizarla no ahorra un solo render. Lo que sí hacía
+    // era capturar `fetchData` —que se redefine en cada render (línea de abajo)—
+    // dentro de un closure congelado: la llamada de `used`/`spoiled` habría
+    // recargado el inventario con un `fetchData` viejo. El guard de doble-tap es
+    // el estado `reconcileBusyId`, no la identidad de esta función.
+    const handleReconcile = async (item, action) => {
         if (reconcileBusyId !== null) return;
         setReconcileBusyId(item.id);
         try {
@@ -1114,7 +1121,7 @@ const Pantry = () => {
         } finally {
             setReconcileBusyId(null);
         }
-    }, [reconcileBusyId, loadReconcileCandidates]);
+    };
 
     const fetchData = async (isInitial = true) => {
         if (isInitial) setLoading(true);
