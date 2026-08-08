@@ -17,7 +17,7 @@ import ClosingBand from '../components/home/ClosingBand';
 // de data/benchmark.js (aquí vivían duplicadas como prosa «95–105% / 90–112%» —
 // justo la clase de drift que benchmark.js cerró) y los hechos estructurales
 // («17 micros», «200+ alimentos», «20+ variables») de data/systemFacts.js.
-import { BANDS } from '../data/benchmark';
+import { BANDS, CLINICAL, CLINICAL_DELIVERY_PCT } from '../data/benchmark';
 import {
     AI_MODELS_LABEL, CYCLE_DAYS_LABEL, INPUT_VARIABLES_LABEL,
     MICROS_TRACKED, VERIFIED_FOODS_LABEL,
@@ -369,6 +369,11 @@ const HowItWorksPage = () => {
                             <p className={styles.secLead}>
                                 Antes de entregarte un plan, el motor lo somete a una batería de guardas
                                 deterministas. Si algo no cuadra, lo corrige o lo regenera.
+                                {/* [P1-LANDING-CLINICAL-FACTS · 2026-08-08] cifras del SSOT CLINICAL */}
+                                {' '}Medido en {CLINICAL.monthLong} contra los {CLINICAL.n} perfiles clínicos
+                                más difíciles del formulario: el {CLINICAL.safetyPct} % de lo entregado salió
+                                sin una sola violación, y el {CLINICAL_DELIVERY_PCT} % recibió su plan al
+                                primer intento — el resto fue rechazado por seguridad, no entregado mal.
                             </p>
                         </Reveal>
                         <Reveal className={`${styles.cards} ${styles.cardsTwo}`}>

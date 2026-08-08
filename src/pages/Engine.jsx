@@ -15,7 +15,7 @@ import ClosingBand from '../components/home/ClosingBand';
 // `components/home/BenchmarkShowcase.jsx` y `pages/PrecisionPage.jsx`), y el
 // drift era a tres bandas, no a dos: aquí y en el landing decía `llm: 0`, en
 // /precision decía `llm: 55`. El dueño fijó el 0 el 2026-08-02.
-import { VERSUS, MACROS, BANDS, SERIES, HEADLINE_FIGURES, es1 } from '../data/benchmark';
+import { VERSUS, MACROS, BANDS, SERIES, HEADLINE_FIGURES, es1, CLINICAL, CLINICAL_DELIVERY_PCT } from '../data/benchmark';
 import styles from './Engine.module.css';
 
 /**
@@ -225,6 +225,16 @@ const Engine = () => {
                         alérgeno por completo, incluidos derivados; considera interacciones de
                         medicamentos (como warfarina ↔ vitamina K); y en seguridad alimentaria evita
                         el huevo y los mariscos crudos de riesgo, priorizando la cocción segura.
+                    </p>
+                    {/* [P1-LANDING-CLINICAL-FACTS · 2026-08-08] verificación medida — cifras del
+                        SSOT CLINICAL (data/benchmark.js), jamás a mano. */}
+                    <p>
+                        Y no es una promesa: en {CLINICAL.monthLong} corrimos los {CLINICAL.n} perfiles
+                        clínicos más difíciles del formulario contra el motor de producción real. El{' '}
+                        {CLINICAL.safetyPct} % de los planes entregados salió sin una sola violación de
+                        alérgenos, dieta o condición; el {CLINICAL_DELIVERY_PCT} % de los perfiles recibió
+                        su plan al primer intento — y el resto no recibió un plan inseguro: el motor lo
+                        rechazó y lo dijo. Preferimos no entregar antes que entregar mal.
                     </p>
                 </div>
             </section>

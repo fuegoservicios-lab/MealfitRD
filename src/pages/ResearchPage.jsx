@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 // Comparte el design system minimalista-científico de "Cómo funciona" y "Funciones".
 import styles from './HowItWorksPage.module.css';
+// [P1-LANDING-CLINICAL-FACTS · 2026-08-08] cifras medidas del SSOT — jamás a mano.
+import { CLINICAL, CLINICAL_DELIVERY_PCT } from '../data/benchmark';
 
 /* [P3-RESEARCH-PAGE-SCIENTIFIC · 2026-06-30] Rediseño de "Investigación": deja de verse
    como una política (LegalLayout con badge de fecha + prosa) y adopta la clave minimalista-
@@ -103,7 +105,7 @@ const STAGES = [
         sub: 'Del uso real a un mejor plan',
         text: 'Analizamos cómo se comporta Bioboros sobre datos reales para hacerlo más preciso y seguro. El foco es el sistema y sus resultados, nunca perfilarte a ti.',
         bullets: [
-            ['Precisión del motor', 'medimos qué tan cerca quedan los planes de sus objetivos de macronutrientes, la tasa de éxito y los errores, para calibrar el sistema.'],
+            ['Precisión del motor', `medimos qué tan cerca quedan los planes de sus objetivos de macronutrientes, la tasa de éxito y los errores, para calibrar el sistema. La última matriz clínica (${CLINICAL.monthLong}, ${CLINICAL.n} perfiles difíciles contra producción): ${CLINICAL.safetyPct} % de lo entregado sin violaciones y ${CLINICAL_DELIVERY_PCT} % de entrega al primer intento — el resto se rechaza por seguridad.`],
             ['Patrones nutricionales agregados', 'entendemos tendencias generales —p. ej. la cobertura de micronutrientes en una población de planes— para mejorar reglas y catálogos.'],
             ['Calidad y seguridad', 'detectamos combinaciones problemáticas, sesgos o fallos para hacer el servicio más seguro.'],
         ],

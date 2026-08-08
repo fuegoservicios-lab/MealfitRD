@@ -14,6 +14,8 @@ import ClosingBand from '../components/home/ClosingBand';
 // «200+» y el «3-6» estaban escritos a mano aquí (y en otros 3 ficheros con
 // otras grafías). Ver data/systemFacts.js.
 import { MEALS_PER_DAY_LABEL, VERIFIED_FOODS_LABEL } from '../data/systemFacts';
+// [P1-LANDING-CLINICAL-FACTS · 2026-08-08] cifras medidas del SSOT — jamás a mano.
+import { CLINICAL } from '../data/benchmark';
 // Comparte el design system minimalista-científico de la página "Cómo funciona".
 // OJO: el módulo compartido es HowItWorksPage.module.css — Engine.module.css lo
 // importa SOLO Engine.jsx (el comentario anterior decía lo contrario).
@@ -204,7 +206,7 @@ const EXTRAS = [
     { Icon: History, title: 'Historial de planes', text: 'Vuelve a cualquier plan anterior, compáralo y restáuralo cuando quieras.' },
     { Icon: Sparkles, title: 'Súper Personalización', text: 'Un panel opt-in para afinar aún más el plan y el coach a tus detalles particulares.' },
     { Icon: Gauge, title: '17 micronutrientes', text: 'Tu plan se compara contra las referencias diarias (DRI) con un medidor de cobertura.' },
-    { Icon: HeartPulse, title: 'Multi-condición clínica', text: 'Combina varias condiciones (p. ej. DM2 + renal) con reglas que se respetan a la vez.' },
+    { Icon: HeartPulse, title: 'Multi-condición clínica', text: `Combina varias condiciones (p. ej. DM2 + renal) con reglas que se respetan a la vez. Verificado en ${CLINICAL.monthLong}: ${CLINICAL.safetyPct} % de lo entregado sin violaciones en la matriz de ${CLINICAL.n} perfiles clínicos.` },
     { Icon: Droplet, title: 'Hidratación diaria', text: 'Meta de agua personalizada según tu peso y actividad, con racha de días para mantener el hábito.' },
     { Icon: Lightbulb, title: 'Razonamiento del plan', text: 'Diagnóstico, plan de acción y un tip del chef explicando el porqué de cada plan que te entregamos.' },
     { Icon: UserPlus, title: 'Empieza gratis', text: 'Plan Gratis sin tarjeta para descubrir el motor antes de decidir.' },
