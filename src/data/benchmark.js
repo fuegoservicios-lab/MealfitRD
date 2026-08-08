@@ -127,3 +127,27 @@ export const HEADLINE_FIGURES = {
    el producto no tiene i18n (P3-I18N-DEFERRED) — se formatea a mano, una vez,
    aquí, en vez de escribir «1,5» a mano en cada superficie. */
 export const es1 = (n) => n.toFixed(1).replace('.', ',');
+
+/* [P1-LANDING-CLINICAL-FACTS · 2026-08-08] La matriz CLÍNICA medida contra producción.
+   Corrida N=20 del 2026-08-08 (GitHub Actions run 31264465719, modo remote guest —
+   el runner llama al API de producción real, sin claves ni mocks): los 20 perfiles del
+   wizard con restricciones difíciles (6 alergias, 3 dietas, bariátrica, DM2, HTA,
+   warfarina, embarazo), generación completa + swaps, tras los 3 P-fixes del 2026-08-08
+   (P1-DIET-BLIND-DIRECTIVES / P1-DIET-BLIND-CLOSERS / P1-REVIEWER-VERIFICATION-ADVISORY).
+
+   TRANSPARENCIA (decisión del dueño 2026-08-08): el 65 % de entrega se publica tal
+   cual, con su denominador y su lectura honesta — los 7 perfiles restantes NO reciben
+   un plan inseguro: el sistema los RECHAZA y lo dice. Ese trade es el producto.
+   Cifras nuevas se refrescan re-corriendo la matriz, nunca editando a mano. */
+export const CLINICAL = {
+    n: 20,
+    delivered: 13,
+    month: 'AGO 2026',
+    monthLong: 'agosto de 2026',
+    runId: '31264465719',
+    safetyPct: 100,        // planes entregados sin UNA sola violación (alérgeno/dieta/condición)
+    minMealsPct: 100,      // ≥5 comidas en insulina/bariátrica, verificado donde aplica
+    vitKMonitorPct: 100,   // monitor de vitamina K presente con warfarina
+    qualityIndex: 91.9,    // índice interno de calidad (0-100) de los planes entregados
+};
+export const CLINICAL_DELIVERY_PCT = Math.round((CLINICAL.delivered / CLINICAL.n) * 100);

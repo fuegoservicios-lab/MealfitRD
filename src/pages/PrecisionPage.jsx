@@ -15,7 +15,7 @@ import ClosingBand from '../components/home/ClosingBand';
 // —tres ficheros— y ya habían drifteado: esta página decía `llm: 55` en la fila
 // de «cuadran al recalcular» donde las otras dos decían `llm: 0`. El dueño fijó
 // el valor el 2026-08-02: era 0, y esta página era la que mentía.
-import { MACROS, VERSUS, CAPS, BANDS, HEADLINE_FIGURES, es1 } from '../data/benchmark';
+import { MACROS, VERSUS, CAPS, BANDS, HEADLINE_FIGURES, es1, CLINICAL, CLINICAL_DELIVERY_PCT } from '../data/benchmark';
 // Marco minimalista-científico compartido con /como-funciona y /funciones.
 import styles from './HowItWorksPage.module.css';
 // Estilos específicos de esta página (tabla comparativa + barras por macro).
@@ -260,6 +260,55 @@ const PrecisionPage = () => {
                                     <div className={styles.cardText}>{text}</div>
                                 </div>
                             ))}
+                        </Reveal>
+                    </section>
+
+                    {/* (05) seguridad clínica — matriz N=20 medida contra producción
+                        [P1-LANDING-CLINICAL-FACTS · 2026-08-08] cifras del SSOT `CLINICAL`
+                        (data/benchmark.js); jamás escritas a mano aquí. */}
+                    <section className={styles.block}>
+                        <Reveal>
+                            <span className={styles.secKicker}>05 — Seguridad clínica</span>
+                            <h2 className={styles.secTitle}>La matriz clínica, medida</h2>
+                            <p className={styles.secLead}>
+                                En {CLINICAL.monthLong} corrimos los {CLINICAL.n} perfiles clínicos más difíciles
+                                del formulario —alergias múltiples, dietas vegana y vegetariana, cirugía
+                                bariátrica, diabetes, hipertensión, warfarina, embarazo— contra el motor de
+                                producción real, sin selección de resultados. Esto es lo que midió.
+                            </p>
+                        </Reveal>
+                        <Reveal className={`${styles.cards} ${styles.cardsThree}`}>
+                            <div className={styles.card}>
+                                <div className={styles.cardHead}>
+                                    <ShieldCheck size={19} strokeWidth={2} className={styles.cardIcon} />
+                                    <div className={styles.cardTitle}>{CLINICAL.safetyPct}% seguridad en lo entregado</div>
+                                </div>
+                                <div className={styles.cardText}>
+                                    Cero violaciones de alérgenos, dieta o condición médica en todos los
+                                    planes entregados de la matriz.
+                                </div>
+                            </div>
+                            <div className={styles.card}>
+                                <div className={styles.cardHead}>
+                                    <Scale size={19} strokeWidth={2} className={styles.cardIcon} />
+                                    <div className={styles.cardTitle}>{CLINICAL_DELIVERY_PCT}% de entrega al primer intento</div>
+                                </div>
+                                <div className={styles.cardText}>
+                                    {CLINICAL.delivered} de {CLINICAL.n} perfiles difíciles reciben su plan.
+                                    Los demás no reciben un plan inseguro: el sistema los rechaza y lo dice.
+                                    Preferimos no entregar antes que entregar mal.
+                                </div>
+                            </div>
+                            <div className={styles.card}>
+                                <div className={styles.cardHead}>
+                                    <ListChecks size={19} strokeWidth={2} className={styles.cardIcon} />
+                                    <div className={styles.cardTitle}>Garantías estructurales al {CLINICAL.minMealsPct}%</div>
+                                </div>
+                                <div className={styles.cardText}>
+                                    ≥5 comidas al día con insulina o cirugía bariátrica y monitor de
+                                    vitamina K con warfarina — presentes en todos los casos que los requieren.
+                                </div>
+                            </div>
                         </Reveal>
                     </section>
                 </div>
