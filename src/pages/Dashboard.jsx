@@ -2303,6 +2303,22 @@ const DashboardInner = () => {
     // 1.00, 51 ítems de lista) y el usuario igual vio "Tu plan quedó incompleto" con
     // CTA a regenerar — que además cancela los chunks encolados del plan bueno.
     // `failed` sí se muestra siempre (es veredicto del backend, no una ventana de carrera).
+    //
+    // [P1-DASH-CORRUPTED-VS-PAUSED · 2026-08-08] Segundo falso positivo medido en
+    // vivo (plan f380821a): la ventana rolling archivó el último día vivo (days=[])
+    // mientras el refill estaba PAUSADO server-side (`pending_user_action:
+    // pantry_violation_after_retries`, TTL 12h → se genera solo). El flag client-side
+    // de pipeline no cubre ese caso (el plan tiene 2 días de vida, no hay SSE), así
+    // que el banner acusaba "la generación no terminó" con 7 chunks vivos en cola —
+    // y su CTA cancela la cola y quema un crédito. La cola es la fuente de verdad:
+    // el banner solo puede acusar cuando /chunk-status CONFIRMÓ cola muerta (nada en
+    // vuelo, nada pausado). `chunkStatusInfo === null` (poll aún sin responder o
+    // caído) NO acusa: preferimos un banner tardío a uno falso.
+    const _chunkQueueConfirmedEmpty = (
+        chunkStatusInfo !== null
+        && Number(chunkStatusInfo.in_flight_count || 0) === 0
+        && Number(chunkStatusInfo.pending_user_action_count || 0) === 0
+    );
     const isPlanCorrupted = !!planData && (
         planData.generation_status === 'failed'
         || (
@@ -2310,6 +2326,7 @@ const DashboardInner = () => {
             && Array.isArray(planData.days)
             && planData.days.length === 0
             && !hasPendingPipelineInFlight()
+            && _chunkQueueConfirmedEmpty
         )
     );
 
@@ -7750,6 +7767,36 @@ const DashboardInner = () => {
                             const displayMeals = currentDayMeals.filter(m => !_isSupplementEntry(m));
 
                             if (displayMeals.length === 0) {
+                                // [P1-DASH-CORRUPTED-VS-PAUSED · 2026-08-08] Día vacío ≠ plan
+                                // muerto. Si la cola server-side tiene chunks pausados o en
+                                // vuelo, el CTA "Generar nuevo plan" es una trampa: cancela la
+                                // cola entera y quema un crédito por días que YA vienen en
+                                // camino. Copy honesto por estado de la cola; el fallback
+                                // original queda solo para cola confirmada muerta / sin poll.
+                                const _emptyDayPaused = Number(chunkStatusInfo?.pending_user_action_count || 0) > 0;
+                                const _emptyDayInFlight = Number(chunkStatusInfo?.in_flight_count || 0) > 0;
+                                if (_emptyDayPaused) {
+                                    return (
+                                        <EmptyState
+                                            icon={Utensils}
+                                            title="Tus próximos días están en pausa"
+                                            description="No pudimos cuadrar los próximos días con los ingredientes de tu nevera. Actualízala para continuar ahora — o espera, y los generaremos con la mejor información disponible."
+                                            cta={{
+                                                label: 'Revisar mi nevera',
+                                                onClick: () => navigate('/dashboard/pantry'),
+                                            }}
+                                        />
+                                    );
+                                }
+                                if (_emptyDayInFlight) {
+                                    return (
+                                        <EmptyState
+                                            icon={Utensils}
+                                            title="Tus próximos días vienen en camino"
+                                            description="Estamos generando este bloque del plan. Se llenará solo en unos minutos — no hace falta hacer nada."
+                                        />
+                                    );
+                                }
                                 return (
                                     <EmptyState
                                         icon={Utensils}
