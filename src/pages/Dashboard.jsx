@@ -2654,8 +2654,18 @@ const DashboardInner = () => {
                 return;
             }
 
-            const shopQty = degradationRatio === 1 ? rawShopQty : (rawShopQty * degradationRatio);
-            
+            // [P1-URGENT-LIST-CANONICAL · 2026-08-09] El escalado por días restantes (26/30=0,87)
+            // producía «0.87 funda» / «1.7 cartón» en TODO el PDF del owner — matemática honesta,
+            // display absurdo: los empaques CONTABLES no se compran en fracciones. Ceil a empaque
+            // entero para unidades contables (con epsilon anti 1.0000001→2); las unidades de PESO
+            // (lb/kg/g) conservan la fracción — la carnicería sí vende 0,43 lb.
+            const _WEIGHT_UNITS = ['lb', 'lbs', 'libra', 'libras', 'kg', 'g', 'gr', 'oz'];
+            const _isWeightUnit = _WEIGHT_UNITS.includes(shopUnit);
+            let shopQty = degradationRatio === 1 ? rawShopQty : (rawShopQty * degradationRatio);
+            if (!_isWeightUnit && !Number.isInteger(shopQty)) {
+                shopQty = Math.max(1, Math.ceil(shopQty - 0.02));
+            }
+
             const formatQty = (q) => {
                 return q < 1 ? q.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') : (Number.isInteger(q) ? String(q) : q.toFixed(1).replace(/\.0$/, ''));
             };
@@ -2686,6 +2696,10 @@ const DashboardInner = () => {
             deltaList.push(_scaleItemRefCost({
                 ...item,
                 market_qty: shopQty,
+                // [P1-URGENT-LIST-CANONICAL] espejo numérico alineado al qty ya ceileado —
+                // el spread conservaba el 1.0 original y resolveShopQty lo PREFIERE, así que
+                // PDF/restock veían un número distinto al display.
+                market_qty_numeric: shopQty,
                 display_qty: item.display_qty != null ? `${degradedQtyStr} ${shopUnit}` : undefined,
                 display_string: item.display_string != null ? `${degradedQtyStr} ${shopUnit} de ${item.name}` : undefined
             }, shopQty, rawShopQty, shopUnit));
