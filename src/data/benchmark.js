@@ -140,14 +140,22 @@ export const es1 = (n) => n.toFixed(1).replace('.', ',');
    un plan inseguro: el sistema los RECHAZA y lo dice. Ese trade es el producto.
    Cifras nuevas se refrescan re-corriendo la matriz, nunca editando a mano. */
 export const CLINICAL = {
-    n: 20,
-    delivered: 13,
+    n: 20,                 // perfiles de la matriz (chips reales del wizard)
+    runsCount: 2,          // corridas N=20 completas post-fixes 2026-08-08/09
+    samples: 40,           // n × runsCount — el denominador REAL de la tasa de entrega
+    delivered: 24,         // 13/20 (run 31264465719) + 11/20 (run 31290118080)
     month: 'AGO 2026',
     monthLong: 'agosto de 2026',
-    runId: '31264465719',
-    safetyPct: 100,        // planes entregados sin UNA sola violación (alérgeno/dieta/condición)
+    runIds: ['31264465719', '31290118080'],
+    /* [P1-CLINICAL-POOLED · 2026-08-09] La tasa se publica POOLED sobre las corridas completas
+       comparables, no sobre la mejor: las dos corridas dieron 13/20 y 11/20 con perfiles
+       caídos DISTINTOS (una muestra por perfil ⇒ varianza ±10pp por corrida). Publicar una
+       sola habría sido cherry-picking; el pool con su denominador es el número defendible.
+       Al añadir una corrida nueva: sumar a delivered/samples y citar el run — jamás sustituir
+       por la mejor. */
+    safetyPct: 100,        // planes entregados sin UNA sola violación — en AMBAS corridas
     minMealsPct: 100,      // ≥5 comidas en insulina/bariátrica, verificado donde aplica
     vitKMonitorPct: 100,   // monitor de vitamina K presente con warfarina
-    qualityIndex: 91.9,    // índice interno de calidad (0-100) de los planes entregados
+    qualityIndex: 90.1,    // media ponderada del índice interno (13×91,9 + 11×87,9)/24
 };
-export const CLINICAL_DELIVERY_PCT = Math.round((CLINICAL.delivered / CLINICAL.n) * 100);
+export const CLINICAL_DELIVERY_PCT = Math.round((CLINICAL.delivered / CLINICAL.samples) * 100);

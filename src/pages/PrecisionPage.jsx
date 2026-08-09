@@ -271,10 +271,11 @@ const PrecisionPage = () => {
                             <span className={styles.secKicker}>05 — Seguridad clínica</span>
                             <h2 className={styles.secTitle}>La matriz clínica, medida</h2>
                             <p className={styles.secLead}>
-                                En {CLINICAL.monthLong} corrimos los {CLINICAL.n} perfiles clínicos más difíciles
-                                del formulario —alergias múltiples, dietas vegana y vegetariana, cirugía
-                                bariátrica, diabetes, hipertensión, warfarina, embarazo— contra el motor de
-                                producción real, sin selección de resultados. Esto es lo que midió.
+                                En {CLINICAL.monthLong} corrimos {CLINICAL.runsCount} veces la matriz completa de{' '}
+                                {CLINICAL.n} perfiles clínicos más difíciles del formulario —alergias múltiples,
+                                dietas vegana y vegetariana, cirugía bariátrica, diabetes, hipertensión, warfarina,
+                                embarazo— contra el motor de producción real, sin selección de resultados:
+                                publicamos el agregado de todas las corridas, no la mejor. Esto es lo que midió.
                             </p>
                         </Reveal>
                         <Reveal className={`${styles.cards} ${styles.cardsThree}`}>
@@ -294,8 +295,9 @@ const PrecisionPage = () => {
                                     <div className={styles.cardTitle}>{CLINICAL_DELIVERY_PCT}% de entrega al primer intento</div>
                                 </div>
                                 <div className={styles.cardText}>
-                                    {CLINICAL.delivered} de {CLINICAL.n} perfiles difíciles reciben su plan.
-                                    Los demás no reciben un plan inseguro: el sistema los rechaza y lo dice.
+                                    {CLINICAL.delivered} de {CLINICAL.samples} corridas de perfil
+                                    ({CLINICAL.runsCount} corridas × {CLINICAL.n} perfiles) reciben su plan.
+                                    El resto no recibe un plan inseguro: el sistema lo rechaza y lo dice.
                                     Preferimos no entregar antes que entregar mal.
                                 </div>
                             </div>
