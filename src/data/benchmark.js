@@ -141,22 +141,27 @@ export const es1 = (n) => n.toFixed(1).replace('.', ',');
    Cifras nuevas se refrescan re-corriendo la matriz, nunca editando a mano. */
 export const CLINICAL = {
     n: 20,                 // perfiles de la matriz (chips reales del wizard)
-    runsCount: 2,          // corridas N=20 completas post-fixes 2026-08-08/09
-    samples: 40,           // n × runsCount — el denominador REAL de la tasa de entrega
-    delivered: 24,         // 13/20 (run 31264465719) + 11/20 (run 31290118080)
+    runsCount: 3,          // corridas N=20 completas post-fixes 2026-08-08/09
+    samples: 60,           // n × runsCount — el denominador REAL de la tasa de entrega
+    delivered: 34,         // 13/20 (31264465719) + 11/20 (31290118080) + 10/20 (31304538636)
     month: 'AGO 2026',
     monthLong: 'agosto de 2026',
-    runIds: ['31264465719', '31290118080'],
+    runIds: ['31264465719', '31290118080', '31304538636'],
     /* [P1-CLINICAL-POOLED · 2026-08-09] La tasa se publica POOLED sobre las corridas completas
-       comparables, no sobre la mejor: las dos corridas dieron 13/20 y 11/20 con perfiles
-       caídos DISTINTOS (una muestra por perfil ⇒ varianza ±10pp por corrida). Publicar una
-       sola habría sido cherry-picking; el pool con su denominador es el número defendible.
-       Al añadir una corrida nueva: sumar a delivered/samples y citar el run — jamás sustituir
-       por la mejor. */
-    safetyPct: 100,        // planes entregados sin UNA sola violación — en AMBAS corridas
+       comparables, no sobre la mejor: 13/20, 11/20 y 10/20 con perfiles caídos DISTINTOS
+       (una muestra por perfil ⇒ varianza ±10pp por corrida). Publicar una sola habría sido
+       cherry-picking — y EXCLUIR una corrida floja lo sería igual: la 3ª (10/20, tras los
+       fixes del 08-09) BAJÓ el pool de 60→57 y se suma exactamente igual que si lo hubiera
+       subido. Al añadir una corrida nueva: sumar a delivered/samples y citar el run — jamás
+       sustituir por la mejor. */
+    safetyPct: 100,        // planes entregados sin UNA sola violación — en las TRES corridas
     minMealsPct: 100,      // ≥5 comidas en insulina/bariátrica, verificado donde aplica
-    vitKMonitorPct: 100,   // monitor de vitamina K presente con warfarina
-    qualityIndex: 90.1,    // media ponderada del índice interno (13×91,9 + 11×87,9)/24
-    latencyP50Min: 5,      // p50 de generación ≈ 269-372s en las corridas → «~5 minutos»
+    vitKMonitorPct: 100,   // monitor de vitamina K presente con warfarina (donde entregó)
+    /* qualityIndex: medido sobre las corridas 1-2 (13×91,9 + 11×87,9)/24. La 3ª no lo
+       estampa: los planes guest ya no llevan `_quality_index` (gap de telemetría anotado
+       2026-08-09) — se conserva el valor con su denominador real en vez de inventar el de
+       la 3ª. */
+    qualityIndex: 90.1,
+    latencyP50Min: 5,      // p50 de generación ≈ 269-372s (3ª corrida: 309s) → «~5 minutos»
 };
 export const CLINICAL_DELIVERY_PCT = Math.round((CLINICAL.delivered / CLINICAL.samples) * 100);
