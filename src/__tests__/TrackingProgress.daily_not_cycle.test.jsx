@@ -212,9 +212,18 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
         await waitFor(() => {
             expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
         });
-        const keysAfterFirst = Object.keys(localStorage).filter((k) => k.startsWith('mealfit_tracking_consumed_'));
-        expect(keysAfterFirst).toHaveLength(1);
-        const firstKey = keysAfterFirst[0];
+        // [P1-CACHE-ASSERT-RACE · 2026-08-09] Dentro de `waitFor`: la key la
+        // escribe un `useEffect` de persistencia, y el `waitFor` de arriba solo
+        // garantiza el DOM. Leer localStorage una vez y de forma SÍNCRONA tras
+        // una espera gateada por el DOM es una carrera por construcción — bajo
+        // carga paralela caía ~1 de cada 4 corridas completas. La aserción no se
+        // debilita: sigue exigiendo exactamente 1 key.
+        let firstKey;
+        await waitFor(() => {
+            const keys = Object.keys(localStorage).filter((k) => k.startsWith('mealfit_tracking_consumed_'));
+            expect(keys).toHaveLength(1);
+            firstKey = keys[0];
+        });
         unmount();
 
         // Mismo user, mismo día — plan distinto (otro cycle_start_date, como
@@ -225,9 +234,13 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
         await waitFor(() => {
             expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
         });
-        const keysAfterSecond = Object.keys(localStorage).filter((k) => k.startsWith('mealfit_tracking_consumed_'));
-        expect(keysAfterSecond).toHaveLength(1);
-        expect(keysAfterSecond[0]).toBe(firstKey);
+        // [P1-CACHE-ASSERT-RACE] Ídem que arriba — y aquí importa el doble,
+        // porque es la aserción que da nombre al test.
+        await waitFor(() => {
+            const keys = Object.keys(localStorage).filter((k) => k.startsWith('mealfit_tracking_consumed_'));
+            expect(keys).toHaveLength(1);
+            expect(keys[0]).toBe(firstKey);
+        });
     });
 
     it('el sweep al montar borra una key huérfana con prefijo viejo sin tocar la key fresca del render actual', async () => {
@@ -260,8 +273,12 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
             expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
         });
 
-        const prefixedKeys = Object.keys(localStorage).filter((k) => k.startsWith('mealfit_tracking_consumed_'));
-        expect(prefixedKeys).toHaveLength(1);
-        expect(prefixedKeys[0]).not.toBe('mealfit_tracking_consumed_user-3_2020-01-01_old-cycle-segment');
+        // [P1-CACHE-ASSERT-RACE] El sweep y la escritura de la key fresca son
+        // dos efectos; el DOM no da fe de ninguno de los dos.
+        await waitFor(() => {
+            const prefixedKeys = Object.keys(localStorage).filter((k) => k.startsWith('mealfit_tracking_consumed_'));
+            expect(prefixedKeys).toHaveLength(1);
+            expect(prefixedKeys[0]).not.toBe('mealfit_tracking_consumed_user-3_2020-01-01_old-cycle-segment');
+        });
     });
 });

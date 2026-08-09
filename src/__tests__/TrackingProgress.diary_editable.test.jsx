@@ -152,12 +152,22 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         // Contrato de cache (P1-TRACKING-CACHE-CONSUMED): la actualización debe
         // pasar por el mismo `setConsumed` que persiste a localStorage — si no,
         // el próximo mount resucitaría "Pollo con arroz" desde el cache viejo.
-        const cacheKey = Object.keys(localStorage).find((k) => k.startsWith('mealfit_tracking_consumed_'));
-        expect(cacheKey).toBeTruthy();
-        const cached = JSON.parse(localStorage.getItem(cacheKey));
-        expect(cached.meals.some((m) => m.id === 'meal-1')).toBe(false);
-        expect(cached.meals.some((m) => m.id === 'meal-2')).toBe(true);
-        expect(cached.calories).toBe(200);
+        // [P1-CACHE-ASSERT-RACE · 2026-08-09] Dentro de `waitFor`. El `waitFor`
+        // de arriba solo garantiza que la FILA salió del DOM; la caché la
+        // escribe un `useEffect` de persistencia, que es otro paso. Leerla una
+        // vez y de forma síncrona era una carrera: capturada en una corrida
+        // completa con `meal-1` todavía en la caché mientras el DOM ya lo había
+        // soltado. La aserción es la misma —el contrato de que el borrado pasa
+        // por el mismo `setConsumed` que persiste sigue exigido—, solo deja de
+        // asumir un instante de flush concreto.
+        await waitFor(() => {
+            const cacheKey = Object.keys(localStorage).find((k) => k.startsWith('mealfit_tracking_consumed_'));
+            expect(cacheKey).toBeTruthy();
+            const cached = JSON.parse(localStorage.getItem(cacheKey));
+            expect(cached.meals.some((m) => m.id === 'meal-1')).toBe(false);
+            expect(cached.meals.some((m) => m.id === 'meal-2')).toBe(true);
+            expect(cached.calories).toBe(200);
+        });
     });
 
     it('si el DELETE falla, la fila se queda y los totales no cambian', async () => {
