@@ -383,6 +383,19 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
     if (!names.length) return null;
 
     const matchedNames = matches ? names.filter((n) => matches[n]?.length) : [];
+    /* [P1-BRANDS-UNMATCHED-VISIBLE · 2026-08-09] El COMPLEMENTO del contador.
+       El trigger anunciaba «60/61 con opciones» y el panel solo renderizaba los
+       60: el ítem que faltaba no aparecía en ningún sitio de la UI, así que la
+       única forma de saber cuál era, era preguntar.
+
+       (Caso real que lo destapó: Edamame existe en el catálogo de alimentos con
+       el que el generador arma platos, pero no en el del súper, que es otra
+       tabla y más pequeña. El número era correcto; lo que faltaba era poder
+       mirarlo.)
+
+       Se deriva de los MISMOS `matches` que el numerador — no de una lista
+       aparte — para que numerador y complemento no puedan drift-ear. */
+    const unmatchedNames = matches ? names.filter((n) => !matches[n]?.length) : [];
 
     // Selección actual hidratada: [{foodKey, foodName, variant}] — solo variantes
     // que sigan existiendo en los matches (si la admin UI ocultó el producto, cae).
@@ -763,6 +776,31 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                 marca más económica del súper.
                             </p>
                         </>
+                    )}
+                    {/* [P1-BRANDS-UNMATCHED-VISIBLE · 2026-08-09] El complemento del
+                        contador, VISIBLE. Va fuera del bloque de arriba a propósito: ese
+                        está gateado por `matchedNames.length > 0`, y el caso en que
+                        NINGUNO tiene marcas es justo cuando más falta hace saber cuáles
+                        son.
+
+                        Por qué importa: el trigger decía «60/61 con opciones» y el panel
+                        listaba solo los 60. El que faltaba no existía en ninguna parte de
+                        la UI, así que la diferencia solo se podía averiguar preguntando.
+                        Un número que declara un hueco tiene que dejar ver de qué está
+                        hecho.
+
+                        No es un error del sistema y el copy no lo presenta como tal: el
+                        catálogo del súper es una tabla distinta —y más pequeña— que la de
+                        alimentos con la que se arman los platos, así que un ingrediente
+                        legítimo puede no tener presentación comprable cargada. */}
+                    {matches && !loading && !error && unmatchedNames.length > 0 && (
+                        <p style={{ margin: '0.55rem 0 0', fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                            <strong style={{ color: 'var(--text-main)' }}>
+                                Sin marcas en el súper ({unmatchedNames.length}):
+                            </strong>{' '}
+                            {unmatchedNames.join(', ')}. Los compras igual — todavía no
+                            tenemos presentaciones cargadas para {unmatchedNames.length === 1 ? 'ese ítem' : 'esos ítems'}.
+                        </p>
                     )}
                 </div>
             )}
