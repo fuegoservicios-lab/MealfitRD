@@ -7,8 +7,8 @@ import { SENTINELS } from '../../../config/sentinels';
 // `MEALFIT_MAX_MEDICAL_CONDITIONS` — ver comentario SSOT en formValidation.js.
 import { MAX_MEDICAL_CONDITIONS } from '../../../config/formValidation';
 import {
-    Activity, AlertTriangle, Baby, Ban, BatteryLow, Droplet, Droplets, Flame, HeartPulse,
-    Milk, Pill, Slice, Syringe, TestTube, Venus,
+    Activity, AlertTriangle, Baby, Ban, BatteryLow, Bone, Brain, CircleHelp, Croissant,
+    Droplet, Droplets, Filter, Flame, HeartPulse, Milk, Pill, Slice, Syringe, TestTube, Venus,
 } from 'lucide-react';
 import { ChipOption, PREGNANCY_CHIP_LABELS, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
@@ -31,7 +31,27 @@ const CONDITION_ICONS = {
     'SOP (PCOS)': Venus,
     'Hipotiroidismo': BatteryLow,
     'Cirugía Bariátrica': Slice,
+    // [P1-MEDICAL-SCOPE-GATE · 2026-08-09] Los 4 chips nuevos.
+    'Enfermedad Renal': Filter,      // el riñón filtra
+    'Anemia': Droplets,              // hierro / sangre
+    'Gota / Ácido Úrico': Bone,      // afecta articulaciones
+    'Hígado Graso': Croissant,       // hígado / grasa hepática
 };
+
+/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] EL FORMULARIO PREGUNTABA MENOS DE LO QUE
+   EL MOTOR SABE. `condition_rules.CONDITION_RULES` tiene 12 reglas clínicas
+   completas y este paso ofrecía 7 chips: enfermedad renal, anemia ferropénica,
+   gota e hígado graso tenían regla escrita y eran INDECLARABLES desde aquí.
+   Quien las tenía recibía un plan sin ninguna de sus reglas aplicadas y sin
+   ningún aviso — el motor nunca se enteraba.
+
+   Los labels no son decorativos: cada uno CONTIENE un `term` de su regla, que
+   es como `detect_active_rules` los reconoce (`any(t in c for t in r.terms)`
+   sobre el string en minúsculas y sin acentos). Verificado uno a uno que cada
+   chip dispara EXACTAMENTE una regla y ninguno colisiona con otra — esa
+   comprobación es obligatoria al tocar esta lista, porque el matcher es por
+   SUBCADENA y este repo lleva 16 incidentes de esa clase. El test ancla la
+   correspondencia chip→regla para que un renombre no la rompa en silencio. */
 
 // [FORM-MEDICAL-ICONS · 2026-07-03] Medicamentos: icono = lo que TRATA (espeja
 // CONDITION_ICONS para coherencia visual dentro del step — quien marcó Diabetes T2
@@ -50,7 +70,29 @@ const MED_ICONS = {
     'Atorvastatina': TestTube,
     'Levotiroxina': BatteryLow,
     'Omeprazol': Flame,
+    // [P1-MEDICAL-SCOPE-GATE · 2026-08-09] IMAO — Brain (antidepresivo).
+    'Antidepresivo IMAO': Brain,
 };
+
+/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] LAS DOS SEÑALES DE «FUERA DE ALCANCE».
+
+   El motor aplica reglas clínicas de un registry ACOTADO (12 condiciones, 13
+   familias de fármaco). Lo que cae fuera no producía ni regla ni aviso: se
+   generaba un plan como si el usuario no hubiera declarado nada. Estos dos
+   chips convierten ese silencio en una señal explícita que bloquea.
+
+   POR QUÉ UN CHIP Y NO TEXTO LIBRE. La decisión la toma un valor EXACTO, no
+   una cadena que haya que interpretar. Un blocklist de palabras sobre prosa
+   sería la 17ª subcadena de este repo, y aquí las dos direcciones del error
+   son graves: un falso positivo DENIEGA el servicio, un falso negativo
+   ENTREGA un plan inseguro.
+
+   Los literales se espejan en el backend (`_OUT_OF_SCOPE_*` en routers/plans.py)
+   y un test ancla que no drifteen — si dejan de coincidir, el gate del
+   servidor deja de reconocer lo que este formulario emite y el bloqueo se
+   evapora en silencio. */
+export const OUT_OF_SCOPE_CONDITION = 'Otra condición (no listada)';
+export const OUT_OF_SCOPE_MEDICATION = 'Otro medicamento (no listado)';
 
 export const QMedical = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
@@ -140,10 +182,17 @@ export const QMedical = ({ onManualAdvance }) => {
     // (se renderiza aparte, siempre habilitada).
     const isConditionChipDisabled = (opt) => atCap && !(formData.medicalConditions || []).includes(opt);
 
+    // [P1-MEDICAL-SCOPE-GATE · 2026-08-09] ¿Declaró algo fuera del registry
+    // clínico? Cualquiera de las dos señales basta: una condición no listada y
+    // un fármaco no listado son el mismo problema (el motor no tiene regla que
+    // aplicar) aunque medicamentos sea un campo opcional.
+    const outOfScopeSelected = (formData.medicalConditions || []).includes(OUT_OF_SCOPE_CONDITION)
+        || (formData.medications || []).includes(OUT_OF_SCOPE_MEDICATION);
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
-                {['Diabetes T2', 'Hipertensión', 'Colesterol Alto', 'Gastritis', 'SOP (PCOS)', 'Hipotiroidismo', 'Cirugía Bariátrica'].map(opt => (
+                {['Diabetes T2', 'Hipertensión', 'Colesterol Alto', 'Gastritis', 'SOP (PCOS)', 'Hipotiroidismo', 'Cirugía Bariátrica', 'Enfermedad Renal', 'Anemia', 'Gota / Ácido Úrico', 'Hígado Graso'].map(opt => (
                     <ChipOption
                         key={opt} val={opt} label={opt} icon={CONDITION_ICONS[opt] || Activity}
                         isSelected={(formData.medicalConditions || []).includes(opt)}
@@ -151,12 +200,55 @@ export const QMedical = ({ onManualAdvance }) => {
                         disabled={isConditionChipDisabled(opt)}
                     />
                 ))}
+                {/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] Fuera del cap a propósito
+                    (igual que Embarazo/Lactancia): declarar «tengo algo que no está
+                    aquí» nunca debe quedar impedido por haber marcado ya 3. */}
+                <ChipOption
+                    val={OUT_OF_SCOPE_CONDITION} label="Otra condición" icon={CircleHelp}
+                    isSelected={(formData.medicalConditions || []).includes(OUT_OF_SCOPE_CONDITION)}
+                    onToggle={handleToggle}
+                />
                 <ChipOption
                     val={SENTINEL} label={SENTINEL} icon={Ban}
                     isSelected={(formData.medicalConditions || []).includes(SENTINEL)}
                     onToggle={handleToggle}
                 />
             </div>
+            {/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] El aviso de alcance. Se dice
+                AQUÍ y no al generar: hacerle rellenar cinco pasos más para
+                bloquearlo al final sería faltarle el respeto a su tiempo.
+
+                El tono importa y es una decisión, no adorno: un gate que
+                castiga la declaración enseña a ocultar. Si esto se leyera como
+                un castigo, quien quiere su plan desmarca el chip y su condición
+                pasa de DECLARADA a INVISIBLE — estrictamente peor que antes.
+                Por eso nombra el límite como nuestro, no como suyo. */}
+            {outOfScopeSelected && (
+                <div
+                    role="alert"
+                    style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
+                        padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)',
+                        fontSize: '0.85rem', lineHeight: 1.5,
+                        color: 'var(--warning-text)', backgroundColor: 'var(--warning-bg)',
+                        border: '1px solid var(--warning-border)',
+                    }}
+                >
+                    <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>
+                        <strong>Todavía no podemos calcular un plan seguro para esa condición.</strong>
+                        <br />
+                        Nuestro motor aplica reglas clínicas verificadas solo para las condiciones
+                        y medicamentos de esta lista. Fuera de ellas no podemos garantizar que el
+                        plan sea adecuado para ti, y preferimos decírtelo antes que entregarte algo
+                        que parezca calculado y no lo esté.
+                        <br /><br />
+                        Si la que tienes <em>sí</em> está en la lista, desmárcala de aquí y márcala
+                        arriba. Si no, escríbenos: estamos ampliando la cobertura clínica y queremos
+                        saber cuál te falta.
+                    </span>
+                </div>
+            )}
             {/* [P1-MEDICAL-CONDITIONS-CAP · 2026-08-01] Mensaje inline: solo
                 aparece cuando el usuario INTENTA marcar una 4ª condición real
                 estando en el cap (ver `handleToggle`). Mismo lenguaje que el
@@ -216,13 +308,29 @@ export const QMedical = ({ onManualAdvance }) => {
                 Medicamentos actuales (opcional)
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
-                {['Metformina', 'Insulina', 'Glibenclamida', 'Lisinopril', 'Losartán', 'Amlodipina', 'Hidroclorotiazida', 'Espironolactona', 'Atorvastatina', 'Levotiroxina', 'Omeprazol', 'Prednisona', 'Warfarina', 'Alopurinol'].map(med => (
+                {/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] «Antidepresivo IMAO» es el
+                    chip URGENTE de esta tanda: `medication_rules` tiene una regla
+                    `maoi` (tiramina — quesos curados, embutidos, fermentados) y NO
+                    había forma de dispararla desde el formulario. Tiramina + IMAO es
+                    crisis hipertensiva: el motor sabía protegerte y el wizard no
+                    dejaba decirlo. El label contiene «imao», que es el `term` que la
+                    regla reconoce. */}
+                {['Metformina', 'Insulina', 'Glibenclamida', 'Lisinopril', 'Losartán', 'Amlodipina', 'Hidroclorotiazida', 'Espironolactona', 'Atorvastatina', 'Levotiroxina', 'Omeprazol', 'Prednisona', 'Warfarina', 'Alopurinol', 'Antidepresivo IMAO'].map(med => (
                     <ChipOption
                         key={med} val={med} label={med} icon={MED_ICONS[med] || Pill}
                         isSelected={(formData.medications || []).includes(med)}
                         onToggle={handleMedToggle}
                     />
                 ))}
+                {/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] Simétrico al de condiciones.
+                    Un fármaco fuera del registry es interacción no modelada — y aquí
+                    el riesgo es más agudo que en condiciones, porque una interacción
+                    fármaco-alimento no avisa antes de ocurrir. */}
+                <ChipOption
+                    val={OUT_OF_SCOPE_MEDICATION} label="Otro medicamento" icon={CircleHelp}
+                    isSelected={(formData.medications || []).includes(OUT_OF_SCOPE_MEDICATION)}
+                    onToggle={handleMedToggle}
+                />
                 {/* [P3-MED-NONE-CHIP · 2026-07-01] Sentinel "Ninguno" exclusivo: al
                     marcarlo se deseleccionan los demás medicamentos. */}
                 <ChipOption
@@ -259,9 +367,13 @@ export const QMedical = ({ onManualAdvance }) => {
                 sobrevive de una sesión/localStorage pre-deploy) sigue
                 viajando en el submit y el backend lo sigue aceptando como
                 companion (compat), pero ya no gatea este botón. */}
+            {/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] `outOfScopeSelected` bloquea el
+                avance. Es la PRIMERA de dos capas: el backend rechaza el mismo
+                literal en `/api/plans` (`_OUT_OF_SCOPE_*`), porque una guarda solo
+                de cliente es puenteable y aquí el punto entero es la seguridad. */}
             <NextButton
                 onClick={onManualAdvance}
-                disabled={(formData.medicalConditions || []).length === 0}
+                disabled={(formData.medicalConditions || []).length === 0 || outOfScopeSelected}
             />
         </div>
     );

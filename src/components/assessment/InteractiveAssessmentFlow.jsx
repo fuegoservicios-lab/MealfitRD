@@ -366,7 +366,13 @@ const InteractiveAssessmentFlow = () => {
             // no la respeta. El asterisco rojo señala "respuesta requerida"
             // (no "tienes que tener una condición").
             title: <>Condiciones Médicas&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Marca todas las que apliquen, escribe otras, o marca \"Ninguna\" si no tienes ninguna condición preexistente.",
+            // [P1-MEDICAL-SCOPE-GATE · 2026-08-09] Decía «escribe otras» y el
+            // input de texto libre se ELIMINÓ el 2026-08-01
+            // (P1-MEDICAL-CONDITIONS-CAP): el enunciado invitaba a hacer algo
+            // imposible. Ahora la vía para lo no listado es el chip «Otra
+            // condición», que es una señal ESTRUCTURADA — no prosa que haya que
+            // parsear (ver el rationale del gate en QMedical.jsx).
+            subtitle: "Marca todas las que apliquen, o \"Ninguna\" si no tienes ninguna condición preexistente. Si tienes una que no está en la lista, marca \"Otra condición\".",
             hasInternalNext: true,
             fields: ['medicalConditions'],
             component: <QMedical onManualAdvance={nextStep} />

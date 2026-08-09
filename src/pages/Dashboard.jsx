@@ -6678,7 +6678,28 @@ const DashboardInner = () => {
                         {/* [P1-SUPERMARKET-MATCH · 2026-07-02] Marcas y precios reales del súper
                             por ítem de la lista (base Supermercado RD). Informativo — no toca
                             plan_data ni el costeo; persistencia de marca preferida = fase 2. */}
+                        {/* [P1-BRANDS-HIDE-WHEN-BOUGHT · 2026-08-09] Se oculta cuando la
+                            Nevera YA cubre la lista entera. El panel sirve para decidir
+                            marca ANTES de ir al súper; una vez importaste la compra, el
+                            sitio para cambiarla es la propia Nevera —que escribe en el
+                            MISMO endpoint de preferencias (`/api/supermarket/preferences`,
+                            ver `Pantry.jsx::changeItemBrand`)—, así que no se pierde
+                            ninguna función: se deja de ofrecer el mismo trabajo en dos
+                            sitios cuando solo uno tiene sentido.
+
+                            La condición es `shoppingDeltaMeta.hasItems`, que es VIVA
+                            (`buildDeltaShoppingList` contra `liveInventory`), no un flag
+                            persistente: cuando entre la semana siguiente con ítems nuevos
+                            por comprar, el panel reaparece solo. Un flag de "ya compró"
+                            se habría quedado pegado.
+
+                            `hasItems !== false` y no `=== true`: mientras `liveInventory`
+                            no ha cargado el memo devuelve `null`, así que `?.hasItems` es
+                            `undefined` — y en esa ventana la decisión segura es MOSTRAR.
+                            Con `=== true` el panel parpadearía (oculto → visible) en cada
+                            carga, que es peor que mostrarlo de más un instante. */}
                         {brandsPanelList.length > 0
+                            && shoppingDeltaMeta?.hasItems !== false
                             && !isPlanExpired && !planFinished && !isPlanCorrupted && (
                             <SupermarketBrands
                                 // [P2-BRANDS-CANONICAL-SOURCE] canónica semanal — el panel de
