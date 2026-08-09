@@ -234,7 +234,10 @@ const Engine = () => {
                         {CLINICAL.safetyPct} % de los planes entregados salió sin una sola violación de
                         alérgenos, dieta o condición; el {CLINICAL_DELIVERY_PCT} % de los perfiles recibió
                         su plan al primer intento — y el resto no recibió un plan inseguro: el motor lo
-                        rechazó y lo dijo. Preferimos no entregar antes que entregar mal.
+                        rechazó y lo dijo. Preferimos no entregar antes que entregar mal. La versión
+                        actual del motor (tras las {CLINICAL.currentEngine.fixesCount} mejoras del{' '}
+                        {CLINICAL.currentEngine.dateLong}) entregó {CLINICAL.currentEngine.delivered} de{' '}
+                        {CLINICAL.currentEngine.n} en su primera corrida.
                     </p>
                 </div>
             </section>

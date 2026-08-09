@@ -304,6 +304,10 @@ const PrecisionPage = () => {
                                     ({CLINICAL.runsCount} corridas × {CLINICAL.n} perfiles) reciben su plan.
                                     El resto no recibe un plan inseguro: el sistema lo rechaza y lo dice.
                                     Preferimos no entregar antes que entregar mal.
+                                    {' '}Motor actual (tras las {CLINICAL.currentEngine.fixesCount} mejoras
+                                    del {CLINICAL.currentEngine.dateLong}): {CLINICAL.currentEngine.delivered} de{' '}
+                                    {CLINICAL.currentEngine.n} en su primera corrida — el agregado incluye
+                                    versiones anteriores del motor.
                                 </div>
                             </div>
                             <div className={styles.card}>

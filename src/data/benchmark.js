@@ -163,5 +163,22 @@ export const CLINICAL = {
     qualityIndex: 90.1,
     latencyP50Min: 6,      // p50 ≈ 269-392s por corrida → «~6 minutos» (la 4ª sube por los
                            // retries informados de criticals — el precio de convertir rechazos)
+    /* [P1-CURRENT-ENGINE-FIGURE · 2026-08-09] La cifra del MOTOR ACTUAL, junto al agregado —
+       decisión del dueño: el pool mezcla corridas contra motores que ya no existen (las 1-3
+       midieron versiones sin las notas clínicas por condición, sin el retry de criticals y
+       con el swap roto), así que el agregado promedia HISTORIA. Se muestran AMBAS con
+       etiquetas claras: el agregado sigue siendo el titular defendible; la del motor actual
+       es UNA corrida (varianza ±10pp) y se etiqueta como «primera corrida» — jamás como
+       tendencia. Cuando existan ≥3 corridas del motor congelado, el pool se re-basea a
+       «motor actual» y esta distinción se retira. */
+    currentEngine: {
+        delivered: 14,             // la mejor corrida histórica (secuencia 13→11→10→14)
+        n: 20,
+        runId: '31311796944',
+        dateLong: '9 de agosto',   // fecha de los 9 P-fixes que esta corrida midió
+        fixesCount: 9,
+    },
 };
 export const CLINICAL_DELIVERY_PCT = Math.round((CLINICAL.delivered / CLINICAL.samples) * 100);
+export const CURRENT_ENGINE_DELIVERY_PCT = Math.round(
+    (CLINICAL.currentEngine.delivered / CLINICAL.currentEngine.n) * 100);

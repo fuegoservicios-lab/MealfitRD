@@ -374,6 +374,8 @@ const HowItWorksPage = () => {
                                 más difíciles del formulario: el {CLINICAL.safetyPct} % de lo entregado salió
                                 sin una sola violación, y el {CLINICAL_DELIVERY_PCT} % recibió su plan al
                                 primer intento — el resto fue rechazado por seguridad, no entregado mal.
+                                La versión actual del motor entregó {CLINICAL.currentEngine.delivered} de{' '}
+                                {CLINICAL.currentEngine.n} en su primera corrida.
                             </p>
                         </Reveal>
                         <Reveal className={`${styles.cards} ${styles.cardsTwo}`}>
