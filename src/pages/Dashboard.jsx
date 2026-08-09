@@ -186,6 +186,35 @@ import { hasPendingPipelineInFlight } from '../utils/pendingPipelineFlag';
 // Ahora parcheamos el ítem al instante (marca + precio si el envase coincide) y el
 // recalc reconcilia el costo exacto en segundo plano. Reversible: es puramente UI,
 // el recalc sigue siendo la fuente de verdad.
+// [P1-URGENT-LIST-CANONICAL · 2026-08-09] La caja roja «Compra Urgente Requerida» del plato era
+// una FOTO del momento de generación: el owner compró la lista entera («Tu Nevera ya cubre la
+// lista») y los avisos seguían acusando. Este filtro la evalúa EN VIVO contra la Nevera: una
+// línea faltante («380 ml de leche descremada») queda cubierta si TODOS los tokens del nombre de
+// algún ítem del inventario («Leche descremada») aparecen como token COMPLETO en la parte-alimento
+// de la línea — subconjunto por token, jamás substring («sal» no absuelve «salsa», 15ª clase).
+// Compras → la caja desaparece; se te agota algo → reaparece. Fail-safe: sin inventario cargado,
+// se muestra todo (mejor avisar de más que esconder una compra de seguridad).
+const _MISSING_QTY_PREFIX_RX = /^[\d\s./½¼¾⅓⅔]+(?:g|gr|ml|kg|l|cdta|cda|cdas|cdtas|taza|tazas|unidad(?:es)?|ud|uds)?\s*(?:de\s+)?/i;
+const _missingNormTokens = (s) => String(s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .split('(')[0].split(',')[0]
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map(w => (w.length > 3 && w.endsWith('s') && !w.endsWith('is')) ? w.slice(0, -1) : w);
+export const filterStillMissing = (missingList, inventory) => {
+    if (!Array.isArray(missingList) || missingList.length === 0) return [];
+    if (!Array.isArray(inventory) || inventory.length === 0) return missingList;
+    const invTokenSets = inventory
+        .map(r => _missingNormTokens(r?.ingredient_name || r?.name))
+        .filter(t => t.length > 0);
+    return missingList.filter(line => {
+        const foodTokens = new Set(_missingNormTokens(String(line).replace(_MISSING_QTY_PREFIX_RX, '')));
+        if (foodTokens.size === 0) return true;
+        return !invTokenSets.some(ts => ts.every(t => foodTokens.has(t)));
+    });
+};
+
 const _brandNorm = (s) => (s || '')
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .trim().toLowerCase().replace(/\s+/g, ' ');
@@ -7893,8 +7922,16 @@ const DashboardInner = () => {
                                                 {meal.name}
                                             </h3>
 
-                                            {/* PANTRY UNSAFE BADGE */}
-                                            {meal._pantry_unsafe_after_flexible && (
+                                            {/* PANTRY UNSAFE BADGE
+                                                [P1-URGENT-LIST-CANONICAL · 2026-08-09] La caja era una FOTO del
+                                                momento de generación: el owner compró la lista entera y el aviso
+                                                seguía acusando. Ahora se evalúa EN VIVO contra la Nevera
+                                                (filterStillMissing): compras → desaparece; se agota → vuelve. */}
+                                            {meal._pantry_unsafe_after_flexible && (() => {
+                                                const _still = filterStillMissing(
+                                                    meal._missing_ingredients, liveInventory);
+                                                if (_still.length === 0) return null;
+                                                return (
                                                 <div style={{
                                                     display: 'flex', flexDirection: 'column', gap: '0.25rem',
                                                     fontSize: '0.75rem', color: '#EF4444', background: 'rgba(239, 68, 68, 0.1)',
@@ -7905,13 +7942,12 @@ const DashboardInner = () => {
                                                         <AlertCircle size={14} />
                                                         <span>⚠ Compra Urgente Requerida</span>
                                                     </div>
-                                                    {meal._missing_ingredients && Array.isArray(meal._missing_ingredients) && meal._missing_ingredients.length > 0 && (
-                                                        <div style={{ paddingLeft: '1.2rem', color: '#B91C1C', fontSize: '0.7rem' }}>
-                                                            Faltan: {meal._missing_ingredients.join(', ')}
-                                                        </div>
-                                                    )}
+                                                    <div style={{ paddingLeft: '1.2rem', color: '#B91C1C', fontSize: '0.7rem' }}>
+                                                        Faltan: {_still.join(', ')}
+                                                    </div>
                                                 </div>
-                                            )}
+                                                );
+                                            })()}
 
                                             {/* [P3-MEAL-ADVISORY-INLINE · 2026-07-04] Fila ÚNICA de metadatos:
                                                 tiempo + advisories como pills compactos en la MISMA línea. El
