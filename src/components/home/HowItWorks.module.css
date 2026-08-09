@@ -315,34 +315,61 @@
     stroke-width: 1;
 }
 
-/* Rótulos de la Fig. 01 (Perfil): HTML real, no <text> del SVG — a 88
+/* Los 4 nombres de entrada de la celda 01: HTML real, no <text> del SVG — a 88
    unidades de ancho ninguna palabra cabe por encima del piso de 11px.
-   [P2-PAPER-NO-INK fix1] Son la leyenda que hace legible la figura, así que
-   caen bajo la fila «Rótulo de figura» de la escala (spec §2.5): 12px +
-   `--pa-ink-2`, NO la fila de «Etiqueta accesoria» (11px + `--pa-ink-3`,
-   reservada a metadato ignorable sin perder la figura — este texto no es
-   ignorable, ES la figura). */
-.figLegend {
+   [P2-PAPER-NO-INK fix1] Caen bajo la fila «Rótulo de figura» de la escala
+   (spec §2.5): 12px + `--pa-ink-2`, NO la fila de «Etiqueta accesoria» (11px +
+   `--pa-ink-3`, reservada a metadato ignorable) — este texto no es ignorable.
+
+   [P1-HOWITWORKS-ALIGN · 2026-08-09] Se llamaba `.figLegend` y vivía dentro de
+   `.figureBox`. Ahí medía 101 px que las otras tres celdas no tenían, y les
+   desalineaba el título por esa misma cantidad. Ahora es `.inputList` y vive en
+   el flujo de texto: son los nombres de las entradas, no la rotulación de un
+   dibujo. La escala NO cambia (12px + `--pa-ink-2`) porque el argumento de la
+   nota de arriba sigue valiendo: este texto no es metadato ignorable. */
+.inputList {
     width: 100%;
-    max-width: 190px;
-    margin: 0.6rem 0 0;
+    margin: 0.9rem 0 0;
     padding: 0;
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
     font-family: var(--font-mono);
     font-size: 12px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--pa-ink-2);
     text-align: left;
+    border-top: 1px solid var(--pa-rule-3);
 }
 
-/* ── texto de la celda ────────────────────────────────────────────────── */
+/* Cada entrada en su propia banda con hairline: la lista deja de ser cuatro
+   líneas sueltas y pasa a leerse como la tabla de entradas que es. La última
+   no lleva regla — la cierra el `border-top` de la mini-cota de abajo. */
+.inputList li {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--pa-rule-3);
+}
+
+.inputList li:last-child {
+    border-bottom: 0;
+}
+
+/* ── texto de la celda ──────────────────────────────────────────────────
+   [P1-HOWITWORKS-ALIGN · 2026-08-09] Pasa a FLEX COLUMN para que `.miniCota`
+   pueda anclarse al pie con `margin-top: auto`. Antes la cota flotaba detrás de
+   su descripción, así que las cuatro caían a cuatro alturas distintas —
+   MEDIDO: 124 px entre la más alta y la más baja, con las cuatro celdas
+   midiendo lo mismo (428 px) y sitio de sobra para alinearlas.
+
+   Esa era la desalineación PEOR de las dos: la del título solo afectaba a la
+   celda 01, esta afectaba a las cuatro y es la que dejaba el bloque sin
+   rematar por abajo. */
 .cellText {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .cellTitle {
@@ -355,8 +382,11 @@
     color: var(--pa-ink);
 }
 
+/* El `margin-bottom` es el SUELO del hueco contra la mini-cota: con
+   `margin-top: auto` en la cota, si la descripción llega hasta abajo el auto
+   se resuelve a 0 y sin este margen quedarían pegadas. */
 .cellDesc {
-    margin: 0.6rem 0 0;
+    margin: 0.6rem 0 1.1rem;
     font-family: var(--font-body);
     font-size: 0.9375rem;
     line-height: 1.55;
@@ -367,9 +397,18 @@
    Línea de 1px con topes en T (pseudo-elementos) y el valor mono centrado
    debajo — la misma gramática de cota que el resto del sistema, a escala
    de celda. */
+/* [P1-HOWITWORKS-ALIGN · 2026-08-09] `margin-top: auto` (era `1.1rem`) la ancla
+   al PIE de `.cellText`, que es flex column y se estira a toda la celda. Las 4
+   celdas miden lo mismo por la rejilla, así que las 4 cotas caen en la misma
+   línea. Antes flotaba detrás de su descripción y las 4 aterrizaban a 4 alturas
+   distintas — 124 px entre la más alta y la más baja, medido.
+
+   En una hoja de proceso el remate inferior ES la lectura: cuatro cotas a
+   cuatro alturas se leen como cuatro fichas sueltas, no como una hoja. El
+   suelo del hueco lo pone el `margin-bottom` de `.cellDesc`. */
 .miniCota {
     position: relative;
-    margin-top: 1.1rem;
+    margin-top: auto;
     padding-top: 0.7rem;
 }
 
@@ -422,9 +461,9 @@
         flex-direction: column-reverse;
     }
 
-    .figLegend {
-        max-width: none;
-    }
+    /* [P1-HOWITWORKS-ALIGN · 2026-08-09] Aquí había un `.figLegend { max-width:
+       none }` que soltaba el tope de 190px de la leyenda al reflowear. Se va con
+       la clase: `.inputList` vive en la columna de texto y ya toma su ancho. */
 }
 
 /* 720px: el eje horizontal con estaciones no tiene donde reconstruirse en
@@ -526,6 +565,19 @@
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+
+    /* [P1-HOWITWORKS-ALIGN · 2026-08-09] La lista de entradas se aprieta por el
+       mismo motivo que el recorte de arriba: es scroll, no fealdad. MEDIDO a
+       375px, la celda 01 mide 423px contra 278px de sus tres hermanas — las 4
+       filas son su diferencia entera. No se recorta la LISTA (sus 4 nombres son
+       lo más concreto de la sección y ninguno sobra); se le quita el aire. */
+    .inputList {
+        margin-top: 0.7rem;
+    }
+
+    .inputList li {
+        padding: 0.3rem 0;
     }
 }
 

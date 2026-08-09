@@ -67,6 +67,11 @@ const STEPS = [
     {
         title: 'Perfil clínico-metabólico',
         desc: 'Más que tu peso: composición, gasto energético, condiciones, alergias IgE, presupuesto y estilo de vida. Es el sustrato de cada decisión del motor.',
+        /* [P1-HOWITWORKS-ALIGN · 2026-08-09] Estas 4 restricciones vivían DENTRO
+           de `ProfileFigure`, como leyenda del SVG. Son contenido, no rotulación:
+           dicen con qué trabaja el motor en RD, que es lo más concreto de toda la
+           sección. Ver la nota de cabecera para por qué se mudaron. */
+        inputs: ['PRESUPUESTO RD$', 'ALERGIAS', 'CONDICIÓN CLÍNICA', 'LO QUE HAY EN LA NEVERA'],
         tag: `${INPUT_VARIABLES_LABEL} variables de entrada`,
     },
     {
@@ -107,28 +112,35 @@ const T = { ...VE, pathLength: 1 };
 
 /* ───────────────────────────── Fig. 01 — Perfil ────────────────────────────
    Cuatro barras en CONTORNO (no es el dato acotado, es la variedad de
-   entradas) de largo distinto. Los 4 rótulos son las restricciones reales
-   con las que trabaja el motor en RD — HTML real al lado del SVG, ver nota
-   de cabecera. */
+   entradas) de largo distinto.
+
+   [P1-HOWITWORKS-ALIGN · 2026-08-09] DEVUELVE SOLO EL <svg>. Antes devolvía un
+   fragmento con el SVG **más** un `<ul>` de 4 rótulos, y ese `<ul>` caía dentro
+   del mismo `.figureBox` que las otras tres figuras: MEDIDO, 165 px de alto
+   contra 64 px de sus tres hermanas, que empujaban su título 101 px por debajo
+   de los otros tres. Era la única de las cuatro con rótulos, y por eso era la
+   única que se veía distinta.
+
+   No se arregla igualando la altura de las cajas (dejaría 101 px de blanco en
+   las otras tres). Los 4 rótulos son CONTENIDO — `STEPS[0].inputs` — y se
+   renderizan en el flujo de texto de la celda. Beneficio secundario: bajo 900
+   px la celda es `column-reverse` y bajo 720 px la figura va debajo del texto,
+   así que como leyenda del SVG se separaban de su propio texto; como contenido
+   viajan con él. */
 function ProfileFigure() {
     const rows = [
-        { y: 4, w: 60, label: 'PRESUPUESTO RD$' },
-        { y: 20, w: 44, label: 'ALERGIAS' },
-        { y: 36, w: 72, label: 'CONDICIÓN CLÍNICA' },
-        { y: 52, w: 50, label: 'LO QUE HAY EN LA NEVERA' },
+        { key: 'presupuesto', y: 4, w: 60 },
+        { key: 'alergias', y: 20, w: 44 },
+        { key: 'condicion', y: 36, w: 72 },
+        { key: 'nevera', y: 52, w: 50 },
     ];
     return (
-        <>
-            <svg className={styles.fig} viewBox="0 0 88 64" role="presentation" aria-hidden="true" focusable="false">
-                {rows.map((r) => (
-                    <rect key={r.label} className={styles.stroke}
-                        x="4" y={r.y} width={r.w} height="8" {...T} />
-                ))}
-            </svg>
-            <ul className={styles.figLegend}>
-                {rows.map((r) => <li key={r.label}>{r.label}</li>)}
-            </ul>
-        </>
+        <svg className={styles.fig} viewBox="0 0 88 64" role="presentation" aria-hidden="true" focusable="false">
+            {rows.map((r) => (
+                <rect key={r.key} className={styles.stroke}
+                    x="4" y={r.y} width={r.w} height="8" {...T} />
+            ))}
+        </svg>
     );
 }
 
@@ -300,6 +312,16 @@ const HowItWorks = () => {
                                     <div className={styles.cellText}>
                                         <h3 className={styles.cellTitle}>{s.title}</h3>
                                         <p className={styles.cellDesc}>{s.desc}</p>
+                                        {/* [P1-HOWITWORKS-ALIGN · 2026-08-09] Los 4
+                                            nombres de entrada, que antes eran leyenda
+                                            del SVG de la celda 01. Solo la celda 01 los
+                                            tiene; el resto de celdas no renderiza nada
+                                            aquí, así que la rejilla no cambia de forma. */}
+                                        {s.inputs && (
+                                            <ul className={styles.inputList}>
+                                                {s.inputs.map((label) => <li key={label}>{label}</li>)}
+                                            </ul>
+                                        )}
                                         <div className={styles.miniCota}>
                                             <span className={styles.miniCotaLine} aria-hidden="true" />
                                             <span className={styles.miniCotaValue}>{s.tag}</span>

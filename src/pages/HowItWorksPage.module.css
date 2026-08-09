@@ -645,7 +645,8 @@
       `font-heading`. Los cuatro decodifican una figura o una sección, así que
       no les basta el piso absoluto: les aplica el piso de DECODIFICACIÓN —
       12px y `--pa-ink-2` (spec §2.5). Es la misma corrección que ya costó una
-      ronda en HowItWorks.module.css (`.figLegend`, `.axisVIndex`).
+      ronda en HowItWorks.module.css (`.inputList` —que se llamaba `.figLegend`
+      hasta P1-HOWITWORKS-ALIGN, 2026-08-09— y `.axisVIndex`).
    ========================================================================= */
 
 :global(html[data-theme="paper"]) .page {
