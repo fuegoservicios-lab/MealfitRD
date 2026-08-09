@@ -4588,15 +4588,72 @@ const DashboardInner = () => {
                     z-index: 0;
                     pointer-events: none;
                 }
+                /* [P1-MEAL-CARD-ROWS · 2026-08-09] DOS FILAS, no dos columnas.
+                   Era «grid-template-columns: 1fr auto»: texto contra un bloque de
+                   acciones dimensionado por su contenido. MEDIDO, ese bloque son
+                   310 px y el coste fijo de la fila 446 px, así que la descripción
+                   necesitaba 746 px de tarjeta para alcanzar 40 caracteres por
+                   línea — y como su columna era la elástica, absorbía el 100 % de
+                   cualquier recorte. A ~600 px de tarjeta el párrafo caía a ~155 px
+                   y se leía en una columna de diez líneas cortas.
+
+                   Ahora el texto ocupa el ancho entero y las acciones tienen su
+                   propia fila. Esto NO es la adaptación móvil subida a escritorio:
+                   la de <=768px reconstruía a mano esta misma fila con cuatro
+                   reglas sobre la vieja columna lateral - se borraron, porque la
+                   estructura ya la trae de serie a todas las anchuras. */
                 .meal-card {
                     padding: 2.5rem 2.5rem 2.5rem 4.5rem;
                     display: grid;
-                    grid-template-columns: 1fr auto;
-                    gap: 1.5rem;
-                    align-items: center;
+                    grid-template-columns: 1fr;
+                    gap: 1.25rem;
+                    align-items: start;
                     background: transparent;
                     position: relative;
                     z-index: 1;
+                }
+                /* Cabecera: rótulo + título elásticos, kcal fija a la derecha.
+                   «align-items: flex-start» y no «center» - con un titulo de tres
+                   líneas, centrar la cifra la deja flotando a media altura sin
+                   nada con lo que alinearse. */
+                .meal-head {
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    gap: 1.25rem;
+                }
+                .meal-head-text {
+                    flex: 1;
+                    min-width: 0;
+                }
+                /* «flex: none» + «text-align: right»: la cifra no encoge nunca -
+                   es el dato que el usuario busca de un vistazo. */
+                .meal-kcal {
+                    flex: none;
+                    text-align: right;
+                    line-height: 1.15;
+                }
+                /* La hairline separa la lectura de la acción. Es la misma regla que
+                   la adaptación móvil ya usaba, ahora a todas las anchuras. */
+                .meal-actions {
+                    border-top: 1px solid var(--border);
+                    padding-top: 1.1rem;
+                }
+                .meal-actions-row {
+                    display: flex;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }
+                /* Tope de MEDIDA del párrafo. Sin él, soltar el texto a todo el
+                   ancho cambia un problema por el contrario: MEDIDO, a 1000 px de
+                   tarjeta la línea llegaba a ~123 caracteres, muy por encima del
+                   rango legible (45-75). 68ch la deja en ~72 en la tarjeta más
+                   ancha y no ata nada por debajo — a 600 px sigue mandando el
+                   contenedor. El título NO lleva tope: es corto y su salto de
+                   línea no cansa. */
+                .meal-desc {
+                    max-width: 68ch;
                 }
                 /* [P1-EATEN-SLOT-POLISH-ALIGN-FIX · 2026-07-28] La anotación "Te
                    quedan..." reproduce el indent de .meal-card (margin-left 2.5rem +
@@ -5195,28 +5252,24 @@ const DashboardInner = () => {
                     .skipped-lunch {
                         padding: 2rem 1.25rem 2rem 2.25rem;
                     }
-                    .meal-right-side {
-                        flex-direction: row !important;
-                        align-items: center !important;
+                    /* [P1-MEAL-CARD-ROWS · 2026-08-09] Aquí vivían CUATRO reglas
+                       sobre la vieja columna lateral que reconstruian a mano, solo en
+                       móvil, la fila de acciones a lo ancho con una hairline
+                       encima. Se van con la clase: esa estructura ahora es la
+                       de todas las anchuras, así que la adaptación móvil ya no
+                       tiene nada que adaptar.
+
+                       [P3-MENU-MOBILE-ACTIONS · 2026-05-30] Lo único que
+                       sobrevive es que "Cambiar Plato" (2º botón = acción
+                       primaria) crezca para ocupar el centro entre los
+                       circulares. Sigue siendo cierto y sigue siendo solo de
+                       móvil: en escritorio la fila entera cabe holgada y
+                       estirar la CTA a 260px la separaría de sus hermanas sin
+                       motivo. */
+                    .meal-actions-row {
                         justify-content: space-between;
-                        width: 100%;
-                        border-top: 1px solid var(--border);
-                        padding-top: 0.75rem;
                     }
-                    .meal-right-side > div:first-child {
-                        text-align: left !important;
-                    }
-                    /* [P3-MENU-MOBILE-ACTIONS · 2026-05-30] Fila de acciones
-                       balanceada: el grupo de botones llena el espacio restante
-                       y "Cambiar Plato" (2º botón = acción primaria) crece para
-                       ocupar el centro entre los dos circulares. Pre-fix: la kcal
-                       quedaba aislada a la izquierda y el cluster apretado a la
-                       derecha con la CTA primaria comprimida. */
-                    .meal-right-side > div:last-child {
-                        flex: 1;
-                        justify-content: flex-end;
-                    }
-                    .meal-right-side .meal-act-btn:nth-child(2) {
+                    .meal-actions-row .meal-act-btn:nth-child(2) {
                         flex: 1;
                         max-width: 260px;
                     }
@@ -5298,9 +5351,11 @@ const DashboardInner = () => {
                     .skipped-lunch {
                         padding: 1.5rem 1rem 1.5rem 1.75rem;
                     }
-                    .meal-right-side > div:last-child {
-                        gap: 0.5rem !important;
-                    }
+                    /* [P1-MEAL-CARD-ROWS · 2026-08-09] Aquí una regla sobre la vieja columna lateral
+                       (gap: 0.5rem !important) apretaba el hueco
+                       entre botones bajo 480px. Se va por doble motivo: la clase ya
+                       no existe, y 0.5rem es el gap BASE de «.meal-actions-row»
+                       desde este P-fix, así que la regla no tenía nada que apretar. */
                 }
 
                 /* [P3-CHIP-MOBILE-PREMIUM · 2026-05-27] Chip del plan tier
@@ -7902,25 +7957,52 @@ const DashboardInner = () => {
                                         )}
 
                                         {/* Meal Info */}
-                                        <div>
-                                            <div style={{
-                                                textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 800,
-                                                color: 'var(--primary)', letterSpacing: '0.05em', marginBottom: '0.25rem'
-                                            }}>
-                                                {meal.meal}
-                                            </div>
+                                        <div className="meal-main">
+                                            {/* [P1-MEAL-CARD-ROWS · 2026-08-09] CABECERA: rótulo + título a la
+                                                izquierda, kcal a la derecha.
 
-                                            {/* [DASH-MEAL-TITLE-GAP · 2026-06-01] marginBottom
-                                                0.25rem → 0.5rem: el chip de tiempo ("10 min")
-                                                quedaba pegado al título. */}
-                                            <h3 style={{
-                                                fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem',
-                                                // [P1-TODAY-REMAINING · 2026-07-28] line-through, mismo
-                                                // lenguaje visual que el tab de un día pasado (~línea 6789).
-                                                textDecoration: isEatenToday ? 'line-through' : 'none',
-                                            }}>
-                                                {meal.name}
-                                            </h3>
+                                                Las kcal vivían dentro de la columna de acciones, y ese era el
+                                                problema de fondo: obligaban a que esa columna existiera al lado
+                                                del texto. MEDIDO, el cluster de botones ocupa 310 px y el coste
+                                                fijo de la fila (cluster + padding + gap) 446 px — con la columna
+                                                de texto en `1fr` contra una de botones en `auto`, TODO el recorte
+                                                lo absorbía el párrafo: hacían falta 746 px de tarjeta para que la
+                                                descripción tuviera 40 caracteres por línea, y casi nunca los hay.
+                                                El owner lo reportó como «los botones ocupan mucho espacio y por
+                                                eso el texto se ve encogido», que es exactamente la causa.
+
+                                                Las kcal son metadato del plato, no una acción: su sitio es junto
+                                                al título. */}
+                                            <div className="meal-head">
+                                                <div className="meal-head-text">
+                                                    <div style={{
+                                                        textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 800,
+                                                        color: 'var(--primary)', letterSpacing: '0.05em', marginBottom: '0.25rem'
+                                                    }}>
+                                                        {meal.meal}
+                                                    </div>
+
+                                                    {/* [DASH-MEAL-TITLE-GAP · 2026-06-01] marginBottom
+                                                        0.25rem → 0.5rem: el chip de tiempo ("10 min")
+                                                        quedaba pegado al título. */}
+                                                    <h3 style={{
+                                                        fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem',
+                                                        // [P1-TODAY-REMAINING · 2026-07-28] line-through, mismo
+                                                        // lenguaje visual que el tab de un día pasado (~línea 6789).
+                                                        textDecoration: isEatenToday ? 'line-through' : 'none',
+                                                    }}>
+                                                        {meal.name}
+                                                    </h3>
+                                                </div>
+
+                                                {/* Calories Badge — subió aquí desde la columna de acciones. */}
+                                                <div className="meal-kcal">
+                                                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                                                        {meal.cals}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>kcal</div>
+                                                </div>
+                                            </div>
 
                                             {/* PANTRY UNSAFE BADGE
                                                 [P1-URGENT-LIST-CANONICAL · 2026-08-09] La caja era una FOTO del
@@ -8028,24 +8110,32 @@ const DashboardInner = () => {
                                                 );
                                             })()}
 
-                                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+                                            {/* [P1-MEAL-CARD-ROWS · 2026-08-09] `meal-desc` trae el TOPE DE
+                                                MEDIDA. Al soltar el párrafo a todo el ancho aparece el
+                                                problema contrario al que este P-fix arregla: MEDIDO, en una
+                                                tarjeta de 1000 px la línea llegaba a ~123 caracteres, muy por
+                                                encima del rango legible (45-75). Un renglón demasiado largo
+                                                cansa igual que uno demasiado corto — el ojo pierde el salto
+                                                de línea. El tope lo acota sin volver a estrecharlo. */}
+                                            <p className="meal-desc" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
                                                 {meal.desc}
                                             </p>
                                         </div>
 
-                                        {/* Right Side: Calories + Buttons */}
-                                        <div className="meal-right-side" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
+                                        {/* [P1-MEAL-CARD-ROWS · 2026-08-09] FILA DE ACCIONES, a lo ancho.
+                                            Era una columna lateral con las kcal arriba y los
+                                            botones abajo, pegada al costado del texto. Las kcal subieron a
+                                            la cabecera y aquí queda solo lo que es una acción.
 
-                                            {/* Calories Badge */}
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                                                    {meal.cals}
-                                                </div>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, paddingLeft: '4px' }}>kcal</div>
-                                            </div>
-
-                                            {/* BUTTONS GROUP */}
-                                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                            El orden de los 4 botones NO cambia — sigue siendo
+                                            [Ver Receta, Cambiar Plato, Me gusta, Me lo comí] y sigue
+                                            estando DESPUÉS del texto en el DOM, así que el contrato
+                                            posicional que destructuran `Dashboard.today_remaining` y
+                                            `Dashboard.eaten_slot_unlock` (ver la nota del botón «Me lo
+                                            comí» abajo) se mantiene intacto. Mover la fila no es
+                                            reordenarla. */}
+                                        <div className="meal-actions">
+                                            <div className="meal-actions-row">
 
                                                 {/* VER RECETA */}
                                                 <button
@@ -8057,16 +8147,16 @@ const DashboardInner = () => {
                                                     }}
                                                     style={{
                                                         background: isDark ? 'rgba(59, 130, 246, 0.22)' : '#EFF6FF',
-                                                        border: isDark ? '1.5px solid rgba(96, 165, 250, 0.6)' : '1.5px solid #BFDBFE',
+                                                        border: isDark ? '1px solid rgba(96, 165, 250, 0.6)' : '1px solid #BFDBFE',
                                                         borderRadius: '50%',
-                                                        width: 44, height: 44,
+                                                        width: 38, height: 38,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         cursor: 'pointer',
                                                         transition: 'all 0.2s'
                                                     }}
                                                     title="Ver paso a paso"
                                                 >
-                                                    <BookOpen size={20} color={isDark ? '#93C5FD' : '#3B82F6'} />
+                                                    <BookOpen size={18} color={isDark ? '#93C5FD' : '#3B82F6'} />
                                                 </button>
 
                                                 {/* REGENERATE BUTTON (AI SWAP) — Abre modal de razón */}
@@ -8103,10 +8193,10 @@ const DashboardInner = () => {
                                                     aria-label={isEatenToday ? eatenClaim : (isPantryTooEmptyForSwap ? swapPantryClaim : undefined)}
                                                     style={{
                                                         background: isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED',
-                                                        border: isDark ? '1.5px solid transparent' : '1.5px solid #FED7AA',
+                                                        border: isDark ? '1px solid transparent' : '1px solid #FED7AA',
                                                         borderRadius: '1rem',
-                                                        padding: '0 0.85rem',
-                                                        height: 44,
+                                                        padding: '0 0.8rem',
+                                                        height: 38,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
                                                         cursor: (isEatenToday || isPantryTooEmptyForSwap) ? 'not-allowed' : (regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer',
                                                         transition: 'all 0.2s',
@@ -8167,10 +8257,10 @@ const DashboardInner = () => {
                                                             ? 'linear-gradient(135deg, #FB7185 0%, #EC4899 100%)'
                                                             : (isDark ? 'rgba(236, 72, 153, 0.20)' : '#FDF2F8'),
                                                         border: isLiked
-                                                            ? '1.5px solid transparent'
-                                                            : (isDark ? '1.5px solid rgba(244, 114, 182, 0.6)' : '1.5px solid #FBCFE8'),
+                                                            ? '1px solid transparent'
+                                                            : (isDark ? '1px solid rgba(244, 114, 182, 0.6)' : '1px solid #FBCFE8'),
                                                         borderRadius: '50%',
-                                                        width: 44, height: 44,
+                                                        width: 38, height: 38,
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         cursor: isEatenToday ? 'not-allowed' : 'pointer',
                                                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -8179,7 +8269,7 @@ const DashboardInner = () => {
                                                     }}
                                                     title={isEatenToday ? eatenClaim : (isLiked ? 'Te gusta — toca para quitar' : 'Me gusta')}
                                                 >
-                                                    <Heart size={20} color={isLiked ? '#FFFFFF' : (isDark ? '#F472B6' : '#EC4899')} fill={isLiked ? '#FFFFFF' : 'none'} strokeWidth={2.25} />
+                                                    <Heart size={18} color={isLiked ? '#FFFFFF' : (isDark ? '#F472B6' : '#EC4899')} fill={isLiked ? '#FFFFFF' : 'none'} strokeWidth={2.25} />
                                                 </button>
 
                                                 {/* [P1-EAT-PLAN-MEAL · 2026-08-07] ME LO COMÍ.
@@ -8212,9 +8302,9 @@ const DashboardInner = () => {
                                                         disabled={eatMealInFlight !== null}
                                                         style={{
                                                             background: isDark ? 'rgba(16, 185, 129, 0.22)' : '#ECFDF5',
-                                                            border: isDark ? '1.5px solid rgba(110, 231, 183, 0.6)' : '1.5px solid #A7F3D0',
+                                                            border: isDark ? '1px solid rgba(110, 231, 183, 0.6)' : '1px solid #A7F3D0',
                                                             borderRadius: '50%',
-                                                            width: 44, height: 44,
+                                                            width: 38, height: 38,
                                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             cursor: eatMealInFlight !== null ? 'not-allowed' : 'pointer',
                                                             opacity: eatMealInFlight !== null && eatMealInFlight !== index ? 0.5 : 1,
@@ -8224,8 +8314,8 @@ const DashboardInner = () => {
                                                         aria-label={`Registrar que te comiste ${meal.name}`}
                                                     >
                                                         {eatMealInFlight === index
-                                                            ? <Loader2 size={20} className="animate-spin" color={isDark ? '#6EE7B7' : '#059669'} />
-                                                            : <CheckCircle size={20} color={isDark ? '#6EE7B7' : '#059669'} />}
+                                                            ? <Loader2 size={18} className="animate-spin" color={isDark ? '#6EE7B7' : '#059669'} />
+                                                            : <CheckCircle size={18} color={isDark ? '#6EE7B7' : '#059669'} />}
                                                     </button>
                                                 )}
                                             </div>
