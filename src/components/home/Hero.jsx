@@ -178,10 +178,29 @@ const Hero = () => {
                     initial="hidden"
                     animate="show"
                 >
+                    {/* [P1-HERO-DEDUP-ACCENT · 2026-08-09] SIN `<br />`. Lo llevaba
+                        para forzar dos líneas, y al subir el titular a 104 px el
+                        corte fijo dejaba «no» HUÉRFANO en su propia línea — el
+                        pivote de la afirmación, en el peor sitio posible.
+
+                        No se arregla bajando el techo. MEDIDO: la columna da
+                        625 px y «no improvisada» pide 6,36 × el tamaño de
+                        fuente; resolviendo contra el ancho de columna, con
+                        `8.2vw` esa línea solo cabe por encima de ~1209 px de
+                        viewport. Y a 1200 px exactos la columna ENCOGE 46 px
+                        (el padding del contenedor salta de 2rem a 4rem y el gap
+                        de 4 a 5rem) mientras la fuente sigue creciendo, así que
+                        no existe un techo fijo que estabilice el corte en toda
+                        la banda: cualquier número que elija se rompe en algún
+                        ancho.
+
+                        `text-wrap: balance` (en el .module.css) reparte las
+                        líneas en CADA ancho y no deja huérfanas. Es la misma
+                        familia que el `text-wrap: pretty` que ya usa `.lead`.
+                        Si un día hay que volver a un corte fijo, que sea con la
+                        medición de arriba delante. */}
                     <motion.h1 className={styles.title} variants={V.settle}>
-                        Nutrición calculada,
-                        <br />
-                        no improvisada
+                        Nutrición calculada, no improvisada
                     </motion.h1>
 
                     <motion.div className={styles.titleRule} variants={V.rule} aria-hidden="true" />

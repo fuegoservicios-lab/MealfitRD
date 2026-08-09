@@ -99,22 +99,43 @@
 /* ── TITULAR ─────────────────────────────────────────────────────────────
    Tinta plana. Es el LCP desde que murió el vídeo: Outfit ya va precargada
    (index.html, P3-SELF-HOST-FONTS), así que no lo retrasa la fuente. */
+/* [P1-HERO-DEDUP-ACCENT · 2026-08-09] 5.8vw/4rem → 8.2vw/6.5rem y peso
+   400 → 500. El diagnóstico de «poco llamativo» era medible, no una
+   impresión: a 1440 px el titular ocupaba 64 px a peso ligero mientras TRES
+   franjas horizontales de mono gris de 11-12 px (cartucho, franja de cinco
+   celdas, pie de figura) le disputaban la pantalla, contra un solo objeto de
+   tinta sólida. Se borró una de las tres y el titular se llevó el sitio.
+
+   EL PISO SE QUEDA EN 2.5rem, y no es timidez. La primera línea son 20
+   caracteres; a 375 px de ancho la columna mide 327 px, así que subir el piso
+   desborda la línea justo en el ancho donde está el mercado. Lo que sobraba
+   era techo. Si algún día desborda, se baja el `vw` — nunca el piso. */
 .title {
     font-family: var(--font-heading);
-    font-size: clamp(2.5rem, 5.8vw, 4rem);
-    font-weight: 400;
-    line-height: 1.06;
-    letter-spacing: -0.02em;
+    font-size: clamp(2.5rem, 8.2vw, 6.5rem);
+    font-weight: 500;
+    line-height: 0.94;
+    letter-spacing: -0.035em;
     color: var(--pa-ink);
     margin: 0;
+    /* El titular perdió su `<br />` — a 104 px el corte fijo dejaba «no»
+       huérfano en su propia línea. `balance` reparte las líneas en cada ancho,
+       que es lo único robusto aquí: la columna y el tamaño de fuente no crecen
+       al mismo ritmo, y a 1200 px la columna encoge de golpe mientras la fuente
+       sigue subiendo. La justificación medida está en el JSX, junto al <h1>. */
+    text-wrap: balance;
 }
 
+/* 3px de tinta plena, no 1px de gris: a 104 px de titular una hairline no lo
+   remata, lo subraya con timidez. Conserva el `transform-origin` — el trazado
+   `scaleX` de 520 ms se dibuja desde la izquierda, y sin él saldría creciendo
+   desde el centro, que es otro gesto y no el de este sistema. */
 .titleRule {
     width: 100%;
-    height: 1px;
-    background: var(--pa-rule);
+    height: 3px;
+    background: var(--pa-ink);
     transform-origin: left center;
-    margin: 1.5rem 0 1.75rem;
+    margin: 1.75rem 0 1.75rem;
 }
 
 /* ── CUERPO ──────────────────────────────────────────────────────────────── */
@@ -258,10 +279,13 @@
     font-size: 12px;
     line-height: 1.65;
     color: var(--pa-ink-2);
-    /* Mismo ancho que el viewBox de la figura (`.fig00 { max-width: 420px }`)
-       y mismo centrado: así la regla del pie coincide con el encuadre del
-       dibujo en vez de sobresalir por la izquierda. */
-    max-width: 420px;
+    /* Mismo ancho que el tope de la figura (`.fig00 { max-width: 560px }`) y
+       mismo centrado: así la regla del pie coincide con el encuadre del dibujo
+       en vez de sobresalir por la izquierda. LOS DOS VALORES ESTÁN ATADOS —
+       subir uno sin el otro desalinea el pie, y es de los fallos que no se ven
+       en el diff porque cada línea, por separado, parece correcta.
+       [P1-HERO-DEDUP-ACCENT · 2026-08-09] 420 → 560 con la figura. */
+    max-width: 560px;
     margin: 1.25rem auto 0;
     padding-top: 0.75rem;
     border-top: 1px solid var(--pa-rule-3);

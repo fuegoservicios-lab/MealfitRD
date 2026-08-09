@@ -20,9 +20,25 @@
 .fig00 {
     display: block;
     width: 100%;
-    /* Tope de 420 = ancho del viewBox → a tamaño completo la escala es 1:1 y
-       los rótulos aterrizan en su tamaño nominal. */
-    max-width: 420px;
+    /* [P1-HERO-DEDUP-ACCENT · 2026-08-09] 420 → 560. Antes el tope igualaba al
+       ancho del viewBox, así que a tamaño completo la escala era 1:1 y los
+       rótulos aterrizaban en su tamaño nominal. Ahora la figura escala a 1,33×
+       y EL viewBox NO SE TOCA: es `width: 100%`, así que no hay que mover una
+       sola coordenada.
+
+       Era el objeto más grande de la primera pantalla y también el más pálido
+       —hairline sobre papel dentro de una columna 5fr, con aire muerto
+       alrededor—, y eso pesaba en el diagnóstico de «poco llamativo».
+
+       LOS RÓTULOS NO CORREN PELIGRO POR ARRIBA. Su tamaño CSS real es
+       `font-size × (ancho renderizado / ancho del viewBox)`: a 560 dan
+       13 × (560/420) = 17,3 px, muy por encima del piso de 11. El riesgo de
+       esta figura siempre estuvo por ABAJO — de ahí el recorte del viewBox a
+       364 bajo 768 px, que se queda como está.
+
+       `vector-effect: non-scaling-stroke` mantiene el trazo en 1 px CSS real
+       al escalar: el dibujo se agranda sin engordar. */
+    max-width: 560px;
     height: auto;
     margin: 0 auto;
 
