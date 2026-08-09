@@ -185,9 +185,47 @@ const ZONE_DISPLAY_COLOR = {
 };
 const zoneColor = (zoneKey) => ZONE_DISPLAY_COLOR[zoneKey] || '#94A3B8';
 
-// Umbral "queda poco" (cantidad). Por debajo se marca la fila + suma al
-// indicador "por reponer" del sidebar. Independiente del badge shelf-life.
-const LOW_THRESHOLD = 0.5;
+/* [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] AQUÍ VIVÍA EL UMBRAL DE STOCK BAJO: una
+   constante de 0,5 contra la que se comparaba `quantity`. Por debajo se teñía
+   la fila, se pintaba un chip vago y se sumaba al contador del sidebar.
+
+   (El nombre exacto de la constante y el del chip NO se citan a propósito: el
+   guard parser-based escanea este fichero ENTERO, comentarios incluidos, así
+   que escribirlos aquí haría fallar el test contra su propio arreglo. Misma
+   regla que la cabecera de `Hero.jsx` para las APIs de vídeo borradas.)
+
+   Comparaba `quantity` —un número cuyo significado depende ENTERAMENTE de
+   `unit`— contra una constante sin unidad. FORENSE sobre las 63 filas reales
+   del owner:
+
+     · Solo alcanzaba a las filas de PESO. Las 50 discretas (paquete, pote,
+       unidad, lata, mazo, cabeza…) tienen cantidad mínima 1, así que 0,5 les
+       era estructuralmente inalcanzable — incluidas 44 con EXACTAMENTE 1
+       unidad, que sí se agotan al usarse. El detector era ciego justo donde
+       "me queda uno" significa algo.
+     · De las 13 de peso marcaba 9, partiendo por la mitad el rango normal de
+       compra (0,2167 .. 1,75 lb). Yuca 0,87 lb pasaba; Cebolla 0,5 lb no.
+     · 6 de las 9 traían `source='shopping_list'`: eran las cantidades que la
+       propia app dijo que compraras.
+
+   Y lo que lo cierra: tras "exportar la lista de compras a la nevera" la
+   nevera contiene EXACTAMENTE lo que el plan pide, así que "por reponer" tiene
+   que valer 0 en ese instante. Cualquier número ahí es falso por construcción
+   — el owner lo reportó justo después de importar.
+
+   "Poco" no es una propiedad de un número: es una RELACIÓN entre lo que tienes
+   y lo que necesitas. Ningún umbral constante puede expresarla, y menos sobre
+   una columna cuya unidad cambia fila a fila.
+
+   NO lo reintroduzcas, ni con este número ni con otro. Si quieres un estado de stock de
+   verdad, tiene que compararse contra lo que el plan pide, y el emparejamiento
+   nombre↔fila de nevera está fijado en `constants.pantry_names_match`
+   (backend, P1-PANTRY-NAME-RESOLUTION) — no se reimplementa en el cliente.
+
+   Lo que ocupa su lugar: la caducidad (`utils/shelfLife.js`), la única
+   afirmación que esta página puede sostener con lo que ya tiene cargado, y
+   cuyo fallback es CALLARSE (sin `shelf_life_days` o sin `created_at`, no
+   pinta nada). */
 
 // Glyphs inline para el brand/nav del sidebar (sin depender de iconos lucide
 // adicionales; mismo trazo que el resto de la UI).
@@ -2145,14 +2183,17 @@ const Pantry = () => {
         // master_ingredients.market_container (curado) sobre item.unit.
         const displayUnit = item.master_ingredients?.market_container || item.unit;
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
-        const low = !isDisabled && Number(item.quantity) <= LOW_THRESHOLD;
         const atFloor = item.quantity <= 1;
         const badge = getShelfLifeBadge(item);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
+        // [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] El estado de atención de la fila
+        // cuelga de la CADUCIDAD, no de la cantidad (ver la nota larga donde
+        // vivía el umbral). Misma tinta ámbar; ahora responde a algo cierto.
+        const needsAttention = !isDisabled && !!badge;
         return (
             <div
                 key={item.id}
-                className={`${fstyles.row} ${low ? fstyles.low : ''}`}
+                className={`${fstyles.row} ${needsAttention ? fstyles.low : ''}`}
                 style={{ '--cat': cat, opacity: isDisabled ? 0.5 : 1 }}
             >
                 <span className={fstyles.rdot} />
@@ -2178,9 +2219,11 @@ const Pantry = () => {
                         />
                     );
                 })()}
-                {low && (
-                    <span className={fstyles.lowtag}><AlertCircle size={11} strokeWidth={2.5} /> Queda poco</span>
-                )}
+                {/* [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] Aquí iba un chip de stock bajo
+                    disparado por el umbral ciego. Lo sustituye el chip de caducidad de
+                    justo debajo, que ya se pintaba al lado: dice «Caduca en 2 días», que
+                    es una afirmación verificable, en vez de una vaga que no decía ni
+                    cuánto ni respecto a qué. */}
                 {badge && (
                     <span
                         className={fstyles.shelf}
@@ -2285,14 +2328,17 @@ const Pantry = () => {
         const isDisabled = disabledIngredients.includes(normalizedName);
         const displayUnit = item.master_ingredients?.market_container || item.unit;
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
-        const low = !isDisabled && Number(item.quantity) <= LOW_THRESHOLD;
         const atFloor = item.quantity <= 1;
         const badge = getShelfLifeBadge(item);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
+        // [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] El estado de atención de la fila
+        // cuelga de la CADUCIDAD, no de la cantidad (ver la nota larga donde
+        // vivía el umbral). Misma tinta ámbar; ahora responde a algo cierto.
+        const needsAttention = !isDisabled && !!badge;
         return (
             <div
                 key={item.id}
-                className={`${mstyles.item} ${low ? mstyles.low : ''}`}
+                className={`${mstyles.item} ${needsAttention ? mstyles.low : ''}`}
                 style={{ '--cat': cat, opacity: isDisabled ? 0.5 : 1 }}
             >
                 <div className={mstyles.itop}>
@@ -2327,9 +2373,8 @@ const Pantry = () => {
                             />
                         );
                     })()}
-                    {low && (
-                        <span className={mstyles.lowtag}><AlertCircle size={11} strokeWidth={2.5} /> Queda poco</span>
-                    )}
+                    {/* [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] Ídem que en la fila de
+                        escritorio: el chip vago de stock lo sustituye el de caducidad. */}
                     {badge && (
                         <span
                             className={mstyles.shelf}
@@ -2421,8 +2466,15 @@ const Pantry = () => {
     // Derivados de presentación del mueble activo (Nevera/Alacena).
     const zoneDefsForTemp = ZONE_DEFINITIONS.filter((z) => tempOfZone(z) === tempZone);
     const tempZoneCount = zoneDefsForTemp.reduce((acc, z) => acc + (inventoryByZone[z.key]?.length || 0), 0);
-    const lowInTempZone = zoneDefsForTemp.reduce(
-        (acc, z) => acc + (inventoryByZone[z.key] || []).filter((it) => Number(it.quantity) <= LOW_THRESHOLD).length,
+    // [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] Contaba filas con `quantity <= 0.5`
+    // y lo rotulaba «N por reponer». Es el número que acusó al owner de tener
+    // poco stock justo después de importar la lista de compras — o sea, con la
+    // nevera conteniendo EXACTAMENTE lo que el plan pide. Ahora cuenta lo que la
+    // página puede afirmar de verdad: lo que se va a echar a perder.
+    // `getShelfLifeBadge` sobre estos objetos funciona porque `inventoryByZone`
+    // los construye con spread (conserva `created_at` y `master_ingredients`).
+    const needsAttentionInTempZone = zoneDefsForTemp.reduce(
+        (acc, z) => acc + (inventoryByZone[z.key] || []).filter((it) => !!getShelfLifeBadge(it)).length,
         0,
     );
     // Si el filtro de categoría no pertenece al mueble activo, cae a 'todos'.
@@ -2639,13 +2691,18 @@ const Pantry = () => {
                             })}
                         </nav>
 
-                        <div className={`${fstyles.lowbox} ${lowInTempZone ? '' : fstyles.none}`}>
+                        {/* [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] Decía «N por reponer /
+                            Tienes poco stock» contando cantidades bajo un umbral ciego a
+                            la unidad. Ahora nombra lo que cuenta de verdad: caducidad.
+                            El caso "todo bien" también cambia de frase — «sin faltantes»
+                            afirmaba cobertura del plan, que esta página no calcula. */}
+                        <div className={`${fstyles.lowbox} ${needsAttentionInTempZone ? '' : fstyles.none}`}>
                             <span className={fstyles.lowico}>
-                                {lowInTempZone ? <AlertCircle size={16} /> : <CheckGlyph size={16} />}
+                                {needsAttentionInTempZone ? <AlertCircle size={16} /> : <CheckGlyph size={16} />}
                             </span>
                             <span className={fstyles.lowtxt}>
-                                <b>{lowInTempZone ? `${lowInTempZone} por reponer` : 'Todo en orden'}</b>
-                                {lowInTempZone ? 'Tienes poco stock' : 'Sin faltantes en esta zona'}
+                                <b>{needsAttentionInTempZone ? `${needsAttentionInTempZone} por consumir` : 'Nada por vencer'}</b>
+                                {needsAttentionInTempZone ? 'Caducan pronto' : 'Sin caducidades próximas'}
                             </span>
                         </div>
                     </aside>
