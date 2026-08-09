@@ -15,7 +15,7 @@ import ClosingBand from '../components/home/ClosingBand';
 // —tres ficheros— y ya habían drifteado: esta página decía `llm: 55` en la fila
 // de «cuadran al recalcular» donde las otras dos decían `llm: 0`. El dueño fijó
 // el valor el 2026-08-02: era 0, y esta página era la que mentía.
-import { MACROS, VERSUS, CAPS, BANDS, HEADLINE_FIGURES, es1, CLINICAL, CLINICAL_DELIVERY_PCT } from '../data/benchmark';
+import { MACROS, VERSUS, CAPS, BANDS, HEADLINE_FIGURES, es1, SERIES, CLINICAL, CLINICAL_DELIVERY_PCT } from '../data/benchmark';
 // Marco minimalista-científico compartido con /como-funciona y /funciones.
 import styles from './HowItWorksPage.module.css';
 // Estilos específicos de esta página (tabla comparativa + barras por macro).
@@ -173,6 +173,11 @@ const PrecisionPage = () => {
                             <p className={styles.secLead}>
                                 El mismo plan, con y sin nuestro motor determinista. Es una prueba A/B del mismo
                                 pipeline — comparamos enfoques, no productos con nombre.
+                                {/* [P1-LANDING-CLINICAL-FACTS · 2026-08-09] procedencia visible de la serie:
+                                    era invisible en la página y el motor ha evolucionado desde entonces. */}
+                                {' '}Serie medida en {SERIES.monthLong} sobre {SERIES.n} planes dominicanos
+                                reales; las cifras clínicas de la sección 05 son posteriores y del motor
+                                vigente. Cuando re-midamos esta serie, actualizaremos la tabla — nunca al revés.
                             </p>
                         </Reveal>
                         <Reveal className={t.cmpWrap}>
@@ -311,6 +316,18 @@ const PrecisionPage = () => {
                                     vitamina K con warfarina — presentes en todos los casos que los requieren.
                                 </div>
                             </div>
+                        </Reveal>
+                        <Reveal>
+                            <p className={styles.secLead}>
+                                Los planes entregados de la matriz promediaron {es1(CLINICAL.qualityIndex)}/100
+                                en nuestro índice interno de calidad —siete ejes: seguridad clínica, banda de
+                                macros, variedad, coherencia culinaria, micronutrientes, realismo de porciones
+                                y presupuesto— y un plan clínico completo tarda ~{CLINICAL.latencyP50Min} minutos
+                                en generarse, con cada comida pasando por las guardas deterministas antes de
+                                llegar a ti. Cada corrida queda registrada con fecha e identificador; cuando
+                                corramos la matriz de nuevo, el agregado se actualiza sumando — nunca
+                                sustituyendo por la mejor corrida.
+                            </p>
                         </Reveal>
                     </section>
                 </div>

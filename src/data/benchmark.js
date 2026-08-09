@@ -157,5 +157,6 @@ export const CLINICAL = {
     minMealsPct: 100,      // ≥5 comidas en insulina/bariátrica, verificado donde aplica
     vitKMonitorPct: 100,   // monitor de vitamina K presente con warfarina
     qualityIndex: 90.1,    // media ponderada del índice interno (13×91,9 + 11×87,9)/24
+    latencyP50Min: 5,      // p50 de generación ≈ 269-372s en las corridas → «~5 minutos»
 };
 export const CLINICAL_DELIVERY_PCT = Math.round((CLINICAL.delivered / CLINICAL.samples) * 100);
