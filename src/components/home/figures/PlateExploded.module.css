@@ -128,13 +128,36 @@
     stroke: none;
 }
 
-/* Los valores de cota van a tinta plena: son el dato, no el rótulo. */
+/* Los valores de cota van a tinta plena: son el dato, no el rótulo.
+   (El acento los sobreescribe bajo `.cota` — ver el bloque de abajo.) */
 .value {
     font-family: var(--font-mono);
     font-size: 13px;
     letter-spacing: 0.04em;
     fill: var(--pa-ink);
     stroke: none;
+}
+
+/* ── COTAS: LA ÚNICA TINTA DE COLOR ───────────────────────────────────────
+   [P1-HERO-DEDUP-ACCENT · 2026-08-09] El acento marca la cifra, y una cota ES
+   la afirmación «esto lo medimos y da esto». Las tres reglas van juntas: la
+   geometría, sus flechas y su valor son un solo enunciado — teñir solo el
+   número deja una cota a dos tintas, que se lee como un error de registro de
+   imprenta, no como énfasis.
+
+   Scopeado bajo `.cota` y no aplicado a `.stroke` global: `.stroke` lo
+   comparten las cinco piezas del despiece, que codifican MATERIAL (§5.5) y
+   tienen que seguir en tinta. */
+.cota .stroke {
+    stroke: var(--pa-accent);
+}
+
+.cota .arrow {
+    fill: var(--pa-accent);
+}
+
+.cota .value {
+    fill: var(--pa-accent);
 }
 
 /* ── MÓVIL ───────────────────────────────────────────────────────────────

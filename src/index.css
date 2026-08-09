@@ -474,6 +474,25 @@ html[data-theme="paper"] {
   --pa-grid: #D8D8D3;
   --pa-grid-major: #C4C4BE;
 
+  /* [P1-HERO-DEDUP-ACCENT · 2026-08-09] LA ÚNICA TINTA DE COLOR DEL SISTEMA.
+     Supersede parcial de P2-PAPER-NO-INK: solo la cláusula «cero color».
+
+     QUÉ SIGNIFICA: marca LA CIFRA — un numeral que procede de un SSOT
+     (benchmark.js, systemFacts.js, TIER_CREDITS, o una cota cuyo número es
+     real). Condición NECESARIA, NO SUFICIENTE: ser cifra habilita el acento,
+     no lo obliga (el 17 del cartucho se queda en tinta a propósito).
+     Leerlo al revés lo convierte en un tinte automático, que es exactamente
+     lo que lo vaciaría de significado.
+
+     NUNCA sobre prosa, sobre un control, sobre una regla, ni sobre una pieza
+     de material de la Fig. 00.
+
+     POR QUÉ ESTE ROJO Y NO OTRO: 5,83:1 contra --pa-paper en AMBAS
+     direcciones, así que pasa AA en texto normal como tinta y como
+     contratinta. #E24A15 da 3,88 (falla AA); #D6301A da 4,72 (pasa por
+     0,22); #8C1A12 da 8,93 pero deja de leerse como rojo. */
+  --pa-accent: #C1200E;
+
   /* — Re-mapeo de los tokens heredados, para que todo lo que ya usa var(--*)
        caiga en la paleta papel sin tocarlo — */
   --primary: #0B0B0B;

@@ -297,7 +297,12 @@ const PlateExploded = () => {
             </g>
 
             {/* ── COTAS ─────────────────────────────────────────────────────── */}
-            <g {...g('cotas')}>
+            {/* [P1-HERO-DEDUP-ACCENT · 2026-08-09] `styles.cota` scopea el acento
+                a este grupo. Va en el <g> y no en cada elemento porque el grupo
+                YA es exactamente el conjunto acotado: `.arrow` y `.value` no se
+                usan en ningún otro sitio de la figura, y `.stroke` sí — teñir
+                `.stroke` global pintaría de rojo las cinco piezas. */}
+            <g className={styles.cota} {...g('cotas')}>
                 {/* Cota total: abarca la pila entera (arroz .. aguacate). */}
                 <line className={styles.stroke} x1="302" y1="30" x2="352" y2="30" {...T} />
                 <line className={styles.stroke} x1="302" y1="360" x2="352" y2="360" {...T} />
