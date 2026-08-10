@@ -63,8 +63,26 @@
    Nada de esto toca el modo página: todo cuelga de `.inDialog`. */
 .inDialog {
     padding: 1.25rem 1.5rem 2rem;
-    max-width: none;
     position: relative;
+    /* [P1-SETTINGS-DIALOG-STABLE · 2026-08-10] `width: 100%` + `margin: 0`
+       SOSTIENEN LA VENTANA QUIETA. No son cosmética: son la corrección del
+       defecto «cada vez que cambio de sección se mueve todo».
+
+       Como página, `.wrapper` lleva `max-width: 1200px; margin: 0 auto` para
+       centrarse en una pantalla ancha. Dentro del diálogo es hijo de un flex en
+       columna, y **un margen automático en el eje cruzado anula el `stretch`**:
+       el wrapper deja de ocupar el panel y pasa a medir su CONTENIDO, además
+       centrándose. Resultado medido: 1040px en Privacidad, 941 en Súper
+       Personalización, 698 en Plan & Objetivo — la navegación entera saltaba
+       171px al cambiar de sección, y la columna de contenido pasaba de 720 a
+       378. Quitar el `max-width` (primer intento) lo empeoró: sin tope, el
+       ancho quedó a merced de lo que cada sección tuviera dentro.
+
+       Con ancho fijo al 100% del panel, las 7 secciones comparten rejilla y lo
+       único que cambia al navegar es el contenido — que es lo que debe cambiar. */
+    width: 100%;
+    max-width: none;
+    margin: 0;
 }
 
 /* La X va a la esquina, no en una línea propia sobre el título. Se queda solo

@@ -57,6 +57,14 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* [P1-SETTINGS-DIALOG-STABLE · 2026-08-10] El hueco de la barra de scroll se
+       reserva SIEMPRE. Unas secciones desbordan (Privacidad pide 1336px de alto
+       contra 774 disponibles) y otras no (Suscripción cabe justa): sin esto, la
+       barra aparece y desaparece al navegar y el contenido se desplaza su ancho
+       —~15px en Windows, donde la barra ocupa sitio de verdad— en cada cambio.
+       Es el mismo defecto que las medidas de arriba, a menor escala: algo que
+       depende del contenido moviendo lo que no debería moverse. */
+    scrollbar-gutter: stable;
 }
 
 /* [P1-SETTINGS-DIALOG-POLISH · 2026-08-10] EL CERCO BLANCO AL REFRESCAR.
