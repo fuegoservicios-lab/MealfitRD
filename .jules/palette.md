@@ -1,0 +1,3 @@
+## 2025-02-14 - Navigation Menus explicit linking using aria-controls
+**Learning:** For toggleable or expandable UI elements, such as account menus and mobile navigation bars, using `aria-expanded` and an appropriate `aria-label` is not always enough. It is crucial to explicitly link the toggle trigger to the expanded container by using the `aria-controls` attribute on the trigger that references the specific `id` of the container.
+**Action:** When adding or auditing toggle buttons (like mobile hamburger menus or account dropdown triggers), always ensure they are programmatically linked to their target containers via an `id` and `aria-controls`.
