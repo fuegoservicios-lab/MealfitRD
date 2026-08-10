@@ -404,6 +404,19 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                             <span style={{ color: 'var(--primary)', fontSize: '0.8rem' }}> · {it.detected_brand}</span>
                         )}
                         {!it.master_ingredient_id && ' (sin match en el catálogo)'}
+                        {/* [P1-SCAN-CATALOG-MATCH · 2026-08-10] Cuando el alimento del
+                            catálogo NO se llama como lo que leyó la foto, se enseñan los
+                            dos. Antes solo se veía el del catálogo, así que un mapeo
+                            equivocado borraba de la pantalla la lectura del modelo: sobre
+                            la foto de un pan aparecía «Polvo de hornear» y parecía que el
+                            modelo se había equivocado, cuando había leído bien. El
+                            porcentaje de al lado es la confianza de ESA lectura, no del
+                            mapeo — razón de más para que la lectura se vea. */}
+                        {it.catalog_renamed && it.detected_name && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                                {' '}· leído: {it.detected_name}
+                            </span>
+                        )}
                     </span>
                     <span style={{ color: 'var(--text-muted)' }}>
                         {Math.max(1, Math.round(it.quantity || 1))} {it.catalog_unit || it.unit}
