@@ -1444,7 +1444,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
     return (
         <>
-            <div className={styles.wrapper}>
+            {/* [P1-SETTINGS-DIALOG-POLISH · 2026-08-10] En ventana, el mismo
+                contenido se despoja de su chrome de página: ver el bloque
+                `.inDialog` del .module.css. */}
+            <div className={`${styles.wrapper} ${inDialog ? styles.inDialog : ''}`}>
                 {/* Back arrow visible en ambos viewports:
                     - Móvil + dentro de una sección: vuelve al listado de Ajustes.
                     - Móvil en listado / Desktop siempre: sale al dashboard.

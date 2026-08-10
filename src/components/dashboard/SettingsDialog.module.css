@@ -59,6 +59,22 @@
     overscroll-behavior: contain;
 }
 
+/* [P1-SETTINGS-DIALOG-POLISH · 2026-08-10] EL CERCO BLANCO AL REFRESCAR.
+   El hook de a11y enfoca el panel al abrirlo para que un lector de pantalla lo
+   anuncie. Refrescar es una acción de TECLADO (F5 / Ctrl+R), así que la
+   heurística `:focus-visible` de Chrome considera que el usuario navega con
+   teclado y le pinta al panel su anillo de foco por defecto — blanco sobre el
+   tema oscuro, rodeando toda la ventana.
+
+   Se quita SOLO en este contenedor, y no es una pérdida de accesibilidad: es un
+   destino de foco programático (`tabindex="-1"`), no algo que se pueda tabular.
+   Los controles de dentro conservan su `:focus-visible` intacto, que es donde el
+   anillo significa algo. */
+.panel:focus,
+.panel:focus-visible {
+    outline: none;
+}
+
 @keyframes dialogFadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
