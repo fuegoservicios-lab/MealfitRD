@@ -48,6 +48,14 @@ export const QBudget = ({ onAutoAdvance }) => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [minBudget]);
+    // [P1-BUDGET-BANDS-RECALIBRATE · 2026-08-09] Costo típico = la referencia del
+    // tier medio que devuelve el backend. Tras la recalibración de bandas esa
+    // cifra ES el costo real medido, así que sirve de expectativa sin duplicar
+    // ninguna constante aquí. `null` si el fetch no ha vuelto: la frase se omite.
+    const typicalCost = tierReferences && Number(tierReferences.medium) > 0
+        ? Math.round(Number(tierReferences.medium))
+        : null;
+
     const _amountNum = Number(formData.budgetAmount);
     const belowMin = isCustom && formData.budgetAmount !== '' && formData.budgetAmount != null
         && _amountNum > 0 && _amountNum < minBudget;
@@ -139,9 +147,24 @@ export const QBudget = ({ onAutoAdvance }) => {
                             fontWeight: belowMin ? 600 : 400,
                         }}
                     >
+                        {/* [P1-BUDGET-BANDS-RECALIBRATE · 2026-08-09] El mensaje da el
+                            piso Y la expectativa. Antes solo daba el piso, y eso creaba
+                            un hueco medido: el mínimo queda ~15 % POR DEBAJO del costo
+                            real típico (piso RD$13.650 vs típico RD$15.747 a 30 días),
+                            así que quien ponía exactamente el mínimo veía su plan salir
+                            por encima y la reconciliación se lo reprochaba como
+                            «excedido». El sistema le aceptaba un número y luego lo
+                            regañaba por él.
+
+                            El «típico» sale de `tierReferences.medium` (backend), no de
+                            una constante repetida aquí: tras la recalibración esa
+                            referencia ES el costo típico medido, así que citarla
+                            mantiene un solo sitio de verdad. Si falta (fetch en vuelo o
+                            caído) se omite la frase — mejor dar solo el piso que
+                            inventar una cifra. */}
                         {belowMin
                             ? `⚠️ El mínimo para ${cycleDays} días es ${currencySymbol}${minBudget.toLocaleString('en-US')}. Súbelo para poder crear un plan viable.`
-                            : `La IA ajustará los ingredientes para acercarse a este monto. Mínimo ${currencySymbol}${minBudget.toLocaleString('en-US')} para ${cycleDays} días${budgetIsPersonalized ? ' (según tus calorías y metas)' : ''}.`}
+                            : `La IA ajustará los ingredientes para acercarse a este monto. Mínimo ${currencySymbol}${minBudget.toLocaleString('en-US')} para ${cycleDays} días${budgetIsPersonalized ? ' (según tus calorías y metas)' : ''}.${typicalCost ? ` Un plan típico ronda ${currencySymbol}${typicalCost.toLocaleString('en-US')}.` : ''}`}
                     </span>
                 </div>
             )}
