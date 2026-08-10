@@ -34,8 +34,17 @@
        image-set: navegadores con soporte WebP (~99%, Android-Chrome dominante)
        bajan solo el .webp; los demás caen al .png. El PNG queda como red de
        seguridad (NUNCA descargado por la mayoría). */
-    background-image: url('/dashboard_bg.png');
-    background-image: image-set(url('/dashboard_bg.webp') type('image/webp'), url('/dashboard_bg.png') type('image/png'));
+    /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Raster APLANADO (_v2). El anterior
+       saltaba 33,8 L* dentro de la misma pantalla: manchas moradas oscuras junto
+       a zonas casi blancas. Como la barra lateral y el encabezado son
+       traslúcidos, su legibilidad dependía de qué mancha les tocara detrás.
+       El v2 comprime la luminosidad conservando la cromaticidad: variación 10,2,
+       separación de la tarjeta 10,5 (era 5,5) y el mismo aqua (saturación 0,169
+       contra 0,167). Se genera con scripts/flatten-dashboard-bg.py.
+       El NOMBRE cambia a propósito: public/ no lleva hash, así que sin renombrar
+       los usuarios seguirían viendo el fondo viejo desde su caché HTTP. */
+    background-image: url('/dashboard_bg_v2.png');
+    background-image: image-set(url('/dashboard_bg_v2.webp') type('image/webp'), url('/dashboard_bg_v2.png') type('image/png'));
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

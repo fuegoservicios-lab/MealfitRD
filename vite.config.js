@@ -76,7 +76,7 @@ export default defineConfig(({ mode }) => ({
         // (costoso en datos móviles del mercado es-DO). Excluidos:
         //   - html2pdf-*.js (~976KB): lazy `await import()` on-demand (P2-LAZY-PDF);
         //     se baja solo cuando el usuario exporta el PDF, no en el install.
-        //   - dashboard_bg.png (~560KB): fondo CSS que el navegador pide por red al
+        //   - dashboard_bg_v2.png (~1MB): fondo CSS que el navegador pide por red al
         //     renderizar; degrada a fondo liso sin red (no hay requisito offline-first
         //     cosmético). [P6-SPEED-IMG] Sirve .webp (43.6KB) vía image-set; el .png es
         //     solo fallback y el .webp NO está en globPatterns → ninguno se precachea.
@@ -90,7 +90,7 @@ export default defineConfig(({ mode }) => ({
         // offline-load.
         globIgnores: [
           'assets/html2pdf-*.js',
-          'dashboard_bg.png',
+          'dashboard_bg_v2.png',
           'og-image.png',
         ],
       },

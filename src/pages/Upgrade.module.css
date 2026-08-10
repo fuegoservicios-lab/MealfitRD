@@ -10,7 +10,10 @@
 .root {
     min-height: 100vh;
     /* [UPGRADE-LIGHT-BG · 2026-05-31] Mismo fondo de burbujas del Dashboard claro
-       (public/dashboard_bg.png; ya cacheada porque el dashboard la usa). El overlay
+       (public/dashboard_bg_v2.png; ya cacheada porque el dashboard la usa). El overlay
+       [P1-LIGHT-INK-CONTRACT · 2026-08-10] Sigue al raster aplanado del dashboard:
+       si esta pagina se quedara en el v1 tendria un fondo distinto al resto de la
+       app, y ademas el v1 se borra del repo.
        blanco translúcido la suaviza un poco (equivale al opacity:0.85 que el dashboard
        aplica vía su ::before). Fijo al viewport. El modo oscuro usa glows+curvas
        (override `:global(html[data-theme="dark"]) .root` más abajo). */
@@ -19,10 +22,10 @@
        en la 2ª capa (la 1ª es el overlay blanco translúcido). */
     background-image:
         linear-gradient(rgba(248, 250, 252, 0.06), rgba(248, 250, 252, 0.06)),
-        url('/dashboard_bg.png');
+        url('/dashboard_bg_v2.png');
     background-image:
         linear-gradient(rgba(248, 250, 252, 0.06), rgba(248, 250, 252, 0.06)),
-        image-set(url('/dashboard_bg.webp') type('image/webp'), url('/dashboard_bg.png') type('image/png'));
+        image-set(url('/dashboard_bg_v2.webp') type('image/webp'), url('/dashboard_bg_v2.png') type('image/png'));
     background-size: cover, cover;
     background-position: center, center;
     background-repeat: no-repeat, no-repeat;
