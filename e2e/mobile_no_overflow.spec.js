@@ -27,6 +27,20 @@ import { test, expect } from '@playwright/test';
 
 const ANCHOS = [320, 360, 390, 430];
 
+/* [P1-MOTOR-TABLE-STACK · 2026-08-10] Las OTRAS rutas de papel. Este fichero
+   nació midiendo solo la home, y por ese hueco entró el defecto siguiente: la
+   tabla comparativa de /motor escondía 70px de una columna de prosa tras un
+   scroll horizontal, y se leía como texto cortado contra el borde.
+
+   Se miden a UN ancho (390px, el teléfono más común) y no a los cuatro: 10
+   rutas × 4 anchos son 40 cargas de página por corrida, y el ancho no es lo que
+   distingue a estas rutas entre sí — la home sigue cubriendo la banda completa.
+   Cubrir diez páginas mal es mejor que cubrir una perfecta y nueve nada. */
+const RUTAS_PAPEL = [
+  '/motor', '/precision', '/como-funciona', '/funciones',
+  '/precios', '/research', '/about', '/novedades', '/supermercado',
+];
+
 /** Elementos cuyo borde sale del viewport, con datos para diagnosticar. */
 async function desbordes(page) {
   return page.evaluate(() => {
@@ -79,6 +93,79 @@ test.describe('Landing sin desbordes en móvil', () => {
         `P1-MOBILE-FIT: ${fuera.length} elemento(s) fuera del viewport a ${width}px. ` +
           `Con overflow-x: clip esto NO se ve como scroll, se ve como texto cortado. ` +
           JSON.stringify(fuera, null, 1)
+      ).toEqual([]);
+    });
+  }
+
+  for (const ruta of RUTAS_PAPEL) {
+    test(`${ruta} no esconde contenido tras un scroll horizontal a 390px`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(ruta);
+      await expect(page.locator('#root')).toBeVisible({ timeout: 10_000 });
+      await page.evaluate(async () => {
+        const alto = document.documentElement.scrollHeight;
+        for (let y = 0; y < alto; y += 500) {
+          window.scrollTo(0, y);
+          await new Promise((r) => setTimeout(r, 60));
+        }
+        window.scrollTo(0, 0);
+      });
+      await page.waitForTimeout(1200);
+
+      // DOS defectos distintos, y el segundo es el que se coló:
+      //   (a) algo sobresale del viewport — el desborde mudo de siempre;
+      //   (b) algo cabe en el viewport pero ESCONDE parte de su contenido tras
+      //       un scroll lateral propio. Técnicamente no desborda, y por eso
+      //       ningún guard lo veía; para el lector es texto cortado.
+      const problemas = await page.evaluate(() => {
+        const vw = document.documentElement.clientWidth;
+        const escondido = [];
+        const fuera = [];
+        document.querySelectorAll('body *').forEach((el) => {
+          const b = el.getBoundingClientRect();
+          if (b.width <= 2 && b.height <= 2) return;
+          if (b.width === 0 || b.height === 0) return;
+          const cs = getComputedStyle(el);
+          const scrollaH = cs.overflowX === 'auto' || cs.overflowX === 'scroll';
+          if (scrollaH && el.scrollWidth > el.clientWidth + 4 && el.clientWidth > 40) {
+            escondido.push({
+              cls: String(el.className?.baseVal ?? el.className ?? '').slice(0, 40),
+              oculto: el.scrollWidth - el.clientWidth,
+              txt: (el.textContent || '').trim().slice(0, 40),
+            });
+          }
+          // Un hijo DENTRO de un scroller no cuenta como desborde: su recorte es
+          // el mecanismo del scroller, y ese caso ya lo acusa la lista de arriba.
+          const dentroDeScroller = el.closest('[data-scroll-x], *') && (() => {
+            let p = el.parentElement;
+            while (p && p !== document.body) {
+              const pcs = getComputedStyle(p);
+              if (pcs.overflowX === 'auto' || pcs.overflowX === 'scroll') return true;
+              p = p.parentElement;
+            }
+            return false;
+          })();
+          if (!dentroDeScroller && (b.right > vw + 0.5 || b.left < -0.5)) {
+            fuera.push({
+              cls: String(el.className?.baseVal ?? el.className ?? '').slice(0, 40),
+              right: Math.round(b.right),
+              txt: (el.textContent || '').trim().slice(0, 40),
+            });
+          }
+        });
+        return { escondido, fuera, vw };
+      });
+
+      expect(
+        problemas.fuera,
+        `P1-MOTOR-TABLE-STACK: elementos fuera del viewport en ${ruta}. ` +
+          JSON.stringify(problemas.fuera, null, 1)
+      ).toEqual([]);
+      expect(
+        problemas.escondido,
+        `P1-MOTOR-TABLE-STACK: hay contenido escondido tras scroll horizontal en ` +
+          `${ruta}. En un teléfono ese scroll lateral casi nadie lo descubre: se lee ` +
+          `como texto cortado contra el borde. ` + JSON.stringify(problemas.escondido, null, 1)
       ).toEqual([]);
     });
   }

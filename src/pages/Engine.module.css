@@ -425,7 +425,96 @@
 @media (max-width: 760px) {
     .feature { padding: 1.3rem 1.25rem; }
     .featureIcon { width: 40px; height: 40px; }
-    .cmpTable { min-width: 420px; }
+}
+
+/* ============================================================
+   [P1-MOTOR-TABLE-STACK · 2026-08-10] LA TABLA COMPARATIVA SE APILA EN MÓVIL.
+
+   Antes tenía `min-width: 420px` dentro de un `overflow-x: auto`. MEDIDO a
+   390px: el contenedor daba 350px útiles contra 420 de tabla, o sea **70px de
+   la columna «Bioboros» escondidos tras un scroll horizontal**. Y esa columna
+   es prosa —«Solo alimentos catalogados con precio real…»—, así que lo que se
+   veía era una frase cortada a media palabra contra el borde derecho. El dueño
+   lo reportó como «se ve cortada», que es exactamente lo que era.
+
+   Scroll horizontal es la salida correcta para una tabla ANCHA de datos
+   cortos (una serie numérica, una matriz). No lo es para tres columnas donde
+   una es un párrafo: no hay ancho en un teléfono donde eso quepa, y el scroll
+   lateral dentro de una página que ya scrollea en vertical casi nadie lo
+   descubre.
+
+   Apilar mantiene la comparación intacta —las tres celdas siguen juntas y
+   rotuladas— sin esconder nada. La `<table>` sigue siendo una tabla para el
+   lector de pantalla: solo cambia cómo se dibuja.
+   ============================================================ */
+@media (max-width: 640px) {
+    .cmpTableWrap {
+        overflow-x: visible;
+    }
+
+    .cmpTable {
+        min-width: 0;
+    }
+
+    /* El encabezado desaparece porque su trabajo —decir de qué columna es cada
+       celda— lo hacen los `data-label` de abajo, que viajan CON la celda. */
+    .cmpTable thead {
+        display: none;
+    }
+
+    .cmpTable,
+    .cmpTable tbody,
+    .cmpTable tr,
+    .cmpTable td {
+        display: block;
+        width: 100%;
+    }
+
+    /* Cada fila es un bloque separado por la misma hairline que separaba las
+       filas de la tabla: el ritmo del pliego no cambia, solo su dirección. */
+    .cmpTable tr {
+        border-bottom: 1px solid var(--pa-rule-3);
+        padding: 0.9rem 0 1rem;
+    }
+
+    .cmpTable tbody tr:last-child {
+        border-bottom: 1px solid var(--pa-rule);
+    }
+
+    .cmpTable td,
+    .cmpTable tbody tr:last-child td {
+        border-bottom: 0;
+        padding: 0.15rem 0;
+    }
+
+    /* El nombre del mecanismo encabeza su bloque: es el «título de fila» que en
+       la tabla llevaba la primera columna. */
+    .cmpTable td:first-child {
+        font-family: var(--font-heading);
+        font-weight: 500;
+        font-size: 1rem;
+        color: var(--pa-ink);
+        margin-bottom: 0.35rem;
+    }
+
+    .cmpTable td:not(:first-child)::before {
+        content: attr(data-label);
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--pa-ink-3, var(--pa-ink-2));
+        margin-top: 0.5rem;
+    }
+
+    /* La celda destacada conserva su fondo hundido —es lo que distingue la
+       columna nuestra— pero ahora necesita su propio aire lateral: ya no está
+       dentro de una celda con padding de tabla. */
+    .cmpTable td.cmpColHi {
+        padding: 0.5rem 0.8rem 0.7rem;
+        margin-top: 0.35rem;
+    }
 }
 
 /* ============================================================

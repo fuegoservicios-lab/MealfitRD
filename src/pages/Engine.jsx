@@ -313,11 +313,17 @@ const Engine = () => {
                             </tr>
                         </thead>
                         <tbody>
+                            {/* [P1-MOTOR-TABLE-STACK · 2026-08-10] `data-label` lleva el
+                                encabezado de cada columna. En escritorio no se usa; bajo
+                                640px la tabla se apila y esos rótulos son los que dicen
+                                a qué columna pertenece cada bloque, que en una tabla
+                                normal lo dice la posición. Sin ellos, apilar convierte
+                                la comparación en una lista de frases sueltas. */}
                             {DIFF.map((d) => (
                                 <tr key={d.m}>
-                                    <td>{d.m}</td>
-                                    <td className={styles.cmpBad}>{d.llm === 'x' ? '✗ no lo hace' : '~ parcial'}</td>
-                                    <td className={styles.cmpColHi}>{d.mf}</td>
+                                    <td data-label="Mecanismo">{d.m}</td>
+                                    <td data-label="LLM solo" className={styles.cmpBad}>{d.llm === 'x' ? '✗ no lo hace' : '~ parcial'}</td>
+                                    <td data-label="Bioboros" className={styles.cmpColHi}>{d.mf}</td>
                                 </tr>
                             ))}
                         </tbody>
