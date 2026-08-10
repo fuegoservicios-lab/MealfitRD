@@ -191,7 +191,7 @@ export const Privacy = () => (
         <ul>
             <li><strong>Acceder</strong> a la información que tenemos de usted desde Ajustes en la app o solicitándola por correo.</li>
             <li><strong>Rectificar</strong> datos incorrectos editando su perfil directamente.</li>
-            <li><strong>Eliminar</strong> su cuenta y todos los datos asociados escribiendo a fuego.servicios@gmail.com. El borrado dispara CASCADE sobre todas las tablas vinculadas mediante claves foráneas.</li>
+            <li><strong>Eliminar</strong> su cuenta y todos los datos asociados directamente <strong>desde la app</strong> (Ajustes → Eliminar cuenta, con confirmación), o escribiendo a fuego.servicios@gmail.com. El borrado dispara CASCADE sobre todas las tablas vinculadas mediante claves foráneas.</li>
             <li><strong>Exportar</strong> sus datos en formato JSON solicitándolo por correo (cumplimos en un plazo máximo de 30 días).</li>
             <li><strong>Oponerse</strong> al tratamiento para finalidades distintas a la ejecución del contrato.</li>
             <li><strong>Revocar el consentimiento</strong> cancelando su suscripción y eliminando la cuenta.</li>
@@ -250,6 +250,7 @@ export const Terms = () => (
         <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Ajustes o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
         <p><strong>Reembolsos:</strong> las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Puede cancelar en cualquier momento para detener las renovaciones futuras; conservará el acceso hasta el final del período ya pagado. El detalle está en la <strong>Política de Reembolsos y Cancelaciones</strong>.</p>
         <p>Reservamos el derecho de modificar los precios y planes con notificación previa de treinta (30) días para suscriptores existentes.</p>
+        <p><strong>Compras a través de tiendas de aplicaciones:</strong> si usted descarga Bioboros desde el App Store de Apple o Google Play y contrata su suscripción dentro de la app, el cobro, la renovación, la cancelación y los reembolsos de esa suscripción se gestionan a través de la tienda correspondiente y se rigen además por los términos de Apple o Google, según aplique. La gestión de esas suscripciones se realiza desde los ajustes de su cuenta de la tienda, no desde PayPal.</p>
 
         <h3>4. Uso Aceptable</h3>
         <p>Usted se compromete a NO:</p>

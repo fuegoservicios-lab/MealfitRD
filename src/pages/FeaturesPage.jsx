@@ -97,7 +97,7 @@ function FigShopping() {
 
 function FigChat() {
     return (
-        <svg viewBox="0 0 220 220" className={styles.figSvg} role="img" aria-label="Nutricionista IA: conversación">
+        <svg viewBox="0 0 220 220" className={styles.figSvg} role="img" aria-label="Coach nutricional IA: conversación">
             <rect x="24" y="36" width="118" height="32" rx="12" className={styles.figLine} />
             <rect x="78" y="84" width="118" height="30" rx="12" className={styles.figFill} />
             <rect x="24" y="130" width="138" height="32" rx="12" className={styles.figLine} />
@@ -176,7 +176,7 @@ const FEATURES = [
     },
     {
         Fig: FigChat, figLabel: 'Coach 24/7',
-        title: 'Nutricionista IA 24/7',
+        title: 'Coach nutricional IA 24/7',
         sub: 'Un coach que ajusta tu plan',
         text: 'Pregunta lo que quieras, cambia comidas, regenera un día, escanea lo que comiste o regístralo a mano — la IA responde al instante y recalcula respetando tus macros y tu condición.',
         bullets: [

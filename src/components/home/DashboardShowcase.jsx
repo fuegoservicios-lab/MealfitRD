@@ -109,7 +109,7 @@ const VIEWS = [
         id: 'chat',
         n: '04',
         label: 'NUTRICIONISTA IA',
-        title: 'Nutricionista IA 24/7',
+        title: 'Coach nutricional IA 24/7',
         desc: 'Pregunta, cambia comidas, registra lo que comiste — la IA responde al instante.',
         figTag: 'Fig. 03.4',
         figText: 'Consulta: un cambio y su efecto en la lista.',
@@ -258,7 +258,7 @@ export const ChatMockup = () => (
                     degradado indigo y un icono dentro. */}
                 <span className={styles.chatAvatar} aria-hidden="true">IA</span>
                 <div>
-                    <strong>Nutricionista IA</strong>
+                    <strong>Coach nutricional IA</strong>
                     <span className={styles.mockHeaderSub}>En línea</span>
                 </div>
             </div>

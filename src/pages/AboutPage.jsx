@@ -94,10 +94,11 @@ const ROWS = [
         title: 'Hecho en República Dominicana',
         body: (
             <p className={styles.rowText}>
-                Bioboros es una plataforma operada desde República Dominicana, construida por un
-                equipo que cree en la tecnología al servicio de la salud y la cultura local.
+                Bioboros es una plataforma dominicana, construida con una convicción: la
+                tecnología debe estar al servicio de la salud y de la cultura local.
                 Empezamos por la mesa dominicana, con la mira puesta en llevar esta misma precisión
-                al resto de Latinoamérica.
+                al resto de Latinoamérica — y en validar cada etapa junto a profesionales de la
+                salud a medida que crecemos.
             </p>
         ),
     },

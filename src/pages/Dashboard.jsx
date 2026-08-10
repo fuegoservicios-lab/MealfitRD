@@ -8644,7 +8644,7 @@ const DashboardInner = () => {
                             </div>
 
                             <h2 id="push-onboarding-title" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.75rem', position: 'relative', zIndex: 1 }}>
-                                Activa tu Nutricionista IA
+                                Activa tu Coach nutricional IA
                             </h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
                                 Déjame mandarte un aviso a tu celular a la hora de comer para que nunca olvides tu rutina y alcances tus metas más rápido.
