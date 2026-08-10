@@ -270,32 +270,13 @@
     min-width: 0;
 }
 
-.titleRow {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.85rem;
-}
-
-.titleBlock {
-    min-width: 0;
-    flex: 1 1 auto;
-}
-
-/* El emblema (`n.image`) vive DENTRO de la celda de ENTRADA, no en columna
-   propia: una sexta columna necesitaría un `<th>` sin rótulo razonable y
-   dejaría ancho fijo en blanco en las filas sin imagen. 48×48 con
-   `grayscale(1)`: es una foto/logo real del anuncio —un EMBLEMA—, no una
-   codificación de estado, así que colapsar sus colores por luma es la
-   excepción declarada del sistema (spec §4.6 y §8). El mismo asset sigue a
-   todo color en `/motor` (`Engine.jsx`). */
-.emblem {
-    flex: none;
-    width: 48px;
-    height: 48px;
-    object-fit: cover;
-    border: 1px solid var(--pa-rule-2);
-    filter: grayscale(1) contrast(1.08);
-}
+/* [P2-NEWS-NO-EMBLEM · 2026-08-02 · extendido al índice 2026-08-09] Aquí
+   vivían `.titleRow` (el flex que ponía el emblema a la izquierda del texto),
+   `.titleBlock` (su hermano flexible) y `.emblem` (48×48, `object-fit: cover`,
+   `filter: grayscale(1) contrast(1.08)` — la excepción al B/N que el spec §4.6
+   declaraba para una foto real). Las tres se van con el emblema: sin él,
+   `.titleRow` sería un contenedor flex de un solo hijo y `.titleBlock` una
+   caja sin nada que equilibrar. El texto cuelga directo del `<td>`. */
 
 /* Línea de meta (fecha · tag) que sustituye a las columnas FECHA/TAG cuando
    éstas se ocultan bajo 719px. `display:none` en reposo desktop — nunca

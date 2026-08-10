@@ -43,6 +43,24 @@ import { NEWS } from '../data/news';
    — código muerto se borra, no se recolorea. El campo `art` de `data/news.js`
    se va con él por la misma razón: un campo inerte que documenta colores es la
    puerta trasera por la que vuelve el color.
+
+   [P2-NEWS-NO-EMBLEM · 2026-08-02 · extendido al índice 2026-08-09] SIN
+   EMBLEMA, TAMPOCO AQUÍ. La celda de ENTRADA pintaba `n.image` como cuadrado de
+   48×48 despintado a la izquierda del titular. El registro del landing lo
+   retiró el 2026-08-02 y el dueño repite hoy el juicio para /novedades: la foto
+   es oscura casi hasta el negro, y a 48px sobre papel era la mancha de más peso
+   de la tabla — el ojo aterrizaba ahí antes que en ningún titular. Sin ella las
+   dos filas pesan lo mismo, que es lo que una tabla de revisiones debe
+   aparentar: ninguna entrada destaca por tener foto, destacan por ser recientes
+   (para eso está la pestaña de REV).
+
+   Se van con el emblema los dos `<div>` de maquetación (`.titleRow` /
+   `.titleBlock`) que existían SOLO para colocarlo a la izquierda del bloque de
+   texto, y el campo `image` de `data/news.js` — este era su ÚLTIMO consumidor.
+   Se borra en vez de quedarse inerte por el mismo motivo escrito allí para
+   `art`: un campo visual sin consumidor es la puerta trasera por la que vuelve
+   lo retirado. `/motor` no pierde nada: `Engine.jsx` referencia
+   `/model-v1.webp` por ruta literal, no vía `NEWS`.
    ========================================================================= */
 
 const newsTo = (n) => n.href || `/novedades/${n.slug}`;
@@ -131,29 +149,21 @@ const NewsPage = () => {
                                         </td>
                                         <td className={`${styles.cell} ${styles.cellTag}`}>{n.tag}</td>
                                         <td className={`${styles.cell} ${styles.cellTitle}`}>
-                                            <div className={styles.titleRow}>
-                                                {n.image && (
-                                                    <img src={n.image} alt="" className={styles.emblem} />
-                                                )}
-                                                <div className={styles.titleBlock}>
-                                                    {/* Sustituye a las columnas FECHA/CATEGORÍA cuando
-                                                        se ocultan (<719px). MISMA información, no un
-                                                        adorno: el `aria-label` con el dateLabel legible
-                                                        es lo que anuncia un lector de pantalla; los
-                                                        `<span>` visuales van aria-hidden para no
-                                                        duplicar el anuncio. */}
-                                                    <p className={styles.metaMobile}
-                                                       aria-label={`${n.dateLabel} · ${n.tag}`}>
-                                                        <span aria-hidden="true">{n.date}</span>
-                                                        <span className={styles.metaSep} aria-hidden="true">·</span>
-                                                        <span aria-hidden="true">{n.tag}</span>
-                                                    </p>
-                                                    <Link to={newsTo(n)} className={styles.titleLink} title={n.dateLabel}>
-                                                        {n.title}
-                                                    </Link>
-                                                    <p className={styles.excerpt}>{n.excerpt}</p>
-                                                </div>
-                                            </div>
+                                            {/* Sustituye a las columnas FECHA/CATEGORÍA cuando se
+                                                ocultan (<719px). MISMA información, no un adorno: el
+                                                `aria-label` con el dateLabel legible es lo que anuncia
+                                                un lector de pantalla; los `<span>` visuales van
+                                                aria-hidden para no duplicar el anuncio. */}
+                                            <p className={styles.metaMobile}
+                                               aria-label={`${n.dateLabel} · ${n.tag}`}>
+                                                <span aria-hidden="true">{n.date}</span>
+                                                <span className={styles.metaSep} aria-hidden="true">·</span>
+                                                <span aria-hidden="true">{n.tag}</span>
+                                            </p>
+                                            <Link to={newsTo(n)} className={styles.titleLink} title={n.dateLabel}>
+                                                {n.title}
+                                            </Link>
+                                            <p className={styles.excerpt}>{n.excerpt}</p>
                                         </td>
                                         <td className={`${styles.cell} ${styles.cellGo}`}>
                                             <ArrowRight size={16} strokeWidth={2.25}

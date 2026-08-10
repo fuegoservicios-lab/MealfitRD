@@ -56,10 +56,12 @@ import { NEWS } from '../../data/news';
    texto directo, sin los dos `<div>` de maquetación que existían solo para
    colocar el emblema a su izquierda, y su `<th>` deja de necesitar sangría.
 
-   `n.image` SIGUE VIVO en `data/news.js` y lo consume `NewsPage.jsx`
-   (`/novedades`), que es el índice completo y tiene aire para una imagen. El
-   campo no se borra: retirarlo aquí es una decisión de esta sección, no del
-   dato. `/motor` lo sigue usando a todo color (`Engine.jsx`).
+   [2026-08-09] `n.image` YA NO EXISTE. Cuando esta sección lo soltó, el campo
+   se conservó porque `NewsPage.jsx` (/novedades) seguía pintándolo — la
+   retirada era de una superficie, no del dato. El dueño repitió el juicio para
+   el índice, así que el campo se quedó sin consumidores y se borró de
+   `data/news.js` con él. `/motor` sigue a todo color: `Engine.jsx` referencia
+   el asset por ruta literal, no vía `NEWS`.
 
    LA "PESTAÑA DE REVISIÓN VIGENTE": la fila más reciente (`i === 0`) lleva una
    barra sólida de 24px en la canaleta de REV — el gesto de un plano real
@@ -145,11 +147,6 @@ const NewsHighlight = () => {
                                     </td>
                                     <td className={`${styles.cell} ${styles.cellTag}`}>{n.tag}</td>
                                     <td className={`${styles.cell} ${styles.cellTitle}`}>
-                                        {/* El emblema (cuando la entrada trae `image`) vive DENTRO de la
-                                            celda de TÍTULO, no en una columna propia: así el `<th>` de
-                                            ENTRADA lo cubre gratis y ningún ancho de columna cambia por
-                                            tenerlo o no — filas con y sin emblema conviven en la misma
-                                            rejilla sin que las cabeceras se desalineen. */}
                                         {/* Sustituye a las columnas FECHA/TAG cuando estas se ocultan
                                             (<719px, ver .module.css) — MISMA información, no un adorno:
                                             `aria-label` con el dateLabel legible es lo que anuncia un

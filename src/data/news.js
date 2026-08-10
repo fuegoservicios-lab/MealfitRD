@@ -13,14 +13,6 @@
 //   title     → titular del anuncio.
 //   excerpt   → resumen de 1–2 líneas (landing + índice + meta description).
 //   readTime  → opcional, p.ej. "3 min de lectura".
-//   image     → OPCIONAL. Ruta (public/) de una imagen REAL para el thumbnail
-//               (p.ej. el emblema del anuncio). Se pinta como emblema de 48×48
-//               con `grayscale(1)` SOLO en el índice `/novedades`
-//               (`NewsPage.jsx`). [P2-NEWS-NO-EMBLEM · 2026-08-02] El registro
-//               del landing (`NewsHighlight.jsx`) dejó de pintarlo por decisión
-//               del dueño — despintada a 48px sobre papel, la foto quedaba como
-//               la mancha de más peso de la sección. El campo NO se borra: la
-//               retirada es de una superficie, no del dato.
 //   badge     → OPCIONAL. Texto corto (p.ej. "v1.0"). HOY SIN CONSUMIDOR: lo
 //               pintaba el monograma "glass" del thumbnail, borrado con NewsArt.
 //   href      → OPCIONAL. Ruta INTERNA a la que apunta la fila del registro en
@@ -46,6 +38,20 @@
 // Si algún día la marca vuelve a querer color en Novedades, la decisión se
 // toma de nuevo y el campo se reintroduce con su consumidor delante — no
 // heredado de un array que sobrevivió a su motivo.
+//
+// [P2-NEWS-NO-EMBLEM · 2026-08-02 · extendido al índice 2026-08-09] EL CAMPO
+// `image` TAMPOCO EXISTE YA, por la misma regla y en dos tiempos. Era la ruta
+// (public/) de una foto real del anuncio, pintada como emblema de 48×48
+// despintado. El registro del landing (`NewsHighlight.jsx`) dejó de pintarlo el
+// 2026-08-02 — la foto es oscura casi hasta el negro y a ese tamaño sobre papel
+// era la mancha de más peso de la sección —, y entonces el campo SÍ se
+// conservó, porque `NewsPage.jsx` (/novedades) seguía consumiéndolo: la
+// retirada era de una superficie, no del dato. Hoy el dueño repite el juicio
+// para /novedades, y con eso el campo se queda sin ningún consumidor: se borra.
+// Un campo VISUAL inerte es exactamente lo que el párrafo de arriba describe
+// para `art`. `/motor` no depende de esto: `Engine.jsx` referencia
+// `/model-v1.webp` y `/model-v1.jpeg` por ruta literal, a todo color, sin pasar
+// por `NEWS`.
 
 export const NEWS = [
     {
@@ -97,8 +103,6 @@ export const NEWS = [
         excerpt: 'Nuestro motor de nutrición de precisión llega a su versión 1.0: generación validada paso a paso, macros que cuadran de verdad y un catálogo dominicano verificado.',
         readTime: '3 min de lectura',
         badge: 'v1.0',
-        // Emblema real del anuncio (mismo asset que usa /motor, ahí a todo color).
-        image: '/model-v1.webp',
         // El Motor ya tiene su propia página completa → la fila del registro va ahí.
         href: '/motor',
         content: [
