@@ -2,7 +2,8 @@ import { Fragment, useState } from 'react';
 import PropTypes from 'prop-types';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces del submenú "Más información"
 // (SSOT compartido con el menú "más" móvil de DashboardLayout).
-import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
+import { Link } from 'react-router-dom';
+import { MORE_INFO_GROUPS } from './moreInfoLinks';
 import styles from './AccountMenu.module.css';
 
 /* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta del sidebar.
@@ -183,20 +184,19 @@ export default function AccountMenu({
           {MORE_INFO_GROUPS.map((group, gi) => (
             <Fragment key={gi}>
               {gi > 0 && <div className={styles.infoDivider} role="separator" />}
-              {group.map((link) => (
-                <a
-                  key={link.path}
-                  href={landingUrl(link.path)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.infoLink}
-                  role="menuitem"
-                  onClick={() => onAccount?.()}
-                >
-                  <span className={styles.itemLabel}>{link.label}</span>
-                  <ExternalIcon className={styles.externalIcon} />
-                </a>
-              ))}
+                {/* [P1-MORE-INFO-IN-APP · 2026-08-10] Misma corrección que en el menú
+                    móvil: ruta in-app, misma pestaña. Ver moreInfoLinks.js. */}
+                {group.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={styles.infoLink}
+                    role="menuitem"
+                    onClick={() => onAccount?.()}
+                  >
+                    <span className={styles.itemLabel}>{link.label}</span>
+                  </Link>
+                ))}
             </Fragment>
           ))}
         </div>

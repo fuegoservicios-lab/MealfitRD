@@ -1,23 +1,34 @@
 // [P3-MORE-INFO-MENU · 2026-07-03] SSOT de los enlaces del submenú "Más
 // información" (estilo Claude.ai) — consumido por la card del menú de cuenta
 // del sidebar (AccountMenu) y por el menú "más" móvil (DashboardLayout).
-// Son páginas de marketing/legales cuya casa canónica es el APEX
-// (mealfitrd.com): desde el app (app.mealfitrd.com) se abren en pestaña nueva
-// para no perder el estado del dashboard.
-
-// Reusa el patrón P3-LOGIN-LEGAL-LANDING (Login.jsx): en *.mealfitrd.com el
-// enlace apunta al apex (sin el prefijo app.); en dev/preview devuelve la ruta
-// in-app para que siga funcionando localmente.
-import { isSiteHost } from '../../config/site';
-
-export const landingUrl = (path) => {
-  if (typeof window === 'undefined') return path;
-  const { protocol, hostname } = window.location;
-  if (isSiteHost(hostname)) {
-    return `${protocol}//${hostname.replace(/^app\./i, '')}${path}`;
-  }
-  return path; // dev / preview → ruta in-app
-};
+// Son páginas de marketing/legales cuya casa canónica para BUSCADORES es el apex
+// (bioboros.com). Eso lo declara el `canonical` de cada página — NO tiene por qué
+// decidir adónde manda un enlace de la app.
+//
+// [P1-MORE-INFO-IN-APP · 2026-08-10] Antes existía aquí un `landingUrl()` que
+// reescribía `app.bioboros.com` → `bioboros.com`, y los cuatro sitios que lo usaban
+// abrían además en PESTAÑA NUEVA. El dueño lo reportó como «entro en Novedades y me
+// devuelve al dashboard».
+//
+// LO QUE PASABA, y no era un fallo suelto sino la suma de tres decisiones correctas
+// por separado:
+//   1. el enlace cambiaba de DOMINIO (por SEO),
+//   2. abría en otra PESTAÑA (para no perder el dashboard),
+//   3. y en el apex la app fuerza estado DESLOGUEADO a propósito
+//      (P3-APEX-NO-SESSION: allí el sitio es marketing puro y la sesión vive por
+//      origen).
+// Juntas: tocabas «Novedades», aterrizabas en otro dominio como visitante anónimo, y
+// al pulsar atrás Safari cerraba esa pestaña y te devolvía a la del dashboard.
+//
+// Medido antes de cambiar nada: las 7 páginas cargan igual de bien en `app.` que en
+// el apex, con sesión y sin ella. O sea que salir del dominio no compraba nada al
+// usuario que YA está dentro — solo le costaba su sesión.
+//
+// Ahora son rutas in-app normales. El apex sigue siendo la casa canónica para quien
+// llega de Google, que es lo que el SEO necesitaba de verdad.
+//
+// Ya no hay helper de URL: era una indirección que solo servía para reescribir el
+// host. Los consumidores usan `link.path` con el enrutador.
 
 // [P3-HELP-MENU-ITEM · 2026-07-03] Correo de soporte del ítem "Obtener ayuda"
 // (menú de cuenta desktop + menú "más" móvil). Mismo email canónico que

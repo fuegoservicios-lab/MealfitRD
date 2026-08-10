@@ -8,7 +8,7 @@ import PropTypes from 'prop-types';
 // es lazy y sus páginas ya cargan framer de todos modos.
 import { MotionConfig } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, ExternalLink, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, HelpCircle } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -28,7 +28,7 @@ import BottomTabBar from './BottomTabBar';
 import AccountMenu, { AccountIdentityButton } from './AccountMenu';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces "Más información" (SSOT compartido
 // con la card del menú de cuenta) — versión inline para el menú "más" móvil.
-import { MORE_INFO_GROUPS, landingUrl } from './moreInfoLinks';
+import { MORE_INFO_GROUPS } from './moreInfoLinks';
 // [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda ("Obtener ayuda"). Lazy:
 // solo carga su chunk cuando el usuario lo abre.
 const HelpChatWidget = lazy(() => import('./HelpChatWidget'));
@@ -470,19 +470,23 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 {MORE_INFO_GROUPS.map((group, gi) => (
                                     <Fragment key={gi}>
                                         {gi > 0 && <div className={styles.mobileMoreSubDivider} role="separator" />}
+                                        {/* [P1-MORE-INFO-IN-APP · 2026-08-10] Navegación NORMAL: dentro de la app
+                                            y en la misma pestaña. Antes saltaban al dominio público en pestaña
+                                            nueva, donde la sesión no existe por diseño — se entraba como anónimo,
+                                            y el «atrás» de Safari cerraba esa pestaña devolviendo al dashboard.
+                                            El icono también cambia: el de «abrir fuera» anunciaba algo que ya no
+                                            ocurre, y un icono que promete lo que no hace estorba. */}
                                         {group.map((link) => (
-                                            <a
+                                            <Link
                                                 key={link.path}
-                                                href={landingUrl(link.path)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
+                                                to={link.path}
                                                 className={styles.mobileMoreSubItem}
                                                 role="menuitem"
                                                 onClick={closeMoreMenu}
                                             >
                                                 <span style={{ flex: 1 }}>{link.label}</span>
-                                                <ExternalLink size={13} strokeWidth={2.25} aria-hidden="true" />
-                                            </a>
+                                                <ChevronRight size={13} strokeWidth={2.25} aria-hidden="true" />
+                                            </Link>
                                         ))}
                                     </Fragment>
                                 ))}

@@ -51,7 +51,11 @@ import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAva
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';
 // [P2-PRIVACY-SETTINGS · 2026-07-04] Enlaces de políticas de la sección
 // Privacidad — abren en el apex (mismo patrón que el menú "Más información").
-import { landingUrl } from '../components/dashboard/moreInfoLinks';
+// [P1-MORE-INFO-IN-APP · 2026-08-10] Los enlaces legales de esta pantalla CONSERVAN
+// la pestaña nueva —viven dentro del diálogo de Configuración, y navegar en la misma
+// pestaña sacaría al usuario del ajuste a media frase—, pero ya no cambian de
+// dominio: apuntan a la ruta in-app, donde su sesión existe. Antes aterrizaba en el
+// sitio público como anónimo. El porqué completo, en `moreInfoLinks.js`.
 
 // [APPEARANCE-THEME · 2026-05-28] Opciones del selector de Apariencia de la
 // sección "Preferencias". `value` se persiste en localStorage('mealfit_theme')
@@ -2580,7 +2584,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.55 }}>
                                 En Bioboros creemos en prácticas transparentes de datos: tu información se usa
                                 para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra{' '}
-                                <a href={landingUrl('/privacy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Política de Privacidad</a>.
+                                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Política de Privacidad</a>.
                             </p>
 
                             {[
@@ -2590,7 +2594,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             ].map((link) => (
                                 <a
                                     key={link.path}
-                                    href={landingUrl(link.path)}
+                                    href={link.path}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     style={{
@@ -2651,7 +2655,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         Hoy Bioboros <strong>no entrena</strong> modelos con tus datos. Si lo permites, tus
                                         planes y conversaciones podrán usarse <strong>de forma anónima</strong> para entrenar
                                         los modelos propios de Bioboros en el futuro.{' '}
-                                        <a href={landingUrl('/ai-policy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Más información</a>.
+                                        <a href="/ai-policy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Más información</a>.
                                     </div>
                                 </div>
                                 <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
