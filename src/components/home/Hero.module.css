@@ -397,11 +397,17 @@
        línea de texto del sitio en móvil — que es donde está el mercado.
        El aire para que quepa se compra en el tracking y el padding, no
        encogiendo la letra.
-       MEDIDO con emulación real de dispositivo (`resize_page` miente en esta
-       máquina: devuelve 500). A 360×3 las dos celdas que sobreviven aquí —la
-       del medio ya está en `display:none` arriba— necesitan 83,4px y 145,8px
-       de ancho intrínseco: 229px de los 360. Repetido a 320×2, sin recorte y
-       sin scroll horizontal del documento. */
+
+       [P1-MOBILE-FIT · 2026-08-09] LA MEDICIÓN DE ESTA NOTA CADUCÓ Y NADIE LO
+       VIO. Decía que las dos celdas supervivientes necesitaban «83,4px y
+       145,8px: 229px de los 360», y era cierto mientras la celda 1 fue el
+       wordmark. `P1-HERO-DEDUP-ACCENT` (mismo día) la cambió a qué-es —180,4px,
+       más del doble— y no se volvió a medir el móvil: la pareja pasó a pedir
+       375,7px y a 320px se cortaban 55,7px. Sin scroll que lo delatara, porque
+       html/body llevan `overflow-x: clip`: el texto simplemente desaparecía por
+       el borde. Números de hoy, con emulación real de dispositivo: 180,4px
+       (qué-es) + 195,3px (dónde). Si tocas cualquiera de los dos literales,
+       vuelve a medir — o el e2e de 320px te lo dirá por ti. */
     .cartridgeCell {
         font-size: 11px;
         letter-spacing: 0.08em;
@@ -410,6 +416,41 @@
 
     .cartridgeCell + .cartridgeCell {
         text-align: right;
+    }
+}
+
+/* [P1-MOBILE-FIT · 2026-08-09] Bajo 400px el cajetín APILA: una columna, dos
+   filas. Cada fila pide ≤195,3px, así que cabe con ≥124px de holgura en el
+   ancho de contrato (320px — donde renderiza un iPhone con Display Zoom).
+
+   POR QUÉ APILAR Y NO ENCOGER. Las otras dos salidas se midieron y se cayeron:
+   bajar de 11px rompe el piso que la nota de arriba declara «sin excepciones»,
+   y apretar tracking (0,08em → 0,02em) más padding (0,875rem → 0,5rem) ahorra
+   ~54px y deja 321,7px — SIGUE sin caber a 320 por 1,7px, y encima deja el
+   cajetín incómodo. Casi-cabe no es cabe.
+
+   POR QUÉ 400 Y NO 376. El corte exacto donde deja de caber es 376px, pero ahí
+   la holgura sería de 0,3px: a merced de cómo renderice la fuente cada
+   dispositivo. A 400px la fila única solo sobrevive donde le sobran ≥24px.
+
+   La hairline gira de `border-left` a `border-top` (si no, queda una regla
+   vertical suelta a la izquierda de la fila 2) y el `text-align: right` de la
+   fila se revierte (si no, la fila 2 queda desalineada de la 1). El alto del
+   cajetín pasa de 40px a 52px, que es todo lo que cuesta. */
+@media (max-width: 399px) {
+    .cartridge {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+
+    .cartridgeCell {
+        line-height: 26px;
+    }
+
+    .cartridgeCell + .cartridgeCell {
+        border-left: 0;
+        border-top: 1px solid var(--pa-rule-2);
+        text-align: left;
     }
 }
 

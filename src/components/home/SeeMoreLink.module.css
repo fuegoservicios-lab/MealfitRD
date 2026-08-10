@@ -23,6 +23,7 @@
 }
 
 .link {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
@@ -36,6 +37,29 @@
     font-size: 0.95rem;
     letter-spacing: -0.005em;
     text-decoration: none;
+}
+
+/* [P1-MOBILE-FIT · 2026-08-09] ÁREA TÁCTIL, NO TINTA. Medido en móvil, este
+   enlace da 32px de alto — el mínimo tocable es 44 (Apple) / 48 (Google), y
+   son 4 instancias del landing (HowItWorks, DashboardShowcase,
+   BenchmarkShowcase, NewsHighlight).
+
+   Se agranda con un pseudo-elemento y NO con padding por dos razones que se
+   ven: el `border-bottom` de arriba ES el subrayado del enlace, así que
+   cualquier padding lo empujaría hacia abajo y movería tinta; y el anillo de
+   `:focus-visible` sigue el borde de padding, así que dejaría de ceñir el
+   texto para dibujar una caja holgada. Con `::after` el enlace se ve idéntico
+   al de ayer y el pulgar acierta.
+
+   7px POR ARRIBA Y POR ABAJO, NO 6. Con 6 el total daba 43,99px: el enlace
+   mide 31,99 de alto, no 32 redondo, y el guard —que compara contra 44 sin
+   tolerancia— lo cazaba por cuatro centésimas. La respuesta correcta a un
+   objetivo que depende de un decimal es darle holgura real, no relajar el
+   umbral del test: con 7 quedan ~46px y dos píxeles de margen. */
+.link::after {
+    content: '';
+    position: absolute;
+    inset: -7px -8px;
 }
 
 /* La flecha es la unica excepcion del sistema a "cero transform en hover". */

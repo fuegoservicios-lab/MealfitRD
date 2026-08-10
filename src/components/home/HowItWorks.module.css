@@ -556,19 +556,27 @@
 
 /* 480px: con las 4 descripciones ya desplegadas (no hay acordeón que las
    esconda), la sección pasaba de una pantalla a ~3 en móvil — riesgo de
-   scroll fatigue, no de fealdad. Se recorta a 3 líneas; el enlace de salida
-   ya existe (`<SeeMoreLink to="/como-funciona">` al pie de la sección, no
-   uno por celda). */
-@media (max-width: 479px) {
-    .cellDesc {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
+   scroll fatigue, no de fealdad. El enlace de salida ya existe
+   (`<SeeMoreLink to="/como-funciona">` al pie de la sección, no uno por celda).
 
-    /* [P1-HOWITWORKS-ALIGN · 2026-08-09] La lista de entradas se aprieta por el
-       mismo motivo que el recorte de arriba: es scroll, no fealdad. MEDIDO a
+   [P1-MOBILE-FIT · 2026-08-09] AQUÍ SE RECORTABAN LAS DESCRIPCIONES A 3 LÍNEAS,
+   y el recorte se retira. El «~3 pantallas» que lo justificaba nunca se midió;
+   medido ahora, las 4 descripciones piden 6, 9, 5 y 4 líneas a 360px, así que
+   el recorte escondía 12 líneas (18 a 320px) y mostrarlas enteras cuesta
+   +279px sobre una página de 10.598 — un 2,6%, no dos pantallas.
+
+   Y el coste real no era el alto: un recorte SIN expansor promete un resto que
+   nadie puede cobrar. La celda 02 se cortaba a media frase, en la que explica
+   qué es el motor. Con el enlace del pie como única salida, la elección era
+   entre leer 3 líneas de 9 o irse de la página; ahora se lee donde está.
+
+   Si algún día vuelve a preocupar el alto, la palanca es el texto (acortar las
+   descripciones), no el recorte: eso reduce lo que hay que leer en vez de
+   esconderlo. */
+@media (max-width: 479px) {
+    /* [P1-HOWITWORKS-ALIGN · 2026-08-09] La lista de entradas se aprieta por
+       scroll, no por fealdad (era «el mismo motivo que el recorte de arriba»
+       hasta que P1-MOBILE-FIT retiró ese recorte). MEDIDO a
        375px, la celda 01 mide 423px contra 278px de sus tres hermanas — las 4
        filas son su diferencia entera. No se recorta la LISTA (sus 4 nombres son
        lo más concreto de la sección y ninguno sobra); se le quita el aire. */

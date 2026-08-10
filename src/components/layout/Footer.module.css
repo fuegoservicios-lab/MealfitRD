@@ -114,6 +114,7 @@
    limpio. display:grid + place-items:center garantiza centrado exacto del svg
    sin depender de baseline. Hover = solo color (sin movimiento). */
 .socialIcon {
+    position: relative;
     display: grid;
     place-items: center;
     box-sizing: border-box;
@@ -123,6 +124,22 @@
     color: var(--text-muted);
     text-decoration: none;
     transition: color 0.2s ease;
+}
+
+/* [P1-MOBILE-FIT · 2026-08-09] ÁREA TÁCTIL, NO TINTA. Medido: 29×29 bajo papel
+   (glifo de 18px + 5,6 de padding) y 35,2 en el footer oscuro de las otras 20
+   rutas. El mínimo tocable es 44 (Apple) / 48 (Google), así que los DOS temas
+   estaban cortos — por eso el arreglo vive en la base y no en el bloque papel.
+
+   Un solo `inset` sirve para ambos: 45,2px bajo papel y 51,2 en el oscuro. Y no
+   se solapan entre sí: el `gap` de la fila es 21,6px, de los que este crecimiento
+   consume 16, dejando 5,6px de aire entre áreas contiguas. Con padding en vez de
+   pseudo-elemento habría que recalcular ese gap para que los iconos no se
+   separaran visualmente. */
+.socialIcon::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
 }
 
 /* SVG renderizado como block elimina el baseline-spacing residual y
