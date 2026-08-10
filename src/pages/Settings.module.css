@@ -64,6 +64,13 @@
 .inDialog {
     padding: 1.25rem 1.5rem 2rem;
     position: relative;
+    /* [P1-SETTINGS-HEADER-GUTTER · 2026-08-10] Tamaño VISIBLE del botón de cierre.
+       La canaleta de la cabecera se calcula DESDE estas variables, así que si el
+       botón cambia de tamaño la canaleta cambia con él. La zona táctil se estira
+       aparte hasta 44px con un ::after de inset negativo: ampliar el área del dedo
+       no se come el espacio del texto. */
+    --settings-close-size: 32px;
+    --settings-close-inset: 0.75rem;
     /* [P1-SETTINGS-DIALOG-STABLE · 2026-08-10] `width: 100%` + `margin: 0`
        SOSTIENEN LA VENTANA QUIETA. No son cosmética: son la corrección del
        defecto «cada vez que cambio de sección se mueve todo».
@@ -87,13 +94,41 @@
 
 /* La X va a la esquina, no en una línea propia sobre el título. Se queda solo
    el icono: su nombre accesible lo pone `aria-label`. */
+/* [P1-SETTINGS-HEADER-GUTTER · 2026-08-10] La X estaba pegada al texto en el móvil, y
+   la causa no era «falta padding»: al ser `position: absolute` el botón está FUERA DEL
+   FLUJO, así que el título y el subtítulo no pueden saber que existe. La cabecera va
+   centrada con 8px de margen lateral mientras el botón ocupa ~53px por la derecha, de
+   modo que cualquier texto largo corre por debajo de él. El ancho ahora sale de las
+   variables de `.inDialog`, que es lo que permite reservarle su hueco. */
 .inDialog .exitSettingsBtn {
     position: absolute;
-    top: 1rem;
-    right: 1.25rem;
+    top: var(--settings-close-inset);
+    right: var(--settings-close-inset);
     margin: 0;
-    padding: 0.4rem;
+    padding: 0;
+    width: var(--settings-close-size);
+    height: var(--settings-close-size);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     z-index: 2;
+}
+
+/* Zona táctil de 44px sin agrandar el dibujo (Apple HIG). Antes eran 20px de icono
+   + 0.4rem de relleno = 32,8px: por debajo del mínimo que este mismo repo ya se
+   impuso por escrito en BottomTabBar. */
+.inDialog .exitSettingsBtn::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+}
+
+/* Con la canaleta puesta, los títulos largos parten en dos líneas: que las parta
+   donde toca y no dejando una palabra huérfana. */
+.inDialog .pageTitle,
+.inDialog .pageSubtitle {
+    text-wrap: balance;
 }
 
 .inDialog .exitSettingsBtn span {
@@ -102,6 +137,12 @@
 
 .inDialog .pageHeader {
     margin-bottom: 1.25rem;
+    /* Canaleta SIMÉTRICA derivada del botón de cierre. Simétrica a propósito: el
+       título va centrado, así que reservar solo por la derecha lo descentraría
+       respecto del panel. Con esto el texto termina exactamente donde empieza la
+       columna del botón — la colisión deja de ser posible, no solo improbable. */
+    padding-left: calc(var(--settings-close-size) + var(--settings-close-inset));
+    padding-right: calc(var(--settings-close-size) + var(--settings-close-inset));
 }
 
 .inDialog .pageTitle {
