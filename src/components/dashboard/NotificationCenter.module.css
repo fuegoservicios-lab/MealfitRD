@@ -819,6 +819,19 @@
     background: #ffffff;
 }
 
+/* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Una notificación SIN LEER era
+   indistinguible de una leída en tema claro.
+   La regla `.card` de aquí arriba tiene especificidad (0,2,1) —`html` cuenta
+   como elemento, `:not([attr])` y `.card` como clase— y le gana a `.card.unread`
+   (0,2,0), así que le borraba el realce Y el borde teñido. Solo la delataba la
+   barrita de acento. No es un problema de contraste: es una señal de estado
+   eliminada, y por eso ningún test de color la habría encontrado.
+   Se restaura con la misma especificidad que el override que la pisaba. */
+:global(html:not([data-theme="dark"])) .card.unread {
+    background: color-mix(in srgb, var(--tone) 7%, #ffffff);
+    border-color: color-mix(in srgb, var(--tone) 34%, transparent);
+}
+
 :global(html:not([data-theme="dark"])) .head {
     border-bottom-color: rgba(15, 23, 42, 0.08);
 }
@@ -830,6 +843,18 @@
 :global(html:not([data-theme="dark"])) .foot {
     color: #64748b;
 }
+
+
+/* [P1-LIGHT-INK-CONTRACT · 2026-08-10] La familia cian/rosa/ámbar de este panel
+   se calibró para fondo slate oscuro y el parche de tema claro de 2026-06 solo
+   cubrió 9 selectores, dejándola fuera. Sobre las superficies claras del panel
+   estos tonos miden entre 1,01:1 y 1,45:1 — el peor bloque de todo el dashboard.
+   El relleno de cada chip NO se toca (sigue siendo su tinte al 16-18%); lo que
+   cambia es la tinta. */
+:global(html:not([data-theme="dark"])) .exPill.exTone_near { color: var(--ink-door); }
+:global(html:not([data-theme="dark"])) .exPill.exTone_low { color: var(--ink-fruits); }
+:global(html:not([data-theme="dark"])) .exPill.exTone_far,
+:global(html:not([data-theme="dark"])) .exPill.exTone_over { color: var(--ink-proteins); }
 
 /* ============================ MÓVIL ============================ */
 /* [P3-NOTIF-CENTER · 2026-06-16] En móvil se MANTIENE el tirador en el borde
