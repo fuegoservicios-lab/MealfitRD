@@ -21,7 +21,13 @@
   --mf-border: rgba(255, 255, 255, 0.09);
   --mf-text: #F1F5F9;
   --mf-text-dim: #94A3B8;
-  --mf-text-faint: #64748B;
+  /* [P1-LOGIN-CONTRAST · 2026-08-10] Era #64748B, que da 4,11:1 sobre --mf-bg y NO
+     pasa AA (4,5:1). index.css ya lo había subido a este valor por la misma razón;
+     esta paleta privada se quedó atrás. Pesa más de lo que parece: los campos del
+     login no tienen etiqueta visible, así que el marcador de posición es la ÚNICA
+     pista de qué va en la caja — y en móvil la tarjeta es transparente, o sea que el
+     texto se apoya directo sobre el fondo, sin superficie intermedia que lo salve. */
+  --mf-text-faint: #8B99AD;
   --mf-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
 
   position: fixed;
@@ -278,7 +284,15 @@
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0;
+  /* [P1-LOGIN-TOUCH · 2026-08-10] Antes `padding: 0` → entre 15 y 22px de alto, menos
+     de la mitad del mínimo tocable. No son adornos: «Reenviar» es la ÚNICA salida
+     cuando el correo no llega (el propio texto de abajo dice «revisa el spam») y
+     «Usar otro correo» la única forma de corregir un correo mal tecleado.
+     El margen negativo compensa el relleno: el diseño no se mueve ni un píxel, solo
+     crece la zona sensible. Con 65px de separación entre ambos no hay solape. */
+  padding: 0.7rem 0.5rem;
+  min-height: 44px;
+  margin: -0.7rem -0.5rem;
 }
 .mf-code-actions button:hover:not(:disabled) { color: var(--mf-primary); }
 .mf-code-actions button:disabled { cursor: not-allowed; }
@@ -454,7 +468,25 @@
  * Logo arriba → ilustración hero → titular serif → auth apilada abajo → términos.
  * (El layout editorial de dos paneles es solo desktop.) */
 @media (max-width: 880px) {
-  .mf-login { grid-template-columns: 1fr; }
+  /* [P1-LOGIN-KEYBOARD · 2026-08-10] En móvil el cascarón deja de ser fijo.
+     EL FALLO QUE CIERRA: con `position:fixed; inset:0; overflow:hidden`, la altura
+     quedaba clavada al viewport de LAYOUT, que el teclado NO encoge. Y como el
+     contenido cabía justo, `scrollHeight === clientHeight`: cero recorrido. Resultado
+     medido en un 14 Pro Max: el botón principal queda de 246 a 307px sobre el borde
+     inferior y el teclado del correo mide ~336px → tapado entero, y sin scroll con el
+     que subirlo. Contraintuitivo: en un iPhone SE el contenido SÍ desborda, así que
+     allí había scroll de rescate. El defecto era PEOR en el teléfono grande.
+     `position:relative` (no `static`) es obligatorio: los glows son `absolute` y este
+     es su bloque contenedor. `overflow-x:clip` sigue recortándolos sin crear un
+     contenedor de scroll — es el único par mixto válido con `overflow-y:visible`. */
+  .mf-login {
+    grid-template-columns: 1fr;
+    position: relative;
+    inset: auto;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
   .mf-showcase { display: none; }
 
   .mf-form {
@@ -462,9 +494,16 @@
        barra de estado y el texto inferior no pega con el home indicator. */
     padding-top: calc(1.3rem + env(safe-area-inset-top, 0px));
     padding-bottom: calc(2.2rem + env(safe-area-inset-bottom, 0px));
-    padding-left: 1.4rem;
-    padding-right: 1.4rem;
-    height: 100%;
+    padding-left: max(1.4rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.4rem, env(safe-area-inset-right, 0px));
+    /* [P1-LOGIN-KEYBOARD] `height:100%` contra un padre ya no fijo colapsaba a auto y
+       dejaba la pantalla corta. `min-height:100dvh` conserva el diseño a pantalla
+       completa Y deja crecer al documento cuando el teclado obliga a desplazarse.
+       `overflow-y:visible` cede el scroll al documento: un scroller interno que no
+       desborda no tiene recorrido que ofrecer. */
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: visible;
     align-items: center;
   }
   .mf-brandmark {

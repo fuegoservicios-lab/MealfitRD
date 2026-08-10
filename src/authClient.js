@@ -25,6 +25,10 @@
 // las rutas públicas ya no lo pagan. Ver también vite.config (vendor-neon-auth
 // removido de manualChunks — un chunk nombrado recibe modulepreload eager igual).
 
+// [P1-AUTH-TIMEOUT · 2026-08-10] Las 4 llamadas REST a Better Auth pasan por aquí:
+// sin plazo, una conexión colgada dejaba el botón del login girando para siempre.
+import { fetchWithTimeout } from './utils/fetchWithTimeout';
+
 const neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL;
 
 if (!neonAuthUrl) {
@@ -67,7 +71,7 @@ async function _signInWithOAuth({ provider = 'google', options } = {}) {
     }
     // 2) Fallback REST a Better Auth.
     try {
-        const res = await fetch(`${neonAuthUrl}/sign-in/social`, {
+        const res = await fetchWithTimeout(`${neonAuthUrl}/sign-in/social`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include', // guarda la cookie de state para el callback
@@ -83,7 +87,7 @@ async function _signInWithOAuth({ provider = 'google', options } = {}) {
         }
         return { data: null, error: { message: 'Neon Auth no devolvió URL de OAuth de Google.' } };
     } catch (e) {
-        return { data: null, error: { message: e?.message || 'Error iniciando el login con Google.' } };
+        return { data: null, error: { message: e?.message || 'Error iniciando el login con Google.', code: e?.code, name: e?.name } };
     }
 }
 
@@ -181,7 +185,7 @@ export async function getBackendToken() {
 // Retorna false ante credenciales inválidas o error de red.
 export async function verifyCurrentPassword(email, password) {
     try {
-        const res = await fetch(`${neonAuthUrl}/sign-in/email`, {
+        const res = await fetchWithTimeout(`${neonAuthUrl}/sign-in/email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
@@ -211,7 +215,7 @@ export async function verifyCurrentPassword(email, password) {
 export async function sendEmailOtp(email) {
     const clean = (email || '').trim();
     try {
-        const res = await fetch(`${neonAuthUrl}/email-otp/send-verification-otp`, {
+        const res = await fetchWithTimeout(`${neonAuthUrl}/email-otp/send-verification-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: clean, type: 'sign-in' }),
@@ -222,7 +226,7 @@ export async function sendEmailOtp(email) {
         }
         return { error: null };
     } catch (e) {
-        return { error: { message: e?.message || 'Error de red enviando el código.' } };
+        return { error: { message: e?.message || 'Error de red enviando el código.', code: e?.code, name: e?.name } };
     }
 }
 
@@ -231,7 +235,7 @@ export async function signInWithEmailOtp(email, otp) {
     const clean = (email || '').trim();
     const code = (otp || '').trim();
     try {
-        const res = await fetch(`${neonAuthUrl}/sign-in/email-otp`, {
+        const res = await fetchWithTimeout(`${neonAuthUrl}/sign-in/email-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include', // setea la cookie de sesión de Neon
@@ -243,6 +247,6 @@ export async function signInWithEmailOtp(email, otp) {
         }
         return { data, error: null };
     } catch (e) {
-        return { data: null, error: { message: e?.message || 'Error de red verificando el código.' } };
+        return { data: null, error: { message: e?.message || 'Error de red verificando el código.', code: e?.code, name: e?.name } };
     }
 }

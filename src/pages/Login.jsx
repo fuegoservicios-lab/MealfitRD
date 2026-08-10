@@ -9,6 +9,7 @@ import { useAssessment } from '../context/AssessmentContext';
 // vía nuestro backend (la cookie de Neon vía XHR era third-party → bloqueada en móvil).
 import { logoutFirstPartySession, verifyEmailOtpFirstParty } from '../utils/firstPartySession';
 import { humanizeAuthError } from '../utils/authErrors';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import PlanShowcase from '../components/auth/PlanShowcase';
 import './Login.css';
 import Wordmark from '../components/common/Wordmark';
@@ -19,6 +20,10 @@ import Wordmark from '../components/common/Wordmark';
 // invitado, redirect de sesión) se conserva intacta del diseño original — solo cambia la
 // presentación. El SVG de Google y el flujo de login son los originales a propósito.
 const RESEND_COOLDOWN_S = 30;
+// [P1-LOGIN-KEYBOARD · 2026-08-10] Longitud del código que emite Better Auth. Al
+// alcanzarla se envía solo: el teclado numérico de iOS no trae tecla de envío y el
+// botón queda debajo del teclado.
+const OTP_LENGTH = 6;
 
 // [P3-LOGIN-LEGAL-LANDING · 2026-06-30] Las políticas "oficiales" viven en el LANDING de
 // marketing (apex mealfitrd.com), no en el app (app.mealfitrd.com). Desde el login
@@ -77,6 +82,40 @@ function HeroIllustration() {
     );
 }
 
+// [P1-LOGIN-OTP-RESUME · 2026-08-10] El paso del código sobrevive a que el usuario
+// salga de la app.
+//
+// EL FALLO QUE CIERRA: todo el flujo vivía en `useState`. Pero este flujo EXIGE salir
+// de la app a leer el correo, y el manifiesto declara `display: standalone` — modo en
+// el que iOS termina el proceso al pasar a segundo plano y lo relanza limpio. El
+// usuario volvía al paso 1 con el código ya gastado en la mano. Es, además,
+// exactamente lo que hará un revisor de tienda.
+//
+// localStorage y NO sessionStorage: esta última muere con el webview, que es justo el
+// evento del que hay que sobrevivir.
+const OTP_PENDING_KEY = 'mf_otp_pending';
+const OTP_PENDING_TTL_MS = 15 * 60 * 1000; // ventana generosa sobre la validez del código
+
+const loadPendingOtp = () => {
+    try {
+        const raw = safeLocalStorageGet(OTP_PENDING_KEY, null);
+        if (!raw) return null;
+        const p = JSON.parse(raw);
+        if (!p?.email || !p?.sentAt) return null;
+        if (Date.now() - p.sentAt > OTP_PENDING_TTL_MS) {
+            safeLocalStorageRemove(OTP_PENDING_KEY);
+            return null;
+        }
+        return p;
+    } catch { return null; }
+};
+const savePendingOtp = (email) => {
+    safeLocalStorageSet(OTP_PENDING_KEY, JSON.stringify({ email, sentAt: Date.now() }));
+};
+const clearPendingOtp = () => {
+    safeLocalStorageRemove(OTP_PENDING_KEY);
+};
+
 const Login = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -84,12 +123,21 @@ const Login = () => {
     const [guestLoading, setGuestLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
 
-    const [step, setStep] = useState('email'); // 'email' | 'code'
-    const [email, setEmail] = useState(location.state?.email || '');
+    // Se lee UNA vez, en el arranque: si había un código en vuelo, se retoma ahí.
+    const [pendiente] = useState(loadPendingOtp);
+
+    const [step, setStep] = useState(pendiente ? 'code' : 'email'); // 'email' | 'code'
+    const [email, setEmail] = useState(pendiente?.email || location.state?.email || '');
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [cooldown, setCooldown] = useState(0);
+    // El contador de reenvío se reconstruye desde el instante del envío, no desde cero:
+    // si no, al volver el usuario podría pedir otro código de inmediato y saltarse el límite.
+    const [cooldown, setCooldown] = useState(() => {
+        if (!pendiente) return 0;
+        const transcurrido = Math.floor((Date.now() - pendiente.sentAt) / 1000);
+        return Math.max(0, RESEND_COOLDOWN_S - transcurrido);
+    });
     const codeInputRef = useRef(null);
 
     useEffect(() => {
@@ -103,6 +151,14 @@ const Login = () => {
         return () => clearTimeout(t);
     }, [cooldown]);
 
+    const esPantallaAncha = () => typeof window !== 'undefined'
+        && window.matchMedia?.('(min-width: 881px)')?.matches;
+
+    // [P1-LOGIN-KEYBOARD · 2026-08-10] El foco del campo del código SE MANTIENE en móvil,
+    // a diferencia del de correo. La auditoría proponía quitarlo porque el teclado tapa el
+    // botón — pero el auto-envío al completar los 6 dígitos elimina la necesidad de ese
+    // botón, así que la premisa ya no aplica. Y quitarlo tendría un coste: el
+    // autocompletado del código de iOS solo ofrece el código sobre un campo ENFOCADO.
     useEffect(() => {
         if (step === 'code' && codeInputRef.current) codeInputRef.current.focus();
     }, [step]);
@@ -128,19 +184,26 @@ const Login = () => {
         const ok = await requestCode(clean);
         setLoading(false);
         if (ok) {
+            savePendingOtp(clean);
             setStep('code');
             setCooldown(RESEND_COOLDOWN_S);
         }
     };
 
-    const handleCodeSubmit = async (e) => {
-        e.preventDefault();
-        setError(null);
-        const clean = code.trim();
+    // [P1-LOGIN-KEYBOARD] El envío del código se extrae del manejador del formulario
+    // para poder dispararlo también solo, al completar los 6 dígitos. En móvil el
+    // teclado numérico de iOS NO trae tecla de envío, y el botón «Entrar» queda debajo
+    // del teclado: sin auto-envío, terminar el login exigía cerrar el teclado a mano.
+    const submittingRef = useRef(false);
+
+    const enviarCodigo = async (valor) => {
+        const clean = String(valor || '').trim();
         if (clean.length < 4) {
             setError('Ingresa el código que te enviamos por correo.');
             return;
         }
+        if (submittingRef.current) return; // el auto-envío y el botón pueden coincidir
+        submittingRef.current = true;
         setLoading(true);
         // [P1-OTP-FIRST-PARTY · 2026-07-03] La verificación va vía NUESTRO backend (proxy a
         // Neon server-side) que emite la sesión FIRST-PARTY directo. El fetch directo previo
@@ -154,11 +217,32 @@ const Login = () => {
         if (otpError) {
             setError(humanizeAuthError(otpError));
             setLoading(false);
+            // Soltar el cerrojo: sin esto un código mal tecleado dejaría el botón muerto
+            // para siempre y el usuario tendría que recargar para reintentar.
+            submittingRef.current = false;
             return;
         }
+        // Verificado: el código en vuelo ya no sirve para nada.
+        clearPendingOtp();
         // [P0-LOGIN-SESSION-PROPAGATE · 2026-06-18] Recarga COMPLETA para que el provider
         // remonte y resuelva la sesión (Neon si su cookie llegó; first-party si no).
         window.location.assign('/');
+    };
+
+    const handleCodeSubmit = (e) => {
+        e.preventDefault();
+        setError(null);
+        enviarCodigo(code);
+    };
+
+    // Auto-envío al alcanzar la longitud del código. `enviarCodigo` ya es reentrante-seguro.
+    const handleCodeChange = (e) => {
+        const v = e.target.value.replace(/\D/g, '');
+        setCode(v);
+        if (v.length === OTP_LENGTH) {
+            setError(null);
+            enviarCodigo(v);
+        }
     };
 
     const handleGoogle = async () => {
@@ -208,12 +292,18 @@ const Login = () => {
         const ok = await requestCode(email.trim());
         setLoading(false);
         if (ok) {
+            // Refrescar el sello: el contador al volver a la app debe medirse desde el
+            // ÚLTIMO envío, no desde el primero.
+            savePendingOtp(email.trim());
             setCooldown(RESEND_COOLDOWN_S);
             toast.success('Te reenviamos el código.');
         }
     };
 
     const backToEmail = () => {
+        // El código en vuelo deja de valer: si no se borra, volver a abrir la app
+        // devolvería al usuario al paso del código del que acaba de salir.
+        clearPendingOtp();
         setStep('email');
         setCode('');
         setError(null);
@@ -223,6 +313,25 @@ const Login = () => {
     if (session) {
         return <Navigate to="/" replace />;
     }
+
+    // [P2-13 · 2026-07-09] id para que el campo activo lo referencie vía aria-describedby
+    // → el lector de pantalla anuncia QUÉ campo falló.
+    // [P2-AUDIT-6 · re-anclado 2026-07-28] El contrato a11y del Login OTP: cada campo
+    // lleva aria-label (sustituto válido del par htmlFor/id del flujo de contraseña
+    // retirado el 2026-06-21), el error es role="alert" aria-live, y el éxito viaja por
+    // toast (sonner gestiona su aria-live).
+    // (El comentario evita la palabra campo-con-ángulo: el test la cuenta.)
+    //
+    // [P1-LOGIN-KEYBOARD · 2026-08-10] Se renderiza DENTRO de la tarjeta, justo encima
+    // del botón de envío, en vez de arriba del todo. Con el teclado abierto en móvil, un
+    // error que aparece fuera de la pantalla visible equivale a no dar respuesta: el
+    // usuario pulsa, no ve nada, y vuelve a pulsar.
+    const avisoError = error ? (
+        <div id="login-error" className="mf-error" role="alert" aria-live="assertive">
+            <AlertCircle size={16} aria-hidden="true" />
+            {error}
+        </div>
+    ) : null;
 
     return (
         <div className="mf-login" data-side="left" data-anim="on">
@@ -248,20 +357,6 @@ const Login = () => {
                         Planes de comida personalizados a tu objetivo, calculados a tu perfil y listos en minutos.
                     </p>
 
-                    {error && (
-                        // [P2-13 · 2026-07-09] id para que el input activo lo referencie
-                        // vía aria-describedby → el lector de pantalla anuncia QUÉ campo falló.
-                        // [P2-AUDIT-6 · re-anclado 2026-07-28] El contrato a11y del Login OTP:
-                        // cada campo lleva aria-label (sustituto válido del par htmlFor/id del
-                        // flujo de contraseña retirado el 2026-06-21), el error es role="alert"
-                        // aria-live, y el éxito viaja por toast (sonner gestiona su aria-live).
-                        // (El comentario evita la palabra input-con-ángulo: el test la cuenta.)
-                        <div id="login-error" className="mf-error" role="alert" aria-live="assertive">
-                            <AlertCircle size={16} aria-hidden="true" />
-                            {error}
-                        </div>
-                    )}
-
                     {step === 'email' ? (
                         <>
                             <form className="mf-card" onSubmit={handleEmailSubmit}>
@@ -284,8 +379,19 @@ const Login = () => {
                                     aria-invalid={!!error}
                                     aria-describedby={error ? 'login-error' : undefined}
                                     autoComplete="email"
-                                    autoFocus
+                                    inputMode="email"
+                                    enterKeyHint="send"
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck="false"
+                                    // [P1-LOGIN-KEYBOARD · 2026-08-10] Sin `autoFocus`: en Android
+                                    // abría el teclado al CARGAR, y el teclado tapa el botón de
+                                    // abajo — el usuario aterrizaba con el CTA ya oculto sin haber
+                                    // tocado nada. En escritorio el foco lo pone el efecto de arriba.
+                                    ref={(el) => { if (el && esPantallaAncha() && !email) el.focus(); }}
                                 />
+
+                                {avisoError}
 
                                 <button type="submit" className="mf-btn mf-btn--primary" disabled={loading}>
                                     {loading ? (
@@ -323,7 +429,8 @@ const Login = () => {
                                 autoComplete="one-time-code"
                                 required
                                 value={code}
-                                onChange={(e) => setCode(e.target.value.replace(/\s/g, ''))}
+                                onChange={handleCodeChange}
+                                enterKeyHint="go"
                                 placeholder="123456"
                                 aria-label="Código de verificación"
                                 // [P2-13] liga el error al campo para lectores de pantalla.
@@ -331,6 +438,8 @@ const Login = () => {
                                 aria-describedby={error ? 'login-error' : undefined}
                                 maxLength={8}
                             />
+
+                            {avisoError}
 
                             <button type="submit" className="mf-btn mf-btn--primary" disabled={loading}>
                                 {loading ? (

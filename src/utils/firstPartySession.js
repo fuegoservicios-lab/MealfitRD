@@ -10,6 +10,9 @@
 // confiable entre lanzamientos (sus cookies NO se conservan). El header solo lo
 // añade JS (el browser no lo manda solo) → inmune a CSRF.
 
+// [P1-AUTH-TIMEOUT · 2026-08-10] Plazo en las 4 llamadas de sesion: sin el, una
+// conexion colgada dejaba «Verificando…» eterno tras teclear el codigo.
+import { fetchWithTimeout, AUTH_BEST_EFFORT_TIMEOUT_MS } from './fetchWithTimeout';
 import { api, fetchWithAuth } from '../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from './safeLocalStorage';
 // [P1-FORM-KEY · 2026-06-21] La llave estable de cifrado del form viaja en las
@@ -74,7 +77,7 @@ export async function checkFirstPartySession() {
     try {
         const headers = {};
         if (tok) headers['X-MF-Session'] = tok;
-        const res = await fetch(api('/api/auth/me'), {
+        const res = await fetchWithTimeout(api('/api/auth/me'), {
             method: 'GET',
             credentials: 'include',
             headers,
@@ -102,7 +105,7 @@ export async function checkFirstPartySession() {
 // aquí ⇒ la cookie SIEMPRE pega; el provider resuelve vía _resolveViaFirstParty.
 export async function verifyEmailOtpFirstParty(email, otp) {
     try {
-        const res = await fetch(api('/api/auth/email-otp/verify'), {
+        const res = await fetchWithTimeout(api('/api/auth/email-otp/verify'), {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -122,7 +125,7 @@ export async function verifyEmailOtpFirstParty(email, otp) {
         _applyFormKey(data);
         return { data, error: null };
     } catch (e) {
-        return { error: { message: e?.message || 'Error de red verificando el código.' } };
+        return { error: { message: e?.message || 'Error de red verificando el código.', code: e?.code, name: e?.name } };
     }
 }
 
@@ -135,7 +138,7 @@ export async function adoptOAuthVerifierFirstParty(verifier) {
     try {
         const v = (verifier || '').trim();
         if (!v) return false;
-        const res = await fetch(api('/api/auth/oauth/adopt'), {
+        const res = await fetchWithTimeout(api('/api/auth/oauth/adopt'), {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -159,7 +162,7 @@ export async function logoutFirstPartySession() {
     // el próximo login setea la suya). Defensa: no dejar la llave de A en memoria para B.
     setFormCryptoSecret(null);
     try {
-        await fetch(api('/api/auth/logout'), { method: 'POST', credentials: 'include' });
+        await fetchWithTimeout(api('/api/auth/logout'), { method: 'POST', credentials: 'include' }, AUTH_BEST_EFFORT_TIMEOUT_MS);
     } catch {
         /* best-effort: el teardown local ya basta */
     }

@@ -6,6 +6,15 @@ export function humanizeAuthError(err) {
     const raw = (err && err.message) || (typeof err === 'string' ? err : '') || '';
     const lower = raw.toLowerCase();
 
+    // [P1-AUTH-TIMEOUT · 2026-08-10] Venció el plazo de la petición. Va ANTES del
+    // chequeo de red porque `navigator.onLine` dice `true` en el caso que nos ocupa:
+    // el móvil está conectado a una red que no transporta (portal cautivo, celda
+    // saturada). Decirle «revisa tu conexión» a quien ve todas las rayas de señal no
+    // ayuda; lo accionable es que reintente.
+    if (err?.code === 'request_timeout' || err?.name === 'TimeoutError') {
+        return 'La conexión tardó demasiado. Inténtalo de nuevo.';
+    }
+
     // Red caída / fetch fallido → mensaje claro de conexión.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         return 'No pudimos conectar. Revisa tu conexión a internet e inténtalo de nuevo.';

@@ -54,6 +54,12 @@ async function goToCodeStep(user) {
 describe('Login · flujo conductual email-OTP (P2-9)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // [P1-LOGIN-OTP-RESUME · 2026-08-10] Desde que el paso del código sobrevive al
+        // relanzamiento de la app, el componente LEE localStorage al montar. Sin limpiar,
+        // el caso que llega al paso del código deja el sello puesto y el SIGUIENTE arranca
+        // ya ahí — buscaría el campo de correo y no lo encontraría. No es un fallo del
+        // arreglo: es que estos casos nunca aislaron el almacenamiento.
+        localStorage.clear();
         sendEmailOtp.mockResolvedValue({ error: null });
         verifyEmailOtpFirstParty.mockResolvedValue({ data: { ok: true }, error: null });
     });
@@ -75,12 +81,16 @@ describe('Login · flujo conductual email-OTP (P2-9)', () => {
         expect(screen.queryByLabelText('Correo electrónico')).not.toBeInTheDocument();
     });
 
-    it('escribir código + Entrar → verifyEmailOtpFirstParty(email, código)', async () => {
+    it('completar el código lo envía SOLO → verifyEmailOtpFirstParty(email, código)', async () => {
+        // [P1-LOGIN-KEYBOARD · 2026-08-10] Antes este caso tecleaba el código y PULSABA
+        // «Entrar». Ya no hace falta pulsar nada: al llegar al sexto dígito se envía solo.
+        // El motivo no es comodidad, es que en móvil el teclado numérico de iOS no trae
+        // tecla de envío Y el botón queda debajo del teclado — sin auto-envío había que
+        // cerrar el teclado a mano para poder terminar de entrar.
         const user = userEvent.setup();
         const codeInput = await goToCodeStep(user);
 
         await user.type(codeInput, '123456');
-        await user.click(screen.getByRole('button', { name: 'Entrar' }));
 
         // Éxito → el componente hace window.location.assign('/') (recarga completa
         // P0-LOGIN-SESSION-PROPAGATE). jsdom no implementa navegación (Location es
@@ -99,8 +109,8 @@ describe('Login · flujo conductual email-OTP (P2-9)', () => {
         const user = userEvent.setup();
         const codeInput = await goToCodeStep(user);
 
+        // Igual que arriba: al sexto dígito se envía solo, sin pulsar nada.
         await user.type(codeInput, '000000');
-        await user.click(screen.getByRole('button', { name: 'Entrar' }));
 
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent('Código inválido o expirado.');
@@ -110,6 +120,30 @@ describe('Login · flujo conductual email-OTP (P2-9)', () => {
         expect(screen.getByLabelText('Código de verificación')).toBeInTheDocument();
         // Sigue en el paso de código (no rebotó al paso email).
         expect(screen.queryByLabelText('Correo electrónico')).not.toBeInTheDocument();
+    });
+
+    it('tras un código incorrecto, el SEGUNDO intento se envía de verdad', async () => {
+        // [P1-LOGIN-KEYBOARD · 2026-08-10] El auto-envío necesita un cerrojo síncrono para
+        // que teclear el último dígito y pulsar «Entrar» no disparen dos verificaciones.
+        // El riesgo de ese cerrojo es evidente: si no se suelta al fallar, el usuario que
+        // se equivoca de código se queda sin poder reintentar y tiene que recargar. Que
+        // el botón se vea habilitado NO prueba que el envío ocurra — hay que contar llamadas.
+        verifyEmailOtpFirstParty.mockResolvedValue({
+            error: { message: 'Código inválido o expirado.', status: 401 },
+        });
+        const user = userEvent.setup();
+        const codeInput = await goToCodeStep(user);
+
+        await user.type(codeInput, '000000');
+        await screen.findByRole('alert');
+        expect(verifyEmailOtpFirstParty).toHaveBeenCalledTimes(1);
+
+        // El usuario corrige y vuelve a completar.
+        await user.clear(codeInput);
+        await user.type(codeInput, '123456');
+
+        await waitFor(() => expect(verifyEmailOtpFirstParty).toHaveBeenCalledTimes(2));
+        expect(verifyEmailOtpFirstParty).toHaveBeenLastCalledWith(EMAIL, '123456');
     });
 
     it('sendEmailOtp falla → permanece en el paso email con alert humanizado y botón re-habilitado', async () => {
