@@ -729,6 +729,21 @@
 
 @media (max-width: 620px) {
     .blueprint::before { background-size: 28px 28px; }
+
+    /* [P1-HERO-TOP-AIR · 2026-08-10] EL AIRE DE ARRIBA, MEDIDO.
+       Entre el borde del header y la primera palabra había 84px, contra 34 en
+       la home: `main-content` ya reserva 90px para un header de 56 (34 de aire
+       de sistema) y encima `.page` sumaba 24 y `.intro` otros 24.
+
+       En un teléfono de 844px de alto eso es un 10% de la pantalla en blanco
+       ANTES de leer nada, y el efecto es que la página parece empezar tarde.
+       En escritorio ese mismo aire funciona —hay pantalla de sobra y la caja de
+       texto es estrecha—, así que el ajuste vive solo aquí.
+
+       No se toca `main-content`: sus 90px son la reserva del header fijo y
+       cambiarlos afecta a las 21 rutas que lo montan. */
+    .page { padding-top: 0.5rem; }
+    .intro { padding-top: 0; }
 }
 
 /* ── REDUCED MOTION — defensa (b) del módulo ─────────────────────────────

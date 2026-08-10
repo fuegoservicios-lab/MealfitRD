@@ -15,8 +15,25 @@
 }
 
 /* La PASTILLA flotante (glass). max-width + margin auto la centran; el padding del
-   .header da el aire respecto a los bordes de la pantalla. */
+   .header da el aire respecto a los bordes de la pantalla.
+
+   [P1-HEADER-FULL-WIDTH · 2026-08-10] `flex: 1` NO es decoración: sin él esta
+   caja NUNCA ocupó el ancho que su propio `max-width: 1200px` declara.
+
+   `.header` es `display: flex`, así que `.container` es un flex item con
+   `flex: 0 1 auto` — se dimensiona por su CONTENIDO. Medido en producción: 935px
+   fijos en las tres bandas. En escritorio (1440) se quedaba 265px por debajo de
+   su tope declarado; a 768 los 935 DESBORDABAN el viewport; y a 390 encogía a
+   209px, dejando el wordmark y el botón pegados en el centro con 114px vacíos a
+   cada lado — que es lo que el dueño describió como «se ve raro».
+
+   Es el mismo patrón que ya apareció hoy en el diálogo de ajustes: un
+   `margin: 0 auto` heredado, aplicado a algo que NO ocupa su contenedor,
+   significa «encógete a tu contenido y céntrate» en vez de «céntrate dentro de
+   tu ancho». El `margin: 0 auto` se queda: con `flex: 1` ya sí tiene un ancho
+   que centrar cuando el `max-width` muerde. */
 .container {
+    flex: 1;
     max-width: 1200px;
     margin: 0 auto;
     display: flex;

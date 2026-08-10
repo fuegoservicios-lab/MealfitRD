@@ -226,6 +226,12 @@
 }
 
 @media (max-width: 600px) {
+    /* [P1-HERO-TOP-AIR · 2026-08-10] Aquí NO va el ajuste del aire superior,
+       aunque `/precision` lo necesitaba: sus `.page` y `.hero` NO son de este
+       módulo. `PrecisionPage.jsx` importa DOS —`HowItWorksPage.module.css` como
+       `styles` (de donde sale el armazón de la página) y este como `t` (solo la
+       tabla)—, así que unas reglas escritas aquí para esas dos clases nacen
+       inertes. El ajuste vive en el módulo compartido. */
     .cmpTable th,
     .cmpTable td {
         padding: 0.8rem 0.75rem;

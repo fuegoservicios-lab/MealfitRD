@@ -659,6 +659,31 @@
     .block + .block {
         margin-top: 3.75rem;
     }
+
+    /* [P1-HERO-TOP-AIR · 2026-08-10] EL AIRE DE ARRIBA, MEDIDO.
+       Entre el borde del header y la primera palabra había 92px: `main-content`
+       ya reserva 90px para un header de 56 —34 de aire de sistema— y encima
+       `.page` sumaba 20 y `.hero` otros 36. En un teléfono de 844px de alto eso
+       es un 10% de la pantalla en blanco ANTES de leer nada, y el efecto es que
+       la página parece empezar tarde.
+
+       En escritorio ese mismo aire funciona (hay pantalla de sobra y la columna
+       es estrecha), así que el ajuste vive solo en este bloque móvil.
+
+       ESTE MÓDULO LO COMPARTEN CUATRO RUTAS —/como-funciona, /precision,
+       /research y /funciones—, así que el arreglo llega a las cuatro de una vez.
+       Vale la pena saberlo antes de tocar nada aquí: `PrecisionPage.jsx` importa
+       DOS módulos y su armazón sale de este, no del suyo. Un ajuste escrito en
+       el módulo propio de esa página nace inerte.
+
+       No se toca `main-content`: sus 90px son la reserva del header fijo y
+       cambiarlos afecta a las 21 rutas que lo montan. */
+    .page {
+        padding-top: 0.25rem;
+    }
+    .hero {
+        padding-top: 0.75rem;
+    }
 }
 
 /* [P2-PAPER-NO-INK fix1 · 2026-08-02] `.tocCta` salió de esta lista: no tiene
