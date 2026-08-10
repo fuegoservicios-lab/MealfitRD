@@ -66,6 +66,27 @@ describe('[P1-SETTINGS-HEADER-GUTTER] el texto de la cabecera no puede pisar la 
         expect(btn).toMatch(/padding:\s*0\s*;/);
     });
 
+    it('[P1-PLAN-DIALOG-GUTTER] el diálogo neutraliza el margen negativo del plan', () => {
+        // `.plan-objetivo-mobile` lleva `margin: 0 -1rem` para ganar ancho cancelando
+        // el relleno de `.section` EN LA PÁGINA. Dentro del diálogo la cadena de
+        // relleno es otra y ese mismo -16px por lado se lo come casi entero: el
+        // contenido acaba contra el borde de la pantalla.
+        const r = regla('.inDialog :global(.plan-objetivo-mobile) {');
+        expect(r).toMatch(/margin-left:\s*0/);
+        expect(r).toMatch(/margin-right:\s*0/);
+    });
+
+    it('y la página CONSERVA ese ensanchado (allí sigue siendo correcto)', () => {
+        // Neutralizarlo en los dos sitios sería arreglar el diálogo rompiendo la
+        // página: el margen negativo se escribió para el relleno que .section tiene
+        // ahí, y ahí funciona.
+        const jsx = fs.readFileSync(
+            path.resolve(__dirname, '..', 'pages', 'Settings.jsx'),
+            'utf-8',
+        );
+        expect(jsx, 'el ensanchado de la página desapareció').toMatch(/margin-left:\s*-1rem/);
+    });
+
     it('la zona táctil llega a 44px sin agrandar el dibujo', () => {
         // Ampliar el botón se comería la canaleta; se estira solo el área sensible.
         const after = regla('.inDialog .exitSettingsBtn::after {');

@@ -150,6 +150,26 @@
     font-weight: 700;
 }
 
+/* [P1-PLAN-DIALOG-GUTTER · 2026-08-10] «Plan & Objetivo» se veía pegado a los bordes.
+   La causa no está en esa pantalla: está en un margen negativo que se le puso ENCIMA.
+
+   `.plan-objetivo-mobile` lleva `margin: 0 -1rem` (P3-PLANOBJETIVO-EXPAND) para
+   CANCELAR parte del relleno de `.section` y ganar ancho — una decisión calibrada
+   contra el relleno que `.section` tiene EN LA PÁGINA. Dentro del diálogo el
+   contenedor es otro y su cadena de relleno también, así que ese -16px por lado deja
+   de morder «parte» del relleno y se lo come casi entero: el título, la barra de
+   macros y el botón acaban contra el borde de la pantalla.
+
+   Misma forma que ya ha aparecido cuatro veces esta semana: una regla escrita para un
+   layout sobrevive al cambio de layout. Aquí se neutraliza SOLO dentro del diálogo —
+   la página conserva el ensanchado que su autor quería, porque allí sigue siendo
+   correcto. `:global` porque esa clase no es del módulo: vive en un <style> de
+   Settings.jsx. */
+.inDialog :global(.plan-objetivo-mobile) {
+    margin-left: 0;
+    margin-right: 0;
+}
+
 .inDialog .pageSubtitle {
     display: none;
 }
