@@ -33,6 +33,29 @@ import { toast } from 'sonner';
 // la navegación a campo faltante.
 import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, minBudgetFor } from '../../config/formValidation';
 
+/* [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] ¿El presupuesto personalizado alcanza
+   el piso? SSOT de las TRES puertas que pueden dejar atrás el paso 11.
+
+   EL BUG QUE CIERRA: «Saltar a la última pregunta» usaba solo
+   `findFirstIncompleteField`, que comprueba PRESENCIA de campos. Con
+   «Personalizar» elegido, `budget` vale `'custom'` — está presente, así que el
+   paso 11 pasaba por completo aunque el monto fuera inválido (RD$13 contra un
+   piso de 13.000). El salto se iba al paso 14 dejando atrás un paso roto.
+
+   El paso SÍ sabía que estaba incompleto: su `validateExtra` lo dice y por eso
+   su botón «Siguiente» estaba deshabilitado. Lo que fallaba es que esa regla
+   solo corría AL PASAR POR EL PASO, y saltar es precisamente no pasar.
+
+   El submit ya tenía su propia copia (P1-FORM-AUDIT-BATCH) — con la del salto
+   habrían sido TRES implementaciones de la misma regla, que es como empiezan
+   los drifts. Una función, tres consumidores.
+
+   El piso preferido es `_budgetFloorMin` (personalizado por calorías × hogar ×
+   ciclo, el mismo que exige el backend); si aún no llegó, cae al estático. */
+const isCustomBudgetValid = (fd) => fd?.budget !== 'custom'
+    || Number(fd.budgetAmount) >= (Number(fd._budgetFloorMin)
+        || minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration));
+
 const InteractiveAssessmentFlow = () => {
     const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
     const navigate = useNavigate();
@@ -182,19 +205,18 @@ const InteractiveAssessmentFlow = () => {
         // un budgetAmount stale bajo el piso llegaba al backend y quemaba una
         // ida/vuelta para recibir el 422 budget_below_goal_floor. Mismo SSOT del
         // validateExtra (piso personalizado _budgetFloorMin → estático).
-        if (formData.budget === 'custom') {
-            const _floor = Number(formData._budgetFloorMin)
-                || minBudgetFor(formData.budgetCurrency || 'DOP', formData.groceryDuration);
-            if (!(Number(formData.budgetAmount) >= _floor)) {
-                submittingRef.current = false;
-                toast.error('Tu presupuesto quedó por debajo del mínimo para tu plan.', {
-                    description: 'Te llevamos al paso de presupuesto para ajustarlo.',
-                    duration: 4000,
-                });
-                const _budgetIdx = fieldToStepIndex['budget'];
-                if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
-                return;
-            }
+        // [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] Reescrito sobre `isCustomBudgetValid`:
+        // era una copia a mano de la misma regla que el `validateExtra` del paso, y
+        // al añadir la del salto habrían sido TRES. Comportamiento idéntico.
+        if (!isCustomBudgetValid(formData)) {
+            submittingRef.current = false;
+            toast.error('Tu presupuesto quedó por debajo del mínimo para tu plan.', {
+                description: 'Te llevamos al paso de presupuesto para ajustarlo.',
+                duration: 4000,
+            });
+            const _budgetIdx = fieldToStepIndex['budget'];
+            if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
+            return;
         }
 
         // [P0-B3] Sin setTimeout artificial: navegamos directo; `Plan.jsx`
@@ -321,8 +343,10 @@ const InteractiveAssessmentFlow = () => {
             // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Usa el piso PERSONALIZADO que QBudget
             // sincronizó a `_budgetFloorMin` (calorías × hogar × ciclo, = el que exige el backend);
             // fallback al estático `minBudgetFor` si aún no llegó (red lenta / offline).
-            validateExtra: (fd) => fd.budget !== 'custom'
-                || Number(fd.budgetAmount) >= (Number(fd._budgetFloorMin) || minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration)),
+            // [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] La regla vive en
+            // `isCustomBudgetValid` (arriba) y la consumen las TRES puertas:
+            // este `validateExtra`, el salto y el submit.
+            validateExtra: isCustomBudgetValid,
             component: <QBudget onAutoAdvance={handleAutoAdvance} />
         },
         {
@@ -541,6 +565,20 @@ const InteractiveAssessmentFlow = () => {
             if (typeof stepIdx === 'number') {
                 setCurrentStep(stepIdx);
             }
+            return;
+        }
+        // [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] `findFirstIncompleteField` mira
+        // PRESENCIA, y con «Personalizar» el campo `budget` está presente ('custom')
+        // aunque el monto sea inválido — el salto se iba a un paso posterior dejando
+        // atrás el de presupuesto a medias. El mismo chequeo que ya hacía el submit,
+        // ahora también aquí, desde el SSOT compartido.
+        if (!isCustomBudgetValid(formData)) {
+            toast.info('Antes de saltar, completa: Presupuesto', {
+                description: 'Elegiste "Personalizar" y el monto no llega al mínimo.',
+                duration: 4000,
+            });
+            const _budgetIdx = fieldToStepIndex['budget'];
+            if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
             return;
         }
         setCurrentStep(steps.length - 1);
