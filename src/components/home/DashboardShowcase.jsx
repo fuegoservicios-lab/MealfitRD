@@ -108,7 +108,17 @@ const VIEWS = [
     {
         id: 'chat',
         n: '04',
-        label: 'NUTRICIONISTA IA',
+        /* [P1-MOBILE-FIT · 2026-08-09] Era «NUTRICIONISTA IA» — un título
+           regulado usado como nombre de feature, que es justo lo que la
+           directiva del dueño prohíbe. La tarjeta de abajo ya decía «Coach
+           nutricional IA»: el rótulo se estaba contradiciendo con su propio
+           contenido a 20px de distancia.
+
+           El «IA» se queda pegado al rótulo y no se abrevia a «COACH
+           NUTRICIONAL» a secas: sin él, el rótulo nombra a una PERSONA que
+           orienta tu alimentación, que es exactamente la lectura de la que la
+           directiva quiere alejarse. */
+        label: 'COACH NUTRICIONAL IA',
         title: 'Coach nutricional IA 24/7',
         desc: 'Pregunta, cambia comidas, registra lo que comiste — la IA responde al instante.',
         figTag: 'Fig. 03.4',

@@ -111,7 +111,12 @@ self.addEventListener('push', (event) => {
         }
     }
 
-    const title = data.title || "Tu Nutricionista IA";
+    // [P1-MOBILE-FIT · 2026-08-09] Era "Tu Nutricionista IA". Mismo motivo que
+    // el rótulo de la sección 04 del landing: un título regulado no puede ser
+    // el nombre de una feature. Este literal es el fallback cuando el push
+    // llega sin título, así que es lo que el usuario ve en la pantalla de
+    // bloqueo — el sitio con MENOS contexto alrededor para matizarlo.
+    const title = data.title || "Tu coach nutricional IA";
     const body = data.body || "Tienes un nuevo mensaje.";
     // Ensure we have a valid absolute URL for the icon
     const icon = "/favicon.png"; 

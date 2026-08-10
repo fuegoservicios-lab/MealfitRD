@@ -96,6 +96,11 @@ const BenchmarkShowcase = () => {
     const reduce = useReducedMotion();
     const ref = useRef(null);
     const [drawn, setDrawn] = useState(false);
+    /* [P1-MOBILE-FIT · 2026-08-09] Plegado de la metodología. Es estado de React
+       y no un `<details>` nativo a propósito: el plegado debe existir SOLO bajo
+       768px, y `open` no se puede gobernar desde CSS — con `<details>` la nota
+       quedaría cerrada también en desktop, donde no estorba a nadie. */
+    const [methodOpen, setMethodOpen] = useState(false);
 
     /* Reduced motion, defensa (a): el gate está en la DEFINICIÓN del estado —
        con `reduce` el observer ni se monta y todo nace en su pose final. La
@@ -229,8 +234,28 @@ const BenchmarkShowcase = () => {
                     </table>
                 </div>
 
+                {/* [P1-MOBILE-FIT · 2026-08-09] LA METODOLOGÍA SE PLIEGA EN MÓVIL.
+                    Medida a 320px son 20 líneas de 13px (17 a 360): la letra
+                    pequeña más larga de la página, justo antes del cierre, y en
+                    el punto donde el lector ya lleva 8 pantallas.
+
+                    Esto NO contradice el defecto que este mismo P-fix arregla en
+                    HowItWorks. Allí el recorte era mudo —«…» y ninguna forma de
+                    pedir el resto—; aquí hay un control declarado, con
+                    `aria-expanded`, que devuelve el texto íntegro. La diferencia
+                    entre esconder y plegar es exactamente esa: que el lector
+                    pueda deshacerlo.
+
+                    Se pliega SOLO bajo 768px (el botón es `display: none` arriba
+                    y el recorte vive dentro del mismo @media): en desktop la nota
+                    ocupa 6 líneas y no molesta a nadie. Y el estado arranca
+                    cerrado, no abierto: si arrancara abierto, plegar no serviría
+                    de nada. */}
                 <div className={styles.footnote} style={{ '--d': '210ms' }}>
-                    <p className={styles.footnoteText}>
+                    <p
+                        id="benchmark-metodologia"
+                        className={`${styles.footnoteText} ${methodOpen ? styles.footnoteTextOpen : ''}`}
+                    >
                         <strong>Metodología.</strong> Es una prueba A/B del mismo pipeline de generación, con y sin
                         nuestro motor de optimización determinista — comparamos <strong>enfoques</strong>, no productos
                         con nombre. «Sin motor (LLM solo)» es lo que obtienes al pedirle el plan directamente a un
@@ -248,6 +273,23 @@ const BenchmarkShowcase = () => {
                         La serie es de {`N=${SERIES.n}`} planes dominicanos generados en{' '}
                         {SERIES.monthLong}: no es una medición en vivo.
                     </p>
+
+                    <button
+                        type="button"
+                        className={styles.footnoteToggle}
+                        aria-expanded={methodOpen}
+                        aria-controls="benchmark-metodologia"
+                        onClick={() => setMethodOpen((v) => !v)}
+                    >
+                        {/* NO dice «metodología»: a 60px debajo vive el
+                            `SeeMoreLink` que lleva a /precision, y su literal ya
+                            usa esa palabra. Dos controles casi homónimos, uno
+                            que despliega aquí y otro que cambia de página, es
+                            peor que no tener ninguno — el lector no puede
+                            predecir cuál hace qué. Este habla de LA NOTA, que es
+                            lo que gobierna. */}
+                        {methodOpen ? 'Ocultar la nota' : 'Leer la nota completa'}
+                    </button>
                 </div>
 
                 <SeeMoreLink to="/precision">Ver la metodología completa</SeeMoreLink>

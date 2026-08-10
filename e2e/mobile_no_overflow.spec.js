@@ -94,13 +94,12 @@ test.describe('Landing sin desbordes en móvil', () => {
     // conjunto vacío no mide nada — y de paso, si alguien renombra la clase,
     // esta cuenta lo delata en vez de dejar el guard mudo.
     const descripciones = page.locator('[class*="cellDesc"]');
-    await expect(descripciones.first()).toBeAttached({ timeout: 10_000 });
-    expect(
-      await descripciones.count(),
+    await expect(
+      descripciones,
       'P1-MOBILE-FIT: no aparecen las 4 descripciones de la sección. O cambió ' +
         'el nombre de la clase, o la sección no montó: en ambos casos este ' +
         'guard estaría midiendo el vacío.'
-    ).toBe(4);
+    ).toHaveCount(4, { timeout: 10_000 });
 
     const recortadas = await page.evaluate(() => {
       const out = [];
@@ -143,6 +142,43 @@ test.describe('Landing sin desbordes en móvil', () => {
     ).toEqual([]);
   });
 
+  test('la metodología plegada se puede desplegar entera a 360px', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto('/');
+    await expect(page.locator('#root')).toBeVisible({ timeout: 10_000 });
+
+    // Se localiza por lo que GOBIERNA (`aria-controls`), no por su texto: el
+    // texto cambia al pulsarlo, así que un locator por nombre encuentra el
+    // botón antes del clic y lo pierde después — la primera versión de este
+    // test falló exactamente así. La identidad de un control es lo que hace,
+    // no cómo se llama ahora mismo.
+    const boton = page.locator('button[aria-controls="benchmark-metodologia"]');
+    await boton.scrollIntoViewIfNeeded();
+    await expect(boton).toBeVisible();
+    // Que el literal SIGA describiendo el estado es parte del contrato: sin
+    // esto, el botón podría quedarse mudo («Metodología») y el test no se
+    // enteraría de que ya no dice si abre o cierra.
+    await expect(boton).toHaveAccessibleName(/leer/i);
+
+    const nota = page.locator('#benchmark-metodologia');
+    const altoPlegado = (await nota.boundingBox())?.height ?? 0;
+
+    await boton.click();
+    await expect(boton).toHaveAttribute('aria-expanded', 'true');
+    await expect(boton).toHaveAccessibleName(/ocultar/i);
+    const altoAbierto = (await nota.boundingBox())?.height ?? 0;
+
+    // La prueba de que el plegado NO esconde: abrirlo devuelve MÁS texto del
+    // que había. Si alguien deja el botón pero rompe la clase que lo despliega,
+    // las dos alturas coinciden y esto cae.
+    expect(
+      altoAbierto,
+      `P1-MOBILE-FIT: desplegar no devolvió texto (plegado ${altoPlegado}px, ` +
+        `abierto ${altoAbierto}px). Un control que no deshace el recorte es peor ` +
+        'que no tenerlo: promete el resto y no lo entrega.'
+    ).toBeGreaterThan(altoPlegado + 20);
+  });
+
   test('los controles del landing se pueden tocar con el pulgar a 390px', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
@@ -152,11 +188,17 @@ test.describe('Landing sin desbordes en móvil', () => {
 
     // Misma lección que el test de arriba: si el selector deja de casar, medir
     // cero controles pasaría en verde. Son 4 SeeMoreLink + 5 sociales.
+    //
+    // Y se ESPERA la condición en vez de dormir un rato: la primera versión
+    // contaba justo después de un `waitForTimeout` fijo y caía de forma
+    // intermitente — con la suite entera en paralelo, la página aún no había
+    // montado los 9. El flake no lo causaba lo que el test mide, sino cómo
+    // esperaba a poder medirlo.
     const controles = page.locator('a[class*="link"], a[class*="socialIcon"]');
-    expect(
-      await controles.count(),
+    await expect(
+      controles,
       'P1-MOBILE-FIT: no aparecen los controles a medir — el guard estaría vacío.'
-    ).toBeGreaterThanOrEqual(9);
+    ).toHaveCount(9, { timeout: 10_000 });
 
     // El área táctil puede venir del propio borde o de un pseudo-elemento que
     // lo agranda sin mover tinta (la técnica de P1-MOBILE-FIT). Se mide el
