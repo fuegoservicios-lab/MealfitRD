@@ -623,6 +623,61 @@ html[data-theme="dark"] .glass-panel {
   flex: none;
 }
 
+/* [P1-WIZARD-FIELD-ROWS · 2026-08-10] Rejilla de campos del formulario y cabecera
+   de campo (etiqueta + selector de unidad). Nacen en CSS y no en `style` inline
+   porque el arreglo ES un punto de quiebre, y un estilo inline no puede tenerlo.
+
+   LOS DOS DEFECTOS QUE CIERRA, los dos en «Tus Medidas» (paso 3):
+
+   1. DOS COLUMNAS EN UN TELÉFONO. `minmax(140px, 1fr)` se escribió para el ancho
+      de escritorio; en 390px de pantalla deja columnas de 167px, y ahí no caben
+      «Altura *» + el selector CM/FT (98px) sin quedar pegados, «Cintura en cm
+      (Opcional)» parte en dos líneas, y en pies la fila se parte en dos casillas
+      de 75px. El mínimo de 140px NO es el ancho que el contenido necesita: es el
+      que hacía falta para que cupieran dos columnas. Debajo de 561px va una sola.
+
+   2. FILAS DESALINEADAS A CUALQUIER ANCHO (también en escritorio). Una cabecera
+      con selector mide 50px y una de solo etiqueta ~20px, así que dos campos
+      vecinos arrancaban su casilla a alturas distintas: el de Edad 46px más
+      arriba que Pies/Pulg. El piso de 50px las iguala. Vive en el media query de
+      escritorio a propósito: en una sola columna no hay vecino con quien
+      alinearse y el piso solo sería aire perdido.
+
+   El `margin-bottom: 0` de la etiqueta no es cosmético: `.label` (FormUI) trae
+   0.5rem propio y, como hijo de un flex centrado, ese margen la sube ~4px sobre
+   el centro óptico del selector. QMeasurements ya intentaba anularlo pasándole
+   `style={{margin:0}}` a `<Label>`, pero ese componente solo lee `children` y
+   `htmlFor` — la prop se descartaba en silencio y el margen seguía ahí. */
+.mf-field-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.mf-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.mf-field-head > label {
+  margin-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .mf-field-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 561px) {
+  .mf-field-head {
+    min-height: 50px;
+  }
+}
+
 /* [FORM-OPT-HOVER · 2026-07-03] Cards/chips seleccionables del formulario
    (ChipOption / DietOption / GoalCard en InteractiveQuestions). Antes eran divs
    inline-styled SIN feedback de hover NI anillo de foco de teclado (tabIndex=0

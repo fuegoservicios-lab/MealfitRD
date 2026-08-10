@@ -117,9 +117,18 @@ export const QMeasurements = ({ onManualAdvance }) => {
 
     return (
         <div style={{ display: 'grid', gap: '1.5rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+            {/* [P1-WIZARD-FIELD-ROWS · 2026-08-10] La rejilla y la cabecera de cada campo
+                viven ahora en `.mf-field-grid` / `.mf-field-head` (index.css), donde SÍ
+                se puede escribir un punto de quiebre: en el teléfono este bloque se
+                partía en dos columnas de 167px y ahí no caben etiqueta + selector de
+                unidad. El detalle y los dos defectos, en el comentario de esas clases.
+                TODOS los campos llevan cabecera, tengan selector o no — es lo que hace
+                que sus casillas arranquen a la misma altura. */}
+            <div className="mf-field-grid">
                 <div>
-                    <Label htmlFor="age">Edad (años)&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                    <div className="mf-field-head">
+                        <Label htmlFor="age">Edad (años)&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                    </div>
                     <Input
                         id="age" type="number" placeholder="Ej. 28"
                         min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step={BIO_RANGES.age.step}
@@ -128,8 +137,8 @@ export const QMeasurements = ({ onManualAdvance }) => {
                     />
                 </div>
                 <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <Label htmlFor="height" style={{ margin: 0 }}>Altura&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                    <div className="mf-field-head">
+                        <Label htmlFor="height">Altura&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                         <UnitToggle
                             ariaLabel="Unidad de altura"
                             value={unit}
@@ -163,10 +172,10 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+            <div className="mf-field-grid">
                 <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <Label htmlFor="weight" style={{ margin: 0 }}>Peso&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                    <div className="mf-field-head">
+                        <Label htmlFor="weight">Peso&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                         {/* [LB-DEFAULT-PRESELECT · 2026-05-31] LB es la unidad de peso
                             por defecto predeterminada (decisión de producto: el mercado
                             es-DO usa libras). Pre-fix (P1-FORM-3) el toggle mostraba un
@@ -194,7 +203,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
                     />
                 </div>
                 <div>
-                    <Label htmlFor="bodyFat">% Grasa (Opcional)</Label>
+                    <div className="mf-field-head">
+                        <Label htmlFor="bodyFat">% Grasa (Opcional)</Label>
+                    </div>
                     <Input
                         id="bodyFat" type="number" inputMode="decimal" placeholder="Ej. 20"
                         min={BIO_RANGES.bodyFat.min} max={BIO_RANGES.bodyFat.max} step={BIO_RANGES.bodyFat.step}
@@ -205,7 +216,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
                     cardiometabólico + señal de composición corporal que el peso solo no da.
                     Siempre en cm (una sola unidad — es como se mide con cinta en RD). */}
                 <div>
-                    <Label htmlFor="waistCm">Cintura en cm (Opcional)</Label>
+                    <div className="mf-field-head">
+                        <Label htmlFor="waistCm">Cintura en cm (Opcional)</Label>
+                    </div>
                     <Input
                         id="waistCm" type="number" inputMode="decimal" placeholder="Ej. 85"
                         min={BIO_RANGES.waistCm.min} max={BIO_RANGES.waistCm.max} step={BIO_RANGES.waistCm.step}
