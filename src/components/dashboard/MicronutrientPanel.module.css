@@ -93,7 +93,7 @@
 
 /* Sugerencias */
 .supps { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 11px; }
-.suppsLabel { display: inline-flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #A78BFA; }
+.suppsLabel { display: inline-flex; align-items: center; gap: 6px; font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-ready); }
 .suppsLabel svg { width: 12px; height: 12px; }
 .supp { display: flex; gap: 10px; padding: 12px 13px; border-radius: 13px; background: rgba(167, 139, 250, .07); border: 1px solid rgba(167, 139, 250, .18); }
 .suppIco { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #C4B5FD; background: rgba(167, 139, 250, .16); }

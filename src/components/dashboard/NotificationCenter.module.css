@@ -856,6 +856,18 @@
 :global(html:not([data-theme="dark"])) .exPill.exTone_far,
 :global(html:not([data-theme="dark"])) .exPill.exTone_over { color: var(--ink-proteins); }
 
+
+/* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Los que quedaban del panel: estados de
+   hover y contadores cuyos valores base son correctos SOBRE OSCURO y quedaron
+   fuera del parche de junio. Se corrigen con rama de tema claro en vez de
+   cambiar la base, para no tocar el oscuro. */
+:global(html:not([data-theme="dark"])) .handle:hover { color: var(--primary); }
+:global(html:not([data-theme="dark"])) .headCount { color: var(--ink-door); }
+:global(html:not([data-theme="dark"])) .clearBtn:hover { color: var(--ink-proteins); }
+:global(html:not([data-theme="dark"])) .markBtn:hover { color: var(--ink-door); }
+:global(html:not([data-theme="dark"])) .cardX:hover { color: var(--ink-proteins); }
+:global(html:not([data-theme="dark"])) .emptyOrb { color: var(--text-light); }
+
 /* ============================ MÓVIL ============================ */
 /* [P3-NOTIF-CENTER · 2026-06-16] En móvil se MANTIENE el tirador en el borde
    derecho (sólo un poco más pequeño), NO un botón flotante inferior: un botón a

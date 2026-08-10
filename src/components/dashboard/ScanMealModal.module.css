@@ -336,7 +336,7 @@
 
 .portionHint {
     font-size: 0.78rem;
-    color: #94A3B8;
+    color: var(--text-light);
     font-weight: 500;
 }
 
@@ -402,7 +402,7 @@
 .macroUnit {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #94A3B8;
+    color: var(--text-light);
     flex-shrink: 0;
 }
 

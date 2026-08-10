@@ -38,7 +38,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FB7185;
+    color: var(--ink-proteins);
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
     flex-shrink: 0;
 }
@@ -126,7 +126,7 @@
    tema oscuro. Consistente con el ghost discreto del scanBtn del logueado. */
 .guestBadge {
     font-size: 0.8rem;
-    color: var(--text-muted, #64748B);
+    color: var(--text-muted);
     background: rgba(99, 102, 241, 0.08);
     padding: 0.55rem 1rem;
     border-radius: 9px;
@@ -153,7 +153,7 @@
     flex-shrink: 0;
 }
 
-.scanBtn svg { color: #94A3B8; transition: color 0.15s ease; }
+.scanBtn svg { color: var(--text-light); transition: color 0.15s ease; }
 
 .scanBtn:hover {
     color: #4F46E5;
@@ -353,7 +353,7 @@
 
 .mealMeta {
     font-size: 0.76rem;
-    color: #94A3B8;
+    color: var(--text-light);
     font-weight: 600;
 }
 
@@ -366,7 +366,7 @@
     border-radius: 8px;
     border: 1px solid transparent;
     background: transparent;
-    color: #94A3B8;
+    color: var(--text-light);
     cursor: pointer;
     flex-shrink: 0;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
