@@ -148,3 +148,63 @@ export const toggleArrayWithExclusiveSentinel = (currentArr, value, sentinel) =>
 // género a hombre tras haber marcado embarazo (evita un override silencioso e irrecuperable-vía-UI: el
 // chip se oculta pero el valor seguía vivo en medicalConditions → forzaba maintenance + FS9 a un varón).
 export const PREGNANCY_CHIP_LABELS = ['Embarazo', 'Lactancia'];
+
+// [P1-UNIT-TOGGLE · 2026-08-10] Selector de unidad (CM/FT, LB/KG, RD$/US$), SSOT.
+//
+// EL DEFECTO QUE CIERRA: las tres parejas estaban escritas a mano, y las dos de
+// QMeasurements median 22px de alto con CERO separación entre los dos objetivos —
+// contenedor `display:flex` sin `gap` y botones sin borde, así que la frontera entre
+// «CM» y «FT» era literalmente invisible al dedo.
+//
+// Y lo que hay detrás no es cosmético: altura y peso alimentan el TDEE y los macros.
+// `LB` viene preseleccionado a propósito, así que quien usa kilos TIENE que acertarle a
+// un objetivo de 22px pegado a su vecino; si falla, se queda en libras sin enterarse y
+// 70 kg se registran como 70 lb. Peor: fallar hacia el vecino dispara el cambio de
+// unidad, que BORRA el peso ya escrito y la meta. En presupuesto, el mismo error
+// convierte RD$5.000 en US$5.000.
+//
+// El `gap` NO es negociable: sin él, ampliar el área táctil solo consigue que las dos
+// zonas sensibles se solapen y la frontera siga siendo indeterminada.
+//
+// La versión de QBudget ya traía `type="button"` y `aria-pressed`; las de QMeasurements
+// no, pese a que su propio comentario decía «mismo patrón visual que LB/KG». Era un
+// olvido, no una decisión — por eso el SSOT se queda con lo que hacía el hermano bueno.
+// (`type="button"` importa: dentro de un formulario, un botón sin tipo envía.)
+export const UnitToggle = ({ options, value, onChange, ariaLabel }) => (
+    <div
+        role="group"
+        aria-label={ariaLabel}
+        style={{
+            display: 'flex',
+            gap: '4px',
+            background: 'var(--bg-muted)',
+            borderRadius: '0.5rem',
+            padding: '3px',
+            flexShrink: 0,
+        }}
+    >
+        {options.map((o) => (
+            <button
+                key={o.value}
+                type="button"
+                onClick={() => onChange(o.value)}
+                aria-pressed={value === o.value}
+                style={{
+                    border: 'none',
+                    background: value === o.value ? 'var(--bg-card)' : 'transparent',
+                    minHeight: '44px',
+                    minWidth: '44px',
+                    padding: '4px 14px',
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: value === o.value ? 'var(--primary)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                }}
+            >
+                {o.label}
+            </button>
+        ))}
+    </div>
+);
+

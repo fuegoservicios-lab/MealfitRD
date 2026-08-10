@@ -108,12 +108,22 @@ describe('P1-13 — useEffect re-hidrata feet/inches desde height al remount', (
 
 
 describe('P1-13 — Toggle de unit dispara persistencia', () => {
-    it('Los botones de toggle CM/FT siguen llamando setUnit (no setState directo)', () => {
-        // Buscamos los onClick de los botones del toggle.
-        const cmButton = qCode.match(/onClick=\{\s*\(\)\s*=>\s*setUnit\(\s*['"]cm['"]\s*\)\s*\}/);
-        const ftButton = qCode.match(/onClick=\{\s*\(\)\s*=>\s*setUnit\(\s*['"]ft['"]\s*\)\s*\}/);
-        expect(cmButton).toBeTruthy();
-        expect(ftButton).toBeTruthy();
+    it('El toggle CM/FT sigue pasando por setUnit (no setState directo)', () => {
+        // [P1-UNIT-TOGGLE · 2026-08-10] Este caso buscaba los `onClick` en línea de dos
+        // botones escritos a mano. Esos botones ya no existen: los tres selectores de
+        // unidad del formulario (CM/FT, LB/KG, RD$/US$) se unificaron en `UnitToggle`
+        // porque los de medidas median 22px con cero separación entre objetivos.
+        //
+        // Lo que este caso protege NO ha cambiado: que el cambio de unidad pase por
+        // `setUnit` —que es quien persiste `_heightInputUnit`— y no por un `setState`
+        // suelto que lo perdería. Solo cambia dónde mirar: antes en el `onClick` de cada
+        // botón, ahora en el `onChange` del control compartido.
+        const toggle = qCode.match(/<UnitToggle[\s\S]{0,400}?\/>/);
+        expect(toggle).toBeTruthy();
+        expect(toggle[0]).toMatch(/onChange=\{\s*setUnit\s*\}/);
+        // Y sigue ofreciendo las dos unidades.
+        expect(toggle[0]).toMatch(/'cm'/);
+        expect(toggle[0]).toMatch(/'ft'/);
     });
 });
 

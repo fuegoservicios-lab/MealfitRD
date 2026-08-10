@@ -6,6 +6,7 @@
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { Bot, Refrigerator } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const QPlanSource = ({ onAutoAdvance }) => {
     const { formData, updateData, userProfile } = useAssessment();
@@ -48,8 +49,26 @@ export const QPlanSource = ({ onAutoAdvance }) => {
                     ? 'Arma las comidas alrededor de tu Nevera: compras menos y aprovechas lo que ya está.'
                     : 'Requiere cuenta: tu Nevera vive en tu perfil. Inicia sesión para usar este modo.'}
                 checked={value === 'pantry'}
+                // [P1-PLANSOURCE-DEAD-CONTROL · 2026-08-10] Sin cuenta, tocar esta tarjeta
+                // no hacía ABSOLUTAMENTE NADA: ni deshabilitada, ni aviso, ni cambio de
+                // estilo. Y es la PRIMERA pantalla del formulario, que además no ofrece
+                // salida alternativa (el botón de avanzar solo aparece con un paso ya
+                // completado). Un invitado —o un revisor de tienda, que entra como
+                // invitado— podía quedarse tocando un control mudo.
+                // Ahora dice por qué no puede y adónde ir. La explicación ya estaba en la
+                // descripción de la tarjeta; lo que faltaba era respuesta AL TOQUE.
+                disabled={!isAuth}
                 onChange={(e) => { if (isAuth) { set(e.target.value); onAutoAdvance(); } }}
-                onClick={() => { if (isAuth && value === 'pantry') onAutoAdvance(); }}
+                onClick={() => {
+                    if (!isAuth) {
+                        toast.info('Necesitas una cuenta para usar tu Nevera', {
+                            description: 'Tu Nevera vive en tu perfil. Inicia sesión y vuelve a este paso.',
+                            duration: 5000,
+                        });
+                        return;
+                    }
+                    if (value === 'pantry') onAutoAdvance();
+                }}
             />
         </div>
     );

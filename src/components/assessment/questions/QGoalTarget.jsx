@@ -54,7 +54,17 @@ export const QGoalTarget = ({ onManualAdvance }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div>
                 <Label htmlFor="targetWeight">{inputLabel}</Label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', alignItems: 'stretch' }}>
+                {/* [P1-GOAL-TARGET-NARROW · 2026-08-10] Era `1fr auto`, y la columna
+                    `auto` se dimensiona al ancho del chip «Sin meta específica» mientras
+                    el `1fr` puede encogerse casi a cero. Pistas medidas a 320px:
+                    71,4px para el campo contra 196,6px para el chip. Descontando el
+                    cromo del campo quedaban 29px de texto: «200» ya no cabe, y con el
+                    chip marcado el usuario veía literalmente «Mar».
+                    No era un desborde de página —se cortaba DENTRO del campo, donde no
+                    hay barra ni señal— y en pantallas grandes no se nota: a 430px el
+                    campo mide 181px. Con `auto-fit` las dos pistas colapsan a una sola
+                    cuando no caben, y el campo recupera el ancho completo. */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', alignItems: 'stretch' }}>
                     <Input
                         id="targetWeight" type="number" inputMode="decimal"
                         placeholder={auto ? 'Marcaste «Sin meta específica»' : (weightUnit === 'lb' ? 'Ej. 140' : 'Ej. 64')}

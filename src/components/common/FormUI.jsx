@@ -26,10 +26,17 @@ export const Select = ({ children, ...props }) => (
 // la misma opción → usuario stuck sin botón "Siguiente". Permitir `onClick`
 // en el `<label>` (que envuelve el radio) garantiza el callback en cada
 // interacción independiente del estado React previo.
-export const RadioCard = ({ name, value, checked, onChange, onClick, label, icon: Icon, desc }) => (
+// [P1-PLANSOURCE-DEAD-CONTROL · 2026-08-10] `disabled` opcional. Sin él, un caller que
+// quisiera vetar una opción solo podía ignorar el `onChange` — y una tarjeta que ignora
+// el toque en silencio es indistinguible de una rota. `aria-disabled` en vez de quitar
+// el control del árbol: el lector de pantalla debe poder ANUNCIAR que existe y que no
+// está disponible, y el `onClick` del contenedor sigue vivo para explicar por qué.
+export const RadioCard = ({ name, value, checked, onChange, onClick, label, icon: Icon, desc, disabled = false }) => (
     <label
         className={`${styles.radioCard} ${checked ? styles.checked : ''}`}
         onClick={onClick}
+        aria-disabled={disabled || undefined}
+        style={disabled ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
     >
         <input
             type="radio"
@@ -37,6 +44,7 @@ export const RadioCard = ({ name, value, checked, onChange, onClick, label, icon
             value={value}
             checked={checked}
             onChange={onChange}
+            disabled={disabled}
             className={styles.radioHidden}
         />
         {/* [FORM-VISUAL-V2 · 2026-07-02] El icono vive en un chip circular que se

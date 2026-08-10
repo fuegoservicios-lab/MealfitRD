@@ -1,5 +1,6 @@
 // [P2-4 · 2026-07-09] Extraído de InteractiveQuestions.jsx (split mecánico un-archivo-por-Q*; ese archivo quedó como barrel de re-export).
 import { useEffect } from 'react';
+import { UnitToggle } from './_shared';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard, Input, Label } from '../../common/FormUI';
 import { budgetCycleDays } from '../../../config/formValidation';
@@ -98,20 +99,12 @@ export const QBudget = ({ onAutoAdvance }) => {
                         <Label htmlFor="budgetAmount" style={{ margin: 0 }}>Tu presupuesto total por ciclo de compras</Label>
                         {/* [BUDGET-CURRENCY · 2026-05-31] Toggle RD$ (peso dominicano,
                             default) / US$ (dólar). Mismo patrón visual que LB/KG. */}
-                        <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '0.5rem', padding: '3px', flexShrink: 0 }}>
-                            <button
-                                type="button"
-                                onClick={() => updateData('budgetCurrency', 'DOP')}
-                                aria-pressed={budgetCurrency !== 'USD'}
-                                style={{ border: 'none', background: budgetCurrency !== 'USD' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: budgetCurrency !== 'USD' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
-                            >RD$</button>
-                            <button
-                                type="button"
-                                onClick={() => updateData('budgetCurrency', 'USD')}
-                                aria-pressed={budgetCurrency === 'USD'}
-                                style={{ border: 'none', background: budgetCurrency === 'USD' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: budgetCurrency === 'USD' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
-                            >US$</button>
-                        </div>
+                        <UnitToggle
+                            ariaLabel="Moneda del presupuesto"
+                            value={budgetCurrency === 'USD' ? 'USD' : 'DOP'}
+                            onChange={(v) => updateData('budgetCurrency', v)}
+                            options={[{ value: 'DOP', label: 'RD$' }, { value: 'USD', label: 'US$' }]}
+                        />
                     </div>
                     <div style={{ position: 'relative' }}>
                         <span aria-hidden="true" style={{

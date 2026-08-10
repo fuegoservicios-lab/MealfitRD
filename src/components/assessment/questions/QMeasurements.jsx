@@ -1,5 +1,6 @@
 // [P2-4 · 2026-07-09] Extraído de InteractiveQuestions.jsx (split mecánico un-archivo-por-Q*; ese archivo quedó como barrel de re-export).
 import { useEffect, useState } from 'react';
+import { UnitToggle } from './_shared';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { Input, Label } from '../../common/FormUI';
 // [P1-3] Rangos biométricos compartidos con el backend (`_BIO_RANGES` en
@@ -129,10 +130,12 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <Label htmlFor="height" style={{ margin: 0 }}>Altura&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
-                        <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '0.5rem', padding: '3px' }}>
-                            <button onClick={() => setUnit('cm')} style={{ border: 'none', background: unit === 'cm' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: unit === 'cm' ? 'var(--primary)' : 'var(--text-muted)' }}>CM</button>
-                            <button onClick={() => setUnit('ft')} style={{ border: 'none', background: unit === 'ft' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: unit === 'ft' ? 'var(--primary)' : 'var(--text-muted)' }}>FT</button>
-                        </div>
+                        <UnitToggle
+                            ariaLabel="Unidad de altura"
+                            value={unit}
+                            onChange={setUnit}
+                            options={[{ value: 'cm', label: 'CM' }, { value: 'ft', label: 'FT' }]}
+                        />
                     </div>
                     {unit === 'cm' ? (
                         <Input
@@ -176,17 +179,12 @@ export const QMeasurements = ({ onManualAdvance }) => {
                             de la hidratación async). `weightUnit='lb'` ya se envía al
                             backend por defecto (initialFormData), así que el contrato
                             P0-FORM-4 (weightUnit required + válido) se sigue cumpliendo. */}
-                        <div style={{
-                            display: 'flex',
-                            background: 'var(--bg-muted)',
-                            borderRadius: '0.5rem',
-                            padding: '3px',
-                            border: 'none',
-                            transition: 'all 0.2s ease',
-                        }}>
-                            <button onClick={() => handleWeightUnitChange('lb')} style={{ border: 'none', background: weightUnit === 'lb' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: weightUnit === 'lb' ? 'var(--primary)' : 'var(--text-muted)' }}>LB</button>
-                            <button onClick={() => handleWeightUnitChange('kg')} style={{ border: 'none', background: weightUnit === 'kg' ? 'var(--bg-card)' : 'transparent', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, color: weightUnit === 'kg' ? 'var(--primary)' : 'var(--text-muted)' }}>KG</button>
-                        </div>
+                        <UnitToggle
+                            ariaLabel="Unidad de peso"
+                            value={weightUnit}
+                            onChange={handleWeightUnitChange}
+                            options={[{ value: 'lb', label: 'LB' }, { value: 'kg', label: 'KG' }]}
+                        />
                     </div>
                     <Input
                         id="weight" type="number" inputMode="decimal" placeholder={weightUnit === 'lb' ? 'Ej. 150' : 'Ej. 70'}
