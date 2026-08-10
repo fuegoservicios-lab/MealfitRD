@@ -307,10 +307,15 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
         await openViewfinder();
         await waitForLive();
 
-        expect(container.querySelector('.qpb-vf-sweep')).not.toBeInTheDocument();
-        const corner = container.querySelector('.qpb-vf-corner');
+        // [P1-SCANNER-SHARED · 2026-08-10] Las clases pasaron de `qpb-vf-*` a
+        // `mfvf-*` al mudarse el visor a `common/CameraViewfinder` — el mismo visor
+        // que ahora usa también «Escanear comida». Lo que este caso protege no
+        // cambió: con reduced-motion no hay barrido, y la retícula late en vez de
+        // moverse.
+        expect(container.querySelector('.mfvf-sweep')).not.toBeInTheDocument();
+        const corner = container.querySelector('.mfvf-corner');
         expect(corner).toBeTruthy();
-        expect(corner.getAttribute('style')).toMatch(/qpb-pulse/);
+        expect(corner.getAttribute('style')).toMatch(/mfvf-pulse/);
     });
 
     it('sin reduced-motion SÍ renderiza el barrido en loop', async () => {
@@ -320,8 +325,8 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
         await openViewfinder();
         await waitForLive();
 
-        const sweep = container.querySelector('.qpb-vf-sweep');
+        const sweep = container.querySelector('.mfvf-sweep');
         expect(sweep).toBeTruthy();
-        expect(sweep.getAttribute('style')).toMatch(/qpb-vf-sweep 1\.6s/);
+        expect(sweep.getAttribute('style')).toMatch(/mfvf-sweep 1\.6s/);
     });
 });

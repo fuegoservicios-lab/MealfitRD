@@ -6,6 +6,9 @@ import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] Hook SSOT de media queries (P2-14).
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+// [P1-SCANNER-SHARED · 2026-08-10] El visor en vivo es SSOT compartido con el
+// escáner de la Nevera — no una segunda copia de 200 líneas.
+import CameraViewfinder from '../common/CameraViewfinder';
 import styles from './ScanMealModal.module.css';
 
 // [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
@@ -297,6 +300,30 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
     const onCameraChange = (e) => { handleFile(e.target.files?.[0]); e.target.value = ''; };
     const onGalleryChange = (e) => { handleFile(e.target.files?.[0]); e.target.value = ''; };
 
+    // [P1-SCANNER-SHARED · 2026-08-10] Visor en vivo en el móvil, el MISMO que ya
+    // usaba el escáner de la Nevera. Antes esta pantalla delegaba en la cámara del
+    // sistema (`<input capture>`): el usuario salía de la app, hacía una foto en la
+    // cámara genérica y volvía. Funcionaba, pero no se parecía a un escáner — y era
+    // la única de las dos superficies de escaneo de la app que se sentía así.
+    //
+    // El visor se queda abierto MIENTRAS analiza (foto congelada + «Analizando…») y
+    // se cierra solo al terminar, porque `handleFile` resuelve cuando el análisis
+    // acabó. Sin ese await habría que sincronizar dos estados a mano y el visor se
+    // cerraría antes de tiempo, dejando un salto visual en mitad del escaneo.
+    const [viewfinderOpen, setViewfinderOpen] = useState(false);
+    const hasCameraApi = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+    const useLiveViewfinder = isCoarsePointer && hasCameraApi;
+
+    const handleViewfinderCapture = useCallback(async (file) => {
+        await handleFile(file);
+        setViewfinderOpen(false);
+    }, [handleFile]);
+
+    const handleViewfinderFallback = useCallback(() => {
+        setViewfinderOpen(false);
+        galleryInputRef.current?.click();
+    }, []);
+
     const applyPortion = useCallback((m) => {
         setMultiplier(m);
         setForm((prev) => ({
@@ -386,6 +413,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
     if (!isOpen) return null;
 
     return (
+        <>
         <div className={styles.overlay} onClick={handleOverlayClick}>
             <div
                 ref={containerRef}
@@ -451,14 +479,27 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                             {isCoarsePointer && (
                                 <button
                                     className={styles.optionCard}
-                                    onClick={() => cameraInputRef.current?.click()}
+                                    onClick={() => {
+                                        // Con cámara real → visor in-app. Sin ella (tablet sin
+                                        // cámara, permiso de navegador raro) se conserva el
+                                        // `<input capture>` de siempre: la salida degradada
+                                        // sigue existiendo, no se cambia una por otra.
+                                        if (useLiveViewfinder) setViewfinderOpen(true);
+                                        else cameraInputRef.current?.click();
+                                    }}
                                 >
                                     <span className={`${styles.optionIco} ${styles.optionIcoPrimary}`}>
                                         <Camera size={20} strokeWidth={2.1} />
                                     </span>
                                     <span className={styles.optionTxt}>
-                                        <span className={styles.optionLabel}>Tomar foto</span>
-                                        <span className={styles.optionSub}>Usa la cámara de tu dispositivo</span>
+                                        <span className={styles.optionLabel}>
+                                            {useLiveViewfinder ? 'Escanear mi plato' : 'Tomar foto'}
+                                        </span>
+                                        <span className={styles.optionSub}>
+                                            {useLiveViewfinder
+                                                ? 'Encuadra el plato y captura'
+                                                : 'Usa la cámara de tu dispositivo'}
+                                        </span>
                                     </span>
                                     <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
                                 </button>
@@ -644,6 +685,24 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 )}
             </div>
         </div>
+
+        {/* [P1-SCANNER-SHARED · 2026-08-10] El mismo visor del escáner de la Nevera.
+            Se queda abierto mientras la IA analiza (foto congelada + «Analizando…»)
+            y se cierra al terminar — `handleViewfinderCapture` espera a `handleFile`,
+            que resuelve cuando el análisis acabó. */}
+        <CameraViewfinder
+            isOpen={viewfinderOpen}
+            title="Escanear tu plato"
+            hint="Encuadra el plato completo, de frente"
+            busy={phase === 'scanning'}
+            busyHint="Estimando las macros…"
+            busyHintLong="Todavía analizando — la foto tenía mucho detalle"
+            fileName="plato.jpg"
+            onCapture={handleViewfinderCapture}
+            onClose={() => setViewfinderOpen(false)}
+            onFallbackToFile={handleViewfinderFallback}
+        />
+        </>
     );
 };
 
