@@ -98,10 +98,17 @@ describe('[P1-PANTRY-CAMERA-SCAN] PantryScanButton — visor de cámara en vivo'
         // Un solo tap → el visor, sin menú intermedio.
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         await waitFor(() => expect(getUserMediaMock).toHaveBeenCalledTimes(1));
-        expect(getUserMediaMock).toHaveBeenCalledWith({
-            video: { facingMode: { ideal: 'environment' } },
-            audio: false,
-        });
+        // [P1-SCAN-CAPTURE-RES · 2026-08-10] Antes se afirmaba el objeto ENTERO, así
+        // que pedir resolución rompía este caso sin que nada estuviera mal. Lo que
+        // protege es la cámara TRASERA; el ancho lo vigila
+        // `P1_scan_capture_resolution.test.jsx`. Un test que falla por un cambio
+        // correcto en algo que no es su tema estorba en vez de vigilar.
+        expect(getUserMediaMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                video: expect.objectContaining({ facingMode: { ideal: 'environment' } }),
+                audio: false,
+            }),
+        );
     });
 
     describe('lifecycle de tracks del stream (la luz de la cámara NUNCA se queda prendida)', () => {

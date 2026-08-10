@@ -201,8 +201,28 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
             return undefined;
         }
 
+        // [P1-SCAN-CAPTURE-RES · 2026-08-10] La resolución se PIDE. Sin pedirla, el
+        // navegador entrega su default —VGA, 640x480— y eso es lo que llevaba
+        // meses saliendo: los logs de producción muestran `original_wh=(480, 640)`
+        // en TODOS los scans, con `resized=False` porque ya cabían de sobra bajo el
+        // tope de 1024px del servidor. O sea: teléfonos de 12 megapíxeles mandando
+        // 0,3, y el resize —escrito para ahorrar— nunca llegaba a actuar.
+        //
+        // Eso explica mejor que ningún modelo por qué la visión no distingue un pan
+        // de agua de uno de hot dog: no es que razone poco, es que está mirando una
+        // foto de 0,3 MP. Antes de pagar un modelo más caro o el doble de espera,
+        // hay que dejar de mandarle una imagen borrosa.
+        //
+        // `ideal` y no `exact`: un dispositivo que no llegue a 1920 entrega lo que
+        // pueda en vez de fallar la cámara entera. El coste sigue acotado aguas
+        // abajo — `_downscaleToB64` recorta a 1024px y el servidor vuelve a topar
+        // ahí, así que el payload no se dispara: cambia la nitidez, no el tamaño.
         navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: 'environment' } },
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+            },
             audio: false,
         }).then((stream) => {
             if (cancelled) {
