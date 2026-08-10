@@ -5916,7 +5916,7 @@ const DashboardInner = () => {
                                         <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
                                             {{ weekly: '7d', biweekly: '15d', monthly: '30d' }[groceryDuration] || '7d'}
                                         </span>
-                                        <span style={{ color: 'var(--text-light)', fontWeight: 500 }}>
+                                        <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
                                             {{ weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' }[groceryDuration] || 'semanal'}
                                         </span>
                                     </span>
@@ -5953,7 +5953,7 @@ const DashboardInner = () => {
                                                 cursor: 'help',
                                             }}
                                         >
-                                            <AlertCircle size={11} color="#F59E0B" strokeWidth={2.5} />
+                                            <AlertCircle size={11} color="var(--ink-pantry)" strokeWidth={2.5} />
                                             <span>caché</span>
                                         </div>
                                     )}
@@ -6052,7 +6052,7 @@ const DashboardInner = () => {
                                     >
                                         {/* Despensa Section */}
                                         <div style={{ padding: '4px 8px 3px' }}>
-                                            <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                 <Clock size={11} /> Duración del Plan
                                             </span>
                                         </div>
@@ -6169,10 +6169,10 @@ const DashboardInner = () => {
                                                 onMouseLeave={e => { if (groceryDuration !== opt.value) e.currentTarget.style.background = 'transparent'; }}
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-                                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: groceryDuration === opt.value ? (isDark ? '#34D399' : '#059669') : 'var(--text-main)' }}>{opt.label}</span>
-                                                    <span style={{ fontSize: '0.66rem', color: isDark ? 'var(--text-muted)' : 'var(--text-light)' }}>{opt.sub}</span>
+                                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: groceryDuration === opt.value ? (isDark ? '#34D399' : '#047857') : 'var(--text-main)' }}>{opt.label}</span>
+                                                    <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>{opt.sub}</span>
                                                 </div>
-                                                {groceryDuration === opt.value && <CheckCircle size={15} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.5} />}
+                                                {groceryDuration === opt.value && <CheckCircle size={15} color={isDark ? '#34D399' : '#047857'} strokeWidth={2.5} />}
                                             </div>
                                         ))}
 
@@ -6186,7 +6186,7 @@ const DashboardInner = () => {
                                             recalcula con la duración elegida (mismo SSOT minBudgetFor). */}
                                         <div style={{ height: 1, background: 'var(--border)', margin: '8px 4px' }} />
                                         <div style={{ padding: '2px 8px 5px' }}>
-                                            <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                 <Wallet size={11} /> Presupuesto
                                             </span>
                                         </div>
@@ -6227,7 +6227,7 @@ const DashboardInner = () => {
                                                                         fontSize: '0.75rem', fontWeight: 700, textAlign: 'center',
                                                                         background: sel ? (isDark ? 'rgba(16,185,129,0.14)' : 'linear-gradient(135deg,#F0FDF4,#DCFCE7)') : 'var(--bg-muted)',
                                                                         border: sel ? (isDark ? '1px solid rgba(52,211,153,0.45)' : '1px solid #BBF7D0') : '1px solid transparent',
-                                                                        color: sel ? (isDark ? '#34D399' : '#059669') : 'var(--text-main)',
+                                                                        color: sel ? (isDark ? '#34D399' : '#047857') : 'var(--text-main)',
                                                                         transition: 'all 0.15s ease',
                                                                     }}
                                                                 >{o.label}</button>
@@ -6514,8 +6514,12 @@ const DashboardInner = () => {
                                 padding: '0.5rem 0.85rem',
                                 marginTop: '0.1rem',
                                 borderRadius: '0.75rem',
-                                background: isDark ? 'rgba(16,185,129,0.10)' : '#ECFDF5',
-                                border: isDark ? '1px solid rgba(52,211,153,0.30)' : '1px solid #A7F3D0',
+                                /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] El texto de esta píldora SÍ cumplía
+                                   (5,48:1). Lo que el dueño veía lavado era el relleno: quedaba a
+                                   ΔL* 2,4 del fondo de página y no se leía como píldora. Sube a
+                                   emerald-100/300. Arreglo de SUPERFICIE, no de color. */
+                                background: isDark ? 'rgba(16,185,129,0.10)' : '#DCFCE7',
+                                border: isDark ? '1px solid rgba(52,211,153,0.30)' : '1px solid #86EFAC',
                                 color: isDark ? '#6EE7B7' : '#047857',
                                 fontSize: '0.74rem', fontWeight: 600, lineHeight: 1.3,
                                 textAlign: 'center',
@@ -8037,7 +8041,7 @@ const DashboardInner = () => {
                                                 return (
                                                 <div style={{
                                                     display: 'flex', flexDirection: 'column', gap: '0.25rem',
-                                                    fontSize: '0.75rem', color: '#EF4444', background: 'rgba(239, 68, 68, 0.1)',
+                                                    fontSize: '0.75rem', color: 'var(--danger-text)', background: 'rgba(239, 68, 68, 0.1)',
                                                     padding: '0.4rem 0.6rem', borderRadius: '0.5rem', marginBottom: '0.5rem',
                                                     fontWeight: 600, border: '1px solid rgba(239, 68, 68, 0.2)'
                                                 }}>
@@ -8335,8 +8339,8 @@ const DashboardInner = () => {
                                                         aria-label={`Registrar que te comiste ${meal.name}`}
                                                     >
                                                         {eatMealInFlight === index
-                                                            ? <Loader2 size={18} className="animate-spin" color={isDark ? '#6EE7B7' : '#059669'} />
-                                                            : <CheckCircle size={18} color={isDark ? '#6EE7B7' : '#059669'} />}
+                                                            ? <Loader2 size={18} className="animate-spin" color={isDark ? '#6EE7B7' : '#047857'} />
+                                                            : <CheckCircle size={18} color={isDark ? '#6EE7B7' : '#047857'} />}
                                                     </button>
                                                 )}
                                             </div>
