@@ -439,13 +439,22 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '260px', overflowY: 'auto' }}>
                     {inventory.map(item => (
+                        /* [P1-PANTRY-ROW-REFLOW - 2026-08-10] La fila se parte en dos
+                           lineas cuando no cabe, en vez de exprimir el nombre.
+                           EL DEFECTO: a 320px los controles fijos + huecos consumian 247
+                           de los 270px de contenido, dejando ~23px para el nombre del
+                           alimento, completamente elipsado. El usuario no podia ver
+                           sobre QUE fila estaba actuando.
+                           Sin punto de corte a mano: flexWrap + un ancho minimo real
+                           para el nombre hacen que el grupo de controles baje solo
+                           cuando de verdad no cabe. En escritorio sigue en una linea. */
                         <div key={item.id} style={{
-                            display: 'flex', alignItems: 'center', gap: '0.6rem',
+                            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.6rem',
                             padding: '0.55rem 0.8rem', borderRadius: '0.75rem',
                             border: '1px solid var(--border)', background: 'var(--bg-card)',
                         }}>
-                            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span style={{ color: 'var(--text-main)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <div style={{ flex: '1 1 9rem', minWidth: '9rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ color: 'var(--text-main)', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {item.ingredient_name}
                                 </span>
                                 {/* [P1-PANTRY-BRAND-FOREVER] Marca por fila SOLO si el Supermercado
@@ -462,10 +471,15 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                     />
                                 )}
                             </div>
+                            {/* [P1-PANTRY-ROW-REFLOW] Grupo de controles: viaja junto, asi
+                                que baja ENTERO a la 2a linea en vez de partirse. Los tres
+                                botones pasan de ~22px de alto (la papelera daba 21: el 48%
+                                del minimo de Apple) a 44. */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
                             <button type="button" aria-label={`Quitar 1 de ${item.ingredient_name}`}
                                 onClick={() => changeQty(item, -1)} disabled={(item.quantity || 0) <= 1}
-                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, cursor: (item.quantity || 0) <= 1 ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', padding: '2px 6px' }}>
-                                <Minus size={13} />
+                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, cursor: (item.quantity || 0) <= 1 ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center' }}>
+                                <Minus size={16} />
                             </button>
                             {/* [P1-PANTRY-ROW-EDIT] Cantidad editable en directo ("escribir 200
                                 sin darle al + 200 veces"): commit en blur / Enter. */}
@@ -477,7 +491,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                 onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                                 style={{
                                     width: '56px', textAlign: 'center', color: 'var(--text-main)',
-                                    fontSize: '0.85rem', background: 'var(--bg-muted)',
+                                    fontSize: '1rem', minHeight: 44, background: 'var(--bg-muted)',
                                     border: '1px solid var(--border)', borderRadius: 8, padding: '2px 4px',
                                 }}
                             />
@@ -489,7 +503,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                 style={{
                                     background: 'var(--bg-muted)', color: 'var(--text-muted)',
                                     border: '1px solid var(--border)', borderRadius: 8,
-                                    fontSize: '0.8rem', padding: '2px 4px', maxWidth: '92px',
+                                    fontSize: '1rem', minHeight: 44, padding: '2px 4px', maxWidth: '92px',
                                 }}>
                                 {[...new Set([item.unit || 'unidad',
                                     item.master_ingredients?.market_container,
@@ -500,14 +514,15 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                             </select>
                             <button type="button" aria-label={`Agregar 1 de ${item.ingredient_name}`}
                                 onClick={() => changeQty(item, 1)}
-                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', padding: '2px 6px' }}>
-                                <Plus size={13} />
+                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center' }}>
+                                <Plus size={16} />
                             </button>
                             <button type="button" aria-label={`Eliminar ${item.ingredient_name}`}
                                 onClick={() => removeItem(item)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-text, #ef4444)', padding: '2px 4px' }}>
-                                <Trash2 size={14} />
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-text, #ef4444)', minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center' }}>
+                                <Trash2 size={18} />
                             </button>
+                            </div>
                         </div>
                     ))}
                 </div>
