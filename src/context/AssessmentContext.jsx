@@ -25,6 +25,11 @@ import {
     GUEST_PLAN_CREDITS,
     isGuestModeActive,
     isGuestTabAlive,
+    // [P1-GUEST-SIBLING-TAB · 2026-08-09] Latido compartido: distingue «pestaña
+    // nueva» de «sesión terminada» (ver el bloque de decisión del arranque).
+    isGuestSessionAliveElsewhere,
+    markGuestTabAlive,
+    startGuestHeartbeat,
     activateGuestMode as activateGuestModeStorage,
     getGuestCreditsUsed,
     incrementGuestCreditsUsed,
@@ -1608,7 +1613,32 @@ export const AssessmentProvider = ({ children }) => {
                 // viva" limpiaba la identidad guest → `ProtectedRoute` (!session && !isGuest) → /login.
                 let _guestHasPendingPlan = false;
                 try { _guestHasPendingPlan = !!localStorage.getItem('mealfit_plan_in_progress'); } catch { /* noop */ }
-                const _guestRefresh = _guestActive && (isGuestTabAlive() || _guestHasPendingPlan);
+                // [P1-GUEST-SIBLING-TAB · 2026-08-09] `isGuestSessionAliveElsewhere()`
+                // es el tercer término, y cierra un bug reproducido en producción:
+                // `isGuestTabAlive()` vive en sessionStorage (POR PESTAÑA) pero la
+                // limpieza de abajo escribe en localStorage (COMPARTIDO), así que una
+                // segunda pestaña del mismo invitado borraba la identidad de la
+                // primera —abierta y a medio formulario—. Esa primera, al refrescar,
+                // salía a /login; el usuario volvía por «Probar sin cuenta», eso
+                // arrancaba un invitado NUEVO (que limpia los sensibles a propósito) y
+                // aparecía con los pasos normales llenos y el paso médico vacío.
+                //
+                // El chequeo confundía «¿esta PESTAÑA es nueva?» con «¿la SESIÓN
+                // terminó?». Solo la segunda justifica borrar, y no se puede responder
+                // desde sessionStorage: la respuesta depende de las pestañas HERMANAS.
+                // Si alguna late, esta es una hermana → adopta, no destruye.
+                const _siblingAlive = isGuestSessionAliveElsewhere();
+                const _guestRefresh = _guestActive && (isGuestTabAlive() || _siblingAlive || _guestHasPendingPlan);
+                if (_guestActive && _guestRefresh) {
+                    // TODA pestaña de invitado viva late — no solo la que adopta. Si
+                    // solo latiera la adoptante, una pestaña que se limita a refrescar
+                    // no emitiría señal y la siguiente hermana la daría por muerta: el
+                    // mismo bug con un paso más. `markGuestTabAlive` es idempotente y
+                    // cubre además a la pestaña nueva que acaba de adoptar (sin él,
+                    // volvería a preguntarse lo mismo en cada refresco).
+                    markGuestTabAlive();
+                    startGuestHeartbeat();
+                }
                 if (_guestActive && !_guestRefresh) {
                     // Sesión de tab muerta (pestaña cerrada y reabierta = sesión nueva)
                     // → limpiar la identidad efímera del invitado (flag + session_id +

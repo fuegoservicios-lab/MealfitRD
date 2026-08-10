@@ -96,6 +96,77 @@ function clearGuestTabAlive() {
     try { sessionStorage.removeItem(SS_TAB_ALIVE); } catch { /* noop */ }
 }
 
+/* [P1-GUEST-SIBLING-TAB · 2026-08-09] LATIDO COMPARTIDO ENTRE PESTAÑAS.
+ *
+ * EL BUG QUE CIERRA (reproducido en producción): `isGuestTabAlive()` vive en
+ * sessionStorage, que es POR PESTAÑA, pero la limpieza que dispara
+ * (`clearGuestModeStorage`) escribe en localStorage, que se COMPARTE. Una
+ * segunda pestaña del mismo invitado arranca legítimamente sin marcador, se
+ * declara "sesión nueva" y BORRA la identidad de la primera — que sigue
+ * abierta y con el formulario a medio llenar. Al refrescar, la primera ya no
+ * es invitado: sale a /login, el usuario vuelve por «Probar sin cuenta», eso
+ * arranca un invitado NUEVO (que limpia los sensibles a propósito), y aparece
+ * con los pasos normales intactos y el paso médico vacío. Exactamente el
+ * síntoma reportado: «cuando actualizo la página se ve vacío».
+ *
+ * El chequeo confundía dos preguntas distintas: «¿esta PESTAÑA es nueva?» y
+ * «¿la SESIÓN del invitado terminó?». Solo la segunda justifica borrar, y no
+ * se puede responder desde sessionStorage — porque la respuesta depende de las
+ * pestañas HERMANAS, y sessionStorage no las ve. Por eso el latido vive en
+ * localStorage: la señal tiene que estar donde están los hermanos.
+ *
+ * TRADE-OFF, explícito: cerrar TODAS las pestañas y volver dentro de la
+ * ventana de frescura se lee como "sigue vivo" y preserva. Es una relajación
+ * deliberada y pequeña de la ventana de privacidad, a cambio de dejar de
+ * destruir la sesión de una pestaña ACTIVA — que es un daño seguro y presente
+ * frente a uno hipotético. El intento original protege contra "otra persona
+ * abre el navegador MÁS TARDE", y eso lo sigue cubriendo.
+ */
+const K_HEARTBEAT = 'mealfit_guest_last_seen';
+const HEARTBEAT_STALE_MS = 15000;
+const HEARTBEAT_INTERVAL_MS = 5000;
+let _heartbeatTimer = null;
+
+/** Sella "hay una pestaña de invitado viva AHORA" en storage compartido. */
+export function touchGuestHeartbeat() {
+    safeLocalStorageSet(K_HEARTBEAT, String(Date.now()));
+}
+
+/** ¿Otra pestaña del mismo invitado sigue viva? Se consulta SOLO cuando esta
+ *  pestaña no tiene marcador propio (pestaña nueva): si alguien late, esto es
+ *  una hermana y adopta la sesión en vez de destruirla.
+ *  Fail-safe hacia PRESERVAR, igual que `isGuestTabAlive` — un reloj torcido o
+ *  un storage que no lee no deben poder borrar datos. */
+export function isGuestSessionAliveElsewhere() {
+    const raw = safeLocalStorageGet(K_HEARTBEAT, null);
+    if (!raw) return false;            // nunca latió → no hay hermana
+    const t = parseInt(raw, 10);
+    if (!Number.isFinite(t)) return true;   // ilegible → preservar
+    const age = Date.now() - t;
+    if (age < 0) return true;          // reloj hacia atrás → preservar
+    return age < HEARTBEAT_STALE_MS;
+}
+
+/** Arranca el latido periódico de ESTA pestaña. Idempotente. */
+export function startGuestHeartbeat() {
+    touchGuestHeartbeat();
+    if (_heartbeatTimer != null) return;
+    try {
+        _heartbeatTimer = setInterval(touchGuestHeartbeat, HEARTBEAT_INTERVAL_MS);
+        // Un intervalo no corre con la pestaña en segundo plano en móvil; al
+        // volver al primer plano se sella de inmediato para no parecer muerta.
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) touchGuestHeartbeat();
+        });
+    } catch { /* entorno sin timers/document → sin latido, fail-safe preserva */ }
+}
+
+function stopGuestHeartbeat() {
+    try { if (_heartbeatTimer != null) clearInterval(_heartbeatTimer); } catch { /* noop */ }
+    _heartbeatTimer = null;
+    try { localStorage.removeItem(K_HEARTBEAT); } catch { /* noop */ }
+}
+
 /** Devuelve (creando si hace falta) el session_id efímero del invitado. */
 export function getGuestSessionId() {
     let sid = safeLocalStorageGet(K_SESSION, null);
@@ -119,6 +190,7 @@ export function activateGuestMode() {
     safeLocalStorageSet(K_SESSION, sid);
     safeLocalStorageSet(K_CREDITS_USED, '0');
     markGuestTabAlive(); // [P1-GUEST-SESSION-PERSIST] esta tab queda "viva" para el invitado
+    startGuestHeartbeat(); // [P1-GUEST-SIBLING-TAB] …y empieza a latir para sus hermanas
     return sid;
 }
 
@@ -162,4 +234,8 @@ export const GUEST_PLAN_LOCALSTORAGE_KEYS = [K_MODE, K_SESSION, K_CREDITS_USED];
 export function clearGuestModeStorage() {
     GUEST_PLAN_LOCALSTORAGE_KEYS.forEach((k) => safeLocalStorageRemove(k));
     clearGuestTabAlive(); // [P1-GUEST-SESSION-PERSIST] también el marcador de sesión de tab
+    // [P1-GUEST-SIBLING-TAB · 2026-08-09] Y el latido compartido: si sobreviviera,
+    // la próxima pestaña vería una hermana que ya no existe y adoptaría una
+    // sesión muerta.
+    stopGuestHeartbeat();
 }
