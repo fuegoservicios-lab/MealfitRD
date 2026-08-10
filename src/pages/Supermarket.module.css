@@ -604,13 +604,28 @@
     line-height: 1.55;
     color: var(--pa-ink-2);
 }
+/* [P1-DETAIL-MODAL-FIT · 2026-08-10] EL PRECIO NO SE COMPRIME; «Verificado» BAJA.
+
+   MEDIDO abriendo la ficha en producción: a 375px y menos, el precio salía en DOS
+   líneas —«RD$55 –» / «RD$555»— con el sello a media altura al lado. No era falta
+   de sitio: a 375 el precio pide 184px y la fila da 290, o sea CABE. Lo que
+   ocurría es que los flex items encogen por defecto (`flex-shrink: 1`), así que
+   al no caber JUNTO al sello, el precio se comprimía por debajo de su ancho y
+   partía dentro de su propia caja.
+
+   Con `wrap` en la fila y `flex: none` en el precio, la decisión se invierte y se
+   vuelve la correcta: el precio nunca se parte y es el sello el que baja entero a
+   la línea siguiente cuando no caben los dos. Un rango partido a media cifra es
+   ilegible; un sello en su propia línea, no. */
 .detailPriceRow {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.8rem;
     margin-top: 0.25rem;
 }
 .detailPrice {
+    flex: none;
     font-family: var(--font-mono);
     font-size: 1.5rem;
     font-weight: 600;
@@ -764,7 +779,13 @@
 
 /* ─────────────── responsive ─────────────── */
 @media (max-width: 720px) {
-    .detail { grid-template-columns: 1fr; }
+    /* [P1-DETAIL-MODAL-FIT · 2026-08-10] `minmax(0, 1fr)`, NO `1fr`. Es la
+       trampa de siempre: **`1fr` es `minmax(AUTO, 1fr)`**, y ese mínimo
+       automático es el contenido — así que la columna no baja de lo que mida su
+       hijo más ancho. MEDIDO: la media pedía 331px dentro de un modal de 288 a
+       320px de viewport, o sea 43px fuera del marco, y a 360 se salía 3.
+       Con el mínimo en 0 la columna puede encoger y la imagen se ajusta. */
+    .detail { grid-template-columns: minmax(0, 1fr); }
     .detailMedia {
         min-height: 200px;
         border-right: none;
