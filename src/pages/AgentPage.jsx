@@ -520,7 +520,32 @@ const AgentPage = () => {
             // !important }` en el bloque `@media (max-width: 1024px)` — el teclado
             // sólo se abre con el foco dentro del wrapper, y ese breakpoint es el
             // mismo `isMobile` de esta página.
-            wrapper.style.transform = offsetBottom > 0 ? `translateY(-${offsetBottom}px)` : '';
+            // [P1-CHAT-KEYBOARD-FIT · 2026-08-10] Antes esto desplazaba el wrapper con
+            // un transform vertical: subía la caja de escribir por encima
+            // del teclado, pero el CONTENEDOR seguía midiendo 100dvh —y `dvh` en iOS
+            // no encoge con el teclado—, así que el input tapaba los últimos mensajes
+            // en vez de dejarles sitio. Se movía dónde se escribe, no dónde se lee.
+            //
+            // Ahora el contenedor RESTA el alto del teclado y todo lo de dentro
+            // (lista + input) se recoloca solo. La variable se escribe en el propio
+            // contenedor y no en :root porque esta página sobrevive oculta con
+            // display:none al navegar (P1-AGENT-KEEP-ALIVE): escribir una variable
+            // global desde un componente invisible contaminaría el alto de las demás
+            // rutas del dashboard.
+            const contenedor = wrapper.closest('.agent-container');
+            if (contenedor) {
+                contenedor.style.setProperty('--kb-inset', offsetBottom > 0 ? `${offsetBottom}px` : '0px');
+            }
+            // El transform deja de hacer falta y NO puede quedarse: sumaría al
+            // encogimiento y levantaría el input dos veces.
+            wrapper.style.transform = '';
+            // Al abrirse el teclado el área visible se reduce: sin esto, el último
+            // mensaje queda fuera de cuadro justo cuando el usuario va a responder.
+            if (offsetBottom > 0) {
+                requestAnimationFrame(() => {
+                    try { messagesEndRef.current?.scrollIntoView({ block: 'end' }); } catch { /* nodo desmontado */ }
+                });
+            }
         };
 
         vv.addEventListener('resize', updateInputPosition);
@@ -1510,9 +1535,15 @@ const AgentPage = () => {
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 console.error("Error al eliminar el chat devuelto por el servidor:", errorData);
+                // [P1-CHAT-DELETE-TOUCH · 2026-08-10] Las dos ramas de fallo solo
+                // hacían console.error: la conversación seguía en la lista y el
+                // usuario no tenía forma de saber si había borrado o no. En consola
+                // no mira nadie, y menos desde un teléfono.
+                toast.error('No pudimos eliminar la conversación. Inténtalo de nuevo.');
             }
         } catch (error) {
             console.error("Excepción eliminando chat:", error);
+            toast.error('No pudimos eliminar la conversación. Revisa tu conexión.');
             _captureAgentPageException(error, { action: 'deleteChat' });
         }
     };
@@ -1869,6 +1900,28 @@ const AgentPage = () => {
                     signal: controller.signal
                 });
 
+                // [P1-CHAT-PHOTO-ERRORS · 2026-08-10] Antes se leía el cuerpo SIN mirar
+                // el status. El backend responde 413 (foto demasiado grande), 415 (no es
+                // una imagen) y 429 (límite de escaneos) con `{detail: ...}`, así que
+                // `uploadData.success` salía `undefined`, el flujo lo tomaba por «el
+                // analizador no está disponible» y AUN ASÍ mandaba el turno al chat:
+                // copy equivocado —culpando al sistema de algo que el usuario puede
+                // arreglar— y un turno de LLM quemado en cada intento fallido.
+                if (!uploadRes.ok) {
+                    const _err = await uploadRes.json().catch(() => ({}));
+                    const _motivo = {
+                        413: 'La foto pesa demasiado. Prueba con una más liviana.',
+                        415: 'Ese archivo no es una imagen que podamos leer. Usa JPG, PNG o HEIC.',
+                        429: 'Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.',
+                    }[uploadRes.status];
+                    console.error('[P1-CHAT-PHOTO-ERRORS] upload falló', uploadRes.status, _err);
+                    setMessages(prev => [...prev, _buildAgentErrorMessage({
+                        status: uploadRes.status,
+                        detail: _motivo || _err?.detail,
+                        retryPrompt: userMsg,
+                    })]);
+                    return;   // el `finally` cierra el turno; NO se gasta el stream
+                }
                 const uploadData = await uploadRes.json();
 
                 visionFailed = Boolean(uploadData.analysis_failed);
@@ -2446,6 +2499,16 @@ const AgentPage = () => {
     };
 
     const handleKeyDown = (e) => {
+        // [P1-CHAT-MOBILE-ENTER · 2026-08-10] En un teclado táctil NO existe
+        // Shift+Enter, así que «Enter envía salvo con Shift» dejaba imposible
+        // escribir una segunda línea desde el teléfono — pese a que el textarea
+        // crece hasta 120px justo para eso. El razonamiento era de escritorio
+        // aplicado a móvil. En móvil manda el botón de enviar, que está al lado.
+        if (isMobile) return;
+        // Mientras se compone un carácter (acentos, dictado, teclados IME) el
+        // navegador emite Enter con keyCode 229: enviar ahí corta la palabra a
+        // medias y manda un mensaje que el usuario no había terminado.
+        if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
@@ -2647,7 +2710,7 @@ const AgentPage = () => {
                             // Ahora lo hace `useAutosizeTextarea` (arriba),
                             // que corre en CADA commit donde cambia el valor
                             // o el ancho disponible.
-                            enterKeyHint="send"
+                            enterKeyHint={isMobile ? "enter" : "send"}
                             style={{
                                 flex: 1,
                                 background: 'transparent',
@@ -2840,13 +2903,35 @@ const AgentPage = () => {
     return (
         <>
             <style>{`
+                /* [P1-CHAT-DELETE-TOUCH · 2026-08-10] La papelera de cada conversación
+                   se revelaba SOLO con :hover, y en un teléfono no hay hover: desde el
+                   móvil no se podía borrar NINGUNA conversación. Con el tope de 40
+                   sesiones, la lista solo crecía.
+
+                   Se añade visibility y no solo opacity: opacity 0 + pointer-events none
+                   deja el botón en el orden de tabulación, así que con teclado o VoiceOver
+                   se podía activar a ciegas un borrado que no se ve.
+                   (Sin acentos graves aquí dentro: este CSS vive en un template literal
+                   de JS y un backtick lo cierra y rompe el build.) */
                 .chat-session-btn .chat-actions-hover {
                     opacity: 0;
+                    visibility: hidden;
                     pointer-events: none;
                 }
-                .chat-session-btn:hover .chat-actions-hover {
+                .chat-session-btn:hover .chat-actions-hover,
+                .chat-session-btn:focus-within .chat-actions-hover {
                     opacity: 1;
+                    visibility: visible;
                     pointer-events: auto;
+                }
+                /* Donde no hay puntero fino (teléfono, tablet) la acción es visible
+                   siempre: es la única forma de alcanzarla. */
+                @media (hover: none) {
+                    .chat-session-btn .chat-actions-hover {
+                        opacity: 1;
+                        visibility: visible;
+                        pointer-events: auto;
+                    }
                 }
 
                 .attachment-btn {
@@ -2888,7 +2973,19 @@ const AgentPage = () => {
                 style={{
                     display: 'flex',
                     flexDirection: 'row',
-                    height: isMobile ? 'var(--app-height, 100dvh)' : 'var(--app-height, calc(100dvh - 7.25rem))',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] ver useEffect arriba
+                    // [P1-CHAT-KEYBOARD-FIT · 2026-08-10] En móvil el alto RESTA lo que
+                    // ocupa el teclado. Antes era 100dvh fijo: `dvh` en iOS NO encoge
+                    // al abrirse el teclado, así que el contenedor seguía midiendo la
+                    // pantalla entera y el final de la conversación quedaba detrás del
+                    // teclado. El handler de `visualViewport` solo subía el input con
+                    // `transform` — movía la caja de escribir, no el sitio donde se lee.
+                    // `--kb-inset` lo escribe ese mismo handler SOBRE ESTE ELEMENTO (no
+                    // en :root) porque esta página sobrevive oculta con display:none al
+                    // navegar (P1-AGENT-KEEP-ALIVE): una variable global escrita desde un
+                    // componente invisible contaminaría el alto de las demás rutas.
+                    height: isMobile
+                        ? 'calc(var(--app-height, 100dvh) - var(--kb-inset, 0px))'
+                        : 'var(--app-height, calc(100dvh - 7.25rem))',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] ver useEffect arriba
                     background: 'var(--bg-card)',
                     borderRadius: isMobile ? '0' : '1.5rem',
                     boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',

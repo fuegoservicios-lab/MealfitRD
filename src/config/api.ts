@@ -82,7 +82,14 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = _resolveDefaultRequestTimeout();
 // `Plan.jsx::generateAIPlanStream`. Abortarlos con el default rompería la
 // generación de planes. La exención vive AQUÍ (no en Plan.jsx) para contener el
 // cambio en un solo archivo. Match por substring sobre el path relativo.
-export const REQUEST_TIMEOUT_EXEMPT_PATTERNS = ['/plans/analyze'];
+// [P1-CHAT-PHOTO-ERRORS · 2026-08-10] `/diary/upload` se une a la exención: es el
+// análisis de una foto con el modelo de visión, que la propia UI anuncia como «puede
+// tardar un minuto» y cuyo comentario en AgentPage dice 30-90s. Con el timeout por
+// defecto de 60s, un scan normal se abortaba a mitad y el catch lo mostraba como
+// «📡 Sin conexión al servidor» — culpando a la red de una espera que el propio
+// producto había prometido. La llamada ya trae su AbortController (el botón Detener
+// la cancela), así que quitarle el tope no la deja sin freno.
+export const REQUEST_TIMEOUT_EXEMPT_PATTERNS = ['/plans/analyze', '/diary/upload'];
 
 // [P2-6 · 2026-07-09] Options aceptado por fetchWithAuth: el RequestInit estándar
 // de fetch + `timeout` opcional (knob per-call de P1-5).
