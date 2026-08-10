@@ -163,7 +163,7 @@ export const QBudget = ({ onAutoAdvance }) => {
                             caído) se omite la frase — mejor dar solo el piso que
                             inventar una cifra. */}
                         {belowMin
-                            ? `⚠️ El mínimo para ${cycleDays} días es ${currencySymbol}${minBudget.toLocaleString('en-US')}. Súbelo para poder crear un plan viable.`
+                            ? `⚠️ El mínimo para ${cycleDays} días es ${currencySymbol}${minBudget.toLocaleString('en-US')}.${typicalCost ? ` Un plan típico ronda ${currencySymbol}${typicalCost.toLocaleString('en-US')}.` : ''} Súbelo para poder crear un plan viable.`
                             : `La IA ajustará los ingredientes para acercarse a este monto. Mínimo ${currencySymbol}${minBudget.toLocaleString('en-US')} para ${cycleDays} días${budgetIsPersonalized ? ' (según tus calorías y metas)' : ''}.${typicalCost ? ` Un plan típico ronda ${currencySymbol}${typicalCost.toLocaleString('en-US')}.` : ''}`}
                     </span>
                 </div>
