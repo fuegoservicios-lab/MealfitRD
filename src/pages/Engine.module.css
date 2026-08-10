@@ -694,8 +694,24 @@
 .chartNote { margin-top: 0.9rem; font-size: 0.875rem; line-height: 1.55; color: var(--pa-ink-2); }
 
 .macroBars { margin-top: 3.4rem; display: grid; gap: 0.65rem; }
-.macroBar { display: grid; grid-template-columns: 78px minmax(0, 1fr) 54px; align-items: center; gap: 0.85rem; }
-.macroBarLabel { font-size: 0.875rem; color: var(--pa-ink); font-weight: 600; }
+/* [P1-MACRO-LABEL-GUTTER · 2026-08-10] La canaleta del rótulo la dimensiona el
+   RÓTULO MÁS LARGO (`auto`), no un número escrito a ojo.
+
+   Eran 78px fijos y «Carbohidratos» pide 98 —MEDIDO en producción—: 20px de
+   texto invadían el gap hasta tocar la barra, que es lo que el dueño vio. Las
+   otras tres etiquetas (Proteína, Calorías, Grasas) cabían, así que el defecto
+   solo aparecía en una de cada cuatro filas y era fácil no verlo al escribirlo.
+
+   `auto` en una columna de grid la resuelve para TODAS las filas a la vez (las
+   columnas son compartidas), así que la alineación se conserva y el ancho deja
+   de ser una suposición: si mañana entra un macro con nombre más largo, o
+   alguien sube el cuerpo de la fuente, la canaleta crece sola. Un `78px` solo
+   es correcto hasta que cambia cualquiera de las dos cosas.
+
+   `nowrap` en el rótulo para que el ajuste sea en ancho y no partiendo la
+   palabra en dos líneas. */
+.macroBar { display: grid; grid-template-columns: auto minmax(0, 1fr) 54px; align-items: center; gap: 0.85rem; }
+.macroBarLabel { font-size: 0.875rem; color: var(--pa-ink); font-weight: 600; white-space: nowrap; }
 /* Pista en `--pa-rule-2`: es el DENOMINADOR de la proporción, no un adorno del
    relleno. A `--pa-rule-3` (1,61:1) la extensión total contra la que se mide el
    relleno desaparece, y una barra sin denominador visible deja de ser una

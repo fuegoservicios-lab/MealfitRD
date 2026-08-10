@@ -175,9 +175,14 @@
     gap: 1.15rem;
     max-width: 640px;
 }
+/* [P1-MACRO-LABEL-GUTTER · 2026-08-10] Canaleta dimensionada por el rótulo más
+   largo. En escritorio los 118px bastaban, pero el bloque móvil de abajo los
+   bajaba a 86 y «Carbohidratos» pide 105 —MEDIDO—: 19px de texto invadiendo la
+   barra. Mismo defecto y misma fecha que `.macroBar` de `Engine.module.css`; se
+   arreglan juntos porque son la misma figura contada dos veces. */
 .macroRow {
     display: grid;
-    grid-template-columns: 118px minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 1rem;
     align-items: center;
 }
@@ -185,6 +190,7 @@
     font-size: 0.9375rem;
     color: var(--pa-ink);
     font-weight: 600;
+    white-space: nowrap;
 }
 /* Misma razón que `.bar`: la pista es el denominador de la proporción. */
 .macroTrack {
@@ -228,7 +234,8 @@
         min-width: 78px;
     }
     .macroRow {
-        grid-template-columns: 86px minmax(0, 1fr) auto;
+        /* Se mantiene `auto` (ver la nota de P1-MACRO-LABEL-GUTTER arriba): aquí
+           estaba el 86px que cortaba «Carbohidratos». Solo se aprieta el gap. */
         gap: 0.7rem;
     }
     .macroErr {

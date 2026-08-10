@@ -153,7 +153,33 @@ test.describe('Landing sin desbordes en móvil', () => {
             });
           }
         });
-        return { escondido, fuera, vw };
+        // [P1-MACRO-LABEL-GUTTER · 2026-08-10] TEXTO QUE NO CABE EN SU CAJA.
+        // Tercer defecto de la familia, y el que encontró el rótulo
+        // «Carbohidratos» pisando su barra: una canaleta de 78px con un texto de
+        // 98 no desborda el viewport ni crea scroll — simplemente invade lo que
+        // tiene al lado. Se mide por elemento, no por página.
+        //
+        // El recorte DECLARADO no cuenta: `text-overflow: ellipsis` avisa con
+        // sus puntos suspensivos de que hay más, y eso es una decisión, no un
+        // accidente.
+        const noCabe = [];
+        document.querySelectorAll('*').forEach((el) => {
+          if (el.children.length) return;
+          const t = (el.textContent || '').trim();
+          if (!t || t.length > 60) return;
+          if (el.clientWidth <= 10) return;
+          if (el.scrollWidth <= el.clientWidth + 1) return;
+          const cs = getComputedStyle(el);
+          if (cs.textOverflow === 'ellipsis') return;
+          noCabe.push({
+            txt: t.slice(0, 30),
+            cls: String(el.className?.baseVal ?? el.className ?? '').slice(0, 34),
+            caja: el.clientWidth,
+            texto: el.scrollWidth,
+          });
+        });
+
+        return { escondido, fuera, noCabe, vw };
       });
 
       expect(
@@ -166,6 +192,13 @@ test.describe('Landing sin desbordes en móvil', () => {
         `P1-MOTOR-TABLE-STACK: hay contenido escondido tras scroll horizontal en ` +
           `${ruta}. En un teléfono ese scroll lateral casi nadie lo descubre: se lee ` +
           `como texto cortado contra el borde. ` + JSON.stringify(problemas.escondido, null, 1)
+      ).toEqual([]);
+      expect(
+        problemas.noCabe,
+        `P1-MACRO-LABEL-GUTTER: hay texto que no cabe en su caja en ${ruta}. No ` +
+          `desborda la página ni crea scroll: invade lo que tiene al lado, que es ` +
+          `como se vio el rótulo «Carbohidratos» pegado a su barra. ` +
+          JSON.stringify(problemas.noCabe, null, 1)
       ).toEqual([]);
     });
   }
