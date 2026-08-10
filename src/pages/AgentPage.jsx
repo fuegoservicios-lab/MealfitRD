@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] SSOT del alto del textarea.
 import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autosizeTextarea';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
@@ -459,6 +459,9 @@ const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
 const AgentPage = () => {
     const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, checkPlanLimit, restoreSessionData } = useAssessment();
     const navigate = useNavigate();
+    // [P1-SETTINGS-DIALOG · 2026-08-10] Ubicación de fondo para abrir la
+    // configuración como ventana sin desmontar la conversación.
+    const location = useLocation();
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
     const navMenuRef = useRef(null);
@@ -3008,11 +3011,18 @@ const AgentPage = () => {
                                         { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
                                         { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry' },
                                         { icon: Clock, label: 'Historial', path: '/history' },
-                                        { icon: Settings, label: 'Configuración', path: '/dashboard/settings' }
+                                        // [P1-SETTINGS-DIALOG · 2026-08-10] `asDialog` marca la única
+                                        // entrada de este menú que no cambia de página: Configuración
+                                        // se abre como ventana sobre el agente, así que la conversación
+                                        // sigue detrás y no se desmonta al ir a ajustes y volver.
+                                        { icon: Settings, label: 'Configuración', path: '/dashboard/settings', asDialog: true }
                                     ].map((item) => (
                                         <button
                                             key={item.path}
-                                            onClick={() => { navigate(item.path); setShowNavMenu(false); }}
+                                            onClick={() => {
+                                                navigate(item.path, item.asDialog ? { state: { backgroundLocation: location } } : undefined);
+                                                setShowNavMenu(false);
+                                            }}
                                             className="nav-dropdown-item"
                                             style={{
                                                 width: '100%',

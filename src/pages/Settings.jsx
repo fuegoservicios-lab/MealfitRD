@@ -114,7 +114,24 @@ const _UnitToggle = ({ unit, options, onChange }) => (
     </div>
 );
 
-const Settings = () => {
+/* [P1-SETTINGS-DIALOG · 2026-08-10] MISMO COMPONENTE, DOS MARCOS.
+
+   `variant='page'` (por defecto) es lo de siempre: la ruta /dashboard/settings
+   renderizada a pantalla completa, y es a lo que cae quien entra por enlace
+   directo o refresca. `variant='dialog'` es la ventana sobre el dashboard.
+
+   Se pasa un marco y no se duplica el componente porque las 7 secciones, sus
+   5 fetches y sus formularios son idénticos en ambos: bifurcar aquí habría
+   creado dos configuraciones que se separan con el primer cambio que alguien
+   haga en una sola.
+
+   `exitGateRef` es la pieza que hace segura la ventana: Settings publica ahí su
+   puerta de salida (la que consulta si hay borradores sin guardar) para que la
+   X, el fondo y la tecla ESC del diálogo pasen por el MISMO sitio que el botón
+   «Volver». Sin ella, cada forma de cerrar sería una forma nueva de perder los
+   números que el usuario acababa de escribir. */
+const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null }) => {
+    const inDialog = variant === 'dialog';
     // Obtenemos userProfile y updateUserProfile del contexto global
     // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
     // `buildHealthProfilePayload`.
@@ -613,7 +630,11 @@ const Settings = () => {
         if (typeof window === 'undefined') return;
         const hash = window.location.hash.replace('#', '');
         if (window.location.hash && !SECTION_IDS.includes(hash)) {
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            // [P1-SETTINGS-DIALOG · 2026-08-10] Preserva el state por el mismo
+            // motivo que `navigateToSection`: aquí vive `backgroundLocation`, y
+            // este limpiador corre AL MONTAR — o sea que un hash residual
+            // cerraría la ventana antes de que el usuario tocara nada.
+            window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -657,10 +678,20 @@ const Settings = () => {
         // replaceState (NO pushState): navegar entre secciones NO debe inflar
         // el historial. Si pusheáramos, `navigate(-1)` desde el listado
         // aterrizaría en una sección de Settings en vez de salir al caller.
+        //
+        // [P1-SETTINGS-DIALOG · 2026-08-10] SE PRESERVA EL STATE (era `null`).
+        // Reemplazar la entrada con state nulo la vaciaba, y ahí vive
+        // `backgroundLocation` — la marca que le dice a App que esto es una
+        // ventana sobre el dashboard. Con `null`, pulsar una sección borraba esa
+        // marca y el diálogo SE CERRABA SOLO en el primer clic. React Router
+        // guarda además su propio `key`/`idx` en esa misma entrada: vaciarla
+        // también le desordena el historial, así que preservarla es correcto en
+        // los dos marcos, no solo en el diálogo.
+        const _histState = window.history.state;
         if (id) {
-            window.history.replaceState(null, '', `#${id}`);
+            window.history.replaceState(_histState, '', `#${id}`);
         } else {
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            window.history.replaceState(_histState, '', window.location.pathname + window.location.search);
         }
     };
 
@@ -677,8 +708,47 @@ const Settings = () => {
             navigateToSection(null);
             return;
         }
+        // [P1-SETTINGS-DIALOG · 2026-08-10] En ventana no se navega: se cierra.
+        // El paso previo (móvil dentro de una sección → volver al listado) es
+        // idéntico en los dos marcos, porque ahí «salir» significa retroceder
+        // DENTRO de la configuración, no abandonarla.
+        if (inDialog && onRequestClose) {
+            onRequestClose();
+            return;
+        }
         navigate('/dashboard');
     };
+
+    /* [P1-SETTINGS-DIALOG · 2026-08-10] LA PUERTA DE SALIDA, ÚNICA.
+
+       Antes esta comprobación vivía dentro del `onClick` del botón «Volver»,
+       que era la única forma de salir. La ventana añade tres (la X, el fondo y
+       ESC), y una regla que vive en un manejador solo protege a quien pasa por
+       ese manejador — el mismo modo de fallo que ya nos costó un P-fix cuando
+       una validación de un paso del formulario no protegía a quien se lo
+       saltaba. Aquí lo que se perdería son los kilos y la altura que el usuario
+       acaba de escribir.
+
+       Devuelve `true` si la salida se consumó, `false` si quedó interceptada
+       por el aviso de descarte. */
+    const requestExit = () => {
+        if (bodyMetricsChanged && activeSection === 'profile') {
+            setShowDiscardConfirm(true);
+            return false;
+        }
+        _doExitNavigation();
+        return true;
+    };
+
+    /* El diálogo no puede importar esta función: se la publicamos. Se
+       re-publica en cada render a propósito — cierra sobre `bodyMetricsChanged`
+       y `activeSection`, así que una referencia congelada respondería con el
+       estado del primer render y dejaría escapar borradores creados después. */
+    useEffect(() => {
+        if (!exitGateRef) return undefined;
+        exitGateRef.current = requestExit;
+        return () => { exitGateRef.current = null; };
+    });
 
     // [APPEARANCE-THEME · 2026-05-29] Iconos de sección: en claro chips pastel;
     // en oscuro los pasteles se ven brillosos → tintes translúcidos + icono más
@@ -1388,20 +1458,19 @@ const Settings = () => {
                     accidental en "Volver" perdía los nuevos números sin aviso.
                     El banner amarillo sigue siendo la primera línea (visible
                     mientras se edita), el modal es la segunda. */}
+                {/* [P1-SETTINGS-DIALOG · 2026-08-10] El guard de borradores ya no
+                    vive aquí: se llama a `requestExit`, la puerta que comparten
+                    este botón y las tres formas de cerrar la ventana. En modo
+                    ventana el rótulo dice «Cerrar», porque no se vuelve a
+                    ningún sitio — el dashboard nunca se fue. */}
                 <button
                     type="button"
                     className={styles.exitSettingsBtn}
-                    onClick={() => {
-                        if (bodyMetricsChanged && activeSection === 'profile') {
-                            setShowDiscardConfirm(true);
-                            return;
-                        }
-                        _doExitNavigation();
-                    }}
-                    aria-label="Volver"
+                    onClick={requestExit}
+                    aria-label={inDialog ? 'Cerrar configuración' : 'Volver'}
                 >
-                    <ArrowLeft size={20} strokeWidth={2.5} />
-                    <span>Volver</span>
+                    {inDialog ? <X size={20} strokeWidth={2.5} /> : <ArrowLeft size={20} strokeWidth={2.5} />}
+                    <span>{inDialog ? 'Cerrar' : 'Volver'}</span>
                 </button>
 
                 {/* [P3-PROFILE-DISCARD-CONFIRM · 2026-05-20] Modal de

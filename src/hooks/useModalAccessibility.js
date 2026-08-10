@@ -51,9 +51,25 @@ import { useEffect, useRef } from 'react';
 const FOCUSABLE_SELECTOR =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function useModalAccessibility({ isOpen, onClose, disableClose = false }) {
+export function useModalAccessibility({ isOpen, onClose, disableClose = false, isTopmost }) {
     const containerRef = useRef(null);
     const triggerRef = useRef(null);
+
+    // [P1-SETTINGS-DIALOG · 2026-08-10] `isTopmost` — el caso que este hook no
+    // contemplaba: UN MODAL DENTRO DE OTRO. Los listeners viven en `document`,
+    // así que con dos capas abiertas ESC cerraba LAS DOS de una tecla (la
+    // interior por su propio handler, la exterior por el suyo) y los dos focus
+    // traps se peleaban el Tab.
+    //
+    // Es una FUNCIÓN y no un booleano a propósito: se evalúa en el instante del
+    // evento, así que el modal exterior puede preguntar al DOM «¿hay otro
+    // diálogo dentro de mí?» sin que nadie tenga que avisarle de que se abrió.
+    // Un booleano obligaría a elevar ese estado y a mantenerlo en sync.
+    //
+    // Devolver `false` SUSPENDE (ignora la tecla), no cierra: no toca el
+    // scroll-lock ni restaura el foco, porque la capa exterior sigue abierta.
+    const isTopmostRef = useRef(null);
+    isTopmostRef.current = typeof isTopmost === 'function' ? isTopmost : null;
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -75,6 +91,8 @@ export function useModalAccessibility({ isOpen, onClose, disableClose = false })
         }, 10);
 
         const handleKeyDown = (e) => {
+            // Hay otra capa por encima: esta no responde ni a ESC ni al Tab.
+            if (isTopmostRef.current && !isTopmostRef.current()) return;
             if (e.key === 'Escape' && !disableClose) {
                 onClose();
                 return;

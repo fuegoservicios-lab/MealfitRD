@@ -65,6 +65,10 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Pantry = lazy(() => import('./pages/Pantry'));
 const Recipes = lazy(() => import('./pages/Recipes'));
 const Settings = lazy(() => import('./pages/Settings'));
+// [P1-SETTINGS-DIALOG · 2026-08-10] La ventana de configuración. Lazy igual que
+// la página: arrastra el mismo Settings de 3.000 líneas, así que meterlo en el
+// bundle del dashboard lo pagaría también quien nunca abre ajustes.
+const SettingsDialog = lazy(() => import('./components/dashboard/SettingsDialog'));
 // [ACCOUNT-SETTINGS · 2026-05-31] Página de Configuración LIVIANA y separada del
 // dashboard (apariencia + cuenta). Vive bajo el `Layout` simple en
 // `/configuracion`, accesible desde el ícono ⚙ del Header. Lazy (no golden path).
@@ -289,6 +293,48 @@ const DashboardAnimatedLayout = () => {
 // restauramos la preferencia del usuario. useLayoutEffect → se aplica antes del
 // paint en navegación SPA, sin parpadeo. El boot script de index.html cubre la
 // carga directa/refresh.
+/* ============================================================================
+   [P1-SETTINGS-DIALOG · 2026-08-10] Rutas-modales: la configuración se abre
+   COMO VENTANA sobre la página en la que estabas, sin dejar de tener URL.
+
+   Quien abre pasa `state.backgroundLocation` con la ubicación actual. Entonces
+   las rutas de abajo se resuelven contra ESA ubicación —así el Dashboard (o la
+   Nevera, o Recetas) sigue pintado detrás— y encima se monta el diálogo.
+
+   Sin ese state no pasa nada especial: la ruta /dashboard/settings resuelve a
+   su página de siempre. Eso cubre gratis el enlace directo, el refresco con la
+   ventana abierta y el usuario que llega desde fuera de la app; no hay que
+   mantener un segundo diseño ni detectar el caso.
+
+   Es un ENVOLTORIO y no un `<Routes>` reescrito para que el árbol de rutas de
+   App no se mueva: `<Routes>{children}</Routes>` recibe exactamente los mismos
+   elementos `<Route>` que antes. Un cambio de 2 líneas en un árbol de ~50
+   rutas se revisa; uno de 125 líneas movidas, no.
+   ========================================================================= */
+function ModalAwareRoutes({ children }) {
+  const location = useLocation();
+  const backgroundLocation = location.state?.backgroundLocation;
+  return (
+    <>
+      <Routes location={backgroundLocation || location}>{children}</Routes>
+      {backgroundLocation && (
+        <Routes>
+          <Route
+            path="/dashboard/settings"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={null}>
+                  <SettingsDialog />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      )}
+    </>
+  );
+}
+
 function PublicThemeLock() {
   const { pathname } = useLocation();
   useLayoutEffect(() => {
@@ -363,7 +409,7 @@ function App() {
         <PendingPipelineRecovery />
         {/* [P2-8 · 2026-07-09] Banner "Sin conexión" (bottom, no-bloqueante). */}
         <OfflineBanner />
-        <Routes>
+        <ModalAwareRoutes>
           <Route element={<AnimatedLayout />}>
             {/* Public Routes: Auth */}
             <Route path="/login" element={<Login />} />
@@ -487,7 +533,7 @@ function App() {
                 links muertos como el viejo /pricing). */}
             <Route path="*" element={<Layout><NotFound /></Layout>} />
           </Route>
-        </Routes>
+        </ModalAwareRoutes>
       </Router>
     </AssessmentProvider>
     </QueryClientProvider>

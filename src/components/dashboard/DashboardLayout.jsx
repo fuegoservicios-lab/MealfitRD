@@ -102,6 +102,22 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
 
     const closeMenu = () => setIsMobileMenuOpen(false);
 
+    /* [P1-SETTINGS-DIALOG · 2026-08-10] Configuración se abre como VENTANA sobre
+       la página actual. `backgroundLocation` es lo que la convierte en ventana:
+       App resuelve el árbol de rutas contra la ubicación que se manda aquí, así
+       que lo que estabas mirando sigue pintado detrás y conserva su scroll.
+
+       La URL no cambia de destino — sigue siendo /dashboard/settings —, así que
+       los enlaces a `#subscription` y el botón atrás del teléfono funcionan
+       igual. Entrar por enlace directo no trae este state y cae a la página
+       completa de siempre; esa degradación es automática, no un caso especial. */
+    const openSettingsDialog = useCallback(() => {
+        setIsAccountMenuOpen(false);
+        closeMenu();
+        navigate('/dashboard/settings', { state: { backgroundLocation: location } });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [navigate, location]);
+
     // [P3-DASH-MODALS-A11Y · 2026-05-30] onClose memoizado + hook de a11y del
     // "Mobile More Menu". Identidad estable de onClose → el effect del hook no se
     // re-arma en cada render (misma lección que P2-DASH-SCAN-ONCLOSE-MEMO). Da
@@ -299,7 +315,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 logoutLabel={logoutLabel}
                                 onViewPlans={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/upgrade'); }}
                                 onViewPlansHover={() => prefetchRoute('/dashboard/upgrade')}
-                                onSettings={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/settings'); }}
+                                onSettings={openSettingsDialog}
                                 onSettingsHover={() => prefetchRoute('/dashboard/settings')}
                                 onLogout={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
                                 onAccount={() => setIsAccountMenuOpen(false)}
@@ -402,6 +418,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         ) : (
                             <Link
                                 to="/dashboard/settings"
+                                state={{ backgroundLocation: location }}
                                 className={styles.mobileMoreItem}
                                 onClick={closeMoreMenu}
                                 onTouchStart={() => prefetchRoute('/dashboard/settings')}

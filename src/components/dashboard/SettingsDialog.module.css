@@ -1,0 +1,105 @@
+/* [P1-SETTINGS-DIALOG · 2026-08-10] El marco de la ventana de configuración.
+   Solo el MARCO: el contenido lo pinta `Settings.jsx` igual que como página.
+
+   Escala de z: 9990. El `Modal.jsx` común usa 9999, y Settings lo monta por
+   dentro (descartar cambios, cancelar suscripción). Quedar DEBAJO no es
+   casualidad — es lo que permite que sus confirmaciones se dibujen encima de
+   esta ventana en vez de quedar atrapadas detrás. */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9990;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    background: rgba(2, 6, 23, 0.62);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    cursor: default;
+    animation: dialogFadeIn 160ms ease-out;
+}
+
+/* El panel. `min-height: 0` es carga estructural, no cosmética: sin él un hijo
+   con scroll dentro de un flex se niega a encoger por debajo de su contenido y
+   la ventana crece hasta desbordar la pantalla en vez de hacer scroll dentro. */
+.panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(1040px, 100%);
+    height: min(86vh, 780px);
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 18px;
+    /* `--bg-page` es EL token del fondo de página (claro #F8FAFC / oscuro
+       #0B1120), el mismo que pinta el área de contenido del dashboard: la
+       ventana debe verse como la página que sustituye, no como una superficie
+       nueva. Un primer intento usó `--bg-main`, que NO EXISTE en el sistema de
+       tokens — el fallback dejaba el panel oscuro también en tema claro, con la
+       cabecera de Settings casi ilegible encima. */
+    background: var(--bg-page, #F8FAFC);
+    box-shadow: 0 24px 70px -20px rgba(2, 6, 23, 0.75);
+    animation: dialogRise 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* El contenido de Settings scrollea DENTRO del panel. Sin esto el scroll se lo
+   quedaría el documento de detrás, que además está bloqueado por el hook. */
+.panel > * {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@keyframes dialogFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes dialogRise {
+    from { opacity: 0; transform: translateY(10px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── MÓVIL: pantalla completa ──────────────────────────────────────────────
+   No es una versión reducida del diálogo: con 7 secciones y un formulario de
+   3.000 líneas, una caja centrada en un teléfono es scroll dentro de scroll y
+   dos bordes que no aportan nada. Claude y ChatGPT hacen lo mismo. En la
+   práctica el móvil se ve como hoy — este cambio se nota en escritorio, que es
+   donde estaba el problema. */
+@media (max-width: 768px) {
+    .overlay {
+        padding: 0;
+    }
+
+    .panel {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        border-radius: 0;
+        animation: dialogRiseMobile 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @keyframes dialogRiseMobile {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+}
+
+/* Respeta la preferencia del sistema: sin desplazamiento ni fundido. El guard
+   global de index.css solo acorta duraciones, y una animación acortada sigue
+   siendo movimiento. */
+@media (prefers-reduced-motion: reduce) {
+    .backdrop,
+    .panel {
+        animation: none !important;
+    }
+}
