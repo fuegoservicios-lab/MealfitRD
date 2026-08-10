@@ -98,6 +98,27 @@ export function setFormCryptoSecret(secret) {
 /** Diagnóstico/tests: ¿hay llave estable activa? */
 export function hasFormCryptoSecret() { return !!_formSecret; }
 
+// [P1-FORM-HYDRATION-FACT · 2026-08-09] El HECHO de si el blob cifrado ya se leyó
+// en esta vida de página. Sustituye a la DEDUCCIÓN por contenido que había antes
+// (mirar si ciertos arrays venían vacíos), que no podía distinguir dos estados
+// distintos: "la hidratación falló" y "el usuario todavía no ha llegado a ese
+// paso del wizard". Al confundirlos, bloqueaba TODA escritura sensible durante
+// los ~16 primeros pasos y el usuario perdía sus respuestas en cada refresco.
+//
+// Vive en memoria del módulo: nace `pending` en cada carga de página, que es
+// exactamente la semántica que queremos (nada leído todavía).
+//
+//   pending  → aún no sabemos qué hay en el blob. NO escribir si el blob existe.
+//   resolved → el blob se leyó (o no existía). Escribir es seguro.
+//   failed   → el blob existe y NO se pudo descifrar. NO escribir: preservarlo.
+let _hydrationState = 'pending';
+
+/** Diagnóstico/tests: estado de la lectura del blob cifrado en esta página. */
+export function getFormHydrationState() { return _hydrationState; }
+
+/** Reset explícito (logout / tests). Vuelve al estado "nada leído todavía". */
+export function resetFormHydrationState() { _hydrationState = 'pending'; }
+
 /** Persiste los campos sensibles del INVITADO a sessionStorage. SALTA si todos están
  *  vacíos — el SAVE effect corre en mount ANTES de la hidratación con el formData inicial
  *  (sensibles vacíos); sin este guard sobreescribiría una copia poblada con vacíos. */
@@ -295,33 +316,50 @@ export const saveFormData = async (formData, session) => {
     const hasAuthAndCrypto = !!secret && isCryptoAvailable();
 
     if (hasAuthAndCrypto) {
-        // [FORM-DATA-PRESERVE · 2026-06-21] Anti-clobber. Si los arrays sensibles
-        // REQUERIDOS vienen vacíos `[]` (NO el sentinel `["Ninguna"]`) Y ya existe
-        // un blob, casi seguro es una hidratación FALLIDA: el token de sesión cambió
-        // (re-login / Brave borró la cookie → first-party con token distinto o null)
-        // → el decrypt falló → sensitive quedó vacío. Re-cifrar ese vacío DESTRUIRÍA
-        // el blob de forma permanente. Lo preservamos (queda recuperable cuando
-        // vuelva el token correcto). El primer llenado (sin blob) y `["Ninguna"]` SÍ
-        // guardan. Espeja la defensa de `_isHydrationLikelyPending` en el save path.
+        // [FORM-DATA-PRESERVE · 2026-06-21 · reescrito P1-FORM-HYDRATION-FACT 2026-08-09]
+        // Anti-clobber. El peligro real: esta escritura REEMPLAZA el blob entero, así
+        // que hacerla con un estado a medio hidratar destruye lo que no esté en él.
+        //
+        // La versión anterior detectaba ese peligro DEDUCIÉNDOLO del contenido —
+        // ciertos arrays vacíos ⇒ "el descifrado falló". Pero vacío también es el
+        // estado legítimo de quien aún no ha contestado ese paso, y de quien no tiene
+        // nada que declarar. Al no poder distinguirlos, bloqueaba toda escritura
+        // sensible durante casi todo el wizard: el usuario contestaba, refrescaba y
+        // sus respuestas no estaban, una y otra vez.
+        //
+        // Ahora se decide por el HECHO de si el blob se leyó (`_hydrationState`),
+        // que sí distingue "falló" de "todavía no". Efecto secundario buscado: con
+        // la hidratación resuelta el reemplazo total vuelve a ser correcto, así que
+        // BORRAR una alergia vuelve a persistirse — un merge no lo permitiría.
         let _blobExists = false;
         try { _blobExists = !!localStorage.getItem(SECURE_KEY); } catch { /* noop */ }
-        const _looksUnhydrated = _REQUIRED_SENSITIVE_ARRAYS.some((f) => {
-            const v = sensitiveData[f];
-            return Array.isArray(v) && v.length === 0;
-        });
-        if (_blobExists && _looksUnhydrated) {
+
+        // Si NO hay blob no hay nada que destruir: escribir es siempre seguro.
+        // Si LO HAY, solo escribimos cuando consta que ya lo leímos en esta página.
+        if (_blobExists && _hydrationState !== 'resolved') {
             // public ya se guardó arriba; NO tocamos el secure blob.
             return;
         }
+
+        // No estrenar el blob con un objeto íntegramente vacío: el save effect
+        // corre en mount con el formData inicial, y un blob vacío recién nacido
+        // no aporta nada. Misma polaridad que la defensa del invitado.
+        if (!_blobExists) {
+            const _hasContent = Object.values(sensitiveData).some((v) =>
+                Array.isArray(v) ? v.length > 0 : (v !== '' && v != null)
+            );
+            if (!_hasContent) return;
+        }
+
         try {
             const key = await _getAesKey(secret);
             const ciphertext = await encryptObject(sensitiveData, key);
             localStorage.setItem(SECURE_KEY, ciphertext);
         } catch (e) {
             console.warn('[secureFormStorage] Encrypt falló — sensitive no persistido:', e);
-            // Borrar el secure storage para no dejar un blob ilegible que
-            // confunda al próximo load.
-            try { localStorage.removeItem(SECURE_KEY); } catch { /* noop */ }
+            // NO borramos el blob previo: el cifrado es la ÚLTIMA sentencia del try,
+            // así que si algo lanzó antes, lo que hay guardado sigue siendo legible.
+            // Borrarlo convertía un fallo transitorio de cifrado en pérdida definitiva.
         }
     }
     // Sin session: NO tocamos `mealfit_form_secure`. Antes borrábamos aquí, pero
@@ -386,22 +424,40 @@ export const loadFormData = async (session) => {
     const accessToken = session?.access_token;
     if (accessToken && accessToken !== _formSecret) candidates.push(accessToken);
 
-    if (candidates.length && isCryptoAvailable()) {
-        try {
-            const blob = localStorage.getItem(SECURE_KEY);
-            if (blob) {
-                for (const secret of candidates) {
-                    const key = await _getAesKey(secret);
-                    const decrypted = await decryptObject(blob, key);
-                    if (decrypted && typeof decrypted === 'object') {
-                        sensitiveData = decrypted;
-                        break;
-                    }
+    // [P1-FORM-HYDRATION-FACT · 2026-08-09] Esta función es la ÚNICA que sabe si el
+    // blob se pudo leer, así que es la que deja constancia. `saveFormData` decide a
+    // partir de ese hecho, no adivinando por el contenido.
+    let _blob = null;
+    try { _blob = localStorage.getItem(SECURE_KEY); } catch { /* noop */ }
+
+    if (!_blob) {
+        // Nada guardado todavía: la lectura queda resuelta y escribir no puede
+        // destruir nada. Es el caso del usuario nuevo.
+        _hydrationState = 'resolved';
+    } else if (candidates.length && isCryptoAvailable()) {
+        let _opened = false;
+        for (const secret of candidates) {
+            try {
+                const key = await _getAesKey(secret);
+                const decrypted = await decryptObject(_blob, key);
+                if (decrypted && typeof decrypted === 'object') {
+                    sensitiveData = decrypted;
+                    _opened = true;
+                    break;
                 }
-            }
-        } catch (e) {
-            console.warn('[secureFormStorage] Decrypt falló — sensitive vacío:', e);
+            } catch { /* llave incorrecta: probamos la siguiente */ }
         }
+        // El try/catch va DENTRO del bucle a propósito: envolviendo el bucle, un
+        // fallo de la llave estable abortaba el intento con el access_token y la
+        // migración de los blobs viejos no llegaba a ocurrir nunca.
+        _hydrationState = _opened ? 'resolved' : 'failed';
+        if (!_opened) {
+            console.warn('[secureFormStorage] Decrypt falló con todas las llaves — se preserva el blob');
+        }
+    } else {
+        // Hay blob pero aún no tenemos con qué abrirlo (la llave estable todavía
+        // no ha llegado del backend). NO es un fallo: es un "todavía no".
+        _hydrationState = 'pending';
     }
 
     return { publicData, sensitiveData };
@@ -454,6 +510,10 @@ export const clearFormStorage = () => {
     try { localStorage.removeItem(PUBLIC_KEY); } catch { /* noop */ }
     try { localStorage.removeItem(SECURE_KEY); } catch { /* noop */ }
     _invalidateAesKeyCache(); // [P2-FORM-SAVE-DEBOUNCE] no retener la clave tras limpiar
+    // Ya no hay blob: la lectura queda trivialmente resuelta y el próximo usuario
+    // de esta pestaña puede escribir desde cero sin quedar bloqueado por el estado
+    // que dejó el anterior.
+    _hydrationState = 'resolved';
 };
 
 // ============================================================
@@ -535,7 +595,12 @@ const _REQUIRED_SENSITIVE_ARRAYS = ['allergies', 'medicalConditions'];
  * @returns {boolean}
  */
 const _isHydrationLikelyPending = (formData, session) => {
-    if (!session?.access_token) return false;
+    // [P1-FORM-HYDRATION-FACT · 2026-08-09] Gate por IDENTIDAD de sesión, no por
+    // presencia de Bearer: la sesión first-party se publica con el access_token
+    // anulado a propósito, así que exigirlo dejaba este guard inerte precisamente
+    // para quienes entran por código de un solo uso, OAuth o PWA en iOS — es decir,
+    // para quienes más lo necesitaban.
+    if (!session?.user?.id && !session?.access_token) return false;
     if (typeof localStorage === 'undefined') return false;
     let hasSecureBlob = false;
     try {
@@ -544,6 +609,10 @@ const _isHydrationLikelyPending = (formData, session) => {
         return false;
     }
     if (!hasSecureBlob) return false;
+    // Si consta que el blob YA se leyó, lo que hay en formData es real —incluido
+    // un array vacío que el usuario dejó vacío a propósito— y bloquear sería negarle
+    // guardar su propio perfil. El hecho manda sobre la deducción por contenido.
+    if (_hydrationState === 'resolved') return false;
     if (!formData || typeof formData !== 'object') return true;
     return _REQUIRED_SENSITIVE_ARRAYS.some((field) => {
         const v = formData[field];
