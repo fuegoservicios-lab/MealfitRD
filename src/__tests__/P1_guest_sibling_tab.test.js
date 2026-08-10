@@ -48,8 +48,16 @@ describe('[P1-GUEST-SIBLING-TAB] el latido distingue «pestaña nueva» de «ses
     });
 
     it('un latido viejo NO cuenta como hermana viva (el invitado se fue de verdad)', () => {
-        // 60 s atrás: muy por encima de la ventana de frescura.
-        localStorage.setItem(K_HEARTBEAT, String(Date.now() - 60000));
+        // [P1-GUEST-BACKGROUND-LIFE · 2026-08-10] Este caso usaba 60 s, que entonces
+        // estaba «muy por encima» de una ventana de 15 s. La ventana se amplió a 45 min
+        // a propósito: con 15 s, un cambio de app rutinario —el ciclo de vida NORMAL de
+        // una app de tienda, donde el sistema congela el temporizador del latido—
+        // destruía la sesión y borraba los 18 campos sensibles.
+        //
+        // Lo que este caso protege no ha cambiado: que un latido genuinamente viejo NO
+        // resucite una sesión ajena, para que quien abra el navegador MÁS TARDE no
+        // herede la del anterior. Solo se mide contra la ventana vigente.
+        localStorage.setItem(K_HEARTBEAT, String(Date.now() - 60 * 60 * 1000));
         expect(isGuestSessionAliveElsewhere()).toBe(false);
     });
 

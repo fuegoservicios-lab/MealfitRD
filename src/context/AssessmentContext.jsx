@@ -268,6 +268,11 @@ export const conservarPlanId = (nuevo, previo) => {
     return { ...nuevo, id: heredado };
 };
 
+// [P1-FORM-SAVE-CAP · 2026-08-10] Techo del agrupamiento del guardado. Por encima
+// del ritmo de tecleo humano (el caso normal sigue agrupando, no se escribe en cada
+// letra) y muy por debajo de lo que tarda alguien en redactar una respuesta larga.
+const FORM_SAVE_MAX_WAIT_MS = 1500;
+
 export const AssessmentProvider = ({ children }) => {
     // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
     // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] Usar `safeLocalStorageGet`.
@@ -2255,9 +2260,16 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     // (pagehide/unmount, abajo) garantiza no perder el último edit dentro de la ventana.
     const _saveDataRef = useRef({ formData: null, session: null });
     const _savePendingRef = useRef(false);
+    // [P1-FORM-SAVE-CAP · 2026-08-10] Instante en que empezó la tanda pendiente, para
+    // que el agrupamiento tenga techo y escribir sin pausas no aplace el guardado
+    // indefinidamente. 1,5s: por encima del ritmo de tecleo humano (así el caso normal
+    // sigue agrupando y no se escribe en cada letra) y muy por debajo de lo que tarda
+    // el usuario en redactar una respuesta larga.
+    const _saveStartedAtRef = useRef(0);
     const _flushFormSave = useCallback(() => {
         if (!_savePendingRef.current) return;
         _savePendingRef.current = false;
+        _saveStartedAtRef.current = 0;
         // `session` aquí es el snapshot capturado al programar el save (no el state
         // vivo) — shadowing intencional; el gate de seguridad es idéntico.
         const { formData, session } = _saveDataRef.current;
@@ -2285,8 +2297,23 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // filtro `editedFieldsRef` que ya preserva edits in-flight del usuario.
         if (!formData || loadingSensitive) return undefined;
         _saveDataRef.current = { formData, session };
+        // [P1-FORM-SAVE-CAP · 2026-08-10] Tope al agrupamiento.
+        //
+        // EL DEFECTO: el efecto lleva `formData` en dependencias y `updateData` crea un
+        // objeto nuevo en CADA pulsación, así que el `clearTimeout` de la limpieza
+        // reiniciaba el temporizador tecla a tecla. Mientras el usuario escribiera sin
+        // pausas de 400ms no se guardaba NADA — el retardo no acotaba la pérdida a
+        // 400ms, la dejaba sin techo. El campo de motivación es un textarea obligatorio:
+        // una respuesta de 45 caracteres son ~9 segundos escribiendo sin un solo
+        // guardado, y una llamada entrante ahí se lo lleva todo.
+        //
+        // Ahora se recuerda cuándo empezó la tanda pendiente y, pasado el techo, se
+        // vuelca aunque el usuario siga escribiendo.
+        if (!_savePendingRef.current) _saveStartedAtRef.current = Date.now();
         _savePendingRef.current = true;
-        const t = setTimeout(_flushFormSave, 400);
+        const esperando = Date.now() - (_saveStartedAtRef.current || Date.now());
+        const retardo = esperando >= FORM_SAVE_MAX_WAIT_MS ? 0 : 400;
+        const t = setTimeout(_flushFormSave, retardo);
         return () => clearTimeout(t);
     }, [formData, session, loadingSensitive, _flushFormSave]);
 
@@ -2295,9 +2322,17 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     // de la ventana de debounce de 400ms.
     useEffect(() => {
         const onHide = () => _flushFormSave();
+        // [P1-FORM-SAVE-CAP · 2026-08-10] `visibilitychange` es el ÚNICO callback
+        // garantizado cuando un móvil suspende de verdad. Cuando el sistema congela y
+        // luego descarta la página por presión de memoria no se dispara `pagehide` ni
+        // `beforeunload`: la página ya estaba oculta. Sin este oyente, el camino por el
+        // que un móvil pierde datos de verdad era justo el que no tenía red de seguridad.
+        const onVisibility = () => { if (document.hidden) _flushFormSave(); };
+        document.addEventListener('visibilitychange', onVisibility);
         window.addEventListener('pagehide', onHide);
         window.addEventListener('beforeunload', onHide);
         return () => {
+            document.removeEventListener('visibilitychange', onVisibility);
             window.removeEventListener('pagehide', onHide);
             window.removeEventListener('beforeunload', onHide);
             _flushFormSave();

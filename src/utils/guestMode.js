@@ -123,9 +123,28 @@ function clearGuestTabAlive() {
  * abre el navegador MÁS TARDE", y eso lo sigue cubriendo.
  */
 const K_HEARTBEAT = 'mealfit_guest_last_seen';
-const HEARTBEAT_STALE_MS = 15000;
+
+// [P1-GUEST-BACKGROUND-LIFE · 2026-08-10] La ventana era de 15 SEGUNDOS, y eso convertía
+// el ciclo de vida NORMAL de una app en una destrucción de datos.
+//
+// En navegador de escritorio la premisa era razonable: cerrar una pestaña es deliberado.
+// Pero esto va a la App Store y a Google Play, y ahí que el sistema reclame el webview
+// —llega una llamada, el usuario mira un mensaje, se cambia de app 10 minutos— es lo
+// que pasa todos los días. Al volver, las tres señales de vida están apagadas a la vez:
+// `sessionStorage` desapareció con el proceso, el latido está viejo porque su
+// `setInterval` NO corre en segundo plano (el sistema lo congela), y el marcador de plan
+// en curso solo existe durante una generación. Resultado: se borran los 18 campos
+// sensibles y el usuario reaparece con el paso médico vacío.
+//
+// 45 minutos conserva la intención original —que otra persona que abre el navegador MÁS
+// TARDE no herede una sesión ajena— y deja de matar sesiones activas. Es la misma
+// decisión que ya se tomó al crear el latido, aplicada al orden de magnitud correcto:
+// un daño seguro y presente pesa más que uno hipotético.
+const HEARTBEAT_STALE_MS = 45 * 60 * 1000;
 const HEARTBEAT_INTERVAL_MS = 5000;
 let _heartbeatTimer = null;
+let _onVisibility = null;
+let _onPageHide = null;
 
 /** Sella "hay una pestaña de invitado viva AHORA" en storage compartido. */
 export function touchGuestHeartbeat() {
@@ -153,17 +172,32 @@ export function startGuestHeartbeat() {
     if (_heartbeatTimer != null) return;
     try {
         _heartbeatTimer = setInterval(touchGuestHeartbeat, HEARTBEAT_INTERVAL_MS);
-        // Un intervalo no corre con la pestaña en segundo plano en móvil; al
-        // volver al primer plano se sella de inmediato para no parecer muerta.
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) touchGuestHeartbeat();
-        });
+        // [P1-GUEST-BACKGROUND-LIFE · 2026-08-10] Se sella en AMBAS direcciones. Antes
+        // solo al volver al primer plano, y eso llega tarde: el sello que importa es el
+        // del instante en que el usuario SE VA, porque puede que la app no vuelva a
+        // ejecutar código nunca (el sistema la mata en segundo plano). Sellando al
+        // ocultar, la marca refleja la última interacción real y no el último tic de 5s
+        // que alcanzó a correr antes de que congelaran el temporizador.
+        _onVisibility = () => touchGuestHeartbeat();
+        document.addEventListener('visibilitychange', _onVisibility);
+        // `pagehide` cubre el cierre y la navegación fuera; en iOS es más fiable que
+        // `unload`, que directamente puede no dispararse.
+        _onPageHide = () => touchGuestHeartbeat();
+        window.addEventListener('pagehide', _onPageHide);
     } catch { /* entorno sin timers/document → sin latido, fail-safe preserva */ }
 }
 
 function stopGuestHeartbeat() {
     try { if (_heartbeatTimer != null) clearInterval(_heartbeatTimer); } catch { /* noop */ }
     _heartbeatTimer = null;
+    // Retirar los oyentes: `startGuestHeartbeat` es idempotente para el temporizador,
+    // pero antes registraba un oyente NUEVO en cada llamada y no lo quitaba nunca.
+    try {
+        if (_onVisibility) document.removeEventListener('visibilitychange', _onVisibility);
+        if (_onPageHide) window.removeEventListener('pagehide', _onPageHide);
+    } catch { /* noop */ }
+    _onVisibility = null;
+    _onPageHide = null;
     try { localStorage.removeItem(K_HEARTBEAT); } catch { /* noop */ }
 }
 
