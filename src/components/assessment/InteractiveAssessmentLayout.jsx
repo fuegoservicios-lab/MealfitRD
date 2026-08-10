@@ -51,6 +51,49 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
         window.scrollTo(0, 0);
     }, [currentStep]);
 
+    // [P1-ANDROID-BACK · 2026-08-10] El gesto «atrás» de Android retrocede un paso.
+    //
+    // EL DEFECTO: los 21 pasos eran estado de React, no entradas de historial, así que
+    // el deslizamiento desde el borde —la forma canónica de decir «atrás» en Android y
+    // el reflejo que más se usa en un formulario largo— no significaba nada aquí: en el
+    // mejor caso producía un parpadeo que dejaba al usuario en el mismo paso (y parecía
+    // que la app lo ignoraba); cuando la pila se había consumido, salía del formulario.
+    //
+    // Se empuja una entrada por avance y se consume una por gesto, con la MISMA URL: así
+    // el enrutador no ve cambio de ruta y no re-monta nada. En el paso 1 no hay entradas
+    // nuestras que consumir, así que el gesto sale de verdad — que es lo que se espera.
+    const pasoPrevioRef = useRef(currentStep);
+    const volviendoDelHistorialRef = useRef(false);
+    const pasoActualRef = useRef(currentStep);
+
+    useEffect(() => {
+        // Sincronizado en efecto, no en el render: escribir un ref durante el render
+        // rompe con el render concurrente.
+        pasoActualRef.current = currentStep;
+        const previo = pasoPrevioRef.current;
+        pasoPrevioRef.current = currentStep;
+        // Un retroceso disparado POR el historial no debe empujar otra entrada: se
+        // duplicaría la pila y harían falta dos gestos por paso.
+        if (volviendoDelHistorialRef.current) {
+            volviendoDelHistorialRef.current = false;
+            return;
+        }
+        if (currentStep > previo) {
+            try { window.history.pushState({ mfPaso: currentStep }, ''); } catch { /* noop */ }
+        }
+    }, [currentStep]);
+
+    useEffect(() => {
+        const alVolver = () => {
+            if (pasoActualRef.current > 0) {
+                volviendoDelHistorialRef.current = true;
+                prevStep();
+            }
+        };
+        window.addEventListener('popstate', alVolver);
+        return () => window.removeEventListener('popstate', alVolver);
+    }, [prevStep]);
+
     const tituloRef = useCallback((nodo) => {
         if (nodo && focoPendienteRef.current) {
             focoPendienteRef.current = false;

@@ -163,6 +163,26 @@ const Login = () => {
         if (step === 'code' && codeInputRef.current) codeInputRef.current.focus();
     }, [step]);
 
+    // [P1-ANDROID-BACK · 2026-08-10] El gesto atrás desde el paso del código vuelve al
+    // correo en vez de salir de la pantalla (o cerrar la app). `backToEmail` NO se llama
+    // aquí porque él mismo retrocede el historial: haría un doble salto.
+    const pasoRef = useRef(step);
+    // El ref se sincroniza en un efecto, no durante el render: escribirlo en el cuerpo
+    // del componente rompe con el render concurrente (React puede renderizar y descartar).
+    useEffect(() => { pasoRef.current = step; }, [step]);
+    useEffect(() => {
+        const alVolver = () => {
+            if (pasoRef.current === 'code') {
+                clearPendingOtp();
+                setStep('email');
+                setCode('');
+                setError(null);
+            }
+        };
+        window.addEventListener('popstate', alVolver);
+        return () => window.removeEventListener('popstate', alVolver);
+    }, []);
+
     const requestCode = async (targetEmail) => {
         const { error: sendError } = await sendEmailOtp(targetEmail);
         if (sendError) {
@@ -185,6 +205,14 @@ const Login = () => {
         setLoading(false);
         if (ok) {
             savePendingOtp(clean);
+            // [P1-ANDROID-BACK · 2026-08-10] El paso del código pasa a ser una entrada de
+            // historial. Antes era `setStep` puro, así que el gesto atrás no volvía al
+            // correo: salía de /login. Y si /login era la primera entrada —arranque en
+            // frío de la app instalada, el caso NORMAL en tienda— cerraba la app, con el
+            // código ya consumido y el usuario sin forma de corregir un correo mal
+            // tecleado, porque el botón «Usar otro correo» tampoco es lo que su reflejo
+            // le pide pulsar.
+            try { window.history.pushState({ mfOtp: 1 }, ''); } catch { /* noop */ }
             setStep('code');
             setCooldown(RESEND_COOLDOWN_S);
         }
@@ -307,6 +335,11 @@ const Login = () => {
         setStep('email');
         setCode('');
         setError(null);
+        // [P1-ANDROID-BACK · 2026-08-10] Consumir también la entrada de historial que
+        // empujó el paso del código. Sin esto quedaría huérfana y al usuario le haría
+        // falta un gesto atrás de más para salir de /login. El oyente de `popstate` ya
+        // está guardado por el paso actual, así que repetir el reseteo es inocuo.
+        try { window.history.back(); } catch { /* noop */ }
     };
 
     // [LOGIN-REDIRECT-IF-AUTHED · 2026-06-21] Sesión viva → entra directo a la app.
