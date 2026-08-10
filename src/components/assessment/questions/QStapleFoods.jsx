@@ -15,7 +15,7 @@
 // en `health_profile.staple_foods` (para que sobreviva a un browser distinto o storage limpio) se
 // guarda explícitamente en Ajustes → "Mis básicos" (Settings.jsx), vía PUT
 // /api/user/preferences/staple-foods — mismo split de responsabilidad que el resto del wizard.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { fetchWithAuth } from '../../../config/api';
 import { Search, X } from 'lucide-react';
@@ -23,8 +23,28 @@ import { NextButton } from './NextButton';
 import { getCachedMasterList, setCachedMasterList } from '../../../utils/pantryCache';
 
 const STAPLE_FOODS_MAX = 8;
+const MAX_RESULTS = 8;
 
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+// [P1-STAPLE-SEARCH-RANK · 2026-08-09] Relevancia de un resultado (menor = mejor).
+//
+// Antes se filtraba con `includes` y se cortaba a 8 SIN ordenar, así que salían en
+// el orden alfabético del catálogo: al escribir «hu» aparecían tres habichuelas y
+// la clara de huevo POR ENCIMA de «Huevo». Los alimentos que contienen lo escrito
+// en medio (le-chu-ga, pe-chu-ga, ha-bichu-elas) empataban con el que empieza por
+// ahí. Y el corte iba ANTES del orden, así que con una búsqueda concurrida lo que
+// el usuario tecleaba literalmente podía no aparecer.
+//
+// El desempate interior (rango 2) es lo que hace que «pav» encuentre «Pechuga de
+// pavo» por encima de un alimento que solo lleve esas letras dentro de una palabra.
+const rankOf = (name, q) => {
+    const n = norm(name);
+    if (n === q) return 0;                                          // exacto
+    if (n.startsWith(q)) return 1;                                  // empieza por
+    if (n.split(/[^a-z0-9]+/).some((w) => w.startsWith(q))) return 2; // palabra interior
+    return 3;                                                       // lo contiene
+};
 
 export const QStapleFoods = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
@@ -59,9 +79,42 @@ export const QStapleFoods = ({ onManualAdvance }) => {
 
     const q = norm(query.trim());
     const selectedLower = new Set(staples.map(norm));
+    // El `.sort` de JS es estable, así que dentro de un mismo rango se preserva el
+    // alfabético que ya trae el catálogo del backend. Ordenar va ANTES de cortar.
     const results = q.length >= 2
-        ? masterList.filter(m => norm(m.name).includes(q) && !selectedLower.has(norm(m.name))).slice(0, 8)
+        ? masterList
+            .filter(m => norm(m.name).includes(q) && !selectedLower.has(norm(m.name)))
+            .map(m => ({ m, rank: rankOf(m.name, q) }))
+            .sort((a, b) => a.rank - b.rank)
+            .slice(0, MAX_RESULTS)
+            .map(x => x.m)
         : [];
+
+    // [P1-STAPLE-SEARCH-RANK · 2026-08-09] Básicos elegidos que el motor trata como
+    // UNO SOLO. El rótulo lo calcula el backend desde su propio SSOT y viaja en el
+    // catálogo (`staple_gate_label`) — el cliente no tiene ni debe tener su copia de
+    // la tabla de alias. Ausente (catálogo viejo en caché, o alimento que no
+    // participa del gate) ⇒ no se agrupa y no se avisa nada.
+    const labelByName = useMemo(() => {
+        const map = new Map();
+        for (const it of masterList) {
+            if (it?.name) map.set(norm(it.name), it.staple_gate_label || null);
+        }
+        return map;
+    }, [masterList]);
+
+    const collapsedGroups = useMemo(() => {
+        const byLabel = new Map();
+        for (const s of staples) {
+            const label = labelByName.get(norm(s));
+            if (!label) continue;
+            if (!byLabel.has(label)) byLabel.set(label, []);
+            byLabel.get(label).push(s);
+        }
+        return [...byLabel.values()].filter(g => g.length >= 2);
+    }, [staples, labelByName]);
+
+    const freeableSlots = collapsedGroups.reduce((acc, g) => acc + g.length - 1, 0);
 
     const addStaple = (name) => {
         if (atMax || !name) return;
@@ -145,6 +198,25 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                             </button>
                         </span>
                     ))}
+                </div>
+            )}
+
+            {collapsedGroups.length > 0 && (
+                <div role="status" style={{
+                    margin: 0, padding: '0.7rem 0.9rem', borderRadius: '0.75rem',
+                    border: '1px dashed var(--border)', color: 'var(--text-muted)', fontSize: '0.83rem',
+                }}>
+                    {collapsedGroups.map((g) => (
+                        <p key={g.join('|')} style={{ margin: '0 0 0.35rem' }}>
+                            Para la variedad, {g.map((n) => `«${n}»`).join(' y ')} cuentan como
+                            {' '}<strong>el mismo alimento</strong>: con elegir uno basta.
+                        </p>
+                    ))}
+                    <p style={{ margin: 0 }}>
+                        Puedes quitar {freeableSlots === 1 ? 'uno' : freeableSlots} y dejar
+                        {' '}{freeableSlots === 1 ? 'ese espacio' : 'esos espacios'} para otro alimento.
+                        No es un error — si los dejas, funciona igual.
+                    </p>
                 </div>
             )}
 
