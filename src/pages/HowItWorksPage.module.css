@@ -148,6 +148,41 @@
     text-wrap: balance;
 }
 
+/* [P1-FIGCAPTION-GROUPING · 2026-08-10] EL PIE, EN MÓVIL, ES UN BLOQUE.
+
+   En escritorio son DOS VOCES de un cajetín: `space-between` las manda a los
+   extremos de la misma línea y se leen como los dos rótulos de un plano. Al
+   envolver en móvil ese mismo `gap: 1rem` pasa a ser separación VERTICAL, y ahí
+   la jerarquía se invierte: MEDIDO, 12px separaban la figura de su pie y 16 las
+   dos partes DEL MISMO pie. Lo que pertenece junto quedaba más separado que lo
+   que no, así que se leían como dos textos pegados en vez de un pie con dos
+   partes — que es exactamente lo que se reportó.
+
+   Y quedaban desalineadas entre sí: con un ítem por línea, `space-between` lo
+   deja al inicio, pero el `text-align: center` heredado del hero centra el texto
+   DENTRO de cada span. Como los dos spans tienen anchos distintos, uno se veía
+   pegado al margen y el otro centrado.
+
+   Apilado a la izquierda: es un cajetín de plano, la misma alineación que el
+   resto de pies de figura del sistema. Y la proximidad se ordena — 20px hasta la
+   figura, 4 entre las dos partes. */
+@media (max-width: 600px) {
+    .heroCaption {
+        display: block;
+        text-align: left;
+        margin-top: 1.25rem;
+    }
+
+    .heroCaption > span {
+        display: block;
+        text-align: left;
+    }
+
+    .heroCaption > span + span {
+        margin-top: 0.25rem;
+    }
+}
+
 /* stats — tira de lectura minimalista */
 .stats {
     display: grid;
