@@ -408,13 +408,29 @@
     padding-top: 0.45rem;
     border-top: 1px solid var(--pa-rule-3);
 }
+/* [P1-PRICE-RANGE-WRAP · 2026-08-10] EL RANGO PUEDE PARTIR; ANTES SE CORTABA.
+
+   `white-space: nowrap` dentro de un flex, y sin `min-width: 0`, es una caja que
+   no puede encoger NI partir: crece hasta donde pida el texto y se sale del
+   contenedor, que la recorta. MEDIDO a 390px: «RD$165 – RD$4,500» sobresalía
+   12px de su fila y llegaba a pantalla como «RD$4,50».
+
+   Con dos tarjetas por fila en un teléfono, la columna del precio da ~150px y un
+   rango largo pide ~160: no hay tamaño de fuente que arregle esto para TODOS los
+   rangos —los hay de 19 caracteres—, así que la salida es dejar que parta por su
+   espacio natural, el que rodea al guion. Un precio en dos líneas se lee; uno
+   cortado a media cifra, no. `min-width: 0` es lo que permite al flex item
+   encogerse por debajo de su contenido para que ese salto ocurra.
+
+   No se acota a móvil: en escritorio la tarjeta es ancha y esto nunca dispara,
+   pero si mañana entra un rango más largo, partirá en vez de cortarse. */
 .price {
     font-family: var(--font-mono);
     font-size: 0.98rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums lining;
     color: var(--pa-ink);
-    white-space: nowrap;
+    min-width: 0;
 }
 .verified { display: inline-flex; color: var(--pa-ink); }
 /* «Oculto en el catálogo público»: rótulo mono de 11px con contorno, sobre el

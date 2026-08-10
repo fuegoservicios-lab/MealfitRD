@@ -220,7 +220,41 @@ test.describe('Landing sin desbordes en móvil', () => {
           }
         });
 
-        return { escondido, fuera, noCabe, cajasAbiertas, vw };
+        // [P1-PRICE-RANGE-WRAP · 2026-08-10] QUINTO DEFECTO: LA CAJA NO CABE EN SU
+        // CONTENEDOR. Punto ciego de la comprobación anterior: aquella mide
+        // `scrollWidth > clientWidth`, o sea texto que no cabe en SU PROPIA caja.
+        // Un `white-space: nowrap` dentro de un flex hace otra cosa: la caja
+        // CRECE con el texto —no hay overflow que declarar— y es ELLA la que se
+        // sale del contenedor, que la recorta. Así se perdían 12px de
+        // «RD$165 – RD$4,500» en /supermercado y llegaba a pantalla «RD$4,50».
+        //
+        // Se excluye lo que vive dentro de un `<svg>`: ahí el padre es un `<g>`
+        // cuya caja no recorta nada, y comparar contra ella da falsos positivos
+        // (medido: 1 en la home, ninguno real).
+        const cajasFuera = [];
+        document.querySelectorAll('body *').forEach((el) => {
+          const t = (el.textContent || '').trim();
+          if (!t || t.length > 60 || el.children.length) return;
+          if (el.closest('svg')) return;
+          const b = el.getBoundingClientRect();
+          if (b.width < 10 || b.height < 5) return;
+          const cs = getComputedStyle(el);
+          if (cs.position === 'absolute' || cs.position === 'fixed') return;
+          const padre = el.parentElement;
+          if (!padre) return;
+          const pcs = getComputedStyle(padre);
+          if (pcs.overflowX === 'auto' || pcs.overflowX === 'scroll') return;
+          const exceso = Math.round(b.right - padre.getBoundingClientRect().right);
+          if (exceso > 1) {
+            cajasFuera.push({
+              txt: t.slice(0, 26),
+              cls: String(el.className?.baseVal ?? el.className ?? '').slice(0, 30),
+              exceso,
+            });
+          }
+        });
+
+        return { escondido, fuera, noCabe, cajasAbiertas, cajasFuera, vw };
       });
 
       expect(
@@ -240,6 +274,13 @@ test.describe('Landing sin desbordes en móvil', () => {
           `desborda la página ni crea scroll: invade lo que tiene al lado, que es ` +
           `como se vio el rótulo «Carbohidratos» pegado a su barra. ` +
           JSON.stringify(problemas.noCabe, null, 1)
+      ).toEqual([]);
+      expect(
+        problemas.cajasFuera,
+        `P1-PRICE-RANGE-WRAP: hay cajas que se salen de su contenedor en ${ruta}. ` +
+          `El contenedor las recorta, así que el final del texto no llega a ` +
+          `pantalla — es como se perdían las cifras de los rangos de precio. ` +
+          JSON.stringify(problemas.cajasFuera, null, 1)
       ).toEqual([]);
       expect(
         problemas.cajasAbiertas,
