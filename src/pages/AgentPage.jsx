@@ -800,6 +800,30 @@ const AgentPage = () => {
     }, [planData, formData, userProfile]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // [P1-CHAT-TURN-ACTIVE · 2026-08-10] `isLoading` NO significa «hay un turno en
+    // vuelo»: significa «se está pensando». Deja de ser cierto en el PRIMER token
+    // (`setIsLoading(false)` en la rama del primer chunk), que es cuando arranca la
+    // fase más larga del turno — escribir la respuesta.
+    //
+    // Como `isLoading` gobernaba además el guard de entrada de `handleSend`, el
+    // `disabled` del botón de enviar y el gate del botón Detener, en el instante en
+    // que empezaba a verse texto quedaba TODO reabierto: se podía lanzar un segundo
+    // stream SSE que escribe sobre la MISMA burbuja que el primero sigue llenando —
+    // conversación corrupta, sin aviso — y el botón Detener desaparecía justo
+    // cuando el usuario más quiere usarlo.
+    //
+    // `isTurnActive` es el estado que faltaba: se enciende al entrar en handleSend y
+    // se apaga SOLO en el `finally` (cubre done, error, abort y excepción). El ref
+    // espejo existe porque el guard de entrada tiene que ser SÍNCRONO: dos toques
+    // dentro del mismo frame de React verían ambos el state viejo (misma lección que
+    // P1-FORM-4 en el formulario).
+    const [isTurnActive, setIsTurnActive] = useState(false);
+    const isTurnActiveRef = useRef(false);
+    const _setTurnActive = useCallback((v) => {
+        isTurnActiveRef.current = v;
+        setIsTurnActive(v);
+    }, []);
     // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] El guard del refetch usa el
     // isLoadingRef pre-existente (declarado más abajo junto a los refs del
     // stream) — NO redeclarar aquí.
@@ -1649,6 +1673,19 @@ const AgentPage = () => {
     }, [messages, isLoading, isLoadingHistory, currentSessionId]);
 
     const handleNewChat = () => {
+        // [P1-CHAT-TURN-ACTIVE · 2026-08-10] Era el único camino sin guard: tocar
+        // «Nuevo chat» a mitad de una respuesta dejaba el stream anterior vivo
+        // escribiendo sobre el estado de la conversación NUEVA. Se corta el turno en
+        // vez de bloquear el toque — bloquearlo en silencio es peor: el usuario
+        // toca, no pasa nada y no sabe por qué.
+        if (isTurnActiveRef.current) {
+            try { abortControllerRef.current?.abort(); } catch { /* ya cerrado */ }
+            abortControllerRef.current = null;
+            setAbortController(null);
+            _setTurnActive(false);
+            setIsLoading(false);
+            setStreamingStatus(null);
+        }
         const newId = crypto.randomUUID();
         setGuestSessionIds(prev => {
             const newList = [newId, ...prev].slice(0, 40);
@@ -1676,7 +1713,11 @@ const AgentPage = () => {
         }
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
 
-        if ((!textToSend.trim() && !selectedFile && !options.overrideImageUrl) || isLoading) return;
+        // [P1-CHAT-TURN-ACTIVE · 2026-08-10] El guard mira el turno, no el «pensando»:
+        // con `isLoading` quedaba abierto desde el primer token y se podían solapar
+        // dos streams sobre la misma burbuja. Y lee el REF, no el state: dos toques
+        // en el mismo frame de React ven ambos el valor viejo.
+        if ((!textToSend.trim() && !selectedFile && !options.overrideImageUrl) || isTurnActiveRef.current) return;
 
         if (isListening) {
             recognitionRef.current?.stop();
@@ -1721,6 +1762,8 @@ const AgentPage = () => {
         // tras el swap a la URL del servidor (más abajo).
         clearSelectedFile({ revoke: false });
         setIsLoading(true);
+        // [P1-CHAT-TURN-ACTIVE] Se enciende aquí y solo se apaga en el `finally`.
+        _setTurnActive(true);
 
         // [P2-CHAT-SCROLL-RACE · 2026-05-19] Reset del guard: el user
         // acaba de mandar un mensaje, es señal afirmativa de que quiere
@@ -2304,6 +2347,10 @@ const AgentPage = () => {
             })]);
         } finally {
             setIsLoading(false);
+            // [P1-CHAT-TURN-ACTIVE] ÚNICO punto autoritativo de apagado: el `finally`
+            // cubre las cuatro salidas (done, error del stream, abort y excepción).
+            // Apagarlo en cualquier rama concreta reabre el hueco por otra puerta.
+            _setTurnActive(false);
             setStreamingStatus(null);
             setAbortController(null);
         }
@@ -2315,7 +2362,20 @@ const AgentPage = () => {
             setAbortController(null);
             abortControllerRef.current = null;
             setIsLoading(false);
+            // [P1-CHAT-TURN-ACTIVE] Apagado eager para que la UI responda al toque sin
+            // esperar al `finally` del fetch abortado (que también lo apagará).
+            _setTurnActive(false);
             setStreamingStatus(null);
+            // Si se detuvo A MITAD del stream, la burbuja se quedaba con
+            // `isStreaming: true` para siempre: sin Copiar ni Regenerar sobre lo que
+            // sí llegó, y el efecto de caché saltándose la persistencia. Detener es
+            // terminar el turno, no dejarlo colgado.
+            setMessages(prev => {
+                if (!prev.length) return prev;
+                const last = prev[prev.length - 1];
+                if (!last || !last.isStreaming) return prev;
+                return [...prev.slice(0, -1), { ...last, isStreaming: false }];
+            });
         }
         // [P1-CHAT-STOP-POWER · 2026-07-12] El stop también cancela la
         // recuperación de un turno huérfano ("Recuperando tu respuesta…"):
@@ -2348,7 +2408,7 @@ const AgentPage = () => {
     };
 
     const handleRegenerate = (modelMsgIndex) => {
-        if (isLoading) return;
+        if (isTurnActiveRef.current) return;   // [P1-CHAT-TURN-ACTIVE] regenerar durante un turno abria un 2o stream
 
         const targetMsg = messagesRef.current[modelMsgIndex];
 
@@ -2507,7 +2567,7 @@ const AgentPage = () => {
                                     type="button"
                                     aria-label="Quitar imagen"
                                     onClick={() => clearSelectedFile()}
-                                    disabled={isLoading}
+                                    disabled={isTurnActive}
                                     style={{
                                         position: 'absolute', top: '-6px', right: '-6px',
                                         background: '#ef4444', color: 'white', border: 'none',
@@ -2541,8 +2601,8 @@ const AgentPage = () => {
                         <button
                             type="button"
                             aria-label="Adjuntar imagen"
-                            className={`attachment-btn ${isLoading ? 'disabled' : ''}`}
-                            disabled={isLoading}
+                            className={`attachment-btn ${isTurnActive ? 'disabled' : ''}`}
+                            disabled={isTurnActive}
                             onClick={() => {
                                 if (fileInputRef.current) {
                                     fileInputRef.current.value = '';
@@ -2608,7 +2668,7 @@ const AgentPage = () => {
                                 wordBreak: 'break-word'
                             }}
                         />
-                        {(isLoading || recoveringTurn) ? (
+                        {(isTurnActive || recoveringTurn) ? (
                             <button
                                 type="button"
                                 aria-label="Detener generación"
@@ -2646,7 +2706,7 @@ const AgentPage = () => {
                                         aria-label="Enviar"
                                         className="touch-scale"
                                         onClick={handleSend}
-                                        disabled={isLoading}
+                                        disabled={isTurnActive}
                                         style={{
                                             background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
                                             color: 'white',
@@ -2657,7 +2717,7 @@ const AgentPage = () => {
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            cursor: isLoading ? 'default' : 'pointer',
+                                            cursor: isTurnActive ? 'default' : 'pointer',
                                             flexShrink: 0,
                                             marginRight: '2px'
                                         }}
@@ -2897,7 +2957,7 @@ const AgentPage = () => {
                     currentSessionId={currentSessionId}
                     setCurrentSessionId={setCurrentSessionId}
                     handleDeleteChat={handleDeleteChat}
-                    isLoading={isLoading}
+                    isLoading={isTurnActive}
                 />
 
                 {/* Chat Area container */}
@@ -2937,13 +2997,20 @@ const AgentPage = () => {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 color: 'var(--text-main)',
-                                padding: '0.4rem',
+                                // [P1-CHAT-TOUCH-TARGETS · 2026-08-10] 24px de icono +
+                                // 2×6,4 de relleno daban 36,8px: por debajo de los 44 de
+                                // Apple y de los 44 que este mismo repo se impuso por
+                                // escrito en BottomTabBar.module.css. El margen negativo
+                                // crece con el relleno para que la alineación óptica con
+                                // el borde no se mueva — solo crece la zona sensible.
+                                padding: '0.625rem',
                                 borderRadius: '50%',
                                 transition: 'all 0.15s',
-                                marginLeft: '-0.4rem'
+                                marginLeft: '-0.625rem'
                             }}
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                            aria-label="Ver historial de chats"
                         >
                             <History size={24} strokeWidth={1.5} />
                         </button>
@@ -2983,10 +3050,15 @@ const AgentPage = () => {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     color: 'var(--text-main)',
-                                    padding: '0.4rem',
+                                    // [P1-CHAT-TOUCH-TARGETS · 2026-08-10] Ver el botón de
+                                    // historial: mismo cálculo, 36,8 → 44px.
+                                    padding: '0.625rem',
                                     borderRadius: '50%',
                                     transition: 'all 0.15s'
                                 }}
+                                aria-label="Abrir menú de navegación"
+                                aria-haspopup="menu"
+                                aria-expanded={showNavMenu}
                             >
                                 <Menu size={24} strokeWidth={2} />
                             </button>
@@ -3240,6 +3312,7 @@ const AgentPage = () => {
                                     gap: '2rem',
                                     paddingBottom: '0.5rem'
                                 }}
+                                className="msg-log"
                             >
                                 {isLoadingHistory ? (
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
@@ -3272,7 +3345,14 @@ const AgentPage = () => {
                                         alignItems: 'center',
                                         color: 'var(--text-muted)',
                                         padding: '0.5rem 0 0.5rem 1.5rem',
-                                        marginBottom: '3.5rem',
+                                        // [P1-CHAT-MOBILE-FIT · 2026-08-10] Eran 3,5rem
+                                        // (56px) sin razón escrita, y esta fila es el
+                                        // ÚLTIMO elemento antes del final del scroll: caían
+                                        // justo en el tramo vacío de la captura. Con la
+                                        // lista ya anclada abajo, este margen pasa de ser
+                                        // parte del hueco a ser el único separador visible
+                                        // — por eso se reduce, no se elimina.
+                                        marginBottom: '1rem',
                                         fontSize: '0.95rem',
                                         fontWeight: 500
                                     }}>
@@ -3416,15 +3496,63 @@ const AgentPage = () => {
                         scrollbar-width: none;
                     }
                     .messages-container::-webkit-scrollbar { display: none; }
-                    /* --- User bubble --- */
+                    /* [P1-CHAT-MOBILE-FIT · 2026-08-10] Los mensajes se apilan desde ABAJO,
+                       pegados a la caja de escribir. Antes el contenedor repartía todo el
+                       alto sobrante ARRIBA del input: con un solo turno quedaban ~700px de
+                       vacío entre lo último dicho y donde se escribe — el hueco enorme de
+                       la captura del dueño.
+
+                       El margen automático va en el HIJO, no un justify-content flex-end en
+                       el contenedor: con flex-end, en cuanto el contenido desborda, el
+                       principio del scroll queda inalcanzable en varios motores. El margen
+                       automático se resuelve a 0 solo cuando hay desbordamiento — que es
+                       exactamente el comportamiento que se quiere.
+
+                       Va dentro del @media a propósito: en escritorio el contenedor centra
+                       y ancla arriba (bloque de min-width 1025px), y ahí no hay queja.
+                       (Sin acentos graves en este comentario: vive dentro de un template
+                       literal de JS y un backtick aquí cierra el literal y rompe el build.) */
+                    .msg-log { margin-top: auto !important; }
+                    /* --- User bubble ---
+                       [P1-CHAT-MOBILE-CONTRAST · 2026-08-10] El defecto que reportó el
+                       dueño: su propio mensaje se leía CASI INVISIBLE en el teléfono.
+
+                       Esta regla fijaba el FONDO con !important y NO el color. El color
+                       lo pone el inline de MessageBubble ('var(--text-main)'), que en tema
+                       oscuro es #F1F5F9 — casi blanco sobre lavanda casi blanco: **1,0:1**,
+                       cuando WCAG pide 4,5:1. No es que se leyera mal: no se leía.
+
+                       Y solo pasaba en el móvil porque '.msg-bubble-user' NO EXISTE fuera
+                       de este @media (max-width: 1024px) — es el único sitio del archivo
+                       donde se declara. El escritorio nunca vio el defecto.
+
+                       LA LECCIÓN, que es la que se guarda: color y fondo son un PAR. Fijar
+                       uno con !important y dejar que el otro lo herede del tema es fabricar
+                       una combinación que nadie eligió. Por eso el color viaja ahora en la
+                       misma regla, y el tema oscuro lleva su propia pareja completa. */
                     .msg-bubble-user {
                         background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%) !important;
+                        color: #1E1B4B !important;
                         border: none !important;
                         border-radius: 1.25rem 1.25rem 0.3rem 1.25rem !important;
                         padding: 0.8rem 1.1rem !important;
                         box-shadow: 0 2px 8px rgba(79,70,229,0.08) !important;
                         max-width: 85% !important;
                         font-size: 0.95rem !important;
+                    }
+                    /* En oscuro la burbuja es oscura: una pastilla lavanda clara dentro de
+                       un chat negro no solo desentona, obliga a invertir el texto y a
+                       mantener dos parejas de color en la cabeza. 12,5:1 medido. */
+                    html[data-theme="dark"] .msg-bubble-user {
+                        background: linear-gradient(135deg, #1E293B 0%, #312E5B 100%) !important;
+                        color: var(--text-main) !important;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important;
+                    }
+                    /* El texto del usuario hereda; los hijos con color propio (enlaces,
+                       código inline dentro del mensaje) no, y ahí volvería el mismo par
+                       roto por otra puerta. */
+                    .msg-bubble-user * {
+                        color: inherit !important;
                     }
                     /* --- Bot bubble --- */
                     .msg-bubble-bot {
@@ -3433,6 +3561,13 @@ const AgentPage = () => {
                         border-radius: 0 !important;
                         padding: 0.9rem 0 0.6rem 0.9rem !important;
                         font-size: 0.93rem !important;
+                    }
+                    /* El filete indigo del bot compone a ~1,2:1 sobre el fondo oscuro:
+                       invisible. '--primary' en oscuro (#818CF8) da 6,9:1 y cumple el 3:1
+                       que WCAG 1.4.11 pide a un elemento no textual que porta significado
+                       (aquí distingue quién habla). */
+                    html[data-theme="dark"] .msg-bubble-bot {
+                        border-left-color: var(--primary) !important;
                     }
                     /* --- Bot avatar --- */
                     .bot-avatar-mobile {
@@ -3445,7 +3580,20 @@ const AgentPage = () => {
                     .input-wrapper {
                         position: relative !important;
                         bottom: auto !important;
-                        padding: 0.8rem 1.25rem calc(2.5rem + env(safe-area-inset-bottom)) 1.25rem !important;
+                        /* [P1-CHAT-TABBAR-BACK · 2026-08-10] El chat reserva por dentro el
+                           alto de la barra de pestañas que vuelve a esta ruta: 64px de
+                           'min-height' + el 'env(safe-area-inset-bottom)' que la barra ya
+                           añade por su cuenta. Se reserva AQUÍ y no en el 'mainContent'
+                           porque '.noPaddingMobile' anula el 'padding-bottom' del layout
+                           — esa fue justamente la razón por la que la barra se quitó en
+                           vez de acomodarla.
+
+                           Los 2,5rem que había eran aire muerto: en Safari vertical
+                           'env(safe-area-inset-bottom)' vale 0 (el scroll de la página
+                           está bloqueado, así que la barra del navegador no se repliega) y
+                           el relleno quedaba en 40px de nada bajo la caja de escribir.
+                           Ahora ese espacio lo ocupa navegación de verdad. */
+                        padding: 0.8rem 1.25rem calc(0.8rem + 64px + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
                         background: var(--bg-card) !important;
                         backdrop-filter: blur(20px) !important;
                         -webkit-backdrop-filter: blur(20px) !important;
@@ -3516,6 +3664,12 @@ const AgentPage = () => {
                         z-index: 30;
                         box-shadow: 4px 0 24px rgba(0,0,0,0.12);
                         border-radius: 0;
+                        /* [P1-CHAT-TABBAR-BACK · 2026-08-10] El cajón llega hasta el borde
+                           inferior, donde ahora vive la barra de pestañas: sin esta reserva
+                           las últimas conversaciones de la lista quedan debajo de ella y no
+                           se pueden tocar. Mismo cálculo que '.input-wrapper'. */
+                        padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+                        box-sizing: border-box;
                     }
                     .sidebar-overlay {
                         position: absolute;

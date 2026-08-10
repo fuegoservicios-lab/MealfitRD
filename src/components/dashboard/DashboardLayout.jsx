@@ -371,7 +371,26 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 </main>
             </div>
 
-            {!noPaddingMobile && !isSettings && <BottomTabBar />}
+            {/* [P1-CHAT-TABBAR-BACK · 2026-08-10] Antes: `!noPaddingMobile && !isSettings`.
+                Los dos gates no eran equivalentes. `!isSettings` SÍ tiene una razón escrita
+                (línea ~138: «Settings funciona como página standalone»). `noPaddingMobile`
+                no tenía ninguna: su único trabajo declarado es CSS (`.noPaddingMobile
+                { padding: 0 }`), y lo pasa un solo caller —App.jsx, para la ruta del
+                Agente—. O sea que una bandera de RELLENO estaba decidiendo, de rebote, si
+                el usuario tiene navegación.
+
+                El efecto era el que reportó el dueño («salir es incómodo»): el chat era la
+                única sección del dashboard sin barra de pestañas. Entrar costaba 1 toque y
+                salir 2 (hamburguesa → entrada del menú), rompiendo el patrón de toda la
+                app. El propio archivo demuestra que las dos cosas son separables: Recetas,
+                Nevera e Historial ya van edge-to-edge «conservando header y BottomTabBar»
+                con la clase `recipesEdge`.
+
+                El alto de la barra (64px + safe-area) lo reserva ahora el propio chat por
+                dentro — ver `.input-wrapper` en AgentPage. Devolver la barra SIN esa
+                reserva la deja tapando la caja de escribir, que es peor que el defecto que
+                arregla: los dos cambios son inseparables. */}
+            {!isSettings && <BottomTabBar />}
 
             <LogoutConfirmModal
                 isOpen={showLogoutModal}
