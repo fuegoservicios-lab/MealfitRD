@@ -224,8 +224,11 @@ const InteractiveAssessmentFlow = () => {
         // server-side cuando planSource='pantry'. Sin `fields` requeridos (default
         // 'scratch' → usuarios existentes/guests no se bloquean).
         {
-            title: <>¿Cómo quieres crear tu plan?</>,
-            subtitle: "Diseño libre con IA, o un plan construido alrededor de lo que ya tienes en tu Nevera.",
+            // [P1-PLANSOURCE-COPY-PARITY · 2026-08-09] El título dice «la IA» UNA vez
+            // y por delante de las dos opciones, para que la duda «¿esta también es
+            // con IA?» no llegue a nacer. El subtítulo nombra el único eje real.
+            title: <>¿Cómo quieres que la IA arme tu plan?</>,
+            subtitle: "Las dos opciones las diseña la IA. La diferencia es si parte de cero o de lo que ya hay en tu Nevera.",
             component: <QPlanSource onAutoAdvance={handleAutoAdvance} />
         },
         {
