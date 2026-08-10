@@ -282,8 +282,20 @@ const Header = () => {
                                            muestra el selector de tema en esas rutas. En la app sí. */
                                         !isLandingLike && <GuestAppearanceToggle />
                                     ) : (
+                                        /* [P1-SETTINGS-ONE-SURFACE · 2026-08-10] Apunta a la
+                                           configuración del dashboard, la única que existe.
+                                           Antes había una segunda página (`/configuracion`) con
+                                           apariencia + cuenta + contraseña: un subconjunto de lo
+                                           mismo, mantenido aparte. Dos configuraciones divergen
+                                           con el primer cambio que alguien haga en una sola.
+
+                                           El acceso NO se retira aunque esta cabecera viva fuera
+                                           del dashboard: es el único camino de una cuenta sin plan
+                                           —que no puede entrar al dashboard por su propio pie—
+                                           hacia su cuenta, y `ProtectedRoute` exime esta ruta
+                                           exactamente por eso. */
                                         <Link
-                                            to="/configuracion"
+                                            to="/dashboard/settings"
                                             className={styles.accountItem}
                                             role="menuitem"
                                             onClick={() => setIsAccountMenuOpen(false)}
@@ -400,7 +412,7 @@ const Header = () => {
                             [P1-GUEST-LOGOUT] No para invitados (settings gateado). */}
                         {session && !isGuest && !isPlanLoading && (
                             <Link
-                                to="/configuracion"
+                                to="/dashboard/settings"
                                 className={styles.navLinkMobile}
                                 onClick={() => setIsMenuOpen(false)}
                             >

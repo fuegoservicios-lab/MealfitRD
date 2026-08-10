@@ -58,7 +58,21 @@ const ProtectedRoute = ({ children, landing = false }) => {
     // assessment. Una cuenta recién creada (login OTP / OAuth nuevo) sin plan debe
     // poder ver y manejar su cuenta sin ser forzada al formulario primero. Antes
     // caía al gate de abajo y "Configuración" rebotaba a /assessment.
-    const isOnAccountSettings = location.pathname === '/configuracion';
+    //
+    // [P1-SETTINGS-ONE-SURFACE · 2026-08-10] La exención se MUEVE de
+    // `/configuracion` a `/dashboard/settings`, que ahora es la única
+    // configuración del producto. Mover esta línea no es cosmético: es el
+    // requisito que hacía imposible borrar la página vieja. Sin ella, una cuenta
+    // sin plan rebota al formulario y se queda sin apariencia, sin cambiar
+    // contraseña y —lo que importa de verdad— SIN PODER BORRAR SU CUENTA, que es
+    // requisito de la App Store (5.1.1(v)).
+    //
+    // Verificado antes de moverla: `/dashboard/settings` renderiza entero con
+    // `userProfile` y `planData` en null (las 7 secciones, el formulario de
+    // perfil y cero errores de JS). Extender un gate sin comprobar que el
+    // destino sobrevive al estado que lo motiva es cambiar un rebote por una
+    // pantalla rota.
+    const isOnAccountSettings = location.pathname === '/dashboard/settings';
 
     // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Recovery en progreso → forzar la pantalla de carga (/plan).
     // `PendingPipelineRecovery` poll-ea /pending-status desde /plan y navega al dashboard al completar

@@ -44,7 +44,10 @@ const TITLES = {
     '/dashboard/agent': `Asistente · ${BRAND}`,
     '/dashboard/settings': `Ajustes · ${BRAND}`,
     '/dashboard/upgrade': `Planes · ${BRAND}`,
-    '/configuracion': `Ajustes · ${BRAND}`,
+    // [P1-SETTINGS-ONE-SURFACE · 2026-08-10] `/configuracion` ya no tiene título
+    // propio: dejó de ser una página y ahora redirige a `/dashboard/settings`,
+    // que lleva el suyo tres líneas más arriba. Un título para una ruta que solo
+    // existe durante un redirect es un rótulo sin puerta detrás.
     '/history': `Historial · ${BRAND}`,
     '/precios': `Planes y Precios · ${BRAND}`,
     '/privacy': `Política de Privacidad · ${BRAND}`,

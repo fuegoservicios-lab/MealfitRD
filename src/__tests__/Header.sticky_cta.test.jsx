@@ -6,7 +6,7 @@
  *     contexto — Header.jsx:10-12,72).
  *   - [P3-LANDING-NO-SESSION-CHROME] El menú de cuenta (avatar + Configuración +
  *     Cerrar Sesión) se oculta en TODAS las superficies públicas landing-like y
- *     vive SOLO en rutas de app (p.ej. /configuracion) — Header.jsx:91.
+ *     vive SOLO en rutas de app (p.ej. /history) — Header.jsx:91.
  * Consecuencia: CTA sticky y menú de cuenta son ahora MUTUAMENTE EXCLUYENTES (CTA
  * solo en landing, menú solo fuera). Este test verifica ese contrato sin depender
  * del IntersectionObserver del Hero. */
@@ -30,13 +30,18 @@ describe('[HEADER-STICKY-CTA] CTA sticky del header en el landing', () => {
         expect(cta.closest('a')).toHaveAttribute('href', '/dashboard');
     });
 
-    it('fuera del landing (ruta de app, p.ej. /configuracion) el CTA sticky NO aparece', () => {
+    it('fuera del landing (ruta de app, p.ej. /history) el CTA sticky NO aparece', () => {
         // /privacy YA es landing-like (P3-LEGAL-HEADER-PARITY) y muestra el CTA; usamos
         // una ruta de app real (no marketing/legal/novedades/supermercado).
+        // [P1-SETTINGS-ONE-SURFACE · 2026-08-10] La ruta de ejemplo era
+        // `/configuracion`, que dejó de ser una página. Se cambia a `/history`
+        // —otra ruta de app— y no a `/dashboard/settings`: esta prueba no habla de
+        // ajustes, solo necesita UNA ruta que no sea landing, y elegir la que el
+        // test de abajo comprueba de verdad las acoplaría sin motivo.
         render(<Header />, {
             customContext: { planData: null, session: null },
             wrapper: ({ children }) => (
-                <MemoryRouter initialEntries={['/configuracion']}>{children}</MemoryRouter>
+                <MemoryRouter initialEntries={['/history']}>{children}</MemoryRouter>
             ),
         });
         expect(screen.queryByText('Crear mi Plan Ahora')).not.toBeInTheDocument();
@@ -55,7 +60,7 @@ describe('[HEADER-STICKY-CTA] CTA sticky del header en el landing', () => {
         render(<Header />, {
             customContext: { planData: { id: 'plan-1' }, session: { user: { id: 'u-1', email: 'a@b.com' } } },
             wrapper: ({ children }) => (
-                <MemoryRouter initialEntries={['/configuracion']}>{children}</MemoryRouter>
+                <MemoryRouter initialEntries={['/history']}>{children}</MemoryRouter>
             ),
         });
         // Cerrado por defecto: ninguna acción ocupa espacio en el header.
@@ -65,7 +70,7 @@ describe('[HEADER-STICKY-CTA] CTA sticky del header en el landing', () => {
         fireEvent.click(screen.getByLabelText('Abrir menú de cuenta'));
         const config = screen.getByText('Configuración');
         expect(config).toBeInTheDocument();
-        expect(config.closest('a')).toHaveAttribute('href', '/configuracion');
+        expect(config.closest('a')).toHaveAttribute('href', '/dashboard/settings');
         expect(screen.getByText('Cerrar Sesión')).toBeInTheDocument();
     });
 });

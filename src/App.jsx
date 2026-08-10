@@ -69,10 +69,13 @@ const Settings = lazy(() => import('./pages/Settings'));
 // la página: arrastra el mismo Settings de 3.000 líneas, así que meterlo en el
 // bundle del dashboard lo pagaría también quien nunca abre ajustes.
 const SettingsDialog = lazy(() => import('./components/dashboard/SettingsDialog'));
-// [ACCOUNT-SETTINGS · 2026-05-31] Página de Configuración LIVIANA y separada del
-// dashboard (apariencia + cuenta). Vive bajo el `Layout` simple en
-// `/configuracion`, accesible desde el ícono ⚙ del Header. Lazy (no golden path).
-const AccountSettings = lazy(() => import('./pages/AccountSettings'));
+// [P1-SETTINGS-ONE-SURFACE · 2026-08-10] Aquí vivía `AccountSettings`, la
+// configuración LIVIANA de `/configuracion` (apariencia + cuenta + contraseña +
+// borrar cuenta) bajo el `Layout` simple. Se borra: era un subconjunto de
+// `/dashboard/settings` mantenido aparte, y dos configuraciones divergen con el
+// primer cambio que alguien haga en una sola. El ⚙ del Header ahora apunta a la
+// del dashboard, y `ProtectedRoute` exime esa ruta del gate de assessment para
+// que una cuenta sin plan siga llegando a su cuenta (y a borrarla).
 const History = lazy(() => import('./pages/History'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AgentPage = lazy(() => import('./pages/AgentPage'));
@@ -442,15 +445,13 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* [ACCOUNT-SETTINGS · 2026-05-31] Configuración liviana (apariencia +
-                cuenta), separada del panel completo de `/dashboard/settings`.
-                Usa el `Layout` simple (header logo + Cerrar Sesión) en vez del
-                DashboardLayout con sidebar/tabs. */}
-            <Route path="/configuracion" element={
-              <ProtectedRoute>
-                <Layout><AccountSettings /></Layout>
-              </ProtectedRoute>
-            } />
+            {/* [P1-SETTINGS-ONE-SURFACE · 2026-08-10] `/configuracion` REDIRIGE a la
+                única configuración. No se borra la ruta a secas: la página llevaba
+                meses enlazada desde el ⚙ del Header, así que hay marcadores y
+                pestañas abiertas apuntando ahí — un 404 sería el final del camino
+                para alguien que solo quiere ver sus ajustes. El redirect es
+                `replace` para no dejar la ruta muerta en el historial. */}
+            <Route path="/configuracion" element={<Navigate to="/dashboard/settings" replace />} />
 
             {/* [P1-PANTRY-ROUTE-ALIAS · 2026-07-11] Aliases canónicos de la Nevera. La ruta
                 real es /dashboard/pantry, pero código histórico, pushes YA entregadas y

@@ -14,7 +14,11 @@ import { ExpirationPlugin } from 'workbox-expiration';
 // simplemente se sirve por red si alguna vez se navega (degradación graciosa).
 // SupermarketPage se deja en ambos (pública, linkeada desde el Footer del app).
 const _IS_APP_HOST = /^app\./i.test(self.location.hostname);
-const _APP_ONLY_CHUNKS = /(?:^|\/)(Dashboard|AgentPage|Pantry|Recipes|Settings|History|Plan|Assessment|AccountSettings|Upgrade|Login|ResetPassword|DashboardLayout|VirtualizedMessageList)-[A-Za-z0-9_-]+\.(?:js|css)$/;
+// [P1-SETTINGS-ONE-SURFACE · 2026-08-10] Sale `AccountSettings`: su chunk ya no
+// se genera (la página se borró en favor de /dashboard/settings). Un nombre que
+// no puede casar nunca no es inofensivo aquí — es una entrada que alguien leerá
+// como «existe esa página» al depurar el caché del service worker.
+const _APP_ONLY_CHUNKS = /(?:^|\/)(Dashboard|AgentPage|Pantry|Recipes|Settings|History|Plan|Assessment|Upgrade|Login|ResetPassword|DashboardLayout|VirtualizedMessageList)-[A-Za-z0-9_-]+\.(?:js|css)$/;
 const _MARKETING_ONLY_CHUNKS = /(?:^|\/)(Home|NewsPage|NewsArticlePage|AboutPage|ResearchPage|Engine|PricingPage|HowItWorksPage|FeaturesPage|PrecisionPage|LegalPages)-[A-Za-z0-9_-]+\.(?:js|css)$/;
 
 // VitePWA inject-manifest will inject '_self.__WB_MANIFEST' here.
