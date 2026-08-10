@@ -1,5 +1,5 @@
 .layout {
-    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     background-color: var(--bg-page);
@@ -81,8 +81,13 @@
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 0.5rem;
-    margin-left: -0.5rem;
+    /* [P1-WIZARD-TOUCH · 2026-08-10] Daba 40x40: por debajo de los 44 de Apple y los 48
+       de Material. El margen negativo absorbe el crecimiento para que el diseno no se
+       mueva — solo crece la zona sensible al dedo. */
+    padding: 0.75rem;
+    min-width: 48px;
+    min-height: 48px;
+    margin-left: -0.75rem;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -213,7 +218,7 @@
     flex-direction: column;
     padding-top: calc(64px + env(safe-area-inset-top, 0px));
     z-index: 1;
-    min-height: 100vh;
+    min-height: 100dvh;
 }
 
 .contentWrapper {
@@ -342,7 +347,10 @@
 /* Mobile optimizations */
 @media (max-width: 768px) {
     .contentWrapper {
-        padding: 2rem 1.25rem;
+        /* [P1-WIZARD-MOBILE · 2026-08-10] En horizontal con notch, sin esto el contenido
+           queda bajo el recorte de la camara. `max()` conserva el relleno de siempre
+           cuando no hay zona segura que respetar. */
+        padding: 2rem max(1.25rem, env(safe-area-inset-right, 0px)) 2rem max(1.25rem, env(safe-area-inset-left, 0px));
     }
 
     .title {

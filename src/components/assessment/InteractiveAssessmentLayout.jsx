@@ -1,16 +1,18 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
-import { ChevronLeft, LogIn } from 'lucide-react';
+import { ChevronLeft, LogIn, LogOut } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 import Wordmark from '../common/Wordmark';
+import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
-    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession } = useAssessment();
+    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile } = useAssessment();
     const navigate = useNavigate();
     const progress = (currentStep / (totalSteps - 1)) * 100;
+    const [confirmarSalida, setConfirmarSalida] = useState(false);
 
     // [FORM-BACK-TO-LOGIN · 2026-07-03] navigate('/login') a secas NO llega: el guard
     // redirect-if-session de Login.jsx (:211) rebota a "/" mientras haya sesión/guest
@@ -28,9 +30,33 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
         navigate('/login', { replace: true });
     };
 
+    // [P1-WIZARD-EXIT-CONFIRM · 2026-08-10] La salida DESTRUYE (borra el formulario y,
+    // si hay cuenta, cierra la sesión), así que ahora pregunta. Antes se ejecutaba al
+    // primer toque. El modal es el mismo del dashboard, donde esta misma operación SÍ
+    // estaba protegida — la asimetría era el defecto, no el modal.
+    const pedirConfirmacionSalida = () => setConfirmarSalida(true);
+
+    // [P1-WIZARD-STEP-FOCUS · 2026-08-10] Al cambiar de paso el foco caía al <body> y
+    // había que re-tabular desde el principio: 21 veces seguidas. Se mueve al título.
+    //
+    // Por qué una función de ref y no `focus()` dentro del efecto: el título vive en un
+    // AnimatePresence con `mode="wait"`, así que cuando el efecto corre, el nodo nuevo
+    // TODAVÍA NO existe (el viejo está saliendo). Enfocar ahí movería el foco al nodo
+    // que se está desmontando. La bandera se arma al cambiar de paso y se consume cuando
+    // el título nuevo monta de verdad.
+    const focoPendienteRef = useRef(false);
+
     useEffect(() => {
+        focoPendienteRef.current = true;
         window.scrollTo(0, 0);
     }, [currentStep]);
+
+    const tituloRef = useCallback((nodo) => {
+        if (nodo && focoPendienteRef.current) {
+            focoPendienteRef.current = false;
+            nodo.focus();
+        }
+    }, []);
 
     return (
         <div className={styles.layout}>
@@ -42,7 +68,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     max-width:1200px centrado → en pantallas anchas flotaba a ~360px
                     del borde). Mismo teardown handleBackToLogin. */}
                 <button
-                    onClick={handleBackToLogin}
+                    onClick={pedirConfirmacionSalida}
                     className={styles.loginExitBtn}
                     aria-label="Volver al inicio de sesión"
                 >
@@ -55,16 +81,23 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                             <ChevronLeft size={24} />
                         </button>
                     ) : (
-                        /* [FORM-BACK-TO-LOGIN · 2026-07-03] Chevron de salir al login del
+                        /* [FORM-BACK-TO-LOGIN · 2026-07-03] Botón de salir al login del
                            PASO 1 — SOLO móvil (en desktop existe el pill de la esquina).
                            visibility:hidden en desktop: como grid child de la col 1,
-                           display:none correría el logo a la col 1. */
+                           display:none correría el logo a la col 1.
+
+                           [P1-WIZARD-EXIT-CONFIRM · 2026-08-10] Ya NO es un chevron. Era
+                           píxel a píxel idéntico al de «paso anterior» —misma clase, mismo
+                           icono, misma posición— y solo los separaba un media query de
+                           escritorio. El usuario retrocedía paso a paso y el siguiente
+                           toque, indistinguible de los anteriores, le borraba el
+                           formulario entero. Un icono de salida dice lo que hace. */
                         <button
-                            onClick={handleBackToLogin}
+                            onClick={pedirConfirmacionSalida}
                             className={`${styles.backBtn} ${styles.backToLogin}`}
-                            aria-label="Volver al inicio de sesión"
+                            aria-label="Salir del formulario y volver al inicio de sesión"
                         >
-                            <ChevronLeft size={24} />
+                            <LogOut size={22} aria-hidden="true" />
                         </button>
                     )}
 
@@ -119,7 +152,9 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                             <span className={styles.kicker}>
                                 Paso {currentStep + 1} de {totalSteps}
                             </span>
-                            {title && <h1 className={styles.title}>{title}</h1>}
+                            {/* [P1-WIZARD-STEP-FOCUS] `tabIndex={-1}` lo hace enfocable por
+                                código sin meterlo en el orden de tabulación. */}
+                            {title && <h1 ref={tituloRef} tabIndex={-1} className={styles.title}>{title}</h1>}
                             {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
                         </motion.div>
                     </AnimatePresence>
@@ -129,6 +164,18 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     </div>
                 </div>
             </main>
+
+            {/* [P1-WIZARD-EXIT-CONFIRM · 2026-08-10] El mismo modal que ya protege esta
+                misma operación en el dashboard. Su texto describe con honestidad lo que
+                pasa en cada rama: al invitado le avisa que pierde el progreso; a la
+                cuenta, que cierra sesión (que es lo que `resetApp` hace de verdad). */}
+            <LogoutConfirmModal
+                isOpen={confirmarSalida}
+                isGuest={isGuest}
+                userEmail={userProfile?.email}
+                onConfirm={handleBackToLogin}
+                onCancel={() => setConfirmarSalida(false)}
+            />
         </div>
     );
 };
