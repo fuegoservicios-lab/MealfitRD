@@ -1314,7 +1314,7 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   text-overflow: ellipsis;
   max-width: 100%;
 }
-.plan-week-pill.is-active .plan-week-pill__title { color: #A78BFA; }
+.plan-week-pill.is-active .plan-week-pill__title { color: var(--ink-ready); }
 
 .plan-week-pill__range {
   font-size: 0.66rem;
@@ -1387,16 +1387,18 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 .plan-week-cell__dow {
   font-size: 0.64rem;
   font-weight: 600;
-  color: var(--text-muted);
-  opacity: 0.75;
+  /* [P1-LIGHT-INK-CONTRACT] misma razón: 0,75 x 0,28 del hueco = 0,21 efectivo. */
+  color: var(--text-light);
 }
 .plan-week-cell__num { font-size: 1.05rem; font-weight: 700; line-height: 1.15; }
 
 /* El estado, cuando se escribe, va en voz baja. */
 .plan-week-cell__state {
   font-size: 0.56rem;
-  color: var(--text-muted);
-  opacity: 0.7;
+  /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Sin `opacity`: se multiplicaba con la
+     del estado de la celda (0,5 en pausado) y dejaba «en cola» en 1,58:1. La
+     opacidad no es un mecanismo de color; el tono bajo se declara una vez. */
+  color: var(--text-light);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1405,7 +1407,7 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 
 /* HOY: el único día con relleno. Es el ancla de la fila. */
 .plan-week-cell[data-state="hoy"] { background: rgba(139, 92, 246, 0.16); }
-.plan-week-cell[data-state="hoy"] .plan-week-cell__num { color: #A78BFA; }
+.plan-week-cell[data-state="hoy"] .plan-week-cell__num { color: var(--ink-ready); }
 
 /* Ya vivido: presente pero en segundo plano. */
 .plan-week-cell[data-state="pasado"] { opacity: 0.45; }

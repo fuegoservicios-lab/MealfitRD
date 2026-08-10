@@ -341,7 +341,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.mealKcal { font-weight: 700; color: #FBBF24; }
+.mealKcal { font-weight: 700; color: var(--ink-pantry); }
 
 .slotEmptyText {
     margin-top: 0.16rem;
