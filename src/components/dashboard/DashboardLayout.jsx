@@ -285,7 +285,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         tiers premium (Crown en Ultra), avatar minimalista y el modal de
                         confirmación de logout. */}
                     {isAccountMenuOpen && (
-                        <div className={styles.accountMenuPopover}>
+                        <div className={styles.accountMenuPopover} id="account-menu-popover">
                             <AccountMenu
                                 user={{ name: accountName, email: accountEmail }}
                                 plan={planLabel}
@@ -322,6 +322,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         ariaLabel="Abrir menú de cuenta"
                         ariaHasPopup="menu"
                         ariaExpanded={isAccountMenuOpen}
+                        ariaControls="account-menu-popover"
                     />
                 </div>
             </aside>
@@ -339,6 +340,8 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         className={styles.menuBtn}
                         onClick={() => setIsMobileMoreMenuOpen(true)}
                         aria-label="Abrir menú"
+                        aria-expanded={isMobileMoreMenuOpen}
+                        aria-controls="mobile-more-menu"
                     >
                         <Menu size={22} />
                     </button>
@@ -394,7 +397,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         className={styles.mobileMoreOverlay}
                         onClick={closeMoreMenu}
                     />
-                    <div className={styles.mobileMoreMenu} role="menu" ref={moreMenuRef} tabIndex={-1}>
+                    <div className={styles.mobileMoreMenu} role="menu" id="mobile-more-menu" ref={moreMenuRef} tabIndex={-1}>
                         {/* [P1-GUEST-APPEARANCE · 2026-06-15] Invitado → apariencia
                             (tema) en vez de Ajustes (gateado + fetches auth). */}
                         {isGuest ? (
@@ -419,6 +422,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             onClick={() => setIsMobileInfoOpen(prev => !prev)}
                             role="menuitem"
                             aria-expanded={isMobileInfoOpen}
+                            aria-controls="mobile-more-info-list"
                         >
                             <Info size={18} strokeWidth={2.5} />
                             <span style={{ flex: 1 }}>Más información</span>
@@ -430,7 +434,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             />
                         </button>
                         {isMobileInfoOpen && (
-                            <div className={styles.mobileMoreSubList}>
+                            <div className={styles.mobileMoreSubList} id="mobile-more-info-list">
                                 {MORE_INFO_GROUPS.map((group, gi) => (
                                     <Fragment key={gi}>
                                         {gi > 0 && <div className={styles.mobileMoreSubDivider} role="separator" />}
