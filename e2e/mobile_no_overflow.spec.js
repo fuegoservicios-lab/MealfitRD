@@ -179,7 +179,48 @@ test.describe('Landing sin desbordes en móvil', () => {
           });
         });
 
-        return { escondido, fuera, noCabe, vw };
+        // [P1-STATS-LAST-CELL-BORDER · 2026-08-10] CAJAS ABIERTAS POR UN LADO.
+        // El dueño vio una celda de la rejilla de cifras sin su borde derecho:
+        // una excepción escrita para la tira HORIZONTAL de escritorio
+        // (`:last-child { border-right: none }`, correcta ahí porque el
+        // contenedor cierra) sobrevivía al reflow a 2×2, donde ya no hay marco
+        // que la respalde.
+        //
+        // La firma es específica y por eso no da falsos positivos: hermanos de
+        // la misma clase donde UNOS llevan los CUATRO bordes y OTRO lleva tres.
+        // En una tira horizontal sana el patrón es distinto —todos con un solo
+        // borde y el último con ninguno—, así que esto no dispara ahí.
+        const cajasAbiertas = [];
+        const grupos = new Map();
+        document.querySelectorAll('body *').forEach((el) => {
+          const cls = String(el.className?.baseVal ?? el.className ?? '');
+          if (!cls || !el.parentElement) return;
+          const clave = cls + '@@' + (el.parentElement.className || 'root');
+          if (!grupos.has(clave)) grupos.set(clave, []);
+          grupos.get(clave).push(el);
+        });
+        grupos.forEach((els, clave) => {
+          if (els.length < 3) return;
+          const lados = els.map((el) => {
+            const cs = getComputedStyle(el);
+            return ['borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth']
+              .map((p) => parseFloat(cs[p]) || 0);
+          });
+          const conCuatro = lados.filter((l) => l.every((v) => v > 0)).length;
+          const conTres = lados
+            .map((l, i) => ({ i, ceros: l.filter((v) => v === 0).length }))
+            .filter((x) => x.ceros === 1);
+          if (conCuatro >= 2 && conTres.length) {
+            cajasAbiertas.push({
+              grupo: clave.split('@@')[0].slice(0, 34),
+              conMarcoCompleto: conCuatro,
+              abiertas: conTres.length,
+              txt: (els[conTres[0].i].textContent || '').trim().slice(0, 26),
+            });
+          }
+        });
+
+        return { escondido, fuera, noCabe, cajasAbiertas, vw };
       });
 
       expect(
@@ -199,6 +240,13 @@ test.describe('Landing sin desbordes en móvil', () => {
           `desborda la página ni crea scroll: invade lo que tiene al lado, que es ` +
           `como se vio el rótulo «Carbohidratos» pegado a su barra. ` +
           JSON.stringify(problemas.noCabe, null, 1)
+      ).toEqual([]);
+      expect(
+        problemas.cajasAbiertas,
+        `P1-STATS-LAST-CELL-BORDER: hay cajas con un lado sin dibujar junto a ` +
+          `hermanas con marco completo en ${ruta}. Suele ser una excepción escrita ` +
+          `para el layout de escritorio que sobrevive al reflow móvil. ` +
+          JSON.stringify(problemas.cajasAbiertas, null, 1)
       ).toEqual([]);
     });
   }

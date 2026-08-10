@@ -637,7 +637,22 @@
         gap: 0.6rem;
         overflow: visible;
     }
-    .stat {
+    /* [P1-STATS-LAST-CELL-BORDER · 2026-08-10] El `:last-child` va EXPLÍCITO, y
+       no es redundante: sin él la última celda se queda sin borde derecho.
+
+       `.stat:last-child { border-right: none }` (arriba, ~L166) existe para la
+       tira HORIZONTAL de escritorio, donde el marco del contenedor cierra por la
+       derecha. Su especificidad es (0,2,0) y le gana a `.stat` (0,1,0) aunque
+       esta venga después: el orden solo desempata a igualdad de peso. Cuando la
+       tira se rompe en 2×2 el contenedor pierde su marco, así que esa excepción
+       deja de tener nada que la respalde y la celda «7/15/30» queda abierta por
+       la derecha — que es lo que se ve en el teléfono.
+
+       Nombrar aquí al `:last-child` iguala el peso (0,2,0) y entonces sí manda
+       el orden. Es el mismo modo de fallo que la regla de tema contra la del
+       diálogo: UNA REGLA ESCRITA PARA UN LAYOUT SOBREVIVE AL CAMBIO DE LAYOUT. */
+    .stat,
+    .stat:last-child {
         border: 1px solid var(--border);
         border-radius: 12px;
     }
@@ -1052,9 +1067,17 @@
 
 /* Móvil: la tira de cifras se rompe en 2×2 y cada celda recupera su marco.
    Espeja el `@media (max-width: 600px)` de la base, que ahí pone
-   `border: 1px solid var(--border)` + `border-radius: 12px`. */
+   `border: 1px solid var(--border)` + `border-radius: 12px`.
+
+   [P1-STATS-LAST-CELL-BORDER · 2026-08-10] El `:last-child` explícito, por lo
+   mismo que en la base pero con otros números: aquí la excepción de escritorio
+   pesa (0,3,1) contra los (0,2,1) de esta regla, así que sin nombrarlo la celda
+   «7/15/30» se quedaba abierta por la derecha. Bajo papel es MÁS visible que en
+   la base: el contenedor solo tiene reglas arriba y abajo, así que no hay marco
+   alguno que disimule el lado que falta. */
 @media (max-width: 600px) {
-    :global(html[data-theme="paper"]) .stat {
+    :global(html[data-theme="paper"]) .stat,
+    :global(html[data-theme="paper"]) .stat:last-child {
         border: 1px solid var(--pa-rule-2);
         border-radius: 0;
     }
