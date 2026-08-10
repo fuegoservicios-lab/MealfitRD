@@ -135,6 +135,17 @@ const canal = (v) => {
 export const luminance = ({ r, g, b }) => 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
 
 export function contrast(fg, bg) {
+  // Un fondo translúcido no tiene contraste propio: hay que componerlo sobre lo
+  // que tenga detrás. Aceptarlo en silencio mide el color a plena fuerza en vez
+  // del tinte y devuelve una cifra plausible pero falsa — pasó al escribir el
+  // primer test del contrato, y una cifra falsa que nadie cuestiona es
+  // exactamente lo que este medidor existe para evitar. Falla ruidosamente.
+  if (bg.a !== 1) {
+    throw new Error(
+      `el fondo es translúcido (alfa ${bg.a}): compónlo con over(fondo, superficie) `
+      + 'antes de medir, si no estarías midiendo contra el color a plena fuerza',
+    );
+  }
   const f = luminance(fg.a === 1 ? fg : over(fg, bg));
   const b = luminance(bg);
   return (Math.max(f, b) + 0.05) / (Math.min(f, b) + 0.05);

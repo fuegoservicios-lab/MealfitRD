@@ -275,14 +275,59 @@
 
   --text-main: #0F172A;
   /* Slate 900 - Deepest charcoal */
-  --text-muted: #64748B;
-  /* Slate 500 */
-  --text-light: #94A3B8;
-  /* Slate 400 */
+  /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Era #64748B: 4,76:1 sobre blanco, pero
+     4,23:1 sobre el chip hundido nuevo — por debajo del mínimo. Y no hay ningún
+     gris de chip que dé escalón visible Y deje legible el #64748B: se midió todo
+     el rango (#F8FAFC..#E8EEF5) y las dos condiciones no coexisten. La salida
+     que dicta la medición es subir la rampa, no forzar el chip. */
+  --text-muted: #5B6A7D;
+  /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Era #94A3B8 (2,56:1 sobre blanco) y se
+     usaba para DOS cosas distintas: datos («2 / 15 mcg», «1212 / 2000 mg») y
+     adorno (chevrons, separadores). Ahora es SOLO ADORNO, con piso 3:1; todo
+     uso que sea un dato migra a --text-muted. Oscurecerlo hasta AA lo dejaría a
+     1,0 L* de --text-muted y la rampa de tres niveles colapsaría a dos. */
+  --text-light: #7D8B9F;
 
   --border: #E2E8F0;
-  /* Slate 200 */
+  /* Slate 200 — [P1-LIGHT-INK-CONTRACT] medido ΔL* 8,2 contra la tarjeta, el
+     mismo escalón que el tema oscuro. NO es el problema; no tocar. */
   --border-light: rgba(255, 255, 255, 0.2);
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   * [P1-LIGHT-INK-CONTRACT · 2026-08-10] El contrato de color del tema claro
+   * --------------------------------------------------------------------------
+   * Causa que cierra: la paleta del producto se eligió para el tema OSCURO y se
+   * reutilizaba tal cual en claro. El comentario de Pantry.jsx:169 lo dice
+   * literal («mejor contraste sobre el tema oscuro»). Medido: los 7 chips de la
+   * Nevera entre 1,56:1 y 2,38:1 contra un mínimo de 4,5.
+   *
+   * La regla: un acento NO puede ser a la vez relleno visible y texto legible
+   * sobre blanco. Por eso hay dos papeles.
+   *   · el color vivo (el de hoy, sin cambio) → punto, icono, barra, tinte
+   *   · --ink-*                               → SOLO texto e iconos que comunican
+   * En tema oscuro `ink` = el vivo, así que allí no cambia nada.
+   * ══════════════════════════════════════════════════════════════════════════ */
+
+  /* Superficies con nombre. El claro tenía UN peldaño y lo gastaba dos veces:
+     página #F8FAFC → tarjeta #FFFFFF → chip #F8FAFC, de vuelta al principio.
+     Medido: ΔL* 1,8 entre tarjeta y chip (imperceptible) contra 8,1 en oscuro.
+     Por eso allí un chip se lee como chip y aquí todo es una masa blanca. */
+  --surface-card: #FFFFFF;
+  --surface-sunken: #EDF2F7;
+
+  /* Capa de tinta por acento (-700 de Tailwind). No es un oscurecido mecánico:
+     son tonos diseñados para convivir y ya están en el vocabulario de la app.
+     Verificados sobre la tarjeta Y sobre el tinte al 13% del propio acento. */
+  --ink-dairy: #0369A1;     /* sky-700     · fill #38BDF8 */
+  --ink-proteins: #BE123C;  /* rose-700    · fill #FB7185 */
+  --ink-ready: #7E22CE;     /* purple-700  · fill #C084FC */
+  --ink-door: #0E7490;      /* cyan-700    · fill #22D3EE */
+  --ink-fruits: #C2410C;    /* orange-700  · fill #FB923C */
+  --ink-veggies: #047857;   /* emerald-700 · fill #34D399 */
+  --ink-pantry: #B45309;    /* amber-700   · fill #FBBF24 */
+  --ink-ok: #0F766E;        /* teal-700    · fill #2DD4BF */
+  --ink-warn: #C2410C;      /* orange-700  · fill #FB923C */
+  --ink-good: #047857;      /* emerald-700 · fill #10B981 */
 
   /* Toggle switches — track apagado (genérico, reutilizable por todos los switches) */
   --toggle-track-off: #CBD5E1;          /* slate-300 */
@@ -395,6 +440,24 @@ html[data-theme="dark"] {
 
   --border: #1F2937;           /* slate-800 sutil */
   --border-light: rgba(148, 163, 184, 0.14);
+
+  /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] En oscuro `ink` = el color VIVO: sobre
+     fondo oscuro esos tonos ya son legibles, que es justo para lo que se
+     eligieron. Los -700 del tema claro aquí serían ilegibles. Esta rama es la
+     que garantiza que el arreglo del claro no toque el oscuro ni un píxel. */
+  --surface-card: #111827;     /* = --bg-card oscuro */
+  --surface-sunken: #1E293B;   /* = --bg-muted oscuro; ΔL* 8,1 contra la tarjeta */
+
+  --ink-dairy: #38BDF8;
+  --ink-proteins: #FB7185;
+  --ink-ready: #C084FC;
+  --ink-door: #22D3EE;
+  --ink-fruits: #FB923C;
+  --ink-veggies: #34D399;
+  --ink-pantry: #FBBF24;
+  --ink-ok: #2DD4BF;
+  --ink-warn: #FB923C;
+  --ink-good: #34D399;
 
   /* [P3-TOGGLE-DARK-CONTRAST · 2026-06-29] Toggle track apagado: gray-500 neutro
      (#6B7280) — más nítido bajo la bola blanca que el slate-600 azulado anterior;
@@ -514,6 +577,25 @@ html[data-theme="paper"] {
 
   --border: #C9C9C4;
   --border-light: #C9C9C4;
+
+  /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] El dashboard nunca ve `paper`, pero
+     componentes compartidos (EmptyState y hermanos) sí aparecen en rutas de
+     marketing. Sin estas líneas heredarían el #EDF2F7 azulado del claro sobre
+     el papel cálido #FBFBFA. La tinta es la misma negra del sistema papel: el
+     blanco y negro estricto de P2-PAPER-NO-INK no admite acentos de color. */
+  --surface-card: #FBFBFA;
+  --surface-sunken: #F4F4F2;
+
+  --ink-dairy: #0B0B0B;
+  --ink-proteins: #0B0B0B;
+  --ink-ready: #0B0B0B;
+  --ink-door: #0B0B0B;
+  --ink-fruits: #0B0B0B;
+  --ink-veggies: #0B0B0B;
+  --ink-pantry: #0B0B0B;
+  --ink-ok: #0B0B0B;
+  --ink-warn: #0B0B0B;
+  --ink-good: #0B0B0B;
 
   --toggle-track-off: #8A8A84;
 

@@ -55,6 +55,16 @@ describe('[P1-LIGHT-INK-CONTRACT] el medidor está calibrado', () => {
     expect(lstar(P('#FFFFFF')) - lstar(P('#F8FAFC'))).toBeLessThan(2);
   });
 
+  it('se niega a medir contra un fondo translúcido', () => {
+    // Un fondo con alfa no tiene contraste propio. Aceptarlo mediría el color a
+    // plena fuerza en vez del tinte: una cifra plausible y falsa. Pasó al
+    // escribir el primer test del contrato, así que el medidor falla ruidoso.
+    const tinte = P('color-mix(in srgb, #38BDF8 13%, transparent)');
+    expect(() => contrast(P('#0369A1'), tinte)).toThrow(/transl/i);
+    // Compuesto sobre la tarjeta sí se puede medir, y da el valor real.
+    expect(contrast(P('#0369A1'), over(tinte, W))).toBeCloseTo(5.37, 1);
+  });
+
   it('aplica el umbral WCAG que corresponde al tamaño', () => {
     expect(threshold({ rem: 0.7, weight: 400 })).toBe(4.5);
     expect(threshold({ rem: 1.6, weight: 400 })).toBe(3);    // ≥24px
