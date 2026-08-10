@@ -68,6 +68,25 @@
     padding: 0.42rem 0.9rem;
     border-radius: 999px;
 }
+/* ============================================================================
+   [P1-HOWITWORKS-ORPHANS · 2026-08-10] HUÉRFANAS EN MÓVIL.
+
+   Medido a 320px, cuatro titulares cerraban con UNA palabra sola en su segunda
+   línea: «…de principio a **fin**» (10% del ancho), «…cuidan tu **plan**» (16%),
+   «…del **plato**» (17%) y el pie del esquema con «**adaptación**» (26%). En un
+   titular eso no es una minucia tipográfica: la palabra suelta parece un
+   fragmento de otra cosa, y en una página cuyo argumento es «rigor» se lee como
+   descuido.
+
+   `text-wrap: balance` reparte las líneas en CADA ancho en vez de fijar un corte
+   —la misma decisión, y por la misma razón, que el titular del landing
+   (P1-HERO-DEDUP-ACCENT: ahí un `<br />` fijo dejaba «no» huérfano y se sustituyó
+   por esto)—. Los navegadores lo limitan a unas 6 líneas, así que se aplica a
+   titulares y rótulos cortos; los párrafos largos usan `pretty`, que ataca lo
+   mismo por el otro extremo: evita que la ÚLTIMA línea quede con una palabra.
+
+   Ninguna de las dos propiedades cambia el diseño donde no hay defecto: si el
+   texto ya rompía bien, el resultado es idéntico. */
 .title {
     font-family: var(--font-heading);
     font-size: clamp(2.1rem, 5.4vw, 3.4rem);
@@ -75,6 +94,7 @@
     letter-spacing: -0.035em;
     line-height: 1.05;
     margin: 1.3rem 0 0;
+    text-wrap: balance;
 }
 .accent {
     color: var(--primary);
@@ -85,6 +105,9 @@
     font-size: 1.06rem;
     line-height: 1.62;
     color: var(--text-muted);
+    /* Centrado y con 4-5 líneas en móvil: una última línea de una palabra deja
+       la pirámide del párrafo rota justo donde el ojo vuelve al principio. */
+    text-wrap: pretty;
 }
 
 /* figura del hero (esquema del método) */
@@ -118,6 +141,13 @@
     color: var(--text-light);
 }
 
+/* La cadena «perfil → inferencia → calibración → adaptación» rompía a 320px
+   dejando la última etapa sola en su línea. Balanceada, las dos líneas parten
+   por una flecha y la cadena se sigue leyendo como cadena. */
+.heroCaption > span {
+    text-wrap: balance;
+}
+
 /* stats — tira de lectura minimalista */
 .stats {
     display: grid;
@@ -149,6 +179,10 @@
     color: var(--text-muted);
     margin-top: 0.42rem;
     line-height: 1.3;
+    /* Medido a 390px: «Micronutrientes vs / DRI» y «Modelos IA / orquestados»
+       rompían con la última palabra sola mientras sus vecinas cabían en una
+       línea — cuatro celdas de la misma rejilla con ritmos distintos. */
+    text-wrap: balance;
 }
 
 /* ----------------------------------------------------------------- layout */
@@ -185,6 +219,9 @@
     letter-spacing: -0.025em;
     line-height: 1.12;
     margin: 0.85rem 0 0;
+    /* Los tres titulares con huérfana medida viven aquí: «Las 4 etapas, de
+       principio a fin», «Las guardas que cuidan tu plan» y los de su serie. */
+    text-wrap: balance;
 }
 .secLead {
     color: var(--text-muted);
@@ -192,6 +229,7 @@
     line-height: 1.6;
     margin: 0.7rem 0 0;
     max-width: 620px;
+    text-wrap: pretty;
 }
 
 /* ---- (01) etapas — texto | figura ---- */
@@ -234,6 +272,7 @@
     font-size: 0.98rem;
     line-height: 1.6;
     margin-top: 1rem;
+    text-wrap: pretty;
 }
 
 /* viñetas */
@@ -415,11 +454,16 @@
     font-weight: 700;
     font-size: 1rem;
     letter-spacing: -0.01em;
+    /* «Variedad y coherencia del plato» cerraba con «plato» solo (17% del ancho
+       a 320px) — el último titular con huérfana que quedaba tras balancear los
+       de sección; este vive en otra serie, la de las guardas. */
+    text-wrap: balance;
 }
 .cardText {
     color: var(--text-muted);
     font-size: 0.91rem;
     line-height: 1.55;
+    text-wrap: pretty;
 }
 
 /* ---- (05) FAQ — acordeón ---- */
