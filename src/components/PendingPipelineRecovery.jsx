@@ -170,6 +170,20 @@ export default function PendingPipelineRecovery() {
                                 try { saveGeneratedPlanRef.current(_guestPlan); } catch { /* noop */ }
                             }
                         }
+                        // [P1-PLAN-READY-TOAST-ONCE · 2026-08-10] Faltaba borrar la señal
+                        // LOCAL. Esta rama solo hacía `ackPendingStatus()` —que es el
+                        // acuse al servidor— mientras la otra rama del mismo componente sí
+                        // hace las dos cosas. La asimetría no se notaba dentro de una
+                        // sesión porque `handledRef` corta la repetición… pero un ref muere
+                        // con la página: en cada refresco el componente arrancaba de cero,
+                        // volvía a leer la señal que seguía en localStorage y volvía a
+                        // anunciar «Tu plan está listo» de un plan que ya estaba listo hace
+                        // rato. El dueño lo reportó como «cada vez que refresco me sale».
+                        //
+                        // Va ANTES del await de hidratación a propósito: si el usuario
+                        // recarga en mitad de esa espera, la señal ya no está y no se vuelve
+                        // a disparar.
+                        clearPendingFlag();
                         await ackPendingStatus();
                         if (status.plan_id_final || _guestPlan) {
                             // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Hidratar ANTES de

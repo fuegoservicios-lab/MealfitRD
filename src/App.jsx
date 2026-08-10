@@ -351,7 +351,33 @@ function PublicThemeLock() {
   return null;
 }
 
+/* [P1-TOAST-APP-THEME · 2026-08-10] Tema EFECTIVO de la app para los avisos.
+   Se lee del atributo `data-theme` del <html>, que es donde el selector de apariencia
+   deja ya RESUELTA la opción «Sistema». Por eso el toast no vuelve a preguntarle al
+   sistema operativo: la pregunta ya está contestada aguas arriba, y responderla dos
+   veces es justo lo que producía una tarjeta blanca sobre una app oscura.
+
+   El observer existe porque el tema cambia en caliente desde Configuración: sin él, un
+   aviso lanzado tras el cambio seguiría con el tema de cuando montó la app. */
+function useAppToastTheme() {
+    const leer = () => {
+        if (typeof document === 'undefined') return 'system';
+        const t = document.documentElement.getAttribute('data-theme');
+        return t === 'dark' || t === 'light' ? t : 'system';
+    };
+    const [tema, setTema] = useState(leer);
+    useEffect(() => {
+        if (typeof document === 'undefined') return undefined;
+        setTema(leer());
+        const obs = new MutationObserver(() => setTema(leer()));
+        obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        return () => obs.disconnect();
+    }, []);
+    return tema;
+}
+
 function App() {
+    const appToastTheme = useAppToastTheme();
   // [APPEARANCE-THEME · 2026-05-28] Una sola vez al montar: re-aplica la pref
   // guardada (idempotente con el boot script) y engancha el listener del SO.
   useEffect(() => {
@@ -388,7 +414,7 @@ function App() {
             (errores, éxito, verificación de pago, swaps, validación de
             formulario, warnings de coherencia, etc.) quedó INVISIBLE. Los ~20
             archivos que llaman `toast.*` quedaban en no-op silencioso.
-            `richColors` colorea success/error; `theme="system"` sigue el modo
+            `richColors` colorea success/error; `theme={appToastTheme}` sigue el modo
             del SO; `top-center` para visibilidad en mobile-first es-DO. */}
         {/* [P3-TOAST-SAFE-AREA · 2026-06-01] offset/mobileOffset suman
             env(safe-area-inset-top) al `top` para que el toast NO quede debajo
@@ -399,10 +425,17 @@ function App() {
             especificados quedan en su default (24px desktop / 16px mobile) y el
             string pasa verbatim al CSS var --offset-top / --mobile-offset-top
             (styles.css L74 / L452). */}
+        {/* [P1-TOAST-APP-THEME · 2026-08-10] Antes `theme={appToastTheme}`, que sigue el modo
+            del SISTEMA OPERATIVO y no el de la app. Con el iPhone en claro y Bioboros en
+            oscuro, los avisos salían como una tarjeta blanca brillante sobre una pantalla
+            negra. La app tiene su propio selector de apariencia (con su opción «Sistema»
+            ya resuelta ahí dentro), así que el aviso debe seguir a la APP: si el usuario
+            eligió oscuro, esa pregunta ya está contestada y el toast no tiene por qué
+            contestarla otra vez por su cuenta. */}
         <Toaster
           richColors
           position="top-center"
-          theme="system"
+          theme={appToastTheme}
           closeButton
           offset={{ top: 'calc(env(safe-area-inset-top, 0px) + 24px)' }}
           mobileOffset={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
