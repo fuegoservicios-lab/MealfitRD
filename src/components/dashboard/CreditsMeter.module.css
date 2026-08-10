@@ -159,7 +159,7 @@
     font-weight: 800;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--text-light);
+    color: var(--text-muted);
     line-height: 1;
 }
 
@@ -184,7 +184,7 @@
 .limit {
     font-size: 0.82rem;
     font-weight: 600;
-    color: var(--text-light);
+    color: var(--text-muted);
 }
 
 /* ---- estados (gradiente del número + ritmo del bloom) ---- */
@@ -197,6 +197,32 @@
 /* [P1-GUEST-METER-DEPLETED · 2026-06-21] Invitado SIN crédito (0/1): ámbar/naranja → señal
    visual distinta "muestra usada, crea tu cuenta para seguir". */
 .guestDepleted .num { background-image: linear-gradient(135deg, #FBBF24, #FB923C); }
+
+/* ── [P1-LIGHT-INK-CONTRACT · 2026-08-10] El número en tema CLARO ──────────────
+   El «151» es un DEGRADADO recortado al texto, y sus tres paradas son colores
+   pensados para brillar sobre fondo oscuro. Sobre blanco el peor stop medía
+   1,67-2,69:1 contra un mínimo de 3 (el número es 23,2px en negrita, o sea
+   texto grande). Por eso el dueño lo señaló como lavado.
+
+   Se conserva el degradado —es el carácter de la pieza— bajando sus paradas a
+   la familia -700: mismo recorrido de color, peor stop 5,02-6,29:1. El anillo,
+   el icono y el bloom NO se tocan: son gráfico, no lectura. */
+:global(html:not([data-theme='dark'])) .healthy .num {
+    background-image: linear-gradient(135deg, #4338CA, #0E7490 55%, #047857);
+}
+:global(html:not([data-theme='dark'])) .low .num {
+    background-image: linear-gradient(135deg, #B45309, #C2410C);
+}
+:global(html:not([data-theme='dark'])) .depleted .num {
+    background-image: linear-gradient(135deg, #BE123C, #9F1239);
+}
+:global(html:not([data-theme='dark'])) .unlimited .num,
+:global(html:not([data-theme='dark'])) .guest .num {
+    background-image: linear-gradient(135deg, #4338CA, #7E22CE 50%, #0E7490);
+}
+:global(html:not([data-theme='dark'])) .guestDepleted .num {
+    background-image: linear-gradient(135deg, #B45309, #C2410C);
+}
 
 .unlimited .gauge::before {
     animation-duration: 2.6s;
