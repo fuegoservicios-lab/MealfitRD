@@ -13,11 +13,15 @@
   margin-bottom: 1.5rem;
 }
 
-/* Tonos por estado (se heredan vía --tone) */
-.ok    { --tone: #2DD4BF; }
-.amber { --tone: #FBBF24; }
-.far   { --tone: #FB923C; }
-.over  { --tone: #FB7185; }
+/* Tonos por estado (se heredan vía --tone).
+   [P1-LIGHT-INK-CONTRACT · 2026-08-10] `--tone` es el RELLENO (barra, tinte,
+   punto) y no cambia. `--tone-ink` es la capa de TEXTO: en claro es el -700 del
+   acento, en oscuro es el mismo vivo. Dos papeles porque un color no puede ser
+   a la vez relleno visible y texto legible sobre blanco. */
+.ok    { --tone: #2DD4BF; --tone-ink: var(--ink-ok); }
+.amber { --tone: #FBBF24; --tone-ink: var(--ink-pantry); }
+.far   { --tone: #FB923C; --tone-ink: var(--ink-warn); }
+.over  { --tone: #FB7185; --tone-ink: var(--ink-proteins); }
 
 /* ---------- Cabecera ---------- */
 .head { display: flex; align-items: flex-start; gap: 12px; }
@@ -33,28 +37,28 @@
 }
 .sub { margin-top: 4px; display: block; font-size: .77rem; font-weight: 600; color: var(--text-muted); }
 .sub b { color: var(--text-main); font-weight: 800; }
-.warn { color: #FB923C; }
-.warn b { color: #FB923C; }
+.warn { color: var(--ink-warn); }
+.warn b { color: var(--ink-warn); }
 
 /* ---------- Chips de resumen ---------- */
 .stats { display: flex; gap: 9px; margin-top: 15px; flex-wrap: wrap; }
 .stat {
   flex: 1; min-width: 120px; display: flex; align-items: center; gap: 11px; padding: 11px 13px;
-  border-radius: 14px; background: var(--bg-page); border: 1px solid var(--border);
+  border-radius: 14px; background: var(--surface-sunken); border: 1px solid var(--border);
 }
-.stat .num { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 800; line-height: .9; color: var(--tone); }
+.stat .num { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 800; line-height: .9; color: var(--tone-ink); }
 .stat .lbl { font-size: .69rem; font-weight: 600; color: var(--text-muted); line-height: 1.25; }
 .stat .lbl b { display: block; color: var(--text-main); font-weight: 800; font-size: .74rem; }
 
 /* ---------- Eyebrow / section label ---------- */
 .eye {
   display: flex; align-items: center; gap: 10px; margin: 17px 2px 10px;
-  font-size: .63rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-light);
+  font-size: .63rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted);
 }
 .eye .ct { font-weight: 800; color: var(--text-muted); letter-spacing: .02em; }
 .eye .ln { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
-.eye.hot { color: #FB923C; }
-.eye.allgood { color: #10B981; }
+.eye.hot { color: var(--ink-warn); }
+.eye.allgood { color: var(--ink-good); }
 .eye.allgood svg { width: 13px; height: 13px; }
 .dotpulse {
   width: 7px; height: 7px; border-radius: 50%; background: #FB923C;
@@ -69,7 +73,7 @@
 /* ---------- Barra de progreso ---------- */
 .bar {
   position: relative; height: 8px; border-radius: 99px; overflow: hidden;
-  background: color-mix(in srgb, var(--text-light) 22%, transparent);
+  background: color-mix(in srgb, var(--text-light) 40%, transparent);
 }
 .bar.thin { height: 5px; }
 .bar > i {
@@ -99,15 +103,15 @@
 .pill {
   flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 99px;
   font-size: .58rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
-  color: var(--tone); background: color-mix(in srgb, var(--tone) 17%, transparent);
+  color: var(--tone-ink); background: color-mix(in srgb, var(--tone) 17%, transparent);
   border: 1px solid color-mix(in srgb, var(--tone) 36%, transparent);
 }
-.bigPct { margin-left: auto; font-family: var(--font-heading); font-size: 1.55rem; font-weight: 800; color: var(--tone); line-height: .9; }
+.bigPct { margin-left: auto; font-family: var(--font-heading); font-size: 1.55rem; font-weight: 800; color: var(--tone-ink); line-height: .9; }
 .att .bar { margin: 12px 0 9px; }
 
-.vals { font-size: .78rem; color: var(--text-light); font-variant-numeric: tabular-nums; }
+.vals { font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .vals b { color: var(--text-main); font-weight: 800; }
-.miss { color: var(--tone); font-weight: 800; }
+.miss { color: var(--tone-ink); font-weight: 800; }
 
 .sugg {
   display: flex; align-items: flex-start; gap: 9px; margin-top: 12px; padding-top: 12px;
@@ -116,29 +120,29 @@
 }
 .suggIco {
   flex: none; width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; margin-top: -1px;
-  color: var(--tone); background: color-mix(in srgb, var(--tone) 15%, transparent);
+  color: var(--tone-ink); background: color-mix(in srgb, var(--tone) 15%, transparent);
 }
-.dose { display: block; margin-top: 5px; font-size: .71rem; font-weight: 700; color: var(--tone); }
+.dose { display: block; margin-top: 5px; font-size: .71rem; font-weight: 700; color: var(--tone-ink); }
 
 /* [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] Precaución por suplemento (UL / interacción / renal). */
 .caution {
   display: flex; align-items: flex-start; gap: 7px; margin-top: 8px;
-  font-size: .69rem; line-height: 1.4; color: var(--text-light); opacity: .92;
+  font-size: .69rem; line-height: 1.4; color: var(--text-muted);
 }
-.cautionIco { flex: none; margin-top: 1px; opacity: .8; }
+.cautionIco { flex: none; margin-top: 1px; }
 
 .improve {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 11px;
-  font-size: .72rem; font-weight: 800; color: var(--tone); opacity: .9;
+  font-size: .72rem; font-weight: 800; color: var(--tone-ink);
 }
 
-.disclaimer { margin: 12px 2px 2px; font-size: .68rem; line-height: 1.5; color: var(--text-light); opacity: .9; }
+.disclaimer { margin: 12px 2px 2px; font-size: .68rem; line-height: 1.5; color: var(--text-muted); }
 
 /* ---------- Chips "Al día" (expandibles → cantidad exacta) ---------- */
 .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-items: start; }
 .q {
   display: flex; flex-direction: column; width: 100%; padding: 10px 11px; border-radius: 12px;
-  background: var(--bg-page); border: 1px solid var(--border); min-width: 0;
+  background: var(--surface-sunken); border: 1px solid var(--border); min-width: 0;
   font: inherit; color: inherit; text-align: left; cursor: pointer; -webkit-appearance: none; appearance: none;
   transition: border-color .16s, background .16s;
 }
@@ -147,32 +151,39 @@
 .qRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .chk { flex: none; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; color: #04221d; background: #2DD4BF; }
 .qName { font-size: .81rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.qPct { margin-left: auto; flex: none; font-size: .7rem; font-weight: 800; color: #2DD4BF; font-variant-numeric: tabular-nums; }
+.qPct { margin-left: auto; flex: none; font-size: .7rem; font-weight: 800; color: var(--ink-ok); font-variant-numeric: tabular-nums; }
 .qChev { flex: none; color: var(--text-light); transition: transform .2s ease; }
 .qChevOpen { transform: rotate(180deg); }
 .qVals { overflow: hidden; display: block; }
 .qValsInner {
   display: block; margin-top: 8px; padding-top: 8px; padding-left: 25px;
   border-top: 1px dashed var(--border);
-  font-size: .76rem; color: var(--text-light); font-variant-numeric: tabular-nums;
+  font-size: .76rem; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 .qValsInner b { color: var(--text-main); font-weight: 800; }
-.qEst { color: var(--text-light); opacity: .85; }
+.qEst { color: var(--text-muted); }
 
 /* ---------- Límites ---------- */
 .lim2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-.lim { --tone: #2DD4BF; padding: 12px 14px; border-radius: 14px; background: var(--bg-page); border: 1px solid var(--border); }
+/* [P1-LIGHT-INK-CONTRACT · 2026-08-10] `--tone` ya NO se declara aquí. Declararlo
+   en el cuerpo de `.lim` lo ponía DESPUÉS de `.over` con la misma especificidad
+   (0,1,0), así que un límite excedido se pintaba teal en vez de rosa — en el
+   tema OSCURO, donde nunca hubo override que lo tapara. El override de contraste
+   de julio lo arreglaba en claro por accidente, así que al retirarlo el bug
+   habría reaparecido en los dos temas.
+   El estado normal ahora lo pone `.ok` desde el JSX, igual que en los chips. */
+.lim { padding: 12px 14px; border-radius: 14px; background: var(--surface-sunken); border: 1px solid var(--border); }
 .limTop { display: flex; align-items: center; gap: 8px; }
 .limName { font-size: .87rem; font-weight: 700; color: var(--text-main); }
 .limOk {
   margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: .58rem; font-weight: 800;
-  text-transform: uppercase; letter-spacing: .05em; color: var(--tone);
+  text-transform: uppercase; letter-spacing: .05em; color: var(--tone-ink);
 }
-.lim .bar { margin: 11px 0 8px; background: color-mix(in srgb, var(--text-light) 16%, transparent); }
+.lim .bar { margin: 11px 0 8px; background: color-mix(in srgb, var(--text-light) 34%, transparent); }
 .lim .bar > i { box-shadow: none; background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 55%, transparent), color-mix(in srgb, var(--tone) 80%, transparent)); }
-.limVal { font-size: .75rem; color: var(--text-light); font-variant-numeric: tabular-nums; }
+.limVal { font-size: .75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .limVal b { color: var(--text-main); font-weight: 800; }
-.mg { color: var(--tone); font-weight: 700; }
+.mg { color: var(--tone-ink); font-weight: 700; }
 /* [P3-CEILING-WORSTDAY-UI · 2026-07-04] aviso per-día del techo — el promedio "bajo control"
    escondía días que SÍ se pasan (banner de plan-no-óptimo parecía ilógico junto al panel verde). */
 .limDays { margin-top: 6px; font-size: .68rem; line-height: 1.45; font-weight: 600; color: #b45309; }
@@ -183,15 +194,28 @@
 .qDayNote { color: #b45309; font-weight: 600; }
 :global(html[data-theme="dark"]) .qDayNote { color: #fcd34d; }
 
-.foot { margin: 15px 2px 2px; font-size: .68rem; line-height: 1.5; color: var(--text-light); opacity: .9; }
+/* [P1-LIGHT-INK-CONTRACT · 2026-08-10] `.foot` retirada: regla huérfana, cero
+   `styles.foot` en MicronutrientMeter.jsx. El pie que sí se renderiza es
+   `.disclaimer`. Se borra en vez de migrarla porque una regla muerta con un
+   patrón viejo (--text-light + opacity encadenada) es una plantilla esperando
+   a que alguien la copie. */
 
-/* ---------- Tema CLARO: tonos cálidos legibles (P2-MICRO-LIGHT-CONTRAST · 2026-07-12) ----------
-   Los tonos `--tone` son shades -400 (brillantes) afinados para resaltar sobre
-   el card OSCURO. Usados como TEXTO (%, pill, "faltan X") sobre el card claro
-   pálido, el ámbar `#FBBF24` casi no contrasta (amarillo sobre crema, ~1.6:1) y
-   naranja/rosa quedan borderline. En claro los bajamos a -600: legibles como
-   texto Y más ricos como relleno de barra. El teal `.ok` NO se toca (aceptable).
-   Dark intacto (rama por defecto). */
+/* ---------- Tema CLARO: el relleno cálido (P2-MICRO-LIGHT-CONTRAST · 2026-07-12) ----
+   [P1-LIGHT-INK-CONTRACT · 2026-08-10] Este bloque SE CONSERVA, pero cambia lo
+   que significa. Antes era el arreglo de contraste del texto y tenía dos
+   agujeros: solo reasignaba la variable `--tone`, así que no alcanzaba a
+   `.warn`, `.eye.hot` ni `.eye.allgood` —que escriben `color:` literal—, y
+   dejaba escrito que «el teal .ok NO se toca (aceptable)». No lo era: medido
+   1,78:1, y era el color de TODOS los porcentajes de «AL DÍA», de «BAJO
+   CONTROL» y de «margen 788 mg» — justo lo que el dueño reportó como lavado.
+
+   El texto ya no depende de esto: lo resuelve `--tone-ink` en las cuatro clases
+   de estado. Lo que queda aquí es su otro efecto, el bueno: en claro un relleno
+   -600 se lee más rico sobre blanco que un -400. O sea, sigue siendo el RELLENO
+   cálido, no el arreglo de legibilidad.
+
+   ⚠️ Este bloque además tapaba por accidente el bug de cascada de `.lim` (ver
+   arriba). Ese bug ya está arreglado de verdad, así que tocar esto es seguro. */
 :global(html:not([data-theme='dark'])) .amber { --tone: #D97706; }
 :global(html:not([data-theme='dark'])) .far   { --tone: #EA580C; }
 :global(html:not([data-theme='dark'])) .over  { --tone: #E11D48; }
