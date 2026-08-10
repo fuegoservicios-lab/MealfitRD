@@ -507,10 +507,25 @@
 }
 
 /* ─────────────── modal ─────────────── */
+/* [P1-MODAL-ABOVE-HEADER · 2026-08-10] EL VELO VA POR ENCIMA DEL ENCABEZADO.
+
+   Estaba en `z-index: 80` y el header fijo en 1000, así que el header se pintaba
+   ENCIMA de la ficha. Con el modal centrado verticalmente eso no se nota en una
+   pantalla alta —a 390×844 su borde superior queda 11px por debajo del header—,
+   pero en una corta sí: MEDIDO a 375×667, el modal arranca en y=47 y **el header
+   le tapa los primeros 9px**, incluido su borde superior. La ficha aparecía
+   descabezada, como si saliera de debajo de la barra.
+
+   Se sube por encima (1100) en vez de reservarle al modal el alto del header.
+   Dos razones: un modal es una superficie que TOMA la pantalla —dejar un trozo
+   de interfaz por delante contradice lo que el velo está diciendo—, y reservar
+   56px ataría esta página a la altura del header, que es de otro componente y de
+   otras 20 rutas. Con el velo arriba, el encabezado queda atenuado bajo él y
+   ninguna altura futura puede volver a chocar. */
 .overlay {
     position: fixed;
     inset: 0;
-    z-index: 80;
+    z-index: 1100;
     display: flex;
     align-items: center;
     justify-content: center;

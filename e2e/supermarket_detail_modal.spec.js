@@ -95,10 +95,26 @@ for (const width of [375, 320]) {
           });
         }
       });
+      // [P1-MODAL-ABOVE-HEADER · 2026-08-10] El encabezado es `fixed` y estaba en
+      // z-index 1000 contra los 80 del velo: en una pantalla corta el modal —que
+      // se centra verticalmente— subía hasta debajo de la barra y perdía su borde
+      // superior. Se comprueba el APILAMIENTO, no la distancia: si el velo está
+      // por encima, ninguna altura futura del header puede volver a taparlo.
+      const cab = document.querySelector('header');
+      const overlay = modal.parentElement;
+      const zDe = (el) => {
+        const v = parseInt(getComputedStyle(el).zIndex, 10);
+        return Number.isNaN(v) ? 0 : v;
+      };
+
       return {
         precioTexto: precio ? precio.textContent.trim() : null,
         precioLineas: precio ? Math.round(precio.getBoundingClientRect().height / lh) : null,
         fuera,
+        zVelo: overlay ? zDe(overlay) : null,
+        zCabecera: cab ? zDe(cab) : null,
+        modalTop: Math.round(mb.top),
+        cabeceraBottom: cab ? Math.round(cab.getBoundingClientRect().bottom) : null,
       };
     });
 
@@ -113,5 +129,13 @@ for (const width of [375, 320]) {
       r.fuera,
       `P1-DETAIL-MODAL-FIT: hay contenido fuera del marco de la ficha. ` + JSON.stringify(r.fuera, null, 1)
     ).toEqual([]);
+    expect(
+      r.zVelo,
+      `P1-MODAL-ABOVE-HEADER: el velo de la ficha (z=${r.zVelo}) no está por encima ` +
+        `del encabezado fijo (z=${r.zCabecera}). Un modal toma la pantalla; con el ` +
+        `header delante, en una pantalla corta le tapa el borde superior — a ` +
+        `${width}px el modal arranca en y=${r.modalTop} y el header llega a ` +
+        `y=${r.cabeceraBottom}.`
+    ).toBeGreaterThan(r.zCabecera);
   });
 }
