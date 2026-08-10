@@ -258,6 +258,7 @@ const Header = () => {
                                 aria-haspopup="menu"
                                 aria-expanded={isAccountMenuOpen}
                                 aria-label="Abrir menú de cuenta"
+                                aria-controls="account-menu-dropdown"
                             >
                                 <span className={styles.accountAvatar} aria-hidden="true">{accountInitial}</span>
                                 <ChevronDown
@@ -267,7 +268,7 @@ const Header = () => {
                                 />
                             </button>
                             {isAccountMenuOpen && (
-                                <div className={styles.accountDropdown} role="menu">
+                                <div id="account-menu-dropdown" className={styles.accountDropdown} role="menu">
                                     <div className={styles.accountIdentity}>
                                         <span className={styles.accountName}>{accountName}</span>
                                         {accountEmail && <span className={styles.accountEmailLine}>{accountEmail}</span>}
@@ -317,6 +318,7 @@ const Header = () => {
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
                         aria-expanded={isMenuOpen}
+                        aria-controls="mobile-menu-nav"
                     >
                         {/* [P1-PAPER-THEME · 2026-08-01] En papel el glifo baja a "dos
                             trazos de 1px" (spec §4.1): Equal (2 líneas) reemplaza el
@@ -337,7 +339,7 @@ const Header = () => {
                     SE CONSERVA IGUALMENTE: quitarlo reabre el bug de position:fixed atrapado
                     en cuanto alguien reintroduzca cualquier filtro o transform en el header. */}
                 {isMenuOpen && hasMobileMenuItems && typeof document !== 'undefined' && createPortal(
-                    <nav className={styles.navMobile}>
+                    <nav id="mobile-menu-nav" className={styles.navMobile}>
                         {/* [P3-HEADER-MOBILE-FULLSCREEN · 2026-06-29] Menú full-screen:
                             barra superior propia (logo + cerrar) porque el overlay cubre
                             el header, así que el toggle original queda tapado. */}
