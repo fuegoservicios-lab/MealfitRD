@@ -1713,13 +1713,28 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     style={{ position: 'relative', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', borderRadius: '50%', lineHeight: 0 }}
                                 >
                                     {avatarId ? (
+                                        // [P1-AVATAR-SIZE-JUMP · 2026-08-10] El avatar CRECÍA
+                                        // al primer cambio, y solo en el teléfono.
+                                        //
+                                        // Las dos ramas de este ternario son el mismo avatar
+                                        // en la misma posición, pero cada una traía su caja
+                                        // por su cuenta: la de las iniciales (`styles.avatar`)
+                                        // es responsive —88px, 68 a ≤768 y 56 a ≤480— y el SVG
+                                        // llevaba `size={88}` clavado. En un iPhone el primer
+                                        // clic saltaba de 56 a 88: +32px de golpe. En
+                                        // escritorio los dos valían 88 y por eso allí no se
+                                        // notaba nada.
+                                        //
+                                        // Ahora el SVG usa LA MISMA clase, así que la caja
+                                        // sale de un solo sitio y las dos ramas no pueden
+                                        // volver a discrepar. El `width`/`height` del CSS gana
+                                        // sobre los atributos del <svg>, de modo que no se le
+                                        // pasa `size`: dejarlo escrito volvería a sugerir que
+                                        // el tamaño se decide aquí.
                                         <MinimalAvatar
                                             id={avatarId}
-                                            size={88}
-                                            style={{
-                                                borderRadius: '50%',
-                                                boxShadow: '0 8px 24px rgba(0,0,0,0.35), 0 0 0 4px rgba(255,255,255,0.7), 0 0 0 5px rgba(79,70,229,0.15)',
-                                            }}
+                                            className={styles.avatar}
+                                            style={{ background: 'none' }}
                                         />
                                     ) : (
                                         <div className={styles.avatar}>
