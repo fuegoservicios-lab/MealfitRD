@@ -645,15 +645,41 @@ const InteractiveAssessmentFlow = () => {
                          * `handleSkipToLastStep` YA valida defensivamente:
                          * si falta algún `_REQUIRED_FORM_FIELDS`, redirige
                          * al primer step incompleto con toast informativo.
-                         * Por eso es seguro mostrar el botón siempre en
-                         * step 0 — peor caso es 1 click → toast → primer
-                         * step incompleto. */}
+                         * Por eso es seguro mostrarlo sin exigir que el
+                         * formulario esté completo — peor caso es 1 click →
+                         * toast → primer step incompleto. (En qué pasos se
+                         * muestra lo decide P1-SKIP-ALWAYS-REACHABLE, abajo.) */}
                         {/* [FORM-CTA-UNIFY · 2026-07-02] Ghost secundario a
                             propósito (jerarquía: acción alternativa, no debe
                             competir con el CTA gradiente). Hover/focus viven en
                             .mf-ghost-btn (index.css) — antes eran handlers JS
                             onMouseOver que no cubrían focus de teclado. */}
-                        {currentStep === 0 && (
+                        {/* [P1-SKIP-ALWAYS-REACHABLE · 2026-08-10] El botón existía SOLO
+                         * en el paso 0, y por eso el dueño no lo encontraba nunca.
+                         *
+                         * No era cosa del móvil: medido como invitado, en el paso 1 no
+                         * aparece NI en teléfono NI en escritorio, y `.mf-ghost-btn` no
+                         * tiene una sola regla que dependa del ancho. Lo que lo escondía
+                         * es la combinación con [P1-FORM-RESUME]: el formulario arranca
+                         * en el paso que guardaste (`_initialStep` en AssessmentContext),
+                         * así que quien ya avanzó no vuelve a pasar por el paso 0 — el
+                         * atajo quedaba fuera del alcance de EXACTAMENTE la persona para
+                         * la que se escribió, la que ya tiene un plan y vuelve. Y como
+                         * `localStorage` es por dispositivo, en el teléfono (con progreso
+                         * guardado) no salía y en el PC (recién estrenado, paso 0) sí:
+                         * de ahí la impresión de que era un problema de móvil.
+                         *
+                         * Ahora se muestra mientras `canSkip` —o sea: ya llegaste más
+                         * lejos antes, o ya tienes un plan hecho— y no estés en la última
+                         * pregunta, donde saltar sería saltar a donde ya estás.
+                         *
+                         * El flujo lineal de quien entra por primera vez NO cambia: ahí
+                         * `canSkip` es false y el botón sigue sin aparecer.
+                         *
+                         * Sigue siendo seguro mostrarlo en cualquier paso porque
+                         * `handleSkipToLastStep` valida antes de saltar y devuelve al
+                         * primer campo incompleto con un aviso (P1-SKIP-RESPECTS-BUDGET). */}
+                        {canSkip && currentStep < steps.length - 1 && (
                             <button
                                 onClick={handleSkipToLastStep}
                                 className="mf-ghost-btn"
