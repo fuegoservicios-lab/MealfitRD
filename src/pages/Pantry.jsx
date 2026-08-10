@@ -185,6 +185,27 @@ const ZONE_DISPLAY_COLOR = {
 };
 const zoneColor = (zoneKey) => ZONE_DISPLAY_COLOR[zoneKey] || '#94A3B8';
 
+/* [P1-LIGHT-INK-CONTRACT · 2026-08-10] La capa de TINTA de cada zona.
+   `ZONE_DISPLAY_COLOR` de arriba se eligió —lo dice su propio comentario— por
+   «mejor contraste sobre el tema oscuro». Como TEXTO sobre claro esos siete
+   miden entre 1,56:1 y 2,38:1, contra un mínimo de 4,5. Aquí NO se cambian:
+   siguen siendo el punto, el icono y la barra, que es donde funcionan. Lo que
+   se añade es el color con el que se ESCRIBE.
+
+   ⚠️ Existe una tercera paleta en ZONE_DEFINITIONS.color que nadie lee y que
+   parece la solución obvia. No lo es: 6 de sus 7 colores también fallan como
+   texto (1,95:1 a 3,94:1). No migrar a ella. */
+const ZONE_INK = {
+    shelf_dairy:    'var(--ink-dairy)',
+    shelf_proteins: 'var(--ink-proteins)',
+    shelf_ready:    'var(--ink-ready)',
+    door:           'var(--ink-door)',
+    drawer_fruits:  'var(--ink-fruits)',
+    drawer_veggies: 'var(--ink-veggies)',
+    pantry:         'var(--ink-pantry)',
+};
+const zoneInk = (zoneKey) => ZONE_INK[zoneKey] || 'var(--text-muted)';
+
 /* [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] AQUÍ VIVÍA EL UMBRAL DE STOCK BAJO: una
    constante de 0,5 contra la que se comparaba `quantity`. Por debajo se teñía
    la fila, se pintaba un chip vago y se sumaba al contador del sidebar.
@@ -2183,6 +2204,8 @@ const Pantry = () => {
         // master_ingredients.market_container (curado) sobre item.unit.
         const displayUnit = item.master_ingredients?.market_container || item.unit;
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
+        // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
+        const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
         const atFloor = item.quantity <= 1;
         const badge = getShelfLifeBadge(item);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
@@ -2194,7 +2217,7 @@ const Pantry = () => {
             <div
                 key={item.id}
                 className={`${fstyles.row} ${needsAttention ? fstyles.low : ''}`}
-                style={{ '--cat': cat, opacity: isDisabled ? 0.5 : 1 }}
+                style={{ '--cat': cat, '--cat-ink': catInk, opacity: isDisabled ? 0.5 : 1 }}
             >
                 <span className={fstyles.rdot} />
                 <span className={fstyles.rname} style={{ textDecoration: isDisabled ? 'line-through' : 'none' }}>
@@ -2328,6 +2351,8 @@ const Pantry = () => {
         const isDisabled = disabledIngredients.includes(normalizedName);
         const displayUnit = item.master_ingredients?.market_container || item.unit;
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
+        // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
+        const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
         const atFloor = item.quantity <= 1;
         const badge = getShelfLifeBadge(item);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
@@ -2339,7 +2364,7 @@ const Pantry = () => {
             <div
                 key={item.id}
                 className={`${mstyles.item} ${needsAttention ? mstyles.low : ''}`}
-                style={{ '--cat': cat, opacity: isDisabled ? 0.5 : 1 }}
+                style={{ '--cat': cat, '--cat-ink': catInk, opacity: isDisabled ? 0.5 : 1 }}
             >
                 <div className={mstyles.itop}>
                     <span className={mstyles.iname} style={{ textDecoration: isDisabled ? 'line-through' : 'none' }}>
@@ -2567,7 +2592,7 @@ const Pantry = () => {
                             type="button"
                             className={mstyles.fchip}
                             aria-pressed={effFilter === z.key}
-                            style={{ '--cat': zoneColor(z.key) }}
+                            style={{ '--cat': zoneColor(z.key), '--cat-ink': zoneInk(z.key) }}
                             onClick={() => setCatFilter(z.key)}
                         >
                             <span className={mstyles.cdot} />{z.label} <b>{n}</b>
@@ -2602,7 +2627,7 @@ const Pantry = () => {
                 {visibleZones.map(({ z, list }) => {
                     const Icon = z.icon;
                     return (
-                        <div key={z.key} className={mstyles.cat} style={{ '--cat': zoneColor(z.key) }}>
+                        <div key={z.key} className={mstyles.cat} style={{ '--cat': zoneColor(z.key), '--cat-ink': zoneInk(z.key) }}>
                             <h2 className={mstyles.cathead}>
                                 <span className={mstyles.catico}><Icon size={15} /></span>
                                 <span className={mstyles.catname}>{z.label}</span>
@@ -2680,7 +2705,7 @@ const Pantry = () => {
                                         type="button"
                                         className={fstyles.navitem}
                                         aria-current={effFilter === z.key}
-                                        style={{ '--cat': zoneColor(z.key) }}
+                                        style={{ '--cat': zoneColor(z.key), '--cat-ink': zoneInk(z.key) }}
                                         onClick={() => setCatFilter(z.key)}
                                     >
                                         <span className={fstyles.navico}><Icon size={16} /></span>
@@ -2784,7 +2809,7 @@ const Pantry = () => {
                                         type="button"
                                         className={fstyles.fchip}
                                         aria-pressed={effFilter === z.key}
-                                        style={{ '--cat': zoneColor(z.key) }}
+                                        style={{ '--cat': zoneColor(z.key), '--cat-ink': zoneInk(z.key) }}
                                         onClick={() => setCatFilter(z.key)}
                                     >
                                         <span className={fstyles.cdot} /> {z.label}
@@ -2868,7 +2893,7 @@ const Pantry = () => {
                             )}
 
                             {visibleZones.map(({ z, list }) => (
-                                <div key={z.key} className={fstyles.group} style={{ '--cat': zoneColor(z.key) }}>
+                                <div key={z.key} className={fstyles.group} style={{ '--cat': zoneColor(z.key), '--cat-ink': zoneInk(z.key) }}>
                                     {effFilter === 'todos' && (
                                         <div className={fstyles.gh}>{z.label}<span className={fstyles.ln} />{list.length}</div>
                                     )}
