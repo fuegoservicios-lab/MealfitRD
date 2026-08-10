@@ -377,7 +377,7 @@ const Login = () => {
             </aside>
 
             {/* Formulario (auth real) */}
-            <section className="mf-form">
+            <section id="main-content" tabIndex={-1} className="mf-form">
                 <div className="mf-brandmark"><Wordmark /></div>
 
                 <div className="mf-form__inner">
@@ -434,8 +434,15 @@ const Login = () => {
                                     )}
                                 </button>
 
+                                {/* [P1-LOGIN-LEGAL-TERMS · 2026-08-10] Faltaba Términos de Uso.
+                                    Apple lo comprueba de forma vinculante en la revisión, y la
+                                    ruta y el helper ya existían — era una omisión, no una
+                                    decisión. Enlazar solo privacidad deja el consentimiento a
+                                    medias: son dos documentos distintos. */}
                                 <p className="mf-privacy">
-                                    Al continuar, reconoces nuestra{' '}
+                                    Al continuar, aceptas nuestros{' '}
+                                    <a href={landingLegalUrl('/terms')} target="_blank" rel="noopener noreferrer">Términos de Uso</a>
+                                    {' '}y reconoces nuestra{' '}
                                     <a href={landingLegalUrl('/privacy')} target="_blank" rel="noopener noreferrer">Política de Privacidad</a>.
                                 </p>
                             </form>

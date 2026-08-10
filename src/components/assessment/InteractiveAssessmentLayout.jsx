@@ -166,7 +166,11 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                 </div>
             </header>
 
-            <main className={styles.main}>
+            {/* [P1-SKIPLINK-ANCHOR - 2026-08-10] Destino del enlace "Saltar al
+                contenido". Apuntaba a un id que no existe en esta pantalla, asi que el
+                PRIMER control de la pagina no hacia nada para quien navega con teclado.
+                tabIndex=-1 para que el salto pueda depositar el foco aqui. */}
+            <main id="main-content" tabIndex={-1} className={styles.main}>
                 <div className={styles.contentWrapper}>
                     {/* [FORM-BACK-IN-CARD-PC · 2026-07-07] En DESKTOP la flecha "paso anterior"
                         vive DENTRO del recuadro (esquina superior izquierda), no en el header —

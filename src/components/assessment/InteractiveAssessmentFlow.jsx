@@ -103,6 +103,7 @@ const InteractiveAssessmentFlow = () => {
     // El flash visual es mala UX. Con `isAutoAdvancing=true` durante el
     // delay, el botón queda oculto hasta que el step cambie naturalmente.
     const [isAutoAdvancing, setIsAutoAdvancing] = useState(false);
+    const autoAdvanceTimerRef = useRef(null);
 
     // [P3-FORM-NO-AUTO-ADVANCE-WHEN-MANUAL-BUTTONS · 2026-05-08] Si los
     // botones manuales ("Siguiente Paso" y/o "Saltar a la última pregunta")
@@ -129,7 +130,14 @@ const InteractiveAssessmentFlow = () => {
             return;
         }
         setIsAutoAdvancing(true);
-        setTimeout(() => {
+        // [P1-AUTOADVANCE-CLEANUP · 2026-08-10] El temporizador se guarda para poder
+        // cancelarlo. Antes quedaba suelto: sobrevivía al desmontaje del paso y podía
+        // DESHACER un «atrás» del usuario disparando `nextStep` 300ms después de que él
+        // hubiera decidido retroceder — con el gesto atrás de Android ahora conectado,
+        // esa ventana deja de ser teórica.
+        if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+        autoAdvanceTimerRef.current = setTimeout(() => {
+            autoAdvanceTimerRef.current = null;
             nextStep();
             setIsAutoAdvancing(false);
         }, 300);
@@ -139,8 +147,20 @@ const InteractiveAssessmentFlow = () => {
     // (prevStep, jump, etc.) durante el setTimeout, el flag debe limpiarse
     // al cambiar de step para no esconder el botón en el siguiente.
     useEffect(() => {
+        // [P1-AUTOADVANCE-CLEANUP] Cambiar de paso invalida cualquier avance en vuelo:
+        // si el usuario navegó a mano, su decisión manda sobre el temporizador.
+        if (autoAdvanceTimerRef.current) {
+            clearTimeout(autoAdvanceTimerRef.current);
+            autoAdvanceTimerRef.current = null;
+        }
         setIsAutoAdvancing(false);
     }, [currentStep]);
+
+    // Y al desmontar: un temporizador vivo tras salir del formulario intentaría avanzar
+    // un paso que ya no existe.
+    useEffect(() => () => {
+        if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
+    }, []);
 
     // [P1-PANTRY-WIZARD-STEP · 2026-07-11] Modo "Desde mi Nevera": añade el paso
     // final "Prepara tu Nevera" DENTRO del wizard. Guests excluidos: la Nevera

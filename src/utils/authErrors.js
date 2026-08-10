@@ -33,5 +33,40 @@ export function humanizeAuthError(err) {
         return 'Demasiados intentos. Por favor, espera un momento e inténtalo de nuevo.';
     }
 
-    return raw || 'Ocurrió un error. Inténtalo de nuevo.';
+    // [P1-AUTH-ERRORS-ES · 2026-08-10] El último recurso YA NO devuelve el mensaje crudo.
+    //
+    // `return raw` dejaba pasar a la pantalla cualquier texto del proveedor —en inglés—
+    // a un usuario dominicano: «Failed to fetch», «Invalid session», o un volcado con el
+    // código HTTP interpolado. Un mensaje que el usuario no entiende no es un mensaje: es
+    // ruido que además da sensación de app rota justo en la primera pantalla.
+    //
+    // Se clasifica por FAMILIA (lo que el usuario puede hacer al respecto) y el crudo va
+    // a la consola, donde Sentry lo recoge: la información de diagnóstico no se pierde,
+    // simplemente deja de mostrarse a quien no puede usarla.
+    if (raw) {
+        try { console.error('[auth] error crudo:', raw); } catch { /* noop */ }
+    }
+
+    // Pero un mensaje que YA viene en español y ya es accionable se respeta tal cual.
+    // Nuestro propio backend envía copy bueno («Código inválido o expirado.») y
+    // sustituirlo por un genérico sería una pérdida de información para el usuario:
+    // el objetivo de esta rama es frenar el inglés y los volcados técnicos, no
+    // uniformar todo hacia abajo. Se detecta por marcas inequívocas del español y por
+    // la ausencia de la jerga que sí queremos ocultar.
+    const pareceEspanol = /[áéíóúüñ¿¡]/i.test(raw)
+        || /\b(no|se|de|el|la|los|las|tu|tus|por|para|con|inténtalo|intenta|revisa|correo|código|contraseña|sesión|cuenta)\b/i.test(raw);
+    const pareceTecnico = /https?:\/\/|\bhttp \d{3}\b|\{|\}|stack|undefined|null|exception|error:/i.test(raw);
+    if (raw && pareceEspanol && !pareceTecnico && raw.length <= 160) {
+        return raw;
+    }
+    if (/5\d\d|server error|internal/.test(lower)) {
+        return 'Nuestro servidor tuvo un problema. Inténtalo de nuevo en un momento.';
+    }
+    if (/401|403|unauthor|forbidden|invalid session|session expired/.test(lower)) {
+        return 'Tu sesión no es válida. Vuelve a empezar el inicio de sesión.';
+    }
+    if (/400|invalid|malformed|bad request/.test(lower)) {
+        return 'Revisa los datos e inténtalo de nuevo.';
+    }
+    return 'Ocurrió un error. Inténtalo de nuevo.';
 }
