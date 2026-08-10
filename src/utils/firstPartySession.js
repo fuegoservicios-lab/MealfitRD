@@ -129,24 +129,83 @@ export async function verifyEmailOtpFirstParty(email, otp) {
     }
 }
 
-// [P1-OAUTH-FIRST-PARTY · 2026-07-03] Canjea el verifier con el que Neon regresa del
-// OAuth de Google por la sesión first-party, vía NUESTRO backend (server-side). El canje
-// client-side del SDK es frágil en móvil: el verifier es de UN SOLO USO y si la primera
-// petición se pierde por timeout queda consumido sin sesión → el usuario debía pulsar
-// "Continuar con Google" una segunda vez. Devuelve true si mintó la sesión.
+// [P1-OAUTH-CHALLENGE-COOKIE · 2026-08-10] EL CANJE VUELVE AL NAVEGADOR.
+//
+// LA VERSIÓN ANTERIOR NO PODÍA FUNCIONAR, Y LOS LOGS LO GRITABAN: 24 intentos,
+// 0 éxitos, todos HTTP 400, desde el 11 de julio. Mandaba el verifier a NUESTRO
+// backend para que lo canjeara server-side; medido contra Neon, ese canje
+// responde:
+//     {"code":"SESSION_CHALLENGE_COOKIE_NOT_FOUND"}
+// El verifier NO es autosuficiente: va emparejado a una cookie
+// `__Secure-neon-auth.session_challange` que Neon deja EN EL NAVEGADOR y en SU
+// dominio. Un servidor nunca la tendrá — ni reintentando, ni con más plazo.
+// Comprobado con la misma petición y el mismo verifier inválido: sin la cookie
+// da SESSION_CHALLENGE_COOKIE_NOT_FOUND; con ella, VERIFICATION_NOT_FOUND (o
+// sea, ya pasó ese control y solo se queja del verifier de prueba).
+//
+// Por eso el canje se hace aquí, donde la cookie vive. Lo que SÍ se conserva del
+// diseño anterior es lo importante: el backend sigue siendo quien decide. No
+// confiamos en lo que diga el cliente — le mandamos el token y él lo valida
+// contra el JWKS de Neon antes de emitir `__Host-mf_session`.
+//
+// FAIL-OPEN EN CADA PASO: si el canje falla, si no hay token, o si el backend lo
+// rechaza, devolvemos false y el flujo cae al camino de siempre (el SDK con sus
+// reintentos). Este arreglo no puede dejar a nadie peor de lo que ya estaba.
+const _neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL;
+
+/** Extrae el JWT de las formas plausibles con las que Neon devuelve la sesión. */
+function _tokenDeSesion(data) {
+    const t = data?.session?.token
+        || data?.session?.access_token
+        || data?.token
+        || data?.access_token
+        || null;
+    // Solo sirve si ES un JWT: el backend lo valida contra el JWKS. Un token
+    // opaco lo rechazaría, así que preferimos caer al Bearer del SDK.
+    return (typeof t === 'string' && t.split('.').length === 3) ? t : null;
+}
+
 export async function adoptOAuthVerifierFirstParty(verifier) {
+    const v = (verifier || '').trim();
+    if (!v || !_neonAuthUrl) return false;
+
+    // ── PASO 1: canjear el verifier CONTRA NEON, desde el navegador ──────────
+    // `credentials: 'include'` es lo que hace viajar la cookie de challenge; es
+    // el único motivo por el que esta petición sale de aquí y no del servidor.
+    let tokenNeon = null;
     try {
-        const v = (verifier || '').trim();
-        if (!v) return false;
-        const res = await fetchWithTimeout(api('/api/auth/oauth/adopt'), {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ verifier: v }),
-        });
-        if (!res.ok) return false;
+        const url = `${_neonAuthUrl}/get-session?neon_auth_session_verifier=${encodeURIComponent(v)}`;
+        const r = await fetchWithTimeout(url, { method: 'GET', credentials: 'include' });
+        if (r.ok) {
+            tokenNeon = _tokenDeSesion(await r.json().catch(() => null));
+        }
+    } catch {
+        /* fail-open: seguimos al paso 2 por si el SDK ya tiene sesión */
+    }
+
+    // ── PASO 2: que NUESTRO backend emita la sesión de primera parte ─────────
+    // Con el token recién canjeado si lo tenemos (no depende del SDK, que puede
+    // no haberse enterado del canje); si no, con el Bearer que el SDK resuelva
+    // —tras el paso 1 la cookie de sesión de Neon ya existe, así que suele poder—.
+    // Se usa `/oauth/adopt` y no `/session` (que hace lo mismo) para conservar el
+    // CONTADOR POR FLUJO: es el único log que dice si un retorno de Google acabó
+    // en sesión. Ese contador llevaba 0 éxitos de 24 sin que nadie lo mirara.
+    try {
+        const res = tokenNeon
+            ? await fetchWithTimeout(api('/api/auth/oauth/adopt'), {
+                method: 'POST',
+                credentials: 'include',
+                headers: { Authorization: `Bearer ${tokenNeon}`, 'Content-Type': 'application/json' },
+                body: '{}',
+            })
+            : await fetchWithAuth('/api/auth/oauth/adopt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}',
+            });
+        if (!res || !res.ok) return false;
         const data = await res.json().catch(() => null);
-        if (!data || !data.ok || !data.user_id) return false;
+        if (!data || !data.ok) return false;
         if (data.token) _storeToken(data.token);
         _applyFormKey(data);
         return true;
