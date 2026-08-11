@@ -83,6 +83,13 @@
        no se come el espacio del texto. */
     --settings-close-size: 32px;
     --settings-close-inset: 0.75rem;
+    /* [P1-SETTINGS-NAV-UNDER-HEADER · 2026-08-10] Alto de la cabecera pegajosa.
+       Existe porque la barra lateral TAMBIÉN es pegajosa y tiene que pegarse por
+       DEBAJO de ella: si no, se mete detrás de un fondo opaco y el usuario ve
+       «General» cortado por la mitad. Sale de 20 (pad-y) + 28 (línea del título
+       a 1,3rem) + 12 (pad inferior) = 60px, medido en Chrome. Si el título
+       cambia de tamaño, este número cambia con él. */
+    --settings-header-h: 3.75rem;
     /* [P1-SETTINGS-DIALOG-STABLE · 2026-08-10] `width: 100%` + `margin: 0`
        SOSTIENEN LA VENTANA QUIETA. No son cosmética: son la corrección del
        defecto «cada vez que cambio de sección se mueve todo».
@@ -246,6 +253,14 @@
     .inDialog .sidebar {
         border-right: 1px solid var(--border-color, rgba(148, 163, 184, 0.18));
         padding-right: 1rem;
+        /* [P1-SETTINGS-NAV-UNDER-HEADER · 2026-08-10] Aquí SÍ se redeclara `top`, al
+           revés de lo que decía la nota de arriba — y el motivo es nuevo: desde
+           P1-SETTINGS-HEADER-STICKY la cabecera del diálogo también es pegajosa Y
+           OPACA, así que el `top: 1.5rem` que hereda de `.sidebar` pegaba la lista
+           DETRÁS de ella. Medido: cabecera de 60px, barra pegada a 24 → 36px de
+           «General» tapados. En la PÁGINA no pasa porque allí no hay tal cabecera,
+           y por eso el cambio vive en la rama del diálogo. */
+        top: calc(var(--settings-header-h) + 0.5rem);
     }
 }
 

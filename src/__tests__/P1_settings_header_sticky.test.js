@@ -127,6 +127,27 @@ describe('[P1-SETTINGS-HEADER-STICKY] la cabecera del diálogo no se va con el s
             .toMatch(/padding-top:\s*[^;]+;/);
     });
 
+    it('la barra lateral se pega POR DEBAJO de la cabecera, no detrás', () => {
+        // LA INTERACCIÓN QUE ESTO ANCLA. Dos arreglos correctos por separado se
+        // estorbaron: la barra de secciones es pegajosa (P1-SETTINGS-NAV-STICKY) con
+        // `top: 1.5rem`, calibrado cuando NO había cabecera pegajosa. Al volverse la
+        // cabecera pegajosa Y OPACA, la lista se pegaba detrás de ella.
+        // Medido: cabecera de 60px, barra a 24 → 36px de «General» tapados.
+        // Se afirma que la barra deriva su tope de la altura de la cabecera, para que
+        // no puedan desincronizarse con dos números escritos a mano.
+        const escritorio = CSS.slice(CSS.indexOf('@media (min-width: 769px)'));
+        const barra = reglas(escritorio, '.inDialog .sidebar');
+        expect(barra, 'no hay regla .inDialog .sidebar en el bloque de escritorio').not.toBe('');
+        expect(
+            barra,
+            'la barra lateral no ata su `top` a --settings-header-h: si la cabecera '
+            + 'crece o encoge, la lista se mete detrás de ella o queda flotando',
+        ).toMatch(/top:\s*calc\([^;]*--settings-header-h/);
+
+        const wrapper = reglas(CSS, '.inDialog');
+        expect(wrapper, 'nadie declara --settings-header-h').toMatch(/--settings-header-h:\s*[^;]+;/);
+    });
+
     it('quién hace scroll sigue siendo el hijo del panel', () => {
         // El pegado se ancla al ancestro que scrollea. Si este overflow se mueve, lo
         // de arriba deja de significar lo que dice aunque siga en verde.
