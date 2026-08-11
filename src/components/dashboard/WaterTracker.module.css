@@ -222,22 +222,10 @@
   .stepper { margin-left: 0; }
 }
 
-/* [P1-PLAN-FLAT-MOBILE · 2026-08-11] El aplanado global (`.mf-flat-mobile`, index.css)
-   quita marco y relleno lateral a las secciones del Plan en el teléfono, pero aquí el
-   relleno NO vive en `.card` —vive en `.inner`—, así que la regla global no lo alcanza:
-   la tarjeta se quedaría sin borde y el contenido igual de estrecho, que es el peor de
-   los dos mundos. La decisión sigue estando en el sitio global; esto solo declara dónde
-   guarda este componente su relleno.
-
-   VA DESPUÉS DEL `@container` A PROPÓSITO. En el teléfono la tarjeta mide menos de 540px,
-   así que ese bloque también casa y devuelve `padding: 18px` en los cuatro lados; con la
-   misma especificidad (0,1,0) desempata el orden, y puesto antes esto quedaría inerte.
-
-   `@media` y no `@container`: la pregunta es cuánto mide la PANTALLA (¿estamos en el
-   teléfono?), no cuánto mide esta tarjeta. Con `container-type: inline-size` en `.card`,
-   un `@container` mediría lo segundo y diría que sí también en el escritorio cuando la
-   columna se estrecha — donde el marco debe seguir existiendo. */
-@media (max-width: 768px) {
-  .inner { padding-left: 0; padding-right: 0; }
-  .vessel { padding-left: 0; padding-right: 0; }
-}
+/* [P1-PLAN-FLAT-MOBILE · 2026-08-11] Aquí vivió unas horas una excepción que ponía a
+   cero el relleno lateral de `.inner` en el teléfono, para completar el aplanado de esta
+   tarjeta (su relleno no está en `.card`, está en `.inner`, así que la regla global no
+   lo alcanzaba). El dueño pidió devolver el marco a Hidratación, y con el marco de vuelta
+   ese relleno es justo lo que separa el contenido del borde: la excepción se retira
+   entera, no se deja «por si acaso». Una regla huérfana de la decisión que la justificaba
+   es la que acaba pegando el texto al borde sin que nadie sepa por qué. */

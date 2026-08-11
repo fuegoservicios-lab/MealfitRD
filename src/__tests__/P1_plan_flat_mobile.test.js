@@ -99,42 +99,62 @@ describe('[P1-PLAN-FLAT-MOBILE] en el teléfono las secciones del Plan no son ta
         expect(regla).not.toMatch(/padding-bottom:/);
     });
 
-    it('las secciones del Plan la llevan puesta', () => {
-        const puesta = (fuente, marca) => new RegExp(`${marca}[^\\n]*mf-flat-mobile|mf-flat-mobile[^\\n]*${marca}`)
-            .test(fuente);
-        expect(puesta(DASH, 'dashboard-header'), 'el saludo/créditos sigue enmarcado').toBe(true);
-        expect(puesta(DASH, 'meals-container'), 'el cuaderno del plan sigue enmarcado').toBe(true);
-        expect(DASH, 'el panel de Razonamiento sigue enmarcado')
-            .toMatch(/className="mf-flat-mobile"/);
+    /* ---------------------------------------------------------------------------
+       LAS DOS LISTAS. El aplanado NO es universal, y esa mezcla es una decisión del
+       dueño: pidió el cambio, vio el resultado y devolvió la tarjeta a tres de las seis
+       secciones (Razonamiento, Hidratación y Progreso en Tiempo Real).
 
-        for (const [fichero, clase] of [
-            ['TrackingProgress.jsx', 'card'],
-            ['MicronutrientMeter.jsx', 'panel'],
-            ['WaterTracker.jsx', 'card'],
-        ]) {
-            const src = leer('components', 'dashboard', fichero);
-            expect(
-                new RegExp(`styles\\.${clase}[^\\n]*mf-flat-mobile`).test(src),
-                `${fichero} no aplana su \`.${clase}\` en el teléfono`,
-            ).toBe(true);
-        }
+       Por eso el guard afirma también la lista NEGATIVA. Una excepción de gusto no deja
+       rastro en el código —solo se ve una clase que a unos sitios se les puso y a otros
+       no—, y eso se lee como trabajo a medio hacer: el siguiente que pase «unifica» y
+       deshace lo que el dueño pidió. Afirmarla la convierte en contrato.
+       --------------------------------------------------------------------------- */
+
+    const enDashboard = (marca) =>
+        new RegExp(`${marca}[^\\n]*mf-flat-mobile|mf-flat-mobile[^\\n]*${marca}`).test(DASH);
+    const enComponente = (fichero, clase) =>
+        new RegExp(`styles\\.${clase}[^\\n]*mf-flat-mobile`)
+            .test(leer('components', 'dashboard', fichero));
+
+    it('SÍ se aplanan: saludo/créditos, micronutrientes y el cuaderno del plan', () => {
+        expect(enDashboard('dashboard-header'), 'el saludo/créditos volvió a enmarcarse').toBe(true);
+        expect(enDashboard('meals-container'), 'el cuaderno del plan volvió a enmarcarse').toBe(true);
+        expect(
+            enComponente('MicronutrientMeter.jsx', 'panel'),
+            'micronutrientes volvió a enmarcarse',
+        ).toBe(true);
     });
 
-    it('la excepción de Hidratación va DESPUÉS del @container, o nace inerte', () => {
-        // Su relleno vive en `.inner`, no en `.card`, así que el aplanado global no lo
-        // alcanza y hace falta una regla local. Pero en el teléfono la tarjeta mide menos
-        // de 540px, así que el `@container` también casa y devuelve `padding: 18px`: con
-        // la misma especificidad desempata el ORDEN. Puesta antes, la regla es verde y no
-        // hace nada — que es el peor resultado posible.
-        const iContenedor = AGUA_CSS.indexOf('@container (max-width: 540px)');
-        expect(iContenedor, 'desapareció el @container de Hidratación').toBeGreaterThan(0);
+    it('NO se aplanan, por decisión del dueño: razonamiento, hidratación y progreso', () => {
+        expect(
+            enComponente('TrackingProgress.jsx', 'card'),
+            'Progreso en Tiempo Real volvió a aplanarse: el dueño pidió su tarjeta de vuelta',
+        ).toBe(false);
+        expect(
+            enComponente('WaterTracker.jsx', 'card'),
+            'Hidratación volvió a aplanarse: el dueño pidió su tarjeta de vuelta',
+        ).toBe(false);
+        // Razonamiento es el único `div` del Dashboard cuyo marco es inline; se afirma
+        // por la ausencia de la clase suelta, que es como se le aplicaba.
+        expect(
+            /className="mf-flat-mobile"/.test(DASH),
+            'Razonamiento volvió a aplanarse: el dueño pidió su tarjeta de vuelta',
+        ).toBe(false);
+    });
 
-        // Se busca el `@media` que CONTIENE la regla, no el primero que aparezca: anclar
-        // en la primera coincidencia haría que un `@media (max-width: 768px)` cualquiera
-        // añadido más arriba pusiera esto en rojo sin que nada se hubiera roto.
+    it('Hidratación no conserva la excepción que solo servía al aplanado', () => {
+        // Su relleno lateral vive en `.inner`, no en `.card`. Mientras estuvo aplanada
+        // hubo una regla que lo ponía a cero; con el marco de vuelta, ese relleno es lo
+        // que separa el contenido del borde. Dejarla habría dado el peor resultado:
+        // tarjeta con borde y texto pegado a él.
         const telefonos = [...AGUA_CSS.matchAll(/@media\s*\(max-width:\s*768px\)/g)];
-        const conLaRegla = telefonos.filter((m) => /padding-left:\s*0/.test(cuerpoDesde(AGUA_CSS, m.index) || ''));
-        expect(conLaRegla.length, 'Hidratación no declara su excepción de teléfono').toBe(1);
-        expect(conLaRegla[0].index).toBeGreaterThan(iContenedor);
+        const conCeros = telefonos.filter((m) => /padding-left:\s*0/.test(cuerpoDesde(AGUA_CSS, m.index) || ''));
+        expect(
+            conCeros.length,
+            'quedó la regla que ponía a cero el relleno de Hidratación, pero su tarjeta ya volvió: '
+            + 'el contenido queda pegado al borde',
+        ).toBe(0);
+        expect(AGUA_CSS.indexOf('@container (max-width: 540px)'), 'desapareció el @container de Hidratación')
+            .toBeGreaterThan(0);
     });
 });

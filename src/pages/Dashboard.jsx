@@ -8489,12 +8489,18 @@ const DashboardInner = () => {
                         panel en el centro de notificaciones (campana) y se puede volver a
                         mostrar desde ahí cuando el usuario quiera. Recordado por plan. */}
                     {!reasoningHidden && (
-                    /* [P1-PLAN-FLAT-MOBILE · 2026-08-11] Este marco vive en estilos INLINE,
-                       y un inline solo lo gana una declaración de autor `!important` — por
-                       eso la clase de aplanado usa `!important` (ver index.css). Los 1,75rem
-                       de relleno lateral eran los más caros de la pantalla: el razonamiento
-                       es texto corrido, que es justo lo que peor lleva perder ancho. */
-                    <div className="mf-flat-mobile" style={{
+                    /* [P1-PLAN-FLAT-MOBILE · 2026-08-11 · REVERTIDO AQUÍ POR EL DUEÑO]
+                       Esta sección CONSERVA su tarjeta en el teléfono. Llevó
+                       `mf-flat-mobile` unas horas y el dueño pidió devolverla, junto con
+                       Hidratación y Progreso en Tiempo Real.
+
+                       No es un descuido ni una inconsistencia pendiente de arreglar: el
+                       aplanado sigue vivo para el saludo/créditos, micronutrientes y el
+                       cuaderno del plan. Si vienes a «unificar» y ponerle la clase otra
+                       vez, esto es lo que estarías deshaciendo. El guard
+                       `P1_plan_flat_mobile.test.js` afirma la lista de las que SÍ y de
+                       las que NO, precisamente para que la excepción no se pierda. */
+                    <div style={{
                         background: 'var(--bg-card)',
                         backdropFilter: 'blur(12px)',
                         padding: '1.75rem',
