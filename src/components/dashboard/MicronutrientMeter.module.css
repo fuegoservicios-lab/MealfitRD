@@ -240,6 +240,42 @@
 :global(html:not([data-theme='dark'])) .far   { --tone: #EA580C; }
 :global(html:not([data-theme='dark'])) .over  { --tone: #E11D48; }
 
+/* ============================================================================
+   [P1-MICRO-DARK-SURFACES · 2026-08-11] Dos inversiones del tema claro heredadas
+   por el oscuro. Ninguna era de contraste —el panel está sano: 14,7:1 el nombre,
+   6,3:1 el texto apagado— sino de qué SUPERFICIE pesa más.
+
+   1. LA PISTA VACÍA BRILLABA MÁS QUE EL DATO. `.bar` se rellena con
+      `color-mix(--text-light 40%, transparent)`. Sobre un fondo claro eso da un
+      gris MÁS OSCURO que la tarjeta: se lee como el surco por recorrer. Sobre el
+      casi-negro da un gris MÁS CLARO — medido: pista L* 30,2 contra tarjeta 12,7.
+      En Vitamina D, al 14%, el resultado es que la franja de «lo que falta» pesa
+      mucho más que la de «lo que llevas»: la barra acaba comunicando lo contrario
+      de lo que mide. Aquí la pista se hunde por debajo de la tarjeta, que es lo
+      que hacía en claro.
+
+   2. EL FONDO DE LA TARJETA SE VOLVÍA MARRÓN. `.att` mezcla su tono al 11% con
+      `--bg-page`. Naranja sobre blanco roto da un melocotón que se lee como
+      «aviso»; naranja sobre #0B1120 da rgb(37,31,35), un marrón apagado que en
+      una paleta de slates fríos se ve sucio, no alarmante. En oscuro la mezcla
+      va sobre `--surface-sunken` (slate) y con la mitad de tono: la tarjeta se
+      queda fría y el estado lo siguen diciendo el borde, la píldora, el
+      porcentaje y el relleno de la barra — que es donde ya vivía.
+
+   Se toca SOLO el tema oscuro: en claro las dos reglas base hacen lo correcto y
+   no hay nada que arreglar. */
+:global(html[data-theme="dark"]) .bar {
+  background: rgba(2, 6, 23, 0.55);
+}
+
+:global(html[data-theme="dark"]) .att {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tone) 7%, var(--surface-sunken)),
+    var(--bg-card)
+  );
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 560px) {
   .grid2 { grid-template-columns: 1fr; }
