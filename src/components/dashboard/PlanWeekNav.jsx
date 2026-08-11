@@ -143,7 +143,9 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                                 data-empty="true"
                                 className="plan-week-cell is-empty"
                             >
-                                <span className="plan-week-cell__dow">{WEEKDAY_LABELS[i]}</span>
+                                <span className="plan-week-cell__box">
+                                    <span className="plan-week-cell__dow">{WEEKDAY_LABELS[i]}</span>
+                                </span>
                             </div>
                         );
                     }
@@ -164,8 +166,22 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                             onClick={() => { if (st.navegable) onSelect(cell); }}
                             className={`plan-week-cell${activo ? ' is-active' : ''}`}
                         >
-                            <span className="plan-week-cell__dow">{WEEKDAY_LABELS[i]}</span>
-                            <span className="plan-week-cell__num">{cell.date.getDate()}</span>
+                            {/* [P1-WEEKNAV-STATE-BELOW · 2026-08-11] El día y su número van
+                                dentro de una caja propia; el estado se queda FUERA.
+
+                                En el teléfono esa caja es el cuadrado, y el estado pasa a
+                                ser un pie debajo. Antes los tres renglones competían por el
+                                lado del cuadrado —que con siete columnas no llega a 41px— y
+                                «en cola» acababa cortado. Sacarlo cierra la pregunta entera:
+                                el cuadrado ya solo tiene que caber dos líneas, que siempre
+                                caben, y el pie puede ocupar lo que necesite.
+
+                                En escritorio esta caja es `display: contents`, o sea no
+                                existe para el layout: ahí nada cambia. */}
+                            <span className="plan-week-cell__box">
+                                <span className="plan-week-cell__dow">{WEEKDAY_LABELS[i]}</span>
+                                <span className="plan-week-cell__num">{cell.date.getDate()}</span>
+                            </span>
                             {/* `short`, NUNCA `label`: la frase completa
                                 ("se genera viernes") va una sola vez en la
                                 etiqueta de la semana. Ponerla aquí la repetiría

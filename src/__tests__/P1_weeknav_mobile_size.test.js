@@ -145,18 +145,57 @@ describe('[P1-WEEKNAV-MOBILE-SIZE] las semanas se leen y los cuadros se agrandan
 
     it('los días son CUADRADOS, y el cuadrado se declara como proporción', () => {
         const { cuerpo } = bloqueMovilDeSemanas();
-        const celda = reglas(cuerpo, '.plan-week-cell');
-        const conVacia = reglas(cuerpo, '.plan-week-cell,\n  .plan-week-cell.is-empty') || celda;
-
-        const fuente = `${celda}\n${conVacia}\n${cuerpo}`;
-        expect(fuente, 'los días dejaron de ser cuadrados').toMatch(/aspect-ratio:\s*1\s*\/?\s*1?/);
+        // [P1-WEEKNAV-STATE-BELOW · 2026-08-11] El cuadrado es la CAJA (día + número), no
+        // la celda: la celda incluye además el pie del estado y por eso es más alta.
+        const caja = reglas(cuerpo, '.plan-week-cell__box');
+        expect(caja, 'desapareció la caja del cuadrado').not.toBe('');
+        expect(caja, 'los días dejaron de ser cuadrados').toMatch(/aspect-ratio:\s*1\s*\/\s*1/);
         // Un alto fijo es cuadrado solo en la anchura donde alguien lo midió; la
         // proporción lo sigue siendo a 320, 390 y 430.
         expect(
-            /min-height:\s*0/.test(fuente),
+            /min-height:\s*0/.test(cuerpo),
             'el `min-height` del bloque base no se anula: cuando el cuadrado sale más '
             + 'pequeño que él, gana y el lado se estira otra vez',
         ).toBe(true);
+    });
+
+    it('el estado va FUERA del cuadrado — por eso se puede leer', () => {
+        // El defecto que esto cierra: con los tres renglones dentro, el lado del cuadrado
+        // (~40px reales, no los 48 que yo había medido con un contenedor demasiado ancho)
+        // no daba para «en cola» y se cortaba. Fuera, el cuadrado solo tiene que caber dos
+        // líneas y el pie ocupa lo que necesite.
+        // Se extrae el INTERIOR de la caja contando la anidación de <span>. Un primer
+        // intento ancló en «el primer `</span>` tras el número» — pero ese es el cierre
+        // del PROPIO número, no el de la caja, así que el estado quedaba «después» del
+        // ancla estuviera donde estuviera. La mutación lo destapó: metí el estado dentro
+        // de la caja y el guard siguió verde.
+        const iCaja = NAV.lastIndexOf('<span className="plan-week-cell__box">');
+        expect(iCaja, 'desapareció la caja del cuadrado').toBeGreaterThan(0);
+        let nivel = 0;
+        let fin = -1;
+        const re = /<span\b|<\/span>/g;
+        re.lastIndex = iCaja;
+        let m;
+        while ((m = re.exec(NAV)) !== null) {
+            nivel += m[0] === '</span>' ? -1 : 1;
+            if (nivel === 0) { fin = m.index; break; }
+        }
+        expect(fin, 'no se pudo cerrar la caja: ¿cambió el marcado?').toBeGreaterThan(iCaja);
+
+        const dentro = NAV.slice(iCaja, fin);
+        expect(NAV, 'desapareció el estado del día').toMatch(/plan-week-cell__state/);
+        expect(
+            dentro.includes('plan-week-cell__state'),
+            'el estado volvió DENTRO del cuadrado: a ~40px de lado no cabe y se corta, que es '
+            + 'exactamente lo que el dueño reportó',
+        ).toBe(false);
+    });
+
+    it('en escritorio la caja es INERTE: allí no cambia nada', () => {
+        // `display: contents` la borra del layout, así que sus hijos siguen siendo hijos
+        // directos del flex de la celda. Sin esto, meter un envoltorio habría cambiado el
+        // escritorio, que nadie pidió tocar.
+        expect(reglas(CSS, '.plan-week-cell__box')).toMatch(/display:\s*contents/);
     });
 
     it('la semana activa se trae sola a la vista al deslizar', () => {

@@ -1440,6 +1440,12 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 .plan-week-cell:hover:not(:disabled) { background: rgba(139, 92, 246, 0.08); }
 .plan-week-cell:disabled { cursor: default; }
 
+/* [P1-WEEKNAV-STATE-BELOW · 2026-08-11] La caja que agrupa día + número. En escritorio
+   es INERTE: `display: contents` la borra del layout, así que sus hijos siguen siendo
+   hijos directos del flex de la celda y aquí no cambia absolutamente nada. Solo cobra
+   cuerpo en el teléfono, donde se convierte en el cuadrado. */
+.plan-week-cell__box { display: contents; }
+
 .plan-week-cell__dow {
   font-size: 0.64rem;
   font-weight: 600;
@@ -1568,37 +1574,64 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
      Aun así sigue muy por encima del 0,95rem que había antes de todo esto. */
   .plan-week-grid { padding: 4px; gap: 3px; }
 
+  /* [P1-WEEKNAV-STATE-BELOW · 2026-08-11] EL CUADRADO ES LA CAJA, NO LA CELDA.
+
+     Antes el cuadrado era la celda entera y los tres renglones —día, número y estado—
+     competían por su lado. Y ese lado es más pequeño de lo que yo había medido: al banco
+     de pruebas le faltaba el relleno propio de `.plan-week-nav`, que en el teléfono se
+     lleva 56px (2,25rem + 1,25rem) antes de que empiece la rejilla. Cuadrado real ~40px,
+     no 48 — y ahí «en cola» se cortaba, que es lo que el dueño reportó.
+
+     Encoger la letra hasta que cupiera habría deshecho el «hazlos más grandes» de la
+     petición anterior. Sacar el estado FUERA cierra la pregunta entera: el cuadrado ya
+     solo tiene que caber dos líneas —que siempre caben— y el pie ocupa lo que necesite.
+     La fila queda un poco más alta que el cuadrado, y eso es correcto: el cuadrado es el
+     día, el pie es una nota sobre él.
+
+     El fondo de HOY y el contorno del SELECCIONADO se mudan a la caja con el cuadrado.
+     Si se quedan en la celda, el recuadro pasa a ser la celda —que ya no es cuadrada— y
+     se pierde justo lo que se pidió. */
   .plan-week-cell,
   .plan-week-cell.is-empty {
-    aspect-ratio: 1 / 1;
     min-height: 0;
+    padding: 0;
+    gap: 2px;
+    background: none;
+    border-radius: 0;
   }
 
-  /* Los tres renglones (día, número, estado) tienen que caber en el LADO, que ya no es
-     negociable. Medido a 390px: lado 48px, menos 6 de relleno deja 42 de hueco, y los
-     tres suman ~39. El «en cola» de los días en espera es el que decide — con el número
-     a 1,35rem rebosaba y se veía cortado por abajo. */
-  .plan-week-cell { padding: 3px 2px; gap: 0; border-radius: 11px; }
+  .plan-week-cell__box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 11px;
+    transition: background 0.18s;
+  }
+
+  .plan-week-cell:hover:not(:disabled) { background: none; }
+  .plan-week-cell:hover:not(:disabled) .plan-week-cell__box { background: rgba(139, 92, 246, 0.08); }
+
+  .plan-week-cell[data-state="hoy"] { background: none; }
+  .plan-week-cell[data-state="hoy"] .plan-week-cell__box { background: rgba(139, 92, 246, 0.16); }
+
+  .plan-week-cell.is-active { box-shadow: none; background: none; }
+  .plan-week-cell.is-active .plan-week-cell__box {
+    box-shadow: inset 0 0 0 1.5px #A78BFA;
+    background: rgba(139, 92, 246, 0.1);
+  }
+
   .plan-week-cell__num { font-size: 1.1rem; line-height: 1.1; }
   .plan-week-cell__dow { font-size: 0.58rem; line-height: 1.2; }
-  .plan-week-cell__state { font-size: 0.48rem; line-height: 1.15; }
+  /* Fuera del cuadrado ya no hay que apretarlo: puede leerse. */
+  .plan-week-cell__state { font-size: 0.55rem; line-height: 1.2; }
 }
 
-/* [P1-WEEKNAV-SQUARE-DAYS · 2026-08-11] Por debajo de 360px el lado del cuadrado baja a
-   38px y ahí los tres renglones dejan de caber: medido en Chrome, «en cola» se cortaba
-   por abajo en los cuatro días en espera. Y el recorte no se veía con las sondas
-   obvias — en un flex en columna los hijos se ENCOGEN, así que ni `scrollHeight` del
-   contenedor ni la suma de las alturas de los hijos lo delatan; hay que comparar cada
-   hijo consigo mismo.
-
-   Se retira el estado de DENTRO del cuadrado. No se pierde: el día en espera ya se
-   distingue por su atenuación (`opacity: .5` en `[data-state="sin_plan"]`) y el
-   `aria-label` de la celda sigue llevando la frase completa. La alternativa era encoger
-   los tres textos hasta dejar el número —que es lo que se viene a leer— más pequeño de
-   lo que era antes de todo esto.
-
-   VA DESPUÉS del bloque de 768px: los dos casan a 320px y con la misma especificidad
-   desempata el orden. Puesto antes, nacería inerte. */
-@media (max-width: 360px) {
-  .plan-week-cell__state { display: none; }
-}
+/* [P1-WEEKNAV-STATE-BELOW · 2026-08-11] Aquí vivía una regla que OCULTABA el estado por
+   debajo de 360px, porque dentro del cuadrado no cabía. Se retira entera: ahora el
+   estado va FUERA del cuadrado y cabe en cualquier anchura, así que esconderlo sería
+   quitar información sin ninguna razón — y va justo en contra de lo que el dueño pidió
+   («que se visualice»). Una regla que sobrevive al problema que la justificaba es la que
+   luego nadie sabe de dónde sale. */
