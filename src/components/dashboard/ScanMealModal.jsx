@@ -492,13 +492,23 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                         <Camera size={20} strokeWidth={2.1} />
                                     </span>
                                     <span className={styles.optionTxt}>
-                                        <span className={styles.optionLabel}>
-                                            {useLiveViewfinder ? 'Escanear mi plato' : 'Tomar foto'}
-                                        </span>
+                                        {/* [P1-SCAN-NO-VERB-ECHO · 2026-08-10] El rótulo NO repite el
+                                            verbo del título. Decía «Escanear mi plato» debajo de un
+                                            título «Escanear comida», y a ≤480px el sublabel está
+                                            oculto (ver .optionSub en el CSS) — así que en el teléfono
+                                            esa palabra era literalmente lo único escrito dos veces en
+                                            la pantalla. El título ya aporta el verbo (y espeja el
+                                            botón que abrió el modal, por eso el título se queda); a
+                                            estas dos filas solo les toca decir EN QUÉ SE DIFERENCIAN,
+                                            que es de dónde sale la foto. Un solo rótulo para las dos
+                                            ramas a propósito: el usuario no elige entre visor in-app
+                                            y cámara del sistema — eso lo decide la app, y el sublabel
+                                            lo cuenta donde hay sitio. */}
+                                        <span className={styles.optionLabel}>Usar la cámara</span>
                                         <span className={styles.optionSub}>
                                             {useLiveViewfinder
                                                 ? 'Encuadra el plato y captura'
-                                                : 'Usa la cámara de tu dispositivo'}
+                                                : 'Se abrirá la app de cámara'}
                                         </span>
                                     </span>
                                     <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />

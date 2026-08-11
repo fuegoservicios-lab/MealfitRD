@@ -46,10 +46,20 @@ describe('[P2-SCAN-NO-WEBCAM-ON-DESKTOP] ScanMealModal — la cámara solo en t�
     describe('en ESCRITORIO (puntero fino)', () => {
         beforeEach(() => { window.matchMedia = matchMediaWith(false); });
 
-        it('NO ofrece "Tomar foto"', () => {
+        // [P1-SCAN-NO-VERB-ECHO · 2026-08-10] Antes esto afirmaba las cadenas exactas
+        // «Tomar foto» / «Usa la cámara de tu dispositivo». Al reescribirse esa copia,
+        // las aserciones habrían pasado a ser ciertas POR VACÍO: seguirían en verde
+        // aunque la tarjeta de cámara reapareciera en escritorio con otro texto. Un
+        // guard que ya no puede fallar es peor que no tenerlo, así que ahora afirma lo
+        // que de verdad importa —que no se ofrezca ninguna acción de cámara— sin
+        // depender de cómo esté redactada.
+        it('NO ofrece ninguna acción de cámara, se llame como se llame', () => {
             renderModal();
-            expect(screen.queryByText('Tomar foto')).not.toBeInTheDocument();
-            expect(screen.queryByText('Usa la cámara de tu dispositivo')).not.toBeInTheDocument();
+            expect(screen.queryByText(/cámara/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/tomar (una )?foto/i)).not.toBeInTheDocument();
+            // Y una sola tarjeta de opción: la galería.
+            // Solo el botón de cerrar (sin texto, es un icono) y la tarjeta de galería.
+            expect(screen.getAllByRole('button').filter((b) => b.textContent.trim())).toHaveLength(1);
         });
 
         it('sí ofrece "Elegir de galería", con copy de computadora', () => {
@@ -83,7 +93,12 @@ describe('[P2-SCAN-NO-WEBCAM-ON-DESKTOP] ScanMealModal — la cámara solo en t�
 
         it('mantiene las DOS opciones — en móvil la cámara es el camino principal', () => {
             renderModal();
-            expect(screen.getByText('Tomar foto')).toBeInTheDocument();
+            // [P1-SCAN-NO-VERB-ECHO · 2026-08-10] El rótulo de la cámara pasó de «Tomar
+            // foto» a «Usar la cámara»; lo que este caso protege es que la opción EXISTA
+            // en táctil, no cómo se llame, así que se afirma por concepto.
+            // `getAllByText`: rótulo y sublabel pueden mencionarla los dos (en jsdom no
+            // se aplica el `@media` que oculta el sublabel), y `getByText` reventaría.
+            expect(screen.getAllByText(/cámara/i).length).toBeGreaterThan(0);
             expect(screen.getByText('Elegir de galería')).toBeInTheDocument();
         });
 
