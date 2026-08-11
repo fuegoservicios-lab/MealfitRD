@@ -90,6 +90,15 @@
        a 1,3rem) + 12 (pad inferior) = 60px, medido en Chrome. Si el título
        cambia de tamaño, este número cambia con él. */
     --settings-header-h: 3.75rem;
+    /* [P1-SETTINGS-NAV-NO-JUMP · 2026-08-10] La separación entre la cabecera y lo
+       que viene debajo. Es el margen inferior de `.pageHeader` Y el punto de pegado
+       de la barra lateral, y por eso es UNA variable y no dos números.
+
+       Por qué importa: para que la barra no se mueva NADA al scrollear, su punto de
+       pegado tiene que coincidir exactamente con su posición natural. Con un valor
+       distinto (antes 0.5rem) la lista empezaba en 79px y se pegaba en 67: un salto
+       de 12px al empezar a bajar. Poco, pero visible — el dueño lo reportó. */
+    --settings-header-gap: 1.25rem;
     /* [P1-SETTINGS-DIALOG-STABLE · 2026-08-10] `width: 100%` + `margin: 0`
        SOSTIENEN LA VENTANA QUIETA. No son cosmética: son la corrección del
        defecto «cada vez que cambio de sección se mueve todo».
@@ -177,7 +186,7 @@
     top: 0;
     z-index: 3;
     background: var(--bg-page, #F8FAFC);
-    margin: 0 calc(-1 * var(--settings-pad-x)) 1.25rem;
+    margin: 0 calc(-1 * var(--settings-pad-x)) var(--settings-header-gap);
     padding-top: var(--settings-pad-y);
     padding-bottom: 0.75rem;
     /* Canaleta SIMÉTRICA derivada del botón de cierre. Simétrica a propósito: el
@@ -260,7 +269,7 @@
            DETRÁS de ella. Medido: cabecera de 60px, barra pegada a 24 → 36px de
            «General» tapados. En la PÁGINA no pasa porque allí no hay tal cabecera,
            y por eso el cambio vive en la rama del diálogo. */
-        top: calc(var(--settings-header-h) + 0.5rem);
+        top: calc(var(--settings-header-h) + var(--settings-header-gap));
     }
 }
 

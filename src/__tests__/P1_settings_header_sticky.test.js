@@ -148,6 +148,31 @@ describe('[P1-SETTINGS-HEADER-STICKY] la cabecera del diálogo no se va con el s
         expect(wrapper, 'nadie declara --settings-header-h').toMatch(/--settings-header-h:\s*[^;]+;/);
     });
 
+    it('la barra no se mueve NADA: se pega donde ya está', () => {
+        // No basta con que se pegue: tiene que pegarse EXACTAMENTE en su posición
+        // natural, que es «alto de la cabecera + su margen inferior». Con cualquier
+        // otro valor la lista da un salto al empezar a bajar y luego se queda.
+        // Medido con el valor anterior (0.5rem): empezaba en 79px y se pegaba en 67
+        // — 12px de salto. Poco, pero el dueño lo vio.
+        //
+        // La garantía se sostiene sobre que el margen de la cabecera y el tope de la
+        // barra sean LA MISMA variable. Dos números iguales escritos aparte vuelven
+        // a separarse en cuanto alguien retoque el espaciado.
+        const barra = reglas(CSS.slice(CSS.indexOf('@media (min-width: 769px)')), '.inDialog .sidebar');
+        expect(
+            barra,
+            'el tope de la barra no usa --settings-header-gap: si no es el MISMO valor '
+            + 'que el margen inferior de la cabecera, la lista salta al scrollear',
+        ).toMatch(/top:\s*calc\(\s*var\(--settings-header-h\)\s*\+\s*var\(--settings-header-gap\)\s*\)/);
+
+        const cabecera = reglas(CSS, '.inDialog .pageHeader');
+        expect(
+            cabecera,
+            'la cabecera dejó de usar --settings-header-gap como margen inferior: '
+            + 'su separación y el pegado de la barra ya no son el mismo número',
+        ).toMatch(/margin:[^;]*var\(--settings-header-gap\)/);
+    });
+
     it('quién hace scroll sigue siendo el hijo del panel', () => {
         // El pegado se ancla al ancestro que scrollea. Si este overflow se mueve, lo
         // de arriba deja de significar lo que dice aunque siga en verde.
