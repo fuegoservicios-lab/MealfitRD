@@ -9,7 +9,7 @@
 // mecanismo. Si añades una velocidad o tocas el diff, empieza por romper una de estas.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import useAutoguardado, { RETARDO_INSTANTANEO_MS, RETARDO_NORMAL_MS, claveEstable } from '../hooks/useAutoguardado';
+import useAutoguardado, { RETARDO_INSTANTANEO_MS, RETARDO_NORMAL_MS, claveEstable, acusePrioritario } from '../hooks/useAutoguardado';
 
 const montar = (props) => renderHook((p) => useAutoguardado(p), { initialProps: props });
 
@@ -281,5 +281,33 @@ describe('[P1-SETTINGS-AUTOSAVE] el acuse', () => {
         const { rerender } = montar({ ...base, valor: { freeText: '' } });
         rerender({ ...base, valor: { freeText: 'x' } });
         expect(vistos).toContain('pendiente');
+    });
+});
+
+describe('[P1-SETTINGS-AUTOSAVE] el acuse cuando hay DOS paneles a la vez', () => {
+    // Mi premisa inicial —«solo hay un panel visible»— era FALSA: la sección
+    // `superpers` monta Súper Personalización y Mis básicos juntos. Con un solo valor
+    // ganaba el último en hablar, así que el acuse podía decir «Guardado» por uno
+    // mientras el otro seguía guardando. Un acuse que se equivoca hacia «ya está a
+    // salvo» es peor que no tener acuse.
+    it('un error tapa a cualquier otra cosa', () => {
+        expect(acusePrioritario({ a: 'guardado', b: 'error' })).toBe('error');
+        expect(acusePrioritario({ a: 'guardando', b: 'error' })).toBe('error');
+    });
+
+    it('«guardado» NO se enseña si el otro sigue en curso o pendiente', () => {
+        expect(acusePrioritario({ a: 'guardado', b: 'guardando' })).toBe('guardando');
+        expect(acusePrioritario({ a: 'guardado', b: 'pendiente' })).toBe('pendiente');
+    });
+
+    it('solo dice «guardado» cuando no queda nada por hacer', () => {
+        expect(acusePrioritario({ a: 'guardado', b: 'inactivo' })).toBe('guardado');
+        expect(acusePrioritario({ a: 'guardado', b: 'guardado' })).toBe('guardado');
+    });
+
+    it('sin paneles que digan nada, no se pinta', () => {
+        expect(acusePrioritario({})).toBe('inactivo');
+        expect(acusePrioritario({ a: 'inactivo', b: 'inactivo' })).toBe('inactivo');
+        expect(acusePrioritario(null)).toBe('inactivo');
     });
 });

@@ -61,10 +61,20 @@
    escritorio no aporta nada sobre `pagehide`.
 
    NO hay registro global de paneles ni bus de suscripción. Cada panel monta su
-   propio hook y solo hay UN panel visible a la vez, así que el estado sube por
-   una prop. Un singleton de módulo obligaría a resetearlo entre pruebas, y esa
-   necesidad es la señal de que un panel puede heredar del anterior un permiso de
-   escritura que su propia carga no le dio.
+   propio hook y el estado sube por una prop. Un singleton de módulo obligaría a
+   resetearlo entre pruebas, y esa necesidad es la señal de que un panel puede
+   heredar de otro un permiso de escritura que su propia carga no le dio.
+
+   ── CORRECCIÓN, y conviene leerla antes de tocar el acuse ──────────────────
+   La primera versión de este comentario decía «solo hay UN panel visible a la
+   vez». ES FALSO: la sección `superpers` monta DOS —Súper Personalización y Mis
+   básicos—. Lo vio el dueño en una captura, no yo escribiéndolo.
+
+   Con un único valor de acuse ganaba el último en reportar, así que la cabecera
+   podía decir «Guardado» por un panel mientras el otro seguía guardando. De ahí
+   `acusePrioritario`, abajo: se muestra el PEOR estado, nunca el más optimista.
+   Cada panel sigue siendo dueño de su propio guardado; lo único compartido es
+   cómo se resumen para una sola línea de texto.
    ========================================================================= */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLatestRef } from './useLatestRef';
@@ -86,6 +96,23 @@ export function claveEstable(v) {
 }
 
 const ESTADO_INICIAL = 'inactivo';
+
+/** Orden en que un acuse compartido debe resolver varios paneles a la vez.
+ *
+ *  Existe porque la sección `superpers` monta DOS paneles y los dos reportan. Con un
+ *  solo valor ganaba el último en hablar, y el acuse podía decir «Guardado» por uno
+ *  mientras el otro seguía guardando — mentir en la única dirección que importa, la de
+ *  afirmar que algo ya está a salvo.
+ *
+ *  El orden no es casual: un error tapa a todo lo demás, y «guardado» solo se enseña
+ *  cuando no queda nada en curso ni pendiente. */
+export const PRIORIDAD_ACUSE = ['error', 'guardando', 'pendiente', 'guardado'];
+
+/** El PEOR estado entre varios paneles. `inactivo` si ninguno tiene nada que decir. */
+export function acusePrioritario(estados) {
+    const vivos = Object.values(estados || {});
+    return PRIORIDAD_ACUSE.find((e) => vivos.includes(e)) || 'inactivo';
+}
 
 /**
  * @param {object}   opciones

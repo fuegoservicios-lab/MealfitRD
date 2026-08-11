@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     User, Shield, ChevronRight, ArrowLeft,
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, GlassWater, Cog, Fingerprint,
@@ -44,6 +44,7 @@ import StapleFoodsPanel from '../components/settings/StapleFoodsPanel';
 // [P1-CLINICAL-PANEL · 2026-07-03] Panel opt-in de perfil clínico avanzado
 // (labs, historia ponderal, digestión, entrenamiento) → health_profile.clinical_profile.
 import ClinicalProfilePanel from '../components/settings/ClinicalProfilePanel';
+import { acusePrioritario } from '../hooks/useAutoguardado';
 // [P1-ACCOUNT-DELETE-1 · 2026-06-22] Misma sección "Eliminar cuenta" que /configuracion.
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
@@ -421,13 +422,40 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // explícitamente click "Actualizar Plan con Nuevos Datos" (que regenera
     // el plan al mismo tiempo). "Guardar Cambios" normal solo guarda el
     // nombre — body metrics se ignoran/revierten al salir.
-    /* [P1-SETTINGS-AUTOSAVE · 2026-08-11] Estado del acuse de guardado.
-       Vive AQUÍ y no en un contexto ni en un singleton de módulo porque solo hay UN
-       panel visible a la vez: el que está montado manda, y al desmontarse el siguiente
-       lo pisa. Un bus de suscripción tendría que resetearse entre pruebas, y esa
-       necesidad es la señal de que un panel puede heredar del anterior un permiso que
-       su propia carga no le dio. */
-    const [estadoGuardado, setEstadoGuardado] = useState('inactivo');
+    /* [P1-SETTINGS-AUTOSAVE · 2026-08-11 · corregido] Estado del acuse de guardado.
+
+       Vive AQUÍ y no en un contexto ni en un singleton de módulo: un bus global tendría
+       que resetearse entre pruebas, y esa necesidad es la señal de que un panel puede
+       heredar de otro un permiso que su propia carga no le dio.
+
+       PERO NO ES «UN PANEL A LA VEZ», como asumí al principio. La sección `superpers`
+       monta DOS —Súper Personalización y Mis básicos— y los dos reportan. Con un solo
+       valor ganaba el último en hablar, así que el acuse podía decir «Guardado» por uno
+       mientras el otro seguía guardando: mentir en la única dirección que importa, la
+       de afirmar que algo ya está a salvo.
+
+       Se guarda uno por panel y se muestra el PEOR, que es el que el usuario necesita
+       saber. El orden no es alfabético ni casual: un error tapa a todo lo demás, y
+       «guardado» solo se enseña cuando no queda nada en curso ni pendiente. */
+    const [estadosPanel, setEstadosPanel] = useState({});
+    const reportarEstado = useCallback((panelId) => (e) => {
+        setEstadosPanel((prev) => (prev[panelId] === e ? prev : { ...prev, [panelId]: e }));
+    }, []);
+
+    const estadoCrudo = acusePrioritario(estadosPanel);
+
+    /* «Guardado» es una CONFIRMACIÓN, no un estado. Dejarlo fijo lo convierte en
+       decoración: a los diez segundos ya no dice «tu último cambio llegó», dice
+       «existe un panel». Se apaga solo. Los demás no se apagan — «Sin guardar…» y
+       «No se guardó» describen algo que sigue siendo cierto mientras se lee. */
+    const [acuse, setAcuse] = useState('inactivo');
+    useEffect(() => {
+        if (estadoCrudo !== 'guardado') { setAcuse(estadoCrudo); return undefined; }
+        setAcuse('guardado');
+        const t = setTimeout(() => setAcuse('inactivo'), 2500);
+        return () => clearTimeout(t);
+    }, [estadoCrudo]);
+
 
     const _bodyMetricsOriginalRef = useRef({
         weight: String(_initialWeight),
@@ -780,6 +808,17 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     ];
 
     const activeSectionMeta = sectionsConfig.find(s => s.id === activeSection) || null;
+
+    /* [P1-SETTINGS-AUTOSAVE] Al cambiar de sección, lo que reportaron los paneles
+       anteriores deja de significar nada: se han desmontado y su acuse hablaría de una
+       pantalla que ya no está delante.
+
+       Va AQUÍ y no arriba con el resto del acuse por una razón que costó un test en
+       rojo: `activeSection` se declara en la línea 647 y el bloque del acuse vive por
+       encima. Leerlo antes es zona muerta temporal — `ReferenceError` al montar, no un
+       aviso. Que lo cazara la prueba de «Evaluar de Nuevo», que no tiene nada que ver
+       con guardar, dice algo bueno de tener pruebas que montan la pantalla entera. */
+    useEffect(() => { setEstadosPanel({}); }, [activeSection]);
 
     // [P2-PRIVACY-SETTINGS · 2026-07-04] Toggle "Ayuda a mejorar Bioboros":
     // opt-out REAL de analytics (trackEvent gatea en isAnalyticsOptedOut).
@@ -1686,16 +1725,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     sin que hayas tocado nada es ruido; lo que informa es la transición.
                     «Pendiente» sí se muestra: es el único estado en el que cerrar
                     perdería algo si el volcado fallara. */}
-                {estadoGuardado !== 'inactivo' && (
+                {acuse !== 'inactivo' && (
                     <span
-                        className={`${styles.acuse} ${estadoGuardado === 'error' ? styles.acuseError : ''}`}
+                        className={`${styles.acuse} ${acuse === 'error' ? styles.acuseError : ''}`}
                         role="status"
                         aria-live="polite"
                     >
-                        {estadoGuardado === 'pendiente' && 'Sin guardar…'}
-                        {estadoGuardado === 'guardando' && 'Guardando…'}
-                        {estadoGuardado === 'guardado' && 'Guardado'}
-                        {estadoGuardado === 'error' && 'No se guardó'}
+                        {acuse === 'pendiente' && 'Sin guardar…'}
+                        {acuse === 'guardando' && 'Guardando…'}
+                        {acuse === 'guardado' && 'Guardado'}
+                        {acuse === 'error' && 'No se guardó'}
                     </span>
                 )}
                 <div className={`${styles.pageHeader} ${activeSection ? styles.pageHeaderInSection : ''}`}>
@@ -2625,12 +2664,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                                 Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.
                             </p>
-                            <SuperPersonalizationPanel onEstado={setEstadoGuardado} />
+                            <SuperPersonalizationPanel onEstado={reportarEstado('superpers')} />
                             {/* [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos" — editable aquí
                                 (durable en health_profile.staple_foods) además del paso opcional
                                 del wizard (QStapleFoods). */}
                             <div style={{ marginTop: '1.5rem' }}>
-                                <StapleFoodsPanel onEstado={setEstadoGuardado} />
+                                <StapleFoodsPanel onEstado={reportarEstado('basicos')} />
                             </div>
                         </section>
                     )}
@@ -2646,7 +2685,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                                 Los datos que un nutriólogo pediría en consulta. Opcionales — cada uno que completes afina tu plan.
                             </p>
-                            <ClinicalProfilePanel onEstado={setEstadoGuardado} />
+                            <ClinicalProfilePanel onEstado={reportarEstado('clinico')} />
                         </section>
                     )}
 
