@@ -173,6 +173,33 @@ describe('[P1-SETTINGS-HEADER-STICKY] la cabecera del diálogo no se va con el s
         ).toMatch(/margin:[^;]*var\(--settings-header-gap\)/);
     });
 
+    it('la cabecera MIDE lo que dice la variable, no algo parecido', () => {
+        // [P1-SETTINGS-HEADER-EXACT · 2026-08-10] El residuo que dejó el test de
+        // arriba. Aquel ató el margen y el tope a la MISMA variable, y aun así la
+        // barra seguía dando un tirón — porque la variable era una DESCRIPCIÓN del
+        // alto de la cabecera, escrita a mano, y estaba mal por 0,46875px: el
+        // comentario decía «20 + 28 + 12 = 60» y la caja de línea del título mide
+        // 22,875 con 5,59375 de margen, no 28.
+        //
+        // Por qué medio píxel se ve: Chrome pinta cada `<svg>` cuadrado a píxel de
+        // pantalla, así que el tirón fraccionario se vuelve un salto de 1px ENTERO
+        // en los iconos cuya coordenada cruza el umbral de redondeo. Medido con los
+        // dos CSS reales, 16 alturas de ventana: antes 16/16 con salto, después 0/16.
+        // A 907px saltaban Capacidades, Privacidad, Súper Personalización y Plan &
+        // Objetivo — los cuatro que reportó el dueño, reproducidos.
+        //
+        // Se afirma que el alto se IMPONE desde la variable. Una variable que solo
+        // describe puede mentir; esta no puede, porque la cabecera obedece.
+        const escritorio = CSS.slice(CSS.indexOf('@media (min-width: 769px)'));
+        const cabecera = reglas(escritorio, '.inDialog .pageHeader');
+        expect(
+            cabecera,
+            'en escritorio nadie fija el alto de la cabecera: `--settings-header-h` '
+            + 'vuelve a ser una copia a mano del alto real, y en cuanto discrepen '
+            + 'aunque sea por una fracción de píxel la barra da un tirón al scrollear',
+        ).toMatch(/height:\s*var\(--settings-header-h\)/);
+    });
+
     it('quién hace scroll sigue siendo el hijo del panel', () => {
         // El pegado se ancla al ancestro que scrollea. Si este overflow se mueve, lo
         // de arriba deja de significar lo que dice aunque siga en verde.

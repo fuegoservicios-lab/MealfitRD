@@ -86,9 +86,15 @@
     /* [P1-SETTINGS-NAV-UNDER-HEADER · 2026-08-10] Alto de la cabecera pegajosa.
        Existe porque la barra lateral TAMBIÉN es pegajosa y tiene que pegarse por
        DEBAJO de ella: si no, se mete detrás de un fondo opaco y el usuario ve
-       «General» cortado por la mitad. Sale de 20 (pad-y) + 28 (línea del título
-       a 1,3rem) + 12 (pad inferior) = 60px, medido en Chrome. Si el título
-       cambia de tamaño, este número cambia con él. */
+       «General» cortado por la mitad.
+
+       [P1-SETTINGS-HEADER-EXACT · 2026-08-10] Este número NO describe la cabecera:
+       se la IMPONE. En escritorio `.inDialog .pageHeader` toma `height` de aquí, y
+       por eso el pegado de la barra cae exacto. Mientras fue una descripción estuvo
+       mal por 0,46875px —decía «20 + 28 + 12» y el título ocupa 22,875 + 5,59375 de
+       margen, no 28— y ese medio píxel hacía saltar un píxel entero a los iconos que
+       cruzaban el redondeo. Si lo cambias, cambia el aire de la cabecera; la barra
+       lo sigue sola. */
     --settings-header-h: 3.75rem;
     /* [P1-SETTINGS-NAV-NO-JUMP · 2026-08-10] La separación entre la cabecera y lo
        que viene debajo. Es el margen inferior de `.pageHeader` Y el punto de pegado
@@ -244,6 +250,34 @@
     .inDialog .layout {
         grid-template-columns: 240px minmax(0, 1fr);
         gap: 2rem;
+    }
+
+    /* [P1-SETTINGS-HEADER-EXACT · 2026-08-10] La otra mitad del pegado de la barra.
+       Sin esta línea `--settings-header-h` es una DESCRIPCIÓN del alto de la cabecera,
+       y estaba mal por medio píxel: el comentario de la variable declara «20 + 28 + 12
+       = 60» y los sumandos reales son 20 + 22,875 (caja de línea del título: 1.3rem ×
+       1.1) + 5,59375 (su margen) + 12 = 60,46875. Con eso la barra nacía en 80,46875 y
+       se pegaba en 80, así que al primer píxel de scroll daba un tirón de 15/32 px.
+
+       Por qué se veía siendo tan poco: Chrome pinta cada `<svg>` CUADRADO a píxel de
+       pantalla, de modo que ese tirón fraccionario se convierte en un salto de 1 PÍXEL
+       ENTERO para los iconos cuya coordenada cruza el umbral de redondeo, y en cero
+       para el resto. Medido con los dos CSS reales a 1112×907: saltaban exactamente
+       Capacidades, Privacidad, Súper Personalización y Plan & Objetivo — los cuatro que
+       reportó el dueño. Cuáles son los cuatro depende de la altura de la ventana, no de
+       los iconos: el panel va centrado, así que la altura decide la fase de la barra.
+
+       Se fija el ALTO en vez de corregir la variable a 3.78125rem porque así la
+       constante deja de poder mentir: la cabecera mide lo que la variable dice, y el
+       pegado (`--settings-header-h + --settings-header-gap`) coincide con la posición
+       natural por construcción y no por coincidencia. Si el título cambia de tamaño, la
+       cabecera no se descuadra — a lo sumo el texto pide más aire, que se ve.
+
+       Solo en escritorio: es la rama donde la barra es pegajosa. En móvil el diálogo
+       navega en dos pasos, el título pasa a ser el de la sección y puede necesitar dos
+       líneas, así que allí la cabecera sigue creciendo con su contenido. */
+    .inDialog .pageHeader {
+        height: var(--settings-header-h);
     }
 
     /* [P1-SETTINGS-NAV-STICKY · 2026-08-10] Aquí vivía un `position: static` que
