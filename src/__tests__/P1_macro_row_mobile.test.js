@@ -1,30 +1,30 @@
 /**
- * [P1-MACRO-ROW-MOBILE · 2026-08-11] «El problema visual es más algo estructural que de
- * colores» — tercera vuelta sobre el contador de macros, y tenía razón: las dos
- * anteriores toqué densidad y forma, no ESTRUCTURA.
+ * [P1-MACRO-BARS-UNIFORM · 2026-08-11] Las cuatro barras del contador son IGUALES en el
+ * teléfono: cada macro ocupa el ancho y se lee exactamente como la de calorías.
  *
- * EL DEFECTO. En el escritorio calorías es la barra grande y proteína/carbos/grasas son
- * tres columnas: se leen como un conjunto y se comparan de un vistazo. Al pasar al
- * teléfono la rejilla colapsaba a UNA columna, y los cuatro pasaban a ser cuatro filas
- * idénticas de ancho completo — misma altura, misma barra, mismo peso. La jerarquía no
- * se comprimía: DESAPARECÍA, y con ella el motivo de que calorías estuviera separada.
+ * ESTE FICHERO CAMBIÓ DE BANDO, y conviene saber por qué antes de volver a darle la
+ * vuelta. Afirmaba lo contrario —tres macros compartiendo una fila, con nombre corto y
+ * barras finas— y esas dos formas fueron dos intentos MÍOS que el dueño corrigió:
  *
- * MEDIDO en Chrome enlazando este mismo CSS (nada copiado a mano):
- *   1 columna (lo que había) → rejilla 247px, tarjeta 573px
- *   3 columnas               → rejilla 116px, tarjeta 442px  (−23%)
+ *   1º Puse los tres a compartir fila, razonando que en escritorio esa disposición crea
+ *      jerarquía. Es cierto en escritorio. En el teléfono cada macro se quedaba en
+ *      ~104px y dejaba de leerse como una barra.
+ *   2º Al reportarlo, deduje que el problema era la PROPORCIÓN y las adelgacé a 8px.
+ *      Su respuesta: «no quería que las volvieras más pequeñas, me gusta como se ve en
+ *      calorías, más minimalista y entendible».
  *
- * Y el límite del ancho, también medido, no elegido de memoria:
- *   390px → columna de 100px: «Carbohidratos» pide 90px de texto para 48 de hueco ⇒ se
- *           cortaba y se metía en la columna vecina. De ahí el rótulo corto.
- *   320px → hueco de 42px: ni «Proteína» (54px) entra ⇒ repliegue a dos columnas.
+ * Lo que la de calorías tenía y las otras no NO era la altura: era el ANCHO. A lo ancho
+ * la barra se lee de un vistazo y el porcentaje cabe dentro del relleno; a un tercio, ni
+ * una cosa ni la otra. La jerarquía que yo defendía se la estaba cobrando al elemento que
+ * más se mira.
  *
- * TAMBIÉN: la nota de la meta bajó al pie. Ocupaba dos líneas de ancho completo antes
- * del primer número, y la meta es contexto de largo plazo mientras que los números de
- * hoy son el motivo por el que abres la tarjeta.
+ * Lo que este guard protege es la UNIFORMIDAD: cuatro barras iguales, sin reglas que
+ * vuelvan a distinguir `.barSmall` de `.barLarge` en el teléfono. Si alguien las
+ * distingue otra vez, que sea sabiendo que ya se probó dos veces y se descartó.
  *
- * Este guard afirma las DECISIONES (los tres comparten fila; el nombre largo solo se
- * oculta donde hay uno corto; la nota va al pie), no medidas en píxeles: un número
- * muere en cuanto cambie la tipografía.
+ * Lo que SÍ sobrevive de aquellos intentos —y sigue afirmado abajo— es la nota de la
+ * meta al pie: el dueño no la cuestionó, y sacarla de la cabecera devolvía el primer
+ * número a la primera pantalla.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -33,7 +33,13 @@ import { dirname, join } from 'path';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const BASE = join(AQUI, '..', 'components', 'dashboard');
-const CSS = readFileSync(join(BASE, 'TrackingProgress.module.css'), 'utf8');
+/** CSS SIN comentarios. Sin esto, cualquier comprobación por selector se encuentra a sí
+ *  misma: los comentarios de este fichero explican por qué NO debe haber reglas para
+ *  `.barSmall` o `.fillPerc` en el teléfono, y nombrarlas basta para que la comprobación
+ *  se dispare contra su propia justificación. Van ya varias veces con esta forma. */
+const sinComentarios = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '');
+
+const CSS = sinComentarios(readFileSync(join(BASE, 'TrackingProgress.module.css'), 'utf8'));
 const JSX = readFileSync(join(BASE, 'TrackingProgress.jsx'), 'utf8');
 
 /** Cuerpo de un bloque contando llaves. Nunca una ventana de N caracteres: se queda
@@ -53,31 +59,23 @@ function cuerpo(fuente, consulta) {
     return null;
 }
 
-/** Declaraciones de una regla, anclando a inicio de línea: una regla puede ir precedida
- *  de un comentario, y anclar en la llave anterior la dejaría invisible. */
 function reglas(fuente, selector) {
-    const re = new RegExp(`^[ \\t]*${selector.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`, 'gm');
+    // Escapa TODOS los metacaracteres, no solo el punto: el selector del tema oscuro
+    // lleva `[data-theme="dark"]` y `:global(...)`, y unos corchetes o paréntesis sin
+    // escapar se leen como clase de caracteres o grupo — la regla existe y el test jura
+    // que desapareció.
+    const re = new RegExp(`^[ \\t]*${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'gm');
     const out = [];
     let m;
     while ((m = re.exec(fuente)) !== null) out.push(m[1]);
     return out.join('\n');
 }
 
-const movil = () => cuerpo(CSS, '@media (max-width: 768px)');
-
-/** Valor en px de una propiedad, ignorando `!important`. */
-const numeroPx = (txt, prop) => {
-    const m = new RegExp(`${prop}:\\s*([\\d.]+)px`).exec(txt || '');
-    return m ? Number(m[1]) : null;
-};
-
 /** ¿Alguna regla del bloque declara `prop` para un selector que incluya `parte`?
  *
- *  Recorre la LISTA de selectores, no la cadena cruda. Buscar `\.barLarge \.track\s*\{`
- *  parecía suficiente y no lo era: en cuanto alguien mete `.barLarge .track` en un grupo
- *  separado por comas —que es exactamente como se escribiría un «lo aplico también a
- *  calorías»— desaparece el `{` que seguía y la comprobación deja de ver nada. Lo
- *  descubrió la mutación: cambié el código y el guard siguió en verde. */
+ *  Recorre la LISTA de selectores, no la cadena cruda: en cuanto alguien mete el
+ *  selector en un grupo separado por comas, desaparece el `{` que seguía y una
+ *  comprobación por texto deja de ver nada. Lo descubrió una mutación que no falló. */
 function declaraPara(bloque, parte, prop) {
     const re = /([^{}]+)\{([^}]*)\}/g;
     let m;
@@ -89,116 +87,55 @@ function declaraPara(bloque, parte, prop) {
     return false;
 }
 
-describe('[P1-MACRO-ROW-MOBILE] la jerarquía del escritorio sobrevive al teléfono', () => {
-    it('los tres macros comparten una fila en el teléfono', () => {
+const movil = () => cuerpo(CSS, '@media (max-width: 768px)');
+
+describe('[P1-MACRO-BARS-UNIFORM] las cuatro barras se leen igual en el teléfono', () => {
+    it('cada macro ocupa el ancho: una sola columna', () => {
         const grid = reglas(movil(), '.macroGrid');
         expect(grid, 'no hay regla .macroGrid en el bloque del teléfono').not.toBe('');
-
         const cols = /grid-template-columns:\s*([^;]+);/.exec(grid);
         expect(cols, '.macroGrid no declara columnas en móvil').toBeTruthy();
         expect(
-            cols[1],
-            'la rejilla volvió a una sola columna: los cuatro macros pesan lo mismo y la '
-            + 'jerarquía de calorías desaparece',
-        ).not.toMatch(/^\s*1fr\s*$/);
-        expect(cols[1]).toMatch(/repeat\(\s*3\s*,/);
+            cols[1].trim(),
+            'los macros volvieron a compartir fila: a ~104px cada uno deja de leerse como '
+            + 'una barra, que es lo que el dueño corrigió dos veces',
+        ).toBe('1fr');
     });
 
-    it('a 360px y menos repliega a dos columnas — el umbral está medido', () => {
-        const estrecho = cuerpo(CSS, '@media (max-width: 360px)');
-        expect(
-            estrecho,
-            'desapareció el repliegue: a 320px ni «Proteína» entra en una de tres columnas',
-        ).toBeTruthy();
-        expect(reglas(estrecho, '.macroGrid')).toMatch(/repeat\(\s*2\s*,/);
-    });
-
-    it('el repliegue va DESPUÉS de la regla de tres, o no gana', () => {
-        // Ambos `@media` casan a 320px y tienen la misma especificidad: desempata el
-        // orden. Si alguien mueve el bloque estrecho más arriba, el de 768px lo pisa y
-        // el repliegue queda inerte — verde y sin efecto.
-        expect(CSS.indexOf('@media (max-width: 360px)'))
-            .toBeGreaterThan(CSS.indexOf('@media (max-width: 768px)'));
-    });
-
-    it('el nombre largo solo se oculta donde hay uno corto', () => {
+    it('ninguna regla del teléfono distingue la barra de un macro de la de calorías', () => {
         const m = movil();
-        // La regla DEBE colgar de `.hasShort`. Sin esa clase sería «oculta el nombre
-        // largo» a secas, y apagaría «Calorías», «Proteína» y «Grasas», que no tienen
-        // versión corta: se quedarían con el icono y nada al lado.
-        const suelta = new RegExp('^[ \\t]*\\.labelFull\\s*\\{', 'm').test(m);
+        for (const prop of ['height', 'display']) {
+            expect(
+                declaraPara(m, '.barSmall', prop),
+                `el bloque del teléfono vuelve a declarar \`${prop}\` solo para .barSmall: `
+                + 'la uniformidad ES la decisión, y adelgazarlas ya se probó y se descartó',
+            ).toBe(false);
+        }
+    });
+
+    it('el porcentaje sigue dentro del relleno en las cuatro', () => {
+        // Es la mitad de lo que hacía «entendible» a la de calorías; con el ancho
+        // recuperado vuelve a caber en todas.
+        expect(reglas(CSS, '.fillPerc')).toMatch(/display:\s*flex/);
         expect(
-            suelta,
-            '`.labelFull` se oculta sin condición: los macros sin nombre corto se quedan '
-            + 'sin rótulo',
+            declaraPara(movil(), '.fillPerc', 'display'),
+            'el teléfono vuelve a esconder el porcentaje de alguna barra',
         ).toBe(false);
-        expect(reglas(m, '.hasShort .labelFull')).toMatch(/display:\s*none/);
-        expect(reglas(m, '.hasShort .labelShort')).toMatch(/display:\s*inline/);
     });
 
-    it('fuera del teléfono manda el nombre completo', () => {
-        expect(reglas(CSS, '.labelShort')).toMatch(/display:\s*none/);
-    });
-
-    it('solo el macro que no cabe lleva nombre corto', () => {
-        const cortos = [...JSX.matchAll(/shortLabel="([^"]+)"/g)].map((m) => m[1]);
-        expect(cortos, 'nadie declara nombre corto: «Carbohidratos» vuelve a cortarse')
-            .toHaveLength(1);
-        expect(cortos[0]).toBe('Carbos');
-        // Y el largo sigue existiendo: el corto SUSTITUYE en móvil, no reemplaza el dato.
+    it('el nombre del macro va completo — sin par largo/corto', () => {
+        // El par existía solo para que «Carbohidratos» cupiera en 100px de columna.
+        // Retirado con la disposición que lo pedía, en vez de quedarse por si acaso.
+        expect(JSX, 'volvió el rótulo corto: solo tenía sentido con la fila de tres')
+            .not.toMatch(/shortLabel/);
+        expect(CSS).not.toMatch(/\.labelShort\s*\{/);
         expect(JSX).toMatch(/label="Carbohidratos"/);
     });
 
-    /* ---------------------------------------------------------------------------
-       [P1-MACRO-BAR-SLIM · 2026-08-11] Las barras de los tres macros adelgazan; la de
-       calorías NO se toca — el dueño dijo expresamente que esa está bien.
-
-       El defecto era de PROPORCIÓN, no de altura. Los 22px de `.track` se fijaron cuando
-       toda barra ocupaba el ancho de la tarjeta (para que el porcentaje cupiera DENTRO
-       del relleno). A ese ancho da ~15:1 y se lee como barra; al pasar los tres macros a
-       compartir una fila, la misma altura sobre ~104px da 4,7:1, y a esa proporción una
-       caja de esquinas redondas parece una cápsula, no una barra de progreso. Medido
-       tras el cambio: 104×8 = 13:1, casi la misma proporción que la de calorías (15,3:1).
-       --------------------------------------------------------------------------- */
-
-    it('las barras de los macros son más finas que la de calorías', () => {
-        const m = movil();
-        const base = numeroPx(reglas(CSS, '.track'), 'height');
-        const chica = numeroPx(reglas(m, '.barSmall .track'), 'height');
-        expect(base, 'desapareció la altura base de .track').toBeTruthy();
-        expect(chica, 'las barras de los macros ya no adelgazan en el teléfono').toBeTruthy();
-        expect(
-            chica,
-            `la barra de un macro mide ${chica}px sobre ~104 de ancho: a esa proporción deja de `
-            + 'leerse como barra de progreso y parece una cápsula vacía',
-        ).toBeLessThan(base);
-    });
-
-    it('la de calorías se queda EXACTAMENTE como estaba', () => {
-        // Decisión explícita del dueño («el de calorías está bien como está actual»).
-        // Si alguien la adelgaza «por consistencia», esto lo para.
-        const m = movil();
-        expect(
-            declaraPara(m, '.barLarge .track', 'height'),
-            'alguien tocó la altura de la barra de calorías en el teléfono: el dueño pidió justo '
-            + 'lo contrario («el de calorías está bien como está actual»)',
-        ).toBe(false);
-    });
-
-    it('el porcentaje sale de las finas, donde no cabe — y se queda en la gruesa', () => {
-        const m = movil();
-        expect(reglas(m, '.barSmall .fillPerc')).toMatch(/display:\s*none/);
-        expect(
-            declaraPara(m, '.barLarge .fillPerc', 'display'),
-            'se ocultó también el porcentaje de calorías, que sí tiene sitio para él',
-        ).toBe(false);
-    });
-
-    it('la nota de la meta ya no encabeza la tarjeta', () => {
-        // Anclado al USO (`className={styles.X}`), no a la mención: el comentario que
-        // dejé en la cabecera explicando la mudanza nombra `styles.etaChip`, y buscar
-        // el identificador suelto encontraba ESE texto — el guard se medía a sí mismo
-        // y daba por hecho que la nota seguía arriba. Cuarta vez con esta forma.
+    it('la nota de la meta sigue al pie, no encabezando la tarjeta', () => {
+        // Anclado al USO (`className={styles.X}`), no a la mención: los comentarios de
+        // este componente nombran `styles.etaChip` al explicar la mudanza, y buscar el
+        // identificador suelto encontraba ESE texto.
         const uso = (clase) => JSX.indexOf(`className={styles.${clase}}`);
         const iCabecera = uso('subtitle');
         const iEta = uso('etaChip');
@@ -210,6 +147,46 @@ describe('[P1-MACRO-ROW-MOBILE] la jerarquía del escritorio sobrevive al teléf
             iEta,
             'la nota volvió a la cabecera: dos líneas de ancho completo antes del primer número',
         ).toBeGreaterThan(iComidas);
-        expect(iEta).toBeGreaterThan(iCabecera);
+    });
+});
+
+describe('[P1-SCAN-BTN-ACCENT] el botón de escanear se anuncia sin hover', () => {
+    it('el acento es el estado en REPOSO, no solo el del hover', () => {
+        // En un teléfono no hay hover: dejar el acento ahí lo vuelve inalcanzable, y el
+        // único control de la tarjeta se queda siempre en gris de apagado.
+        const reposo = reglas(CSS, '.scanBtn');
+        expect(reposo, 'no se encontró la regla del botón de escanear').not.toBe('');
+        expect(
+            /background:\s*transparent/.test(reposo),
+            'el botón volvió a reposar en transparente: sin hover no se distingue de un texto',
+        ).toBe(false);
+        expect(reposo).toMatch(/color:\s*#4F46E5/i);
+
+        // Una sola regla `.scanBtn` EN LA BASE: dos con el mismo selector y el mismo
+        // alcance se resuelven por orden, y quien lea la primera creerá que el botón es
+        // gris. Se cuentan solo las de columna 0 — las anidadas en un `@media` van
+        // indentadas y son overrides legítimos (el móvil le da ancho completo).
+        const enBase = (CSS.match(/^\.scanBtn\s*\{/gm) || []).length;
+        expect(enBase, 'hay más de una regla `.scanBtn` en la base: el estado real depende del orden')
+            .toBe(1);
+    });
+
+    it('el tema oscuro también reposa con acento', () => {
+        const oscuro = reglas(CSS, ':global(html[data-theme="dark"]) .scanBtn');
+        expect(oscuro, 'no hay variante oscura del botón').not.toBe('');
+        expect(
+            /color:\s*var\(--text-muted\)/.test(oscuro),
+            'en oscuro el botón vuelve al gris apagado en reposo',
+        ).toBe(false);
+    });
+
+    it('sigue siendo un tinte, no un relleno sólido', () => {
+        // El relleno sólido es lo más ruidoso de una pantalla y competiría con las cifras,
+        // que son el motivo de la tarjeta.
+        const reposo = reglas(CSS, '.scanBtn');
+        expect(
+            /background:\s*(#[0-9A-F]{6}|linear-gradient)/i.test(reposo),
+            'el botón pasó a relleno sólido: le roba la mirada a los números',
+        ).toBe(false);
     });
 });

@@ -138,17 +138,30 @@
 }
 
 /* [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón "Escanear comida" del header.
-   Estilo ghost discreto: sin relleno sólido, borde sutil e ícono/texto en
-   tono apagado. El acento indigo solo aparece sutilmente al hover. */
+   [P1-SCAN-BTN-ACCENT · 2026-08-11] El acento indigo pasa a ser el estado EN REPOSO.
+
+   Era un ghost gris cuyo acento vivía SOLO en el `:hover` — y en un teléfono no hay
+   hover. En la pantalla del dueño ese acento era literalmente inalcanzable, así que el
+   único control de la tarjeta se veía siempre en el gris de algo apagado. Un botón que
+   solo se anuncia cuando ya lo estás tocando se anuncia tarde.
+
+   Tinte y no relleno sólido a propósito: el relleno sólido es lo más ruidoso de una
+   pantalla y aquí competiría con las cifras, que son el motivo de la tarjeta. Con borde
+   y texto de acento sobre un fondo teñido ya se lee como «esto se pulsa» sin robar la
+   mirada. Mismo criterio que el acento del landing.
+
+   Va en la MISMA regla y no en una segunda `.scanBtn` debajo: dos reglas con el mismo
+   selector se resuelven por orden, y el siguiente que lea la primera creerá que el botón
+   es gris. */
 .scanBtn {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
     padding: 0.5rem 0.85rem;
     border-radius: 9px;
-    border: 1px solid #E2E8F0;
-    background: transparent;
-    color: #64748B;
+    border: 1px solid #C7D2FE;
+    background: rgba(99, 102, 241, 0.06);
+    color: #4F46E5;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
@@ -156,12 +169,11 @@
     flex-shrink: 0;
 }
 
-.scanBtn svg { color: var(--text-light); transition: color 0.15s ease; }
+.scanBtn svg { color: #6366F1; transition: color 0.15s ease; }
 
 .scanBtn:hover {
-    color: #4F46E5;
-    border-color: #C7D2FE;
-    background: rgba(99, 102, 241, 0.06);
+    border-color: #A5B4FC;
+    background: rgba(99, 102, 241, 0.13);
 }
 
 .scanBtn:hover svg { color: #6366F1; }
@@ -204,12 +216,10 @@
     letter-spacing: -0.01em;
 }
 
-/* [P1-MACRO-ROW-MOBILE · 2026-08-11] Par largo/corto del nombre del macro. En
-   escritorio manda el largo; el corto solo aparece donde la columna no da para el
-   nombre completo. La regla que los intercambia vive en el bloque del teléfono. */
-.labelShort {
-    display: none;
-}
+/* [P1-MACRO-BARS-UNIFORM · 2026-08-11] Aquí vivía el par largo/corto del nombre del
+   macro («Carbohidratos» / «Carbos»). Existía para que el nombre cupiera en una columna
+   de ~100px; con las barras otra vez a lo ancho, el nombre completo entra de sobra y el
+   par se retira junto con la disposición que lo pedía. */
 
 .barValues {
     text-align: right;
@@ -452,43 +462,34 @@
         gap: 1.15rem;
     }
 
-    /* [P1-MACRO-ROW-MOBILE · 2026-08-11] Los tres macros vuelven a compartir una
-       fila, como en el escritorio.
+    /* [P1-MACRO-BARS-UNIFORM · 2026-08-11] Las cuatro barras son IGUALES y ocupan el
+       ancho: cada macro se lee exactamente como la de calorías.
 
-       El defecto no era de colores ni de aire: era que la ESTRUCTURA cambiaba de
-       significado al pasar al teléfono. Arriba, calorías es la barra grande y
-       proteína/carbos/grasas son tres columnas — se leen como un conjunto y se
-       comparan de un vistazo. Al colapsar a una sola columna, los cuatro pasaban a
-       ser cuatro filas idénticas de ancho completo: misma altura, misma barra, mismo
-       peso. La jerarquía no se comprimía, DESAPARECÍA, y con ella el motivo de que
-       calorías estuviera separada.
+       Aquí hubo dos intentos míos y el dueño corrigió los dos. Conviene dejar escrito
+       el porqué, porque el camino se ve razonable desde fuera y llevaba al sitio
+       equivocado:
 
-       Medido en Chrome a 390px con este mismo CSS: la rejilla baja de 247px a 116 y
-       la tarjeta de 573 a 442 (−23%). El nombre completo no cabe en 100px de columna
-       (pide 90px de texto para 48 de hueco) — de ahí el rótulo corto de abajo. */
+         1º Puse los tres macros a compartir una fila, razonando que en el escritorio
+            esa disposición crea jerarquía (una grande arriba, tres columnas debajo).
+            Es cierto en el escritorio. En el teléfono, cada macro se quedaba en ~104px
+            y dejaba de leerse como una barra.
+         2º Al reportarlo, deduje que el problema era la PROPORCIÓN y las adelgacé.
+            Su respuesta: «no quería que las volvieras más pequeñas, me gusta como se
+            ve en calorías, más minimalista y entendible».
+
+       Lo que la de calorías tiene y las otras no tenían no era la altura: era el
+       ANCHO. A lo ancho, la barra se lee de un vistazo y el porcentaje cabe dentro del
+       relleno; a un tercio, ninguna de las dos cosas. La jerarquía que yo defendía se
+       la estaba cobrando al elemento que más se mira.
+
+       Así que la rejilla vuelve a una columna en el teléfono y no se toca ninguna
+       altura: las cuatro comparten `.track` y `.fillPerc` de base. La uniformidad ES
+       la decisión — cualquier regla que vuelva a distinguir `.barSmall` de `.barLarge`
+       aquí está deshaciéndola. */
     .macroGrid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: 1fr;
         gap: 0.9rem;
-    }
-
-    /* El nombre corto SUSTITUYE al largo, no lo acompaña — y solo donde hay corto.
-       El intercambio cuelga de `.hasShort`, que el JSX solo pone si se pasó un
-       `shortLabel`. Sin esa clase la regla sería «oculta el nombre largo» a secas y
-       apagaría también «Calorías», «Proteína» y «Grasas», que no tienen versión
-       corta: se quedarían con el icono y nada al lado. */
-    .hasShort .labelFull {
-        display: none;
-    }
-
-    .hasShort .labelShort {
-        display: inline;
-    }
-
-    /* Con tres columnas estrechas el valor cae bajo el nombre; que caiga pegado. */
-    .macroGrid .barHeader {
-        gap: 0.35rem;
-        row-gap: 0.15rem;
     }
 
     .barHeader {
@@ -584,46 +585,22 @@
        se promovieron a base — ahora aplican para desktop también. Las
        declaraciones aquí eran duplicadas y se eliminaron. */
 
-    /* [P1-MACRO-BAR-SLIM · 2026-08-11] Las barras de los tres macros adelgazan.
-       Calorías NO se toca: el dueño dijo expresamente que esa está bien.
+    /* [P1-MACRO-BARS-UNIFORM · 2026-08-11] Aquí adelgacé las barras de los macros a 8px
+       y les quité el porcentaje de dentro. Se retira entero: el dueño pidió justo lo
+       contrario —que se parezcan a la de calorías, no que se encojan— y con el ancho
+       recuperado el porcentaje vuelve a caber dentro del relleno, que es la mitad de lo
+       que hacía «entendible» a la de calorías.
 
-       El defecto es de PROPORCIÓN, no de altura. Los 22px de `.track` se fijaron
-       cuando toda barra ocupaba el ancho de la tarjeta (P3-TRACKING-PERC-DESKTOP,
-       para que el porcentaje cupiera DENTRO del relleno, estilo carga de teléfono).
-       A lo ancho de la tarjeta eso da ~16:1 y se lee como una barra. Al pasar los
-       tres macros a compartir una fila (P1-MACRO-ROW-MOBILE), la misma altura sobre
-       ~100px de ancho da 4,5:1 — y a esa proporción una caja de esquinas redondas
-       deja de parecer una barra de progreso y parece una cápsula o un botón vacío.
-       Tres cápsulas grises seguidas es exactamente lo que el dueño estaba señalando.
-
-       8px devuelve la proporción al terreno de «línea de progreso» (~12:1) y de paso
-       ordena la jerarquía: la gruesa es el dato principal, las finas son el detalle.
-       El `!important` es para ganarle al `height` inline del JSX, igual que la regla
-       base — no es pereza, es el mismo mecanismo.
-
-       El porcentaje dentro del relleno se retira de las finas: en 8px no cabe una
-       cifra, y aquí no hace falta porque el número exacto («0 / 123 g») está justo
-       encima. En la de calorías se queda. */
-    .barSmall .track {
-        height: 8px !important;
-    }
-
-    .barSmall .fillPerc {
-        display: none;
-    }
+       Que no quede regla: las cuatro barras comparten las de base y esa igualdad es la
+       decisión. Si alguien vuelve a distinguirlas aquí, que sea sabiendo que ya se probó
+       y se descartó. */
 }
 
-/* [P1-MACRO-ROW-MOBILE · 2026-08-11] Repliegue a dos columnas, y el umbral está
-   MEDIDO, no elegido de memoria: a 320px (iPhone SE) la columna deja 42px de hueco y
-   «Proteína» pide 54 — se sale. A 360px deja 55 y entra. Entre 361 y 768 van tres.
-   El nombre corto se queda también aquí: a 320px con dos columnas «Carbohidratos»
-   sigue sin caber (90px de texto para 87 de hueco), así que el repliegue arregla el
-   ancho pero no habría arreglado esa palabra. */
-@media (max-width: 360px) {
-    .macroGrid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
+/* [P1-MACRO-BARS-UNIFORM · 2026-08-11] Aquí vivía un repliegue a DOS columnas para
+   pantallas de ≤360px, porque a ese ancho ni «Proteína» cabía en una de tres. Se retira
+   con la fila de tres que lo justificaba: en una sola columna no hay nada que replegar.
+   Una regla que sobrevive al problema que la justificaba es la que luego nadie sabe de
+   dónde sale. */
 
 @media (max-width: 480px) {
     .card {
@@ -714,19 +691,22 @@
     box-shadow: var(--shadow-lg);
 }
 
-/* [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón ghost en oscuro: borde/texto
-   apagados sobre el slate; acento indigo claro al hover. */
+/* [P2-DIARY-SCAN-MACROS · 2026-05-30 · P1-SCAN-BTN-ACCENT · 2026-08-11] En oscuro el
+   acento también es el estado en reposo, por la misma razón: sin hover en el teléfono,
+   dejarlo en `--text-muted` habría mantenido el botón apagado justo donde se reportó.
+   El indigo se aclara (400 en vez de 600) porque sobre el slate el tono oscuro se
+   apaga — mismo par de siempre: el color y su fondo se eligen juntos. */
 :global(html[data-theme="dark"]) .scanBtn {
-    border-color: var(--border);
-    color: var(--text-muted);
+    border-color: rgba(129, 140, 248, 0.45);
+    color: #A5B4FC;
+    background: rgba(99, 102, 241, 0.12);
 }
 
-:global(html[data-theme="dark"]) .scanBtn svg { color: var(--text-light); }
+:global(html[data-theme="dark"]) .scanBtn svg { color: #A5B4FC; }
 
 :global(html[data-theme="dark"]) .scanBtn:hover {
-    color: #A5B4FC;
-    border-color: rgba(129, 140, 248, 0.5);
-    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(129, 140, 248, 0.75);
+    background: rgba(99, 102, 241, 0.2);
 }
 
 :global(html[data-theme="dark"]) .scanBtn:hover svg { color: #A5B4FC; }

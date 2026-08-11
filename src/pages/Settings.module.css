@@ -1247,12 +1247,17 @@
 }
 
 /* Premium Button Hover Glows */
+/* [P1-BTN-FONT-SIZE · 2026-08-11] Misma corrección y por la misma razón que
+   `.saveChangesBtn`: es su OTRA RAMA —ocupan el mismo hueco y solo cambia cuál se
+   muestra— y también caía al 13,33px por defecto del navegador. Arreglar solo uno de los
+   dos habría hecho que el rótulo cambiara de tamaño al tocar el peso. */
 .updatePlanBtn {
     background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
     cursor: pointer;
     display: inline-flex;
@@ -1275,11 +1280,22 @@
     opacity: 0.8;
 }
 
+/* [P1-BTN-FONT-SIZE · 2026-08-11] El rótulo se veía pequeño, y no era una impresión:
+   ningún sitio declaraba su tamaño. La regla global `button {}` de index.css fija la
+   TIPOGRAFÍA pero no el TAMAÑO, así que el botón caía al valor por defecto del navegador
+   para `<button>` — medido en Chrome: **13,33px**, frente a los 16px del texto de la
+   página. Un 17% más pequeño que todo lo que lo rodea, y en el elemento con más peso de
+   la pantalla.
+
+   No se hereda a ciegas del contenedor (`font-size: inherit`) porque este botón vive en
+   sitios con tamaños de texto distintos y acabaría midiendo cosas distintas en cada uno;
+   se declara, que es lo que faltaba. 0,95rem = 15,2px: acompaña al cuerpo sin gritar. */
 .saveChangesBtn {
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     display: inline-flex;
