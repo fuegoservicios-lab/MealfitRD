@@ -62,7 +62,13 @@
 
    Nada de esto toca el modo página: todo cuelga de `.inDialog`. */
 .inDialog {
-    padding: 1.25rem 1.5rem 2rem;
+    /* [P1-SETTINGS-HEADER-STICKY · 2026-08-10] El relleno pasa a variables porque
+       la cabecera pegajosa necesita ANULARLO con márgenes negativos para tapar la
+       franja por la que se vería pasar el contenido. Dos números a mano en sitios
+       distintos se desincronizan; derivados, no. */
+    --settings-pad-y: 1.25rem;
+    --settings-pad-x: 1.5rem;
+    padding: var(--settings-pad-y) var(--settings-pad-x) 2rem;
     position: relative;
     /* [P1-SETTINGS-HEADER-GUTTER · 2026-08-10] Tamaño VISIBLE del botón de cierre.
        La canaleta de la cabecera se calcula DESDE estas variables, así que si el
@@ -100,18 +106,30 @@
    centrada con 8px de margen lateral mientras el botón ocupa ~53px por la derecha, de
    modo que cualquier texto largo corre por debajo de él. El ancho ahora sale de las
    variables de `.inDialog`, que es lo que permite reservarle su hueco. */
+/* [P1-SETTINGS-HEADER-STICKY · 2026-08-10] `sticky`, no `absolute`.
+   El matiz que engaña: un elemento ABSOLUTO dentro de un contenedor con scroll SE
+   VA CON EL CONTENIDO — su bloque contenedor scrollea con él. «Absoluto» suena a
+   «fijo» y no lo es; solo `sticky` (o `fixed`) se queda. Medido a 1112px: tras
+   999px de scroll el borde superior de la X estaba en −987px. Fuera, no recortada.
+   Flota a la derecha para no ocupar una línea propia sobre el título, que es lo
+   que el `absolute` conseguía y hay que conservar. */
 .inDialog .exitSettingsBtn {
-    position: absolute;
+    position: sticky;
+    float: right;
     top: var(--settings-close-inset);
     right: var(--settings-close-inset);
-    margin: 0;
+    /* Sin el negativo, el float reserva su alto y empuja la cabecera hacia abajo. */
+    margin: 0 0 calc(-1 * var(--settings-close-size)) 0;
     padding: 0;
     width: var(--settings-close-size);
     height: var(--settings-close-size);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    z-index: 2;
+    /* Por ENCIMA de la cabecera pegajosa (z-index 3): si no, su fondo opaco se
+       pinta sobre la X y volvemos a no tener botón de cerrar — mismo síntoma,
+       otra causa. */
+    z-index: 4;
 }
 
 /* Zona táctil de 44px sin agrandar el dibujo (Apple HIG). Antes eran 20px de icono
@@ -135,14 +153,28 @@
     display: none;
 }
 
+/* [P1-SETTINGS-HEADER-STICKY · 2026-08-10] La cabecera se queda a la vista.
+   Hermano de P1-SETTINGS-NAV-STICKY: allí la barra de secciones, aquí el título.
+   Lo caro no era estético — al bajar, el usuario se quedaba SIN BOTÓN DE CERRAR.
+   Los márgenes negativos tapan el relleno propio del wrapper: sin ellos queda una
+   franja de 20px por la que se ve pasar el contenido. El `background` es
+   obligatorio por lo mismo: un sticky transparente no oculta nada. */
 .inDialog .pageHeader {
-    margin-bottom: 1.25rem;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--bg-page, #F8FAFC);
+    margin: calc(-1 * var(--settings-pad-y)) calc(-1 * var(--settings-pad-x)) 1.25rem;
+    padding-top: var(--settings-pad-y);
+    padding-bottom: 0.75rem;
     /* Canaleta SIMÉTRICA derivada del botón de cierre. Simétrica a propósito: el
        título va centrado, así que reservar solo por la derecha lo descentraría
        respecto del panel. Con esto el texto termina exactamente donde empieza la
-       columna del botón — la colisión deja de ser posible, no solo improbable. */
-    padding-left: calc(var(--settings-close-size) + var(--settings-close-inset));
-    padding-right: calc(var(--settings-close-size) + var(--settings-close-inset));
+       columna del botón — la colisión deja de ser posible, no solo improbable.
+       Se le suma el `pad-x` que los márgenes negativos acaban de anular, para que
+       la canaleta siga midiendo lo mismo respecto al texto. */
+    padding-left: calc(var(--settings-pad-x) + var(--settings-close-size) + var(--settings-close-inset));
+    padding-right: calc(var(--settings-pad-x) + var(--settings-close-size) + var(--settings-close-inset));
 }
 
 .inDialog .pageTitle {
