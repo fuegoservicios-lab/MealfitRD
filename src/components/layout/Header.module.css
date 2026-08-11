@@ -6,7 +6,7 @@
     top: 0;
     left: 0;
     right: 0;
-    z-index: 1000;
+    z-index: var(--z-appbar);
     padding-top: max(14px, env(safe-area-inset-top));
     padding-left: max(16px, env(safe-area-inset-left));
     padding-right: max(16px, env(safe-area-inset-right));
@@ -317,7 +317,7 @@
 .navMobile {
     position: fixed;
     inset: 0;
-    z-index: 1001;
+    z-index: var(--z-appbar-menu);
     background: #FFFFFF;
     display: flex;
     flex-direction: column;
@@ -633,7 +633,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    z-index: 1002;
+    /* [P1-Z-SCALE · 2026-08-10] Local, no de raiz: .header es fixed CON z-index, o
+       sea contexto de apilamiento, y este desplegable esta encerrado dentro. El 1002
+       aparentaba competir con los modales y en realidad solo competia con el 1 del
+       ::after del CTA. */
+    z-index: var(--z-raised-2);
     transform-origin: top right;
     animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }

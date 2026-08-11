@@ -50,7 +50,7 @@ const IOSInstallPrompt = () => {
             padding: '0.7rem 0.85rem',
             borderRadius: '14px',
             boxShadow: '0 12px 30px -12px rgba(0,0,0,0.45)',
-            zIndex: 9999,
+            zIndex: 'var(--z-modal)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.65rem',

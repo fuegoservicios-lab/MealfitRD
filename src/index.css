@@ -385,6 +385,56 @@
   --radius-xl: 1.5rem;
   --radius-full: 9999px;
 
+  /* ══════════════════════════════════════════════════════════════════════════
+   * [P1-Z-SCALE · 2026-08-10] Escala de capas.
+   * --------------------------------------------------------------------------
+   * Antes eran números sueltos: 80, 100, 860, 1000, 1001, 1100, 1200, 1460,
+   * 9990, 9998, 9999 ×6, 10000, 99999 ×2, 100000. Nadie decidió ese orden; se
+   * fue formando. Ya costó un defecto: un modal a 1000 quedó bajo la ventana de
+   * Configuración a 9990 y el botón parecía muerto (P1-MODAL-OVER-DIALOG).
+   *
+   * ⚠️ LO PRIMERO QUE HAY QUE SABER ANTES DE USAR ESTO. Un z-index NO ordena
+   * contra la aplicación: ordena contra sus HERMANOS DE CONTEXTO. Un ancestro
+   * con `transform`, `opacity < 1`, `filter`, `backdrop-filter`, `isolation`,
+   * `will-change`, `contain` o `position` + `z-index` crea un contexto y
+   * ENCIERRA a sus descendientes: por alto que pongas el número, el hijo no
+   * puede salir del padre.
+   *
+   * En este producto eso no es teoría. `DashboardLayout .container` lleva
+   * `isolation: isolate`, así que TODO el dashboard vive en el nivel 0 del
+   * documento. Los `z-index: 99999` de dos modales de Dashboard.jsx son los
+   * números más altos del código y no le ganan a nada de fuera. Si necesitas
+   * que algo supere a la ventana de Configuración o a un cajón, **el número no
+   * basta: hay que portalizarlo a `<body>`**.
+   *
+   * Por eso los tokens de abajo van en DOS familias.
+   * ══════════════════════════════════════════════════════════════════════════ */
+
+  /* ── LOCALES ── Dentro de una tarjeta, un chip o cualquier contexto cerrado.
+     Aquí el valor absoluto da igual: solo cuenta el orden entre hermanos. Usa
+     estos y no números a mano, para que se lea que son locales a propósito. */
+  --z-under: -1;      /* fondo propio, detrás del contenido del elemento */
+  --z-content: 0;     /* el plano del contenido (explícito cuando hay un ::before) */
+  --z-raised: 1;      /* contenido por encima de su propio fondo */
+  --z-raised-2: 2;    /* segundo escalón dentro de la misma jaula */
+
+  /* ── RAÍZ ── Solo para lo que se PORTALIZA a <body> o vive fuera del
+     dashboard. Esta sí es una escala: el orden entre estos números se ve.
+     Los saltos de 100 dejan sitio para intercalar sin renumerar. */
+  --z-widget: 500;        /* flotante de esquina persistente (chat de ayuda) */
+  --z-handle: 510;        /* tirador que debe ganar al anterior (notificaciones) */
+  --z-appbar: 600;        /* cabecera fija de una página */
+  --z-appbar-menu: 610;   /* su menú a pantalla completa */
+  --z-cover: 700;         /* velo de una capa a pantalla completa que NO es diálogo */
+  --z-cover-top: 710;     /* su contenido, cuando es HERMANO del velo y no hijo */
+  --z-drawer: 720;        /* cajón que gana a otro cajón */
+  --z-dialog: 800;        /* ventana con URL propia (Configuración) */
+  --z-sysbanner: 900;     /* aviso de sistema no bloqueante (sin conexión) */
+  --z-modal: 1000;        /* modal */
+  --z-modal-over: 1100;   /* modal abierto DESDE un modal */
+  --z-modal-top: 1200;    /* modal que gana a cualquier otro */
+  --z-skip: 1300;         /* enlace de salto: el techo de lo NUESTRO */
+
   /* Safe Area Insets for Mobile PWA (iOS Nav Bar / Notch) */
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -1121,7 +1171,7 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
-  z-index: 9998;
+  z-index: var(--z-sysbanner);
   display: flex;
   align-items: center;
   gap: 0.5rem;

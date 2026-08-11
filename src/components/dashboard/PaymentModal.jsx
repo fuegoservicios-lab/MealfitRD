@@ -202,7 +202,7 @@ const PaymentModal = ({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 style={{
-                    position: 'fixed', inset: 0, zIndex: 9999,
+                    position: 'fixed', inset: 0, zIndex: 'var(--z-modal)',
                     background: '#0a0a0a',
                     overflowY: 'auto',
                     display: 'flex',

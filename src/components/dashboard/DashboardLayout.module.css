@@ -5,6 +5,25 @@
     background-color: #f8fafc; /* Lighter background for better contrast with cards */
     position: relative;
     overflow-x: hidden;
+    /* [P1-Z-SCALE · 2026-08-10] ESTA LÍNEA GOBIERNA EL APILAMIENTO DE TODO EL
+       PRODUCTO y llevaba sin una palabra que lo dijera.
+
+       `isolation: isolate` convierte a `.container` en contexto de apilamiento.
+       Como su propio z-index es `auto`, se pinta en el nivel 0 del documento y
+       ENCIERRA a todo el dashboard: la barra lateral (50), la cabecera (40), el
+       menú de la hamburguesa (200/201), la barra de pestañas (100), el modal de
+       escanear (1000), el de cerrar sesión (9999) y los dos de Dashboard.jsx
+       (99999 — los números más altos del código). Ninguno puede superar a nada
+       pintado en `<body>`, por alto que sea su número.
+
+       Consecuencia práctica: si necesitas que algo gane a la ventana de
+       Configuración o a un cajón, **subirle el z-index no sirve de nada**;
+       hay que portalizarlo a `<body>`. Fue exactamente el defecto
+       P1-MODAL-OVER-DIALOG.
+
+       Y sostiene el `-1` de `.container::before`: sin el aislamiento, el fondo
+       ilustrado se hundiría por detrás de la página. Quitar esta línea para
+       «arreglar» un z-index se lleva el fondo por delante. */
     isolation: isolate;
 }
 

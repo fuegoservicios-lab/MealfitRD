@@ -191,7 +191,7 @@ export default function PantryConsentModal({
              DETRÁS de su backdrop opaco: el botón «Evaluar de nuevo» parecía
              muerto cuando en realidad funcionaba. Mismo valor que Modal.jsx —
              un modal está siempre en la capa de modales, no en una propia. */
-            zIndex: 9999,
+            zIndex: 'var(--z-modal)',
           display: "grid",
           placeItems: "center",
           padding: 16,

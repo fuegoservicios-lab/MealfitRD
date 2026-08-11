@@ -32,6 +32,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { zDeTexto } from './utils/zLayers';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const CSS = readFileSync(join(AQUI, '..', 'pages', 'Settings.module.css'), 'utf8');
@@ -61,10 +62,9 @@ function reglas(fuente, selector) {
     return out.join('\n');
 }
 
-const z = (cuerpo) => {
-    const m = /z-index:\s*(\d+)/.exec(cuerpo);
-    return m ? Number(m[1]) : null;
-};
+/* [P1-Z-SCALE · 2026-08-10] Resuelve tokens `var(--z-*)` además de literales:
+   si no, este guard se cae solo con que alguien adopte la escala. */
+const z = (cuerpo) => zDeTexto(cuerpo);
 
 describe('[P1-SETTINGS-HEADER-STICKY] la cabecera del diálogo no se va con el scroll', () => {
     it('el título queda pegado arriba', () => {

@@ -22,7 +22,7 @@
     inset: 0;
     background: rgba(2, 6, 23, 0.62);
     backdrop-filter: blur(3px);
-    z-index: 1200;
+    z-index: var(--z-cover);
 }
 
 .drawer {
@@ -31,7 +31,7 @@
     right: 0;
     bottom: 0;
     width: min(460px, 100vw);
-    z-index: 1201;
+    z-index: var(--z-cover-top);
     display: flex;
     flex-direction: column;
     background: var(--bg-card, #0f172a);

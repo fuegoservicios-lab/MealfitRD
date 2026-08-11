@@ -115,7 +115,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
             {isOpen && (
                 <div 
                     style={{
-                        position: 'fixed', inset: 0, zIndex: 9999, display: 'flex',
+                        position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', display: 'flex',
                         alignItems: isMobile ? 'flex-end' : 'center', 
                         justifyContent: 'center', 
                         padding: isMobile ? '0' : '1.25rem'

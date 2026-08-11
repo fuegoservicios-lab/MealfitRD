@@ -18,18 +18,17 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { zDeArchivo } from './utils/zLayers';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(AQUI, '..');
 
-const leer = (rel) => fs.readFileSync(path.join(SRC, rel), 'utf8');
-
-/** Primer z-index declarado en un archivo, venga de CSS (`z-index: N`) o de un
- *  estilo en línea (`zIndex: N`). */
-function zDe(rel) {
-  const m = leer(rel).match(/z-?index:\s*(\d+)/i);
-  return m ? Number(m[1]) : null;
-}
+/** [P1-Z-SCALE · 2026-08-10] Resuelve el z-index aunque venga como token de la
+ *  escala. Antes leía el número a mano y este guard se rompió el día que los
+ *  z-index pasaron a `var(--z-*)`: afirmaba «no declara z-index» sobre archivos
+ *  que sí lo declaraban. Un guard que no entiende la forma nueva del código no
+ *  protege, estorba. */
+const zDe = (rel) => zDeArchivo(path.join(SRC, rel));
 
 const Z_DIALOGO = zDe('components/dashboard/SettingsDialog.module.css');
 

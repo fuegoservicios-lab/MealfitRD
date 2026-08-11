@@ -14,7 +14,7 @@
     top: 38%;
     right: 0;
     transform: translateY(-50%);
-    z-index: 860;
+    z-index: var(--z-handle);
 
     display: flex;
     flex-direction: column;
@@ -136,7 +136,7 @@
 .overlay {
     position: fixed;
     inset: 0;
-    z-index: 1460;
+    z-index: var(--z-drawer);
     display: flex;
     justify-content: flex-end;
 }
