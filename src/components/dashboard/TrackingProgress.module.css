@@ -153,6 +153,19 @@
    Va en la MISMA regla y no en una segunda `.scanBtn` debajo: dos reglas con el mismo
    selector se resuelven por orden, y el siguiente que lea la primera creerá que el botón
    es gris. */
+/* [P1-MANUAL-FOOD-LOG · 2026-08-11] El par de botones de registro. El componedor
+   lleva el rótulo (es la vía nueva y la que no exige tener el plato delante); el
+   escáner queda como icono — sigue a un toque, pero deja de competir por el texto. */
+.logButtons {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 0.4rem;
+}
+
+.scanBtnSecondary {
+    padding: 0.5rem 0.6rem;
+}
+
 .scanBtn {
     display: inline-flex;
     align-items: center;

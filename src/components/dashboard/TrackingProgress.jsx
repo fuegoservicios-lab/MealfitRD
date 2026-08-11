@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag, Trash2, Loader2 } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag, Trash2, Loader2, Plus } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -16,6 +16,8 @@ import FatDropIcon from '../icons/FatDropIcon';
 import { isDarkActive } from '../../utils/theme';
 // [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
 import ScanMealModal from './ScanMealModal';
+// [P1-MANUAL-FOOD-LOG · 2026-08-11] El componedor manual: registrar sin foto.
+import LogMealModal from './LogMealModal';
 import styles from './TrackingProgress.module.css';
 
 // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Cache local del card
@@ -134,6 +136,7 @@ const TrackingProgress = ({ planData, userId }) => {
     // registrar una comida el modal dispara `mealfit:refresh-inventory`, que
     // el effect de abajo ya escucha → las barras se actualizan solas.
     const [scanOpen, setScanOpen] = useState(false);
+    const [logOpen, setLogOpen] = useState(false);
     const isLoggedIn = !!userId && userId !== 'guest';
     // [P1-DAILY-NOT-CYCLE · 2026-07-28] La key ya no depende de `planData` en
     // absoluto (era el único consumidor de `_getPlanTrackingStartIso`, ahora
@@ -150,6 +153,7 @@ const TrackingProgress = ({ planData, userId }) => {
     // focusTimeout que hace containerRef.focus() → ROBABA el foco del input a media
     // escritura. Misma clase que P2-HIST-MODALS-A11Y (onClose memoizado con useCallback).
     const handleScanClose = useCallback(() => setScanOpen(false), []);
+    const handleLogClose = useCallback(() => setLogOpen(false), []);
 
     // [P1-DIARY-EDITABLE · 2026-07-28] Estado de la lista de comidas de hoy.
     // `mealsExpanded` levanta el cap de `_MEALS_VISIBLE_CAP` filas visibles.
@@ -435,15 +439,29 @@ const TrackingProgress = ({ planData, userId }) => {
                 </div>
                 
                 {isLoggedIn ? (
-                    // [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón de escaneo.
-                    <button
-                        className={styles.scanBtn}
-                        onClick={() => setScanOpen(true)}
-                        type="button"
-                    >
-                        <Camera size={18} strokeWidth={2.5} />
-                        Escanear comida
-                    </button>
+                    // [P1-MANUAL-FOOD-LOG · 2026-08-11] Dos vías de registrar, lado a
+                    // lado: el componedor (buscar y anotar, la vía de los 15 segundos)
+                    // y el escáner de siempre. El manual va PRIMERO porque no depende
+                    // de tener el plato delante — el escáner sí.
+                    <div className={styles.logButtons}>
+                        <button
+                            className={styles.scanBtn}
+                            onClick={() => setLogOpen(true)}
+                            type="button"
+                        >
+                            <Plus size={18} strokeWidth={2.5} />
+                            Registrar comida
+                        </button>
+                        <button
+                            className={`${styles.scanBtn} ${styles.scanBtnSecondary}`}
+                            onClick={() => setScanOpen(true)}
+                            type="button"
+                            aria-label="Escanear comida con la cámara"
+                            title="Escanear comida"
+                        >
+                            <Camera size={18} strokeWidth={2.5} />
+                        </button>
+                    </div>
                 ) : (
                     <div className={styles.guestBadge}>
                         Inicia sesión para registrar comidas
@@ -505,7 +523,7 @@ const TrackingProgress = ({ planData, userId }) => {
                 <div className={styles.mealsSection}>
                     {_todaysMeals.length === 0 ? (
                         <p className={styles.mealsEmpty}>
-                            Aún no registras comidas hoy. Usa "Escanear comida" o cuéntaselo a tu coach en el chat.
+                            Aún no registras comidas hoy. Usa «Registrar comida», escanéala o cuéntaselo a tu coach en el chat.
                         </p>
                     ) : (
                         <>
@@ -597,11 +615,20 @@ const TrackingProgress = ({ planData, userId }) => {
                 renderiza para usuarios logueados (el botón no aparece para
                 invitados). */}
             {isLoggedIn && (
-                <ScanMealModal
-                    isOpen={scanOpen}
-                    onClose={handleScanClose}
-                    userId={userId}
-                />
+                <>
+                    {/* [P1-MANUAL-FOOD-LOG · 2026-08-11] El componedor manual, hermano
+                        del escáner. Montaje condicional (no isOpen-interno) porque el
+                        modal hace fetch del catálogo al montar: montarlo cerrado sería
+                        pagar ese fetch en cada visita al dashboard. */}
+                    {logOpen && (
+                        <LogMealModal onClose={handleLogClose} />
+                    )}
+                    <ScanMealModal
+                        isOpen={scanOpen}
+                        onClose={handleScanClose}
+                        userId={userId}
+                    />
+                </>
             )}
         </div>
     );

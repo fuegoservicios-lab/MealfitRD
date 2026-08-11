@@ -135,8 +135,33 @@ export const invalidateMasterListCache = () => {
     _masterListEntry = null;
 };
 
+// [P1-MANUAL-FOOD-LOG · 2026-08-11] Los 60 platos criollos de /api/catalog/dishes.
+// Mismo carácter que el masterList (cuasi-inmutable, lo edita el equipo) ⇒ mismo TTL
+// de 24 h y mismo patrón. Solo in-memory: ~4 KB que el primer open del componedor
+// trae en un fetch — no ameritan una key más de localStorage.
+let _dishesEntry = null;
+
+export const getCachedDishes = () => {
+    if (!_dishesEntry) return undefined;
+    if (typeof _dishesEntry.expiresAt === 'number'
+        && Date.now() > _dishesEntry.expiresAt) {
+        _dishesEntry = null;
+        return undefined;
+    }
+    return _dishesEntry.value;
+};
+
+export const setCachedDishes = (rows, ttlMs = _MASTER_LIST_TTL_MS) => {
+    if (!Array.isArray(rows)) return;
+    _dishesEntry = {
+        value: rows,
+        expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null,
+    };
+};
+
 export const _resetPantryCacheForTests = () => {
     _inventoryEntry = null;
     _masterListEntry = null;
+    _dishesEntry = null;
     _safeLsRemove(_INVENTORY_LS_KEY);
 };

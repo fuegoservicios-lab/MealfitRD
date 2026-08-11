@@ -10,6 +10,17 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 // escáner de la Nevera — no una segunda copia de 200 líneas.
 import CameraViewfinder from '../common/CameraViewfinder';
 import styles from './ScanMealModal.module.css';
+// [P1-MANUAL-FOOD-LOG · 2026-08-11] Las constantes de registro y el input de macros
+// se EXTRAJERON a módulos compartidos con el componedor manual (LogMealModal) — se
+// extrae, no se copia (precedente: CameraViewfinder / P1-SCANNER-SHARED). Los alias
+// con guion bajo conservan los nombres históricos de este archivo para no tocar sus
+// ~17 call sites en el mismo commit que la extracción.
+import MacroInput from '../common/MacroInput';
+import {
+    MEAL_TYPES as _MEAL_TYPES,
+    guessMealType as _guessMealType,
+    clampMacro as _clampMacro,
+} from './mealLogShared';
 
 // [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
 //
@@ -30,33 +41,17 @@ import styles from './ScanMealModal.module.css';
 //
 // Tooltip-anchor: P2-DIARY-SCAN-MACROS.
 
-const _MEAL_TYPES = [
-    { value: 'desayuno', label: 'Desayuno' },
-    { value: 'almuerzo', label: 'Almuerzo' },
-    { value: 'cena', label: 'Cena' },
-    { value: 'merienda', label: 'Merienda' },
-];
-
-// Auto-detección del tipo de comida por la hora local. Editable después.
-const _guessMealType = () => {
-    const h = new Date().getHours();
-    if (h >= 5 && h < 11) return 'desayuno';
-    if (h >= 11 && h < 15) return 'almuerzo';
-    if (h >= 18 && h < 23) return 'cena';
-    return 'merienda';
-};
-
 // Multiplicadores de porción rápidos. "Personalizado" se logra editando los
 // campos a mano (los presets solo rellenan).
 const _PORTIONS = [0.5, 1, 2];
 
-// Límites espejo de ConsumedMealRequest (backend) — evita 422 en /consumed.
-const _MAX = { calories: 10000, protein: 1000, carbs: 2000, healthy_fats: 1000 };
-
-const _clampMacro = (key, raw) => {
-    const n = Math.round(Number(raw));
-    if (!Number.isFinite(n) || n < 0) return 0;
-    return Math.min(n, _MAX[key] ?? 100000);
+// La piel de MacroInput en ESTE modal (la lógica compartida vive en common/).
+const _MACRO_CLASSES = {
+    field: styles.macroField,
+    label: styles.macroLabel,
+    wrap: styles.macroInputWrap,
+    input: styles.macroInput,
+    unit: styles.macroUnit,
 };
 
 // Validación cliente antes de subir (el backend revalida; esto es UX rápida).
@@ -606,13 +601,13 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                         </div>
 
                         <div className={styles.macrosGrid}>
-                            <MacroInput label="Calorías" unit="kcal" value={form.calories}
+                            <MacroInput classes={_MACRO_CLASSES} label="Calorías" unit="kcal" value={form.calories}
                                 onChange={(v) => handleMacroChange('calories', v)} />
-                            <MacroInput label="Proteína" unit="g" value={form.protein}
+                            <MacroInput classes={_MACRO_CLASSES} label="Proteína" unit="g" value={form.protein}
                                 onChange={(v) => handleMacroChange('protein', v)} />
-                            <MacroInput label="Carbohidratos" unit="g" value={form.carbs}
+                            <MacroInput classes={_MACRO_CLASSES} label="Carbohidratos" unit="g" value={form.carbs}
                                 onChange={(v) => handleMacroChange('carbs', v)} />
-                            <MacroInput label="Grasas" unit="g" value={form.healthy_fats}
+                            <MacroInput classes={_MACRO_CLASSES} label="Grasas" unit="g" value={form.healthy_fats}
                                 onChange={(v) => handleMacroChange('healthy_fats', v)} />
                         </div>
 
@@ -722,47 +717,9 @@ ScanMealModal.propTypes = {
     userId: PropTypes.string.isRequired,
 };
 
-// [P3-SCAN-MACRO-INPUT-EMPTY · 2026-05-30] Buffer de string local para el input
-// numérico. Pre-fix el input era controlado con `value={number}` y el padre
-// clampeaba con `_clampMacro(Number(raw))` → `Number('')` es 0, de modo que al
-// BORRAR el campo para teclear otro valor (cambiar 350 → 80) el input saltaba a
-// "0" al instante y el usuario tenía que teclear encima del 0 ("080"). Es el
-// camino crítico de edición del feature de escaneo. Ahora el buffer permite el
-// vacío transitorio mientras se edita; el padre sigue recibiendo el raw (que
-// clampea a entero en el state), y al perder foco re-sincronizamos el texto con
-// el valor clampeado (p.ej. "08"→"8", ""→"0", sobre-tope→tope).
-const MacroInput = ({ label, unit, value, onChange }) => {
-    const [text, setText] = useState(() => String(value));
-    // Sincroniza cambios EXTERNOS del valor (presets de porción ½×/1×/2×, o el
-    // resultado del escaneo) en el buffer — solo si difiere numéricamente, para
-    // no pisar un "" o un valor a medio teclear cuando el cambio vino del input.
-    useEffect(() => {
-        setText((prev) => (Number(prev) === value ? prev : String(value)));
-    }, [value]);
-    return (
-        <label className={styles.macroField}>
-            <span className={styles.macroLabel}>{label}</span>
-            <div className={styles.macroInputWrap}>
-                <input
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    value={text}
-                    onChange={(e) => { setText(e.target.value); onChange(e.target.value); }}
-                    onBlur={() => setText(String(value))}
-                    className={styles.macroInput}
-                />
-                <span className={styles.macroUnit}>{unit}</span>
-            </div>
-        </label>
-    );
-};
+// [P3-SCAN-MACRO-INPUT-EMPTY · movido a common/MacroInput por P1-MANUAL-FOOD-LOG]
+// La lógica del buffer vacío vive ahora en UN sitio; este modal solo aporta su piel
+// vía `classes` (ver _MACRO_CLASSES arriba del render).
 
-MacroInput.propTypes = {
-    label: PropTypes.string.isRequired,
-    unit: PropTypes.string.isRequired,
-    value: PropTypes.number.isRequired,
-    onChange: PropTypes.func.isRequired,
-};
 
 export default ScanMealModal;
