@@ -54,9 +54,26 @@ async function fetchPendingStatus() {
 }
 
 async function ackPendingStatus() {
+    // [P0-ACK-ROUTE-REBOUND · 2026-08-10] Antes esto era `catch { /* best-effort */ }`
+    // sin mirar el status. Y el endpoint llevaba desde el 5 de agosto devolviendo 422
+    // en el 100% de las llamadas (su decorador se había quedado pegado a otra
+    // función): el acuse no limpiaba nada y el aviso «Tu plan está listo» volvía en
+    // CADA carga de página. Un fallo que se traga su propio error es indistinguible
+    // del éxito — por eso duró cinco días sin que nadie lo viera.
+    //
+    // Sigue siendo best-effort (no rompemos el flujo si el acuse falla), pero ahora
+    // deja rastro. `console.error` se preserva en producción a propósito: Sentry lo
+    // captura (P3-CONSOLE-DEV-GUARDS).
     try {
-        await fetchWithAuth(_withSessionQS('/api/plans/pending-status/ack'), { method: 'POST' });
-    } catch { /* best-effort */ }
+        const res = await fetchWithAuth(_withSessionQS('/api/plans/pending-status/ack'), { method: 'POST' });
+        if (!res.ok) {
+            console.error('[P0-ACK-ROUTE-REBOUND] el acuse del pipeline falló:', res.status);
+        }
+        return res.ok;
+    } catch (e) {
+        console.error('[P0-ACK-ROUTE-REBOUND] el acuse del pipeline no salió:', e);
+        return false;
+    }
 }
 
 // [P1-GUEST-PLAN-RECOVERY · 2026-07-09] Recupera el plan guardado de un guest desde el KV backend.
@@ -170,19 +187,18 @@ export default function PendingPipelineRecovery() {
                                 try { saveGeneratedPlanRef.current(_guestPlan); } catch { /* noop */ }
                             }
                         }
-                        // [P1-PLAN-READY-TOAST-ONCE · 2026-08-10] Faltaba borrar la señal
-                        // LOCAL. Esta rama solo hacía `ackPendingStatus()` —que es el
-                        // acuse al servidor— mientras la otra rama del mismo componente sí
-                        // hace las dos cosas. La asimetría no se notaba dentro de una
-                        // sesión porque `handledRef` corta la repetición… pero un ref muere
-                        // con la página: en cada refresco el componente arrancaba de cero,
-                        // volvía a leer la señal que seguía en localStorage y volvía a
-                        // anunciar «Tu plan está listo» de un plan que ya estaba listo hace
-                        // rato. El dueño lo reportó como «cada vez que refresco me sale».
+                        // [P1-PLAN-READY-TOAST-ONCE · 2026-08-10 · corregido el mismo día]
+                        // Esta rama vive dentro de `if (!flag)`, o sea que aquí NO hay
+                        // señal local que borrar: el estado vive en el KV del backend y
+                        // quien lo limpia es el acuse. Mi primer intento puso aquí un
+                        // `clearPendingFlag()` creyendo que faltaba — era un no-op, y el
+                        // aviso siguió saliendo en cada refresco.
                         //
-                        // Va ANTES del await de hidratación a propósito: si el usuario
-                        // recarga en mitad de esa espera, la señal ya no está y no se vuelve
-                        // a disparar.
+                        // La causa real estaba en el backend: el acuse devolvía 422 SIEMPRE
+                        // (P0-ACK-ROUTE-REBOUND). Se deja el clear de todas formas porque
+                        // esta rama puede haber sintetizado el flag más arriba, y limpiar
+                        // dos veces es inofensivo; lo que cambió de verdad es que el acuse
+                        // ahora llega.
                         clearPendingFlag();
                         await ackPendingStatus();
                         if (status.plan_id_final || _guestPlan) {
