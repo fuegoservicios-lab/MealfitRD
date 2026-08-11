@@ -423,17 +423,14 @@ const TrackingProgress = ({ planData, userId }) => {
                         <p className={styles.subtitle}>
                             {loading ? 'Cargando registros...' : `${displayedConsumed.meals.length} ${displayedConsumed.meals.length === 1 ? 'comida registrada' : 'comidas registradas'} hoy`}
                         </p>
-                        {/* [P1-GOAL-ETA · 2026-07-03] Plazo estimado hasta la meta de peso —
-                            plan_data.goal_eta lo calcula el backend con el déficit REAL
-                            entregado (post ritmo + pisos clínicos). Solo aparece si el
-                            usuario dio meta cuantificada (planes viejos/invitados: oculto).
-                            El title lleva la nota de honestidad (estimación energética). */}
-                        {planData?.goal_eta?.weeks_estimate ? (
-                            <div className={styles.etaChip} title={planData.goal_eta.note}>
-                                <Flag size={13} strokeWidth={2.5} aria-hidden="true" />
-                                Meta: {planData.goal_eta.target_weight_display} · ~{planData.goal_eta.weeks_estimate} semanas a tu ritmo{planData.goal_eta.pace ? ` (${planData.goal_eta.pace})` : ''}
-                            </div>
-                        ) : null}
+                        {/* [P1-MACRO-ROW-MOBILE · 2026-08-11] La nota de la meta (P1-GOAL-ETA)
+                            vivía aquí y se fue AL PIE de la tarjeta — busca `styles.etaChip`
+                            más abajo. Ocupaba dos líneas de ancho completo ANTES del primer
+                            número: la meta es contexto de largo plazo y los números de hoy
+                            son el motivo por el que abres la tarjeta, así que encabezar con
+                            ella empujaba el dato hacia abajo justo en la pantalla donde menos
+                            sitio hay. Al pie convive con «Ver días anteriores», que es el
+                            otro elemento de contexto y no de dato. */}
                     </div>
                 </div>
                 
@@ -482,6 +479,7 @@ const TrackingProgress = ({ planData, userId }) => {
                     {/* Carbohidratos */}
                     <ProgressBar
                         label="Carbohidratos"
+                        shortLabel="Carbos"
                         consumed={displayedConsumed.carbs} goal={goalCarb} unit="g"
                         perc={percCarb} icon={Wheat} color="#10B981" lightColor="#6EE7B7" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
                         fillWhiteStroke
@@ -568,6 +566,23 @@ const TrackingProgress = ({ planData, userId }) => {
                 </div>
             )}
 
+            {/* [P1-GOAL-ETA · 2026-07-03] Plazo estimado hasta la meta de peso —
+                plan_data.goal_eta lo calcula el backend con el déficit REAL entregado
+                (post ritmo + pisos clínicos). Solo aparece si el usuario dio meta
+                cuantificada (planes viejos/invitados: oculto). El title lleva la nota de
+                honestidad (estimación energética).
+
+                [P1-MACRO-ROW-MOBILE · 2026-08-11] Bajado desde la cabecera. Fuera del
+                bloque `isLoggedIn && !loading` a propósito: su condición propia
+                (`goal_eta`) ya lo restringe a quien tiene meta cuantificada, y meterlo
+                dentro lo haría parpadear en cada recarga del diario. */}
+            {planData?.goal_eta?.weeks_estimate ? (
+                <div className={styles.etaChip} title={planData.goal_eta.note}>
+                    <Flag size={13} strokeWidth={2.5} aria-hidden="true" />
+                    Meta: {planData.goal_eta.target_weight_display} · ~{planData.goal_eta.weeks_estimate} semanas a tu ritmo{planData.goal_eta.pace ? ` (${planData.goal_eta.pace})` : ''}
+                </div>
+            ) : null}
+
             {/* [P1-DIARY-HISTORY · 2026-07-31] */}
             {isLoggedIn && (
                 <DiaryHistory
@@ -599,7 +614,7 @@ TrackingProgress.propTypes = {
 };
 
 // --- Componente Interno para Barra Individual ---
-const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
+const ProgressBar = ({ label, shortLabel, consumed, goal, unit, perc, icon: Icon, darkIcon: DarkIcon, color, lightColor, gradient, large, fillIcon, fillWhiteStroke }) => {
     const isEmpty = perc === 0;
     // [APPEARANCE-THEME · 2026-05-29] Los rellenos de iconos (llama/gota sólidos,
     // trigo verde-con-líneas-blancas) son SOLO para modo oscuro. En claro se
@@ -701,11 +716,24 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                     >
                         {renderedIcon}
                     </div>
+                    {/* [P1-MACRO-ROW-MOBILE · 2026-08-11] Rótulo largo y corto, y lo
+                        elige el CSS, no JS. Los tres macros pasan a compartir una fila
+                        en el teléfono (la jerarquía que el escritorio ya tenía), y en
+                        una columna de ~100px «Carbohidratos» no cabe: medido en Chrome,
+                        pide 90px de texto para 48 de hueco, así que se cortaba y se
+                        metía en la columna de al lado.
+
+                        Dos <span> con `display:none` alterno en vez de un ternario sobre
+                        un media query en JS: el que no se muestra tampoco existe para el
+                        lector de pantalla (`display:none` lo saca del árbol de
+                        accesibilidad), así que no se lee dos veces, y al no depender de
+                        un hook no hay un primer render con la medida equivocada. */}
                     <span
-                        className={styles.barLabel}
+                        className={`${styles.barLabel} ${shortLabel ? styles.hasShort : ''}`}
                         style={{ fontSize: large ? '1.05rem' : '0.92rem' }}
                     >
-                        {label}
+                        <span className={styles.labelFull}>{label}</span>
+                        {shortLabel ? <span className={styles.labelShort}>{shortLabel}</span> : null}
                     </span>
                 </div>
                 <div className={styles.barValues}>
@@ -795,6 +823,9 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
 
 ProgressBar.propTypes = {
     label: PropTypes.string,
+    // Opcional: solo lo necesita el macro cuyo nombre no cabe en una columna del
+    // teléfono. Sin él se muestra `label` en todas las anchuras.
+    shortLabel: PropTypes.string,
     consumed: PropTypes.number,
     goal: PropTypes.number,
     unit: PropTypes.string,

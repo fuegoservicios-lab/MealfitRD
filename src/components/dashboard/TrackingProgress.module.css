@@ -66,7 +66,10 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    margin-top: 0.45rem;
+    /* [P1-MACRO-ROW-MOBILE · 2026-08-11] Separación de PIE, no de cabecera: el 0.45rem
+       de antes la pegaba al subtítulo del que colgaba. Ahora cierra la tarjeta bajo la
+       sección de comidas. */
+    margin-top: 1.1rem;
     padding: 0.28rem 0.7rem;
     border-radius: 999px;
     border: 1px solid #C7D2FE;
@@ -199,6 +202,13 @@
     font-weight: 700;
     color: #334155;
     letter-spacing: -0.01em;
+}
+
+/* [P1-MACRO-ROW-MOBILE · 2026-08-11] Par largo/corto del nombre del macro. En
+   escritorio manda el largo; el corto solo aparece donde la columna no da para el
+   nombre completo. La regla que los intercambia vive en el bloque del teléfono. */
+.labelShort {
+    display: none;
 }
 
 .barValues {
@@ -442,10 +452,43 @@
         gap: 1.15rem;
     }
 
+    /* [P1-MACRO-ROW-MOBILE · 2026-08-11] Los tres macros vuelven a compartir una
+       fila, como en el escritorio.
+
+       El defecto no era de colores ni de aire: era que la ESTRUCTURA cambiaba de
+       significado al pasar al teléfono. Arriba, calorías es la barra grande y
+       proteína/carbos/grasas son tres columnas — se leen como un conjunto y se
+       comparan de un vistazo. Al colapsar a una sola columna, los cuatro pasaban a
+       ser cuatro filas idénticas de ancho completo: misma altura, misma barra, mismo
+       peso. La jerarquía no se comprimía, DESAPARECÍA, y con ella el motivo de que
+       calorías estuviera separada.
+
+       Medido en Chrome a 390px con este mismo CSS: la rejilla baja de 247px a 116 y
+       la tarjeta de 573 a 442 (−23%). El nombre completo no cabe en 100px de columna
+       (pide 90px de texto para 48 de hueco) — de ahí el rótulo corto de abajo. */
     .macroGrid {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 0.9rem;
+    }
+
+    /* El nombre corto SUSTITUYE al largo, no lo acompaña — y solo donde hay corto.
+       El intercambio cuelga de `.hasShort`, que el JSX solo pone si se pasó un
+       `shortLabel`. Sin esa clase la regla sería «oculta el nombre largo» a secas y
+       apagaría también «Calorías», «Proteína» y «Grasas», que no tienen versión
+       corta: se quedarían con el icono y nada al lado. */
+    .hasShort .labelFull {
+        display: none;
+    }
+
+    .hasShort .labelShort {
+        display: inline;
+    }
+
+    /* Con tres columnas estrechas el valor cae bajo el nombre; que caiga pegado. */
+    .macroGrid .barHeader {
+        gap: 0.35rem;
+        row-gap: 0.15rem;
     }
 
     .barHeader {
@@ -540,6 +583,18 @@
        (`.percRow display:none`, `.track height: 22px`, `.fillPerc display:flex`)
        se promovieron a base — ahora aplican para desktop también. Las
        declaraciones aquí eran duplicadas y se eliminaron. */
+}
+
+/* [P1-MACRO-ROW-MOBILE · 2026-08-11] Repliegue a dos columnas, y el umbral está
+   MEDIDO, no elegido de memoria: a 320px (iPhone SE) la columna deja 42px de hueco y
+   «Proteína» pide 54 — se sale. A 360px deja 55 y entra. Entre 361 y 768 van tres.
+   El nombre corto se queda también aquí: a 320px con dos columnas «Carbohidratos»
+   sigue sin caber (90px de texto para 87 de hueco), así que el repliegue arregla el
+   ancho pero no habría arreglado esa palabra. */
+@media (max-width: 360px) {
+    .macroGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 480px) {
