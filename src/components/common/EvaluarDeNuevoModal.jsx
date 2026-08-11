@@ -307,7 +307,12 @@ export default function EvaluarDeNuevoModal({
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 1000,
+        /* [P1-MODAL-OVER-DIALOG · 2026-08-10] 9999, no 1000, y por encima de la
+           ventana de Configuración (9990). Con 1000 este modal se montaba
+           DETRÁS de su backdrop opaco: el botón «Evaluar de nuevo» parecía
+           muerto cuando en realidad funcionaba. Mismo valor que Modal.jsx —
+           un modal está siempre en la capa de modales, no en una propia. */
+        zIndex: 9999,
         display: "grid",
         placeItems: "center",
         padding: 16,
