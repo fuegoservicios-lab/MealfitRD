@@ -51,6 +51,13 @@ export const QStapleFoods = ({ onManualAdvance }) => {
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState((getCachedMasterList() || []).length === 0);
+    // [P1-GUEST-CATALOG · 2026-08-11] El catálogo no llegó. Hace falta un estado propio
+    // porque «lista vacía» y «lista sin resultados para lo que escribiste» se ven IGUAL
+    // en pantalla: escribes «arroz», no aparece nada, y lo que entiendes es que ese
+    // alimento no está en el catálogo. Era exactamente lo que pasaba como invitado —
+    // el endpoint exigía sesión, el `catch` de abajo se tragaba el 403 en silencio y el
+    // buscador no tenía nada contra qué buscar.
+    const [catalogoFallo, setCatalogoFallo] = useState(false);
 
     const staples = formData.stapleFoods || [];
     const atMax = staples.length >= STAPLE_FOODS_MAX;
@@ -66,10 +73,17 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                 if (!cancelled && items.length) {
                     setMasterList(items);
                     setCachedMasterList(items);
+                } else if (!cancelled) {
+                    // Respuesta recibida pero sin catálogo: un `!resp.ok` (403 del
+                    // invitado antes de P1-GUEST-CATALOG) o un cuerpo vacío. No es lo
+                    // mismo que «no hay resultados» y no puede parecerlo.
+                    setCatalogoFallo(true);
                 }
             } catch {
-                // fail-soft: el paso es opcional, sin catálogo el usuario simplemente
-                // no puede buscar (puede seguir con "Siguiente" sin elegir nada).
+                // El paso sigue siendo opcional —se puede seguir sin elegir nada— pero
+                // el fallo deja de ser mudo: sin esto, un buscador que no encuentra nada
+                // se lee como que el alimento no existe.
+                if (!cancelled) setCatalogoFallo(true);
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -171,6 +185,21 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                     </div>
                 )}
             </div>
+
+            {/* [P1-GUEST-CATALOG · 2026-08-11] El aviso solo aparece si el catálogo NO
+                llegó. Se dice lo que pasó y que el paso es opcional, para que nadie se
+                quede atascado creyendo que tiene que elegir algo. */}
+            {catalogoFallo && !loading && (
+                <p role="status" style={{
+                    margin: 0, padding: '0.6rem 0.85rem', borderRadius: '0.65rem',
+                    background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+                    color: 'var(--warning-text)', fontSize: '0.82rem', lineHeight: 1.45,
+                }}>
+                    No pudimos cargar la lista de alimentos, así que el buscador no va a
+                    encontrar nada ahora mismo. Este paso es opcional: puedes seguir y
+                    añadir tus básicos más adelante desde Ajustes.
+                </p>
+            )}
 
             {loading ? (
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cargando catálogo…</p>
