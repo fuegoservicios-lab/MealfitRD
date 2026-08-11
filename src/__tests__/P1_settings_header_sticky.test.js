@@ -104,6 +104,29 @@ describe('[P1-SETTINGS-HEADER-STICKY] la cabecera del diálogo no se va con el s
         expect(zBoton).toBeGreaterThan(zCabecera);
     });
 
+    it('la barra llega al borde: nada puede colarse por encima', () => {
+        // LA TRAMPA QUE ESTO ANCLA. Un elemento `sticky` está CONFINADO a la caja de
+        // contenido de su padre: no puede salir de ella. Mientras `.inDialog` tuvo
+        // `padding-top`, la barra no podía subir hasta el borde del contenedor que
+        // scrollea — el margen negativo empujaba y el confinamiento lo devolvía —, y
+        // quedaba una franja de 20px por la que se veía pasar el formulario.
+        // Medido: cabecera.top = 20 con relleno · 0 sin él.
+        // Por eso el relleno superior lo aporta la BARRA y no el wrapper.
+        const wrapper = reglas(CSS, '.inDialog');
+        const padding = /padding:\s*([^;]+);/.exec(wrapper);
+        expect(padding, '.inDialog dejó de declarar padding').toBeTruthy();
+        expect(
+            padding[1].trim().split(/\s+/)[0],
+            'el wrapper volvió a tener relleno superior: el `sticky` no puede salir de '
+            + 'la caja de contenido de su padre, así que la barra deja de tocar el borde '
+            + 'y el contenido se cuela por encima',
+        ).toBe('0');
+
+        const cabecera = reglas(CSS, '.inDialog .pageHeader');
+        expect(cabecera, 'la barra debe aportar ella misma el aire de arriba')
+            .toMatch(/padding-top:\s*[^;]+;/);
+    });
+
     it('quién hace scroll sigue siendo el hijo del panel', () => {
         // El pegado se ancla al ancestro que scrollea. Si este overflow se mueve, lo
         // de arriba deja de significar lo que dice aunque siga en verde.

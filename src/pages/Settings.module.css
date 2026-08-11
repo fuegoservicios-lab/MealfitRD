@@ -68,7 +68,13 @@
        distintos se desincronizan; derivados, no. */
     --settings-pad-y: 1.25rem;
     --settings-pad-x: 1.5rem;
-    padding: var(--settings-pad-y) var(--settings-pad-x) 2rem;
+    /* [P1-SETTINGS-HEADER-STICKY · corregido 2026-08-10] SIN relleno superior:
+       lo aporta la cabecera pegajosa. Un elemento `sticky` está CONFINADO a la
+       caja de contenido de su padre y no puede salir de ella, así que mientras
+       el wrapper tuviera 20px de relleno arriba la barra no podía subir hasta
+       el borde — el margen negativo empujaba y el confinamiento lo devolvía.
+       Resultado: una franja de 20px por la que se veía pasar el contenido. */
+    padding: 0 var(--settings-pad-x) 2rem;
     position: relative;
     /* [P1-SETTINGS-HEADER-GUTTER · 2026-08-10] Tamaño VISIBLE del botón de cierre.
        La canaleta de la cabecera se calcula DESDE estas variables, así que si el
@@ -164,7 +170,7 @@
     top: 0;
     z-index: 3;
     background: var(--bg-page, #F8FAFC);
-    margin: calc(-1 * var(--settings-pad-y)) calc(-1 * var(--settings-pad-x)) 1.25rem;
+    margin: 0 calc(-1 * var(--settings-pad-x)) 1.25rem;
     padding-top: var(--settings-pad-y);
     padding-bottom: 0.75rem;
     /* Canaleta SIMÉTRICA derivada del botón de cierre. Simétrica a propósito: el
