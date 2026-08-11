@@ -192,8 +192,20 @@
         gap: 2rem;
     }
 
+    /* [P1-SETTINGS-NAV-STICKY · 2026-08-10] Aquí vivía un `position: static` que
+       ANULABA el `position: sticky` de `.sidebar`, y con él la navegación entera se iba
+       con el scroll: en el diálogo el que scrollea es el wrapper (`.panel > *` lleva
+       `overflow-y: auto`), así que sin sticky la lista sube y desaparece. Medido en
+       Chrome a 1112px con esta misma cadena: tras 999px de scroll el borde superior de
+       la barra quedaba en −864px, con el panel empezando en 40 — fuera de la ventana,
+       no «recortada». Con sticky se queda en 84.
+
+       El `static` era incidental: el comentario de arriba justifica las dos columnas y
+       la línea divisoria, y no lo menciona. La línea y su padding SÍ son de este bloque
+       y se quedan; lo único que se va es la declaración que rompía el pegado. No se
+       redeclara `top` a propósito — que lo siga poniendo `.sidebar`, así el diálogo y
+       la página se despegan del borde por el mismo sitio. */
     .inDialog .sidebar {
-        position: static;
         border-right: 1px solid var(--border-color, rgba(148, 163, 184, 0.18));
         padding-right: 1rem;
     }
