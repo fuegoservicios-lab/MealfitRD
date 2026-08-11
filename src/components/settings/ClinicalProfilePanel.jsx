@@ -79,27 +79,54 @@ export default function ClinicalProfilePanel({ onSaved }) {
     const [cp, setCp] = useState(EMPTY);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    // [P1-CLINICAL-FAIL-CLOSED · 2026-08-11] Ver el comentario de `load`.
+    const [loadFailed, setLoadFailed] = useState(false);
 
-    const load = useCallback(async () => {
+    /* [P1-CLINICAL-FAIL-CLOSED · 2026-08-11] Este panel era el único de los tres SIN
+       el guard de P2-SUPERPERS-FAIL-CLOSED, y además tragaba los errores del servidor:
+       el `if (res.ok)` no tenía `else`, así que un 4xx/5xx salía por el `finally` sin
+       tocar el estado, sin toast y sin bloquear nada. El usuario veía su perfil clínico
+       VACÍO —laboratorios en blanco, síntomas desmarcados, texto libre borrado— con el
+       botón «Guardar perfil clínico» tan activo como siempre. Pulsarlo escribía ese
+       vacío encima de sus datos reales.
+
+       No era teórico: es exactamente el defecto que ya ocurrió en Súper Personalización
+       en julio y que allí se cerró. Aquí seguía abierto porque el `catch` solo atrapa
+       fallos de RED, y un 500 del servidor no es un fallo de red — es una respuesta.
+
+       Mismo remedio, misma forma: un reintento a los 800ms y, si tampoco, panel
+       BLOQUEADO con «Reintentar» en vez de un formulario vacío que se pueda guardar.
+       Fail-closed: ante la duda, no dejar escribir.
+
+       Cobra doble importancia con el autoguardado: sin botón que bloquear, bastaría con
+       rozar un chip para perder el perfil. */
+    const load = useCallback(async (attempt = 0) => {
         setLoading(true);
+        setLoadFailed(false);
+        let willRetry = false;
         try {
             const res = await fetchWithAuth(ENDPOINT);
-            if (res.ok) {
-                const data = await res.json();
-                const p = data?.clinical_profile || {};
-                setCp({
-                    ...EMPTY,
-                    labs: (p.labs && typeof p.labs === 'object') ? p.labs : {},
-                    weightHistory: { ...EMPTY.weightHistory, ...((p.weightHistory && typeof p.weightHistory === 'object') ? p.weightHistory : {}) },
-                    giSymptoms: Array.isArray(p.giSymptoms) ? p.giSymptoms : [],
-                    training: { ...EMPTY.training, ...((p.training && typeof p.training === 'object') ? p.training : {}) },
-                    freeText: typeof p.freeText === 'string' ? p.freeText : '',
-                });
-            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const p = data?.clinical_profile || {};
+            setCp({
+                ...EMPTY,
+                labs: (p.labs && typeof p.labs === 'object') ? p.labs : {},
+                weightHistory: { ...EMPTY.weightHistory, ...((p.weightHistory && typeof p.weightHistory === 'object') ? p.weightHistory : {}) },
+                giSymptoms: Array.isArray(p.giSymptoms) ? p.giSymptoms : [],
+                training: { ...EMPTY.training, ...((p.training && typeof p.training === 'object') ? p.training : {}) },
+                freeText: typeof p.freeText === 'string' ? p.freeText : '',
+            });
         } catch {
-            toast.error('No se pudo cargar tu perfil clínico.');
+            if (attempt < 1) {
+                willRetry = true;
+                setTimeout(() => load(attempt + 1), 800);
+            } else {
+                setLoadFailed(true);
+                toast.error('No se pudo cargar tu perfil clínico.');
+            }
         } finally {
-            setLoading(false);
+            if (!willRetry) setLoading(false);
         }
     }, []);
 
@@ -118,6 +145,14 @@ export default function ClinicalProfilePanel({ onSaved }) {
     });
 
     const save = async () => {
+        // [P1-CLINICAL-FAIL-CLOSED] Sin una carga exitosa detrás, guardar escribiría el
+        // estado vacío del panel encima del perfil real. El render de abajo ya bloquea
+        // la interfaz; esto cierra la puerta también a cualquier llamada programática
+        // —el autoguardado, sin ir más lejos—, que no pasa por ese render.
+        if (loading || loadFailed) {
+            toast.error('Aún no cargamos tu perfil clínico. Reintenta antes de guardar.');
+            return;
+        }
         setSaving(true);
         try {
             const body = {
@@ -155,6 +190,20 @@ export default function ClinicalProfilePanel({ onSaved }) {
         return (
             <div className={styles.loading}>
                 <Loader2 className={styles.spin} size={22} /> Cargando…
+            </div>
+        );
+    }
+
+    // [P1-CLINICAL-FAIL-CLOSED · 2026-08-11] Carga fallida → panel bloqueado con
+    // reintento, NUNCA un formulario vacío editable: guardarlo pisaría el perfil real.
+    // Es el mismo cierre que P2-SUPERPERS-FAIL-CLOSED, que aquí faltaba.
+    if (loadFailed) {
+        return (
+            <div className={styles.loading}>
+                <span>No pudimos cargar tu perfil clínico. Revisa tu conexión.</span>
+                <button type="button" className={styles.save} onClick={() => load()}>
+                    Reintentar
+                </button>
             </div>
         );
     }
