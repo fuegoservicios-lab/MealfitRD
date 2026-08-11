@@ -192,8 +192,14 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en "Progreso en Tiemp
         const menuCard = menuName.closest('.meal-card');
         expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM);
         const [, swapBtn, likeBtn] = within(menuCard).getAllByRole('button');
-        expect(swapBtn).toBeDisabled();
+        // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] "Me gusta" sigue con `disabled` real;
+        // "Cambiar Plato" pasó a `aria-disabled` porque un botón `disabled` no emite
+        // click y el dueño pidió que al pulsarlo explique por qué está bloqueado. La
+        // escotilla de escape que esta suite protege —«bórralo en Progreso en Tiempo
+        // Real»— no solo sigue: ahora también llega a quien TOCA el candado, no solo a
+        // quien puede posar un puntero encima.
         expect(likeBtn).toBeDisabled();
+        expect(swapBtn).toHaveAttribute('aria-disabled', 'true');
 
         // [P1-EATEN-SLOT-COPY · 2026-07-28] El chip SOLO nombra el slot
         // ("Ya registraste tu desayuno") — nunca dice "esto" (la copia
@@ -208,7 +214,10 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en "Progreso en Tiemp
         // plato del PLAN que decora esta card).
         expect(swapBtn).toHaveAttribute('title', _EATEN_CLAIM);
         expect(likeBtn).toHaveAttribute('title', _EATEN_CLAIM);
-        expect(swapBtn).toHaveAttribute('aria-label', _EATEN_CLAIM);
+        // El de swap nombra además el control: bloqueado se queda sin rótulo visible
+        // (solo el candado), así que el nombre accesible es lo único que dice cuál es.
+        expect(swapBtn.getAttribute('aria-label')).toContain(_EATEN_CLAIM);
+        expect(swapBtn.getAttribute('aria-label')).toMatch(/^Cambiar plato\./);
         expect(likeBtn).toHaveAttribute('aria-label', _EATEN_CLAIM);
         expect(_EATEN_CLAIM).toContain('Mangú (registrado hoy)');
         expect(_EATEN_CLAIM).not.toContain('con los tres golpes');
@@ -266,8 +275,14 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en "Progreso en Tiemp
         // parecer un éxito.
         expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM);
         const [, swapBtn, likeBtn] = within(menuCard).getAllByRole('button');
-        expect(swapBtn).toBeDisabled();
+        // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] "Me gusta" sigue con `disabled` real;
+        // "Cambiar Plato" pasó a `aria-disabled` porque un botón `disabled` no emite
+        // click y el dueño pidió que al pulsarlo explique por qué está bloqueado. La
+        // escotilla de escape que esta suite protege —«bórralo en Progreso en Tiempo
+        // Real»— no solo sigue: ahora también llega a quien TOCA el candado, no solo a
+        // quien puede posar un puntero encima.
         expect(likeBtn).toBeDisabled();
+        expect(swapBtn).toHaveAttribute('aria-disabled', 'true');
         expect(screen.getByText('Ya registraste tu desayuno')).toBeInTheDocument();
         expect(within(menuCard).queryByText(/esto/i)).not.toBeInTheDocument();
         expect(screen.getByText(/Te quedan/)).toBeInTheDocument();

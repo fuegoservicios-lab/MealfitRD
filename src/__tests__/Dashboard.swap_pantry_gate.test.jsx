@@ -165,11 +165,25 @@ describe('P1-SWAP-PANTRY-GATE-FULL-BUTTON · el botón entero se bloquea', () =>
     // está muerta. Consecuencia asumida: con la Nevera baja tampoco se puede pedir
     // 'cravings'/'weekend'. Este bloque ancla ESA decisión — si alguien la revierte
     // por "restaurar la exención de P3-SWAP-PANTRY-DEFAULT" sin hablarlo, falla.
-    it('el botón entra en el disabled real, no solo en el estilo', () => {
+    // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] ESTE CASO CAMBIÓ DE MECANISMO, no de
+    // intención. Afirmaba `disabled={... isPantryTooEmptyForSwap ...}` — el atributo
+    // nativo. Pero un botón `disabled` NO EMITE CLICK, y por eso el motivo del bloqueo
+    // solo llegaba por `title` (que en un teléfono no existe: no hay puntero que se
+    // pose). El dueño pidió que al pulsarlo se explique, así que el bloqueado pasó a
+    // `aria-disabled` + un `onClick` que responde.
+    //
+    // Lo que este caso protege es lo mismo de siempre —que la Nevera baja bloquee de
+    // VERDAD y no solo en el estilo— y ahora lo afirma donde vive: el motivo entra en
+    // `swapLockReason`, y ese motivo es lo que corta el `onClick` antes de abrir el
+    // modal. Si alguien quita esa rama, el swap volvería a poder dispararse.
+    it('la Nevera baja bloquea de VERDAD, no solo en el estilo', () => {
         const block = swapButtonJsx(_dashSrc);
         // Sanity del vehículo antes de los asserts que importan.
         expect(block).toContain('Cambiar Plato');
-        expect(block).toMatch(/disabled=\{[^}]*isPantryTooEmptyForSwap/);
+        expect(_dashSrc).toMatch(/const swapLockReason =[\s\S]{0,400}isPantryTooEmptyForSwap/);
+        expect(block).toMatch(/aria-disabled=\{swapLockReason/);
+        // El corte real: la primera línea del onClick, antes de cualquier otra cosa.
+        expect(block).toMatch(/if \(swapLockReason\) \{ toast\(swapLockReason\); return; \}/);
     });
 
     it('hay early-return en onClick — el disabled nativo no es la única barrera', () => {
@@ -177,10 +191,16 @@ describe('P1-SWAP-PANTRY-GATE-FULL-BUTTON · el botón entero se bloquea', () =>
         expect(block).toMatch(/if\s*\(isPantryTooEmptyForSwap\)\s*return/);
     });
 
-    it('el bloqueo dice POR QUÉ (title + aria-label), no solo se apaga', () => {
+    it('el bloqueo dice POR QUÉ, y ahora también a quien lo TOCA', () => {
         const block = swapButtonJsx(_dashSrc);
-        expect(block).toMatch(/title=\{[^}]*swapPantryClaim/);
-        expect(block).toMatch(/aria-label=\{[^}]*swapPantryClaim/);
+        // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] `title` y `aria-label` siguen llevando el
+        // motivo, pero ya no son la única vía: los dos exigen algo que un teléfono no
+        // tiene (un puntero que se pose, o un lector de pantalla). El motivo llega ahora
+        // por el canal que sí existe en un móvil — el toque.
+        expect(block).toMatch(/title=\{swapLockReason/);
+        expect(block).toMatch(/aria-label=\{swapLockReason/);
+        expect(block, 'tocar el candado ya no explica nada: vuelve el bloqueo mudo')
+            .toMatch(/toast\(swapLockReason\)/);
         // El copy nombra el número y adónde ir. Un "no disponible" pelado deja
         // al usuario sin acción posible.
         expect(_dashSrc).toMatch(/swapPantryClaim\s*=[\s\S]{0,240}Nevera/);

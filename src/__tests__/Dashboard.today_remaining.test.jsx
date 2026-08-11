@@ -317,10 +317,23 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         const eatenCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
         const [, swapBtn, likeBtn] = within(eatenCard).getAllByRole('button');
 
-        // Atributo `disabled` real (no solo opacidad/pointer-events) — así
-        // teclado y lectores de pantalla coinciden con lo visual.
-        expect(swapBtn).toBeDisabled();
+        // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] LOS DOS BOTONES YA NO SE BLOQUEAN IGUAL,
+        // y la diferencia es deliberada.
+        //
+        // "Me gusta" sigue con el atributo `disabled` real: no hay nada que preguntar,
+        // el chip de arriba ya dice que el slot está registrado.
+        //
+        // "Cambiar Plato" pasó a `aria-disabled`. Un botón `disabled` NO EMITE CLICK, y
+        // el dueño pidió que al pulsarlo se explique por qué está bloqueado. En un
+        // teléfono el `title` no existe (no hay puntero que se pose) y el `aria-label`
+        // solo lo oye un lector de pantalla: sin click, el bloqueo era mudo. Ahora se
+        // anuncia igual como no disponible, pero se puede preguntar.
+        //
+        // Lo que NO cambia —y es lo que este caso protege— es que la acción siga sin
+        // ocurrir: ni modal, ni crédito. Eso se afirma abajo, contra el resultado.
         expect(likeBtn).toBeDisabled();
+        expect(swapBtn).not.toBeDisabled();
+        expect(swapBtn).toHaveAttribute('aria-disabled', 'true');
 
         // Cada uno explica el POR QUÉ y el CÓMO deshacerlo (accesible vía
         // title/aria-label, es-DO, corto).
@@ -348,12 +361,17 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         expect(toggleMealLike).not.toHaveBeenCalled();
         expect(screen.queryByText('Plato a cambiar')).not.toBeInTheDocument();
 
-        // ...ni teclado: un botón `disabled` de verdad ni siquiera puede
+        // ...ni teclado. "Me gusta", por ser `disabled` de verdad, ni siquiera puede
         // recibir foco (por eso Enter/Espacio no llegan a activarlo).
-        swapBtn.focus();
         likeBtn.focus();
-        expect(swapBtn).not.toHaveFocus();
         expect(likeBtn).not.toHaveFocus();
+
+        // [P1-SWAP-LOCK-EXPLAINS] "Cambiar Plato" SÍ recibe foco, y eso es el arreglo,
+        // no un descuido: un control que no se puede alcanzar tampoco se puede
+        // preguntar, y quien navega con teclado se quedaría sin saber por qué está
+        // bloqueado. Lo que importa es que alcanzarlo NO dispare la acción.
+        swapBtn.focus();
+        expect(swapBtn).toHaveFocus();
         // Defensa en profundidad: aunque algo despachara el evento igual
         // (p.ej. un dispatchEvent sintético que ignore `disabled`), el
         // handler interno también debe abstenerse.

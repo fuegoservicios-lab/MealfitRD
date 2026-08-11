@@ -1489,13 +1489,73 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   background: transparent;
 }
 
-@media (max-width: 560px) {
-  .plan-week-pills { gap: 3px; }
-  .plan-week-pill { padding: 6px 5px 7px; }
-  .plan-week-pill__title { font-size: 0.68rem; }
-  .plan-week-pill__range { font-size: 0.58rem; }
-  .plan-week-cell { min-height: 46px; padding: 5px 1px; }
-  .plan-week-cell__num { font-size: 0.95rem; }
-  .plan-week-cell__dow { font-size: 0.56rem; }
-  .plan-week-cell__state { font-size: 0.5rem; }
+/* [P1-WEEKNAV-MOBILE-SIZE · 2026-08-11] En el teléfono las semanas se DESLIZAN;
+   dejan de repartirse el ancho.
+
+   EL DEFECTO. `grid-auto-columns: 1fr` reparte el ancho entre las cinco semanas. A
+   390px eso deja ~66px por pastilla y «Semana 2» no cabe, así que el
+   `text-overflow: ellipsis` la recortaba a «Seman…». Las cinco decían lo mismo y
+   ninguna se podía leer: la fila entera dejaba de informar. El bloque móvil que
+   había aquí agravaba el problema porque intentaba resolverlo ENCOGIENDO
+   (título a 0,68rem, celdas a 46px) — pero el ancho que falta no se consigue
+   achicando la letra, solo se consigue no repartiendo.
+
+   Repartir el ancho es correcto en escritorio, donde 5 × 1fr da de sobra. Lo que
+   no sobrevive al teléfono es la premisa: que quepan todas a la vez. Deslizar sí
+   conserva lo que la rejilla protegía —que no envuelvan y no se corten— y encima
+   permite agrandarlas.
+
+   El ancho mínimo sale del contenido más largo, no de un número redondo:
+   «Semana 1» + el rango «10 ago – 16 ago» necesitan ~132px a la tipografía de la
+   pastilla. Con eso entran dos y media a 390px, y esa media pastilla asomando ES
+   la señal de que hay más — por eso el `min-width` no sube más. */
+@media (max-width: 768px) {
+  .plan-week-pills {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    /* Sin esto, la primera y la última quedan pegadas al borde al deslizar. */
+    padding: 2px;
+    margin: -2px;
+    scroll-snap-type: x proximity;
+    scroll-padding-left: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .plan-week-pills::-webkit-scrollbar { display: none; }
+
+  .plan-week-pill {
+    flex: 0 0 auto;
+    min-width: 132px;
+    scroll-snap-align: start;
+    padding: 10px 12px 11px;
+    border-radius: 12px;
+  }
+
+  /* Ya no hace falta recortar: la pastilla mide lo que su texto pide. Se deja el
+     `nowrap` (que parta en dos líneas descuadraría la fila) pero sin puntos
+     suspensivos, que era lo que hacía ilegible el nombre. */
+  .plan-week-pill__title {
+    font-size: 0.82rem;
+    text-overflow: clip;
+  }
+
+  .plan-week-pill__range {
+    font-size: 0.68rem;
+    text-overflow: clip;
+  }
+
+  /* Los días: más altos y con el número más grande. El ancho no se puede tocar
+     —son siete y el ancho es el que es—, así que el tamaño se gana en la otra
+     dimensión, que es la que sí sobra. */
+  .plan-week-grid { padding: 8px; }
+
+  .plan-week-cell,
+  .plan-week-cell.is-empty { min-height: 68px; }
+
+  .plan-week-cell { padding: 8px 2px; gap: 2px; border-radius: 11px; }
+  .plan-week-cell__num { font-size: 1.35rem; }
+  .plan-week-cell__dow { font-size: 0.66rem; }
+  .plan-week-cell__state { font-size: 0.56rem; }
 }

@@ -7952,6 +7952,28 @@ const DashboardInner = () => {
                                     ? eatenClaimForSlot(todaysConsumedMeals, meal.meal, 'unlock')
                                     : null;
 
+                                // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] El motivo del bloqueo de
+                                // "Cambiar Plato", en UNA expresión. Antes cada consumidor
+                                // (`disabled`, `title`, `aria-label`, los early-return del
+                                // onClick) volvía a preguntar por su cuenta qué condiciones
+                                // bloqueaban, y ya se habían desincronizado: `isReadOnlyDay`
+                                // estaba en el early-return pero no en el `disabled`, así que un
+                                // día archivado mostraba un botón vivo que no hacía nada.
+                                //
+                                // `null` = se puede cambiar. Cualquier otra cosa es la frase que
+                                // se le enseña al usuario cuando toca el candado, así que el
+                                // orden importa: primero el motivo más específico.
+                                //
+                                // El OCUPADO no vive aquí a propósito: "estamos cambiándolo" no
+                                // es un bloqueo con motivo, es una operación en vuelo.
+                                const swapLockReason = isEatenToday
+                                    ? eatenClaim
+                                    : isPantryTooEmptyForSwap
+                                        ? swapPantryClaim
+                                        : isReadOnlyDay
+                                            ? 'Este día ya pasó y quedó archivado. Su menú se conserva como registro de lo que tocaba, por eso no se puede cambiar.'
+                                            : null;
+
                                 // [P1-MEAL-CARD-KEY · 2026-05-31] key por identidad
                                 // natural (meal.name) en vez de index: evita que React
                                 // reutilice nodos DOM con datos de otra comida si el orden
@@ -8191,9 +8213,36 @@ const DashboardInner = () => {
                                                     nada. Guard interno duplicado por defensa-en-profundidad (mismo
                                                     patrón que el resto de este botón: el `disabled` nativo ya bloquea
                                                     click+teclado, el early-return cubre cualquier dispatch sintético). */}
+                                                {/* [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] Bloqueado = CANDADO que explica.
+                                                    Pedido del dueño: «cuando esté bloqueado quiero que aparezca un
+                                                    candado nada más, y cuando lo presionen que le indique al usuario el
+                                                    porqué».
+
+                                                    Y hacía falta por un motivo que va más allá del aspecto: un botón
+                                                    `disabled` NO EMITE CLICK. El motivo del bloqueo vivía en el `title`
+                                                    —que en un teléfono no existe, porque no hay puntero que se pose— y
+                                                    en el `aria-label`, que solo oye quien usa lector de pantalla. Para
+                                                    todos los demás, tocar el botón no hacía absolutamente nada: el
+                                                    bloqueo era indistinguible de una app colgada.
+
+                                                    Por eso el bloqueado deja de usar `disabled` y pasa a
+                                                    `aria-disabled` + `onClick` que explica. No es un rodeo: es la
+                                                    diferencia entre «no se puede interactuar» y «se anuncia como no
+                                                    disponible, pero se puede preguntar por qué». Los early-return de
+                                                    dentro siguen ahí, así que la acción real sigue sin poder ocurrir —
+                                                    lo único que se gana es la respuesta.
+
+                                                    El OCUPADO (regenerando / día actualizándose) NO entra aquí: eso no
+                                                    es un bloqueo con motivo, es una operación en vuelo, y sigue con
+                                                    `disabled` de verdad para proteger los créditos.
+
+                                                    De paso cierra un agujero real: `isReadOnlyDay` (día archivado)
+                                                    estaba en el early-return pero NO en el `disabled`, así que el botón
+                                                    se veía vivo y al tocarlo no pasaba nada, sin decir por qué. */}
                                                 <button
                                                     className="meal-act-btn"
                                                     onClick={() => {
+                                                        if (swapLockReason) { toast(swapLockReason); return; }
                                                         if (isEatenToday) return;
                                                         // [P1-SWAP-PANTRY-GATE · 2026-07-30] Nevera bajo el mínimo → ni
                                                         // se abre el modal. Guard interno duplicado igual que el de
@@ -8214,39 +8263,69 @@ const DashboardInner = () => {
                                                             if (!hasCredits) setSwapModal(null);
                                                         });
                                                     }}
-                                                    disabled={isEatenToday || isPantryTooEmptyForSwap || regeneratingId === index || isDayUpdating}
-                                                    aria-label={isEatenToday ? eatenClaim : (isPantryTooEmptyForSwap ? swapPantryClaim : undefined)}
+                                                    // Solo el OCUPADO usa `disabled` de verdad. El bloqueado
+                                                    // se marca con `aria-disabled`, que lo anuncia igual como
+                                                    // no disponible pero deja que el toque llegue y pueda
+                                                    // responder con el motivo.
+                                                    disabled={!swapLockReason && (regeneratingId === index || isDayUpdating)}
+                                                    aria-disabled={swapLockReason ? true : undefined}
+                                                    // Bloqueado el rótulo visible desaparece (queda el candado), así
+                                                    // que el nombre accesible tiene que decir QUÉ control es además
+                                                    // del motivo. El estado no se escribe aquí: lo anuncia solo
+                                                    // `aria-disabled`, y repetirlo lo haría sonar dos veces.
+                                                    aria-label={swapLockReason ? `Cambiar plato. ${swapLockReason}` : undefined}
                                                     style={{
-                                                        background: isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED',
-                                                        border: isDark ? '1px solid transparent' : '1px solid #FED7AA',
+                                                        // Bloqueado: pierde el relleno naranja. Un candado sobre el
+                                                        // color de la acción principal seguiría pareciendo el botón
+                                                        // que grita; en gris neutro se lee como lo que es.
+                                                        background: swapLockReason
+                                                            ? (isDark ? 'rgba(148, 163, 184, 0.12)' : '#F1F5F9')
+                                                            : (isDark ? 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)' : '#FFF7ED'),
+                                                        border: swapLockReason
+                                                            ? `1px solid ${isDark ? 'rgba(148, 163, 184, 0.22)' : '#E2E8F0'}`
+                                                            : (isDark ? '1px solid transparent' : '1px solid #FED7AA'),
                                                         borderRadius: '1rem',
-                                                        padding: '0 0.8rem',
+                                                        // Sin rótulo el ancho lo marca el icono: cuadrado de 38,
+                                                        // el mismo alto que ya tenía, para que la fila no se mueva.
+                                                        padding: swapLockReason ? 0 : '0 0.8rem',
+                                                        width: swapLockReason ? 38 : undefined,
                                                         height: 38,
+                                                        flex: 'none',
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                                        cursor: (isEatenToday || isPantryTooEmptyForSwap) ? 'not-allowed' : (regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer',
+                                                        // `pointer`, no `not-allowed`: ahora tocarlo SÍ hace algo
+                                                        // (contesta). `not-allowed` prometería que no responde.
+                                                        cursor: swapLockReason ? 'pointer' : ((regeneratingId === index || isDayUpdating) ? 'wait' : 'pointer'),
                                                         transition: 'all 0.2s',
-                                                        // [P1-SWAP-PANTRY-GATE] Atenuado cuando la Nevera no da: sin
-                                                        // esto el botón se ve idéntico a uno vivo y el usuario lo lee
-                                                        // como que la app no responde, no como un bloqueo.
-                                                        opacity: isPantryTooEmptyForSwap ? 0.45 : 1,
-                                                        filter: isPantryTooEmptyForSwap ? 'saturate(.55)' : 'none',
+                                                        // [P1-SWAP-PANTRY-GATE] El atenuado servía para que un botón
+                                                        // bloqueado no se leyera como uno vivo que no responde. Con el
+                                                        // candado eso ya lo dice la FORMA, y bajar la opacidad solo
+                                                        // restaría contraste al único elemento que queda.
+                                                        opacity: 1,
                                                         fontWeight: isDark ? 750 : 650,
                                                         fontSize: '0.8rem',
-                                                        color: isDark ? '#FFFFFF' : '#EA580C',
-                                                        boxShadow: isDark ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
+                                                        color: swapLockReason
+                                                            ? (isDark ? '#94A3B8' : '#64748B')
+                                                            : (isDark ? '#FFFFFF' : '#EA580C'),
+                                                        boxShadow: (!swapLockReason && isDark) ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
                                                     }}
-                                                    title={isEatenToday ? eatenClaim : (isPantryTooEmptyForSwap ? swapPantryClaim : 'Cambiar con IA')}
+                                                    title={swapLockReason || 'Cambiar con IA'}
                                                 >
-                                                    <RefreshCw
-                                                        size={18}
-                                                        color={isDark ? '#FFFFFF' : '#EA580C'}
-                                                        // [P2-DAYREGEN-OVERLAY-SCOPE v2] el giro del ícono también se escopa
-                                                        // al tab del día en regen (quedaba girando en los otros tabs como
-                                                        // residual visual); el disabled sí queda global (protege créditos).
-                                                        className={(regeneratingId === index || (isDayUpdating
-                                                            && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))) ? "spin-fast" : ""}
-                                                    />
-                                                    <span style={{ whiteSpace: 'nowrap' }}>Cambiar Plato</span>
+                                                    {swapLockReason ? (
+                                                        <Lock size={17} strokeWidth={2.5} aria-hidden="true" />
+                                                    ) : (
+                                                        <>
+                                                            <RefreshCw
+                                                                size={18}
+                                                                color={isDark ? '#FFFFFF' : '#EA580C'}
+                                                                // [P2-DAYREGEN-OVERLAY-SCOPE v2] el giro del ícono también se escopa
+                                                                // al tab del día en regen (quedaba girando en los otros tabs como
+                                                                // residual visual); el disabled sí queda global (protege créditos).
+                                                                className={(regeneratingId === index || (isDayUpdating
+                                                                    && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))) ? "spin-fast" : ""}
+                                                            />
+                                                            <span style={{ whiteSpace: 'nowrap' }}>Cambiar Plato</span>
+                                                        </>
+                                                    )}
                                                 </button>
 
                                                 {/* LIKE BUTTON */}

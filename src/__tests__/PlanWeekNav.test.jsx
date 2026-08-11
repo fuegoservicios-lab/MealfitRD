@@ -63,14 +63,35 @@ describe('[P1-DASH-WEEK-NAV] PlanWeekNav', () => {
         expect(screen.getByTestId('day-cell-2026-08-10')).toBeTruthy();
     });
 
-    it('la fecha del proximo lote va UNA vez, no repetida por dia', () => {
+    // [P1-WEEKNAV-MOBILE-SIZE · 2026-08-11] ESTE CASO SE INVIRTIO, y conviene saber
+    // por que antes de volver a darle la vuelta.
+    //
+    // Afirmaba que la fecha del proximo lote («se genera viernes») aparecia UNA vez y
+    // no repetida en cada dia. Aquella consolidacion era correcta: antes se leia en
+    // los cuatro dias, y eso era ruido. Pero consolidar un dato REDUNDANTE lo deja
+    // redundante, solo que una vez — el dia en que se genera el lote ES el primer dia
+    // marcado «en cola» en la propia fila. El dueño la vio innecesaria y tenia razon.
+    //
+    // Lo que este caso protege ahora es que la retirada fuera COMPLETA para la vista y
+    // NULA para quien usa lector de pantalla: la frase no se escribe, pero sigue en el
+    // `aria-label` de cada dia. Si vuelve como texto visible, esto se pone en rojo.
+    it('la fecha del proximo lote no se escribe, pero sigue siendo accesible', () => {
         const info = {
             paused_chunks: [],
             overdue: false,
             upcoming_chunks: [{ days_offset: 1, days_count: 3, status: 'pending', execute_after: '2026-08-07T14:00:00+00:00' }],
         };
-        render(<PlanWeekNav planData={plan(30, [], ['2026-08-06'])} {...base} chunkStatusInfo={info} />);
-        expect(screen.getAllByText(/se genera viernes/i)).toHaveLength(1);
+        const { container } = render(
+            <PlanWeekNav planData={plan(30, [], ['2026-08-06'])} {...base} chunkStatusInfo={info} />,
+        );
+        expect(screen.queryAllByText(/se genera viernes/i)).toHaveLength(0);
+
+        const conLaFrase = [...container.querySelectorAll('[aria-label]')]
+            .filter((n) => /se genera viernes/i.test(n.getAttribute('aria-label')));
+        expect(
+            conLaFrase.length,
+            'la frase desaparecio tambien del aria-label: entonces no se movio, se perdio',
+        ).toBeGreaterThan(0);
     });
 
     it('degrada a null si algun dia carece de date', () => {

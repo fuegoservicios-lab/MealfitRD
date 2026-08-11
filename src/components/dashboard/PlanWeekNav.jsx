@@ -12,7 +12,7 @@
 // El guard es `writableDayIndex`, en utils/planWeeks.js.
 //
 // Tooltip-anchor: P1-DASH-WEEK-NAV. Tests: src/__tests__/PlanWeekNav.test.jsx.
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
     buildTimeline,
@@ -47,31 +47,57 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
     // del auto-seguimiento que ya hacía `resolveActiveDayIndex`.
     useEffect(() => { setSemanaAbierta(semanaDeHoy); }, [semanaDeHoy]);
 
+    // [P1-WEEKNAV-MOBILE-SIZE · 2026-08-11] En el teléfono la fila DESLIZA (ver
+    // index.css), y una fila que desliza tiene un problema que la rejilla no tenía:
+    // la pastilla activa puede quedar fuera de la parte visible. Si hoy cae en la
+    // semana 3, el usuario abriría el menú viendo las semanas 1 y 2 y ninguna
+    // marcada — leería que no hay nada seleccionado.
+    //
+    // Se ajusta `scrollLeft` a mano en vez de usar `scrollIntoView`: ese método
+    // puede mover TAMBIÉN el scroll vertical de la página para acercar el elemento,
+    // y aquí solo queremos correr la fila. Y solo se toca si la pastilla está
+    // realmente fuera: si ya se ve, moverla sería un salto gratis en cada render.
+    const filaRef = useRef(null);
+    const activaRef = useRef(null);
+    useEffect(() => {
+        const fila = filaRef.current;
+        const activa = activaRef.current;
+        if (!fila || !activa) return;
+        if (fila.scrollWidth <= fila.clientWidth) return; // no desliza: nada que hacer
+        const izq = activa.offsetLeft - fila.offsetLeft;
+        const der = izq + activa.offsetWidth;
+        const margen = 8;
+        if (izq < fila.scrollLeft) {
+            fila.scrollLeft = Math.max(0, izq - margen);
+        } else if (der > fila.scrollLeft + fila.clientWidth) {
+            fila.scrollLeft = der - fila.clientWidth + margen;
+        }
+    }, [semanaAbierta]);
+
     if (!modelo || modelo.weeks.length === 0) return null;
 
     const week = modelo.weeks[Math.min(semanaAbierta, modelo.weeks.length - 1)];
     const ctx = { chunkStatusInfo, firstLiveIso: modelo.firstLiveIso, today };
 
-    // La etiqueta de "cuándo llega este bloque" va UNA sola vez, aquí. En la
-    // fila anterior se leía "se genera vie" repetido en cada uno de los cuatro
-    // días, que es ruido, no información.
-    const etiquetaLote = (() => {
-        for (const cell of week.cells) {
-            if (!cell || cell.origen !== 'futuro') continue;
-            const st = resolveDayState(cell, ctx);
-            if (st.key !== 'sin_plan' || st.label.startsWith('se genera') || st.label === 'en cola') {
-                return st.label;
-            }
-        }
-        return null;
-    })();
+    // [P1-WEEKNAV-MOBILE-SIZE · 2026-08-11] Aquí vivía `etiquetaLote`, la línea gris
+    // «se genera jueves» que iba entre las semanas y los días. El dueño la vio
+    // innecesaria y al mirarla de cerca lo es: el día en que se genera el lote ES el
+    // primer día marcado «en cola» en la propia fila, así que la frase repetía en
+    // palabras algo que la fila ya dice en su sitio. Nació para consolidar un texto
+    // que antes se repetía en los cuatro días (eso sí era ruido), pero consolidar un
+    // dato redundante lo deja redundante, solo que una vez.
+    //
+    // Lo que se pierde y dónde queda: la palabra exacta («jueves») ya no se escribe,
+    // pero cada celda sigue llevando la frase completa en su `aria-label`, así que
+    // para un lector de pantalla no cambia nada.
 
     return (
         <div className="plan-week-nav">
-            <div role="tablist" aria-label="Semanas del plan" className="plan-week-pills">
+            <div ref={filaRef} role="tablist" aria-label="Semanas del plan" className="plan-week-pills">
                 {modelo.weeks.map((w, i) => (
                     <button
                         key={w.start.toISOString()}
+                        ref={i === semanaAbierta ? activaRef : undefined}
                         type="button"
                         role="tab"
                         aria-selected={i === semanaAbierta}
@@ -96,8 +122,6 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                     </button>
                 ))}
             </div>
-
-            {etiquetaLote && <p className="plan-week-nav__lote">{etiquetaLote}</p>}
 
             <div
                 data-testid="week-day-grid"
