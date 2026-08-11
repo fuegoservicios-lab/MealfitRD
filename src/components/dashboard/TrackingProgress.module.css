@@ -416,6 +416,9 @@
         width: 40px;
         height: 40px;
         border-radius: 10px;
+        /* Con la columna alineada arriba (ver P1-TRACKING-HEADER-MOBILE), este empujón
+           deja el icono a la altura de la mayúscula del título en vez de su borde. */
+        margin-top: 0.1rem;
     }
 
     .title {
@@ -448,6 +451,44 @@
     .barHeader {
         gap: 0.75rem;
         margin-bottom: 0.4rem;
+    }
+
+    /* [P1-TRACKING-HEADER-MOBILE · 2026-08-10] El bloque de meta y el título «se veían
+       raros» en el teléfono, y es un problema de ANCHO, no de estilo.
+
+       El icono (40px) y su separación (16) se comen 56px de la fila, así que a la
+       columna del texto le quedan ~300px — y la frase de la meta («Meta: 140 lb · ~27
+       semanas a tu ritmo (decidido)») mide casi exactamente eso. Resultado: parte en
+       dos líneas dejando «(decidido)» solo, DENTRO de una píldora de radio 999px. Una
+       píldora es una forma para UNA línea: con dos, el radio la deforma y el texto
+       queda apretado contra la curva. No se veía raro por casualidad — se veía raro
+       porque se estaba usando una forma para algo que ya no cabía en ella.
+
+       A este ancho deja de ser píldora y pasa a ser una nota: ocupa la línea entera,
+       el radio baja a algo que admite dos líneas, y el icono se alinea ARRIBA (con
+       `align-items: center` la banderita se iba al centro de las dos líneas, lejos de
+       la palabra a la que acompaña). `text-wrap: balance` reparte las dos líneas en
+       vez de dejar una palabra sola. */
+    .etaChip {
+        display: flex;
+        align-items: flex-start;
+        width: 100%;
+        border-radius: 0.85rem;
+        padding: 0.5rem 0.75rem;
+        line-height: 1.35;
+        text-wrap: balance;
+    }
+
+    .etaChip svg {
+        flex: none;
+        margin-top: 0.15rem;
+    }
+
+    /* Con el icono y el texto más juntos, la columna gana ancho real y el título
+       deja de arrancar tan adentro. */
+    .headerLeft {
+        gap: 0.7rem;
+        align-items: flex-start;
     }
 
     /* [P3-TRACKING-LABEL-COMPACT · 2026-05-20] Label mobile + icon container
