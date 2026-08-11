@@ -2274,15 +2274,32 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 <div
                                     role="alert"
                                     onClick={async () => { const msg = await getNotificationBlockedMessage(); toast.error(msg, { duration: 7000 }); }}
+                                    /* [P1-WARN-BANNER-TOKENS · 2026-08-11] Este aviso llevaba el ámbar
+                                       CLARO clavado a mano (`#FFF7ED` de fondo, `#FED7AA` de borde,
+                                       `#92400E` de texto) sin ninguna noción de tema, así que en
+                                       oscuro aterrizaba un bloque crema encima de una pantalla casi
+                                       negra: lo que el dueño reportó.
+
+                                       No hacía falta inventar una paleta — el sistema YA la tenía.
+                                       `--warning-bg/-border/-text` existen con valores propios para
+                                       cada tema, y el comentario del token oscuro dice literalmente
+                                       «era #78350F invisible»: alguien ya había resuelto exactamente
+                                       este problema, y este call site simplemente no se enteró.
+
+                                       Por eso van tokens y no un ternario sobre `isDark`: un token
+                                       adapta también los temas que existan mañana (hay un tercero,
+                                       `paper`, en las rutas de marketing), y una rama en JS solo
+                                       conoce los dos que había el día que se escribió. */
                                     style={{
                                         display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
                                         marginTop: '0.65rem', padding: '0.6rem 0.85rem',
-                                        background: '#FFF7ED', border: '1px solid #FED7AA',
+                                        background: 'var(--warning-bg)',
+                                        border: '1px solid var(--warning-border)',
                                         borderRadius: '0.65rem', cursor: 'pointer',
-                                        fontSize: '0.78rem', color: '#92400E', lineHeight: 1.4,
+                                        fontSize: '0.78rem', color: 'var(--warning-text)', lineHeight: 1.4,
                                     }}
                                 >
-                                    <Lock size={13} style={{ marginTop: '2px', flexShrink: 0, color: '#D97706' }} />
+                                    <Lock size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--warning)' }} />
                                     <span>Permiso bloqueado en el navegador. <strong>Toca aquí para ver cómo reactivarlo.</strong></span>
                                 </div>
                             )}

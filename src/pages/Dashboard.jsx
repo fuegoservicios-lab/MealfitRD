@@ -7552,21 +7552,46 @@ const DashboardInner = () => {
                             cta: null, url: null,
                         };
                         return (
+                            /* [P1-WARN-BANNER-TOKENS · 2026-08-11] Hermano exacto del aviso de
+                               permisos de Ajustes: mismo ámbar CLARO clavado a mano, misma
+                               ceguera al tema, mismo resultado en oscuro — un bloque crema
+                               sobre una pantalla casi negra. Medido en el otro: el texto era
+                               legible (6,7:1), lo que chirriaba era la SUPERFICIE, despegada
+                               ΔL* 92 de la página. Los tokens `--warning-*` ya existían para
+                               esto. Se arregla aquí en el mismo paso porque es el mismo defecto
+                               y lo encontré barriendo: dejarlo sabiendo que está sería peor que
+                               no haber mirado. */
                             <div role="status" style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 gap: '12px', padding: '12px 16px', marginBottom: '16px',
-                                background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '10px',
-                                color: '#92400E', fontSize: '0.875rem',
+                                background: 'var(--warning-bg)',
+                                border: '1px solid var(--warning-border)',
+                                borderRadius: '10px',
+                                color: 'var(--warning-text)', fontSize: '0.875rem',
                             }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontWeight: 600, marginBottom: '2px' }}>{_copy.title}</div>
-                                    <div style={{ fontSize: '0.8rem', color: '#B45309' }}>{_copy.body}</div>
+                                    {/* El cuerpo llevaba un segundo ámbar (`#B45309`) para verse más
+                                        apagado que el título. Se queda en el mismo token: la
+                                        jerarquía ya la dan el peso y el tamaño, y un segundo tono
+                                        obligaría a inventar un token que el sistema no tiene. */}
+                                    <div style={{ fontSize: '0.8rem' }}>{_copy.body}</div>
                                 </div>
                                 {_copy.cta && _copy.url && (
                                     <button
                                         onClick={() => navigate(_copy.url)}
                                         style={{
-                                            padding: '8px 14px', background: '#F59E0B', color: 'white',
+                                            // El relleno sólido usa el ámbar del tema; el texto se
+                                            // queda oscuro y FIJO porque va sobre ese relleno, no
+                                            // sobre la página. Medido: sobre #F59E0B (claro) el
+                                            // texto oscuro da 8,49:1 y el blanco 2,15:1; sobre
+                                            // #FBBF24 (oscuro), 10,93:1 contra 1,67:1.
+                                            //
+                                            // O sea que el `color: white` de antes no era solo un
+                                            // problema de tema: 2,15:1 está por debajo del mínimo
+                                            // legible, así que el botón se leía mal también en
+                                            // claro. Sobre un relleno amarillo el texto va oscuro.
+                                            padding: '8px 14px', background: 'var(--warning)', color: '#1F1300',
                                             border: 'none', borderRadius: '8px', fontWeight: 600,
                                             fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap',
                                         }}
