@@ -69,7 +69,25 @@ describe('[P1-SETTINGS-NAV-STICKY] la navegación de Configuración no se va con
         expect(barra, 'sticky sin `top` no se pega a nada').toMatch(/top:\s*[^;]+;/);
     });
 
-    it('el diálogo NO la devuelve a static en escritorio', () => {
+    it('en el DIÁLOGO ya no se pega, y eso es lo correcto desde CHROME-SPLIT', () => {
+        // [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] ESTE CASO SE INVIRTIÓ, y conviene
+        // saber por qué antes de volver a darle la vuelta.
+        //
+        // El defecto que este fichero cerró era real: un `position: static` devolvía la
+        // lista al flujo DENTRO de un contenedor que scrolleaba, y la navegación se iba
+        // (medido: −864px tras 999px de scroll). El arreglo de entonces —volver a
+        // `sticky`— era correcto CON AQUEL CÓDIGO.
+        //
+        // Hoy la lista ya no vive dentro de nada que scrollee: el scroll bajó a la
+        // columna de contenido. Un `sticky` aquí no se pegaría a nada, porque su
+        // scrollport sería el wrapper y el wrapper no se mueve — sería una declaración
+        // INERTE, que es peor que una equivocada: un guard la lee y la da por buena.
+        // Y encima promociona una capa de composición, que era exactamente lo que se
+        // re-rasterizaba cada fotograma a escala de Windows fraccionaria.
+        //
+        // La propiedad que este fichero defiende —«la navegación no se va con el
+        // scroll»— sigue garantizada, pero por construcción. La afirma
+        // `P1_settings_chrome_split.test.js`.
         const escritorio = cuerpo(CSS, '@media (min-width: 769px)');
         expect(escritorio, 'desapareció el bloque de escritorio del diálogo').toBeTruthy();
 
@@ -77,26 +95,38 @@ describe('[P1-SETTINGS-NAV-STICKY] la navegación de Configuración no se va con
         expect(enDialogo, 'no hay regla .inDialog .sidebar en el bloque de escritorio').not.toBe('');
 
         const posicion = /position:\s*([a-z-]+)/.exec(enDialogo);
+        expect(posicion, 'la lista no declara posición: heredaría un sticky inerte').toBeTruthy();
         expect(
-            posicion && posicion[1],
-            `el diálogo redefine la posición de la barra a «${posicion && posicion[1]}»: si no es ` +
-            'sticky, la navegación se va con el scroll y el usuario se queda sin secciones',
-        ).not.toBe('static');
-        if (posicion) expect(posicion[1]).toBe('sticky');
+            posicion[1],
+            'la lista volvió a `sticky` en el diálogo. Si es porque la cabecera volvió a '
+            + 'estar dentro del scroll, el arreglo no es este: es sacarla otra vez.',
+        ).toBe('static');
     });
 
     it('la línea divisoria del diálogo sigue en pie (era lo legítimo de ese bloque)', () => {
         const escritorio = cuerpo(CSS, '@media (min-width: 769px)');
         const enDialogo = reglas(escritorio, '.inDialog .sidebar');
         expect(enDialogo).toMatch(/border-right:/);
-        expect(enDialogo).toMatch(/padding-right:/);
+        // El aire de la línea vive ahora en el `padding` abreviado, junto al vertical
+        // que la columna estrenó al dejar de heredarlo del wrapper.
+        expect(enDialogo, 'la línea divisoria se quedó sin su aire').toMatch(/padding:[^;]*1rem/);
     });
 
-    it('el que scrollea sigue siendo el hijo del panel — de eso depende el sticky', () => {
-        // Si alguien mueve el `overflow-y` a otro sitio, `sticky` se ancla a otro
-        // scrollport y este arreglo deja de significar lo que dice significar.
+    it('quién scrollea, hoy: la columna de contenido, no el hijo del panel', () => {
+        // Este caso existía porque de QUIÉN scrollea dependía el pegado. Sigue
+        // existiendo por lo mismo, con el sujeto cambiado: de quién scrollea depende
+        // ahora que el `static` de arriba sea correcto en vez de un descuido.
+        // El `reglas` de ESTE fichero solo escapa puntos, así que el `*` hay que
+        // escaparlo a mano o el motor lo lee como cuantificador y no casa nada.
         const hijo = reglas(CSS_DIALOGO, '.panel > \\*');
         expect(hijo, 'no se encontró la regla `.panel > *` del diálogo').not.toBe('');
-        expect(hijo).toMatch(/overflow-y:\s*auto/);
+        expect(
+            hijo,
+            'el hijo del panel volvió a scrollear: entonces la lista SÍ necesita pegarse '
+            + 'otra vez y el `static` de arriba pasa a ser el defecto original',
+        ).not.toMatch(/overflow-y:\s*auto/);
+
+        const escritorio = cuerpo(CSS, '@media (min-width: 769px)');
+        expect(reglas(escritorio, '.inDialog .contentPanel')).toMatch(/overflow-y:\s*auto/);
     });
 });

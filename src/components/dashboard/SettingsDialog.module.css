@@ -50,21 +50,42 @@
     animation: dialogRise 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* El contenido de Settings scrollea DENTRO del panel. Sin esto el scroll se lo
-   quedaría el documento de detrás, que además está bloqueado por el hook. */
+/* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] EL HIJO DEL PANEL DEJA DE SER UN TUBO.
+
+   Llevaba `overflow-y: auto`, y de esa sola declaración salían LAS DOS quejas del
+   dueño, que no eran dos defectos sino uno mirado por dos lados:
+
+     (a) la X era CONTENIDO del scroller, y por eso necesitaba `sticky` + `float:
+         right` + un margen inferior negativo + `z-index: 4` para PARECER chrome.
+         Aun así no lo era: medido, su centro quedaba 3,44px por encima del centro
+         del título, porque cada uno colgaba de un anclaje distinto.
+     (b) la pista de la barra recorría el panel ENTERO, franja fija incluida —
+         medido: 60px de barra corriendo junto a una cabecera clavada, y la barra
+         a ras del borde, cortando la esquina de 18px de radio.
+
+   Y de ahí salía además el temblor a escala de Windows fraccionaria: la lista
+   pegajosa DENTRO del scroller se re-rasterizaba cada fotograma (medido: 3.867 px
+   del nav cambiando a DPR 1,25, cero a DPR entero).
+
+   Ahora este hijo solo REPARTE la altura del panel entre dos filas —el chrome y el
+   cuerpo— y no scrollea nada. Quién scrollea se decide dentro del cuerpo:
+   `.inDialog .contentPanel` en escritorio, `.inDialog .layout` en móvil (los dos en
+   `Settings.module.css`).
+
+   `overflow: hidden` y no `auto` a propósito: si el reparto de altura fallara quiero
+   ver un recorte —que una medición caza— y no una tercera barra que lo disimule.
+   No recorta los modales: `overflow` solo recorta un `position: fixed` cuando el
+   ancestro es su bloque contenedor (transform/filter), y este no lo es.
+
+   `overscroll-behavior: contain` y `scrollbar-gutter: stable` NO se pierden: viajan
+   al elemento que de verdad scrollea. Una declaración de scroll sobre algo que no
+   scrollea no es inofensiva — es un guard en verde afirmando una mentira. */
 .panel > * {
     flex: 1 1 auto;
     min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    /* [P1-SETTINGS-DIALOG-STABLE · 2026-08-10] El hueco de la barra de scroll se
-       reserva SIEMPRE. Unas secciones desbordan (Privacidad pide 1336px de alto
-       contra 774 disponibles) y otras no (Suscripción cabe justa): sin esto, la
-       barra aparece y desaparece al navegar y el contenido se desplaza su ancho
-       —~15px en Windows, donde la barra ocupa sitio de verdad— en cada cambio.
-       Es el mismo defecto que las medidas de arriba, a menor escala: algo que
-       depende del contenido moviendo lo que no debería moverse. */
-    scrollbar-gutter: stable;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* [P1-SETTINGS-DIALOG-POLISH · 2026-08-10] EL CERCO BLANCO AL REFRESCAR.

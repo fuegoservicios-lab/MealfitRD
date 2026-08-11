@@ -1452,6 +1452,26 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 contenido se despoja de su chrome de página: ver el bloque
                 `.inDialog` del .module.css. */}
             <div className={`${styles.wrapper} ${inDialog ? styles.inDialog : ''}`}>
+                {/* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] La fila de chrome del diálogo.
+                    El botón de salida y la cabecera dejan de ser CONTENIDO del elemento
+                    que scrollea y pasan a ser una fila fija del panel. De esa mudanza
+                    salen las dos quejas del dueño a la vez: la X deja de flotar con el
+                    contenido y la barra de scroll deja de recorrer la franja que no se
+                    mueve.
+
+                    EN MODO PÁGINA ESTE DIV NO EXISTE: `.headerRow` es `display: contents`,
+                    así que sus hijos siguen siendo hijos directos del wrapper, con sus
+                    mismos márgenes y su mismo colapso. Sin caja nueva no hay layout nuevo
+                    que auditar — por eso se envuelve en los DOS modos y no solo en el
+                    diálogo: partir el JSX en dos ramas es justo lo que la prop `variant`
+                    existe para evitar.
+
+                    Los modales van dentro sin consecuencia: `Modal` no renderiza nada
+                    cerrado y un `position: fixed` abierto, que no es flex item;
+                    `EvaluarDeNuevoModal` portaliza a `document.body`. Siguen siendo
+                    descendientes del panel, que es lo que `isTopmost` exige para que ESC
+                    les pertenezca a ellos y no a la ventana. */}
+                <div className={styles.headerRow}>
                 {/* Back arrow visible en ambos viewports:
                     - Móvil + dentro de una sección: vuelve al listado de Ajustes.
                     - Móvil en listado / Desktop siempre: sale al dashboard.
@@ -1659,6 +1679,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         </>
                     )}
                 </div>
+                </div>{/* /headerRow */}
 
                 <div className={`${styles.layout} ${activeSection ? styles.layoutWithSection : ''}`}>
                     <aside className={styles.sidebar} aria-label="Secciones de ajustes">

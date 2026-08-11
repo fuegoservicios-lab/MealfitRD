@@ -5,6 +5,29 @@
     position: relative;
 }
 
+/* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] El envoltorio del botón de salida y la
+   cabecera. En el DIÁLOGO es una fila fija del panel; AQUÍ, en modo página, no es
+   nada.
+
+   `display: contents` no es un truco de estilo: es lo que hace que este `<div>` NO
+   EXISTA en el árbol de cajas. Sus hijos vuelven a ser hijos directos de `.wrapper`,
+   con sus mismos márgenes, su mismo colapso y su misma posición en cualquier
+   selector estructural. Sin caja nueva no hay nada que auditar en la página, que es
+   el modo que este cambio no debe rozar.
+
+   Verificado antes de escribirlo: en este fichero no hay ningún combinador hijo
+   `>`, ni `:first-child`, ni `:last-child`, ni `+` sobre esta cadena (los únicos `+`
+   son `input:checked + .toggleSlider`, otra zona), así que no hay ningún selector
+   que pueda notar la diferencia.
+
+   Es un `<div>` genérico sin rol implícito, que es la condición bajo la que
+   `display: contents` es seguro para el árbol de accesibilidad. Y si algún navegador
+   no lo soportara, el valor desconocido se descarta y queda `display: block` —
+   bloque dentro de bloque, exactamente el mismo layout. Degrada limpio. */
+.headerRow {
+    display: contents;
+}
+
 /* --- PAGE HEADER (left-aligned, persistente sobre toda la página) --- */
 .pageHeader {
     margin-bottom: 1.75rem;
@@ -61,20 +84,36 @@
    dijo — repetirlo es gastar la primera pantalla en no decir nada.
 
    Nada de esto toca el modo página: todo cuelga de `.inDialog`. */
-.inDialog {
-    /* [P1-SETTINGS-HEADER-STICKY · 2026-08-10] El relleno pasa a variables porque
-       la cabecera pegajosa necesita ANULARLO con márgenes negativos para tapar la
-       franja por la que se vería pasar el contenido. Dos números a mano en sitios
-       distintos se desincronizan; derivados, no. */
+.wrapper.inDialog {
+    /* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] DOS CLASES A PROPÓSITO (0-2-0), y no
+       es estilo: es un arreglo. `@media (max-width: 768px) .wrapper` y
+       `@media (max-width: 480px) .wrapper`, mil líneas más abajo en este mismo
+       fichero, EMPATAN en especificidad con `.inDialog` — un `@media` no suma
+       nada — y al ir después GANABAN. O sea que en el teléfono el `padding: 0`
+       que el guard de HEADER-STICKY declaraba imprescindible NO se aplicaba.
+
+       Medido con los dos CSS reales: a 390px el wrapper computaba `padding-top:
+       12px` y tras scrollear quedaba una franja de 12px sobre la cabecera pegajosa
+       por la que se veía pasar el contenido — a 768px, 16px. El defecto que se dio
+       por cerrado en escritorio llevaba días vivo en móvil, y su propio guard no
+       podía verlo porque comprueba que la declaración EXISTA, no que GANE.
+
+       Un conflicto de orden no se arregla con más orden —el siguiente que añada un
+       `@media .wrapper` lo revive—: se arregla con especificidad. Mismo patrón que
+       `.grid.gridFlush` ya usa dos veces en este fichero.
+
+       El relleno pasa a CERO en los cuatro lados: ahora lo aportan la fila de chrome
+       y el cuerpo, cada uno el suyo, porque son ellos los que tienen que llegar al
+       borde del panel. */
     --settings-pad-y: 1.25rem;
     --settings-pad-x: 1.5rem;
-    /* [P1-SETTINGS-HEADER-STICKY · corregido 2026-08-10] SIN relleno superior:
-       lo aporta la cabecera pegajosa. Un elemento `sticky` está CONFINADO a la
-       caja de contenido de su padre y no puede salir de ella, así que mientras
-       el wrapper tuviera 20px de relleno arriba la barra no podía subir hasta
-       el borde — el margen negativo empujaba y el confinamiento lo devolvía.
-       Resultado: una franja de 20px por la que se veía pasar el contenido. */
-    padding: 0 var(--settings-pad-x) 2rem;
+    padding: 0;
+    /* El wrapper reparte la altura del panel entre dos filas —el chrome y el
+       cuerpo— y NO scrollea ninguna. Quién scrollea se decide un nivel más abajo. */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
     position: relative;
     /* [P1-SETTINGS-HEADER-GUTTER · 2026-08-10] Tamaño VISIBLE del botón de cierre.
        La canaleta de la cabecera se calcula DESDE estas variables, así que si el
@@ -83,28 +122,20 @@
        no se come el espacio del texto. */
     --settings-close-size: 32px;
     --settings-close-inset: 0.75rem;
-    /* [P1-SETTINGS-NAV-UNDER-HEADER · 2026-08-10] Alto de la cabecera pegajosa.
-       Existe porque la barra lateral TAMBIÉN es pegajosa y tiene que pegarse por
-       DEBAJO de ella: si no, se mete detrás de un fondo opaco y el usuario ve
-       «General» cortado por la mitad.
+    /* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] AQUÍ VIVÍAN `--settings-header-h` y
+       `--settings-header-gap`, y su desaparición es el resumen de este cambio.
 
-       [P1-SETTINGS-HEADER-EXACT · 2026-08-10] Este número NO describe la cabecera:
-       se la IMPONE. En escritorio `.inDialog .pageHeader` toma `height` de aquí, y
-       por eso el pegado de la barra cae exacto. Mientras fue una descripción estuvo
-       mal por 0,46875px —decía «20 + 28 + 12» y el título ocupa 22,875 + 5,59375 de
-       margen, no 28— y ese medio píxel hacía saltar un píxel entero a los iconos que
-       cruzaban el redondeo. Si lo cambias, cambia el aire de la cabecera; la barra
-       lo sigue sola. */
-    --settings-header-h: 3.75rem;
-    /* [P1-SETTINGS-NAV-NO-JUMP · 2026-08-10] La separación entre la cabecera y lo
-       que viene debajo. Es el margen inferior de `.pageHeader` Y el punto de pegado
-       de la barra lateral, y por eso es UNA variable y no dos números.
+       La primera imponía el alto de la cabecera; la segunda era a la vez su margen
+       inferior y el punto donde se pegaba la lista. Existían porque la lista era
+       PEGAJOSA y tenía que pegarse justo debajo de una cabecera que también lo era:
+       tres P-fixes en cadena (NAV-UNDER-HEADER, NAV-NO-JUMP, HEADER-EXACT) para
+       lograr que dos números escritos aparte coincidieran, primero con 12px de
+       error y luego con 0,46875.
 
-       Por qué importa: para que la barra no se mueva NADA al scrollear, su punto de
-       pegado tiene que coincidir exactamente con su posición natural. Con un valor
-       distinto (antes 0.5rem) la lista empezaba en 79px y se pegaba en 67: un salto
-       de 12px al empezar a bajar. Poco, pero visible — el dueño lo reportó. */
-    --settings-header-gap: 1.25rem;
+       Ya no hay dos números que sincronizar. La lista no se pega a nada porque no
+       está dentro de nada que se mueva, así que el problema no está resuelto: es
+       INEXPRESABLE. Si alguien vuelve a necesitar una de estas variables, la
+       pregunta correcta es por qué ha vuelto a meter la cabecera en el scroll. */
     /* [P1-SETTINGS-DIALOG-STABLE · 2026-08-10] `width: 100%` + `margin: 0`
        SOSTIENEN LA VENTANA QUIETA. No son cosmética: son la corrección del
        defecto «cada vez que cambio de sección se mueve todo».
@@ -126,38 +157,63 @@
     margin: 0;
 }
 
-/* La X va a la esquina, no en una línea propia sobre el título. Se queda solo
-   el icono: su nombre accesible lo pone `aria-label`. */
-/* [P1-SETTINGS-HEADER-GUTTER · 2026-08-10] La X estaba pegada al texto en el móvil, y
-   la causa no era «falta padding»: al ser `position: absolute` el botón está FUERA DEL
-   FLUJO, así que el título y el subtítulo no pueden saber que existe. La cabecera va
-   centrada con 8px de margen lateral mientras el botón ocupa ~53px por la derecha, de
-   modo que cualquier texto largo corre por debajo de él. El ancho ahora sale de las
-   variables de `.inDialog`, que es lo que permite reservarle su hueco. */
-/* [P1-SETTINGS-HEADER-STICKY · 2026-08-10] `sticky`, no `absolute`.
-   El matiz que engaña: un elemento ABSOLUTO dentro de un contenedor con scroll SE
-   VA CON EL CONTENIDO — su bloque contenedor scrollea con él. «Absoluto» suena a
-   «fijo» y no lo es; solo `sticky` (o `fixed`) se queda. Medido a 1112px: tras
-   999px de scroll el borde superior de la X estaba en −987px. Fuera, no recortada.
-   Flota a la derecha para no ocupar una línea propia sobre el título, que es lo
-   que el `absolute` conseguía y hay que conservar. */
+/* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] LA FILA DE CHROME: el título a un lado,
+   la X al otro, hermanos en la misma fila y fuera del scroll.
+
+   `flex-direction: row-reverse` y no `row`: en el JSX el botón va ANTES de la
+   cabecera, porque el modo página lo necesita arriba (allí es la flecha «Volver» en
+   su propia línea) y porque un lector de pantalla debe encontrar la salida primero.
+   Invertir solo el eje VISUAL deja la X a la derecha sin tocar ni el orden del DOM
+   ni el de tabulación, que siguen siendo los de hoy.
+
+   `align-items: flex-start` y NO `center`: con una línea da igual, pero el título de
+   sección en móvil llega a tres, y `center` mandaría la X al medio del bloque, lejos
+   de la esquina donde uno busca una X. Es exactamente la forma de
+   P1-TRACKING-HEADER-MOBILE: una regla escrita para un contenido bajo sobrevive al
+   contenido alto. El centrado óptico del caso de una línea lo da el `min-height` de
+   la cabecera, abajo.
+
+   La línea inferior no es una cuarta frontera: es la MISMA que dibuja
+   `.inDialog .sidebar` como `border-right`, con el mismo valor y el mismo fallback,
+   formando una «⊤». Sin ella el contenido se corta contra un borde invisible y nada
+   explica por qué la barra de scroll empieza más abajo. */
+.inDialog .headerRow {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: flex-start;
+    gap: var(--settings-close-inset);
+    padding: var(--settings-pad-y) var(--settings-close-inset) 0.75rem var(--settings-pad-x);
+    border-bottom: 1px solid var(--border-color, rgba(148, 163, 184, 0.18));
+}
+
+/* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] La X deja de ser una capa y pasa a ser una
+   caja. Caen cuatro muletas de golpe, y las cuatro por la misma causa:
+
+   · `position: sticky` — P1-SETTINGS-HEADER-STICKY tenía razón CON EL CÓDIGO DE
+     ENTONCES: un absoluto dentro de un contenedor con scroll se va con el contenido
+     (medido, −987px tras 999px de scroll). Lo que cambia no es el argumento, es que
+     ya no vive dentro de nada que scrollee.
+   · `float: right` — servía para no ocupar una línea propia sobre el título. Un flex
+     item no ocupa línea propia.
+   · el `margin-bottom` negativo — compensaba el alto que el float reservaba.
+   · `z-index: 4` — tenía que ganarle al fondo opaco de una cabecera que ya no lo
+     tiene. No queda superposición que ordenar.
+
+   `position: relative` SÍ se queda, y es carga estructural: el `::after` de la zona
+   táctil es `absolute; inset: -6px`. Sin ancestro posicionado en el propio botón, ese
+   `::after` se ancla al wrapper y se convierte en un área de clic invisible del
+   tamaño de la ventana entera, hija del botón de cerrar. */
 .inDialog .exitSettingsBtn {
-    position: sticky;
-    float: right;
-    top: var(--settings-close-inset);
-    right: var(--settings-close-inset);
-    /* Sin el negativo, el float reserva su alto y empuja la cabecera hacia abajo. */
-    margin: 0 0 calc(-1 * var(--settings-close-size)) 0;
+    flex: 0 0 auto;
+    position: relative;
+    margin: 0;
     padding: 0;
     width: var(--settings-close-size);
     height: var(--settings-close-size);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    /* Por ENCIMA de la cabecera pegajosa (z-index 3): si no, su fondo opaco se
-       pinta sobre la X y volvemos a no tener botón de cerrar — mismo síntoma,
-       otra causa. */
-    z-index: 4;
 }
 
 /* Zona táctil de 44px sin agrandar el dibujo (Apple HIG). Antes eran 20px de icono
@@ -181,33 +237,61 @@
     display: none;
 }
 
-/* [P1-SETTINGS-HEADER-STICKY · 2026-08-10] La cabecera se queda a la vista.
-   Hermano de P1-SETTINGS-NAV-STICKY: allí la barra de secciones, aquí el título.
-   Lo caro no era estético — al bajar, el usuario se quedaba SIN BOTÓN DE CERRAR.
-   Los márgenes negativos tapan el relleno propio del wrapper: sin ellos queda una
-   franja de 20px por la que se ve pasar el contenido. El `background` es
-   obligatorio por lo mismo: un sticky transparente no oculta nada. */
+/* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] La cabecera pasa a ser el hueco de texto
+   de la fila de chrome. Se van CINCO declaraciones que existían solo para sobrevivir
+   dentro del scroller:
+
+   · `position: sticky` y `top: 0` — no hay nada que se mueva por debajo.
+   · `z-index: 3` — ya no compite con la X.
+   · el `background` opaco — «un sticky transparente no oculta nada» era cierto
+     mientras algo pasara por detrás; ahora el contenido se recorta contra el borde
+     superior de su propia columna, un nivel más abajo.
+   · los márgenes negativos laterales — anulaban un relleno del wrapper que hoy es 0.
+
+   Y se va la CANALETA SIMÉTRICA. La reservaba porque la X estaba FUERA DEL FLUJO y
+   el título no podía saber que existía; reservar a los dos lados era lo correcto
+   entonces, y costaba 68px de hueco vacío a la izquierda por un botón que está a la
+   derecha. Ahora son hermanos en una fila: la colisión no es improbable, es
+   INEXPRESABLE. Efecto visible y buscado — el título deja de estar indentado y
+   empieza donde empieza la lista de secciones.
+
+   `min-height` = alto del botón: con una línea el título queda ópticamente centrado
+   contra la X sin números mágicos; con dos o tres crece y el botón se queda arriba.
+   `min-width: 0` para que un título largo parta en vez de estirar la fila. */
 .inDialog .pageHeader {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    background: var(--bg-page, #F8FAFC);
-    margin: 0 calc(-1 * var(--settings-pad-x)) var(--settings-header-gap);
-    padding-top: var(--settings-pad-y);
-    padding-bottom: 0.75rem;
-    /* Canaleta SIMÉTRICA derivada del botón de cierre. Simétrica a propósito: el
-       título va centrado, así que reservar solo por la derecha lo descentraría
-       respecto del panel. Con esto el texto termina exactamente donde empieza la
-       columna del botón — la colisión deja de ser posible, no solo improbable.
-       Se le suma el `pad-x` que los márgenes negativos acaban de anular, para que
-       la canaleta siga midiendo lo mismo respecto al texto. */
-    padding-left: calc(var(--settings-pad-x) + var(--settings-close-size) + var(--settings-close-inset));
-    padding-right: calc(var(--settings-pad-x) + var(--settings-close-size) + var(--settings-close-inset));
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: var(--settings-close-size);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    /* La separación título↔subtítulo va por `gap` y no por el `margin-bottom` del
+       título, y no es cosmética. `gap` NO se aplica después del último hijo; el
+       margen sí. Con el subtítulo oculto en escritorio, ese margen sobrante contaba
+       para el centrado y bajaba el bloque: medido, 2,79px de desalineación contra la
+       X — exactamente la mitad de los 5,59 del margen. En móvil, donde el subtítulo
+       de sección sí se pinta, el `gap` da la misma separación de siempre. */
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+}
+
+/* [P1-SETTINGS-CHROME-SPLIT] El cuerpo se lleva la altura que el chrome no usa y NO
+   scrollea: el scroll baja un nivel más, a la columna que de verdad se mueve.
+   `min-height: 0` es la misma carga estructural que documenta `.panel`, un nivel más
+   abajo — un hijo flex con scroll dentro se niega a encoger por debajo de su
+   contenido si no se le dice. */
+.inDialog .layout {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .inDialog .pageTitle {
     font-size: 1.3rem;
     font-weight: 700;
+    /* [P1-SETTINGS-CHROME-SPLIT] Sin margen propio: la separación con el subtítulo la
+       pone el `gap` de la cabecera. Ver allí por qué importa para el centrado. */
+    margin: 0;
 }
 
 /* [P1-PLAN-DIALOG-GUTTER · 2026-08-10] «Plan & Objetivo» se veía pegado a los bordes.
@@ -250,60 +334,140 @@
     .inDialog .layout {
         grid-template-columns: 240px minmax(0, 1fr);
         gap: 2rem;
+        /* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] Las tres declaraciones de abajo son
+           UNA sola idea y se rompen juntas:
+
+           · `grid-template-rows: minmax(0, 1fr)` — sin esto la fila implícita es
+             `auto` y se dimensiona al CONTENIDO, así que desborda el cuerpo y el
+             `overflow: hidden` del wrapper lo recorta: las columnas nunca llegan a
+             poder scrollear.
+           · `align-items: stretch` — `.layout` trae `align-items: start` y `.sidebar`
+             trae `align-self: start`. Eran PREREQUISITOS NO COMENTADOS del sticky de
+             la página; con `start` las columnas miden su contenido, no tienen altura
+             acotada y por tanto no pueden scrollear.
+           · `min-height: 0` en las columnas (abajo) — el mínimo automático de un ítem
+             de grid es su contenido; sin anularlo el `overflow-y` no llega a activarse.
+
+           El fallo, si falta una, es SILENCIOSO y hacia el lado malo: no hay error,
+           simplemente no se puede llegar a la última sección. */
+        grid-template-rows: minmax(0, 1fr);
+        align-items: stretch;
+        /* El relleno horizontal que antes ponía el wrapper. Va aquí y no en las
+           columnas para que la geometría no se mueva: el contenido sigue empezando
+           donde empezaba y midiendo lo mismo. */
+        padding: 0 var(--settings-pad-x);
     }
 
-    /* [P1-SETTINGS-HEADER-EXACT · 2026-08-10] La otra mitad del pegado de la barra.
-       Sin esta línea `--settings-header-h` es una DESCRIPCIÓN del alto de la cabecera,
-       y estaba mal por medio píxel: el comentario de la variable declara «20 + 28 + 12
-       = 60» y los sumandos reales son 20 + 22,875 (caja de línea del título: 1.3rem ×
-       1.1) + 5,59375 (su margen) + 12 = 60,46875. Con eso la barra nacía en 80,46875 y
-       se pegaba en 80, así que al primer píxel de scroll daba un tirón de 15/32 px.
+    /* [P1-SETTINGS-NAV-STICKY · 2026-08-10 · reformulado por CHROME-SPLIT] Aquí vivía
+       `top: calc(var(--settings-header-h) + var(--settings-header-gap))`, y antes de
+       eso un `position: static` que rompía el pegado.
 
-       Por qué se veía siendo tan poco: Chrome pinta cada `<svg>` CUADRADO a píxel de
-       pantalla, de modo que ese tirón fraccionario se convierte en un salto de 1 PÍXEL
-       ENTERO para los iconos cuya coordenada cruza el umbral de redondeo, y en cero
-       para el resto. Medido con los dos CSS reales a 1112×907: saltaban exactamente
-       Capacidades, Privacidad, Súper Personalización y Plan & Objetivo — los cuatro que
-       reportó el dueño. Cuáles son los cuatro depende de la altura de la ventana, no de
-       los iconos: el panel va centrado, así que la altura decide la fase de la barra.
+       La intención de aquel P-fix —«la navegación no se va con el scroll»— se cumple
+       ahora POR CONSTRUCCIÓN: la lista ya no está dentro del elemento que scrollea.
 
-       Se fija el ALTO en vez de corregir la variable a 3.78125rem porque así la
-       constante deja de poder mentir: la cabecera mide lo que la variable dice, y el
-       pegado (`--settings-header-h + --settings-header-gap`) coincide con la posición
-       natural por construcción y no por coincidencia. Si el título cambia de tamaño, la
-       cabecera no se descuadra — a lo sumo el texto pide más aire, que se ve.
+       Se declara `static` EXPLÍCITO en vez de dejar que herede el `sticky` de
+       `.sidebar` (que es chrome de la PÁGINA) por dos razones. Una: un sticky aquí no
+       se pegaría a nada, porque su scrollport sería el wrapper y el wrapper no se
+       mueve — sería una declaración inerte que un guard puede leer como si
+       funcionara, que es el modo de fallo que más veces ha mordido a este fichero.
+       Dos: `sticky` promociona una capa de composición, y esa capa es exactamente lo
+       que se re-rasterizaba cada fotograma a escala de Windows fraccionaria.
 
-       Solo en escritorio: es la rama donde la barra es pegajosa. En móvil el diálogo
-       navega en dos pasos, el título pasa a ser el de la sección y puede necesitar dos
-       líneas, así que allí la cabecera sigue creciendo con su contenido. */
-    .inDialog .pageHeader {
-        height: var(--settings-header-h);
-    }
-
-    /* [P1-SETTINGS-NAV-STICKY · 2026-08-10] Aquí vivía un `position: static` que
-       ANULABA el `position: sticky` de `.sidebar`, y con él la navegación entera se iba
-       con el scroll: en el diálogo el que scrollea es el wrapper (`.panel > *` lleva
-       `overflow-y: auto`), así que sin sticky la lista sube y desaparece. Medido en
-       Chrome a 1112px con esta misma cadena: tras 999px de scroll el borde superior de
-       la barra quedaba en −864px, con el panel empezando en 40 — fuera de la ventana,
-       no «recortada». Con sticky se queda en 84.
-
-       El `static` era incidental: el comentario de arriba justifica las dos columnas y
-       la línea divisoria, y no lo menciona. La línea y su padding SÍ son de este bloque
-       y se quedan; lo único que se va es la declaración que rompía el pegado. No se
-       redeclara `top` a propósito — que lo siga poniendo `.sidebar`, así el diálogo y
-       la página se despegan del borde por el mismo sitio. */
+       La línea divisoria y su relleno SÍ eran lo legítimo de este bloque y se quedan;
+       ahora recorre toda la altura del cuerpo, que es lo que hace cualquier ventana
+       de ajustes de dos columnas. */
     .inDialog .sidebar {
         border-right: 1px solid var(--border-color, rgba(148, 163, 184, 0.18));
-        padding-right: 1rem;
-        /* [P1-SETTINGS-NAV-UNDER-HEADER · 2026-08-10] Aquí SÍ se redeclara `top`, al
-           revés de lo que decía la nota de arriba — y el motivo es nuevo: desde
-           P1-SETTINGS-HEADER-STICKY la cabecera del diálogo también es pegajosa Y
-           OPACA, así que el `top: 1.5rem` que hereda de `.sidebar` pegaba la lista
-           DETRÁS de ella. Medido: cabecera de 60px, barra pegada a 24 → 36px de
-           «General» tapados. En la PÁGINA no pasa porque allí no hay tal cabecera,
-           y por eso el cambio vive en la rama del diálogo. */
-        top: calc(var(--settings-header-h) + var(--settings-header-gap));
+        position: static;
+        top: auto;
+        align-self: stretch;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: var(--settings-pad-y) 1rem 2rem 0;
+    }
+
+    /* SALVAGUARDA, no barra permanente. Las 7 filas miden lo mismo en las 7 secciones,
+       así que esto solo entra en juego con la ventana baja: por debajo de ~645px de
+       alto la lista no cabe. Sin esto ahí queda recortada por el `overflow: hidden` y
+       «Suscripción» deja de ser alcanzable, sin barra que lo delate.
+
+       El scroll va en el NAV y no en el `aside` para que la barra caiga a la izquierda
+       del `padding-right` y no pegada al `border-right`, formando dos rayas verticales
+       paralelas separadas por nada.
+
+       NADA de `scrollbar-gutter: stable` aquí: el defecto que el gutter cura —la barra
+       que aparece y desaparece al cambiar de sección— no puede darse, porque el
+       contenido de la lista es el mismo en las 7. Reservar ancho fijo sería pagar todos
+       los días por un caso raro.
+
+       Ojo al añadir declaraciones: NO pongas `padding` aquí. El bloque de aplanado del
+       final del fichero declara `padding: 0` sobre `.inDialog .sidebarNav` con prefijo
+       de tema (0-3-1) y te lo comería sin avisar. El relleno de esta columna vive
+       arriba, en `.inDialog .sidebar`. */
+    .inDialog .sidebarNav {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+    }
+
+    /* EL scroller. La pista empieza justo debajo del chrome y acaba en el borde
+       inferior del panel: recorre exactamente lo que se mueve, que es la mitad de la
+       queja del dueño. */
+    .inDialog .contentPanel {
+        min-height: 0;
+        overflow-y: auto;
+        /* El documento de detrás está bloqueado por el hook de a11y; sin esto el
+           scroll encadena hasta él al llegar al final. Viene de `.panel > *`. */
+        overscroll-behavior: contain;
+        /* [P1-SETTINGS-DIALOG-STABLE · mudado, no borrado] El hueco de la barra se
+           reserva SIEMPRE, y ahora sobre el elemento correcto. La premisa sigue en
+           pie: unas secciones desbordan y otras no, y sin reserva la barra aparece y
+           desaparece al navegar desplazando el contenido ~8px en cada cambio. Estando
+           en la columna de contenido, ese desplazamiento ya no puede alcanzar ni al
+           título ni a la lista de secciones: antes movía la ventana entera. */
+        scrollbar-gutter: stable;
+        /* El aire de arriba y el de abajo que ponía el wrapper. Van DENTRO del
+           scroller: fuera serían franja muerta bajo el final del recorrido. */
+        padding: var(--settings-pad-y) 0 2rem;
+    }
+
+    /* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] El pulgar, separado del raíl.
+       El global de `index.css` son 8px a ras; aquí la pista corre pegada al canto de
+       un panel con 18px de radio, así que el pulgar se mete hacia dentro: 14px de
+       pista con 4 de borde transparente y `background-clip: padding-box` dejan 6px
+       visibles y centrados, con aire a los dos lados. El borde transparente es la
+       única forma de meter un pulgar hacia dentro — no existe `margin` en un
+       scrollbar.
+
+       Color: el mismo slate translúcido que `.soft-scrollbar` y el `.list` de
+       Notificaciones ya usan, no un gris nuevo. Y sin regla de tema: es translúcido
+       sobre el fondo del panel, así que se resuelve solo en claro y en oscuro.
+
+       Aviso para quien lo verifique: Chromium SIN VENTANA no dibuja este pulgar —
+       medido, 0 píxeles frente a 831 con navegador real. Si lo capturas headless vas
+       a creer que no funciona. */
+    .inDialog .contentPanel::-webkit-scrollbar {
+        width: 14px;
+    }
+
+    .inDialog .contentPanel::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .inDialog .contentPanel::-webkit-scrollbar-thumb {
+        background: rgba(100, 116, 139, 0.42);
+        border: 4px solid transparent;
+        background-clip: padding-box;
+        border-radius: 999px;
+    }
+
+    .inDialog .contentPanel::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 116, 139, 0.62);
+        border: 4px solid transparent;
+        background-clip: padding-box;
     }
 }
 
@@ -1321,12 +1485,64 @@
     .factItem button {
         align-self: flex-end;
     }
+
+    /* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] El relleno del diálogo encoge en móvil
+       igual que encogía el del wrapper, pero se declara UNA vez —en la variable— y lo
+       siguen sus consumidores solos: el chrome, el cuerpo y el hueco espejo de la X.
+       Suma lo mismo que antes: 12px de aire lateral y 16 de aire superior.
+
+       Va con DOS clases (0-2-0) por lo mismo que el bloque base: `.wrapper` dentro de
+       un `@media` empata con `.inDialog` y gana por orden. Ese empate es justo el que
+       dejaba 12px de franja viva sobre la cabecera en el teléfono. */
+    .wrapper.inDialog {
+        --settings-pad-x: 0.75rem;
+        --settings-pad-y: 1rem;
+    }
+
+    /* [P1-SETTINGS-HEADER-GUTTER · conservado, reformulado por CHROME-SPLIT] EL HUECO
+       ESPEJO. En móvil el título va centrado (lo pone la regla `.pageHeader` de la
+       página) y a su derecha hay una caja real de 32px con 12 de separación. Sin
+       reservar lo mismo a la izquierda el texto queda descentrado respecto del panel
+       —que era la mitad del defecto original— y los títulos largos vuelven a correr
+       hacia la X.
+
+       La diferencia con la canaleta que se acaba de borrar: aquella reservaba a LOS
+       DOS lados contra un botón fuera del flujo, porque el texto no podía saber que
+       existía. Esta reserva a UN solo lado el tamaño exacto de un hermano que sí ocupa
+       sitio. */
+    .inDialog .pageHeader {
+        padding-left: calc(var(--settings-close-size) + var(--settings-close-inset));
+    }
+
+    /* [P1-SETTINGS-CHROME-SPLIT] En móvil el cuerpo es UN scroller, no dos.
+
+       Las dos columnas nunca conviven: `.layoutWithSection .sidebar` y
+       `.layout:not(.layoutWithSection) .contentPanel` esconden una de ellas. Dar
+       `overflow` a cada columna sería dar scroll a algo que la mitad del tiempo no
+       existe: quién scrollea pasaría a depender de un `display: none`, y el día que
+       alguien muestre las dos —o ninguna— no habría scroller y el contenido quedaría
+       inalcanzable, recortado y sin barra que lo delate. La barra la lleva el
+       contenedor, que existe siempre, y gobierna a la columna que esté viva.
+
+       Sin `scrollbar-gutter`: en un teléfono las barras se superponen y no reservan
+       ancho, así que reservarlo sería regalar un 3% de pantalla. */
+    .inDialog .layout {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: var(--settings-pad-y) var(--settings-pad-x) 3rem;
+    }
 }
 
 /* === Mobile pequeño (≤480px) === */
 @media (max-width: 480px) {
     .wrapper {
         padding: 0.75rem 0.625rem 3rem;
+    }
+
+    /* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] Mismo motivo de especificidad que arriba:
+       sin las dos clases, el `.wrapper` de esta misma regla le gana a `.inDialog`. */
+    .wrapper.inDialog {
+        --settings-pad-x: 0.625rem;
     }
 
     .section {
