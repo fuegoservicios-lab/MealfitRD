@@ -583,6 +583,34 @@
        (`.percRow display:none`, `.track height: 22px`, `.fillPerc display:flex`)
        se promovieron a base — ahora aplican para desktop también. Las
        declaraciones aquí eran duplicadas y se eliminaron. */
+
+    /* [P1-MACRO-BAR-SLIM · 2026-08-11] Las barras de los tres macros adelgazan.
+       Calorías NO se toca: el dueño dijo expresamente que esa está bien.
+
+       El defecto es de PROPORCIÓN, no de altura. Los 22px de `.track` se fijaron
+       cuando toda barra ocupaba el ancho de la tarjeta (P3-TRACKING-PERC-DESKTOP,
+       para que el porcentaje cupiera DENTRO del relleno, estilo carga de teléfono).
+       A lo ancho de la tarjeta eso da ~16:1 y se lee como una barra. Al pasar los
+       tres macros a compartir una fila (P1-MACRO-ROW-MOBILE), la misma altura sobre
+       ~100px de ancho da 4,5:1 — y a esa proporción una caja de esquinas redondas
+       deja de parecer una barra de progreso y parece una cápsula o un botón vacío.
+       Tres cápsulas grises seguidas es exactamente lo que el dueño estaba señalando.
+
+       8px devuelve la proporción al terreno de «línea de progreso» (~12:1) y de paso
+       ordena la jerarquía: la gruesa es el dato principal, las finas son el detalle.
+       El `!important` es para ganarle al `height` inline del JSX, igual que la regla
+       base — no es pereza, es el mismo mecanismo.
+
+       El porcentaje dentro del relleno se retira de las finas: en 8px no cabe una
+       cifra, y aquí no hace falta porque el número exacto («0 / 123 g») está justo
+       encima. En la de calorías se queda. */
+    .barSmall .track {
+        height: 8px !important;
+    }
+
+    .barSmall .fillPerc {
+        display: none;
+    }
 }
 
 /* [P1-MACRO-ROW-MOBILE · 2026-08-11] Repliegue a dos columnas, y el umbral está
