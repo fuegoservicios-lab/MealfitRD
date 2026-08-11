@@ -54,7 +54,11 @@ describe('[P1-CLINICAL-FAIL-CLOSED] un servidor caído no puede vaciarte el perf
         fetchWithAuth.mockResolvedValue(respuesta(PERFIL_REAL));
         render(<ClinicalProfilePanel />, { customContext: { updateData: vi.fn() } });
 
-        expect(await screen.findByText(/Guardar perfil clínico/i)).toBeInTheDocument();
+        // [P1-SETTINGS-AUTOSAVE] El ancla era «Guardar perfil clínico»; ese botón ya no
+        // existe porque el panel se guarda solo. Se ancla en el propio formulario:
+        // demuestra lo mismo —que SÍ se pinta cuando la carga va bien— sin depender de
+        // un rótulo que el autoguardado se llevó.
+        expect(await screen.findByText(/Laboratorios recientes/i)).toBeInTheDocument();
         expect(screen.getByDisplayValue('5.4')).toBeInTheDocument();
         expect(screen.getByDisplayValue(/vesícula/i)).toBeInTheDocument();
     });
@@ -68,9 +72,13 @@ describe('[P1-CLINICAL-FAIL-CLOSED] un servidor caído no puede vaciarte el perf
         expect(await screen.findByText(/No pudimos cargar tu perfil clínico/i, {}, ESPERA))
             .toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Reintentar/i })).toBeInTheDocument();
+        // Aquí había un `queryByText(/Guardar perfil clínico/i)).not.toBeInTheDocument()`.
+        // Sin ese botón en ningún sitio pasó a ser CIERTO POR VACÍO, y una guarda que ya
+        // no puede fallar se ve igual que una sana. Lo sustituye la ausencia de cualquier
+        // control editable, más el caso «no sale ningún PUT» de abajo.
         expect(
-            screen.queryByText(/Guardar perfil clínico/i),
-            'el botón de guardar sigue vivo sobre un panel vacío: un clic borra el perfil',
+            screen.queryByRole('textbox'),
+            'hay un campo editable sobre un panel vacío: con autoguardado, tocarlo lo escribe',
         ).not.toBeInTheDocument();
         expect(
             screen.queryByText(/Digestión/i),
@@ -115,6 +123,6 @@ describe('[P1-CLINICAL-FAIL-CLOSED] un servidor caído no puede vaciarte el perf
         await userEvent.click(reintentar);
 
         await waitFor(() => expect(screen.getByDisplayValue('5.4')).toBeInTheDocument(), ESPERA);
-        expect(screen.getByText(/Guardar perfil clínico/i)).toBeInTheDocument();
+        expect(screen.getByText(/Laboratorios recientes/i)).toBeInTheDocument();
     });
 });

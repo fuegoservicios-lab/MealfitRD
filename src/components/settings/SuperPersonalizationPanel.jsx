@@ -14,6 +14,7 @@ import { Loader2, X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
+import useAutoguardado from '../../hooks/useAutoguardado';
 import styles from './SuperPersonalizationPanel.module.css';
 
 const ENDPOINT = '/api/user/preferences/super-personalization';
@@ -120,11 +121,10 @@ function TagInput({ label, hint, tags, placeholder, onChange }) {
     );
 }
 
-export default function SuperPersonalizationPanel({ onSaved }) {
+export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
     const { updateData } = useAssessment();
     const [sp, setSp] = useState(EMPTY);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     // [P2-SUPERPERS-FAIL-CLOSED · 2026-07-12] Pre-fix, una carga fallida (red
     // caída, 5xx — el 4xx/5xx ni siquiera mostraba toast) dejaba el panel
     // VACÍO en silencio: si el usuario guardaba en ese estado, sobrescribía
@@ -179,43 +179,55 @@ export default function SuperPersonalizationPanel({ onSaved }) {
             : [...sp.kitchenEquipment, item],
     );
 
-    const save = async () => {
-        // [P2-SUPERPERS-FAIL-CLOSED] Sin una carga exitosa, guardar pisaría
-        // los datos reales con el estado vacío del panel.
-        if (loading || loadFailed) {
-            toast.error('Primero deben cargar tus datos actuales — usa "Reintentar".');
-            return;
-        }
-        setSaving(true);
-        try {
-            const body = {
-                foodLikes: sp.foodLikes,
-                cuisines: sp.cuisines,
-                kitchenEquipment: sp.kitchenEquipment,
-                religiousRestriction: sp.religiousRestriction || '',
-                religiousRestrictionOther: sp.religiousRestriction === 'otra' ? (sp.religiousRestrictionOther || '').slice(0, MAX_OTHER) : '',
-                cookingSkill: sp.cookingSkill || '',
-                flavorProfile: sp.flavorProfile || {},
-                freeText: (sp.freeText || '').slice(0, MAX_FREETEXT),
-            };
-            const res = await fetchWithAuth(ENDPOINT, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const saved = data?.super_personalization || body;
-            // Sincroniza formData para que el plan/chat de ESTA sesión lo usen ya.
-            try { updateData('super_personalization', saved); } catch { /* no-op */ }
-            if (onSaved) onSaved(saved);
-            toast.success('Súper personalización guardada. La IA la usará en tus próximos planes y respuestas.');
-        } catch {
-            toast.error('No se pudo guardar. Intenta de nuevo.');
-        } finally {
-            setSaving(false);
-        }
-    };
+    /* [P1-SETTINGS-AUTOSAVE · 2026-08-11] Sin botón: el panel se guarda solo.
+
+       `freeText` va en la clase AL_VOLCAR, y no por comodidad: cada PUT con el texto
+       cambiado dispara `async_extract_and_save_facts` en el backend
+       (routers/user_data.py:986) — router LLM + embedding + dedup. Con un temporizador
+       al teclear, cada pausa dentro del párrafo sería una llamada al modelo. Sale al
+       salir del campo, al cerrar y al irse la página, no antes.
+
+       No devuelve el eco: este panel NO lo adopta en su estado (a diferencia de Mis
+       básicos), así que la base tiene que quedarse con lo enviado o el diff siguiente
+       vería como «cambio» la normalización del servidor y se llamaría a sí mismo. */
+    const guardar = useCallback(async (v, opciones = {}) => {
+        const body = {
+            foodLikes: v.foodLikes,
+            cuisines: v.cuisines,
+            kitchenEquipment: v.kitchenEquipment,
+            religiousRestriction: v.religiousRestriction || '',
+            religiousRestrictionOther: v.religiousRestriction === 'otra' ? (v.religiousRestrictionOther || '').slice(0, MAX_OTHER) : '',
+            cookingSkill: v.cookingSkill || '',
+            flavorProfile: v.flavorProfile || {},
+            freeText: (v.freeText || '').slice(0, MAX_FREETEXT),
+        };
+        const res = await fetchWithAuth(ENDPOINT, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            ...(opciones.keepalive ? { keepalive: true } : {}),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const saved = data?.super_personalization || body;
+        // Sincroniza formData para que el plan/chat de ESTA sesión lo usen ya.
+        try { updateData('super_personalization', saved); } catch { /* no-op */ }
+        if (onSaved) onSaved(saved);
+        return undefined;
+    }, [onSaved, updateData]);
+
+    /* Fuera el toast de éxito: con autoguardado saltaría en cada chip. Lo sustituye el
+       acuse de la cabecera. El de error se queda — eso sí hay que interrumpirlo. */
+    const { estado, volcar } = useAutoguardado({
+        valor: sp,
+        guardar,
+        habilitado: !loading && !loadFailed,
+        instantaneos: ['foodLikes', 'cuisines', 'kitchenEquipment', 'religiousRestriction', 'cookingSkill', 'flavorProfile'],
+        alVolcar: ['freeText', 'religiousRestrictionOther'],
+        onEstado,
+    });
+
+    useEffect(() => { if (estado === 'error') toast.error('No se pudo guardar tu súper personalización.'); }, [estado]);
 
     if (loading) {
         return (
@@ -352,6 +364,7 @@ export default function SuperPersonalizationPanel({ onSaved }) {
                     className={styles.textarea}
                     value={sp.freeText || ''}
                     onChange={(e) => set('freeText', e.target.value.slice(0, MAX_FREETEXT))}
+                    onBlur={() => volcar()}
                     maxLength={MAX_FREETEXT}
                     rows={5}
                     placeholder="Ej: Trabajo de noche y como a horas raras. Odio el cilantro. Cocino para mí y mi pareja…"
@@ -359,10 +372,6 @@ export default function SuperPersonalizationPanel({ onSaved }) {
                 <div className={styles.counter}>{(sp.freeText || '').length}/{MAX_FREETEXT}</div>
             </div>
 
-            <button type="button" className={styles.save} onClick={save} disabled={saving}>
-                {saving && <Loader2 size={17} className={styles.spin} />}
-                {saving ? 'Guardando…' : 'Guardar preferencias'}
-            </button>
         </div>
     );
 }

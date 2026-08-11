@@ -13,6 +13,7 @@ import { Loader2, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
+import useAutoguardado from '../../hooks/useAutoguardado';
 import { getCachedMasterList, setCachedMasterList } from '../../utils/pantryCache';
 import styles from './SuperPersonalizationPanel.module.css';
 
@@ -21,13 +22,12 @@ const MAX_STAPLES = 8;
 
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
-export default function StapleFoodsPanel({ onSaved }) {
+export default function StapleFoodsPanel({ onSaved, onEstado }) {
     const { updateData } = useAssessment();
     const [staples, setStaples] = useState([]);
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     // [P2-SUPERPERS-FAIL-CLOSED pattern] fail-closed: una carga fallida NUNCA deja el panel
     // vacío-editable (guardar pisaría los básicos reales con []).
     const [loadFailed, setLoadFailed] = useState(false);
@@ -87,35 +87,46 @@ export default function StapleFoodsPanel({ onSaved }) {
     };
     const removeStaple = (name) => setStaples((prev) => prev.filter((s) => s !== name));
 
-    const save = async () => {
-        if (loading || loadFailed) {
-            toast.error('Primero deben cargar tus básicos actuales — usa "Reintentar".');
-            return;
+    /* [P1-SETTINGS-AUTOSAVE · 2026-08-11] Este panel ya no tiene botón: se guarda solo.
+       Ver `hooks/useAutoguardado.js` para el porqué de las tres velocidades.
+
+       Devuelve el eco del servidor A PROPÓSITO. Este panel adopta en su estado la lista
+       que el backend responde (normaliza nombres), así que si la base del autoguardado
+       se quedara con lo ENVIADO, el diff siguiente vería una diferencia que no existe y
+       se llamaría a sí mismo. Devolviéndolo, base y estado se mueven juntos. */
+    const guardar = useCallback(async ({ staples: lista }, opciones = {}) => {
+        const res = await fetchWithAuth(ENDPOINT, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ staple_foods: lista }),
+            ...(opciones.keepalive ? { keepalive: true } : {}),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => null);
+            throw new Error(err?.detail || `HTTP ${res.status}`);
         }
-        setSaving(true);
-        try {
-            const res = await fetchWithAuth(ENDPOINT, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ staple_foods: staples }),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => null);
-                throw new Error(err?.detail || `HTTP ${res.status}`);
-            }
-            const data = await res.json();
-            const saved = Array.isArray(data?.staple_foods) ? data.staple_foods : staples;
-            setStaples(saved);
-            // Sincroniza formData para que el plan/swap de ESTA sesión ya lo use.
-            try { updateData('stapleFoods', saved); } catch { /* no-op */ }
-            if (onSaved) onSaved(saved);
-            toast.success('Básicos guardados. Tu próximo plan y tus swaps los usarán como ancla recurrente.');
-        } catch (e) {
-            toast.error(e?.message || 'No se pudo guardar. Intenta de nuevo.');
-        } finally {
-            setSaving(false);
-        }
-    };
+        const data = await res.json();
+        const saved = Array.isArray(data?.staple_foods) ? data.staple_foods : lista;
+        setStaples(saved);
+        // Sincroniza formData para que el plan/swap de ESTA sesión ya lo use.
+        try { updateData('stapleFoods', saved); } catch { /* no-op */ }
+        if (onSaved) onSaved(saved);
+        return { staples: saved };
+    }, [onSaved, updateData]);
+
+    /* El toast de éxito se retira: con autoguardado saltaría cada vez que tocas un
+       básico y el aviso pasaría de informar a estorbar. Lo sustituye el acuse
+       permanente de la cabecera, que dice lo mismo sin interrumpir. El de ERROR se
+       queda: eso sí hay que interrumpirlo. */
+    const { estado } = useAutoguardado({
+        valor: { staples },
+        guardar,
+        habilitado: !loading && !loadFailed,
+        instantaneos: ['staples'],
+        onEstado,
+    });
+
+    useEffect(() => { if (estado === 'error') toast.error('No se pudieron guardar tus básicos.'); }, [estado]);
 
     if (loading) {
         return (
@@ -197,10 +208,6 @@ export default function StapleFoodsPanel({ onSaved }) {
                 <div className={styles.counter}>{staples.length}/{MAX_STAPLES}</div>
             </div>
 
-            <button type="button" className={styles.save} onClick={save} disabled={saving}>
-                {saving && <Loader2 size={17} className={styles.spin} />}
-                {saving ? 'Guardando…' : 'Guardar básicos'}
-            </button>
         </div>
     );
 }

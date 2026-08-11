@@ -13,11 +13,12 @@
 // Reutiliza el CSS module de SuperPersonalizationPanel a propósito: mismos
 // tokens visuales (field/label/hint/chips/select/textarea/save) → los dos
 // paneles opt-in de Ajustes se ven como una sola familia.
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
+import useAutoguardado from '../../hooks/useAutoguardado';
 import styles from './SuperPersonalizationPanel.module.css';
 
 const ENDPOINT = '/api/user/preferences/clinical-profile';
@@ -74,11 +75,10 @@ const TRAINING_TIMES = [
     { value: 'noche', label: 'Noche' },
 ];
 
-export default function ClinicalProfilePanel({ onSaved }) {
+export default function ClinicalProfilePanel({ onSaved, onEstado }) {
     const { updateData } = useAssessment();
     const [cp, setCp] = useState(EMPTY);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     // [P1-CLINICAL-FAIL-CLOSED · 2026-08-11] Ver el comentario de `load`.
     const [loadFailed, setLoadFailed] = useState(false);
 
@@ -144,47 +144,75 @@ export default function ClinicalProfilePanel({ onSaved }) {
         return { ...prev, giSymptoms: [...cur.filter((x) => x !== 'ninguno'), val] };
     });
 
-    const save = async () => {
-        // [P1-CLINICAL-FAIL-CLOSED] Sin una carga exitosa detrás, guardar escribiría el
-        // estado vacío del panel encima del perfil real. El render de abajo ya bloquea
-        // la interfaz; esto cierra la puerta también a cualquier llamada programática
-        // —el autoguardado, sin ir más lejos—, que no pasa por ese render.
-        if (loading || loadFailed) {
-            toast.error('Aún no cargamos tu perfil clínico. Reintenta antes de guardar.');
-            return;
+    /* [P1-SETTINGS-AUTOSAVE · 2026-08-11] Sin botón: el panel se guarda solo.
+
+       `freeText` va en AL_VOLCAR por la misma razón que en Súper Personalización: cada
+       PUT con el texto cambiado dispara `async_extract_and_save_facts`
+       (routers/user_data.py:1197) — LLM + embedding. Sale al salir del campo, al cerrar
+       y al irse la página, nunca por temporizador.
+
+       Los laboratorios NO son instantáneos: se teclean, y un temporizador de 400 ms
+       dispararía a mitad de un número («9» camino de «92»). Caen en la clase lenta por
+       defecto, que es justo para lo que existe.
+
+       El guard de P1-CLINICAL-FAIL-CLOSED viaja aquí a través de `habilitado`: sin una
+       carga con éxito el hook no tiene base y no escribe. Sin botón, el guard del botón
+       ya no protegería a nadie. */
+    /* El 422 («ese número no puede ser») ya tiene su propio aviso dentro de `guardar`.
+       Sin esta marca saldrían DOS toasts por el mismo fallo: el específico y el
+       genérico de abajo — y el genérico es el que menos ayuda. */
+    const fueRangoRef = useRef(false);
+
+    const guardar = useCallback(async (v, opciones = {}) => {
+        fueRangoRef.current = false;
+        const body = {
+            labs: v.labs,
+            weightHistory: v.weightHistory,
+            giSymptoms: v.giSymptoms,
+            training: v.training,
+            freeText: (v.freeText || '').slice(0, MAX_FREETEXT),
+        };
+        const res = await fetchWithAuth(ENDPOINT, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            ...(opciones.keepalive ? { keepalive: true } : {}),
+        });
+        if (res.status === 422) {
+            // Un valor fuera de rango no es un fallo de guardado: es el backend
+            // diciendo que ese número no puede ser. Se avisa y NO se relanza, para que
+            // el acuse no se quede en «error» por algo que el usuario tiene que
+            // corregir él — pero tampoco se adopta como base, así que en cuanto lo
+            // arregle volverá a intentarlo solo.
+            const err = await res.json().catch(() => null);
+            fueRangoRef.current = true;
+            toast.error(err?.detail || 'Revisa los valores: hay alguno fuera de rango.');
+            throw new Error('422');
         }
-        setSaving(true);
-        try {
-            const body = {
-                labs: cp.labs,
-                weightHistory: cp.weightHistory,
-                giSymptoms: cp.giSymptoms,
-                training: cp.training,
-                freeText: (cp.freeText || '').slice(0, MAX_FREETEXT),
-            };
-            const res = await fetchWithAuth(ENDPOINT, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            if (res.status === 422) {
-                const err = await res.json().catch(() => null);
-                toast.error(err?.detail || 'Revisa los valores: hay alguno fuera de rango.');
-                return;
-            }
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const saved = data?.clinical_profile || body;
-            // Sincroniza formData para que el plan/chat de ESTA sesión lo usen ya.
-            try { updateData('clinical_profile', saved); } catch { /* no-op */ }
-            if (onSaved) onSaved(saved);
-            toast.success('Perfil clínico guardado. La IA lo usará en tus próximos planes.');
-        } catch {
-            toast.error('No se pudo guardar. Intenta de nuevo.');
-        } finally {
-            setSaving(false);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const saved = data?.clinical_profile || body;
+        try { updateData('clinical_profile', saved); } catch { /* no-op */ }
+        if (onSaved) onSaved(saved);
+        return undefined;
+    }, [onSaved, updateData]);
+
+    const { estado, volcar } = useAutoguardado({
+        valor: cp,
+        guardar,
+        habilitado: !loading && !loadFailed,
+        instantaneos: ['giSymptoms', 'training'],
+        alVolcar: ['freeText'],
+        onEstado,
+    });
+
+    // Los otros dos paneles avisan de un guardado fallido; este no lo hacía, y sin
+    // botón el usuario no tendría NINGUNA señal de que su cambio no llegó.
+    useEffect(() => {
+        if (estado === 'error' && !fueRangoRef.current) {
+            toast.error('No se pudo guardar tu perfil clínico.');
         }
-    };
+    }, [estado]);
 
     if (loading) {
         return (
@@ -363,13 +391,11 @@ export default function ClinicalProfilePanel({ onSaved }) {
                     placeholder="Ej. Me quitaron la vesícula en 2024; mi doctora me pidió bajar los triglicéridos…"
                     value={cp.freeText}
                     onChange={(e) => setCp((prev) => ({ ...prev, freeText: e.target.value }))}
+                    onBlur={() => volcar()}
                 />
                 <div className={styles.counter}>{(cp.freeText || '').length}/{MAX_FREETEXT}</div>
             </div>
 
-            <button type="button" className={styles.save} onClick={save} disabled={saving}>
-                {saving ? (<><Loader2 className={styles.spin} size={16} /> Guardando…</>) : 'Guardar perfil clínico'}
-            </button>
         </div>
     );
 }

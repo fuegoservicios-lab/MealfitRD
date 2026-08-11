@@ -276,6 +276,38 @@
     padding: 0;
 }
 
+/* [P1-SETTINGS-AUTOSAVE · 2026-08-11] El acuse de guardado, en la fila de chrome.
+
+   Discreto a propósito: sustituye a tres botones que gritaban «Guardar» y su trabajo es
+   confirmar, no reclamar. Del tamaño de una etiqueta y en el gris de texto secundario;
+   el único que sube de tono es el de error, que sí tiene que interrumpir.
+
+   `flex-shrink: 0` para que no lo aplaste un título largo, y `white-space: nowrap`
+   porque «Sin guardar…» partido en dos líneas estiraría la fila entera y movería la X.
+
+   Se alinea con el botón, no con el texto: `align-self: center` dentro de una fila que
+   es `align-items: flex-start`, para que con un título de dos líneas el acuse siga a la
+   altura de la X y no bailando a media caja. */
+.inDialog .acuse {
+    flex-shrink: 0;
+    align-self: center;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--text-muted, #5B6A7D);
+    /* Sin fondo ni borde: en reposo no se pinta, y cuando aparece basta el texto. Una
+       píldora aquí competiría con la X, que es el único control de esta fila. */
+}
+
+.inDialog .acuseError {
+    color: #B91C1C;
+}
+
+:global(html[data-theme="dark"]) .inDialog .acuseError {
+    color: #FCA5A5;
+}
+
 /* [P1-SETTINGS-CHROME-SPLIT] El cuerpo se lleva la altura que el chrome no usa y NO
    scrollea: el scroll baja un nivel más, a la columna que de verdad se mueve.
    `min-height: 0` es la misma carga estructural que documenta `.panel`, un nivel más

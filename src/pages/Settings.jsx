@@ -421,6 +421,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // explícitamente click "Actualizar Plan con Nuevos Datos" (que regenera
     // el plan al mismo tiempo). "Guardar Cambios" normal solo guarda el
     // nombre — body metrics se ignoran/revierten al salir.
+    /* [P1-SETTINGS-AUTOSAVE · 2026-08-11] Estado del acuse de guardado.
+       Vive AQUÍ y no en un contexto ni en un singleton de módulo porque solo hay UN
+       panel visible a la vez: el que está montado manda, y al desmontarse el siguiente
+       lo pisa. Un bus de suscripción tendría que resetearse entre pruebas, y esa
+       necesidad es la señal de que un panel puede heredar del anterior un permiso que
+       su propia carga no le dio. */
+    const [estadoGuardado, setEstadoGuardado] = useState('inactivo');
+
     const _bodyMetricsOriginalRef = useRef({
         weight: String(_initialWeight),
         height: String(_initialHeightCm),
@@ -1664,6 +1672,32 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     }}
                 />
 
+                {/* [P1-SETTINGS-AUTOSAVE · 2026-08-11] El acuse. Sustituye a los tres
+                    botones «Guardar» que se fueron: sin él, autoguardar se siente como
+                    que no pasó nada, y el usuario se queda sin saber si su cambio está
+                    a salvo.
+
+                    Va en la fila de chrome —que existe desde P1-SETTINGS-CHROME-SPLIT—
+                    y no dentro del panel, por dos razones: el panel scrollea y el acuse
+                    se iría de la vista justo cuando hace falta, y así el mismo sitio
+                    habla por las tres secciones que se guardan solas.
+
+                    NO se pinta en reposo. Un indicador permanente que dice «Guardado»
+                    sin que hayas tocado nada es ruido; lo que informa es la transición.
+                    «Pendiente» sí se muestra: es el único estado en el que cerrar
+                    perdería algo si el volcado fallara. */}
+                {estadoGuardado !== 'inactivo' && (
+                    <span
+                        className={`${styles.acuse} ${estadoGuardado === 'error' ? styles.acuseError : ''}`}
+                        role="status"
+                        aria-live="polite"
+                    >
+                        {estadoGuardado === 'pendiente' && 'Sin guardar…'}
+                        {estadoGuardado === 'guardando' && 'Guardando…'}
+                        {estadoGuardado === 'guardado' && 'Guardado'}
+                        {estadoGuardado === 'error' && 'No se guardó'}
+                    </span>
+                )}
                 <div className={`${styles.pageHeader} ${activeSection ? styles.pageHeaderInSection : ''}`}>
                     {/* Default (desktop siempre, móvil cuando NO hay sección activa). */}
                     <h1 className={`${styles.pageTitle} ${styles.titleDesktop}`}>Configuración</h1>
@@ -1679,6 +1713,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         </>
                     )}
                 </div>
+
                 </div>{/* /headerRow */}
 
                 <div className={`${styles.layout} ${activeSection ? styles.layoutWithSection : ''}`}>
@@ -2045,12 +2080,33 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         disabled={isSaving}
                                         className={`${styles.saveChangesBtn} ${saveStatus === 'success' ? styles.saveChangesBtnSuccess : styles.saveChangesBtnDefault}`}
                                     >
+                                        {/* [P1-SETTINGS-AUTOSAVE · 2026-08-11] Decía
+                                            «Guardar» a secas, y en esta pantalla eso ya
+                                            no distingue nada: las otras tres secciones
+                                            se guardan solas, así que un botón llamado
+                                            «Guardar» invita a preguntarse por qué aquí
+                                            hay que pulsarlo.
+
+                                            La respuesta es que esto NO es lo mismo:
+                                            nombre, edad y sexo alimentan el cálculo y
+                                            aplican al PRÓXIMO plan; y si tocas peso o
+                                            altura, el botón se convierte en «Actualizar
+                                            Plan con Nuevos Datos», que regenera el plan
+                                            y gasta un crédito
+                                            (P3-PROFILE-METRICS-COMMIT).
+
+                                            El rótulo lo dice: no guarda «cambios»,
+                                            guarda para el próximo plan. Así las dos
+                                            ramas del botón se leen como lo que son —dos
+                                            momentos distintos— y la regla del producto
+                                            queda visible: lo que solo te describe se
+                                            guarda solo; lo que toca tu plan te pregunta. */}
                                         {isSaving ? (
                                             <>Guardando...</>
                                         ) : saveStatus === 'success' ? (
                                             <>¡Guardado!</>
                                         ) : (
-                                            <>Guardar</>
+                                            <>Guardar para el próximo plan</>
                                         )}
                                     </button>
                                 )}
@@ -2569,12 +2625,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                                 Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.
                             </p>
-                            <SuperPersonalizationPanel />
+                            <SuperPersonalizationPanel onEstado={setEstadoGuardado} />
                             {/* [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos" — editable aquí
                                 (durable en health_profile.staple_foods) además del paso opcional
                                 del wizard (QStapleFoods). */}
                             <div style={{ marginTop: '1.5rem' }}>
-                                <StapleFoodsPanel />
+                                <StapleFoodsPanel onEstado={setEstadoGuardado} />
                             </div>
                         </section>
                     )}
@@ -2590,7 +2646,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                                 Los datos que un nutriólogo pediría en consulta. Opcionales — cada uno que completes afina tu plan.
                             </p>
-                            <ClinicalProfilePanel />
+                            <ClinicalProfilePanel onEstado={setEstadoGuardado} />
                         </section>
                     )}
 
