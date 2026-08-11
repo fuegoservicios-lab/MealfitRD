@@ -217,7 +217,24 @@
     display: flex;
     flex-direction: column;
     padding-top: calc(64px + env(safe-area-inset-top, 0px));
-    z-index: 1;
+    /* [P1-Z-SCALE · 2026-08-10] ESTE z-index NO ES INERTE, aunque lo parezca.
+       Una auditoría lo marcó como basura: «z-index sobre position: static, no
+       hace nada». La regla general es cierta y aquí NO aplica — `.main` es hijo
+       directo de `.layout`, que es `display: flex`, y la especificación de
+       flexbox dice que en un flex item el z-index crea contexto de apilamiento
+       aunque la posición sea estática.
+
+       Es lo que mantiene el contenido del formulario POR ENCIMA del gradiente
+       ambiental de `.layout::before`. Comprobado por diferencia de píxeles en
+       Chromium: al quitarlo, en móvil (390×916) cambian 1.194 píxeles sobre el
+       kicker «PASO N DE M» y el título — el glow indigo pasa por encima. En
+       escritorio no se nota, pero solo por accidente: el `backdrop-filter` de
+       `.contentWrapper` (≥900px) ya crea su propio contexto y lo tapa.
+
+       Se añade `position: relative` para que deje de depender de que `.layout`
+       siga siendo flex: mismo render, una premisa menos. */
+    position: relative;
+    z-index: var(--z-raised);
     min-height: 100dvh;
 }
 
