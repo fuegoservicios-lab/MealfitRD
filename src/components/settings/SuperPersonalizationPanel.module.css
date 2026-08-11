@@ -94,7 +94,7 @@
     transition: border-color 0.15s ease;
 }
 .tagBox:focus-within {
-    border-color: var(--primary, #4F46E5);
+    border-color: var(--primary);
 }
 .tag {
     display: inline-flex;
@@ -104,7 +104,7 @@
     border-radius: 99px;
     font-size: 0.82rem;
     font-weight: 600;
-    color: var(--primary, #4F46E5);
+    color: var(--primary);
     background: rgba(79, 70, 229, 0.1);
     border: 1px solid rgba(79, 70, 229, 0.22);
 }
@@ -133,7 +133,7 @@
     padding: 0.25rem;
 }
 .tagInput::placeholder {
-    color: var(--text-light, #94A3B8);
+    color: var(--text-light);
 }
 .tagAdd {
     display: grid;
@@ -145,7 +145,7 @@
     border-radius: 0.5rem;
     cursor: pointer;
     color: #fff;
-    background: var(--primary, #4F46E5);
+    background: var(--primary);
 }
 
 /* ---- Predefined chips (equipment) ---- */
@@ -170,8 +170,8 @@
 }
 .chipActive {
     color: #fff;
-    background: var(--primary, #4F46E5);
-    border-color: var(--primary, #4F46E5);
+    background: var(--primary);
+    border-color: var(--primary);
 }
 
 /* ---- Select ---- */
@@ -187,7 +187,7 @@
     outline: none;
 }
 .select:focus {
-    border-color: var(--primary, #4F46E5);
+    border-color: var(--primary);
 }
 
 /* ---- Flavor profile ---- */
@@ -226,12 +226,12 @@
     outline: none;
 }
 .textarea:focus {
-    border-color: var(--primary, #4F46E5);
+    border-color: var(--primary);
 }
 .counter {
     align-self: flex-end;
     font-size: 0.72rem;
-    color: var(--text-light, #94A3B8);
+    color: var(--text-light);
     font-variant-numeric: tabular-nums;
 }
 
@@ -253,7 +253,7 @@
     font-weight: 700;
     letter-spacing: 0.01em;
     color: #fff;
-    background: linear-gradient(135deg, var(--primary, #4F46E5) 0%, var(--secondary, #10B981) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary, #10B981) 100%);
     box-shadow: 0 10px 26px -10px rgba(79, 70, 229, 0.55);
     transition: box-shadow 0.2s ease, filter 0.15s ease;
 }
