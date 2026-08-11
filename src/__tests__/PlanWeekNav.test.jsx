@@ -27,10 +27,20 @@ describe('[P1-DASH-WEEK-NAV] PlanWeekNav', () => {
         expect(screen.getAllByRole('tab', { name: /semana/i })).toHaveLength(5);
     });
 
-    it('la fila de dias es una rejilla de 7 columnas, sin scroll horizontal', () => {
+    // [P1-WEEKNAV-SQUARE-DAYS · 2026-08-11] La rejilla se declara ahora en CSS
+    // (`.plan-week-grid` en index.css), no en un `style` inline. Un inline NO RECIBE
+    // OVERRIDE RESPONSIVE, y en el teléfono hace falta cerrar el hueco entre columnas
+    // para que a cada día le quede ancho suficiente y pueda ser cuadrado.
+    //
+    // Lo que este caso protege sigue igual —siete columnas y ni una menos, sin deslizar—
+    // pero se afirma contando las celdas, no leyendo un atributo inline que ya no existe.
+    // jsdom no aplica hojas de estilo, así que `style.gridTemplateColumns` seria vacío
+    // aunque el CSS fuera correcto: mirar ahí no probaría nada.
+    it('la fila de dias tiene 7 columnas y no desliza', () => {
         render(<PlanWeekNav planData={plan(30, [], ['2026-08-06'])} {...base} />);
         const grid = screen.getByTestId('week-day-grid');
-        expect(grid.style.gridTemplateColumns).toBe('repeat(7, 1fr)');
+        expect(grid).toHaveClass('plan-week-grid');
+        expect(within(grid).getAllByTestId(/^day-cell-/)).toHaveLength(7);
         expect(grid.style.overflowX).not.toBe('auto');
     });
 

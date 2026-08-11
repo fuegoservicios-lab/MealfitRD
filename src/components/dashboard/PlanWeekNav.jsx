@@ -123,10 +123,16 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                 ))}
             </div>
 
+            {/* [P1-WEEKNAV-SQUARE-DAYS · 2026-08-11] La rejilla se declara en CSS, no
+                aquí. Estaba en un `style` inline (`display:grid`, 7 columnas, gap 6px) y
+                un inline NO RECIBE OVERRIDE RESPONSIVE: en el teléfono hace falta cerrar
+                la separación para que a las celdas les quede ancho suficiente y puedan
+                ser cuadradas, y desde un inline eso solo se conseguiría con `!important`
+                — o no se conseguiría. Es la misma razón que ya está escrita unas líneas
+                más arriba en el <style> del Dashboard para `.plan-week-nav`. */}
             <div
                 data-testid="week-day-grid"
                 className="plan-week-grid"
-                style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}
             >
                 {week.cells.map((cell, i) => {
                     if (!cell) {

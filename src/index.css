@@ -1407,7 +1407,13 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 }
 
 /* UNA caja para los siete días, no siete. */
+/* [P1-WEEKNAV-SQUARE-DAYS · 2026-08-11] La rejilla vivía en un `style` inline del JSX;
+   se trae aquí para que el bloque del teléfono pueda ajustarla (un inline no recibe
+   override responsive). Mismos valores que tenía. */
 .plan-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
   padding: 6px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -1546,16 +1552,53 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
     text-overflow: clip;
   }
 
-  /* Los días: más altos y con el número más grande. El ancho no se puede tocar
-     —son siete y el ancho es el que es—, así que el tamaño se gana en la otra
-     dimensión, que es la que sí sobra. */
-  .plan-week-grid { padding: 8px; }
+  /* [P1-WEEKNAV-SQUARE-DAYS · 2026-08-11] Los días son CUADRADOS.
+     Antes eran ~44 de ancho por 68 de alto: un rectángulo vertical.
+
+     La cuadratura se declara con `aspect-ratio`, no con un alto fijo. Un `68px` es
+     cuadrado solo en la anchura donde alguien lo midió; `aspect-ratio: 1` lo sigue
+     siendo a 320, a 390 y a 430, que es justo donde un número clavado se rompe.
+     Por eso también hay que anular el `min-height` del bloque base: si se queda, gana
+     cuando el cuadrado sale más pequeño que él y el lado vuelve a estirarse.
+
+     El lado del cuadrado es EL ANCHO —son siete columnas y el ancho es el que es—, así
+     que el único margen de maniobra es dejar de gastarlo en separación: la rejilla
+     cierra su relleno y su hueco (8→5, 6→4), y eso le devuelve ~4px a cada celda. El
+     número baja de 1,35 a 1,2rem por la misma razón: el alto ya no es libre, es el lado.
+     Aun así sigue muy por encima del 0,95rem que había antes de todo esto. */
+  .plan-week-grid { padding: 4px; gap: 3px; }
 
   .plan-week-cell,
-  .plan-week-cell.is-empty { min-height: 68px; }
+  .plan-week-cell.is-empty {
+    aspect-ratio: 1 / 1;
+    min-height: 0;
+  }
 
-  .plan-week-cell { padding: 8px 2px; gap: 2px; border-radius: 11px; }
-  .plan-week-cell__num { font-size: 1.35rem; }
-  .plan-week-cell__dow { font-size: 0.66rem; }
-  .plan-week-cell__state { font-size: 0.56rem; }
+  /* Los tres renglones (día, número, estado) tienen que caber en el LADO, que ya no es
+     negociable. Medido a 390px: lado 48px, menos 6 de relleno deja 42 de hueco, y los
+     tres suman ~39. El «en cola» de los días en espera es el que decide — con el número
+     a 1,35rem rebosaba y se veía cortado por abajo. */
+  .plan-week-cell { padding: 3px 2px; gap: 0; border-radius: 11px; }
+  .plan-week-cell__num { font-size: 1.1rem; line-height: 1.1; }
+  .plan-week-cell__dow { font-size: 0.58rem; line-height: 1.2; }
+  .plan-week-cell__state { font-size: 0.48rem; line-height: 1.15; }
+}
+
+/* [P1-WEEKNAV-SQUARE-DAYS · 2026-08-11] Por debajo de 360px el lado del cuadrado baja a
+   38px y ahí los tres renglones dejan de caber: medido en Chrome, «en cola» se cortaba
+   por abajo en los cuatro días en espera. Y el recorte no se veía con las sondas
+   obvias — en un flex en columna los hijos se ENCOGEN, así que ni `scrollHeight` del
+   contenedor ni la suma de las alturas de los hijos lo delatan; hay que comparar cada
+   hijo consigo mismo.
+
+   Se retira el estado de DENTRO del cuadrado. No se pierde: el día en espera ya se
+   distingue por su atenuación (`opacity: .5` en `[data-state="sin_plan"]`) y el
+   `aria-label` de la celda sigue llevando la frase completa. La alternativa era encoger
+   los tres textos hasta dejar el número —que es lo que se viene a leer— más pequeño de
+   lo que era antes de todo esto.
+
+   VA DESPUÉS del bloque de 768px: los dos casan a 320px y con la misma especificidad
+   desempata el orden. Puesto antes, nacería inerte. */
+@media (max-width: 360px) {
+  .plan-week-cell__state { display: none; }
 }

@@ -113,15 +113,21 @@ describe('[P1-WEEKNAV-MOBILE-SIZE] las semanas se leen y los cuadros se agrandan
         ).toMatch(/text-overflow:\s*clip/);
     });
 
-    it('en el teléfono NADA es más pequeño que en escritorio', () => {
-        // Este es el defecto exacto que había: el bloque móvil existía para ENCOGER.
-        // Se comparan las medidas, no se confía en que el comentario lo diga.
+    // [P1-WEEKNAV-SQUARE-DAYS · 2026-08-11] ESTE CASO SE ACOTÓ, y conviene saber por qué.
+    //
+    // Afirmaba que NINGUNA medida del teléfono fuera menor que la de escritorio, porque
+    // el defecto original era un bloque móvil que existía para ENCOGER. Sigue siendo la
+    // regla para lo que se viene a leer —el número del día y los nombres de semana—,
+    // pero ya no puede aplicarse a todo: el dueño pidió después que los días fueran
+    // CUADRADOS, y un cuadrado ata el alto al ancho. Con siete columnas el lado no llega
+    // a 50px, así que los dos renglones secundarios (el nombre del día y el estado)
+    // tuvieron que ceder para que los tres quepan sin cortarse.
+    //
+    // Lo que NO cede es el número: es el dato por el que se mira esta fila.
+    it('lo que se viene a leer no encoge en el teléfono', () => {
         const { cuerpo } = bloqueMovilDeSemanas();
         const pares = [
-            ['.plan-week-cell', 'min-height'],
             ['.plan-week-cell__num', 'font-size'],
-            ['.plan-week-cell__dow', 'font-size'],
-            ['.plan-week-cell__state', 'font-size'],
             ['.plan-week-pill__title', 'font-size'],
             ['.plan-week-pill__range', 'font-size'],
         ];
@@ -135,6 +141,22 @@ describe('[P1-WEEKNAV-MOBILE-SIZE] las semanas se leen y los cuadros se agrandan
                 + 'ese encogimiento es justo lo que el dueño pidió deshacer',
             ).toBeGreaterThanOrEqual(base);
         }
+    });
+
+    it('los días son CUADRADOS, y el cuadrado se declara como proporción', () => {
+        const { cuerpo } = bloqueMovilDeSemanas();
+        const celda = reglas(cuerpo, '.plan-week-cell');
+        const conVacia = reglas(cuerpo, '.plan-week-cell,\n  .plan-week-cell.is-empty') || celda;
+
+        const fuente = `${celda}\n${conVacia}\n${cuerpo}`;
+        expect(fuente, 'los días dejaron de ser cuadrados').toMatch(/aspect-ratio:\s*1\s*\/?\s*1?/);
+        // Un alto fijo es cuadrado solo en la anchura donde alguien lo midió; la
+        // proporción lo sigue siendo a 320, 390 y 430.
+        expect(
+            /min-height:\s*0/.test(fuente),
+            'el `min-height` del bloque base no se anula: cuando el cuadrado sale más '
+            + 'pequeño que él, gana y el lado se estira otra vez',
+        ).toBe(true);
     });
 
     it('la semana activa se trae sola a la vista al deslizar', () => {
