@@ -5766,12 +5766,7 @@ const DashboardInner = () => {
             `}</style>
 
             {/* --- HEADER PREMIUM --- */}
-            {/* [P1-PLAN-FLAT-MOBILE · 2026-08-11] `mf-flat-mobile` (index.css): en el
-                teléfono esta sección pierde su marco de tarjeta. Aquí se nota más que en
-                ninguna otra porque dentro ya hay tres cajas con borde propio —créditos,
-                presupuesto y marcas del súper—, así que el marco exterior era un cuarto
-                borde alrededor de bordes. */}
-            <header className="dashboard-header mf-flat-mobile">
+            <header className="dashboard-header">
                 <div className="header-text-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
                     {/* [P3-UPGRADE-FUSION-MOBILE · 2026-05-26] Chip del plan
@@ -7455,12 +7450,7 @@ const DashboardInner = () => {
             <div className="main-grid">
 
                 {/* Left Column: MEALS TIMELINE */}
-                {/* [P1-PLAN-FLAT-MOBILE · 2026-08-11] El cuaderno (lomo, sombras y línea
-                    de margen roja) es una identidad pensada para verse SOBRE una página;
-                    en el teléfono ocupa toda la columna y no hay página alrededor que lo
-                    contenga: el encuadernado se convierte en un borde más que estrecha el
-                    contenido. En escritorio se conserva intacto. */}
-                <div className="meals-container mf-flat-mobile" style={{ flex: 2, alignSelf: 'start' }}>
+                <div className="meals-container" style={{ flex: 2, alignSelf: 'start' }}>
                     <div className="menu-section-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <h2 className="menu-section-title">
@@ -8489,17 +8479,6 @@ const DashboardInner = () => {
                         panel en el centro de notificaciones (campana) y se puede volver a
                         mostrar desde ahí cuando el usuario quiera. Recordado por plan. */}
                     {!reasoningHidden && (
-                    /* [P1-PLAN-FLAT-MOBILE · 2026-08-11 · REVERTIDO AQUÍ POR EL DUEÑO]
-                       Esta sección CONSERVA su tarjeta en el teléfono. Llevó
-                       `mf-flat-mobile` unas horas y el dueño pidió devolverla, junto con
-                       Hidratación y Progreso en Tiempo Real.
-
-                       No es un descuido ni una inconsistencia pendiente de arreglar: el
-                       aplanado sigue vivo para el saludo/créditos, micronutrientes y el
-                       cuaderno del plan. Si vienes a «unificar» y ponerle la clase otra
-                       vez, esto es lo que estarías deshaciendo. El guard
-                       `P1_plan_flat_mobile.test.js` afirma la lista de las que SÍ y de
-                       las que NO, precisamente para que la excepción no se pierda. */
                     <div style={{
                         background: 'var(--bg-card)',
                         backdropFilter: 'blur(12px)',

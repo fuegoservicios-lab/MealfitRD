@@ -253,10 +253,6 @@ const WaterTracker = ({ userId }) => {
     if (!enabled) return null;
 
     return (
-        // [P1-PLAN-FLAT-MOBILE · 2026-08-11 · REVERTIDO AQUÍ POR EL DUEÑO] Esta tarjeta
-        // se QUEDA en el teléfono, junto con Razonamiento y Progreso en Tiempo Real. El
-        // aplanado sigue vivo en las otras tres secciones del Plan; la mezcla es
-        // deliberada. Ver `P1_plan_flat_mobile.test.js`.
         <section className={`${styles.card} ${complete ? styles.complete : ''}`} aria-label="Hidratación">
             <div className={styles.inner}>
                 {/* Vaso animado */}

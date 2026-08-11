@@ -411,12 +411,6 @@ const TrackingProgress = ({ planData, userId }) => {
     const percFat = calcPerc(displayedConsumed.fats, goalFat);
 
     return (
-        // [P1-PLAN-FLAT-MOBILE · 2026-08-11 · REVERTIDO AQUÍ POR EL DUEÑO] Esta tarjeta
-        // se QUEDA en el teléfono. Llevó `mf-flat-mobile` unas horas y el dueño pidió
-        // devolverla, junto con Razonamiento e Hidratación. El aplanado sigue vivo para
-        // el saludo/créditos, micronutrientes y el cuaderno del plan — la mezcla es
-        // deliberada, no una unificación a medio hacer. Lo afirma
-        // `P1_plan_flat_mobile.test.js`, que lista las que sí y las que no.
         <div className={styles.card}>
             {/* Header Sector */}
             <div className={styles.header}>
