@@ -4578,13 +4578,33 @@ const DashboardInner = () => {
                     /* [DASH-NOTEBOOK-SOFTEN · 2026-06-22] La línea de margen roja ya
                        NO toca los bordes (top/bottom inset 1.25rem) → termina limpia y
                        desaparece la "raya" pegada a la esquina de abajo. Alpha más bajo
-                       (0.4→0.22) para que sea un acento sutil, no un trazo fuerte. */
+                       (0.4→0.22) para que sea un acento sutil, no un trazo fuerte.
+                       [P1-NOTEBOOK-MARGIN-LIGHT · 2026-08-11] El alpha vuelve a subir,
+                       0.22 → 0.6, SOLO para el tema claro (el oscuro tiene su propia
+                       regla más abajo y no se toca).
+
+                       El dueño lo reportó como «se siente muy transparente el rojo», y
+                       medido resultó no ser una cuestión de gusto: la MISMA línea se
+                       despega ΔL* 20,8 del papel en oscuro y solo 8,3 en claro — menos
+                       de la mitad de fuerza para el mismo elemento. El softening de
+                       junio se calibró mirando el tema oscuro, donde el rojo sobre
+                       #111827 aguanta un alpha bajo; sobre el papel #FDFCF8 ese mismo
+                       0.22 compone un rosa casi indistinguible del fondo.
+
+                       0.6 la deja en ΔL* 22,1: por encima de su gemela oscura, y 2,7×
+                       lo que había. Se ancla en la gemela y no en un número elegido a
+                       ojo porque es el mismo elemento en los dos temas — si en uno se
+                       lee y en el otro no, lo que falla es la paridad, no el tono.
+
+                       ΔL* y no ratio WCAG: esto es una SUPERFICIE de 1px, no texto; el
+                       ratio está pensado para legibilidad de glifos y aquí respondería
+                       a otra pregunta. Mismo criterio que P1-LIGHT-INK-CONTRACT. */
                     top: 1.25rem;
                     bottom: 1.25rem;
                     left: 2.5rem;
                     width: 3px;
-                    border-left: 1px solid rgba(248, 113, 113, 0.22);
-                    border-right: 1px solid rgba(248, 113, 113, 0.22);
+                    border-left: 1px solid rgba(248, 113, 113, 0.6);
+                    border-right: 1px solid rgba(248, 113, 113, 0.6);
                     z-index: 0;
                     pointer-events: none;
                 }
