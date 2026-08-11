@@ -197,7 +197,13 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
 
     return (
         <motion.section
-            className={styles.panel}
+            // [P1-PLAN-FLAT-MOBILE · 2026-08-11] `mf-flat-mobile` es global (index.css),
+            // no del módulo: el aplanado es una decisión de la PANTALLA, no de este
+            // componente, y vive en un solo sitio para las siete secciones del Plan.
+            // Aquí importa especialmente porque cada micronutriente ya es una tarjeta
+            // con su borde de color — el marco del panel era un borde alrededor de
+            // bordes, y se llevaba ancho de unas barras que se leen por su longitud.
+            className={`${styles.panel} mf-flat-mobile`}
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}

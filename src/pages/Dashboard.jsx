@@ -5766,7 +5766,12 @@ const DashboardInner = () => {
             `}</style>
 
             {/* --- HEADER PREMIUM --- */}
-            <header className="dashboard-header">
+            {/* [P1-PLAN-FLAT-MOBILE · 2026-08-11] `mf-flat-mobile` (index.css): en el
+                teléfono esta sección pierde su marco de tarjeta. Aquí se nota más que en
+                ninguna otra porque dentro ya hay tres cajas con borde propio —créditos,
+                presupuesto y marcas del súper—, así que el marco exterior era un cuarto
+                borde alrededor de bordes. */}
+            <header className="dashboard-header mf-flat-mobile">
                 <div className="header-text-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
                     {/* [P3-UPGRADE-FUSION-MOBILE · 2026-05-26] Chip del plan
@@ -7450,7 +7455,12 @@ const DashboardInner = () => {
             <div className="main-grid">
 
                 {/* Left Column: MEALS TIMELINE */}
-                <div className="meals-container" style={{ flex: 2, alignSelf: 'start' }}>
+                {/* [P1-PLAN-FLAT-MOBILE · 2026-08-11] El cuaderno (lomo, sombras y línea
+                    de margen roja) es una identidad pensada para verse SOBRE una página;
+                    en el teléfono ocupa toda la columna y no hay página alrededor que lo
+                    contenga: el encuadernado se convierte en un borde más que estrecha el
+                    contenido. En escritorio se conserva intacto. */}
+                <div className="meals-container mf-flat-mobile" style={{ flex: 2, alignSelf: 'start' }}>
                     <div className="menu-section-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <h2 className="menu-section-title">
@@ -8479,7 +8489,12 @@ const DashboardInner = () => {
                         panel en el centro de notificaciones (campana) y se puede volver a
                         mostrar desde ahí cuando el usuario quiera. Recordado por plan. */}
                     {!reasoningHidden && (
-                    <div style={{
+                    /* [P1-PLAN-FLAT-MOBILE · 2026-08-11] Este marco vive en estilos INLINE,
+                       y un inline solo lo gana una declaración de autor `!important` — por
+                       eso la clase de aplanado usa `!important` (ver index.css). Los 1,75rem
+                       de relleno lateral eran los más caros de la pantalla: el razonamiento
+                       es texto corrido, que es justo lo que peor lleva perder ancho. */
+                    <div className="mf-flat-mobile" style={{
                         background: 'var(--bg-card)',
                         backdropFilter: 'blur(12px)',
                         padding: '1.75rem',

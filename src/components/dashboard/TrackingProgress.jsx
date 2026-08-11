@@ -411,7 +411,11 @@ const TrackingProgress = ({ planData, userId }) => {
     const percFat = calcPerc(displayedConsumed.fats, goalFat);
 
     return (
-        <div className={styles.card}>
+        // [P1-PLAN-FLAT-MOBILE · 2026-08-11] Sin marco en el teléfono (index.css). Suma
+        // a lo de P1-MACRO-ROW-MOBILE: allí los tres macros recuperaron una fila, aquí
+        // recuperan los 32px que se llevaba el borde — que en columnas de ~100px es la
+        // diferencia entre que el nombre quepa o no.
+        <div className={`${styles.card} mf-flat-mobile`}>
             {/* Header Sector */}
             <div className={styles.header}>
                 <div className={styles.headerLeft}>

@@ -253,7 +253,8 @@ const WaterTracker = ({ userId }) => {
     if (!enabled) return null;
 
     return (
-        <section className={`${styles.card} ${complete ? styles.complete : ''}`} aria-label="Hidratación">
+        // [P1-PLAN-FLAT-MOBILE · 2026-08-11] Sin marco en el teléfono (index.css).
+        <section className={`${styles.card} ${complete ? styles.complete : ''} mf-flat-mobile`} aria-label="Hidratación">
             <div className={styles.inner}>
                 {/* Vaso animado */}
                 <div className={styles.vessel}>

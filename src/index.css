@@ -1499,3 +1499,55 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   .plan-week-cell__dow { font-size: 0.56rem; }
   .plan-week-cell__state { font-size: 0.5rem; }
 }
+
+/* ============================================================================
+   [P1-PLAN-FLAT-MOBILE · 2026-08-11] En el teléfono, las secciones del Plan
+   dejan de ser tarjetas.
+
+   EL DEFECTO. Cada sección —saludo, macros, micronutrientes, razonamiento, el
+   cuaderno del plan— venía envuelta en su propia tarjeta: fondo, borde, radio,
+   sombra y relleno propio. En una pantalla ancha eso separa bien; en una de
+   390px el marco cuesta el doble de su grosor (izquierda y derecha) y encima se
+   ANIDA, porque dentro de esas tarjetas hay otras cajas con su propio borde
+   (créditos, presupuesto, marcas). El resultado es lo que el dueño describió:
+   el contenido se ve encogido. Medido: el marco exterior se come 32px de los
+   ~363px útiles —un 9% del ancho— para dibujar una frontera que en el teléfono
+   no separa nada: en una sola columna no hay nada al lado de lo que separarse.
+
+   Es la misma regla que este repo ya escribió para el diálogo de Ajustes: una
+   superficie elevada no necesita elevar a sus hijos. Aquí la «superficie» es la
+   propia pantalla — a un ancho de columna única, la sección ES la página.
+
+   El margen lateral no se pierde: lo aporta `.mainContent` del shell (1,5rem a
+   ≤768, 0,85rem a ≤480), que hasta ahora quedaba SUMADO al de la tarjeta.
+
+   POR QUÉ `!important`, que normalmente sería pereza: aquí es un requisito. El
+   panel de Razonamiento lleva fondo, borde y radio en estilos INLINE, y una
+   declaración de autor solo gana a un inline si es `!important`. Y esto es una
+   capa transversal que anula a propósito el cromo que cada componente declara
+   para sí: sin ella habría que editar el bloque de tema de los siete y repetir
+   la misma decisión siete veces.
+
+   Se aplana el MARCO, no el contenido. El relleno VERTICAL se conserva: es lo
+   que da aire entre secciones ahora que no hay bordes que las separen. Y las
+   cajas interiores conservan el suyo — esas sí distinguen un dato de otro. */
+@media (max-width: 768px) {
+    .mf-flat-mobile {
+        background: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* El cuaderno del plan dibuja su lomo y su línea de margen con
+       pseudo-elementos, que sobreviven a la regla de arriba: sin esto quedarían
+       dos rayas rojas flotando sin cuaderno al que pertenecer. */
+    .mf-flat-mobile::before,
+    .mf-flat-mobile::after {
+        display: none !important;
+    }
+}
