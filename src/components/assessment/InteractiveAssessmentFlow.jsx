@@ -36,7 +36,7 @@ import { toast } from 'sonner';
 // el array `steps` (más abajo) declara su propia propiedad `fields: [...]`
 // y el mapping se construye en runtime → reordenar/insertar steps no rompe
 // la navegación a campo faltante.
-import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, minBudgetFor } from '../../config/formValidation';
+import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor } from '../../config/formValidation';
 
 /* [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] ¿El presupuesto personalizado alcanza
    el piso? SSOT de las TRES puertas que pueden dejar atrás el paso 11.
@@ -648,7 +648,15 @@ const InteractiveAssessmentFlow = () => {
             });
             return;
         }
-        const missing = findFirstIncompleteField(formData);
+        // [P1-TRACKING-SKIP-CONTRACT · 2026-08-12] El salto valida contra el contrato
+        // DE LA RAMA ACTUAL. Con el del plan (22 campos), en modo contador exigía
+        // «Tu horario cotidiano» — un campo cuyo paso NO existe en esta rama, así
+        // que fieldToStepIndex tampoco podía llevarte a él: toast y botón muerto.
+        // (El submit del plan, arriba, se queda con el contrato completo: la rama
+        // contador termina en QTrackingFinish y nunca lo pisa.)
+        const missing = _isTracking
+            ? findFirstIncompleteFieldFor(formData, TRACKING_REQUIRED_FIELDS)
+            : findFirstIncompleteField(formData);
         if (missing) {
             const stepIdx = fieldToStepIndex[missing];
             const label = FIELD_LABELS[missing] || missing;
@@ -666,7 +674,8 @@ const InteractiveAssessmentFlow = () => {
         // aunque el monto sea inválido — el salto se iba a un paso posterior dejando
         // atrás el de presupuesto a medias. El mismo chequeo que ya hacía el submit,
         // ahora también aquí, desde el SSOT compartido.
-        if (!isCustomBudgetValid(formData)) {
+        // Presupuesto es un paso del PLAN: en la rama contador ni se pregunta.
+        if (!_isTracking && !isCustomBudgetValid(formData)) {
             toast.info('Antes de saltar, completa: Presupuesto', {
                 description: 'Elegiste "Personalizar" y el monto no llega al mínimo.',
                 duration: 4000,

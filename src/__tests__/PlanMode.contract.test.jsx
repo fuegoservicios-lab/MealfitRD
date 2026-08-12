@@ -194,6 +194,18 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain("localStorage.getItem('mealfit_wizard_step_mode')");
     });
 
+    it('Wizard: «Saltar a la última pregunta» valida contra el contrato DE LA RAMA', () => {
+        // [P1-TRACKING-SKIP-CONTRACT · 2026-08-12] Con el contrato del plan (22
+        // campos), en modo contador el salto exigía «Tu horario cotidiano» — un
+        // campo cuyo paso NO existe en la rama corta, así que fieldToStepIndex
+        // tampoco podía navegar: toast y botón muerto. El fork por modo es el fix;
+        // el chequeo de presupuesto (paso del plan) también queda fuera en tracking.
+        const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
+        expect(s).toContain('? findFirstIncompleteFieldFor(formData, TRACKING_REQUIRED_FIELDS)');
+        expect(s).toContain(': findFirstIncompleteField(formData);');
+        expect(s).toContain('if (!_isTracking && !isCustomBudgetValid(formData))');
+    });
+
     it('QTrackingFinish: hidrata el contexto ANTES de navegar (el rebote del botón mudo)', () => {
         // [P1-TRACKING-FINISH-BOUNCE · 2026-08-12] El PATCH escribe health_profile
         // en el servidor pero el userProfile en memoria sigue vacío: sin el
