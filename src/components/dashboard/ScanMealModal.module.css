@@ -286,13 +286,24 @@
 }
 
 .textInput,
+/* [P1-LOGMEAL-SELECT-DARK · 2026-08-12] El gemelo de `.select` de
+   LogMealModal, con los dos mismos defectos: la flecha nativa pegada al canto
+   (medido: el relleno NO la mueve) y el desplegable que el sistema pinta claro
+   en tema oscuro. Se arregla igual y a la vez — dejar el gemelo sin tocar es
+   como empiezan los drifts. Ver el comentario largo en LogMealModal.module.css. */
 .selectInput {
     width: 100%;
-    padding: 0.7rem 0.85rem;
+    padding: 0.7rem 2.1rem 0.7rem 0.85rem;
     border-radius: 0.7rem;
     border: 1px solid #E2E8F0;
-    background: #F8FAFC;
+    background-color: #F8FAFC;
     color: #0F172A;
+    appearance: none;
+    -webkit-appearance: none;
+    color-scheme: light;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B6A7D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
     font-size: 0.95rem;
     font-weight: 600;
     outline: none;
@@ -480,8 +491,20 @@
 :global(html[data-theme="dark"]) .selectInput,
 :global(html[data-theme="dark"]) .macroInputWrap,
 :global(html[data-theme="dark"]) .portionBtn {
-    background: var(--bg-muted);
+    /* `background-color` y NO el atajo: el atajo resetea `background-image` y
+       en `.selectInput` eso le borraba la flecha propia. */
+    background-color: var(--bg-muted);
     border-color: var(--border);
+    color: var(--text-main);
+}
+
+:global(html[data-theme="dark"]) .selectInput {
+    color-scheme: dark;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+:global(html[data-theme="dark"]) .selectInput option {
+    background-color: var(--bg-muted);
     color: var(--text-main);
 }
 

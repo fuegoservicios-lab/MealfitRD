@@ -94,17 +94,45 @@
     gap: 0.6rem;
 }
 
+/* [P1-LOGMEAL-SELECT-DARK · 2026-08-12] Dos defectos del mismo control.
+
+   1. LA FLECHA PEGADA AL CANTO (dueño: «la flechita hacia abajo del menú de
+      hoy está muy pegada al borde»). Es la que dibuja el navegador, y NO se
+      mueve con relleno: medido en banco con tres selects nativos a 0,7rem,
+      1,2rem y 2rem de `padding-right` — la flecha sale EXACTAMENTE en el mismo
+      píxel en los tres. La única forma de darle aire es apagar la nativa y
+      poner la nuestra, con su posición declarada.
+
+   2. EL DESPLEGABLE EN OSCURO. La lista que abre el <select> la pinta el
+      sistema, no el CSS: por eso el claro salía perfecto y el oscuro abría una
+      lista gris con resalte azul de Windows. Chrome elige esa variante por el
+      `color-scheme` DEL ELEMENTO — el heredado del <html> se pierde aquí
+      (lección ya escrita en `.mf-chip-select`, index.css). Se fija explícito y
+      mapeado al tema; la regla de `option` cubre los motores que sí las estilan.
+
+   El relleno derecho sube a 2rem: es el hueco donde vive la flecha propia. */
 .select {
     flex: 1;
     min-width: 0;
     border: 1px solid #E2E8F0;
-    background: #F8FAFC;
+    background-color: #F8FAFC;
     border-radius: 0.7rem;
-    padding: 0.55rem 0.7rem;
+    padding: 0.55rem 2rem 0.55rem 0.7rem;
     font: inherit;
     font-size: 0.9rem;
     font-weight: 600;
     color: #0F172A;
+    appearance: none;
+    -webkit-appearance: none;
+    color-scheme: light;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B6A7D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+}
+
+.select option {
+    background-color: var(--bg-card, #FFFFFF);
+    color: var(--text-main, #0F172A);
 }
 
 .searchWrap { position: relative; }
@@ -508,8 +536,23 @@
 :global(html[data-theme="dark"]) .nameInput,
 :global(html[data-theme="dark"]) .chip,
 :global(html[data-theme="dark"]) .macroInputWrap {
-    background: rgba(30, 41, 59, 0.6);
+    /* `background-color` y NO el atajo `background`: el atajo resetea
+       `background-image`, y en `.select` eso le borraba la flecha propia. */
+    background-color: rgba(30, 41, 59, 0.6);
     border-color: rgba(148, 163, 184, 0.22);
+    color: var(--text-main, #E2E8F0);
+}
+
+/* [P1-LOGMEAL-SELECT-DARK · 2026-08-12] El desplegable nativo y la flecha, en
+   oscuro. El `color-scheme` es lo que hace que la lista abra oscura en vez de
+   con el gris del sistema. */
+:global(html[data-theme="dark"]) .select {
+    color-scheme: dark;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+:global(html[data-theme="dark"]) .select option {
+    background-color: #1E293B;
     color: var(--text-main, #E2E8F0);
 }
 
