@@ -112,8 +112,18 @@ describe('[P1-MICRO-DARK-SURFACES] en oscuro el hueco no pesa más que el dato',
             'la tarjeta vuelve a mezclar su tono sobre `--bg-page`: naranja sobre #0B1120 da un '
             + 'marrón apagado que en una paleta de slates fríos se ve sucio, no alarmante',
         ).toBe(false);
-        // Se apoya en la superficie hundida del tema (la que en oscuro ES el slate).
-        expect(base).toMatch(/--mn-sunken|--surface-sunken|--bg-card/);
+        // Se apoya en la base que cada tema declara (`--mn-att-base`), y esa base
+        // tampoco puede ser el fondo de página en oscuro — que es donde nacía el
+        // marrón sucio. [P1-MICRO-DARK-STAYS-DARK · 2026-08-12] en oscuro esa base
+        // es el propio panel: la tarjeta se queda oscura en vez de subir al slate.
+        expect(base).toMatch(/--mn-att-base/);
+        const oscuro = regla(`${OSCURO} .panel`);
+        expect(oscuro, 'el tema oscuro no declara la base de su tarjeta').toMatch(/--mn-att-base/);
+        expect(
+            /--mn-att-base:\s*var\(--bg-page\)/.test(oscuro),
+            'la base oscura de la tarjeta volvió a `--bg-page`: naranja sobre #0B1120 da el '
+            + 'marrón apagado que se ve sucio en una paleta de slates fríos',
+        ).toBe(false);
     });
 
     it('la superficie hundida del panel está definida en LOS DOS temas', () => {

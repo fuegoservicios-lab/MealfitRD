@@ -21,6 +21,14 @@
      --text-muted crudo caia a 4,13:1 — por debajo de AA. Un pelin mas oscura
      lo devuelve a 4,94:1 sin ensuciar el resto del panel. */
   --mn-ink-soft: color-mix(in srgb, var(--text-muted) 85%, var(--text-main));
+  /* [P1-MICRO-DARK-STAYS-DARK · 2026-08-12] La base sobre la que se tine la
+     tarjeta de atencion. En CLARO es la superficie hundida (la tarjeta se
+     hunde respecto al panel blanco). En OSCURO es el propio panel: hundirla
+     mas seria el marron sucio de agosto, pero apoyarla en el slate del chip
+     la dejaba en L* 21,1 — MAS CLARA que el punto mas claro del degradado
+     anterior (20,0). El dueno lo dijo sin rodeos: «se ve muy claro y eso es
+     lo que no queria, y mas que esta en modo oscuro». */
+  --mn-att-base: var(--mn-sunken);
   background:
     radial-gradient(135% 90% at -5% -10%, rgba(45, 212, 191, .10), transparent 55%),
     var(--bg-card);
@@ -37,6 +45,8 @@
   --mn-line: color-mix(in srgb, var(--border) 80%, var(--text-light));
   /* En oscuro el muted crudo ya da 4,95:1 sobre la tarjeta: sin retoque. */
   --mn-ink-soft: var(--text-muted);
+  /* En oscuro, oscuro: la tarjeta se tine sobre el panel, no sobre el chip. */
+  --mn-att-base: var(--bg-card);
 }
 
 /* Tonos por estado (se heredan vía --tone).
@@ -121,7 +131,7 @@
      contrario de nitido. Y el borde sube de 36% a 52% de tono: el borde es
      donde ya vivia el estado (P1-MICRO-TONE-RESTRAINT), asi que definirlo mas
      no reparte color nuevo por la tarjeta. */
-  background: color-mix(in srgb, var(--tone) 9%, var(--mn-sunken));
+  background: color-mix(in srgb, var(--tone) 9%, var(--mn-att-base));
   border: 1px solid color-mix(in srgb, var(--tone) 52%, var(--border));
   border-radius: 17px; padding: 15px 16px; transition: border-color .16s, transform .16s;
 }
