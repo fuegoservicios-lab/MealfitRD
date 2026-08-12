@@ -1,0 +1,146 @@
+/* [P1-PLAN-MODE · 2026-08-11] El dashboard del contador. Misma rejilla 2-columnas que
+   DashboardInner (contenido + lateral) para que cambiar de modo no se sienta como
+   cambiar de app. */
+
+.page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 1.25rem;
+    align-items: start;
+    padding: 1.25rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+    .page {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 0.9rem;
+    }
+}
+
+.mainCol,
+.sideCol {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    min-width: 0;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 2.2rem 1rem;
+    justify-content: center;
+    color: var(--text-muted, #5B6A7D);
+    font-weight: 600;
+}
+
+.spin { animation: dtSpin 1s linear infinite; }
+@keyframes dtSpin { to { transform: rotate(360deg); } }
+
+/* «Faltan datos»: honesto y accionable, jamás barras genéricas. */
+.noGoals {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.25));
+    border-radius: 14px;
+    background: var(--surface-card, #fff);
+    color: var(--text-main, #0F172A);
+}
+
+.noGoalsBody {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted, #5B6A7D);
+}
+
+.noGoalsBtn {
+    margin-left: auto;
+    flex-shrink: 0;
+    border: 0;
+    background: var(--primary, #4F46E5);
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: 0.65rem;
+    padding: 0.5rem 0.95rem;
+    cursor: pointer;
+}
+
+/* La tarjeta de encender el plan: dice un hecho y un coste, no se mueve. */
+.turnOnCard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.25));
+    border-radius: 14px;
+    background: var(--surface-card, #fff);
+}
+
+.turnOnTitle {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: var(--text-main, #0F172A);
+    letter-spacing: -0.01em;
+}
+
+.turnOnBody {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--text-muted, #5B6A7D);
+}
+
+.turnOnActions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.2rem;
+}
+
+.turnOnBtn {
+    border: 0;
+    background: var(--primary, #4F46E5);
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: 0.65rem;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+}
+
+.turnOnGhost {
+    border: 0;
+    background: transparent;
+    color: var(--text-muted, #5B6A7D);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.55rem 0.4rem;
+}
+
+/* El descarte colapsa a enlace: la puerta no se borra. */
+.turnOnLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted, #5B6A7D);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.2rem 0;
+    text-align: left;
+}
+
+.turnOnLink:hover { color: var(--primary, #4F46E5); }

@@ -148,6 +148,16 @@ const ProtectedRoute = ({ children, landing = false }) => {
         if (planData) {
             return <Navigate to="/dashboard" replace />;
         }
+        // [P1-PLAN-MODE · 2026-08-11] Modo seguimiento: el usuario COMPLETÓ su
+        // formulario (rama corta) y su dashboard es el contador — sin plan, a
+        // propósito. Mandarlo a /assessment sería re-preguntarle lo que ya
+        // contestó cada vez que abre la app. Perfil primero, espejo localStorage
+        // después (el perfil puede llegar tarde en el cold-start).
+        let _localPlanMode = null;
+        try { _localPlanMode = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }
+        if (hasCompletedAssessment && (userProfile?.plan_mode || _localPlanMode) === 'tracking') {
+            return <Navigate to="/dashboard" replace />;
+        }
         if (hasCompletedAssessment) {
             return <Navigate to="/assessment" replace />;
         }

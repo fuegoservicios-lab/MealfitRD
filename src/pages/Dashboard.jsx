@@ -24,6 +24,7 @@ import WaterTracker from '../components/dashboard/WaterTracker';
 // [P2-CREDITS-METER · 2026-06-15] Gauge circular animado de créditos (reemplaza
 // el badge plano icono+número del header). Recibe la misma data del badge.
 import CreditsMeter from '../components/dashboard/CreditsMeter';
+import DashboardTracking from '../components/dashboard/DashboardTracking';
 // [P3-MICRONUTRIENT-PANEL · 2026-06-15] Panel de micros como medidores + dismissible.
 // [P3-NOTIF-CENTER · 2026-06-16] buildMicrosNotification = SSOT del resumen archivado;
 // microsContentSig = firma estable por contenido (clave de dismissal/backfill).
@@ -2296,6 +2297,10 @@ const DashboardInner = () => {
     // que aún se completa por chunks) y la expiración contra el ciclo inmutable
     // cycle_start_date (daysSinceCycleStart), no el rolling grocery_start_date.
     const generated_days = planData?.days?.length || 0;
+    // [P1-PLAN-MODE · 2026-08-11] Plan en pausa por el usuario. Con esto: aparece la
+    // franja de abajo y DESAPARECEN los dos CTA que encolan trabajo. Ocultar, no
+    // deshabilitar: un botón gris pide que lo expliquen; la franja ya lo explicó.
+    const isPlanPaused = planData?.generation_status === 'paused_by_user';
     const {
         maxDays,
         isPlanExpired,
@@ -6308,7 +6313,7 @@ const DashboardInner = () => {
 
                         {/* BOTONES LADO A LADO */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
-                            {(() => {
+                            {!isPlanPaused && (() => {
                                 // [UX-PANTRY-CTA-DISAMBIG · 2026-05-28] (B) Ocultar el CTA
                                 // manual "Ir a mi Nevera" cuando HAY lista de compras
                                 // pendiente: "Ya compré la lista" es el camino rápido para
@@ -7620,6 +7625,7 @@ const DashboardInner = () => {
                         background no ha disparado todavía. La acción es idempotente: si el plan
                         está al día, /shift-plan responde sin hacer cambios. */}
                     {!isPlanExpired
+                        && !isPlanPaused
                         && daysSinceCreation >= 5
                         && planData?.generation_status !== 'partial'
                         && planData?.generation_status !== 'generating_next'
@@ -7689,6 +7695,58 @@ const DashboardInner = () => {
                                 Algunos días de tu plan fueron regenerados en modo simplificado por tu solicitud.
                                 Las recetas son más sencillas y flexibles con los ingredientes disponibles.
                             </span>
+                        </div>
+                    )}
+
+                    {isPlanPaused && (
+                        /* [P1-PLAN-MODE · 2026-08-11] La franja de pausa. NO se cambia de
+                           pantalla: el usuario conserva su menú, sus recetas y su lista —
+                           solo se detiene la generación de los días que faltan. Reanudar
+                           vive aquí y en Configuración → Capacidades. */
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+                            padding: '0.8rem 1rem', marginBottom: '1rem', borderRadius: '12px',
+                            border: '1px solid var(--border-color, rgba(148,163,184,0.3))',
+                            background: 'var(--surface-sunken, #EDF2F7)', color: 'var(--text-main, #0F172A)',
+                            fontSize: '0.88rem',
+                        }}>
+                            <span aria-hidden="true">⏸</span>
+                            <span style={{ flex: 1, minWidth: 220 }}>
+                                <strong>Planes en pausa.</strong>{' '}
+                                Tu plan sigue aquí; no se están generando los días que faltan
+                                ({generated_days} de {planData?.total_days_requested || generated_days} listos).
+                            </span>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const tId = toast.loading('Reanudando…', { position: 'top-center' });
+                                    try {
+                                        const r = await fetchWithAuth('/api/profile/plan-mode', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ plan_mode: 'plan' }),
+                                        });
+                                        const d = await r.json().catch(() => null);
+                                        toast.dismiss(tId);
+                                        if (!r.ok || !d?.success) throw new Error(d?.detail || 'No se pudo reanudar.');
+                                        try { localStorage.setItem('mealfit_plan_mode', 'plan'); } catch { /* noop */ }
+                                        toast.success(d.plan_expired
+                                            ? 'Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.'
+                                            : 'Planes reanudados: la generación continúa donde quedó.');
+                                        setTimeout(() => window.location.reload(), 900);
+                                    } catch (e) {
+                                        toast.dismiss(tId);
+                                        toast.error(e?.message || 'No se pudo reanudar.');
+                                    }
+                                }}
+                                style={{
+                                    border: 0, background: 'var(--primary, #4F46E5)', color: '#fff',
+                                    fontWeight: 700, fontSize: '0.85rem', borderRadius: '0.65rem',
+                                    padding: '0.5rem 1rem', cursor: 'pointer', fontFamily: 'inherit',
+                                }}
+                            >
+                                Reanudar planes
+                            </button>
                         </div>
                     )}
 
@@ -9402,7 +9460,7 @@ const DashboardInner = () => {
 // con ~80 hooks debajo. Comportamiento idéntico al previo en el camino común
 // (ProtectedRoute ya garantiza loadingData=false al renderizar esta ruta).
 const Dashboard = () => {
-    const { loadingData, planData, planSyncFailed, retryPlanSync } = useAssessment();
+    const { loadingData, planData, planSyncFailed, retryPlanSync, userProfile } = useAssessment();
 
     // ESTADO DE CARGA: recuperando datos de la DB → loader.
     if (loadingData) {
@@ -9461,8 +9519,24 @@ const Dashboard = () => {
         );
     }
 
-    // Protección de ruta: cargó y NO hay plan → al formulario de evaluación.
+    // [P1-PLAN-MODE · 2026-08-11] `!planData` dejó de significar «este usuario no se
+    // ha configurado». Hay TRES casos y solo uno es el formulario:
+    //   1. modo seguimiento → su dashboard es el contador (DashboardTracking).
+    //   2. perfil completo sin plan ni modo legible → dos puertas, no 21 preguntas.
+    //   3. usuario nuevo de verdad → el formulario.
+    // Si `plan_mode` no llegó (perfil lento, red mala) NO puede leerse como 'plan':
+    // el desenlace de esa lectura es echar al formulario a quien acaba de decir que
+    // no lo quiere — la forma de P1-LOGIN-PLAN-SYNC-RETRY (tratar «no lo sé» como
+    // «no lo tiene»). De ahí el espejo en localStorage, que escriben el cierre del
+    // wizard y el interruptor de Configuración.
     if (!planData) {
+        let _localMode = null;
+        try { _localMode = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }
+        const _planMode = userProfile?.plan_mode || _localMode || null;
+
+        if (_planMode === 'tracking') {
+            return <DashboardTracking />;
+        }
         return <Navigate to="/assessment" replace />;
     }
 

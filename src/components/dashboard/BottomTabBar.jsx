@@ -4,24 +4,30 @@ import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 // [P1-GUEST-NAV-LOCK · 2026-06-15] Modo invitado: secciones que requieren cuenta.
 import { useAssessment } from '../../context/AssessmentContext';
+import { navItemsFor, isTrackingMode } from '../../config/dashboardNav';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al touchstart
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del data del Historial
 import { prefetchHistoryList } from '../../utils/historyCaches';
 import styles from './BottomTabBar.module.css';
 
-const tabs = [
-    { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
-    { icon: AgentIcon, label: 'Agente', path: '/dashboard/agent' },
-    { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry', iconStroke: 2.25 },
-    { icon: RecipesIcon, label: 'Recetas', path: '/dashboard/recipes' },
-    { icon: Clock, label: 'Historial', path: '/history' },
-];
+// [P1-PLAN-MODE · 2026-08-11] Las entradas salen del SSOT (config/dashboardNav);
+// aquí solo se les pega el icono. La lista se arma DENTRO del componente porque
+// depende del modo (contexto) — un const a nivel de módulo no lo ve.
+const _tabIcons = {
+    plan: { icon: LayoutDashboard },
+    agent: { icon: AgentIcon },
+    pantry: { icon: Refrigerator, iconStroke: 2.25 },
+    recipes: { icon: RecipesIcon },
+    history: { icon: Clock },
+};
 
 const BottomTabBar = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { isGuest } = useAssessment();
+    const { isGuest, userProfile, planData } = useAssessment();
+    const tabs = navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })
+        .map((it) => ({ ...it, ..._tabIcons[it.key] }));
 
     // [P1-GUEST-NAV-LOCK · 2026-06-15] Para invitados, todo salvo Plan requiere
     // cuenta (no está en GUEST_ROUTES). En vez de rebotar en silencio a

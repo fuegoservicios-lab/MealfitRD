@@ -1251,8 +1251,16 @@ const History = () => {
             || rawStatus === 'rolling'
         );
 
-        let bucket; // 'complete' | 'partial' | 'failed' | 'action_required' | 'in_progress' | 'unknown'
-        if (rawStatus === 'failed' || recoveryExhausted) {
+        let bucket; // 'complete' | 'partial' | 'failed' | 'action_required' | 'in_progress' | 'paused' | 'unknown'
+        // [P1-PLAN-MODE · 2026-08-11] ANTES que la rama de `partial`, y no es orden
+        // casual: un plan pausado tiene `days < totalDays` POR DEFINICIÓN, así que
+        // sin esta rama caería en `partial` — el bucket de "plan roto/incompleto" —
+        // cuando el usuario mismo lo apagó. Hoy el bucket alimenta la reconciliación
+        // de abajo y el criterio del hero (`activePlanId`); cualquier chip futuro
+        // hereda la distinción gratis.
+        if (rawStatus === 'paused_by_user') {
+            bucket = 'paused';
+        } else if (rawStatus === 'failed' || recoveryExhausted) {
             bucket = 'failed';
         } else if (actionRequired) {
             bucket = 'action_required';
@@ -1300,7 +1308,12 @@ const History = () => {
         //   - Si counter failed > 0 (sin que plan_data lo declare) →
         //     `action_required`. El recovery cron pudo dejar un chunk
         //     en `failed` antes de propagar el flag al jsonb.
-        if (bucket !== 'failed' && bucket !== 'action_required') {
+        //   - [P1-PLAN-MODE · 2026-08-11] `paused` TAMPOCO se eleva: la pausa
+        //     cancela la cola entera (los 5 estados resucitables), así que un
+        //     counter residual > 0 aquí es una fila vieja o deploy lag — y
+        //     pedirle «acción» a quien acaba de APAGAR los planes es exactamente
+        //     el mensaje equivocado. Reanudar ya limpia/reencola por su cuenta.
+        if (bucket !== 'failed' && bucket !== 'action_required' && bucket !== 'paused') {
             // Source 1 (preferred): counters embebidos del plan.
             const _embeddedPuac = typeof plan.chunk_pending_user_action_count === 'number'
                 ? plan.chunk_pending_user_action_count

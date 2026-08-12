@@ -15,6 +15,11 @@ import {
 import { QPantryBuilder } from './questions/QPantryBuilder';
 // [P1-STAPLE-FOODS · 2026-08-02] Import directo (mismo patrón que QPantryBuilder arriba).
 import { QStapleFoods } from './questions/QStapleFoods';
+// [P1-PLAN-MODE · 2026-08-11] El paso 0 (¿plan o contador?) y el cierre del modo
+// seguimiento. El formulario se bifurca por `formData.appMode`: 10 pasos en
+// seguimiento, los 21+1 de siempre en plan.
+import { QAppMode } from './questions/QAppMode';
+import { QTrackingFinish } from './questions/QTrackingFinish';
 // [FORM-CTA-UNIFY · 2026-07-02] Icono del botón "Saltar" (antes glyph ⏭ de texto,
 // que renderiza distinto por plataforma; lucide es consistente con el resto).
 import { ChevronsRight } from 'lucide-react';
@@ -259,7 +264,7 @@ const InteractiveAssessmentFlow = () => {
     // de verdad: el orden determina el índice, y `buildFieldToStepIndex` (más
     // abajo) construye el mapping `field → step index` en runtime. Reordenar
     // o insertar steps no rompe la navegación a campo faltante.
-    const steps = [
+    const planOnlySteps = [
         // [P1-PANTRY-FIRST-PLAN · 2026-07-11] F3: primera decisión del formulario —
         // plan libre vs construido desde la Nevera. Campo `planSource` viaja en el
         // payload del SSE (spread de formData); el backend inyecta el inventario
@@ -490,15 +495,84 @@ const InteractiveAssessmentFlow = () => {
         }] : [])
     ];
 
+    // [P1-PLAN-MODE · 2026-08-11] EL FORMULARIO SE BIFURCA POR MODO.
+    //
+    // QAppMode es un paso PROPIO y anterior — no un tercer botón de QPlanSource,
+    // cuyo enum es binario y el backend trata cualquier otro valor como generación
+    // libre (la forma de P1-DIET-CANON-SSOT). El paso no ES el interruptor: lo PULSA
+    // al terminar (QTrackingFinish → PUT /api/profile/plan-mode), porque los crons no
+    // leen formData y los crons son donde se gasta el dinero.
+    //
+    // Los 10 pasos del modo seguimiento son los que alimentan el NÚMERO del contador
+    // (get_nutrition_targets) o son SEGURIDAD. Los 12 que se saltan quedan AUSENTES
+    // — se preguntan el día que el usuario encienda el plan, no se inventan
+    // (P0-FORM-1/-4/-5 son las cicatrices de inventarlos).
+    const _appModeStep = {
+        title: <>¿Qué quieres que haga Bioboros por ti?</>,
+        subtitle: "Las dos cosas usan la misma IA. La diferencia es si te genera el menú o solo te acompaña a contar.",
+        fields: ['appMode'],
+        component: <QAppMode onAutoAdvance={handleAutoAdvance} />
+    };
+
+    const _byField = (f) => planOnlySteps.find((st) => (st.fields || []).includes(f));
+    const _byComponent = (C) => planOnlySteps.find((st) => st.component && st.component.type === C);
+
+    const _trackingSteps = [
+        _appModeStep,
+        _byField('gender'),
+        _byField('age'),            // Tus Medidas: age/height/weight/weightUnit
+        _byField('activityLevel'),
+        _byField('mainGoal'),
+        _byComponent(QGoalTarget),  // sin `fields` declarados: se busca por componente
+        _byField('dietType'),
+        _byField('allergies'),
+        _byField('medicalConditions'),
+        {
+            title: <>Listo: tu contador</>,
+            subtitle: "Sin plan generado, sin gastar créditos. Lo enciendes cuando quieras.",
+            hasInternalNext: true,
+            component: <QTrackingFinish />
+        },
+    ].filter(Boolean);
+
+    const _isTracking = formData.appMode === 'tracking';
+    const steps = _isTracking ? _trackingSteps : [_appModeStep, ...planOnlySteps];
+
     // [P1-FORM-1] Mapping `field → step index` derivado del array `steps` en
     // runtime. Reemplaza el constante hardcoded `FIELD_TO_STEP_INDEX` que
     // requería actualización manual cada vez que se reordenaba/insertaba un
-    // step. `useMemo` con deps vacías porque la estructura de `fields` es
-    // estática para la vida del componente (los componentes JSX cambian por
-    // closure refresh pero los `fields` declarados son literales constantes).
-    // Costo: O(n) microsegundos una sola vez por mount.
+    // step.
+    //
+    // [P1-PLAN-MODE · 2026-08-11] Las deps VACÍAS de antes eran ciertas por
+    // accidente: el único paso condicional (pantry) iba al final y sin `fields`.
+    // Con el formulario bifurcado por modo, un array que cambia de largo en medio
+    // rompería las dos condiciones a la vez, y el síntoma es el toast «Te llevamos
+    // al paso correspondiente» llevando AL PASO EQUIVOCADO — el bug exacto que
+    // P1-FORM-1 cerró. La dep es la FIRMA de la forma real: cambia cuando cambia
+    // qué campo vive en qué paso, y nada más.
+    const stepsShape = steps.map((st) => (st.fields || []).join(',')).join('>');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const fieldToStepIndex = useMemo(() => buildFieldToStepIndex(steps), []);
+    const fieldToStepIndex = useMemo(() => buildFieldToStepIndex(steps), [stepsShape]);
+
+    // [P1-PLAN-MODE · 2026-08-11] Trampa 2: `currentStep` persiste en localStorage y
+    // es un ÍNDICE, no un identificador. Si el modo con el que se guardó no es el
+    // actual, el índice no significa NADA — y el clamp genérico lo empeora: recorta
+    // al último paso, que en seguimiento es el CIERRE, o sea aterrizar en «Listo»
+    // sin haber contestado Condiciones Médicas. Regla: modo distinto ⇒ el índice se
+    // tira y se recalcula al primer paso de la rama nueva.
+    useEffect(() => {
+        let _prevMode = null;
+        try { _prevMode = localStorage.getItem('mealfit_wizard_step_mode'); } catch { /* noop */ }
+        const _mode = _isTracking ? 'tracking' : 'plan';
+        if (_prevMode !== _mode) {
+            try { localStorage.setItem('mealfit_wizard_step_mode', _mode); } catch { /* noop */ }
+            if (_prevMode !== null && currentStep > 0) {
+                // Volver al paso 1 de la rama nueva (el 0 es QAppMode, ya contestado).
+                setCurrentStep(Math.min(1, steps.length - 1));
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [_isTracking]);
 
     const currentStepConfig = steps[currentStep] || steps[0];
     const hasCompletedBefore = !!planData;

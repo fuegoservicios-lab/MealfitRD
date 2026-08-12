@@ -12,6 +12,7 @@ import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, 
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
+import { navItemsFor, isTrackingMode } from '../../config/dashboardNav';
 // [P3-DASH-MODALS-A11Y · 2026-05-30] Hook SSOT de a11y (ESC + focus-trap +
 // restore + body-overflow) para el "Mobile More Menu" — overlay full-screen
 // con acción destructiva (Cerrar Sesión) que era el único surface modal-like
@@ -53,7 +54,7 @@ import Wordmark from '../common/Wordmark';
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { resetApp, userProfile, session, isPremium, isGuest, exitGuestSession } = useAssessment();
+    const { resetApp, userProfile, planData, session, isPremium, isGuest, exitGuestSession } = useAssessment();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobileMoreMenuOpen, setIsMobileMoreMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -149,13 +150,17 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // (mismo tratamiento que Recetas/Nevera: la superficie llena ancho + alto).
     const isHistory = location.pathname.startsWith('/history');
 
-    const menuItems = [
-        { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
-        { icon: AgentIcon, label: 'Agente', path: '/dashboard/agent' },
-        { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry', iconStroke: 2.25 },
-        { icon: RecipesIcon, label: 'Recetas', path: '/dashboard/recipes' }, // Placeholder
-        { icon: Clock, label: 'Historial', path: '/history' },
-    ];
+    // [P1-PLAN-MODE · 2026-08-11] Las ENTRADAS salen del SSOT (config/dashboardNav);
+    // aquí solo se les pega el icono. Dos copias a mano eran dos verdades.
+    const _navIcons = {
+        plan: { icon: LayoutDashboard },
+        agent: { icon: AgentIcon },
+        pantry: { icon: Refrigerator, iconStroke: 2.25 },
+        recipes: { icon: RecipesIcon },
+        history: { icon: Clock },
+    };
+    const menuItems = navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })
+        .map((it) => ({ ...it, ..._navIcons[it.key] }));
 
     // [P1-GUEST-LOGOUT · 2026-06-15] Un invitado no tiene email: mostrar "Invitado".
     const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar sesión';

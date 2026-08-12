@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     User, Shield, ChevronRight, ArrowLeft,
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, GlassWater, Cog, Fingerprint,
-    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon, Stethoscope, ShieldCheck, Download, ExternalLink
+    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon, Stethoscope, ShieldCheck, Download, ExternalLink, CalendarDays
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
@@ -140,7 +140,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // Obtenemos userProfile y updateUserProfile del contexto global
     // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
     // `buildHealthProfilePayload`.
-    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, updateData } = useAssessment();
+    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, isGuest, updateData } = useAssessment();
 
     // [P1-FORM-9] Wrapper análogo al de Dashboard.jsx: filtra flags `_*` y
     // bloquea si la hidratación cifrada del formData parece estar in-flight.
@@ -271,6 +271,66 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             toast.error('No se pudo actualizar la preferencia. Inténtalo de nuevo.');
         } finally {
             setIsLoggingPrefLoading(false);
+        }
+    };
+
+    // [P1-PLAN-MODE · 2026-08-11] Generación de planes: encendida ('plan') o en
+    // pausa ('tracking'). null = aún no cargado — el toggle no se pinta hasta
+    // saber (pintar 'plan' por default y corregir 300ms después es mentir).
+    const [planModeState, setPlanModeState] = useState(null);
+    const [isPlanModeLoading, setIsPlanModeLoading] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetchWithAuth('/api/profile/plan-mode');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!cancelled && (data?.plan_mode === 'plan' || data?.plan_mode === 'tracking')) {
+                    setPlanModeState(data.plan_mode);
+                }
+            } catch (e) {
+                console.debug('No se pudo cargar plan_mode:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    const handleTogglePlanMode = async () => {
+        if (planModeState === null || isPlanModeLoading) return;
+        const pausing = planModeState === 'plan';
+        if (pausing) {
+            // Confirmación SOLO al pausar: reanudar es recuperar lo que ya era tuyo.
+            const ok = await confirmToast(
+                'Tu plan actual se queda: menú, recetas y lista siguen visibles. Solo se detiene la generación de días nuevos y el avance automático. ¿Pausar?',
+                { confirmLabel: 'Pausar planes', cancelLabel: 'Volver' },
+            );
+            if (!ok) return;
+        }
+        const next = pausing ? 'tracking' : 'plan';
+        setIsPlanModeLoading(true);
+        try {
+            const res = await fetchWithAuth('/api/profile/plan-mode', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan_mode: next }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data?.success) throw new Error(data?.detail || 'PUT failed');
+            setPlanModeState(next);
+            // Espejo local: el wrapper del Dashboard y la nav lo leen sin roundtrip.
+            safeLocalStorageSet('mealfit_plan_mode', next);
+            toast.success(pausing
+                ? 'Planes en pausa. La app queda como contador; reanuda cuando quieras.'
+                : (data.plan_expired
+                    ? 'Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.'
+                    : 'Planes reanudados: la generación continúa donde quedó.'));
+        } catch (e) {
+            console.error('handleTogglePlanMode error:', e);
+            toast.error('No se pudo cambiar el modo. Inténtalo de nuevo.');
+        } finally {
+            setIsPlanModeLoading(false);
         }
     };
 
@@ -2343,6 +2403,50 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                                 Ajusta cómo el agente registra tus comidas y aprende de ti.
                             </p>
+
+                            {/* [P1-PLAN-MODE · 2026-08-11] Card 0: Generación de planes.
+                                EL interruptor del modo (encendido = la IA genera menú/
+                                recetas/lista; en pausa = la app queda como contador).
+                                Solo se pinta con el estado YA cargado (planModeState
+                                null = fetch en vuelo) y no para invitados: el modo vive
+                                en user_profiles y un invitado no tiene fila. */}
+                            {!isGuest && planModeState !== null && (
+                                <div
+                                    className={`${styles.preferenceCard} ${styles.preferenceCardGreen} ${planModeState === 'plan' ? styles.preferenceCardActive : ''}`}
+                                >
+                                    <div className={styles.preferenceCardBody}>
+                                        <div
+                                            className={styles.preferenceCardIcon}
+                                            style={{
+                                                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                                                boxShadow: '0 4px 12px -2px rgba(16, 185, 129, 0.4), inset 0 0 0 0.5px rgba(255, 255, 255, 0.35)',
+                                            }}
+                                        >
+                                            <CalendarDays size={20} color="#FFFFFF" />
+                                        </div>
+                                        <div className={styles.preferenceCardText}>
+                                            <div className={styles.preferenceCardTitle}>
+                                                Generación de planes
+                                            </div>
+                                            <div className={styles.preferenceCardDesc}>
+                                                {planModeState === 'plan'
+                                                    ? 'Encendida. La IA genera tu menú, recetas y lista de compras.'
+                                                    : 'En pausa. La app funciona como contador; tu plan y tus datos se conservan.'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={planModeState === 'plan'}
+                                            onChange={handleTogglePlanMode}
+                                            disabled={isPlanModeLoading}
+                                            aria-label="Encender o pausar la generación de planes"
+                                        />
+                                        <span className={styles.toggleSlider} style={{ opacity: isPlanModeLoading ? 0.5 : 1 }}></span>
+                                    </label>
+                                </div>
+                            )}
 
                             {/* [P3-PREFERENCES-CARD-POLISH · 2026-05-27]
                                 Refactor inline-styles → CSS module con

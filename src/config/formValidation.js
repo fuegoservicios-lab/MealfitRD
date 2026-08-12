@@ -274,6 +274,74 @@ export const findFirstIncompleteField = (formData) => {
 };
 
 // ============================================================
+// [P1-PLAN-MODE · 2026-08-11] El modo seguimiento — su propio contrato
+// ------------------------------------------------------------
+// `REQUIRED_FORM_FIELDS` (los 20 de arriba) es el contrato del BACKEND para
+// GENERAR UN PLAN, sincronizado con `_REQUIRED_FORM_FIELDS` de routers/plans.py
+// y vigilado por test_p0_form_6. NO SE TOCA: en modo seguimiento no se llama a
+// /analyze/stream, así que ese contrato no aplica — y si se aplicara,
+// `findFirstIncompleteField` devolvería 'scheduleType' y mandaría al usuario a
+// un paso que en su modo NO EXISTE.
+//
+// TRACKING_REQUIRED_FIELDS = los que o entran en `get_nutrition_targets` (el
+// NÚMERO del contador) o son SEGURIDAD (alergias, condiciones). Nada más. Los
+// 12 pasos que el modo se salta se rellenan con NADA — quedan ausentes y se
+// preguntan el día que el usuario encienda el plan. Este repo tiene tres
+// cicatrices de la clase contraria (P0-FORM-1/-4/-5): inventar un
+// `cookingTime:'medium'` y usarlo meses después es la misma trampa con fecha.
+export const TRACKING_REQUIRED_FIELDS = [
+    'gender',
+    'age',
+    'height',
+    'weight',
+    'weightUnit',
+    'activityLevel',
+    'mainGoal',
+    'dietType',
+    'allergies',
+    'medicalConditions',
+];
+
+/** `findFirstIncompleteField`, pero contra una lista dada. La original queda
+ *  intacta (firma y 3 call sites); esta existe para que cada modo valide SU
+ *  contrato y no el del otro. */
+export const findFirstIncompleteFieldFor = (formData, requiredFields) => {
+    if (!formData) return requiredFields[0] || null;
+    for (const field of requiredFields) {
+        const v = formData[field];
+        const comp = FREE_TEXT_COMPANION[field];
+        const compFilled = comp && String(formData[comp] || '').trim() !== '';
+        if (v === undefined || v === null) {
+            if (compFilled) continue;
+            return field;
+        }
+        if (typeof v === 'string' && v.trim() === '') return field;
+        if (Array.isArray(v) && v.length === 0) {
+            if (compFilled) continue;
+            return field;
+        }
+    }
+    return null;
+};
+
+/** Los campos del contrato de PLAN que a este usuario le faltan. Alimenta el
+ *  «Te faltan N preguntas» de la tarjeta de encender el plan — un hecho
+ *  accionable, no un adjetivo de marketing. */
+export const missingPlanFields = (formData) => {
+    const faltan = [];
+    for (const field of REQUIRED_FORM_FIELDS) {
+        const v = formData?.[field];
+        const comp = FREE_TEXT_COMPANION[field];
+        const compFilled = comp && String(formData?.[comp] || '').trim() !== '';
+        if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')
+            || (Array.isArray(v) && v.length === 0)) {
+            if (!compFilled) faltan.push(field);
+        }
+    }
+    return faltan;
+};
+
+// ============================================================
 // [P1-3] Rangos biométricos plausibles
 // ------------------------------------------------------------
 // Mantener alineado con `_BIO_RANGES` en `backend/routers/plans.py`. El

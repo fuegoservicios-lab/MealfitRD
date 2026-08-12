@@ -54,7 +54,7 @@ describe('[P2-HIST-AUDIT-1] anchor + bucket unknown', () => {
         // remueva alguno falle.
         const helperIdx = src.indexOf('const getStatusInfo');
         const block = src.slice(helperIdx, helperIdx + 8000);
-        expect(block).toMatch(/'complete'\s*\|\s*'partial'\s*\|\s*'failed'\s*\|\s*'action_required'\s*\|\s*'in_progress'\s*\|\s*'unknown'/);
+        expect(block).toMatch(/'complete'\s*\|\s*'partial'\s*\|\s*'failed'\s*\|\s*'action_required'\s*\|\s*'in_progress'\s*\|\s*'paused'\s*\|\s*'unknown'/);
     });
 
     it('rama unknown asigna cuando daysGenerated === 0', () => {
