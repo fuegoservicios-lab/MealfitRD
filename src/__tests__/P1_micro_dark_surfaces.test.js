@@ -97,22 +97,36 @@ describe('[P1-MICRO-DARK-SURFACES] en oscuro el hueco no pesa más que el dato',
         ).toBeLessThan(lTarjeta);
     });
 
-    it('la tarjeta de aviso se apoya en un slate, no en el fondo de página', () => {
-        const r = regla(`${OSCURO} .att`);
-        expect(r, 'desapareció la superficie de aviso del tema oscuro').toBeTruthy();
+    /* [P1-MICRO-CRISP-SURFACES · 2026-08-12] Estas dos afirmaban el MECANISMO de
+       agosto (un override oscuro propio de `.att`, y una regla base atada a
+       `--bg-page`). El mecanismo cambió — hoy hay UNA sola declaración que se
+       mezcla sobre `--mn-sunken`, la superficie hundida que cada tema define —
+       pero la INTENCIÓN que este guard protege es la misma y sigue viva: en
+       oscuro la tarjeta no puede apoyarse en el fondo de página. Reescritas
+       para afirmar el resultado, que es lo que no debe volver a romperse. */
+    it('la tarjeta de aviso NO se apoya en el fondo de página', () => {
+        const base = regla('.att');
+        expect(base, 'desapareció la superficie de la tarjeta de aviso').toBeTruthy();
         expect(
-            /--bg-page/.test(r),
+            /--bg-page/.test(base),
             'la tarjeta vuelve a mezclar su tono sobre `--bg-page`: naranja sobre #0B1120 da un '
             + 'marrón apagado que en una paleta de slates fríos se ve sucio, no alarmante',
         ).toBe(false);
-        expect(r).toMatch(/--surface-sunken|--bg-card/);
+        // Se apoya en la superficie hundida del tema (la que en oscuro ES el slate).
+        expect(base).toMatch(/--mn-sunken|--surface-sunken|--bg-card/);
     });
 
-    it('el tema claro no se toca: allí las dos reglas base son correctas', () => {
-        // La regla base sigue derivando la pista de `--text-light` y mezclando sobre
-        // `--bg-page`, que es lo que funciona sobre blanco. El arreglo es un override del
-        // tema, no un cambio del sistema.
+    it('la superficie hundida del panel está definida en LOS DOS temas', () => {
+        // El sustituto honesto del viejo «el tema claro no se toca»: ya no hay un
+        // tema privilegiado con override y otro con la regla base — los dos declaran
+        // su `--mn-sunken` y la tarjeta se mezcla sobre él. Si un tema se queda sin
+        // declararla, hereda la del otro y la paridad se rompe en silencio
+        // (test_p1_micro_crisp_surfaces.py mide esa paridad con números).
+        expect(regla('.panel'), 'el panel no declara sus superficies').toMatch(/--mn-sunken/);
+        expect(regla(`${OSCURO} .panel`), 'el tema oscuro no declara su superficie hundida')
+            .toMatch(/--mn-sunken/);
+        // Y la pista de barra del claro sigue derivando de la tinta clara: sobre
+        // blanco ES lo correcto, y es lo que el override oscuro existe para no heredar.
         expect(regla('.bar')).toMatch(/--text-light/);
-        expect(regla('.att')).toMatch(/--bg-page/);
     });
 });

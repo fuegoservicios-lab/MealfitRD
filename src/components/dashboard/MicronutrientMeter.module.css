@@ -2,15 +2,41 @@
    no dismissible). Jerarquía: foco en lo que falta (tarjetas), lo cumplido calmado
    (chips), límites aparte. Tokens del DS (tema-aware). Adaptado del rediseño aprobado. */
 
+/* [P1-MICRO-CRISP-SURFACES · 2026-08-12] Las dos variables locales de las que
+   cuelga la nitidez del panel. Medido antes de tocar nada (claro | oscuro):
+   chip vs panel dL* 4,7 | 8,1 · tarjeta vs panel 7,1 | 11,7 · chevron 3,07:1 |
+   5,06:1. O sea: el CLARO vivía a mitad de separación que el oscuro en TODAS
+   las relaciones — no era un color feo, era paridad rota (la lección de
+   P1-NOTEBOOK-MARGIN-LIGHT: cuando el mismo elemento existe en dos temas, la
+   gemela es el anclaje).
+
+   `--mn-sunken` (superficie hundida de chips/límites/resumen) y `--mn-line`
+   (la línea que los recorta) se derivan de tokens con color-mix — cero hex
+   clavados, y cada tema recibe la MISMA separación, no el mismo número. */
 .panel {
+  --mn-sunken: color-mix(in srgb, var(--surface-sunken) 92%, var(--text-light));
+  --mn-line: color-mix(in srgb, var(--border) 74%, var(--text-light));
+  /* La tinta apagada DENTRO de la tarjeta de atencion. En claro la tarjeta se
+     hunde para emparejar la separacion del oscuro, y sobre ese fondo el
+     --text-muted crudo caia a 4,13:1 — por debajo de AA. Un pelin mas oscura
+     lo devuelve a 4,94:1 sin ensuciar el resto del panel. */
+  --mn-ink-soft: color-mix(in srgb, var(--text-muted) 85%, var(--text-main));
   background:
     radial-gradient(135% 90% at -5% -10%, rgba(45, 212, 191, .10), transparent 55%),
     var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--mn-line);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   padding: 18px 18px 16px;
   margin-bottom: 1.5rem;
+}
+:global(html[data-theme="dark"]) .panel {
+  /* En oscuro la superficie hundida ya se separa 8,1 — no necesita hundirse
+     más; la línea sí gana definición con la misma receta que en claro. */
+  --mn-sunken: var(--surface-sunken);
+  --mn-line: color-mix(in srgb, var(--border) 80%, var(--text-light));
+  /* En oscuro el muted crudo ya da 4,95:1 sobre la tarjeta: sin retoque. */
+  --mn-ink-soft: var(--text-muted);
 }
 
 /* Tonos por estado (se heredan vía --tone).
@@ -44,7 +70,7 @@
 .stats { display: flex; gap: 9px; margin-top: 15px; flex-wrap: wrap; }
 .stat {
   flex: 1; min-width: 120px; display: flex; align-items: center; gap: 11px; padding: 11px 13px;
-  border-radius: 14px; background: var(--surface-sunken); border: 1px solid var(--border);
+  border-radius: 14px; background: var(--mn-sunken); border: 1px solid var(--mn-line);
 }
 .stat .num { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 800; line-height: .9; color: var(--tone-ink); }
 .stat .lbl { font-size: .69rem; font-weight: 600; color: var(--text-muted); line-height: 1.25; }
@@ -89,13 +115,19 @@
 /* ---------- Tarjeta "Por mejorar hoy" ---------- */
 .att {
   display: block; width: 100%; text-align: left; font: inherit; color: inherit;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 11%, var(--bg-page)), var(--bg-page));
-  border: 1px solid color-mix(in srgb, var(--tone) 36%, var(--border));
+  /* [P1-MICRO-CRISP-SURFACES] SOLIDA, no gradiente: el degradado moria
+     exactamente en el color del panel (dL* 1,8 en claro y 0,0 en oscuro en su
+     mitad inferior), asi que la tarjeta se DISOLVIA hacia abajo — eso es lo
+     contrario de nitido. Y el borde sube de 36% a 52% de tono: el borde es
+     donde ya vivia el estado (P1-MICRO-TONE-RESTRAINT), asi que definirlo mas
+     no reparte color nuevo por la tarjeta. */
+  background: color-mix(in srgb, var(--tone) 9%, var(--mn-sunken));
+  border: 1px solid color-mix(in srgb, var(--tone) 52%, var(--border));
   border-radius: 17px; padding: 15px 16px; transition: border-color .16s, transform .16s;
 }
 .att + .att { margin-top: 10px; }
 .att.clickable { cursor: pointer; }
-.att.clickable:hover { border-color: color-mix(in srgb, var(--tone) 55%, var(--border)); }
+.att.clickable:hover { border-color: color-mix(in srgb, var(--tone) 70%, var(--border)); }
 .att.clickable:active { transform: scale(.995); }
 
 .attTop { display: flex; align-items: center; gap: 10px; }
@@ -109,7 +141,7 @@
 .bigPct { margin-left: auto; font-family: var(--font-heading); font-size: 1.55rem; font-weight: 800; color: var(--tone-ink); line-height: .9; }
 .att .bar { margin: 12px 0 9px; }
 
-.vals { font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.vals { font-size: .78rem; color: var(--mn-ink-soft); font-variant-numeric: tabular-nums; }
 .vals b { color: var(--text-main); font-weight: 800; }
 /* [P1-MICRO-TONE-RESTRAINT · 2026-08-11] «Faltan 13 mcg» es una CANTIDAD, no un
    estado: vuelve a tinta normal.
@@ -130,7 +162,7 @@
 .sugg {
   display: flex; align-items: flex-start; gap: 9px; margin-top: 12px; padding-top: 12px;
   border-top: 1px dashed color-mix(in srgb, var(--tone) 34%, var(--border));
-  font-size: .77rem; line-height: 1.45; color: var(--text-muted);
+  font-size: .77rem; line-height: 1.45; color: var(--mn-ink-soft);
 }
 .suggIco {
   flex: none; width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; margin-top: -1px;
@@ -145,7 +177,7 @@
 /* [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] Precaución por suplemento (UL / interacción / renal). */
 .caution {
   display: flex; align-items: flex-start; gap: 7px; margin-top: 8px;
-  font-size: .69rem; line-height: 1.4; color: var(--text-muted);
+  font-size: .69rem; line-height: 1.4; color: var(--mn-ink-soft);
 }
 .cautionIco { flex: none; margin-top: 1px; }
 
@@ -160,7 +192,7 @@
 .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-items: start; }
 .q {
   display: flex; flex-direction: column; width: 100%; padding: 10px 11px; border-radius: 12px;
-  background: var(--surface-sunken); border: 1px solid var(--border); min-width: 0;
+  background: var(--mn-sunken); border: 1px solid var(--mn-line); min-width: 0;
   font: inherit; color: inherit; text-align: left; cursor: pointer; -webkit-appearance: none; appearance: none;
   transition: border-color .16s, background .16s;
 }
@@ -170,7 +202,9 @@
 .chk { flex: none; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; color: #04221d; background: #2DD4BF; }
 .qName { font-size: .81rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qPct { margin-left: auto; flex: none; font-size: .7rem; font-weight: 800; color: var(--ink-ok); font-variant-numeric: tabular-nums; }
-.qChev { flex: none; color: var(--text-light); transition: transform .2s ease; }
+/* [P1-MICRO-CRISP-SURFACES] text-light daba 3,07:1 en claro (5,06 en oscuro):
+   otra vez la mitad. Es un control, no una decoracion — pasa a text-muted. */
+.qChev { flex: none; color: var(--text-muted); transition: transform .2s ease; }
 .qChevOpen { transform: rotate(180deg); }
 .qVals { overflow: hidden; display: block; }
 .qValsInner {
@@ -190,7 +224,7 @@
    de julio lo arreglaba en claro por accidente, así que al retirarlo el bug
    habría reaparecido en los dos temas.
    El estado normal ahora lo pone `.ok` desde el JSX, igual que en los chips. */
-.lim { padding: 12px 14px; border-radius: 14px; background: var(--surface-sunken); border: 1px solid var(--border); }
+.lim { padding: 12px 14px; border-radius: 14px; background: var(--mn-sunken); border: 1px solid var(--mn-line); }
 .limTop { display: flex; align-items: center; gap: 8px; }
 .limName { font-size: .87rem; font-weight: 700; color: var(--text-main); }
 .limOk {
@@ -268,13 +302,11 @@
   background: rgba(2, 6, 23, 0.55);
 }
 
-:global(html[data-theme="dark"]) .att {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--tone) 7%, var(--surface-sunken)),
-    var(--bg-card)
-  );
-}
+/* [P1-MICRO-CRISP-SURFACES · 2026-08-12] El override oscuro de `.att` MURIO: la
+   regla base mezcla sobre `--mn-sunken`, que cada tema define a su manera, asi
+   que una sola declaracion sirve a los dos. Antes eran dos gradientes distintos
+   y AMBOS morian en el color del panel (claro dL* 1,8 abajo, oscuro 0,0): la
+   tarjeta se disolvia por la mitad inferior en los dos temas. */
 
 /* ---------- Responsive ---------- */
 @media (max-width: 560px) {
