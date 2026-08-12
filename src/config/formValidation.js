@@ -104,6 +104,15 @@
 // narrativa del problema que se cerró. La cifra autoritativa es la longitud
 // del array de abajo (`REQUIRED_FORM_FIELDS.length`).
 export const REQUIRED_FORM_FIELDS = [
+    // [P1-PLANSOURCE-REQUIRED · 2026-08-12] Obligatoria por decisión del owner
+    // (anula el default-scratch silencioso de P1-PANTRY-FIRST-PLAN): elegir si
+    // el plan nace libre o desde la Nevera ES la primera decisión del plan, no
+    // un detalle con default. Frontend-only a propósito — el backend sigue
+    // tratando ausente como generación libre (compat legacy, mismo patrón que
+    // dietType; whitelist `_FRONTEND_ONLY_BY_DESIGN` del test de paridad).
+    // Va PRIMERO: findFirstIncompleteField navega en este orden y su paso es
+    // el primero de la rama del plan.
+    'planSource',
     'gender', 'age', 'height', 'weight', 'weightUnit', 'activityLevel',
     'scheduleType', 'sleepHours', 'stressLevel', 'cookingTime', 'budget',
     'householdSize', 'groceryDuration',
@@ -198,6 +207,7 @@ export const buildFieldToStepIndex = (steps) => {
 // [P1-2] Cada entry de REQUIRED_FORM_FIELDS DEBE tener su label aquí o el toast
 // muestra el nombre técnico del field ("scheduleType" en vez de "Tu horario").
 export const FIELD_LABELS = {
+    planSource: 'Cómo arma tu plan la IA',
     gender: 'Sexo biológico',
     age: 'Edad',
     height: 'Altura',

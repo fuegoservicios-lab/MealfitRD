@@ -32,6 +32,11 @@ const _readFile = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 describe('P0-12 — findFirstIncompleteField con el contrato nuevo (household fijo en 1)', () => {
     const buildFilledForm = (overrides = {}) => ({
+        // [P1-PLANSOURCE-REQUIRED · 2026-08-12] el contrato creció: planSource
+        // es obligatoria en el wizard (libre vs Nevera), así que el fixture
+        // «formulario completo» la trae — sin ella, findFirstIncompleteField
+        // la devuelve a ella y no lo que cada test de abajo afirma.
+        planSource: 'scratch',
         gender: 'male', age: 30, height: 175, weight: 75, weightUnit: 'kg',
         activityLevel: 'moderate', scheduleType: '9to5', sleepHours: 8,
         stressLevel: 'low', cookingTime: 'medium', budget: 'medium',

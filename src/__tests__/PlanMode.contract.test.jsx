@@ -184,6 +184,20 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain("bucket !== 'failed' && bucket !== 'action_required' && bucket !== 'paused'");
     });
 
+    it('QPlanSource es obligatoria: fields declarados + contrato + asterisco', () => {
+        // [P1-PLANSOURCE-REQUIRED · 2026-08-12] Decisión del owner que anula el
+        // «default scratch silencioso» de P1-PANTRY-FIRST-PLAN. Tres piezas o
+        // ninguna: sin `fields` el botón aparece solo; sin el contrato, saltar
+        // la ignora; sin asterisco, el usuario no sabe que es obligatoria.
+        expect(REQUIRED_FORM_FIELDS[0]).toBe('planSource');
+        const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
+        const stepIdx = s.indexOf('¿Cómo quieres que la IA arme tu plan?');
+        expect(stepIdx).toBeGreaterThan(-1);
+        const bloque = s.slice(stepIdx, stepIdx + 700);
+        expect(bloque).toContain("fields: ['planSource']");
+        expect(s.slice(stepIdx - 50, stepIdx + 120)).toContain("<span style={{ color: '#EF4444' }}>*</span>");
+    });
+
     it('Wizard: al cambiar de rama se tira TAMBIÉN maxReachedStep (no solo currentStep)', () => {
         // [P1-WIZARD-MAXSTEP-BRANCH · 2026-08-12] canSkip = currentStep < maxReachedStep;
         // heredar el máximo de la OTRA rama hacía canSkip=true en pasos jamás

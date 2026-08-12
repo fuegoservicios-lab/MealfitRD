@@ -268,14 +268,19 @@ const InteractiveAssessmentFlow = () => {
         // [P1-PANTRY-FIRST-PLAN · 2026-07-11] F3: primera decisión del formulario —
         // plan libre vs construido desde la Nevera. Campo `planSource` viaja en el
         // payload del SSE (spread de formData); el backend inyecta el inventario
-        // server-side cuando planSource='pantry'. Sin `fields` requeridos (default
-        // 'scratch' → usuarios existentes/guests no se bloquean).
+        // server-side cuando planSource='pantry'.
+        // [P1-PLANSOURCE-REQUIRED · 2026-08-12] Obligatoria por decisión del owner
+        // (anula el «sin fields, default scratch» original): declara `fields` para
+        // que «Siguiente» no aparezca sin selección, y vive en REQUIRED_FORM_FIELDS
+        // para que saltar/submit la exijan. El backend sigue tolerando ausente
+        // (compat legacy) — la obligación es del wizard.
         {
             // [P1-PLANSOURCE-COPY-PARITY · 2026-08-09] El título dice «la IA» UNA vez
             // y por delante de las dos opciones, para que la duda «¿esta también es
             // con IA?» no llegue a nacer. El subtítulo nombra el único eje real.
-            title: <>¿Cómo quieres que la IA arme tu plan?</>,
+            title: <>¿Cómo quieres que la IA arme tu plan?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: "Las dos opciones las diseña la IA. La diferencia es si parte de cero o de lo que ya hay en tu Nevera.",
+            fields: ['planSource'],
             component: <QPlanSource onAutoAdvance={handleAutoAdvance} />
         },
         {
