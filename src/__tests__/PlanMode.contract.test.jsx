@@ -184,18 +184,28 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain("bucket !== 'failed' && bucket !== 'action_required' && bucket !== 'paused'");
     });
 
-    it('QPlanSource es obligatoria: fields declarados + contrato + asterisco', () => {
-        // [P1-PLANSOURCE-REQUIRED · 2026-08-12] Decisión del owner que anula el
-        // «default scratch silencioso» de P1-PANTRY-FIRST-PLAN. Tres piezas o
-        // ninguna: sin `fields` el botón aparece solo; sin el contrato, saltar
-        // la ignora; sin asterisco, el usuario no sabe que es obligatoria.
-        expect(REQUIRED_FORM_FIELDS[0]).toBe('planSource');
+    it('QAppMode y QPlanSource son obligatorias: fields + contrato + asterisco', () => {
+        // [P1-PLANSOURCE-REQUIRED + P1-APPMODE-REQUIRED · 2026-08-12] Decisión del
+        // owner. Tres piezas o ninguna por pregunta: sin `fields` el botón aparece
+        // solo; sin el contrato, saltar la ignora para usuarios que regresan; sin
+        // asterisco, el usuario no sabe que es obligatoria. El orden del contrato
+        // es el de los pasos (findFirstIncompleteField navega en ese orden).
+        expect(REQUIRED_FORM_FIELDS[0]).toBe('appMode');
+        expect(REQUIRED_FORM_FIELDS[1]).toBe('planSource');
         const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
-        const stepIdx = s.indexOf('¿Cómo quieres que la IA arme tu plan?');
-        expect(stepIdx).toBeGreaterThan(-1);
-        const bloque = s.slice(stepIdx, stepIdx + 700);
-        expect(bloque).toContain("fields: ['planSource']");
-        expect(s.slice(stepIdx - 50, stepIdx + 120)).toContain("<span style={{ color: '#EF4444' }}>*</span>");
+        for (const [titulo, campo] of [
+            ['¿Qué quieres que haga Bioboros por ti?', 'appMode'],
+            ['¿Cómo quieres que la IA arme tu plan?', 'planSource'],
+        ]) {
+            const stepIdx = s.indexOf(titulo);
+            expect(stepIdx, titulo).toBeGreaterThan(-1);
+            expect(s.slice(stepIdx - 50, stepIdx + 150), titulo).toContain("<span style={{ color: '#EF4444' }}>*</span>");
+            expect(s.slice(stepIdx, stepIdx + 700), titulo).toContain(`fields: ['${campo}']`);
+        }
+        // appMode NO entra al contrato de tracking: la rama corta solo existe con
+        // appMode ya contestado, y QTrackingFinish persiste esa lista al
+        // health_profile — meterlo ahí contaminaría el jsonb con ruteo del wizard.
+        expect(TRACKING_REQUIRED_FIELDS).not.toContain('appMode');
     });
 
     it('Wizard: al cambiar de rama se tira TAMBIÉN maxReachedStep (no solo currentStep)', () => {

@@ -104,6 +104,16 @@
 // narrativa del problema que se cerró. La cifra autoritativa es la longitud
 // del array de abajo (`REQUIRED_FORM_FIELDS.length`).
 export const REQUIRED_FORM_FIELDS = [
+    // [P1-APPMODE-REQUIRED · 2026-08-12] El paso 0 (¿plan o contador?) también es
+    // obligatorio por decisión del owner. Frontend-only: el backend jamás lee
+    // appMode del payload (el modo se conmuta por el endpoint plan-mode, no por
+    // el formulario). NO va en TRACKING_REQUIRED_FIELDS a propósito: la rama
+    // corta solo existe cuando appMode ya vale tracking (garantía estructural)
+    // y QTrackingFinish persiste esa lista al health_profile — meter appMode ahí
+    // contaminaría el jsonb con un campo de ruteo del wizard.
+    // OJO parser: el test de paridad backend extrae TODO string entre comillas
+    // de este bloque — en estos comentarios, cero literales entrecomillados.
+    'appMode',
     // [P1-PLANSOURCE-REQUIRED · 2026-08-12] Obligatoria por decisión del owner
     // (anula el default-scratch silencioso de P1-PANTRY-FIRST-PLAN): elegir si
     // el plan nace libre o desde la Nevera ES la primera decisión del plan, no
@@ -207,6 +217,7 @@ export const buildFieldToStepIndex = (steps) => {
 // [P1-2] Cada entry de REQUIRED_FORM_FIELDS DEBE tener su label aquí o el toast
 // muestra el nombre técnico del field ("scheduleType" en vez de "Tu horario").
 export const FIELD_LABELS = {
+    appMode: 'Qué hace Bioboros por ti (plan o contador)',
     planSource: 'Cómo arma tu plan la IA',
     gender: 'Sexo biológico',
     age: 'Edad',

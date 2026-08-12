@@ -513,7 +513,11 @@ const InteractiveAssessmentFlow = () => {
     // — se preguntan el día que el usuario encienda el plan, no se inventan
     // (P0-FORM-1/-4/-5 son las cicatrices de inventarlos).
     const _appModeStep = {
-        title: <>¿Qué quieres que haga Bioboros por ti?</>,
+        // [P1-APPMODE-REQUIRED · 2026-08-12] Obligatoria como planSource (decisión
+        // del owner): asterisco + entrada en REQUIRED_FORM_FIELDS. El `fields` de
+        // abajo ya gateaba «Siguiente»; el contrato cubre al usuario que REGRESA
+        // y salta (canSkip) sin haberla contestado jamás (cuentas pre-P1-PLAN-MODE).
+        title: <>¿Qué quieres que haga Bioboros por ti?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
         subtitle: "Las dos cosas usan la misma IA. La diferencia es si te genera el menú o solo te acompaña a contar.",
         fields: ['appMode'],
         component: <QAppMode onAutoAdvance={handleAutoAdvance} />
