@@ -323,9 +323,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         const pausing = planModeState === 'plan';
         if (pausing) {
             // Confirmación SOLO al pausar: reanudar es recuperar lo que ya era tuyo.
+            // [P1-CONFIRM-TOAST-LAYOUT · 2026-08-12] Pregunta corta como título,
+            // explicación como description — el layout nuevo del confirm.
             const ok = await confirmToast(
-                'Tu plan actual se queda: menú, recetas y lista siguen visibles. Solo se detiene la generación de días nuevos y el avance automático. ¿Pausar?',
-                { confirmLabel: 'Pausar planes', cancelLabel: 'Volver' },
+                '¿Pausar la generación de planes?',
+                {
+                    description: 'Tu plan se queda: menú, recetas y lista siguen visibles. Solo se detiene la generación de días nuevos y el avance automático.',
+                    confirmLabel: 'Pausar planes',
+                    cancelLabel: 'Volver',
+                },
             );
             if (!ok) return;
         }

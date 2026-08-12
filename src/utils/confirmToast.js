@@ -41,6 +41,7 @@ export function confirmToast(message, opts = {}) {
         confirmLabel = 'Confirmar',
         cancelLabel = 'Cancelar',
         duration = 10000,
+        description,
         toastFn,
     } = opts;
     const _toast = toastFn || _defaultToast;
@@ -55,6 +56,14 @@ export function confirmToast(message, opts = {}) {
         };
         tid = _toast(message, {
             duration,
+            // [P1-CONFIRM-TOAST-LAYOUT · 2026-08-12] `description` separa la
+            // PREGUNTA (título corto en negrita) de la explicación — antes todo
+            // era un párrafo alto y sonner apretaba los botones a su derecha en
+            // una columna estrecha. La clase mueve los botones a SU PROPIA fila
+            // bajo el texto y los estila con los tokens del tema (claro y
+            // oscuro): ver `.bb-confirm-toast` en index.css.
+            description,
+            className: 'bb-confirm-toast',
             action: { label: confirmLabel, onClick: () => finish(true) },
             cancel: { label: cancelLabel, onClick: () => finish(false) },
             onDismiss: () => finish(false),

@@ -1635,3 +1635,78 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
    quitar información sin ninguna razón — y va justo en contra de lo que el dueño pidió
    («que se visualice»). Una regla que sobrevive al problema que la justificaba es la que
    luego nadie sabe de dónde sale. */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   [P1-CONFIRM-TOAST-LAYOUT · 2026-08-12] El confirm de sonner (confirmToast).
+   ANTES: párrafo alto con los dos botones apretados a su derecha en una
+   columna estrecha — «mejora como se ven estas notificaciones» (owner), y en
+   claro heredaba la tarjeta cruda del tema sonner. AHORA: pregunta en
+   negrita + explicación debajo, y los botones en SU PROPIA fila alineados a
+   la derecha. Todo con tokens del tema (bg-card, border, text-main,
+   text-muted, primary), así claro y oscuro salen del MISMO sistema — cero
+   ternarios de tema, cero hex clavados (la lección P1-WARN-BANNER-TOKENS).
+   OJO: jamás escribir asterisco-slash dentro de este comentario (un token
+   con comodín aquí CERRÓ el bloque y el resto quedó como CSS crudo).
+   Los !important existen porque sonner inyecta sus estilos con variables
+   propias (--normal-bg etc.) al montar; sin ellos gana su hoja según el
+   orden de carga del bundle. Scope estricto a .bb-confirm-toast: los toasts
+   normales (éxito/error/info) NO se tocan. */
+[data-sonner-toast].bb-confirm-toast {
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.85rem;
+  width: 400px;
+  max-width: calc(100vw - 2rem);
+  padding: 1.05rem 1.15rem;
+  border-radius: 14px;
+  background: var(--bg-card, #111827) !important;
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.28)) !important;
+  color: var(--text-main, #F9FAFB) !important;
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.45);
+}
+.bb-confirm-toast [data-content] {
+  flex: 1 1 100%;
+  gap: 0.3rem;
+}
+.bb-confirm-toast [data-title] {
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  color: var(--text-main, #F9FAFB);
+}
+.bb-confirm-toast [data-description] {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted, #9CA3AF) !important;
+}
+/* Botones: fila propia bajo el texto, alineados a la derecha. El PRIMERO en
+   el DOM (cancel) empuja con margin-left:auto; ambos pierden la altura fija
+   enana de sonner. Cancel = fantasma; confirmar = sólido del acento. */
+.bb-confirm-toast [data-button] {
+  height: auto !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0.65rem !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+  cursor: pointer;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+.bb-confirm-toast [data-button]:hover { filter: brightness(1.08); }
+.bb-confirm-toast [data-button][data-cancel] {
+  margin-left: auto !important;
+  background: transparent !important;
+  color: var(--text-muted, #9CA3AF) !important;
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.28)) !important;
+}
+.bb-confirm-toast [data-button]:not([data-cancel]) {
+  background: var(--primary, #4F46E5) !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+/* La X de cierre hereda el token para no quedar invisible en claro. */
+.bb-confirm-toast [data-close-button] {
+  background: var(--bg-card, #111827) !important;
+  color: var(--text-muted, #9CA3AF) !important;
+  border-color: var(--border, rgba(148, 163, 184, 0.28)) !important;
+}
