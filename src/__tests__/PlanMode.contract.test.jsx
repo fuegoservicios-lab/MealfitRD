@@ -184,6 +184,20 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain("bucket !== 'failed' && bucket !== 'action_required' && bucket !== 'paused'");
     });
 
+    it('Wizard: al cambiar de rama se tira TAMBIÉN maxReachedStep (no solo currentStep)', () => {
+        // [P1-WIZARD-MAXSTEP-BRANCH · 2026-08-12] canSkip = currentStep < maxReachedStep;
+        // heredar el máximo de la OTRA rama hacía canSkip=true en pasos jamás
+        // visitados: «Siguiente Paso» visible con preguntas obligatorias sin
+        // contestar (el horario cotidiano se saltaba en la práctica). Un índice
+        // máximo solo significa algo en el array donde se alcanzó.
+        const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
+        const stampIdx = s.indexOf("localStorage.setItem('mealfit_wizard_step_mode'");
+        expect(stampIdx).toBeGreaterThan(-1);
+        const bloque = s.slice(stampIdx, stampIdx + 1400);
+        expect(bloque).toContain('setCurrentStep(Math.min(1, steps.length - 1))');
+        expect(bloque).toContain('setMaxReachedStep(Math.min(1, steps.length - 1))');
+    });
+
     it('Wizard: bifurcación por modo con la firma de forma como dep del memo', () => {
         const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
         expect(s).toContain('const steps = _isTracking ? _trackingSteps : [_appModeStep, ...planOnlySteps];');

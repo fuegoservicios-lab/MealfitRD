@@ -62,7 +62,7 @@ const isCustomBudgetValid = (fd) => fd?.budget !== 'custom'
         || minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration));
 
 const InteractiveAssessmentFlow = () => {
-    const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
+    const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, setMaxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -569,6 +569,16 @@ const InteractiveAssessmentFlow = () => {
             if (_prevMode !== null && currentStep > 0) {
                 // Volver al paso 1 de la rama nueva (el 0 es QAppMode, ya contestado).
                 setCurrentStep(Math.min(1, steps.length - 1));
+            }
+            // [P1-WIZARD-MAXSTEP-BRANCH · 2026-08-12] maxReachedStep también es DE LA
+            // RAMA, y se tira junto con currentStep. Heredarlo era el bug: llegar al
+            // paso 9 de la rama corta hacía `canSkip=true` en los pasos 1-8 de la
+            // rama del PLAN — pasos JAMÁS visitados mostraban «Siguiente Paso» y
+            // «Saltar» con preguntas obligatorias sin contestar (el horario cotidiano
+            // se saltaba en la práctica). Un índice máximo solo significa algo en el
+            // array donde se alcanzó.
+            if (_prevMode !== null) {
+                setMaxReachedStep(Math.min(1, steps.length - 1));
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
