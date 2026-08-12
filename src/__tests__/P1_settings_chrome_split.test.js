@@ -183,6 +183,29 @@ describe('[P1-SETTINGS-CHROME-SPLIT] quién scrollea', () => {
         expect(reglas(MOVIL(), '.inDialog .layout')).toMatch(/overscroll-behavior:\s*contain/);
     });
 
+    it('[P1-SETTINGS-SCROLL-HUGS-EDGE] la barra llega al canto del panel', () => {
+        // El bloque del pulgar afirma «la pista corre pegada al canto», pero el
+        // `padding: 0 var(--settings-pad-x)` del `.layout` interceptaba al scroller
+        // 24px antes: el pulgar flotaba a 28px del borde (24 de relleno + 4 del borde
+        // transparente). Una premisa escrita que el layout desmentía.
+        //
+        // El par es indivisible: el margen negativo saca al scroller del relleno y el
+        // `padding-right` propio le devuelve el aire al contenido. Con solo el margen,
+        // el texto se pegaría a la barra; con solo el padding, la barra sigue lejos.
+        const esc = ESCRITORIO();
+        const contenido = reglas(esc, '.inDialog .contentPanel');
+        expect(
+            contenido,
+            'el scroller volvió a quedarse dentro del relleno del layout: su barra '
+            + 'flota en mitad del margen en vez de pegarse al canto del panel',
+        ).toMatch(/margin-right:\s*calc\(var\(--settings-pad-x\)\s*\*\s*-1\)/);
+        expect(
+            contenido,
+            'el scroller sale del relleno pero no se lo devuelve al contenido: el texto '
+            + 'queda pegado a la barra',
+        ).toMatch(/padding-right:\s*var\(--settings-pad-x\)/);
+    });
+
     it('[P1-SETTINGS-DIALOG-STABLE] el hueco de la barra se reserva donde ahora scrollea', () => {
         // La invariante no se borra, se muda. Unas secciones desbordan y otras no; sin
         // reserva la barra aparece y desaparece al navegar y desplaza el contenido.

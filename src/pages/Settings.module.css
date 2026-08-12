@@ -464,6 +464,32 @@
         /* El aire de arriba y el de abajo que ponía el wrapper. Van DENTRO del
            scroller: fuera serían franja muerta bajo el final del recorrido. */
         padding: var(--settings-pad-y) 0 2rem;
+
+        /* [P1-SETTINGS-SCROLL-HUGS-EDGE · 2026-08-12] El scroller SALE del relleno
+           horizontal del layout para que su barra caiga contra el canto del panel.
+
+           El bloque del pulgar de aquí abajo dice, textualmente, «la pista corre
+           pegada al canto de un panel con 18px de radio, así que el pulgar se mete
+           hacia dentro»: esa premisa era FALSA desde el día que se escribió. El
+           `padding: 0 var(--settings-pad-x)` del `.layout` interceptaba al scroller
+           24px antes del canto, así que el pulgar no se metía hacia dentro de nada —
+           flotaba en mitad del margen derecho, a 28px del borde (24 del relleno + 4
+           del borde transparente del pulgar). El dueño lo vio: «el scroll de
+           configuración no debería estar más pegado al borde?».
+
+           El margen negativo cancela ese relleno SOLO para esta columna (la barra
+           llega al canto) y el `padding-right` propio le devuelve el aire al
+           contenido. La cuenta, que es lo bonito: la barra vive ENTRE el borde y el
+           relleno, así que el contenido acaba en 14 (barra) + 24 (relleno) = 38px
+           del canto — exactamente donde acababa antes (24 del layout + 14 de
+           gutter). O sea: el pulgar se mueve de 28px a 4px del borde y el contenido
+           NO se mueve ni un píxel. La barra lateral tampoco se entera: su relleno
+           vive en `.inDialog .sidebar`.
+
+           Solo aplica donde `.contentPanel` ES el scroller: en ≤768px lo es
+           `.inDialog .layout` y este bloque no existe. */
+        margin-right: calc(var(--settings-pad-x) * -1);
+        padding-right: var(--settings-pad-x);
     }
 
     /* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] El pulgar, separado del raíl.
