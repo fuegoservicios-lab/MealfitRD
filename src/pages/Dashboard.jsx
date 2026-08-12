@@ -7699,23 +7699,23 @@ const DashboardInner = () => {
                     )}
 
                     {isPlanPaused && (
-                        /* [P1-PLAN-MODE · 2026-08-11] La franja de pausa. NO se cambia de
+                        /* [P1-PLAN-MODE · 2026-08-11] La nota de pausa. NO se cambia de
                            pantalla: el usuario conserva su menú, sus recetas y su lista —
                            solo se detiene la generación de los días que faltan. Reanudar
-                           vive aquí y en Configuración → Capacidades. */
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
-                            padding: '0.8rem 1rem', marginBottom: '1rem', borderRadius: '12px',
-                            border: '1px solid var(--border-color, rgba(148,163,184,0.3))',
-                            background: 'var(--surface-sunken, #EDF2F7)', color: 'var(--text-main, #0F172A)',
-                            fontSize: '0.88rem',
-                        }}>
-                            <span aria-hidden="true">⏸</span>
-                            <span style={{ flex: 1, minWidth: 220 }}>
-                                <strong>Planes en pausa.</strong>{' '}
-                                Tu plan sigue aquí; no se están generando los días que faltan
-                                ({generated_days} de {planData?.total_days_requested || generated_days} listos).
-                            </span>
+                           vive aquí y en Configuración → Capacidades.
+
+                           [P1-PAUSE-NOTE-NOTEBOOK · 2026-08-12] De caja a ANOTACIÓN del
+                           cuaderno (owner: «choca con el diseño de las rayas rojas» — el
+                           MISMO reporte que mató al info-alert de P1-EATEN-SLOT-POLISH).
+                           Mismo tratamiento que .today-remaining-note: sin fill/borde/
+                           radius/ícono, alineada a la columna de texto de las comidas
+                           (la clase comparte el pin responsive), énfasis solo
+                           tipográfico. «Reanudar planes» es un enlace escrito en la
+                           página, no un botón sólido flotando sobre el margen rojo. */
+                        <div className="today-remaining-note" style={{ color: 'var(--text-muted)' }}>
+                            <strong style={{ color: 'var(--text-main)' }}>Planes en pausa.</strong>{' '}
+                            Tu plan sigue aquí; no se están generando los días que faltan
+                            ({generated_days} de {planData?.total_days_requested || generated_days} listos).{' '}
                             <button
                                 type="button"
                                 onClick={async () => {
@@ -7740,9 +7740,10 @@ const DashboardInner = () => {
                                     }
                                 }}
                                 style={{
-                                    border: 0, background: 'var(--primary, #4F46E5)', color: '#fff',
-                                    fontWeight: 700, fontSize: '0.85rem', borderRadius: '0.65rem',
-                                    padding: '0.5rem 1rem', cursor: 'pointer', fontFamily: 'inherit',
+                                    border: 0, background: 'transparent', padding: 0,
+                                    color: 'var(--primary, #818CF8)', fontWeight: 700,
+                                    fontSize: 'inherit', fontFamily: 'inherit', cursor: 'pointer',
+                                    textDecoration: 'underline', textUnderlineOffset: '3px',
                                 }}
                             >
                                 Reanudar planes
