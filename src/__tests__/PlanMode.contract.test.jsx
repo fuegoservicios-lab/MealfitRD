@@ -261,6 +261,20 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain("'Actualizar mis datos'");
     });
 
+    it('El toggle de Capacidades RECARGA con plan vivo (el servidor cambió, la memoria no)', () => {
+        // [P1-PAUSE-STALE-PLANDATA · 2026-08-12] Pausar dejaba el servidor
+        // perfecto (flag+paused+cola cancelada) y la pantalla idéntica: el
+        // planData en memoria no se rehidrata solo, y refreshProfileAndPlan
+        // NO refresca el plan pese al nombre. El reload es el mismo cierre
+        // que el botón Reanudar de la franja.
+        const s = read('pages/Settings.jsx');
+        const h = s.indexOf('const handleTogglePlanMode');
+        const cuerpo = s.slice(h, h + 4200);
+        const reloadIdx = cuerpo.indexOf('window.location.reload()');
+        expect(reloadIdx).toBeGreaterThan(-1);
+        expect(cuerpo.slice(Math.max(0, reloadIdx - 300), reloadIdx)).toContain('if (planData)');
+    });
+
     it('Encender el plan cambia la RAMA del wizard antes de navegar (card + toggle)', () => {
         // Sin el flip de appMode, la puerta aterrizaba en «Listo: tu contador»
         // (paso 10 de la rama corta) — prometía encender el plan y te dejaba

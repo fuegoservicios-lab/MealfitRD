@@ -365,6 +365,17 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         ? 'Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.'
                         : 'Planes reanudados: la generación continúa donde quedó.'));
             }
+            // [P1-PAUSE-STALE-PLANDATA · 2026-08-12] Con plan vivo, RECARGAR tras el
+            // toast — el mismo cierre que el botón Reanudar de la franja. El PUT dejó
+            // el servidor perfecto (flag + paused_by_user + cola cancelada, verificado
+            // en Neon) pero el planData EN MEMORIA seguía diciendo el estado viejo:
+            // ni franja de pausa, ni CTAs ocultos, ni días «en cola» actualizados —
+            // «visualmente veo casi todo igual» (reporte del owner, con razón).
+            // refreshProfileAndPlan NO refresca el plan pese al nombre; el reload es
+            // la única rehidratación completa (plan + polling de chunks + franja).
+            if (planData) {
+                setTimeout(() => window.location.reload(), 900);
+            }
         } catch (e) {
             console.error('handleTogglePlanMode error:', e);
             toast.error('No se pudo cambiar el modo. Inténtalo de nuevo.');
