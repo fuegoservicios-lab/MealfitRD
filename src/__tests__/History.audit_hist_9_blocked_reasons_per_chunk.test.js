@@ -163,12 +163,15 @@ describe('[P2-HIST-AUDIT-9] CSS classes', () => {
         expect(cssSrc).toMatch(/\.actionBannerReasonItem\s*\{/);
     });
 
-    it('actionBannerReasons hereda colores del banner padre (no override)', () => {
-        // El bloque NO redefine `color` global ni `background:` de
-        // los tones padres — usa rgba(255,255,255,0.X) translúcido
-        // para no chocar con missingDaysBad/Warn/Info colors.
+    it('actionBannerReasons es vidrio RELATIVO al tema, no blanco fijo', () => {
+        // [P1-HIST-BANNER-TOKENS · 2026-08-12] Esta prueba EXIGÍA el
+        // rgba(255,255,255,…) — el vidrio blanco clavado que en tema oscuro
+        // pintaba las filas «Semana N: …» como tabla gris (captura del dueño).
+        // El contrato nuevo: el vidrio nace de --bg-card (aclara en claro,
+        // ahonda en oscuro) y jamás de un blanco literal.
         const idx = cssSrc.indexOf('.actionBannerReasons');
-        const block = cssSrc.slice(idx, idx + 400);
-        expect(block).toMatch(/rgba\(255,\s*255,\s*255/);
+        const block = cssSrc.slice(idx, idx + 500);
+        expect(block).toMatch(/color-mix\(in srgb,\s*var\(--bg-card\)/);
+        expect(block).not.toMatch(/rgba\(255,\s*255,\s*255/);
     });
 });

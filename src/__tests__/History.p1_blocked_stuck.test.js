@@ -168,19 +168,21 @@ describe('[P1-HIST-BLOCKED-STUCK] CSS palette info (azul, no rojo)', () => {
         }
     });
 
-    it('stuckBanner usa palette azul (info, no rojo de actionBanner)', () => {
+    // [P1-HIST-BANNER-TOKENS · 2026-08-12] Estas 2 pruebas afirmaban los HEX
+    // azules claros clavados (#EFF6FF/#1E40AF) — el mecanismo que en tema
+    // oscuro pintaba el banner como caja celeste flotando. Lo que SIEMPRE fue
+    // verdad ("info azul, no el rojo de actionBanner") se afirma ahora sobre
+    // la familia de tokens, que trae su variante oscura del DS.
+    it('stuckBanner usa la familia info (azul del DS, no la danger)', () => {
         const blockMatch = cssSrc.match(/\.stuckBanner\s*\{[\s\S]*?\}/);
         expect(blockMatch).toBeTruthy();
-        // Background blue-50 o similar.
-        expect(blockMatch[0]).toMatch(/#EFF6FF|#DBEAFE|#E0F2FE/i);
-        // NO debe usar red palette (ningún #FECxxx / #FEE / #FCAxxx).
-        expect(blockMatch[0]).not.toMatch(/#FE[CFE]/i);
+        expect(blockMatch[0]).toMatch(/var\(--info-bg\)/);
+        expect(blockMatch[0]).not.toMatch(/--danger/);
     });
 
-    it('stuckBannerTitle usa color blue-800', () => {
+    it('stuckBannerTitle usa la tinta info', () => {
         const blockMatch = cssSrc.match(/\.stuckBannerTitle\s*\{[\s\S]*?\}/);
         expect(blockMatch).toBeTruthy();
-        // Color tier blue (~#1E40AF) — distinto del rojo de actionBannerTitle.
-        expect(blockMatch[0]).toMatch(/#1E40AF|#1D4ED8|#1E3A8A/i);
+        expect(blockMatch[0]).toMatch(/var\(--info-text\)/);
     });
 });

@@ -150,36 +150,37 @@ describe('[P2-HIST-2] CSS module — actionBanner palette red', () => {
         }
     });
 
-    it('actionBanner usa palette red (#FEF2F2 / #FCA5A5)', () => {
-        // Coherente con statusFailed/statusActionRequired (P1-HIST-2)
-        // — toda la family "problema bloqueante" usa red.
+    // [P1-HIST-BANNER-TOKENS · 2026-08-12] Estas 4 pruebas afirmaban los HEX
+    // claros clavados (#FEF2F2/#991B1B/#7F1D1D): el mecanismo retirado, no el
+    // resultado. En oscuro esos claros eran la caja crema que el dueño
+    // reportó. El contrato nuevo (familia --danger-* del DS, con variante
+    // oscura) vive en P1_hist_banner_tokens.test.js; aquí queda lo que sigue
+    // siendo verdad en cualquier palette: jerarquía y separación.
+    it('actionBanner usa la familia danger del DS (no hex clavados)', () => {
         const block = css.match(/\.actionBanner\s*\{[^}]+\}/);
         expect(block).toBeTruthy();
-        expect(block[0]).toMatch(/#FEF2F2/);
-        expect(block[0]).toMatch(/#FCA5A5/);
+        expect(block[0]).toMatch(/var\(--danger-bg\)/);
+        expect(block[0]).toMatch(/var\(--danger-border\)/);
     });
 
     it('actionBannerTitle tiene font-weight 800 (jerárquico)', () => {
-        // Title destaca sobre body (font-weight más alto + color
-        // más saturado #991B1B).
         const titleBlock = css.match(/\.actionBannerTitle\s*\{[^}]+\}/);
         expect(titleBlock).toBeTruthy();
         expect(titleBlock[0]).toMatch(/font-weight:\s*800/);
-        expect(titleBlock[0]).toMatch(/#991B1B/);
+        expect(titleBlock[0]).toMatch(/var\(--danger-text\)/);
     });
 
-    it('actionBannerBody tiene color secundario (#7F1D1D, más oscuro)', () => {
-        // Body más legible (color más oscuro pero misma family).
+    it('actionBannerBody se distingue del título (tinta mezclada, no plena)', () => {
         const bodyBlock = css.match(/\.actionBannerBody\s*\{[^}]+\}/);
         expect(bodyBlock).toBeTruthy();
-        expect(bodyBlock[0]).toMatch(/#7F1D1D/);
+        expect(bodyBlock[0]).toMatch(/color-mix\(in srgb,\s*var\(--danger-text\)/);
     });
 
     it('margin-bottom para separar del macrosGrid', () => {
         // Sin margin, el banner se pegaría al macrosGrid y se vería
         // como continuación visual del header.
         const block = css.match(/\.actionBanner\s*\{[^}]+\}/);
-        expect(block[0]).toMatch(/margin-bottom:\s*1\.5rem/);
+        expect(block[0]).toMatch(/margin-bottom:\s*\d/);
     });
 });
 
