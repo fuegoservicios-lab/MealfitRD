@@ -297,6 +297,27 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         return () => { cancelled = true; };
     }, []);
 
+    // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] Las metas del panel Plan &
+    // Objetivo cuando NO hay plan: mismas fuentes que el dashboard del contador
+    // (/api/nutrition/targets, fail-closed). Sin esto el panel mostraba un
+    // fallback fijo de dos mil kcal — un plan genérico disfrazado de meta
+    // personal, en la MISMA pantalla en la que el contador muestra la real.
+    // (Escrito en letras a propósito: el ancla del contract test barre este
+    // archivo buscando la forma con dígitos.)
+    const [trackingTargets, setTrackingTargets] = useState(null);
+    useEffect(() => {
+        if (planData || isGuest) return undefined;
+        let cancelled = false;
+        (async () => {
+            try {
+                const r = await fetchWithAuth('/api/nutrition/targets');
+                const d = await r.json().catch(() => null);
+                if (!cancelled && d?.ok) setTrackingTargets(d);
+            } catch { /* fail-closed: el panel muestra '—' */ }
+        })();
+        return () => { cancelled = true; };
+    }, [planData, isGuest]);
+
     const handleTogglePlanMode = async () => {
         if (planModeState === null || isPlanModeLoading) return;
         const pausing = planModeState === 'plan';
@@ -321,11 +342,21 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             setPlanModeState(next);
             // Espejo local: el wrapper del Dashboard y la nav lo leen sin roundtrip.
             safeLocalStorageSet('mealfit_plan_mode', next);
-            toast.success(pausing
-                ? 'Planes en pausa. La app queda como contador; reanuda cuando quieras.'
-                : (data.plan_expired
-                    ? 'Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.'
-                    : 'Planes reanudados: la generación continúa donde quedó.'));
+            // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] Encender SIN plan previo:
+            // no hay nada que «reanudar» — el destino real es el formulario (rama del
+            // plan: appMode flip para que el wizard no aterrice en la rama corta) y el
+            // toast lo dice. «La generación continúa donde quedó» sería mentirle a
+            // quien jamás generó.
+            if (!pausing && !planData) {
+                updateData('appMode', 'plan');
+                toast.success('Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.');
+            } else {
+                toast.success(pausing
+                    ? 'Planes en pausa. La app queda como contador; reanuda cuando quieras.'
+                    : (data.plan_expired
+                        ? 'Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.'
+                        : 'Planes reanudados: la generación continúa donde quedó.'));
+            }
         } catch (e) {
             console.error('handleTogglePlanMode error:', e);
             toast.error('No se pudo cambiar el modo. Inténtalo de nuevo.');
@@ -1528,6 +1559,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // día (cada meal carga protein/carbs/fats). Fallback a un objeto .macros si el
     // plan lo trajera embebido (o como string JSON).
     const _dailyMacros = (() => {
+        // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] Sin plan, las metas del
+        // contador (targets ya validó ok:true; macros vienen como '123g').
+        if (!planData && trackingTargets?.ok) {
+            const _g = (s) => Math.round(parseFloat(s) || 0);
+            return {
+                protein: _g(trackingTargets.macros?.protein),
+                carbs: _g(trackingTargets.macros?.carbs),
+                fat: _g(trackingTargets.macros?.fats),
+            };
+        }
         let m = planData?.macros;
         if (typeof m === 'string') { try { m = JSON.parse(m); } catch { m = null; } }
         if (m && (Number(m.protein) || Number(m.carbs) || Number(m.fats ?? m.fat))) {
@@ -1552,6 +1593,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             fat: Math.round(sum.fat),
         };
     })();
+
+    // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] La kcal del panel Plan &
+    // Objetivo: plan vigente → sus calorías; modo contador → la meta REAL de
+    // targets; y si aún no llegó, null (el render pinta '—', no un 2000
+    // genérico — la mentira que este modo existe para no decir).
+    const _goalKcal = planData?.calories
+        ? Math.round(planData.calories)
+        : (trackingTargets?.ok ? Math.round(trackingTargets.calories) : null);
 
     return (
         <>
@@ -3169,11 +3218,17 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     topBar={false}
                                     backButton={false}
                                     goal={_goalMeta.label}
-                                    kcal={Math.round(planData?.calories || 2000)}
+                                    kcal={_goalKcal || 0}
                                     macros={_dailyMacros}
-                                    onEvaluate={() => { if (!isLimitReached) setShowEvaluateModal(true); }}
-                                    evaluateDisabled={isLimitReached}
-                                    evaluateLabel={isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de nuevo'}
+                                    onEvaluate={() => {
+                                        // [P1-SETTINGS-TRACKING-COHERENCE] Sin plan no hay
+                                        // nada que «renovar»: el CTA actualiza tus datos
+                                        // (wizard, paso 1) y las metas salen recalculadas.
+                                        if (!planData) { setCurrentStep(1); navigate('/assessment'); return; }
+                                        if (!isLimitReached) setShowEvaluateModal(true);
+                                    }}
+                                    evaluateDisabled={planData ? isLimitReached : false}
+                                    evaluateLabel={!planData ? 'Actualizar mis datos' : (isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de nuevo')}
                                 />
                                 {isLimitReached && (
                                     <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
@@ -3216,19 +3271,24 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 <div className="plan-goal-kcal-row">
                                     <span className="plan-goal-kcal-label">Calorías diarias</span>
                                     <span className="plan-goal-kcal-value">
-                                        {Math.round(planData?.calories || 2000).toLocaleString('es-DO')}
+                                        {_goalKcal === null ? '—' : _goalKcal.toLocaleString('es-DO')}
                                         <span className="plan-goal-kcal-unit">kcal</span>
                                     </span>
                                 </div>
 
-                                {/* CTA */}
+                                {/* CTA — [P1-SETTINGS-TRACKING-COHERENCE] sin plan, el botón
+                                    actualiza tus datos (no hay plan que renovar ni crédito que
+                                    gastar: el límite de planes no aplica aquí). */}
                                 <button
                                     type="button"
-                                    onClick={() => { if (!isLimitReached) setShowEvaluateModal(true); }}
-                                    disabled={isLimitReached}
+                                    onClick={() => {
+                                        if (!planData) { setCurrentStep(1); navigate('/assessment'); return; }
+                                        if (!isLimitReached) setShowEvaluateModal(true);
+                                    }}
+                                    disabled={planData ? isLimitReached : false}
                                     className="plan-goal-cta"
                                 >
-                                    {isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de Nuevo'}
+                                    {!planData ? 'Actualizar mis datos' : (isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de Nuevo')}
                                     <ArrowRight size={19} strokeWidth={2.25} className="plan-goal-arrow" />
                                 </button>
 

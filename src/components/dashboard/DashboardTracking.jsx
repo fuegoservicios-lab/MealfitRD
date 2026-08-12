@@ -27,8 +27,20 @@ const _DISMISS_KEY = 'mealfit_turnon_card_dismissed';
 
 const TurnOnPlanCard = ({ formData }) => {
     const navigate = useNavigate();
+    const { updateData } = useAssessment();
     const [dismissed, setDismissed] = useState(() => safeLocalStorageGet(_DISMISS_KEY, null) === '1');
     const faltan = missingPlanFields(formData || {}).length;
+
+    // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] Encender el plan cambia la RAMA
+    // del wizard ANTES de navegar. Sin esto, formData.appMode seguía en 'tracking' y
+    // la puerta aterrizaba en «Listo: tu contador» (paso 10 de la rama corta) — una
+    // tarjeta que promete encender el plan y te deja en el final del modo contador.
+    // El flip de appMode dispara el reset de índice del wizard (modo distinto ⇒ el
+    // paso persistido se tira) y la rama del plan pregunta los 12 que faltan.
+    const irAlPlan = () => {
+        updateData('appMode', 'plan');
+        navigate('/assessment');
+    };
 
     // Las cinco reglas del «enciéndelo» (todas restricciones): un solo sitio, un
     // hecho y un coste, sin animación, el descarte colapsa a enlace (no borra la
@@ -38,7 +50,7 @@ const TurnOnPlanCard = ({ formData }) => {
             <button
                 type="button"
                 className={styles.turnOnLink}
-                onClick={() => navigate('/assessment')}
+                onClick={irAlPlan}
             >
                 ¿Quieres el plan completo? Enciéndelo aquí <ArrowRight size={13} aria-hidden="true" />
             </button>
@@ -54,7 +66,7 @@ const TurnOnPlanCard = ({ formData }) => {
                     : 'Ya tienes todo respondido: generarlo usa 1 crédito de tu mes.'}
             </p>
             <div className={styles.turnOnActions}>
-                <button type="button" className={styles.turnOnBtn} onClick={() => navigate('/assessment')}>
+                <button type="button" className={styles.turnOnBtn} onClick={irAlPlan}>
                     Encender el plan
                 </button>
                 <button

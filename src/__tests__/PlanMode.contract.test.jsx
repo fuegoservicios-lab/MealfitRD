@@ -206,6 +206,36 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain('if (!_isTracking && !isCustomBudgetValid(formData))');
     });
 
+    it('Settings/Plan & Objetivo: sin plan, metas REALES — jamás el 2000 genérico', () => {
+        // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] El panel mostraba
+        // `planData?.calories || 2000` — un plan genérico disfrazado de meta
+        // personal, en la MISMA pantalla donde el contador muestra la real.
+        const s = read('pages/Settings.jsx');
+        // el fallback 2000 murió de los DOS call sites (móvil + desktop)
+        expect(s).not.toContain('|| 2000');
+        // la kcal deriva de plan → targets → null ('—'), en ese orden
+        expect(s).toContain('trackingTargets?.ok ? Math.round(trackingTargets.calories) : null');
+        // y el CTA sin plan actualiza datos (wizard) en vez de abrir el modal de renovar
+        expect(s).toContain("if (!planData) { setCurrentStep(1); navigate('/assessment'); return; }");
+        expect(s).toContain("'Actualizar mis datos'");
+    });
+
+    it('Encender el plan cambia la RAMA del wizard antes de navegar (card + toggle)', () => {
+        // Sin el flip de appMode, la puerta aterrizaba en «Listo: tu contador»
+        // (paso 10 de la rama corta) — prometía encender el plan y te dejaba
+        // en el final del modo contador.
+        const dt = read('components/dashboard/DashboardTracking.jsx');
+        const flipIdx = dt.indexOf("updateData('appMode', 'plan')");
+        const navIdx = dt.indexOf("navigate('/assessment')");
+        expect(flipIdx).toBeGreaterThan(-1);
+        expect(navIdx).toBeGreaterThan(-1);
+        expect(flipIdx).toBeLessThan(navIdx);
+        const st = read('pages/Settings.jsx');
+        expect(st).toContain("if (!pausing && !planData) {");
+        const toggleBlock = st.slice(st.indexOf('if (!pausing && !planData) {'), st.indexOf('if (!pausing && !planData) {') + 400);
+        expect(toggleBlock).toContain("updateData('appMode', 'plan')");
+    });
+
     it('QTrackingFinish: hidrata el contexto ANTES de navegar (el rebote del botón mudo)', () => {
         // [P1-TRACKING-FINISH-BOUNCE · 2026-08-12] El PATCH escribe health_profile
         // en el servidor pero el userProfile en memoria sigue vacío: sin el
