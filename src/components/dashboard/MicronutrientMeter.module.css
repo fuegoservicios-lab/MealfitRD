@@ -39,9 +39,17 @@
   margin-bottom: 1.5rem;
 }
 :global(html[data-theme="dark"]) .panel {
-  /* En oscuro la superficie hundida ya se separa 8,1 — no necesita hundirse
-     más; la línea sí gana definición con la misma receta que en claro. */
-  --mn-sunken: var(--surface-sunken);
+  /* [P1-MICRO-DARK-SUNKEN · 2026-08-12] HUNDIDA de verdad, no gris claro.
+     `--surface-sunken` en oscuro (#1E293B) es en realidad una superficie
+     LEVANTADA: L* 16,4 contra los 8,3 del panel. Los tres chips de resumen
+     salían como cajas grises flotando sobre el panel oscuro — «el fondo gris
+     de estos 3 no me gustan, hace que se vea muy claro en el modo oscuro y el
+     contexto de adentro lo opaca» (dueño). Con `--bg-page` la superficie se
+     HUNDE (L* 5,2, −3,1 bajo el panel), que es lo que su nombre promete, y el
+     texto de dentro gana contraste en vez de perderlo: el rótulo pasa de 5,71
+     a 7,34:1 y la cifra teal a 10,12:1. Quien recorta la caja es la línea
+     (dL* 21,2 contra este fondo), no el relleno. */
+  --mn-sunken: var(--bg-page);
   --mn-line: color-mix(in srgb, var(--border) 80%, var(--text-light));
   /* En oscuro el muted crudo ya da 4,95:1 sobre la tarjeta: sin retoque. */
   --mn-ink-soft: var(--text-muted);
