@@ -194,6 +194,20 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain("localStorage.getItem('mealfit_wizard_step_mode')");
     });
 
+    it('QTrackingFinish: hidrata el contexto ANTES de navegar (el rebote del botón mudo)', () => {
+        // [P1-TRACKING-FINISH-BOUNCE · 2026-08-12] El PATCH escribe health_profile
+        // en el servidor pero el userProfile en memoria sigue vacío: sin el
+        // refreshProfileAndPlan previo, ProtectedRoute calcula
+        // hasCompletedAssessment=false y rebota /dashboard → /assessment en el
+        // mismo tick — «Empezar a contar» no hacía nada visible.
+        const s = read('components/assessment/questions/QTrackingFinish.jsx');
+        const refreshIdx = s.indexOf('await refreshProfileAndPlan()');
+        const navIdx = s.indexOf("navigate('/dashboard'");
+        expect(refreshIdx).toBeGreaterThan(-1);
+        expect(navIdx).toBeGreaterThan(-1);
+        expect(refreshIdx).toBeLessThan(navIdx);
+    });
+
     it('DashboardTracking: fail-closed — TrackingProgress SOLO se monta con metas reales', () => {
         const s = read('components/dashboard/DashboardTracking.jsx');
         const mountIdx = s.indexOf('<TrackingProgress');

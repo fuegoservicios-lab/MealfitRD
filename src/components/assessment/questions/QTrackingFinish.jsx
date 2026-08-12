@@ -18,7 +18,7 @@ import { TRACKING_REQUIRED_FIELDS } from '../../../config/formValidation';
 
 export const QTrackingFinish = () => {
     const navigate = useNavigate();
-    const { formData } = useAssessment();
+    const { formData, refreshProfileAndPlan } = useAssessment();
     const [saving, setSaving] = useState(false);
 
     const terminar = async () => {
@@ -52,6 +52,18 @@ export const QTrackingFinish = () => {
             if (!r2.ok) throw new Error('No se pudo activar el modo contador.');
 
             try { localStorage.setItem('mealfit_plan_mode', 'tracking'); } catch { /* noop */ }
+
+            // [P1-TRACKING-FINISH-BOUNCE · 2026-08-12] Hidratar el contexto ANTES de
+            // navegar, y no es opcional: el PATCH de arriba escribió health_profile en
+            // el SERVIDOR, pero el `userProfile` en memoria sigue siendo el de la
+            // cuenta recién creada (health_profile vacío). Con ese estado,
+            // ProtectedRoute calcula hasCompletedAssessment=false y rebota /dashboard
+            // → /assessment en el mismo tick: el botón "no hacía nada" (el toast de
+            // éxito salía porque el servidor SÍ guardó; el que mentía era el estado
+            // local). Best-effort: si el refetch falla, navegamos igual — el espejo
+            // localStorage ya quedó puesto y el rebote de hoy no es peor que abortar.
+            try { await refreshProfileAndPlan(); } catch { /* best-effort */ }
+
             toast.success('Listo: tus metas están calculadas. Anota tu primera comida.');
             navigate('/dashboard', { replace: true });
         } catch (e) {
