@@ -1,7 +1,9 @@
 // [P2-4 · 2026-07-09] Extraído de InteractiveQuestions.jsx (split mecánico un-archivo-por-Q*; ese archivo quedó como barrel de re-export).
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 import { useAssessment } from '../../../context/AssessmentContext';
-import { SUPPLEMENTS } from '../../../config/formValidation';
-import { Check, Pill, Zap } from 'lucide-react';
+import { SUPPLEMENTS, blockedSupplementsFor } from '../../../config/formValidation';
+import { Check, Pill, Zap, Ban } from 'lucide-react';
 import { handleActivationKey } from './_shared';
 import { NextButton } from './NextButton';
 
@@ -50,6 +52,30 @@ if (import.meta.env?.MODE === 'development') {
 export const QSupplements = ({ onFinish, isSubmitting, finishLabel }) => {
     const { formData, updateData } = useAssessment();
 
+    // [P1-SUPPLEMENT-CLINICAL-GATE · 2026-08-12] Chips vetados por el perfil
+    // clínico (espejo UI de la tabla backend; el enforcement real es el gate
+    // del prompt + la barredora post-gen). Patrón dead-control con MOTIVO
+    // (P1-PLANSOURCE-DEAD-CONTROL): el chip se ve, no se puede marcar, y el
+    // tap explica por qué — un control que desaparece sin explicación parece
+    // un bug; uno gris que explica es una decisión clínica visible.
+    const blocked = blockedSupplementsFor(formData);
+
+    // Auto-limpieza: si una selección vieja quedó vetada (marcó el suplemento
+    // ANTES de declarar la condición y volvió atrás), se retira con aviso.
+    // Sin esto el estado mentiría: chip bloqueado pero internamente marcado.
+    useEffect(() => {
+        const current = formData.selectedSupplements || [];
+        const vetados = current.filter((s) => blocked[s]);
+        if (vetados.length) {
+            updateData('selectedSupplements', current.filter((s) => !blocked[s]));
+            toast.info('Quitamos suplementos no recomendados con tu perfil.', {
+                description: vetados.map((s) => SUPPLEMENT_META[s]?.label || s).join(', '),
+                duration: 5000,
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [JSON.stringify(Object.keys(blocked)), JSON.stringify(formData.selectedSupplements || [])]);
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div
@@ -97,7 +123,18 @@ export const QSupplements = ({ onFinish, isSubmitting, finishLabel }) => {
                             const meta = SUPPLEMENT_META[val];
                             if (!meta) return null;  // safety net — el invariante de arriba ya avisó
                             const isSelected = (formData.selectedSupplements || []).includes(val);
+                            const blockHint = blocked[val];
                             const toggleSupplement = () => {
+                                // [P1-SUPPLEMENT-CLINICAL-GATE] Vetado: el tap EXPLICA en vez
+                                // de marcar (aria-disabled emite click; disabled no emitiría
+                                // nada y el bloqueo parecería una app colgada).
+                                if (blockHint) {
+                                    toast.info('No recomendado con tu perfil médico.', {
+                                        description: blockHint,
+                                        duration: 4500,
+                                    });
+                                    return;
+                                }
                                 const current = formData.selectedSupplements || [];
                                 const updated = current.includes(val) ? current.filter(s => s !== val) : [...current, val];
                                 updateData('selectedSupplements', updated);
@@ -112,17 +149,21 @@ export const QSupplements = ({ onFinish, isSubmitting, finishLabel }) => {
                                     onKeyDown={handleActivationKey(toggleSupplement)}
                                     role="button"
                                     aria-pressed={isSelected}
-                                    aria-label={meta.label}
+                                    aria-disabled={!!blockHint}
+                                    aria-label={blockHint ? `${meta.label} — ${blockHint}` : meta.label}
                                     tabIndex={0}
                                     style={{
-                                        cursor: 'pointer', padding: '0.75rem', borderRadius: '0.75rem',
+                                        cursor: blockHint ? 'not-allowed' : 'pointer', padding: '0.75rem', borderRadius: '0.75rem',
                                         border: isSelected ? '1.5px solid var(--supplement-accent)' : '1px solid var(--border)',
-                                        backgroundColor: isSelected ? 'var(--supplement-tint)' : 'var(--bg-card)', display: 'flex', alignItems: 'center', gap: '0.5rem'
+                                        backgroundColor: isSelected ? 'var(--supplement-tint)' : 'var(--bg-card)', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                        opacity: blockHint ? 0.45 : 1,
                                     }}
                                 >
                                     <span>{meta.emoji}</span>
                                     <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--supplement-accent-strong)' : 'var(--text-main)' }}>{meta.label}</span>
-                                    {isSelected && <Check size={14} style={{ color: 'var(--supplement-accent)', marginLeft: 'auto' }} />}
+                                    {blockHint
+                                        ? <Ban size={14} style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }} />
+                                        : isSelected && <Check size={14} style={{ color: 'var(--supplement-accent)', marginLeft: 'auto' }} />}
                                 </div>
                             );
                         })}

@@ -323,6 +323,65 @@ export const TRACKING_REQUIRED_FIELDS = [
     'medicalConditions',
 ];
 
+// [P1-SUPPLEMENT-CLINICAL-GATE · 2026-08-12] Espejo UI de la tabla backend
+// `constants.SUPPLEMENT_CONTRAINDICATIONS` (el ENFORCEMENT vive allá:
+// filtro del prompt + barredora post-gen + Revisor Médico; esto solo evita
+// que el usuario marque algo que el motor va a vetar). Keyed por los CHIPS
+// EXACTOS del wizard (QMedical) — igualdad de string, jamás substring.
+// Test de paridad backend: test_p1_supplement_clinical_gate.py.
+export const SUPPLEMENT_BLOCKERS = {
+    pre_workout: {
+        conditions: ['Hipertensión', 'Embarazo', 'Lactancia', 'Gastritis'],
+        medications: ['Antidepresivo IMAO'],
+        hint: 'No recomendado con hipertensión, embarazo/lactancia, gastritis o antidepresivos IMAO.',
+    },
+    fat_burner: {
+        conditions: ['Hipertensión', 'Embarazo', 'Lactancia', 'Gastritis', 'Hipotiroidismo'],
+        medications: ['Antidepresivo IMAO'],
+        hint: 'No recomendado con hipertensión, embarazo/lactancia, gastritis, hipotiroidismo o IMAO.',
+    },
+    creatine: {
+        conditions: ['Enfermedad Renal'],
+        medications: [],
+        hint: 'No recomendado con enfermedad renal.',
+    },
+    whey_protein: {
+        conditions: ['Enfermedad Renal'],
+        medications: [],
+        hint: 'Tu plan renal ya controla la proteína: sin proteína suplementaria.',
+    },
+    vegan_protein: {
+        conditions: ['Enfermedad Renal'],
+        medications: [],
+        hint: 'Tu plan renal ya controla la proteína: sin proteína suplementaria.',
+    },
+    bcaa: {
+        conditions: ['Enfermedad Renal'],
+        medications: [],
+        hint: 'Tu plan renal ya controla la proteína: sin aminoácidos suplementarios.',
+    },
+    omega3: {
+        conditions: [],
+        medications: ['Warfarina'],
+        hint: 'No recomendado con anticoagulantes (riesgo de sangrado).',
+    },
+};
+
+/** Los suplementos vetados para este formData: `{clave: hint}`. Igualdad
+ *  exacta contra los chips (una condición de texto libre no se evalúa aquí —
+ *  el backend sí la ve con sus registries y barre post-gen). */
+export const blockedSupplementsFor = (formData) => {
+    const conds = formData?.medicalConditions || [];
+    const meds = formData?.medications || [];
+    const out = {};
+    for (const [key, spec] of Object.entries(SUPPLEMENT_BLOCKERS)) {
+        if (spec.conditions.some((c) => conds.includes(c)) || spec.medications.some((m) => meds.includes(m))) {
+            out[key] = spec.hint;
+        }
+    }
+    return out;
+};
+
 /** `findFirstIncompleteField`, pero contra una lista dada. La original queda
  *  intacta (firma y 3 call sites); esta existe para que cada modo valide SU
  *  contrato y no el del otro. */
