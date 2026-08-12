@@ -1654,6 +1654,10 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 [data-sonner-toast].bb-confirm-toast {
   flex-wrap: wrap;
   align-items: stretch;
+  /* La fila de botones se alinea a la derecha COMO GRUPO. El contenido ocupa
+     el 100% de la primera línea, así que esto solo gobierna la segunda; y la
+     X de cierre es `position: absolute` en sonner, o sea que no participa. */
+  justify-content: flex-end;
   gap: 0.85rem;
   width: 400px;
   max-width: calc(100vw - 2rem);
@@ -1679,10 +1683,17 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   line-height: 1.5;
   color: var(--text-muted, #9CA3AF) !important;
 }
-/* Botones: fila propia bajo el texto, alineados a la derecha. El PRIMERO en
-   el DOM (cancel) empuja con margin-left:auto; ambos pierden la altura fija
-   enana de sonner. Cancel = fantasma; confirmar = sólido del acento. */
+/* Botones: fila propia bajo el texto, pegados entre sí (los separa solo el
+   `gap` del contenedor) y alineados a la derecha por el justify-content de
+   arriba. Anular el margen es OBLIGATORIO: sonner le pone
+   `margin-left: auto` a CADA botón (--toast-button-margin-start), así que el
+   espacio libre se repartía ENTRE los dos y salían separados por media
+   tarjeta (owner: «el botón volver no debería estar más pegado?»).
+   Alinear el grupo con justify-content en vez de un auto-margin sobre el
+   primero deja el resultado independiente del orden del DOM.
+   Cancel = fantasma; confirmar = sólido del acento. */
 .bb-confirm-toast [data-button] {
+  margin: 0 !important;
   height: auto !important;
   padding: 0.5rem 1rem !important;
   border-radius: 0.65rem !important;
@@ -1694,7 +1705,6 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
 }
 .bb-confirm-toast [data-button]:hover { filter: brightness(1.08); }
 .bb-confirm-toast [data-button][data-cancel] {
-  margin-left: auto !important;
   background: transparent !important;
   color: var(--text-muted, #9CA3AF) !important;
   border: 1px solid var(--border, rgba(148, 163, 184, 0.28)) !important;
