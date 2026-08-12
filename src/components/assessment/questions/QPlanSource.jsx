@@ -9,12 +9,17 @@ import { Bot, Refrigerator } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const QPlanSource = ({ onAutoAdvance }) => {
-    const { formData, updateData, userProfile } = useAssessment();
+    const { formData, updateData, isGuest } = useAssessment();
     // [feedback owner 2026-07-11] SIN default visual: pre-marcar "Plan completo" parecía
     // una elección ya tomada y confundía. Sin selección, "Siguiente" continúa y el
     // backend trata planSource ausente como generación libre (mismo comportamiento).
     const value = formData.planSource;
-    const isAuth = Boolean(userProfile?.id);
+    // [P1-GUEST-ONE-DEFINITION · 2026-08-12] La definición de invitado es LA DEL
+    // CONTEXTO (isGuest = modo invitado explícito), no Boolean(userProfile?.id):
+    // un AUTENTICADO con el perfil aún en vuelo (fetchProfile 100-500ms) veía las
+    // tarjetas grises con «Requiere cuenta» estando logueado, mientras el flow ya
+    // lo trataba como autenticado — dos verdades en la misma pantalla.
+    const isAuth = !isGuest;
 
     const set = (v) => updateData('planSource', v);
 

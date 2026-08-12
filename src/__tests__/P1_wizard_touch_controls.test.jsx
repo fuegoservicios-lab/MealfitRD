@@ -71,23 +71,27 @@ describe('[P1-UNIT-TOGGLE] el selector de unidad es un solo control compartido',
 describe('[P1-PLANSOURCE-DEAD-CONTROL] el primer paso no tiene controles mudos', () => {
     beforeEach(() => { vi.clearAllMocks(); });
 
-    const montar = (userProfile) => {
+    // [P1-GUEST-ONE-DEFINITION · 2026-08-12] La definición de invitado pasó a
+    // ser LA DEL CONTEXTO (isGuest explícito), no Boolean(userProfile?.id):
+    // un autenticado con el perfil aún en vuelo veía las tarjetas grises.
+    // El harness modela el contrato nuevo.
+    const montar = (isGuest) => {
         const updateData = vi.fn();
         render(<QPlanSource onAutoAdvance={vi.fn()} />, {
-            customContext: { formData: {}, updateData, userProfile },
+            customContext: { formData: {}, updateData, isGuest },
         });
         return updateData;
     };
 
     it('sin cuenta, la opción de Nevera se anuncia como no disponible', () => {
-        montar(null);
+        montar(true);
         const tarjeta = screen.getByText('Que la IA use lo que ya tengo').closest('label');
         expect(tarjeta).toHaveAttribute('aria-disabled', 'true');
     });
 
     it('sin cuenta, tocarla EXPLICA en vez de no hacer nada', async () => {
         const user = userEvent.setup();
-        const updateData = montar(null);
+        const updateData = montar(true);
         await user.click(screen.getByText('Que la IA use lo que ya tengo'));
         expect(toastInfo).toHaveBeenCalledTimes(1);
         expect(toastInfo.mock.calls[0][0]).toMatch(/cuenta/i);
@@ -97,7 +101,7 @@ describe('[P1-PLANSOURCE-DEAD-CONTROL] el primer paso no tiene controles mudos',
 
     it('con cuenta, la opción funciona con normalidad', async () => {
         const user = userEvent.setup();
-        const updateData = montar({ id: 'u1' });
+        const updateData = montar(false);
         const tarjeta = screen.getByText('Que la IA use lo que ya tengo').closest('label');
         expect(tarjeta).not.toHaveAttribute('aria-disabled');
         await user.click(screen.getByText('Que la IA use lo que ya tengo'));
@@ -107,8 +111,8 @@ describe('[P1-PLANSOURCE-DEAD-CONTROL] el primer paso no tiene controles mudos',
 
     it('la PRIMERA opción nunca se bloquea: es la salida del paso', () => {
         // Si ambas quedaran vetadas, el paso 1 sería un callejón sin fondo — no ofrece
-        // botón de avanzar hasta tener un paso completado.
-        montar(null);
+        // botón de avanzar hasta tener un paso completado. Guest = peor caso.
+        montar(true);
         const libre = screen.getByText('Que la IA elija los ingredientes').closest('label');
         expect(libre).not.toHaveAttribute('aria-disabled');
     });

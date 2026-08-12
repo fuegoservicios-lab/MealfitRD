@@ -242,6 +242,7 @@ const _clearUserScopedCaches = () => {
     // intermedio heredado. Centralizarlo aquí cubre los 5 paths de teardown (resetApp/SIGNED_OUT/user-switch/
     // exitGuest/mount) de una vez.
     safeLocalStorageRemove('mealfit_wizard_step');
+    safeLocalStorageRemove('mealfit_wizard_step_mode'); // [P1-WIZARD-MAXSTEP-BRANCH] el sello de rama muere con el indice
 };
 
 
@@ -3902,7 +3903,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // [P2-15 · 2026-07-09] Store compartido: borra localStorage + copia
         // in-memory y notifica a Dashboard/Pantry montados.
         try { clearDisabledIngredientsStore(); } catch { /* noop */ }
-        safeLocalStorageRemove('mealfit_wizard_step'); // [P1-FORM-RESUME · 2026-06-19]
+        safeLocalStorageRemove('mealfit_wizard_step');
+    safeLocalStorageRemove('mealfit_wizard_step_mode'); // [P1-WIZARD-MAXSTEP-BRANCH] el sello de rama muere con el indice // [P1-FORM-RESUME · 2026-06-19]
         setPlanData(null);
         setFormData(initialFormData);
         setLikedMeals({});
@@ -3928,7 +3930,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         safeLocalStorageRemove('mealfit_plan');
         safeLocalStorageRemove('mealfit_likes');
         safeLocalStorageRemove('mealfit_dislikes');
-        safeLocalStorageRemove('mealfit_wizard_step'); // [P1-FORM-RESUME · 2026-06-19]
+        safeLocalStorageRemove('mealfit_wizard_step');
+    safeLocalStorageRemove('mealfit_wizard_step_mode'); // [P1-WIZARD-MAXSTEP-BRANCH] el sello de rama muere con el indice // [P1-FORM-RESUME · 2026-06-19]
         safeLocalStorageRemove('mealfit_user_id');
         safeLocalStorageRemove('mealfit_guest_session_id');
         safeLocalStorageRemove('mealfit_current_session');

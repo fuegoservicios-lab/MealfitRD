@@ -347,6 +347,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             // plan: appMode flip para que el wizard no aterrice en la rama corta) y el
             // toast lo dice. «La generación continúa donde quedó» sería mentirle a
             // quien jamás generó.
+            if (pausing) {
+                // [AUDIT-FORM-COPY · 2026-08-12] Simetría con el encendido: si «la app
+                // queda como contador», el wizard también. Sin esto, un pausado que
+                // entraba a /assessment caía en la rama del PLAN con «Finalizar y
+                // Generar» — justo lo que acaba de apagar. Si quiere plan nuevo, el
+                // paso 0 se lo ofrece.
+                updateData('appMode', 'tracking');
+            }
             if (!pausing && !planData) {
                 updateData('appMode', 'plan');
                 toast.success('Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.');

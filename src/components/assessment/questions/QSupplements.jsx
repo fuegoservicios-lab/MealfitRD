@@ -171,7 +171,7 @@ export const QSupplements = ({ onFinish, isSubmitting, finishLabel }) => {
                 </div>
             )}
 
-            <NextButton onClick={onFinish} disabled={isSubmitting} label={isSubmitting ? "Generando Plan..." : (finishLabel || "Finalizar y Generar")} icon={Zap} />
+            <NextButton onClick={onFinish} disabled={isSubmitting} label={isSubmitting ? "Generando Plan…" : (finishLabel || "Finalizar y Generar")} icon={Zap} />
         </div>
     );
 };

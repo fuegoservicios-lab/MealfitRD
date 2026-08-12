@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, Gauge, ArrowRight } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
-import { missingPlanFields } from '../../config/formValidation';
+import { missingPlanQuestionsCount } from '../../config/formValidation';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
@@ -29,7 +29,9 @@ const TurnOnPlanCard = ({ formData }) => {
     const navigate = useNavigate();
     const { updateData } = useAssessment();
     const [dismissed, setDismissed] = useState(() => safeLocalStorageGet(_DISMISS_KEY, null) === '1');
-    const faltan = missingPlanFields(formData || {}).length;
+    // [AUDIT-FORM-COPY · 2026-08-12] En PREGUNTAS (la unidad de la pantalla),
+    // no en campos: «Tus Medidas» son 4 campos y UNA pregunta.
+    const faltan = missingPlanQuestionsCount(formData || {});
 
     // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] Encender el plan cambia la RAMA
     // del wizard ANTES de navegar. Sin esto, formData.appMode seguía en 'tracking' y

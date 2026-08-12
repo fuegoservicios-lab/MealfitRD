@@ -94,6 +94,17 @@ const MED_ICONS = {
 export const OUT_OF_SCOPE_CONDITION = 'Otra condición (no listada)';
 export const OUT_OF_SCOPE_MEDICATION = 'Otro medicamento (no listado)';
 
+// [P1-OUTSCOPE-SKIP-GATE · 2026-08-12] SSOT del gate «fuera de alcance» para
+// las TRES puertas que pueden dejar atrás este paso (botón del paso, salto,
+// submit) — el patrón exacto de P1-SKIP-RESPECTS-BUDGET: la regla vivía SOLO
+// en el disabled del NextButton, y saltar es precisamente no pasar por el
+// paso. Aquí lo que se puenteaba no era un piso económico sino un gate de
+// seguridad clínica (el backend lo rechaza igual, pero tras quemar el
+// roundtrip y con un 422 genérico en la cara del usuario).
+export const hasOutOfScopeMedical = (fd) =>
+    (fd?.medicalConditions || []).includes(OUT_OF_SCOPE_CONDITION)
+    || (fd?.medications || []).includes(OUT_OF_SCOPE_MEDICATION);
+
 export const QMedical = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
     // [P0-B1] sentinel exclusivo con cualquier condición médica real.
@@ -186,8 +197,8 @@ export const QMedical = ({ onManualAdvance }) => {
     // clínico? Cualquiera de las dos señales basta: una condición no listada y
     // un fármaco no listado son el mismo problema (el motor no tiene regla que
     // aplicar) aunque medicamentos sea un campo opcional.
-    const outOfScopeSelected = (formData.medicalConditions || []).includes(OUT_OF_SCOPE_CONDITION)
-        || (formData.medications || []).includes(OUT_OF_SCOPE_MEDICATION);
+    // [P1-OUTSCOPE-SKIP-GATE] Mismo SSOT que consumen salto y submit.
+    const outOfScopeSelected = hasOutOfScopeMedical(formData);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>

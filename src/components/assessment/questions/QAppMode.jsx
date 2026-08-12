@@ -19,9 +19,14 @@ import { CalendarRange, Gauge } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const QAppMode = ({ onAutoAdvance }) => {
-    const { formData, updateData, userProfile } = useAssessment();
+    const { formData, updateData, isGuest } = useAssessment();
     const value = formData.appMode;
-    const isAuth = Boolean(userProfile?.id);
+    // [P1-GUEST-ONE-DEFINITION · 2026-08-12] La definición de invitado es LA DEL
+    // CONTEXTO (isGuest = modo invitado explícito), no Boolean(userProfile?.id):
+    // un AUTENTICADO con el perfil aún en vuelo (fetchProfile 100-500ms) veía las
+    // tarjetas grises con «Requiere cuenta» estando logueado, mientras el flow ya
+    // lo trataba como autenticado — dos verdades en la misma pantalla.
+    const isAuth = !isGuest;
 
     const set = (v) => updateData('appMode', v);
 

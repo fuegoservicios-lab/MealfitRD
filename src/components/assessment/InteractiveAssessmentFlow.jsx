@@ -20,6 +20,9 @@ import { QStapleFoods } from './questions/QStapleFoods';
 // seguimiento, los 21+1 de siempre en plan.
 import { QAppMode } from './questions/QAppMode';
 import { QTrackingFinish } from './questions/QTrackingFinish';
+// [P1-OUTSCOPE-SKIP-GATE · 2026-08-12] SSOT del gate «fuera de alcance» (vive
+// junto a sus literales en QMedical): salto y submit lo consumen.
+import { hasOutOfScopeMedical } from './questions/QMedical';
 // [FORM-CTA-UNIFY · 2026-07-02] Icono del botón "Saltar" (antes glyph ⏭ de texto,
 // que renderiza distinto por plataforma; lucide es consistente con el resto).
 import { ChevronsRight } from 'lucide-react';
@@ -56,13 +59,26 @@ import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, findFirs
    los drifts. Una función, tres consumidores.
 
    El piso preferido es `_budgetFloorMin` (personalizado por calorías × hogar ×
-   ciclo, el mismo que exige el backend); si aún no llegó, cae al estático. */
+   ciclo, el mismo que exige el backend); si aún no llegó, cae al estático.
+
+   [P1-BUDGET-FLOOR-STALE · 2026-08-12] Y el piso vigente es el MAYOR de los
+   dos, no el cacheado a secas: `_budgetFloorMin` lo refresca SOLO el efecto de
+   QBudget al montarse, pero PERSISTE entre sesiones (no es SENSITIVE y el
+   split no filtra el prefijo `_`). Con el `||` original, un usuario canSkip
+   que cambiaba la frecuencia a mensual SIN volver al paso de presupuesto
+   conservaba el piso semanal viejo — las tres puertas daban válido y el
+   backend devolvía 422 budget_below_goal_floor. El max nunca sub-bloquea:
+   como mínimo aplica el estático correcto para la duración/moneda ACTUAL; si
+   sobre-bloquea por un cacheado alto stale, el usuario aterriza en el paso de
+   presupuesto, QBudget se monta y el cache se corrige solo. */
 const isCustomBudgetValid = (fd) => fd?.budget !== 'custom'
-    || Number(fd.budgetAmount) >= (Number(fd._budgetFloorMin)
-        || minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration));
+    || Number(fd.budgetAmount) >= Math.max(
+        Number(fd._budgetFloorMin) || 0,
+        minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration),
+    );
 
 const InteractiveAssessmentFlow = () => {
-    const { currentStep, setCurrentStep, nextStep, formData, maxReachedStep, setMaxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
+    const { currentStep, setCurrentStep, nextStep, formData, updateData, maxReachedStep, setMaxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -215,7 +231,9 @@ const InteractiveAssessmentFlow = () => {
             const stepIdx = fieldToStepIndex[missing];
             const label = FIELD_LABELS[missing] || missing;
             toast.error(`Falta completar: ${label}`, {
-                description: 'Te llevamos al paso correspondiente.',
+                // [AUDIT-FORM-COPY 2026-08-12] La promesa de navegar solo si HAY
+                // paso destino (householdSize es required sin paso: default 1).
+                description: typeof stepIdx === 'number' ? 'Te llevamos al paso correspondiente.' : 'Revisalo antes de continuar.',
                 duration: 4000,
             });
             if (typeof stepIdx === 'number') {
@@ -241,6 +259,21 @@ const InteractiveAssessmentFlow = () => {
             });
             const _budgetIdx = fieldToStepIndex['budget'];
             if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
+            return;
+        }
+
+        // [P1-OUTSCOPE-SKIP-GATE · 2026-08-12] El gate clínico también en el
+        // submit: sin esto, un salto legacy o estado stale con «Otra condición
+        // (no listada)» quemaba el roundtrip y volvía como 422 genérico. El
+        // backend sigue siendo la red final; esto es la misma regla, antes.
+        if (hasOutOfScopeMedical(formData)) {
+            submittingRef.current = false;
+            toast.error('Tu condición o medicamento marcado está fuera del alcance del plan.', {
+                description: 'Revisa el paso de condiciones médicas.',
+                duration: 4500,
+            });
+            const _medIdx = fieldToStepIndex['medicalConditions'];
+            if (typeof _medIdx === 'number') setCurrentStep(_medIdx);
             return;
         }
 
@@ -387,7 +420,11 @@ const InteractiveAssessmentFlow = () => {
         },
         {
             title: <>¿Tienes alguna alergia o intolerancia?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Marca todas las opciones que apliquen.",
+            // [AUDIT-FORM-COPY · 2026-08-12] Igual que sus tres hermanos (gustos/
+            // médico/struggles): el subtítulo enseña la salida («Ninguna») y el
+            // free-text. Es el chip más sensible por safety — el único que no
+            // decía cómo responder «no tengo».
+            subtitle: "Marca todas las que apliquen, escribe la tuya en «Otra…», o marca «Ninguna».",
             hasInternalNext: true,
             fields: ['allergies'],
             component: <QAllergies onManualAdvance={nextStep} />
@@ -532,20 +569,51 @@ const InteractiveAssessmentFlow = () => {
         _byField('age'),            // Tus Medidas: age/height/weight/weightUnit
         _byField('activityLevel'),
         _byField('mainGoal'),
-        _byComponent(QGoalTarget),  // sin `fields` declarados: se busca por componente
+        // [AUDIT-FORM-COPY · 2026-08-12] El subtítulo original habla «del plan» —
+        // en esta rama no hay plan por diseño (el cierre lo dice dos pasos
+        // después). Se sobreescribe SOLO el copy; el componente es el mismo.
+        (() => {
+            const _gt = _byComponent(QGoalTarget);
+            return _gt && {
+                ..._gt,
+                subtitle: "Cuantificar la meta nos deja calibrar tus calorías y macros a tu medida.",
+            };
+        })(),
         _byField('dietType'),
         _byField('allergies'),
         _byField('medicalConditions'),
         {
-            title: <>Listo: tu contador</>,
+            // [AUDIT-FORM-COPY · 2026-08-12] «Listo:» prometía completitud AL
+            // ENTRAR al paso, con dos llamadas de red aún por delante que pueden
+            // fallar. El título nombra el paso; el «listo» lo declara el toast
+            // de éxito, que sí sabe si lo está.
+            title: <>Último paso: tu contador</>,
             subtitle: "Sin plan generado, sin gastar créditos. Lo enciendes cuando quieras.",
             hasInternalNext: true,
             component: <QTrackingFinish />
         },
     ].filter(Boolean);
 
-    const _isTracking = formData.appMode === 'tracking';
+    // [P1-GUEST-TRACKING-GUARD · 2026-08-12] `&& !isGuest`, simétrico a
+    // isPantryMode: la rama corta termina en DOS fetchWithAuth (PATCH perfil +
+    // PUT plan-mode) que a un invitado le devuelven 401 — un appMode='tracking'
+    // residual en mealfit_form lo dejaba en un callejón sin salida con la
+    // tarjeta del paso 0 deshabilitada (no podía ni ver el porqué).
+    const _isTracking = formData.appMode === 'tracking' && !isGuest;
     const steps = _isTracking ? _trackingSteps : [_appModeStep, ...planOnlySteps];
+
+    // [P1-GUEST-STALE-SANEO · 2026-08-12] Valores residuales de una sesión
+    // autenticada previa que el modo invitado no puede ejercer: se LIMPIAN, no
+    // solo se neutralizan. Sin esto, planSource='pantry' stale viajaba en el
+    // SSE y la tarjeta quedaba marcada Y deshabilitada — imposible de
+    // desmarcar; y appMode='tracking' re-activaba la rama corta al cerrar el
+    // guard de arriba... para siempre, porque nadie lo reseteaba.
+    useEffect(() => {
+        if (!isGuest) return;
+        if (formData.planSource === 'pantry') updateData('planSource', '');
+        if (formData.appMode === 'tracking') updateData('appMode', '');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isGuest, formData.planSource, formData.appMode]);
 
     // [P1-FORM-1] Mapping `field → step index` derivado del array `steps` en
     // runtime. Reemplaza el constante hardcoded `FIELD_TO_STEP_INDEX` que
@@ -575,10 +643,6 @@ const InteractiveAssessmentFlow = () => {
         const _mode = _isTracking ? 'tracking' : 'plan';
         if (_prevMode !== _mode) {
             try { localStorage.setItem('mealfit_wizard_step_mode', _mode); } catch { /* noop */ }
-            if (_prevMode !== null && currentStep > 0) {
-                // Volver al paso 1 de la rama nueva (el 0 es QAppMode, ya contestado).
-                setCurrentStep(Math.min(1, steps.length - 1));
-            }
             // [P1-WIZARD-MAXSTEP-BRANCH · 2026-08-12] maxReachedStep también es DE LA
             // RAMA, y se tira junto con currentStep. Heredarlo era el bug: llegar al
             // paso 9 de la rama corta hacía `canSkip=true` en los pasos 1-8 de la
@@ -586,8 +650,19 @@ const InteractiveAssessmentFlow = () => {
             // «Saltar» con preguntas obligatorias sin contestar (el horario cotidiano
             // se saltaba en la práctica). Un índice máximo solo significa algo en el
             // array donde se alcanzó.
+            //
+            // [P1-MAXSTEP-LANDING-PARITY · 2026-08-12] El máximo aterriza DONDE
+            // aterriza el paso, no en 1 fijo: con currentStep=0 (reset «desde cero»
+            // seguido de cambio de modo), un max=1 encendía canSkip en el paso 0 y
+            // «Siguiente» aparecía sin contestar la pregunta obligatoria — la misma
+            // clase de bug que este efecto existe para impedir.
             if (_prevMode !== null) {
-                setMaxReachedStep(Math.min(1, steps.length - 1));
+                const _landing = currentStep > 0 ? Math.min(1, steps.length - 1) : 0;
+                if (currentStep > 0) {
+                    // Volver al paso 1 de la rama nueva (el 0 es QAppMode, ya contestado).
+                    setCurrentStep(_landing);
+                }
+                setMaxReachedStep(_landing);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -680,12 +755,25 @@ const InteractiveAssessmentFlow = () => {
             const stepIdx = fieldToStepIndex[missing];
             const label = FIELD_LABELS[missing] || missing;
             toast.info(`Antes de saltar, completa: ${label}`, {
-                description: 'Te llevamos al paso correspondiente.',
+                description: typeof stepIdx === 'number' ? 'Te llevamos al paso correspondiente.' : 'Revisalo antes de continuar.',
                 duration: 4000,
             });
             if (typeof stepIdx === 'number') {
                 setCurrentStep(stepIdx);
             }
+            return;
+        }
+        // [P1-OUTSCOPE-SKIP-GATE · 2026-08-12] El gate clínico «fuera de alcance»
+        // también sobrevive al salto (misma clase que el presupuesto: la regla
+        // vivía SOLO en el disabled del botón del paso, y saltar es no pasar por
+        // el paso). Aplica en AMBAS ramas — el chip existe en las dos.
+        if (hasOutOfScopeMedical(formData)) {
+            toast.info('Tu condición o medicamento marcado está fuera del alcance del plan.', {
+                description: 'Revisa el paso de condiciones médicas antes de continuar.',
+                duration: 4500,
+            });
+            const _medIdx = fieldToStepIndex['medicalConditions'];
+            if (typeof _medIdx === 'number') setCurrentStep(_medIdx);
             return;
         }
         // [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] `findFirstIncompleteField` mira

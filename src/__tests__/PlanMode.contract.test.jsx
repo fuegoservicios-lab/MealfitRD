@@ -217,9 +217,12 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
         const stampIdx = s.indexOf("localStorage.setItem('mealfit_wizard_step_mode'");
         expect(stampIdx).toBeGreaterThan(-1);
-        const bloque = s.slice(stampIdx, stampIdx + 1400);
-        expect(bloque).toContain('setCurrentStep(Math.min(1, steps.length - 1))');
-        expect(bloque).toContain('setMaxReachedStep(Math.min(1, steps.length - 1))');
+        const bloque = s.slice(stampIdx, stampIdx + 2200);
+        // [P1-MAXSTEP-LANDING-PARITY] el máximo aterriza DONDE aterriza el paso
+        // (0 si currentStep era 0): un max=1 fijo encendía canSkip en el paso 0.
+        expect(bloque).toContain('const _landing = currentStep > 0 ? Math.min(1, steps.length - 1) : 0;');
+        expect(bloque).toContain('setCurrentStep(_landing)');
+        expect(bloque).toContain('setMaxReachedStep(_landing)');
     });
 
     it('Wizard: bifurcación por modo con la firma de forma como dep del memo', () => {

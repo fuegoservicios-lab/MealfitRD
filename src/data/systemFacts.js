@@ -29,7 +29,7 @@ export const MICROS_TRACKED = 17;
    no tener que tocarlo con cada alta. */
 export const VERIFIED_FOODS_LABEL = '200+';
 
-/* Variables de entrada del formulario (21 pasos del wizard). */
+/* Variables de entrada del formulario (los pasos del wizard; el numero vive en el array de steps). */
 export const INPUT_VARIABLES_LABEL = '20+';
 
 /* Modelos IA orquestados por el motor (identidad confidencial — P1-AI-CONFIDENTIAL). */

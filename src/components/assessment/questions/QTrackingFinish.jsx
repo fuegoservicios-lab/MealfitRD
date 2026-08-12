@@ -18,11 +18,24 @@ import { TRACKING_REQUIRED_FIELDS } from '../../../config/formValidation';
 
 export const QTrackingFinish = () => {
     const navigate = useNavigate();
-    const { formData, refreshProfileAndPlan } = useAssessment();
+    const { formData, refreshProfileAndPlan, loadingSensitive } = useAssessment();
     const [saving, setSaving] = useState(false);
 
     const terminar = async () => {
         if (saving) return;
+        // [P1-TRACKING-FINISH-SENSITIVE-GUARD · 2026-08-12] Mismo guard que el
+        // submit del plan y el salto (P1-14): alergias y condiciones médicas se
+        // descifran ASÍNCRONO. Pulsar dentro de esa ventana PATCHeaba
+        // medicalConditions=[] sobre el health_profile real (merge jsonb
+        // key-level = destructivo) — y de paso puenteaba el gate de embarazo
+        // de las metas (déficit calculado con condiciones «vacías»).
+        if (loadingSensitive) {
+            toast.info('Cargando tus datos…', {
+                description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+                duration: 3000,
+            });
+            return;
+        }
         setSaving(true);
         try {
             // Solo los campos del contrato de seguimiento + los acompañantes que el
@@ -31,10 +44,33 @@ export const QTrackingFinish = () => {
             // (las cicatrices P0-FORM-1/-4/-5 son exactamente esa clase).
             const hp = {};
             for (const campo of TRACKING_REQUIRED_FIELDS) {
-                if (formData[campo] !== undefined && formData[campo] !== null) hp[campo] = formData[campo];
+                const v = formData[campo];
+                if (v === undefined || v === null) continue;
+                // [P1-TRACKING-FINISH-SENSITIVE-GUARD] Un array VACÍO no se
+                // persiste: el merge jsonb es key-level y allergies/
+                // medicalConditions=[] MACHACARÍA lo real del perfil. El
+                // contrato de la rama exige no-vacío para llegar aquí; un []
+                // solo puede ser hidratación incompleta — omitir la clave
+                // conserva lo que el servidor ya sabe.
+                if (Array.isArray(v) && v.length === 0) continue;
+                hp[campo] = v;
             }
-            for (const extra of ['otherAllergy', 'otherCondition', 'goalWeight', 'goalPace', 'bodyFat']) {
-                if (formData[extra]) hp[extra] = formData[extra];
+            // [P1-TRACKING-FINISH-KEYS · 2026-08-12] Las claves REALES de formData.
+            // La lista original traía tres claves muertas (otherAllergy/otherCondition/
+            // goalWeight — cero escritores en TODO el repo): una alergia escrita a mano
+            // en «Otra…» se PERDÍA en silencio y el perfil quedaba diciendo «sin
+            // alergias» — señal de safety descartada tras aceptarla como respuesta
+            // válida. Los nombres canónicos son los que escriben los componentes:
+            // QAllergies→otherAllergies, QMedical→otherConditions/medications/
+            // otherMedications, QGoalTarget→targetWeight, QMeasurements→bodyFat/waistCm.
+            for (const extra of [
+                'otherAllergies', 'otherConditions', 'medications', 'otherMedications',
+                'targetWeight', 'goalPace', 'bodyFat', 'waistCm',
+            ]) {
+                const v = formData[extra];
+                if (v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)) {
+                    hp[extra] = v;
+                }
             }
 
             const r1 = await fetchWithAuth('/api/profile', {

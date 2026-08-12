@@ -98,7 +98,8 @@
 // Grep-anchor para frontend devs: si modificas este array, grep por
 // `[FORM-DRIFT-ANCHOR]` para encontrar TODA la documentación.
 //
-// Total actual: 20 campos. El conteo histórico que aparece en este header
+// El total lo dicta `.length` — no repitas la cifra aquí: ya mintió una vez
+// (decía 20 con 22 en el array). El conteo histórico que aparece en este header
 // ("6 completos" en P0-B3, "19 campos" en el drift documentado de P0-FORM-6)
 // refleja el estado pre-fix; no actualizar esos números — son evidencia
 // narrativa del problema que se cerró. La cifra autoritativa es la longitud
@@ -297,7 +298,7 @@ export const findFirstIncompleteField = (formData) => {
 // ============================================================
 // [P1-PLAN-MODE · 2026-08-11] El modo seguimiento — su propio contrato
 // ------------------------------------------------------------
-// `REQUIRED_FORM_FIELDS` (los 20 de arriba) es el contrato del BACKEND para
+// `REQUIRED_FORM_FIELDS` (el array de arriba) es el contrato del BACKEND para
 // GENERAR UN PLAN, sincronizado con `_REQUIRED_FORM_FIELDS` de routers/plans.py
 // y vigilado por test_p0_form_6. NO SE TOCA: en modo seguimiento no se llama a
 // /analyze/stream, así que ese contrato no aplica — y si se aplicara,
@@ -420,6 +421,16 @@ export const missingPlanFields = (formData) => {
     }
     return faltan;
 };
+
+/** [AUDIT-FORM-COPY · 2026-08-12] Cuántas PREGUNTAS del wizard le faltan — la
+ *  unidad que el usuario ve en pantalla, no campos: «Tus Medidas» pide 4
+ *  campos en UNA pregunta, y decirle «te faltan 4» por esa pantalla era un
+ *  hecho de otra unidad. Subconteo conocido y aceptado: QHabits gatea sus 4
+ *  filas sin declarar fields, así que no aparece aquí — el copy que consuma
+ *  esto no debe prometer exactitud de censo, solo magnitud honesta. */
+const _QUESTION_GROUP = { age: 'medidas', height: 'medidas', weight: 'medidas', weightUnit: 'medidas' };
+export const missingPlanQuestionsCount = (formData) =>
+    new Set(missingPlanFields(formData).map((f) => _QUESTION_GROUP[f] || f)).size;
 
 // ============================================================
 // [P1-3] Rangos biométricos plausibles

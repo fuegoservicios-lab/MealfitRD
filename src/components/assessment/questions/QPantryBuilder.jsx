@@ -557,7 +557,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                 onClick={onFinish}
                 disabled={isSubmitting || belowMin}
                 label={isSubmitting
-                    ? 'Generando Plan...'
+                    ? 'Generando Plan…'
                     : (belowMin
                         ? `Agrega al menos ${minItems} alimentos (${count}/${minItems})`
                         : `Crear mi plan con esta Nevera (${count})`)}
