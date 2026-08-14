@@ -245,6 +245,17 @@
     gap: 0.6rem;
     margin-bottom: 1rem;
 }
+/* [P2-SUPERMARKET-TOKEN-SPLIT · 2026-08-14] El rechazo del token, dicho junto al
+   campo. Usa `--pa-accent`, la unica tinta de color del sistema papel
+   (P1-HERO-DEDUP-ACCENT): 5,83:1 contra el papel, asi que se lee sin necesitar
+   negrita ni un fondo que rompa el pliego. `flex-basis: 100%` lo baja a su propia
+   linea para no empujar el ancho del input dentro del flex. */
+.unlockError {
+    flex: 1 0 100%;
+    color: var(--pa-accent);
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+}
 .unlockForm input {
     flex: 0 1 300px;
     padding: 0.6rem 0.85rem;

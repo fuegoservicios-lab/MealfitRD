@@ -486,14 +486,42 @@ const SupermarketPage = () => {
 
     /* ── admin ── */
 
-    const unlock = (e) => {
+    // [P2-SUPERMARKET-TOKEN-SPLIT · 2026-08-14] El token se VALIDA antes de
+    // guardarse. Antes se escribía en `sessionStorage` tal cual: un token mal
+    // tecleado dejaba la página en modo «admin» —con los controles de edición a la
+    // vista— y sólo se descubría al intentar guardar, con un 403 y el trabajo ya
+    // escrito. Peor aún, quedaba persistido: al recargar volvía a entrar en un
+    // modo admin que el servidor nunca reconoció.
+    //
+    // La validación es una petición que ya existe: pedir el listado con
+    // `include_inactive=1`, que es exactamente lo que el gate protege. Si el token
+    // vale, además se aprovecha la respuesta.
+    const [unlockError, setUnlockError] = useState('');
+    const [unlocking, setUnlocking] = useState(false);
+
+    const unlock = async (e) => {
         e.preventDefault();
         const token = tokenInput.trim();
-        if (!token) return;
-        try { sessionStorage.setItem(TOKEN_KEY, token); } catch { /* noop */ }
-        setTokenInput('');
-        setShowUnlock(false);
-        setAdminToken(token);
+        if (!token || unlocking) return;
+        setUnlocking(true);
+        setUnlockError('');
+        try {
+            await requestJson('/api/supermarket/products?limit=1&include_inactive=1', { token });
+            try { sessionStorage.setItem(TOKEN_KEY, token); } catch { /* noop */ }
+            setTokenInput('');
+            setShowUnlock(false);
+            setAdminToken(token);
+        } catch (err) {
+            // No se guarda nada: un token que el servidor rechaza no debe
+            // sobrevivir a la recarga ni pintar controles que no funcionan.
+            setUnlockError(
+                String(err?.message || '').includes('403')
+                    ? 'Ese token no es válido.'
+                    : 'No se pudo verificar el token. Revisa la conexión.',
+            );
+        } finally {
+            setUnlocking(false);
+        }
     };
 
     const lock = () => {
@@ -681,10 +709,19 @@ const SupermarketPage = () => {
                             aria-label="Token de administración"
                             autoFocus
                         />
-                        <button type="submit" className={styles.btnPrimary}>Entrar</button>
+                        <button type="submit" className={styles.btnPrimary} disabled={unlocking}>
+                            {unlocking ? 'Verificando…' : 'Entrar'}
+                        </button>
                         <button type="button" className={styles.btnGhost} onClick={() => setShowUnlock(false)} aria-label="Cerrar">
                             <X size={15} strokeWidth={2.25} />
                         </button>
+                        {/* [P2-SUPERMARKET-TOKEN-SPLIT · 2026-08-14] El rechazo se dice
+                            AQUI y ahora. Antes el token se guardaba sin preguntar y el
+                            error aparecia mucho despues, al intentar guardar un producto
+                            — con el formulario ya rellenado. */}
+                        {unlockError && (
+                            <span role="alert" className={styles.unlockError}>{unlockError}</span>
+                        )}
                     </form>
                 )}
 
