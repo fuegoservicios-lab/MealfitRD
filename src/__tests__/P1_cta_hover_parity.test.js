@@ -33,14 +33,6 @@ const CTA_MODULOS = [
     ['pages/Pantry.mobileFridge.module.css', '.add'],
     ['components/recipes/RecipesView.module.css', '.primary'],
     ['components/recipes/MobileRecipes.module.css', '.primary'],
-    // [P1-CTA-TINT-DANGER · 2026-08-14] El botón de papelera de la Nevera.
-    // Se quedó fuera de la primera pasada porque aquélla barrió la familia
-    // del GRADIENTE índigo y éste es de la familia de peligro (fondo tenue).
-    // El dueño lo notó de inmediato: para quien mira la barra, «los botones»
-    // son los dos, no una familia CSS. La lista se define por lo que el
-    // usuario ve junto, no por cómo está implementado.
-    ['pages/Pantry.fridge.module.css', '.clear'],
-    ['pages/Pantry.mobileFridge.module.css', '.clear'],
 ];
 
 /** Cuerpo de la regla cuyo selector es exactamente `clase` (opcionalmente con
@@ -80,23 +72,43 @@ describe('[P1-CTA-HOVER-PARITY] los CTA sólidos responden al mouse', () => {
     it.each([
         ['pages/Pantry.fridge.module.css'],
         ['pages/Pantry.mobileFridge.module.css'],
-    ])('%s: el botón de borrar tiñe su halo de PELIGRO, no de índigo', (archivo) => {
-        // [P1-CTA-TINT-DANGER · 2026-08-14] La geometría de la sombra es común,
-        // pero el color no puede serlo: un halo índigo bajo el botón de vaciar
-        // la Nevera lo emparenta con el CTA de añadir, que es su opuesto. El
-        // token lee `--cta-tint` y cada botón declara el suyo; sin esa línea el
-        // fallback lo pintaría índigo y NADIE lo notaría en un test de humo.
-        const cuerpo = bloque(leer(archivo), '.clear');
-        expect(cuerpo, '.clear no declara su tinte: el halo saldría índigo')
-            .toMatch(/--cta-tint:\s*var\(--danger\)/);
+    ])('%s: el botón de borrar NO lleva sombra en reposo', (archivo) => {
+        // Petición del dueño: «agregaste el sombreado incluso cuando yo no le
+        // pasé el mouse por encima». Su vecino «+ Añadir» sí la lleva —es un
+        // CTA primario y su elevación es parte de su identidad—; este solo
+        // debe pesar cuando el cursor lo toca.
+        expect(bloque(leer(archivo), '.clear'), 'el botón de borrar no debe verse elevado en reposo')
+            .not.toMatch(/box-shadow/);
     });
 
-    it('el token acepta un tinte por botón (si no, toda sombra sería índigo)', () => {
-        const ds = leer('index.css');
-        const m = ds.match(/--cta-shadow:\s*([^;]+);/);
-        expect(m).toBeTruthy();
-        expect(m[1], 'la geometría debe ser común y el COLOR parametrizable')
-            .toMatch(/var\(--cta-tint,\s*var\(--primary\)\)/);
+    it.each([
+        ['pages/Pantry.fridge.module.css'],
+        ['pages/Pantry.mobileFridge.module.css'],
+    ])('%s: y bajo el cursor su halo es de PELIGRO, no índigo', (archivo) => {
+        const css = leer(archivo);
+        expect(bloque(css, '.clear', ':hover'), 'un halo índigo emparentaría el botón de '
+            + 'VACIAR la Nevera con el de añadir, que es su opuesto')
+            .toMatch(/box-shadow:\s*var\(--cta-shadow-danger-hover\)/);
+        expect(bloque(css, '.clear', ':active'))
+            .toMatch(/box-shadow:\s*var\(--cta-shadow-danger-active\)/);
+    });
+
+    it('NINGÚN token de :root lee una variable que el elemento declara (patrón inerte)', () => {
+        // LA LECCIÓN, anclada: una custom property se resuelve en el elemento
+        // donde se DECLARA. Un token de :root que lea `var(--algo-que-pone-el-
+        // botón)` se computa arriba, toma el fallback y hereda ESE valor — el
+        // override del descendiente no hace nada. Verificado en Chrome: el
+        // mixin devolvía srgb(0.31 0.27 0.90) (índigo) donde el token explícito
+        // devuelve srgb(0.94 0.27 0.27) (rojo).
+        // Ningún test de texto puede ver eso; lo único que se puede vigilar es
+        // que el patrón no vuelva.
+        // Sin comentarios: la nota que explica POR QUÉ el mixin no sirve
+        // nombra `--cta-tint`, así que un guard sobre el fuente crudo se acusa
+        // a sí mismo. (Tercera vez hoy que un guard lee su documentación.)
+        const ds = leer('index.css').replace(/\/\*[\s\S]*?\*\//g, '');
+        const raiz = ds.slice(ds.indexOf(':root'), ds.indexOf('--radius-sm'));
+        expect(raiz, 'volvió el mixin inerte: usa un token por familia')
+            .not.toMatch(/--cta-tint/);
     });
 
     it('los tres tokens existen y el de hover es más intenso que el base', () => {

@@ -395,17 +395,28 @@
      tema: en claro es el índigo profundo, en oscuro el índigo claro del tema.
      No se define aquí por tema porque la mezcla ya lo resuelve sola.
 
-     [P1-CTA-TINT-DANGER · 2026-08-14] La GEOMETRÍA es común; el COLOR no puede
-     serlo. El botón de vaciar la Nevera quedó fuera de la primera pasada —que
-     barrió la familia del gradiente índigo— y el dueño lo notó enseguida: para
-     quien mira la barra, «los botones» son los dos. Pero darle el mismo halo
-     índigo lo emparentaría con el CTA de añadir, que es justo su opuesto. Por
-     eso el token lee `--cta-tint` y cada botón declara el suyo (mismo patrón
-     que `--cat` en las filas de la Nevera); sin declararlo, el fallback
-     mantiene el índigo de siempre y nada se rompe. */
-  --cta-shadow: 0 4px 14px -6px color-mix(in srgb, var(--cta-tint, var(--primary)) 55%, transparent);
-  --cta-shadow-hover: 0 7px 20px -6px color-mix(in srgb, var(--cta-tint, var(--primary)) 75%, transparent);
-  --cta-shadow-active: 0 3px 10px -5px color-mix(in srgb, var(--cta-tint, var(--primary)) 55%, transparent);
+     [P1-CTA-SHADOW-FAMILIES · 2026-08-14] Un token por FAMILIA, y no un token
+     parametrizable. El intento anterior (P1-CTA-TINT-DANGER) escribía la
+     mezcla aquí leyendo `var(--cta-tint, var(--primary))` para que cada botón
+     declarase su color — y era INERTE: una custom property se resuelve en el
+     elemento donde se DECLARA, así que esta se computaba en `:root`, donde
+     `--cta-tint` no existe, tomaba el fallback índigo y heredaba ese valor ya
+     resuelto. El `--cta-tint: var(--danger)` del botón de papelera llegaba
+     tarde y su halo salía azul; el dueño lo vio antes que la suite, porque un
+     test que lee CSS como TEXTO no puede comprobar la cascada.
+
+     Verificado en Chrome (getComputedStyle) antes de reescribir: el mixin
+     desde :root devuelve srgb(0.31 0.27 0.90) —índigo— mientras el token
+     explícito devuelve srgb(0.94 0.27 0.27) —rojo—. De ahí esta forma. */
+  --cta-shadow: 0 4px 14px -6px color-mix(in srgb, var(--primary) 55%, transparent);
+  --cta-shadow-hover: 0 7px 20px -6px color-mix(in srgb, var(--primary) 75%, transparent);
+  --cta-shadow-active: 0 3px 10px -5px color-mix(in srgb, var(--primary) 55%, transparent);
+  /* Familia de peligro: misma geometría, color propio. Sin variante en reposo
+     a propósito — el botón de vaciar la Nevera no lleva sombra hasta que el
+     cursor lo toca (petición del dueño: «agregaste el sombreado incluso cuando
+     yo no le pasé el mouse por encima»). */
+  --cta-shadow-danger-hover: 0 7px 20px -6px color-mix(in srgb, var(--danger) 75%, transparent);
+  --cta-shadow-danger-active: 0 3px 10px -5px color-mix(in srgb, var(--danger) 55%, transparent);
 
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
