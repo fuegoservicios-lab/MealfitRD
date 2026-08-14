@@ -142,6 +142,23 @@ export default defineConfig(({ mode }) => {
         // quien depure el peso del precache la lee como «esa imagen ya está
         // excluida» y busca los bytes en otro sitio. Un test la vigila ahora.
         globIgnores: [
+          // [P2-LANDING-PRERENDER-META · 2026-08-14] Los ~18 HTML por ruta que
+          // estampa `scripts/build-route-meta.mjs`. `globPatterns` incluye
+          // `**/*.html`, asi que en principio entrarian TODOS al precache
+          // (+~250 KB por visitante) para nada: su unico consumidor son los
+          // unfurlers y los crawlers, que no instalan service worker.
+          //
+          // ⚠️ HONESTIDAD SOBRE QUE HACE ESTA LINEA HOY: verificado en el build
+          // del 2026-08-14, el manifest sale con UNA sola entrada `.html` (la
+          // raiz) incluso sin esta exclusion — porque el prerender corre en
+          // `postbuild`, o sea DESPUES de que VitePWA calcule el manifest. Es
+          // decir, ahora mismo el trabajo lo hace el ORDEN, no esta linea.
+          // Se deja igualmente como cinturon: el dia que alguien mueva el
+          // prerender dentro del build (un plugin, un `closeBundle`), el orden
+          // deja de proteger y esta linea pasa a ser lo unico que lo hace.
+          // El `index.html` de la raiz SI debe precachearse — es el fallback
+          // offline del SPA — y por eso el patron lleva subdirectorio.
+          '*/index.html',
           'assets/html2pdf-*.js',
           'dashboard_bg_v2.png',
           'apple-touch-icon.png',

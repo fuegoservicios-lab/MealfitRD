@@ -8,6 +8,7 @@
     "build:sitemap": "node scripts/build-sitemap.mjs",
     "prebuild": "npm run build:sitemap",
     "build": "vite build",
+    "postbuild": "node scripts/build-route-meta.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
