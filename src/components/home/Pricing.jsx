@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
 import { Check } from 'lucide-react';
@@ -32,6 +33,73 @@ import {
 // [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre comercial por tier — SSOT en
 // `config/plans.js`, compartido con Upgrade.jsx.
 const DISPLAY_BY_TIER = TIER_DISPLAY_NAME;
+
+// [P2-CHECKOUT-PLANCARD · 2026-08-14] Sube a modulo: es una constante (no
+// depende de estado) y ahora la necesita tambien `PlanCard`.
+const disabledStyles = { opacity: 0.85, cursor: 'not-allowed', filter: 'grayscale(100%)' };
+
+/**
+ * [P2-CHECKOUT-PLANCARD · 2026-08-14] Una tarjeta de plan.
+ *
+ * Las cuatro estaban escritas longhand —~50 líneas casi idénticas cada una—
+ * mientras `Upgrade.jsx` ya había extraído su `renderPlanCard`. Este componente
+ * cierra esa mitad: la PRESENTACIONAL.
+ *
+ * ⚠️ PARAMETRIZAR, NO PROMEDIAR. Las cuatro tarjetas NO dicen lo mismo, y esa es
+ * justo la trampa de un componente compartido: Gratis no tiene periodo ni
+ * equivalente anual ni oferta, Max cambia su nota anual por «solo mensual»
+ * (ULTRA-MONTHLY-ONLY) y añade dos bullets propios, y Plus es la única con
+ * insignia y botón primario. Por eso lo variable entra como NODOS ya construidos
+ * en vez de como banderas que el componente interprete — si mañana una tarjeta
+ * necesita algo que ninguna otra tiene, se le pasa, no se le añade un `if` aquí.
+ *
+ * ⚠️ LO QUE **NO** SE TOCA en este ciclo, y no por falta de ganas: la máquina de
+ * checkout (`handleUpgradeClick`, `closePayment`, `handlePaymentSuccess`, la
+ * rehidratación desde la URL) sigue duplicada con `Upgrade.jsx`. Es el único
+ * camino que factura y acumula ≥4 P-fixes de comportamiento; extraer un
+ * `usePlanCheckout` es cambiar deuda de mantenimiento por riesgo en el cobro.
+ * El paso previo —tests que monten este componente— ya existe
+ * (`Pricing.p2_checkout_characterization.test.jsx`); el hook viene después.
+ */
+const PlanCard = ({ name, popular = false, priceNode, noteNode, description, features, cta }) => (
+    <div className={popular ? `${styles.card} ${styles.popular}` : styles.card}>
+        {popular && <div className={styles.popularBadge}>Más Popular</div>}
+        <div className={styles.cardContent}>
+            <h3 className={styles.planName}>{name}</h3>
+            <div className={styles.price}>{priceNode}</div>
+            {noteNode}
+            <p className={styles.description}>{description}</p>
+            <ul className={styles.features}>
+                {features.map((f, i) => (
+                    <li key={i}><Check size={18} className={styles.check} /> <strong>{f}</strong></li>
+                ))}
+            </ul>
+            <button
+                className={cta.primary ? styles.btnPrimary : styles.btnOutline}
+                onClick={cta.onClick}
+                disabled={cta.disabled}
+                style={cta.disabled ? disabledStyles : {}}
+            >
+                {cta.label}
+            </button>
+        </div>
+    </div>
+);
+
+PlanCard.propTypes = {
+    name: PropTypes.node.isRequired,
+    popular: PropTypes.bool,
+    priceNode: PropTypes.node.isRequired,
+    noteNode: PropTypes.node,
+    description: PropTypes.node.isRequired,
+    features: PropTypes.arrayOf(PropTypes.node).isRequired,
+    cta: PropTypes.shape({
+        label: PropTypes.node,
+        onClick: PropTypes.func,
+        disabled: PropTypes.bool,
+        primary: PropTypes.bool,
+    }).isRequired,
+};
 
 const Pricing = () => {
     const navigate = useNavigate();
@@ -280,7 +348,6 @@ const Pricing = () => {
         return targetRank < currentRank;
     };
 
-    const disabledStyles = { opacity: 0.85, cursor: 'not-allowed', filter: 'grayscale(100%)' };
 
     return (
         <section className={styles.pricing} id="pricing">
@@ -337,175 +404,115 @@ const Pricing = () => {
 
                 <div className={styles.grid}>
 
-                    {/* --- TARJETA 1: GRATIS --- */}
-                    <div className={styles.card}>
-                        <div className={styles.cardContent}>
-                            <h3 className={styles.planName}>Gratis</h3>
-                            <div className={styles.price}>
+                    {/* [P2-CHECKOUT-PLANCARD · 2026-08-14] Las cuatro tarjetas eran
+                        ~50 lineas casi identicas cada una. Ahora son DATOS: lo que de
+                        verdad las distingue queda a la vista de un vistazo, en lugar de
+                        enterrado en cuatro bloques de JSX que habia que comparar a mano.
+                        Los nodos van construidos aqui -- no banderas que `PlanCard`
+                        interprete -- para que una tarjeta pueda ser distinta sin
+                        anadirle un `if` al componente. */}
+                    {[
+                        {
+                            tier: 'gratis',
+                            name: 'Gratis',
+                            priceNode: (<>
                                 <span className={styles.currency}>USD$</span>
                                 <span className={styles.amount}>0</span>
-                            </div>
-                            {/* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner:
-                                Gratis accede a TODAS las funciones (por ahora) — los tiers
-                                se diferencian solo por créditos; Max no cambia. */}
-                            <p className={styles.description}>
-                                Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.
-                            </p>
-
-                            <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>{PLAN_LIMIT} Créditos</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Plan de Comidas con IA</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Recetas Paso a Paso</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Lista de Compras PDF</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Analizador de Macros</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Asistente IA con Visión</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Nevera Inteligente</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Seguimiento de Progreso</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Todas las funciones incluidas</strong></li>
-                            </ul>
-
-                            <button
-                                className={styles.btnOutline}
-                                onClick={handleFreePlanClick}
-                                disabled={isButtonDisabled('gratis')}
-                                style={isButtonDisabled('gratis') ? disabledStyles : {}}
-                            >
-                                {getButtonText('gratis')}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* --- TARJETA 2: BÁSICO --- */}
-                    <div className={styles.card}>
-                        <div className={styles.cardContent}>
-                            <h3 className={styles.planName}>Básico</h3>
-                            <div className={styles.price}>
-                                <span className={styles.currency}>USD$</span>
-                                <span className={styles.amount}>{getPrice('basic')}</span>
-                                <span className={styles.period}>{getPeriodLabel('basic')}</span>
-                            </div>
-                            {isAnnual && (
-                                <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('basic')}/mes, facturado anual</p>
-                            )}
-                            {/* [P1-LAUNCH-OFFER · 2026-07-31] Precio futuro tachado + fecha
-                                de subida (solo vista mensual). ⚠️ La subida debe ser real —
-                                ver config/plans.js. */}
-                            {!isAnnual && ofertaViva && (
-                                <p className={styles.monthlyEquiv}>
-                                    <s>USD${LAUNCH_OFFER.futureMonthly.basic}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
-                                </p>
-                            )}
-
-                            <p className={styles.description}>
-                                Más créditos para regenerar platos y días sin miedo a quedarte corto.
-                            </p>
-
-                            <ul className={styles.features}>
-                                {/* [P2-LADDER-VS-PREDECESSOR · 2026-07-31] Salto contra el
-                                    escalón anterior, derivado de TIER_CREDITS. */}
-                                <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.basic} Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>{creditsVsPredecessor('basic')}</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>{includesPredecessor('basic')}</strong></li>
-                            </ul>
-
-                            <button
-                                className={styles.btnOutline}
-                                onClick={() => handleUpgradeClick('basic', 'Suscripción Básico')}
-                                disabled={isButtonDisabled('basic')}
-                                style={isButtonDisabled('basic') ? disabledStyles : {}}
-                            >
-                                {getButtonText('basic')}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* --- TARJETA 3: PLUS (MÁS POPULAR) --- */}
-                    <div className={`${styles.card} ${styles.popular}`}>
-                        <div className={styles.popularBadge}>Más Popular</div>
-                        <div className={styles.cardContent}>
-                            <h3 className={styles.planName}>Plus</h3>
-                            <div className={styles.price}>
-                                <span className={styles.currency}>USD$</span>
-                                <span className={styles.amount}>{getPrice('plus')}</span>
-                                <span className={styles.period}>{getPeriodLabel('plus')}</span>
-                            </div>
-                            {isAnnual && (
-                                <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('plus')}/mes, facturado anual</p>
-                            )}
-                            {!isAnnual && ofertaViva && (
-                                <p className={styles.monthlyEquiv}>
-                                    <s>USD${LAUNCH_OFFER.futureMonthly.plus}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
-                                </p>
-                            )}
-
-                            <p className={styles.description}>
-                                Combustible de sobra: ajusta, regenera y experimenta toda la semana.
-                            </p>
-
-                            <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.plus} Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>{creditsVsPredecessor('plus')}</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>{includesPredecessor('plus')}</strong></li>
-                            </ul>
-
-                            <button
-                                className={styles.btnPrimary}
-                                onClick={() => handleUpgradeClick('plus', 'Suscripción Plus')}
-                                disabled={isButtonDisabled('plus')}
-                                style={isButtonDisabled('plus') ? disabledStyles : {}}
-                            >
-                                {getButtonText('plus')}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* --- TARJETA 4: ULTRA (ILIMITADO) --- */}
-                    <div className={styles.card}>
-                        <div className={styles.cardContent}>
-                            <h3 className={styles.planName}>
-                                Max
-                            </h3>
-                            <div className={styles.price}>
-                                <span className={styles.currency}>USD$</span>
-                                <span className={styles.amount}>{getPrice('ultra')}</span>
-                                <span className={styles.period}>{getPeriodLabel('ultra')}</span>
-                            </div>
-                            {/* [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no tiene plan anual:
-                                cuando el toggle está en "Anual" aclaramos que se factura mensual. */}
-                            {isAnnual && (
-                                <p className={styles.monthlyEquiv}>Disponible solo en facturación mensual</p>
-                            )}
-                            {!isAnnual && ofertaViva && (
-                                <p className={styles.monthlyEquiv}>
-                                    <s>USD${LAUNCH_OFFER.futureMonthly.ultra}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
-                                </p>
-                            )}
-
-                            {/* [P1-CREDITS-LADDER · 2026-07-31] Max ya NO vende "ilimitado":
-                                500/mes acotado (paridad backend). El diferenciador real:
-                                el tope más alto + acceso anticipado + VIP. */}
-                            <p className={styles.description}>
-                                El tope más alto: para quien ajusta y optimiza su plan todos los días.
-                            </p>
-
-                            <ul className={styles.features}>
-                                <li><Check size={18} className={styles.check} /> <strong>{TIER_CREDITS.ultra} Créditos al mes</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>{creditsVsPredecessor('ultra')}</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Acceso Anticipado a Nuevas Funciones</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>Soporte Prioritario VIP</strong></li>
-                                <li><Check size={18} className={styles.check} /> <strong>{includesPredecessor('ultra')}</strong></li>
-                            </ul>
-
-                            <button
-                                className={styles.btnOutline}
-                                onClick={() => handleUpgradeClick('ultra', 'Suscripción Max')}
-                                disabled={isButtonDisabled('ultra')}
-                                style={isButtonDisabled('ultra') ? disabledStyles : {}}
-                            >
-                                {getButtonText('ultra')}
-                            </button>
-                        </div>
-                    </div>
+                            </>),
+                            /* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner:
+                               Gratis accede a TODAS las funciones (por ahora) — los tiers
+                               se diferencian solo por creditos; Max no cambia. */
+                            description: 'Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.',
+                            features: [
+                                <>{PLAN_LIMIT} Créditos</>, 'Plan de Comidas con IA',
+                                'Recetas Paso a Paso', 'Lista de Compras PDF',
+                                'Analizador de Macros', 'Asistente IA con Visión',
+                                'Nevera Inteligente', 'Seguimiento de Progreso',
+                                'Todas las funciones incluidas',
+                            ],
+                            cta: { onClick: handleFreePlanClick },
+                        },
+                        {
+                            tier: 'basic',
+                            name: 'Básico',
+                            description: 'Más créditos para regenerar platos y días sin miedo a quedarte corto.',
+                            /* [P2-LADDER-VS-PREDECESSOR · 2026-07-31] Salto contra el
+                               escalon anterior, derivado de TIER_CREDITS. */
+                            features: [
+                                <>{TIER_CREDITS.basic} Créditos al mes</>,
+                                creditsVsPredecessor('basic'), includesPredecessor('basic'),
+                            ],
+                            cta: { onClick: () => handleUpgradeClick('basic', NAME_BY_TIER.basic) },
+                        },
+                        {
+                            tier: 'plus',
+                            name: 'Plus',
+                            popular: true,
+                            description: 'Combustible de sobra: ajusta, regenera y experimenta toda la semana.',
+                            features: [
+                                <>{TIER_CREDITS.plus} Créditos al mes</>,
+                                creditsVsPredecessor('plus'), includesPredecessor('plus'),
+                            ],
+                            cta: { primary: true, onClick: () => handleUpgradeClick('plus', NAME_BY_TIER.plus) },
+                        },
+                        {
+                            tier: 'ultra',
+                            name: 'Max',
+                            /* [P1-CREDITS-LADDER · 2026-07-31] Max ya NO vende "ilimitado":
+                               500/mes acotado (paridad backend). El diferenciador real: el
+                               tope mas alto + acceso anticipado + VIP. */
+                            description: 'El tope más alto: para quien ajusta y optimiza su plan todos los días.',
+                            features: [
+                                <>{TIER_CREDITS.ultra} Créditos al mes</>,
+                                creditsVsPredecessor('ultra'),
+                                'Acceso Anticipado a Nuevas Funciones',
+                                'Soporte Prioritario VIP',
+                                includesPredecessor('ultra'),
+                            ],
+                            cta: { onClick: () => handleUpgradeClick('ultra', NAME_BY_TIER.ultra) },
+                            /* [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no tiene plan anual:
+                               con el toggle en "Anual" se aclara que se factura mensual. */
+                            notaAnual: 'Disponible solo en facturación mensual',
+                        },
+                    ].map((plan) => {
+                        const dePago = plan.tier !== 'gratis';
+                        const equiv = getMonthlyEquiv(plan.tier);
+                        return (
+                            <PlanCard
+                                key={plan.tier}
+                                name={plan.name}
+                                popular={plan.popular}
+                                priceNode={plan.priceNode || (<>
+                                    <span className={styles.currency}>USD$</span>
+                                    <span className={styles.amount}>{getPrice(plan.tier)}</span>
+                                    <span className={styles.period}>{getPeriodLabel(plan.tier)}</span>
+                                </>)}
+                                noteNode={dePago && (
+                                    <>
+                                        {isAnnual && (plan.notaAnual
+                                            ? <p className={styles.monthlyEquiv}>{plan.notaAnual}</p>
+                                            : equiv && <p className={styles.monthlyEquiv}>≈ USD${equiv}/mes, facturado anual</p>
+                                        )}
+                                        {/* [P1-LAUNCH-OFFER · 2026-07-31] Precio futuro tachado +
+                                            fecha de subida (solo vista mensual). ⚠️ La subida debe
+                                            ser real — ver config/plans.js. */}
+                                        {!isAnnual && ofertaViva && (
+                                            <p className={styles.monthlyEquiv}>
+                                                <s>USD${LAUNCH_OFFER.futureMonthly[plan.tier]}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
+                                            </p>
+                                        )}
+                                    </>
+                                )}
+                                description={plan.description}
+                                features={plan.features}
+                                cta={{
+                                    ...plan.cta,
+                                    label: getButtonText(plan.tier),
+                                    disabled: isButtonDisabled(plan.tier),
+                                }}
+                            />
+                        );
+                    })}
 
                 </div>
             </div>
