@@ -10,35 +10,52 @@
 // QUÉ CAMBIA RESPECTO AL ORIGINAL. Nada del glifo; sí su envase:
 //   · Nombre: `bioboros-mark.png`. El anterior decía «mealfit», la marca
 //     muerta, y P2-WORDMARK-BIOBOROS ya enseñó lo que cuesta dejar el nombre
-//     viejo escrito en el árbol: el rebrand automático no alcanzó a `Logo.jsx`
-//     y el usuario vio «Mealfit» en una app ya rebrandeada.
+//     viejo escrito en el árbol.
 //   · Recorte: el PNG traía el glifo en el 45% central de un lienzo de
-//     1254×1254; el resto era transparencia. Sin recortar, para que el símbolo
-//     se viera del tamaño del wordmark había que darle una caja el doble de
-//     alta y luego pelearse con márgenes negativos. Se quitaron los píxeles
-//     vacíos (`getbbox`), no el dibujo.
-//   · Peso: 47,7 KB → 12,3 KB (128 px). Importa porque la auditoría que lo
-//     borró estaba precisamente recortando el precache del apex.
+//     1254×1254; el resto era transparencia. Sin recortar hay que darle una caja
+//     el doble de alta y compensar con márgenes negativos.
+//   · Peso: 47,7 KB → 4,9 KB (128 px, RGB plano y alfa intacto).
 //
-// [P1-BRAND-MARK-MONO · 2026-08-14] La TINTA la pone el CSS, no el PNG: el
-// símbolo se pinta con `currentColor` vía máscara (ver BrandMark.module.css).
-// Un símbolo índigo junto a un wordmark monocromo reintroducía el acento de
-// color que el dueño ya había rechazado dos veces, y además pesaba 2,9× menos
-// que la palabra contra el fondo. Con la máscara heredan la misma tinta y el
-// tema claro se resuelve solo.
+// ─────────────────────────────────────────────────────────────────────────────
+// EL COLOR ES ÍNDIGO POR DECISIÓN DEL DUEÑO — NO LO PASES A MONOCROMO
+//
+// [2026-08-14, tras verlo en producción] Se probó la variante monocroma: el PNG
+// como máscara CSS y la tinta heredada del wordmark con `currentColor`. El
+// argumento técnico era bueno y sigue siendo cierto:
+//   · el wordmark es monocromo por decisión previa suya (P2-WORDMARK-BIOBOROS
+//     descartó bicolor índigo+rosa y las tres «o» en verde), así que un símbolo
+//     de color reintroduce por el símbolo el acento rechazado en las letras;
+//   · medido sobre el sidebar oscuro, la palabra da 15,11:1 contra el fondo y el
+//     símbolo índigo 5,18:1 — 2,9× más débil;
+//   · con máscara, el tema claro resolvía su tinta solo (el índigo ahí da
+//     3,42:1: pasa el mínimo de 3:1 para elemento no textual, pero se ve suave).
+//
+// El dueño vio las dos en la app y eligió el ÍNDIGO. Es su marca y es una
+// decisión de producto, no un descuido: el símbolo aporta el único color de la
+// pantalla de marca y a él le gusta así. Si vuelves con «el logo debería ser
+// monocromo», ya se discutió con las dos versiones desplegadas delante.
+// ─────────────────────────────────────────────────────────────────────────────
 //
 // NO lleva `alt` descriptivo a propósito: va SIEMPRE acompañado del wordmark,
 // que ya dice «Bioboros». Un `alt="Bioboros"` haría que un lector de pantalla
 // anunciara la marca dos veces seguidas; el símbolo es decorativo en ese par.
 import PropTypes from 'prop-types';
-import styles from './BrandMark.module.css';
 
 export const BrandMark = ({ size = '1.15em', className = '', style = {} }) => (
-    <span
-        role="presentation"
+    <img
+        src="/bioboros-mark.png"
+        alt=""
         aria-hidden="true"
-        className={`${styles.marca} ${className}`.trim()}
-        style={{ height: size, width: size, ...style }}
+        width={128}
+        height={128}
+        className={className}
+        style={{
+            height: size,
+            width: 'auto',
+            display: 'block',
+            flexShrink: 0,
+            ...style,
+        }}
     />
 );
 
