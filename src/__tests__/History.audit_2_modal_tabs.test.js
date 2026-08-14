@@ -107,8 +107,13 @@ describe('[P2-HIST-AUDIT-2] state local del modal', () => {
         // ahí; el viejo anchor `onClick={() => {` ya no apunta al card (la
         // lista la renderizan los paneles), por lo que el primer match era
         // un botón ajeno → este test fallaba en baseline.
-        const openIdx = src.indexOf('const openPlanModal');
-        expect(openIdx).toBeGreaterThan(-1);
+        // [P1-HIST-MODAL-DEEPLINK · 2026-08-14] Ancla movida a
+        // `_abrirPlanEnEstado`: la apertura se partió en dos —la pura, que monta
+        // el modal, y `openPlanModal`, que además escribe `?plan=` en la URL—
+        // para que la restauración tras un refresh no reescriba la URL en bucle.
+        // El reset del tab vive con el resto del estado, en la pura.
+        const openIdx = src.indexOf('const _abrirPlanEnEstado');
+        expect(openIdx, 'no se encontró la apertura del modal').toBeGreaterThan(-1);
         const block = src.slice(openIdx, openIdx + 2500);
         expect(block).toMatch(/setActiveModalTab\s*\(\s*['"]menu['"]\s*\)/);
     });

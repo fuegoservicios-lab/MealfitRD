@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { fetchWithAuth, deletePlanFromHistory, getHistoryList, getLessonsCounts, getPlanLessonsDetail, getPlanCoherenceHistory, getHistoryStatusSummary, getPlanBlockedReasons, getPlanChunkMetrics, getPlanLifetimeLessons, renamePlan } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
 import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './History.module.css';
@@ -34,6 +34,7 @@ import { splitWithAbsorb, findChunkContaining, parseStartLocal } from '../utils/
 // que un usuario que navega entre History ↔ Dashboard no dispare
 // los lazy fetches del modal de cero al volver.
 import { historyCaches, setCachedEntry, hydrateCacheDict, setCachedLifetimeEntry, hydrateLifetimeDict, invalidateCachesForPlan, getCachedHistoryListStale, setCachedHistoryList, invalidateHistoryListCache } from '../utils/historyCaches';
+import { resolverPlanDeUrl } from '../utils/historyDeepLink';
 // [P2-HIST-AUDIT-13 · 2026-05-09] SSOT del set de coherence
 // anomalous actions. Mirror de `backend/constants.py::COHERENCE_ANOMALOUS_ACTIONS`.
 import { isAnomalousCoherenceAction } from '../utils/coherenceActions';
@@ -387,6 +388,10 @@ const History = () => {
     const _abortControllerRef = useRef(null);
 
     const navigate = useNavigate();
+    // [P1-HIST-MODAL-DEEPLINK · 2026-08-14] `?plan=<id>` es la fuente de verdad
+    // de qué detalle está abierto: sobrevive al refresh, lo cierra el botón
+    // Atrás y el enlace se puede compartir.
+    const [searchParams, setSearchParams] = useSearchParams();
     // [P0-HIST-1 · 2026-05-09] Usamos `restorePlanFromHistory` (no
     // `restorePlan`) para que el flujo desde Historial pase por el
     // endpoint atómico que cancela chunks pending/processing del
@@ -410,7 +415,21 @@ const History = () => {
     // cambio de tab, nav de día, lazy-load de plan_data) → re-foco al
     // container cada 10ms robando el focus de los elementos internos.
     // Memoizado, el effect solo corre al abrir/cerrar de verdad.
-    const _closeDetailModal = useCallback(() => setSelectedPlan(null), []);
+    // [P1-HIST-MODAL-DEEPLINK · 2026-08-14] Cerrar también saca el plan de la
+    // URL. Sin esto el efecto de restauración lo reabriría al instante y el
+    // modal sería imposible de cerrar. `replace` para no dejar un paso muerto
+    // en el historial del navegador.
+    const _quitarPlanDeUrl = useCallback(() => {
+        setSearchParams((prev) => {
+            const p = new URLSearchParams(prev);
+            p.delete('plan');
+            return p;
+        }, { replace: true });
+    }, [setSearchParams]);
+    const _closeDetailModal = useCallback(() => {
+        setSelectedPlan(null);
+        _quitarPlanDeUrl();
+    }, [_quitarPlanDeUrl]);
     const _closeRestoreConfirm = useCallback(() => setConfirmRestore(null), []);
     const _closeDeleteConfirm = useCallback(() => setConfirmDelete(null), []);
     // El modal de detalle DESACTIVA su trap mientras un confirm está
@@ -989,7 +1008,7 @@ const History = () => {
         // release de locks ocurra atómicamente con el UPDATE.
         const planRow = confirmRestore;
         setConfirmRestore(null);
-        setSelectedPlan(null);
+        _closeDetailModal();
         const toastId = toast.loading('Restaurando plan...');
 
         try {
@@ -1054,7 +1073,7 @@ const History = () => {
             }
 
             setPlans(prev => prev.filter(p => p.id !== plan.id));
-            if (selectedPlan?.id === plan.id) setSelectedPlan(null);
+            if (selectedPlan?.id === plan.id) _closeDetailModal();
             // [P0-HIST-CACHE-INVALIDATION · 2026-05-09] Limpieza
             // explícita del singleton para el plan eliminado. TTL lo
             // recogería igual en 30 min, pero invalidar ya elimina
@@ -1617,7 +1636,12 @@ const History = () => {
     // extraída del onClick inline de la card para reusarla desde el panel de PC.
     // Misma lógica: optimistic open con el summary + lazy-fetch de plan_data +
     // ensure de blocked-reasons si hay drift de chunks.
-    const openPlanModal = (plan) => {
+    // [P1-HIST-MODAL-DEEPLINK · 2026-08-14] Apertura PURA: monta el modal en el
+    // estado y no toca la URL. Separada a propósito — la restauración al
+    // recargar entra por aquí, porque la URL ya dice qué plan abrir; si llamara
+    // a `openPlanModal` volvería a escribir el parámetro en cada pasada del
+    // efecto.
+    const _abrirPlanEnEstado = (plan) => {
         setSelectedDay(0);
         setActiveChunkIdx(0);
         setActiveModalTab('menu');
@@ -1641,6 +1665,13 @@ const History = () => {
                 });
             }).catch(() => setPlanDataLoading(false));
         }
+    };
+
+    // [P1-HIST-MODAL-DEEPLINK · 2026-08-14] Lo que llama la UI: abre Y deja el
+    // plan en la URL, para que un refresh lo reabra y el botón Atrás lo cierre.
+    const openPlanModal = (plan) => {
+        _abrirPlanEnEstado(plan);
+        if (plan?.id) setSearchParams({ plan: String(plan.id) });
     };
 
     // Sin callsite activo tras el rediseño de cards, pero anchor del test
@@ -1777,6 +1808,24 @@ const History = () => {
     // [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] El plan "activo" del panel de PC
     // (el hero) = el plan actual SOLO si tiene contenido utilizable (≥1 día
     // generado y no fallido) — mismo criterio que el chip "Activo" de la lista.
+    // [P1-HIST-MODAL-DEEPLINK · 2026-08-14] Restauración: si la URL trae un
+    // plan y no hay modal abierto, ábrelo. La decisión (abrir / esperar a que
+    // cargue la lista / limpiar porque ya no existe) vive en `resolverPlanDeUrl`
+    // con sus tests — el caso delicado es que `plans` vacío MIENTRAS carga no
+    // significa «no existe», y limpiar ahí mataría la restauración justo en el
+    // refresh que la motivó.
+    const _planUrl = searchParams.get('plan');
+    useEffect(() => {
+        if (selectedPlan) return;
+        const { accion, plan } = resolverPlanDeUrl(_planUrl, plans, !loading);
+        if (accion === 'abrir') _abrirPlanEnEstado(plan);
+        else if (accion === 'limpiar') _quitarPlanDeUrl();
+        // `_abrirPlanEnEstado` se redefine en cada render (no es callback
+        // memoizado) — fuera de deps a propósito: incluirlo re-correría el
+        // efecto en bucle. Lo que decide es el trío id/lista/carga.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [_planUrl, plans, loading, selectedPlan, _quitarPlanDeUrl]);
+
     const activePlanId = useMemo(() => {
         if (!currentPlanId) return null;
         const cp = plans.find((p) => p.id === currentPlanId);
@@ -1838,7 +1887,7 @@ const History = () => {
                 {selectedPlan && (
                     <motion.div
                         className={styles.modalOverlay}
-                        onClick={() => setSelectedPlan(null)}
+                        onClick={_closeDetailModal}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -1866,7 +1915,7 @@ const History = () => {
                                         })}
                                     </span>
                                 </div>
-                                <button onClick={() => setSelectedPlan(null)} className={styles.closeButton}>
+                                <button onClick={_closeDetailModal} className={styles.closeButton}>
                                     <X size={24} color="#64748B" />
                                 </button>
                             </div>
