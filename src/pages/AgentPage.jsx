@@ -30,6 +30,7 @@ import { safeJSONParse } from '../utils/safeJSONParse';
 // rationale (QuotaExceededError silente). Migración del setItem raw al
 // helper P2-AUDIT-3 que atrapa errores y devuelve boolean.
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+import { resolverSesionDelDia, marcarActividad } from '../utils/chatSessionDay';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat desde el módulo SSOT (mismas
 // que _clearUserScopedCaches borra en logout/user-switch). Los aliases `_CHAT_*`
 // viven a scope de MÓDULO (no de componente) a propósito: un const de componente
@@ -616,19 +617,17 @@ const AgentPage = () => {
         // vacío con welcome screen. El user reportó "se refresca y molesta"
         // (2026-05-20) — perdía el chat en curso al volver.
         //
-        // Fix: leer `mealfit_current_session` primero. Validación mínima
-        // (string no-vacío con shape de UUID v4). Solo crear nuevo si no hay
-        // sesión válida persistida.
-        const stored = safeLocalStorageGet('mealfit_current_session', null);
-        if (stored && typeof stored === 'string' && /^[0-9a-f-]{30,}$/i.test(stored)) {
-            return stored;
-        }
-        const newId = crypto.randomUUID();
-        safeLocalStorageSet('mealfit_current_session', newId);
-        return newId;
+        // [P1-AGENT-SESSION-DAY · 2026-08-14] Aquella persistencia era ABSOLUTA
+        // y por eso el mismo owner pidió después lo contrario: al entrar le
+        // resucitaba un chat de trece días atrás. No son peticiones opuestas
+        // sino los dos extremos del mismo eje sin frontera; la frontera es el
+        // DÍA. La regla vive en `utils/chatSessionDay` con sus propios tests.
+        return resolverSesionDelDia().sessionId;
     });
     const setCurrentSessionId = (id) => {
-        safeLocalStorageSet('mealfit_current_session', id);
+        // Elegir una sesión a mano (crear una nueva, o abrir otra de
+        // «Recientes») cuenta como actividad de HOY: es tu chat del día.
+        marcarActividad(id);
         _setCurrentSessionId(id);
     };
     // [P5-SPEED-SESSION-REFETCH · 2026-06-01] Ref espejo de currentSessionId para que
@@ -799,6 +798,12 @@ const AgentPage = () => {
         // effect → persiste el valor final UNA vez. Cero cambio al contrato de
         // cache; elimina el trabajo redundante en el hot path del streaming.
         if (messages[messages.length - 1]?.isStreaming) return;
+        // [P1-AGENT-SESSION-DAY · 2026-08-14] Actividad real ⇒ esta sesión es
+        // la de HOY. Va aquí y no en el envío del mensaje porque este effect ya
+        // filtra justo lo que cuenta: ni la pantalla de bienvenida (que se
+        // descarta arriba) ni los chunks del streaming. Abrir el Agente y no
+        // escribir nada NO reclama el día: mañana seguirás empezando fresco.
+        marcarActividad(currentSessionId);
         try {
             const capped = messages.length > _CHAT_CACHE_MAX_MSGS
                 ? messages.slice(-_CHAT_CACHE_MAX_MSGS)
@@ -1526,11 +1531,14 @@ const AgentPage = () => {
             if (response.ok) {
                 setChatSessions(prev => prev.filter(s => s.id !== sessionIdToDelete));
 
-                // Si borramos el chat actual activo, redirigimos a un chat nuevo
+                // Si borramos el chat actual activo, redirigimos a un chat nuevo.
+                // [P1-AGENT-SESSION-DAY · 2026-08-14] Sin escribir la clave a
+                // mano: `setCurrentSessionId` ya persiste sesión Y día. El
+                // `safeLocalStorageSet` que había aquí guardaba la sesión sin su
+                // marca de día — dos escritores de la misma clave, y uno de
+                // ellos dejándola a medias.
                 if (currentSessionId === sessionIdToDelete) {
-                    const newId = crypto.randomUUID();
-                    safeLocalStorageSet('mealfit_current_session', newId);
-                    setCurrentSessionId(newId);
+                    setCurrentSessionId(crypto.randomUUID());
                 }
             } else {
                 const errorData = await response.json().catch(() => ({}));
