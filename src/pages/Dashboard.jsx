@@ -205,6 +205,14 @@ const _missingNormTokens = (s) => String(s || '')
     .map(w => (w.length > 3 && w.endsWith('s') && !w.endsWith('is')) ? w.slice(0, -1) : w);
 export const filterStillMissing = (missingList, inventory) => {
     if (!Array.isArray(missingList) || missingList.length === 0) return [];
+    // [P1-URGENT-FLASH-UNKNOWN · 2026-08-13] `null`/`undefined` = TODAVÍA NO SÉ
+    // (el fetch de la Nevera va en camino), y es un estado DISTINTO de `[]` =
+    // la nevera está vacía de verdad. Antes ambos caían en el mismo `return
+    // missingList` y el aviso rojo salía ~300 ms en cada refresh para
+    // retirarse solo: una ausencia de dato convertida en acusación. Devolver
+    // vacío aquí significa «nada que mostrar todavía»; el caller decide qué
+    // hacer si el fetch además FALLÓ (ver el uso de inventoryStale).
+    if (inventory == null) return [];
     if (!Array.isArray(inventory) || inventory.length === 0) return missingList;
     const invTokenSets = inventory
         .map(r => _missingNormTokens(r?.ingredient_name || r?.name))
@@ -8161,8 +8169,19 @@ const DashboardInner = () => {
                                                 seguía acusando. Ahora se evalúa EN VIVO contra la Nevera
                                                 (filterStillMissing): compras → desaparece; se agota → vuelve. */}
                                             {meal._pantry_unsafe_after_flexible && (() => {
-                                                const _still = filterStillMissing(
-                                                    meal._missing_ingredients, liveInventory);
+                                                // [P1-URGENT-FLASH-UNKNOWN · 2026-08-13] Tres estados, no dos:
+                                                //   · null + fetch en vuelo → CARGANDO: callar y esperar
+                                                //     (filterStillMissing devuelve [] y no se pinta nada).
+                                                //   · null + inventoryStale → el fetch FALLÓ y no va a llegar:
+                                                //     aquí sí acusamos con la lista cruda, que es el fail-safe
+                                                //     original — esconder una compra necesaria PARA SIEMPRE
+                                                //     sería peor que el parpadeo que este fix quita.
+                                                //   · array → filtrar contra la Nevera, como siempre.
+                                                const _cargando = liveInventory == null && !inventoryStale;
+                                                if (_cargando) return null;
+                                                const _still = (liveInventory == null && inventoryStale)
+                                                    ? (meal._missing_ingredients || [])
+                                                    : filterStillMissing(meal._missing_ingredients, liveInventory);
                                                 if (_still.length === 0) return null;
                                                 return (
                                                 <div style={{
@@ -8175,7 +8194,11 @@ const DashboardInner = () => {
                                                         <AlertCircle size={14} />
                                                         <span>⚠ Compra Urgente Requerida</span>
                                                     </div>
-                                                    <div style={{ paddingLeft: '1.2rem', color: '#B91C1C', fontSize: '0.7rem' }}>
+                                                    {/* [P1-URGENT-FLASH-UNKNOWN · 2026-08-13] Era #B91C1C fijo:
+                                                        2,52:1 sobre el fondo del aviso en tema oscuro (bajo AA,
+                                                        se leía apagado). El token sube a 8,61:1 y deja el claro
+                                                        igual. */}
+                                                    <div style={{ paddingLeft: '1.2rem', color: 'var(--danger-text)', fontSize: '0.7rem' }}>
                                                         Faltan: {_still.join(', ')}
                                                     </div>
                                                 </div>
