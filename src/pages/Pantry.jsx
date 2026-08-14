@@ -23,7 +23,7 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
-import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands } from '../utils/pantryCache';
+import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus } from '../utils/pantryCache';
 // [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
 import { BrandSelect } from '../components/pantry/BrandSelect';
@@ -394,7 +394,15 @@ const Pantry = () => {
     // mount/refresh (feedback owner). Primer paint desde cache; el resto de keys
     // (is_below, meaningful_count) siguen esperando al fetch real — sus banners ya
     // eran fetch-gated y no parpadean como CTA.
+    // [P1-PANTRY-STATUS-PERSIST · 2026-08-14] Hidratar el payload ENTERO, no
+    // solo photo_scan_enabled. El defer de 700 ms de abajo dejaba `is_below`
+    // sin valor ~1 s en cada refresh y el banner ámbar de nevera baja
+    // parpadeaba (reporte del dueño) — la key suelta del scan solo protegía al
+    // CTA. Queda como fallback de transición para el primer refresh tras el
+    // deploy, cuando el cache nuevo aún no existe.
     const [pantryStatus, setPantryStatus] = useState(() => {
+        const cached = getCachedPantryStatus();
+        if (cached) return cached;
         const v = safeLocalStorageGet('mealfit_scan_btn', null);
         return v === '1' ? { photo_scan_enabled: true } : null;
     });
@@ -408,6 +416,9 @@ const Pantry = () => {
                     if (!cancelled) {
                         setPantryStatus(data);
                         // [P2-SCAN-BTN-STABLE] persistir para el próximo primer paint.
+                        // [P1-PANTRY-STATUS-PERSIST · 2026-08-14] ahora el payload
+                        // entero — el banner de nevera baja también es primer paint.
+                        setCachedPantryStatus(data);
                         safeLocalStorageSet('mealfit_scan_btn', data?.photo_scan_enabled ? '1' : '0');
                     }
                 }

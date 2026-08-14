@@ -111,6 +111,10 @@ export const setCachedInventory = (rows, ttlMs = _INVENTORY_TTL_MS) => {
 export const invalidateInventoryCache = () => {
     _inventoryEntry = null;
     _safeLsRemove(_INVENTORY_LS_KEY);
+    // [P1-PANTRY-STATUS-PERSIST · 2026-08-14] El status DERIVA del inventario
+    // (is_below = conteo bajo el umbral): un inventario invalidado con status
+    // cacheado dejaría el banner afirmando un conteo que ya no existe.
+    invalidatePantryStatusCache();
 };
 
 export const getCachedMasterList = () => {
@@ -219,11 +223,71 @@ export const invalidateBrandsCache = () => {
     _safeLsRemove(_BRANDS_LS_KEY);
 };
 
+// [P1-PANTRY-STATUS-PERSIST · 2026-08-14] El payload de /api/plans/pantry-status
+// (is_below, meaningful_count, recommended_target, photo_scan_enabled…). Cuarto
+// dataset del mismo patrón, y el porqué tiene historia: el fetch del status se
+// DIFIERE 700 ms a propósito (para no competir con el primer paint), y eso ya
+// mordió dos veces —el CTA de escanear desaparecía ~1 s (P2-SCAN-BTN-STABLE lo
+// arregló cacheando UNA key en localStorage) y ahora el banner ámbar de nevera
+// baja, que el dueño reportó parpadeando en cada refresh. El comentario de
+// aquel fix afirmaba que los banners «no parpadean como CTA»: falso — un banner
+// que describe un estado PERMANENTE (nevera baja) apareciendo tarde es el mismo
+// parpadeo. Se cachea el payload entero y la key suelta del scan queda como
+// fallback de transición.
+//
+// TTL 10 min (el del inventario: el status DERIVA del inventario). La
+// invalidación va amarrada a la del inventario — ver invalidateInventoryCache.
+let _statusEntry = null;
+const _STATUS_LS_KEY = 'mealfit_pantry_status_cache_v1';
+
+export const getCachedPantryStatus = () => {
+    if (_statusEntry) {
+        if (typeof _statusEntry.expiresAt === 'number' && Date.now() > _statusEntry.expiresAt) {
+            _statusEntry = null;
+            _safeLsRemove(_STATUS_LS_KEY);
+            return undefined;
+        }
+        return _statusEntry.value;
+    }
+    try {
+        const raw = localStorage.getItem(_STATUS_LS_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            const v = parsed && parsed.value;
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+                if (typeof parsed.expiresAt === 'number' && Date.now() > parsed.expiresAt) {
+                    _safeLsRemove(_STATUS_LS_KEY);
+                    return undefined;
+                }
+                _statusEntry = parsed;
+                return v;
+            }
+        }
+    } catch { /* parse/quota — fail-open */ }
+    return undefined;
+};
+
+export const setCachedPantryStatus = (status, ttlMs = _INVENTORY_TTL_MS) => {
+    if (!status || typeof status !== 'object' || Array.isArray(status)) return;
+    const entry = { value: status, expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null };
+    _statusEntry = entry;
+    try {
+        localStorage.setItem(_STATUS_LS_KEY, JSON.stringify(entry));
+    } catch { /* QuotaExceeded — el in-memory sigue */ }
+};
+
+export const invalidatePantryStatusCache = () => {
+    _statusEntry = null;
+    _safeLsRemove(_STATUS_LS_KEY);
+};
+
 export const _resetPantryCacheForTests = () => {
     _inventoryEntry = null;
     _masterListEntry = null;
     _dishesEntry = null;
     _brandsEntry = null;
+    _statusEntry = null;
     _safeLsRemove(_INVENTORY_LS_KEY);
     _safeLsRemove(_BRANDS_LS_KEY);
+    _safeLsRemove(_STATUS_LS_KEY);
 };
