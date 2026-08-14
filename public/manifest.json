@@ -42,7 +42,7 @@
       "name": "Lista del Súper",
       "short_name": "Súper",
       "description": "Ver los ingredientes a comprar",
-      "url": "/dashboard/shopping",
+      "url": "/dashboard",
       "icons": [{ "src": "/apple-touch-icon.png", "sizes": "512x512" }]
     }
   ]

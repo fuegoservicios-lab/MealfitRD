@@ -132,7 +132,7 @@ describe('[P1-STAPLE-SEARCH-RANK] avisa cuando dos básicos son uno solo', () =>
 
     it('con un catálogo viejo en caché (sin el rótulo) no avisa ni revienta', () => {
         _resetPantryCacheForTests();
-        setCachedMasterList(CATALOGO.map(({ staple_gate_label, ...resto }) => resto));
+        setCachedMasterList(CATALOGO.map(({ staple_gate_label: _omitido, ...resto }) => resto));
         montar({ stapleFoods: ['Huevo', 'Clara de huevo'] });
         expect(screen.queryByRole('status')).toBeNull();
         expect(screen.getByRole('button', { name: /Siguiente/i })).toBeInTheDocument();

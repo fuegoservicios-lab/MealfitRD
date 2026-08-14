@@ -68,8 +68,21 @@ export function useModalAccessibility({ isOpen, onClose, disableClose = false, i
     //
     // Devolver `false` SUSPENDE (ignora la tecla), no cierra: no toca el
     // scroll-lock ni restaura el foco, porque la capa exterior sigue abierta.
+    // [P2-LINT-GATE · 2026-08-14] La asignación estaba aquí SUELTA, durante el
+    // render, y era el único error de lint no trivial que quedaba en el repo
+    // (react-hooks/refs: «Cannot access refs during render»). No se cierra con un
+    // `eslint-disable`: escribir un ref en el render es impuro de verdad — con
+    // StrictMode, o si React descarta un render, la escritura ya ocurrió.
+    //
+    // El patrón «latest ref» en un efecto conserva EXACTAMENTE la semántica que
+    // el comentario de arriba describe: el handler consulta `isTopmostRef.current`
+    // en el instante de la tecla, que es siempre posterior al commit, así que
+    // sigue viendo la última versión de la función. Sin array de dependencias a
+    // propósito — se refresca en cada render, que es justo lo que hacía antes.
     const isTopmostRef = useRef(null);
-    isTopmostRef.current = typeof isTopmost === 'function' ? isTopmost : null;
+    useEffect(() => {
+        isTopmostRef.current = typeof isTopmost === 'function' ? isTopmost : null;
+    });
 
     useEffect(() => {
         if (!isOpen) return undefined;

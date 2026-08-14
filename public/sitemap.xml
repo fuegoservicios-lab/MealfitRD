@@ -1,126 +1,123 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- [P3-SEO-SITEMAP · 2026-05-31 · act. 2026-07-01] Rutas públicas reales del SPA (apex).
-     Marketing/contenido (home + páginas de detalle + motor + precios + investigación +
-     acerca + novedades) + páginas legales, todas indexables. Cada ruta fija su propio
-     <title>/description/canonical auto-referente (RouteTitle.jsx / self-managed en las de
-     marketing). /register se omite (redirige a /login). lastmod 2026-07-01: refresh SEO
-     (títulos/descripciones revisados + páginas nuevas añadidas) → señal de re-crawl. -->
+<!-- [P2-LANDING-SITEMAP-SSOT · 2026-08-14] GENERADO por scripts/build-sitemap.mjs.
+     NO editar a mano: la edición se perderá en el próximo build y, peor, volvería
+     a abrir la deriva que este generador cerró (faltaba /supermercado mientras sí
+     estaba el artículo que lo anunciaba).
+     Fuentes: src/utils/paperSurface.js (rutas públicas) + src/data/news.js (slugs).
+     Para añadir una ruta al sitemap, añádela a su SSOT y vuelve a generar. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- ===== Marketing / contenido ===== -->
   <url>
     <loc>https://bioboros.com/</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://bioboros.com/como-funciona</loc>
-    <lastmod>2026-07-01</lastmod>
+    <loc>https://bioboros.com/precios</loc>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bioboros.com/como-funciona</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://bioboros.com/funciones</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://bioboros.com/precision</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://bioboros.com/motor</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://bioboros.com/precios</loc>
-    <lastmod>2026-07-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://bioboros.com/research</loc>
-    <lastmod>2026-07-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://bioboros.com/about</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://bioboros.com/novedades</loc>
-    <lastmod>2026-07-02</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://bioboros.com/supermercado</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bioboros.com/about</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://bioboros.com/novedades/base-datos-supermercados-rd</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <!-- ===== Funnel de la app (redirige a app.bioboros.com en el apex) ===== -->
-  <url>
-    <loc>https://bioboros.com/login</loc>
-    <lastmod>2026-07-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <!-- ===== Legales ===== -->
-  <url>
     <loc>https://bioboros.com/privacy</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://bioboros.com/terms</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://bioboros.com/medical</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://bioboros.com/data-protection</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://bioboros.com/ai-policy</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://bioboros.com/refunds</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://bioboros.com/acceptable-use</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://bioboros.com/responsible-disclosure</loc>
-    <lastmod>2026-07-01</lastmod>
+    <lastmod>2026-08-14</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://bioboros.com/novedades/base-datos-supermercados-rd</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
 </urlset>

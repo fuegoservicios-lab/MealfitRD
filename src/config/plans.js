@@ -89,6 +89,56 @@ export function includesPredecessor(tier) {
     return prev ? `Todo lo incluido en ${TIER_DISPLAY_NAME[prev]}` : null;
 }
 
+// [P2-LANDING-COPY-TRUTH · 2026-08-14] Precios por tier y periodo.
+//
+// Vivían DUPLICADOS byte a byte en `Pricing.jsx` y `Upgrade.jsx`, más una
+// tercera copia en prosa dentro de los Términos. Y ya habían divergido de
+// verdad: `getMonthlyEquiv` tenía dos implementaciones distintas. Con la subida
+// de precio AGENDADA, tres copias significan tres sitios que editar justo cuando
+// más caro sale equivocarse.
+//
+// ⚠️ `ultra.annual` sigue aquí y está INERTE a propósito: `ANNUAL_DISABLED_TIERS`
+// incluye `ultra`, así que ninguna superficie debe ofrecerlo. Se conserva el dato
+// (no el ofrecimiento) para que el día que se cree el plan anual de Max en PayPal
+// el importe no haya que reinventarlo. NO derives de aquí ningún texto de venta:
+// quien decide si un tier tiene anual es `ANNUAL_DISABLED_TIERS`, no este objeto.
+export const PRICING = {
+    basic: {
+        monthly: { price: '9.99', label: '/mes' },
+        annual: { price: '89.99', label: '/año', monthlyEquiv: '7.50' },
+    },
+    plus: {
+        monthly: { price: '19.99', label: '/mes' },
+        annual: { price: '179.99', label: '/año', monthlyEquiv: '15.00' },
+    },
+    ultra: {
+        monthly: { price: '49.99', label: '/mes' },
+        annual: { price: '449.99', label: '/año', monthlyEquiv: '37.50' },
+    },
+};
+
+// [PAY-MODAL-PERSIST · 2026-06-18 · movido al SSOT P2-LANDING-COPY-TRUTH] Nombre
+// del plan para re-derivar el `name` del modal al rehidratarlo desde la URL tras
+// un refresh. Estaba duplicado en las dos superficies que abren checkout.
+export const NAME_BY_TIER = {
+    basic: 'Suscripción Básico',
+    plus: 'Suscripción Plus',
+    ultra: 'Suscripción Max',
+};
+
+// [P2-LANDING-COPY-TRUTH · 2026-08-14] Orden de la escalera. Se llamaba
+// `tierRank` en una superficie y `TIER_RANK` en la otra: dos nombres para el
+// mismo mapa es exactamente cómo empieza una divergencia que nadie ve.
+export const TIER_RANK = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
+
+/** ¿Ofrece este tier facturación anual? Pregunta al interruptor, no a `PRICING`. */
+export const hasAnnualBilling = (tier) => !ANNUAL_DISABLED_TIERS.has(tier);
+
+/** Precio mensual equivalente del anual, o `null` si el tier no tiene anual. */
+export function monthlyEquivalent(tier) {
+    return hasAnnualBilling(tier) ? PRICING[tier]?.annual?.monthlyEquiv ?? null : null;
+}
+
 // [P1-LAUNCH-OFFER · 2026-07-31] Anclaje "precio de lanzamiento": las
 // tarjetas muestran el precio FUTURO tachado + la fecha en que sube.
 // ⚠️ HONESTIDAD: mantener esto activo obliga a SUBIR los precios de verdad
@@ -98,11 +148,40 @@ export function includesPredecessor(tier) {
 // `deadlineShort` es para las tarjetas (columnas estrechas: un texto largo que
 // no cabe empuja el ancho de su columna y desbalancea la grid — pasó en prod);
 // `deadlineLabel` es para la landing, que tiene más aire.
+//
+// [P2-LANDING-COPY-TRUTH · 2026-08-14] `active` dejó de ser la última palabra.
+// Era un booleano a mano y la fecha una cadena SIN AÑO: cero `Date`, cero
+// comparación, cero test. O sea que la advertencia de honestidad de arriba
+// dependía de que alguien se acordara el día 15 — y pasado ese día el sitio
+// seguiría anunciando una subida ya ocurrida, que es el dark pattern que el
+// propio comentario dice querer evitar. Ahora `active` es el interruptor MANUAL
+// (apagar antes de tiempo) y la fecha es el techo automático.
 export const LAUNCH_OFFER = {
     active: true,
+    deadlineISO: '2026-09-15',
     deadlineLabel: '15 de septiembre',
     deadlineShort: '15 sep',
     futureMonthly: { basic: '14.99', plus: '29.99', ultra: '69.99' },
 };
+
+// La oferta vence al FINAL del día 15 en República Dominicana (UTC−4, sin horario
+// de verano). El offset es load-bearing y no cosmético: `new Date('2026-09-15')`
+// se interpreta como medianoche UTC, que son las 20:00 del día 14 en RD — la
+// urgencia moriría a media tarde de la víspera. Es el mismo «¿día de quién?» que
+// ya se pagó en P1-AGENT-SESSION-DAY.
+const RD_UTC_OFFSET = '-04:00';
+
+/**
+ * ¿Sigue viva la oferta de lanzamiento?
+ *
+ * `now` se inyecta para que el guard pueda probar el antes y el después sin
+ * tocar el reloj del sistema.
+ */
+export function isLaunchOfferActive(now = new Date()) {
+    if (!LAUNCH_OFFER.active) return false;
+    const vence = Date.parse(`${LAUNCH_OFFER.deadlineISO}T23:59:59${RD_UTC_OFFSET}`);
+    if (Number.isNaN(vence)) return false; // fecha ilegible ⇒ no anunciamos urgencia
+    return now.getTime() <= vence;
+}
 
 export default ANNUAL_DISABLED_TIERS;

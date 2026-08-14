@@ -171,8 +171,15 @@ const updateSW = registerSW({
 // subscription al backend con auth (SW no tiene access_token). Sin esto, las
 // subscriptions zombie viven en BD hasta el próximo bootstrap del cliente.
 // Idempotente: registra el handler una sola vez.
-import { registerPushSubscriptionChangeListener } from './utils/pushNotifications';
-registerPushSubscriptionChangeListener();
+// [P2-LANDING-ENTRY-APP-CODE · 2026-08-14] El listener de rotacion de
+// credenciales push solo tiene sentido donde puede haber una suscripcion, o sea
+// fuera del apex. El import estatico ataba el modulo al chunk de entrada que
+// descarga tambien el visitante del landing, que nunca podra tener una.
+if (!isMarketingVisit()) {
+  import('./utils/pushNotifications')
+    .then((m) => m.registerPushSubscriptionChangeListener())
+    .catch(() => { /* sin listener las notificaciones se recuperan en el proximo boot */ });
+}
 
 // [P1-SENTRY-SAMPLE-COST · 2026-05-12] `tracesSampleRate` driven from env
 // var con default seguro 0.1 (10%). Pre-fix `tracesSampleRate: 1.0` capturaba

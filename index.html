@@ -334,6 +334,31 @@
 </head>
 
 <body>
+  <!-- [P2-LANDING-HEAD-CLIENT · 2026-08-14] Salida para quien no ejecuta JavaScript.
+       Hasta hoy, el <body> servido era este <div> vacío más el splash de abajo: un
+       indicador de carga con la palabra «Cargando» y CERO enlaces. Eso es lo que ven
+       los crawlers que no renderizan (Bing y los de IA: GPTBot, ClaudeBot,
+       PerplexityBot) y quien navega con JS desactivado — para ellos el sitio entero
+       era una pantalla de espera sin puertas.
+       No sustituye al prerender de meta por ruta; convierte «nada» en «algo
+       navegable» por el coste de unas líneas. Estilos inline porque el CSS de la app
+       tampoco ha cargado. -->
+  <noscript>
+    <div style="max-width:42rem;margin:0 auto;padding:2.5rem 1.25rem;font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0B0B0B;background:#FBFBFA;line-height:1.6">
+      <h1 style="font-size:1.6rem;margin:0 0 .75rem">Bioboros — nutrición personalizada con IA</h1>
+      <p style="margin:0 0 1.25rem">Planes de alimentación adaptados a tus gustos, tu presupuesto y tu estilo de vida, hechos para República Dominicana. Esta página necesita JavaScript para funcionar; mientras tanto, aquí tienes las secciones principales:</p>
+      <ul style="margin:0 0 1.25rem;padding-left:1.1rem">
+        <li><a href="/como-funciona">Cómo funciona el método</a></li>
+        <li><a href="/funciones">Qué incluye</a></li>
+        <li><a href="/precision">La precisión que medimos</a></li>
+        <li><a href="/motor">El motor por dentro</a></li>
+        <li><a href="/precios">Planes y precios</a></li>
+        <li><a href="/supermercado">Supermercados RD</a></li>
+        <li><a href="/novedades">Novedades</a></li>
+      </ul>
+      <p style="margin:0;font-size:.9rem;color:#3D3D3B"><a href="/privacy">Privacidad</a> · <a href="/terms">Términos</a> · <a href="/medical">Aviso médico</a></p>
+    </div>
+  </noscript>
   <div id="root">
   </div>
   

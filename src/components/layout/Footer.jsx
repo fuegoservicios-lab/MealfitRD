@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Link, useLocation } from 'react-router-dom';
 import { Instagram, Youtube, Facebook, Mail, Clock } from 'lucide-react';
 import styles from './Footer.module.css';
@@ -14,6 +15,46 @@ import { isPaperSurface } from '../../utils/paperSurface';
 // Términos→Privacidad→Términos...). Mejor preservar el `state.from` heredado de cuando
 // el user entró por primera vez a las legales — su origen real (landing, dashboard, etc).
 // La lista de rutas legales vive en utils/legalRoutes.js (SSOT, ver arriba).
+
+/**
+ * [P2-FOOTER-COLUMN-DEDUP · 2026-08-14] Una columna del pie.
+ *
+ * Las cuatro columnas estaban escritas DOS VECES —una rama `<details>` para la
+ * superficie papel y otra `<h4>` plana para el resto— con los hijos idénticos:
+ * 16 `<Link>` más el bloque de soporte duplicados a lo largo de ~115 líneas, en
+ * un componente que renderizan las 19 rutas públicas Y la app. Ni un test lo
+ * montaba. El precedente de deriva está escrito en el propio repo
+ * (`legalRoutes.js`: «No hacerlo fue exactamente el bug que dejó las 4 políticas
+ * nuevas con el header recortado»).
+ *
+ * Y ya había empezado a divergir: la rama no-papel de «Empresas» llevaba un
+ * comentario `[P1-SUPERMARKET-DB]` que su gemela no tenía. Documentación
+ * presente en una copia y ausente en la otra es el primer síntoma, siempre.
+ *
+ * ⚠️ ELIGE EL ELEMENTO, no sólo el estado. El CSS de papel fuerza el `<details>`
+ * abierto y no-interactivo por encima de 640 px —palanca medida para bajar de
+ * 812 px de alto en móvil (P1-PAPER-THEME)— y para eso necesita exactamente
+ * `summary` + `div.colBody`. Un `<div>` que «a veces colapsa» no sirve.
+ */
+const FooterColumn = ({ title, collapsible, children }) => (
+    collapsible ? (
+        <details className={styles.colDetails}>
+            <summary className={styles.colSummary}>{title}</summary>
+            <div className={styles.colBody}>{children}</div>
+        </details>
+    ) : (
+        <>
+            <h4>{title}</h4>
+            {children}
+        </>
+    )
+);
+
+FooterColumn.propTypes = {
+    title: PropTypes.string.isRequired,
+    collapsible: PropTypes.bool,
+    children: PropTypes.node,
+};
 
 const Footer = () => {
     const location = useLocation();
@@ -98,47 +139,21 @@ const Footer = () => {
                         a 2 columnas) no bastaba por sí sola para bajar de 812px de alto en
                         móvil. Los 5 links siguen siendo los mismos 5 destinos, un tap detrás.
                         Las 15 rutas no-papel conservan el <h4> plano, sin cambios. */}
-                    {isPaper ? (
-                        <details className={styles.colDetails}>
-                            <summary className={styles.colSummary}>Términos y servicios</summary>
-                            <div className={styles.colBody}>
+                    <FooterColumn title="Términos y servicios" collapsible={isPaper}>
                                 <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
                                 <Link to="/acceptable-use" state={{ from: fromPath }}>Política de Uso</Link>
                                 <Link to="/refunds" state={{ from: fromPath }}>Reembolsos y Cancelaciones</Link>
                                 <Link to="/ai-policy" state={{ from: fromPath }}>Uso de Inteligencia Artificial</Link>
                                 <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
-                            </div>
-                        </details>
-                    ) : (
-                        <>
-                            <h4>Términos y servicios</h4>
-                            <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
-                            <Link to="/acceptable-use" state={{ from: fromPath }}>Política de Uso</Link>
-                            <Link to="/refunds" state={{ from: fromPath }}>Reembolsos y Cancelaciones</Link>
-                            <Link to="/ai-policy" state={{ from: fromPath }}>Uso de Inteligencia Artificial</Link>
-                            <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
-                        </>
-                    )}
+                    </FooterColumn>
                 </div>
 
                 <div className={styles.col}>
-                    {isPaper ? (
-                        <details className={styles.colDetails}>
-                            <summary className={styles.colSummary}>Privacidad y datos</summary>
-                            <div className={styles.colBody}>
+                    <FooterColumn title="Privacidad y datos" collapsible={isPaper}>
                                 <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
                                 <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
                                 <Link to="/responsible-disclosure" state={{ from: fromPath }}>Divulgación Responsable</Link>
-                            </div>
-                        </details>
-                    ) : (
-                        <>
-                            <h4>Privacidad y datos</h4>
-                            <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
-                            <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
-                            <Link to="/responsible-disclosure" state={{ from: fromPath }}>Divulgación Responsable</Link>
-                        </>
-                    )}
+                    </FooterColumn>
                 </div>
 
                 {/* [P3-ABOUT-PAGE · 2026-06-30] Columna "Empresas": página corporativa
@@ -148,27 +163,14 @@ const Footer = () => {
                         <details> de Términos+Privacidad solo (868,9px) no bastaba para bajar
                         de 812px: Empresas+Soporte, la fila siguiente, seguía a 249px de alto
                         (el mayor bloque restante tras Marca). Mismo patrón aquí. */}
-                    {isPaper ? (
-                        <details className={styles.colDetails}>
-                            <summary className={styles.colSummary}>Empresas</summary>
-                            <div className={styles.colBody}>
-                                <Link to="/about" state={{ from: fromPath }}>Bioboros</Link>
-                                <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
-                                <Link to="/supermercado" state={{ from: fromPath }}>Supermercados RD</Link>
-                                <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
-                            </div>
-                        </details>
-                    ) : (
-                        <>
-                            <h4>Empresas</h4>
+                    <FooterColumn title="Empresas" collapsible={isPaper}>
                             <Link to="/about" state={{ from: fromPath }}>Bioboros</Link>
                             <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
                             {/* [P1-SUPERMARKET-DB · 2026-07-02] Base de datos pública del
                                 Supermercado RD (alimentos verificados + precios RD$). */}
                             <Link to="/supermercado" state={{ from: fromPath }}>Supermercados RD</Link>
                             <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
-                        </>
-                    )}
+                    </FooterColumn>
                 </div>
 
                 {/* [P3-FOOTER-SUPPORT · 2026-05-31] Contacto directo de soporte
@@ -179,10 +181,7 @@ const Footer = () => {
                         <640px el contacto de soporte pasa a un tap detrás del summary — el
                         mismo trade-off que Empresas. Sigue "alcanzable" (12/12 destinos), y
                         en desktop/tablet se ve exactamente igual que antes (forzado abierto). */}
-                    {isPaper ? (
-                        <details className={styles.colDetails}>
-                            <summary className={styles.colSummary}>Soporte</summary>
-                            <div className={styles.colBody}>
+                    <FooterColumn title="Soporte" collapsible={isPaper}>
                                 <p className={styles.supportIntro}>¿Dudas o problemas? Estamos para ayudarte.</p>
                                 <a href="mailto:fuego.servicios@gmail.com" className={styles.supportLink}>
                                     <span className={styles.supportIcon} aria-hidden="true">
@@ -194,24 +193,7 @@ const Footer = () => {
                                     <Clock size={13} strokeWidth={2.25} aria-hidden="true" />
                                     Respondemos en menos de 24 horas
                                 </p>
-                            </div>
-                        </details>
-                    ) : (
-                        <>
-                            <h4>Soporte</h4>
-                            <p className={styles.supportIntro}>¿Dudas o problemas? Estamos para ayudarte.</p>
-                            <a href="mailto:fuego.servicios@gmail.com" className={styles.supportLink}>
-                                <span className={styles.supportIcon} aria-hidden="true">
-                                    <Mail size={16} strokeWidth={2.25} />
-                                </span>
-                                fuego.servicios@gmail.com
-                            </a>
-                            <p className={styles.supportNote}>
-                                <Clock size={13} strokeWidth={2.25} aria-hidden="true" />
-                                Respondemos en menos de 24 horas
-                            </p>
-                        </>
-                    )}
+                    </FooterColumn>
                 </div>
 
                 {/* [P1-PAPER-THEME · 2026-08-01 · cajetín retirado 2026-08-07]

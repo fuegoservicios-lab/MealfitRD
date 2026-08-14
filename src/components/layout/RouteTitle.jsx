@@ -128,6 +128,37 @@ function setCanonical(href) {
     el.setAttribute('href', href);
 }
 
+function removeMetaByName(name) {
+    document.head.querySelector(`meta[name="${name}"]`)?.remove();
+}
+
+function removeCanonical() {
+    document.head.querySelector('link[rel="canonical"]')?.remove();
+}
+
+// [P2-LANDING-HEAD-CLIENT · 2026-08-14] ¿Esta ruta existe?
+//
+// Hace falta porque nginx sirve el fallback SPA para TODO: `/precios2` responde
+// 200, con la description de la portada y un canonical AUTORREFERENTE. Es decir,
+// le estábamos diciendo a Google que una URL inexistente es la versión canónica
+// de sí misma.
+//
+// El conjunto se compone de las tres fuentes que ya existen —no se escribe una
+// cuarta lista— y replica los dos casos que el efecto ya trataba aparte:
+// `/novedades/<slug>` (dinámica, autogestionada) y las rutas de app, que en el
+// apex sólo REDIRIGEN a app.* y por tanto existen aunque aquí no se pinten.
+const KNOWN_PATHS = new Set([...Object.keys(TITLES), ...SELF_MANAGED]);
+const KNOWN_PREFIXES = ['/novedades/', '/dashboard'];
+// Rutas vivas que no tienen título propio porque sólo redirigen (P3-COOKIES-MERGE,
+// P1-PANTRY-ROUTE-ALIAS, P1-SETTINGS-ONE-SURFACE, P2-LANDING-MANIFEST-SHORTCUT).
+const KNOWN_REDIRECTS = ['/cookies', '/pantry', '/mi-nevera', '/configuracion', '/register'];
+
+function isKnownPath(path) {
+    return KNOWN_PATHS.has(path)
+        || KNOWN_REDIRECTS.includes(path)
+        || KNOWN_PREFIXES.some((p) => path.startsWith(p));
+}
+
 export default function RouteTitle() {
     const { pathname } = useLocation();
     useEffect(() => {
@@ -137,6 +168,23 @@ export default function RouteTitle() {
         // son dinámicas y auto-gestionan su título/description/canonical por artículo →
         // no las tocamos aquí (evita pisar el título del artículo con uno genérico).
         if (path.startsWith('/novedades/')) return;
+
+        // [P2-LANDING-HEAD-CLIENT · 2026-08-14] Ruta inexistente: ni canonical ni
+        // señales de indexación. `NotFound.jsx` ya dice «esta página no existe» en un
+        // <h1>, así que Google acabará clasificándola como soft-404 igualmente; lo que
+        // cierra esto es el ruido de rastreo y, sobre todo, la autodeclaración canónica.
+        if (!isKnownPath(path)) {
+            document.title = `Página no encontrada · ${BRAND}`;
+            removeCanonical();
+            setMetaByName('robots', 'noindex, follow');
+            return;
+        }
+
+        // ⚠️ Retirar el noindex al ENTRAR en una ruta buena, no en un cleanup.
+        // Si se quedara pegado, un visitante que llega por un enlace roto y luego
+        // navega a /precios dejaría /precios en noindex — habríamos cambiado un
+        // problema de rastreo por uno de DESINDEXACIÓN, que es mucho peor.
+        removeMetaByName('robots');
 
         // Título — las páginas de marketing con título propio lo setean ellas mismas.
         if (!SELF_MANAGED.has(path)) {
@@ -153,6 +201,14 @@ export default function RouteTitle() {
         setMetaByProp('og:description', desc);
         setMetaByProp('og:url', canonical);
         setMetaByName('twitter:description', desc);
+        // [P2-LANDING-HEAD-CLIENT · 2026-08-14] El TÍTULO social era el único de los
+        // cinco que no se reescribía por ruta: ni siquiera los clientes que SÍ
+        // ejecutan JS veían el título correcto al compartir. Se usa el título de la
+        // ruta —incluso en las SELF_MANAGED, que fijan el `document.title` pero nunca
+        // tocaron el og.
+        const socialTitle = TITLES[path] || document.title || BRAND;
+        setMetaByProp('og:title', socialTitle);
+        setMetaByName('twitter:title', socialTitle);
     }, [pathname]);
     return null;
 }

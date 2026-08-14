@@ -27,7 +27,12 @@ import IOSInstallPrompt from './components/IOSInstallPrompt';
 import useThemeColor from './components/common/useThemeColor';
 // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
 // y redirige al dashboard cuando el pipeline backend completa fuera del SSE.
-import PendingPipelineRecovery from './components/PendingPipelineRecovery';
+// [P2-LANDING-ENTRY-APP-CODE · 2026-08-14] Lazy y solo fuera del apex: es un
+// componente HEADLESS (no pinta nada) que vigila si hay una generacion de plan
+// pendiente. En el landing no hay sesion (P3-APEX-NO-SESSION), asi que no puede
+// haber nada pendiente que recuperar — pero su import estatico metia el modulo
+// entero en el chunk de entrada que descarga el visitante anonimo.
+const PendingPipelineRecovery = lazy(() => import('./components/PendingPipelineRecovery'));
 // [SCROLL-RESTORE-REFRESH · 2026-06-19] Restaura la posición de scroll al
 // refrescar (el landing/otras páginas viven tras ProtectedRoute + lazy chunks, y
 // el restore nativo del browser falla porque el contenido aún no tiene altura).
@@ -442,7 +447,17 @@ function App() {
         />
         {/* [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Headless: poll background
             pipeline status si el user tiene plan pendiente en localStorage. */}
-        <PendingPipelineRecovery />
+        {/* [P2-LANDING-ENTRY-APP-CODE · 2026-08-14] `Suspense` con fallback `null`
+            porque el componente es HEADLESS: mientras su chunk viaja no hay nada
+            que mostrar. El boundary no es opcional aunque no pinte nada — este
+            nodo cuelga del árbol de `App`, fuera del `Suspense` de las rutas
+            (que vive dentro de `AnimatedLayout`), así que sin él un `lazy` que
+            suspende aquí revienta el render entero. */}
+        {!IS_APEX_HOST && (
+          <Suspense fallback={null}>
+            <PendingPipelineRecovery />
+          </Suspense>
+        )}
         {/* [P2-8 · 2026-07-09] Banner "Sin conexión" (bottom, no-bloqueante). */}
         <OfflineBanner />
         <ModalAwareRoutes>
@@ -490,6 +505,14 @@ function App() {
                 real es /dashboard/pantry, pero código histórico, pushes YA entregadas y
                 deep-links del backend usaban '/pantry' o '/mi-nevera' — sin estos redirects
                 caían al catch-all 404 (visto en vivo con el modo constructor). */}
+            {/* [P2-LANDING-MANIFEST-SHORTCUT · 2026-08-14] El atajo «Lista del Súper»
+                del manifest apuntaba a /dashboard/shopping, ruta que NUNCA existió:
+                caía en el catch-all 404. El manifest ya apunta a /dashboard, pero un
+                PWA YA INSTALADO conserva el manifest viejo hasta que el navegador lo
+                refresca, así que sin este alias el atajo anclado en la pantalla de
+                inicio le seguiría respondiendo «esta página no existe». Mismo patrón
+                que P1-PANTRY-ROUTE-ALIAS. */}
+            <Route path="/dashboard/shopping" element={<Navigate to="/dashboard" replace />} />
             <Route path="/pantry" element={<Navigate to="/dashboard/pantry" replace />} />
             <Route path="/mi-nevera" element={<Navigate to="/dashboard/pantry" replace />} />
 

@@ -15,7 +15,6 @@
 // Por eso el test mira la RELACIÓN entre capas, no un valor: mientras la
 // relación se cumpla, cada quien puede cambiar su número.
 import { describe, it, expect } from 'vitest';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { zDeArchivo } from './utils/zLayers';

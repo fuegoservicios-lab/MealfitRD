@@ -5,6 +5,39 @@ import styles from './LegalPages.module.css';
 // [P1-PAPER-LEGAL · 2026-08-02] `CalendarDays` salió con `.metaIcon`: bajo
 // papel el metadato de un pliego se ROTULA en mono, no se ilustra.
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
+// [P2-LANDING-COPY-TRUTH · 2026-08-14] Los Términos citaban precios y créditos a
+// mano y las tres cifras habían quedado obsoletas: prometían 15 créditos (el
+// backend entrega 10 desde P1-CREDITS-LADDER) y ofrecían un «Max anual» de
+// 449.99 que NO EXISTE — es el importe del plan que P0-ANNUAL-PLANS-MISCONFIGURED
+// dejó INACTIVE por cobrar esa cifra CADA MES. Un contrato que promete lo que el
+// producto no da no es un detalle de copy.
+import {
+    TIER_CREDITS, TIER_DISPLAY_NAME, PRICING, hasAnnualBilling,
+} from '../../config/plans';
+
+/**
+ * La lista de planes del contrato, derivada del SSOT.
+ *
+ * ⚠️ El anual se decide con `hasAnnualBilling`, NO mirando si `PRICING[tier].annual`
+ * existe: ese objeto conserva `ultra.annual` como dato inerte para el día que se
+ * cree el plan en PayPal, así que preguntarle a él resucitaría el importe fantasma.
+ */
+const PlanesDelContrato = () => (
+    <ul>
+        {['basic', 'plus', 'ultra'].map((tier) => {
+            const mensual = PRICING[tier].monthly.price;
+            const anual = hasAnnualBilling(tier) ? PRICING[tier].annual : null;
+            return (
+                <li key={tier}>
+                    <strong>{TIER_DISPLAY_NAME[tier]}</strong> — USD {mensual}/mes
+                    {anual
+                        ? ` ó USD ${anual.price}/año (≈ USD ${anual.monthlyEquiv}/mes).`
+                        : ' (este plan no ofrece facturación anual).'}
+                </li>
+            );
+        })}
+    </ul>
+);
 
 const LegalLayout = ({ title, lastUpdated, children }) => {
     const navigate = useNavigate();
@@ -245,12 +278,8 @@ export const Terms = () => (
         <p>Usted es el único responsable de la confidencialidad de sus credenciales y de todas las actividades realizadas bajo su cuenta. Notifíquenos de inmediato cualquier acceso no autorizado.</p>
 
         <h3>3. Suscripciones, Planes y Pagos</h3>
-        <p>Ofrecemos un plan gratuito con 15 créditos mensuales y tres planes pagos:</p>
-        <ul>
-            <li><strong>Básico</strong> — USD 9.99/mes ó USD 89.99/año (≈ USD 7.50/mes).</li>
-            <li><strong>Plus</strong> — USD 19.99/mes ó USD 179.99/año (≈ USD 15.00/mes).</li>
-            <li><strong>Max</strong> — USD 49.99/mes ó USD 449.99/año (≈ USD 37.50/mes).</li>
-        </ul>
+        <p>Ofrecemos un plan gratuito con {TIER_CREDITS.gratis} créditos mensuales y tres planes pagos:</p>
+        <PlanesDelContrato />
         <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Ajustes o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
         <p><strong>Reembolsos:</strong> las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Puede cancelar en cualquier momento para detener las renovaciones futuras; conservará el acceso hasta el final del período ya pagado. El detalle está en la <strong>Política de Reembolsos y Cancelaciones</strong>.</p>
         <p>Reservamos el derecho de modificar los precios y planes con notificación previa de treinta (30) días para suscriptores existentes.</p>
@@ -598,7 +627,7 @@ export const AcceptableUse = () => (
         </ul>
 
         <h3>4. Uso Justo de la Inteligencia Artificial</h3>
-        <p>La generación de planes y el asistente consumen recursos de cómputo y de nuestro proveedor de IA. Por eso aplicamos cuotas mensuales por plan (el plan gratuito incluye 15 créditos) y límites de frecuencia para prevenir abuso. Estos límites buscan un uso razonable y personal; el uso automatizado, comercial no autorizado o que degrade el servicio para otros está prohibido y puede dar lugar a restricciones.</p>
+        <p>La generación de planes y el asistente consumen recursos de cómputo y de nuestro proveedor de IA. Por eso aplicamos cuotas mensuales por plan (el plan gratuito incluye {TIER_CREDITS.gratis} créditos) y límites de frecuencia para prevenir abuso. Estos límites buscan un uso razonable y personal; el uso automatizado, comercial no autorizado o que degrade el servicio para otros está prohibido y puede dar lugar a restricciones.</p>
 
         <h3>5. Contenido que Usted Aporta</h3>
         <p>Usted es responsable del contenido que introduce: texto libre en el formulario y el chat, y fotos de comida. Al subirlo, declara que tiene derecho a hacerlo y que no infringe la ley ni derechos de terceros. Procesamos ese contenido únicamente para prestarle el servicio, según se describe en la <strong>Política de Privacidad</strong> y la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>

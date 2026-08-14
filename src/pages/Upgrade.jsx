@@ -48,22 +48,8 @@ const PaymentModal = lazy(() => import('../components/dashboard/PaymentModal'));
    CONFIG: precios + features (SSOT local de esta página)
    ============================================================ */
 
-const PRICING = {
-    basic: {
-        monthly: { price: '9.99', label: '/mes' },
-        annual:  { price: '89.99', label: '/año', monthlyEquiv: '7.50' },
-    },
-    plus: {
-        monthly: { price: '19.99', label: '/mes' },
-        annual:  { price: '179.99', label: '/año', monthlyEquiv: '15.00' },
-    },
-    ultra: {
-        monthly: { price: '49.99', label: '/mes' },
-        annual:  { price: '449.99', label: '/año', monthlyEquiv: '37.50' },
-    },
-};
+// [P2-LANDING-COPY-TRUTH · 2026-08-14] `PRICING` vive en `config/plans.js`.
 
-const TIER_RANK = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
 
 // [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
 // siempre mensual. El toggle "Anual" no aplica a esta tarjeta. (= Pricing.jsx)
@@ -72,16 +58,9 @@ const TIER_RANK = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
 import {
     ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME,
     creditsVsPredecessor, includesPredecessor,
+    PRICING, NAME_BY_TIER, TIER_RANK, isLaunchOfferActive, monthlyEquivalent,
 } from '../config/plans';
 
-// [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local, = ctaName de
-// renderPlanCard) para re-derivar el `name` del modal al rehidratarlo desde la URL
-// tras un refresh.
-const NAME_BY_TIER = {
-    basic: 'Suscripción Básico',
-    plus: 'Suscripción Plus',
-    ultra: 'Suscripción Max',
-};
 
 /* [P2-TIER-DISPLAY-NAME · 2026-07-31] El botón componía el rótulo
    capitalizando la clave interna, así que la tarjeta "Max" ofrecía "Cambiar a
@@ -330,6 +309,12 @@ const Upgrade = () => {
     const isAnnual = billingPeriod === 'annual';
     // [ULTRA-MONTHLY-ONLY · 2026-06-19] Anual efectivo POR tier (Ultra excluido).
     const isAnnualForTier = (tier) => isAnnual && !ANNUAL_DISABLED_TIERS.has(tier);
+
+    // [P2-LANDING-COPY-TRUTH · 2026-08-14] La urgencia se evalúa contra la FECHA,
+    // no contra un booleano que alguien tendría que acordarse de bajar. Se calcula
+    // una vez por render: pasada la medianoche del 15 en RD, las tarjetas dejan de
+    // anunciar una subida que ya ocurrió.
+    const ofertaViva = isLaunchOfferActive();
     const hasStarted = !!planData;
 
     const rawTier = (userProfile?.plan_tier || '').toLowerCase().trim();
@@ -339,7 +324,7 @@ const Upgrade = () => {
     // tier-aware: Ultra siempre mensual (ver ANNUAL_DISABLED_TIERS).
     const getPrice = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.price || '0';
     const getPeriodLabel = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.label || '';
-    const getMonthlyEquiv = (tier) => isAnnualForTier(tier) ? PRICING[tier]?.annual?.monthlyEquiv : null;
+    const getMonthlyEquiv = (tier) => (isAnnualForTier(tier) ? monthlyEquivalent(tier) : null);
 
     const handleFreePlanClick = () => {
         window.scrollTo(0, 0);
@@ -525,7 +510,7 @@ const Upgrade = () => {
                         precio FUTURO tachado + la fecha en que sube. Solo vista
                         mensual (los anuales no tienen precio futuro definido).
                         ⚠️ La subida debe ser real en esa fecha — ver config/plans.js. */}
-                    {!isFree && LAUNCH_OFFER.active && !isAnnualForTier(tier)
+                    {!isFree && ofertaViva && !isAnnualForTier(tier)
                         && LAUNCH_OFFER.futureMonthly[tier] && (
                         <div className={styles.launchOffer}>
                             <span className={styles.launchOfferOld}>

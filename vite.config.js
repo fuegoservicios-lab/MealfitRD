@@ -237,7 +237,26 @@ export default defineConfig(({ mode }) => {
           // en un chunk compartido que se carga on-demand (vía __vitePreload) solo
           // cuando la primera ruta lazy que lo usa se monta → fuera del critical
           // path real. lucide + sonner siguen en vendor-ui (sí eager, justificado).
-          'vendor-ui': ['lucide-react', 'sonner'],
+          // [P2-LANDING-OLA1-DIET · 2026-08-14] `lucide-react` SALE de aquí.
+          //
+          // Un vendor chunk NOMBRADO recibe `<link rel=modulepreload>` eager de
+          // Vite en TODAS las rutas (la misma mecánica que documentan P2-NEON-LAZY
+          // y P1-PERF-FRAMER-SPLIT arriba). Medido el 2026-08-14: el chunk eran
+          // 95.846 B, y su sourcemap contenía EXACTAMENTE 181 módulos de icono
+          // (49.996 B) — entre ellos `refrigerator`, `syringe`, `stethoscope`,
+          // `shrimp`, `chef-hat`, `microscope`: pantallas que el apex ni siquiera
+          // puede alcanzar. El chrome eager importa 18; el landing entero, ~25.
+          //
+          // Sin nombrar la librería, Rollup reparte: los iconos del chrome caen en
+          // el entry (siguen eager, que es lo que P1-PERF-FRAMER-SPLIT quería
+          // garantizar) y el resto viaja con su página lazy.
+          //
+          // ⚠️ El coste que este repo ya pagó una vez: P2-VENDOR-REACT-CLIENT movió
+          // react-dom/client a un vendor chunk PRECISAMENTE porque el entry
+          // re-hashea en cada deploy. Los iconos que caen ahí se re-descargan en
+          // cada release — por eso el saldo hay que MEDIRLO, no asumirlo, y por eso
+          // `sonner` se queda: es eager de verdad (el <Toaster/> de App) y estable.
+          'vendor-ui': ['sonner'],
         }
       }
     },

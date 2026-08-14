@@ -12,21 +12,10 @@ import styles from './Pricing.module.css';
 // PayPalScriptProvider), así que el comportamiento visible es idéntico.
 const PaymentModal = lazy(() => import('../../components/dashboard/PaymentModal'));
 
-// --- Configuración de precios ---
-const PRICING = {
-    basic: {
-        monthly: { price: '9.99', label: '/mes' },
-        annual:  { price: '89.99', label: '/año', monthlyEquiv: '7.50' },
-    },
-    plus: {
-        monthly: { price: '19.99', label: '/mes' },
-        annual:  { price: '179.99', label: '/año', monthlyEquiv: '15.00' },
-    },
-    ultra: {
-        monthly: { price: '49.99', label: '/mes' },
-        annual:  { price: '449.99', label: '/año', monthlyEquiv: '37.50' },
-    },
-};
+// [P2-LANDING-COPY-TRUTH · 2026-08-14] `PRICING` vive en `config/plans.js`.
+// Estaba aquí y en `Upgrade.jsx` byte a byte, y ya habían divergido en
+// `getMonthlyEquiv`. La subida de precio está agendada: tres copias eran
+// tres sitios que editar el día en que más caro sale fallar.
 
 // [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no se ofrece en facturación anual —
 // siempre se factura mensual. El toggle "Anual" no aplica a esta tarjeta: cae a
@@ -36,15 +25,9 @@ const PRICING = {
 import {
     ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME,
     creditsVsPredecessor, includesPredecessor,
+    PRICING, NAME_BY_TIER, TIER_RANK, isLaunchOfferActive, monthlyEquivalent,
 } from '../../config/plans';
 
-// [PAY-MODAL-PERSIST · 2026-06-18] Nombre de plan por tier (SSOT local) para
-// re-derivar el `name` del modal al rehidratarlo desde la URL tras un refresh.
-const NAME_BY_TIER = {
-    basic: 'Suscripción Básico',
-    plus: 'Suscripción Plus',
-    ultra: 'Suscripción Max',
-};
 
 // [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre comercial por tier — SSOT en
 // `config/plans.js`, compartido con Upgrade.jsx.
@@ -75,14 +58,19 @@ const Pricing = () => {
     // excluido del anual aunque el toggle global esté en "Anual".
     const isAnnualForTier = (tier) => isAnnual && !ANNUAL_DISABLED_TIERS.has(tier);
 
+    // [P2-LANDING-COPY-TRUTH · 2026-08-14] La urgencia se evalúa contra la FECHA,
+    // no contra un booleano que alguien tendría que acordarse de bajar. Se calcula
+    // una vez por render: pasada la medianoche del 15 en RD, las tarjetas dejan de
+    // anunciar una subida que ya ocurrió.
+    const ofertaViva = isLaunchOfferActive();
+
     // Lógica para determinar el estado del usuario
     const hasStarted = !!planData;
     const rawTier = (userProfile?.plan_tier || '').toLowerCase().trim(); // Ensure lowercase
     const currentTier = ['gratis', 'basic', 'plus', 'ultra', 'admin'].includes(rawTier) ? rawTier : 'gratis';
     
     // Jerarquía de planes
-    const tierRank = { gratis: 1, basic: 2, plus: 3, ultra: 4, admin: 5 };
-    const currentRank = tierRank[currentTier] || 1;
+    const currentRank = TIER_RANK[currentTier] || 1;
 
     // [P2-PRICING-PROFILE-LOADING · 2026-05-31] Mientras userProfile no hidrate,
     // tratamos los botones como "cargando" (disabled) en vez de la rama invitado
@@ -108,7 +96,10 @@ const Pricing = () => {
     // siempre mensual, ver ANNUAL_DISABLED_TIERS).
     const getPrice = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.price || '0';
     const getPeriodLabel = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.label || '';
-    const getMonthlyEquiv = (tier) => PRICING[tier]?.annual?.monthlyEquiv;
+    // [P2-LANDING-COPY-TRUTH] Antes devolvía el equivalente SIEMPRE, incluso para
+    // un tier sin anual. Se unifica en la variante de `Upgrade.jsx`, que pregunta
+    // primero si el tier ofrece anual.
+    const getMonthlyEquiv = (tier) => (isAnnualForTier(tier) ? monthlyEquivalent(tier) : null);
 
     // Manejador del botón Plan Gratis
     const handleFreePlanClick = () => {
@@ -131,7 +122,7 @@ const Pricing = () => {
             navigate('/register');
             return;
         }
-        const targetRank = tierRank[tier] || 1;
+        const targetRank = TIER_RANK[tier] || 1;
 
         // Validacion de seguridad (aunque el boton este disabled)
         if (targetRank <= currentRank) {
@@ -253,7 +244,7 @@ const Pricing = () => {
             return "Tu Plan Actual";
         }
 
-        const targetRank = tierRank[tier] || 1;
+        const targetRank = TIER_RANK[tier] || 1;
 
         if (targetRank < currentRank) {
             return "Incluido en tu Plan";
@@ -278,9 +269,9 @@ const Pricing = () => {
 
         // Gratis: solo deshabilitado si el usuario YA pagó un tier superior;
         // nunca para el usuario gratis (su CTA de conversión debe ser clickeable).
-        if (tier === 'gratis') return currentRank > tierRank.gratis;
+        if (tier === 'gratis') return currentRank > TIER_RANK.gratis;
 
-        const targetRank = tierRank[tier] || 1;
+        const targetRank = TIER_RANK[tier] || 1;
 
         // Deshabilitar el botón si es el plan actual
         if (currentTier === tier) return true;
@@ -399,7 +390,7 @@ const Pricing = () => {
                             {/* [P1-LAUNCH-OFFER · 2026-07-31] Precio futuro tachado + fecha
                                 de subida (solo vista mensual). ⚠️ La subida debe ser real —
                                 ver config/plans.js. */}
-                            {!isAnnual && LAUNCH_OFFER.active && (
+                            {!isAnnual && ofertaViva && (
                                 <p className={styles.monthlyEquiv}>
                                     <s>USD${LAUNCH_OFFER.futureMonthly.basic}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
                                 </p>
@@ -441,7 +432,7 @@ const Pricing = () => {
                             {isAnnual && (
                                 <p className={styles.monthlyEquiv}>≈ USD${getMonthlyEquiv('plus')}/mes, facturado anual</p>
                             )}
-                            {!isAnnual && LAUNCH_OFFER.active && (
+                            {!isAnnual && ofertaViva && (
                                 <p className={styles.monthlyEquiv}>
                                     <s>USD${LAUNCH_OFFER.futureMonthly.plus}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
                                 </p>
@@ -484,7 +475,7 @@ const Pricing = () => {
                             {isAnnual && (
                                 <p className={styles.monthlyEquiv}>Disponible solo en facturación mensual</p>
                             )}
-                            {!isAnnual && LAUNCH_OFFER.active && (
+                            {!isAnnual && ofertaViva && (
                                 <p className={styles.monthlyEquiv}>
                                     <s>USD${LAUNCH_OFFER.futureMonthly.ultra}</s> · Precio de lanzamiento — sube el {LAUNCH_OFFER.deadlineLabel}
                                 </p>

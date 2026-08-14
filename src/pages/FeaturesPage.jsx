@@ -216,7 +216,7 @@ const FAQS = [
     { q: '¿Qué pasa si se me acaban los créditos del mes?', a: 'Tu Historial, tu Nevera y los planes que ya generaste siguen disponibles. Lo que se pausa es generar o regenerar planes, hablar con el coach IA y escanear comidas, hasta tu próximo ciclo o hasta subir de plan.' },
     { q: '¿Puedo cambiar una comida sin perder el resto de mi plan?', a: 'Sí. Pídeselo al coach IA —«cambia el almuerzo de mañana»— o usa «Cambiar Plato» en esa comida puntual. El resto del plan, tus macros y tu lista de compras se ajustan sin rehacer nada desde cero.' },
     { q: '¿La lista de compras sirve en cualquier supermercado dominicano?', a: 'Los precios se calculan con datos reales de supermercados dominicanos como guía de costo, pero no está integrada a un supermercado en particular ni reserva tus productos — tú decides dónde comprar.' },
-    { q: '¿Qué cambia entre el Plan Gratis y los planes pagos?', a: 'El Plan Gratis te deja crear y usar un plan completo sin tarjeta. Los planes pagos suman más créditos al mes, memoria a largo plazo del coach y Súper Personalización. Compara todo en Precios.' },
+    { q: '¿Qué cambia entre el Plan Gratis y los planes pagos?', a: 'El Plan Gratis te deja crear y usar un plan completo sin tarjeta, con todas las funciones incluidas. Lo que suman los planes pagos son más créditos al mes. Compara todo en Precios.' },
 ];
 
 /* ─────────────────────────── helpers de animación ─────────────────────────── */
@@ -404,9 +404,9 @@ const FeaturesPage = () => {
                     <div className={styles.disclaimerText}>
                         <strong>Sigue explorando.</strong> Mira <Link to="/como-funciona">cómo funciona el
                         método</Link>, la <Link to="/precision">precisión que medimos</Link>, <Link to="/motor">el
-                        motor por dentro</Link> y los <Link to="/precios">planes</Link>. Algunas funciones (créditos
-                        por mes, memoria a largo plazo, Súper Personalización) varían según tu plan — el detalle
-                        completo está en Precios.
+                        motor por dentro</Link> y los <Link to="/precios">planes</Link>. Todas las funciones están
+                        incluidas en cualquier plan; lo que cambia son los créditos por mes — el detalle completo
+                        está en Precios.
                     </div>
                 </Reveal>
             </div>
