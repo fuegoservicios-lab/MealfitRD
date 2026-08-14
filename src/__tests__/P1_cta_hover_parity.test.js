@@ -33,6 +33,14 @@ const CTA_MODULOS = [
     ['pages/Pantry.mobileFridge.module.css', '.add'],
     ['components/recipes/RecipesView.module.css', '.primary'],
     ['components/recipes/MobileRecipes.module.css', '.primary'],
+    // [P1-CTA-TINT-DANGER · 2026-08-14] El botón de papelera de la Nevera.
+    // Se quedó fuera de la primera pasada porque aquélla barrió la familia
+    // del GRADIENTE índigo y éste es de la familia de peligro (fondo tenue).
+    // El dueño lo notó de inmediato: para quien mira la barra, «los botones»
+    // son los dos, no una familia CSS. La lista se define por lo que el
+    // usuario ve junto, no por cómo está implementado.
+    ['pages/Pantry.fridge.module.css', '.clear'],
+    ['pages/Pantry.mobileFridge.module.css', '.clear'],
 ];
 
 /** Cuerpo de la regla cuyo selector es exactamente `clase` (opcionalmente con
@@ -69,6 +77,28 @@ describe('[P1-CTA-HOVER-PARITY] los CTA sólidos responden al mouse', () => {
         expect(hov, 'volvió el brightness que la receta descartó').not.toMatch(/brightness/);
     });
 
+    it.each([
+        ['pages/Pantry.fridge.module.css'],
+        ['pages/Pantry.mobileFridge.module.css'],
+    ])('%s: el botón de borrar tiñe su halo de PELIGRO, no de índigo', (archivo) => {
+        // [P1-CTA-TINT-DANGER · 2026-08-14] La geometría de la sombra es común,
+        // pero el color no puede serlo: un halo índigo bajo el botón de vaciar
+        // la Nevera lo emparenta con el CTA de añadir, que es su opuesto. El
+        // token lee `--cta-tint` y cada botón declara el suyo; sin esa línea el
+        // fallback lo pintaría índigo y NADIE lo notaría en un test de humo.
+        const cuerpo = bloque(leer(archivo), '.clear');
+        expect(cuerpo, '.clear no declara su tinte: el halo saldría índigo')
+            .toMatch(/--cta-tint:\s*var\(--danger\)/);
+    });
+
+    it('el token acepta un tinte por botón (si no, toda sombra sería índigo)', () => {
+        const ds = leer('index.css');
+        const m = ds.match(/--cta-shadow:\s*([^;]+);/);
+        expect(m).toBeTruthy();
+        expect(m[1], 'la geometría debe ser común y el COLOR parametrizable')
+            .toMatch(/var\(--cta-tint,\s*var\(--primary\)\)/);
+    });
+
     it('los tres tokens existen y el de hover es más intenso que el base', () => {
         const ds = leer('index.css');
         const val = (nombre) => {
@@ -81,8 +111,11 @@ describe('[P1-CTA-HOVER-PARITY] los CTA sólidos responden al mouse', () => {
         val('--cta-shadow-active');
         const pct = (s) => Number(s.match(/(\d+)%/)[1]);
         expect(pct(hover)).toBeGreaterThan(pct(base));
-        // Relativos al tema: la sombra nace de --primary, no de un rgba fijo.
-        expect(base).toMatch(/color-mix\(in srgb,\s*var\(--primary\)/);
+        // Relativos al tema: la sombra nace de tokens, no de un rgba fijo.
+        // (El color pasó de --primary directo a --cta-tint con fallback en
+        // P1-CTA-TINT-DANGER; lo que se protege es que siga siendo del tema.)
+        expect(base).toMatch(/color-mix\(in srgb,\s*var\(--/);
+        expect(base, 'un rgba fijo no seguiría al tema').not.toMatch(/rgba?\(/);
     });
 
     it('el botón inline del Historial recibe la clase global (inline no admite :hover)', () => {

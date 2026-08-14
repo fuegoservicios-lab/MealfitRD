@@ -40,7 +40,13 @@
 .add { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: var(--cta-shadow); }
 .add:hover { box-shadow: var(--cta-shadow-hover); }
 .add:active { box-shadow: var(--cta-shadow-active); }
-.clear { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
+/* [P1-CTA-TINT-DANGER · 2026-08-14] Mismo peso al pasar el mouse que su vecino
+   «+ Añadir», pero teñido de PELIGRO: comparten geometría vía token y se
+   distinguen por `--cta-tint`. Sin el tinte, el halo saldría índigo y este
+   botón —que vacía la Nevera— parecería hermano del que añade. */
+.clear { --cta-tint: var(--danger); color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); box-shadow: var(--cta-shadow); }
+.clear:hover { box-shadow: var(--cta-shadow-hover); }
+.clear:active { box-shadow: var(--cta-shadow-active); }
 
 /* Zonas + temperatura.
    [P3-PANTRY-BAR-STACK-MOBILE · 2026-06-24] Apilado (columna): pestañas arriba,

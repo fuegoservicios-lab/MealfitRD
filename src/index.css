@@ -393,10 +393,19 @@
 
      Nace de --primary vía color-mix y no de un rgba fijo, así que sigue al
      tema: en claro es el índigo profundo, en oscuro el índigo claro del tema.
-     No se define aquí por tema porque la mezcla ya lo resuelve sola. */
-  --cta-shadow: 0 4px 14px -6px color-mix(in srgb, var(--primary) 55%, transparent);
-  --cta-shadow-hover: 0 7px 20px -6px color-mix(in srgb, var(--primary) 75%, transparent);
-  --cta-shadow-active: 0 3px 10px -5px color-mix(in srgb, var(--primary) 55%, transparent);
+     No se define aquí por tema porque la mezcla ya lo resuelve sola.
+
+     [P1-CTA-TINT-DANGER · 2026-08-14] La GEOMETRÍA es común; el COLOR no puede
+     serlo. El botón de vaciar la Nevera quedó fuera de la primera pasada —que
+     barrió la familia del gradiente índigo— y el dueño lo notó enseguida: para
+     quien mira la barra, «los botones» son los dos. Pero darle el mismo halo
+     índigo lo emparentaría con el CTA de añadir, que es justo su opuesto. Por
+     eso el token lee `--cta-tint` y cada botón declara el suyo (mismo patrón
+     que `--cat` en las filas de la Nevera); sin declararlo, el fallback
+     mantiene el índigo de siempre y nada se rompe. */
+  --cta-shadow: 0 4px 14px -6px color-mix(in srgb, var(--cta-tint, var(--primary)) 55%, transparent);
+  --cta-shadow-hover: 0 7px 20px -6px color-mix(in srgb, var(--cta-tint, var(--primary)) 75%, transparent);
+  --cta-shadow-active: 0 3px 10px -5px color-mix(in srgb, var(--cta-tint, var(--primary)) 55%, transparent);
 
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
