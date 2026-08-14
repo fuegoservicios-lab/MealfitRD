@@ -15,35 +15,30 @@
 //   · Recorte: el PNG traía el glifo en el 45% central de un lienzo de
 //     1254×1254; el resto era transparencia. Sin recortar, para que el símbolo
 //     se viera del tamaño del wordmark había que darle una caja el doble de
-//     alta y luego pelearse con márgenes negativos para que no empujara al
-//     texto. Se quitaron los píxeles vacíos (`getbbox`), no el dibujo.
-//   · Peso: 47,7 KB → 6,1 KB (128 px, paleta de 32 colores). Es un glifo plano
-//     de un solo color: no necesitaba 1254 px ni color verdadero. Importa
-//     porque la auditoría que lo borró estaba precisamente recortando el
-//     precache del apex.
+//     alta y luego pelearse con márgenes negativos. Se quitaron los píxeles
+//     vacíos (`getbbox`), no el dibujo.
+//   · Peso: 47,7 KB → 12,3 KB (128 px). Importa porque la auditoría que lo
+//     borró estaba precisamente recortando el precache del apex.
+//
+// [P1-BRAND-MARK-MONO · 2026-08-14] La TINTA la pone el CSS, no el PNG: el
+// símbolo se pinta con `currentColor` vía máscara (ver BrandMark.module.css).
+// Un símbolo índigo junto a un wordmark monocromo reintroducía el acento de
+// color que el dueño ya había rechazado dos veces, y además pesaba 2,9× menos
+// que la palabra contra el fondo. Con la máscara heredan la misma tinta y el
+// tema claro se resuelve solo.
 //
 // NO lleva `alt` descriptivo a propósito: va SIEMPRE acompañado del wordmark,
 // que ya dice «Bioboros». Un `alt="Bioboros"` haría que un lector de pantalla
 // anunciara la marca dos veces seguidas; el símbolo es decorativo en ese par.
 import PropTypes from 'prop-types';
+import styles from './BrandMark.module.css';
 
-export const BrandMark = ({ size = '1.5em', className = '', style = {} }) => (
-    <img
-        src="/bioboros-mark.png"
-        alt=""
+export const BrandMark = ({ size = '1.15em', className = '', style = {} }) => (
+    <span
+        role="presentation"
         aria-hidden="true"
-        width={128}
-        height={128}
-        className={className}
-        style={{
-            height: size,
-            width: 'auto',
-            // El símbolo se apoya en la línea base óptica del wordmark, no en la
-            // caja: sin esto flota alto porque el glifo tiene el tallo abajo.
-            display: 'block',
-            flexShrink: 0,
-            ...style,
-        }}
+        className={`${styles.marca} ${className}`.trim()}
+        style={{ height: size, width: size, ...style }}
     />
 );
 

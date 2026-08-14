@@ -1,0 +1,38 @@
+/* [P1-BRAND-MARK-MONO · 2026-08-14] El isotipo toma la MISMA tinta que el wordmark.
+ *
+ * POR QUÉ NO ES UN <img> INDIGO. El wordmark es monocromo por decisión explícita del
+ * dueño (P2-WORDMARK-BIOBOROS): se descartaron una versión bicolor índigo+rosa y otra
+ * con las tres «o» en verde, y el comentario de ese componente advierte de no
+ * reintroducir acentos de color sin hablarlo. Al colocar el símbolo en índigo al lado
+ * de un wordmark monocromo se colaba por el símbolo el acento que se había rechazado
+ * en las letras. Medido sobre el sidebar oscuro: la palabra da 15,11:1 contra el fondo
+ * y el símbolo índigo 5,18:1 — **2,9× más débil**, y por eso se leía como un adorno
+ * colgado del nombre en vez de como parte del logo.
+ *
+ * CÓMO. El PNG entra como MÁSCARA: su canal alfa es la forma y el color lo pone
+ * `currentColor`, o sea la tinta que ya tiene el bloque de marca. Dos regalos:
+ *   · monocromía real, sin tocar el asset;
+ *   · el tema claro se resuelve SOLO (tinta oscura sobre papel) — antes el índigo
+ *     daba 3,42:1 ahí, que pasa el mínimo pero se veía desvaído.
+ *
+ * ⚠️ Las máscaras CSS son same-origin: en un `file://` el navegador las bloquea y el
+ * elemento sale INVISIBLE. Si vas a verificar esto en un banco de pruebas, sírvelo por
+ * HTTP o creerás que el CSS está roto (me pasó).
+ *
+ * El respaldo `@supports` conserva el PNG como imagen de fondo para el ~2% de
+ * navegadores sin máscaras: ahí el símbolo sale índigo, que es peor que monocromo pero
+ * mejor que ausente. Por eso el asset conserva su RGB original en vez de ser blanco. */
+.marca {
+    display: block;
+    flex-shrink: 0;
+    background-color: currentColor;
+    -webkit-mask: url('/bioboros-mark.png') no-repeat center / contain;
+    mask: url('/bioboros-mark.png') no-repeat center / contain;
+}
+
+@supports not ((-webkit-mask-image: url('/x.png')) or (mask-image: url('/x.png'))) {
+    .marca {
+        background-color: transparent;
+        background: url('/bioboros-mark.png') no-repeat center / contain;
+    }
+}
