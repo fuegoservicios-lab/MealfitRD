@@ -57,8 +57,12 @@ describe('[P2-HIST-AUDIT-C] shift_days_accumulated chip', () => {
     it('CSS shiftDaysBadge palette slate (neutral, no warn)', () => {
         const blockMatch = cssSrc.match(/\.shiftDaysBadge\s*\{[\s\S]*?\}/);
         expect(blockMatch).toBeTruthy();
-        expect(blockMatch[0]).toMatch(/background:\s*#F1F5F9/i);
-        expect(blockMatch[0]).toMatch(/color:\s*#475569/i);
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] Antes se fijaba el HEX claro: el
+        // mecanismo que hacia del chip una pastilla blanquecina en tema oscuro.
+        // La propiedad real —la familia cromatica, distinta de sus vecinas— se
+        // afirma sobre el acento del velo.
+        expect(blockMatch[0]).toMatch(/var\(--text-muted\)/);
+        expect(blockMatch[0]).not.toMatch(/--warning|--danger/);
     });
 });
 

@@ -147,20 +147,26 @@ describe('[P1-AUDIT-HIST-6] CSS module classes', () => {
         expect(cssSrc).toMatch(/\.tierBadgeNeutral\s*\{/);
     });
 
-    it('palette Ok usa verde-emerald (consistente con shoppingChip estable P3-C)', () => {
-        // El comentario CSS cita la consistencia con P3-C y usa
-        // background #ECFDF5 + color #065F46 (emerald palette de
-        // tailwind).
+    // [P1-HIST-CHIP-VEIL · 2026-08-13] Estas dos pruebas fijaban los HEX
+    // (#ECFDF5 / #FEF2F2): el mecanismo, no la propiedad. Y ese mecanismo era
+    // justamente el defecto — un verde casi blanco que en tema oscuro salía
+    // como una pastilla blanquecina («Calidad LLM: 2», reporte del dueño). Lo
+    // que de verdad protegen —que "ok" hable en verde y "bad" en rojo, sin
+    // confundirse entre sí— se afirma ahora sobre la familia del DS, que ya
+    // trae su variante para cada tema.
+    it('palette Ok usa la familia verde del DS (y no la de alarma)', () => {
         const okIdx = cssSrc.indexOf('.tierBadgeOk');
         const block = cssSrc.slice(okIdx, okIdx + 300);
-        expect(block).toMatch(/#ECFDF5/i);
-        expect(block).toMatch(/#065F46/i);
+        expect(block).toMatch(/var\(--success\)/);
+        expect(block).toMatch(/var\(--success-text\)/);
+        expect(block).not.toMatch(/--danger|--warning/);
     });
 
-    it('palette Bad usa rojo (alarma simétrica con statusFailed)', () => {
+    it('palette Bad usa la familia roja del DS (alarma simétrica con statusFailed)', () => {
         const badIdx = cssSrc.indexOf('.tierBadgeBad');
         const block = cssSrc.slice(badIdx, badIdx + 300);
-        expect(block).toMatch(/#FEF2F2/i);
-        expect(block).toMatch(/#991B1B/i);
+        expect(block).toMatch(/var\(--danger\)/);
+        expect(block).toMatch(/var\(--danger-text\)/);
+        expect(block).not.toMatch(/--success/);
     });
 });

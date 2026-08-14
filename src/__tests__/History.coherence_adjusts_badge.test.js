@@ -245,16 +245,22 @@ describe('[P2-HIST-4] CSS module — coherenceAdjustsBadge palette cyan/teal', (
         expect(css).toMatch(/\.coherenceAdjustsBadge\b/);
     });
 
-    it('palette cyan/teal (#ECFEFF / #155E75 / #A5F3FC)', () => {
+    it('palette cyan/teal, distinta de alerta / degradación / IA', () => {
         // Cyan/teal es DELIBERADAMENTE distinto de status (amber/red
         // — alerta), simplifiedWeeks (violet — degradación), y
         // lessonsBadge (indigo — IA). El chip dice "el sistema te
         // ayudó", no "hay un problema".
+        //
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] El cyan sigue siendo el mismo, pero
+        // ya no se pinta como fondo CLARO opaco (#ECFEFF, invisible como
+        // señal en tema oscuro) sino como velo del acento: la luminosidad la
+        // pone el tema, el matiz lo pone el acento. Sin familia --cyan en el
+        // DS, el acento va literal y medido (4,91:1 claro / 6,58:1 oscuro).
         const block = css.match(/\.coherenceAdjustsBadge\s*\{[^}]+\}/);
         expect(block).toBeTruthy();
-        expect(block[0]).toMatch(/#ECFEFF/);
-        expect(block[0]).toMatch(/#155E75/);
-        expect(block[0]).toMatch(/#A5F3FC/);
+        expect(block[0]).toMatch(/#06B6D4/i);
+        expect(block[0]).toMatch(/color-mix\(in srgb,\s*#06B6D4[^;]*transparent\)/i);
+        expect(block[0]).not.toMatch(/--danger|--warning|--success/);
     });
 
     it('comparte shape con sibling chips (border-radius 99px, font-weight 800)', () => {

@@ -145,14 +145,19 @@ describe('[P1-HIST-3] CSS module — palette indigo diferenciada', () => {
         expect(css).toMatch(/\.lessonsBadge\b/);
     });
 
-    it('lessonsBadge usa indigo (#EEF2FF / #4338CA / #C7D2FE)', () => {
+    it('lessonsBadge usa el indigo de marca, separado de status y calorías', () => {
         // Palette indigo separa este chip de los status (amber/red) y
         // de caloriesBadge (orange). El icono usa #6366F1 (indigo-500).
+        //
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] El indigo ahora viene de
+        // var(--primary) —que el DS ya define para cada tema— pintado como
+        // velo: el hex claro (#EEF2FF) hacía del chip una pastilla
+        // blanquecina en modo oscuro.
         const block = css.match(/\.lessonsBadge\s*\{[^}]+\}/);
         expect(block).toBeTruthy();
-        expect(block[0]).toMatch(/#EEF2FF/);
-        expect(block[0]).toMatch(/#4338CA/);
-        expect(block[0]).toMatch(/#C7D2FE/);
+        expect(block[0]).toMatch(/color-mix\(in srgb,\s*var\(--primary\)[^;]*transparent\)/);
+        expect(block[0]).toMatch(/var\(--primary\)/);
+        expect(block[0]).not.toMatch(/--danger|--warning/);
     });
 
     it('lessonsBadge svg tiene color indigo-500', () => {

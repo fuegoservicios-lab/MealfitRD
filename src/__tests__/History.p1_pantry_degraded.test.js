@@ -65,11 +65,13 @@ describe('[P1-HIST-PANTRY-DEGRADED] CSS palette ámbar', () => {
     it('palette ámbar (warn) — bg #FFFBEB + color #92400E', () => {
         const blockMatch = cssSrc.match(/\.pantryDegradedBadge\s*\{[\s\S]*?\}/);
         expect(blockMatch).toBeTruthy();
-        // Palette ámbar Tailwind (yellow-50 / amber-800).
-        expect(blockMatch[0]).toMatch(/background:\s*#FFFBEB/i);
-        expect(blockMatch[0]).toMatch(/color:\s*#92400E/i);
-        // Border amber.
-        expect(blockMatch[0]).toMatch(/border:\s*1px solid\s*#FDE68A/i);
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] Antes se fijaba el HEX claro: el
+        // mecanismo que hacia del chip una pastilla blanquecina en tema oscuro.
+        // La propiedad real —la familia cromatica, distinta de sus vecinas— se
+        // afirma sobre el acento del velo.
+        expect(blockMatch[0]).toMatch(/background:\s*color-mix\(in srgb,\s*var\(--warning\)/);
+        expect(blockMatch[0]).toMatch(/color:\s*var\(--warning-text\)/);
+        expect(blockMatch[0]).toMatch(/border:\s*1px solid color-mix\(in srgb,\s*var\(--warning\)/);
     });
 
     it('NO usa pulse animation (no es CTA, es etiqueta histórica)', () => {

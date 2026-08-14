@@ -142,8 +142,12 @@ describe('[P0-HIST-LEARN-2] CSS del chip', () => {
         const match = cssSrc.match(/\.zeroLogBadgeInfo\s*\{[\s\S]*?\}/);
         expect(match).toBeTruthy();
         // Slate background coherente con shiftDaysBadge.
-        expect(match[0]).toMatch(/#F1F5F9/);
-        expect(match[0]).toMatch(/#475569/);
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] Antes se fijaba el HEX claro: el
+        // mecanismo que hacia del chip una pastilla blanquecina en tema oscuro.
+        // La propiedad real —la familia cromatica, distinta de sus vecinas— se
+        // afirma sobre el acento del velo.
+        expect(match[0]).toMatch(/var\(--text-muted\)/);
+        expect(match[0]).not.toMatch(/--danger|--warning|--success/);
     });
 
     it('clase .zeroLogBadgeAlarm declarada (palette rojo escalado)', () => {
@@ -151,8 +155,13 @@ describe('[P0-HIST-LEARN-2] CSS del chip', () => {
         expect(match).toBeTruthy();
         // Rojo bg + foreground oscuro distinto al ámbar de pantryDegraded
         // para diferenciar las dos señales visualmente.
-        expect(match[0]).toMatch(/#FEF2F2/);
-        expect(match[0]).toMatch(/#991B1B/);
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] Antes se fijaba el HEX claro: el
+        // mecanismo que hacia del chip una pastilla blanquecina en tema oscuro.
+        // La propiedad real —la familia cromatica, distinta de sus vecinas— se
+        // afirma sobre el acento del velo.
+        expect(match[0]).toMatch(/var\(--danger\)/);
+        expect(match[0]).toMatch(/var\(--danger-text\)/);
+        expect(match[0]).not.toMatch(/--warning/);
     });
 
     it('mismo shape geométrico que pantryDegradedBadge / shiftDaysBadge', () => {

@@ -788,9 +788,9 @@
     border-radius: 99px;
     font-size: 0.72rem;
     font-weight: 800;
-    background: #EEF2FF;
-    color: #4338CA;
-    border: 1px solid #C7D2FE;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: color-mix(in srgb, var(--primary) 55%, var(--text-main));
+    border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.01em;
@@ -813,9 +813,9 @@
     border-radius: 99px;
     font-size: 0.7rem;
     font-weight: 800;
-    background: #ECFEFF;
-    color: #155E75;
-    border: 1px solid #A5F3FC;
+    background: color-mix(in srgb, #06B6D4 14%, transparent);
+    color: color-mix(in srgb, #06B6D4 55%, var(--text-main));
+    border: 1px solid color-mix(in srgb, #06B6D4 32%, transparent);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.01em;
@@ -834,9 +834,9 @@
     border-radius: 99px;
     font-size: 0.7rem;
     font-weight: 800;
-    background: #F5F3FF;
-    color: #5B21B6;
-    border: 1px solid #DDD6FE;
+    background: color-mix(in srgb, #8B5CF6 14%, transparent);
+    color: color-mix(in srgb, #8B5CF6 55%, var(--text-main));
+    border: 1px solid color-mix(in srgb, #8B5CF6 32%, transparent);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.01em;
@@ -853,9 +853,9 @@
     border-radius: 99px;
     font-size: 0.7rem;
     font-weight: 800;
-    background: #F1F5F9;
-    color: #475569;
-    border: 1px solid #CBD5E1;
+    background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+    color: color-mix(in srgb, var(--text-muted) 80%, var(--text-main));
+    border: 1px solid color-mix(in srgb, var(--text-muted) 32%, transparent);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.01em;
@@ -876,9 +876,9 @@
     border-radius: 99px;
     font-size: 0.7rem;
     font-weight: 800;
-    background: #FFFBEB;
-    color: #92400E;
-    border: 1px solid #FDE68A;
+    background: color-mix(in srgb, var(--warning) 14%, transparent);
+    color: var(--warning-text);
+    border: 1px solid color-mix(in srgb, var(--warning) 32%, transparent);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.01em;
@@ -901,9 +901,9 @@
     border-radius: 99px;
     font-size: 0.7rem;
     font-weight: 800;
-    background: #F1F5F9;
-    color: #475569;
-    border: 1px solid #CBD5E1;
+    background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+    color: color-mix(in srgb, var(--text-muted) 80%, var(--text-main));
+    border: 1px solid color-mix(in srgb, var(--text-muted) 32%, transparent);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.01em;
@@ -917,9 +917,9 @@
     border-radius: 99px;
     font-size: 0.7rem;
     font-weight: 800;
-    background: #FEF2F2;
-    color: #991B1B;
-    border: 1px solid #FECACA;
+    background: color-mix(in srgb, var(--danger) 14%, transparent);
+    color: var(--danger-text);
+    border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent);
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.01em;
@@ -2055,26 +2055,51 @@
     white-space: nowrap;
 }
 
+/* [P1-HIST-CHIP-VEIL · 2026-08-13] LA RECETA DE TODOS LOS CHIPS DE ESTE
+   ARCHIVO, escrita una vez aquí porque 16 reglas la comparten:
+
+       background:   color-mix(in srgb, <acento> 14%, transparent)
+       border-color: color-mix(in srgb, <acento> 32%, transparent)
+       color:        la tinta de la familia (que ya cambia por tema)
+
+   El fondo es un VELO TRANSLÚCIDO, no un color opaco, y esa es la parte
+   que arregla el tema oscuro: al no traer luminosidad propia, la toma de
+   la superficie que tenga debajo — pálido sobre la tarjeta blanca,
+   profundo sobre el panel oscuro. Con un hex claro clavado (#ECFDF5, el
+   caso que el dueño reportó: «Calidad LLM: 2» saliendo blanquecino en
+   modo oscuro) el chip ignoraba el tema entero.
+
+   No es una invención: es el patrón que este mismo archivo ya usaba en
+   sus overrides oscuros (statusPartial/statusFailed con rgba al 16%), y
+   coincide con las tintas 300 de las familias del DS. La diferencia es
+   que ahora vale para LOS DOS temas en una sola declaración, en vez de
+   una regla base clara más un override que alguien tiene que acordarse
+   de escribir — que fue justo lo que faltó en las 16.
+
+   Por qué velo y no el token de fondo sólido (medido, no intuido): sobre
+   la fila contenedora en oscuro, un --success-bg opaco queda a dL* 0,1 y
+   el chip desaparece salvo por su borde; el velo lo deja en 9,1. */
+
 /* `llm` (calidad LLM completa) — verde-emerald, mismo palette que
    shoppingChip durabilidad estable (P3-C 2026-05-08). */
 .tierBadgeOk {
-    background: #ECFDF5;
-    color: #065F46;
-    border-color: #A7F3D0;
+    background: color-mix(in srgb, var(--success) 14%, transparent);
+    color: var(--success-text);
+    border-color: color-mix(in srgb, var(--success) 32%, transparent);
 }
 
 /* shuffle/edge/emergency — amber, degraded pero generaron días. */
 .tierBadgeWarn {
-    background: #FFFBEB;
-    color: #92400E;
-    border-color: #FDE68A;
+    background: color-mix(in srgb, var(--warning) 14%, transparent);
+    color: var(--warning-text);
+    border-color: color-mix(in srgb, var(--warning) 32%, transparent);
 }
 
 /* failed/paused/error — rojo (no usable), simétrico con statusFailed. */
 .tierBadgeBad {
-    background: #FEF2F2;
-    color: #991B1B;
-    border-color: #FECACA;
+    background: color-mix(in srgb, var(--danger) 14%, transparent);
+    color: var(--danger-text);
+    border-color: color-mix(in srgb, var(--danger) 32%, transparent);
 }
 
 /* [P1-HIST-NEW-4 · 2026-05-09] Notice de truncado en el tab
@@ -2084,9 +2109,9 @@
    cap LIMIT 50. Aparece encima de la lista de chunks renderizados
    cuando `total_count > chunks.length`. */
 .metricsTruncatedNotice {
-    background: #EFF6FF;
-    color: #1E3A8A;
-    border-color: #BFDBFE;
+    background: color-mix(in srgb, var(--info) 14%, transparent);
+    color: var(--info-text);
+    border-color: color-mix(in srgb, var(--info) 32%, transparent);
     border-style: solid;
     margin-bottom: 0.75rem;
     padding: 0.6rem 0.85rem;
@@ -2111,11 +2136,14 @@
     white-space: nowrap;
 }
 
-/* Tiers desconocidos (futuro) — gris neutro. */
+/* Tiers desconocidos (futuro) — gris neutro. La tinta se refuerza un 20%
+   hacia --text-main: con --text-muted a secas el chip neutro medía 4,40:1
+   (bajo AA) porque su propio velo gris le come el contraste; el resto de
+   familias no lo necesita porque su acento sí es cromático. */
 .tierBadgeNeutral {
-    background: #F1F5F9;
-    color: #475569;
-    border-color: #CBD5E1;
+    background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+    color: color-mix(in srgb, var(--text-muted) 80%, var(--text-main));
+    border-color: color-mix(in srgb, var(--text-muted) 32%, transparent);
 }
 
 /* [P2-HIST-AUDIT-8 · 2026-05-09] Bloque informativo de días
@@ -2185,23 +2213,23 @@
 
 /* Tone: info — azul slate. Default cuando no hay señal específica. */
 .missingDaysInfo {
-    background: #EFF6FF;
-    color: #1E40AF;
-    border-color: #BFDBFE;
+    background: color-mix(in srgb, var(--info) 14%, transparent);
+    color: var(--info-text);
+    border-color: color-mix(in srgb, var(--info) 32%, transparent);
 }
 
 /* Tone: warn — amber, simétrico con statusPartial. Esperando acción. */
 .missingDaysWarn {
-    background: #FFFBEB;
-    color: #92400E;
-    border-color: #FDE68A;
+    background: color-mix(in srgb, var(--warning) 14%, transparent);
+    color: var(--warning-text);
+    border-color: color-mix(in srgb, var(--warning) 32%, transparent);
 }
 
 /* Tone: bad — rojo, simétrico con statusFailed. Recovery exhausted. */
 .missingDaysBad {
-    background: #FEF2F2;
-    color: #991B1B;
-    border-color: #FECACA;
+    background: color-mix(in srgb, var(--danger) 14%, transparent);
+    color: var(--danger-text);
+    border-color: color-mix(in srgb, var(--danger) 32%, transparent);
 }
 
 /* [P2-HIST-AUDIT-9 · 2026-05-09] Lista per-chunk de reasons dentro
@@ -2335,9 +2363,9 @@
     margin-left: auto;
     padding: 0.2rem 0.55rem;
     border-radius: 99px;
-    background: #FEF3C7;
-    color: #92400E;
-    border: 1px solid #FCD34D;
+    background: color-mix(in srgb, var(--warning) 14%, transparent);
+    color: var(--warning-text);
+    border: 1px solid color-mix(in srgb, var(--warning) 32%, transparent);
     font-size: 0.7rem;
     font-weight: 700;
 }

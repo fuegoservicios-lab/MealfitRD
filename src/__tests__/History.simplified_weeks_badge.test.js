@@ -177,9 +177,13 @@ describe('[P2-HIST-3] CSS module — simplifiedWeeksBadge palette lavender', () 
         // visual, pero shade más violeta para el simplif.
         const block = css.match(/\.simplifiedWeeksBadge\s*\{[^}]+\}/);
         expect(block).toBeTruthy();
-        expect(block[0]).toMatch(/#F5F3FF/);
-        expect(block[0]).toMatch(/#5B21B6/);
-        expect(block[0]).toMatch(/#DDD6FE/);
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] Antes se fijaba el HEX claro: el
+        // mecanismo que hacia del chip una pastilla blanquecina en tema oscuro.
+        // La propiedad real —la familia cromatica, distinta de sus vecinas— se
+        // afirma sobre el acento del velo.
+        expect(block[0]).toMatch(/#8B5CF6/i);
+        expect(block[0]).toMatch(/color-mix\(in srgb,\s*#8B5CF6[^;]*transparent\)/i);
+        expect(block[0]).not.toMatch(/--danger|--warning|--success/);
     });
 
     it('comparte shape con otros chips (border-radius 99px, font-weight 800)', () => {

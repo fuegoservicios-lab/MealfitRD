@@ -215,9 +215,13 @@ describe('[P1-HIST-NEW-4] CSS metricsTruncatedNotice', () => {
         // genérico al que extiende.
         const idx = css.indexOf('.metricsTruncatedNotice');
         const block = css.slice(idx, idx + 600);
-        // Color de fondo azul-pastel (#EFF6FF Tailwind blue-50).
-        expect(block).toMatch(/background\s*:\s*#EFF6FF/i);
-        // Texto azul oscuro (#1E3A8A).
-        expect(block).toMatch(/color\s*:\s*#1E3A8A/i);
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] Antes se fijaba el HEX claro: el
+        // mecanismo que hacia del chip una pastilla blanquecina en tema oscuro.
+        // La propiedad real —la familia cromatica, distinta de sus vecinas— se
+        // afirma sobre el acento del velo.
+        expect(block).toMatch(/background:\s*color-mix\(in srgb,\s*var\(--info\)/);
+        expect(block).toMatch(/color:\s*var\(--info-text\)/);
+        // Sigue sin ser ni error ni warning, que es el punto de la prueba.
+        expect(block.slice(0, 400)).not.toMatch(/--danger|--warning/);
     });
 });

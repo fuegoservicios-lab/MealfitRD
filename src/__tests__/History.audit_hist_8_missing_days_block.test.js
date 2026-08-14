@@ -422,15 +422,21 @@ describe('[P2-HIST-AUDIT-8] CSS module classes', () => {
         expect(cssSrc).toMatch(/\.missingDaysInfo\s*\{/);
         expect(cssSrc).toMatch(/\.missingDaysWarn\s*\{/);
         expect(cssSrc).toMatch(/\.missingDaysBad\s*\{/);
-        // Bad usa rojo simétrico con statusFailed (#FEF2F2 / #991B1B).
+        // [P1-HIST-CHIP-VEIL · 2026-08-13] Antes se fijaban los HEX claros
+        // (#FEF2F2 / #FFFBEB), que en tema oscuro pintaban bloques
+        // blanquecinos. La simetría con los status chips —el punto de esta
+        // prueba— se afirma sobre las familias del DS, no sobre sus valores.
         const badIdx = cssSrc.indexOf('.missingDaysBad');
         const badBlock = cssSrc.slice(badIdx, badIdx + 300);
-        expect(badBlock).toMatch(/#FEF2F2/i);
-        expect(badBlock).toMatch(/#991B1B/i);
+        expect(badBlock).toMatch(/var\(--danger\)/);
+        expect(badBlock).toMatch(/var\(--danger-text\)/);
         // Warn usa amber simétrico con statusPartial.
         const warnIdx = cssSrc.indexOf('.missingDaysWarn');
         const warnBlock = cssSrc.slice(warnIdx, warnIdx + 300);
-        expect(warnBlock).toMatch(/#FFFBEB/i);
-        expect(warnBlock).toMatch(/#92400E/i);
+        expect(warnBlock).toMatch(/var\(--warning\)/);
+        expect(warnBlock).toMatch(/var\(--warning-text\)/);
+        // Y las tres siguen siendo familias DISTINTAS entre sí.
+        const infoIdx = cssSrc.indexOf('.missingDaysInfo');
+        expect(cssSrc.slice(infoIdx, infoIdx + 300)).toMatch(/var\(--info\)/);
     });
 });
