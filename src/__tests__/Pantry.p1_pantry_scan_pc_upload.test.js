@@ -117,7 +117,13 @@ describe('P1-PANTRY-SCAN-PC-UPLOAD · Pantry.jsx sin wrapper vacío alrededor de
         });
     });
 
-    test('AMBAS ocurrencias pasan `style={{...}}` directo en la prop — la separación visual no se perdió al quitar el wrapper', () => {
+    // [P1-PANTRY-SCAN-TOOLBAR · 2026-08-14] Antes se exigía `style={{...}}` con
+    // margen en LAS DOS instancias, porque ambas colgaban sueltas y ese margen
+    // sustituía al wrapper eliminado. La de escritorio se mudó DENTRO de la
+    // barra, donde la separación la da el `gap` del flex — pedirle un margen
+    // propio ahí la desalinearía de sus vecinos. Cada una resuelve su
+    // separación por el medio que le toca, y eso es lo que se comprueba.
+    test('cada instancia resuelve su separación: la suelta con margen, la de barra con el gap', () => {
         const src = readPantry();
         const re = /<PantryScanButton\b/g;
         let m;
@@ -126,13 +132,14 @@ describe('P1-PANTRY-SCAN-PC-UPLOAD · Pantry.jsx sin wrapper vacío alrededor de
             tags.push(extractTag(src, m.index));
         }
         expect(tags).toHaveLength(2);
-        tags.forEach((tag) => {
-            expect(tag).toMatch(/style=\{\{/);
-        });
-        // Topbar móvil: mismo valor que el wrapper que reemplaza (marginTop 0.6rem).
-        expect(tags.some((t) => /marginTop:\s*'0\.6rem'/.test(t))).toBe(true);
-        // Columna Principal desktop: mismo valor que el wrapper que reemplaza (margin 0.75rem 0).
-        expect(tags.some((t) => /margin:\s*'0\.75rem 0'/.test(t))).toBe(true);
+        const enBarra = tags.filter((t) => /compact/.test(t));
+        const sueltas = tags.filter((t) => !/compact/.test(t));
+        expect(enBarra, 'debe haber exactamente una instancia en la barra').toHaveLength(1);
+        expect(enBarra[0], 'la de la barra NO lleva margen propio: rompería la línea')
+            .not.toMatch(/style=\{\{/);
+        expect(sueltas, 'la del topbar móvil sigue suelta').toHaveLength(1);
+        expect(sueltas[0], 'la suelta conserva su separación inline')
+            .toMatch(/marginTop:\s*'0\.6rem'/);
     });
 
     // [P1-PANTRY-SCAN-PC-UPLOAD] Ninguna ocurrencia debe re-introducir un

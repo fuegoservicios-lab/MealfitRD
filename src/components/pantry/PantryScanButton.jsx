@@ -98,7 +98,12 @@ const _downscaleToB64 = (file, maxSide = 1024) => new Promise((resolve, reject) 
  *   `pages/Pantry.jsx` (antes envolvían en `<div style={{margin}}>`, ahora pasan `style`
  *   directo). `QPantryBuilder.jsx` no lo usa — su gap de layout es 100% del flex padre.
  */
-export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style }) => {
+// [P1-PANTRY-SCAN-TOOLBAR · 2026-08-14] `compact`: el escáner como un control
+// más de la barra de la Nevera, junto a «+ Añadir». Antes era una tarjeta ancha
+// centrada bajo el toolbar y el dueño la señaló como lo que afeaba la pantalla:
+// el único elemento centrado de una vista alineada a la izquierda, partiendo en
+// dos la relación entre las acciones y la lista.
+export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style, compact = false }) => {
     const fileInputRef = useRef(null);
     const [scanning, setScanning] = useState(false);
     const [scanResults, setScanResults] = useState(null);
@@ -309,8 +314,28 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
         </>
     );
 
+    // [P1-PANTRY-SCAN-TOOLBAR] En compacto el wrapper DESAPARECE del layout
+    // (`display: contents`): el botón pasa a ser hijo directo del flex de la
+    // barra y se alinea con sus vecinos. Sin esto, la barra vería una caja
+    // flex-column en vez del botón.
+    const compactBtn = {
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        height: 44, padding: '0 14px', borderRadius: 12,
+        // Mismo lenguaje que el chip de temperatura de esta barra (velo del
+        // acento + borde), pero en índigo: emparenta con «+ Añadir» —son la
+        // misma tarea— sin competir con su relleno sólido.
+        border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+        background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+        color: 'var(--text-main)', font: 'inherit', fontSize: '.8rem', fontWeight: 700,
+        cursor: scanning ? 'wait' : 'pointer', whiteSpace: 'nowrap',
+        transition: 'background .15s, border-color .15s',
+        animation: scanning ? 'qpb-border 2s ease-in-out infinite' : 'none',
+    };
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', ...style }}>
+        <div style={compact
+            ? { display: 'contents' }
+            : { display: 'flex', flexDirection: 'column', gap: '0.75rem', ...style }}>
             <style>{`
                 @keyframes qpb-spin { to { transform: rotate(360deg); } }
                 @keyframes qpb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
@@ -329,6 +354,36 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
             {/* [feedback owner 2026-07-11] Fila premium en vez de zona punteada
                 (el dashed leía como placeholder/dropzone): badge circular con el
                 ícono, título + subtítulo, pill BETA y hover con acento. */}
+            {compact ? (
+                /* Control de barra: ícono + verbo + BETA. El subtítulo
+                   («Detecta alimentos, cantidades y marcas») no cabe aquí y
+                   tampoco hace falta — el título ya dice qué hace, y lo que
+                   antes explicaba el subtítulo lo cuenta el propio flujo al
+                   abrirse. Se conserva en el `title` para quien se detenga. */
+                <button type="button" disabled={scanning}
+                    onClick={handleCardTap}
+                    title={scanning
+                        ? 'Analizando tu foto… esto toma 1-3 minutos'
+                        : 'Detecta alimentos, cantidades y marcas automáticamente'}
+                    onMouseEnter={(e) => { if (!scanning) { e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 18%, transparent)'; } }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 10%, transparent)'; }}
+                    style={compactBtn}>
+                    {scanning
+                        ? <Loader2 size={16} style={{ color: 'var(--primary)', animation: 'qpb-spin 1s linear infinite' }} />
+                        : (useLiveViewfinder
+                            ? <Camera size={16} style={{ color: 'var(--primary)' }} />
+                            : <ImageUp size={16} style={{ color: 'var(--primary)' }} />)}
+                    <span style={{ animation: scanning ? 'qpb-pulse 1.8s ease-in-out infinite' : 'none' }}>
+                        {scanning ? 'Analizando…' : 'Escanear'}
+                    </span>
+                    <span style={{
+                        fontSize: '.58rem', fontWeight: 700, letterSpacing: '.08em',
+                        textTransform: 'uppercase', color: 'var(--primary)',
+                        border: '1px solid color-mix(in srgb, var(--primary) 45%, transparent)',
+                        borderRadius: 99, padding: '1px 5px',
+                    }}>beta</span>
+                </button>
+            ) : (
             <button type="button" disabled={scanning}
                 onClick={handleCardTap}
                 onMouseEnter={(e) => { if (!scanning) { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'var(--bg-muted)'; } }}
@@ -376,10 +431,21 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                     beta
                 </span>
             </button>
+            )}
 
-            {/* Checklist del flujo NO-cámara (fallback de archivo, visor ya cerrado). */}
+            {/* Checklist del flujo NO-cámara (fallback de archivo, visor ya cerrado).
+                [P1-PANTRY-SCAN-TOOLBAR] En compacto FLOTA anclada abajo en vez de
+                ocupar sitio: desde la barra, una hoja en flujo se colaría entre el
+                buscador y los botones. Misma hoja, distinto anclaje. */}
             {!viewfinderOpen && scanResults && (
-                <div style={{
+                <div style={compact ? {
+                    position: 'fixed', left: '50%', bottom: 20, transform: 'translateX(-50%)',
+                    width: 'min(560px, 92vw)', maxHeight: '70vh', overflowY: 'auto', zIndex: 60,
+                    padding: '0.9rem', borderRadius: '0.9rem',
+                    border: '1px solid var(--primary)', background: 'var(--bg-card)',
+                    boxShadow: '0 18px 40px -12px rgb(0 0 0 / 0.45)',
+                    display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                } : {
                     padding: '0.9rem', borderRadius: '0.9rem',
                     border: '1px solid var(--primary)', background: 'var(--bg-card)',
                     display: 'flex', flexDirection: 'column', gap: '0.5rem',

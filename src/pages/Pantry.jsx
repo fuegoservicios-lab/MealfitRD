@@ -2779,6 +2779,18 @@ const Pantry = () => {
                             >
                                 <Trash2 size={16} />
                             </button>
+                            {/* [P1-PANTRY-SCAN-TOOLBAR · 2026-08-14] El escáner, aquí y
+                                no en una tarjeta suelta debajo: escanear y añadir son la
+                                MISMA tarea por dos caminos (meter comida en la nevera,
+                                con foto o a mano), así que van seguidos y al final de la
+                                barra. En `compact` su wrapper es `display: contents`, de
+                                modo que el botón es hijo directo de este flex. */}
+                            <PantryScanButton
+                                compact
+                                enabled={!!pantryStatus?.photo_scan_enabled}
+                                inventory={inventory}
+                                onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
+                            />
                             <button
                                 type="button"
                                 className={`${fstyles.btn} ${fstyles.add}`}
@@ -2787,19 +2799,6 @@ const Pantry = () => {
                                 <Plus size={16} /> Añadir
                             </button>
                         </div>
-
-                        {/* [P1-PANTRY-DASH-PARITY] Escaner por foto (componente compartido
-                            con el paso 21) — integrado al card, bajo el toolbar.
-                            [P1-PANTRY-SCAN-MOBILE-ONLY · 2026-07-28] SIN <div> wrapper —
-                            ver comentario gemelo en el topbar móvil arriba. `.main` no
-                            declara `gap`, así que el margen que antes llevaba el wrapper
-                            viaja ahora directo en la raíz del componente vía `style`. */}
-                        <PantryScanButton
-                            enabled={!!pantryStatus?.photo_scan_enabled}
-                            style={{ margin: '0.75rem 0' }}
-                            inventory={inventory}
-                            onInventoryChanged={() => { invalidateInventoryCache(); fetchData(false); }}
-                        />
 
                         {/* Chips de categoría (solo móvil) */}
                         <div className={fstyles.chips}>
