@@ -47,7 +47,7 @@ function renderBold(text) {
 export function RecipesView({
   days, activeDayGlobalIdx, onSelectDay,
   meals, activeMealIndex, onSelectMeal,
-  meal, steps = [], dayKcal,
+  meal, steps = [], dayKcal, activeDayLabel = '', activeDayEsHoy = false,
   checkedIngredients = {}, onToggleIngredient,
   onPDF,
 }) {
@@ -57,19 +57,29 @@ export function RecipesView({
         {/* [P3-RECIPES-NO-TITLE · 2026-07-12] Título "Recetario"/"Recetas"
             eliminado a pedido del owner (sin sinónimo de reemplazo). El
             selector de días pasa a ser el ancla izquierda del header. */}
-        {days.length > 1 && (
+        {days.length > 1 ? (
           <div className={styles.days} role="tablist">
             {days.map((d) => (
               <button key={d.globalIdx} role="tab" aria-selected={d.globalIdx === activeDayGlobalIdx}
                       className={styles.day} onClick={() => onSelectDay(d.globalIdx)}>{d.label}</button>
             ))}
           </div>
+        ) : (
+          /* [P1-RECIPES-DAY-LABEL · 2026-08-14] Con UN solo día no hay nada que
+             elegir, pero sigue habiendo algo que decir. Antes esta rama no
+             existía y la pantalla se quedaba muda sobre el día —el owner:
+             «¿por qué si hoy es viernes, en Recetas no lo dice?»— además de
+             dejar el encabezado sin ancla izquierda. */
+          <span className={styles.diaUnico}>
+            {activeDayLabel}{activeDayEsHoy ? ' · hoy' : ''}
+          </span>
         )}
         <span className={styles.sum}>Meta del día · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
       </header>
 
       <div className={styles.layout}>
-        <MealRail meals={meals} active={activeMealIndex} onSelect={onSelectMeal} />
+        <MealRail meals={meals} active={activeMealIndex} onSelect={onSelectMeal}
+                  diaLabel={activeDayLabel} esHoy={activeDayEsHoy} />
         <RecipeDetail
           key={`${activeDayGlobalIdx}|${activeMealIndex}`}
           meal={meal}
@@ -83,10 +93,15 @@ export function RecipesView({
   );
 }
 
-function MealRail({ meals, active, onSelect }) {
+function MealRail({ meals, active, onSelect, diaLabel = '', esHoy = false }) {
+  // [P1-RECIPES-DAY-LABEL · 2026-08-14] «Comidas de hoy» solo cuando el día
+  // activo ES hoy. Con un plan de varios días puedes mirar mañana desde las
+  // pestañas, y el riel seguía llamándolo «hoy»: no era falta de información,
+  // era una afirmación falsa.
+  const titulo = esHoy ? 'Comidas de hoy' : (diaLabel ? `Comidas del ${diaLabel.toLowerCase()}` : 'Comidas del día');
   return (
     <aside className={styles.rail} aria-label="Comidas del día">
-      <div className={styles.railHead}>Comidas de hoy</div>
+      <div className={styles.railHead}>{titulo}</div>
       {meals.map((m, i) => {
         const t = metaFor(m.meal);
         // [P1-EATEN-SLOT-RECIPES · 2026-07-28 · reversado parcialmente por

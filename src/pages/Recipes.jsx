@@ -638,17 +638,31 @@ const Recipes = () => {
 
                         // Días del chunk → pestañas (nombre = grocery_start_date + globalIdx).
                         const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                        // [P1-RECIPES-DAY-LABEL · 2026-08-14] Cada día sabe si es HOY, y
+                        // lo sabe por su FECHA — no por su posición en el array. Es la
+                        // misma lección que P1-HIST-DAY-IDENTITY: el índice no dice nada
+                        // sobre el calendario en cuanto algo desplaza la lista.
+                        const _hoyStr = new Date().toDateString();
                         const days = chunkDays.map((_d, localIdx) => {
                             const globalIdx = chunkStart + localIdx;
                             const dd = new Date(_startMid.getTime());
                             dd.setDate(dd.getDate() + globalIdx);
-                            return { globalIdx, label: diasSemana[dd.getDay()] };
+                            return {
+                                globalIdx,
+                                label: diasSemana[dd.getDay()],
+                                esHoy: dd.toDateString() === _hoyStr,
+                            };
                         });
+                        // El día que se está viendo, resuelto aquí para que las vistas no
+                        // tengan que deducirlo (y para que las dos digan lo mismo).
+                        const _diaActivo = days.find((d) => d.globalIdx === activeDayIndex) || days[0];
 
                         // [P3-RECIPES-MOBILE-DEDICATED] Mismos datos+handlers para
                         // ambas vistas; en móvil va la dedicada (MobileRecipes).
                         const viewProps = {
                             days,
+                            activeDayLabel: _diaActivo?.label || '',
+                            activeDayEsHoy: !!_diaActivo?.esHoy,
                             activeDayGlobalIdx: activeDayIndex,
                             onSelectDay: (g) => { setActiveDayIndex(g); setActiveMealIndex(0); setCheckedIngredients({}); },
                             meals: mealsWithEatenState,

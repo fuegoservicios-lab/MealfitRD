@@ -261,3 +261,10 @@
   .actions { flex-direction: column; gap: 14px; }
   .btn { width: 100%; justify-content: center; }
 }
+
+/* [P1-RECIPES-DAY-LABEL · 2026-08-14] El día cuando NO hay pestañas que
+   elegir. Ocupa el ancla izquierda que dejó libre el selector, así que el
+   encabezado no queda descompensado, y se lee como dato (no como control):
+   tinta apagada, sin caja. El «· hoy» va en la misma línea porque es la
+   respuesta a la pregunta que trajo esto: «¿qué día estoy viendo?». */
+.diaUnico { font-size: .82rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }

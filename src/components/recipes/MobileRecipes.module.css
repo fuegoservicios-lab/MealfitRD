@@ -160,3 +160,10 @@
 /* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Ver comentario en RecipesView.module.css
    (`.srOnly`) — mismo patrón "visually hidden" estándar. */
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* [P1-RECIPES-DAY-LABEL · 2026-08-14] El día cuando NO hay pestañas que
+   elegir. Ocupa el ancla izquierda que dejó libre el selector, así que el
+   encabezado no queda descompensado, y se lee como dato (no como control):
+   tinta apagada, sin caja. El «· hoy» va en la misma línea porque es la
+   respuesta a la pregunta que trajo esto: «¿qué día estoy viendo?». */
+.diaUnico { font-size: .82rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }

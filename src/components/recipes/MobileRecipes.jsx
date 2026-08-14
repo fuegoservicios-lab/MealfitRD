@@ -44,7 +44,7 @@ function renderBold(text) {
 export function MobileRecipes({
   days, activeDayGlobalIdx, onSelectDay,
   meals, activeMealIndex, onSelectMeal,
-  meal, steps = [], dayKcal,
+  meal, steps = [], dayKcal, activeDayLabel = '', activeDayEsHoy = false,
   checkedIngredients = {}, onToggleIngredient,
   onPDF,
 }) {
@@ -85,6 +85,13 @@ export function MobileRecipes({
         {/* [P3-RECIPES-NO-TITLE · 2026-07-12] "Recetario" eliminado (pedido del
             owner, sin sinónimo). La meta del día ocupa la fila. */}
         <div className={styles.topRow}>
+          {/* [P1-RECIPES-DAY-LABEL · 2026-08-14] El día, siempre. Con varios se
+              elige abajo en las pestañas; con uno solo esta es la única
+              mención — antes no había ninguna y la pantalla no decía qué día
+              estabas viendo. */}
+          <span className={styles.diaUnico}>
+            {activeDayLabel}{activeDayEsHoy ? ' · hoy' : ''}
+          </span>
           <span className={styles.sum}>Meta del día · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
         </div>
         {days.length > 1 && (
