@@ -408,6 +408,16 @@
      Verificado en Chrome (getComputedStyle) antes de reescribir: el mixin
      desde :root devuelve srgb(0.31 0.27 0.90) —índigo— mientras el token
      explícito devuelve srgb(0.94 0.27 0.27) —rojo—. De ahí esta forma. */
+  /* [P1-CTA-FILL-DEPTH · 2026-08-14] Relleno del CTA sólido. Era
+     `primary-light → primary` escrito en cinco módulos, y en tema oscuro esos
+     dos tokens se ACLARAN a propósito —están pensados como tinta y acento
+     sobre fondo oscuro—, así que de relleno producían la superficie más
+     luminosa de la pantalla: L* 68,2 contra un panel de 8,3. «Se ve muy
+     brilloso», con razón. De paso el texto blanco encima medía 2,43:1, muy
+     bajo AA: parte del efecto era la tinta lavada.
+     Aquí: `primary → primary-dark`, que en claro da L* 34,6 y texto blanco a
+     7,89:1. La variante oscura vive en su bloque de tema. */
+  --cta-fill: linear-gradient(120deg, var(--primary), var(--primary-dark));
   --cta-shadow: 0 4px 14px -6px color-mix(in srgb, var(--primary) 55%, transparent);
   --cta-shadow-hover: 0 7px 20px -6px color-mix(in srgb, var(--primary) 75%, transparent);
   --cta-shadow-active: 0 3px 10px -5px color-mix(in srgb, var(--primary) 55%, transparent);
@@ -505,6 +515,15 @@ html[data-theme="dark"] {
   --primary: #818CF8;          /* Indigo 400 */
   --primary-dark: #6366F1;     /* Indigo 500 */
   --primary-light: #A5B4FC;    /* Indigo 300 */
+  /* [P1-CTA-FILL-DEPTH · 2026-08-14] Los índigos del tema oscuro son claros
+     por diseño (sirven de tinta sobre fondo oscuro), así que como relleno hay
+     que rebajarlos contra el panel o el botón deslumbra. Al 75% el relleno cae
+     de L* 68,2 a 44,8 —deja de ser lo más luminoso de la pantalla— y el texto
+     blanco sube de 2,43:1 a 5,42:1. Sigue destacando +36 sobre el panel: es un
+     CTA, no un susurro. */
+  --cta-fill: linear-gradient(120deg,
+      color-mix(in srgb, var(--primary) 75%, var(--bg-card)),
+      color-mix(in srgb, var(--primary-dark) 75%, var(--bg-card)));
 
   --secondary: #34D399;        /* Emerald 400 */
   --secondary-dark: #10B981;   /* Emerald 500 */

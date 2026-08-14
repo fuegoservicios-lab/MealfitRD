@@ -434,6 +434,6 @@ function btn(variant) {
   // hover/active. Un box-shadow inline GANA sobre cualquier regla de clase,
   // `:hover` incluido — dejarlo aquí volvería el hover inerte sin que nada
   // fallara a la vista. El call site debe llevar className="mf-cta-solid".
-  if (variant === "primary") return { ...base, color: "#0B1120", background: "linear-gradient(120deg, var(--primary-light), var(--primary))" };
+  if (variant === "primary") return { ...base, color: "#FFFFFF", background: "var(--cta-fill)" };
   return { ...base, color: "var(--text-main)", background: "var(--bg-muted)", border: "1px solid var(--border)" };
 }

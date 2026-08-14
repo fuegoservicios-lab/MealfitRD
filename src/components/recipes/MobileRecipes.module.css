@@ -113,7 +113,7 @@
 /* [P1-CTA-HOVER-PARITY · 2026-08-13] Sombra por token (SSOT en index.css):
    el hover la intensifica sin mover el botón. Sustituye al brightness,
    que la receta aprobada del CTA descartó por imperceptible. */
-.primary { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: var(--cta-shadow); }
+.primary { color: #FFFFFF; background: var(--cta-fill); box-shadow: var(--cta-shadow); }
 .primary:not(.locked):hover { box-shadow: var(--cta-shadow-hover); }
 .primary:not(.locked):active { box-shadow: var(--cta-shadow-active); }
 
