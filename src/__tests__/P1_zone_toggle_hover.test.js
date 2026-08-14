@@ -47,23 +47,41 @@ const regla = (css, selector) => {
 describe.each(MODULOS)('[P1-ZONE-TOGGLE-HOVER] %s', (archivo) => {
     const css = leer(archivo);
 
-    it('el tab inactivo se sombrea al pasar el mouse', () => {
+    it('el tab inactivo enciende su TEXTO, y nada más', () => {
         const hov = regla(css, '.zone:not([aria-selected="true"]):hover');
         expect(hov, 'el tab inactivo no declara :hover — el toggle no acusa el mouse').not.toBe('');
-        expect(hov, 'el velo debe nacer de la tinta del tema (oscurece en claro, aclara en oscuro)')
-            .toMatch(/background:\s*color-mix\(in srgb,\s*var\(--text-muted\)/);
-        expect(hov, 'y el texto sube a la tinta principal').toMatch(/color:\s*var\(--text-main\)/);
+        expect(hov, 'la tinta debe subir PARCIALMENTE hacia --text-main')
+            .toMatch(/color:\s*color-mix\(in srgb,\s*var\(--text-main\)/);
     });
 
-    it('el tab inactivo NO se eleva: elevarse distingue al activo', () => {
+    it('el hover NO toca el fondo ni la elevación (petición de discreción)', () => {
+        // «quiero un sombreado más discreto. Por ejemplo nada más sombrear el
+        // texto». Lo anterior teñía además el fondo con un velo; se retiró.
         const hov = regla(css, '.zone:not([aria-selected="true"]):hover');
-        expect(hov, 'si el inactivo también se eleva, deja de leerse cuál está seleccionado')
+        expect(hov, 'volvió el velo de fondo: el dueño lo pidió solo en el texto')
+            .not.toMatch(/background/);
+        expect(hov, 'si el inactivo se eleva, deja de leerse cuál está seleccionado')
             .not.toMatch(/box-shadow/);
     });
 
-    it('el tab activo pesa un punto más bajo el cursor', () => {
-        expect(regla(css, '.zone[aria-selected="true"]:hover'))
-            .toMatch(/box-shadow:\s*var\(--shadow-md\)/);
+    it('la tinta del hover NO alcanza la del tab seleccionado', () => {
+        // Con `var(--text-main)` pleno —lo que había— el inactivo igualaba
+        // EXACTAMENTE la tinta del activo (ΔL* 0,0 medido) y el toggle perdía
+        // su jerarquía: dos tabs con el mismo texto, distinguidos solo por el
+        // fondo. La mezcla parcial deja el hover a media distancia.
+        const hov = regla(css, '.zone:not([aria-selected="true"]):hover');
+        expect(hov).not.toMatch(/color:\s*var\(--text-main\)\s*;/);
+        const pct = Number((hov.match(/var\(--text-main\)\s+(\d+)%/) || [])[1]);
+        expect(pct, 'la mezcla debe ser parcial y suave').toBeGreaterThan(0);
+        expect(pct, 'una mezcla alta deja de ser discreta').toBeLessThanOrEqual(40);
+    });
+
+    it('el tab activo NO gana sombra bajo el cursor (ya estás ahí)', () => {
+        // Tenía sm→md. Es «sombreado de caja», justo lo que el dueño pidió
+        // quitar; y sobre el tab ya seleccionado el hover no lleva a ninguna
+        // parte, así que no tiene nada que anunciar.
+        expect(regla(css, '.zone[aria-selected="true"]:hover'),
+            'el tab seleccionado no debe cambiar al pasar el mouse').toBe('');
     });
 
     it('la elevación del activo sale de los tokens, no de un rgba fijo', () => {

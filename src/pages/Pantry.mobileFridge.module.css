@@ -58,13 +58,15 @@
 /* [P1-ZONE-TOGGLE-HOVER · 2026-08-14] Elevación por token: el rgba fijo era
    6× más duro que la sombra del sistema en tema claro (0,3 contra 0,05). */
 .zone[aria-selected="true"] { background: var(--bg-card); color: var(--text-main); box-shadow: var(--shadow-sm); }
-.zone[aria-selected="true"]:hover { box-shadow: var(--shadow-md); }
-/* El tab inactivo se SOMBREA (velo de la tinta apagada: oscurece en claro,
-   aclara en oscuro) y sube su texto. Sin elevación — elevarse es lo que
-   distingue al seleccionado, y en claro el estado solo dista 3,7 dL* del
-   riel, así que un hover más fuerte haría dudar de cuál mueble se ve.
-   `var(--bg-muted)` (lo que usa .navitem) no vale: el riel YA es ese color. */
-.zone:not([aria-selected="true"]):hover { background: color-mix(in srgb, var(--text-muted) 8%, transparent); color: var(--text-main); }
+/* [P1-ZONE-TOGGLE-INK · 2026-08-14] El hover vive SOLO en la tinta, por pedido
+   del dueño: «quiero un sombreado más discreto, por ejemplo nada más sombrear
+   el texto». Antes teñía también el fondo con un velo y llevaba la tinta a
+   --text-main PLENO — que es EXACTAMENTE la del tab seleccionado (ΔL* 0,0
+   medido), así que el hover copiaba el estado. Ahora sube un 25% del camino:
+   salto de 8,5 ΔL* en claro y 7,8 en oscuro (se nota) quedándose a 27,8 y
+   22,1 del activo (no lo suplanta). El icono acompaña porque hereda `color`.
+   El tab ACTIVO no cambia bajo el cursor: ya estás en él, no anuncia nada. */
+.zone:not([aria-selected="true"]):hover { color: color-mix(in srgb, var(--text-main) 25%, var(--text-muted)); }
 /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Gemelo byte a byte del chip de
    escritorio (mismo defecto, 1,34:1). Van los dos o el móvil se queda con el
    problema — ese modo de fallo ya mordió antes en este repo. */
