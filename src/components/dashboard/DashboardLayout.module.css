@@ -124,7 +124,13 @@
 
 /* Logo Setup */
 .logo {
-    display: block;
+    /* [P1-DASH-BRAND-MARK · 2026-08-14] Fila: isotipo + wordmark. El `gap` es
+       menor que el espacio entre palabras a propósito — símbolo y nombre son UNA
+       unidad de marca, no dos elementos vecinos. `baseline` no sirve aquí: el
+       glifo no tiene línea base tipográfica, así que se centra ópticamente. */
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     font-size: 1.65rem;
     font-weight: 800;
     margin-bottom: 2.5rem;

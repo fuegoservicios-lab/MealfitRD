@@ -50,6 +50,7 @@ import { prefetchRoute } from '../../utils/routePreload';
 import { prefetchHistoryList } from '../../utils/historyCaches';
 import styles from './DashboardLayout.module.css';
 import Wordmark from '../common/Wordmark';
+import BrandMark from '../common/BrandMark';
 
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const location = useLocation();
@@ -204,7 +205,12 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
             <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div className={styles.brandStack}>
+                        {/* [P1-DASH-BRAND-MARK · 2026-08-14] Isotipo + wordmark. El
+                            símbolo se recuperó del historial (lo borró la auditoría del
+                            landing como asset sin consumidor, que es lo que era) y entra
+                            recortado y a 6 KB — ver BrandMark.jsx. */}
                         <div className={styles.logo}>
+                            <BrandMark size="1.15em" />
                             <Wordmark />
                         </div>
                         {/* [P1-APP-VERSION · 2026-06-19] Versión minimalista (estilo Anthropic) bajo el wordmark. */}
