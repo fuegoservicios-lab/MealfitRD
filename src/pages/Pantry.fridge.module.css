@@ -66,8 +66,12 @@
 .btn { appearance: none; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 15px; border-radius: 12px; border: 1px solid transparent; transition: .15s; white-space: nowrap; }
 /* [P1-LIGHT-INK-CONTRACT] #0B1120 era literalmente el --bg-page del tema
    OSCURO usado como texto sobre índigo: 3,0:1. */
-.add { color: #FFFFFF; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: 0 8px 18px -8px var(--primary); }
-.add:hover { filter: brightness(1.06); }
+/* [P1-CTA-HOVER-PARITY · 2026-08-13] Sombra por token (SSOT en index.css):
+   el hover la intensifica sin mover el botón. Sustituye al brightness,
+   que la receta aprobada del CTA descartó por imperceptible. */
+.add { color: #FFFFFF; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: var(--cta-shadow); }
+.add:hover { box-shadow: var(--cta-shadow-hover); }
+.add:active { box-shadow: var(--cta-shadow-active); }
 .clear { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
 .iconbtn { width: 44px; padding: 0; justify-content: center; }
 

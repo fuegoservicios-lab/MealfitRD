@@ -247,7 +247,10 @@ function PlanHero({ plan, onOpen, onEdit, editing, tempName, setTempName, onEdit
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
           {plan.kcal > 0 && <span style={kcalBig}><b style={{ fontSize: "1.5rem", color: "#FB923C" }}>{plan.kcal.toLocaleString("es-DO")}</b><span>kcal/día</span></span>}
-          <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} style={btn("primary")}><Icon name="chev" size={16} /> Ver plan</button>
+          {/* [P1-CTA-HOVER-PARITY · 2026-08-13] La clase aporta LO ÚNICO que un
+              estilo inline no puede declarar: las sombras de :hover/:active.
+              El resto del botón sigue viniendo de btn("primary"). */}
+          <button type="button" className="mf-cta-solid" onClick={(e) => { e.stopPropagation(); onOpen(); }} style={btn("primary")}><Icon name="chev" size={16} /> Ver plan</button>
         </div>
       </div>
       {(plan.macros.p || plan.macros.c || plan.macros.g) ? (
@@ -426,6 +429,11 @@ function btn(variant) {
   const base = { appearance: "none", cursor: "pointer", font: "inherit", fontWeight: 700, fontSize: ".84rem", display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 13, border: "1px solid transparent", transition: ".15s" };
   // [P2-DESIGN-CONSISTENCY · 2026-07-07] CTA primario igual que Recetas (.primary)
   // y Nevera (.add): gradiente primary-light→primary con texto oscuro.
-  if (variant === "primary") return { ...base, color: "#0B1120", background: "linear-gradient(120deg, var(--primary-light), var(--primary))", boxShadow: "0 8px 20px -8px var(--primary)" };
+  // [P1-CTA-HOVER-PARITY · 2026-08-13] SIN boxShadow aquí a propósito: la
+  // aporta la clase global `.mf-cta-solid` (index.css) junto con sus estados
+  // hover/active. Un box-shadow inline GANA sobre cualquier regla de clase,
+  // `:hover` incluido — dejarlo aquí volvería el hover inerte sin que nada
+  // fallara a la vista. El call site debe llevar className="mf-cta-solid".
+  if (variant === "primary") return { ...base, color: "#0B1120", background: "linear-gradient(120deg, var(--primary-light), var(--primary))" };
   return { ...base, color: "var(--text-main)", background: "var(--bg-muted)", border: "1px solid var(--border)" };
 }

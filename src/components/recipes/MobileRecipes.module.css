@@ -110,7 +110,12 @@
    — misma regla, misma razón (el botón usa `aria-disabled`, no `disabled`
    nativo, así que el selector cuelga de la clase, no de `:disabled`). */
 .btn.locked { cursor: not-allowed; opacity: .55; }
-.primary { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: 0 6px 14px -10px var(--primary); }
+/* [P1-CTA-HOVER-PARITY · 2026-08-13] Sombra por token (SSOT en index.css):
+   el hover la intensifica sin mover el botón. Sustituye al brightness,
+   que la receta aprobada del CTA descartó por imperceptible. */
+.primary { color: #0B1120; background: linear-gradient(120deg, var(--primary-light), var(--primary)); box-shadow: var(--cta-shadow); }
+.primary:not(.locked):hover { box-shadow: var(--cta-shadow-hover); }
+.primary:not(.locked):active { box-shadow: var(--cta-shadow-active); }
 
 .secHead { display: flex; align-items: center; gap: 9px; margin: 24px 0 13px; font-family: var(--font-heading); font-size: 1rem; font-weight: 800; color: var(--text-main); }
 .secHead::before { content: ""; width: 4px; height: 18px; border-radius: 99px; background: var(--accent, var(--secondary)); }

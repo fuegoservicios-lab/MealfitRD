@@ -379,6 +379,25 @@
   --shadow-glow-primary: 0 0 20px rgba(79, 70, 229, 0.3);
   --shadow-glow-secondary: 0 0 20px rgba(16, 185, 129, 0.3);
 
+  /* [P1-CTA-HOVER-PARITY · 2026-08-13] Sombra del CTA sólido (el botón de
+     gradiente primary-light→primary: «+ Añadir», «Ver plan», «Descargar PDF»).
+     Vivía copiada y DIVERGIDA en cinco módulos —tres geometrías distintas para
+     el mismo botón— y ninguno respondía al mouse de forma perceptible.
+
+     La receta es la del CTA del formulario, que el dueño ya aprobó en
+     CTA-HOVER-GLOW (calmado por FORM-CTA-STATIC): la base es tenue y el hover
+     SOLO la intensifica; nada de desplazamiento. Cinco decisiones suyas piden
+     lo mismo (P3-AVATAR-NO-MOTION, preferenceCard, P3-PRICING-CARDS-STATIC,
+     FORM-STATIC-HOVER, P3-VERBTN-NO-MOTION): el botón no se mueve, solo pesa
+     más bajo el cursor.
+
+     Nace de --primary vía color-mix y no de un rgba fijo, así que sigue al
+     tema: en claro es el índigo profundo, en oscuro el índigo claro del tema.
+     No se define aquí por tema porque la mezcla ya lo resuelve sola. */
+  --cta-shadow: 0 4px 14px -6px color-mix(in srgb, var(--primary) 55%, transparent);
+  --cta-shadow-hover: 0 7px 20px -6px color-mix(in srgb, var(--primary) 75%, transparent);
+  --cta-shadow-active: 0 3px 10px -5px color-mix(in srgb, var(--primary) 55%, transparent);
+
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
@@ -717,6 +736,32 @@ html[data-theme="dark"] .glass-panel {
   box-shadow:
     0 4px 14px -6px rgba(37, 99, 235, 0.3),
     0 0 0 3px rgba(129, 140, 248, 0.55);
+}
+
+/* [P1-CTA-HOVER-PARITY · 2026-08-13] Utilidad para los CTA sólidos cuyo estilo
+   vive INLINE y por tanto no puede declarar `:hover` — el caso de «Ver plan»
+   del Historial, que se pinta con la fábrica `btn("primary")` en JS. Aquí solo
+   viven las tres sombras: el gradiente, el padding y el resto siguen inline, así
+   que no hay dos sitios peleándose por la misma propiedad.
+
+   Hermana de `.mf-cta-btn` (el CTA del formulario): misma conducta, distinto
+   color de origen —aquella nace del azul del formulario, esta de --primary. */
+.mf-cta-solid {
+  box-shadow: var(--cta-shadow);
+  transition: box-shadow 0.2s ease;
+}
+.mf-cta-solid:disabled {
+  box-shadow: none;
+}
+.mf-cta-solid:not(:disabled):hover {
+  box-shadow: var(--cta-shadow-hover);
+}
+.mf-cta-solid:not(:disabled):active {
+  box-shadow: var(--cta-shadow-active);
+}
+.mf-cta-solid:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* [FORM-CTA-UNIFY · 2026-07-02] Botón ghost secundario del formulario ("Saltar a
