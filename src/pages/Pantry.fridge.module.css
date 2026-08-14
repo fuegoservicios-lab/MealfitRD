@@ -29,7 +29,16 @@
 
 .zones { display: inline-flex; gap: 4px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 11px; padding: 4px; }
 .zone { flex: 1; appearance: none; border: 0; cursor: pointer; font: inherit; font-size: .76rem; font-weight: 700; padding: 8px; border-radius: 8px; color: var(--text-muted); background: transparent; transition: .16s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-.zone[aria-selected="true"] { background: var(--bg-card); color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+/* [P1-ZONE-TOGGLE-HOVER · 2026-08-14] Elevación por token: el rgba fijo era
+   6× más duro que la sombra del sistema en tema claro (0,3 contra 0,05). */
+.zone[aria-selected="true"] { background: var(--bg-card); color: var(--text-main); box-shadow: var(--shadow-sm); }
+.zone[aria-selected="true"]:hover { box-shadow: var(--shadow-md); }
+/* El tab inactivo se SOMBREA (velo de la tinta apagada: oscurece en claro,
+   aclara en oscuro) y sube su texto. Sin elevación — elevarse es lo que
+   distingue al seleccionado, y en claro el estado solo dista 3,7 dL* del
+   riel, así que un hover más fuerte haría dudar de cuál mueble se ve.
+   `var(--bg-muted)` (lo que usa .navitem) no vale: el riel YA es ese color. */
+.zone:not([aria-selected="true"]):hover { background: color-mix(in srgb, var(--text-muted) 8%, transparent); color: var(--text-main); }
 
 .nav { display: flex; flex-direction: column; gap: 3px; }
 .navitem { --cat: var(--primary); appearance: none; border: 0; cursor: pointer; font: inherit; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 11px; color: var(--text-muted); background: transparent; text-align: left; transition: .14s; }

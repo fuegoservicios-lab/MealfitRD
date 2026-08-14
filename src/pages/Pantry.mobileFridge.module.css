@@ -55,7 +55,16 @@
 .bar { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .zones { display: inline-flex; gap: 4px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
 .zone { appearance: none; border: 0; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700; padding: 8px 15px; border-radius: 9px; color: var(--text-muted); background: transparent; transition: .16s; display: inline-flex; align-items: center; gap: 7px; }
-.zone[aria-selected="true"] { background: var(--bg-card); color: var(--text-main); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+/* [P1-ZONE-TOGGLE-HOVER · 2026-08-14] Elevación por token: el rgba fijo era
+   6× más duro que la sombra del sistema en tema claro (0,3 contra 0,05). */
+.zone[aria-selected="true"] { background: var(--bg-card); color: var(--text-main); box-shadow: var(--shadow-sm); }
+.zone[aria-selected="true"]:hover { box-shadow: var(--shadow-md); }
+/* El tab inactivo se SOMBREA (velo de la tinta apagada: oscurece en claro,
+   aclara en oscuro) y sube su texto. Sin elevación — elevarse es lo que
+   distingue al seleccionado, y en claro el estado solo dista 3,7 dL* del
+   riel, así que un hover más fuerte haría dudar de cuál mueble se ve.
+   `var(--bg-muted)` (lo que usa .navitem) no vale: el riel YA es ese color. */
+.zone:not([aria-selected="true"]):hover { background: color-mix(in srgb, var(--text-muted) 8%, transparent); color: var(--text-main); }
 /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Gemelo byte a byte del chip de
    escritorio (mismo defecto, 1,34:1). Van los dos o el móvil se queda con el
    problema — ese modo de fallo ya mordió antes en este repo. */
