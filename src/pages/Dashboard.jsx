@@ -1944,6 +1944,28 @@ const DashboardInner = () => {
             if (ignore) return;
             if (!result.stale) {
                 setLiveInventory(result.data);
+                // [P1-DASH-INV-CACHE-WRITE · 2026-08-14] Reponer la caché, que hasta
+                // hoy este fetch NO tocaba.
+                //
+                // EL CIRCUITO ESTABA A MEDIAS. P1-DASHBOARD-CACHE-INVENTORY añadió la
+                // LECTURA (el `useState(_cachedInv || null)` de arriba) y su comentario
+                // decía «Dashboard solo guardaba sin leer»... pero el único
+                // `setCachedInventory` del fichero vive dentro del flujo de RESTOCK.
+                // O sea que la caché la producía la Nevera y la consumía el Dashboard,
+                // sin reponerse: quien no entra a /dashboard/pantry —o entró hace más
+                // de 10 min, el TTL— arrancaba con `liveInventory = null` en CADA F5.
+                //
+                // Consecuencia visible, que es como se detectó: `shoppingDeltaMeta`
+                // exige `liveInventory !== null`, así que el aviso «Tu Nevera ya cubre
+                // la lista (N ítems)» no se pintaba hasta que resolvía este fetch. El
+                // dueño lo reportó como «desaparece unos milisegundos al refrescar».
+                //
+                // ⚠️ Va DENTRO del `!result.stale`: `fetchFreshInventoryWithTimeout`
+                // marca stale en timeout/error/respuesta vacía, y persistir eso
+                // guardaría el fallo durante los 10 min del TTL y lo serviría como si
+                // fuera el inventario real del usuario. Un fallo puntual no puede
+                // convertirse en diez minutos de mentira.
+                setCachedInventory(result.data);
                 setInventoryStale(false);
             } else {
                 // Timeout/error/empty_response: no sobreescribimos liveInventory
@@ -1989,6 +2011,11 @@ const DashboardInner = () => {
             );
             if (!result.stale) {
                 setLiveInventory(result.data);
+                // [P1-DASH-INV-CACHE-WRITE · 2026-08-14] La cache sigue al estado.
+                // Si este callsite avanza `liveInventory` y no repone la cache, el
+                // proximo montaje hidrataria con un valor VIEJO -- peor que arrancar
+                // sin ninguno, porque un dato caducado no se distingue de uno fresco.
+                setCachedInventory(result.data);
                 setInventoryStale(false);
             } else {
                 setInventoryStale(true);
@@ -3179,6 +3206,8 @@ const DashboardInner = () => {
             if (!_freshFetchResult.stale) {
                 freshInventoryForPdf = _freshFetchResult.data;
                 setLiveInventory(_freshFetchResult.data); // Actualizar estado global también
+                // [P1-DASH-INV-CACHE-WRITE · 2026-08-14] Idem: cache al dia con el estado.
+                setCachedInventory(_freshFetchResult.data);
                 // [P1-5] El fetch fresco confirmó datos vivos → bajamos el chip
                 // ámbar in-app si estaba activo desde el mount o focus anterior.
                 setInventoryStale(false);
