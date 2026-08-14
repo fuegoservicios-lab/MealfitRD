@@ -2695,6 +2695,18 @@ const Pantry = () => {
                             ))}
                         </div>
 
+                        {/* [P1-PANTRY-TEMP-IS-INFO · 2026-08-14] La temperatura describe el
+                            MUEBLE seleccionado, así que cuelga de su interruptor y no de la
+                            fila de acciones, donde era lo único que no hacía nada al
+                            pulsarlo (y donde parecía un botón, que fue el reporte). Por eso
+                            mismo sigue apareciendo solo con la nevera: la alacena no tiene
+                            temperatura que declarar. */}
+                        {tempZone === 'frio' && (
+                            <span className={fstyles.temp}>
+                                <Snowflake size={13} /> 3°C · Frío Max <span className={fstyles.dot} />
+                            </span>
+                        )}
+
                         <nav className={fstyles.nav} aria-label="Categorías">
                             <button
                                 type="button"
@@ -2765,11 +2777,6 @@ const Pantry = () => {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            {tempZone === 'frio' && (
-                                <span className={fstyles.temp}>
-                                    <Snowflake size={15} /> 3°C · Frío Max <span className={fstyles.dot} />
-                                </span>
-                            )}
                             <button
                                 type="button"
                                 className={`${fstyles.btn} ${fstyles.clear} ${fstyles.iconbtn}`}

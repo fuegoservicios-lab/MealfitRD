@@ -73,7 +73,14 @@
 /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] El dueño señaló este chip. El texto era
    cyan-300 sobre su propio tinte: 1,34:1, el segundo peor del dashboard. El
    tinte y el borde no se tocan — el chip sigue siendo el mismo, solo se lee. */
-.temp { display: inline-flex; align-items: center; gap: 8px; font-size: .76rem; font-weight: 700; color: var(--ink-door); background: color-mix(in srgb, #22D3EE 12%, transparent); border: 1px solid color-mix(in srgb, #22D3EE 30%, transparent); padding: 9px 13px; border-radius: 12px; white-space: nowrap; }
+/* [P1-PANTRY-TEMP-IS-INFO · 2026-08-14] Era una píldora con fondo, borde y
+   esquinas de 12px metida entre el buscador y la papelera: la anatomía de un
+   botón en la fila de los botones. Ahora es lo que siempre fue —el estado del
+   mueble seleccionado— y se lee como tal: una línea de metadato bajo el
+   interruptor Nevera/Alacena, sin caja que invite a pulsarla. El copo conserva
+   el cian del mueble; sin él la línea perdería su identidad. */
+.temp { display: flex; align-items: center; gap: 7px; margin: 9px 2px 0; font-size: .72rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.temp svg { flex: none; color: var(--ink-door); }
 /* El punto verde se queda (adorno redundante: el chip ya dice «Frío Max»). Se
    retira su halo: un box-shadow de color solo se lee sobre fondo oscuro; sobre
    blanco difumina el borde del punto y resta nitidez en vez de añadirla. */
