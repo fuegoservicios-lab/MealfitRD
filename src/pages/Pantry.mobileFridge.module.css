@@ -58,15 +58,19 @@
 /* [P1-ZONE-TOGGLE-HOVER · 2026-08-14] Elevación por token: el rgba fijo era
    6× más duro que la sombra del sistema en tema claro (0,3 contra 0,05). */
 .zone[aria-selected="true"] { background: var(--bg-card); color: var(--text-main); box-shadow: var(--shadow-sm); }
-/* [P1-ZONE-TOGGLE-INK · 2026-08-14] El hover vive SOLO en la tinta, por pedido
-   del dueño: «quiero un sombreado más discreto, por ejemplo nada más sombrear
-   el texto». Antes teñía también el fondo con un velo y llevaba la tinta a
-   --text-main PLENO — que es EXACTAMENTE la del tab seleccionado (ΔL* 0,0
-   medido), así que el hover copiaba el estado. Ahora sube un 25% del camino:
-   salto de 8,5 ΔL* en claro y 7,8 en oscuro (se nota) quedándose a 27,8 y
-   22,1 del activo (no lo suplanta). El icono acompaña porque hereda `color`.
-   El tab ACTIVO no cambia bajo el cursor: ya estás en él, no anuncia nada. */
-.zone:not([aria-selected="true"]):hover { color: color-mix(in srgb, var(--text-main) 25%, var(--text-muted)); }
+/* [P1-ZONE-TOGGLE-INK · 2026-08-14] El hover vive SOLO en la tinta —el dueño lo
+   pidió así— y a PLENA intensidad, porque a media no se ve: la primera versión
+   subía un 25% del camino (8,4 ΔL*) y él reportó «no se nota». Medir el salto
+   como si fueran dos muestras lado a lado engaña: en un hover el ojo NO tiene
+   referencia simultánea —ves un estado y luego el otro, además con 0,16s de
+   transición— así que hace falta bastante más delta que en una comparación.
+   Comprobado con capturas de 25/50/70/100%: por debajo del 70% no se percibe.
+
+   Que la tinta iguale a la del tab activo NO lo hace ambiguo: al seleccionado
+   lo identifica su PASTILLA (fondo + sombra), no su color de texto. Es lo que
+   ya hace `.navitem:hover` en esta misma pantalla. Lo que el hover no debe
+   tomar prestado es esa pastilla. */
+.zone:not([aria-selected="true"]):hover { color: var(--text-main); }
 /* [P1-LIGHT-INK-CONTRACT · 2026-08-10] Gemelo byte a byte del chip de
    escritorio (mismo defecto, 1,34:1). Van los dos o el móvil se queda con el
    problema — ese modo de fallo ya mordió antes en este repo. */

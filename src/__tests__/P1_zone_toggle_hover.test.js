@@ -50,8 +50,8 @@ describe.each(MODULOS)('[P1-ZONE-TOGGLE-HOVER] %s', (archivo) => {
     it('el tab inactivo enciende su TEXTO, y nada más', () => {
         const hov = regla(css, '.zone:not([aria-selected="true"]):hover');
         expect(hov, 'el tab inactivo no declara :hover — el toggle no acusa el mouse').not.toBe('');
-        expect(hov, 'la tinta debe subir PARCIALMENTE hacia --text-main')
-            .toMatch(/color:\s*color-mix\(in srgb,\s*var\(--text-main\)/);
+        expect(hov, 'a plena intensidad: por debajo del 70% no se percibe (comprobado en capturas)')
+            .toMatch(/color:\s*var\(--text-main\)/);
     });
 
     it('el hover NO toca el fondo ni la elevación (petición de discreción)', () => {
@@ -64,16 +64,19 @@ describe.each(MODULOS)('[P1-ZONE-TOGGLE-HOVER] %s', (archivo) => {
             .not.toMatch(/box-shadow/);
     });
 
-    it('la tinta del hover NO alcanza la del tab seleccionado', () => {
-        // Con `var(--text-main)` pleno —lo que había— el inactivo igualaba
-        // EXACTAMENTE la tinta del activo (ΔL* 0,0 medido) y el toggle perdía
-        // su jerarquía: dos tabs con el mismo texto, distinguidos solo por el
-        // fondo. La mezcla parcial deja el hover a media distancia.
+    it('lo que el hover NO puede tomar prestado es la PASTILLA del activo', () => {
+        // Corrección de una regla mía anterior: llegué a exigir que la tinta
+        // del hover no alcanzara la del seleccionado. Con la evidencia
+        // delante —capturas de 25/50/70/100%— la regla estaba mal planteada:
+        // al tab activo lo identifica su pastilla (fondo + sombra), no su
+        // color de texto, y limitar la tinta solo conseguía que el hover
+        // fuese invisible («no se nota», reportado). Lo que de verdad hay que
+        // impedir es que el hover copie fondo o elevación.
         const hov = regla(css, '.zone:not([aria-selected="true"]):hover');
-        expect(hov).not.toMatch(/color:\s*var\(--text-main\)\s*;/);
-        const pct = Number((hov.match(/var\(--text-main\)\s+(\d+)%/) || [])[1]);
-        expect(pct, 'la mezcla debe ser parcial y suave').toBeGreaterThan(0);
-        expect(pct, 'una mezcla alta deja de ser discreta').toBeLessThanOrEqual(40);
+        const act = regla(css, '.zone[aria-selected="true"]');
+        expect(act, 'el activo debe seguir teniendo su pastilla').toMatch(/background:\s*var\(--bg-card\)/);
+        expect(hov, 'el hover no debe adoptar el fondo del seleccionado').not.toMatch(/background/);
+        expect(hov, 'ni su elevación').not.toMatch(/box-shadow/);
     });
 
     it('el tab activo NO gana sombra bajo el cursor (ya estás ahí)', () => {
