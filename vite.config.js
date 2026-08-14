@@ -1,7 +1,10 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'fs'
+// [P1-LANDING-HEAD-PRELOAD · 2026-08-14] Ver el plugin `bioboros-landing-head`
+// más abajo y el porqué extenso en scripts/landingHead.mjs.
+import { landingPreloadTargets, landingHeadSnippet } from './scripts/landingHead.mjs'
 
 // [BIOBOROS-SENTRY-RELEASE · 2026-07-30] El release de Sentry se hornea aquí
 // como UNA cadena literal, derivada de package.json.
@@ -37,9 +40,46 @@ const APP_RELEASE = `bioboros@${pkg.version}`
 // value no se usa (siempre true para console.*) el call es eliminado por
 // tree-shaking. No requiere terser ni deps extra.
 // Anchor: P3-FRONTEND-1-ESBUILD-DROP-CONSOLE.
-export default defineConfig(({ mode }) => ({
+/**
+ * [P1-LANDING-HEAD-PRELOAD · 2026-08-14] Inyecta en el `<head>` compilado un
+ * bloque que decide por HOST qué precalentar: en el apex, el chunk del landing
+ * (que hasta hoy no se descubría hasta parsear el entry entero); fuera del apex,
+ * el `preconnect` al host de autenticación, que antes estaba fijo en index.html
+ * y por tanto también en la portada, donde no se contacta jamás.
+ *
+ * `order: 'post'` + `ctx.bundle` porque los nombres llevan hash de contenido:
+ * sólo se conocen cuando el bundle ya está generado. En dev no hay bundle y el
+ * hook no hace nada — el servidor de dev sirve los módulos sin hashear.
+ */
+const landingHeadPlugin = (authOrigin) => ({
+  name: 'bioboros-landing-head',
+  transformIndexHtml: {
+    order: 'post',
+    handler(html, ctx) {
+      if (!ctx || !ctx.bundle) return html
+      const snippet = landingHeadSnippet(landingPreloadTargets(ctx.bundle), { authOrigin })
+      if (!snippet) return html
+      return html.replace('</head>', `${snippet}\n</head>`)
+    },
+  },
+})
+
+export default defineConfig(({ mode }) => {
+  // El origen de Neon Auth se deriva de `VITE_NEON_AUTH_URL` en vez de repetirse
+  // a mano: el valor ya vive en `.env.production` y una segunda copia en el HTML
+  // fue justo lo que dejó el preconnect apuntando a un host que el apex no usa.
+  const env = loadEnv(mode, process.cwd(), '')
+  let authOrigin = ''
+  try {
+    authOrigin = env.VITE_NEON_AUTH_URL ? new URL(env.VITE_NEON_AUTH_URL).origin : ''
+  } catch {
+    authOrigin = ''
+  }
+
+  return {
   plugins: [
     react(),
+    landingHeadPlugin(authOrigin),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -82,16 +122,33 @@ export default defineConfig(({ mode }) => ({
         //     solo fallback y el .webp NO está en globPatterns → ninguno se precachea.
         //     (auth_bg_new.png/.webp eliminados en P2-DEAD-CODE-SAFE — el fondo de Auth
         //     es ahora un gradient CSS.)
-        //   - og-image.png (~174KB) [P6-SPEED-IMG · 2026-06-01]: imagen Open Graph
-        //     que SOLO piden los unfurlers de redes sociales (WhatsApp/Slack/X) al
-        //     hacer GET al index.html. NUNCA se renderiza en la app → no necesita
-        //     estar offline. Excluirla recorta el precache sin afectar UX.
+        //   - apple-touch-icon*.png (~137KB entre los tres) [P1-LANDING-SW-DEFER ·
+        //     2026-08-14]: iconos que pide el SISTEMA OPERATIVO cuando el usuario
+        //     INSTALA el PWA («Añadir a inicio») o abre el share sheet de iOS.
+        //     Dentro de la app no se renderizan nunca, así que un visitante anónimo
+        //     del landing los descargaba enteros para no mostrarlos jamás.
+        //     ⚠️ Excluidos del PRECACHE, NO borrados: `manifest.json` referencia
+        //     `apple-touch-icon.png` 4 veces y BRAND-FAVICON-B los declara por
+        //     escrito fallback de root. Borrarlos rompe el icono del PWA instalado.
+        //     El navegador los sigue pidiendo por red en el momento de instalar,
+        //     que es exactamente cuando hacen falta.
         // El app-shell (JS/CSS/HTML + favicons) SÍ se precachea para el
         // offline-load.
+        //
+        // [P1-LANDING-SW-DEFER · 2026-08-14] Aquí había una entrada `og-image.png`
+        // que llevaba meses sin poder casar con nada: el fichero se renombró a
+        // `og-image-v4.jpg` en el rebrand y los `.jpg` ni siquiera entran en
+        // `globPatterns`. Una exclusión que no puede casar no es inofensiva —
+        // quien depure el peso del precache la lee como «esa imagen ya está
+        // excluida» y busca los bytes en otro sitio. Un test la vigila ahora.
         globIgnores: [
           'assets/html2pdf-*.js',
           'dashboard_bg_v2.png',
-          'og-image.png',
+          'apple-touch-icon.png',
+          'apple-touch-icon-180.png',
+          'apple-touch-icon-192.png',
+          'apple-touch-icon-v2.png',
+          'apple-touch-icon-180-v2.png',
         ],
       },
       includeAssets: ['favicon.png'],
@@ -235,4 +292,5 @@ export default defineConfig(({ mode }) => ({
       'e2e/**',
     ],
   },
-}))
+  }
+})

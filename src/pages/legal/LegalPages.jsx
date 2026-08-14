@@ -113,7 +113,7 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
    POLÍTICA DE PRIVACIDAD
    ============================================================================ */
 export const Privacy = () => (
-    <LegalLayout title="Política de Privacidad" lastUpdated="12 de Julio, 2026">
+    <LegalLayout title="Política de Privacidad" lastUpdated="14 de Agosto, 2026">
         <p>En Bioboros nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos, qué cookies y almacenamiento local usamos, y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
 
         <h3>1. Identidad del Responsable del Tratamiento</h3>
@@ -170,6 +170,7 @@ export const Privacy = () => (
 
         <h3>7. Monitoreo de Errores y Telemetría</h3>
         <p>Usamos <strong>Sentry</strong> (Functional Software, Inc.) para detectar errores técnicos en frontend y backend. Tenemos filtros automáticos (PII scrubbing) que eliminan de los reportes de error: <code>user_id</code>, contraseñas, tokens, perfil de salud, contenido de mensajes con el agente y números de pago. El sampling rate por defecto es 10% (configurable). Sentry conserva los reportes según su política propia de retención.</p>
+        <p>Usamos además <strong>PostHog</strong> (PostHog, Inc.) para analítica de producto: cuántas personas usan la plataforma, qué secciones visitan y en qué punto abandonan el registro. Es analítica de uso, no publicidad: no vendemos ni compartimos esos datos con anunciantes, y sólo asociamos los eventos a su cuenta —por identificador interno, nunca por correo ni nombre— si usted ha iniciado sesión. En las páginas públicas (portada, precios, artículos) registramos únicamente la visita a la página, sin captura automática de sus clics ni de lo que escribe. Puede desactivar por completo estos eventos desde <strong>Ajustes → Privacidad → «Ayuda a mejorar Bioboros»</strong>; la preferencia se aplica tanto dentro de la aplicación como en el sitio público.</p>
         <p>No utilizamos Google Analytics, Mixpanel, Facebook Pixel, ni ningún rastreador publicitario.</p>
 
         <h3>8. Proveedores Subcontratados (Encargados de Tratamiento)</h3>
@@ -179,6 +180,7 @@ export const Privacy = () => (
             <li><strong>DeepSeek (Hangzhou DeepSeek Artificial Intelligence Basic Technology Research Co., Ltd.)</strong> — inferencia con modelos de IA generativa (perfil de salud, conversaciones y, cuando esté habilitado, imágenes).</li>
             <li><strong>PayPal Holdings, Inc.</strong> — procesamiento de pagos y suscripciones.</li>
             <li><strong>Functional Software, Inc. (Sentry)</strong> — monitoreo de errores técnicos.</li>
+            <li><strong>PostHog, Inc.</strong> — analítica de producto (visitas, uso de secciones y embudo de registro). Sin datos de salud, correo ni nombre.</li>
             <li><strong>Oracle Corporation (Oracle Cloud Infrastructure)</strong> — infraestructura de hosting (VPS con nginx) del frontend y backend.</li>
             <li><strong>Cohere Inc.</strong> — generación de embeddings vectoriales para la memoria a largo plazo del asistente (a partir de las "lecciones" derivadas de su uso, cuando esta función está habilitada).</li>
         </ul>
@@ -201,16 +203,18 @@ export const Privacy = () => (
         <p>Bioboros está destinada a personas mayores de 18 años. Aunque actualmente solicitamos la edad como dato declarativo del usuario, no realizamos verificación de identidad. Si descubrimos que un menor ha creado una cuenta sin consentimiento parental, eliminaremos la cuenta y sus datos asociados de inmediato. Padres o tutores pueden notificarnos en fuego.servicios@gmail.com.</p>
 
         <h3>12. Transferencias Internacionales</h3>
-        <p>Dado que algunos de nuestros proveedores (Neon, DeepSeek, PayPal, Sentry, Oracle Cloud y Cohere) operan globalmente, sus datos pueden procesarse fuera de República Dominicana — principalmente en Estados Unidos y, en el caso de <strong>DeepSeek</strong>, en la <strong>República Popular China</strong> (ver Sección 4). Exigimos a estos proveedores marcos de protección reconocidos (Cláusulas Contractuales Estándar y/o equivalentes). Nunca enviamos a estos proveedores su nombre completo, correo electrónico ni datos de pago.</p>
+        <p>Dado que algunos de nuestros proveedores (Neon, DeepSeek, PayPal, Sentry, PostHog, Oracle Cloud y Cohere) operan globalmente, sus datos pueden procesarse fuera de República Dominicana — principalmente en Estados Unidos y, en el caso de <strong>DeepSeek</strong>, en la <strong>República Popular China</strong> (ver Sección 4). Exigimos a estos proveedores marcos de protección reconocidos (Cláusulas Contractuales Estándar y/o equivalentes). Nunca enviamos a estos proveedores su nombre completo, correo electrónico ni datos de pago.</p>
 
         <h3>13. Cookies y Almacenamiento Local</h3>
-        <p>Aplicamos un principio de minimalismo: solo usamos los almacenamientos estrictamente necesarios para que el servicio funcione y para recordar sus preferencias entre visitas. <strong>No utilizamos cookies de publicidad, marketing ni rastreadores de terceros</strong> — sin Google Analytics, Meta/TikTok Pixel, retargeting, identificadores publicitarios (IDFA, GAID) ni fingerprinting del navegador.</p>
+        <p>Aplicamos un principio de minimalismo: solo usamos los almacenamientos estrictamente necesarios para que el servicio funcione, para recordar sus preferencias entre visitas y para medir el uso del producto. <strong>No utilizamos cookies de publicidad, marketing ni retargeting</strong> — sin Google Analytics, Meta/TikTok Pixel, identificadores publicitarios (IDFA, GAID) ni fingerprinting del navegador. Sí utilizamos una cookie de <strong>analítica de producto propia</strong> (PostHog), descrita abajo y en la Sección 7, que usted puede desactivar.</p>
         <ul>
             <li><strong>Cookies de sesión (autenticación):</strong> establecen y renuevan su sesión tras iniciar sesión. Son <code>HttpOnly</code> y <code>Secure</code>; sin ellas no podría usar funciones que requieran cuenta. Caducan según la duración de su sesión.</li>
             <li><strong>Cookies técnicas de PayPal:</strong> durante el flujo de pago, PayPal puede establecer cookies en su propio dominio para detección de fraude y para mantener su sesión de pago. No controlamos su contenido; PayPal las describe en su <a href="https://www.paypal.com/us/legalhub/privacy-full" target="_blank" rel="noopener noreferrer" className={styles.link}>política de privacidad</a>.</li>
             <li><strong>Almacenamiento local (<code>localStorage</code>):</strong> guarda en SU dispositivo preferencias y caché operacional (su plan actual, el borrador del formulario de evaluación, el tracker de hidratación, la caché de despensa y del diario nutricional, preferencias de notificaciones y banderitas de UI). Nunca se envía automáticamente a nuestros servidores y persiste hasta que usted lo borre o cierre sesión.</li>
             <li><strong>Service Worker (PWA):</strong> como Aplicación Web Progresiva, registramos un Service Worker que cachea recursos estáticos (imágenes, fuentes, JavaScript) para uso offline e instalación como app. No envía información personal a nuestros servidores.</li>
             <li><strong>Sentry (telemetría técnica):</strong> inserta un identificador anónimo de sesión técnica para correlacionar errores de una misma visita — sin cookies de rastreo publicitario y con filtrado de datos personales (ver Sección 7).</li>
+            <li><strong>PostHog (analítica de producto):</strong> guarda una cookie y una entrada de <code>localStorage</code> con un identificador de visitante para no contarle dos veces entre páginas y poder medir el embudo de registro. No contiene su nombre, correo ni datos de salud, y no se usa para publicidad. Se desactiva desde <strong>Ajustes → Privacidad</strong>; esa preferencia se guarda en el dominio y vale también para el sitio público.</li>
+            <li><strong>Preferencia de privacidad:</strong> si desactiva los eventos de uso, guardamos esa decisión en una cookie de <code>bioboros.com</code> precisamente para poder respetarla también fuera de la aplicación (portada, precios, artículos), que viven en otro origen y no comparten <code>localStorage</code>.</li>
         </ul>
         <p>Usted tiene control total: puede bloquear o eliminar cookies desde la configuración de su navegador, borrar el <code>localStorage</code> y desinstalar el Service Worker desde las DevTools (Application → Storage), o usar el modo incógnito para no persistir nada entre sesiones. Tenga en cuenta que bloquear las cookies estrictamente necesarias (sesión) impedirá iniciar sesión o usar funciones que requieran autenticación.</p>
 

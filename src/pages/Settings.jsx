@@ -17,7 +17,7 @@ import { confirmToast } from '../utils/confirmToast';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { requestNotificationPermission, subscribeToPushNotifications, unsubscribeFromPushNotifications, isPushSupported } from '../utils/pushNotifications';
-import { trackEvent, ANALYTICS_OPT_OUT_KEY, isAnalyticsOptedOut } from '../utils/analytics';
+import { trackEvent, isAnalyticsOptedOut, persistAnalyticsOptOut } from '../utils/analytics';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
 // — iOS Private Mode lanza SecurityError y corta el cleanup del reset
 // preferences (líneas ~775+).
@@ -945,11 +945,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // opt-out REAL de analytics (trackEvent gatea en isAnalyticsOptedOut).
     // Flag por dispositivo en localStorage — la analítica es per-device por
     // naturaleza (PostHog/GA/GTM viven en el browser).
+    // [P1-LANDING-OBS-PAPER · 2026-08-14] Ese `localStorage` es POR ORIGEN, y
+    // esta pantalla sólo existe en app.bioboros.com: quien apagaba la analítica
+    // aquí seguía siendo rastreado en el landing del apex, que no puede leerlo.
+    // `persistAnalyticsOptOut` escribe además una cookie de `.bioboros.com`, que
+    // ven los dos hosts. No vuelvas a escribir la clave a pelo.
     const [analyticsEnabled, setAnalyticsEnabled] = useState(() => !isAnalyticsOptedOut());
     const handleToggleAnalytics = () => {
         setAnalyticsEnabled((prev) => {
             const next = !prev;
-            safeLocalStorageSet(ANALYTICS_OPT_OUT_KEY, next ? '0' : '1');
+            persistAnalyticsOptOut(!next);
             toast.success(next
                 ? 'Gracias por ayudar a mejorar Bioboros.'
                 : 'Eventos de uso desactivados en este dispositivo.');

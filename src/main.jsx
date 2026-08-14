@@ -24,6 +24,8 @@ import App from './App.jsx'
 import { shouldAutoReloadForChunkError } from './utils/chunkReloadGuard'
 // [POSTHOG-ANALYTICS · 2026-07-12] Analítica de producto (gated por VITE_POSTHOG_KEY).
 import { initPostHog } from './utils/posthogClient'
+// [P1-LANDING-OBS-PAPER · 2026-08-14] Qué observabilidad corre según el host.
+import { shouldAttachSentryReplay, isMarketingVisit } from './utils/observabilityScope'
 
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Listener CANONICO de Vite para fallos de
 // preload de chunks/CSS tras un deploy (cubre cualquier formato futuro del
@@ -75,8 +77,22 @@ if (typeof document !== 'undefined') {
 // (custom-sw.js lo escucha) y recarga de forma controlada tras tomar control.
 // Antes (`autoUpdate` sin skipWaiting) el SW nuevo nunca activaba mientras
 // hubiera una pestaña abierta → bundle viejo servido por días tras un deploy.
+// [P1-LANDING-SW-DEFER · 2026-08-14] Aquí vivía `immediate: true`. En
+// workbox-window ese flag significa literalmente «no esperes a `window.load`»
+// (`Workbox.ts`: `if (!immediate && readyState !== 'complete') await
+// addEventListener('load', ...)`), y su propio JSDoc lo marca «(not
+// recommended)». El efecto en el landing era medible: el install arrancaba al
+// EVALUAR este chunk de entrada, es decir mientras el navegador todavía estaba
+// pidiendo el chunk del hero, y disparaba 73 fetches paralelos ≈ 988 KiB por la
+// misma conexión. Un visitante del apex que llega desde WhatsApp y quizá no
+// vuelve nunca pagaba ~1 MB de datos móviles compitiendo contra su propio LCP.
+//
+// Con el default el precache empieza tras `load` y NO se pierde una sola
+// garantía: los tres markers de abajo (P2-PWA-SKIPWAITING, P1-SW-AUTO-APPLY-SAFE,
+// P2-PWA-UPDATE-POLL) operan sobre callbacks POSTERIORES al registro, así que
+// siguen aplicando el deploy exactamente igual, un `load` más tarde.
+// No lo re-añadas: el guard es backend/tests/test_p1_landing_sw_defer.py.
 const updateSW = registerSW({
-  immediate: true,
   onNeedRefresh() {
     // [P1-SW-AUTO-APPLY-SAFE · 2026-07-25] El toast por sí solo NO basta: si el usuario no lo
     // pulsa, sigue con el bundle viejo INDEFINIDAMENTE. Medido en vivo el 25/07: el navegador
@@ -317,7 +333,18 @@ const _attachSentryIntegrations = async () => {
     console.error('[Sentry] no se pudieron adjuntar integraciones diferidas', e);
   }
 };
-if (typeof window !== 'undefined') {
+// [P1-LANDING-OBS-PAPER · 2026-08-14] El landing del apex NO paga este chunk.
+//
+// `await import('@sentry/react')` trae el namespace ENTERO —browserTracing +
+// replay + feedback + replay-canvas—: 357.767 B / ~118 kB gzip medidos. En el
+// apex no hay sesión (P3-APEX-NO-SESSION) ni app (P3-APP-SUBDOMAIN-ROUTING), así
+// que era el vídeo de la sesión de alguien leyendo una página estática, cobrado
+// en datos móviles de prepago. Los errores del landing SIGUEN capturándose: el
+// `sentryInit` de arriba es síncrono y no depende de esto.
+//
+// ⚠️ Este gate NO se sustituye con `VITE_SENTRY_REPLAYS_SESSION_RATE=0`: ese knob
+// (P2-AUDIT-5) regula la INGESTA, y el chunk se descargaría igual.
+if (typeof window !== 'undefined' && shouldAttachSentryReplay()) {
   if ('requestIdleCallback' in window) {
     window.requestIdleCallback(_attachSentryIntegrations, { timeout: 4000 });
   } else {
@@ -363,20 +390,30 @@ createRoot(document.getElementById('root')).render(
 // shell puede pintar. Fallback de 2.5s para que NUNCA se quede colgado.
 // Doble rAF antes de iniciar el fade → garantiza que el contenido ya pintó
 // debajo, así el cross-fade es perfecto.
+// [P1-LANDING-HEAD-PRELOAD · 2026-08-14] En la PORTADA del apex la señal es otra.
+// `mealfit:app-ready` se emite cuando la sesión resuelve, y en el apex eso es
+// síncrono (P3-APEX-NO-SESSION): el splash se iba mientras el chunk de Home aún
+// venía por la red, dejando splash → hueco vacío → contenido. Ahí esperamos a
+// `mealfit:landing-ready`, que Home emite ya montada.
+// Se acota a `/` a propósito: las demás rutas de papel (precios, legales,
+// novedades…) no emiten esa señal, y esperarla ahí colgaría su splash hasta el
+// fallback. El fallback de 2,5 s se conserva intacto como techo en todos los casos.
 const splash = document.getElementById('pwa-splash');
 if (splash) {
+  const esPortadaDelApex = isMarketingVisit() && window.location.pathname === '/';
+  const eventoDeListo = esPortadaDelApex ? 'mealfit:landing-ready' : 'mealfit:app-ready';
   let dismissed = false;
   const hideSplash = () => {
     if (dismissed) return;
     dismissed = true;
     clearTimeout(fallbackTimer);
-    window.removeEventListener('mealfit:app-ready', onReady);
+    window.removeEventListener(eventoDeListo, onReady);
     requestAnimationFrame(() => requestAnimationFrame(() => {
       splash.style.opacity = '0';
       setTimeout(() => splash.remove(), 500); // espera el fin de la transición CSS
     }));
   };
   const onReady = () => hideSplash();
-  window.addEventListener('mealfit:app-ready', onReady, { once: true });
+  window.addEventListener(eventoDeListo, onReady, { once: true });
   const fallbackTimer = setTimeout(hideSplash, 2500);
 }

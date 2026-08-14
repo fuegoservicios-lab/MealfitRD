@@ -180,13 +180,21 @@
     }
   </script>
 
-  <!-- [P2-PRECONNECT-AUTH · 2026-07-09] El origen de Neon Auth está en el
-       critical path del boot autenticado (el splash espera la resolución de la
-       sesión): preconnect abre DNS+TCP+TLS en paralelo con la descarga del JS
-       en vez de en serie al primer fetch. Host fijo de .env.production; si el
-       endpoint de Neon cambia, actualizar aquí también. -->
-  <link rel="preconnect" href="https://ep-divine-sun-aiaszh9z.neonauth.c-4.us-east-1.aws.neon.tech" crossorigin />
-  <link rel="dns-prefetch" href="https://ep-divine-sun-aiaszh9z.neonauth.c-4.us-east-1.aws.neon.tech" />
+  <!-- [P2-PRECONNECT-AUTH · 2026-07-09 · gateado por host P1-LANDING-HEAD-PRELOAD
+       · 2026-08-14] El preconnect al origen de Neon Auth ya NO vive aquí.
+       Sigue siendo correcto donde aplica —abre DNS+TCP+TLS en paralelo con la
+       descarga del JS en vez de en serie al primer fetch del boot autenticado—,
+       pero este HTML lo sirven DOS hosts y el apex no contacta ese origen jamás:
+       `AssessmentContext` corta la sesión en seco con `isApexHost()`
+       (P3-APEX-NO-SESSION, 2026-07-01 — ocho días ANTES de que se añadiera este
+       preconnect; nadie comparó los dos markers). O sea que la portada pagaba un
+       handshake TLS contra us-east-1 a cambio de nada.
+       Ahora lo emite el plugin `bioboros-landing-head` de vite.config.js, que en
+       el apex precarga el chunk del landing y fuera del apex emite ESTE
+       preconnect. De paso el host deja de estar escrito a mano: se deriva de
+       `VITE_NEON_AUTH_URL`, así que un cambio de endpoint ya no exige recordar
+       este fichero. -->
+
 
   <!-- PWA & Apple iOS Support -->
   <!-- [P2-MANIFEST-DEDUPE · 2026-07-09] /manifest.json es el SSOT único

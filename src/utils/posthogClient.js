@@ -8,7 +8,14 @@
 // import() en idle (fuera del critical path, mismo patrón que las integraciones
 // diferidas de Sentry en main.jsx). Al inicializar expone `window.posthog`, así el
 // `trackEvent` de analytics.js —que ya llama window.posthog.capture— enruta solo.
+// [P1-LANDING-OBS-PAPER · 2026-08-14] `autocapture` deja de decidirse aquí: en el
+// apex significaba capturar cada click y cada campo de un visitante SIN CUENTA
+// que sólo está leyendo marketing. La política vive en `observabilityScope.js`,
+// que lo conserva encendido dentro de la app y preserva `capture_pageview` /
+// `capture_pageleave` en ambos hosts — el embudo de POSTHOG-ANALYTICS nace en la
+// portada y sin sus pageviews se queda sin primer escalón.
 import { isAnalyticsOptedOut } from './analytics';
+import { posthogCaptureOptions } from './observabilityScope';
 
 let _initialized = false;
 
@@ -22,9 +29,7 @@ export async function initPostHog() {
         const { default: posthog } = await import('posthog-js');
         posthog.init(key, {
             api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
-            capture_pageview: true,
-            capture_pageleave: true,
-            autocapture: true,
+            ...posthogCaptureOptions(),
             // Solo crea "person profile" tras identify (usuario logueado): ahorra
             // cuota y evita perfiles de visitantes anónimos. Los pageviews anónimos
             // IGUAL cuentan para usuarios activos (distinct_id anónimo).

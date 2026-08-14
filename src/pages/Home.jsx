@@ -12,8 +12,26 @@ import NewsHighlight from '../components/home/NewsHighlight';
 // el clic una última vez antes del footer (componente propio, no vive en
 // Footer.jsx — ver ClosingBand.jsx).
 import ClosingBand from '../components/home/ClosingBand';
+import { useEffect } from 'react';
 
 function Home() {
+    // [P1-LANDING-HEAD-PRELOAD · 2026-08-14] Avisa de que la portada YA está en el
+    // DOM, para que el splash no se retire antes de tiempo.
+    //
+    // El splash se descartaba con `mealfit:app-ready`, que se emite cuando la
+    // sesión resuelve. En el apex eso es SÍNCRONO —`isApexHost()` corta la sesión
+    // en seco (P3-APEX-NO-SESSION)—, así que el splash desaparecía mientras el
+    // chunk de Home todavía venía por la red: el usuario veía splash → hueco
+    // vacío → contenido, y el hueco tenía además su propio spinner a los 250 ms.
+    // Un splash que promete «ya casi» y entrega un vacío es peor que no tenerlo.
+    //
+    // Es una señal ADICIONAL, no un reemplazo: `main.jsx` sólo la espera en `/`
+    // del apex y conserva su fallback de 2,5 s, así que si esta portada fallara
+    // en montar el splash se retira igual.
+    useEffect(() => {
+        window.dispatchEvent(new Event('mealfit:landing-ready'));
+    }, []);
+
     return (
         <>
             <Hero />
