@@ -25,6 +25,16 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
+// [P1-SHELF-CHIP-VEIL · 2026-08-13] La lista nació con un solo archivo y el
+// siguiente reporte del dueño llegó desde la Nevera. Los módulos de pantallas
+// que pintan chips de estado se vigilan juntos: un guard que cubre una
+// pantalla no dice «esa pantalla está bien», dice «de las demás no sé nada».
+const MODULOS = [
+    'History.module.css',
+    'Pantry.fridge.module.css',
+    'Pantry.mobileFridge.module.css',
+];
+
 const css = fs.readFileSync(
     path.resolve(__dirname, '../pages/History.module.css'),
     'utf8',
@@ -32,9 +42,11 @@ const css = fs.readFileSync(
 
 // Los comentarios llevan hex de ejemplo y selectores citados: fuera antes de
 // parsear, o el guard mide la documentación en vez del código.
-const sinComentarios = css.replace(/\/\*[\s\S]*?\*\//g, '');
-const reglas = [...sinComentarios.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+const parsear = (texto) => [...texto.replace(/\/\*[\s\S]*?\*\//g, '')
+    .matchAll(/([^{}]+)\{([^{}]*)\}/g)]
     .map((m) => ({ sel: m[1].trim(), cuerpo: m[2] }));
+
+const reglas = parsear(css);
 
 const clasesDe = (sel) => [...sel.matchAll(/\.([A-Za-z][\w-]*)/g)].map((m) => m[1]);
 
@@ -63,24 +75,35 @@ describe('[P1-HIST-CHIP-VEIL] ningún fondo claro clavado sin respuesta para el 
         expect(conOverrideOscuro.size).toBeGreaterThan(10);
     });
 
-    it('toda regla con fondo claro declara cómo vive en oscuro', () => {
+    it.each(MODULOS)('%s: toda regla con fondo claro declara cómo vive en oscuro', (modulo) => {
+        const fuente = fs.readFileSync(path.resolve(__dirname, '../pages/', modulo), 'utf8');
+        const reglasMod = parsear(fuente);
+        const oscuras = new Set(
+            reglasMod.filter((r) => r.sel.includes('data-theme="dark"'))
+                .flatMap((r) => clasesDe(r.sel)),
+        );
         const huerfanas = [];
-        for (const { sel, cuerpo } of reglas) {
+        for (const { sel, cuerpo } of reglasMod) {
             if (sel.includes('data-theme') || !sel.startsWith('.')) continue;
             const clases = clasesDe(sel);
             if (clases.length === 0) continue;
             const fondo = cuerpo.match(/(?:^|[\s;])background(?:-color)?:\s*(#[0-9A-Fa-f]{3,8})/);
-            if (!fondo) continue;                       // token o color-mix: ya sigue al tema
-            if (luminancia(fondo[1]) < 0.5) continue;   // fondo ya oscuro: no es el defecto
-            if (clases.some((c) => conOverrideOscuro.has(c))) continue;
+            if (!fondo) continue;                        // token o color-mix: ya sigue al tema
+            // Umbral 0,75 y no 0,5: por debajo caen los ACENTOS saturados —un
+            // punto ámbar #FBBF24 está en 0,58 y se ve bien en los dos temas—
+            // mientras los fondos pálidos que son el defecto viven en 0,89+.
+            // Con 0,5 el guard acusaba al punto de la Nevera, y un guard que
+            // grita por lo que está bien acaba desactivado.
+            if (luminancia(fondo[1]) < 0.75) continue;
+            if (clases.some((c) => oscuras.has(c))) continue;
             huerfanas.push(`${sel} → ${fondo[1]}`);
         }
         expect(
             huerfanas,
-            'fondo claro clavado y sin override oscuro: en tema oscuro sale una caja '
-            + 'blanquecina flotando (el caso «Calidad LLM: 2» del dueño). Arréglalo con '
-            + 'la receta del velo —color-mix del acento al 14% sobre transparent— o '
-            + 'dale su regla en el bloque oscuro:\n' + huerfanas.join('\n'),
+            `${modulo}: fondo claro clavado y sin override oscuro. En tema oscuro sale una `
+            + 'caja blanquecina flotando (los casos «Calidad LLM: 2» y «Caduca en 3 días» '
+            + 'del dueño). Arréglalo con la receta del velo —color-mix del acento al 14% '
+            + 'sobre transparent— o dale su regla en el bloque oscuro:\n' + huerfanas.join('\n'),
         ).toEqual([]);
     });
 

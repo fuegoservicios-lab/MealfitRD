@@ -84,25 +84,43 @@ export function getShelfLifeBadge(item) {
  * @returns {{background: string, color: string, borderColor?: string}}
  */
 export function getShelfLifeBadgeStyle(severity) {
+    // [P1-SHELF-CHIP-VEIL · 2026-08-13] Los tres buckets vivían en hex claros
+    // (amber-100 / red-50 / red-100). En tema oscuro el chip quedaba a +76 dL*
+    // por encima de su propia fila —una etiqueta blanca sobre fondo oscuro,
+    // reportado por el dueño— y la incoherencia era interna: la fila que lo
+    // contiene (.row.low) ya se pintaba con velo y el chip de dentro no.
+    //
+    // La receta es la de los chips del Historial: un VELO del acento sobre
+    // transparent. Al no traer luminosidad propia la toma de la fila que tenga
+    // debajo, así que una sola definición sirve para los dos temas. Funciona
+    // igual en estilo inline —que no admite media queries ni [data-theme]—
+    // porque var() y color-mix() los resuelve el navegador en el contexto del
+    // elemento; ESA es la razón de que el arreglo quepa aquí y no haga falta
+    // mover el chip a CSS.
+    //
+    // Los tres niveles se separan por el PESO del velo (antes por saturación
+    // del hex): expired 26% contra urgent 14% deja dL* 6,3 entre ambos. La
+    // tinta de expired se refuerza hacia --text-main porque su velo más denso
+    // se comía el contraste (4,32:1, bajo AA → 5,40:1).
     switch (severity) {
         case 'expired':
             return {
-                background: '#FEE2E2',  // red-100
-                color: '#991B1B',       // red-800
-                borderColor: '#FCA5A5', // red-300
+                background: 'color-mix(in srgb, var(--danger) 26%, transparent)',
+                color: 'color-mix(in srgb, var(--danger-text) 75%, var(--text-main))',
+                borderColor: 'color-mix(in srgb, var(--danger) 45%, transparent)',
             };
         case 'urgent':
             return {
-                background: '#FEF2F2',  // red-50
-                color: '#B91C1C',       // red-700
-                borderColor: '#FECACA', // red-200
+                background: 'color-mix(in srgb, var(--danger) 14%, transparent)',
+                color: 'var(--danger-text)',
+                borderColor: 'color-mix(in srgb, var(--danger) 32%, transparent)',
             };
         case 'warn':
         default:
             return {
-                background: '#FEF3C7',  // amber-100
-                color: '#92400E',       // amber-800
-                borderColor: '#FDE68A', // amber-200
+                background: 'color-mix(in srgb, var(--warning) 14%, transparent)',
+                color: 'var(--warning-text)',
+                borderColor: 'color-mix(in srgb, var(--warning) 32%, transparent)',
             };
     }
 }
