@@ -1,5 +1,12 @@
 /* TrackingProgress Card */
 .card {
+    /* [P1-TRACKING-MACROS-CONTAINER · 2026-08-14] El panel se declara contenedor
+       medible porque su ancho DEPENDE DE QUIEN LO MONTA: en modo plan vive en una
+       columna ancha; en modo contador, DashboardTracking le quita 320px de barra
+       lateral (`minmax(0,1fr) 320px`). El breakpoint de 768px de abajo mide el
+       VIEWPORT y no puede ver esa diferencia — el bug ocurria con un monitor
+       ancho y un panel estrecho. Mismo patron que WaterTracker y la Nevera. */
+    container-type: inline-size;
     background:
         radial-gradient(circle at top right, rgba(99, 102, 241, 0.04) 0%, transparent 45%),
         white;
@@ -93,6 +100,26 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
     padding-top: 0.5rem;
+}
+
+/* [P1-TRACKING-MACROS-CONTAINER · 2026-08-14] Con el PANEL estrecho, las tres
+   barras se apilan — la misma salida que P1-MACRO-BARS-UNIFORM eligio para el
+   telefono, extendida al caso que su premisa no cubria.
+
+   EL BUG QUE CIERRA: en modo contador el panel pierde 320px de barra lateral y
+   cada celda queda en ~200px. «Carbohidratos» + «0 / 269 g» necesitan ~240px,
+   asi que el `flex-wrap` del header partia SOLO esa celda (Proteina y Grasas
+   caben) y las tres barras dejaban de verse iguales — que es exactamente la
+   uniformidad que aquel P-fix declaro como LA decision.
+
+   El umbral sale de la medida, no del gusto: 3 celdas × ~240px + 2 gaps de 2rem
+   ≈ 780px. Por debajo, apilar; por encima (modo plan), las tres columnas caben.
+   NO se resucita la etiqueta corta «Carbos»: ese par se retiro a proposito. */
+@container (max-width: 780px) {
+    .macroGrid {
+        grid-template-columns: 1fr;
+        gap: 0.9rem;
+    }
 }
 
 /* Overlay */
