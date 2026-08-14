@@ -34,8 +34,43 @@ describe('[P1-PLAN-MODE] dashboardNav — SSOT de la nav por modo', () => {
         expect(items[0].path).toBe('/dashboard'); // mismo destino, otro rótulo
     });
 
-    it('isTrackingMode: un plan vivo SIEMPRE gana (nav completa)', () => {
-        expect(isTrackingMode({ plan_mode: 'tracking' }, { days: [] })).toBe(false);
+    // [P1-TRACKING-WINS · 2026-08-14] CONTRATO INVERTIDO por decisión del owner.
+    // El anterior («un plan vivo SIEMPRE gana») nació como fail-open contra flags
+    // stale, pero de paso hacía IMPOSIBLE la promesa de la otra puerta: el owner
+    // entró por el wizard diciendo «quiero usar la app solo como contador» y
+    // aterrizó en el dashboard del plan con una notita de pausa. Elegido:
+    // «contador manda» — una elección EXPLÍCITA de tracking gana, con o sin plan
+    // pausado (el plan queda en Historial con Reanudar). El fail-open sobrevive
+    // donde tenía sentido: modo DESCONOCIDO + plan vivo = nav completa.
+    it('isTrackingMode: la elección EXPLÍCITA de tracking gana, con o sin plan', () => {
+        expect(isTrackingMode({ plan_mode: 'tracking' }, { days: [] })).toBe(true);
+        expect(isTrackingMode({ plan_mode: 'tracking' }, null)).toBe(true);
+    });
+
+    it('isTrackingMode: modo DESCONOCIDO + plan vivo = nav completa (el fail-open original)', () => {
+        localStorage.removeItem('mealfit_plan_mode');
+        expect(isTrackingMode(null, { days: [] })).toBe(false);
+        expect(isTrackingMode({}, { days: [] })).toBe(false);
+    });
+
+    it('isTrackingMode: plan_mode=plan explícito nunca es tracking', () => {
+        expect(isTrackingMode({ plan_mode: 'plan' }, { days: [] })).toBe(false);
+        expect(isTrackingMode({ plan_mode: 'plan' }, null)).toBe(false);
+    });
+
+    it('el wrapper del Dashboard evalúa el MODO antes que planData', () => {
+        // [P1-TRACKING-WINS] El bug reportado vivía en el orden: con
+        // `if (!planData)` primero, un plan pausado en memoria te clavaba en
+        // DashboardInner aunque el modo fuera tracking. El contador debe
+        // decidirse ANTES de mirar si hay plan.
+        const s = read('pages/Dashboard.jsx');
+        const iTracking = s.lastIndexOf("if (_planMode === 'tracking')");
+        const iNoPlan = s.lastIndexOf('if (!planData) {');
+        const iInner = s.lastIndexOf('return <DashboardInner />');
+        expect(iTracking, 'no se encontró la rama tracking del wrapper').toBeGreaterThan(-1);
+        expect(iTracking, 'el modo debe evaluarse ANTES del check de planData')
+            .toBeLessThan(iNoPlan);
+        expect(iNoPlan).toBeLessThan(iInner);
     });
 
     it('isTrackingMode: perfil primero, espejo localStorage después', () => {
@@ -269,7 +304,11 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         // que el botón Reanudar de la franja.
         const s = read('pages/Settings.jsx');
         const h = s.indexOf('const handleTogglePlanMode');
-        const cuerpo = s.slice(h, h + 4200);
+        // Ventana SEMÁNTICA (hasta la siguiente declaración top-level), no un
+        // número fijo de caracteres: la de 4200 se desbordó en cuanto un
+        // comentario legítimo creció dentro de la función (P1-TRACKING-WINS).
+        const fin = s.indexOf('\n    const ', h + 10);
+        const cuerpo = s.slice(h, fin > h ? fin : h + 8000);
         const reloadIdx = cuerpo.indexOf('window.location.reload()');
         expect(reloadIdx).toBeGreaterThan(-1);
         expect(cuerpo.slice(Math.max(0, reloadIdx - 300), reloadIdx)).toContain('if (planData)');
@@ -315,5 +354,39 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         // el descarte de la tarjeta persiste y colapsa a enlace (no borra la puerta)
         expect(s).toContain("_DISMISS_KEY = 'mealfit_turnon_card_dismissed'");
         expect(s).toContain('safeLocalStorageSet(_DISMISS_KEY');
+    });
+
+    it('Con plan pausado la tarjeta del contador ofrece REANUDAR, no vender el wizard', () => {
+        // [P1-TRACKING-WINS · 2026-08-14] Bajo «contador manda», la nota de pausa
+        // de DashboardInner es inalcanzable para usuarios en tracking: esta tarjeta
+        // es LA puerta de vuelta. «Encender el plan» cuesta 1 crédito — ofrecérselo
+        // a quien ya tiene plan guardado sería cobrarle por lo suyo.
+        const s = read('components/dashboard/DashboardTracking.jsx');
+        expect(s).toContain('hayPlanPausado={!!planData}');
+        const rama = s.indexOf('if (hayPlanPausado)');
+        expect(rama).toBeGreaterThan(-1);
+        const fin = s.indexOf('// Las cinco reglas', rama);
+        const cuerpo = s.slice(rama, fin > rama ? fin : rama + 2000);
+        expect(cuerpo).toContain('reanudarPlanes');
+        expect(cuerpo).toContain('Reanudar el plan');
+        // la rama pausada jamás manda al wizard (irAlPlan = 1 crédito)
+        expect(cuerpo).not.toContain('irAlPlan');
+    });
+
+    it('Reanudar es UN solo camino: helper compartido, sin PUT inline duplicado', () => {
+        // [P1-TRACKING-WINS] El PUT+espejo+reload vivía inline en la nota de pausa;
+        // con una 2ª superficie (tarjeta del contador) dos copias drifean — la
+        // lección de las 3 tablas de dieta. Ambos call sites importan el helper y
+        // el PUT de reanudar existe SOLO en planModeResume.js (Settings conserva su
+        // toggle bidireccional propio, que serializa `plan_mode: next`).
+        const helper = read('utils/planModeResume.js');
+        expect(helper).toContain("JSON.stringify({ plan_mode: 'plan' })");
+        expect(helper).toContain("localStorage.setItem('mealfit_plan_mode', 'plan')");
+        const dash = read('pages/Dashboard.jsx');
+        expect(dash).toContain("from '../utils/planModeResume'");
+        expect(dash).not.toContain("JSON.stringify({ plan_mode: 'plan' })");
+        const track = read('components/dashboard/DashboardTracking.jsx');
+        expect(track).toContain("from '../../utils/planModeResume'");
+        expect(track).not.toContain("JSON.stringify({ plan_mode: 'plan' })");
     });
 });

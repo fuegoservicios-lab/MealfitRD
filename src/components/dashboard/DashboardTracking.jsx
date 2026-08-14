@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Gauge, ArrowRight } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
+import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
 import { missingPlanQuestionsCount } from '../../config/formValidation';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
@@ -25,7 +26,7 @@ import styles from './DashboardTracking.module.css';
 // Cuántas preguntas del contrato de PLAN le faltan — un hecho, no un adjetivo.
 const _DISMISS_KEY = 'mealfit_turnon_card_dismissed';
 
-const TurnOnPlanCard = ({ formData }) => {
+const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
     const navigate = useNavigate();
     const { updateData } = useAssessment();
     const [dismissed, setDismissed] = useState(() => safeLocalStorageGet(_DISMISS_KEY, null) === '1');
@@ -43,6 +44,46 @@ const TurnOnPlanCard = ({ formData }) => {
         updateData('appMode', 'plan');
         navigate('/assessment');
     };
+
+    // [P1-TRACKING-WINS · 2026-08-14] Con un plan PAUSADO la tarjeta cambia de
+    // oferta: «Encender el plan» manda al wizard y cuesta 1 crédito — venderle
+    // eso a quien YA tiene un plan guardado sería cobrarle por lo suyo. La
+    // acción correcta es Reanudar (gratis, el mismo PUT quota-exento de la nota
+    // de pausa y de Configuración). Bajo «contador manda» esta tarjeta es LA
+    // puerta de vuelta dentro del dashboard: la nota de pausa de DashboardInner
+    // quedó inalcanzable para usuarios en tracking.
+    if (hayPlanPausado) {
+        if (dismissed) {
+            return (
+                <button type="button" className={styles.turnOnLink} onClick={reanudarPlanes}>
+                    Tu plan está en pausa. Reanúdalo aquí <ArrowRight size={13} aria-hidden="true" />
+                </button>
+            );
+        }
+        return (
+            <div className={styles.turnOnCard}>
+                <span className={styles.turnOnTitle}>Tu plan está en pausa</span>
+                <p className={styles.turnOnBody}>
+                    Sigue guardado en tu Historial. Reanudarlo es gratis y retoma exactamente donde quedó.
+                </p>
+                <div className={styles.turnOnActions}>
+                    <button type="button" className={styles.turnOnBtn} onClick={reanudarPlanes}>
+                        Reanudar el plan
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.turnOnGhost}
+                        onClick={() => {
+                            safeLocalStorageSet(_DISMISS_KEY, '1');
+                            setDismissed(true);
+                        }}
+                    >
+                        Ahora no
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // Las cinco reglas del «enciéndelo» (todas restricciones): un solo sitio, un
     // hecho y un coste, sin animación, el descarte colapsa a enlace (no borra la
@@ -89,7 +130,7 @@ const TurnOnPlanCard = ({ formData }) => {
 const DashboardTracking = () => {
     // Créditos: mismas props que el call site de DashboardInner — el medidor no
     // deriva nada solo (con undefined pintaría 0/0 «agotado», una mentira roja).
-    const { userProfile, formData, session, userPlanLimit, remainingCredits, planCount, isGuest } = useAssessment();
+    const { userProfile, formData, planData, session, userPlanLimit, remainingCredits, planCount, isGuest } = useAssessment();
     const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
     const navigate = useNavigate();
     // null = todavía no sé · {ok:false} = no puedo (y por qué) · {ok:true} = metas.
@@ -158,7 +199,7 @@ const DashboardTracking = () => {
                     isGuest={isGuest}
                 />
                 <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />
-                <TurnOnPlanCard formData={formData} />
+                <TurnOnPlanCard formData={formData} hayPlanPausado={!!planData} />
             </div>
         </div>
     );

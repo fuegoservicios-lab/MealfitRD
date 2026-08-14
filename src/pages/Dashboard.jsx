@@ -68,6 +68,7 @@ import PantryConsentModal from '../components/common/PantryConsentModal';
 // al entrar al Dashboard, 100% de usuarios pagan el costo aunque jamás
 // descarguen PDF. Tooltip-anchor: P2-LAZY-PDF.
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
+import { reanudarPlanes } from '../utils/planModeResume';
 // [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
 import { minBudgetFor, budgetCycleDays } from '../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo de presupuesto personalizado por las metas
@@ -7726,27 +7727,7 @@ const DashboardInner = () => {
                             ({generated_days} de {planData?.total_days_requested || generated_days} listos).{' '}
                             <button
                                 type="button"
-                                onClick={async () => {
-                                    const tId = toast.loading('Reanudando…', { position: 'top-center' });
-                                    try {
-                                        const r = await fetchWithAuth('/api/profile/plan-mode', {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ plan_mode: 'plan' }),
-                                        });
-                                        const d = await r.json().catch(() => null);
-                                        toast.dismiss(tId);
-                                        if (!r.ok || !d?.success) throw new Error(d?.detail || 'No se pudo reanudar.');
-                                        try { localStorage.setItem('mealfit_plan_mode', 'plan'); } catch { /* noop */ }
-                                        toast.success(d.plan_expired
-                                            ? 'Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.'
-                                            : 'Planes reanudados: la generación continúa donde quedó.');
-                                        setTimeout(() => window.location.reload(), 900);
-                                    } catch (e) {
-                                        toast.dismiss(tId);
-                                        toast.error(e?.message || 'No se pudo reanudar.');
-                                    }
-                                }}
+                                onClick={reanudarPlanes}
                                 style={{
                                     border: 0, background: 'transparent', padding: 0,
                                     color: 'var(--primary, #818CF8)', fontWeight: 700,
@@ -9553,14 +9534,19 @@ const Dashboard = () => {
     // no lo quiere — la forma de P1-LOGIN-PLAN-SYNC-RETRY (tratar «no lo sé» como
     // «no lo tiene»). De ahí el espejo en localStorage, que escriben el cierre del
     // wizard y el interruptor de Configuración.
-    if (!planData) {
-        let _localMode = null;
-        try { _localMode = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }
-        const _planMode = userProfile?.plan_mode || _localMode || null;
+    //
+    // [P1-TRACKING-WINS · 2026-08-14] El modo se evalúa ANTES de planData. Con el
+    // orden viejo, un plan pausado en memoria clavaba DashboardInner aunque el
+    // usuario acabara de elegir «solo contador»: el contador manda cuando es
+    // elección explícita; el plan queda en Historial con «Reanudar».
+    let _localMode = null;
+    try { _localMode = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }
+    const _planMode = userProfile?.plan_mode || _localMode || null;
 
-        if (_planMode === 'tracking') {
-            return <DashboardTracking />;
-        }
+    if (_planMode === 'tracking') {
+        return <DashboardTracking />;
+    }
+    if (!planData) {
         return <Navigate to="/assessment" replace />;
     }
 

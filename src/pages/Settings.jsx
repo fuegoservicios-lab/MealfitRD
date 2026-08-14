@@ -328,7 +328,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             const ok = await confirmToast(
                 '¿Pausar la generación de planes?',
                 {
-                    description: 'Tu plan se queda: menú, recetas y lista siguen visibles. Solo se detiene la generación de días nuevos y el avance automático.',
+                    // [P1-TRACKING-WINS · 2026-08-14] Copy ajustado a la decisión
+                    // «contador manda»: en seguimiento el dashboard pasa a ser el
+                    // contador; el plan no desaparece pero ya no es la pantalla.
+                    // El copy anterior («menú, recetas y lista siguen visibles»)
+                    // describía el contrato viejo y habría prometido en falso.
+                    description: 'La app pasa a modo contador (macros y diario). Tu plan no se pierde: queda guardado en tu Historial y puedes reanudarlo cuando quieras — retoma exactamente donde quedó.',
                     confirmLabel: 'Pausar planes',
                     cancelLabel: 'Volver',
                 },

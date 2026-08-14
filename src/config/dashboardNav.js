@@ -3,9 +3,10 @@
 // Estaba duplicada a mano en DashboardLayout.jsx y BottomTabBar.jsx; con entradas que
 // aparecen y desaparecen por modo, dos copias son dos verdades. Los iconos los pone
 // cada consumidor (los estilos difieren); aquí viven las DECISIONES:
-//   · En modo seguimiento sin plan, «Recetas» se oculta — no le falta el plan: ES el
-//     plan. Y «Plan» se rotula «Hoy»: tocar «Plan» y aterrizar en un diario es una
-//     promesa incumplida.
+//   · En modo seguimiento, «Recetas» se oculta — con o sin plan pausado
+//     (P1-TRACKING-WINS): mientras el contador manda, las recetas viven en el
+//     Historial. Y «Plan» se rotula «Hoy»: tocar «Plan» y aterrizar en un diario
+//     es una promesa incumplida.
 export const navItemsFor = ({ trackingMode = false } = {}) => [
     { key: 'plan', label: trackingMode ? 'Hoy' : 'Plan', path: '/dashboard' },
     { key: 'agent', label: 'Agente', path: '/dashboard/agent' },
@@ -16,11 +17,21 @@ export const navItemsFor = ({ trackingMode = false } = {}) => [
 
 /** El modo, leído como lo lee el wrapper del Dashboard: perfil primero, espejo
  *  localStorage después — «no sé» jamás se trata como «tracking» para OCULTAR
- *  entradas (ocultar por error es peor que mostrar de más), y un plan vivo
- *  significa nav completa aunque el perfil diga otra cosa. */
+ *  entradas (ocultar por error es peor que mostrar de más).
+ *
+ *  [P1-TRACKING-WINS · 2026-08-14] La regla «un plan vivo siempre gana» se
+ *  INVIRTIÓ por decisión del owner. Nació como fail-open contra flags stale,
+ *  pero de paso rompía la promesa de la otra puerta: entrar por el wizard
+ *  diciendo «quiero la app solo como contador» aterrizaba en el dashboard del
+ *  plan con una notita de pausa. Ahora la elección EXPLÍCITA de tracking gana,
+ *  con o sin plan pausado — el plan queda en Historial con «Reanudar». El
+ *  fail-open sobrevive donde tenía sentido: con modo DESCONOCIDO, un plan vivo
+ *  sigue significando nav completa. */
 export const isTrackingMode = (userProfile, planData) => {
-    if (planData) return false; // con plan vivo, la nav completa siempre
     let local = null;
     try { local = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }
-    return (userProfile?.plan_mode || local) === 'tracking';
+    const mode = userProfile?.plan_mode || local;
+    if (mode === 'tracking') return true;   // elección explícita: contador manda
+    if (mode === 'plan') return false;
+    return false; // desconocido: jamás ocultar por ignorancia (planData ya no pesa)
 };
