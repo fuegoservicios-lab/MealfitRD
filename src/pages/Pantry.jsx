@@ -23,7 +23,7 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
-import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache } from '../utils/pantryCache';
+import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands } from '../utils/pantryCache';
 // [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
 import { BrandSelect } from '../components/pantry/BrandSelect';
@@ -442,7 +442,13 @@ const Pantry = () => {
     // marca, no pinta chip) + cache de variantes del súper por norm(name). El ref
     // dedup evita re-fetchear el /match al reabrir el mismo alimento.
     const [pickerBrand, setPickerBrand] = useState(null);
-    const [brandCache, setBrandCache] = useState({});
+    // [P1-BRAND-CHIP-PERSIST · 2026-08-14] Hidratado desde el cache: arrancar en
+    // `{}` hacía que cada fila leyera «no hay marcas» durante el vuelo del POST
+    // en lote, así que el chip «Genérico» no se pintaba y aparecía de golpe al
+    // volver la respuesta (el parpadeo que reportó el dueño). El catálogo del
+    // súper no cambia entre dos refrescos: con el mapa en disco, el chip está
+    // desde el primer frame.
+    const [brandCache, setBrandCache] = useState(() => getCachedBrands() || {});
     const brandLoadingRef = useRef(new Set());
 
     // [P3-PANTRY-RECENT-ADDS · 2026-07-07] Últimos alimentos añadidos (id+name+unit),
@@ -585,6 +591,11 @@ const Pantry = () => {
                             brands: [...byBrand.values()].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity)),
                         };
                     }
+                    // [P1-BRAND-CHIP-PERSIST · 2026-08-14] Persistir para el
+                    // próximo refresh. Va DENTRO del updater para guardar el
+                    // mapa ya fusionado (`p`), no el `prev` de antes de este
+                    // lote: guardar fuera dejaría siempre una tanda atrás.
+                    setCachedBrands(p);
                     return p;
                 });
             } catch {

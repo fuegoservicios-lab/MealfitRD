@@ -159,9 +159,71 @@ export const setCachedDishes = (rows, ttlMs = _MASTER_LIST_TTL_MS) => {
     };
 };
 
+// [P1-BRAND-CHIP-PERSIST · 2026-08-14] Las marcas del súper por alimento (el
+// mapa que alimenta el chip «Genérico» de cada fila). Tercer dataset con el
+// mismo carácter que el masterList: el catálogo del súper lo edita el equipo,
+// no cambia entre dos refrescos del usuario ⇒ TTL de 24 h.
+//
+// Por qué SÍ va a localStorage (y los platos criollos no): sin persistir, cada
+// F5 arrancaba con `{}` y la fila resolvía «todavía no sé qué marcas hay» como
+// «no hay marcas» ⇒ el chip no se pintaba y aparecía de golpe al volver el
+// POST en lote. El dueño lo reportó como «los menús desaparecen unos
+// milisegundos al refrescar». Con el mapa en disco, el chip está en el primer
+// frame. Beneficio extra: el prefetch filtra por lo ya cacheado, así que
+// también deja de repetir el POST completo en cada carga.
+//
+// Devuelve `undefined` cuando no hay nada — NO `{}`: un mapa vacío afirmaría
+// «ningún alimento tiene marcas», que es justo la confusión que originó el bug.
+let _brandsEntry = null;
+const _BRANDS_LS_KEY = 'mealfit_pantry_brands_cache_v1';
+
+export const getCachedBrands = () => {
+    if (_brandsEntry) {
+        if (typeof _brandsEntry.expiresAt === 'number'
+            && Date.now() > _brandsEntry.expiresAt) {
+            _brandsEntry = null;
+            _safeLsRemove(_BRANDS_LS_KEY);
+            return undefined;
+        }
+        return _brandsEntry.value;
+    }
+    try {
+        const raw = localStorage.getItem(_BRANDS_LS_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            const v = parsed && parsed.value;
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+                if (typeof parsed.expiresAt === 'number' && Date.now() > parsed.expiresAt) {
+                    _safeLsRemove(_BRANDS_LS_KEY);
+                    return undefined;
+                }
+                _brandsEntry = parsed;
+                return v;
+            }
+        }
+    } catch { /* JSON parse / quota — fail-open */ }
+    return undefined;
+};
+
+export const setCachedBrands = (map, ttlMs = _MASTER_LIST_TTL_MS) => {
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return;
+    const entry = { value: map, expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null };
+    _brandsEntry = entry;
+    try {
+        localStorage.setItem(_BRANDS_LS_KEY, JSON.stringify(entry));
+    } catch { /* QuotaExceeded (iOS Private) — el in-memory sigue activo */ }
+};
+
+export const invalidateBrandsCache = () => {
+    _brandsEntry = null;
+    _safeLsRemove(_BRANDS_LS_KEY);
+};
+
 export const _resetPantryCacheForTests = () => {
     _inventoryEntry = null;
     _masterListEntry = null;
     _dishesEntry = null;
+    _brandsEntry = null;
     _safeLsRemove(_INVENTORY_LS_KEY);
+    _safeLsRemove(_BRANDS_LS_KEY);
 };
