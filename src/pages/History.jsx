@@ -145,7 +145,48 @@ export const _fullHistoryDays = (planData) => {
     if (!planData || typeof planData !== 'object') return [];
     const live = Array.isArray(planData.days) ? planData.days : [];
     const archived = Array.isArray(planData._archived_days) ? planData._archived_days : [];
-    return archived.length > 0 ? [...archived, ...live] : live;
+    const merged = archived.length > 0 ? [...archived, ...live] : live;
+    // [P1-HIST-DAY-IDENTITY · 2026-08-13] Dedup por FECHA: la identidad de un
+    // día es su fecha, no su posición. El plan activo del owner traía el
+    // martes 11 DOS veces en el archivo (residuo de las dos generaciones del
+    // incidente 08-08) y el timeline corrido +1 rotulaba «Jueves» al menú del
+    // miércoles. Gana la ÚLTIMA versión de cada fecha (generación más
+    // reciente; y como los vivos van al final, la misma fecha viva le gana a
+    // su copia archivada — lo que el Dashboard muestra es lo que el Historial
+    // debe mostrar). Los días legacy sin fecha no tienen clave que colisione:
+    // pasan todos, en su orden.
+    const porFecha = new Map();
+    const salida = [];
+    for (const d of merged) {
+        const fecha = (d && typeof d.date === 'string' && d.date) || null;
+        if (!fecha) {
+            salida.push(d);
+            continue;
+        }
+        if (porFecha.has(fecha)) {
+            salida[porFecha.get(fecha)] = d;
+        } else {
+            porFecha.set(fecha, salida.length);
+            salida.push(d);
+        }
+    }
+    return salida;
+};
+
+// [P1-HIST-DAY-IDENTITY · 2026-08-13] Etiqueta de un día del timeline: SU
+// fecha estampada manda; el índice (inicio + posición) queda como fallback
+// para planes legacy sin `date`. Derivar siempre por índice fue el bug: un
+// duplicado en el archivo corría +1 todo lo posterior y el modal decía que
+// hoy jueves tocaba el menú de ayer. Exportado para test.
+export const _dayNameForDay = (day, startMid, globalIdx) => {
+    const fecha = day && typeof day.date === 'string' ? day.date : null;
+    if (fecha) {
+        const d = parseStartLocal(fecha);
+        if (d instanceof Date && Number.isFinite(d.getTime())) {
+            return _DIAS_SEMANA[d.getDay()];
+        }
+    }
+    return _dayNameForGlobalIdx(startMid, globalIdx);
 };
 
 // [P1-HIST-COMPLETE-PROGRESS · 2026-05-31] Base de fecha para etiquetar los
@@ -4445,7 +4486,7 @@ const History = () => {
                                                 </div>
                                             )}
                                             <div className={styles.dayTabs}>
-                                                {_chunkDays.map((_, localIdx) => {
+                                                {_chunkDays.map((_dayObj, localIdx) => {
                                                     const globalIdx = _chunkStart + localIdx;
                                                     const isActive = _visibleSelectedDay === globalIdx;
                                                     return (
@@ -4454,7 +4495,8 @@ const History = () => {
                                                             className={`${styles.dayTab} ${isActive ? styles.dayTabActive : ''}`}
                                                             onClick={() => setSelectedDay(globalIdx)}
                                                         >
-                                                            {_dayNameForGlobalIdx(_startMid, globalIdx)}
+                                                            {/* [P1-HIST-DAY-IDENTITY] la fecha del día manda */}
+                                                            {_dayNameForDay(_dayObj, _startMid, globalIdx)}
                                                         </button>
                                                     );
                                                 })}
@@ -4479,7 +4521,10 @@ const History = () => {
                                         const _safeIdx = (selectedDay >= _cs && selectedDay < _cs + _sz)
                                             ? selectedDay
                                             : _cs;
-                                        return `Menú — ${_dayNameForGlobalIdx(
+                                        // [P1-HIST-DAY-IDENTITY] mismo contrato que los tabs:
+                                        // la fecha estampada del día manda; índice = fallback.
+                                        return `Menú — ${_dayNameForDay(
+                                            _fullHistoryDays(selectedPlan.plan_data)[_safeIdx],
                                             parseStartLocal(
                                                 _historyLabelStart(selectedPlan.plan_data, selectedPlan.created_at)
                                             ),

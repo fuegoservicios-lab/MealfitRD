@@ -130,10 +130,15 @@ describe('[P1-HIST-1] History.jsx — selector con navegación read-only entre c
         expect(src).toMatch(/de\s+\$\{_totalDays\}/);
     });
 
-    it('label del día usa nombre de semana via _dayNameForGlobalIdx', () => {
+    it('label del día usa nombre de semana anclado a la FECHA del día', () => {
         // Re-validación del contrato P-HISTORY-DAY-LABELS (no toca con P1-HIST-1).
+        // [P1-HIST-DAY-IDENTITY · 2026-08-13] El mecanismo cambió de
+        // _dayNameForGlobalIdx(inicio+índice) a _dayNameForDay(día, …): con un
+        // duplicado en el archivo, el índice corría +1 y el modal rotulaba
+        // «Jueves» al menú del miércoles. La fecha estampada manda; el índice
+        // sigue dentro como fallback de planes legacy.
         expect(src).toMatch(
-            /_dayNameForGlobalIdx\s*\(\s*_startMid\s*,\s*globalIdx\s*\)/
+            /_dayNameForDay\s*\(\s*_dayObj\s*,\s*_startMid\s*,\s*globalIdx\s*\)/
         );
         expect(src).toMatch(/Domingo['"]\s*,\s*['"]Lunes['"]\s*,\s*['"]Martes/);
     });
