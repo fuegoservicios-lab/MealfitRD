@@ -3,7 +3,12 @@
 // se asigna (main.jsx usa imports nombrados de @sentry/react) → breadcrumb
 // muerto → el trail de acciones del usuario no llegaba a los reportes de error.
 // `addBreadcrumb` es no-op si Sentry no está inicializado (seguro sin guard).
-import { addBreadcrumb } from '@sentry/react';
+// [P1-APEX-ENTRY-DIET · 2026-08-14] Ahora vía la fachada. `analytics.js` lo
+// importa media app —incluido el chrome eager—, así que era una de las cuatro
+// puertas por las que `@sentry/*` entraba al entry síncrono. Con la fachada el
+// breadcrumb se ENCOLA si el SDK aún no arrancó, en vez de perderse: mejor que
+// el no-op que este comentario daba por bueno.
+import { addBreadcrumb } from './observability';
 import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
 import { SITE_DOMAIN, isSiteHost } from '../config/site';
 

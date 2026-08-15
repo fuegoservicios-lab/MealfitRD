@@ -8,7 +8,10 @@ import React from 'react';
 //
 // Tree-shake (P2-SENTRY-TREESHAKE 2026-05-23): named import preserva el
 // patrón ya establecido en main.jsx y AgentPage.jsx.
-import { captureException } from '@sentry/react';
+// [P1-APEX-ENTRY-DIET · 2026-08-14] Vía la fachada, no vía el SDK: este módulo es
+// EAGER (envuelve a App), así que un import directo de @sentry/react devolvería
+// los 427 kB de fuente del core al entry chunk y anularía el diferido.
+import { captureException } from '../utils/observability';
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop del auto-reload (ver util).
 import { shouldAutoReloadForChunkError } from '../utils/chunkReloadGuard';
 

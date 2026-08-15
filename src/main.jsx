@@ -15,7 +15,17 @@ import { createRoot } from 'react-dom/client'
 // window.onerror/unhandledrejection quedan activos desde el primer momento, así
 // que NO se pierde ningún error temprano; solo el video de replay y las trazas
 // se adjuntan unos cientos de ms después del primer paint.
-import { init as sentryInit } from "@sentry/react";
+//
+// [P1-APEX-ENTRY-DIET · 2026-08-14] Y el `init` TAMBIÉN sale del entry. El
+// import estático de arriba se ha ido: `@sentry/*` eran 427.010 B = 37,2% de la
+// fuente del entry síncrono, el recurso #1 del critical path del apex. Diferir
+// las integraciones fue la mitad del trabajo; el core se quedó.
+//
+// El hueco que abre —no hay SDK entre el primer byte y el arranque— lo cubre
+// `utils/observability.js`, que instala handlers propios al evaluarse, encola, y
+// **arranca Sentry en cuanto entra el primer error** en vez de esperar al idle.
+// Ver ahí el razonamiento completo; aquí sólo vive la configuración.
+import { registrarSentry, registrarArranqueSentry } from './utils/observability'
 import { registerSW } from 'virtual:pwa-register'
 import { toast } from 'sonner'
 import './index.css'
@@ -300,7 +310,9 @@ const _sentryBeforeBreadcrumb = (crumb) => {
   return crumb;
 };
 
-sentryInit({
+// [P1-APEX-ENTRY-DIET · 2026-08-14] La configuración, separada del arranque.
+// Es un objeto plano: no arrastra nada de `@sentry/*` al entry.
+const _configSentry = () => ({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   // [P2-SENTRY-RELEASE-ENV · 2026-07-09] Sin `release` los stacks minificados
   // no se pueden asociar a una versión (ni a source maps si se suben después)
@@ -326,6 +338,38 @@ sentryInit({
   beforeBreadcrumb: _sentryBeforeBreadcrumb,
 });
 
+// [P1-APEX-ENTRY-DIET · 2026-08-14] Arranque del SDK, fuera del entry.
+//
+// `import('./utils/sentryBoot')` y NO `import('@sentry/react')` directo: un
+// import dinámico del paquete devuelve el NAMESPACE entero, así que Rollup no
+// puede sacudir nada y el apex acabaría bajando también replay/feedback —
+// exactamente lo que P1-LANDING-OBS-PAPER quitó. El módulo intermedio importa
+// `init` por nombre, y ahí el tree-shaking sí funciona.
+//
+// Idempotente por `registrarSentry`: da igual cuántas veces se llame (idle,
+// error temprano, ambos).
+const _arrancarSentry = async () => {
+  try {
+    const { arrancarSentry } = await import('./utils/sentryBoot');
+    registrarSentry(await arrancarSentry(_configSentry()));
+  } catch (e) {
+    console.error('[Sentry] no se pudo arrancar el SDK', e);
+  }
+};
+
+// La fachada necesita saber CÓMO arrancar para poder hacerlo ante el primer
+// error, sin esperar al idle. Registrarlo antes de programar el idle no es
+// cosmético: un error entre este punto y el idle dispara el arranque él solo.
+registrarArranqueSentry(_arrancarSentry);
+
+if (typeof window !== 'undefined') {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(_arrancarSentry, { timeout: 4000 });
+  } else {
+    setTimeout(_arrancarSentry, 2000);
+  }
+}
+
 // [P1-PERF-SENTRY-DEFER · 2026-05-31] Adjunta tracing + replay tras el primer
 // paint. El dynamic import() aísla browserTracingIntegration + replayIntegration
 // (y replay es el output más pesado del SDK) en un chunk async separado del
@@ -347,15 +391,24 @@ const _attachSentryIntegrations = async () => {
 // apex no hay sesión (P3-APEX-NO-SESSION) ni app (P3-APP-SUBDOMAIN-ROUTING), así
 // que era el vídeo de la sesión de alguien leyendo una página estática, cobrado
 // en datos móviles de prepago. Los errores del landing SIGUEN capturándose: el
-// `sentryInit` de arriba es síncrono y no depende de esto.
+// arranque de arriba corre en los dos hosts y no depende de esto.
 //
 // ⚠️ Este gate NO se sustituye con `VITE_SENTRY_REPLAYS_SESSION_RATE=0`: ese knob
 // (P2-AUDIT-5) regula la INGESTA, y el chunk se descargaría igual.
+//
+// El orden importa: las integraciones se adjuntan DESPUÉS del arranque porque
+// `addIntegration` necesita un cliente vivo. Se programan en el mismo idle, y el
+// `await` de `_arrancarSentry` dentro de `_attachSentryIntegrations` garantiza
+// la secuencia aunque los dos callbacks se ejecuten en el mismo turno.
 if (typeof window !== 'undefined' && shouldAttachSentryReplay()) {
+  const _adjuntarTrasArranque = async () => {
+    await _arrancarSentry();
+    await _attachSentryIntegrations();
+  };
   if ('requestIdleCallback' in window) {
-    window.requestIdleCallback(_attachSentryIntegrations, { timeout: 4000 });
+    window.requestIdleCallback(_adjuntarTrasArranque, { timeout: 4000 });
   } else {
-    setTimeout(_attachSentryIntegrations, 2000);
+    setTimeout(_adjuntarTrasArranque, 2000);
   }
 }
 

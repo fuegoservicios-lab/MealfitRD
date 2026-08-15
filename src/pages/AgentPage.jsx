@@ -4,7 +4,7 @@ import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autos
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
-import { isTrackingMode } from '../config/dashboardNav';
+import { isTrackingMode, navItemsFor } from '../config/dashboardNav';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
@@ -58,7 +58,12 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // [P2-SENTRY-TREESHAKE · 2026-05-23] Named imports vs `import * as Sentry`.
 // AgentPage solo usa `captureException` + `addBreadcrumb`; el star-import
 // bloqueaba tree-shaking de los ~12 símbolos restantes del SDK.
-import { captureException, addBreadcrumb } from '@sentry/react';
+// [P1-APEX-ENTRY-DIET · 2026-08-14] Vía la fachada. AgentPage es lazy, así que
+// aquí no había peso en el entry — pero sí un hueco: con el `init` diferido, un
+// `captureException` directo antes del arranque del SDK se perdía en silencio.
+// La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
+// árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
+import { captureException, addBreadcrumb } from '../utils/observability';
 import Wordmark from '../components/common/Wordmark';
 
 const _captureAgentPageException = (err, tags) => {
@@ -235,6 +240,35 @@ const _computeFetchBackoffMs = (baseDelayMs, attempt) => {
     const exp = baseDelayMs * Math.pow(2, attempt);
     const jitter = exp * (Math.random() * 0.2 - 0.1);
     return Math.max(100, Math.round(exp + jitter));
+};
+
+/**
+ * [P1-AGENT-MENU-SSOT · 2026-08-14] Los destinos del menú de 3 puntos, derivados
+ * de la MISMA SSOT que la nav del dashboard.
+ *
+ * Aquí vivía un array literal con «Plan» y «Recetas» fijos, así que en modo
+ * contador ofrecía dos salidas que la nav real oculta a propósito. En el teléfono
+ * este menú ES la navegación del Agente, y `/dashboard/recipes` no tiene guard de
+ * modo propio (solo `ProtectedRoute`): la ruta carga igual. Era la vía de entrada.
+ *
+ * La SSOT decide qué entradas existen y cómo se rotulan; aquí solo se aplican las
+ * dos diferencias de ESTA superficie: fuera «Agente» (es la página actual) y
+ * dentro «Configuración», que no navega sino que abre ventana (P1-SETTINGS-DIALOG)
+ * para que la conversación siga detrás y no se desmonte.
+ */
+export const menuItemsDelAgente = (enModoContador) => {
+    const iconoPorKey = {
+        plan: LayoutDashboard,
+        pantry: Refrigerator,
+        recipes: Utensils,
+        history: Clock,
+    };
+    return [
+        ...navItemsFor({ trackingMode: enModoContador })
+            .filter((i) => i.key !== 'agent')
+            .map((i) => ({ icon: iconoPorKey[i.key], label: i.label, path: i.path })),
+        { icon: Settings, label: 'Configuración', path: '/dashboard/settings', asDialog: true },
+    ];
 };
 
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] Exportada con nombre para poder
@@ -478,6 +512,10 @@ const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
 
 const AgentPage = () => {
     const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, checkPlanLimit, restoreSessionData } = useAssessment();
+    // [P1-AGENT-MENU-SSOT · 2026-08-14] El modo, en el scope del COMPONENTE. El
+    // saludo tiene su propio cálculo porque es una función pura fuera de React;
+    // el menú se pinta aquí dentro y necesita el suyo. Mismo SSOT, dos ámbitos.
+    const enModoContador = isTrackingMode(userProfile, planData);
     const navigate = useNavigate();
     // [P1-SETTINGS-DIALOG · 2026-08-10] Ubicación de fondo para abrir la
     // configuración como ventana sin desmontar la conversación.
@@ -3202,17 +3240,7 @@ const AgentPage = () => {
                                     zIndex: 100,
                                     animation: 'fadeSlideDown 0.2s ease'
                                 }}>
-                                    {[
-                                        { icon: LayoutDashboard, label: 'Plan', path: '/dashboard' },
-                                        { icon: Utensils, label: 'Recetas', path: '/dashboard/recipes' },
-                                        { icon: Refrigerator, label: 'Nevera', path: '/dashboard/pantry' },
-                                        { icon: Clock, label: 'Historial', path: '/history' },
-                                        // [P1-SETTINGS-DIALOG · 2026-08-10] `asDialog` marca la única
-                                        // entrada de este menú que no cambia de página: Configuración
-                                        // se abre como ventana sobre el agente, así que la conversación
-                                        // sigue detrás y no se desmonta al ir a ajustes y volver.
-                                        { icon: Settings, label: 'Configuración', path: '/dashboard/settings', asDialog: true }
-                                    ].map((item) => (
+                                    {menuItemsDelAgente(enModoContador).map((item) => (
                                         <button
                                             key={item.path}
                                             onClick={() => {

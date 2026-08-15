@@ -5,6 +5,9 @@ import { readFileSync } from 'fs'
 // [P1-LANDING-HEAD-PRELOAD · 2026-08-14] Ver el plugin `bioboros-landing-head`
 // más abajo y el porqué extenso en scripts/landingHead.mjs.
 import { landingPreloadTargets, landingHeadSnippet } from './scripts/landingHead.mjs'
+// [P1-APEX-PRECACHE-BLIND · 2026-08-14] Ver el plugin `bioboros-precache-audience`
+// más abajo y el porqué extenso en scripts/precacheAudience.mjs.
+import { chunksNoPrecacheables } from './scripts/precacheAudience.mjs'
 
 // [BIOBOROS-SENTRY-RELEASE · 2026-07-30] El release de Sentry se hornea aquí
 // como UNA cadena literal, derivada de package.json.
@@ -64,6 +67,34 @@ const landingHeadPlugin = (authOrigin) => ({
   },
 })
 
+// [P1-APEX-PRECACHE-BLIND · 2026-08-14] El puente entre el bundle y el precache.
+//
+// El problema de fontanería: `injectManifest.globIgnores` se evalúa con patrones
+// de fichero, y los chunks que hay que excluir llevan hash de contenido — un
+// patrón literal caducaría en el siguiente deploy y fallaría en silencio. Los
+// nombres reales sólo se conocen en `generateBundle`, y para entonces la config
+// de VitePWA ya está fijada.
+//
+// La salida es este par: el plugin captura los nombres en `generateBundle` y
+// `manifestTransforms` (más abajo, en la config de VitePWA) los lee como closure.
+// Los dos corren en el mismo proceso y en este orden — build del cliente
+// (`generateBundle`) → build del SW → generación del manifest — así que cuando el
+// transform pregunta, el Set ya está lleno.
+//
+// Si el orden cambiara alguna vez, el Set llegaría VACÍO y el efecto sería
+// «vuelven los 237 KiB», no «se rompe el sitio». Por eso el guard de peso del
+// `postbuild` es obligatorio y no decorativo: es lo que convierte ese fallo
+// silencioso en un build rojo.
+const excluidosDelPrecache = new Set()
+
+const precacheAudiencePlugin = () => ({
+  name: 'bioboros-precache-audience',
+  generateBundle(_opciones, bundle) {
+    excluidosDelPrecache.clear()
+    for (const nombre of chunksNoPrecacheables(bundle)) excluidosDelPrecache.add(nombre)
+  },
+})
+
 export default defineConfig(({ mode }) => {
   // El origen de Neon Auth se deriva de `VITE_NEON_AUTH_URL` en vez de repetirse
   // a mano: el valor ya vive en `.env.production` y una segunda copia en el HTML
@@ -80,6 +111,7 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     landingHeadPlugin(authOrigin),
+    precacheAudiencePlugin(),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -167,6 +199,27 @@ export default defineConfig(({ mode }) => {
           'apple-touch-icon-192.png',
           'apple-touch-icon-v2.png',
           'apple-touch-icon-180-v2.png',
+        ],
+        // [P1-APEX-PRECACHE-BLIND · 2026-08-14] Lo que `globIgnores` no puede
+        // expresar: exclusiones por CONTENIDO del chunk, no por nombre.
+        //
+        // Medido antes de esto: 237,0 KiB gz —un tercio del precache del apex—
+        // eran @sentry-internal/replay, @neondatabase/auth+zod y la cadena de
+        // markdown. Las tres tienen un gate de runtime que garantiza que la
+        // portada NO las ejecuta jamás, y ninguna de las tres sirve de nada
+        // offline: subir un replay, autenticarse y pedirle texto a un LLM
+        // requieren red por definición. Se excluyen para los DOS hosts.
+        //
+        // Un chunk fuera del precache no se rompe: se sirve por red cuando se
+        // navegue a él (la misma degradación graciosa que ya documenta
+        // `custom-sw.js` para el filtro por host).
+        manifestTransforms: [
+          (entradas) => ({
+            manifest: entradas.filter((e) => !excluidosDelPrecache.has(
+              String(e.url || '').replace(/^\//, ''),
+            )),
+            warnings: [],
+          }),
         ],
       },
       includeAssets: ['favicon.png'],

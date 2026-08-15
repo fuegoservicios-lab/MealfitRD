@@ -9,8 +9,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-vi.mock('@sentry/react', () => ({ captureException: vi.fn() }));
-import { captureException } from '@sentry/react';
+// [P1-APEX-ENTRY-DIET · 2026-08-14] Se mockea la FACHADA, no el SDK. El boundary
+// es eager, así que importar `@sentry/react` desde aquí devolvía 427.010 B de
+// fuente al entry síncrono del apex; ahora pasa por `utils/observability`, que
+// además encola si el SDK todavía no arrancó.
+vi.mock('../utils/observability', () => ({ captureException: vi.fn() }));
+import { captureException } from '../utils/observability';
 import { RouteErrorBoundary } from '../components/RouteErrorBoundary';
 
 let errSpy;

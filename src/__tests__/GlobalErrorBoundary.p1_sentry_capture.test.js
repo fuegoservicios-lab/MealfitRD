@@ -38,14 +38,28 @@ describe('[P1-ERROR-BOUNDARY-SENTRY-CAPTURE] anchor + import', () => {
         expect(src).toMatch(/\[P1-ERROR-BOUNDARY-SENTRY-CAPTURE\s*·\s*2026-05-24\]/);
     });
 
-    it('importa captureException via named import (tree-shake-friendly)', () => {
+    // [P1-APEX-ENTRY-DIET · 2026-08-14] El contrato se movió, y el test lo sigue.
+    //
+    // Antes esta aserción exigía `import { captureException } from '@sentry/react'`.
+    // Era correcta cuando se escribió —anclaba el named import de
+    // P2-SENTRY-TREESHAKE— pero se volvió al revés: este boundary es EAGER
+    // (envuelve a App), así que ese import ataba `@sentry/core` al entry síncrono
+    // del apex. Medido: 427.010 B de fuente, el 37,2% del entry, en el recurso #1
+    // del critical path de una página de marketing.
+    //
+    // Ahora va por `utils/observability`, que no tiene @sentry en su grafo y
+    // encola lo que llegue antes de que el SDK arranque. La propiedad de
+    // tree-shaking sigue anclada: sólo se movió de sitio.
+    it('importa captureException de la fachada, NO del SDK', () => {
         expect(src).toMatch(
-            /import\s*\{\s*captureException\s*\}\s*from\s*['"]@sentry\/react['"]/
+            /import\s*\{\s*captureException\s*\}\s*from\s*['"]\.\.\/utils\/observability['"]/
         );
     });
 
-    it('cero star-import de @sentry/react (regression guard P2-SENTRY-TREESHAKE)', () => {
-        expect(src).not.toMatch(/import\s*\*\s*as\s+\w+\s+from\s*['"]@sentry\/react['"]/);
+    it('cero import de @sentry en un boundary eager (P1-APEX-ENTRY-DIET)', () => {
+        // Cubre named, star y dinámico de una vez: cualquiera de los tres
+        // devolvería el SDK al entry por esta puerta.
+        expect(src).not.toMatch(/(?:from|import\s*\()\s*['"]@sentry\//);
     });
 });
 
