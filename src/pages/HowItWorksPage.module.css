@@ -618,7 +618,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background: var(--primary);
+    background: var(--primary-fill);
     color: #fff;
     font-family: var(--font-heading);
     font-weight: 700;

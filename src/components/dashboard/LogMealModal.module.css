@@ -227,7 +227,7 @@
 
 .retry {
     border: 0;
-    background: var(--primary, #4F46E5);
+    background: var(--primary-fill, #4F46E5);
     color: #fff;
     font: inherit;
     font-size: 0.85rem;
@@ -422,7 +422,7 @@
     align-items: center;
     gap: 0.45rem;
     border: 0;
-    background: var(--primary, #4F46E5);
+    background: var(--primary-fill, #4F46E5);
     color: #fff;
     font: inherit;
     font-size: 0.9rem;
@@ -436,7 +436,7 @@
 
 .smallBtn {
     border: 0;
-    background: var(--primary, #4F46E5);
+    background: var(--primary-fill, #4F46E5);
     color: #fff;
     font: inherit;
     font-size: 0.85rem;

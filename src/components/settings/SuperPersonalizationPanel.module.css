@@ -145,7 +145,7 @@
     border-radius: 0.5rem;
     cursor: pointer;
     color: #fff;
-    background: var(--primary);
+    background: var(--primary-fill);
 }
 
 /* ---- Predefined chips (equipment) ---- */
@@ -170,7 +170,7 @@
 }
 .chipActive {
     color: #fff;
-    background: var(--primary);
+    background: var(--primary-fill);
     border-color: var(--primary);
 }
 

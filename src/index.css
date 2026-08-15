@@ -252,6 +252,13 @@
 :root {
   /* Brand Identity - Deep & Trustworthy */
   --primary: #4F46E5;
+  /* [P1-PRIMARY-FILL-DEPTH · 2026-08-14] Relleno PLANO de un botón primario.
+     En claro (y en papel) es `--primary` tal cual: ahí el token ya está pensado
+     como superficie y el blanco encima da 6,29:1. Existe por el tema OSCURO,
+     donde `--primary` se aclara a propósito para servir de TINTA — ver el
+     bloque de dark. Usa este token, no `--primary`, cuando pintes una
+     superficie con texto blanco encima. */
+  --primary-fill: var(--primary);
   /* Indigo 600 - More premium than standard blue */
   --primary-dark: #3730A3;
   /* Indigo 800 */
@@ -515,6 +522,16 @@ html[data-theme="dark"] {
   --primary: #818CF8;          /* Indigo 400 */
   --primary-dark: #6366F1;     /* Indigo 500 */
   --primary-light: #A5B4FC;    /* Indigo 300 */
+  /* [P1-PRIMARY-FILL-DEPTH · 2026-08-14] La versión PLANA de la receta de
+     `--cta-fill` (abajo), para los botones que no llevan degradado.
+
+     Medido sobre «Reanudar el plan», que el dueño señaló como demasiado
+     brillante: era una INVERSIÓN, no una impresión. El relleno crudo daba
+     L* 61,8 en oscuro contra L* 40,7 en claro —el botón era MÁS luminoso en
+     modo oscuro— sobre un panel de L* 8,3, y el blanco encima se quedaba en
+     2,98:1 (AA pide 4,5). Al 75% cae a L* 49,6 y el blanco sube a 4,54:1,
+     conservando +41 sobre el panel: sigue siendo el botón principal. */
+  --primary-fill: color-mix(in srgb, var(--primary) 75%, var(--bg-card));
   /* [P1-CTA-FILL-DEPTH · 2026-08-14] Los índigos del tema oscuro son claros
      por diseño (sirven de tinta sobre fondo oscuro), así que como relleno hay
      que rebajarlos contra el panel o el botón deslumbra. Al 75% el relleno cae
@@ -669,6 +686,11 @@ html[data-theme="paper"] {
   --primary: #0B0B0B;
   --primary-dark: #0B0B0B;
   --primary-light: #3D3D3B;
+  /* [P1-PRIMARY-FILL-DEPTH · 2026-08-14] En papel la tinta ES casi negra, así
+     que el relleno no necesita rebaja: el token es no-op aquí. Se declara
+     explícito (y no se hereda de :root) porque una custom property se resuelve
+     donde se DECLARA — así fue como `--cta-tint` nació inerte. */
+  --primary-fill: var(--primary);
   --secondary: #0B0B0B;
   --secondary-dark: #0B0B0B;
   --secondary-light: #3D3D3B;
@@ -1335,6 +1357,17 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
 #main-content:focus,
 #main-content:focus-visible {
   outline: none;
+}
+
+/* [P1-3-LAYOUT-STYLE-EXTRACT] Padding-top de main-content precompilado para acomodar el header flotante */
+.main-content {
+  padding-top: calc(72px + max(env(safe-area-inset-top), 18px));
+}
+
+@media (min-width: 768px) {
+  .main-content {
+    padding-top: 88px;
+  }
 }
 
 /* [P2-REDUCED-MOTION · 2026-05-19] Respetar el setting del SO/browser

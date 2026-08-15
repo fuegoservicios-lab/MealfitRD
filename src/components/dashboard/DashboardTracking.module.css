@@ -62,7 +62,7 @@
     margin-left: auto;
     flex-shrink: 0;
     border: 0;
-    background: var(--primary, #4F46E5);
+    background: var(--primary-fill, #4F46E5);
     color: #fff;
     font: inherit;
     font-size: 0.85rem;
@@ -106,7 +106,7 @@
 
 .turnOnBtn {
     border: 0;
-    background: var(--primary, #4F46E5);
+    background: var(--primary-fill, #4F46E5);
     color: #fff;
     font: inherit;
     font-size: 0.85rem;

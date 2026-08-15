@@ -1496,7 +1496,7 @@
     padding: 0.85rem;
     border-radius: 0.75rem;
     border: none;
-    background: var(--primary);
+    background: var(--primary-fill);
     color: white;
     font-weight: 700;
     cursor: pointer;

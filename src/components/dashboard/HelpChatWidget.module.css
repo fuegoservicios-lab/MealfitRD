@@ -105,7 +105,7 @@
 }
 .bubbleUser {
   align-self: flex-end;
-  background: var(--primary);
+  background: var(--primary-fill);
   color: #fff;
   border-bottom-right-radius: 5px;
   white-space: pre-wrap;
@@ -185,7 +185,7 @@
   flex: none;
   border: 0;
   border-radius: var(--radius-full);
-  background: var(--primary);
+  background: var(--primary-fill);
   color: #fff;
   cursor: pointer;
   transition: background 0.14s, opacity 0.14s;
