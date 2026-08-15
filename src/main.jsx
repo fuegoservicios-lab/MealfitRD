@@ -415,6 +415,10 @@ if (splash) {
     dismissed = true;
     clearTimeout(fallbackTimer);
     window.removeEventListener(eventoDeListo, onReady);
+    // [P0-1-SPLASH-POINTER-RELEASE] Liberar la captura de toques/clics INMEDIATAMENTE
+    // para que el usuario pueda hacer clic en los CTA del Hero sin esperar los 500ms
+    // de la transición de opacidad del splash.
+    splash.style.pointerEvents = 'none';
     requestAnimationFrame(() => requestAnimationFrame(() => {
       splash.style.opacity = '0';
       setTimeout(() => splash.remove(), 500); // espera el fin de la transición CSS

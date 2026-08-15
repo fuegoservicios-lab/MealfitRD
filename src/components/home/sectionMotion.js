@@ -27,18 +27,4 @@ export const makeSectionMotion = (reduce) => ({
         hidden: { opacity: 0, y: reduce ? 0 : 20 },
         show: { opacity: 1, y: 0, transition: { duration: reduce ? 0.001 : 0.6, ease: LANDING_EASE } },
     },
-    /* Entradas laterales para layouts a dos columnas (visual ← / contenido →). */
-    riseLeft: {
-        hidden: { opacity: 0, x: reduce ? 0 : -28 },
-        show: { opacity: 1, x: 0, transition: { duration: reduce ? 0.001 : 0.65, ease: LANDING_EASE } },
-    },
-    riseRight: {
-        hidden: { opacity: 0, x: reduce ? 0 : 26 },
-        show: { opacity: 1, x: 0, transition: { duration: reduce ? 0.001 : 0.55, ease: LANDING_EASE } },
-    },
-    /* Subrayado decorativo que se dibuja (scaleX). */
-    underline: {
-        hidden: { opacity: 0, scaleX: reduce ? 1 : 0 },
-        show: { opacity: 1, scaleX: 1, transition: { duration: reduce ? 0.001 : 0.6, ease: LANDING_EASE, delay: reduce ? 0 : 0.15 } },
-    },
 });

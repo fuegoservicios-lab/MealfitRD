@@ -127,10 +127,16 @@ const PlateExploded = () => {
         } catch {
             mql = null;
         }
-        if (!mql || typeof mql.addEventListener !== 'function') return undefined;
+        if (!mql) return undefined;
         const onChange = (e) => setNarrow(e.matches);
-        mql.addEventListener('change', onChange);
-        return () => mql.removeEventListener('change', onChange);
+        if (typeof mql.addEventListener === 'function') {
+            mql.addEventListener('change', onChange);
+            return () => mql.removeEventListener('change', onChange);
+        } else if (typeof mql.addListener === 'function') {
+            mql.addListener(onChange);
+            return () => mql.removeListener(onChange);
+        }
+        return undefined;
     }, []);
 
     /* TRAZADO. `reduce` nace ya dibujado: el gate está en la DEFINICIÓN del

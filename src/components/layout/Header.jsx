@@ -225,99 +225,78 @@ const Header = () => {
                         </Link>
                     )
                 )}
-                {/* Navegación de Escritorio */}
-                <nav className={styles.navDesktop}>
-
-
-                    {/* Lógica condicional: Si hay plan, muestra Dashboard; si no y no estamos en evaluación/plan, Evaluación */}
-                    {planData && !isPlanLoading ? (
-                        !isLandingLike && !isLegalPage && (
-                            <Link
-                                to="/dashboard"
-                                className={styles.ctaButton}
-                            >
-                                <LayoutDashboard size={18} /> Panel
+                
+                {/* Navegación de Escritorio (solo en rutas de app fuera de landing) */}
+                {!isLandingLike && (
+                    <nav className={styles.navDesktop}>
+                        {/* Lógica condicional: Si hay plan, muestra Dashboard; si no y no estamos en evaluación/plan, Evaluación */}
+                        {planData && !isPlanLoading ? (
+                            !isLegalPage && (
+                                <Link
+                                    to="/dashboard"
+                                    className={styles.ctaButton}
+                                >
+                                    <LayoutDashboard size={18} /> Panel
+                                </Link>
+                            )
+                        ) : !hideStartNow && !isLegalPage && (
+                            <Link to="/assessment" className={styles.ctaButton}>
+                                Empezar Ahora
                             </Link>
-                        )
-                    ) : !hideStartNow && !isLandingLike && !isLegalPage && (
-                        <Link to="/assessment" className={styles.ctaButton}>
-                            Empezar Ahora
-                        </Link>
-                    )}
+                        )}
 
-                    {/* [ACCOUNT-MENU · 2026-06-01] Menú de cuenta: fusiona
-                        "Configuración" + "Cerrar Sesión" en un solo control
-                        compacto (avatar + chevron) para no ocupar tanto espacio.
-                        El menú móvil (hamburguesa) ya agrupaba ambos. */}
-                    {showAccountMenu && (
-                        <div className={styles.accountMenu} ref={accountMenuRef}>
-                            <button
-                                type="button"
-                                className={styles.accountTrigger}
-                                onClick={() => setIsAccountMenuOpen((p) => !p)}
-                                aria-haspopup="menu"
-                                aria-expanded={isAccountMenuOpen}
-                                aria-label="Abrir menú de cuenta"
-                            >
-                                <span className={styles.accountAvatar} aria-hidden="true">{accountInitial}</span>
-                                <ChevronDown
-                                    size={16}
-                                    className={`${styles.accountChevron} ${isAccountMenuOpen ? styles.accountChevronOpen : ''}`}
-                                    aria-hidden="true"
-                                />
-                            </button>
-                            {isAccountMenuOpen && (
-                                <div className={styles.accountDropdown} role="menu">
-                                    <div className={styles.accountIdentity}>
-                                        <span className={styles.accountName}>{accountName}</span>
-                                        {accountEmail && <span className={styles.accountEmailLine}>{accountEmail}</span>}
-                                    </div>
-                                    {/* [P1-GUEST-LOGOUT] Configuración (página completa)
-                                        solo para cuentas reales — gateada para invitados.
-                                        [P1-GUEST-APPEARANCE · 2026-06-15] El invitado recibe
-                                        el único ajuste sin cuenta: la apariencia (tema). */}
-                                    {isGuest ? (
-                                        /* [P3-LANDING-DARK-ONLY · 2026-06-29] El landing/marketing
-                                           es oscuro fijo (sin config de apariencia ahí) → no se
-                                           muestra el selector de tema en esas rutas. En la app sí. */
-                                        !isLandingLike && <GuestAppearanceToggle />
-                                    ) : (
-                                        /* [P1-SETTINGS-ONE-SURFACE · 2026-08-10] Apunta a la
-                                           configuración del dashboard, la única que existe.
-                                           Antes había una segunda página (`/configuracion`) con
-                                           apariencia + cuenta + contraseña: un subconjunto de lo
-                                           mismo, mantenido aparte. Dos configuraciones divergen
-                                           con el primer cambio que alguien haga en una sola.
-
-                                           El acceso NO se retira aunque esta cabecera viva fuera
-                                           del dashboard: es el único camino de una cuenta sin plan
-                                           —que no puede entrar al dashboard por su propio pie—
-                                           hacia su cuenta, y `ProtectedRoute` exime esta ruta
-                                           exactamente por eso. */
-                                        <Link
-                                            to="/dashboard/settings"
-                                            className={styles.accountItem}
+                        {/* [ACCOUNT-MENU · 2026-06-01] Menú de cuenta */}
+                        {showAccountMenu && (
+                            <div className={styles.accountMenu} ref={accountMenuRef}>
+                                <button
+                                    type="button"
+                                    className={styles.accountTrigger}
+                                    onClick={() => setIsAccountMenuOpen((p) => !p)}
+                                    aria-haspopup="menu"
+                                    aria-expanded={isAccountMenuOpen}
+                                    aria-label="Abrir menú de cuenta"
+                                >
+                                    <span className={styles.accountAvatar} aria-hidden="true">{accountInitial}</span>
+                                    <ChevronDown
+                                        size={16}
+                                        className={`${styles.accountChevron} ${isAccountMenuOpen ? styles.accountChevronOpen : ''}`}
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                                {isAccountMenuOpen && (
+                                    <div className={styles.accountDropdown} role="menu">
+                                        <div className={styles.accountIdentity}>
+                                            <span className={styles.accountName}>{accountName}</span>
+                                            {accountEmail && <span className={styles.accountEmailLine}>{accountEmail}</span>}
+                                        </div>
+                                        {isGuest ? (
+                                            <GuestAppearanceToggle />
+                                        ) : (
+                                            <Link
+                                                to="/dashboard/settings"
+                                                className={styles.accountItem}
+                                                role="menuitem"
+                                                onClick={() => setIsAccountMenuOpen(false)}
+                                            >
+                                                <SettingsIcon size={16} strokeWidth={2.25} />
+                                                <span>Configuración</span>
+                                            </Link>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className={`${styles.accountItem} ${styles.accountItemDanger}`}
                                             role="menuitem"
-                                            onClick={() => setIsAccountMenuOpen(false)}
+                                            onClick={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
                                         >
-                                            <SettingsIcon size={16} strokeWidth={2.25} />
-                                            <span>Configuración</span>
-                                        </Link>
-                                    )}
-                                    <button
-                                        type="button"
-                                        className={`${styles.accountItem} ${styles.accountItemDanger}`}
-                                        role="menuitem"
-                                        onClick={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}
-                                    >
-                                        <LogOut size={16} strokeWidth={2.25} />
-                                        <span>{logoutLabel}</span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </nav>
+                                            <LogOut size={16} strokeWidth={2.25} />
+                                            <span>{logoutLabel}</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </nav>
+                )}
 
                 {/* Botón Menú Móvil */}
                 {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label + aria-expanded

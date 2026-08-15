@@ -30,6 +30,20 @@ function Home() {
     // en montar el splash se retira igual.
     useEffect(() => {
         window.dispatchEvent(new Event('mealfit:landing-ready'));
+
+        // [P3-1-PREFETCH-ASSESSMENT] Prefetch diferido en idle del chunk de onboarding (/assessment)
+        // para que cuando el usuario haga clic en "Crear mi plan" la transición sea instantánea (0ms percibidos).
+        const prefetchAssessment = () => {
+            import('./Assessment').catch(() => {});
+        };
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+            const idleId = window.requestIdleCallback(prefetchAssessment, { timeout: 3500 });
+            return () => window.cancelIdleCallback(idleId);
+        } else if (typeof window !== 'undefined') {
+            const timer = setTimeout(prefetchAssessment, 2500);
+            return () => clearTimeout(timer);
+        }
+        return undefined;
     }, []);
 
     return (

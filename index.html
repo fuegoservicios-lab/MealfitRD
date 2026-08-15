@@ -101,6 +101,9 @@
   <meta name="theme-color" content="#FBFBFA" />
   <meta name="application-name" content="Bioboros" />
   <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
+  <!-- [P0-2-SECURITY-META] Hardening de seguridad y privacidad: previene fugas de paths/tokens en Referer a links externos y sniffing de MIME -->
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <link rel="canonical" href="https://bioboros.com/" />
 
   <!-- [P1-SEO-SOCIAL · 2026-05-31] Open Graph + Twitter Cards. El frontend es
@@ -177,6 +180,23 @@
       "alternateName": "Mealfit RD",
       "url": "https://bioboros.com/",
       "inLanguage": "es-DO"
+    }
+  </script>
+
+  <!-- [P3-2-SOFTWARE-APP-JSONLD · 2026-08-14] Structured data SoftwareApplication (HealthApplication) para Rich Results en Google Search -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Bioboros",
+      "applicationCategory": "HealthApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "DOP"
+      },
+      "description": "Planes de nutrición personalizada con Inteligencia Artificial avanzada para República Dominicana."
     }
   </script>
 

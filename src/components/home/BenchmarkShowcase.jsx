@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { useReducedMotion } from 'framer-motion';
 import { APP_VERSION } from '../../config/appVersion';
 import { SERIES, BANDS, CAPS } from '../../data/benchmark';
@@ -91,6 +92,11 @@ const StateCell = ({ state, patternId }) => (
         <span className={styles.stateWord}>{STATE_WORD[state]}</span>
     </span>
 );
+
+StateCell.propTypes = {
+    state: PropTypes.oneOf(['yes', 'partial', 'no']).isRequired,
+    patternId: PropTypes.string.isRequired,
+};
 
 const BenchmarkShowcase = () => {
     const reduce = useReducedMotion();

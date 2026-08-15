@@ -161,6 +161,7 @@ export default defineConfig(({ mode }) => {
           '*/index.html',
           'assets/html2pdf-*.js',
           'dashboard_bg_v2.png',
+          'model-v1.jpeg',
           'apple-touch-icon.png',
           'apple-touch-icon-180.png',
           'apple-touch-icon-192.png',
