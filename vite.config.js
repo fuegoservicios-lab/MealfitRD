@@ -164,6 +164,15 @@ export default defineConfig(({ mode }) => {
         //     escrito fallback de root. Borrarlos rompe el icono del PWA instalado.
         //     El navegador los sigue pidiendo por red en el momento de instalar,
         //     que es exactamente cuando hacen falta.
+        //     [P3-APPLE-ICON-180-HUERFANO · 2026-08-15] De los cinco, uno SÍ estaba
+        //     muerto: `apple-touch-icon-180.png` (23.802 B). `index.html` usa
+        //     `-180-v2` (BRAND-FAVICON-B cambió el NOMBRE porque iOS cachea estos
+        //     iconos a nivel de SO e ignora el `?v=`) y `manifest.json` nunca lo
+        //     nombró — sólo al `-192` y al plano. Cero referencias en todo el repo.
+        //     Borrado, y su línea de `globIgnores` con él: una exclusión que ya no
+        //     puede casar con nada se lee como «eso ya está excluido» y manda a
+        //     buscar los bytes a otro sitio (la misma trampa que P1-LANDING-SW-DEFER
+        //     encontró con la entrada muerta de `og-image.png`).
         // El app-shell (JS/CSS/HTML + favicons) SÍ se precachea para el
         // offline-load.
         //
@@ -195,7 +204,6 @@ export default defineConfig(({ mode }) => {
           'dashboard_bg_v2.png',
           'model-v1.jpeg',
           'apple-touch-icon.png',
-          'apple-touch-icon-180.png',
           'apple-touch-icon-192.png',
           'apple-touch-icon-v2.png',
           'apple-touch-icon-180-v2.png',
@@ -222,7 +230,18 @@ export default defineConfig(({ mode }) => {
           }),
         ],
       },
-      includeAssets: ['favicon.png'],
+      // [P3-PRECACHE-FAVICON-DUP · 2026-08-15] `includeAssets` vaciado.
+      //
+      // Declaraba `favicon.png`, que YA entra por `globPatterns`
+      // (`**/*.{js,css,html,ico,png,svg}`), así que el manifest lo listaba DOS
+      // veces. Con la misma `revision` en ambas, Workbox deduplica y no hay
+      // descarga doble — por eso nunca dolió y por eso llevaba ahí tanto tiempo.
+      //
+      // Se limpia igualmente porque el manifest es lo que uno lee para saber qué
+      // pesa el precache, y una entrada repetida hace dudar del resto del conteo.
+      // (Si algún día hiciera falta un asset que `globPatterns` NO cubre —un
+      // `.woff2`, un `.jpg`— este es su sitio; hoy no hay ninguno.)
+      includeAssets: [],
       // [P2-MANIFEST-DEDUPE · 2026-07-09] `manifest: false`. Antes convivían DOS
       // manifests divergentes en el HTML compilado: el <link rel="manifest"
       // href="/manifest.json"> manual de index.html (SSOT rico: lang es-DO,
@@ -308,6 +327,33 @@ export default defineConfig(({ mode }) => {
           // en un chunk compartido que se carga on-demand (vía __vitePreload) solo
           // cuando la primera ruta lazy que lo usa se monta → fuera del critical
           // path real. lucide + sonner siguen en vendor-ui (sí eager, justificado).
+          //
+          // ⚠️ [P2-FRAMER-CRITICAL-PATH · 2026-08-15] CORRECCIÓN: la frase «fuera
+          // del critical path real» era cierta para `/login`, que es la ruta que
+          // motivó P1-PERF-FRAMER-SPLIT — y es FALSA para `/`.
+          //
+          // Medido: `proxy-*.js` (framer) son 114.942 B / 37,7 kB gz y es el TERCER
+          // recurso del critical path del apex, por detrás sólo de vendor-react y
+          // del entry. Llega ahí porque `Hero.jsx`, `DashboardShowcase.jsx` y
+          // `NewsHighlight.jsx` importan `motion`, y el bloque gateado por host de
+          // P1-LANDING-HEAD-PRELOAD lo precarga junto al chunk de Home — a
+          // propósito: la evaluación del módulo lo necesita ANTES de pintar el hero.
+          //
+          // Se corrige el comentario y NO se toca el chunking, porque mientras
+          // dijera que framer está fuera del critical path, el siguiente auditor
+          // descartaba la optimización sin medirla. Que es exactamente lo que pasó
+          // hasta hoy: el gap llevaba abierto desde el 2026-08-14 con esta frase
+          // como razón para no mirarlo.
+          //
+          // Y lo que dice la PRIMERA traza real de LCP (2026-08-15, Slow 4G + CPU
+          // 4x, contra producción) sobre si conviene migrar a `LazyMotion`:
+          // el LCP es **>99% render delay** y **<0,2% TTFB**. El cuello no son los
+          // bytes, es la ejecución. Cambiar framer por LazyMotion ahorraría ~10-15
+          // kB gz de descarga y prácticamente nada de parseo+ejecución, que es
+          // donde está el tiempo. Antes de gastar ese esfuerzo —`whileInView`
+          // depende de la feature de viewport, y los módulos CSS documentan un
+          // acoplamiento fino con cómo framer escribe el transform— hay que medir
+          // el delta REAL con una traza, no asumirlo.
           // [P2-LANDING-OLA1-DIET · 2026-08-14] `lucide-react` SALE de aquí.
           //
           // Un vendor chunk NOMBRADO recibe `<link rel=modulepreload>` eager de
