@@ -8,6 +8,9 @@ import { useAssessment } from '../context/AssessmentContext';
 // [P1-HIST-PAUSED-BADGE · 2026-08-14] SSOT del modo (perfil → espejo local) —
 // el mismo que consultan la nav del dashboard y el saludo del agente.
 import { isTrackingMode } from '../config/dashboardNav';
+// [P1-HIST-PAUSED-SURFACES · 2026-08-14] Wrapper obligatorio del repo: iOS Safari
+// en modo privado lanza SecurityError con localStorage crudo.
+import { safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -408,7 +411,11 @@ const History = () => {
     // era el ÚNICO getUser() del árbol (un roundtrip de red a /auth/v1/user que
     // revalida el JWT server-side) y bloqueaba ~100-300ms el query de plan_data
     // en cada apertura de tarjeta no cacheada. La RLS ya enforza ownership.
-    const { restorePlanFromHistory, session, userProfile, planData } = useAssessment();
+    const { restorePlanFromHistory, session, userProfile, planData, setPlanData, updateData } = useAssessment();
+    // [P1-HIST-PAUSED-SURFACES · 2026-08-14] El modo, UNA vez, desde el SSOT. Ya se
+    // calculaba inline para la insignia de los paneles; ahora lo consumen también
+    // el estado vacío y su CTA.
+    const enModoContador = isTrackingMode(userProfile, planData);
 
     // [P2-HIST-MODALS-A11Y · 2026-05-30] Defenses a11y (role/aria/ESC/
     // focus-trap/restore-focus/scroll-lock) para los 3 modales custom.
@@ -1077,6 +1084,19 @@ const History = () => {
 
             setPlans(prev => prev.filter(p => p.id !== plan.id));
             if (selectedPlan?.id === plan.id) _closeDetailModal();
+            // [P1-HIST-PAUSED-SURFACES · 2026-08-14] Si el plan borrado es el que el
+            // contexto tiene cargado, hay que soltarlo: el dashboard del contador lee
+            // `planData` para ofrecer «Reanudar… retoma exactamente donde quedó», y
+            // tras el DELETE esa promesa no la puede cumplir nadie. Sin esto, borrar
+            // el plan pausado dejaba un botón que apunta a una fila que ya no existe.
+            //
+            // La comparación por id es load-bearing: limpiar SIEMPRE tiraría el plan
+            // del contexto al borrar cualquier plan viejo del historial, y con él la
+            // puerta de vuelta de un plan que sigue perfectamente vivo.
+            if (planData?.id === plan.id) {
+                setPlanData(null);
+                safeLocalStorageRemove('mealfit_plan');
+            }
             // [P0-HIST-CACHE-INVALIDATION · 2026-05-09] Limpieza
             // explícita del singleton para el plan eliminado. TTL lo
             // recogería igual en 30 min, pero invalidar ya elimina
@@ -1741,6 +1761,23 @@ const History = () => {
     // (components/common/EmptyState.jsx) — el SR anuncia el estado vacío. La
     // consolidación visual completa queda diferida (los locales usan el look
     // .emptyState/.emptyCta propio del Historial; unificar es decisión de producto).
+    // [P1-HIST-PAUSED-SURFACES · 2026-08-14] En modo contador el CTA cambia de
+    // oferta y, sobre todo, de mecánica. `navigate('/assessment')` a secas deja
+    // `formData.appMode` en 'tracking', así que el wizard abre su RAMA CORTA y el
+    // usuario aterriza en «Listo: tu contador» (paso 10) — un botón que promete un
+    // plan y te deposita en el final del modo que ya tenías.
+    //
+    // No es un descubrimiento nuevo: P1-SETTINGS-TRACKING-COHERENCE ya lo cerró
+    // para la tarjeta de DashboardTracking (ver su comentario en :37-42). El flip
+    // de `appMode` ANTES de navegar es lo que dispara el reset de índice del
+    // wizard (modo distinto ⇒ el paso persistido se tira) y abre la rama del plan.
+    // Aquí se replica la MISMA mecánica; esta superficie simplemente se quedó
+    // fuera de aquel arreglo.
+    const _encenderElPlan = () => {
+        updateData('appMode', 'plan');
+        navigate('/assessment');
+    };
+
     const EmptyState = () => (
         <div className={styles.emptyState} role="status">
             <div className={styles.emptyIcon}>
@@ -1748,10 +1785,12 @@ const History = () => {
             </div>
             <h3 className={styles.emptyTitle}>Tu historial está vacío</h3>
             <p className={styles.emptyText}>
-                Genera tu primer plan nutricional y lo encontrarás aquí.
+                {enModoContador
+                    ? 'Estás usando la app como contador. Si enciendes el plan, cada uno que generes se guardará aquí.'
+                    : 'Genera tu primer plan nutricional y lo encontrarás aquí.'}
             </p>
-            <button className={styles.emptyCta} onClick={() => navigate('/assessment')}>
-                Crear mi primer plan <ChevronRight size={17} />
+            <button className={styles.emptyCta} onClick={_encenderElPlan}>
+                {enModoContador ? 'Encender el plan' : 'Crear mi primer plan'} <ChevronRight size={17} />
             </button>
         </div>
     );
@@ -1942,6 +1981,18 @@ const History = () => {
                                     existe (P1-CHUNKS-1). */}
                                 {(() => {
                                     const _pd = selectedPlan.plan_data || {};
+                                    // [P1-HIST-PAUSED-SURFACES · 2026-08-14] Un plan que el usuario
+                                    // APAGÓ no tiene una avería que reportar. La pausa cancela la
+                                    // cola a propósito, así que los chunks `pending_user_action` que
+                                    // quedan son su RESULTADO, no un fallo: sin este guard el modal
+                                    // pintaba «Acción requerida» en rojo y le pedía «reactívalo o
+                                    // regenéralo para que el sistema retome la generación» — no hay
+                                    // nada que retomar, y acusar de roto lo que el usuario mismo
+                                    // apagó es la peor versión de esta clase de bug.
+                                    //
+                                    // Va lo PRIMERO del bloque, antes de que se calculen título y
+                                    // cuerpo: un guard que corra después ya pintó el banner.
+                                    if (String(_pd.generation_status || '') === 'paused_by_user') return null;
                                     const _actionReq = _pd._user_action_required;
                                     const _exhausted = Array.isArray(_pd._recovery_exhausted_chunks)
                                         ? _pd._recovery_exhausted_chunks

@@ -9,6 +9,8 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
+import { isTrackingMode } from '../config/dashboardNav';
+import { textoNeveraBaja } from './pantryLowBannerCopy';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
@@ -349,7 +351,10 @@ const CATEGORY_NORMALIZE = {
 };
 
 const Pantry = () => {
-    const { session, setPlanData } = useAssessment();
+    const { session, setPlanData, userProfile, planData } = useAssessment();
+    // [P1-PANTRY-LOW-BANNER-TRACKING · 2026-08-14] Mismo SSOT que la nav y el
+    // Historial: el modo NO se reimplementa aqui.
+    const enModoContador = isTrackingMode(userProfile, planData);
     // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate lazy-init.
     // Si hay cache vigente (inventory TTL 30s, masterList TTL 24h), el
     // primer render tiene rows visibles y skeleton oculto. El fetchData
@@ -2627,8 +2632,7 @@ const Pantry = () => {
                 <div role="status" className={mstyles.lowBanner}>
                     <PackageX size={18} strokeWidth={2.5} />
                     <span>
-                        Tu nevera está baja (tienes <strong>{pantryStatus.meaningful_count} {pantryStatus.meaningful_count === 1 ? 'alimento' : 'alimentos'}</strong>).
-                        Te recomendamos tener <strong>~{pantryStatus.recommended_target || 20}</strong> para que tus planes aprovechen mejor tu nevera.
+                        {textoNeveraBaja(pantryStatus, enModoContador)}
                     </span>
                 </div>
             )}
@@ -2851,9 +2855,7 @@ const Pantry = () => {
                             <div role="status" className={fstyles.lowBanner}>
                                 <PackageX size={18} strokeWidth={2.5} />
                                 <span>
-                                    Tu nevera está baja (tienes <strong>{pantryStatus.meaningful_count} {pantryStatus.meaningful_count === 1 ? 'alimento' : 'alimentos'}</strong>).
-                                    Te recomendamos tener <strong>~{pantryStatus.recommended_target || 20}</strong> para que tus planes aprovechen mejor tu nevera.
-                                    Mientras tanto, tus próximas listas de mantenimiento comprarán lo que falte automáticamente.
+                                    {textoNeveraBaja(pantryStatus, enModoContador)}
                                 </span>
                             </div>
                         )}

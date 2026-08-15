@@ -104,6 +104,8 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
     };
 };
 import { toast } from 'sonner';
+// [P1-GENERATE-TURNS-MODE-ON · 2026-08-14] Espejo local del modo tras generar.
+import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi, getPlanChunkStatus } from '../config/api';
 // [P1-3 · 2026-07-09] clear() del estado de servidor de TanStack Query en el
@@ -3546,6 +3548,20 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
 
     const saveGeneratedPlan = async (data) => {
         setPlanData(data);
+        // [P1-GENERATE-TURNS-MODE-ON · 2026-08-14] El backend ya encendio el modo al
+        // generar (`ensure_plan_generation_enabled`: "generar un plan ES el
+        // consentimiento de generar"). Lo que faltaba era que el CLIENTE se enterara:
+        // `isTrackingMode` lee el perfil primero y el espejo despues, y aqui los dos
+        // siguen diciendo 'tracking' porque el perfil se cargo al entrar y nadie lo
+        // refresco. Sin esto, el usuario paga su credito, recibe el plan por SSE y
+        // aterriza otra vez en el contador -- que ademas llama «en pausa» al plan
+        // recien generado.
+        //
+        // Se corrigen LAS DOS fuentes: el espejo (respaldo cuando el perfil viene
+        // lento o tras un reload) y el perfil en memoria (para seguir navegando sin
+        // recargar). Arreglar solo una deja vivo el otro camino.
+        marcarModoPlanTrasGenerar();
+        setUserProfile((prev) => (prev ? { ...prev, plan_mode: 'plan' } : prev));
         // [P3-SAVEPLAN-LS-SYNC · 2026-05-30] Persistir `mealfit_plan` SÍNCRONO aquí,
         // igual que TODAS las hermanas de guardado (restorePlan/restoreFromHistory/
         // recalc rollback). Pre-fix `saveGeneratedPlan` era la ÚNICA ruta que confiaba
