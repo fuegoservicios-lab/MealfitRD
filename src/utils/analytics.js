@@ -120,10 +120,17 @@ export const trackEvent = (eventName, data = {}) => {
         window.posthog.capture(eventName, data);
     }
 
-    // Google Analytics (gtag)
-    if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', eventName, data);
-    }
+    // [P2-DEAD-GTAG · 2026-08-15] Aquí había una rama `if (window.gtag)`. Nunca
+    // pudo ejecutarse: no hay Google Analytics ni GTM en el proyecto — cero
+    // `googletagmanager`, cero `gtag.js`, cero `dataLayer` en `src/` y en
+    // `index.html`. `window.gtag` no se asigna jamás, así que la condición era
+    // constantemente falsa.
+    //
+    // No era inofensiva: es la razón por la que la CSP llevaba
+    // `https://www.googletagmanager.com` y `https://www.google-analytics.com` en
+    // `script-src` y `connect-src`. Un permiso de CSP que no sirve a nadie sigue
+    // siendo una puerta abierta, y esta estaba abierta para respaldar código
+    // muerto. Los dos orígenes salen del allowlist en el mismo pase (P2-CSP-*).
 
     // GTM (dataLayer)
     if (typeof window !== 'undefined' && window.dataLayer) {
