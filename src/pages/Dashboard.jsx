@@ -874,7 +874,7 @@ const DashboardInner = () => {
         if (rep && _planMicroSig) {
             safeLocalStorageSet('mealfit_micros_cache', JSON.stringify({ sig: _planMicroSig, report: rep, advice: adv || null }));
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [planData?.micronutrient_report, planData?.micronutrient_supplement_advice, _planMicroSig]);
 
     const microReport = useMemo(() => {
@@ -882,7 +882,7 @@ const DashboardInner = () => {
         if (!_planMicroSig) return null;
         const c = safeJSONParse(safeLocalStorageGet('mealfit_micros_cache', null), null);
         return c && c.sig === _planMicroSig ? c.report : null;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [planData?.micronutrient_report, _planMicroSig]);
 
     const microAdvice = useMemo(() => {
@@ -890,7 +890,7 @@ const DashboardInner = () => {
         if (!_planMicroSig) return null;
         const c = safeJSONParse(safeLocalStorageGet('mealfit_micros_cache', null), null);
         return c && c.sig === _planMicroSig ? c.advice : null;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [planData?.micronutrient_supplement_advice, _planMicroSig]);
 
     // [P3-QDEGRADED-DISMISS · 2026-06-15] El banner "La IA no logró un plan óptimo"
@@ -1861,7 +1861,7 @@ const DashboardInner = () => {
         updateUserProfile({ health_profile: payload });
         return true;
     // formDataRef.current se lee desde el ref (siempre latest) → sin dep.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, [updateUserProfile, userProfile, session]);
 
     // Hydrate disabledIngredients from DB (merges with the shared store)

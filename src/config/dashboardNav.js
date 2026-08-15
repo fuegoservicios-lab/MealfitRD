@@ -27,9 +27,7 @@ export const navItemsFor = ({ trackingMode = false } = {}) => [
  *  con o sin plan pausado — el plan queda en Historial con «Reanudar». El
  *  fail-open sobrevive donde tenía sentido: con modo DESCONOCIDO, un plan vivo
  *  sigue significando nav completa. */
-/* eslint-disable-next-line no-unused-vars -- `_planData` se conserva por FIRMA:
-   los llamantes lo pasan posicionalmente y quitarlo obligaría a tocarlos todos
-   para no cambiar nada. Dejó de pesar en P1-TRACKING-WINS (ver arriba). */
+ 
 export const isTrackingMode = (userProfile, _planData) => {
     let local = null;
     try { local = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }

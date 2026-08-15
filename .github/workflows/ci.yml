@@ -20,7 +20,34 @@ jobs:
           cache: npm
       - run: npm ci
       # Tope = estado actual (P2-LINT-ZERO lo baja a 0). Bloquea warnings NUEVOS.
-      - run: npx eslint . --max-warnings 148
+      #
+      # [P1-CI-GATE-PASSABLE · 2026-08-14] 148 -> 164, y la razon importa mas que
+      # el numero. El 148 se puso el 2026-07-12 como "estado actual" y el gate
+      # llevaba rojo desde que el lockfile subio `eslint-plugin-react-hooks` a
+      # 7.0.1: la version trae la regla `set-state-in-effect`, que aporto 16
+      # warnings de golpe sobre codigo que nadie habia tocado. O sea que el job
+      # fallaba sin que existiera ni un defecto nuevo.
+      #
+      # Un gate que no puede pasar deja de ser un gate: entrena a leer el rojo
+      # como ruido, y entonces el rojo de verdad tampoco se lee. Es literalmente
+      # la leccion del commit ac042bd ("El gate del deploy tiene que poder pasar,
+      # o entrena a saltarselo"), aplicada al otro gate.
+      #
+      # 164 = medicion del 2026-08-14 tras borrar las 18 directivas huerfanas
+      # (`--fix-type directive`) y sacar `coverage/` del lint. Reparto: 98
+      # no-restricted-syntax (localStorage crudo, boy-scout declarado), 26
+      # react-refresh/only-export-components, 24 exhaustive-deps, 16
+      # set-state-in-effect. CERO errores.
+      #
+      # COMO RECALIBRAR cuando el toolchain se mueva: `npm run lint:count` da el
+      # numero de hoy. Subirlo es legitimo SOLO si el delta viene de una regla
+      # nueva (bump de plugin) y no de codigo nuevo — si viene de codigo, el
+      # arreglo es el codigo. Escribe la causa aqui como estan escritas las dos
+      # anteriores; sin causa, el proximo que lo vea no sabra si puede bajarlo.
+      - run: npx eslint . --max-warnings 164
+      # El conteo queda en el log del job aunque el gate pase: la deriva de 148 a
+      # 180 fue invisible durante un mes porque nadie tenia el numero delante.
+      - run: npm run lint:count
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

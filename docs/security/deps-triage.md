@@ -2,6 +2,58 @@
 
 [P1-DEPS-TRIAGE · 2026-07-12] Estado tras el batch de bumps de prod-readiness v3.
 
+---
+
+## Actualización 2026-08-14 — `P1-CI-GATE-PASSABLE`
+
+El gate llevaba **rojo** (`node scripts/audit-gate.mjs` → exit 1) por un advisory
+que nunca se trió: **`nanoid` `GHSA-28wg-ghj8-5hjv`** (high), que entra por una
+cadena que nadie había mirado —
+`@neondatabase/neon-js → @neondatabase/auth-ui → @daveyplate/better-auth-ui → @triplit/client → @triplit/db → nanoid`.
+Un SDK de auth arrastrando un cliente de base de datos en tiempo real: no está
+en el bundle (Rollup lo sacude fuera, verificado por sourcemap), pero sí está en
+el árbol y por tanto en el audit.
+
+`npm audit fix` lo cerró **sin breaking change**, junto con dos más:
+
+| Paquete | De | A | Advisory cerrado |
+|---|---|---|---|
+| `nanoid` | 5.1.11 | 5.1.16 | `GHSA-28wg-ghj8-5hjv` (high) |
+| `react-router` / `-dom` | 7.18.1 | 7.18.2 | `GHSA-qwww-vcr4-c8h2` (high) |
+| `dompurify` (override) | 3.4.12 | 3.4.13 | `GHSA-55q2-fjhq-7xh7` (moderate) |
+
+Estado: **9 → 5** vulnerabilidades (4 moderate + 1 critical), todas en el subárbol
+`better-auth` de abajo. `audit-gate` en verde. Suite completa re-verificada tras
+los bumps: 242 ficheros / 2.468 tests.
+
+> ⚠️ **Trampa de instalación, no de seguridad.** `npm audit fix` se lleva por
+> delante los binarios nativos opcionales de rollup (bug npm/cli#4828): tras
+> correrlo, `vitest` muere con `Cannot find module @rollup/rollup-win32-x64-msvc`
+> **antes de ejecutar un solo test**. Y ese arranque fallido se parece muchísimo a
+> «los bumps rompieron los tests». Se arregla con un `npm install` a secas.
+> Corolario: al validar un bump, mira el código de salida de **vitest**, no el de
+> un `| tail` — en un pipeline el exit code es el del último comando.
+
+### Lo que cambió de premisa (revisar al re-triar)
+
+- **`GHSA-qwww-vcr4-c8h2` sale de la allowlist.** Su triage decía «el fix de npm
+  es bajar a 7.11.0 y reabre `GHSA-84g9-w2xq-vcv6`». Era cierto; dejó de serlo
+  cuando salió 7.18.2, que lo cierra hacia delante. La excepción sobrevivía a su
+  motivo.
+- **`better-auth` ya no es «sin fix upstream».** `npm audit fix --force` ofrece
+  `@neondatabase/neon-js@0.7.0-beta`. Es **beta y breaking**, así que no se aplica
+  en este pase — pero la premisa del §Resumen de abajo (escrita el 2026-07-12) ya
+  no describe el mundo. **Decisión pendiente del dueño**, con un dato que acota el
+  riesgo: esto **no toca al landing**. El apex nunca ejecuta el SDK de auth
+  (`isApexHost()`, P3-APEX-NO-SESSION); es deuda de `app.bioboros.com` que asoma
+  por esta puerta.
+
+**La lección general**: una entrada de allowlist congela el mundo del día en que
+se escribió. «Sin fix upstream» caduca **solo y en silencio**. Al tocar
+`scripts/audit-gate.mjs`, comprueba si alguna otra entrada ya tiene salida.
+
+---
+
 ## Resumen
 
 `npm audit` pasó de **24 → 5** vulnerabilidades. Las 5 residuales están TODAS en el

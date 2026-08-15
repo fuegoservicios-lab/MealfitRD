@@ -116,7 +116,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         setIsAccountMenuOpen(false);
         closeMenu();
         navigate('/dashboard/settings', { state: { backgroundLocation: location } });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [navigate, location]);
 
     // [P3-DASH-MODALS-A11Y · 2026-05-30] onClose memoizado + hook de a11y del

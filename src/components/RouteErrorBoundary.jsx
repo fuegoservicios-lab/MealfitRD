@@ -58,7 +58,7 @@ export class RouteErrorBoundary extends React.Component {
       return;
     }
     if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
+       
       console.error(`[RouteErrorBoundary:${this.props.routeName || 'unknown'}]`, error, errorInfo);
     }
     try {

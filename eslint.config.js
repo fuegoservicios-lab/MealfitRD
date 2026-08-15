@@ -49,7 +49,14 @@ export default defineConfig([
   // Lintearlo aportaba 575 errores de ruido (356 no-undef, 72
   // no-prototype-builtins…) que ahogaban los ~63 errores reales de src/ y
   // volvían `npm run lint` inútil como gate. Mismo criterio que dist/scratch/tmp.
-  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp', 'ds-bundle']),
+  // [P1-CI-GATE-PASSABLE · 2026-08-14] `coverage` añadido: salida de
+  // `@vitest/coverage-v8`. Sus `lcov-report/*.js` son assets del reporter de
+  // Istanbul y aportaban 2 directivas huérfanas al conteo. El motivo NO es el
+  // ruido en sí (son dos): es que el número LOCAL y el de CI diferían — en un
+  // checkout limpio `coverage/` no existe, así que el gate medía 180 y el
+  // desarrollador veía 182. Un techo de warnings sólo sirve si las dos orillas
+  // cuentan lo mismo; si no, cada recalibración nace desfasada.
+  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp', 'ds-bundle', 'coverage']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

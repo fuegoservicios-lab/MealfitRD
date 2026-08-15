@@ -23,8 +23,16 @@ const ALLOWLIST = new Set([
   // [P1-DEPS-TRIAGE-2 · 2026-08-07]
   'GHSA-qq9h-g4jm-xgf3', // APLICA — account takeover vía pre-account hijacking en
                          // email-OTP. Server-side de Neon; acción pendiente con ellos.
-  'GHSA-qwww-vcr4-c8h2', // No aplica — RSC Mode; este repo es Declarative puro. El
-                         // "fix" de npm es bajar a 7.11.0 y reabre GHSA-84g9-w2xq-vcv6.
+  // [P1-CI-GATE-PASSABLE · 2026-08-14] RETIRADA la entrada de GHSA-qwww-vcr4-c8h2
+  // (react-router, RSC Mode). Su triage decía «el fix de npm es bajar a 7.11.0 y
+  // reabre GHSA-84g9-w2xq-vcv6» — cierto cuando se escribió, falso desde que
+  // existe 7.18.2, que lo cierra hacia DELANTE. Ya no hace falta la excepción:
+  // el lockfile está en 7.18.2 y el advisory no aparece.
+  //
+  // La lección va más allá de esta línea: una entrada de allowlist congela el
+  // mundo del día en que se escribió. «Sin fix upstream» caduca solo, en
+  // silencio, y sin nadie revisándola la excepción sobrevive a su motivo. Al
+  // tocar este fichero, comprueba si alguna otra ya tiene salida.
 ]);
 
 let report;

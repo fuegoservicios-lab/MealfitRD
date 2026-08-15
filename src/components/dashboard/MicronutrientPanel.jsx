@@ -192,7 +192,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
         };
         window.addEventListener(MICROS_RESTORE_EVENT, onRestore);
         return () => window.removeEventListener(MICROS_RESTORE_EVENT, onRestore);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [_contentKey, _legacyKey, _contentSig]);
 
     if (!gaps.length && !supplements.length) return null;

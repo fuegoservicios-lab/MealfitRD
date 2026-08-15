@@ -770,7 +770,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         if (activeSection !== 'profile') {
             _revertBodyMetricsToOriginal();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [activeSection]);
 
     // Cleanup al desmontar el componente (navegación fuera de Settings).
@@ -780,7 +780,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         return () => {
             _revertBodyMetricsToOriginal();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     // [REFRESH-KEEPS-SECTION · 2026-06-20] Solo limpiar un hash INVÁLIDO/residual

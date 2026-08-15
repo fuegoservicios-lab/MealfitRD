@@ -580,7 +580,7 @@ const SupermarketPage = () => {
 
     const deleteProduct = async (p, fromFood) => {
         const label = [p.food_name, p.brand, p.presentation].filter(Boolean).join(' · ');
-        // eslint-disable-next-line no-alert
+         
         if (!window.confirm(`¿Eliminar "${label}" del supermercado? Esta acción no se puede deshacer.`)) return;
         try {
             await requestJson(`/api/supermarket/products/${p.id}`, { method: 'DELETE', token: adminToken });

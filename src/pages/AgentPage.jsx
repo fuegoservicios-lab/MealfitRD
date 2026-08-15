@@ -101,7 +101,7 @@ const _emitChatPerfTelemetry = ({ ttfbMs, streamTotalMs, chunkCount, isCallMode,
             },
         });
     } catch (_e) { /* swallow */ }
-    // eslint-disable-next-line no-console
+     
     console.info('[CHAT-PERF]', {
         ttfb_ms: typeof ttfbMs === 'number' ? Math.round(ttfbMs) : null,
         stream_total_ms: typeof streamTotalMs === 'number' ? Math.round(streamTotalMs) : null,
@@ -938,7 +938,7 @@ const AgentPage = () => {
         apply();
         window.addEventListener(AGENT_PREFILL_EVENT, apply);
         return () => window.removeEventListener(AGENT_PREFILL_EVENT, apply);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
     // [P2-CHAT-SCROLL-RACE · 2026-05-19] Refs del scroll-race guard.
     //

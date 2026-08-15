@@ -1467,7 +1467,7 @@ export const AssessmentProvider = ({ children }) => {
                 console.error('[P1-GUEST-ADOPT-SELFHEAL] persist falló', e);
             }
         })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [planData, userProfile]);
 
     useEffect(() => {
@@ -3032,7 +3032,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             tick(mk);
         })();
         return () => { cancelled = true; if (timer) clearTimeout(timer); };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [session?.user?.id]);
 
     // --- REGENERACIÓN INTELIGENTE CON PERSISTENCIA DE DB ---

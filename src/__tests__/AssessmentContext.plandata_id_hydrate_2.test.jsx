@@ -23,7 +23,7 @@ const SRC = readFileSync(join(__dirname_, '..', 'context', 'AssessmentContext.js
 // Réplica NO: se extrae y evalúa el helper real del fichero de producción, para que
 // borrarlo allí ponga estos tests en rojo.
 const _m = SRC.match(/const conservarPlanId = \(nuevo, previo\) => \{[\s\S]*?\n\};/);
-// eslint-disable-next-line no-new-func
+ 
 const conservarPlanId = _m ? new Function(`${_m[0]}; return conservarPlanId;`)() : null;
 
 describe('[P1-PLANDATA-ID-HYDRATE-2] conservarPlanId', () => {
