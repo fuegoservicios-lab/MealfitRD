@@ -34,11 +34,30 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    width: min(1040px, 100%);
-    height: min(86vh, 780px);
+    /* [P1-SETTINGS-PANEL-CRISP · 2026-08-15] Un punto más pequeño (1040→960 de
+       ancho, 780→720 de alto tope) por petición del dueño: la ventana ocupaba
+       casi todo el escritorio y dejaba de leerse como una ventana. El `86vh` baja
+       a `84vh` para que el aire alrededor siga existiendo también en pantallas
+       bajas, que es donde antes casi rozaba el borde. */
+    width: min(960px, 100%);
+    height: min(84vh, 720px);
     min-height: 0;
     overflow: hidden;
-    border-radius: 18px;
+    border-radius: 16px;
+    /* EL ARREGLO DE VERDAD: el panel NO TENÍA BORDE. Su único canto era la
+       sombra, y una sombra de 70px de difuminado sobre un fondo oscuro no
+       delimita nada — panel #0B1120 sobre backdrop oscuro difuminado, sin nada
+       que los separe. De ahí la sensación de que «se ve blando».
+       `1px solid var(--border)` es el mismo patrón que ya usan las superficies
+       elevadas del dashboard (AccountMenu, CreditsMeter, DashboardLayout): no es
+       un estilo nuevo, es el que faltaba. `box-sizing: border-box` es global, así
+       que el borde no ensancha la ventana.
+
+       En tema CLARO y en PAPEL esto basta y sobra: un panel #F8FAFC sobre un
+       backdrop oscuro atenuado ya tiene un canto enorme por pura diferencia de
+       luminancia, y el borde solo lo remata. El tema OSCURO es otro problema y se
+       resuelve abajo. */
+    border: 1px solid var(--border);
     /* `--bg-page` es EL token del fondo de página (claro #F8FAFC / oscuro
        #0B1120), el mismo que pinta el área de contenido del dashboard: la
        ventana debe verse como la página que sustituye, no como una superficie
@@ -46,8 +65,36 @@
        tokens — el fallback dejaba el panel oscuro también en tema claro, con la
        cabecera de Settings casi ilegible encima. */
     background: var(--bg-page, #F8FAFC);
-    box-shadow: 0 24px 70px -20px rgba(2, 6, 23, 0.75);
+    /* Sombra en DOS capas en vez de una sola muy difusa. La de 70px daba
+       profundidad pero no canto: lo que define un borde es la capa CORTA (2px de
+       difuminado, pegada al panel), que dibuja una línea de contacto nítida; la
+       larga sigue separando la ventana del fondo. Una sola capa no puede hacer
+       las dos cosas — o difumina y no define, o define y aplana. */
+    box-shadow:
+        0 1px 2px rgba(2, 6, 23, 0.35),
+        0 20px 52px -18px rgba(2, 6, 23, 0.7);
     animation: dialogRise 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* [P1-SETTINGS-PANEL-CRISP · 2026-08-15] El borde, SOLO en oscuro, sube a
+   slate-700. Y la razón es una medición, no un gusto:
+
+     borde        vs panel #0B1120   vs backdrop
+     --border     (#1F2937)   1,28        1,31     ← invisible a 1px
+     #334155                  1,82        1,86     ← se ve, sin parecer contorno
+     #475569                  2,48        2,54     ← ya canta demasiado
+
+   `var(--border)` está calibrado para superficies DENTRO de la página, donde el
+   fondo circundante es el mismo. Aquí no: la ventana flota sobre un backdrop
+   atenuado y difuminado que apaga todo alrededor, así que el mismo token que
+   basta en una tarjeta desaparece en un modal. Por eso se refuerza aquí y no se
+   toca el token global — cambiarlo movería cada tarjeta del dashboard para
+   arreglar una ventana.
+
+   Se aplica a las DOS caras: el borde queda más claro que el panel Y que el
+   fondo, así que dibuja línea por dentro y por fuera. */
+:global(html[data-theme="dark"]) .panel {
+    border-color: #334155;
 }
 
 /* [P1-SETTINGS-CHROME-SPLIT · 2026-08-10] EL HIJO DEL PANEL DEJA DE SER UN TUBO.
@@ -130,6 +177,12 @@
         height: 100%;
         max-height: none;
         border-radius: 0;
+        /* [P1-SETTINGS-PANEL-CRISP · 2026-08-15] Sin borde en móvil: aquí el panel
+           ES la pantalla, así que ese 1px no separa la ventana de nada — dibuja
+           una línea pegada a los cantos del teléfono y le roba un píxel al
+           contenido por los cuatro lados. Es la misma razón por la que este
+           bloque ya ponía `border-radius: 0`. */
+        border: 0;
         animation: dialogRiseMobile 200ms cubic-bezier(0.22, 1, 0.36, 1);
     }
 
