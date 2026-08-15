@@ -5,6 +5,9 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // apunta al Postgres stale de el backend anterior).
 import { fetchWithAuth, deletePlanFromHistory, getHistoryList, getLessonsCounts, getPlanLessonsDetail, getPlanCoherenceHistory, getHistoryStatusSummary, getPlanBlockedReasons, getPlanChunkMetrics, getPlanLifetimeLessons, renamePlan } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
+// [P1-HIST-PAUSED-BADGE · 2026-08-14] SSOT del modo (perfil → espejo local) —
+// el mismo que consultan la nav del dashboard y el saludo del agente.
+import { isTrackingMode } from '../config/dashboardNav';
 import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -405,7 +408,7 @@ const History = () => {
     // era el ÚNICO getUser() del árbol (un roundtrip de red a /auth/v1/user que
     // revalida el JWT server-side) y bloqueaba ~100-300ms el query de plan_data
     // en cada apertura de tarjeta no cacheada. La RLS ya enforza ownership.
-    const { restorePlanFromHistory, session } = useAssessment();
+    const { restorePlanFromHistory, session, userProfile, planData } = useAssessment();
 
     // [P2-HIST-MODALS-A11Y · 2026-05-30] Defenses a11y (role/aria/ESC/
     // focus-trap/restore-focus/scroll-lock) para los 3 modales custom.
@@ -1847,6 +1850,7 @@ const History = () => {
                    owner). Móvil sigue con la lista compacta de abajo. El modal de
                    detalle (más abajo) lo abre `openPlanModal`. */
                 <HistoryDesktopPanel
+                    paused={isTrackingMode(userProfile, planData)}
                     plans={plans}
                     total={plans.length}
                     activePlanId={activePlanId}
@@ -1866,6 +1870,7 @@ const History = () => {
                    owner): edge-to-edge, datos/handlers reales, SVGs actuales. El
                    modal de detalle (más abajo) lo abre `openPlanModal`. */
                 <HistoryMobilePanel
+                    paused={isTrackingMode(userProfile, planData)}
                     plans={plans}
                     total={plans.length}
                     activePlanId={activePlanId}

@@ -95,7 +95,7 @@ function NameEditor({ tempName, setTempName, onSave, onCancel }) {
   );
 }
 
-function PlanCard({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempName, onEditSave, onEditCancel }) {
+function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tempName, setTempName, onEditSave, onEditCancel }) {
   const [press, setPress] = useState(false);
   return (
     <div
@@ -115,7 +115,7 @@ function PlanCard({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNa
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
         <span style={emblem}><CalendarDays size={22} strokeWidth={2.25} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {plan.active && <div style={{ marginBottom: 5 }}>{activeBadge}</div>}
+          {plan.active && <div style={{ marginBottom: 5 }}>{activeBadge(paused)}</div>}
           {editing ? (
             <NameEditor tempName={tempName} setTempName={setTempName} onSave={onEditSave} onCancel={onEditCancel} />
           ) : (
@@ -150,6 +150,7 @@ export default function HistoryMobilePanel({
   plans = [],
   total = 0,
   activePlanId = null,
+  paused = false,
   searchQuery = "",
   setSearchQuery = () => {},
   onOpen = () => {},
@@ -196,6 +197,7 @@ export default function HistoryMobilePanel({
 
       {showActive && (
         <PlanCard
+          paused={paused}
           plan={active}
           onOpen={() => onOpen(active.raw)}
           onEdit={() => onEdit(active.raw)}
@@ -214,6 +216,7 @@ export default function HistoryMobilePanel({
           {groups[g].map((p) => (
             <PlanCard
               key={p.id}
+              paused={paused}
               plan={p}
               onOpen={() => onOpen(p.raw)}
               onEdit={() => onEdit(p.raw)}
@@ -238,11 +241,18 @@ export default function HistoryMobilePanel({
 /* --------------------------------------------------------- estilos compartidos */
 const emblem = { flex: "none", width: 44, height: 44, borderRadius: 12, display: "grid", placeItems: "center", color: "#fff",
   background: "linear-gradient(150deg, var(--primary-light), var(--primary))", boxShadow: "0 8px 18px -10px var(--primary)" };
-const activeBadge = (
+/* [P1-HIST-PAUSED-BADGE · 2026-08-14] De constante a factoria: el chip debe
+   poder decir «En pausa» (ambar, sin vida) cuando el modo contador esta activo.
+   Misma correccion que el hero de escritorio — la insignia derivaba «activo» de
+   la mera existencia del plan, que la pausa conserva a proposito. */
+const activeBadge = (paused = false) => (
   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".58rem", fontWeight: 800, letterSpacing: ".07em",
-    textTransform: "uppercase", color: "var(--secondary)", background: "color-mix(in srgb, var(--secondary) 16%, transparent)",
-    border: "1px solid color-mix(in srgb, var(--secondary) 36%, transparent)", padding: "3px 9px", borderRadius: 99 }}>
-    <i style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--secondary)" }} /> Activo
+    textTransform: "uppercase",
+    color: paused ? "#FBBF24" : "var(--secondary)",
+    background: paused ? "color-mix(in srgb, #FBBF24 14%, transparent)" : "color-mix(in srgb, var(--secondary) 16%, transparent)",
+    border: `1px solid ${paused ? "color-mix(in srgb, #FBBF24 34%, transparent)" : "color-mix(in srgb, var(--secondary) 36%, transparent)"}`,
+    padding: "3px 9px", borderRadius: 99 }}>
+    <i style={{ width: 5, height: 5, borderRadius: "50%", background: paused ? "#FBBF24" : "var(--secondary)" }} /> {paused ? "En pausa" : "Activo"}
   </span>
 );
 const cardIconBtn = { flex: "none", width: 30, height: 30, borderRadius: 9, display: "grid", placeItems: "center", cursor: "pointer",

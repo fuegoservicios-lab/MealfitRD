@@ -216,7 +216,15 @@ function NameEditor({ tempName, setTempName, onSave, onCancel, big }) {
   );
 }
 
-function PlanHero({ plan, onOpen, onEdit, editing, tempName, setTempName, onEditSave, onEditCancel }) {
+/* [P1-HIST-PAUSED-BADGE · 2026-08-14] `paused`: con el modo contador activo, la
+   insignia del hero deja de jurar «Plan activo» — el plan está EN PAUSA y este
+   Historial es justo donde P1-TRACKING-WINS dice que se declara («queda en
+   Historial con "Reanudar"»). El hero sigue siendo el hero: ese plan es el más
+   reciente y el reanudable; lo que cambia es la palabra y el color (ámbar de
+   espera, no verde de vivo). Tercera superficie de la familia en un día: saludo
+   del agente, contexto del chat, y esta insignia — todas derivaban «activo» de
+   la mera existencia de `plan_data`, que la pausa conserva a propósito. */
+function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, setTempName, onEditSave, onEditCancel }) {
   return (
     // [P2-12 · 2026-07-09] role/tabIndex/onKeyDown: la card activa es operable por teclado.
     <div onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => handleRowKeyDown(e, editing, onOpen)}
@@ -228,9 +236,16 @@ function PlanHero({ plan, onOpen, onEdit, editing, tempName, setTempName, onEdit
         <span style={emblem(50)}><CalendarDays size={25} strokeWidth={2.25} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".62rem", fontWeight: 800,
-            letterSpacing: ".07em", textTransform: "uppercase", color: "var(--secondary)", background: "color-mix(in srgb, var(--secondary) 16%, transparent)",
-            border: "1px solid color-mix(in srgb, var(--secondary) 36%, transparent)", padding: "4px 10px", borderRadius: 99 }}>
-            <i style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--secondary)", boxShadow: "0 0 8px var(--secondary)" }} /> Plan activo
+            letterSpacing: ".07em", textTransform: "uppercase",
+            color: paused ? "#FBBF24" : "var(--secondary)",
+            background: paused ? "color-mix(in srgb, #FBBF24 14%, transparent)" : "color-mix(in srgb, var(--secondary) 16%, transparent)",
+            border: `1px solid ${paused ? "color-mix(in srgb, #FBBF24 34%, transparent)" : "color-mix(in srgb, var(--secondary) 36%, transparent)"}`,
+            padding: "4px 10px", borderRadius: 99 }}>
+            {/* En pausa el punto no brilla: el glow verde es la señal de «vivo». */}
+            <i style={{ width: 6, height: 6, borderRadius: "50%",
+              background: paused ? "#FBBF24" : "var(--secondary)",
+              boxShadow: paused ? "none" : "0 0 8px var(--secondary)" }} />
+            {paused ? "Plan en pausa" : "Plan activo"}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "9px 0 3px", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: 800, letterSpacing: "-.015em", color: "var(--text-main)" }}>
             {editing ? (
@@ -306,6 +321,7 @@ export default function HistoryDesktopPanel({
   plans = [],
   total = 0,
   activePlanId = null,
+  paused = false,
   searchQuery = "",
   setSearchQuery = () => {},
   onOpen = () => {},
@@ -379,6 +395,7 @@ export default function HistoryDesktopPanel({
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {active && (!q || active.name.toLowerCase().includes(q)) && (
           <PlanHero
+            paused={paused}
             plan={active}
             onOpen={() => onOpen(active.raw)}
             onEdit={() => onEdit(active.raw)}
