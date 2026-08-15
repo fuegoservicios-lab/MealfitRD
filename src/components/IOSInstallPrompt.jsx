@@ -4,9 +4,11 @@ import { Share, X } from 'lucide-react';
 // componente solo se muestra en iOS, donde Private Mode hace crash con raw
 // setItem.
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { useT } from '../i18n';
 
 const IOSInstallPrompt = () => {
     const [showPrompt, setShowPrompt] = useState(false);
+    const t = useT();
 
     useEffect(() => {
         // Detect IOS
@@ -60,16 +62,19 @@ const IOSInstallPrompt = () => {
             <img src="/favicon.png" alt="Bioboros" style={{ width: 34, height: 34, borderRadius: '9px', flexShrink: 0 }} />
             <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.25 }}>
-                    Instala Bioboros
+                    {t('Instala Bioboros')}
                 </p>
+                {/* [P1-I18N-DASHBOARD · 2026-08-15] La frase va partida porque el icono
+                    de «Compartir» de iOS vive DENTRO de ella; el sufijo `|` desambigua
+                    la conjunción suelta, que sin contexto es una clave de una letra. */}
                 <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: '0.28rem', flexWrap: 'wrap' }}>
-                    Toca <Share size={14} color="#007aff" style={{ flexShrink: 0 }} /> y
-                    <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>«Agregar a inicio»</strong>
+                    {t('Toca')} <Share size={14} color="#007aff" style={{ flexShrink: 0 }} /> {t('y|conjunción')}
+                    <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{t('«Agregar a inicio»')}</strong>
                 </p>
             </div>
             {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label requerido: icon-only button (X)
                 sin texto visible necesita label para lectores de pantalla. */}
-            <button onClick={dismissPrompt} aria-label="Cerrar aviso de instalación" style={{
+            <button onClick={dismissPrompt} aria-label={t('Cerrar aviso de instalación')} style={{
                 background: 'none', border: 'none', color: 'var(--text-muted)',
                 padding: '4px', margin: '-4px -2px -4px 0', cursor: 'pointer', flexShrink: 0,
                 alignSelf: 'flex-start'

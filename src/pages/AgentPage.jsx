@@ -65,6 +65,10 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
 import Wordmark from '../components/common/Wordmark';
+// [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
+// de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
+// se usa `useT()`, que además suscribe al cambio de idioma.
+import { t, useT } from '../i18n';
 
 const _captureAgentPageException = (err, tags) => {
     try {
@@ -131,25 +135,29 @@ const _emitChatPerfTelemetry = ({ ttfbMs, streamTotalMs, chunkCount, isCallMode,
 // `chat_error_status` para correlación Sentry. NO se loguea `detail` raw
 // (puede incluir info sensible del backend); el copy mostrado al usuario
 // es siempre el canónico es-DO.
-const _AGENT_ERROR_COPY = {
+// [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: un objeto de copy en
+// ámbito de módulo se evalúa al importar — antes de que el catálogo cargue — y
+// queda congelado en español para siempre (y en es-DO se ve bien, así que nadie
+// lo nota). Se llama en cada `_buildAgentErrorMessage`.
+const _agentErrorCopy = () => ({
     504: {
         icon: '⏱',
-        text: 'El asistente tardó más de la cuenta en responder. Puedes reintentar ahora.',
+        text: t('El asistente tardó más de la cuenta en responder. Puedes reintentar ahora.'),
         retryable: true,
     },
     503: {
         icon: '🚦',
-        text: 'El asistente está temporalmente saturado. Espera unos segundos y reintenta.',
+        text: t('El asistente está temporalmente saturado. Espera unos segundos y reintenta.'),
         retryable: true,
     },
     429: {
         icon: '🚦',
-        text: 'Demasiadas solicitudes seguidas. Espera un momento y reintenta.',
+        text: t('Demasiadas solicitudes seguidas. Espera un momento y reintenta.'),
         retryable: true,
     },
     402: {
         icon: '🔒',
-        text: 'Llegaste al límite mensual de tu plan. Actualiza para seguir conversando.',
+        text: t('Llegaste al límite mensual de tu plan. Actualiza para seguir conversando.'),
         retryable: false,
     },
     // [P2-AGENT-413-NO-RETRY · 2026-05-30] El backend rechaza prompts > cap
@@ -159,35 +167,35 @@ const _AGENT_ERROR_COPY = {
     // que su mensaje excedía el límite. `retryable: false` + copy claro.
     413: {
         icon: '✂',
-        text: 'Tu mensaje es demasiado largo. Acórtalo y vuelve a enviarlo.',
+        text: t('Tu mensaje es demasiado largo. Acórtalo y vuelve a enviarlo.'),
         retryable: false,
     },
     401: {
         icon: '🔐',
-        text: 'Tu sesión expiró. Vuelve a iniciar sesión para continuar.',
+        text: t('Tu sesión expiró. Vuelve a iniciar sesión para continuar.'),
         retryable: false,
     },
     403: {
         icon: '🔐',
-        text: 'Tu sesión expiró. Vuelve a iniciar sesión para continuar.',
+        text: t('Tu sesión expiró. Vuelve a iniciar sesión para continuar.'),
         retryable: false,
     },
     0: {
         icon: '📡',
-        text: 'Sin conexión al servidor. Verifica tu internet y reintenta.',
+        text: t('Sin conexión al servidor. Verifica tu internet y reintenta.'),
         retryable: true,
     },
-};
+});
 
 const _buildAgentErrorMessage = ({ status, retryPrompt, retryImageUrl, isAgentError }) => {
-    let entry = _AGENT_ERROR_COPY[status];
+    let entry = _agentErrorCopy()[status];
     if (!entry) {
         // 500/502/otros — copy genérico retryable. Server problem.
         entry = {
             icon: '⚠',
             text: isAgentError
-                ? 'El asistente tuvo un problema procesando tu mensaje. Puedes reintentar.'
-                : 'El servidor tuvo un problema inesperado. Puedes reintentar en un momento.',
+                ? t('El asistente tuvo un problema procesando tu mensaje. Puedes reintentar.')
+                : t('El servidor tuvo un problema inesperado. Puedes reintentar en un momento.'),
             retryable: true,
         };
     }
@@ -267,7 +275,7 @@ export const menuItemsDelAgente = (enModoContador) => {
         ...navItemsFor({ trackingMode: enModoContador })
             .filter((i) => i.key !== 'agent')
             .map((i) => ({ icon: iconoPorKey[i.key], label: i.label, path: i.path })),
-        { icon: Settings, label: 'Configuración', path: '/dashboard/settings', asDialog: true },
+        { icon: Settings, label: t('Configuración'), path: '/dashboard/settings', asDialog: true },
     ];
 };
 
@@ -511,6 +519,9 @@ const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
 };
 
 const AgentPage = () => {
+    // [P1-I18N-DASHBOARD · 2026-08-15] El hook (y no el `t` de módulo importado
+    // arriba) es lo que suscribe a este componente al cambio de idioma.
+    const t = useT();
     const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, checkPlanLimit, restoreSessionData } = useAssessment();
     // [P1-AGENT-MENU-SSOT · 2026-08-14] El modo, en el scope del COMPONENTE. El
     // saludo tiene su propio cálculo porque es una función pura fuera de React;
@@ -1111,11 +1122,11 @@ const AgentPage = () => {
 
     const [loadingPhraseIdx, setLoadingPhraseIdx] = useState(0);
     const loadingPhrases = [
-        "Revisando tus preferencias y contexto...",
-        "Evaluando tu perfil y macros...",
-        "Analizando tu objetivo con Inteligencia Nutricional...",
-        "Alineando tu genética con el plan...",
-        "Calculando la mejor respuesta metabólica..."
+        t("Revisando tus preferencias y contexto..."),
+        t("Evaluando tu perfil y macros..."),
+        t("Analizando tu objetivo con Inteligencia Nutricional..."),
+        t("Alineando tu genética con el plan..."),
+        t("Calculando la mejor respuesta metabólica...")
     ];
 
     useEffect(() => {
@@ -1137,7 +1148,7 @@ const AgentPage = () => {
             // `toast.error` (sonner). El resto de la app usa sonner
             // consistentemente; `alert()` bloquea el thread y rompe la UX
             // mobile (modal-blocking dialog que no respeta el theme dark).
-            toast.error('Formato no soportado. Por favor sube una imagen válida.');
+            toast.error(t('Formato no soportado. Por favor sube una imagen válida.'));
             return;
         }
 
@@ -1520,7 +1531,7 @@ const AgentPage = () => {
                     ) {
                         _mappedMsgs.push({
                             role: 'model',
-                            content: '⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.',
+                            content: t('⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
                             _stoppedByUser: true,
                             _isErrorBubble: true,
                             retryable: false,
@@ -1604,11 +1615,11 @@ const AgentPage = () => {
                 // hacían console.error: la conversación seguía en la lista y el
                 // usuario no tenía forma de saber si había borrado o no. En consola
                 // no mira nadie, y menos desde un teléfono.
-                toast.error('No pudimos eliminar la conversación. Inténtalo de nuevo.');
+                toast.error(t('No pudimos eliminar la conversación. Inténtalo de nuevo.'));
             }
         } catch (error) {
             console.error("Excepción eliminando chat:", error);
-            toast.error('No pudimos eliminar la conversación. Revisa tu conexión.');
+            toast.error(t('No pudimos eliminar la conversación. Revisa tu conexión.'));
             _captureAgentPageException(error, { action: 'deleteChat' });
         }
     };
@@ -1726,8 +1737,8 @@ const AgentPage = () => {
                     return [...prev, {
                         role: 'model',
                         content: canRetry
-                            ? '⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.'
-                            : '⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).',
+                            ? t('⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.')
+                            : t('⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'),
                         errorType: 'refresh_orphan',
                         retryable: canRetry,
                         retryPrompt: canRetry ? lastPrev.content : null,
@@ -1950,7 +1961,7 @@ const AgentPage = () => {
                 // gemma local tarda 30-90s: sin señal el usuario mira la nada.
                 // El render especial-casea este texto (literal, no frases
                 // rotativas de "genética" que confunden durante una foto).
-                setStreamingStatus('Analizando tu foto… puede tardar un minuto');
+                setStreamingStatus(t('Analizando tu foto… puede tardar un minuto'));
                 const formData = new FormData();
                 formData.append('file', currentFile);
                 formData.append('user_id', session?.user?.id || userProfile?.id || localSessionId);
@@ -1975,9 +1986,9 @@ const AgentPage = () => {
                 if (!uploadRes.ok) {
                     const _err = await uploadRes.json().catch(() => ({}));
                     const _motivo = {
-                        413: 'La foto pesa demasiado. Prueba con una más liviana.',
-                        415: 'Ese archivo no es una imagen que podamos leer. Usa JPG, PNG o HEIC.',
-                        429: 'Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.',
+                        413: t('La foto pesa demasiado. Prueba con una más liviana.'),
+                        415: t('Ese archivo no es una imagen que podamos leer. Usa JPG, PNG o HEIC.'),
+                        429: t('Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.'),
                     }[uploadRes.status];
                     console.error('[P1-CHAT-PHOTO-ERRORS] upload falló', uploadRes.status, _err);
                     setMessages(prev => [...prev, _buildAgentErrorMessage({
@@ -2069,7 +2080,7 @@ const AgentPage = () => {
                     enrichedPrompt = `[${timeContext}]\nMensaje del usuario: ${promptToSend}`;
                 }
 
-                setStreamingStatus('Conectando...');
+                setStreamingStatus(t('Conectando...'));
                 // [P1-CHAT-PHOTO-UX] El welcome ya se filtró al construir
                 // newMessages en el send — el shift tardío (que además mutaba
                 // el array-state en sitio) se eliminó.
@@ -2517,7 +2528,7 @@ const AgentPage = () => {
             if (lastPrev && lastPrev._stoppedByUser) return prev; // sin duplicar
             return [...prev, {
                 role: 'model',
-                content: '⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.',
+                content: t('⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
                 _stoppedByUser: true,
                 _isErrorBubble: true,
                 retryable: false,
@@ -2648,7 +2659,7 @@ const AgentPage = () => {
                                 boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                             }}
                         >
-                            <span style={{ fontSize: '1.1rem' }}>✋</span> Detener
+                            <span style={{ fontSize: '1.1rem' }}>✋</span> {t('Detener')}
                         </button>
                     </div>
                 )}
@@ -2693,7 +2704,7 @@ const AgentPage = () => {
                                 <img src={previewUrl} alt="Preview" style={{ width: '48px', height: '48px', borderRadius: '6px', opacity: isLoading ? 0.5 : 1, objectFit: 'cover' }} />
                                 <button
                                     type="button"
-                                    aria-label="Quitar imagen"
+                                    aria-label={t('Quitar imagen')}
                                     onClick={() => clearSelectedFile()}
                                     disabled={isTurnActive}
                                     style={{
@@ -2728,7 +2739,7 @@ const AgentPage = () => {
 
                         <button
                             type="button"
-                            aria-label="Adjuntar imagen"
+                            aria-label={t('Adjuntar imagen')}
                             className={`attachment-btn ${isTurnActive ? 'disabled' : ''}`}
                             disabled={isTurnActive}
                             onClick={() => {
@@ -2737,7 +2748,7 @@ const AgentPage = () => {
                                     fileInputRef.current.click();
                                 }
                             }}
-                            title="Adjuntar imagen"
+                            title={t('Adjuntar imagen')}
                         >
                             <Paperclip size={20} strokeWidth={2} />
                         </button>
@@ -2764,7 +2775,7 @@ const AgentPage = () => {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
-                            placeholder={micErrorMsg || "Pregúntale a Bioboros"}
+                            placeholder={micErrorMsg || t("Pregúntale a Bioboros")}
                             onFocus={() => setTimeout(scrollToBottom, 300)}
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se
@@ -2799,9 +2810,9 @@ const AgentPage = () => {
                         {(isTurnActive || recoveringTurn) ? (
                             <button
                                 type="button"
-                                aria-label="Detener generación"
+                                aria-label={t('Detener generación')}
                                 onClick={handleStopGeneration}
-                                title="Detener generación"
+                                title={t('Detener generación')}
                                 style={{
                                     background: '#ef4444',
                                     color: 'white',
@@ -2831,7 +2842,7 @@ const AgentPage = () => {
                                 {(input.trim() || selectedFile) && (
                                     <button
                                         type="button"
-                                        aria-label="Enviar"
+                                        aria-label={t('Enviar')}
                                         className="touch-scale"
                                         onClick={handleSend}
                                         disabled={isTurnActive}
@@ -2960,11 +2971,13 @@ const AgentPage = () => {
         });
 
         return [
-            { id: 'hoy', label: 'Hoy', items: groups['Hoy'] },
+            { id: 'hoy', label: t('Hoy'), items: groups['Hoy'] },
             { id: '30dias', label: '', items: groups['Últimos 30 días'] },
-            { id: 'antiguos', label: 'Más antiguos', items: groups['Más antiguos'] }
+            { id: 'antiguos', label: t('Más antiguos'), items: groups['Más antiguos'] }
         ].filter(g => g.items.length > 0);
-    }, [chatSessions]);
+        // `t` es la MISMA función de módulo en cada render (el hook solo suscribe),
+        // así que listarlo no reabre el memo durante el streaming.
+    }, [chatSessions, t]);
     return (
         <>
             <style>{`
@@ -3092,10 +3105,10 @@ const AgentPage = () => {
                         }}>
                             <ImageIcon size={48} color="#3b82f6" strokeWidth={1.5} />
                             <h2 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 600 }}>
-                                Suelta tu imagen aquí
+                                {t('Suelta tu imagen aquí')}
                             </h2>
                             <p style={{ margin: 0, color: 'var(--text-muted)' }}>
-                                La subiremos optimizada para responderte.
+                                {t('La subiremos optimizada para responderte.')}
                             </p>
                         </div>
                     </div>
@@ -3172,7 +3185,7 @@ const AgentPage = () => {
                             }}
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                            aria-label="Ver historial de chats"
+                            aria-label={t('Ver historial de chats')}
                         >
                             <History size={24} strokeWidth={1.5} />
                         </button>
@@ -3218,7 +3231,7 @@ const AgentPage = () => {
                                     borderRadius: '50%',
                                     transition: 'all 0.15s'
                                 }}
-                                aria-label="Abrir menú de navegación"
+                                aria-label={t('Abrir menú de navegación')}
                                 aria-haspopup="menu"
                                 aria-expanded={showNavMenu}
                             >
@@ -3329,7 +3342,7 @@ const AgentPage = () => {
                                         gap: '0.6rem'
                                     }}>
                                         <BotAvatar size={54} float style={{ flexShrink: 0 }} />
-                                        Hola, {userProfile?.full_name?.split(' ')[0] || formData?.name || 'amigo'}
+                                        {t('Hola, {nombre}', { nombre: userProfile?.full_name?.split(' ')[0] || formData?.name || t('amigo') })}
                                     </h1>
                                     <h2 className="welcome-sub" style={{
                                         fontSize: '2.5rem',
@@ -3339,7 +3352,7 @@ const AgentPage = () => {
                                         letterSpacing: '-0.03em',
                                         lineHeight: 1.2
                                     }}>
-                                        ¿Por dónde empezamos?
+                                        {t('¿Por dónde empezamos?')}
                                     </h2>
                                 </div>
 
@@ -3351,10 +3364,10 @@ const AgentPage = () => {
                                     marginTop: '0.5rem'
                                 }}>
                                     {[
-                                        { icon: '🖼️', text: 'Analizar mi comida' },
-                                        { icon: '💪', text: 'Dieta para ganar volumen' },
-                                        { icon: '✨', text: 'Plan de pérdida de peso' },
-                                        { icon: '🍳', text: 'Receta alta en proteína' }
+                                        { icon: '🖼️', text: t('Analizar mi comida') },
+                                        { icon: '💪', text: t('Dieta para ganar volumen') },
+                                        { icon: '✨', text: t('Plan de pérdida de peso') },
+                                        { icon: '🍳', text: t('Receta alta en proteína') }
                                     ].map((suggestion, idx) => (
                                         <button
                                             key={idx}
@@ -3411,7 +3424,7 @@ const AgentPage = () => {
                                     role="log"
                                     aria-live="polite"
                                     aria-relevant="additions text"
-                                    aria-label="Historial de conversación con el asistente"
+                                    aria-label={t('Historial de conversación con el asistente')}
                                     style={{
                                         maxWidth: '800px',
                                         width: '100%',
@@ -3429,7 +3442,7 @@ const AgentPage = () => {
                                         cacheado). */}
                                     <Suspense fallback={
                                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <Loader2 className="animate-spin" size={24} aria-label="Cargando mensajes" />
+                                            <Loader2 className="animate-spin" size={24} aria-label={t('Cargando mensajes')} />
                                         </div>
                                     }>
                                         <VirtualizedMessageList
@@ -3455,7 +3468,7 @@ const AgentPage = () => {
                                 role="log"
                                 aria-live="polite"
                                 aria-relevant="additions text"
-                                aria-label="Historial de conversación con el asistente"
+                                aria-label={t('Historial de conversación con el asistente')}
                                 style={{
                                     maxWidth: '800px',
                                     width: '100%',
@@ -3468,7 +3481,7 @@ const AgentPage = () => {
                             >
                                 {isLoadingHistory ? (
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
-                                        <Loader2 className="spin-fast" size={20} /> Cargando mensajes...
+                                        <Loader2 className="spin-fast" size={20} /> {t('Cargando mensajes...')}
                                     </div>
                                 ) : (
                                     messages.map((msg, i) => (
@@ -3527,10 +3540,19 @@ const AgentPage = () => {
                                             animation: 'shimmer 2s linear infinite',
                                             transition: 'opacity 0.3s ease-in-out'
                                         }}>{recoveringTurn && !isLoading
-                                            ? 'Recuperando tu respuesta…'
-                                            : (streamingStatus && streamingStatus.startsWith('Analizando tu foto')
+                                            ? t('Recuperando tu respuesta…')
+                                            /* [P1-I18N-DASHBOARD · 2026-08-15] El estado de la foto se
+                                               reconoce comparándolo con su PROPIA traducción, no con el
+                                               prefijo español: al traducirse el texto que escribe
+                                               `setStreamingStatus`, un `startsWith('Analizando tu foto')`
+                                               dejaría de casar en cualquier idioma que no sea es-DO y el
+                                               aviso caería a las frases genéricas justo donde más importa
+                                               (el análisis tarda hasta un minuto). Es el único
+                                               `streamingStatus` que se PINTA; los demás solo se usan como
+                                               señal de «hay algo en curso». */
+                                            : (streamingStatus && streamingStatus === t('Analizando tu foto… puede tardar un minuto')
                                                 ? streamingStatus
-                                                : (streamingStatus ? loadingPhrases[loadingPhraseIdx] : 'Pensando...'))}</span>
+                                                : (streamingStatus ? loadingPhrases[loadingPhraseIdx] : t('Pensando...')))}</span>
                                     </div>
                                 )}
                                 <div ref={messagesEndRef} />

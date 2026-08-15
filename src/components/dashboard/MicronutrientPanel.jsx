@@ -5,6 +5,12 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 // [P3-NOTIF-CENTER · 2026-06-16] Al descartar el panel, en vez de perderlo lo
 // archivamos en el centro de notificaciones (queda releíble + borrable allí).
 import { addNotification } from '../../utils/notifications';
+// [P1-I18N-DASHBOARD · 2026-08-15] `classify` y `buildMicrosNotification` son SSOT
+// compartido con el centro de notificaciones y con Dashboard.jsx, así que no pueden
+// exigir un `t` en la firma. Reciben uno OPCIONAL cuyo default es el `t` de módulo:
+// los call sites viejos siguen funcionando y traducen igual (el motor lee el locale
+// activo en cada llamada, no al importar).
+import { t as _t, tn as _tn, useT, useTn } from '../../i18n';
 import styles from './MicronutrientPanel.module.css';
 
 // [P3-MICROS-RESTORE · 2026-06-19] "Desocultar" desde el centro de notificaciones.
@@ -76,7 +82,7 @@ function _fmtN(n) {
 // (brecha numérica), gapText (frase lista para mostrar) y tone (color).
 // [P3-NOTIF-CENTER · 2026-06-16] SSOT compartido con el centro de notificaciones
 // (mismas palabras/frases, cero drift). `fill`/`pct` se conservan por compat.
-export function classify(g) {
+export function classify(g, t = _t) {
     const unit = g.unidad || '';
     const isCeil = g.techo !== undefined && g.techo !== null;
     if (isCeil) {
@@ -85,19 +91,19 @@ export function classify(g) {
         const gap = Math.max(0, Number(g.valor) - Number(target));
         const over = pct > 100;
         const tone = over ? 'over' : 'near';
-        const statusWord = over ? 'ALTO' : 'EN EL LÍMITE';
+        const statusWord = over ? t('ALTO') : t('EN EL LÍMITE');
         const gapText = over
-            ? `Te pasaste ${_fmtN(gap)}${unit} del límite de ${_fmtN(target)}${unit}`
-            : `Estás en tu límite de ${_fmtN(target)}${unit}`;
-        return { kind: 'ceil', direction: 'high', pct, fill: Math.min(pct, 100), over, tone, statusWord, gap, gapText, label: 'sobre el techo', target };
+            ? t('Te pasaste {gap}{unidad} del límite de {objetivo}{unidad}', { gap: _fmtN(gap), objetivo: _fmtN(target), unidad: unit })
+            : t('Estás en tu límite de {objetivo}{unidad}', { objetivo: _fmtN(target), unidad: unit });
+        return { kind: 'ceil', direction: 'high', pct, fill: Math.min(pct, 100), over, tone, statusWord, gap, gapText, label: t('sobre el techo'), target };
     }
     const target = g.piso;
     const pct = target ? Math.round((g.valor / target) * 100) : 0;
     const gap = Math.max(0, Number(target) - Number(g.valor));
     const tone = pct >= 90 ? 'near' : pct >= 70 ? 'low' : 'far';
-    const statusWord = pct >= 90 ? 'CASI' : pct >= 70 ? 'BAJO' : 'MUY BAJO';
-    const gapText = `Te faltan ${_fmtN(gap)}${unit} para tu meta de ${_fmtN(target)}${unit}`;
-    const label = g.status === 'estimado_bajo' ? 'estimado bajo' : 'por debajo';
+    const statusWord = pct >= 90 ? t('CASI') : pct >= 70 ? t('BAJO') : t('MUY BAJO');
+    const gapText = t('Te faltan {gap}{unidad} para tu meta de {objetivo}{unidad}', { gap: _fmtN(gap), objetivo: _fmtN(target), unidad: unit });
+    const label = g.status === 'estimado_bajo' ? t('estimado bajo') : t('por debajo');
     return { kind: 'floor', direction: 'low', pct, fill: Math.min(pct, 100), over: false, tone, statusWord, gap, gapText, label, target };
 }
 
@@ -106,16 +112,16 @@ export function classify(g) {
 // el descarte del panel (X) y el backfill del Dashboard (para descartes hechos
 // ANTES de que existiera el archivado) → contenido idéntico, cero drift.
 // Devuelve null si no hay nada accionable.
-export function buildMicrosNotification({ report, advice }) {
+export function buildMicrosNotification({ report, advice, t = _t, tn = _tn }) {
     const gaps = report?.gaps || [];
     const supplements = advice?.items || [];
     if (!gaps.length && !supplements.length) return null;
     const microSummary = gaps.length
         ? gaps.map((g) => {
-            const s = classify(g);
+            const s = classify(g, t);
             return `${g.nutriente} ${g.valor}/${s.target}${g.unidad || ''}`;
         }).join('  ·  ')
-        : `${supplements.length} ${supplements.length === 1 ? 'sugerencia' : 'sugerencias'} de suplementación`;
+        : tn(supplements.length, '{n} sugerencia de suplementación', '{n} sugerencias de suplementación', { n: supplements.length });
     // [P3-NOTIF-CENTER-CONTENT-DISMISS · 2026-06-16] id ESTABLE por contenido
     // (no por planId, que es null/inestable en planes solo-localStorage). Espeja
     // la clave de dismissal → archive del panel y backfill del Dashboard producen
@@ -124,7 +130,7 @@ export function buildMicrosNotification({ report, advice }) {
     return {
         id: sig ? `micros_c_${sig}` : undefined,
         kind: 'micros',
-        title: 'Micronutrientes a vigilar',
+        title: t('Micronutrientes a vigilar'),
         message: microSummary,
         severity: 'info',
         // Payload estructurado para la vista expandida (info completa + acción).
@@ -147,6 +153,8 @@ function buildQuestion(g) {
 }
 
 export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
+    const t = useT();
+    const tn = useTn();
     const gaps = report?.gaps || [];
     const supplements = advice?.items || [];
     // [P3-MICRO-SUBTITLE-ACCURACY · 2026-06-19] Subtítulo honesto: "por debajo del
@@ -154,7 +162,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
     // (ej. sodio alto a 136%), el neutro "fuera de rango" es lo correcto — antes decía
     // "por debajo" incluso para los nutrientes que iban POR ENCIMA del límite.
     const _hasCeilGap = gaps.some((g) => g.techo !== undefined && g.techo !== null);
-    const _gapNoun = gaps.length === 1 ? 'nutriente' : 'nutrientes';
+    const _gapNoun = tn(gaps.length, 'nutriente', 'nutrientes');
     // Clave de descarte por CONTENIDO (estable entre navegaciones). Leemos
     // también la clave legacy por planId para respetar descartes previos (sin
     // forzar una reaparición extra), pero ESCRIBIMOS siempre la de contenido.
@@ -203,7 +211,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
         // por contenido → re-descartar no duplica). Marca el backfill como hecho
         // (clave content-based, espeja la dismissal) para que el Dashboard no
         // re-cree esta notificación si luego la borras.
-        const notif = buildMicrosNotification({ report, advice });
+        const notif = buildMicrosNotification({ report, advice, t, tn });
         if (notif) {
             addNotification(notif);
             if (_contentSig) safeLocalStorageSet(`mealfit_micros_notif_backfilled_c_${_contentSig}`, '1');
@@ -212,8 +220,8 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
         if (dismissKey) safeLocalStorageSet(dismissKey, '1');
         // [P3-MICROS-RESTORE · 2026-06-19] Descubribilidad: avisar que NO se perdió
         // y que se puede volver a mostrar desde Notificaciones (la campana).
-        toast('Panel oculto', {
-            description: 'Quedó guardado en Notificaciones — ábrelas (campana) para volver a mostrarlo.',
+        toast(t('Panel oculto'), {
+            description: t('Quedó guardado en Notificaciones — ábrelas (campana) para volver a mostrarlo.'),
         });
     };
 
@@ -227,15 +235,15 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                     exit={{ opacity: 0, scale: 0.98, marginBottom: 0, transition: { duration: 0.2 } }}
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                     role="region"
-                    aria-label="Micronutrientes a vigilar"
+                    aria-label={t('Micronutrientes a vigilar')}
                 >
                     <header className={styles.head}>
                         <span className={styles.badge} aria-hidden="true"><FlaskIcon /></span>
                         <div className={styles.headText}>
-                            <h3 className={styles.title}>Micronutrientes a vigilar</h3>
+                            <h3 className={styles.title}>{t('Micronutrientes a vigilar')}</h3>
                             {gaps.length > 0 && (
                                 <span className={styles.sub}>
-                                    <b>{gaps.length}</b> {_gapNoun} {_hasCeilGap ? 'fuera de rango' : 'por debajo del objetivo'}
+                                    <b>{gaps.length}</b> {_gapNoun} {_hasCeilGap ? t('fuera de rango') : t('por debajo del objetivo')}
                                 </span>
                             )}
                         </div>
@@ -243,8 +251,8 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                             type="button"
                             className={styles.close}
                             onClick={dismiss}
-                            aria-label="Ocultar este panel"
-                            title="Ocultar"
+                            aria-label={t('Ocultar este panel')}
+                            title={t('Ocultar')}
                         >
                             <CloseIcon />
                         </button>
@@ -255,30 +263,30 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                         PLAN, no miden al usuario ni suplementos que haya tomado. */}
                     {gaps.length > 0 && (
                         <p className={styles.intro}>
-                            Estimado de lo que aportan las comidas de tu plan al día, comparado con lo recomendado. No mide lo que comes por fuera ni los suplementos que tomes.
+                            {t('Estimado de lo que aportan las comidas de tu plan al día, comparado con lo recomendado. No mide lo que comes por fuera ni los suplementos que tomes.')}
                         </p>
                     )}
 
                     {gaps.length > 0 && (
                         <div className={styles.meters}>
                             {gaps.map((g, i) => {
-                                const s = classify(g);
+                                const s = classify(g, t);
                                 const ask = onAsk ? () => onAsk(buildQuestion(g), g.nutriente) : undefined;
                                 const Tag = ask ? 'button' : 'div';
                                 // Línea de brecha (cifra en color de severidad). Déficit → "Faltan";
                                 // exceso → "Te pasaste"; en límite → "En tu límite de".
                                 const gapEl = s.direction === 'low'
-                                    ? <>Faltan <b>{_fmtN(s.gap)} {g.unidad}</b></>
+                                    ? <>{t('Faltan')} <b>{_fmtN(s.gap)} {g.unidad}</b></>
                                     : (s.over
-                                        ? <>Te pasaste <b>{_fmtN(s.gap)} {g.unidad}</b></>
-                                        : <>En tu límite de <b>{_fmtN(s.target)} {g.unidad}</b></>);
+                                        ? <>{t('Te pasaste')} <b>{_fmtN(s.gap)} {g.unidad}</b></>
+                                        : <>{t('En tu límite de')} <b>{_fmtN(s.target)} {g.unidad}</b></>);
                                 return (
                                     <Tag
                                         key={`mn-${i}`}
                                         type={ask ? 'button' : undefined}
                                         onClick={ask}
                                         className={`${styles.meter} ${styles[s.tone]} ${ask ? styles.clickable : ''}`}
-                                        title={ask ? `Preguntarle al coach cómo mejorar tu ${(g.nutriente || '').toLowerCase()}` : undefined}
+                                        title={ask ? t('Preguntarle al coach cómo mejorar tu {nutriente}', { nutriente: (g.nutriente || '').toLowerCase() }) : undefined}
                                     >
                                         <div className={styles.mtop}>
                                             <span className={styles.mname}>{g.nutriente}</span>
@@ -294,7 +302,12 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                             aria-valuenow={Math.round(s.fill)}
                                             aria-valuemin={0}
                                             aria-valuemax={100}
-                                            aria-label={`${g.nutriente}: ${g.valor}${g.unidad} de ${_fmtN(s.target)}${g.unidad}`}
+                                            aria-label={t('{nutriente}: {valor}{unidad} de {objetivo}{unidad}', {
+                                                nutriente: g.nutriente,
+                                                valor: g.valor,
+                                                objetivo: _fmtN(s.target),
+                                                unidad: g.unidad,
+                                            })}
                                         >
                                             <i style={{ width: `${s.fill}%` }} />
                                         </div>
@@ -306,7 +319,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                                 <span className={styles.gap}>{gapEl}</span>
                                             </span>
                                             {ask && (
-                                                <span className={styles.improve}><ChatIcon /> Mejorar</span>
+                                                <span className={styles.improve}><ChatIcon /> {t('Mejorar')}</span>
                                             )}
                                         </div>
                                     </Tag>
@@ -317,7 +330,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
 
                     {supplements.length > 0 && (
                         <div className={styles.supps}>
-                            <span className={styles.suppsLabel}><LinkIcon /> Sugerencias</span>
+                            <span className={styles.suppsLabel}><LinkIcon /> {t('Sugerencias')}</span>
                             {supplements.map((it, i) => (
                                 <div key={`sup-${i}`} className={styles.supp}>
                                     <span className={styles.suppIco} aria-hidden="true"><LinkIcon /></span>
@@ -330,9 +343,9 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                         </div>
                                         {(it.suplemento || it.primero_alimentos) && (
                                             <p className={styles.suppHint}>
-                                                {it.suplemento && (<>Como <b>{it.suplemento}</b></>)}
-                                                {it.suplemento && it.primero_alimentos && ', o desde la comida: '}
-                                                {!it.suplemento && it.primero_alimentos && 'Primero, desde la comida: '}
+                                                {it.suplemento && (<>{t('Como')} <b>{it.suplemento}</b></>)}
+                                                {it.suplemento && it.primero_alimentos && t(', o desde la comida: ')}
+                                                {!it.suplemento && it.primero_alimentos && t('Primero, desde la comida: ')}
                                                 {it.primero_alimentos}
                                             </p>
                                         )}

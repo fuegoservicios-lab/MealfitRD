@@ -62,13 +62,18 @@ import { getChunkKindLabel } from '../utils/chunkKinds';
 import { getChunkStatusLabel } from '../utils/chunkStatus';
 // [P1-3 · 2026-05-10] Maps es-DO para action_taken + hypothesis del guard
 // recetas↔lista. Renderiza badges/chips humanizados en el tab "Ajustes".
-import { getCoherenceActionLabel, getCoherenceHypothesisLabel } from '../utils/coherenceLabels';
+import { getCoherenceActionLabelI18n, getCoherenceHypothesisLabelI18n } from '../utils/coherenceLabels';
 // [P3-HIST-DESKTOP-REDESIGN · 2026-06-24] Panel de Historial para PC (diseño del
 // owner) injertado sobre los datos/handlers reales. Solo se monta en escritorio;
 // móvil mantiene el render compacto existente. El modal de detalle sigue siendo
 // el real (más abajo en este archivo).
 import HistoryDesktopPanel from '../components/history/HistoryDesktopPanel';
 import HistoryMobilePanel from '../components/history/HistoryMobilePanel';
+// [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. `useT()` dentro del
+// componente (es lo que lo suscribe al cambio de idioma); el `t` suelto para los
+// helpers de módulo (`_dayNameForGlobalIdx`, `chipDeChunkMuerto`) — se invocan en
+// render, nunca al importar, así que no caen en la trampa del ámbito de módulo.
+import { t, useT } from '../i18n';
 
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
@@ -133,7 +138,7 @@ export const _effectiveModifiedAt = (plan) => {
 
 const _dayNameForGlobalIdx = (startMid, globalIdx) => {
     if (!startMid || typeof globalIdx !== 'number' || globalIdx < 0) {
-        return `Día ${(globalIdx ?? 0) + 1}`;
+        return t('Día {n}', { n: (globalIdx ?? 0) + 1 });
     }
     const d = new Date(startMid.getTime());
     d.setDate(d.getDate() + globalIdx);
@@ -171,9 +176,9 @@ export const chipDeChunkMuerto = (c) => {
     if (!razon) return null;
     const esPausa = c.status === 'cancelled' && razon.includes('paused_by_user');
     if (esPausa) {
-        return { tono: 'neutro', texto: 'En pausa — se retoma al reanudar' };
+        return { tono: 'neutro', texto: t('En pausa — se retoma al reanudar') };
     }
-    return { tono: 'malo', texto: `No recuperable: ${razon}` };
+    return { tono: 'malo', texto: t('No recuperable: {razon}', { razon }) };
 };
 
 export const _fullHistoryDays = (planData) => {
@@ -240,6 +245,9 @@ export const _historyLabelStart = (planData, createdAt) => {
 };
 
 const History = () => {
+    // [P1-I18N-DASHBOARD · 2026-08-15] Sombrea al `t` de módulo a propósito: es
+    // la MISMA función, pero el hook suscribe el componente al cambio de idioma.
+    const t = useT();
     // [P3-HIST-LIST-CACHE · 2026-05-19] Stale-while-revalidate del listado.
     // Lazy-init lee el singleton del módulo `historyCaches`.
     // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Usa la versión "stale"
@@ -814,8 +822,8 @@ const History = () => {
             }
             const _isTimeout = error && error.message === 'TIMEOUT_HISTORY_LIST';
             toast.error(_isTimeout
-                ? 'El historial tardó demasiado en cargar. Intenta refrescar.'
-                : 'No se pudo cargar el historial.');
+                ? t('El historial tardó demasiado en cargar. Intenta refrescar.')
+                : t('No se pudo cargar el historial.'));
         } finally {
             // [P1-HISTORY-ABORT · 2026-05-23] No tocar loading si ya
             // desmontamos — evita React warning state-on-unmounted.
@@ -856,7 +864,7 @@ const History = () => {
             return (body && body.plan && body.plan.plan_data) || {};
         } catch (err) {
             console.error('Error cargando plan_data del plan:', err);
-            toast.error('No se pudo cargar el detalle del plan');
+            toast.error(t('No se pudo cargar el detalle del plan'));
             return null;
         }
     };
@@ -1047,7 +1055,7 @@ const History = () => {
         const planRow = confirmRestore;
         setConfirmRestore(null);
         _closeDetailModal();
-        const toastId = toast.loading('Restaurando plan...');
+        const toastId = toast.loading(t('Restaurando plan...'));
 
         try {
             // [P2-HIST-RESTORE-ROW-UID · 2026-07-12] restorePlanFromHistory NO lanza en sus
@@ -1058,11 +1066,11 @@ const History = () => {
             const result = await restorePlanFromHistory(planRow);
             if (result && result.success === false) {
                 console.error('Restore rechazado:', result);
-                toast.error('No se pudo reactivar el plan', {
+                toast.error(t('No se pudo reactivar el plan'), {
                     id: toastId,
                     description: result.error === 'ownership_mismatch'
-                        ? 'Sesión inválida — recarga la página e intenta de nuevo.'
-                        : 'Intenta de nuevo en unos segundos.'
+                        ? t('Sesión inválida — recarga la página e intenta de nuevo.')
+                        : t('Intenta de nuevo en unos segundos.')
                 });
                 return;
             }
@@ -1079,21 +1087,21 @@ const History = () => {
             // bucket temporal del plan (pasa a "activo"), el listado
             // cacheado mostraría el bucket viejo hasta el próximo fetch.
             invalidateHistoryListCache();
-            toast.success('¡Plan reactivado!', {
+            toast.success(t('¡Plan reactivado!'), {
                 id: toastId,
-                description: 'Tu dashboard se ha actualizado.'
+                description: t('Tu dashboard se ha actualizado.')
             });
             navigate('/dashboard');
         } catch (err) {
             console.error('Error restoring plan:', err);
-            toast.error('Error al restaurar el plan', { id: toastId });
+            toast.error(t('Error al restaurar el plan'), { id: toastId });
         }
     };
 
     const handleDeleteConfirm = async () => {
         const plan = confirmDelete;
         setConfirmDelete(null);
-        const toastId = toast.loading('Eliminando plan...');
+        const toastId = toast.loading(t('Eliminando plan...'));
 
         try {
             // [P0-HIST-3 · 2026-05-09] Endpoint atómico backend. Antes
@@ -1137,10 +1145,10 @@ const History = () => {
             // re-fetch limpio + evita el flash "card aparece y desaparece".
             invalidateHistoryListCache();
 
-            toast.success('Plan eliminado exitosamente', { id: toastId });
+            toast.success(t('Plan eliminado exitosamente'), { id: toastId });
         } catch (err) {
             console.error('Error deleting plan:', err);
-            toast.error('No se pudo eliminar el plan', { id: toastId });
+            toast.error(t('No se pudo eliminar el plan'), { id: toastId });
         }
     };
 
@@ -1224,10 +1232,10 @@ const History = () => {
                         : selectedPlan.plan_data,
                 });
             }
-            toast.success('Nombre actualizado');
+            toast.success(t('Nombre actualizado'));
         } catch (err) {
             console.error('Error al actualizar nombre', err);
-            toast.error('Error al actualizar nombre');
+            toast.error(t('Error al actualizar nombre'));
         } finally {
             setIsEditing(null);
         }
@@ -1811,14 +1819,14 @@ const History = () => {
             <div className={styles.emptyIcon}>
                 <BookOpen size={32} />
             </div>
-            <h3 className={styles.emptyTitle}>Tu historial está vacío</h3>
+            <h3 className={styles.emptyTitle}>{t('Tu historial está vacío')}</h3>
             <p className={styles.emptyText}>
                 {enModoContador
-                    ? 'Estás usando la app como contador. Si enciendes el plan, cada uno que generes se guardará aquí.'
-                    : 'Genera tu primer plan nutricional y lo encontrarás aquí.'}
+                    ? t('Estás usando la app como contador. Si enciendes el plan, cada uno que generes se guardará aquí.')
+                    : t('Genera tu primer plan nutricional y lo encontrarás aquí.')}
             </p>
             <button className={styles.emptyCta} onClick={_encenderElPlan}>
-                {enModoContador ? 'Encender el plan' : 'Crear mi primer plan'} <ChevronRight size={17} />
+                {enModoContador ? t('Encender el plan') : t('Crear mi primer plan')} <ChevronRight size={17} />
             </button>
         </div>
     );
@@ -1830,12 +1838,12 @@ const History = () => {
             <div className={styles.emptyIcon}>
                 <AlertTriangle size={36} />
             </div>
-            <h3 className={styles.emptyTitle}>Sesión expirada</h3>
+            <h3 className={styles.emptyTitle}>{t('Sesión expirada')}</h3>
             <p className={styles.emptyText}>
-                Tu sesión finalizó. Inicia sesión de nuevo para ver tu historial.
+                {t('Tu sesión finalizó. Inicia sesión de nuevo para ver tu historial.')}
             </p>
             <button className={styles.emptyCta} onClick={() => navigate('/login')}>
-                Iniciar sesión
+                {t('Iniciar sesión')}
             </button>
         </div>
     );
@@ -1980,7 +1988,7 @@ const History = () => {
                             {/* Header */}
                             <div className={styles.modalHeader}>
                                 <div>
-                                    <h2 id="history-detail-title" className={styles.modalTitle}>{selectedPlan.name || 'Detalles del Plan'}</h2>
+                                    <h2 id="history-detail-title" className={styles.modalTitle}>{selectedPlan.name || t('Detalles del Plan')}</h2>
                                     <span className={styles.modalDate}>
                                         {new Date(selectedPlan.created_at).toLocaleDateString('es-DO', {
                                             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -2095,14 +2103,14 @@ const History = () => {
                                     const _title = (_hasAction && typeof _actionReq.title === 'string'
                                         && _actionReq.title.trim())
                                         ? _actionReq.title
-                                        : 'Acción requerida';
+                                        : t('Acción requerida');
                                     // [P0-AUDIT-HIST-2 · 2026-05-09] Body
                                     // fallback específico para queue drift —
                                     // explica al usuario qué tipo de acción se
                                     // espera (regenerar el plan) sin pretender
                                     // un detalle que plan_data no tiene.
                                     const _queueDriftBody = _hasQueueDrift
-                                        ? `Detectamos ${_queuePuac + _queueFailed} chunk(s) bloqueado(s) en la cola. Reactiva este plan o regéneralo para que el sistema retome la generación.`
+                                        ? t('Detectamos {n} chunk(s) bloqueado(s) en la cola. Reactiva este plan o regéneralo para que el sistema retome la generación.', { n: _queuePuac + _queueFailed })
                                         : null;
                                     const _body = (_hasAction && typeof _actionReq.body === 'string'
                                         && _actionReq.body.trim())
@@ -2164,14 +2172,17 @@ const History = () => {
                                                 )}
                                                 {_exhausted.length > 0 && (
                                                     <p className={styles.actionBannerMeta}>
+                                                        {/* [P1-I18N-DASHBOARD] El ternario se conserva
+                                                            (en vez de `tn`) porque `History.action_banner`
+                                                            ancla `_exhausted.length === 1` en el fuente. */}
                                                         {_exhausted.length === 1
-                                                            ? '1 chunk no recuperable.'
-                                                            : `${_exhausted.length} chunks no recuperables.`}
+                                                            ? t('1 chunk no recuperable.')
+                                                            : t('{n} chunks no recuperables.', { n: _exhausted.length })}
                                                     </p>
                                                 )}
                                                 {_reason && !_body && (
                                                     <p className={styles.actionBannerMeta}>
-                                                        Razón: <code>{_reason}</code>
+                                                        {t('Razón:')} <code>{_reason}</code>
                                                     </p>
                                                 )}
 
@@ -2198,7 +2209,7 @@ const History = () => {
                                                     if (_br === 'loading') {
                                                         return (
                                                             <p className={styles.actionBannerMeta}>
-                                                                Cargando detalle por chunk…
+                                                                {t('Cargando detalle por chunk…')}
                                                             </p>
                                                         );
                                                     }
@@ -2209,11 +2220,11 @@ const History = () => {
                                                         <ul className={styles.actionBannerReasons}>
                                                             {_br.map((r) => {
                                                                 const _wk = (typeof r.week_number === 'number')
-                                                                    ? `Semana ${r.week_number}`
-                                                                    : 'Chunk';
+                                                                    ? t('Semana {n}', { n: r.week_number })
+                                                                    : t('Chunk');
                                                                 const _t = (typeof r.title === 'string' && r.title.trim())
                                                                     ? r.title
-                                                                    : (r.reason_code || 'Bloqueado');
+                                                                    : (r.reason_code || t('Bloqueado'));
                                                                 const _b = (typeof r.body === 'string' && r.body.trim())
                                                                     ? r.body
                                                                     : null;
@@ -2330,29 +2341,29 @@ const History = () => {
                                             </div>
                                             <div className={styles.stuckBannerContent}>
                                                 <strong className={styles.stuckBannerTitle}>
-                                                    Tu plan está tardando más de lo habitual
+                                                    {t('Tu plan está tardando más de lo habitual')}
                                                 </strong>
                                                 <p className={styles.stuckBannerBody}>
                                                     {_stuckOnly.length === 1
-                                                        ? '1 bloque del plan lleva un rato sin completar. El cron lo retomará automáticamente.'
-                                                        : `${_stuckOnly.length} bloques del plan llevan un rato sin completar. El cron los retomará automáticamente.`}
+                                                        ? t('1 bloque del plan lleva un rato sin completar. El cron lo retomará automáticamente.')
+                                                        : t('{n} bloques del plan llevan un rato sin completar. El cron los retomará automáticamente.', { n: _stuckOnly.length })}
                                                 </p>
                                                 <ul className={styles.stuckBannerList}>
                                                     {_stuckOnly.map((r) => {
                                                         const _wk = (typeof r.week_number === 'number')
-                                                            ? `Semana ${r.week_number}`
-                                                            : 'Chunk';
+                                                            ? t('Semana {n}', { n: r.week_number })
+                                                            : t('Chunk');
                                                         const _lag = _fmtLag(r.lag_seconds);
                                                         const _label = r.reason_code === 'stuck_stale'
-                                                            ? 'reanudando'
-                                                            : 'procesando';
+                                                            ? t('reanudando')
+                                                            : t('procesando');
                                                         return (
                                                             <li key={r.chunk_id}
                                                                 className={styles.stuckBannerListItem}>
                                                                 <span>{_wk}: {_label}</span>
                                                                 {_lag && (
                                                                     <span className={styles.stuckBannerLag}>
-                                                                        hace {_lag}
+                                                                        {t('hace {lag}', { lag: _lag })}
                                                                     </span>
                                                                 )}
                                                             </li>
@@ -2369,7 +2380,7 @@ const History = () => {
                                     <div className={`${styles.macroCard} ${styles.macroCardOrange}`}>
                                         <Flame size={18} color="#EA580C" style={{ marginBottom: '0.4rem' }} />
                                         <div className={styles.macroValueOrange}>{selectedPlan.calories}</div>
-                                        <div className={styles.macroLabelOrange}>kcal</div>
+                                        <div className={styles.macroLabelOrange}>{t('kcal')}</div>
                                     </div>
                                     <div className={`${styles.macroCard} ${styles.macroCardBlue}`}>
                                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.4rem' }}>
@@ -2380,17 +2391,17 @@ const History = () => {
                                             <Dumbbell size={18} color="#2563EB" style={{ marginBottom: 0 }} />
                                         </div>
                                         <div className={styles.macroValueBlue}>{selectedPlan.macros?.protein || '—'}</div>
-                                        <div className={styles.macroLabelBlue}>Proteína</div>
+                                        <div className={styles.macroLabelBlue}>{t('Proteína')}</div>
                                     </div>
                                     <div className={`${styles.macroCard} ${styles.macroCardGreen}`}>
                                         <Wheat size={18} color="#059669" style={{ marginBottom: '0.4rem' }} />
                                         <div className={styles.macroValueGreen}>{selectedPlan.macros?.carbs || '—'}</div>
-                                        <div className={styles.macroLabelGreen}>Carbos</div>
+                                        <div className={styles.macroLabelGreen}>{t('Carbos')}</div>
                                     </div>
                                     <div className={`${styles.macroCard} ${styles.macroCardPink}`}>
                                         <Droplet size={18} color="#EC4899" style={{ marginBottom: '0.4rem' }} />
                                         <div className={styles.macroValuePink}>{selectedPlan.macros?.fats || '—'}</div>
-                                        <div className={styles.macroLabelPink}>Grasas</div>
+                                        <div className={styles.macroLabelPink}>{t('Grasas')}</div>
                                     </div>
                                 </div>
 
@@ -2458,7 +2469,7 @@ const History = () => {
                                     return (
                                         <div className={styles.tierBreakdownRow}>
                                             <span className={styles.tierBreakdownLabel}>
-                                                Calidad de chunks:
+                                                {t('Calidad de chunks:')}
                                             </span>
                                             {_entries.map(([tier, count]) => {
                                                 const _label = _TIER_LABELS[tier] || tier;
@@ -2467,7 +2478,7 @@ const History = () => {
                                                     <span
                                                         key={tier}
                                                         className={`${styles.tierBadge} ${_cls}`}
-                                                        title={`${count} chunk(s) generado(s) en tier "${tier}"`}
+                                                        title={t('{count} chunk(s) generado(s) en tier "{tier}"', { count, tier })}
                                                     >
                                                         {_label}: {count}
                                                     </span>
@@ -2517,11 +2528,11 @@ const History = () => {
                                             )].slice(0, 5)
                                             : []);
                                     const _hypLabels = _hypsRaw
-                                        .map((h) => getCoherenceHypothesisLabel(h) || h)
+                                        .map((h) => getCoherenceHypothesisLabelI18n(h, t) || h)
                                         .filter(Boolean);
                                     const _adjustsTitle = _hypLabels.length
-                                        ? `Causas: ${_hypLabels.join(' · ')}`
-                                        : 'Ajustes que el sistema hizo para que la lista de compras cuadre con las recetas';
+                                        ? t('Causas: {causas}', { causas: _hypLabels.join(' · ') })
+                                        : t('Ajustes que el sistema hizo para que la lista de compras cuadre con las recetas');
                                     // [P2-HIST-AUDIT-10 · 2026-05-09] Tab
                                     // "Métricas" visible cuando el plan tiene
                                     // chunks con info útil. Nos basamos en
@@ -2670,7 +2681,7 @@ const History = () => {
                                     if (_ll === 'loading' || _ll === undefined) {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                Cargando aprendizaje del usuario…
+                                                {t('Cargando aprendizaje del usuario…')}
                                             </div>
                                         );
                                     }
@@ -2682,7 +2693,7 @@ const History = () => {
                                         return (
                                             <div className={styles.modalDetailEmpty}
                                                  style={{ marginBottom: '0.75rem' }}>
-                                                No se pudo cargar el aprendizaje agregado del plan.
+                                                {t('No se pudo cargar el aprendizaje agregado del plan.')}
                                             </div>
                                         );
                                     }
@@ -2757,29 +2768,31 @@ const History = () => {
                                         <div className={styles.lifetimeLessonsBlock}>
                                             <div className={styles.lifetimeLessonsHeader}>
                                                 <Sparkles size={16} strokeWidth={2.5} />
-                                                <strong>Aprendizaje del usuario</strong>
+                                                <strong>{t('Aprendizaje del usuario')}</strong>
                                                 {_proxyDegraded && (
                                                     <span
                                                         className={styles.lifetimeProxyBadge}
-                                                        title={`Aprendizaje degradado: ${Math.round(_proxyRatio * 100)}% de las lecciones vienen de proxy (sin logs reales del usuario). Threshold ≥ 50%.`}
+                                                        title={t('Aprendizaje degradado: {pct}% de las lecciones vienen de proxy (sin logs reales del usuario). Threshold ≥ 50%.', { pct: Math.round(_proxyRatio * 100) })}
                                                     >
-                                                        Proxy {Math.round(_proxyRatio * 100)}%
+                                                        {t('Proxy {pct}%', { pct: Math.round(_proxyRatio * 100) })}
                                                     </span>
                                                 )}
                                                 {_zeroLogAlarming && (
                                                     <span
                                                         className={styles.zeroLogBadgeAlarm}
-                                                        title={`${_czl} bloque(s) consecutivo(s) generado(s) sin tu feedback (sin logs ni interacciones que cuenten). El sistema marcó este plan como "degradado por engagement" (generation_status='degraded_pending_engagement') — los próximos bloques pueden tener menos personalización hasta que loguees comidas.`}
+                                                        title={t('{n} bloque(s) consecutivo(s) generado(s) sin tu feedback (sin logs ni interacciones que cuenten). El sistema marcó este plan como "degradado por engagement" (generation_status=\'degraded_pending_engagement\') — los próximos bloques pueden tener menos personalización hasta que loguees comidas.', { n: _czl })}
                                                     >
-                                                        Sin feedback: {_czl}
+                                                        {t('Sin feedback: {n}', { n: _czl })}
                                                     </span>
                                                 )}
                                                 {_zeroLogInfo && (
                                                     <span
                                                         className={styles.zeroLogBadgeInfo}
-                                                        title={`${_czl} bloque${_czl === 1 ? '' : 's'} sin feedback. A partir de 3 consecutivos el plan se marca como "degradado por engagement".`}
+                                                        title={_czl === 1
+                                                            ? t('{n} bloque sin feedback. A partir de 3 consecutivos el plan se marca como "degradado por engagement".', { n: _czl })
+                                                            : t('{n} bloques sin feedback. A partir de 3 consecutivos el plan se marca como "degradado por engagement".', { n: _czl })}
                                                     >
-                                                        Sin feedback: {_czl}
+                                                        {t('Sin feedback: {n}', { n: _czl })}
                                                     </span>
                                                 )}
                                             </div>
@@ -2889,7 +2902,7 @@ const History = () => {
                                                 if (!_hasAnyValue) return null;
 
                                                 const _wkLabel = (typeof _lcl.chunk === 'number')
-                                                    ? `Bloque ${_lcl.chunk}` : 'Último bloque';
+                                                    ? t('Bloque {n}', { n: _lcl.chunk }) : t('Último bloque');
                                                 const _ts = _fmtTs(_lcl.timestamp);
 
                                                 // Helpers de render para mantener el JSX
@@ -2948,7 +2961,7 @@ const History = () => {
                                                 return (
                                                     <div className={styles.lastChunkLearningBlock}>
                                                         <div className={styles.lastChunkLearningHeader}>
-                                                            <strong>Lo aprendido del último bloque</strong>
+                                                            <strong>{t('Lo aprendido del último bloque')}</strong>
                                                             <span className={styles.lastChunkLearningMeta}>
                                                                 {_wkLabel}{_ts ? ` · ${_ts}` : ''}
                                                             </span>
@@ -3082,7 +3095,7 @@ const History = () => {
                                                             ))}
                                                             {_extra > 0 && (
                                                                 <span className={styles.lifetimeListItemMore}>
-                                                                    +{_extra} más
+                                                                    {t('+{n} más', { n: _extra })}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -3092,23 +3105,23 @@ const History = () => {
                                                     <>
                                                         {_renderList(
                                                             _summary.permanent_meal_blocklist,
-                                                            'Blocklist permanente',
-                                                            'Meals que aparecieron en ≥2 chunks del plan — Bioboros los evita en regeneraciones futuras.'
+                                                            t('Blocklist permanente'),
+                                                            t('Meals que aparecieron en ≥2 chunks del plan — Bioboros los evita en regeneraciones futuras.')
                                                         )}
                                                         {_renderList(
                                                             _summary.top_rejection_hits,
-                                                            'Top rechazos',
-                                                            'Meals rechazados por el usuario que reaparecieron en chunks posteriores.'
+                                                            t('Top rechazos'),
+                                                            t('Meals rechazados por el usuario que reaparecieron en chunks posteriores.')
                                                         )}
                                                         {_renderList(
                                                             _summary.top_repeated_meal_names,
-                                                            'Meals repetidos',
-                                                            'Meals que aparecieron en múltiples chunks — señal de fatiga.'
+                                                            t('Meals repetidos'),
+                                                            t('Meals que aparecieron en múltiples chunks — señal de fatiga.')
                                                         )}
                                                         {_renderList(
                                                             _summary.top_repeated_bases,
-                                                            'Bases repetidas',
-                                                            'Ingredientes base repetidos cross-chunks (proteína/carbo).'
+                                                            t('Bases repetidas'),
+                                                            t('Ingredientes base repetidos cross-chunks (proteína/carbo).')
                                                         )}
                                                     </>
                                                 );
@@ -3121,12 +3134,12 @@ const History = () => {
                                             {_critical.length > 0 && (
                                                 <div className={styles.lifetimeCriticalBlock}>
                                                     <div className={styles.lifetimeCriticalHeader}>
-                                                        <strong>Lecciones permanentes</strong>
+                                                        <strong>{t('Lecciones permanentes')}</strong>
                                                         <span className={styles.lifetimeCriticalCount}>
                                                             {_critical.length}
                                                             {typeof _counts.critical_permanent_total === 'number'
                                                                 && _counts.critical_permanent_total > _critical.length
-                                                                ? ` de ${_counts.critical_permanent_total}` : ''}
+                                                                ? ` ${t('de {n}', { n: _counts.critical_permanent_total })}` : ''}
                                                         </span>
                                                     </div>
                                                     <ul className={styles.detailList}>
@@ -3143,7 +3156,7 @@ const History = () => {
                                                                 <li key={`crit-${idx}`} className={styles.detailItem}>
                                                                     <div className={styles.detailItemHeader}>
                                                                         <span className={styles.detailItemBadge}>
-                                                                            {_alg > 0 ? 'Alergia' : 'Rechazo crítico'}
+                                                                            {_alg > 0 ? t('Alergia') : t('Rechazo crítico')}
                                                                         </span>
                                                                         <span className={styles.detailItemMeta}>
                                                                             {_ts}
@@ -3198,17 +3211,17 @@ const History = () => {
                                                 return (
                                                 <div className={styles.lifetimeHistoryBlock}>
                                                     <div className={styles.lifetimeCriticalHeader}>
-                                                        <strong>Historial reciente por chunk</strong>
+                                                        <strong>{t('Historial reciente por chunk')}</strong>
                                                         <span className={styles.lifetimeCriticalCount}>
                                                             {_shownCount}
                                                             {_totalCount > _shownCount
-                                                                ? ` de ${_totalCount}` : ''}
+                                                                ? ` ${t('de {n}', { n: _totalCount })}` : ''}
                                                         </span>
                                                     </div>
                                                     <ul className={styles.detailList}>
                                                         {_visible.map((entry, idx) => {
                                                             const _wk = (entry && typeof entry.chunk === 'number')
-                                                                ? `Sem. ${entry.chunk}` : 'Chunk';
+                                                                ? t('Sem. {n}', { n: entry.chunk }) : t('Chunk');
                                                             const _rej = (entry && typeof entry.rejection_violations === 'number')
                                                                 ? entry.rejection_violations : 0;
                                                             const _alg = (entry && typeof entry.allergy_violations === 'number')
@@ -3286,14 +3299,14 @@ const History = () => {
                                     if (_data === 'loading' || _data === undefined) {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                Cargando lecciones…
+                                                {t('Cargando lecciones…')}
                                             </div>
                                         );
                                     }
                                     if (_data === 'error') {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.
+                                                {t('No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.')}
                                             </div>
                                         );
                                     }
@@ -3301,7 +3314,7 @@ const History = () => {
                                     if (_list.length === 0) {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                Este plan no tiene lecciones registradas todavía.
+                                                {t('Este plan no tiene lecciones registradas todavía.')}
                                             </div>
                                         );
                                     }
@@ -3327,7 +3340,7 @@ const History = () => {
                                                 );
                                                 return _hasLifetime ? (
                                                     <div className={styles.lifetimeSectionDivider}>
-                                                        Eventos de telemetría
+                                                        {t('Eventos de telemetría')}
                                                     </div>
                                                 ) : null;
                                             })()}
@@ -3346,18 +3359,18 @@ const History = () => {
                                                                 {lesson.event}
                                                             </span>
                                                             <span className={styles.detailItemMeta}>
-                                                                Sem. {lesson.week_number} · {_ts}
+                                                                {t('Sem. {n}', { n: lesson.week_number })} · {_ts}
                                                             </span>
                                                         </div>
                                                         <div className={styles.detailItemBody}>
                                                             {typeof lesson.synthesized_count === 'number' && (
                                                                 <span className={styles.detailItemCounter}>
-                                                                    Sintetizadas: {lesson.synthesized_count}
+                                                                    {t('Sintetizadas: {n}', { n: lesson.synthesized_count })}
                                                                 </span>
                                                             )}
                                                             {typeof lesson.queue_count === 'number' && (
                                                                 <span className={styles.detailItemCounter}>
-                                                                    En cola: {lesson.queue_count}
+                                                                    {t('En cola: {n}', { n: lesson.queue_count })}
                                                                 </span>
                                                             )}
                                                             {/* [P2-HIST-NEW-2 · 2026-05-09] Surface
@@ -3458,14 +3471,14 @@ const History = () => {
                                     if (_data === 'loading' || _data === undefined) {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                Cargando ajustes…
+                                                {t('Cargando ajustes…')}
                                             </div>
                                         );
                                     }
                                     if (_data === 'error') {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.
+                                                {t('No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.')}
                                             </div>
                                         );
                                     }
@@ -3473,7 +3486,7 @@ const History = () => {
                                     if (_list.length === 0) {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                Este plan no tiene ajustes registrados.
+                                                {t('Este plan no tiene ajustes registrados.')}
                                             </div>
                                         );
                                     }
@@ -3488,7 +3501,7 @@ const History = () => {
                                                     : '—';
                                                 // [P1-3 · 2026-05-10] Etiqueta es-DO + fallback al code crudo
                                                 // (preserva diagnóstico cuando el catálogo va detrás del backend).
-                                                const _actionLabel = getCoherenceActionLabel(_action) || _action;
+                                                const _actionLabel = getCoherenceActionLabelI18n(_action, t) || _action;
                                                 const _ts = (entry && typeof entry.ts === 'string')
                                                     ? new Date(entry.ts).toLocaleString('es-DO', {
                                                         month: 'short', day: 'numeric',
@@ -3524,7 +3537,7 @@ const History = () => {
                                                         {_hyps.length > 0 && (
                                                             <>
                                                                 {_hyps.map((h) => {
-                                                                    const _hLabel = getCoherenceHypothesisLabel(h) || h;
+                                                                    const _hLabel = getCoherenceHypothesisLabelI18n(h, t) || h;
                                                                     return (
                                                                         <span
                                                                             key={`hyp-${h}`}
@@ -3564,14 +3577,14 @@ const History = () => {
                                     if (_data === 'loading' || _data === undefined) {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                Cargando métricas por chunk…
+                                                {t('Cargando métricas por chunk…')}
                                             </div>
                                         );
                                     }
                                     if (_data === 'error') {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
-                                                No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.
+                                                {t('No se pudo cargar el detalle. Intenta cerrar y reabrir el modal.')}
                                             </div>
                                         );
                                     }
@@ -3635,8 +3648,13 @@ const History = () => {
                                         return (
                                             <div className={styles.modalDetailEmpty}>
                                                 {_filteredOutCount > 0
-                                                    ? `Este plan tiene ${_filteredOutCount} chunk(s) registrados pero ninguno corresponde al alcance del plan (${_maxValidWeek} semana${_maxValidWeek === 1 ? '' : 's'}).`
-                                                    : 'Este plan no tiene métricas registradas todavía.'}
+                                                    ? t('Este plan tiene {n} chunk(s) registrados pero ninguno corresponde al alcance del plan ({semanas}).', {
+                                                        n: _filteredOutCount,
+                                                        semanas: _maxValidWeek === 1
+                                                            ? t('{n} semana', { n: _maxValidWeek })
+                                                            : t('{n} semanas', { n: _maxValidWeek }),
+                                                    })
+                                                    : t('Este plan no tiene métricas registradas todavía.')}
                                             </div>
                                         );
                                     }
@@ -3928,8 +3946,8 @@ const History = () => {
                                         <ul className={styles.detailList}>
                                             {_list.map((c) => {
                                                 const _wkLabel = (typeof c.week_number === 'number')
-                                                    ? `Semana ${c.week_number}`
-                                                    : 'Chunk';
+                                                    ? t('Semana {n}', { n: c.week_number })
+                                                    : t('Chunk');
                                                 // [P2-HIST-NEW-4 · 2026-05-09]
                                                 // Humanización del chunk_kind. Antes
                                                 // el badge mostraba el snake_case
@@ -4077,20 +4095,22 @@ const History = () => {
                                                                 mide cada métrica sin abrir docs. */}
                                                             {_duration && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title="Tiempo total que tardó el LLM en generar los días de este chunk.">
-                                                                    Duración: {_duration}
+                                                                      title={t('Tiempo total que tardó el LLM en generar los días de este chunk.')}>
+                                                                    {t('Duración: {d}', { d: _duration })}
                                                                 </span>
                                                             )}
                                                             {typeof _lag === 'number' && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title="Demora entre que el chunk se programó y el worker lo agarró. >0s típico en horas pico; >SLA indica saturación.">
-                                                                    Espera: {_lag}s
+                                                                      title={t('Demora entre que el chunk se programó y el worker lo agarró. >0s típico en horas pico; >SLA indica saturación.')}>
+                                                                    {t('Espera: {n}s', { n: _lag })}
                                                                 </span>
                                                             )}
                                                             {typeof c.attempts === 'number' && c.attempts > 0 && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title={`El chunk fue procesado ${c.attempts} ${c.attempts === 1 ? 'vez' : 'veces'} (intentos de reintento si falló).`}>
-                                                                    Intentos: {c.attempts}
+                                                                      title={c.attempts === 1
+                                                                          ? t('El chunk fue procesado {n} vez (intentos de reintento si falló).', { n: c.attempts })
+                                                                          : t('El chunk fue procesado {n} veces (intentos de reintento si falló).', { n: c.attempts })}>
+                                                                    {t('Intentos: {n}', { n: c.attempts })}
                                                                 </span>
                                                             )}
                                                             {/* [P0-HIST-FIX-5 · 2026-05-09] "Degraded" →
@@ -4101,14 +4121,14 @@ const History = () => {
                                                                 el LLM falló o pantry tenía señal débil). */}
                                                             {c.metrics && c.metrics.was_degraded === true && (
                                                                 <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                      title="Días generados en modo simplificado tras un fallo del LLM o señal débil de pantry. La calidad nutricional puede ser menor.">
-                                                                    Calidad reducida
+                                                                      title={t('Días generados en modo simplificado tras un fallo del LLM o señal débil de pantry. La calidad nutricional puede ser menor.')}>
+                                                                    {t('Calidad reducida')}
                                                                 </span>
                                                             )}
                                                             {c.metrics && typeof c.metrics.learning_repeat_pct === 'number' && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title="% de meals en este chunk que repiten meals de chunks previos. >50% indica falta de variedad.">
-                                                                    Repetición: {Math.round(c.metrics.learning_repeat_pct * 100)}%
+                                                                      title={t('% de meals en este chunk que repiten meals de chunks previos. >50% indica falta de variedad.')}>
+                                                                    {t('Repetición: {pct}%', { pct: Math.round(c.metrics.learning_repeat_pct * 100) })}
                                                                 </span>
                                                             )}
                                                             {(() => {
@@ -4117,8 +4137,8 @@ const History = () => {
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${_chip.tono === 'malo' ? styles.tierBadgeBad : ''}`}
                                                                           title={_chip.tono === 'malo'
-                                                                              ? `Razón por la que el chunk no se pudo recuperar automáticamente: ${c.dead_letter_reason}`
-                                                                              : 'Este día se canceló al pausar la generación. Al reanudar tu plan se vuelve a encolar automáticamente.'}>
+                                                                              ? t('Razón por la que el chunk no se pudo recuperar automáticamente: {razon}', { razon: c.dead_letter_reason })
+                                                                              : t('Este día se canceló al pausar la generación. Al reanudar tu plan se vuelve a encolar automáticamente.')}>
                                                                         {_chip.texto}
                                                                     </span>
                                                                 );
@@ -4283,8 +4303,8 @@ const History = () => {
                                                                     // posteriores pueden repetir comidas.
                                                                     return (
                                                                         <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                              title="El chunk generó los días pero el aprendizaje (qué meals propusimos, qué evitar) no se guardó. Los próximos chunks pueden repetir comidas que este ya propuso.">
-                                                                            Sin aprendizaje guardado
+                                                                              title={t('El chunk generó los días pero el aprendizaje (qué meals propusimos, qué evitar) no se guardó. Los próximos chunks pueden repetir comidas que este ya propuso.')}>
+                                                                            {t('Sin aprendizaje guardado')}
                                                                         </span>
                                                                     );
                                                                 }
@@ -4344,8 +4364,8 @@ const History = () => {
                                                                 queue). 'ok' es no-render (happy path). */}
                                                             {c.reservation_status === 'fallback' && (
                                                                 <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                      title="Worker pool saturado al pickup — el chunk cayó al fallback queue.">
-                                                                    Reserva: fallback
+                                                                      title={t('Worker pool saturado al pickup — el chunk cayó al fallback queue.')}>
+                                                                    {t('Reserva: fallback')}
                                                                 </span>
                                                             )}
                                                             {/* [P1-HIST-NEW-6 · 2026-05-09] Chip
@@ -4395,8 +4415,8 @@ const History = () => {
                                                                 snapshot O recovery que cambió kind. */}
                                                             {c.is_rolling_refill_drift === true && (
                                                                 <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                      title="Drift entre chunk_kind y is_rolling_refill del snapshot — chunk transicionó de kind durante recovery O bug del writer.">
-                                                                    Kind drift
+                                                                      title={t('Drift entre chunk_kind y is_rolling_refill del snapshot — chunk transicionó de kind durante recovery O bug del writer.')}>
+                                                                    {t('Kind drift')}
                                                                 </span>
                                                             )}
                                                             {/* [P2-HIST-AUDIT-F · 2026-05-09]
@@ -4410,8 +4430,8 @@ const History = () => {
                                                             {typeof c.blocking_lock_chunk_id === 'string'
                                                                 && c.blocking_lock_chunk_id.length > 0 && (
                                                                 <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                      title={`Lock del usuario activo en otro chunk (${c.blocking_lock_chunk_id.slice(0, 8)}…). Lleva ${c.blocking_lock_age_seconds || '?'}s. Este chunk espera turno.`}>
-                                                                    Lock zombi
+                                                                      title={t('Lock del usuario activo en otro chunk ({id}…). Lleva {seg}s. Este chunk espera turno.', { id: c.blocking_lock_chunk_id.slice(0, 8), seg: c.blocking_lock_age_seconds || '?' })}>
+                                                                    {t('Lock zombi')}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -4606,7 +4626,7 @@ const History = () => {
                                                         onClick={_goPrevChunk}
                                                         disabled={!_hasPrev}
                                                         className={styles.chunkNavBtn}
-                                                        aria-label="Chunk anterior"
+                                                        aria-label={t('Chunk anterior')}
                                                     >
                                                         <ChevronLeft size={16} />
                                                     </button>
@@ -4618,7 +4638,7 @@ const History = () => {
                                                         onClick={_goNextChunk}
                                                         disabled={!_hasNext}
                                                         className={styles.chunkNavBtn}
-                                                        aria-label="Chunk siguiente"
+                                                        aria-label={t('Chunk siguiente')}
                                                     >
                                                         <ChevronRight size={16} />
                                                     </button>
@@ -4648,7 +4668,7 @@ const History = () => {
                                 <h3 className={styles.menuTitle}>
                                     {(() => {
                                         const _planDaysLen = _fullHistoryDays(selectedPlan.plan_data).length;
-                                        if (_planDaysLen <= 1) return 'Menú del Plan';
+                                        if (_planDaysLen <= 1) return t('Menú del Plan');
                                         // [P1-HIST-1 · 2026-05-09] El título se clampa al chunk
                                         // ACTIVO (no siempre el chunk 0 como pre-P1-HIST-1).
                                         // `findChunkContaining(planDaysLen, selectedDay)` elige
@@ -4662,13 +4682,15 @@ const History = () => {
                                             : _cs;
                                         // [P1-HIST-DAY-IDENTITY] mismo contrato que los tabs:
                                         // la fecha estampada del día manda; índice = fallback.
-                                        return `Menú — ${_dayNameForDay(
-                                            _fullHistoryDays(selectedPlan.plan_data)[_safeIdx],
-                                            parseStartLocal(
-                                                _historyLabelStart(selectedPlan.plan_data, selectedPlan.created_at)
+                                        return t('Menú — {dia}', {
+                                            dia: _dayNameForDay(
+                                                _fullHistoryDays(selectedPlan.plan_data)[_safeIdx],
+                                                parseStartLocal(
+                                                    _historyLabelStart(selectedPlan.plan_data, selectedPlan.created_at)
+                                                ),
+                                                _safeIdx
                                             ),
-                                            _safeIdx
-                                        )}`;
+                                        });
                                     })()}
                                 </h3>
                                 <div className={styles.menuList}>
@@ -4716,7 +4738,7 @@ const History = () => {
                                                     padding: '0.25rem 0.6rem', borderRadius: '99px',
                                                     border: '1px solid color-mix(in srgb, #FB923C 32%, transparent)', whiteSpace: 'nowrap'
                                                 }}>
-                                                    {meal.cals} kcal
+                                                    {t('{n} kcal', { n: meal.cals })}
                                                 </span>
                                             )}
                                         </div>
@@ -5106,7 +5128,7 @@ const History = () => {
                                             onClick={handleRestoreRequest}
                                             className={styles.modalActionBtn}
                                         >
-                                            <RotateCcw size={18} /> Reactivar este Plan
+                                            <RotateCcw size={18} /> {t('Reactivar este Plan')}
                                         </button>
                                     </div>
                                 );
@@ -5145,22 +5167,22 @@ const History = () => {
                             <div className={styles.confirmIconWrapper}>
                                 <AlertTriangle size={26} />
                             </div>
-                            <h3 id="history-restore-confirm-title" className={styles.confirmTitle}>¿Reactivar este plan?</h3>
+                            <h3 id="history-restore-confirm-title" className={styles.confirmTitle}>{t('¿Reactivar este plan?')}</h3>
                             <p id="history-restore-confirm-desc" className={styles.confirmText}>
-                                Tu plan actual será reemplazado por <strong>{confirmRestore.name || 'este plan'}</strong>. Esta acción no se puede deshacer.
+                                {t('Tu plan actual será reemplazado por')} <strong>{confirmRestore.name || t('este plan')}</strong>. {t('Esta acción no se puede deshacer.')}
                             </p>
                             <div className={styles.confirmActions}>
                                 <button
                                     className={styles.confirmCancelBtn}
                                     onClick={() => setConfirmRestore(null)}
                                 >
-                                    Cancelar
+                                    {t('Cancelar')}
                                 </button>
                                 <button
                                     className={styles.confirmAcceptBtn}
                                     onClick={handleRestoreConfirm}
                                 >
-                                    <RotateCcw size={16} /> Sí, reactivar
+                                    <RotateCcw size={16} /> {t('Sí, reactivar')}
                                 </button>
                             </div>
                         </motion.div>
@@ -5198,22 +5220,22 @@ const History = () => {
                             <div className={styles.confirmIconWrapper}>
                                 <Trash2 size={26} />
                             </div>
-                            <h3 id="history-delete-confirm-title" className={styles.confirmTitle}>¿Eliminar este plan?</h3>
+                            <h3 id="history-delete-confirm-title" className={styles.confirmTitle}>{t('¿Eliminar este plan?')}</h3>
                             <p id="history-delete-confirm-desc" className={styles.confirmText}>
-                                El plan <strong>{confirmDelete.name || 'Seleccionado'}</strong> será borrado permanentemente de tu historial. Esta acción no se puede deshacer.
+                                {t('El plan')} <strong>{confirmDelete.name || t('Seleccionado')}</strong> {t('será borrado permanentemente de tu historial.')} {t('Esta acción no se puede deshacer.')}
                             </p>
                             <div className={styles.confirmActions}>
                                 <button
                                     className={styles.confirmCancelBtn}
                                     onClick={() => setConfirmDelete(null)}
                                 >
-                                    Cancelar
+                                    {t('Cancelar')}
                                 </button>
                                 <button
                                     className={styles.confirmAcceptBtn}
                                     onClick={handleDeleteConfirm}
                                 >
-                                    <Trash2 size={16} /> Eliminar
+                                    <Trash2 size={16} /> {t('Eliminar')}
                                 </button>
                             </div>
                         </motion.div>

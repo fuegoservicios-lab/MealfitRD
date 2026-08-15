@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes effect manual).
 import { useLatestRef } from '../../hooks/useLatestRef';
+import { useT, useTn } from '../../i18n';
 import styles from './WaterTracker.module.css';
 
 const DEFAULT_GOAL = 8;
@@ -71,6 +72,8 @@ const readWaterStateFromCache = (userId) => {
 };
 
 const WaterTracker = ({ userId }) => {
+    const t = useT();
+    const tn = useTn();
     const [enabled, setEnabled] = useState(readEnabledFromCache);
     const _cachedState = useMemo(() => readWaterStateFromCache(userId), [userId]);
     const [glasses, setGlasses] = useState(() => _cachedState?.glasses ?? 0);
@@ -192,12 +195,12 @@ const WaterTracker = ({ userId }) => {
             }
             if (networkError) {
                 setGlasses(prevSaved); glassesRef.current = prevSaved;
-                toast.error('Sin conexión. Intenta de nuevo.');
+                toast.error(t('Sin conexión. Intenta de nuevo.'));
                 return;
             }
             if (!res.ok) {
                 setGlasses(prevSaved); glassesRef.current = prevSaved;
-                toast.error(res.status === 401 ? 'Inicia sesión para guardar tu hidratación.' : 'No pudimos guardar. Intenta de nuevo.');
+                toast.error(res.status === 401 ? t('Inicia sesión para guardar tu hidratación.') : t('No pudimos guardar. Intenta de nuevo.'));
                 return;
             }
             const data = await res.json().catch(() => null);
@@ -207,7 +210,7 @@ const WaterTracker = ({ userId }) => {
                 if (data.goal_basis) setGoalBasis(data.goal_basis);
             }
             if (target >= goalRef.current && prevSaved < goalRef.current) {
-                toast.success('¡Meta de hidratación alcanzada!');
+                toast.success(t('¡Meta de hidratación alcanzada!'));
             }
         } finally {
             inFlightRef.current = false;
@@ -217,7 +220,7 @@ const WaterTracker = ({ userId }) => {
                 if (next !== target) flushPersist(next);
             }
         }
-    }, [currentDate]);
+    }, [currentDate, t]);
 
     // Setea un valor absoluto (clamp [0, goal]) optimista + persiste coalescido.
     const persist = useCallback((rawTarget) => {
@@ -253,7 +256,7 @@ const WaterTracker = ({ userId }) => {
     if (!enabled) return null;
 
     return (
-        <section className={`${styles.card} ${complete ? styles.complete : ''}`} aria-label="Hidratación">
+        <section className={`${styles.card} ${complete ? styles.complete : ''}`} aria-label={t('Hidratación')}>
             <div className={styles.inner}>
                 {/* Vaso animado */}
                 <div className={styles.vessel}>
@@ -277,7 +280,10 @@ const WaterTracker = ({ userId }) => {
                         </div>
                     </div>
                     <p className={styles.meta}>
-                        <b>{liters(glasses * mlPerGlass)}</b> de {liters(goalMl)}
+                        {/* Homógrafo: «de» suelto entre dos volúmenes («1,20 L de
+                            1,92 L»). Sufijo de contexto para que el traductor no
+                            reciba una preposición sin frase alrededor. */}
+                        <b>{liters(glasses * mlPerGlass)}</b> {t('de|hidratación')} {liters(goalMl)}
                     </p>
                 </div>
 
@@ -286,18 +292,18 @@ const WaterTracker = ({ userId }) => {
                     <header className={styles.head}>
                         <span className={styles.badge} aria-hidden="true"><CupIcon /></span>
                         <div>
-                            <h3 className={styles.title}>Hidratación</h3>
+                            <h3 className={styles.title}>{t('Hidratación')}</h3>
                             <p className={styles.sub}>
                                 {isPersonalized ? (
-                                    <>Meta personalizada para <b>{Number(goalBasis.weight_kg).toLocaleString('es-DO')} kg</b> · ~{mlPerGlass} ml por vaso</>
+                                    <>{t('Meta personalizada para')} <b>{Number(goalBasis.weight_kg).toLocaleString('es-DO')} kg</b> · {t('~{ml} ml por vaso', { ml: mlPerGlass })}</>
                                 ) : (
-                                    <>Meta diaria de <b>{goal} vasos</b> · ~{mlPerGlass} ml por vaso</>
+                                    <>{t('Meta diaria de')} <b>{t('{n} vasos', { n: goal })}</b> · {t('~{ml} ml por vaso', { ml: mlPerGlass })}</>
                                 )}
                             </p>
                         </div>
                     </header>
 
-                    <div className={styles.cups} role="group" aria-label="Vasos de agua" style={{ '--cols': columnsPerRow }}>
+                    <div className={styles.cups} role="group" aria-label={t('Vasos de agua')} style={{ '--cols': columnsPerRow }}>
                         {Array.from({ length: goal }, (_, i) => {
                             const fill = Math.max(0, Math.min(1, glasses - i));
                             return (
@@ -305,7 +311,7 @@ const WaterTracker = ({ userId }) => {
                                     key={i}
                                     type="button"
                                     className={`${styles.cup} ${fill >= 1 ? styles.cupFull : ''}`}
-                                    aria-label={`Vaso ${i + 1}`}
+                                    aria-label={t('Vaso {n}', { n: i + 1 })}
                                     aria-pressed={fill >= 1}
                                     disabled={loading}
                                     onClick={() => setTo(glasses === i + 1 ? i : i + 1)}
@@ -317,14 +323,14 @@ const WaterTracker = ({ userId }) => {
                     </div>
 
                     <div className={styles.actions}>
-                        <QuickAdd label="Sorbo" ml={Math.round(mlPerGlass / 2)} onClick={() => add(0.5)} disabled={loading || glasses >= goal} />
-                        <QuickAdd label="Vaso" ml={mlPerGlass} onClick={() => add(1)} disabled={loading || glasses >= goal} />
-                        <QuickAdd label="Botella" ml={mlPerGlass * 2} onClick={() => add(2)} disabled={loading || glasses >= goal} />
+                        <QuickAdd label={t('Sorbo')} ml={Math.round(mlPerGlass / 2)} onClick={() => add(0.5)} disabled={loading || glasses >= goal} />
+                        <QuickAdd label={t('Vaso')} ml={mlPerGlass} onClick={() => add(1)} disabled={loading || glasses >= goal} />
+                        <QuickAdd label={t('Botella')} ml={mlPerGlass * 2} onClick={() => add(2)} disabled={loading || glasses >= goal} />
                         <div className={styles.stepper}>
-                            <button type="button" onClick={() => add(-0.5)} disabled={loading || glasses <= 0} aria-label="Quitar medio vaso">
+                            <button type="button" onClick={() => add(-0.5)} disabled={loading || glasses <= 0} aria-label={t('Quitar medio vaso')}>
                                 <MinusIcon />
                             </button>
-                            <button type="button" onClick={() => add(0.5)} disabled={loading || glasses >= goal} aria-label="Agregar medio vaso">
+                            <button type="button" onClick={() => add(0.5)} disabled={loading || glasses >= goal} aria-label={t('Agregar medio vaso')}>
                                 <PlusIcon />
                             </button>
                         </div>
@@ -332,17 +338,17 @@ const WaterTracker = ({ userId }) => {
 
                     {complete ? (
                         <div className={styles.done}>
-                            <CheckIcon /> ¡Meta cumplida! Excelente hidratación hoy.
+                            <CheckIcon /> {t('¡Meta cumplida! Excelente hidratación hoy.')}
                         </div>
                     ) : (
                         <div className={styles.foot}>
                             {streak > 0 ? (
                                 <span className={styles.streak}>
-                                    <DropIcon /> Racha de {streak} {streak === 1 ? 'día' : 'días'}
+                                    <DropIcon /> {tn(streak, 'Racha de {n} día', 'Racha de {n} días', { n: streak })}
                                 </span>
                             ) : <span />}
                             <button type="button" className={styles.reset} onClick={() => setTo(0)} disabled={loading || glasses <= 0}>
-                                <ResetIcon /> Reiniciar
+                                <ResetIcon /> {t('Reiniciar')}
                             </button>
                         </div>
                     )}

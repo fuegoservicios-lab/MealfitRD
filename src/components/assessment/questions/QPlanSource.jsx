@@ -7,9 +7,11 @@ import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { Bot, Refrigerator } from 'lucide-react';
 import { toast } from 'sonner';
+import { useT } from '../../../i18n';
 
 export const QPlanSource = ({ onAutoAdvance }) => {
     const { formData, updateData, isGuest } = useAssessment();
+    const t = useT();
     // [feedback owner 2026-07-11] SIN default visual: pre-marcar "Plan completo" parecía
     // una elección ya tomada y confundía. Sin selección, "Siguiente" continúa y el
     // backend trata planSource ausente como generación libre (mismo comportamiento).
@@ -41,18 +43,18 @@ export const QPlanSource = ({ onAutoAdvance }) => {
                 frase pasa a ser mentira y hay que cambiarla. */}
             <RadioCard
                 name="planSource" value="scratch" icon={Bot}
-                label="Que la IA elija los ingredientes"
-                desc="Diseña tu plan libremente, con lo que mejor encaje en tus metas. No mira tu Nevera."
+                label={t('Que la IA elija los ingredientes')}
+                desc={t('Diseña tu plan libremente, con lo que mejor encaje en tus metas. No mira tu Nevera.')}
                 checked={value === 'scratch'}
                 onChange={(e) => { set(e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (value === 'scratch') onAutoAdvance(); }}
             />
             <RadioCard
                 name="planSource" value="pantry" icon={Refrigerator}
-                label="Que la IA use lo que ya tengo"
+                label={t('Que la IA use lo que ya tengo')}
                 desc={isAuth
-                    ? 'Arma las comidas alrededor de tu Nevera: compras menos y aprovechas lo que ya está.'
-                    : 'Requiere cuenta: tu Nevera vive en tu perfil. Inicia sesión para usar este modo.'}
+                    ? t('Arma las comidas alrededor de tu Nevera: compras menos y aprovechas lo que ya está.')
+                    : t('Requiere cuenta: tu Nevera vive en tu perfil. Inicia sesión para usar este modo.')}
                 checked={value === 'pantry'}
                 // [P1-PLANSOURCE-DEAD-CONTROL · 2026-08-10] Sin cuenta, tocar esta tarjeta
                 // no hacía ABSOLUTAMENTE NADA: ni deshabilitada, ni aviso, ni cambio de
@@ -66,8 +68,8 @@ export const QPlanSource = ({ onAutoAdvance }) => {
                 onChange={(e) => { if (isAuth) { set(e.target.value); onAutoAdvance(); } }}
                 onClick={() => {
                     if (!isAuth) {
-                        toast.info('Necesitas una cuenta para usar tu Nevera', {
-                            description: 'Tu Nevera vive en tu perfil. Inicia sesión y vuelve a este paso.',
+                        toast.info(t('Necesitas una cuenta para usar tu Nevera'), {
+                            description: t('Tu Nevera vive en tu perfil. Inicia sesión y vuelve a este paso.'),
                             duration: 5000,
                         });
                         return;

@@ -32,8 +32,9 @@ import {
     getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes,
 } from '../../utils/pantryCache';
 import { searchFoods, previewLine, unitsFor, defaultUnitFor, defaultQtyFor } from '../../utils/foodSearch';
-import { MEAL_TYPES, MEAL_TYPE_EXTRA, clampMacro } from './mealLogShared';
+import { getMealTypes, getMealTypeExtra, clampMacro } from './mealLogShared';
 import MacroInput from '../common/MacroInput';
+import { useT } from '../../i18n';
 import styles from './LogMealModal.module.css';
 
 const _MACRO_CLASSES = {
@@ -44,19 +45,21 @@ const _MACRO_CLASSES = {
     unit: styles.macroUnit,
 };
 
-const _DAY_OPTIONS = [
-    { value: 0, label: 'Hoy' },
-    { value: 1, label: 'Ayer' },
-    { value: 2, label: 'Antier' },
+// Función, no constante: un `t()` en ámbito de módulo se congela en español.
+const _getDayOptions = (t) => [
+    { value: 0, label: t('Hoy') },
+    { value: 1, label: t('Ayer') },
+    { value: 2, label: t('Antier') },
 ];
 
 const LogMealModal = ({ onClose }) => {
+    const t = useT();
     const [foods, setFoods] = useState(() => getCachedMasterList() || []);
     const [dishes, setDishes] = useState(() => getCachedDishes() || []);
     const [loadFailed, setLoadFailed] = useState(false);
     const [query, setQuery] = useState('');
     const [lines, setLines] = useState([]);
-    const [mealType, setMealType] = useState(MEAL_TYPE_EXTRA.value);
+    const [mealType, setMealType] = useState(() => getMealTypeExtra(t).value);
     const [daysAgo, setDaysAgo] = useState(0);
     const [mealName, setMealName] = useState('');
     const [deductPantry, setDeductPantry] = useState(false);
@@ -114,17 +117,20 @@ const LogMealModal = ({ onClose }) => {
     );
 
     const totales = useMemo(() => {
-        const t = { kcal: 0, protein: 0, carbs: 0, fats: 0 };
+        // [P1-I18N-DASHBOARD] Se llamaba `t`; renombrado a `acc` porque `t` es ahora
+        // la función de traducción del componente y tenerla ensombrecida aquí dentro
+        // es una trampa para el próximo que añada una cadena en este bloque.
+        const acc = { kcal: 0, protein: 0, carbs: 0, fats: 0 };
         for (const l of lines) {
             if (l.ref === 'custom') {
-                t.kcal += l.macros.kcal; t.protein += l.macros.protein;
-                t.carbs += l.macros.carbs; t.fats += l.macros.fats;
+                acc.kcal += l.macros.kcal; acc.protein += l.macros.protein;
+                acc.carbs += l.macros.carbs; acc.fats += l.macros.fats;
             } else {
                 const p = previewLine(l.entry, l.qty, l.unit);
-                t.kcal += p.kcal; t.protein += p.protein; t.carbs += p.carbs; t.fats += p.fats;
+                acc.kcal += p.kcal; acc.protein += p.protein; acc.carbs += p.carbs; acc.fats += p.fats;
             }
         }
-        return t;
+        return acc;
     }, [lines]);
 
     const addEntry = (entry) => {
@@ -156,28 +162,30 @@ const LogMealModal = ({ onClose }) => {
             });
             const data = await res.json().catch(() => null);
             if (res.status === 422) {
-                toast.error(data?.detail || 'Hay una línea que no se pudo resolver. Revísala.');
+                toast.error(data?.detail || t('Hay una línea que no se pudo resolver. Revísala.'));
                 return;
             }
             if (!res.ok || !data?.success) {
-                throw new Error(data?.message || data?.detail || 'No se pudo registrar.');
+                throw new Error(data?.message || data?.detail || t('No se pudo registrar.'));
             }
             // Mismo evento que el escáner y el chat: la tarjeta de progreso refetchea.
             window.dispatchEvent(new Event('mealfit:refresh-inventory'));
             if (data.already_logged) {
-                toast.info('Esa comida ya estaba registrada hace un momento.');
+                toast.info(t('Esa comida ya estaba registrada hace un momento.'));
             } else {
-                toast.success(`Registrado: ${data.totals?.kcal ?? Math.round(totales.kcal)} kcal.`);
+                toast.success(t('Registrado: {kcal} kcal.', { kcal: data.totals?.kcal ?? Math.round(totales.kcal) }));
             }
             // [P1-PANTRY-NAME-RESOLUTION] decir QUÉ no bajó — callarlo es la mentira
             // que aquel P-fix eliminó del chat.
             if (deductPantry && (data.not_in_pantry?.length || data.failed_to_deduct?.length)) {
                 const faltan = [...(data.not_in_pantry || []), ...(data.failed_to_deduct || [])];
-                toast.info(`No estaba en tu Nevera: ${faltan.slice(0, 4).join(', ')}${faltan.length > 4 ? '…' : ''}`);
+                toast.info(t('No estaba en tu Nevera: {items}', {
+                    items: `${faltan.slice(0, 4).join(', ')}${faltan.length > 4 ? '…' : ''}`,
+                }));
             }
             onClose();
         } catch (e) {
-            toast.error(e?.message || 'No se pudo registrar. Intenta de nuevo.');
+            toast.error(e?.message || t('No se pudo registrar. Intenta de nuevo.'));
         } finally {
             setSaving(false);
         }
@@ -186,28 +194,28 @@ const LogMealModal = ({ onClose }) => {
     const cuerpo = (
         <div className={styles.overlay}>
             <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
-            <div ref={containerRef} className={styles.panel} role="dialog" aria-modal="true" aria-label="Registrar comida" tabIndex={-1}>
+            <div ref={containerRef} className={styles.panel} role="dialog" aria-modal="true" aria-label={t('Registrar comida')} tabIndex={-1}>
                 <div className={styles.head}>
-                    <h2 className={styles.title}>Registrar comida</h2>
-                    <button type="button" className={styles.close} onClick={onClose} aria-label="Cerrar">
+                    <h2 className={styles.title}>{t('Registrar comida')}</h2>
+                    <button type="button" className={styles.close} onClick={onClose} aria-label={t('Cerrar')}>
                         <X size={18} strokeWidth={2.5} />
                     </button>
                 </div>
 
                 <div className={styles.selectors}>
-                    <select className={styles.select} value={mealType} onChange={(e) => setMealType(e.target.value)} aria-label="Tipo de comida">
-                        <option value={MEAL_TYPE_EXTRA.value}>{MEAL_TYPE_EXTRA.label}</option>
-                        {MEAL_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    <select className={styles.select} value={mealType} onChange={(e) => setMealType(e.target.value)} aria-label={t('Tipo de comida')}>
+                        <option value={getMealTypeExtra(t).value}>{getMealTypeExtra(t).label}</option>
+                        {getMealTypes(t).map((mt) => <option key={mt.value} value={mt.value}>{mt.label}</option>)}
                     </select>
-                    <select className={styles.select} value={daysAgo} onChange={(e) => setDaysAgo(Number(e.target.value))} aria-label="Día">
-                        {_DAY_OPTIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                    <select className={styles.select} value={daysAgo} onChange={(e) => setDaysAgo(Number(e.target.value))} aria-label={t('Día')}>
+                        {_getDayOptions(t).map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                     </select>
                 </div>
 
                 {loadFailed ? (
                     <div className={styles.loadError}>
-                        <span>No pudimos cargar el catálogo. Revisa tu conexión.</span>
-                        <button type="button" className={styles.retry} onClick={load}>Reintentar</button>
+                        <span>{t('No pudimos cargar el catálogo. Revisa tu conexión.')}</span>
+                        <button type="button" className={styles.retry} onClick={load}>{t('Reintentar')}</button>
                     </div>
                 ) : (
                     <div className={styles.searchWrap}>
@@ -217,8 +225,8 @@ const LogMealModal = ({ onClose }) => {
                             className={styles.search}
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Busca un alimento o un plato…"
-                            aria-label="Buscar alimento"
+                            placeholder={t('Busca un alimento o un plato…')}
+                            aria-label={t('Buscar alimento')}
                         />
                         {query.trim().length >= 2 && (
                             <ul className={styles.results} role="listbox">
@@ -239,9 +247,9 @@ const LogMealModal = ({ onClose }) => {
                                         })}
                                     >
                                         <span className={styles.resultLabel}>
-                                            <Plus size={14} aria-hidden="true" /> Añadir «{query.trim()}» con macros propias
+                                            <Plus size={14} aria-hidden="true" /> {t('Añadir «{nombre}» con macros propias', { nombre: query.trim() })}
                                         </span>
-                                        <span className={styles.resultSub}>Para lo que el catálogo no conoce</span>
+                                        <span className={styles.resultSub}>{t('Para lo que el catálogo no conoce')}</span>
                                     </button>
                                 </li>
                             </ul>
@@ -253,17 +261,17 @@ const LogMealModal = ({ onClose }) => {
                     <div className={styles.customBox}>
                         <span className={styles.customName}>{customDraft.name}</span>
                         <div className={styles.customGrid}>
-                            <MacroInput classes={_MACRO_CLASSES} label="Calorías" unit="kcal" value={customDraft.macros.kcal}
+                            <MacroInput classes={_MACRO_CLASSES} label={t('Calorías')} unit="kcal" value={customDraft.macros.kcal}
                                 onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, kcal: clampMacro('calories', v) } }))} />
-                            <MacroInput classes={_MACRO_CLASSES} label="Proteína" unit="g" value={customDraft.macros.protein}
+                            <MacroInput classes={_MACRO_CLASSES} label={t('Proteína')} unit="g" value={customDraft.macros.protein}
                                 onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, protein: clampMacro('protein', v) } }))} />
-                            <MacroInput classes={_MACRO_CLASSES} label="Carbs" unit="g" value={customDraft.macros.carbs}
+                            <MacroInput classes={_MACRO_CLASSES} label={t('Carbs')} unit="g" value={customDraft.macros.carbs}
                                 onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, carbs: clampMacro('carbs', v) } }))} />
-                            <MacroInput classes={_MACRO_CLASSES} label="Grasas" unit="g" value={customDraft.macros.fats}
+                            <MacroInput classes={_MACRO_CLASSES} label={t('Grasas')} unit="g" value={customDraft.macros.fats}
                                 onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, fats: clampMacro('healthy_fats', v) } }))} />
                         </div>
                         <div className={styles.customActions}>
-                            <button type="button" className={styles.ghostBtn} onClick={() => setCustomDraft(null)}>Cancelar</button>
+                            <button type="button" className={styles.ghostBtn} onClick={() => setCustomDraft(null)}>{t('Cancelar')}</button>
                             <button
                                 type="button"
                                 className={styles.smallBtn}
@@ -276,7 +284,7 @@ const LogMealModal = ({ onClose }) => {
                                     setQuery('');
                                 }}
                             >
-                                Añadir al plato
+                                {t('Añadir al plato')}
                             </button>
                         </div>
                     </div>
@@ -284,7 +292,7 @@ const LogMealModal = ({ onClose }) => {
 
                 {!lines.length && !query && frequent.length > 0 && (
                     <div className={styles.frequent}>
-                        <span className={styles.frequentTitle}>Lo que más registras</span>
+                        <span className={styles.frequentTitle}>{t('Lo que más registras')}</span>
                         <div className={styles.frequentRow}>
                             {frequent.map((f) => (
                                 <button
@@ -312,14 +320,14 @@ const LogMealModal = ({ onClose }) => {
 
                 {lines.length > 0 && (
                     <div className={styles.plate}>
-                        <span className={styles.plateTitle}>Tu plato</span>
+                        <span className={styles.plateTitle}>{t('Tu plato')}</span>
                         {lines.map((l) => {
                             if (l.ref === 'custom') {
                                 return (
                                     <div key={l.id} className={styles.line}>
                                         <span className={styles.lineName}>{l.name}</span>
                                         <span className={styles.lineMeta}>{Math.round(l.macros.kcal)} kcal</span>
-                                        <button type="button" className={styles.lineDel} aria-label={`Quitar ${l.name}`}
+                                        <button type="button" className={styles.lineDel} aria-label={t('Quitar {nombre}', { nombre: l.name })}
                                             onClick={() => setLines((prev) => prev.filter((x) => x.id !== l.id))}>
                                             <Trash2 size={15} />
                                         </button>
@@ -333,19 +341,19 @@ const LogMealModal = ({ onClose }) => {
                                     <input
                                         type="number" min="0" step="0.5" inputMode="decimal"
                                         className={styles.lineQty} value={l.qty}
-                                        aria-label={`Cantidad de ${l.entry.label}`}
+                                        aria-label={t('Cantidad de {nombre}', { nombre: l.entry.label })}
                                         onChange={(e) => setLines((prev) => prev.map((x) => (x.id === l.id ? { ...x, qty: e.target.value } : x)))}
                                     />
                                     <select
                                         className={styles.lineUnit} value={l.unit}
-                                        aria-label={`Unidad de ${l.entry.label}`}
+                                        aria-label={t('Unidad de {nombre}', { nombre: l.entry.label })}
                                         onChange={(e) => setLines((prev) => prev.map((x) => (x.id === l.id
                                             ? { ...x, unit: e.target.value, qty: defaultQtyFor(x.entry, e.target.value) } : x)))}
                                     >
                                         {unitsFor(l.entry).map((u) => <option key={u.unit} value={u.unit}>{u.label}</option>)}
                                     </select>
                                     <span className={styles.lineMeta}>{Math.round(pv.grams)} g · {Math.round(pv.kcal)} kcal</span>
-                                    <button type="button" className={styles.lineDel} aria-label={`Quitar ${l.entry.label}`}
+                                    <button type="button" className={styles.lineDel} aria-label={t('Quitar {nombre}', { nombre: l.entry.label })}
                                         onClick={() => setLines((prev) => prev.filter((x) => x.id !== l.id))}>
                                         <Trash2 size={15} />
                                     </button>
@@ -365,8 +373,8 @@ const LogMealModal = ({ onClose }) => {
                             value={mealName}
                             maxLength={200}
                             onChange={(e) => setMealName(e.target.value)}
-                            placeholder="Nombre (opcional — lo armamos por ti)"
-                            aria-label="Nombre de la comida"
+                            placeholder={t('Nombre (opcional — lo armamos por ti)')}
+                            aria-label={t('Nombre de la comida')}
                         />
 
                         <label className={styles.pantryToggle}>
@@ -376,20 +384,20 @@ const LogMealModal = ({ onClose }) => {
                                 onChange={(e) => setDeductPantry(e.target.checked)}
                             />
                             <Refrigerator size={15} aria-hidden="true" />
-                            <span>Descontar de mi Nevera</span>
+                            <span>{t('Descontar de mi Nevera')}</span>
                         </label>
                     </div>
                 )}
 
                 <div className={styles.footer}>
-                    <button type="button" className={styles.ghostBtn} onClick={onClose}>Cancelar</button>
+                    <button type="button" className={styles.ghostBtn} onClick={onClose}>{t('Cancelar')}</button>
                     <button
                         type="button"
                         className={styles.primaryBtn}
                         disabled={!lines.length || saving}
                         onClick={registrar}
                     >
-                        {saving ? (<><Loader2 size={16} className={styles.spin} /> Registrando…</>) : 'Registrar'}
+                        {saving ? (<><Loader2 size={16} className={styles.spin} /> {t('Registrando…')}</>) : t('Registrar')}
                     </button>
                 </div>
             </div>

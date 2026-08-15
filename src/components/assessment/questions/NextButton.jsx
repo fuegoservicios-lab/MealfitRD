@@ -1,12 +1,18 @@
 // [P2-4 · 2026-07-09] Extraído de InteractiveQuestions.jsx (split mecánico un-archivo-por-Q*; ese archivo quedó como barrel de re-export).
 import { ArrowRight } from 'lucide-react';
+import { useT } from '../../../i18n';
 
 // --- Reusable Navigation Button for Manual Steps ---
 // [FORM-CTA-UNIFY · 2026-07-02] `style` permite overrides puntuales (ej. el flow
 // externo pasa marginTop:0 porque su contenedor ya aporta el espaciado). Este
 // componente es el ÚNICO look válido para el CTA primario del formulario — el
 // "Siguiente Paso" del flow lo reutiliza; no dupliques botones inline planos.
-export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon = ArrowRight, style = {} }) => (
+// [P1-I18N-DASHBOARD · 2026-08-15] El default de `label` se resuelve DENTRO del
+// cuerpo (no en la firma): un default de parámetro no puede llamar al hook, y el
+// hook es lo que suscribe el botón al cambio de idioma.
+export const NextButton = ({ onClick, disabled, label, icon: Icon = ArrowRight, style = {} }) => {
+    const t = useT();
+    return (
     <button
         onClick={onClick}
         disabled={disabled}
@@ -39,6 +45,7 @@ export const NextButton = ({ onClick, disabled, label = "Siguiente", icon: Icon 
             ...style
         }}
     >
-        {label} <Icon size={20} />
+        {label ?? t('Siguiente')} <Icon size={20} />
     </button>
-);
+    );
+};

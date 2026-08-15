@@ -8,12 +8,15 @@ import { toast } from 'sonner';
 import { authClient } from '../authClient';
 import { API_BASE, fetchWithAuth } from '../config/api';
 import { useAssessment } from '../context/AssessmentContext';
-import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
+import { findFirstIncompleteField, getFieldLabel } from '../config/formValidation';
 
 import { calculateAllPlanIngredients } from '../utils/shoppingHelpers';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario sobre el
 // queryClient (antes window.__cachedQuota global sin user_id).
 import { getFreshPlanCount } from '../utils/quotaCache';
+// [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo: los toasts se construyen dentro
+// de `regeneratePlan`, o sea al pulsar el botón — con el catálogo ya cargado.
+import { t } from '../i18n';
 
 
 export const useRegeneratePlan = () => {
@@ -42,8 +45,8 @@ export const useRegeneratePlan = () => {
         // su lugar; el usuario puede reintentar tras la hidratación (típicamente
         // <1s tras el login). NO disparamos navegación.
         if (loadingSensitive) {
-            toast.info('Cargando tus datos…', {
-                description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+            toast.info(t('Cargando tus datos…'), {
+                description: t('Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.'),
                 duration: 3000,
             });
             return;
@@ -98,8 +101,8 @@ export const useRegeneratePlan = () => {
             if (isLimitReached) {
                 isNavigatingRef.current = false;
                 if (toastId) toast.dismiss(toastId);
-                toast.error('Límite de regeneraciones alcanzado', {
-                    description: 'Has usado todos tus créditos de regeneración este mes.'
+                toast.error(t('Límite de regeneraciones alcanzado'), {
+                    description: t('Has usado todos tus créditos de regeneración este mes.')
                 });
                 return;
             }
@@ -267,9 +270,9 @@ export const useRegeneratePlan = () => {
             // segundo intento (tras completar el campo) no quede bloqueado.
             isNavigatingRef.current = false;
             if (toastId) toast.dismiss(toastId);
-            const label = FIELD_LABELS[missingField] || missingField;
-            toast.info(`Antes de regenerar, completa: ${label}`, {
-                description: 'Te llevamos al cuestionario.',
+            const label = getFieldLabel(missingField, t);
+            toast.info(t('Antes de regenerar, completa: {campo}', { campo: label }), {
+                description: t('Te llevamos al cuestionario.'),
                 duration: 4000,
             });
             setCurrentStep(0);
@@ -279,7 +282,7 @@ export const useRegeneratePlan = () => {
             isNavigatingRef.current = false;
             if (toastId) {
                 toast.dismiss(toastId);
-                toast.error('Error de conexión', { description: 'Hubo un problema preparando la regeneración.' });
+                toast.error(t('Error de conexión'), { description: t('Hubo un problema preparando la regeneración.') });
             }
             console.error('Error during plan regeneration:', error);
             // throw error; // Remove throw to prevent unhandled promise rejection if not caught upstream. The UI is already handled via toast.

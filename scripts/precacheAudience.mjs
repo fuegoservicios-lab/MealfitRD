@@ -73,6 +73,32 @@ export const FAMILIAS_NO_PRECACHEABLES = [
             'hast-util-to-jsx-runtime', 'unified'],
         gate: 'LazyMarkdown — sólo el chat',
     },
+    {
+        // [P1-I18N-DASHBOARD · 2026-08-15] Los catálogos de idioma: 244 KiB gz
+        // entre los cuatro. El guard los cazó en su primer build, que es
+        // exactamente para lo que existe.
+        //
+        // Por qué NO se precachean: el apex es la portada de marketing y está
+        // escrita en español —no se migró a i18n—, así que ninguna de estas
+        // 2.254 claves tiene nada que traducir ahí. Un visitante anónimo se
+        // bajaría los cuatro idiomas en la instalación del SW para una página
+        // que no usa ninguno.
+        //
+        // Y quien SÍ los necesita no los echa de menos: `loadLocale()` sólo
+        // dispara desde el I18nProvider cuando la preferencia guardada no es
+        // es-DO, o sea tras haber entrado al dashboard al menos una vez. En esa
+        // primera visita el chunk se descarga por red y a partir de ahí lo
+        // sirve la caché normal del navegador. Lo único que se pierde es tener
+        // el idioma disponible OFFLINE en la primera carga tras cambiarlo, que
+        // es una ventana de segundos.
+        //
+        // `es-DO` no aparece aquí porque no tiene catálogo: es el fallback, y
+        // sus textos ya viajan dentro del código como claves.
+        id: 'i18n-catalogs',
+        marcadores: [],
+        rutas: ['src/i18n/locales/'],
+        gate: 'loadLocale() — sólo con preferencia ≠ es-DO, P1-I18N-DASHBOARD',
+    },
 ];
 
 const _norm = (id) => String(id || '').split('\\').join('/');
@@ -90,11 +116,18 @@ const _paqueteDe = (id) => {
  * `FAMILIAS_NO_PRECACHEABLES`.
  */
 export function familiaMarcada(moduleIds) {
-    const paquetes = new Set((moduleIds || []).map(_paqueteDe).filter(Boolean));
-    if (!paquetes.size) return null;
+    const ids = (moduleIds || []).map(_norm);
+    const paquetes = new Set(ids.map(_paqueteDe).filter(Boolean));
 
     for (const familia of FAMILIAS_NO_PRECACHEABLES) {
-        if (familia.marcadores.some((m) => paquetes.has(m))) return familia.id;
+        if ((familia.marcadores || []).some((m) => paquetes.has(m))) return familia.id;
+        // [P1-I18N-DASHBOARD · 2026-08-15] Marcador por RUTA DE FUENTE, además
+        // de por paquete. Los catálogos de idioma son código propio
+        // (`src/i18n/locales/*.json`), así que `_paqueteDe` devuelve null para
+        // ellos y una regla que solo mire `node_modules/` no puede verlos —
+        // exactamente el punto ciego que P1-APEX-PRECACHE-BLIND documentó para
+        // los chunks `index-<hash>` anónimos, con otra causa.
+        if ((familia.rutas || []).some((r) => ids.some((id) => id.includes(r)))) return familia.id;
     }
     return null;
 }

@@ -18,6 +18,7 @@ import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
 import { missingPlanQuestionsCount } from '../../config/formValidation';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
+import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
 import CreditsMeter from './CreditsMeter';
@@ -27,6 +28,8 @@ import styles from './DashboardTracking.module.css';
 const _DISMISS_KEY = 'mealfit_turnon_card_dismissed';
 
 const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
+    const t = useT();
+    const tn = useTn();
     const navigate = useNavigate();
     const { updateData } = useAssessment();
     const [dismissed, setDismissed] = useState(() => safeLocalStorageGet(_DISMISS_KEY, null) === '1');
@@ -56,19 +59,19 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
         if (dismissed) {
             return (
                 <button type="button" className={styles.turnOnLink} onClick={reanudarPlanes}>
-                    Tu plan está en pausa. Reanúdalo aquí <ArrowRight size={13} aria-hidden="true" />
+                    {t('Tu plan está en pausa. Reanúdalo aquí')} <ArrowRight size={13} aria-hidden="true" />
                 </button>
             );
         }
         return (
             <div className={styles.turnOnCard}>
-                <span className={styles.turnOnTitle}>Tu plan está en pausa</span>
+                <span className={styles.turnOnTitle}>{t('Tu plan está en pausa')}</span>
                 <p className={styles.turnOnBody}>
-                    Sigue guardado en tu Historial. Reanudarlo es gratis y retoma exactamente donde quedó.
+                    {t('Sigue guardado en tu Historial. Reanudarlo es gratis y retoma exactamente donde quedó.')}
                 </p>
                 <div className={styles.turnOnActions}>
                     <button type="button" className={styles.turnOnBtn} onClick={reanudarPlanes}>
-                        Reanudar el plan
+                        {t('Reanudar el plan')}
                     </button>
                     <button
                         type="button"
@@ -78,7 +81,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                             setDismissed(true);
                         }}
                     >
-                        Ahora no
+                        {t('Ahora no')}
                     </button>
                 </div>
             </div>
@@ -95,22 +98,27 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                 className={styles.turnOnLink}
                 onClick={irAlPlan}
             >
-                ¿Quieres el plan completo? Enciéndelo aquí <ArrowRight size={13} aria-hidden="true" />
+                {t('¿Quieres el plan completo? Enciéndelo aquí')} <ArrowRight size={13} aria-hidden="true" />
             </button>
         );
     }
 
     return (
         <div className={styles.turnOnCard}>
-            <span className={styles.turnOnTitle}>¿Quieres que la IA te arme el plan?</span>
+            <span className={styles.turnOnTitle}>{t('¿Quieres que la IA te arme el plan?')}</span>
             <p className={styles.turnOnBody}>
                 {faltan > 0
-                    ? `Te faltan ${faltan} pregunta${faltan === 1 ? '' : 's'} del formulario y usa 1 crédito de tu mes.`
-                    : 'Ya tienes todo respondido: generarlo usa 1 crédito de tu mes.'}
+                    ? tn(
+                        faltan,
+                        'Te faltan {n} pregunta del formulario y usa 1 crédito de tu mes.',
+                        'Te faltan {n} preguntas del formulario y usa 1 crédito de tu mes.',
+                        { n: faltan }
+                    )
+                    : t('Ya tienes todo respondido: generarlo usa 1 crédito de tu mes.')}
             </p>
             <div className={styles.turnOnActions}>
                 <button type="button" className={styles.turnOnBtn} onClick={irAlPlan}>
-                    Encender el plan
+                    {t('Encender el plan')}
                 </button>
                 <button
                     type="button"
@@ -128,6 +136,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
 };
 
 const DashboardTracking = () => {
+    const t = useT();
     // Créditos: mismas props que el call site de DashboardInner — el medidor no
     // deriva nada solo (con undefined pintaría 0/0 «agotado», una mentira roja).
     const { userProfile, formData, planData, session, userPlanLimit, remainingCredits, planCount, isGuest } = useAssessment();
@@ -153,7 +162,7 @@ const DashboardTracking = () => {
             <div className={styles.mainCol}>
                 {targets === null && (
                     <div className={styles.loading}>
-                        <Loader2 className={styles.spin} size={22} aria-hidden="true" /> Calculando tus metas…
+                        <Loader2 className={styles.spin} size={22} aria-hidden="true" /> {t('Calculando tus metas…')}
                     </div>
                 )}
 
@@ -161,22 +170,22 @@ const DashboardTracking = () => {
                     <div className={styles.noGoals}>
                         <Gauge size={20} aria-hidden="true" />
                         <div>
-                            <strong>Faltan datos para tus metas.</strong>
+                            <strong>{t('Faltan datos para tus metas.')}</strong>
                             <p className={styles.noGoalsBody}>
                                 {targets.missing_fields?.length
-                                    ? 'Completa tus medidas y objetivo en el formulario — dos minutos.'
-                                    : 'No pudimos calcularlas ahora. Reintenta en un momento.'}
+                                    ? t('Completa tus medidas y objetivo en el formulario — dos minutos.')
+                                    : t('No pudimos calcularlas ahora. Reintenta en un momento.')}
                             </p>
                         </div>
                         {targets.missing_fields?.length
                             ? (
                                 <button type="button" className={styles.noGoalsBtn} onClick={() => navigate('/assessment')}>
-                                    Completar
+                                    {t('Completar')}
                                 </button>
                             )
                             : (
                                 <button type="button" className={styles.noGoalsBtn} onClick={cargar}>
-                                    Reintentar
+                                    {t('Reintentar')}
                                 </button>
                             )}
                     </div>

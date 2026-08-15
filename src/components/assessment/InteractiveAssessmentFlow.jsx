@@ -39,7 +39,8 @@ import { toast } from 'sonner';
 // el array `steps` (más abajo) declara su propia propiedad `fields: [...]`
 // y el mapping se construye en runtime → reordenar/insertar steps no rompe
 // la navegación a campo faltante.
-import { buildFieldToStepIndex, FIELD_LABELS, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor } from '../../config/formValidation';
+import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor } from '../../config/formValidation';
+import { useT } from '../../i18n';
 
 /* [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] ¿El presupuesto personalizado alcanza
    el piso? SSOT de las TRES puertas que pueden dejar atrás el paso 11.
@@ -80,6 +81,7 @@ const isCustomBudgetValid = (fd) => fd?.budget !== 'custom'
 const InteractiveAssessmentFlow = () => {
     const { currentStep, setCurrentStep, nextStep, formData, updateData, maxReachedStep, setMaxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
     const navigate = useNavigate();
+    const t = useT();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // [P1-FORM-4] Lock síncrono contra doble-submit dentro del mismo tab.
@@ -207,8 +209,8 @@ const InteractiveAssessmentFlow = () => {
         // sensibles potencialmente vacíos. Toast neutral y NO tocamos
         // `submittingRef` — el usuario puede reintentar en <1s.
         if (loadingSensitive) {
-            toast.info('Cargando tus datos…', {
-                description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+            toast.info(t('Cargando tus datos…'), {
+                description: t('Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.'),
                 duration: 3000,
             });
             return;
@@ -229,11 +231,11 @@ const InteractiveAssessmentFlow = () => {
             // poder reintentar tras corregir el campo faltante.
             submittingRef.current = false;
             const stepIdx = fieldToStepIndex[missing];
-            const label = FIELD_LABELS[missing] || missing;
-            toast.error(`Falta completar: ${label}`, {
+            const label = getFieldLabel(missing, t);
+            toast.error(t('Falta completar: {campo}', { campo: label }), {
                 // [AUDIT-FORM-COPY 2026-08-12] La promesa de navegar solo si HAY
                 // paso destino (householdSize es required sin paso: default 1).
-                description: typeof stepIdx === 'number' ? 'Te llevamos al paso correspondiente.' : 'Revisalo antes de continuar.',
+                description: typeof stepIdx === 'number' ? t('Te llevamos al paso correspondiente.') : t('Revisalo antes de continuar.'),
                 duration: 4000,
             });
             if (typeof stepIdx === 'number') {
@@ -253,8 +255,8 @@ const InteractiveAssessmentFlow = () => {
         // al añadir la del salto habrían sido TRES. Comportamiento idéntico.
         if (!isCustomBudgetValid(formData)) {
             submittingRef.current = false;
-            toast.error('Tu presupuesto quedó por debajo del mínimo para tu plan.', {
-                description: 'Te llevamos al paso de presupuesto para ajustarlo.',
+            toast.error(t('Tu presupuesto quedó por debajo del mínimo para tu plan.'), {
+                description: t('Te llevamos al paso de presupuesto para ajustarlo.'),
                 duration: 4000,
             });
             const _budgetIdx = fieldToStepIndex['budget'];
@@ -268,8 +270,8 @@ const InteractiveAssessmentFlow = () => {
         // backend sigue siendo la red final; esto es la misma regla, antes.
         if (hasOutOfScopeMedical(formData)) {
             submittingRef.current = false;
-            toast.error('Tu condición o medicamento marcado está fuera del alcance del plan.', {
-                description: 'Revisa el paso de condiciones médicas.',
+            toast.error(t('Tu condición o medicamento marcado está fuera del alcance del plan.'), {
+                description: t('Revisa el paso de condiciones médicas.'),
                 duration: 4500,
             });
             const _medIdx = fieldToStepIndex['medicalConditions'];
@@ -286,7 +288,7 @@ const InteractiveAssessmentFlow = () => {
             // [P1-FORM-4] Liberar ambos lock + state en el path de error. El
             // cleanup del unmount cubre el caso de navegación exitosa.
             submittingRef.current = false;
-            toast.error('Ocurrió un error al iniciar la generación');
+            toast.error(t('Ocurrió un error al iniciar la generación'));
             setIsSubmitting(false);
         }
     };
@@ -311,45 +313,45 @@ const InteractiveAssessmentFlow = () => {
             // [P1-PLANSOURCE-COPY-PARITY · 2026-08-09] El título dice «la IA» UNA vez
             // y por delante de las dos opciones, para que la duda «¿esta también es
             // con IA?» no llegue a nacer. El subtítulo nombra el único eje real.
-            title: <>¿Cómo quieres que la IA arme tu plan?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Las dos opciones las diseña la IA. La diferencia es si parte de cero o de lo que ya hay en tu Nevera.",
+            title: <>{t('¿Cómo quieres que la IA arme tu plan?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Las dos opciones las diseña la IA. La diferencia es si parte de cero o de lo que ya hay en tu Nevera.'),
             fields: ['planSource'],
             component: <QPlanSource onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Eres hombre o mujer?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Las necesidades nutricionales varían según tu sexo biológico.",
+            title: <>{t('¿Eres hombre o mujer?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Las necesidades nutricionales varían según tu sexo biológico.'),
             fields: ['gender'],
             component: <QGender onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>Tus Medidas&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Ingresa tu edad, altura y peso para calcular tus macros con precisión.",
+            title: <>{t('Tus Medidas')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Ingresa tu edad, altura y peso para calcular tus macros con precisión.'),
             hasInternalNext: true,
             fields: ['age', 'height', 'weight', 'weightUnit'],
             component: <QMeasurements onManualAdvance={nextStep} />
         },
         {
-            title: <>¿Cuál es tu nivel de actividad física?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Considera tanto tu trabajo como tus entrenamientos.",
+            title: <>{t('¿Cuál es tu nivel de actividad física?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Considera tanto tu trabajo como tus entrenamientos.'),
             fields: ['activityLevel'],
             component: <QActivityLevel onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Cómo es tu horario cotidiano?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Adaptaremos los horarios de tus comidas a tu reloj biológico.",
+            title: <>{t('¿Cómo es tu horario cotidiano?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Adaptaremos los horarios de tus comidas a tu reloj biológico.'),
             fields: ['scheduleType'],
             component: <QSchedule onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Cuántas horas duermes?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "La calidad de tu sueño afecta directamente tu metabolismo.",
+            title: <>{t('¿Cuántas horas duermes?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('La calidad de tu sueño afecta directamente tu metabolismo.'),
             fields: ['sleepHours'],
             component: <QSleep onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Cuál es tu nivel de estrés diario?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Un alto nivel de estrés puede dificultar la pérdida de grasa.",
+            title: <>{t('¿Cuál es tu nivel de estrés diario?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Un alto nivel de estrés puede dificultar la pérdida de grasa.'),
             fields: ['stressLevel'],
             component: <QStress onAutoAdvance={handleAutoAdvance} />
         },
@@ -363,8 +365,8 @@ const InteractiveAssessmentFlow = () => {
             // enforcement que "Saltar a la última pregunta" y el submit NO aplican
             // (findFirstIncompleteField solo cubre REQUIRED_FORM_FIELDS) — contradicción
             // UI↔contrato. El gate lineal del NextButton interno se mantiene intacto.
-            title: <>Tus hábitos de consumo</>,
-            subtitle: "Alcohol, tabaco, cafeína y agua cambian cómo calibramos tu plan (y cómo interactúa con tus medicamentos).",
+            title: <>{t('Tus hábitos de consumo')}</>,
+            subtitle: t('Alcohol, tabaco, cafeína y agua cambian cómo calibramos tu plan (y cómo interactúa con tus medicamentos).'),
             hasInternalNext: true,
             component: <QHabits onManualAdvance={nextStep} />
         },
@@ -376,8 +378,8 @@ const InteractiveAssessmentFlow = () => {
             // no están en la lista"). Añadir una pregunta de equipo al flujo principal va contra la dirección
             // LEAN del intake (misma razón por la que se eliminó householdSize, P0-12). Gap acotado: solo el
             // PRIMER plan de quien NO llena el panel es equipment-blind. Revisitar si el owner prioriza.
-            title: <>¿Cuánto tiempo tienes para cocinar?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Te daremos recetas reales que se ajusten a tu agenda.",
+            title: <>{t('¿Cuánto tiempo tienes para cocinar?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Te daremos recetas reales que se ajusten a tu agenda.'),
             fields: ['cookingTime'],
             component: <QCookingTime onAutoAdvance={handleAutoAdvance} />
         },
@@ -388,15 +390,15 @@ const InteractiveAssessmentFlow = () => {
             // presupuesto (`build_budget_context` lo usa: "RD$X para tu ciclo
             // quincenal"). El orden de captura no afecta los datos — ambos se
             // envían juntos al final.
-            title: <>Frecuencia de tus compras&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Con esto calculamos cuánto comprar cada vez para que ningún ingrediente se dañe ni te falte antes del próximo mercado.",
+            title: <>{t('Frecuencia de tus compras')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Con esto calculamos cuánto comprar cada vez para que ningún ingrediente se dañe ni te falte antes del próximo mercado.'),
             hasInternalNext: true,
             fields: ['groceryDuration'],
             component: <QHousehold onManualAdvance={nextStep} />
         },
         {
-            title: <>Tu presupuesto para compras&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Ajustaremos los ingredientes para no afectar tu bolsillo.",
+            title: <>{t('Tu presupuesto para compras')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Ajustaremos los ingredientes para no afectar tu bolsillo.'),
             fields: ['budget'],
             // [BUDGET-CUSTOM · 2026-05-31] Si el usuario eligió "Personalizar"
             // (budget==='custom'), el monto total debe alcanzar el MÍNIMO viable
@@ -413,18 +415,18 @@ const InteractiveAssessmentFlow = () => {
             component: <QBudget onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Qué tipo de dieta prefieres?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Selecciona el estilo de alimentación que más disfrutes.",
+            title: <>{t('¿Qué tipo de dieta prefieres?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Selecciona el estilo de alimentación que más disfrutes.'),
             fields: ['dietType'],
             component: <QDietType onAutoAdvance={handleAutoAdvance} />
         },
         {
-            title: <>¿Tienes alguna alergia o intolerancia?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>{t('¿Tienes alguna alergia o intolerancia?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             // [AUDIT-FORM-COPY · 2026-08-12] Igual que sus tres hermanos (gustos/
             // médico/struggles): el subtítulo enseña la salida («Ninguna») y el
             // free-text. Es el chip más sensible por safety — el único que no
             // decía cómo responder «no tengo».
-            subtitle: "Marca todas las que apliquen, escribe la tuya en «Otra…», o marca «Ninguna».",
+            subtitle: t('Marca todas las que apliquen, escribe la tuya en «Otra…», o marca «Ninguna».'),
             hasInternalNext: true,
             fields: ['allergies'],
             component: <QAllergies onManualAdvance={nextStep} />
@@ -437,8 +439,8 @@ const InteractiveAssessmentFlow = () => {
             // QDislikes ahora requiere señal explícita (chip / "Ninguno" /
             // free-text) para avanzar. La copy era el origen del falso positivo
             // de "no rechazos" que dejaba colar cilantro/hígado/etc. al plan.
-            title: <>Alimentos que no te gustan&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Selecciona los que apliquen, escribe otros, o marca \"Ninguno\" si no rechazas ningún alimento.",
+            title: <>{t('Alimentos que no te gustan')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Selecciona los que apliquen, escribe otros, o marca "Ninguno" si no rechazas ningún alimento.'),
             hasInternalNext: true,
             fields: ['dislikes'],
             component: <QDislikes onManualAdvance={nextStep} />
@@ -447,8 +449,8 @@ const InteractiveAssessmentFlow = () => {
             // [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos" — OPCIONAL/skippeable (mismo patrón que
             // QSupplements): NO en REQUIRED_FORM_FIELDS, SIN asterisco rojo, el NextButton interno
             // nunca se deshabilita por falta de selección.
-            title: "Tus básicos de siempre (Opcional)",
-            subtitle: "Alimentos que comes seguido y quieres ver repetidos en tu plan sin que cuente como falta de variedad.",
+            title: t('Tus básicos de siempre (Opcional)'),
+            subtitle: t('Alimentos que comes seguido y quieres ver repetidos en tu plan sin que cuente como falta de variedad.'),
             hasInternalNext: true,
             component: <QStapleFoods onManualAdvance={nextStep} />
         },
@@ -459,21 +461,21 @@ const InteractiveAssessmentFlow = () => {
             // engañosa puede ser un riesgo de seguridad médica si el LLM
             // no la respeta. El asterisco rojo señala "respuesta requerida"
             // (no "tienes que tener una condición").
-            title: <>Condiciones Médicas&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            title: <>{t('Condiciones Médicas')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             // [P1-MEDICAL-SCOPE-GATE · 2026-08-09] Decía «escribe otras» y el
             // input de texto libre se ELIMINÓ el 2026-08-01
             // (P1-MEDICAL-CONDITIONS-CAP): el enunciado invitaba a hacer algo
             // imposible. Ahora la vía para lo no listado es el chip «Otra
             // condición», que es una señal ESTRUCTURADA — no prosa que haya que
             // parsear (ver el rationale del gate en QMedical.jsx).
-            subtitle: "Marca todas las que apliquen, o \"Ninguna\" si no tienes ninguna condición preexistente. Si tienes una que no está en la lista, marca \"Otra condición\".",
+            subtitle: t('Marca todas las que apliquen, o "Ninguna" si no tienes ninguna condición preexistente. Si tienes una que no está en la lista, marca "Otra condición".'),
             hasInternalNext: true,
             fields: ['medicalConditions'],
             component: <QMedical onManualAdvance={nextStep} />
         },
         {
-            title: <>¿Cuál es tu objetivo PRINCIPAL?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Define la meta que quieres lograr con este plan.",
+            title: <>{t('¿Cuál es tu objetivo PRINCIPAL?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Define la meta que quieres lograr con este plan.'),
             fields: ['mainGoal'],
             component: <QMainGoal onAutoAdvance={handleAutoAdvance} />
         },
@@ -485,8 +487,8 @@ const InteractiveAssessmentFlow = () => {
             // específica"; ritmo solo para lose_fat/gain_muscle).
             // [P1-FORM-AUDIT-BATCH · 2026-07-03] SIN asterisco rojo (mismo racional que
             // QHabits: el * prometía enforcement que skip/submit no aplican).
-            title: <>Tu meta de peso</>,
-            subtitle: "Cuantificar la meta nos deja calibrar el ritmo del plan a tu medida — o déjala en manos de la IA.",
+            title: <>{t('Tu meta de peso')}</>,
+            subtitle: t('Cuantificar la meta nos deja calibrar el ritmo del plan a tu medida — o déjala en manos de la IA.'),
             hasInternalNext: true,
             component: <QGoalTarget onManualAdvance={nextStep} />
         },
@@ -497,29 +499,29 @@ const InteractiveAssessmentFlow = () => {
             // vacío silenciosamente; el LLM perdía el contexto de coaching
             // personalizado. Ahora 1 click ("Ninguno" si no aplica) confirma
             // la respuesta y desbloquea el botón.
-            title: <>Mayores Obstáculos&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Marca los que apliquen, escribe otros, o marca \"Ninguno\" si no identificas obstáculos específicos.",
+            title: <>{t('Mayores Obstáculos')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Marca los que apliquen, escribe otros, o marca "Ninguno" si no identificas obstáculos específicos.'),
             hasInternalNext: true,
             fields: ['struggles'],
             component: <QStruggles onManualAdvance={nextStep} />
         },
         {
-            title: <>¿Por qué quieres hacer esto AHORA?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: "Escribe tu motivación real. Esto será tu gasolina en días difíciles.",
+            title: <>{t('¿Por qué quieres hacer esto AHORA?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Escribe tu motivación real. Esto será tu gasolina en días difíciles.'),
             hasInternalNext: true,
             fields: ['motivation'],
             component: <QMotivation onManualAdvance={nextStep} />
         },
         {
-            title: "Suplementación (Opcional)",
-            subtitle: "¿Te gustaría incluir suplementos profesionales en tu plan?",
+            title: t('Suplementación (Opcional)'),
+            subtitle: t('¿Te gustaría incluir suplementos profesionales en tu plan?'),
             hasInternalNext: true,
             // [P1-PANTRY-WIZARD-STEP · 2026-07-11] En modo pantry este step ya NO es el
             // final: avanza al paso "Prepara tu Nevera" (abajo) y el submit vive allí.
             component: <QSupplements
                 onFinish={isPantryMode ? () => nextStep() : submitAndGenerate}
                 isSubmitting={isSubmitting}
-                finishLabel={isPantryMode ? 'Siguiente' : undefined}
+                finishLabel={isPantryMode ? t('Siguiente') : undefined}
             />
         },
         // [P1-PANTRY-WIZARD-STEP · 2026-07-11] Paso final condicional del modo
@@ -530,8 +532,8 @@ const InteractiveAssessmentFlow = () => {
         // `fieldToStepIndex`. Guests no lo ven (la Nevera requiere cuenta;
         // QPlanSource ya les bloquea el modo).
         ...(isPantryMode ? [{
-            title: <>Prepara tu Nevera</>,
-            subtitle: "Agrega los alimentos que tienes en casa; tu plan se construirá alrededor de ellos y la lista de compras te dirá solo lo que falte.",
+            title: <>{t('Prepara tu Nevera')}</>,
+            subtitle: t('Agrega los alimentos que tienes en casa; tu plan se construirá alrededor de ellos y la lista de compras te dirá solo lo que falte.'),
             hasInternalNext: true,
             component: <QPantryBuilder onFinish={submitAndGenerate} isSubmitting={isSubmitting} />
         }] : [])
@@ -554,8 +556,8 @@ const InteractiveAssessmentFlow = () => {
         // del owner): asterisco + entrada en REQUIRED_FORM_FIELDS. El `fields` de
         // abajo ya gateaba «Siguiente»; el contrato cubre al usuario que REGRESA
         // y salta (canSkip) sin haberla contestado jamás (cuentas pre-P1-PLAN-MODE).
-        title: <>¿Qué quieres que haga Bioboros por ti?&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-        subtitle: "Las dos cosas usan la misma IA. La diferencia es si te genera el menú o solo te acompaña a contar.",
+        title: <>{t('¿Qué quieres que haga Bioboros por ti?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+        subtitle: t('Las dos cosas usan la misma IA. La diferencia es si te genera el menú o solo te acompaña a contar.'),
         fields: ['appMode'],
         component: <QAppMode onAutoAdvance={handleAutoAdvance} />
     };
@@ -576,7 +578,7 @@ const InteractiveAssessmentFlow = () => {
             const _gt = _byComponent(QGoalTarget);
             return _gt && {
                 ..._gt,
-                subtitle: "Cuantificar la meta nos deja calibrar tus calorías y macros a tu medida.",
+                subtitle: t('Cuantificar la meta nos deja calibrar tus calorías y macros a tu medida.'),
             };
         })(),
         _byField('dietType'),
@@ -587,8 +589,8 @@ const InteractiveAssessmentFlow = () => {
             // ENTRAR al paso, con dos llamadas de red aún por delante que pueden
             // fallar. El título nombra el paso; el «listo» lo declara el toast
             // de éxito, que sí sabe si lo está.
-            title: <>Último paso: tu contador</>,
-            subtitle: "Sin plan generado, sin gastar créditos. Lo enciendes cuando quieras.",
+            title: <>{t('Último paso: tu contador')}</>,
+            subtitle: t('Sin plan generado, sin gastar créditos. Lo enciendes cuando quieras.'),
             hasInternalNext: true,
             component: <QTrackingFinish />
         },
@@ -736,8 +738,8 @@ const InteractiveAssessmentFlow = () => {
         // Mismo patrón aplicado a `onFinish` de QSupplements (P1-3) y a
         // `Plan.jsx` (P0-13). Aquí cerramos el último call site afectado.
         if (loadingSensitive) {
-            toast.info('Cargando tus datos…', {
-                description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+            toast.info(t('Cargando tus datos…'), {
+                description: t('Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.'),
                 duration: 3000,
             });
             return;
@@ -753,9 +755,9 @@ const InteractiveAssessmentFlow = () => {
             : findFirstIncompleteField(formData);
         if (missing) {
             const stepIdx = fieldToStepIndex[missing];
-            const label = FIELD_LABELS[missing] || missing;
-            toast.info(`Antes de saltar, completa: ${label}`, {
-                description: typeof stepIdx === 'number' ? 'Te llevamos al paso correspondiente.' : 'Revisalo antes de continuar.',
+            const label = getFieldLabel(missing, t);
+            toast.info(t('Antes de saltar, completa: {campo}', { campo: label }), {
+                description: typeof stepIdx === 'number' ? t('Te llevamos al paso correspondiente.') : t('Revisalo antes de continuar.'),
                 duration: 4000,
             });
             if (typeof stepIdx === 'number') {
@@ -768,8 +770,8 @@ const InteractiveAssessmentFlow = () => {
         // vivía SOLO en el disabled del botón del paso, y saltar es no pasar por
         // el paso). Aplica en AMBAS ramas — el chip existe en las dos.
         if (hasOutOfScopeMedical(formData)) {
-            toast.info('Tu condición o medicamento marcado está fuera del alcance del plan.', {
-                description: 'Revisa el paso de condiciones médicas antes de continuar.',
+            toast.info(t('Tu condición o medicamento marcado está fuera del alcance del plan.'), {
+                description: t('Revisa el paso de condiciones médicas antes de continuar.'),
                 duration: 4500,
             });
             const _medIdx = fieldToStepIndex['medicalConditions'];
@@ -783,8 +785,8 @@ const InteractiveAssessmentFlow = () => {
         // ahora también aquí, desde el SSOT compartido.
         // Presupuesto es un paso del PLAN: en la rama contador ni se pregunta.
         if (!_isTracking && !isCustomBudgetValid(formData)) {
-            toast.info('Antes de saltar, completa: Presupuesto', {
-                description: 'Elegiste "Personalizar" y el monto no llega al mínimo.',
+            toast.info(t('Antes de saltar, completa: Presupuesto'), {
+                description: t('Elegiste "Personalizar" y el monto no llega al mínimo.'),
                 duration: 4000,
             });
             const _budgetIdx = fieldToStepIndex['budget'];
@@ -822,7 +824,7 @@ const InteractiveAssessmentFlow = () => {
                         {!currentStepConfig.hasInternalNext && (
                             <NextButton
                                 onClick={nextStep}
-                                label="Siguiente Paso"
+                                label={t('Siguiente Paso')}
                                 style={{ marginTop: 0 }}
                             />
                         )}
@@ -874,7 +876,7 @@ const InteractiveAssessmentFlow = () => {
                                 onClick={handleSkipToLastStep}
                                 className="mf-ghost-btn"
                             >
-                                Saltar a la última pregunta <ChevronsRight size={18} />
+                                {t('Saltar a la última pregunta')} <ChevronsRight size={18} />
                             </button>
                         )}
                     </div>

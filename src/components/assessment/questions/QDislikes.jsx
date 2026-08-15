@@ -6,6 +6,7 @@ import { SENTINELS } from '../../../config/sentinels';
 import { Ban, Bean, Beef, Cloud, Fish, Layers, Leaf, LeafyGreen, Shrimp, Sprout, TreeDeciduous } from 'lucide-react';
 import { ChipOption, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
+import { useT } from '../../../i18n';
 
 // [P1-B5] Step nuevo para `dislikes` — campo que el backend ya consume:
 //   - Filtra catálogos de ingredientes (`constants._get_fast_filtered_catalogs`).
@@ -19,8 +20,12 @@ import { NextButton } from './NextButton';
 // para casos no listados.
 export const QDislikes = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.dislikes;
+    // [P1-I18N-DASHBOARD · 2026-08-15] Etiqueta derivada del sentinel con clave
+    // estática — mismo patrón y mismo porqué que en QAllergies.jsx.
+    const sentinelLabel = SENTINEL === 'Ninguno' ? t('Ninguno') : SENTINEL;
     const noneSelected = (formData.dislikes || []).includes(SENTINEL);
     const handleToggle = (value) => {
         const next = toggleArrayWithExclusiveSentinel(formData.dislikes || [], value, SENTINEL);
@@ -46,17 +51,20 @@ export const QDislikes = ({ onManualAdvance }) => {
     //   - Sprout (Hongos): brota del suelo.
     //   - Layers (Cebolla): capas.
     //   - Bean (Aguacate): silueta ovalada con "pepa".
+    // [P1-I18N-DASHBOARD · 2026-08-15] El `val` es el nombre de alimento que consume
+    // el motor (filtro de catálogo, RAG, cache semántico): NO se traduce nunca. Lo
+    // que se traduce es el `label` del chip, que es lo único que el usuario lee.
     const COMMON_DISLIKES = [
-        { val: "Cilantro", label: "Cilantro", icon: Leaf },
-        { val: "Hígado", label: "Hígado", icon: Beef },
-        { val: "Berenjena", label: "Berenjena", icon: LeafyGreen },
-        { val: "Pescado", label: "Pescado", icon: Fish },
-        { val: "Mariscos", label: "Mariscos", icon: Shrimp },
-        { val: "Brócoli", label: "Brócoli", icon: TreeDeciduous },
-        { val: "Coliflor", label: "Coliflor", icon: Cloud },
-        { val: "Hongos", label: "Hongos", icon: Sprout },
-        { val: "Cebolla", label: "Cebolla", icon: Layers },
-        { val: "Aguacate", label: "Aguacate", icon: Bean },
+        { val: "Cilantro", label: t('Cilantro'), icon: Leaf },
+        { val: "Hígado", label: t('Hígado'), icon: Beef },
+        { val: "Berenjena", label: t('Berenjena'), icon: LeafyGreen },
+        { val: "Pescado", label: t('Pescado'), icon: Fish },
+        { val: "Mariscos", label: t('Mariscos'), icon: Shrimp },
+        { val: "Brócoli", label: t('Brócoli'), icon: TreeDeciduous },
+        { val: "Coliflor", label: t('Coliflor'), icon: Cloud },
+        { val: "Hongos", label: t('Hongos'), icon: Sprout },
+        { val: "Cebolla", label: t('Cebolla'), icon: Layers },
+        { val: "Aguacate", label: t('Aguacate'), icon: Bean },
     ];
 
     return (
@@ -70,7 +78,7 @@ export const QDislikes = ({ onManualAdvance }) => {
                     />
                 ))}
                 <ChipOption
-                    val={SENTINEL} label={SENTINEL} icon={Ban}
+                    val={SENTINEL} label={sentinelLabel} icon={Ban}
                     isSelected={(formData.dislikes || []).includes(SENTINEL)}
                     onToggle={handleToggle}
                 />
@@ -81,7 +89,7 @@ export const QDislikes = ({ onManualAdvance }) => {
                 marcar el sentinel; aquí lo hacemos no-editable para dejarlo claro. */}
             <Input
                 type="text"
-                placeholder={noneSelected ? 'Marcaste «Ninguno»' : 'Otros (Ej. Apio, Curry, Picante...)'}
+                placeholder={noneSelected ? t('Marcaste «Ninguno»') : t('Otros (Ej. Apio, Curry, Picante...)')}
                 value={noneSelected ? '' : (formData.otherDislikes || '')}
                 onChange={(e) => updateData('otherDislikes', e.target.value)}
                 disabled={noneSelected}

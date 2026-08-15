@@ -2,9 +2,11 @@
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { Clock, Hourglass, Infinity as InfinityIcon, Timer } from 'lucide-react';
+import { useT } from '../../../i18n';
 
 export const QCookingTime = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             {[
@@ -18,10 +20,10 @@ export const QCookingTime = ({ onAutoAdvance }) => {
                 // Iteraciones previas con iconos de comida (Sandwich/Soup) o
                 // energía (Zap) eran ambiguos — no comunicaban DURACIÓN
                 // que es lo que el campo realmente mide.
-                { val: 'none', label: 'Nada', desc: 'Opciones directas, de 5 mins', icon: Hourglass },
-                { val: '30min', label: 'Poco', desc: 'Máximo 30 min', icon: Timer },
-                { val: '1hour', label: 'Medio', desc: '45-60 min', icon: Clock },
-                { val: 'plenty', label: 'Sin límite', desc: 'Me gusta cocinar', icon: InfinityIcon }
+                { val: 'none', label: t('Nada'), desc: t('Opciones directas, de 5 mins'), icon: Hourglass },
+                { val: '30min', label: t('Poco'), desc: t('Máximo 30 min'), icon: Timer },
+                { val: '1hour', label: t('Medio'), desc: '45-60 min', icon: Clock },
+                { val: 'plenty', label: t('Sin límite'), desc: t('Me gusta cocinar'), icon: InfinityIcon }
             ].map(opt => (
                 <RadioCard
                     key={opt.val} name="cookingTime" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}

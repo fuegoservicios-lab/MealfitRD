@@ -50,6 +50,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 // `common/CameraViewfinder` para que «Escanear comida» lo use tal cual en vez de
 // nacer una segunda copia. Lo que sigue viviendo aquí es lo propio de la Nevera.
 import CameraViewfinder from '../common/CameraViewfinder';
+import { useT, useTn } from '../../i18n';
 
 const _apiJson = async (path, options = {}) => {
     const resp = await fetchWithAuth(path, options);
@@ -104,6 +105,8 @@ const _downscaleToB64 = (file, maxSide = 1024) => new Promise((resolve, reject) 
 // el único elemento centrado de una vista alineada a la izquierda, partiendo en
 // dos la relación entre las acciones y la lista.
 export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style, compact = false }) => {
+    const t = useT();
+    const tn = useTn();
     const fileInputRef = useRef(null);
     const [scanning, setScanning] = useState(false);
     const [scanResults, setScanResults] = useState(null);
@@ -149,7 +152,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
             });
             const data = await resp.json().catch(() => null);
             if (!resp.ok) {
-                toast.error(data?.detail || 'No pudimos analizar la foto.');
+                toast.error(data?.detail || t('No pudimos analizar la foto.'));
                 return;
             }
             const items = (data?.items || []).map(it => ({
@@ -158,8 +161,8 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 selected: !!it.master_ingredient_id && (it.confidence ?? 0) >= 0.5,
             }));
             if (items.length === 0) {
-                toast.info('No se detectaron alimentos en la foto', {
-                    description: 'Intenta con más luz y los empaques de frente.',
+                toast.info(t('No se detectaron alimentos en la foto'), {
+                    description: t('Intenta con más luz y los empaques de frente.'),
                 });
                 return;
             }
@@ -167,7 +170,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
             return items;
         } catch (e) {
             console.error('PantryScanButton scan:', e);
-            toast.error('No pudimos analizar la foto.');
+            toast.error(t('No pudimos analizar la foto.'));
         } finally {
             setScanning(false);
         }
@@ -213,7 +216,12 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 }
             }
             invalidateInventoryCache();
-            toast.success(`${chosen.length} alimento${chosen.length === 1 ? '' : 's'} agregado${chosen.length === 1 ? '' : 's'} desde la foto`);
+            toast.success(tn(
+                chosen.length,
+                '{n} alimento agregado desde la foto',
+                '{n} alimentos agregados desde la foto',
+                { n: chosen.length },
+            ));
             setScanResults(null);
             try { await onInventoryChanged?.(); } catch { /* la superficie refetchea */ }
         } finally {
@@ -256,7 +264,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
     const renderResultsChecklist = () => (
         <>
             <strong style={{ color: 'var(--text-main)', fontSize: '0.92rem' }}>
-                Detectado en tu foto — confirma lo que quieres agregar:
+                {t('Detectado en tu foto — confirma lo que quieres agregar:')}
             </strong>
             {scanResults.map((it, idx) => (
                 <label key={idx} style={{
@@ -272,7 +280,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                         {it.detected_brand && (
                             <span style={{ color: 'var(--primary)', fontSize: '0.8rem' }}> · {it.detected_brand}</span>
                         )}
-                        {!it.master_ingredient_id && ' (sin match en el catálogo)'}
+                        {!it.master_ingredient_id && ` ${t('(sin match en el catálogo)')}`}
                         {/* [P1-SCAN-CATALOG-MATCH · 2026-08-10] Cuando el alimento del
                             catálogo NO se llama como lo que leyó la foto, se enseñan los
                             dos. Antes solo se veía el del catálogo, así que un mapeo
@@ -283,7 +291,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                             mapeo — razón de más para que la lectura se vea. */}
                         {it.catalog_renamed && it.detected_name && (
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                                {' '}· leído: {it.detected_name}
+                                {' '}{t('· leído:')} {it.detected_name}
                             </span>
                         )}
                     </span>
@@ -300,7 +308,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                         background: 'var(--primary)', color: '#fff', fontWeight: 700, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
                     }}>
-                    <Plus size={15} /> Agregar {scanResults.filter(i => i.selected).length} a mi Nevera
+                    <Plus size={15} /> {t('Agregar {n} a mi Nevera', { n: scanResults.filter(i => i.selected).length })}
                 </button>
                 <button type="button" onClick={() => setScanResults(null)}
                     style={{
@@ -308,7 +316,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                         border: '1px solid var(--border)', background: 'none',
                         color: 'var(--text-muted)', cursor: 'pointer',
                     }}>
-                    Descartar
+                    {t('Descartar')}
                 </button>
             </div>
         </>
@@ -363,8 +371,8 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 <button type="button" disabled={scanning}
                     onClick={handleCardTap}
                     title={scanning
-                        ? 'Analizando tu foto… esto toma 1-3 minutos'
-                        : 'Detecta alimentos, cantidades y marcas automáticamente'}
+                        ? t('Analizando tu foto… esto toma 1-3 minutos')
+                        : t('Detecta alimentos, cantidades y marcas automáticamente')}
                     onMouseEnter={(e) => { if (!scanning) { e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 18%, transparent)'; } }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 10%, transparent)'; }}
                     style={compactBtn}>
@@ -374,7 +382,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                             ? <Camera size={16} style={{ color: 'var(--primary)' }} />
                             : <ImageUp size={16} style={{ color: 'var(--primary)' }} />)}
                     <span style={{ animation: scanning ? 'qpb-pulse 1.8s ease-in-out infinite' : 'none' }}>
-                        {scanning ? 'Analizando…' : 'Escanear'}
+                        {scanning ? t('Analizando…') : t('Escanear')}
                     </span>
                     <span style={{
                         fontSize: '.58rem', fontWeight: 700, letterSpacing: '.08em',
@@ -415,11 +423,11 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                         animation: scanning ? 'qpb-pulse 1.8s ease-in-out infinite' : 'none',
                     }}>
                         {scanning
-                            ? 'Analizando tu foto…'
-                            : (useLiveViewfinder ? 'Escanear mi nevera con una foto' : 'Sube una foto de tu nevera')}
+                            ? t('Analizando tu foto…')
+                            : (useLiveViewfinder ? t('Escanear mi nevera con una foto') : t('Sube una foto de tu nevera'))}
                     </span>
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {scanning ? 'Esto toma 1-3 minutos — puedes seguir usando la app' : 'Detecta alimentos, cantidades y marcas automáticamente'}
+                        {scanning ? t('Esto toma 1-3 minutos — puedes seguir usando la app') : t('Detecta alimentos, cantidades y marcas automáticamente')}
                     </span>
                 </span>
                 <span style={{
@@ -461,8 +469,8 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 inferior cuando la detección termina. */}
             <CameraViewfinder
                 isOpen={viewfinderOpen}
-                title="Escanear tu nevera"
-                hint="Encuadra el interior de tu nevera"
+                title={t('Escanear tu nevera')}
+                hint={t('Encuadra el interior de tu nevera')}
                 busy={scanning}
                 fileName="nevera.jpg"
                 onCapture={handleViewfinderCapture}

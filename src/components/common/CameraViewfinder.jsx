@@ -35,6 +35,7 @@ import PropTypes from 'prop-types';
 import { Camera, Loader2, X } from 'lucide-react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
+import { useT } from '../../i18n';
 
 // Captura el frame actual del <video> a un <canvas> en sus dimensiones REALES
 // (video.videoWidth/videoHeight — nunca el tamaño CSS del elemento). Produce el
@@ -69,7 +70,7 @@ const _VF_CORNERS = [
  * @param {string}   title            — encabezado del visor.
  * @param {string}   hint             — qué encuadrar («Encuadra tu plato completo»).
  * @param {boolean}  busy             — el caller está analizando la foto capturada.
- * @param {string}   [busyHint]       — caption mientras analiza.
+ * @param {string}   [busyHint]       — caption mientras analiza (null ⇒ el default traducido).
  * @param {string}   [busyHintLong]   — caption tras ~6s (la espera larga necesita explicación).
  * @param {string}   [fileName]       — nombre del File que se entrega en onCapture.
  * @param {Function} onCapture        — (file, previewUrl) => void. El caller decide qué hacer.
@@ -78,13 +79,16 @@ const _VF_CORNERS = [
  * @param {boolean}  [hideReticle]    — el caller ya muestra resultados sobre el marco.
  * @param {node}     [children]       — overlay dentro del marco (lista de detecciones, etc.).
  */
+// [P1-I18N-DASHBOARD · 2026-08-15] Los defaults de `busyHint`/`busyHintLong` se
+// resuelven DENTRO del cuerpo (no en la firma): un default de parámetro no puede
+// llamar al hook, y el hook es lo que suscribe el componente al cambio de idioma.
 export default function CameraViewfinder({
     isOpen,
     title,
     hint,
     busy = false,
-    busyHint = 'Analizando…',
-    busyHintLong = 'Todavía analizando — la foto tenía mucho detalle',
+    busyHint = null,
+    busyHintLong = null,
     fileName = 'captura.jpg',
     onCapture,
     onClose,
@@ -92,6 +96,7 @@ export default function CameraViewfinder({
     hideReticle = false,
     children = null,
 }) {
+    const t = useT();
     // phase: 'starting' | 'live' | 'denied'
     const [phase, setPhase] = useState('starting');
     const [capturedPreviewUrl, setCapturedPreviewUrl] = useState(null);
@@ -187,8 +192,10 @@ export default function CameraViewfinder({
             setLongBusy(false);
             return undefined;
         }
-        const t = setTimeout(() => setLongBusy(true), 6000);
-        return () => clearTimeout(t);
+        // [P1-I18N-DASHBOARD · 2026-08-15] `timer`, no `t`: `t` es ahora el
+        // traductor del componente y este local lo tapaba dentro del efecto.
+        const timer = setTimeout(() => setLongBusy(true), 6000);
+        return () => clearTimeout(timer);
     }, [isOpen, capturedPreviewUrl, busy]);
 
     if (!isOpen) return null;
@@ -252,7 +259,7 @@ export default function CameraViewfinder({
                     <h2 id="mfvf-title" style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: '#fff' }}>
                         {title}
                     </h2>
-                    <button type="button" onClick={onClose} aria-label="Cerrar"
+                    <button type="button" onClick={onClose} aria-label={t('Cerrar')}
                         className="mfvf-focusable"
                         style={{
                             background: 'none', border: 'none', color: 'rgba(255,255,255,0.85)',
@@ -280,7 +287,7 @@ export default function CameraViewfinder({
                     )}
 
                     {capturedPreviewUrl && (
-                        <img src={capturedPreviewUrl} alt="Foto capturada"
+                        <img src={capturedPreviewUrl} alt={t('Foto capturada')}
                             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     )}
 
@@ -301,8 +308,8 @@ export default function CameraViewfinder({
                             padding: '1.75rem', textAlign: 'center',
                         }}>
                             <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem' }}>
-                                No pudimos abrir la cámara.
-                                {onFallbackToFile ? ' Puedes subir una foto en su lugar.' : ''}
+                                {t('No pudimos abrir la cámara.')}
+                                {onFallbackToFile ? ` ${t('Puedes subir una foto en su lugar.')}` : ''}
                             </span>
                             {onFallbackToFile && (
                                 <button type="button" onClick={onFallbackToFile}
@@ -312,7 +319,7 @@ export default function CameraViewfinder({
                                         background: 'var(--primary)', color: '#fff', fontWeight: 700,
                                         cursor: 'pointer',
                                     }}>
-                                    Subir una foto en su lugar
+                                    {t('Subir una foto en su lugar')}
                                 </button>
                             )}
                         </div>
@@ -353,7 +360,11 @@ export default function CameraViewfinder({
                     <p role="status" aria-live="polite" style={{
                         margin: 0, textAlign: 'center', color: 'rgba(255,255,255,0.88)', fontSize: '0.88rem',
                     }}>
-                        {capturedPreviewUrl ? (longBusy ? busyHintLong : busyHint) : hint}
+                        {capturedPreviewUrl
+                            ? (longBusy
+                                ? (busyHintLong ?? t('Todavía analizando — la foto tenía mucho detalle'))
+                                : (busyHint ?? t('Analizando…')))
+                            : hint}
                     </p>
                 )}
 
@@ -362,7 +373,7 @@ export default function CameraViewfinder({
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8rem' }}>
                         <button type="button" onClick={handleShutter}
                             disabled={phase !== 'live'}
-                            aria-label="Tomar foto"
+                            aria-label={t('Tomar foto')}
                             className="mfvf-focusable"
                             style={{
                                 width: 64, height: 64, borderRadius: '50%',
@@ -381,7 +392,7 @@ export default function CameraViewfinder({
                                     fontSize: '0.82rem', textDecoration: 'underline', cursor: 'pointer',
                                     padding: '0.25rem',
                                 }}>
-                                Subir una foto en su lugar
+                                {t('Subir una foto en su lugar')}
                             </button>
                         )}
                     </div>

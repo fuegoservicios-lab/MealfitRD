@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useT, useTn } from '../../i18n';
 import styles from './MicronutrientMeter.module.css';
 
 /* [P1-MICRO-FOCO-PANEL · 2026-06-26] Rediseño "Foco" del panel de micronutrientes.
@@ -35,7 +36,9 @@ function _fmtN(n) {
 const _round1 = (v) => Math.round(Number(v) * 10) / 10;
 
 // Clasifica una fila del panel → % (topado a 100% para la barra), met/over, tono.
-function classifyRow(e) {
+// `t` entra por parámetro (no por import de módulo) para que `statusWord` se
+// traduzca en la llamada, dentro del render, y no al importar el archivo.
+function classifyRow(e, t) {
     const isCeil = e.techo !== undefined && e.techo !== null;
     const target = isCeil ? e.techo : e.piso;
     const valor = Number(e.valor) || 0;
@@ -48,7 +51,7 @@ function classifyRow(e) {
     const met = e.status === 'ok' || pct >= 100;
     // Calor graduado para lo que falta: amber cerca de la meta, naranja si está muy bajo.
     const tone = met ? 'ok' : (pct >= 50 ? 'amber' : 'far');
-    const statusWord = pct >= 50 ? 'Bajo' : 'Muy bajo';
+    const statusWord = pct >= 50 ? t('Bajo') : t('Muy bajo');
     return { isCeil, pct, fill: Math.min(Math.max(pct, 3), 100), tone, target, valor, met, over: false, estimado, statusWord };
 }
 
@@ -65,7 +68,8 @@ function findAdvice(e, items) {
 
 // — Tarjeta "Por mejorar hoy": % grande + barra + brecha + sugerencia accionable —
 function AttentionCard({ e, adviceItem, onAsk }) {
-    const s = classifyRow(e);
+    const t = useT();
+    const s = classifyRow(e, t);
     const food = adviceItem?.primero_alimentos || e.nota || '';
     const dose = adviceItem?.dosis_sugerida || '';
     // [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] precaución del backend (UL / interacción / renal) — antes
@@ -77,12 +81,12 @@ function AttentionCard({ e, adviceItem, onAsk }) {
             type={onAsk ? 'button' : undefined}
             onClick={onAsk}
             className={`${styles.att} ${styles[s.tone]} ${onAsk ? styles.clickable : ''}`}
-            title={onAsk ? `Preguntarle al coach cómo subir tu ${(e.nutriente || '').toLowerCase()}` : undefined}
+            title={onAsk ? t('Preguntarle al coach cómo subir tu {nutriente}', { nutriente: (e.nutriente || '').toLowerCase() }) : undefined}
         >
             <div className={styles.attTop}>
                 <span className={styles.attName}>{e.nutriente}</span>
                 <span className={styles.pill}>
-                    <ArrowDown />{s.estimado ? 'Estimado' : s.statusWord}
+                    <ArrowDown />{s.estimado ? t('Estimado') : s.statusWord}
                 </span>
                 <span className={styles.bigPct}>{s.pct}%</span>
             </div>
@@ -92,20 +96,25 @@ function AttentionCard({ e, adviceItem, onAsk }) {
                 aria-valuenow={s.pct}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={`${e.nutriente}: ${_fmtN(s.valor)} de ${_fmtN(s.target)} ${e.unidad}`}
+                aria-label={t('{nutriente}: {valor} de {objetivo} {unidad}', {
+                    nutriente: e.nutriente,
+                    valor: _fmtN(s.valor),
+                    objetivo: _fmtN(s.target),
+                    unidad: e.unidad,
+                })}
             >
                 <i style={{ width: `${s.fill}%` }} className={s.estimado ? styles.estim : undefined} />
             </div>
             <div className={styles.vals}>
                 <b>{_fmtN(s.valor)}</b> / {_fmtN(s.target)} {e.unidad}
-                {' · '}<span className={styles.miss}>faltan {_fmtN(_round1(s.target - s.valor))} {e.unidad}</span>
+                {' · '}<span className={styles.miss}>{t('faltan {cantidad} {unidad}', { cantidad: _fmtN(_round1(s.target - s.valor)), unidad: e.unidad })}</span>
             </div>
             {food && (
                 <div className={styles.sugg}>
                     <span className={styles.suggIco} aria-hidden="true"><BoltIcon /></span>
                     <span>
                         {food}
-                        {dose && <span className={styles.dose}>Suplir: {dose}</span>}
+                        {dose && <span className={styles.dose}>{t('Suplir: {dosis}', { dosis: dose })}</span>}
                     </span>
                 </div>
             )}
@@ -115,7 +124,7 @@ function AttentionCard({ e, adviceItem, onAsk }) {
                     <span>{caution}</span>
                 </div>
             )}
-            {onAsk && <span className={styles.improve}><ChatIcon /> Cómo subirlo</span>}
+            {onAsk && <span className={styles.improve}><ChatIcon /> {t('Cómo subirlo')}</span>}
         </Tag>
     );
 }
@@ -123,15 +132,21 @@ function AttentionCard({ e, adviceItem, onAsk }) {
 // — Chip "Al día": colapsado muestra solo el nombre + ✓; al tocarlo se expande y
 //   revela la cantidad EXACTA (valor / objetivo + %). Transparencia total. —
 function ReachedChip({ e, worstDayNum = null }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
-    const s = classifyRow(e);
+    const s = classifyRow(e, t);
     return (
         <button
             type="button"
             className={`${styles.q} ${open ? styles.qOpen : ''}`}
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
-            title={`${e.nutriente}: ${_fmtN(s.valor)} de ${_fmtN(s.target)} ${e.unidad}`}
+            title={t('{nutriente}: {valor} de {objetivo} {unidad}', {
+                nutriente: e.nutriente,
+                valor: _fmtN(s.valor),
+                objetivo: _fmtN(s.target),
+                unidad: e.unidad,
+            })}
         >
             <span className={styles.qRow}>
                 <span className={styles.chk}><CheckIcon /></span>
@@ -139,7 +154,7 @@ function ReachedChip({ e, worstDayNum = null }) {
                 {/* [P3-FLOOR-WORSTDAY-UI · 2026-07-04] el % es el PROMEDIO — si el chequeo
                     per-día flaggeó ESTE micro, el chip lo delata sin abrirlo (simétrico del
                     aviso per-día de techos: promedio verde + banner ámbar parecían contradictorios). */}
-                {worstDayNum != null && <span className={styles.qDay}>⚠ Día {worstDayNum}</span>}
+                {worstDayNum != null && <span className={styles.qDay}>{t('⚠ Día {n}', { n: worstDayNum })}</span>}
                 <span className={styles.qPct}>{s.pct}%</span>
                 <ChevronIcon className={`${styles.qChev} ${open ? styles.qChevOpen : ''}`} />
             </span>
@@ -154,10 +169,10 @@ function ReachedChip({ e, worstDayNum = null }) {
                     >
                         <span className={styles.qValsInner}>
                             <b>{_fmtN(s.valor)}</b> / {_fmtN(s.target)} {e.unidad}
-                            {s.estimado && <span className={styles.qEst}> · ≈ estimado</span>}
+                            {s.estimado && <span className={styles.qEst}> · ≈ {t('estimado')}</span>}
                             {worstDayNum != null && (
                                 <span className={styles.qDayNote}>
-                                    {' '}· el promedio cumple, pero el Día {worstDayNum} quedó corto en este micro — refuérzalo ese día (Cambiar Plato)
+                                    {' '}{t('· el promedio cumple, pero el Día {n} quedó corto en este micro — refuérzalo ese día (Cambiar Plato)', { n: worstDayNum })}
                                 </span>
                             )}
                         </span>
@@ -169,6 +184,8 @@ function ReachedChip({ e, worstDayNum = null }) {
 }
 
 export default function MicronutrientMeter({ report, advice, onAsk }) {
+    const t = useT();
+    const tn = useTn();
     const panel = report?.panel;
     const adviceItems = advice?.items || [];
 
@@ -202,15 +219,15 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             role="region"
-            aria-label="Micronutrientes"
+            aria-label={t('Micronutrientes')}
         >
             <header className={styles.head}>
                 <span className={styles.badge} aria-hidden="true"><FlaskIcon /></span>
                 <div className={styles.headText}>
-                    <h3 className={styles.title}>Micronutrientes</h3>
+                    <h3 className={styles.title}>{t('Micronutrientes')}</h3>
                     <span className={styles.sub}>
-                        <b>{nReached}</b> de {nFloors} metas al día
-                        {nAtt > 0 && <> · <span className={styles.warn}><b>{nAtt}</b> por mejorar</span></>}
+                        <b>{nReached}</b> {t('de {total} metas al día', { total: nFloors })}
+                        {nAtt > 0 && <> · <span className={styles.warn}><b>{nAtt}</b> {t('por mejorar')}</span></>}
                     </span>
                 </div>
             </header>
@@ -219,16 +236,18 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
             <div className={styles.stats}>
                 <div className={`${styles.stat} ${styles.ok}`}>
                     <span className={styles.num}>{nReached}</span>
-                    <span className={styles.lbl}>metas<b>al día</b></span>
+                    <span className={styles.lbl}>{t('metas')}<b>{t('al día')}</b></span>
                 </div>
                 <div className={`${styles.stat} ${nAtt > 0 ? styles.far : styles.ok}`}>
                     <span className={styles.num}>{nAtt}</span>
-                    <span className={styles.lbl}>por<b>mejorar</b></span>
+                    {/* «por» es una preposición suelta partida en dos renglones por
+                        diseño: sin sufijo de contexto el traductor no tiene frase. */}
+                    <span className={styles.lbl}>{t('por|estadística')}<b>{t('mejorar')}</b></span>
                 </div>
                 {limits.length > 0 && (
                     <div className={`${styles.stat} ${styles.ok}`}>
                         <span className={styles.num}>{nLimitsOk}</span>
-                        <span className={styles.lbl}>límites<b>bajo control</b></span>
+                        <span className={styles.lbl}>{t('límites')}<b>{t('bajo control')}</b></span>
                     </div>
                 )}
             </div>
@@ -237,7 +256,7 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
             {attention.length > 0 ? (
                 <>
                     <div className={`${styles.eye} ${styles.hot}`}>
-                        <span className={styles.dotpulse} aria-hidden="true" />Por mejorar hoy<span className={styles.ln} />
+                        <span className={styles.dotpulse} aria-hidden="true" />{t('Por mejorar hoy')}<span className={styles.ln} />
                     </div>
                     {attention.map((e, i) => (
                         <AttentionCard
@@ -250,14 +269,14 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                 </>
             ) : (
                 <div className={`${styles.eye} ${styles.allgood}`}>
-                    <CheckIcon />Todas tus metas del día están cubiertas<span className={styles.ln} />
+                    <CheckIcon />{t('Todas tus metas del día están cubiertas')}<span className={styles.ln} />
                 </div>
             )}
 
             {/* Al día */}
             {reached.length > 0 && (
                 <>
-                    <div className={styles.eye}>Al día <span className={styles.ct}>· {nReached}</span><span className={styles.ln} /></div>
+                    <div className={styles.eye}>{t('Al día')} <span className={styles.ct}>· {nReached}</span><span className={styles.ln} /></div>
                     <div className={styles.grid2}>
                         {reached.map((e, i) => {
                             // [P3-FLOOR-WORSTDAY-UI · 2026-07-04] chip delata el peor día si el
@@ -276,16 +295,16 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
             {/* Límites */}
             {limits.length > 0 && (
                 <>
-                    <div className={styles.eye}>Mantener bajo el límite<span className={styles.ln} /></div>
+                    <div className={styles.eye}>{t('Mantener bajo el límite')}<span className={styles.ln} /></div>
                     <div className={styles.lim2}>
                         {limits.map((e, i) => {
-                            const s = classifyRow(e);
+                            const s = classifyRow(e, t);
                             return (
                                 <div key={`l-${e.key || i}`} className={`${styles.lim} ${styles[s.tone]}`}>
                                     <div className={styles.limTop}>
                                         <span className={styles.limName}>{e.nutriente}</span>
                                         <span className={styles.limOk}>
-                                            <ShieldIcon />{s.over ? 'Sobre el límite' : 'Bajo control'}
+                                            <ShieldIcon />{s.over ? t('Sobre el límite') : t('Bajo control')}
                                         </span>
                                     </div>
                                     <div className={`${styles.bar} ${styles.thin}`}>
@@ -295,8 +314,8 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                                         <b>{_fmtN(s.valor)}</b> / {_fmtN(s.target)} {e.unidad}
                                         {' · '}<span className={styles.mg}>
                                             {s.over
-                                                ? `te pasaste ${_fmtN(_round1(s.valor - s.target))} ${e.unidad}`
-                                                : `margen ${_fmtN(_round1(s.target - s.valor))} ${e.unidad}`}
+                                                ? t('te pasaste {cantidad} {unidad}', { cantidad: _fmtN(_round1(s.valor - s.target)), unidad: e.unidad })
+                                                : t('margen {cantidad} {unidad}', { cantidad: _fmtN(_round1(s.target - s.valor)), unidad: e.unidad })}
                                         </span>
                                     </div>
                                     {/* [P3-CEILING-WORSTDAY-UI · 2026-07-04] El valor de arriba es el
@@ -313,7 +332,17 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                                         const _dNum = (pdc.worst_day?.day_index ?? 0) + 1;
                                         return (
                                             <div className={styles.limDays}>
-                                                ⚠ {pdc.days_above} de {pdc.days_evaluated} día{pdc.days_evaluated === 1 ? '' : 's'} se pasa{pdc.days_above === 1 ? '' : 'n'} del techo (peor: Día {_dNum}) — el promedio está bien, pero revisa los enlatados/queso/embutidos de esos días.
+                                                {/* Dos plurales independientes en la misma frase (el
+                                                    sustantivo va con `days_evaluated`, el verbo con
+                                                    `days_above`): la frase entera es UNA clave y cada
+                                                    plural entra interpolado desde su propio `tn`. */}
+                                                {t('⚠ {arriba} de {total} {dias} {verbo} del techo (peor: Día {peor}) — el promedio está bien, pero revisa los enlatados/queso/embutidos de esos días.', {
+                                                    arriba: pdc.days_above,
+                                                    total: pdc.days_evaluated,
+                                                    dias: tn(pdc.days_evaluated, 'día', 'días'),
+                                                    verbo: tn(pdc.days_above, 'se pasa', 'se pasan'),
+                                                    peor: _dNum,
+                                                })}
                                             </div>
                                         );
                                     })()}

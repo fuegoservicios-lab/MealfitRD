@@ -27,6 +27,7 @@ import { isNewsRoute } from '../../utils/newsRoutes';
 // toggle) para que legales/novedades/supermercado, que siguen en su propio
 // claro/oscuro sin forzar papel, no hereden un vocabulario que no les toca.
 import { isPaperSurface } from '../../utils/paperSurface';
+import { useT } from '../../i18n';
 import Wordmark from '../common/Wordmark';
 
 // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
@@ -36,16 +37,23 @@ import Wordmark from '../common/Wordmark';
 // (no anchors in-page). Los showcases siguen en el landing + botón "Ver más"; el nav
 // lleva directo a la página completa de cada tema. La scrollspy queda inactiva (filtra
 // `!s.to` → 0 secciones), preservada por si se reintroduce algún anchor.
-const NAV_SECTIONS = [
-    { id: 'how-it-works', label: 'Cómo funciona', to: '/como-funciona' },
-    { id: 'dashboard', label: 'Funciones', to: '/funciones' },
-    { id: 'benchmarks', label: 'Precisión', to: '/precision' },
-    { id: 'research', label: 'Investigación', to: '/research' },
-    { id: 'pricing', label: 'Precios', to: '/precios' },
+// [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: un `const NAV_SECTIONS`
+// con `t()` dentro se evalúa al importar el módulo —antes de que exista el
+// catálogo— y se congela en español para siempre, con el agravante de que en
+// es-DO se ve perfecto. Se llama en render, donde `useT()` ya suscribió al
+// componente al cambio de idioma.
+const getNavSections = (t) => [
+    { id: 'how-it-works', label: t('Cómo funciona'), to: '/como-funciona' },
+    { id: 'dashboard', label: t('Funciones'), to: '/funciones' },
+    { id: 'benchmarks', label: t('Precisión'), to: '/precision' },
+    { id: 'research', label: t('Investigación'), to: '/research' },
+    { id: 'pricing', label: t('Precios'), to: '/precios' },
 ];
 
 
 const Header = () => {
+    const t = useT();
+    const navSections = getNavSections(t);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     // [ACCOUNT-MENU · 2026-06-01] Estado del menú de cuenta desplegable (desktop).
@@ -105,7 +113,7 @@ const Header = () => {
     // del menú (nombre + correo). Fallbacks: nombre del perfil → parte local del
     // correo → genérico.
     const accountEmail = isGuest ? '' : (userProfile?.email || session?.user?.email || '');
-    const accountName = isGuest ? 'Invitado' : (userProfile?.full_name || (accountEmail ? accountEmail.split('@')[0] : 'Mi cuenta'));
+    const accountName = isGuest ? t('Invitado') : (userProfile?.full_name || (accountEmail ? accountEmail.split('@')[0] : t('Mi cuenta')));
     const accountInitial = isGuest ? 'I' : ((accountName || accountEmail || 'U').trim().charAt(0).toUpperCase() || 'U');
 
     // [P1-GUEST-LOGOUT · 2026-06-15] El menú de cuenta (con la salida) también
@@ -119,7 +127,7 @@ const Header = () => {
     // redirigen al subdominio, así que aquí `!isLandingLike` deja el menú solo en las
     // páginas de app que usan este header (p.ej. /configuracion, /upgrade).
     const showAccountMenu = (session || isGuest) && !isPlanLoading && !isLandingLike;
-    const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar Sesión';
+    const logoutLabel = isGuest ? t('Salir del modo invitado') : t('Cerrar Sesión');
 
     // [HEADER-EMPTY-MENU-HIDE · 2026-06-23] ¿El menú móvil tendría AL MENOS un item?
     // En páginas legales (privacy/terms) SIN sesión ni invitado, todos los items se
@@ -163,7 +171,7 @@ const Header = () => {
             <div className={styles.container}>
                 {/* [P3-HEADER-LOGO-LINK · 2026-05-31] El logo es Link a "/" (lleva al inicio). */}
                 <div className={styles.brandCluster}>
-                    <Link to="/" className={styles.logo} aria-label="Bioboros — Inicio">
+                    <Link to="/" className={styles.logo} aria-label={t('Bioboros — Inicio')}>
                         <Wordmark />
                     </Link>
                     {/* [P1-PAPER-THEME · 2026-08-01] Cajetín editorial: regla vertical de
@@ -182,14 +190,14 @@ const Header = () => {
                     mobile-first indexing (display:none <768px en CSS). Cada ítem es un
                     enlace de RUTA a su página de detalle; el activo se marca por pathname. */}
                 {isLandingLike && (
-                    <nav className={styles.navMarketing} aria-label="Páginas">
+                    <nav className={styles.navMarketing} aria-label={t('Páginas')}>
                         {/* [P1-PAPER-THEME · 2026-08-01] `aria-current` baja de `'true'` a
                             `'page'`: este link SÍ representa "la página actual dentro de un
                             set de páginas" — el token ARIA correcto es `page` (spec
                             WAI-ARIA), no el genérico `true`/`false`. Ya coincidía así en el
                             nav móvil (unas líneas más abajo), en BottomTabBar.jsx y en
                             Settings.jsx — este desktop era el único con drift. */}
-                        {NAV_SECTIONS.map((s) => (
+                        {navSections.map((s) => (
                             <Link
                                 key={s.id}
                                 to={s.to}
@@ -213,14 +221,14 @@ const Header = () => {
                 {showStickyCta && (
                     planData ? (
                         <Link to="/dashboard" className={`${styles.ctaButton} ${styles.stickyCtaEnter}`}>
-                            <LayoutDashboard size={18} /> Ver mi Plan
+                            <LayoutDashboard size={18} /> {t('Ver mi Plan')}
                         </Link>
                     ) : (
                         <Link to="/assessment" className={`${styles.ctaButton} ${styles.stickyCtaEnter}`}>
                             {/* [P3-HEADER-CTA-MOBILE-SHORT · 2026-06-29] Texto corto solo
                                 en móvil ("Crear plan"); completo en desktop. */}
-                            <span className={styles.ctaTextFull}>Crear mi Plan Ahora</span>
-                            <span className={styles.ctaTextShort}>Crear plan</span>
+                            <span className={styles.ctaTextFull}>{t('Crear mi Plan Ahora')}</span>
+                            <span className={styles.ctaTextShort}>{t('Crear plan')}</span>
                             <ChevronRight size={16} />
                         </Link>
                     )
@@ -236,12 +244,12 @@ const Header = () => {
                                     to="/dashboard"
                                     className={styles.ctaButton}
                                 >
-                                    <LayoutDashboard size={18} /> Panel
+                                    <LayoutDashboard size={18} /> {t('Panel')}
                                 </Link>
                             )
                         ) : !hideStartNow && !isLegalPage && (
                             <Link to="/assessment" className={styles.ctaButton}>
-                                Empezar Ahora
+                                {t('Empezar Ahora')}
                             </Link>
                         )}
 
@@ -254,7 +262,7 @@ const Header = () => {
                                     onClick={() => setIsAccountMenuOpen((p) => !p)}
                                     aria-haspopup="menu"
                                     aria-expanded={isAccountMenuOpen}
-                                    aria-label="Abrir menú de cuenta"
+                                    aria-label={t('Abrir menú de cuenta')}
                                 >
                                     <span className={styles.accountAvatar} aria-hidden="true">{accountInitial}</span>
                                     <ChevronDown
@@ -279,7 +287,7 @@ const Header = () => {
                                                 onClick={() => setIsAccountMenuOpen(false)}
                                             >
                                                 <SettingsIcon size={16} strokeWidth={2.25} />
-                                                <span>Configuración</span>
+                                                <span>{t('Configuración')}</span>
                                             </Link>
                                         )}
                                         <button
@@ -306,7 +314,7 @@ const Header = () => {
                     <button
                         className={styles.mobileToggle}
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        aria-label={isMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+                        aria-label={isMenuOpen ? t('Cerrar menú de navegación') : t('Abrir menú de navegación')}
                         aria-expanded={isMenuOpen}
                     >
                         {/* [P1-PAPER-THEME · 2026-08-01] En papel el glifo baja a "dos
@@ -340,7 +348,7 @@ const Header = () => {
                                 type="button"
                                 className={styles.navMobileClose}
                                 onClick={() => setIsMenuOpen(false)}
-                                aria-label="Cerrar menú"
+                                aria-label={t('Cerrar menú')}
                             >
                                 <X size={26} />
                             </button>
@@ -348,7 +356,7 @@ const Header = () => {
                         {/* [P3-HEADER-MOBILE-HAMBURGER · 2026-06-29] Opciones del nav de
                             marketing dentro del menú móvil (landing-like): Cómo funciona,
                             Funciones, Precisión, Precios. */}
-                        {isLandingLike && NAV_SECTIONS.map((s, i) => (
+                        {isLandingLike && navSections.map((s, i) => (
                             <Link
                                 key={s.id}
                                 to={s.to}
@@ -375,7 +383,7 @@ const Header = () => {
                                 className={styles.ctaButtonMobile}
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                <LayoutDashboard size={18} /> Ver mi Plan
+                                <LayoutDashboard size={18} /> {t('Ver mi Plan')}
                             </Link>
                         ) : !hideStartNow && (
                             <Link
@@ -383,7 +391,7 @@ const Header = () => {
                                 className={styles.ctaButtonMobile}
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                Crear mi Plan
+                                {t('Crear mi Plan')}
                             </Link>
                         )}
 
@@ -395,7 +403,7 @@ const Header = () => {
                                 className={styles.navLinkMobile}
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                <SettingsIcon size={18} /> Configuración
+                                <SettingsIcon size={18} /> {t('Configuración')}
                             </Link>
                         )}
 

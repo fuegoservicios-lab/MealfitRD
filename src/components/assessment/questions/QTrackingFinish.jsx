@@ -15,10 +15,12 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../../config/api';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { TRACKING_REQUIRED_FIELDS } from '../../../config/formValidation';
+import { useT } from '../../../i18n';
 
 export const QTrackingFinish = () => {
     const navigate = useNavigate();
     const { formData, refreshProfileAndPlan, loadingSensitive } = useAssessment();
+    const t = useT();
     const [saving, setSaving] = useState(false);
 
     const terminar = async () => {
@@ -30,8 +32,8 @@ export const QTrackingFinish = () => {
         // key-level = destructivo) — y de paso puenteaba el gate de embarazo
         // de las metas (déficit calculado con condiciones «vacías»).
         if (loadingSensitive) {
-            toast.info('Cargando tus datos…', {
-                description: 'Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.',
+            toast.info(t('Cargando tus datos…'), {
+                description: t('Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.'),
                 duration: 3000,
             });
             return;
@@ -78,14 +80,15 @@ export const QTrackingFinish = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ health_profile: hp }),
             });
-            if (!r1.ok) throw new Error('No se pudo guardar tu perfil.');
+            // El mensaje del Error se pinta tal cual en el toast del catch.
+            if (!r1.ok) throw new Error(t('No se pudo guardar tu perfil.'));
 
             const r2 = await fetchWithAuth('/api/profile/plan-mode', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ plan_mode: 'tracking' }),
             });
-            if (!r2.ok) throw new Error('No se pudo activar el modo contador.');
+            if (!r2.ok) throw new Error(t('No se pudo activar el modo contador.'));
 
             try { localStorage.setItem('mealfit_plan_mode', 'tracking'); } catch { /* noop */ }
 
@@ -100,10 +103,10 @@ export const QTrackingFinish = () => {
             // localStorage ya quedó puesto y el rebote de hoy no es peor que abortar.
             try { await refreshProfileAndPlan(); } catch { /* best-effort */ }
 
-            toast.success('Listo: tus metas están calculadas. Anota tu primera comida.');
+            toast.success(t('Listo: tus metas están calculadas. Anota tu primera comida.'));
             navigate('/dashboard', { replace: true });
         } catch (e) {
-            toast.error(e?.message || 'No se pudo terminar. Intenta de nuevo.');
+            toast.error(e?.message || t('No se pudo terminar. Intenta de nuevo.'));
         } finally {
             setSaving(false);
         }
@@ -112,11 +115,7 @@ export const QTrackingFinish = () => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem', alignItems: 'flex-start' }}>
             <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                Con lo que respondiste calculamos tus calorías y macros diarios. Tu
-                dashboard será tu contador: anota lo que comes, mira tu progreso y
-                pregúntale al coach. Si algún día quieres el plan completo con recetas
-                y lista de compras, lo enciendes desde el mismo dashboard — las
-                preguntas que te saltaste se preguntan ahí, no se inventan.
+                {t('Con lo que respondiste calculamos tus calorías y macros diarios. Tu dashboard será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde el mismo dashboard — las preguntas que te saltaste se preguntan ahí, no se inventan.')}
             </p>
             <button
                 type="button"
@@ -130,8 +129,8 @@ export const QTrackingFinish = () => {
                 }}
             >
                 {saving
-                    ? (<><Loader2 size={18} className="animate-spin" /> Preparando tu contador…</>)
-                    : (<><Gauge size={18} /> Empezar a contar</>)}
+                    ? (<><Loader2 size={18} className="animate-spin" /> {t('Preparando tu contador…')}</>)
+                    : (<><Gauge size={18} /> {t('Empezar a contar')}</>)}
             </button>
         </div>
     );

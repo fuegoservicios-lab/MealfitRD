@@ -3,40 +3,67 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Loader2, Dumbbell, RefreshCw } from 'lucide-react';
 // [P2-LINT-ZERO · 2026-07-09] Hook SSOT reactivo (P2-14) para reduce-motion.
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { t, useT } from '../../i18n';
 
 /* [P3-LOGIN-SHOWCASE-DEMO · 2026-06-29] Demo de producto del login: loop narrativo de
    4 escenas que enseña qué hace Bioboros (objetivo → la IA genera → tu plan → ajustas).
    Una sola "pantalla" cuyo contenido evoluciona (header + dots estables, cuerpo que cambia
    vía AnimatePresence). Orquestado con framer-motion. Respeta prefers-reduced-motion. */
 
-const GOALS = ['Ganar músculo', 'Perder grasa', 'Mantenimiento'];
-const PERFIL = ['78 kg', '5 días/sem', 'Presupuesto medio'];
-const STEPS = [
-    'Analizando tu perfil clínico',
-    'Calculando macronutrientes',
-    'Seleccionando platos verificados',
-    'Validando coherencia receta ↔ lista',
-];
-const MACROS = [
-    { label: 'Proteína', grams: 184, pct: 78, color: 'var(--mf-protein)' },
-    { label: 'Carbohidratos', grams: 210, pct: 66, color: 'var(--mf-carbs)' },
-    { label: 'Grasa', grams: 58, pct: 46, color: 'var(--mf-fat)' },
-];
+/* [P1-I18N-DASHBOARD · 2026-08-15] Las tablas de copy son FUNCIONES, no
+   constantes: un `t()` en ámbito de módulo se evalúa al importar —antes de que
+   el catálogo esté cargado— y se congela en español para siempre. Lo que NO se
+   traduce va como constante, igual que antes: los nombres de platos (SSOT del
+   motor clínico), los gradientes y los tiempos. */
+function getGoals() {
+    return [t('Ganar músculo'), t('Perder grasa'), t('Mantenimiento')];
+}
+function getPerfil() {
+    return ['78 kg', t('5 días/sem'), t('Presupuesto medio')];
+}
+function getSteps() {
+    return [
+        t('Analizando tu perfil clínico'),
+        t('Calculando macronutrientes'),
+        t('Seleccionando platos verificados'),
+        t('Validando coherencia receta ↔ lista'),
+    ];
+}
+function getMacros() {
+    return [
+        { label: t('Proteína'), grams: 184, pct: 78, color: 'var(--mf-protein)' },
+        { label: t('Carbohidratos'), grams: 210, pct: 66, color: 'var(--mf-carbs)' },
+        { label: t('Grasa'), grams: 58, pct: 46, color: 'var(--mf-fat)' },
+    ];
+}
 const MLABEL = [['P', 'var(--mf-protein)'], ['C', 'var(--mf-carbs)'], ['G', 'var(--mf-fat)']];
 const THUMB_HL = 'radial-gradient(120% 120% at 26% 20%, rgba(255,255,255,0.26), transparent 55%)';
-const MEALS = [
-    { type: 'Desayuno', name: 'Avena & proteína', kcal: 520, thumb: 'linear-gradient(140deg,#E8C07E 0%,#C0832F 100%)' },
-    { type: 'Almuerzo', name: 'Pollo, arroz & palta', kcal: 760, thumb: 'linear-gradient(140deg,#7FC98A 0%,#3E8E5A 100%)' },
-    { type: 'Cena', name: 'Salmón & vegetales', kcal: 620, thumb: 'linear-gradient(140deg,#F0937F 0%,#C85C6A 100%)' },
-];
+function getMeals() {
+    return [
+        { type: t('Desayuno'), name: 'Avena & proteína', kcal: 520, thumb: 'linear-gradient(140deg,#E8C07E 0%,#C0832F 100%)' },
+        { type: t('Almuerzo'), name: 'Pollo, arroz & palta', kcal: 760, thumb: 'linear-gradient(140deg,#7FC98A 0%,#3E8E5A 100%)' },
+        { type: t('Cena'), name: 'Salmón & vegetales', kcal: 620, thumb: 'linear-gradient(140deg,#F0937F 0%,#C85C6A 100%)' },
+    ];
+}
 const CENA_SWAP = { name: 'Pollo al curry & quinoa', kcal: 580, thumb: 'linear-gradient(140deg,#F2C879 0%,#C98A3A 100%)' };
 
+/* `key` y `ms` son datos (identidad de escena y duración): se quedan como
+   constante para que el temporizador del efecto no dependa del idioma. Solo la
+   etiqueta visible pasa por el catálogo. */
 const SCENES = [
-    { key: 'objetivo', label: 'Tu objetivo', ms: 4200 },
-    { key: 'generando', label: 'Generando tu plan', ms: 4400 },
-    { key: 'plan', label: 'Tu plan de hoy', ms: 5000 },
-    { key: 'ajuste', label: 'Ajusta lo que quieras', ms: 4400 },
+    { key: 'objetivo', ms: 4200 },
+    { key: 'generando', ms: 4400 },
+    { key: 'plan', ms: 5000 },
+    { key: 'ajuste', ms: 4400 },
 ];
+function sceneLabel(key) {
+    return {
+        objetivo: t('Tu objetivo'),
+        generando: t('Generando tu plan'),
+        plan: t('Tu plan de hoy'),
+        ajuste: t('Ajusta lo que quieras'),
+    }[key] || '';
+}
 
 const R = 40;
 const C = 2 * Math.PI * R;
@@ -51,6 +78,7 @@ const fade = {
 
 /* ── Escena 1: objetivo ───────────────────────────────────────────────────── */
 function SceneObjetivo() {
+    const t = useT();
     const [picked, setPicked] = useState(0);
     const [pressed, setPressed] = useState(false);
     useEffect(() => {
@@ -61,23 +89,23 @@ function SceneObjetivo() {
     }, []);
     return (
         <motion.div className="mf-scene mf-scene--center" {...fade}>
-            <div className="mf-q">¿Cuál es tu objetivo?</div>
+            <div className="mf-q">{t('¿Cuál es tu objetivo?')}</div>
             <div className="mf-chips">
-                {GOALS.map((g, i) => (
+                {getGoals().map((g, i) => (
                     <div key={g} className={`mf-chip${i === picked ? ' is-on' : ''}`}>
                         {i === picked && <Check size={14} strokeWidth={3} />}{g}
                     </div>
                 ))}
             </div>
-            <div className="mf-perfil-label">Tu perfil</div>
+            <div className="mf-perfil-label">{t('Tu perfil')}</div>
             <div className="mf-pills">
-                {PERFIL.map((t) => (
-                    <span className="mf-pill" key={t}>{t}</span>
+                {getPerfil().map((dato) => (
+                    <span className="mf-pill" key={dato}>{dato}</span>
                 ))}
             </div>
             <motion.button type="button" className="mf-btn mf-btn--primary mf-demo-cta" tabIndex={-1} aria-hidden="true"
                 animate={{ scale: pressed ? 0.97 : 1 }} transition={{ duration: 0.16 }}>
-                <Dumbbell size={17} /> Generar mi plan
+                <Dumbbell size={17} /> {t('Generar mi plan')}
             </motion.button>
             <Cursor target={pressed ? 'press' : 'cta'} />
         </motion.div>
@@ -98,7 +126,7 @@ function SceneGenerando() {
     }, []);
     return (
         <motion.div className="mf-scene mf-checklist" {...fade}>
-            {STEPS.map((s, i) => {
+            {getSteps().map((s, i) => {
                 const isDone = i < done;
                 const isCurrent = i === done;
                 return (
@@ -119,6 +147,7 @@ function SceneGenerando() {
 
 /* ── Escena 3: plan (anillo con count-up + macros + comidas) ───────────────── */
 function ScenePlan() {
+    const t = useT();
     const [kcal, setKcal] = useState(0);
     useEffect(() => {
         let raf; const start = performance.now(); const dur = 1300; const to = 1940;
@@ -149,11 +178,11 @@ function ScenePlan() {
                     </svg>
                     <div className="mf-ring__center">
                         <span className="mf-ring__value">{kcal.toLocaleString('es-DO')}</span>
-                        <span className="mf-ring__goal">de 2,100</span>
+                        <span className="mf-ring__goal">{t('de 2,100')}</span>
                     </div>
                 </div>
                 <div className="mf-macros">
-                    {MACROS.map((m, i) => (
+                    {getMacros().map((m, i) => (
                         <div key={m.label}>
                             <div className="mf-macro__top">
                                 <span className="mf-macro__label">{m.label}</span>
@@ -169,7 +198,7 @@ function ScenePlan() {
                 </div>
             </div>
             <div className="mf-meals">
-                {MEALS.map((meal, i) => (
+                {getMeals().map((meal, i) => (
                     <motion.div className="mf-meal mf-meal__real" key={meal.type}
                         initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.4, delay: 0.5 + i * 0.13 }}>
@@ -200,6 +229,7 @@ function NumFlip({ children }) {
 }
 
 function SceneAjuste() {
+    const t = useT();
     const [swapped, setSwapped] = useState(false);
     const [press, setPress] = useState(false);
     useEffect(() => {
@@ -207,19 +237,20 @@ function SceneAjuste() {
         const t2 = setTimeout(() => { setPress(false); setSwapped(true); }, 1850);
         return () => { clearTimeout(t1); clearTimeout(t2); };
     }, []);
-    const cena = swapped ? CENA_SWAP : MEALS[2];
+    const comidas = getMeals();
+    const cena = swapped ? CENA_SWAP : comidas[2];
     const total = swapped ? 1900 : 1940;
     const macros = swapped ? [178, 206, 56] : [184, 210, 58];
-    const rows = [MEALS[0], MEALS[1], { type: 'Cena', ...cena }];
+    const rows = [comidas[0], comidas[1], { type: comidas[2].type, ...cena }];
 
     return (
         <motion.div className="mf-scene" {...fade}>
-            <div className="mf-q mf-q--sm">Cambia cualquier plato y todo se recalcula al instante.</div>
+            <div className="mf-q mf-q--sm">{t('Cambia cualquier plato y todo se recalcula al instante.')}</div>
 
             {/* Resumen que se recalcula en vivo (kcal + macros) */}
             <div className="mf-summary">
                 <div className="mf-summary__row">
-                    <span className="mf-summary__label">Calorías de hoy</span>
+                    <span className="mf-summary__label">{t('Calorías de hoy')}</span>
                     <span className="mf-summary__val">
                         <NumFlip>{total.toLocaleString('es-DO')}</NumFlip><small> / 2,100</small>
                     </span>
@@ -271,7 +302,7 @@ function SceneAjuste() {
                 {swapped && (
                     <motion.div className="mf-toast" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}>
-                        <Check size={14} strokeWidth={3} /> Recalculado al instante
+                        <Check size={14} strokeWidth={3} /> {t('Recalculado al instante')}
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -352,7 +383,7 @@ export default function PlanShowcase() {
                                 <motion.span className="mf-democard__label" key={scene.key}
                                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
                                     transition={{ duration: 0.25 }}>
-                                    {scene.label}
+                                    {sceneLabel(scene.key)}
                                 </motion.span>
                             </AnimatePresence>
                         </div>

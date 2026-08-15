@@ -61,6 +61,11 @@ import Wordmark from '../components/common/Wordmark';
 // cada vista arme su propio texto "Registrado en tu diario de hoy" (que no
 // nombraba nada y no era honesto sobre qué slot decoraba).
 import { getEatenSlotIndices, eatenClaimForSlot } from '../utils/todayRemaining';
+// [P1-I18N-DASHBOARD · 2026-08-15] El chrome de la página (encabezados, botones,
+// estados vacíos, toasts) y el del PDF. Los DATOS del plan —nombre del plato,
+// descripción, ingredientes y pasos— salen del LLM y de la base: se pintan tal
+// cual, nunca pasan por `t()`.
+import { useT } from '../i18n';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Recetas gana su primer fetch:
 // `GET /api/diary/consumed/{userId}` de solo LECTURA (mismo endpoint que
 // TrackingProgress.jsx en el Dashboard) para alimentar la anotación de abajo.
@@ -153,6 +158,7 @@ const Recipes = () => {
     // [P1-EATEN-SLOT-RECIPES · 2026-07-28] `userProfile` se necesita para el
     // GET de solo lectura del diario de hoy (ver import de fetchWithAuth arriba).
     const { planData, userProfile } = useAssessment();
+    const t = useT();
     const navigate = useNavigate();
     const contentRef = useRef(null);
     const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -341,7 +347,7 @@ const Recipes = () => {
         const finishHTML = _recipeSteps.length ? `
             <div style="display: flex; gap: 0.6em; align-items: center; margin-top: 0.15em;">
                 <div style="flex: none; width: 1.5em; height: 1.5em; border-radius: 50%; background: #10B981; color: #ffffff; font-size: 0.72em; font-weight: 800; display: flex; align-items: center; justify-content: center;">&#10003;</div>
-                <div style="font-size: 0.78em; font-weight: 800; color: #10B981;">¡Listo para disfrutar!</div>
+                <div style="font-size: 0.78em; font-weight: 800; color: #10B981;">${escapeHtml(t('¡Listo para disfrutar!'))}</div>
             </div>
         ` : '';
 
@@ -370,9 +376,9 @@ const Recipes = () => {
                 <span style="font-size: 0.8em; font-weight: 800; color: #0F172A;">${value}g</span>
             </div>`;
         const macrosHTML = [
-            (meal.protein != null && meal.protein !== '') ? _macro('#10B981', 'Proteínas', escapeHtml(meal.protein)) : '',
-            (meal.carbs != null && meal.carbs !== '') ? _macro('#8B5CF6', 'Carbos', escapeHtml(meal.carbs)) : '',
-            (meal.fats != null && meal.fats !== '') ? _macro('#F43F5E', 'Grasas', escapeHtml(meal.fats)) : '',
+            (meal.protein != null && meal.protein !== '') ? _macro('#10B981', escapeHtml(t('Proteínas')), escapeHtml(meal.protein)) : '',
+            (meal.carbs != null && meal.carbs !== '') ? _macro('#8B5CF6', escapeHtml(t('Carbos')), escapeHtml(meal.carbs)) : '',
+            (meal.fats != null && meal.fats !== '') ? _macro('#F43F5E', escapeHtml(t('Grasas')), escapeHtml(meal.fats)) : '',
         ].filter(Boolean).join('');
 
         return `
@@ -381,7 +387,7 @@ const Recipes = () => {
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 0.18em solid #4F46E5; padding-bottom: 0.55em; margin-bottom: 0.9em;">
                     <div style="font-size: 1.15em; font-weight: 900; letter-spacing: -0.02em; color: #0F172A;">
                         <Wordmark />
-                        <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;Receta&nbsp;·&nbsp;${escapeHtml(meal.meal)}</span>
+                        <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;${escapeHtml(t('Receta'))}&nbsp;·&nbsp;${escapeHtml(meal.meal)}</span>
                     </div>
                     <div style="display: flex; gap: 0.4em; align-items: center;">${metaChips}</div>
                 </div>
@@ -396,26 +402,26 @@ const Recipes = () => {
                 <!-- COLUMNS -->
                 <div style="display: flex; gap: 1.1em; align-items: flex-start;">
                     <div style="flex: 0 0 33%; box-sizing: border-box; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 0.6em; padding: 0.9em;">
-                        <div style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Ingredientes</div>
-                        <div style="font-size: 0.62em; color: #94A3B8; line-height: 1.4; margin-bottom: 0.8em;">Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad.</div>
+                        <div style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">${escapeHtml(t('Ingredientes'))}</div>
+                        <div style="font-size: 0.62em; color: #94A3B8; line-height: 1.4; margin-bottom: 0.8em;">${escapeHtml(t('Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad.'))}</div>
                         <div>${ingredientsHTML}</div>
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">Preparación</div>
-                        ${stepsHTML ? `${stepsHTML}${finishHTML}` : `<div style="font-size: 0.74em; color: #64748B;">Guíate de la descripción general del plato.</div>`}
+                        <div style="font-size: 0.8em; font-weight: 800; margin: 0 0 0.7em; padding-bottom: 0.4em; border-bottom: 2px solid #E2E8F0; text-transform: uppercase; letter-spacing: 0.06em; color: #0F172A;">${escapeHtml(t('Preparación'))}</div>
+                        ${stepsHTML ? `${stepsHTML}${finishHTML}` : `<div style="font-size: 0.74em; color: #64748B;">${escapeHtml(t('Guíate de la descripción general del plato.'))}</div>`}
                     </div>
                 </div>
 
                 <!-- FOOTER -->
                 <div style="margin-top: 1.2em; padding-top: 0.6em; border-top: 1px solid #E2E8F0; text-align: center; color: #94A3B8; font-size: 0.62em;">
-                    Disfruta de tu comida. Generado automáticamente por Bioboros.
+                    ${escapeHtml(t('Disfruta de tu comida. Generado automáticamente por Bioboros.'))}
                 </div>
             </div>
         `;
     };
 
     const handleDownloadPDF = async (meal) => {
-        const toastId = toast.loading('Generando PDF de alta calidad...');
+        const toastId = toast.loading(t('Generando PDF de alta calidad...'));
         try {
             // [P1-PDF-ONE-PAGE · 2026-07-12] Espera a que las fuentes de la
             // página estén listas antes de medir (una fuente que carga tarde
@@ -475,9 +481,9 @@ const Recipes = () => {
                     importErr?.name === 'ChunkLoadError' ||
                     /loading chunk|failed to fetch dynamically imported/i.test(_msg)
                 ) {
-                    toast.error('Error de red al cargar el PDF. Refresca la página e intenta de nuevo.');
+                    toast.error(t('Error de red al cargar el PDF. Refresca la página e intenta de nuevo.'));
                 } else {
-                    toast.error('No se pudo cargar el generador de PDF. Refresca la página e intenta de nuevo.');
+                    toast.error(t('No se pudo cargar el generador de PDF. Refresca la página e intenta de nuevo.'));
                 }
                 return;
             }
@@ -517,7 +523,7 @@ const Recipes = () => {
                 if (_pdfTimeoutHandle) clearTimeout(_pdfTimeoutHandle);
             }
             toast.dismiss(toastId);
-            toast.success('Receta descargada correctamente');
+            toast.success(t('Receta descargada correctamente'));
             // [P3-AUDIT-1 · 2026-05-15] Telemetría success. Análoga a
             // `pdf_download_success` en Dashboard (P3-SHOPPING-4) pero para
             // recetas individuales — permite calcular adoption rate del
@@ -543,7 +549,7 @@ const Recipes = () => {
         } catch (error) {
             console.error(error);
             toast.dismiss(toastId);
-            toast.error('Error al generar PDF');
+            toast.error(t('Error al generar PDF'));
             // [P3-AUDIT-1 · 2026-05-15] Telemetría failure. `error_name` y
             // `error_message` truncados a 64/200 chars para evitar payloads
             // gigantes en GA/PostHog (algunos backends cortan a 256). `name`
@@ -585,9 +591,9 @@ const Recipes = () => {
                             return (
                                 <EmptyState
                                     icon={ChefHat}
-                                    title="Aún no hay recetas para este día"
-                                    description="Cuando tu plan esté completo, encontrarás aquí las recetas paso a paso."
-                                    cta={{ label: 'Volver al plan', onClick: () => navigate('/dashboard') }}
+                                    title={t('Aún no hay recetas para este día')}
+                                    description={t('Cuando tu plan esté completo, encontrarás aquí las recetas paso a paso.')}
+                                    cta={{ label: t('Volver al plan'), onClick: () => navigate('/dashboard') }}
                                 />
                             );
                         }
@@ -637,7 +643,10 @@ const Recipes = () => {
                         const dayKcal = parseInt(planData?.calories) || _mealsKcal;
 
                         // Días del chunk → pestañas (nombre = grocery_start_date + globalIdx).
-                        const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                        const diasSemana = [
+                            t('Domingo'), t('Lunes'), t('Martes'), t('Miércoles'),
+                            t('Jueves'), t('Viernes'), t('Sábado'),
+                        ];
                         // [P1-RECIPES-DAY-LABEL · 2026-08-14] Cada día sabe si es HOY, y
                         // lo sabe por su FECHA — no por su posición en el array. Es la
                         // misma lección que P1-HIST-DAY-IDENTITY: el índice no dice nada

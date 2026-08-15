@@ -21,10 +21,12 @@ import {
     resolveDayState,
     WEEKDAY_LABELS,
 } from '../../utils/planWeeks';
+import { useT } from '../../i18n';
 
 const RANGO = { month: 'short', day: 'numeric' };
 
 const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) => {
+    const t = useT();
     const modelo = useMemo(() => {
         const { ok, entries } = buildTimeline(planData);
         if (!ok) return null;
@@ -93,7 +95,7 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
 
     return (
         <div className="plan-week-nav">
-            <div ref={filaRef} role="tablist" aria-label="Semanas del plan" className="plan-week-pills">
+            <div ref={filaRef} role="tablist" aria-label={t('Semanas del plan')} className="plan-week-pills">
                 {modelo.weeks.map((w, i) => (
                     <button
                         key={w.start.toISOString()}
@@ -102,10 +104,16 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                         role="tab"
                         aria-selected={i === semanaAbierta}
                         onClick={() => setSemanaAbierta(i)}
-                        aria-label={`Semana ${w.ordinal}, ${w.start.toLocaleDateString('es-DO', RANGO)} a ${w.end.toLocaleDateString('es-DO', RANGO)}, ${w.readyCount} de ${w.cells.filter(Boolean).length} días listos`}
+                        aria-label={t('Semana {ordinal}, {inicio} a {fin}, {listos} de {total} días listos', {
+                            ordinal: w.ordinal,
+                            inicio: w.start.toLocaleDateString('es-DO', RANGO),
+                            fin: w.end.toLocaleDateString('es-DO', RANGO),
+                            listos: w.readyCount,
+                            total: w.cells.filter(Boolean).length,
+                        })}
                         className={`plan-week-pill${i === semanaAbierta ? ' is-active' : ''}${w.hasToday ? ' has-today' : ''}`}
                     >
-                        <span className="plan-week-pill__title">Semana {w.ordinal}</span>
+                        <span className="plan-week-pill__title">{t('Semana {n}', { n: w.ordinal })}</span>
                         <span className="plan-week-pill__range">
                             {w.start.toLocaleDateString('es-DO', RANGO)} – {w.end.toLocaleDateString('es-DO', RANGO)}
                         </span>

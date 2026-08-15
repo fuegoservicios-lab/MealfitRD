@@ -123,6 +123,10 @@ import { invalidateHistoryListCache, clearAllModalCaches } from '../utils/histor
 // borrar la key de localStorage hay que vaciar la copia in-memory del store
 // (misma clase que P3-HIST-MODAL-CACHE-XUSER — el logout es SPA, sin reload).
 import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
+// [P1-I18N-DASHBOARD · 2026-08-15] Reconciliación del idioma con el perfil del
+// servidor (cross-device). Se importa la función de MÓDULO, no el hook: esto
+// corre dentro de `fetchProfile`, que no es un componente.
+import { syncLocaleFromProfile } from '../i18n';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Loop de polling acotado (discriminador +
@@ -1184,6 +1188,18 @@ export const AssessmentProvider = ({ children }) => {
 
             if (data) {
                 setUserProfile(data);
+                // [P1-I18N-DASHBOARD · 2026-08-15] El idioma sigue al USUARIO,
+                // no al dispositivo: `user_profiles.locale` es la fuente de
+                // verdad y este es el punto donde llega. `localStorage` ya
+                // pintó el idioma cacheado (boot de index.html + initLocale),
+                // así que esto solo actúa si el servidor dice otra cosa — o
+                // sea, en el estreno de un dispositivo nuevo. Es una promesa
+                // deliberada: no bloquea el render, no reintenta y si falla la
+                // carga del catálogo la app se queda en el idioma que ya
+                // estaba. Un idioma equivocado durante un instante es peor que
+                // una pantalla en blanco solo si crees que el idioma es más
+                // importante que la app.
+                syncLocaleFromProfile(data.locale);
                 // Sincronizar UI form data con health_profile (si existe y tiene datos)
                 if (data.health_profile && Object.keys(data.health_profile).length > 0) {
                     // [P0-FORM-3] Filtra campos que el usuario ya editó desde el

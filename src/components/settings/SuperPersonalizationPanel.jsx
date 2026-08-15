@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
 import useAutoguardado from '../../hooks/useAutoguardado';
+import { useT } from '../../i18n';
 import styles from './SuperPersonalizationPanel.module.css';
 
 const ENDPOINT = '/api/user/preferences/super-personalization';
@@ -35,47 +36,70 @@ const EMPTY = {
     freeText: '',
 };
 
-const EQUIPMENT_OPTIONS = [
-    'Estufa', 'Horno', 'Microondas', 'Airfryer', 'Licuadora', 'Batidora',
-    'Olla de presión', 'Olla arrocera', 'Sartén / Caldero', 'Sandwichera',
-    'Tostadora', 'Procesador', 'Parrilla / BBQ',
+/* [P1-I18N-DASHBOARD · 2026-08-15] Las cinco tablas de abajo son FUNCIONES y no
+   constantes: un `t()` en ámbito de módulo corre al importar, antes de que el
+   catálogo exista, y se congela en español para siempre — el fallo que mejor
+   disimula, porque en es-DO se ve perfecto.
+
+   El equipo de cocina gana además una forma `{ value, label }`. Antes la etiqueta
+   ERA el dato: el mismo literal se pintaba y se persistía en
+   `health_profile.super_personalization.kitchenEquipment`. Traducir el render sin
+   separarlos habría escrito «Stove» en la base y el backend dejaría de reconocer
+   el equipo. `value` conserva la grafía española EXACTA que ya está guardada. */
+const getEquipmentOptions = (t) => [
+    { value: 'Estufa', label: t('Estufa') },
+    { value: 'Horno', label: t('Horno') },
+    { value: 'Microondas', label: t('Microondas') },
+    { value: 'Airfryer', label: t('Airfryer') },
+    { value: 'Licuadora', label: t('Licuadora') },
+    { value: 'Batidora', label: t('Batidora') },
+    { value: 'Olla de presión', label: t('Olla de presión') },
+    { value: 'Olla arrocera', label: t('Olla arrocera') },
+    { value: 'Sartén / Caldero', label: t('Sartén / Caldero') },
+    { value: 'Sandwichera', label: t('Sandwichera') },
+    { value: 'Tostadora', label: t('Tostadora') },
+    { value: 'Procesador', label: t('Procesador') },
+    { value: 'Parrilla / BBQ', label: t('Parrilla / BBQ') },
 ];
-const RELIGION_OPTIONS = [
-    { value: '', label: 'Ninguna' },
-    { value: 'halal', label: 'Halal (sin cerdo ni alcohol)' },
-    { value: 'kosher', label: 'Kosher' },
-    { value: 'sin_cerdo', label: 'Sin cerdo' },
-    { value: 'sin_res', label: 'Sin carne de res' },
-    { value: 'sin_mariscos', label: 'Sin mariscos' },
-    { value: 'sin_alcohol', label: 'Sin alcohol' },
-    { value: 'otra', label: 'Otra…' },
+const getReligionOptions = (t) => [
+    { value: '', label: t('Ninguna') },
+    { value: 'halal', label: t('Halal (sin cerdo ni alcohol)') },
+    { value: 'kosher', label: t('Kosher') },
+    { value: 'sin_cerdo', label: t('Sin cerdo') },
+    { value: 'sin_res', label: t('Sin carne de res') },
+    { value: 'sin_mariscos', label: t('Sin mariscos') },
+    { value: 'sin_alcohol', label: t('Sin alcohol') },
+    { value: 'otra', label: t('Otra…') },
 ];
-const SKILL_OPTIONS = [
-    { value: '', label: 'Sin especificar' },
-    { value: 'principiante', label: 'Principiante' },
-    { value: 'intermedio', label: 'Intermedio' },
-    { value: 'avanzado', label: 'Avanzado' },
+const getSkillOptions = (t) => [
+    { value: '', label: t('Sin especificar') },
+    { value: 'principiante', label: t('Principiante') },
+    { value: 'intermedio', label: t('Intermedio') },
+    { value: 'avanzado', label: t('Avanzado') },
 ];
-const FLAVORS = [
-    { key: 'picante', label: 'Picante' },
-    { key: 'dulce', label: 'Dulce' },
-    { key: 'salado', label: 'Salado' },
+const getFlavors = (t) => [
+    { key: 'picante', label: t('Picante') },
+    { key: 'dulce', label: t('Dulce') },
+    { key: 'salado', label: t('Salado') },
 ];
-const FLAVOR_LEVELS = [
+const getFlavorLevels = (t) => [
     { value: '', label: '—' },
-    { value: 'bajo', label: 'Bajo' },
-    { value: 'medio', label: 'Medio' },
-    { value: 'alto', label: 'Alto' },
+    { value: 'bajo', label: t('Bajo') },
+    { value: 'medio', label: t('Medio') },
+    { value: 'alto', label: t('Alto') },
 ];
 
 function TagInput({ label, hint, tags, placeholder, onChange }) {
+    const t = useT();
     const [draft, setDraft] = useState('');
 
     const add = () => {
         const v = draft.trim();
         if (!v) return;
-        if (tags.some((t) => t.toLowerCase() === v.toLowerCase())) { setDraft(''); return; }
-        if (tags.length >= MAX_TAGS) { toast.error(`Máximo ${MAX_TAGS} elementos.`); return; }
+        // El parámetro del `some` se llamaba `t`: renombrado a `tag` porque ese
+        // nombre lo ocupa ahora la función de traducción.
+        if (tags.some((tag) => tag.toLowerCase() === v.toLowerCase())) { setDraft(''); return; }
+        if (tags.length >= MAX_TAGS) { toast.error(t('Máximo {max} elementos.', { max: MAX_TAGS })); return; }
         onChange([...tags, v.slice(0, MAX_TAG_LEN)]);
         setDraft('');
     };
@@ -94,10 +118,10 @@ function TagInput({ label, hint, tags, placeholder, onChange }) {
             <label className={styles.label}>{label}</label>
             {hint && <p className={styles.hint}>{hint}</p>}
             <div className={styles.tagBox}>
-                {tags.map((t) => (
-                    <span key={t} className={styles.tag}>
-                        {t}
-                        <button type="button" aria-label={`Quitar ${t}`} onClick={() => onChange(tags.filter((x) => x !== t))}>
+                {tags.map((tag) => (
+                    <span key={tag} className={styles.tag}>
+                        {tag}
+                        <button type="button" aria-label={t('Quitar {etiqueta}', { etiqueta: tag })} onClick={() => onChange(tags.filter((x) => x !== tag))}>
                             <X size={13} />
                         </button>
                     </span>
@@ -112,7 +136,7 @@ function TagInput({ label, hint, tags, placeholder, onChange }) {
                     maxLength={MAX_TAG_LEN}
                 />
                 {draft.trim() && (
-                    <button type="button" className={styles.tagAdd} onClick={add} aria-label="Añadir">
+                    <button type="button" className={styles.tagAdd} onClick={add} aria-label={t('Añadir')}>
                         <Plus size={14} />
                     </button>
                 )}
@@ -122,6 +146,7 @@ function TagInput({ label, hint, tags, placeholder, onChange }) {
 }
 
 export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
+    const t = useT();
     const { updateData } = useAssessment();
     const [sp, setSp] = useState(EMPTY);
     const [loading, setLoading] = useState(true);
@@ -158,12 +183,14 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                 setTimeout(() => load(attempt + 1), 800);
             } else {
                 setLoadFailed(true);
-                toast.error('No se pudo cargar tu súper personalización.');
+                toast.error(t('No se pudo cargar tu súper personalización.'));
             }
         } finally {
             if (!willRetry) setLoading(false);
         }
-    }, []);
+        // `t` es referencialmente estable (el motor devuelve siempre la misma
+        // función); va en las deps solo para no dejar el hook incompleto.
+    }, [t]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -227,13 +254,13 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
         onEstado,
     });
 
-    useEffect(() => { if (estado === 'error') toast.error('No se pudo guardar tu súper personalización.'); }, [estado]);
+    useEffect(() => { if (estado === 'error') toast.error(t('No se pudo guardar tu súper personalización.')); }, [estado, t]);
 
     if (loading) {
         return (
             <div className={styles.loading}>
                 <Loader2 size={22} className={styles.spin} />
-                <span>Cargando tu súper personalización…</span>
+                <span>{t('Cargando tu súper personalización…')}</span>
             </div>
         );
     }
@@ -243,9 +270,9 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
     if (loadFailed) {
         return (
             <div className={styles.loading}>
-                <span>No pudimos cargar tu súper personalización. Revisa tu conexión.</span>
+                <span>{t('No pudimos cargar tu súper personalización. Revisa tu conexión.')}</span>
                 <button type="button" className={styles.save} onClick={() => load()}>
-                    Reintentar
+                    {t('Reintentar')}
                 </button>
             </div>
         );
@@ -254,43 +281,44 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
     return (
         <div className={styles.panel}>
             <div className={styles.intro}>
+                {/* Tres claves porque el `<strong>` es marcado y no cabe dentro de una
+                    clave del catálogo (el motor traduce cadenas, no árboles JSX). */}
                 <p>
-                    Mientras más te conozca la IA, mejores serán tus planes y respuestas. Esto es <strong>opcional</strong> y
-                    no toca tus alergias ni condiciones médicas (esas viven en tu perfil). Puedes editarlo cuando quieras.
+                    {t('Mientras más te conozca la IA, mejores serán tus planes y respuestas. Esto es')} <strong>{t('opcional')}</strong> {t('y no toca tus alergias ni condiciones médicas (esas viven en tu perfil). Puedes editarlo cuando quieras.')}
                 </p>
             </div>
 
             <TagInput
-                label="Lo que te encanta comer"
-                hint="Tus platos y alimentos favoritos. La IA intentará incluirlos cuando encajen en tus macros."
+                label={t('Lo que te encanta comer')}
+                hint={t('Tus platos y alimentos favoritos. La IA intentará incluirlos cuando encajen en tus macros.')}
                 tags={sp.foodLikes}
-                placeholder="Ej: pollo guisado, plátano, aguacate…"
+                placeholder={t('Ej: pollo guisado, plátano, aguacate…')}
                 onChange={(v) => set('foodLikes', v)}
             />
 
             <TagInput
-                label="Cocinas o estilos que prefieres"
-                hint="Sesga el menú hacia estos estilos."
+                label={t('Cocinas o estilos que prefieres')}
+                hint={t('Sesga el menú hacia estos estilos.')}
                 tags={sp.cuisines}
-                placeholder="Ej: criolla, italiana, asiática…"
+                placeholder={t('Ej: criolla, italiana, asiática…')}
                 onChange={(v) => set('cuisines', v)}
             />
 
             <div className={styles.field}>
-                <label className={styles.label}>Equipo de cocina que tienes</label>
-                <p className={styles.hint}>La IA solo usará técnicas viables con tu equipo.</p>
+                <label className={styles.label}>{t('Equipo de cocina que tienes')}</label>
+                <p className={styles.hint}>{t('La IA solo usará técnicas viables con tu equipo.')}</p>
                 <div className={styles.chips}>
-                    {EQUIPMENT_OPTIONS.map((item) => {
-                        const active = sp.kitchenEquipment.includes(item);
+                    {getEquipmentOptions(t).map(({ value, label }) => {
+                        const active = sp.kitchenEquipment.includes(value);
                         return (
                             <button
-                                key={item}
+                                key={value}
                                 type="button"
                                 className={`${styles.chip} ${active ? styles.chipActive : ''}`}
                                 aria-pressed={active}
-                                onClick={() => toggleEquip(item)}
+                                onClick={() => toggleEquip(value)}
                             >
-                                {item}
+                                {label}
                             </button>
                         );
                     })}
@@ -299,31 +327,31 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
 
             <div className={styles.row}>
                 <div className={styles.field}>
-                    <label className={styles.label}>Restricción cultural / religiosa</label>
+                    <label className={styles.label}>{t('Restricción cultural / religiosa')}</label>
                     <select
                         className={styles.select}
                         value={sp.religiousRestriction || ''}
                         onChange={(e) => set('religiousRestriction', e.target.value)}
                     >
-                        {RELIGION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        {getReligionOptions(t).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                 </div>
                 <div className={styles.field}>
-                    <label className={styles.label}>Nivel de cocina</label>
+                    <label className={styles.label}>{t('Nivel de cocina')}</label>
                     <select
                         className={styles.select}
                         value={sp.cookingSkill || ''}
                         onChange={(e) => set('cookingSkill', e.target.value)}
                     >
-                        {SKILL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        {getSkillOptions(t).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                 </div>
             </div>
 
             {sp.religiousRestriction === 'otra' && (
                 <div className={styles.field}>
-                    <label className={styles.label}>Especifica tu restricción</label>
-                    <p className={styles.hint}>La IA la respetará como exclusión obligatoria — nunca incluirá lo que prohíbe.</p>
+                    <label className={styles.label}>{t('Especifica tu restricción')}</label>
+                    <p className={styles.hint}>{t('La IA la respetará como exclusión obligatoria — nunca incluirá lo que prohíbe.')}</p>
                     <input
                         className={styles.select}
                         style={{ cursor: 'text' }}
@@ -331,16 +359,16 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                         value={sp.religiousRestrictionOther || ''}
                         onChange={(e) => set('religiousRestrictionOther', e.target.value.slice(0, MAX_OTHER))}
                         maxLength={MAX_OTHER}
-                        placeholder="Ej: sin carne los viernes, jainista (sin raíces), sin cerdo ni alcohol…"
+                        placeholder={t('Ej: sin carne los viernes, jainista (sin raíces), sin cerdo ni alcohol…')}
                     />
                 </div>
             )}
 
             <div className={styles.field}>
-                <label className={styles.label}>Perfil de sabor</label>
-                <p className={styles.hint}>Cuánto te gusta cada perfil. Ajusta la condimentación.</p>
+                <label className={styles.label}>{t('Perfil de sabor')}</label>
+                <p className={styles.hint}>{t('Cuánto te gusta cada perfil. Ajusta la condimentación.')}</p>
                 <div className={styles.flavors}>
-                    {FLAVORS.map((f) => (
+                    {getFlavors(t).map((f) => (
                         <div key={f.key} className={styles.flavor}>
                             <span>{f.label}</span>
                             <select
@@ -348,7 +376,7 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                                 value={sp.flavorProfile?.[f.key] || ''}
                                 onChange={(e) => setFlavor(f.key, e.target.value)}
                             >
-                                {FLAVOR_LEVELS.map((lv) => <option key={lv.value} value={lv.value}>{lv.label}</option>)}
+                                {getFlavorLevels(t).map((lv) => <option key={lv.value} value={lv.value}>{lv.label}</option>)}
                             </select>
                         </div>
                     ))}
@@ -356,9 +384,9 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
             </div>
 
             <div className={styles.field}>
-                <label className={styles.label}>Cuéntale lo que sea a la IA</label>
+                <label className={styles.label}>{t('Cuéntale lo que sea a la IA')}</label>
                 <p className={styles.hint}>
-                    Tu rutina, lo que odias, cómo comes, lo que te motiva… lo que quieras que recuerde.
+                    {t('Tu rutina, lo que odias, cómo comes, lo que te motiva… lo que quieras que recuerde.')}
                 </p>
                 <textarea
                     className={styles.textarea}
@@ -367,7 +395,7 @@ export default function SuperPersonalizationPanel({ onSaved, onEstado }) {
                     onBlur={() => volcar()}
                     maxLength={MAX_FREETEXT}
                     rows={5}
-                    placeholder="Ej: Trabajo de noche y como a horas raras. Odio el cilantro. Cocino para mí y mi pareja…"
+                    placeholder={t('Ej: Trabajo de noche y como a horas raras. Odio el cilantro. Cocino para mí y mi pareja…')}
                 />
                 <div className={styles.counter}>{(sp.freeText || '').length}/{MAX_FREETEXT}</div>
             </div>

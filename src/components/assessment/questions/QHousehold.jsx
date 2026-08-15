@@ -3,9 +3,11 @@ import { useAssessment } from '../../../context/AssessmentContext';
 import { CalendarClock, CalendarDays, CalendarRange, Check, Clock } from 'lucide-react';
 import { handleActivationKey } from './_shared';
 import { NextButton } from './NextButton';
+import { useT } from '../../../i18n';
 
 export const QHousehold = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
 
     const handleDurationSelect = (val) => {
         updateData('groceryDuration', val);
@@ -22,7 +24,7 @@ export const QHousehold = ({ onManualAdvance }) => {
             <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                     <Clock size={18} color="#059669" />
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>¿Cada cuántos días vas al supermercado?</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>{t('¿Cada cuántos días vas al supermercado?')}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
                     {[
@@ -35,9 +37,9 @@ export const QHousehold = ({ onManualAdvance }) => {
                         //     extremos marcados — sugiere "2 semanas".
                         //   - CalendarClock (mensual): calendario + reloj —
                         //     sugiere "más tiempo entre compras".
-                        { val: 'weekly', label: '7 Días', sub: 'Semanal', Icon: CalendarDays },
-                        { val: 'biweekly', label: '15 Días', sub: 'Quincenal', Icon: CalendarRange },
-                        { val: 'monthly', label: '30 Días', sub: 'Mensual', Icon: CalendarClock },
+                        { val: 'weekly', label: t('7 Días'), sub: t('Semanal'), Icon: CalendarDays },
+                        { val: 'biweekly', label: t('15 Días'), sub: t('Quincenal'), Icon: CalendarRange },
+                        { val: 'monthly', label: t('30 Días'), sub: t('Mensual'), Icon: CalendarClock },
                     ].map(opt => {
                         const isSelected = formData.groceryDuration === opt.val;
                         const IconCmp = opt.Icon;
@@ -99,7 +101,7 @@ export const QHousehold = ({ onManualAdvance }) => {
             }}>
                 <span style={{ fontSize: '0.85rem', flexShrink: 0 }}>💡</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    Si cambia tu rutina, lo ajustas en tu panel sin regenerar el plan.
+                    {t('Si cambia tu rutina, lo ajustas en tu panel sin regenerar el plan.')}
                 </span>
             </div>
             <NextButton onClick={onManualAdvance} disabled={!formData.groceryDuration} />

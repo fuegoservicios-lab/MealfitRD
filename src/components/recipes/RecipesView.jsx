@@ -4,9 +4,15 @@
 // el modo cocina/expandir con IA se retiró — P-RECIPES-COOK-REMOVED
 // 2026-07-12). Esta capa solo pinta.
 import { useId, useMemo, useState } from 'react';
-import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
+import { metaFor, STEP_ICONS, getMacros, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
 import styles from './RecipesView.module.css';
+// [P1-I18N-DASHBOARD · 2026-08-15] `metaFor(...)` se guardaba en una variable
+// llamada `t`; ahora se llama `mt` para que `t` sea la traducción, como en el
+// resto del dashboard. `formatNumber` reemplaza el `toLocaleString('es-DO')`
+// fijo: un menú en francés con cifras en formato dominicano delata la
+// traducción a medias.
+import { useT, formatNumber } from '../../i18n';
 // [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] anotaciones sin número (ver util).
 import { numberRecipeSteps } from '../../utils/recipeSteps';
 // [P1-EATEN-SLOT-COPY · 2026-07-28] Texto del chip "ya registraste tu
@@ -51,8 +57,9 @@ export function RecipesView({
   checkedIngredients = {}, onToggleIngredient,
   onPDF,
 }) {
+  const t = useT();
   return (
-    <section className={styles.app} aria-label="Recetas">
+    <section className={styles.app} aria-label={t('Recetas')}>
       <header className={styles.top}>
         {/* [P3-RECIPES-NO-TITLE · 2026-07-12] Título "Recetario"/"Recetas"
             eliminado a pedido del owner (sin sinónimo de reemplazo). El
@@ -71,10 +78,10 @@ export function RecipesView({
              «¿por qué si hoy es viernes, en Recetas no lo dice?»— además de
              dejar el encabezado sin ancla izquierda. */
           <span className={styles.diaUnico}>
-            {activeDayLabel}{activeDayEsHoy ? ' · hoy' : ''}
+            {activeDayLabel}{activeDayEsHoy ? ` · ${t('hoy')}` : ''}
           </span>
         )}
-        <span className={styles.sum}>Meta del día · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
+        <span className={styles.sum}>{t('Meta del día')} · <b>{formatNumber(dayKcal || 0)}</b> kcal</span>
       </header>
 
       <div className={styles.layout}>
@@ -94,16 +101,19 @@ export function RecipesView({
 }
 
 function MealRail({ meals, active, onSelect, diaLabel = '', esHoy = false }) {
+  const t = useT();
   // [P1-RECIPES-DAY-LABEL · 2026-08-14] «Comidas de hoy» solo cuando el día
   // activo ES hoy. Con un plan de varios días puedes mirar mañana desde las
   // pestañas, y el riel seguía llamándolo «hoy»: no era falta de información,
   // era una afirmación falsa.
-  const titulo = esHoy ? 'Comidas de hoy' : (diaLabel ? `Comidas del ${diaLabel.toLowerCase()}` : 'Comidas del día');
+  const titulo = esHoy
+    ? t('Comidas de hoy')
+    : (diaLabel ? t('Comidas del {dia}', { dia: diaLabel.toLowerCase() }) : t('Comidas del día'));
   return (
-    <aside className={styles.rail} aria-label="Comidas del día">
+    <aside className={styles.rail} aria-label={t('Comidas del día')}>
       <div className={styles.railHead}>{titulo}</div>
       {meals.map((m, i) => {
-        const t = metaFor(m.meal);
+        const mt = metaFor(m.meal);
         // [P1-EATEN-SLOT-RECIPES · 2026-07-28 · reversado parcialmente por
         // P1-EATEN-RECIPE-LOCK · 2026-07-28] Este RIEL sigue sin lock — sigue
         // siendo navegación pura, nunca la acción que el owner pidió
@@ -117,9 +127,9 @@ function MealRail({ meals, active, onSelect, diaLabel = '', esHoy = false }) {
         const eaten = !!m._isEatenToday;
         return (
           <button key={i} className={eaten ? `${styles.meal} ${styles.eaten}` : styles.meal} aria-current={i === active}
-                  style={{ '--tone': t.tone }} onClick={() => onSelect(i)}
+                  style={{ '--tone': mt.tone }} onClick={() => onSelect(i)}
                   title={eaten ? m._eatenClaim : undefined}>
-            <span className={styles.mealIco}><Svg d={t.icon} size={20} /></span>
+            <span className={styles.mealIco}><Svg d={mt.icon} size={20} /></span>
             <span className={styles.mealBody}>
               <span className={styles.mealType}>{m.meal}</span>
               <span className={styles.mealTitle}>{m.name}</span>
@@ -138,7 +148,8 @@ function MealRail({ meals, active, onSelect, diaLabel = '', esHoy = false }) {
 }
 
 function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onPDF }) {
-  const t = metaFor(meal.meal);
+  const t = useT();
+  const mt = metaFor(meal.meal);
   const [doneSteps, setDoneSteps] = useState(() => new Set());
   const toggleStep = (i) => setDoneSteps((prev) => {
     const next = new Set(prev);
@@ -150,7 +161,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
 
   // Dona de calorías: segmentos conic por aporte calórico de cada macro.
   const { gradient, macroRow } = useMemo(() => {
-    const calc = MACROS.map((x) => ({ ...x, g: Number(meal[x.key]) || 0, kc: (Number(meal[x.key]) || 0) * x.kcal }));
+    const calc = getMacros().map((x) => ({ ...x, g: Number(meal[x.key]) || 0, kc: (Number(meal[x.key]) || 0) * x.kcal }));
     return { gradient: `conic-gradient(${_conicStops(calc).join(',')})`, macroRow: calc };
   }, [meal]);
 
@@ -201,7 +212,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
   const lockReasonId = useId();
 
   return (
-    <div className={detailCls} style={{ '--tone': t.tone }}>
+    <div className={detailCls} style={{ '--tone': mt.tone }}>
       {/* [P1-EATEN-RECIPE-LOCK · 2026-07-28] Texto SOLO para lectores de
           pantalla (ver `.srOnly` en el CSS module) — la razón + el escape
           hatch, referenciada por `aria-describedby` desde los 3 controles
@@ -292,20 +303,19 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
           aria-disabled={isLocked || undefined}
           aria-describedby={isLocked ? lockReasonId : undefined}
         >
-          <Svg d={ICONS.pdf} size={17} /> Descargar PDF
+          <Svg d={ICONS.pdf} size={17} /> {t('Descargar PDF')}
         </button>
       </div>
 
       <div className={styles.cols}>
         {ingredients.length > 0 && (
           <div>
-            <h3 className={styles.secHead} style={{ '--accent': 'var(--secondary)' }}>Ingredientes</h3>
+            <h3 className={styles.secHead} style={{ '--accent': 'var(--secondary)' }}>{t('Ingredientes')}</h3>
             {/* [P2-RECIPE-HOUSEHOLD-NOTE · 2026-07-01] La receta es POR PERSONA; solo la lista de compras
                 multiplica por el hogar (calc_household_multiplier). Sin esta nota, un hogar de 4 cocinaba
                 porción de 1 con despensa ×4 y nadie le decía por qué. */}
             <p style={{ fontSize: '0.78rem', opacity: 0.65, margin: '0 0 8px' }}>
-              Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad
-              (tu lista de compras ya lo tiene en cuenta).
+              {t('Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad (tu lista de compras ya lo tiene en cuenta).')}
             </p>
             <div className={styles.ing}>
               {ingredients.map((s, i) => {
@@ -351,7 +361,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
         )}
 
         <div>
-          <h3 className={styles.secHead} style={{ '--accent': t.tone }}>Instrucciones</h3>
+          <h3 className={styles.secHead} style={{ '--accent': mt.tone }}>{t('Instrucciones')}</h3>
           {steps.length > 0 ? (
             <div className={styles.steps}>
               {numberRecipeSteps(steps).map(({ raw, annotation, number }, i) => {
@@ -381,12 +391,12 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
               <div className={`${styles.step} ${styles.finish}`}>
                 <span className={styles.node}><Svg d={ICONS.check} size={18} /></span>
                 <div className={styles.stepCard}>
-                  <div className={styles.finishText}>¡Listo para disfrutar!</div>
+                  <div className={styles.finishText}>{t('¡Listo para disfrutar!')}</div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className={styles.empty}>No hay pasos detallados. Guíate de la descripción general.</div>
+            <div className={styles.empty}>{t('No hay pasos detallados. Guíate de la descripción general.')}</div>
           )}
         </div>
       </div>

@@ -2,9 +2,11 @@
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { AlarmClock, BedDouble, Moon, MoonStar } from 'lucide-react';
+import { useT } from '../../../i18n';
 
 export const QSleep = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     // Progresión visual de calidad/cantidad de descanso:
     //   AlarmClock → Moon → MoonStar → BedDouble
     // Cada icono representa el estado de sueño del usuario:
@@ -14,17 +16,19 @@ export const QSleep = ({ onAutoAdvance }) => {
     //   - BedDouble (>8h): cama = sueño abundante / dormilón.
     // Antes los 4 niveles usaban el mismo Moon → no se distinguían
     // visualmente y la card no comunicaba la calidad/cantidad.
+    // [P1-I18N-DASHBOARD · 2026-08-15] `val` es lo que se PERSISTE y viaja al
+    // backend (`sleepHours`): no se traduce. `label` es lo único que se pinta.
     const _SLEEP_OPTIONS = [
-        { val: '< 6 horas', icon: AlarmClock },
-        { val: '6-7 horas', icon: Moon },
-        { val: '7-8 horas', icon: MoonStar },
-        { val: '> 8 horas', icon: BedDouble },
+        { val: '< 6 horas', label: t('< 6 horas'), icon: AlarmClock },
+        { val: '6-7 horas', label: t('6-7 horas'), icon: Moon },
+        { val: '7-8 horas', label: t('7-8 horas'), icon: MoonStar },
+        { val: '> 8 horas', label: t('> 8 horas'), icon: BedDouble },
     ];
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             {_SLEEP_OPTIONS.map(opt => (
                 <RadioCard
-                    key={opt.val} name="sleepHours" value={opt.val} label={opt.val} icon={opt.icon}
+                    key={opt.val} name="sleepHours" value={opt.val} label={opt.label} icon={opt.icon}
                     checked={formData.sleepHours === opt.val}
                     onChange={(e) => { updateData('sleepHours', e.target.value); onAutoAdvance(); }}
                     onClick={() => { if (formData.sleepHours === opt.val) onAutoAdvance(); }}

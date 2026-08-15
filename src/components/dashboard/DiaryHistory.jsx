@@ -29,32 +29,46 @@ import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarDays, ChevronRight } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
+import { useT } from '../../i18n';
 import styles from './DiaryHistory.module.css';
 
 const DIAS_TIRA = 14;
 
+// [P1-I18N-DASHBOARD · 2026-08-15] Las tablas de copy son FUNCIONES: evaluadas
+// como constantes correrían al importar, antes de que el catálogo exista, y se
+// quedarían en español para siempre. Las `key` NO se traducen — son el enum de
+// `meal_type` del backend.
+//
 // El orden es el del DÍA, no el del enum del backend: así la pantalla se lee
 // de la mañana a la noche aunque no haya ni una hora fiable.
-const FRANJAS = [
-    { key: 'desayuno', label: 'Desayuno', color: '#FBBF24' },
-    { key: 'almuerzo', label: 'Almuerzo', color: '#34D399' },
-    { key: 'merienda', label: 'Merienda', color: '#F472B6' },
-    { key: 'cena', label: 'Cena', color: '#818CF8' },
+const getFranjas = (t) => [
+    { key: 'desayuno', label: t('Desayuno'), color: '#FBBF24' },
+    { key: 'almuerzo', label: t('Almuerzo'), color: '#34D399' },
+    { key: 'merienda', label: t('Merienda'), color: '#F472B6' },
+    { key: 'cena', label: t('Cena'), color: '#818CF8' },
 ];
 // `snack` no tiene fila propia: no es una franja del día sino algo suelto entre
 // medias. Se agrupa al final y solo aparece si existe.
-const SNACK = { key: 'snack', label: 'Snacks', color: '#94A3B8' };
+const getSnack = (t) => ({ key: 'snack', label: t('Snacks'), color: '#94A3B8' });
 
-const MACROS = [
-    { key: 'protein', label: 'Proteína', color: '#60A5FA', goal: 'protein' },
-    { key: 'carbs', label: 'Carbos', color: '#34D399', goal: 'carbs' },
-    { key: 'healthy_fats', label: 'Grasas', color: '#F472B6', goal: 'fats' },
+const getMacros = (t) => [
+    { key: 'protein', label: t('Proteína'), color: '#60A5FA', goal: 'protein' },
+    { key: 'carbs', label: t('Carbos'), color: '#34D399', goal: 'carbs' },
+    { key: 'healthy_fats', label: t('Grasas'), color: '#F472B6', goal: 'fats' },
 ];
 
 const DIA_LETRA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
-    'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const DIAS_LARGO = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+// Cuerpo con llaves a propósito: el validador (`scripts/i18n-check.mjs`) mide el
+// ámbito contando llaves, así que una flecha que devuelve un array pelado deja
+// sus `t()` a profundidad 0 y los reporta —con razón formal— como ámbito de
+// módulo. Con bloque, la lectura del validador coincide con la realidad.
+const getMeses = (t) => {
+    return [t('enero'), t('febrero'), t('marzo'), t('abril'), t('mayo'), t('junio'), t('julio'),
+        t('agosto'), t('septiembre'), t('octubre'), t('noviembre'), t('diciembre')];
+};
+const getDiasLargo = (t) => {
+    return [t('Domingo'), t('Lunes'), t('Martes'), t('Miércoles'), t('Jueves'), t('Viernes'), t('Sábado')];
+};
 
 /** `YYYY-MM-DD` en hora LOCAL. `toISOString()` daría UTC y en RD (UTC-4)
  *  cualquier cosa después de las 20:00 saltaría al día siguiente. */
@@ -102,6 +116,7 @@ const hhmm = (d) =>
     `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {} }) => {
+    const t = useT();
     const hoyISO = useMemo(() => aISO(new Date()), []);
     const [selected, setSelected] = useState(hoyISO);
     const [resumen, setResumen] = useState([]);
@@ -163,14 +178,14 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             } catch {
                 if (vivo) {
                     setDia(null);
-                    setError('No pudimos cargar ese día. Revisa tu conexión e intenta de nuevo.');
+                    setError(t('No pudimos cargar ese día. Revisa tu conexión e intenta de nuevo.'));
                 }
             } finally {
                 if (vivo) setCargando(false);
             }
         })();
         return () => { vivo = false; };
-    }, [open, userId, selected, tzOffset]);
+    }, [open, userId, selected, tzOffset, t]);
 
     // [P1-DIARY-STRIP-SCROLL] Los 14 días no caben y la barra está oculta: sin
     // esto la tira abría por los días MÁS VIEJOS y hoy/ayer quedaban fuera de
@@ -236,7 +251,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         const creado = aFecha(meal?.created_at);
         return (
             <div key={meal.id || meal.meal_name}>
-                <div className={styles.mealName}>{meal.meal_name || 'Sin nombre'}</div>
+                <div className={styles.mealName}>{meal.meal_name || t('Sin nombre')}</div>
                 <div className={styles.mealMacros}>
                     <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
                     {' · '}P {num(meal.protein)} · C {num(meal.carbs)} · G {num(meal.healthy_fats)}
@@ -245,7 +260,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     — que es verdad y además útil — en vez de una hora inventada. */}
                 {!h && creado && (
                     <div className={styles.loggedOn}>
-                        Lo anotaste el {DIAS_LARGO[creado.getDay()].toLowerCase()} {creado.getDate()}
+                        {t('Lo anotaste el {diaSemana} {dia}', {
+                            diaSemana: getDiasLargo(t)[creado.getDay()].toLowerCase(),
+                            dia: creado.getDate(),
+                        })}
                     </div>
                 )}
             </div>
@@ -262,29 +280,33 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             />
             <motion.aside
                 className={styles.drawer}
-                role="dialog" aria-modal="true" aria-label="Diario de días anteriores"
+                role="dialog" aria-modal="true" aria-label={t('Diario de días anteriores')}
                 initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                 transition={{ type: 'spring', stiffness: 340, damping: 34 }}
             >
                 <header className={styles.head}>
                     <div>
-                        <div className={styles.eyebrow}>Diario</div>
+                        <div className={styles.eyebrow}>{t('Diario')}</div>
                         <h2 className={styles.dateTitle}>
-                            {DIAS_LARGO[fecha.getDay()]} {fecha.getDate()} de {MESES[fecha.getMonth()]}
+                            {t('{diaSemana} {dia} de {mes}', {
+                                diaSemana: getDiasLargo(t)[fecha.getDay()],
+                                dia: fecha.getDate(),
+                                mes: getMeses(t)[fecha.getMonth()],
+                            })}
                         </h2>
                         {(esHoy || esAyer) && (
-                            <div className={styles.dateRelative}>{esHoy ? 'Hoy' : 'Ayer'}</div>
+                            <div className={styles.dateRelative}>{esHoy ? t('Hoy') : t('Ayer')}</div>
                         )}
                     </div>
                     <button
                         ref={cierreRef} type="button" className={styles.closeBtn}
-                        onClick={onClose} aria-label="Cerrar"
+                        onClick={onClose} aria-label={t('Cerrar')}
                     >
                         <X size={17} />
                     </button>
                 </header>
 
-                <div ref={stripRef} className={styles.strip} role="tablist" aria-label="Elegir día">
+                <div ref={stripRef} className={styles.strip} role="tablist" aria-label={t('Elegir día')}>
                     {dias.map((iso) => {
                         const d = desdeISO(iso);
                         const r = porFecha.get(iso);
@@ -299,7 +321,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 type="button" role="tab" aria-selected={activo}
                                 className={`${styles.dayBtn} ${activo ? styles.dayBtnActive : ''}`}
                                 onClick={() => setSelected(iso)}
-                                title={conDatos ? `${kcal} kcal · ${r.meals_count} comida(s)` : 'Sin registro'}
+                                title={conDatos
+                                    ? t('{kcal} kcal · {n} comida(s)', { kcal, n: r.meals_count })
+                                    : t('Sin registro')}
                             >
                                 <span className={styles.dayLetter}>{DIA_LETRA[d.getDay()]}</span>
                                 <span className={`${styles.rail} ${conDatos ? '' : styles.railEmpty}`}>
@@ -322,7 +346,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 <div className={styles.quota}>
                     <div className={styles.quotaTop}>
                         <span className={styles.quotaNum}>{num(totales.calories)}</span>
-                        <span className={styles.quotaOf}>de {targetCalories} kcal</span>
+                        <span className={styles.quotaOf}>{t('de {kcal} kcal', { kcal: targetCalories })}</span>
                     </div>
                     <div className={styles.quotaBar}>
                         <motion.div
@@ -335,7 +359,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 </div>
 
                 <div className={styles.macroRow}>
-                    {MACROS.map((m) => {
+                    {getMacros(t).map((m) => {
                         const meta = num(targetMacros?.[m.goal]) || 0;
                         return (
                             <div key={m.key} className={styles.macroCell}>
@@ -364,7 +388,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 <div className={styles.slots}>
                     {cargando && (<><div className={styles.skeleton} /><div className={styles.skeleton} /></>)}
 
-                    {!cargando && !error && FRANJAS.map((f, i) => {
+                    {!cargando && !error && getFranjas(t).map((f, i) => {
                         const items = porFranja.get(f.key) || [];
                         const lleno = items.length > 0;
                         return (
@@ -388,22 +412,22 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     </div>
                                     {lleno
                                         ? items.map((meal) => renderComida(meal))
-                                        : <div className={styles.slotEmptyText}>Sin registro</div>}
+                                        : <div className={styles.slotEmptyText}>{t('Sin registro')}</div>}
                                 </div>
                             </motion.div>
                         );
                     })}
 
-                    {!cargando && !error && (porFranja.get(SNACK.key) || []).length > 0 && (
-                        <div className={styles.slot} style={{ color: SNACK.color }}>
+                    {!cargando && !error && (porFranja.get(getSnack(t).key) || []).length > 0 && (
+                        <div className={styles.slot} style={{ color: getSnack(t).color }}>
                             <span className={styles.slotRule} />
                             <div>
                                 <div className={styles.slotHead}>
-                                    <span className={styles.slotLabel} style={{ color: SNACK.color }}>
-                                        {SNACK.label}
+                                    <span className={styles.slotLabel} style={{ color: getSnack(t).color }}>
+                                        {getSnack(t).label}
                                     </span>
                                 </div>
-                                {porFranja.get(SNACK.key).map((meal) => renderComida(meal))}
+                                {porFranja.get(getSnack(t).key).map((meal) => renderComida(meal))}
                             </div>
                         </div>
                     )}
@@ -411,8 +435,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     {sinNada && (
                         <p className={styles.dayEmpty}>
                             {esHoy
-                                ? 'El día está en blanco. Cuéntale al coach lo que comas y lo va anotando aquí.'
-                                : 'Ese día quedó sin registrar. Puedes contárselo al coach aunque haya pasado — él lo anota en la fecha que corresponda.'}
+                                ? t('El día está en blanco. Cuéntale al coach lo que comas y lo va anotando aquí.')
+                                : t('Ese día quedó sin registrar. Puedes contárselo al coach aunque haya pasado — él lo anota en la fecha que corresponda.')}
                         </p>
                     )}
                 </div>
@@ -433,13 +457,16 @@ DiaryHistory.propTypes = {
 
 /** Botón que abre el cajón. Vive junto al componente para que añadirlo a una
  *  card sea una línea y no haya dos sitios que mantener sincronizados. */
-export const DiaryHistoryTrigger = ({ onClick }) => (
-    <button type="button" className={styles.trigger} onClick={onClick}>
-        <CalendarDays size={14} />
-        Ver días anteriores
-        <ChevronRight size={14} className={styles.triggerChevron} />
-    </button>
-);
+export const DiaryHistoryTrigger = ({ onClick }) => {
+    const t = useT();
+    return (
+        <button type="button" className={styles.trigger} onClick={onClick}>
+            <CalendarDays size={14} />
+            {t('Ver días anteriores')}
+            <ChevronRight size={14} className={styles.triggerChevron} />
+        </button>
+    );
+};
 
 DiaryHistoryTrigger.propTypes = { onClick: PropTypes.func };
 

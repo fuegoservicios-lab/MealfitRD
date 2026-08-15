@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import useModalAccessibility from '../../hooks/useModalAccessibility';
 import Settings from '../../pages/Settings';
+import { useT } from '../../i18n';
 import styles from './SettingsDialog.module.css';
 
 /* ============================================================================
@@ -45,6 +46,7 @@ import styles from './SettingsDialog.module.css';
    ========================================================================= */
 
 const SettingsDialog = () => {
+    const t = useT();
     const navigate = useNavigate();
 
     // Puerta de salida de Settings. La publica él en un efecto; hasta que lo
@@ -120,7 +122,7 @@ const SettingsDialog = () => {
                 className={styles.panel}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Configuración"
+                aria-label={t('Configuración')}
                 tabIndex={-1}
             >
                 <Settings

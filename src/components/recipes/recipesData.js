@@ -1,6 +1,7 @@
 // [P3-RECIPES-REDESIGN · 2026-06-24] Config visual del rediseño de Recetas
 // (RecipesView). Iconos de línea (paths, currentColor), color+icono por tipo de
 // comida y por paso, y kcal/g por macro para la dona.
+import { t } from '../../i18n';
 
 // Iconos por tipo de comida y por paso (paths de línea, currentColor)
 export const ICONS = {
@@ -48,11 +49,18 @@ export const STEP_ICONS = [
 ];
 
 // kcal/g por macro para la dona. `key` mapea a los campos reales del meal.
-export const MACROS = [
-  { k: 'Proteínas', key: 'protein', c: '#34D399', kcal: 4 },
-  { k: 'Carbos',    key: 'carbs',   c: '#818CF8', kcal: 4 },
-  { k: 'Grasas',    key: 'fats',    c: '#FB7185', kcal: 9 },
-];
+// [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: `k` es la etiqueta
+// VISIBLE de la leyenda de la dona. Como constante de módulo su `t()` se
+// evaluaría al importar —antes de que el catálogo cargue— y quedaría congelada
+// en español para siempre (en es-DO se vería perfecta, que es justo lo que hace
+// difícil de ver ese bug). `key`, `c` y `kcal` siguen siendo datos.
+export function getMacros() {
+  return [
+    { k: t('Proteínas'), key: 'protein', c: '#34D399', kcal: 4 },
+    { k: t('Carbos'),    key: 'carbs',   c: '#818CF8', kcal: 4 },
+    { k: t('Grasas'),    key: 'fats',    c: '#FB7185', kcal: 9 },
+  ];
+}
 
 // [P2-LINT-ZERO · 2026-07-09] Segmentos acumulados del conic-gradient de la
 // dona de macros. Extraído del useMemo duplicado en RecipesView/MobileRecipes:

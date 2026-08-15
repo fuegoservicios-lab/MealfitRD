@@ -15,6 +15,7 @@ import { trackEvent } from '../../utils/analytics';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useIsMobile } from '../../hooks/useMediaQuery';
+import { useT } from '../../i18n';
 
 /* ─── Plan Feature Map ─── */
 // [P2-PAYMENT-FEATURES-ALIGN · 2026-05-31] La pantalla de checkout anunciaba como
@@ -26,36 +27,39 @@ import { useIsMobile } from '../../hooks/useMediaQuery';
 /* [P3-PRICING-HONEST-COPY · 2026-07-12] Directiva del owner: los tiers se
    diferencian SOLO por créditos (Gratis accede a todo por ahora); Max no
    cambia. Se retiran los claims de "Memoria" como exclusivas de pago. */
-const PLAN_FEATURES = {
+// [P1-I18N-DASHBOARD · 2026-08-15] Funciones y no constantes: una tabla de copy
+// en ámbito de módulo se evalúa al importar, antes de que el catálogo exista.
+const getPlanFeatures = (t) => ({
     basic: [
-        { icon: "⚡", text: "50 Créditos de IA al mes" },
-        { icon: "📈", text: "3× más que Gratis" },
-        { icon: "✅", text: "Todo lo incluido en Gratis" },
+        { icon: "⚡", text: t("50 Créditos de IA al mes") },
+        { icon: "📈", text: t("3× más que Gratis") },
+        { icon: "✅", text: t("Todo lo incluido en Gratis") },
     ],
     plus: [
-        { icon: "⚡", text: "200 Créditos de IA al mes" },
-        { icon: "📈", text: "13× más que Gratis" },
-        { icon: "✅", text: "Todo lo incluido en Básico" },
+        { icon: "⚡", text: t("200 Créditos de IA al mes") },
+        { icon: "📈", text: t("13× más que Gratis") },
+        { icon: "✅", text: t("Todo lo incluido en Básico") },
     ],
     ultra: [
-        { icon: "∞", text: "Créditos Ilimitados" },
-        { icon: "🚀", text: "Generación Ilimitada de Planes" },
-        { icon: "🔮", text: "Acceso Anticipado a Funciones" },
-        { icon: "👑", text: "Soporte Prioritario VIP" },
+        { icon: "∞", text: t("Créditos Ilimitados") },
+        { icon: "🚀", text: t("Generación Ilimitada de Planes") },
+        { icon: "🔮", text: t("Acceso Anticipado a Funciones") },
+        { icon: "👑", text: t("Soporte Prioritario VIP") },
     ]
-};
+});
 
-const PLAN_DISPLAY = {
-    basic: "Plan Básico",
-    plus: "Plan Plus",
-    ultra: "Plan Max",
-};
+const getPlanDisplay = (t) => ({
+    basic: t("Plan Básico"),
+    plus: t("Plan Plus"),
+    ultra: t("Plan Max"),
+});
 
 const PaymentModal = ({
     isOpen, onClose, onSuccess,
     price = "25.00", planName = "Suscripción Plus",
     tier = "plus", isAnnual = false
 }) => {
+    const t = useT();
     const [couponCode, setCouponCode] = useState('');
     const [couponLoading, setCouponLoading] = useState(false);
     const [couponResult, setCouponResult] = useState(null);
@@ -138,17 +142,18 @@ const PaymentModal = ({
             const data = await response.json();
             setCouponResult(data);
         } catch {
-            setCouponResult({ valid: false, message: 'Error validando el código.' });
+            setCouponResult({ valid: false, message: t('Error validando el código.') });
         } finally {
             setCouponLoading(false);
         }
-    }, [couponCode, tier]);
+    }, [couponCode, tier, t]);
 
     const originalPrice = parseFloat(price);
     const discountPercent = couponResult?.valid ? couponResult.discount_percent : 0;
     const discountAmount = (originalPrice * discountPercent / 100);
     const finalPrice = (originalPrice - discountAmount).toFixed(2);
-    const features = PLAN_FEATURES[tier] || PLAN_FEATURES.plus;
+    const _planFeatures = getPlanFeatures(t);
+    const features = _planFeatures[tier] || _planFeatures.plus;
 
     const handleCreateSubscription = (data, actions) => {
         const paypalPlanId = PLAN_IDS[isAnnual ? 'annual' : 'monthly'][tier];
@@ -159,7 +164,7 @@ const PaymentModal = ({
             // [P3-AUDIT-2 · 2026-05-15] `alert()` nativo reemplazado por
             // `toast.error` (sonner). Consistencia UX con el resto de la
             // app + no bloquea el thread durante el flujo de pago.
-            toast.error("Plan de pago no configurado. Contacta soporte.");
+            toast.error(t("Plan de pago no configurado. Contacta soporte."));
             return Promise.reject(new Error("Missing PayPal plan ID"));
         }
 
@@ -211,7 +216,7 @@ const PaymentModal = ({
                 {/* Close */}
                 <button
                     onClick={onClose}
-                    aria-label="Cerrar ventana modal"
+                    aria-label={t("Cerrar ventana modal")}
                     style={{
                         // [P3-PAYMENT-MODAL-SAFE-AREA · 2026-06-01] +env(safe-area-inset-top): la X
                         // no debe quedar bajo la barra de estado / notch en iOS. env()=0 sin notch.
@@ -262,13 +267,13 @@ const PaymentModal = ({
                                     color: '#fff', marginBottom: '0.35rem',
                                 }}
                             >
-                            Forma de pago
+                            {t("Forma de pago")}
                         </h2>
                         <p style={{
                             fontSize: '0.85rem', color: '#777',
                             marginBottom: '1.75rem',
                         }}>
-                            Elige tu método de pago preferido
+                            {t("Elige tu método de pago preferido")}
                         </p>
 
                         {/* Payment Method Selector */}
@@ -289,7 +294,7 @@ const PaymentModal = ({
                                     transition: 'all 0.2s', fontFamily: "'Outfit', sans-serif"
                                 }}
                             >
-                                <CreditCard size={18} /> Tarjeta
+                                <CreditCard size={18} /> {t("Tarjeta")}
                             </button>
                             <button
                                 onClick={() => setPaymentMethod('paypal')}
@@ -323,8 +328,8 @@ const PaymentModal = ({
                                                 <CreditCard size={18} />
                                             </div>
                                             <div>
-                                                <h4 style={{ color: '#fff', fontSize: '0.95rem', margin: '0 0 0.35rem 0', fontFamily: "'Outfit', sans-serif" }}>Paga con tu tarjeta local</h4>
-                                                <p style={{ color: '#aaa', fontSize: '0.8rem', margin: 0, lineHeight: 1.4 }}>Procesamos todas las tarjetas de débito o crédito de <b>República Dominicana</b>. El pago es seguro vía PayPal. <span style={{ color: '#fff' }}>No necesitas abrir ni tener una cuenta de PayPal.</span></p>
+                                                <h4 style={{ color: '#fff', fontSize: '0.95rem', margin: '0 0 0.35rem 0', fontFamily: "'Outfit', sans-serif" }}>{t("Paga con tu tarjeta local")}</h4>
+                                                <p style={{ color: '#aaa', fontSize: '0.8rem', margin: 0, lineHeight: 1.4 }}>{t("Procesamos todas las tarjetas de débito o crédito de")} <b>{t("República Dominicana")}</b>{t(". El pago es seguro vía PayPal.")} <span style={{ color: '#fff' }}>{t("No necesitas abrir ni tener una cuenta de PayPal.")}</span></p>
                                             </div>
                                         </div>
                                         <PayPalScriptProvider options={initialOptions}>
@@ -341,13 +346,13 @@ const PaymentModal = ({
                                                     // de mayor conversión. No hay cargo (el error precede al
                                                     // approve), así que es feedback, no pérdida de pago.
                                                     console.error("PayPal Card Error:", err);
-                                                    toast.error("No se pudo procesar el pago. Intenta de nuevo o usa otro método.");
+                                                    toast.error(t("No se pudo procesar el pago. Intenta de nuevo o usa otro método."));
                                                 }}
                                                 onCancel={() => { }}
                                             />
                                         </PayPalScriptProvider>
                                         <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#999', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
-                                            <Lock size={12} /> Transacción 100% cifrada y asegurada internacionalmente
+                                            <Lock size={12} /> {t("Transacción 100% cifrada y asegurada internacionalmente")}
                                         </p>
                                     </motion.div>
                                 )}
@@ -365,8 +370,8 @@ const PaymentModal = ({
                                                 <Lock size={18} />
                                             </div>
                                             <div>
-                                                <h4 style={{ color: '#fff', fontSize: '0.95rem', margin: '0 0 0.35rem 0', fontFamily: "'Outfit', sans-serif" }}>Paga seguro con PayPal</h4>
-                                                <p style={{ color: '#aaa', fontSize: '0.8rem', margin: 0, lineHeight: 1.4 }}>Serás redirigido a la pasarela oficial de PayPal. Puedes usar tu balance de PayPal o asociar una tarjeta allí sin crear cuenta nueva.</p>
+                                                <h4 style={{ color: '#fff', fontSize: '0.95rem', margin: '0 0 0.35rem 0', fontFamily: "'Outfit', sans-serif" }}>{t("Paga seguro con PayPal")}</h4>
+                                                <p style={{ color: '#aaa', fontSize: '0.8rem', margin: 0, lineHeight: 1.4 }}>{t("Serás redirigido a la pasarela oficial de PayPal. Puedes usar tu balance de PayPal o asociar una tarjeta allí sin crear cuenta nueva.")}</p>
                                             </div>
                                         </div>
                                         <PayPalScriptProvider options={initialOptions}>
@@ -379,7 +384,7 @@ const PaymentModal = ({
                                                     // [P2-PAYPAL-ONERROR-TOAST · 2026-05-30] Ver nota en el
                                                     // botón de tarjeta arriba — mismo feedback al usuario.
                                                     console.error("PayPal Error:", err);
-                                                    toast.error("No se pudo procesar el pago. Intenta de nuevo o usa otro método.");
+                                                    toast.error(t("No se pudo procesar el pago. Intenta de nuevo o usa otro método."));
                                                 }}
                                                 onCancel={() => { }}
                                             />
@@ -401,13 +406,13 @@ const PaymentModal = ({
                                 marginBottom: '0.6rem',
                             }}>
                                 <Tag size={13} />
-                                Código de descuento
+                                {t("Código de descuento")}
                             </label>
 
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <input
                                     type="text"
-                                    placeholder="Ej: LAUNCH50"
+                                    placeholder={t("Ej: LAUNCH50")}
                                     value={couponCode}
                                     onChange={(e) => {
                                         setCouponCode(e.target.value.toUpperCase());
@@ -443,7 +448,7 @@ const PaymentModal = ({
                                     onMouseEnter={(e) => { if (!couponLoading && couponCode.trim()) e.currentTarget.style.background = '#444'; }}
                                     onMouseLeave={(e) => { e.currentTarget.style.background = '#333'; }}
                                 >
-                                    {couponLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : 'Aplicar'}
+                                    {couponLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : t('Aplicar')}
                                 </button>
                             </div>
 
@@ -482,7 +487,7 @@ const PaymentModal = ({
                                 fontSize: '1.35rem', fontWeight: 700,
                                 color: '#fff', marginBottom: '1.25rem',
                             }}>
-                                {PLAN_DISPLAY[tier] || planName}
+                                {getPlanDisplay(t)[tier] || planName}
                             </h2>
 
                             <p style={{
@@ -491,7 +496,7 @@ const PaymentModal = ({
                                 letterSpacing: '0.04em',
                                 marginBottom: '0.85rem',
                             }}>
-                                Características principales
+                                {t("Características principales")}
                             </p>
 
                             {/* Features */}
@@ -522,7 +527,7 @@ const PaymentModal = ({
                                 fontSize: '0.88rem', color: '#bbb',
                                 marginBottom: '0.4rem',
                             }}>
-                                <span>Suscripción {isAnnual ? 'Anual' : 'Mensual'}</span>
+                                <span>{isAnnual ? t('Suscripción Anual') : t('Suscripción Mensual')}</span>
                                 <span>US${originalPrice.toFixed(2)}</span>
                             </div>
 
@@ -537,7 +542,7 @@ const PaymentModal = ({
                                         marginBottom: '0.4rem',
                                     }}
                                 >
-                                    <span>Descuento ({discountPercent}%)</span>
+                                    <span>{t('Descuento ({porcentaje}%)', { porcentaje: discountPercent })}</span>
                                     <span>-US${discountAmount.toFixed(2)}</span>
                                 </motion.div>
                             )}
@@ -548,7 +553,7 @@ const PaymentModal = ({
                                 fontSize: '0.85rem', color: '#777',
                                 marginBottom: '0.85rem',
                             }}>
-                                <span>Impuesto estimado</span>
+                                <span>{t('Impuesto estimado')}</span>
                                 <span>US$0.00</span>
                             </div>
 
@@ -562,7 +567,7 @@ const PaymentModal = ({
                                 <span style={{
                                     fontSize: '0.95rem', fontWeight: 700, color: '#fff',
                                 }}>
-                                    Monto a pagar hoy
+                                    {t('Monto a pagar hoy')}
                                 </span>
                                 <span style={{
                                     fontFamily: "'Outfit', sans-serif",
@@ -577,8 +582,10 @@ const PaymentModal = ({
                                 fontSize: '0.75rem', color: '#888',
                                 marginTop: '1.25rem', lineHeight: 1.5,
                             }}>
-                                Se renueva {isAnnual ? 'anualmente' : 'mensualmente'} hasta que canceles.
-                                {' '}Cancela en cualquier momento en Configuración.
+                                {isAnnual
+                                    ? t('Se renueva anualmente hasta que canceles.')
+                                    : t('Se renueva mensualmente hasta que canceles.')}
+                                {' '}{t('Cancela en cualquier momento en Configuración.')}
                             </p>
                         </div>
                         </div>

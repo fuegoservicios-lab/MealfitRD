@@ -10,6 +10,7 @@ import { useAssessment } from '../../../context/AssessmentContext';
 import { DIET_TYPES } from '../../../config/formValidation';
 import { Salad, UtensilsCrossed, Vegan } from 'lucide-react';
 import { DietOption } from './_shared';
+import { t as _t, useT } from '../../../i18n';
 
 // [P1-FORM-8] Metadata UI por cada tipo de dieta. Las claves DEBEN coincidir
 // EXACTAMENTE con `DIET_TYPES` (SSOT de validación). El check de invariante
@@ -18,11 +19,15 @@ import { DietOption } from './_shared';
 // todo) → bowl de ensalada (sin carne, pero variado) → sello vegano de lucide
 // (el marcador estándar de etiquetado 100% vegetal). Antes Utensils (tenedor
 // solitario que se leía como tridente) / Leaf genérica / Salad.
-const DIET_TYPE_META = {
-    balanced:   { label: 'Balanceada',   icon: UtensilsCrossed, desc: 'De todo un poco' },
-    vegetarian: { label: 'Vegetariana',  icon: Salad,           desc: 'Sin carne' },
-    vegan:      { label: 'Vegana',       icon: Vegan,           desc: '100% vegetal' },
-};
+// [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: una tabla de copy en
+// ámbito de módulo se congela en español al importarse (ver src/i18n/index.js).
+// Las CLAVES (`balanced`/`vegetarian`/`vegan`) son el enum que consume el motor:
+// no se tocan; solo `label`/`desc`, que es lo que se pinta.
+const getDietTypeMeta = (t = _t) => ({
+    balanced:   { label: t('Balanceada'),   icon: UtensilsCrossed, desc: t('De todo un poco') },
+    vegetarian: { label: t('Vegetariana'),  icon: Salad,           desc: t('Sin carne') },
+    vegan:      { label: t('Vegana'),       icon: Vegan,           desc: t('100% vegetal') },
+});
 
 // [P1-FORM-8] Invariante de desarrollo: `DIET_TYPE_META` debe cubrir
 // exactamente las mismas claves que `DIET_TYPES`. Si un PR futuro añade
@@ -32,7 +37,7 @@ const DIET_TYPE_META = {
 // consola. Vite reemplaza `import.meta.env.MODE` en build time, así que el
 // bloque se elimina por dead-code elimination en producción.
 if (import.meta.env?.MODE === 'development') {
-    const metaKeys = Object.keys(DIET_TYPE_META);
+    const metaKeys = Object.keys(getDietTypeMeta());
     const missingMeta = DIET_TYPES.filter((t) => !metaKeys.includes(t));
     const extraMeta = metaKeys.filter((k) => !DIET_TYPES.includes(k));
     if (missingMeta.length || extraMeta.length) {
@@ -45,10 +50,12 @@ if (import.meta.env?.MODE === 'development') {
 
 export const QDietType = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
+    const dietTypeMeta = getDietTypeMeta(t);
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
             {DIET_TYPES.map((diet) => {
-                const meta = DIET_TYPE_META[diet];
+                const meta = dietTypeMeta[diet];
                 if (!meta) return null;  // safety net — el invariante de arriba ya avisó
                 return (
                     <DietOption

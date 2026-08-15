@@ -7,6 +7,11 @@ import { CalendarDays } from "lucide-react";
 import { mealEmojiFor } from "../../utils/mealEmoji";
 // [P1-2 · 2026-07-09] SSOT del coalescing days||meals||perfectDay (reemplaza la copia inline).
 import { firstDayMeals } from "../../utils/normalizePlanDays";
+// [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. `useT()` dentro de los
+// componentes (es lo que los suscribe al cambio de idioma); el `t`/`tn` sueltos
+// para helpers de módulo (`normalizePlan`, `bucketTitle`) que se INVOCAN en
+// render, nunca al importar — ahí está la trampa del ámbito de módulo.
+import { t, tn, useT } from "../../i18n";
 
 /**
  * HistoryDesktopPanel — vista "Historial" de escritorio (Bioboros).
@@ -68,6 +73,18 @@ const fmtTime = (d) => { let h = d.getHours(); const ap = h < 12 ? "a. m." : "p.
 const daysAgo = (d) => Math.floor((Date.now() - d.getTime()) / 86400000);
 function bucketOf(d) { const n = daysAgo(d); if (n <= 0) return "Hoy"; if (n === 1) return "Ayer"; if (n <= 6) return "Esta semana"; if (n <= 13) return "La semana pasada"; return "Más antiguos"; }
 const BUCKET_ORDER = ["Hoy", "Ayer", "Esta semana", "La semana pasada", "Más antiguos"];
+// [P1-I18N-DASHBOARD · 2026-08-15] El bucket es un ID que resulta ser su propio
+// texto español, así que se traduce al PINTARLO y no en `bucketOf` — mover la
+// traducción río arriba cambiaría las claves con las que se agrupa y el orden de
+// `BUCKET_ORDER`. Las claves van como LITERALES: un `t(variable)` es invisible a
+// `npm run i18n:check` y su traducción nacería huérfana sin que nadie lo note.
+const bucketTitle = (id) => ({
+  "Hoy": t("Hoy"),
+  "Ayer": t("Ayer"),
+  "Esta semana": t("Esta semana"),
+  "La semana pasada": t("La semana pasada"),
+  "Más antiguos": t("Más antiguos"),
+})[id] || id;
 const parseGrams = (v) => { const n = parseInt(String(v ?? ""), 10); return Number.isFinite(n) ? n : 0; };
 
 function normalizePlan(raw, activePlanId) {
@@ -80,7 +97,7 @@ function normalizePlan(raw, activePlanId) {
   return {
     raw,
     id: String(raw.id),
-    name: raw.name || "Plan Generado",
+    name: raw.name || t("Plan Generado"),
     date: new Date(raw.created_at),
     active: !!activePlanId && raw.id === activePlanId,
     kcal: typeof raw.calories === "number" ? raw.calories : (parseInt(raw.calories, 10) || 0),
@@ -183,11 +200,12 @@ function handleRowKeyDown(e, editing, onOpen) {
    sin path de teclado). Mantiene el visual exacto del span (color/cursor/grid)
    con resets de button; stopPropagation para no abrir el modal del row. */
 function PencilButton({ onEdit, size }) {
+  const t = useT();
   return (
     <button
       type="button"
-      aria-label="Renombrar plan"
-      title="Renombrar"
+      aria-label={t("Renombrar plan")}
+      title={t("Renombrar")}
       onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }}
       style={{ appearance: "none", background: "transparent", border: 0, padding: 0, font: "inherit",
         color: "var(--text-light)", cursor: "pointer", display: "grid" }}
@@ -199,6 +217,7 @@ function PencilButton({ onEdit, size }) {
 
 /* Rename inline (reusa el flujo real: editingId / tempName / save / cancel) */
 function NameEditor({ tempName, setTempName, onSave, onCancel, big }) {
+  const t = useT();
   return (
     <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, minWidth: 0 }}>
       <input
@@ -210,8 +229,8 @@ function NameEditor({ tempName, setTempName, onSave, onCancel, big }) {
           fontSize: big ? "1.2rem" : "1rem", color: "var(--text-main)", background: "var(--bg-card)", border: "1px solid var(--primary)",
           borderRadius: 9, padding: "6px 10px", outline: "none" }}
       />
-      <IconButton name="check" title="Guardar" onClick={onSave} />
-      <IconButton name="x" title="Cancelar" onClick={onCancel} />
+      <IconButton name="check" title={t("Guardar")} onClick={onSave} />
+      <IconButton name="x" title={t("Cancelar")} onClick={onCancel} />
     </div>
   );
 }
@@ -225,6 +244,7 @@ function NameEditor({ tempName, setTempName, onSave, onCancel, big }) {
    del agente, contexto del chat, y esta insignia — todas derivaban «activo» de
    la mera existencia de `plan_data`, que la pausa conserva a propósito. */
 function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, setTempName, onEditSave, onEditCancel }) {
+  const t = useT();
   return (
     // [P2-12 · 2026-07-09] role/tabIndex/onKeyDown: la card activa es operable por teclado.
     <div onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => handleRowKeyDown(e, editing, onOpen)}
@@ -245,7 +265,7 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
             <i style={{ width: 6, height: 6, borderRadius: "50%",
               background: paused ? "#FBBF24" : "var(--secondary)",
               boxShadow: paused ? "none" : "0 0 8px var(--secondary)" }} />
-            {paused ? "Plan en pausa" : "Plan activo"}
+            {paused ? t("Plan en pausa") : t("Plan activo")}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "9px 0 3px", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: 800, letterSpacing: "-.015em", color: "var(--text-main)" }}>
             {editing ? (
@@ -261,11 +281,11 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
           <RecipeChips meals={plan.meals} max={4} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
-          {plan.kcal > 0 && <span style={kcalBig}><b style={{ fontSize: "1.5rem", color: "#FB923C" }}>{plan.kcal.toLocaleString("es-DO")}</b><span>kcal/día</span></span>}
+          {plan.kcal > 0 && <span style={kcalBig}><b style={{ fontSize: "1.5rem", color: "#FB923C" }}>{plan.kcal.toLocaleString("es-DO")}</b><span>{t("kcal/día")}</span></span>}
           {/* [P1-CTA-HOVER-PARITY · 2026-08-13] La clase aporta LO ÚNICO que un
               estilo inline no puede declarar: las sombras de :hover/:active.
               El resto del botón sigue viniendo de btn("primary"). */}
-          <button type="button" className="mf-cta-solid" onClick={(e) => { e.stopPropagation(); onOpen(); }} style={btn("primary")}><Icon name="chev" size={16} /> Ver plan</button>
+          <button type="button" className="mf-cta-solid" onClick={(e) => { e.stopPropagation(); onOpen(); }} style={btn("primary")}><Icon name="chev" size={16} /> {t("Ver plan")}</button>
         </div>
       </div>
       {(plan.macros.p || plan.macros.c || plan.macros.g) ? (
@@ -276,6 +296,7 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
 }
 
 function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempName, onEditSave, onEditCancel }) {
+  const t = useT();
   const [h, setH] = useState(false);
   return (
     // [P2-12 · 2026-07-09] role/tabIndex/onKeyDown: row operable por teclado.
@@ -305,10 +326,10 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         {(plan.macros.p || plan.macros.c || plan.macros.g) ? <MacroBar macros={plan.macros} /> : <span />}
-        {plan.kcal > 0 && <span style={{ ...kcalBig, gap: 4 }}><b style={{ fontSize: "1.1rem", color: "#FB923C" }}>{plan.kcal.toLocaleString("es-DO")}</b><span>kcal</span></span>}
+        {plan.kcal > 0 && <span style={{ ...kcalBig, gap: 4 }}><b style={{ fontSize: "1.1rem", color: "#FB923C" }}>{plan.kcal.toLocaleString("es-DO")}</b><span>{t("kcal")}</span></span>}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <IconButton name="pencil" title="Renombrar" onClick={() => onEdit && onEdit()} />
-          <IconButton name="trash" danger title="Eliminar" onClick={() => onDelete && onDelete()} />
+          <IconButton name="pencil" title={t("Renombrar")} onClick={() => onEdit && onEdit()} />
+          <IconButton name="trash" danger title={t("Eliminar")} onClick={() => onDelete && onDelete()} />
           <span style={{ color: "var(--text-light)", display: "grid" }}><Icon name="chev" size={18} /></span>
         </div>
       </div>
@@ -333,6 +354,7 @@ export default function HistoryDesktopPanel({
   onEditSave = () => {},
   onEditCancel = () => {},
 }) {
+  const t = useT();
   const [sort, setSort] = useState("recent");
   const q = searchQuery.trim().toLowerCase();
 
@@ -370,20 +392,20 @@ export default function HistoryDesktopPanel({
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", fontFamily: "var(--font-heading)", fontSize: ".74rem", fontWeight: 700,
           color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 13%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 28%, transparent)", padding: "5px 12px", borderRadius: 99 }}>
-          <Icon name="cal" size={13} /> {total} {total === 1 ? "plan nutricional" : "planes nutricionales"}
+          <Icon name="cal" size={13} /> {tn(total, "{n} plan nutricional", "{n} planes nutricionales", { n: total })}
         </span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 9, background: "var(--bg-page)", border: "1px solid var(--border)", borderRadius: 13, padding: "9px 14px", minWidth: 240, color: "var(--text-light)" }}>
           <Icon name="search" size={16} />
-          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar planes…"
+          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("Buscar planes…")}
             style={{ appearance: "none", border: 0, background: "transparent", font: "inherit", fontSize: ".86rem", color: "var(--text-main)", width: "100%", outline: "none" }} />
         </div>
       </div>
 
       {/* Ordenar */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: ".72rem", fontWeight: 600, color: "var(--text-light)" }}>Ordenar:</span>
+        <span style={{ fontSize: ".72rem", fontWeight: 600, color: "var(--text-light)" }}>{t("Ordenar:")}</span>
         <div style={{ display: "inline-flex", gap: 3, padding: 3, borderRadius: 11, background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
-          {[["recent", "Recientes"], ["kcal", "Calorías"], ["name", "Nombre"]].map(([k, l]) => (
+          {[["recent", t("Recientes")], ["kcal", t("Calorías")], ["name", t("Nombre")]].map(([k, l]) => (
             <button key={k} type="button" onClick={() => setSort(k)} aria-pressed={sort === k}
               style={{ appearance: "none", border: 0, cursor: "pointer", fontFamily: "var(--font-body)", fontSize: ".74rem", fontWeight: 700, padding: "7px 14px", borderRadius: 8,
                 color: sort === k ? "var(--text-main)" : "var(--text-muted)", background: sort === k ? "var(--bg-card)" : "transparent", boxShadow: sort === k ? "0 1px 3px rgba(0,0,0,.35)" : "none" }}>{l}</button>
@@ -406,7 +428,7 @@ export default function HistoryDesktopPanel({
         {BUCKET_ORDER.filter((g) => groups[g]).map((g) => (
           <div key={g} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 2px" }}>
-              <span style={{ fontFamily: "var(--font-heading)", fontSize: ".74rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-light)" }}>{g}</span>
+              <span style={{ fontFamily: "var(--font-heading)", fontSize: ".74rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-light)" }}>{bucketTitle(g)}</span>
               <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
               <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--text-light)" }}>{groups[g].length}</span>
             </div>
@@ -428,8 +450,8 @@ export default function HistoryDesktopPanel({
              mismo lenguaje que Recetas (.empty) y Nevera. */
           <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", border: "1px dashed var(--border)", background: "var(--bg-page)", borderRadius: 16 }}>
             <Icon name="search" size={28} />
-            <p style={{ marginTop: 10 }}>Sin resultados para <strong style={{ color: "var(--text-main)" }}>“{searchQuery.trim()}”</strong></p>
-            <button type="button" onClick={() => setSearchQuery("")} style={{ ...btn("ghost"), marginTop: 8 }}>Limpiar búsqueda</button>
+            <p style={{ marginTop: 10 }}>{t("Sin resultados para")} <strong style={{ color: "var(--text-main)" }}>“{searchQuery.trim()}”</strong></p>
+            <button type="button" onClick={() => setSearchQuery("")} style={{ ...btn("ghost"), marginTop: 8 }}>{t("Limpiar búsqueda")}</button>
           </div>
         )}
       </div>

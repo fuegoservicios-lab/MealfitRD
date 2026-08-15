@@ -5,14 +5,16 @@
 // aria-live para que el lector de pantalla lo anuncie al cambiar.
 import { WifiOff } from 'lucide-react';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { useT } from '../../i18n';
 
 const OfflineBanner = () => {
     const online = useOnlineStatus();
+    const t = useT();
     if (online) return null;
     return (
         <div className="offline-banner" role="status" aria-live="polite">
             <WifiOff size={14} strokeWidth={2.5} aria-hidden="true" />
-            <span>Sin conexión — mostrando datos guardados</span>
+            <span>{t('Sin conexión — mostrando datos guardados')}</span>
         </div>
     );
 };

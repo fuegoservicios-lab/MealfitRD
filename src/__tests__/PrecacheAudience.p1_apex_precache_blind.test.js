@@ -56,10 +56,34 @@ describe('P1-APEX-PRECACHE-BLIND · clasificación por marcadores', () => {
     it('cada familia declara el gate de runtime que la apaga', () => {
         // Sin el gate escrito, la exclusión es una afirmación sin respaldo: nadie
         // puede comprobar después si sigue siendo cierta.
+        //
+        // [P1-I18N-DASHBOARD · 2026-08-15] Una familia puede identificarse por
+        // PAQUETE de node_modules (`marcadores`) o por RUTA DE FUENTE (`rutas`).
+        // Lo segundo nació con los catálogos de idioma, que son código propio:
+        // `_paqueteDe` devuelve null para ellos, así que una regla que solo mire
+        // node_modules no puede verlos. Lo que este assert vigila es que la
+        // familia declare ALGO por lo que reconocerse — una sin ningún
+        // identificador no casaría nunca y sería configuración muerta que
+        // aparenta proteger algo.
         for (const f of FAMILIAS_NO_PRECACHEABLES) {
             expect(f.gate, `la familia ${f.id} no declara gate`).toBeTruthy();
-            expect(f.marcadores.length).toBeGreaterThan(0);
+            const identificadores = (f.marcadores || []).length + (f.rutas || []).length;
+            expect(
+                identificadores,
+                `la familia ${f.id} no declara ni marcadores ni rutas: no casaría con nada`
+            ).toBeGreaterThan(0);
         }
+    });
+
+    it('[P1-I18N-DASHBOARD] los catálogos de idioma quedan fuera del precache', () => {
+        // El guard los cazó en su primer build: 244 KiB gz entre los cuatro,
+        // que un visitante anónimo del apex se bajaría en la instalación del SW
+        // para una portada escrita en español que no usa ninguna de sus claves.
+        expect(familiaMarcada(['/proj/src/i18n/locales/fr-FR.json'])).toBe('i18n-catalogs');
+        expect(familiaMarcada(['/proj/src/i18n/locales/pt-BR.json'])).toBe('i18n-catalogs');
+        // El MOTOR sí es shell: va en el entry y no debe marcarse.
+        expect(familiaMarcada(['/proj/src/i18n/index.js'])).toBeNull();
+        expect(familiaMarcada(['/proj/src/i18n/locales.js'])).toBeNull();
     });
 });
 

@@ -45,6 +45,7 @@ import { MemoizedMessageBubble } from './MessageBubble';
 // liviano para que AgentPage lo lea sin importar este archivo (y con él
 // react-virtuoso). Re-exportado aquí para back-compat de cualquier importador.
 import { VIRTUALIZE_THRESHOLD } from './virtualizeThreshold';
+import { useT } from '../../i18n';
 
 export { VIRTUALIZE_THRESHOLD };
 
@@ -70,6 +71,7 @@ export const VirtualizedMessageList = ({
     loadingPhrases,
     loadingPhraseIdx,
 }) => {
+    const t = useT();
     const Footer = React.useCallback(() => {
         if (!isLoading) return null;
         return (
@@ -99,12 +101,12 @@ export const VirtualizedMessageList = ({
                     animation: 'shimmer 2s linear infinite',
                 }}>
                     {streamingStatus
-                        ? (loadingPhrases?.[loadingPhraseIdx] ?? 'Procesando...')
-                        : 'Pensando...'}
+                        ? (loadingPhrases?.[loadingPhraseIdx] ?? t('Procesando...'))
+                        : t('Pensando...')}
                 </span>
             </div>
         );
-    }, [isLoading, streamingStatus, loadingPhrases, loadingPhraseIdx]);
+    }, [isLoading, streamingStatus, loadingPhrases, loadingPhraseIdx, t]);
 
     const itemContent = React.useCallback((index, msg) => (
         <ItemContent
@@ -136,7 +138,7 @@ export const VirtualizedMessageList = ({
             // readers anuncien el scroll container del Virtuoso (el
             // role="log" aria-live="polite" del wrapper padre cubre los
             // anuncios de mensajes nuevos vía P1-CHAT-A11Y-LIVE).
-            aria-label="Lista virtualizada de mensajes"
+            aria-label={t('Lista virtualizada de mensajes')}
         />
     );
 };

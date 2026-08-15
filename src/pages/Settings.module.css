@@ -1261,6 +1261,71 @@
     }
 }
 
+/* ============================================================================
+   [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma
+   ============================================================================
+   Reutiliza .themeGroup / .themeOption / .themeOptionActive / .themeCheck tal
+   cual: misma sección, misma forma de pregunta ("elige uno de N") y, sobre
+   todo, hereda los overrides de `html[data-theme="dark"]` que ya existen para
+   esas clases. Una clase paralela habría que mantenerla en dos temas.
+
+   Lo único propio es la insignia: donde el tema pinta un icono, el idioma pinta
+   su subtag (ES/EN/PT/FR/IT).
+
+   SIN BANDERAS, y es deliberado: una bandera es un país, no un idioma. El
+   francés no es de Francia como el español no es de España — y aquí el idioma
+   base es es-DO justamente porque esa distinción importa. Un usuario mexicano
+   que ve la bandera de España sobre "Español" lee que ese no es su idioma. El
+   subtag no tiene ese problema y además es lo que el usuario ve en cualquier
+   otro producto (`en-US`, `pt-BR`). */
+.langBadge {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.85rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #64748B 0%, #334155 100%);
+    box-shadow:
+        0 4px 12px -2px rgba(15, 23, 42, 0.22),
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.35);
+}
+
+/* El idioma activo gana la tinta de marca; el resto quedan en gris pizarra.
+   Así la fila seleccionada se lee de un vistazo sin depender solo del check. */
+.langBadgeActive {
+    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+}
+
+/* La etiqueta va en su propio idioma («Français», no «Francés»): quien busca su
+   idioma en una lista no sabe leer la que tiene delante. Por eso el atributo
+   `lang` de cada fila también importa — sin él, un lector de pantalla en
+   español pronuncia "Français" con fonética española. */
+.langNative {
+    font-weight: 700;
+    color: var(--text-main);
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+}
+
+@media (max-width: 600px) {
+    .langBadge {
+        width: 2.4rem;
+        height: 2.4rem;
+        border-radius: 0.75rem;
+        font-size: 0.7rem;
+    }
+    .langNative {
+        font-size: 0.92rem;
+    }
+}
+
 /* Base button animations */
 .actionBtn {
     transition: none;

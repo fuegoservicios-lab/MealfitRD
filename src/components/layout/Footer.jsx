@@ -9,6 +9,7 @@ import Wordmark from '../common/Wordmark';
 // Header.jsx — gatea el <details> de Soporte y la ausencia de fila inferior;
 // las rutas no-papel conservan el copyright de una sola línea.
 import { isPaperSurface } from '../../utils/paperSurface';
+import { useT } from '../../i18n';
 
 // [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una página legal,
 // NO usar ese path como `from` del próximo Link (eso haría que "Volver" regrese de
@@ -57,6 +58,7 @@ FooterColumn.propTypes = {
 };
 
 const Footer = () => {
+    const t = useT();
     const location = useLocation();
     const isOnLegalPage = LEGAL_PATHS.includes(location.pathname);
     // [P1-PAPER-THEME · 2026-08-01] ¿La ruta activa es superficie papel? Decide
@@ -76,8 +78,7 @@ const Footer = () => {
                         <Wordmark />
                     </h3>
                     <p className={styles.desc}>
-                        Nutrición de precisión potenciada por Inteligencia Artificial.
-                        Tu camino hacia una vida más saludable empieza aquí.
+                        {t('Nutrición de precisión potenciada por Inteligencia Artificial. Tu camino hacia una vida más saludable empieza aquí.')}
                     </p>
                     <div className={styles.socialLinks}>
                         <a href="https://www.tiktok.com/@mealfitrd?_r=1&_t=ZS-93cjeaZR3NI" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="TikTok">
@@ -139,20 +140,20 @@ const Footer = () => {
                         a 2 columnas) no bastaba por sí sola para bajar de 812px de alto en
                         móvil. Los 5 links siguen siendo los mismos 5 destinos, un tap detrás.
                         Las 15 rutas no-papel conservan el <h4> plano, sin cambios. */}
-                    <FooterColumn title="Términos y servicios" collapsible={isPaper}>
-                                <Link to="/terms" state={{ from: fromPath }}>Términos de Servicio</Link>
-                                <Link to="/acceptable-use" state={{ from: fromPath }}>Política de Uso</Link>
-                                <Link to="/refunds" state={{ from: fromPath }}>Reembolsos y Cancelaciones</Link>
-                                <Link to="/ai-policy" state={{ from: fromPath }}>Uso de Inteligencia Artificial</Link>
-                                <Link to="/medical" state={{ from: fromPath }}>Aviso Médico</Link>
+                    <FooterColumn title={t('Términos y servicios')} collapsible={isPaper}>
+                                <Link to="/terms" state={{ from: fromPath }}>{t('Términos de Servicio')}</Link>
+                                <Link to="/acceptable-use" state={{ from: fromPath }}>{t('Política de Uso')}</Link>
+                                <Link to="/refunds" state={{ from: fromPath }}>{t('Reembolsos y Cancelaciones')}</Link>
+                                <Link to="/ai-policy" state={{ from: fromPath }}>{t('Uso de Inteligencia Artificial')}</Link>
+                                <Link to="/medical" state={{ from: fromPath }}>{t('Aviso Médico')}</Link>
                     </FooterColumn>
                 </div>
 
                 <div className={styles.col}>
-                    <FooterColumn title="Privacidad y datos" collapsible={isPaper}>
-                                <Link to="/privacy" state={{ from: fromPath }}>Política de Privacidad</Link>
-                                <Link to="/data-protection" state={{ from: fromPath }}>Protección de Datos</Link>
-                                <Link to="/responsible-disclosure" state={{ from: fromPath }}>Divulgación Responsable</Link>
+                    <FooterColumn title={t('Privacidad y datos')} collapsible={isPaper}>
+                                <Link to="/privacy" state={{ from: fromPath }}>{t('Política de Privacidad')}</Link>
+                                <Link to="/data-protection" state={{ from: fromPath }}>{t('Protección de Datos')}</Link>
+                                <Link to="/responsible-disclosure" state={{ from: fromPath }}>{t('Divulgación Responsable')}</Link>
                     </FooterColumn>
                 </div>
 
@@ -163,13 +164,13 @@ const Footer = () => {
                         <details> de Términos+Privacidad solo (868,9px) no bastaba para bajar
                         de 812px: Empresas+Soporte, la fila siguiente, seguía a 249px de alto
                         (el mayor bloque restante tras Marca). Mismo patrón aquí. */}
-                    <FooterColumn title="Empresas" collapsible={isPaper}>
+                    <FooterColumn title={t('Empresas')} collapsible={isPaper}>
                             <Link to="/about" state={{ from: fromPath }}>Bioboros</Link>
-                            <Link to="/novedades" state={{ from: fromPath }}>Novedades</Link>
+                            <Link to="/novedades" state={{ from: fromPath }}>{t('Novedades')}</Link>
                             {/* [P1-SUPERMARKET-DB · 2026-07-02] Base de datos pública del
                                 Supermercado RD (alimentos verificados + precios RD$). */}
-                            <Link to="/supermercado" state={{ from: fromPath }}>Supermercados RD</Link>
-                            <Link to="/research" state={{ from: fromPath }}>Investigación</Link>
+                            <Link to="/supermercado" state={{ from: fromPath }}>{t('Supermercados RD')}</Link>
+                            <Link to="/research" state={{ from: fromPath }}>{t('Investigación')}</Link>
                     </FooterColumn>
                 </div>
 
@@ -181,8 +182,8 @@ const Footer = () => {
                         <640px el contacto de soporte pasa a un tap detrás del summary — el
                         mismo trade-off que Empresas. Sigue "alcanzable" (12/12 destinos), y
                         en desktop/tablet se ve exactamente igual que antes (forzado abierto). */}
-                    <FooterColumn title="Soporte" collapsible={isPaper}>
-                                <p className={styles.supportIntro}>¿Dudas o problemas? Estamos para ayudarte.</p>
+                    <FooterColumn title={t('Soporte')} collapsible={isPaper}>
+                                <p className={styles.supportIntro}>{t('¿Dudas o problemas? Estamos para ayudarte.')}</p>
                                 <a href="mailto:fuego.servicios@gmail.com" className={styles.supportLink}>
                                     <span className={styles.supportIcon} aria-hidden="true">
                                         <Mail size={16} strokeWidth={2.25} />
@@ -191,7 +192,7 @@ const Footer = () => {
                                 </a>
                                 <p className={styles.supportNote}>
                                     <Clock size={13} strokeWidth={2.25} aria-hidden="true" />
-                                    Respondemos en menos de 24 horas
+                                    {t('Respondemos en menos de 24 horas')}
                                 </p>
                     </FooterColumn>
                 </div>
@@ -207,7 +208,7 @@ const Footer = () => {
                     el historial de Footer.module.css (regla §4.7). */}
                 {!isPaper && (
                     <div className={styles.bottom}>
-                        &copy; {new Date().getFullYear()} Bioboros. Todos los derechos reservados.
+                        {t('© {year} Bioboros. Todos los derechos reservados.', { year: new Date().getFullYear() })}
                     </div>
                 )}
             </div>

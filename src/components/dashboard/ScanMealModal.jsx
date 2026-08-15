@@ -16,8 +16,9 @@ import styles from './ScanMealModal.module.css';
 // con guion bajo conservan los nombres históricos de este archivo para no tocar sus
 // ~17 call sites en el mismo commit que la extracción.
 import MacroInput from '../common/MacroInput';
+import { useT, useTn } from '../../i18n';
 import {
-    MEAL_TYPES as _MEAL_TYPES,
+    getMealTypes as _getMealTypes,
     guessMealType as _guessMealType,
     clampMacro as _clampMacro,
 } from './mealLogShared';
@@ -98,6 +99,8 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
     // tablet en modo táctil reporta coarse y conserva la cámara — que es lo correcto en ambos.
     // Se reusa el hook SSOT (P2-14) en vez de un matchMedia propio; ya lo usa PantryScanButton
     // para decidir su visor en vivo, o sea es la misma pregunta ya contestada en el repo.
+    const t = useT();
+    const tn = useTn();
     const isCoarsePointer = useMediaQuery('(pointer: coarse)');
     // phase: 'select' (elegir foto) | 'scanning' | 'review' | 'saving'
     const [phase, setPhase] = useState('select');
@@ -182,11 +185,11 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
 
         const declaredType = (file.type || '').toLowerCase();
         if (declaredType && !_ALLOWED_TYPES.includes(declaredType)) {
-            setError('Formato no soportado. Usa una foto JPG, PNG, WebP o HEIC.');
+            setError(t('Formato no soportado. Usa una foto JPG, PNG, WebP o HEIC.'));
             return;
         }
         if (file.size > _MAX_BYTES) {
-            setError('La imagen es muy grande (máx. 20 MB).');
+            setError(t('La imagen es muy grande (máx. 20 MB).'));
             return;
         }
 
@@ -212,14 +215,14 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                throw new Error(data?.detail || 'No se pudo analizar la imagen.');
+                throw new Error(data?.detail || t('No se pudo analizar la imagen.'));
             }
             // [P1-MEAL-SCAN-GEMMA · 2026-07-12] La GPU local es single-flight:
             // "ocupado" se resuelve en segundos — mensaje distinto de "caído".
             if (data.busy) {
                 _setPreviewUrl(null);
                 setPhase('select');
-                setError('El escáner está procesando otra foto — dale unos segundos e intenta de nuevo.');
+                setError(t('El escáner está procesando otra foto — dale unos segundos e intenta de nuevo.'));
                 return;
             }
             // [P2-DIARY-SCAN-MACROS · 2026-05-30] Distingue "analizador caído"
@@ -228,7 +231,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             if (data.analysis_failed) {
                 _setPreviewUrl(null);
                 setPhase('select');
-                setError('El analizador de imágenes no está disponible ahora mismo. Intenta de nuevo en unos minutos.');
+                setError(t('El analizador de imágenes no está disponible ahora mismo. Intenta de nuevo en unos minutos.'));
                 return;
             }
             // [P1-CHAT-VISION-GEMMA · 2026-07-12] La foto es una COMPRA o
@@ -237,13 +240,13 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             if (data.photo_kind === 'items') {
                 _setPreviewUrl(null);
                 setPhase('select');
-                setError('Esto parece una compra o alimentos sueltos, no un plato servido. Para llevarlos a tu Nevera usa "Escanear mi nevera" (página Nevera) o mándale la foto al Agente.');
+                setError(t('Esto parece una compra o alimentos sueltos, no un plato servido. Para llevarlos a tu Nevera usa "Escanear mi nevera" (página Nevera) o mándale la foto al Agente.'));
                 return;
             }
             if (!data.is_food) {
                 _setPreviewUrl(null);
                 setPhase('select');
-                setError('No detectamos comida en la foto. Intenta con otra toma del plato.');
+                setError(t('No detectamos comida en la foto. Intenta con otra toma del plato.'));
                 return;
             }
 
@@ -276,21 +279,21 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             setMultiplier(1);
             setForm((prev) => ({
                 ...prev,
-                meal_name: (data.meal_name || '').slice(0, 200) || 'Comida escaneada',
+                meal_name: (data.meal_name || '').slice(0, 200) || t('Comida escaneada'),
                 ...nextBase,
             }));
             setPhase('review');
 
             if (data.red_alert) {
-                toast.warning('Comida alta en calorías a una hora poco habitual.');
+                toast.warning(t('Comida alta en calorías a una hora poco habitual.'));
             }
         } catch (err) {
             console.error('Error escaneando comida:', err);
             _setPreviewUrl(null);
             setPhase('select');
-            setError('No pudimos analizar la imagen. Revisa tu conexión e intenta de nuevo.');
+            setError(t('No pudimos analizar la imagen. Revisa tu conexión e intenta de nuevo.'));
         }
-    }, [userId, _setPreviewUrl]);
+    }, [userId, _setPreviewUrl, t]);
 
     const onCameraChange = (e) => { handleFile(e.target.files?.[0]); e.target.value = ''; };
     const onGalleryChange = (e) => { handleFile(e.target.files?.[0]); e.target.value = ''; };
@@ -337,7 +340,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
     const handleSave = useCallback(async () => {
         const name = form.meal_name.trim();
         if (!name) {
-            setError('Ponle un nombre a la comida.');
+            setError(t('Ponle un nombre a la comida.'));
             return;
         }
         setError(null);
@@ -371,7 +374,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             });
             const data = await res.json();
             if (!res.ok || !data.success) {
-                throw new Error(data?.message || data?.detail || 'No se pudo registrar.');
+                throw new Error(data?.message || data?.detail || t('No se pudo registrar.'));
             }
             // Refresca la tarjeta de progreso (mismo evento que usa el chat).
             window.dispatchEvent(new Event('mealfit:refresh-inventory'));
@@ -385,21 +388,29 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 + (Array.isArray(data.inferred) ? data.inferred.length : 0);
             let descripcion;
             if (ausentes.length > 0) {
-                descripcion = `Descontamos ${bajaron} de tu Nevera. No estaban registrados: ${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`;
+                descripcion = t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
+                    n: bajaron,
+                    faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
+                });
             } else if (bajaron > 0) {
-                descripcion = `Descontamos ${bajaron} ingrediente${bajaron === 1 ? '' : 's'} de tu Nevera.`;
+                descripcion = tn(
+                    bajaron,
+                    'Descontamos {n} ingrediente de tu Nevera.',
+                    'Descontamos {n} ingredientes de tu Nevera.',
+                    { n: bajaron }
+                );
             }
             toast.success(
-                `${name} registrada (${form.calories} kcal).`,
+                t('{nombre} registrada ({kcal} kcal).', { nombre: name, kcal: form.calories }),
                 descripcion ? { description: descripcion } : undefined
             );
             onClose();
         } catch (err) {
             console.error('Error registrando comida:', err);
             setPhase('review');
-            setError('No pudimos registrar la comida. Intenta de nuevo.');
+            setError(t('No pudimos registrar la comida. Intenta de nuevo.'));
         }
-    }, [form, userId, onClose, components]);
+    }, [form, userId, onClose, components, t, tn]);
 
     const handleOverlayClick = useCallback((e) => {
         if (e.target === e.currentTarget && !isBusy) onClose();
@@ -425,13 +436,13 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                         <span className={styles.titleIco}>
                             <Camera size={17} strokeWidth={2.25} />
                         </span>
-                        Escanear comida
+                        {t('Escanear comida')}
                     </h2>
                     <button
                         className={styles.closeBtn}
                         onClick={onClose}
                         disabled={isBusy}
-                        aria-label="Cerrar"
+                        aria-label={t('Cerrar')}
                     >
                         <X size={20} />
                     </button>
@@ -441,11 +452,11 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                     pasa a banner compacto para que todo quepa sin scroll. */}
                 {preview && (
                     <div className={`${styles.previewWrap} ${(phase === 'review' || phase === 'saving') ? styles.previewCompact : ''}`}>
-                        <img src={preview} alt="Foto de la comida" className={styles.previewImg} />
+                        <img src={preview} alt={t('Foto de la comida')} className={styles.previewImg} />
                         {phase === 'scanning' && (
                             <div className={styles.scanningOverlay}>
                                 <Loader2 size={28} className={styles.spinner} />
-                                <span>Analizando tu plato… puede tardar un minuto</span>
+                                <span>{t('Analizando tu plato… puede tardar un minuto')}</span>
                             </div>
                         )}
                     </div>
@@ -463,8 +474,8 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                     <>
                         <p className={styles.hint}>
                             {isCoarsePointer
-                                ? 'Toma una foto de tu plato y la IA estimará las macros. Podrás revisarlas antes de registrar.'
-                                : 'Sube una foto de tu plato y la IA estimará las macros. Podrás revisarlas antes de registrar.'}
+                                ? t('Toma una foto de tu plato y la IA estimará las macros. Podrás revisarlas antes de registrar.')
+                                : t('Sube una foto de tu plato y la IA estimará las macros. Podrás revisarlas antes de registrar.')}
                         </p>
                         {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] De dos botones apilados a
                             OPTION-CARDS estilo action-sheet: icono en tile + label +
@@ -499,11 +510,11 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                             ramas a propósito: el usuario no elige entre visor in-app
                                             y cámara del sistema — eso lo decide la app, y el sublabel
                                             lo cuenta donde hay sitio. */}
-                                        <span className={styles.optionLabel}>Usar la cámara</span>
+                                        <span className={styles.optionLabel}>{t('Usar la cámara')}</span>
                                         <span className={styles.optionSub}>
                                             {useLiveViewfinder
-                                                ? 'Encuadra el plato y captura'
-                                                : 'Se abrirá la app de cámara'}
+                                                ? t('Encuadra el plato y captura')
+                                                : t('Se abrirá la app de cámara')}
                                         </span>
                                     </span>
                                     <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
@@ -520,11 +531,11 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                     <ImageIcon size={20} strokeWidth={2.1} />
                                 </span>
                                 <span className={styles.optionTxt}>
-                                    <span className={styles.optionLabel}>Elegir de galería</span>
+                                    <span className={styles.optionLabel}>{t('Elegir de galería')}</span>
                                     <span className={styles.optionSub}>
                                         {isCoarsePointer
-                                            ? 'Sube una foto que ya tengas'
-                                            : 'Sube una foto desde tu computadora'}
+                                            ? t('Sube una foto que ya tengas')
+                                            : t('Sube una foto desde tu computadora')}
                                     </span>
                                 </span>
                                 <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
@@ -556,34 +567,34 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 {(phase === 'review' || phase === 'saving') && (
                     <div className={styles.reviewWrap}>
                         <label className={styles.field}>
-                            <span className={styles.fieldLabel}>Nombre</span>
+                            <span className={styles.fieldLabel}>{t('Nombre')}</span>
                             <input
                                 type="text"
                                 value={form.meal_name}
                                 maxLength={200}
                                 onChange={(e) => setForm((p) => ({ ...p, meal_name: e.target.value }))}
                                 className={styles.textInput}
-                                placeholder="Ej: Mangú con salami"
+                                placeholder={t('Ej: Mangú con salami')}
                             />
                         </label>
 
                         {/* [P1-MEAL-SCAN-POLISH] Tipo + Porción en una fila. */}
                         <div className={styles.fieldRow}>
                             <label className={styles.field}>
-                                <span className={styles.fieldLabel}>Tipo de comida</span>
+                                <span className={styles.fieldLabel}>{t('Tipo de comida')}</span>
                                 <select
                                     value={form.meal_type}
                                     onChange={(e) => setForm((p) => ({ ...p, meal_type: e.target.value }))}
                                     className={styles.selectInput}
                                 >
-                                    {_MEAL_TYPES.map((t) => (
-                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                    {_getMealTypes(t).map((mt) => (
+                                        <option key={mt.value} value={mt.value}>{mt.label}</option>
                                     ))}
                                 </select>
                             </label>
 
                             <div className={styles.field}>
-                                <span className={styles.fieldLabel}>Porción</span>
+                                <span className={styles.fieldLabel}>{t('Porción')}</span>
                                 <div className={styles.portionRow}>
                                     {_PORTIONS.map((p) => (
                                         <button
@@ -591,7 +602,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                             type="button"
                                             className={`${styles.portionBtn} ${multiplier === p ? styles.portionActive : ''}`}
                                             onClick={() => applyPortion(p)}
-                                            title="Multiplica las macros estimadas; también puedes editarlas abajo"
+                                            title={t('Multiplica las macros estimadas; también puedes editarlas abajo')}
                                         >
                                             {p === 0.5 ? '½×' : `${p}×`}
                                         </button>
@@ -601,13 +612,13 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                         </div>
 
                         <div className={styles.macrosGrid}>
-                            <MacroInput classes={_MACRO_CLASSES} label="Calorías" unit="kcal" value={form.calories}
+                            <MacroInput classes={_MACRO_CLASSES} label={t('Calorías')} unit="kcal" value={form.calories}
                                 onChange={(v) => handleMacroChange('calories', v)} />
-                            <MacroInput classes={_MACRO_CLASSES} label="Proteína" unit="g" value={form.protein}
+                            <MacroInput classes={_MACRO_CLASSES} label={t('Proteína')} unit="g" value={form.protein}
                                 onChange={(v) => handleMacroChange('protein', v)} />
-                            <MacroInput classes={_MACRO_CLASSES} label="Carbohidratos" unit="g" value={form.carbs}
+                            <MacroInput classes={_MACRO_CLASSES} label={t('Carbohidratos')} unit="g" value={form.carbs}
                                 onChange={(v) => handleMacroChange('carbs', v)} />
-                            <MacroInput classes={_MACRO_CLASSES} label="Grasas" unit="g" value={form.healthy_fats}
+                            <MacroInput classes={_MACRO_CLASSES} label={t('Grasas')} unit="g" value={form.healthy_fats}
                                 onChange={(v) => handleMacroChange('healthy_fats', v)} />
                         </div>
 
@@ -622,11 +633,10 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                         {components.length > 0 && (
                             <div className={styles.componentsBlock}>
                                 <span className={styles.fieldLabel}>
-                                    Descontar de tu Nevera
+                                    {t('Descontar de tu Nevera')}
                                 </span>
                                 <p className={styles.componentsHint}>
-                                    Lo detectamos en la foto. Desmarca lo que no lleve
-                                    o ajusta la cantidad.
+                                    {t('Lo detectamos en la foto. Desmarca lo que no lleve o ajusta la cantidad.')}
                                 </p>
                                 {components.map((c, i) => (
                                     <label key={`${c.name}-${i}`} className={styles.componentRow}>
@@ -637,7 +647,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                             onChange={() => setComponents((prev) => prev.map(
                                                 (x, j) => (j === i ? { ...x, checked: !x.checked } : x)
                                             ))}
-                                            aria-label={`Descontar ${c.name} de tu Nevera`}
+                                            aria-label={t('Descontar {nombre} de tu Nevera', { nombre: c.name })}
                                         />
                                         <input
                                             type="number"
@@ -658,10 +668,12 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                                     (x, j) => (j === i ? { ...x, quantity: q } : x)
                                                 ));
                                             }}
-                                            aria-label={`Cantidad de ${c.name}`}
+                                            aria-label={t('Cantidad de {nombre}', { nombre: c.name })}
                                         />
                                         <span className={styles.componentName}>
-                                            {c.unit} de {c.name}
+                                            {/* El nombre del alimento y la unidad vienen del
+                                                catálogo/vision agent: solo se traduce el nexo. */}
+                                            {t('{unidad} de {nombre}', { unidad: c.unit, nombre: c.name })}
                                         </span>
                                     </label>
                                 ))}
@@ -674,7 +686,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                 onClick={() => { _setPreviewUrl(null); setPhase('select'); setError(null); }}
                                 disabled={phase === 'saving'}
                             >
-                                Volver a escanear
+                                {t('Volver a escanear')}
                             </button>
                             <button
                                 className={styles.saveBtn}
@@ -682,8 +694,8 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                 disabled={phase === 'saving'}
                             >
                                 {phase === 'saving'
-                                    ? <><Loader2 size={16} className={styles.spinner} /> Registrando…</>
-                                    : <><Check size={16} /> Registrar comida</>}
+                                    ? <><Loader2 size={16} className={styles.spinner} /> {t('Registrando…')}</>
+                                    : <><Check size={16} /> {t('Registrar comida')}</>}
                             </button>
                         </div>
                     </div>
@@ -697,11 +709,11 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             que resuelve cuando el análisis acabó. */}
         <CameraViewfinder
             isOpen={viewfinderOpen}
-            title="Escanear tu plato"
-            hint="Encuadra el plato completo, de frente"
+            title={t('Escanear tu plato')}
+            hint={t('Encuadra el plato completo, de frente')}
             busy={phase === 'scanning'}
-            busyHint="Estimando las macros…"
-            busyHintLong="Todavía analizando — la foto tenía mucho detalle"
+            busyHint={t('Estimando las macros…')}
+            busyHintLong={t('Todavía analizando — la foto tenía mucho detalle')}
             fileName="plato.jpg"
             onCapture={handleViewfinderCapture}
             onClose={() => setViewfinderOpen(false)}

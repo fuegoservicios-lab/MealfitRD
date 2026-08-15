@@ -19,7 +19,13 @@
  * en los dos modos y sigue siendo útil en el contador: con la nevera vacía hay
  * menos que registrar y menos que escanear. Lo que se cae en pausa es la razón
  * prestada al plan y la promesa de compra automática.
+ *
+ * [P1-I18N-DASHBOARD · 2026-08-15] `t`/`tn` de módulo, no el hook: aquí no hay
+ * componentes, son dos funciones sueltas. Se invocan EN RENDER desde `Pantry.jsx`,
+ * así que leen el catálogo ya cargado; el repintado al cambiar de idioma lo dispara
+ * el remonte del subárbol que hace el Provider.
  */
+import { t, tn } from '../i18n';
 
 /**
  * @param {{meaningful_count?: number, recommended_target?: number}} estado
@@ -31,16 +37,21 @@
 export function textoNeveraBaja(estado, enModoContador) {
     const n = estado?.meaningful_count ?? 0;
     const objetivo = estado?.recommended_target || 20;
-    const unidad = n === 1 ? 'alimento' : 'alimentos';
-    const hecho = `Tu nevera está baja (tienes ${n} ${unidad}).`;
+    const hecho = tn(
+        n,
+        'Tu nevera está baja (tienes {n} alimento).',
+        'Tu nevera está baja (tienes {n} alimentos).',
+        { n },
+    );
 
     if (enModoContador) {
         // Ni «plan» ni «lista» ni «automáticamente»: nada de eso ocurre ahora.
         // La razón que se ofrece es una que la Nevera SÍ sostiene por sí sola.
-        return `${hecho} Con más ingredientes registrados, escanear y anotar lo que comes te cuesta menos.`;
+        return `${hecho} ${t('Con más ingredientes registrados, escanear y anotar lo que comes te cuesta menos.')}`;
     }
-    return `${hecho} Te recomendamos tener ~${objetivo} para que tus planes aprovechen mejor tu nevera. `
-        + 'Mientras tanto, tus próximas listas de mantenimiento comprarán lo que falte automáticamente.';
+    // La clave del catálogo es UN literal: partirla con `+` haría que el extractor
+    // de `i18n:check` registrara solo el primer trozo y la traducción nacería huérfana.
+    return `${hecho} ${t('Te recomendamos tener ~{objetivo} para que tus planes aprovechen mejor tu nevera. Mientras tanto, tus próximas listas de mantenimiento comprarán lo que falte automáticamente.', { objetivo })}`;
 }
 
 /**
@@ -61,7 +72,7 @@ export function textoNeveraBaja(estado, enModoContador) {
 export function tooltipCaducidad(etiqueta, enModoContador) {
     const hecho = String(etiqueta || '').trim();
     if (enModoContador) {
-        return hecho ? `${hecho}. Consúmelo pronto.` : 'Consúmelo pronto.';
+        return hecho ? `${hecho}. ${t('Consúmelo pronto.')}` : t('Consúmelo pronto.');
     }
-    return `Tu plan priorizará este ingrediente. ${hecho}.`;
+    return `${t('Tu plan priorizará este ingrediente.')} ${hecho}.`;
 }

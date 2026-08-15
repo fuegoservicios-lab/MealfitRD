@@ -13,6 +13,7 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 import PlanShowcase from '../components/auth/PlanShowcase';
 import './Login.css';
 import Wordmark from '../components/common/Wordmark';
+import { useT } from '../i18n';
 
 // [P1-EMAIL-OTP · 2026-06-21] Login SIN contraseña: un solo flujo correo → código.
 // [P3-LOGIN-EDITORIAL · 2026-06-29] Rediseño editorial oscuro de dos paneles (form +
@@ -117,6 +118,7 @@ const clearPendingOtp = () => {
 };
 
 const Login = () => {
+    const t = useT();
     const navigate = useNavigate();
     const location = useLocation();
     const { activateGuestMode, session } = useAssessment();
@@ -197,7 +199,7 @@ const Login = () => {
         setError(null);
         const clean = email.trim();
         if (!clean) {
-            setError('Ingresa tu correo electrónico.');
+            setError(t('Ingresa tu correo electrónico.'));
             return;
         }
         setLoading(true);
@@ -227,7 +229,7 @@ const Login = () => {
     const enviarCodigo = async (valor) => {
         const clean = String(valor || '').trim();
         if (clean.length < 4) {
-            setError('Ingresa el código que te enviamos por correo.');
+            setError(t('Ingresa el código que te enviamos por correo.'));
             return;
         }
         if (submittingRef.current) return; // el auto-envío y el botón pueden coincidir
@@ -324,7 +326,7 @@ const Login = () => {
             // ÚLTIMO envío, no desde el primero.
             savePendingOtp(email.trim());
             setCooldown(RESEND_COOLDOWN_S);
-            toast.success('Te reenviamos el código.');
+            toast.success(t('Te reenviamos el código.'));
         }
     };
 
@@ -383,18 +385,18 @@ const Login = () => {
                 <div className="mf-form__inner">
                     <div className="mf-hero-illu" aria-hidden="true"><HeroIllustration /></div>
                     <h1 className="mf-headline">
-                        <span>Tu mejor versión,</span>
-                        <span>un plato a la vez.</span>
+                        <span>{t('Tu mejor versión,')}</span>
+                        <span>{t('un plato a la vez.')}</span>
                     </h1>
                     <p className="mf-sub">
-                        Planes de comida personalizados a tu objetivo, calculados a tu perfil y listos en minutos.
+                        {t('Planes de comida personalizados a tu objetivo, calculados a tu perfil y listos en minutos.')}
                     </p>
 
                     {step === 'email' ? (
                         <>
                             <form className="mf-card" onSubmit={handleEmailSubmit}>
                                 <button type="button" className="mf-btn mf-btn--google" onClick={handleGoogle} disabled={googleLoading}>
-                                    <GoogleIcon /> {googleLoading ? 'Conectando con Google…' : 'Continuar con Google'}
+                                    <GoogleIcon /> {googleLoading ? t('Conectando con Google…') : t('Continuar con Google')}
                                 </button>
 
                                 <div className="mf-divider"><span>o</span></div>
@@ -406,8 +408,8 @@ const Login = () => {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="Ingresa tu correo electrónico"
-                                    aria-label="Correo electrónico"
+                                    placeholder={t('Ingresa tu correo electrónico')}
+                                    aria-label={t('Correo electrónico')}
                                     // [P2-13] liga el error al campo para lectores de pantalla.
                                     aria-invalid={!!error}
                                     aria-describedby={error ? 'login-error' : undefined}
@@ -428,9 +430,9 @@ const Login = () => {
 
                                 <button type="submit" className="mf-btn mf-btn--primary" disabled={loading}>
                                     {loading ? (
-                                        <><Loader2 className="mf-loader" size={18} /> Enviando código…</>
+                                        <><Loader2 className="mf-loader" size={18} /> {t('Enviando código…')}</>
                                     ) : (
-                                        <>Continuar con correo <ArrowRight size={18} /></>
+                                        <>{t('Continuar con correo')} <ArrowRight size={18} /></>
                                     )}
                                 </button>
 
@@ -440,24 +442,24 @@ const Login = () => {
                                     decisión. Enlazar solo privacidad deja el consentimiento a
                                     medias: son dos documentos distintos. */}
                                 <p className="mf-privacy">
-                                    Al continuar, aceptas nuestros{' '}
-                                    <a href={landingLegalUrl('/terms')} target="_blank" rel="noopener noreferrer">Términos de Uso</a>
-                                    {' '}y reconoces nuestra{' '}
-                                    <a href={landingLegalUrl('/privacy')} target="_blank" rel="noopener noreferrer">Política de Privacidad</a>.
+                                    {t('Al continuar, aceptas nuestros')}{' '}
+                                    <a href={landingLegalUrl('/terms')} target="_blank" rel="noopener noreferrer">{t('Términos de Uso')}</a>
+                                    {' '}{t('y reconoces nuestra')}{' '}
+                                    <a href={landingLegalUrl('/privacy')} target="_blank" rel="noopener noreferrer">{t('Política de Privacidad')}</a>.
                                 </p>
                             </form>
 
                             <button type="button" className="mf-btn mf-btn--ghost" onClick={handleGuest} disabled={guestLoading}>
-                                {guestLoading ? 'Entrando…' : 'Probar sin cuenta'}
+                                {guestLoading ? t('Entrando…') : t('Probar sin cuenta')}
                             </button>
                             <p className="mf-guest-sub">
-                                Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.
+                                {t('Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.')}
                             </p>
                         </>
                     ) : (
                         <form className="mf-card" onSubmit={handleCodeSubmit}>
                             <p className="mf-code-hint">
-                                Te enviamos un código a <strong>{email.trim()}</strong>.
+                                {t('Te enviamos un código a')} <strong>{email.trim()}</strong>.
                             </p>
 
                             <input
@@ -472,7 +474,7 @@ const Login = () => {
                                 onChange={handleCodeChange}
                                 enterKeyHint="go"
                                 placeholder="123456"
-                                aria-label="Código de verificación"
+                                aria-label={t('Código de verificación')}
                                 // [P2-13] liga el error al campo para lectores de pantalla.
                                 aria-invalid={!!error}
                                 aria-describedby={error ? 'login-error' : undefined}
@@ -483,15 +485,15 @@ const Login = () => {
 
                             <button type="submit" className="mf-btn mf-btn--primary" disabled={loading}>
                                 {loading ? (
-                                    <><Loader2 className="mf-loader" size={18} /> Verificando…</>
+                                    <><Loader2 className="mf-loader" size={18} /> {t('Verificando…')}</>
                                 ) : (
-                                    <>Entrar <ArrowRight size={18} /></>
+                                    <>{t('Entrar')} <ArrowRight size={18} /></>
                                 )}
                             </button>
 
                             <div className="mf-code-actions">
                                 <button type="button" onClick={backToEmail}>
-                                    <ArrowLeft size={14} aria-hidden="true" /> Usar otro correo
+                                    <ArrowLeft size={14} aria-hidden="true" /> {t('Usar otro correo')}
                                 </button>
                                 <button
                                     type="button"
@@ -499,12 +501,12 @@ const Login = () => {
                                     disabled={cooldown > 0 || loading}
                                     style={{ opacity: cooldown > 0 ? 0.55 : 1 }}
                                 >
-                                    {cooldown > 0 ? `Reenviar código (${cooldown}s)` : 'Reenviar código'}
+                                    {cooldown > 0 ? t('Reenviar código ({segundos}s)', { segundos: cooldown }) : t('Reenviar código')}
                                 </button>
                             </div>
 
                             <p className="mf-privacy">
-                                ¿Primera vez? Con el código creamos tu cuenta automáticamente. Revisa también el spam.
+                                {t('¿Primera vez? Con el código creamos tu cuenta automáticamente. Revisa también el spam.')}
                             </p>
                         </form>
                     )}

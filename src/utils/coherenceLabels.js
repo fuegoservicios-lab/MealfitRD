@@ -130,6 +130,60 @@ export const getCoherenceHypothesisLabel = (code) => {
 };
 
 // ---------------------------------------------------------------------------
+// 3. [P1-I18N-DASHBOARD · 2026-08-15] Las mismas etiquetas, traducibles.
+// ---------------------------------------------------------------------------
+// Los dos mapas de arriba se quedan EXACTAMENTE como están: son el SSOT y
+// `test_p1_3_coherence_labels_cross_language.py` los parsea para exigir paridad
+// con las tres fuentes Python del backend. Meterles `t()` dentro además los
+// convertiría en llamadas en ámbito de módulo — evaluadas al importar, antes de
+// que exista catálogo, congeladas en español para siempre.
+//
+// Estas tablas duplican los valores a propósito. La alternativa,
+// `t(COHERENCE_HYPOTHESIS_LABELS[code])`, funcionaría en runtime —la clave del
+// catálogo ES el texto español— pero sería una clave DINÁMICA e invisible para
+// `npm run i18n:check`: nunca entraría en los catálogos y estas etiquetas se
+// quedarían en español en los otros 4 idiomas sin que nada avisara.
+//
+// Si el backend añade un code y solo se actualiza el SSOT, el `??` de abajo lo
+// pinta en español. Degrada; no inventa copy ni miente.
+
+const _translatedActionLabels = (t) => ({
+    not_applicable: t('Sin ajuste'),
+    post_swap_revalidation: t('Revalidación post-swap'),
+    degrade: t('Plan degradado'),
+    reject_minor: t('Rechazo leve'),
+    reject_high: t('Rechazo alto'),
+    hydration_error: t('Error de hidratación'),
+});
+
+const _translatedHypothesisLabels = (t) => ({
+    cap_swallowed_modifier: t('Falta en la lista'),
+    unit_mismatch: t('Unidad distinta'),
+    yield_uncovered: t('Yield no aplicado'),
+    pantry_overdeduct: t('Nevera dedujo de más'),
+    magnitude_undersupply: t('Compra menor que la receta'),
+    magnitude_mild_short: t('Compra algo por debajo de la receta'),
+    recipe_unquantified: t('Sin cantidad en la receta'),
+    unknown: t('Causa indeterminada'),
+});
+
+/** Como `getCoherenceActionLabel`, traducida. `null` si el code no existe. */
+export const getCoherenceActionLabelI18n = (code, t) => {
+    const es = getCoherenceActionLabel(code);
+    if (es === null) return null;
+    if (typeof t !== 'function') return es;
+    return _translatedActionLabels(t)[code.trim()] ?? es;
+};
+
+/** Como `getCoherenceHypothesisLabel`, traducida. `null` si el code no existe. */
+export const getCoherenceHypothesisLabelI18n = (code, t) => {
+    const es = getCoherenceHypothesisLabel(code);
+    if (es === null) return null;
+    if (typeof t !== 'function') return es;
+    return _translatedHypothesisLabels(t)[code.trim()] ?? es;
+};
+
+// ---------------------------------------------------------------------------
 // Exports raw para tests de paridad backend↔frontend (parser estático).
 // ---------------------------------------------------------------------------
 export const _COHERENCE_ACTION_LABELS_MAP = COHERENCE_ACTION_LABELS;

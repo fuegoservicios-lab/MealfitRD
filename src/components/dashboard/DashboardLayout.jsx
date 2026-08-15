@@ -48,10 +48,12 @@ import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
 // al hover/touch del NavItem — el data llega antes que el click.
 import { prefetchHistoryList } from '../../utils/historyCaches';
+import { useT } from '../../i18n';
 import styles from './DashboardLayout.module.css';
 import Wordmark from '../common/Wordmark';
 
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
+    const t = useT();
     const location = useLocation();
     const navigate = useNavigate();
     const { resetApp, userProfile, planData, session, isPremium, isGuest, exitGuestSession } = useAssessment();
@@ -163,7 +165,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         .map((it) => ({ ...it, ..._navIcons[it.key] }));
 
     // [P1-GUEST-LOGOUT · 2026-06-15] Un invitado no tiene email: mostrar "Invitado".
-    const logoutLabel = isGuest ? 'Salir del modo invitado' : 'Cerrar sesión';
+    const logoutLabel = isGuest ? t('Salir del modo invitado') : t('Cerrar sesión');
 
     // [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Datos para la card del menú de cuenta.
     // Reusa la misma lógica guest/tier del popover previo: invitado → 'Invitado'
@@ -174,17 +176,19 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // se ha guardado un nombre.
     const profileName = (userProfile?.full_name || '').trim();
     const accountName = isGuest
-        ? 'Invitado'
-        : (profileName || (realEmail ? realEmail.split('@')[0] : 'Cuenta'));
+        ? t('Invitado')
+        : (profileName || (realEmail ? realEmail.split('@')[0] : t('Cuenta')));
     const accountEmail = isGuest ? null : (realEmail || null);
-    const accountSubLabel = isGuest ? 'Plan de muestra' : null;
+    const accountSubLabel = isGuest ? t('Plan de muestra') : null;
+    // [P1-I18N-DASHBOARD · 2026-08-15] «Max» y «Plus» son NOMBRES de tier (no se
+    // traducen, igual que la marca); «Gratuito» y «Básico» son adjetivos y sí.
     const planLabel = isGuest
-        ? 'Invitado'
+        ? t('Invitado')
         : !isPremium
-        ? 'Gratuito'
+        ? t('Gratuito')
         : userProfile?.plan_tier === 'ultra' ? 'Max'
         : userProfile?.plan_tier === 'plus' ? 'Plus'
-        : 'Básico';
+        : t('Básico');
     const isUltraTier = isPremium && userProfile?.plan_tier === 'ultra';
     const accountAvatarNode = avatarId
         ? <MinimalAvatar id={avatarId} size={34} style={{ borderRadius: '50%', width: '100%', height: '100%' }} />
@@ -245,7 +249,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                     className={styles.navItem}
                                     onClick={closeMenu}
                                     style={{ opacity: 0.6 }}
-                                    title="Crea tu cuenta para desbloquear"
+                                    title={t('Crea tu cuenta para desbloquear')}
                                 >
                                     <Icon size={20} strokeWidth={item.iconStroke ?? 2} />
                                     <span style={{ flex: 1 }}>{item.label}</span>
@@ -272,7 +276,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 >
                                     <Icon size={20} strokeWidth={item.iconStroke ?? 2} />
                                     <span style={{ flex: 1 }}>{item.label}</span>
-                                    <span style={{ fontSize: '10px', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>🔒 Básico</span>
+                                    <span style={{ fontSize: '10px', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>🔒 {t('Básico')}</span>
                                 </Link>
                             );
                         }
@@ -320,7 +324,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 planAccessory={null}
                                 /* [P3-CTA-MEJORAR-PLAN · 2026-06-30] "Mejorar plan" invita a subir
                                    de tier (Gratuito/Básico/Plus); Ultra ya está en el tope → "Ver planes". */
-                                viewPlansLabel={isUltraTier ? 'Ver planes' : 'Mejorar plan'}
+                                viewPlansLabel={isUltraTier ? t('Ver planes') : t('Mejorar plan')}
                                 avatar={accountAvatarNode}
                                 subLabel={accountSubLabel}
                                 settingsSlot={isGuest ? <GuestAppearanceToggle /> : null}
@@ -347,7 +351,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         chevron="up"
                         onClick={() => setIsAccountMenuOpen(prev => !prev)}
                         style={{ visibility: isAccountMenuOpen ? 'hidden' : 'visible' }}
-                        ariaLabel="Abrir menú de cuenta"
+                        ariaLabel={t('Abrir menú de cuenta')}
                         ariaHasPopup="menu"
                         ariaExpanded={isAccountMenuOpen}
                     />
@@ -366,7 +370,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     <button
                         className={styles.menuBtn}
                         onClick={() => setIsMobileMoreMenuOpen(true)}
-                        aria-label="Abrir menú"
+                        aria-label={t('Abrir menú')}
                     >
                         <Menu size={22} />
                     </button>
@@ -456,7 +460,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 role="menuitem"
                             >
                                 <Settings size={18} strokeWidth={2.5} />
-                                <span>Configuración</span>
+                                <span>{t('Configuración')}</span>
                             </Link>
                         )}
                         {/* [P3-MORE-INFO-MENU · 2026-07-03] "Más información" — expande
@@ -469,7 +473,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             aria-expanded={isMobileInfoOpen}
                         >
                             <Info size={18} strokeWidth={2.5} />
-                            <span style={{ flex: 1 }}>Más información</span>
+                            <span style={{ flex: 1 }}>{t('Más información')}</span>
                             <ChevronRight
                                 size={15}
                                 strokeWidth={2.5}
@@ -516,7 +520,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             }}
                         >
                             <HelpCircle size={18} strokeWidth={2.5} />
-                            <span>Obtener ayuda</span>
+                            <span>{t('Obtener ayuda')}</span>
                         </button>
                         <button
                             className={`${styles.mobileMoreItem} ${styles.mobileMoreItemDanger}`}

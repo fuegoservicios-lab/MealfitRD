@@ -1,13 +1,18 @@
 import React from 'react';
 import { Utensils } from 'lucide-react';
+import { useT } from '../../i18n';
 
+// [P1-I18N-DASHBOARD · 2026-08-15] El default de `title` se resuelve DENTRO del
+// cuerpo (no en la firma): un default de parámetro no puede llamar al hook, y el
+// hook es lo que suscribe el componente al cambio de idioma.
 export default function EmptyState({
     icon: Icon = Utensils,
-    title = 'No hay nada para mostrar',
+    title = null,
     description = '',
     cta = null,
     compact = false,
 }) {
+    const t = useT();
     return (
         <div
             role="status"
@@ -37,7 +42,7 @@ export default function EmptyState({
                     margin: 0,
                 }}
             >
-                {title}
+                {title ?? t('No hay nada para mostrar')}
             </h3>
             {description && (
                 <p

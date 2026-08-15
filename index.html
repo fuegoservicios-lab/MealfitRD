@@ -24,6 +24,34 @@
        funcionando como vía de accesibilidad real. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
+  <!-- [P1-I18N-DASHBOARD · 2026-08-15] No-flash language boot. Hermano del boot
+       de tema de abajo y por el mismo motivo: el atributo tiene que estar puesto
+       ANTES del primer paint. `<html lang>` no es cosmético — es lo que decide
+       qué voz usa un lector de pantalla, qué diccionario usa el corrector del
+       navegador y si Chrome ofrece «traducir esta página». Un usuario en francés
+       cuyo `lang` diga es-DO hasta que React monte es escuchado en español por
+       VoiceOver durante ese rato.
+       El valor sale de localStorage('mealfit_locale'), que es la CACHÉ de
+       `user_profiles.locale` — la fuente de verdad viaja por red y no está
+       disponible aquí. La lista es copia literal de src/i18n/locales.js y está
+       anclada por backend/tests/test_p1_i18n_dashboard.py, así que un idioma
+       nuevo que no se añada aquí falla en CI en vez de fallar en silencio.
+       Defensivo: cualquier excepción (Safari privado, ITP, webviews que lanzan
+       al tocar localStorage) deja el es-DO del atributo estático. -->
+  <script>
+    (function () {
+      try {
+        var SUPPORTED = ['es-DO', 'en-US', 'pt-BR', 'fr-FR', 'it-IT'];
+        var stored = localStorage.getItem('mealfit_locale');
+        if (SUPPORTED.indexOf(stored) > 0) {
+          document.documentElement.setAttribute('lang', stored);
+        }
+      } catch (e) {
+        /* el lang="es-DO" del <html> estático ya es el fallback correcto */
+      }
+    })();
+  </script>
+
   <!-- [APPEARANCE-THEME · 2026-05-28] No-flash theme boot. Corre síncrono en
        <head> ANTES del primer paint (y antes del splash) para que el atributo
        html[data-theme] esté fijado cuando el navegador pinte. Lee la

@@ -2,19 +2,21 @@
 import { useAssessment } from '../../../context/AssessmentContext';
 import { Battery } from 'lucide-react';
 import { NextButton } from './NextButton';
+import { useT } from '../../../i18n';
 
 export const QMotivation = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ position: 'relative' }}>
                 <textarea
-                    placeholder="Ej: Quiero recuperar mi energía diaria, prepararme para mi primera carrera..."
+                    placeholder={t('Ej: Quiero recuperar mi energía diaria, prepararme para mi primera carrera...')}
                     value={formData.motivation || ''}
                     onChange={(e) => updateData('motivation', e.target.value)}
                     rows={4}
                     aria-required="true"
-                    aria-label="Tu motivación"
+                    aria-label={t('Tu motivación')}
                     style={{
                         width: '100%', padding: '1.25rem', paddingLeft: '3rem', borderRadius: '1rem',
                         border: '1px solid var(--border)', fontSize: '0.95rem', fontFamily: 'inherit',

@@ -2,6 +2,12 @@ import PropTypes from 'prop-types';
 import { ArrowLeft, ArrowRight, Menu } from 'lucide-react';
 import styles from './PlanObjetivo.module.css';
 import Wordmark from '../common/Wordmark';
+// [P1-I18N-DASHBOARD · 2026-08-15] `tModulo` es la `t` de módulo y se usa SOLO en
+// el valor por defecto de `evaluateLabel`. No es la trampa del `t()` en ámbito de
+// módulo: un parámetro por defecto se evalúa en cada LLAMADA —o sea, en cada
+// render— así que lee el catálogo ya cargado. En el cuerpo va `useT()`, que
+// además suscribe el componente al cambio de idioma.
+import { useT, t as tModulo, formatNumber } from '../../i18n';
 
 /* [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Pantalla móvil inmersiva de "Plan & Objetivo".
    Presentacional puro: recibe objetivo + kcal + macros + handlers. La barra superior
@@ -9,10 +15,12 @@ import Wordmark from '../common/Wordmark';
    poder reusar el chrome existente cuando se monta dentro del DashboardLayout, sin
    duplicar logo/hamburguesa. La barra de macros es proporcional a los gramos. */
 
-const MACRO_META = [
-    { key: 'protein', label: 'Proteína', color: '#818CF8' },
-    { key: 'carbs', label: 'Carbos', color: '#34D399' },
-    { key: 'fat', label: 'Grasas', color: '#FBBF24' },
+// Función y no constante: `key` y `color` son datos, pero `label` es copy y una
+// tabla de copy evaluada al importar se queda en español para siempre.
+const getMacroMeta = (t) => [
+    { key: 'protein', label: t('Proteína'), color: '#818CF8' },
+    { key: 'carbs', label: t('Carbos'), color: '#34D399' },
+    { key: 'fat', label: t('Grasas'), color: '#FBBF24' },
 ];
 
 export default function PlanObjetivo({
@@ -25,8 +33,10 @@ export default function PlanObjetivo({
     topBar = true,
     backButton = true,
     evaluateDisabled = false,
-    evaluateLabel = 'Evaluar de nuevo',
+    evaluateLabel = tModulo('Evaluar de nuevo'),
 }) {
+    const t = useT();
+    const MACRO_META = getMacroMeta(t);
     const grams = {
         protein: Number(macros?.protein) || 0,
         carbs: Number(macros?.carbs) || 0,
@@ -47,7 +57,7 @@ export default function PlanObjetivo({
                         type="button"
                         className={styles.menuBtn}
                         onClick={onMenu}
-                        aria-label="Abrir menú"
+                        aria-label={t('Abrir menú')}
                     >
                         <Menu size={22} strokeWidth={2.25} />
                     </button>
@@ -55,29 +65,32 @@ export default function PlanObjetivo({
             )}
 
             {backButton && (
-                <button type="button" className={styles.backBtn} onClick={onBack} aria-label="Volver">
+                <button type="button" className={styles.backBtn} onClick={onBack} aria-label={t('Volver')}>
                     <ArrowLeft size={20} strokeWidth={2.5} />
-                    <span>Volver</span>
+                    <span>{t('Volver')}</span>
                 </button>
             )}
 
-            <h1 className={styles.title}>Plan &amp; Objetivo</h1>
-            <p className={styles.subtitle}>Meta principal y calorías</p>
+            <h1 className={styles.title}>{t('Plan & Objetivo')}</h1>
+            <p className={styles.subtitle}>{t('Meta principal y calorías')}</p>
 
-            <div className={styles.sectionLabel}>Tu objetivo actual</div>
+            <div className={styles.sectionLabel}>{t('Tu objetivo actual')}</div>
 
-            <div className={styles.metaLabel}>Meta principal</div>
+            <div className={styles.metaLabel}>{t('Meta principal')}</div>
             <h2 className={styles.goal}>{goal}</h2>
 
             <div className={styles.kcalValue}>
-                {Number(kcal || 0).toLocaleString('es-DO')}
+                {/* [P1-I18N-DASHBOARD · 2026-08-15] `formatNumber` sigue al idioma
+                    activo; el `'es-DO'` clavado dejaba el separador español en una
+                    pantalla en inglés, donde ese punto se lee como decimal. */}
+                {formatNumber(Number(kcal || 0))}
                 <span className={styles.kcalUnit}>kcal</span>
             </div>
-            <div className={styles.kcalCaption}>Calorías diarias objetivo</div>
+            <div className={styles.kcalCaption}>{t('Calorías diarias objetivo')}</div>
 
             {/* Barra de macros (proporcional a gramos) */}
             <div className={styles.macroBar} role="img"
-                aria-label={`Proteína ${grams.protein}g, Carbos ${grams.carbs}g, Grasas ${grams.fat}g`}>
+                aria-label={t('Proteína {proteina}g, Carbos {carbos}g, Grasas {grasas}g', { proteina: grams.protein, carbos: grams.carbs, grasas: grams.fat })}>
                 {MACRO_META.map((m) => (
                     <span
                         key={m.key}

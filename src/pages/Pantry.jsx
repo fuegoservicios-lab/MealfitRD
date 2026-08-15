@@ -11,6 +11,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 import { isTrackingMode } from '../config/dashboardNav';
 import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
+// [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. El hook es lo que suscribe el
+// componente al cambio de catálogo; las tablas de copy de abajo son FUNCIONES por
+// eso mismo (una constante con `t()` se congelaría en español al importar).
+import { t, useT, useTn } from '../i18n';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
@@ -171,9 +175,12 @@ const getZoneForCategory = (cat) => {
 // (mejor contraste sobre el tema oscuro que los colores "físicos").
 const tempOfZone = (zoneDef) => (zoneDef && zoneDef.kind === 'pantry' ? 'seco' : 'frio');
 
-const TEMP_ZONES = [
-    { id: 'frio', label: 'Nevera' },
-    { id: 'seco', label: 'Alacena' },
+// [P1-I18N-DASHBOARD · 2026-08-15] Función, no constante: `t()` en ámbito de módulo
+// se evalúa al importar —antes de que exista catálogo— y queda en español para
+// siempre, con el agravante de que en es-DO se ve perfecto.
+const getTempZones = () => [
+    { id: 'frio', label: t('Nevera') },
+    { id: 'seco', label: t('Alacena') },
 ];
 
 const ZONE_DISPLAY_COLOR = {
@@ -279,15 +286,39 @@ const CheckGlyph = ({ size = 16 }) => (
 // que es una gaveta — el prefijo era ruido). Color per-zone añadido para
 // que cada categoría tenga identidad visual propia y rompa la monotonía
 // cyan que hacía sentir el rediseño homogéneo.
+// [P1-I18N-DASHBOARD · 2026-08-15] La tabla se parte en DOS: aquí queda lo que es
+// DATO (key/icon/kind/color) y las etiquetas se van a `getZoneLabels()`. Un `t()`
+// aquí se evaluaría al importar —antes de que exista catálogo— y quedaría en
+// español para siempre; y en es-DO se vería perfecto, que es lo que lo hace
+// difícil de ver. La constante conserva su nombre porque un guard parser-based
+// (`test_p3_pantry_redesign_anchors`) lee sus `color:` para que no vuelva el
+// monocromo cyan.
 const ZONE_DEFINITIONS = [
-    { key: 'shelf_dairy',    label: 'Lácteos & Huevos',          icon: Milk,       kind: 'shelf',  color: '#0EA5E9' },
-    { key: 'shelf_proteins', label: 'Proteínas',                 icon: Beef,       kind: 'shelf',  color: '#DC2626' },
-    { key: 'shelf_ready',    label: 'Listos para comer',         icon: Croissant,  kind: 'shelf',  color: '#F59E0B' },
-    { key: 'door',           label: 'Puerta · Bebidas & Condimentos', icon: GlassWater, kind: 'door', color: '#0891B2' },
-    { key: 'drawer_fruits',  label: 'Frutas',                    icon: Apple,      kind: 'drawer', color: '#EC4899' },
-    { key: 'drawer_veggies', label: 'Verduras',                  icon: Salad,      kind: 'drawer', color: '#16A34A' },
-    { key: 'pantry',         label: 'Alacena · Granos y secos',  icon: Package,    kind: 'pantry', color: '#92400E' },
+    { key: 'shelf_dairy',    icon: Milk,       kind: 'shelf',  color: '#0EA5E9' },
+    { key: 'shelf_proteins', icon: Beef,       kind: 'shelf',  color: '#DC2626' },
+    { key: 'shelf_ready',    icon: Croissant,  kind: 'shelf',  color: '#F59E0B' },
+    { key: 'door',           icon: GlassWater, kind: 'door',   color: '#0891B2' },
+    { key: 'drawer_fruits',  icon: Apple,      kind: 'drawer', color: '#EC4899' },
+    { key: 'drawer_veggies', icon: Salad,      kind: 'drawer', color: '#16A34A' },
+    { key: 'pantry',         icon: Package,    kind: 'pantry', color: '#92400E' },
 ];
+
+// Las claves del catálogo tienen que ser literales estáticos: un `t(mapa[key])`
+// es invisible para el extractor de `i18n:check` y nacería sin traducción.
+const getZoneLabels = () => ({
+    shelf_dairy:    t('Lácteos & Huevos'),
+    shelf_proteins: t('Proteínas'),
+    shelf_ready:    t('Listos para comer'),
+    door:           t('Puerta · Bebidas & Condimentos'),
+    drawer_fruits:  t('Frutas'),
+    drawer_veggies: t('Verduras'),
+    pantry:         t('Alacena · Granos y secos'),
+});
+
+const getZoneDefinitions = () => {
+    const labels = getZoneLabels();
+    return ZONE_DEFINITIONS.map((z) => ({ ...z, label: labels[z.key] }));
+};
 
 // [P3-C · 2026-05-08] El helper `getEstimatedDailyConsumption` vive en
 // `frontend/src/utils/pantryConsumption.js` para que sea testeable sin
@@ -351,6 +382,12 @@ const CATEGORY_NORMALIZE = {
 };
 
 const Pantry = () => {
+    // [P1-I18N-DASHBOARD] Sombrea al `t` de módulo a propósito: es la MISMA
+    // función, pero pasar por el hook es lo que suscribe este componente al
+    // cambio de idioma. Las tablas de copy de arriba usan el de módulo porque
+    // se declaran fuera de todo componente.
+    const t = useT();
+    const tn = useTn();
     const { session, setPlanData, userProfile, planData } = useAssessment();
     // [P1-PANTRY-LOW-BANNER-TRACKING · 2026-08-14] Mismo SSOT que la nav y el
     // Historial: el modo NO se reimplementa aqui.
@@ -551,7 +588,7 @@ const Pantry = () => {
             fetchData(false);
         } catch (e) {
             console.error('Pantry changeItemBrand:', e);
-            toast.error('No se pudo cambiar la marca.');
+            toast.error(t('No se pudo cambiar la marca.'));
             return;
         }
         try {
@@ -1181,20 +1218,20 @@ const Pantry = () => {
             });
             const data = await res.json().catch(() => null);
             if (!res.ok || !data?.success) {
-                toast.error('No se pudo actualizar', {
-                    description: data?.detail || 'Inténtalo de nuevo en un momento.',
+                toast.error(t('No se pudo actualizar'), {
+                    description: data?.detail || t('Inténtalo de nuevo en un momento.'),
                 });
                 return;
             }
             // Quitar del banner al instante; el refetch reconcilia.
             setReconcileItems((prev) => prev.filter((x) => x.id !== item.id));
             if (action === 'keep') {
-                toast.success(`${item.ingredient_name}: anotado, sigue en tu Nevera.`);
+                toast.success(t('{alimento}: anotado, sigue en tu Nevera.', { alimento: item.ingredient_name }));
             } else {
                 toast.success(
                     action === 'spoiled'
-                        ? `${item.ingredient_name} fuera de la Nevera (se dañó).`
-                        : `${item.ingredient_name} fuera de la Nevera.`
+                        ? t('{alimento} fuera de la Nevera (se dañó).', { alimento: item.ingredient_name })
+                        : t('{alimento} fuera de la Nevera.', { alimento: item.ingredient_name })
                 );
                 // used/spoiled SÍ cambian el inventario → recargar la lista.
                 invalidateInventoryCache();
@@ -1203,7 +1240,7 @@ const Pantry = () => {
             loadReconcileCandidates();
         } catch (err) {
             console.error('Error resolviendo reconciliación:', err);
-            toast.error('No se pudo actualizar', { description: 'Revisa tu conexión.' });
+            toast.error(t('No se pudo actualizar'), { description: t('Revisa tu conexión.') });
         } finally {
             setReconcileBusyId(null);
         }
@@ -1269,9 +1306,9 @@ const Pantry = () => {
             // ocurre en una sesión logueada-pero-expirada (raro).
             if (isInitial) {
                 if (error?.status === 401) {
-                    toast('Tu sesión expiró. Inicia sesión de nuevo para ver tu despensa.');
+                    toast(t('Tu sesión expiró. Inicia sesión de nuevo para ver tu despensa.'));
                 } else {
-                    toast.error('Error al cargar la despensa.');
+                    toast.error(t('Error al cargar la despensa.'));
                 }
             }
         } finally {
@@ -1476,7 +1513,7 @@ const Pantry = () => {
                 safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
                 setPlanData(result.plan_data);
                 if (!silentSuccess) {
-                    toast.success('Lista de compras actualizada', { icon: '🛒', duration: 3000 });
+                    toast.success(t('Lista de compras actualizada'), { icon: '🛒', duration: 3000 });
                 }
                 // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir `_coherence_warnings`
                 // que el backend emite cuando el guard P2-COHERENCE-1 detecta
@@ -1631,7 +1668,7 @@ const Pantry = () => {
                 // cuando en realidad expiró la sesión) ni fetchData (que también 401ea →
                 // parecía vaciar la Nevera).
                 if (error?.status !== 401) {
-                    toast.error('Error al actualizar alimento.');
+                    toast.error(t('Error al actualizar alimento.'));
                     fetchData(false); // rollback visual si falla
                 }
             } finally {
@@ -1697,7 +1734,7 @@ const Pantry = () => {
                 console.error("Error deleting:", error);
                 // Revertir en la UI si falla
                 setInventory(prev => [...prev, deletedItem].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
-                toast.error(`Error al eliminar ${deletedItem.ingredient_name}`);
+                toast.error(t('Error al eliminar {alimento}', { alimento: deletedItem.ingredient_name }));
                 return;
             }
         }
@@ -1708,11 +1745,11 @@ const Pantry = () => {
         if (markAsDepleted) _addDepleted(deletedItem);
 
         // Toast con opción de deshacer real (insert)
-        toast.success(`${deletedItem.ingredient_name} eliminado`, {
+        toast.success(t('{alimento} eliminado', { alimento: deletedItem.ingredient_name }), {
             icon: '🗑️',
             duration: 5000,
             action: {
-                label: 'Deshacer',
+                label: t('Deshacer'),
                 onClick: async () => {
                     // Re-insertar en la DB
                     // [P1-NEON-DB-MIGRATION · 2026-06-12] POST /api/inventory/items
@@ -1743,7 +1780,7 @@ const Pantry = () => {
                         );
                         // Salió del estado "agotado" porque el usuario lo recuperó.
                         _removeDepleted(deletedItem);
-                        toast.success(`${deletedItem.ingredient_name} restaurado`, { icon: '↩️', duration: 2000 });
+                        toast.success(t('{alimento} restaurado', { alimento: deletedItem.ingredient_name }), { icon: '↩️', duration: 2000 });
                         // [P3-AUDIT-8] Revertir el delta: el item está de
                         // vuelta, la lista de compras debe excluirlo otra vez.
                         // [P2-NEW-12 · 2026-05-11] Debounced — undo masivo no
@@ -1751,7 +1788,7 @@ const Pantry = () => {
                         _scheduleRecalcShoppingList();
                     } catch (err) {
                         console.error('Error restaurando item:', err);
-                        toast.error('No se pudo restaurar el alimento.');
+                        toast.error(t('No se pudo restaurar el alimento.'));
                     }
                 }
             }
@@ -1769,7 +1806,7 @@ const Pantry = () => {
         if (isDeletingAll) return;
         setIsDeletingAll(true);
         setShowDeleteConfirm(false);
-        const loadingToast = toast.loading('Borrando todos los alimentos...');
+        const loadingToast = toast.loading(t('Borrando todos los alimentos...'));
         try {
             // [P1-NEON-DB-MIGRATION · 2026-06-12] DELETE /api/inventory/items
             // (sin id = vaciar nevera completa) → {deleted_count}. El backend
@@ -1795,7 +1832,7 @@ const Pantry = () => {
                 }
             })();
             toast.dismiss(loadingToast);
-            toast.success('Todos los alimentos han sido borrados');
+            toast.success(t('Todos los alimentos han sido borrados'));
 
             // [P3-AUDIT-8 · 2026-05-10] Delega al helper SSOT. Pasa
             // `clearRestockedFlag=true` porque vaciar la nevera invalida
@@ -1813,7 +1850,7 @@ const Pantry = () => {
         } catch (error) {
             console.error("Error deleting all:", error);
             toast.dismiss(loadingToast);
-            toast.error('Error al borrar los alimentos');
+            toast.error(t('Error al borrar los alimentos'));
         } finally {
             setIsDeletingAll(false);
         }
@@ -1865,7 +1902,9 @@ const Pantry = () => {
             }
             if (existing) {
                 await handleUpdateQuantity(existing.id, existing.quantity + safeQty);
-                toast.success(`+${safeQty} ${existing.unit || ''} a ${masterItem.name}`.trim());
+                toast.success(t('+{cantidad} {unidad} a {alimento}', {
+                    cantidad: safeQty, unidad: existing.unit || '', alimento: masterItem.name,
+                }).trim());
                 _recordRecentAdd(masterItem, existing.unit || finalUnit);
                 setShowAddMenu(false);
                 setAddItemSearch('');
@@ -1905,9 +1944,11 @@ const Pantry = () => {
                     );
                     if (dup) {
                         await handleUpdateQuantity(dup.id, dup.quantity + safeQty);
-                        toast.success(`+${safeQty} ${dup.unit || ''} a ${masterItem.name}`.trim());
+                        toast.success(t('+{cantidad} {unidad} a {alimento}', {
+                            cantidad: safeQty, unidad: dup.unit || '', alimento: masterItem.name,
+                        }).trim());
                     } else {
-                        toast.success(`${masterItem.name} ya estaba en tu nevera`, { icon: '✅' });
+                        toast.success(t('{alimento} ya estaba en tu nevera', { alimento: masterItem.name }), { icon: '✅' });
                     }
                     _recordRecentAdd(masterItem, (dup && dup.unit) || finalUnit);
                     setShowAddMenu(false);
@@ -1919,7 +1960,9 @@ const Pantry = () => {
             }
             if (!data) throw new Error('INSERT sin item en la respuesta.');
 
-            toast.success(`${safeQty} ${finalUnit} de ${masterItem.name} en la nevera`);
+            toast.success(t('{cantidad} {unidad} de {alimento} en la nevera', {
+                cantidad: safeQty, unidad: finalUnit, alimento: masterItem.name,
+            }));
             setInventory(prev => [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
             _recordRecentAdd(masterItem, finalUnit);
             setShowAddMenu(false);
@@ -1936,7 +1979,7 @@ const Pantry = () => {
             _scheduleRecalcShoppingList();
         } catch (error) {
             console.error("Add Error: ", error);
-            toast.error("Error al añadir alimento.");
+            toast.error(t('Error al añadir alimento.'));
         } finally {
             setIsAdding(false);
         }
@@ -2016,7 +2059,7 @@ const Pantry = () => {
                 if (insErr?.status === 409) {
                     await fetchData(false);
                     _removeDepleted(entry);
-                    toast.success(`${entry.ingredient_name} ya estaba en tu nevera`, { icon: '✅', duration: 2000 });
+                    toast.success(t('{alimento} ya estaba en tu nevera', { alimento: entry.ingredient_name }), { icon: '✅', duration: 2000 });
                     return;
                 }
                 throw insErr;
@@ -2026,11 +2069,13 @@ const Pantry = () => {
                 a.ingredient_name.localeCompare(b.ingredient_name)
             ));
             _removeDepleted(entry);
-            toast.success(`${entry.ingredient_name} repuesto (${restoreQty} ${entry.unit || ''})`.trim(), { icon: '✅', duration: 2000 });
+            toast.success(t('{alimento} repuesto ({cantidad} {unidad})', {
+                alimento: entry.ingredient_name, cantidad: restoreQty, unidad: entry.unit || '',
+            }).trim(), { icon: '✅', duration: 2000 });
             _scheduleRecalcShoppingList();
         } catch (err) {
             console.error('Restore depleted error:', err);
-            toast.error(`No se pudo reponer ${entry.ingredient_name}.`);
+            toast.error(t('No se pudo reponer {alimento}.', { alimento: entry.ingredient_name }));
         }
     };
 
@@ -2038,7 +2083,7 @@ const Pantry = () => {
     // ya no existe; solo limpia el marcador localStorage).
     const handleDismissDepleted = (entry) => {
         _removeDepleted(entry);
-        toast(`${entry.ingredient_name} removido de la lista de agotados`, { duration: 2000 });
+        toast(t('{alimento} removido de la lista de agotados', { alimento: entry.ingredient_name }), { duration: 2000 });
     };
 
     // 3. Computed Views
@@ -2261,7 +2306,7 @@ const Pantry = () => {
                 <span className={fstyles.rname} style={{ textDecoration: isDisabled ? 'line-through' : 'none' }}>
                     {item.ingredient_name}
                 </span>
-                <span className={fstyles.unit} title={`Medida: ${displayUnit}`}>{displayUnit}</span>
+                <span className={fstyles.unit} title={t('Medida: {unidad}', { unidad: displayUnit })}>{displayUnit}</span>
                 {/* [P2-NEVERA-BRANDS · 2026-07-06 · P1-PANTRY-DASH-PARITY 2026-07-11] Chip de
                     marca EDITABLE (paridad con el paso 21): select disfrazado de chip con las
                     marcas reales del súper (prefetch en lote). Solo aparece si hay marcas
@@ -2276,7 +2321,7 @@ const Pantry = () => {
                             brands={_brands}
                             onSelect={(b) => changeItemBrand(item, b)}
                             className={item.brand && item.brand !== 'Genérico' ? fstyles.brandChip : fstyles.brandChipGeneric}
-                            ariaLabel={`Marca de ${item.ingredient_name}`}
+                            ariaLabel={t('Marca de {alimento}', { alimento: item.ingredient_name })}
                         />
                     );
                 })()}
@@ -2295,7 +2340,7 @@ const Pantry = () => {
                     </span>
                 )}
                 {isDisabled && (
-                    <span className={fstyles.disabledTag}><Trash2 size={11} /> Pendiente</span>
+                    <span className={fstyles.disabledTag}><Trash2 size={11} /> {t('Pendiente')}</span>
                 )}
                 <span className={fstyles.sp} />
                 <div className={fstyles.stepper}>
@@ -2308,8 +2353,8 @@ const Pantry = () => {
                         onPointerLeave={(e) => stopHolding(e, item.id)}
                         onContextMenu={(e) => e.preventDefault()}
                         disabled={atFloor}
-                        aria-label={atFloor ? 'Cantidad mínima — usa "Agotar" para eliminar' : `Disminuir ${item.ingredient_name}`}
-                        title={atFloor ? 'Para eliminar, usa "Agotar"' : 'Mantener presionado para bajar rápido'}
+                        aria-label={atFloor ? t('Cantidad mínima — usa "Agotar" para eliminar') : t('Disminuir {alimento}', { alimento: item.ingredient_name })}
+                        title={atFloor ? t('Para eliminar, usa "Agotar"') : t('Mantener presionado para bajar rápido')}
                     >
                         <Minus size={15} strokeWidth={2.5} />
                     </button>
@@ -2317,8 +2362,8 @@ const Pantry = () => {
                         type="button"
                         className={fstyles.qty}
                         onClick={() => { setQtyEditItem(item); setQtyEditValue(item.quantity); }}
-                        title="Tocar para ajustar a cantidad exacta"
-                        aria-label={`Ajustar cantidad de ${item.ingredient_name}`}
+                        title={t('Tocar para ajustar a cantidad exacta')}
+                        aria-label={t('Ajustar cantidad de {alimento}', { alimento: item.ingredient_name })}
                     >
                         {fmtQty(item.quantity)}
                     </button>
@@ -2329,8 +2374,8 @@ const Pantry = () => {
                         onPointerUp={(e) => stopHolding(e, item.id)}
                         onPointerLeave={(e) => stopHolding(e, item.id)}
                         onContextMenu={(e) => e.preventDefault()}
-                        aria-label={`Aumentar ${item.ingredient_name}`}
-                        title="Mantener presionado para subir rápido"
+                        aria-label={t('Aumentar {alimento}', { alimento: item.ingredient_name })}
+                        title={t('Mantener presionado para subir rápido')}
                     >
                         <Plus size={15} strokeWidth={3} />
                     </button>
@@ -2339,17 +2384,17 @@ const Pantry = () => {
                     type="button"
                     className={fstyles.agotar}
                     onClick={() => handleDeleteItem(item.id)}
-                    title="Marcar como agotado"
-                    aria-label={`Marcar ${item.ingredient_name} como agotado`}
+                    title={t('Marcar como agotado')}
+                    aria-label={t('Marcar {alimento} como agotado', { alimento: item.ingredient_name })}
                 >
-                    Agotar
+                    {t('Agotar')}
                 </button>
                 <button
                     type="button"
                     className={fstyles.del}
                     onClick={() => handleDeleteItem(item.id, { markAsDepleted: false })}
-                    title="Eliminar definitivamente"
-                    aria-label={`Eliminar ${item.ingredient_name} definitivamente`}
+                    title={t('Eliminar definitivamente')}
+                    aria-label={t('Eliminar {alimento} definitivamente', { alimento: item.ingredient_name })}
                 >
                     <X size={15} strokeWidth={2.5} />
                 </button>
@@ -2361,22 +2406,22 @@ const Pantry = () => {
         <div key={_depletedKey(entry)} className={fstyles.depRow}>
             <span className={fstyles.rdot} style={{ background: 'var(--text-light)' }} />
             <span className={fstyles.depName}>{entry.ingredient_name}</span>
-            <span className={fstyles.depMeta}>Tenías: {fmtQty(entry.quantity || 1)} {entry.unit || 'unidad'}</span>
+            <span className={fstyles.depMeta}>{t('Tenías: {cantidad} {unidad}', { cantidad: fmtQty(entry.quantity || 1), unidad: entry.unit || 'unidad' })}</span>
             <span className={fstyles.sp} />
             <button
                 type="button"
                 className={fstyles.reponer}
                 onClick={() => handleRestoreDepleted(entry)}
-                title="Reponer este alimento"
+                title={t('Reponer este alimento')}
             >
-                <RotateCcw size={14} strokeWidth={2.5} /> Reponer
+                <RotateCcw size={14} strokeWidth={2.5} /> {t('Reponer')}
             </button>
             <button
                 type="button"
                 className={fstyles.dismiss}
                 onClick={() => handleDismissDepleted(entry)}
-                title="Quitar de agotados"
-                aria-label={`Quitar ${entry.ingredient_name} de agotados`}
+                title={t('Quitar de agotados')}
+                aria-label={t('Quitar {alimento} de agotados', { alimento: entry.ingredient_name })}
             >
                 <X size={14} strokeWidth={2.5} />
             </button>
@@ -2412,8 +2457,8 @@ const Pantry = () => {
                         type="button"
                         className={mstyles.del}
                         onClick={() => handleDeleteItem(item.id, { markAsDepleted: false })}
-                        title="Eliminar definitivamente"
-                        aria-label={`Eliminar ${item.ingredient_name} definitivamente`}
+                        title={t('Eliminar definitivamente')}
+                        aria-label={t('Eliminar {alimento} definitivamente', { alimento: item.ingredient_name })}
                     >
                         <X size={14} strokeWidth={2.5} />
                     </button>
@@ -2432,7 +2477,7 @@ const Pantry = () => {
                                 brands={_brands}
                                 onSelect={(b) => changeItemBrand(item, b)}
                                 className={item.brand && item.brand !== 'Genérico' ? mstyles.brandChip : mstyles.brandChipGeneric}
-                                ariaLabel={`Marca de ${item.ingredient_name}`}
+                                ariaLabel={t('Marca de {alimento}', { alimento: item.ingredient_name })}
                             />
                         );
                     })()}
@@ -2448,7 +2493,7 @@ const Pantry = () => {
                         </span>
                     )}
                     {isDisabled && (
-                        <span className={mstyles.disabledTag}><Trash2 size={11} /> Pendiente</span>
+                        <span className={mstyles.disabledTag}><Trash2 size={11} /> {t('Pendiente')}</span>
                     )}
                 </div>
                 <div className={mstyles.irow}>
@@ -2461,8 +2506,8 @@ const Pantry = () => {
                             onPointerLeave={(e) => stopHolding(e, item.id)}
                             onContextMenu={(e) => e.preventDefault()}
                             disabled={atFloor}
-                            aria-label={atFloor ? 'Cantidad mínima — usa "Agotar" para eliminar' : `Disminuir ${item.ingredient_name}`}
-                            title={atFloor ? 'Para eliminar, usa "Agotar"' : 'Mantener presionado para bajar rápido'}
+                            aria-label={atFloor ? t('Cantidad mínima — usa "Agotar" para eliminar') : t('Disminuir {alimento}', { alimento: item.ingredient_name })}
+                            title={atFloor ? t('Para eliminar, usa "Agotar"') : t('Mantener presionado para bajar rápido')}
                         >
                             <Minus size={15} strokeWidth={2.5} />
                         </button>
@@ -2470,8 +2515,8 @@ const Pantry = () => {
                             type="button"
                             className={mstyles.qty}
                             onClick={() => { setQtyEditItem(item); setQtyEditValue(item.quantity); }}
-                            title="Tocar para ajustar a cantidad exacta"
-                            aria-label={`Ajustar cantidad de ${item.ingredient_name}`}
+                            title={t('Tocar para ajustar a cantidad exacta')}
+                            aria-label={t('Ajustar cantidad de {alimento}', { alimento: item.ingredient_name })}
                         >
                             {fmtQty(item.quantity)}
                         </button>
@@ -2482,8 +2527,8 @@ const Pantry = () => {
                             onPointerUp={(e) => stopHolding(e, item.id)}
                             onPointerLeave={(e) => stopHolding(e, item.id)}
                             onContextMenu={(e) => e.preventDefault()}
-                            aria-label={`Aumentar ${item.ingredient_name}`}
-                            title="Mantener presionado para subir rápido"
+                            aria-label={t('Aumentar {alimento}', { alimento: item.ingredient_name })}
+                            title={t('Mantener presionado para subir rápido')}
                         >
                             <Plus size={15} strokeWidth={3} />
                         </button>
@@ -2492,10 +2537,10 @@ const Pantry = () => {
                         type="button"
                         className={mstyles.agotar}
                         onClick={() => handleDeleteItem(item.id)}
-                        title="Marcar como agotado"
-                        aria-label={`Marcar ${item.ingredient_name} como agotado`}
+                        title={t('Marcar como agotado')}
+                        aria-label={t('Marcar {alimento} como agotado', { alimento: item.ingredient_name })}
                     >
-                        Agotar
+                        {t('Agotar')}
                     </button>
                 </div>
             </div>
@@ -2505,21 +2550,21 @@ const Pantry = () => {
     const renderMobileDepleted = (entry) => (
         <div key={_depletedKey(entry)} className={mstyles.depItem}>
             <span className={mstyles.depName}>{entry.ingredient_name}</span>
-            <span className={mstyles.depMeta}>Tenías: {fmtQty(entry.quantity || 1)} {entry.unit || 'unidad'}</span>
+            <span className={mstyles.depMeta}>{t('Tenías: {cantidad} {unidad}', { cantidad: fmtQty(entry.quantity || 1), unidad: entry.unit || 'unidad' })}</span>
             <button
                 type="button"
                 className={mstyles.reponer}
                 onClick={() => handleRestoreDepleted(entry)}
-                title="Reponer este alimento"
+                title={t('Reponer este alimento')}
             >
-                <RotateCcw size={14} strokeWidth={2.5} /> Reponer
+                <RotateCcw size={14} strokeWidth={2.5} /> {t('Reponer')}
             </button>
             <button
                 type="button"
                 className={mstyles.dismiss}
                 onClick={() => handleDismissDepleted(entry)}
-                title="Quitar de agotados"
-                aria-label={`Quitar ${entry.ingredient_name} de agotados`}
+                title={t('Quitar de agotados')}
+                aria-label={t('Quitar {alimento} de agotados', { alimento: entry.ingredient_name })}
             >
                 <X size={14} strokeWidth={2.5} />
             </button>
@@ -2527,7 +2572,7 @@ const Pantry = () => {
     );
 
     // Derivados de presentación del mueble activo (Nevera/Alacena).
-    const zoneDefsForTemp = ZONE_DEFINITIONS.filter((z) => tempOfZone(z) === tempZone);
+    const zoneDefsForTemp = getZoneDefinitions().filter((z) => tempOfZone(z) === tempZone);
     const tempZoneCount = zoneDefsForTemp.reduce((acc, z) => acc + (inventoryByZone[z.key]?.length || 0), 0);
     // [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] Contaba filas con `quantity <= 0.5`
     // y lo rotulaba «N por reponer». Es el número que acusó al owner de tener
@@ -2554,19 +2599,19 @@ const Pantry = () => {
     // apilado + zonas + chips + tarjeta por alimento). Usa los MISMOS
     // derivados y handlers que el desktop; solo cambia la composición visual.
     const renderMobileShell = () => (
-        <section className={mstyles.app} aria-label="Inventario de alimentos">
+        <section className={mstyles.app} aria-label={t('Inventario de alimentos')}>
             {/* [P3-PANTRY-NO-TITLE · 2026-07-12] "Mi Cocina" eliminado a pedido del
                 owner (sin sinónimo de reemplazo). Queda el conteo como status chip;
                 el aria-label pasa a descriptor funcional (solo lector de pantalla). */}
             <div className={mstyles.top}>
                 <div className={mstyles.toprow}>
-                    <span className={mstyles.count}><b>{inventory.length}</b> {inventory.length === 1 ? 'alimento' : 'alimentos'}</span>
+                    <span className={mstyles.count}><b>{inventory.length}</b> {tn(inventory.length, 'alimento', 'alimentos')}</span>
                 </div>
                 <div className={mstyles.search}>
                     <Search size={17} />
                     <input
                         type="search"
-                        placeholder="Buscar ingrediente…"
+                        placeholder={t('Buscar ingrediente…')}
                         autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
                         inputMode="search" enterKeyHint="search"
                         value={searchQuery}
@@ -2575,10 +2620,10 @@ const Pantry = () => {
                 </div>
                 <div className={mstyles.actions}>
                     <button type="button" className={`${mstyles.btn} ${mstyles.clear}`} onClick={() => setShowDeleteConfirm(true)}>
-                        <Trash2 size={16} />Borrar todos
+                        <Trash2 size={16} />{t('Borrar todos')}
                     </button>
                     <button type="button" className={`${mstyles.btn} ${mstyles.add}`} onClick={() => { setShowAddMenu(true); setAddItemSearch(''); }}>
-                        <Plus size={16} />Añadir alimento
+                        <Plus size={16} />{t('Añadir alimento')}
                     </button>
                 </div>
                 {/* [P1-PANTRY-DASH-PARITY] Escaner por foto — integrado al topbar movil.
@@ -2598,8 +2643,8 @@ const Pantry = () => {
             </div>
 
             <div className={mstyles.bar}>
-                <div className={mstyles.zones} role="tablist" aria-label="Mueble">
-                    {TEMP_ZONES.map((z) => (
+                <div className={mstyles.zones} role="tablist" aria-label={t('Mueble')}>
+                    {getTempZones().map((z) => (
                         <button
                             key={z.id}
                             type="button"
@@ -2613,13 +2658,13 @@ const Pantry = () => {
                     ))}
                 </div>
                 {tempZone === 'frio' && (
-                    <span className={mstyles.temp}><Snowflake size={15} />3°C · Frío Max <span className={mstyles.dot} /></span>
+                    <span className={mstyles.temp}><Snowflake size={15} />{t('3°C · Frío Max')} <span className={mstyles.dot} /></span>
                 )}
             </div>
 
             <div className={mstyles.chips}>
                 <button type="button" className={mstyles.fchip} aria-pressed={effFilter === 'todos'} onClick={() => setCatFilter('todos')}>
-                    Todos <b>{tempZoneCount}</b>
+                    {t('Todos')} <b>{tempZoneCount}</b>
                 </button>
                 {zoneDefsForTemp.map((z) => {
                     const n = inventoryByZone[z.key]?.length || 0;
@@ -2652,11 +2697,11 @@ const Pantry = () => {
                 {visibleZones.length === 0 && depletedForTemp.length === 0 && (
                     <div className={mstyles.empty}>
                         {searchQuery.trim() ? (
-                            <>No hay alimentos que coincidan con “{searchQuery.trim()}”.</>
+                            <>{t('No hay alimentos que coincidan con “{consulta}”.', { consulta: searchQuery.trim() })}</>
                         ) : tempZone === 'frio' ? (
-                            <><b>Tu nevera está vacía</b>Añade tus ingredientes con el botón “Añadir alimento”.</>
+                            <><b>{t('Tu nevera está vacía')}</b>{t('Añade tus ingredientes con el botón “Añadir alimento”.')}</>
                         ) : (
-                            <><b>Tu alacena está vacía</b>Arroz, granos, especias y conservas viven aquí.</>
+                            <><b>{t('Tu alacena está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí.')}</>
                         )}
                     </div>
                 )}
@@ -2680,10 +2725,10 @@ const Pantry = () => {
                 {depletedForTemp.length > 0 && (
                     <div className={mstyles.depleted}>
                         <div className={mstyles.depHead}>
-                            <PackageX size={16} strokeWidth={2.25} /> Agotados
+                            <PackageX size={16} strokeWidth={2.25} /> {t('Agotados')}
                             <span className={mstyles.depCount}>{depletedForTemp.length}</span>
                         </div>
-                        <p className={mstyles.depSub}>Ya no los tienes. Toca <strong>Reponer</strong> cuando vuelvas a comprarlos.</p>
+                        <p className={mstyles.depSub}>{t('Ya no los tienes. Toca')} <strong>{t('Reponer')}</strong> {t('cuando vuelvas a comprarlos.')}</p>
                         {depletedForTemp.map(renderMobileDepleted)}
                     </div>
                 )}
@@ -2694,7 +2739,7 @@ const Pantry = () => {
     return (
         <div className={fstyles.page}>
             {isMobileLayout ? renderMobileShell() : (
-            <section className={fstyles.app} aria-label="Inventario de alimentos">
+            <section className={fstyles.app} aria-label={t('Inventario de alimentos')}>
                 <div className={fstyles.shell}>
                     {/* ===== Sidebar (escritorio) ===== */}
                     <aside className={fstyles.side}>
@@ -2703,11 +2748,11 @@ const Pantry = () => {
                             stat: conteo total prominente + etiqueta. */}
                         <div className={fstyles.brand}>
                             <b>{inventory.length}</b>
-                            <small>{inventory.length === 1 ? 'alimento' : 'alimentos'}</small>
+                            <small>{tn(inventory.length, 'alimento', 'alimentos')}</small>
                         </div>
 
-                        <div className={fstyles.zones} role="tablist" aria-label="Mueble">
-                            {TEMP_ZONES.map((z) => (
+                        <div className={fstyles.zones} role="tablist" aria-label={t('Mueble')}>
+                            {getTempZones().map((z) => (
                                 <button
                                     key={z.id}
                                     type="button"
@@ -2729,11 +2774,11 @@ const Pantry = () => {
                             temperatura que declarar. */}
                         {tempZone === 'frio' && (
                             <span className={fstyles.temp}>
-                                <Snowflake size={13} /> 3°C · Frío Max <span className={fstyles.dot} />
+                                <Snowflake size={13} /> {t('3°C · Frío Max')} <span className={fstyles.dot} />
                             </span>
                         )}
 
-                        <nav className={fstyles.nav} aria-label="Categorías">
+                        <nav className={fstyles.nav} aria-label={t('Categorías')}>
                             <button
                                 type="button"
                                 className={fstyles.navitem}
@@ -2741,7 +2786,7 @@ const Pantry = () => {
                                 onClick={() => setCatFilter('todos')}
                             >
                                 <span className={fstyles.navico}><GridGlyph size={16} /></span>
-                                <span className={fstyles.navlabel}>Todos</span>
+                                <span className={fstyles.navlabel}>{t('Todos')}</span>
                                 <span className={fstyles.navn}>{tempZoneCount}</span>
                             </button>
                             {zoneDefsForTemp.map((z) => {
@@ -2775,8 +2820,8 @@ const Pantry = () => {
                                 {needsAttentionInTempZone ? <AlertCircle size={16} /> : <CheckGlyph size={16} />}
                             </span>
                             <span className={fstyles.lowtxt}>
-                                <b>{needsAttentionInTempZone ? `${needsAttentionInTempZone} por consumir` : 'Nada por vencer'}</b>
-                                {needsAttentionInTempZone ? 'Caducan pronto' : 'Sin caducidades próximas'}
+                                <b>{needsAttentionInTempZone ? t('{n} por consumir', { n: needsAttentionInTempZone }) : t('Nada por vencer')}</b>
+                                {needsAttentionInTempZone ? t('Caducan pronto') : t('Sin caducidades próximas')}
                             </span>
                         </div>
                     </aside>
@@ -2785,14 +2830,14 @@ const Pantry = () => {
                     <div className={fstyles.main}>
                         <div className={fstyles.head}>
                             <div className={fstyles.mobtitle}>
-                                <FridgeGlyph size={20} />{tempZone === 'frio' ? 'Nevera' : 'Alacena'}
+                                <FridgeGlyph size={20} />{tempZone === 'frio' ? t('Nevera') : t('Alacena')}
                                 <span className={fstyles.c}>{tempZoneCount}</span>
                             </div>
                             <div className={fstyles.search}>
                                 <Search size={17} />
                                 <input
                                     type="search"
-                                    placeholder="Buscar ingrediente…"
+                                    placeholder={t('Buscar ingrediente…')}
                                     autoComplete="off"
                                     autoCorrect="off"
                                     autoCapitalize="none"
@@ -2806,8 +2851,8 @@ const Pantry = () => {
                             <button
                                 type="button"
                                 className={`${fstyles.btn} ${fstyles.clear} ${fstyles.iconbtn}`}
-                                title="Vaciar la nevera"
-                                aria-label="Vaciar la nevera"
+                                title={t('Vaciar la nevera')}
+                                aria-label={t('Vaciar la nevera')}
                                 onClick={() => setShowDeleteConfirm(true)}
                             >
                                 <Trash2 size={16} />
@@ -2829,7 +2874,7 @@ const Pantry = () => {
                                 className={`${fstyles.btn} ${fstyles.add}`}
                                 onClick={() => { setShowAddMenu(true); setAddItemSearch(''); }}
                             >
-                                <Plus size={16} /> Añadir
+                                <Plus size={16} /> {t('Añadir')}
                             </button>
                         </div>
 
@@ -2841,7 +2886,7 @@ const Pantry = () => {
                                 aria-pressed={effFilter === 'todos'}
                                 onClick={() => setCatFilter('todos')}
                             >
-                                Todos
+                                {t('Todos')}
                             </button>
                             {zoneDefsForTemp.map((z) => {
                                 const n = inventoryByZone[z.key]?.length || 0;
@@ -2880,38 +2925,41 @@ const Pantry = () => {
                                 <div className={fstyles.reconcileHead}>
                                     <AlertCircle size={18} strokeWidth={2.5} />
                                     <span>
-                                        {reconcileItems.length === 1
-                                            ? 'Este alimento lleva tiempo sin moverse. ¿Qué pasó con él?'
-                                            : `Estos ${reconcileItems.length} alimentos llevan tiempo sin moverse. ¿Qué pasó con ellos?`}
+                                        {tn(
+                                            reconcileItems.length,
+                                            'Este alimento lleva tiempo sin moverse. ¿Qué pasó con él?',
+                                            'Estos {n} alimentos llevan tiempo sin moverse. ¿Qué pasó con ellos?',
+                                            { n: reconcileItems.length },
+                                        )}
                                     </span>
                                 </div>
                                 {reconcileItems.map((it) => (
                                     <div key={it.id} className={fstyles.reconcileRow}>
                                         <span className={fstyles.reconcileName}>
                                             {it.ingredient_name}
-                                            <em> · {it.days_quiet} días</em>
+                                            <em> · {tn(it.days_quiet, '{n} día', '{n} días', { n: it.days_quiet })}</em>
                                         </span>
                                         <div className={fstyles.reconcileActions}>
                                             <button
                                                 onClick={() => handleReconcile(it, 'used')}
                                                 disabled={reconcileBusyId !== null}
-                                                aria-label={`Ya usé ${it.ingredient_name}`}
+                                                aria-label={t('Ya usé {alimento}', { alimento: it.ingredient_name })}
                                             >
-                                                Lo usé
+                                                {t('Lo usé')}
                                             </button>
                                             <button
                                                 onClick={() => handleReconcile(it, 'spoiled')}
                                                 disabled={reconcileBusyId !== null}
-                                                aria-label={`${it.ingredient_name} se dañó`}
+                                                aria-label={t('{alimento} se dañó', { alimento: it.ingredient_name })}
                                             >
-                                                Se dañó
+                                                {t('Se dañó')}
                                             </button>
                                             <button
                                                 onClick={() => handleReconcile(it, 'keep')}
                                                 disabled={reconcileBusyId !== null}
-                                                aria-label={`${it.ingredient_name} sigue en la nevera`}
+                                                aria-label={t('{alimento} sigue en la nevera', { alimento: it.ingredient_name })}
                                             >
-                                                Sigue ahí
+                                                {t('Sigue ahí')}
                                             </button>
                                         </div>
                                     </div>
@@ -2924,11 +2972,11 @@ const Pantry = () => {
                             {visibleZones.length === 0 && depletedForTemp.length === 0 && (
                                 <div className={fstyles.empty}>
                                     {searchQuery.trim() ? (
-                                        <>No hay alimentos que coincidan con “{searchQuery.trim()}”.</>
+                                        <>{t('No hay alimentos que coincidan con “{consulta}”.', { consulta: searchQuery.trim() })}</>
                                     ) : tempZone === 'frio' ? (
-                                        <><b>Tu nevera está vacía</b>Registra tus compras recientes o añade tus primeros ingredientes con el botón “Añadir”.</>
+                                        <><b>{t('Tu nevera está vacía')}</b>{t('Registra tus compras recientes o añade tus primeros ingredientes con el botón “Añadir”.')}</>
                                     ) : (
-                                        <><b>Tu alacena está vacía</b>Arroz, granos, especias y conservas viven aquí. Añádelos con el botón “Añadir”.</>
+                                        <><b>{t('Tu alacena está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí. Añádelos con el botón “Añadir”.')}</>
                                     )}
                                 </div>
                             )}
@@ -2945,11 +2993,11 @@ const Pantry = () => {
                             {depletedForTemp.length > 0 && (
                                 <div className={fstyles.depleted}>
                                     <div className={fstyles.depHead}>
-                                        <PackageX size={16} strokeWidth={2.25} /> Agotados
+                                        <PackageX size={16} strokeWidth={2.25} /> {t('Agotados')}
                                         <span className={fstyles.depCount}>{depletedForTemp.length}</span>
                                     </div>
                                     <p className={fstyles.depSub}>
-                                        Ya no los tienes. Toca <strong>Reponer</strong> cuando vuelvas a comprarlos.
+                                        {t('Ya no los tienes. Toca')} <strong>{t('Reponer')}</strong> {t('cuando vuelvas a comprarlos.')}
                                     </p>
                                     {depletedForTemp.map(renderDepletedRow)}
                                 </div>
@@ -3019,9 +3067,9 @@ const Pantry = () => {
                                 <div style={{ width: '40px', height: '5px', background: 'var(--border)', borderRadius: '10px', margin: '0 auto clamp(0.7rem, 2.5vw, 1.4rem)', opacity: 0.8 }} />
                             )}
 
-                            <h2 id="pantry-add-title" style={{ fontSize: isMobileLayout ? 'clamp(1.3rem, 5vw, 1.5rem)' : '1.4rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: 'var(--text-main)', letterSpacing: '-0.01em' }}>Añade a tu Nevera</h2>
+                            <h2 id="pantry-add-title" style={{ fontSize: isMobileLayout ? 'clamp(1.3rem, 5vw, 1.5rem)' : '1.4rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: 'var(--text-main)', letterSpacing: '-0.01em' }}>{t('Añade a tu Nevera')}</h2>
                             <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '0 0 0.85rem 0', lineHeight: 1.4 }}>
-                                Busca el alimento, ajusta la cantidad y elige cómo viene (botella, libra, paquete…).
+                                {t('Busca el alimento, ajusta la cantidad y elige cómo viene (botella, libra, paquete…).')}
                             </p>
 
                             <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
@@ -3038,7 +3086,7 @@ const Pantry = () => {
                                     autoCorrect="off"
                                     autoCapitalize="none"
                                     spellCheck={false}
-                                    placeholder="¿Qué vas a añadir? (ej: vinagre, aceite, pollo)"
+                                    placeholder={t('¿Qué vas a añadir? (ej: vinagre, aceite, pollo)')}
                                     value={addItemSearch}
                                     onChange={e => setAddItemSearch(e.target.value)}
                                     onKeyDown={handleKeyDown}
@@ -3102,11 +3150,11 @@ const Pantry = () => {
                                                 <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{item.name}</h4>
                                                 {existing ? (
                                                     <span style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginTop: '0.2rem', display: 'block', fontWeight: 600 }}>
-                                                        Ya tienes {existing.quantity} {existing.unit} · sumará a tu existente
+                                                        {t('Ya tienes {cantidad} {unidad} · sumará a tu existente', { cantidad: existing.quantity, unidad: existing.unit })}
                                                     </span>
                                                 ) : (
                                                     <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.2rem', display: 'block' }}>
-                                                        Alias incl.: {item.aliases?.slice(0, 3).join(', ')}{item.aliases?.length > 3 ? '...' : ''}
+                                                        {t('Alias incl.:')} {item.aliases?.slice(0, 3).join(', ')}{item.aliases?.length > 3 ? '...' : ''}
                                                     </span>
                                                 )}
                                             </div>
@@ -3124,7 +3172,7 @@ const Pantry = () => {
                                                     whiteSpace: 'nowrap',
                                                 }}
                                             >
-                                                {isPickerOpen ? 'Cerrar' : 'Elegir'}
+                                                {isPickerOpen ? t('Cerrar') : t('Elegir')}
                                             </button>
                                         </div>
 
@@ -3140,7 +3188,7 @@ const Pantry = () => {
                                                     <div style={{ padding: '0 1rem 1.25rem 1rem' }}>
                                                         {/* Counter de cantidad */}
                                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Cantidad</span>
+                                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('Cantidad')}</span>
                                                             <div style={{
                                                                 display: 'inline-flex', alignItems: 'center', gap: '0.75rem',
                                                                 background: 'var(--bg-card)', borderRadius: '99px', padding: '0.35rem',
@@ -3156,7 +3204,7 @@ const Pantry = () => {
                                                                         cursor: pickerQty <= 1 ? 'not-allowed' : 'pointer',
                                                                         touchAction: 'manipulation',
                                                                     }}
-                                                                    aria-label="Disminuir cantidad"
+                                                                    aria-label={t('Disminuir cantidad')}
                                                                 >
                                                                     <Minus size={18} strokeWidth={2.5} />
                                                                 </button>
@@ -3176,7 +3224,7 @@ const Pantry = () => {
                                                                         cursor: 'pointer', touchAction: 'manipulation',
                                                                         boxShadow: '0 4px 12px -2px rgba(14, 165, 233, 0.45)',
                                                                     }}
-                                                                    aria-label="Aumentar cantidad"
+                                                                    aria-label={t('Aumentar cantidad')}
                                                                 >
                                                                     <Plus size={18} strokeWidth={3} />
                                                                 </button>
@@ -3186,12 +3234,12 @@ const Pantry = () => {
                                                         {/* Pills de unidades */}
                                                         {existing ? (
                                                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 1rem 0', fontStyle: 'italic' }}>
-                                                                Se sumará usando la unidad actual ({existing.unit}).
+                                                                {t('Se sumará usando la unidad actual ({unidad}).', { unidad: existing.unit })}
                                                             </p>
                                                         ) : (
                                                             <>
                                                                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '0.5rem' }}>
-                                                                    ¿Cómo viene?
+                                                                    {t('¿Cómo viene?')}
                                                                 </div>
                                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
                                                                     {/* Unión de market_container + default_unit + COMMON. Preserva
@@ -3234,13 +3282,13 @@ const Pantry = () => {
                                                                     variantes en el catálogo; fail-soft si no hay ninguna. */}
                                                                 {brandInfo && brandInfo.loading && (
                                                                     <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1rem' }}>
-                                                                        <Loader2 size={14} className="spin-fast" /> Buscando marcas…
+                                                                        <Loader2 size={14} className="spin-fast" /> {t('Buscando marcas…')}
                                                                     </div>
                                                                 )}
                                                                 {brandInfo && !brandInfo.loading && brandInfo.brands.length > 0 && (
                                                                     <>
                                                                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '0.5rem' }}>
-                                                                            Marca <span style={{ fontWeight: 500, color: 'var(--text-light)' }}>(opcional)</span>
+                                                                            {t('Marca')} <span style={{ fontWeight: 500, color: 'var(--text-light)' }}>{t('(opcional)')}</span>
                                                                         </div>
                                                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
                                                                             <button
@@ -3248,7 +3296,7 @@ const Pantry = () => {
                                                                                 onClick={() => setPickerBrand(null)}
                                                                                 style={brandPillStyle(pickerBrand === null)}
                                                                             >
-                                                                                Sin marca
+                                                                                {t('Sin marca')}
                                                                             </button>
                                                                             {brandInfo.brands.map(({ brand, price }) => (
                                                                                 <button
@@ -3285,11 +3333,11 @@ const Pantry = () => {
                                                             }}
                                                         >
                                                             {isAdding ? (
-                                                                <><Loader2 size={18} className="spin-fast" /> Añadiendo…</>
+                                                                <><Loader2 size={18} className="spin-fast" /> {t('Añadiendo…')}</>
                                                             ) : existing ? (
-                                                                <><Plus size={18} strokeWidth={3} /> Sumar {pickerQty} {existing.unit} a la nevera</>
+                                                                <><Plus size={18} strokeWidth={3} /> {t('Sumar {cantidad} {unidad} a la nevera', { cantidad: pickerQty, unidad: existing.unit })}</>
                                                             ) : (
-                                                                <><Plus size={18} strokeWidth={3} /> Añadir {pickerQty} {pickerUnit}{pickerBrand ? ` · ${pickerBrand}` : ''} a la nevera</>
+                                                                <><Plus size={18} strokeWidth={3} /> {t('Añadir {cantidad} {unidad}{marca} a la nevera', { cantidad: pickerQty, unidad: pickerUnit, marca: pickerBrand ? ` · ${pickerBrand}` : '' })}</>
                                                             )}
                                                         </button>
                                                     </div>
@@ -3303,8 +3351,8 @@ const Pantry = () => {
                                 {addItemSearch.trim() && suggestedMasterItems.length === 0 && (
                                     <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)' }}>
                                         <Package size={32} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
-                                        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>No encontramos "{addItemSearch.trim()}"</div>
-                                        <div style={{ fontSize: '0.85rem' }}>Prueba con otro nombre o un sinónimo más común.</div>
+                                        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{t('No encontramos "{consulta}"', { consulta: addItemSearch.trim() })}</div>
+                                        <div style={{ fontSize: '0.85rem' }}>{t('Prueba con otro nombre o un sinónimo más común.')}</div>
                                     </div>
                                 )}
 
@@ -3317,7 +3365,7 @@ const Pantry = () => {
                                         {recentAdds.length > 0 && (
                                             <div style={{ marginBottom: '1.25rem' }}>
                                                 <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                                                    Recientes
+                                                    {t('Recientes')}
                                                 </div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                                     {recentAdds.map(r => (
@@ -3327,7 +3375,7 @@ const Pantry = () => {
                                                             disabled={isAdding}
                                                             onClick={() => handleRecentAdd(r)}
                                                             style={ADD_CHIP_STYLE}
-                                                            title={`Añadir 1 ${r.unit || ''} de ${r.name}`.trim()}
+                                                            title={t('Añadir 1 {unidad} de {alimento}', { unidad: r.unit || '', alimento: r.name }).trim()}
                                                         >
                                                             <RotateCcw size={13} style={{ opacity: 0.5 }} /> {r.name}
                                                         </button>
@@ -3337,7 +3385,7 @@ const Pantry = () => {
                                         )}
 
                                         <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                                            Sugerencias rápidas
+                                            {t('Sugerencias rápidas')}
                                         </div>
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                             {QUICK_ADD_SUGGESTIONS.map(word => (
@@ -3353,7 +3401,7 @@ const Pantry = () => {
                                             ))}
                                         </div>
                                         <p style={{ fontSize: '0.83rem', color: 'var(--text-light)', margin: '1.15rem 0 0', lineHeight: 1.45 }}>
-                                            Toca un chip para añadirlo al instante, o escribe cualquier alimento arriba.
+                                            {t('Toca un chip para añadirlo al instante, o escribe cualquier alimento arriba.')}
                                         </p>
                                     </div>
                                 )}
@@ -3389,11 +3437,11 @@ const Pantry = () => {
                             }}
                         >
                             <h2 id="pantry-qty-title" style={{ margin: '0 0 0.3rem 0', fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                                Ajustar cantidad
+                                {t('Ajustar cantidad')}
                             </h2>
                             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                                 <strong style={{ color: 'var(--text-main)' }}>{qtyEditItem.ingredient_name}</strong>
-                                {' '}· medida: <span style={{ textTransform: 'capitalize' }}>{qtyEditItem.unit}</span>
+                                {' '}{t('· medida:')} <span style={{ textTransform: 'capitalize' }}>{qtyEditItem.unit}</span>
                             </p>
 
                             {/* Counter grande */}
@@ -3413,7 +3461,7 @@ const Pantry = () => {
                                         cursor: qtyEditValue <= 0 || qtyEditSaving ? 'not-allowed' : 'pointer',
                                         touchAction: 'manipulation',
                                     }}
-                                    aria-label="Disminuir cantidad"
+                                    aria-label={t('Disminuir cantidad')}
                                 >
                                     <Minus size={20} strokeWidth={3} />
                                 </button>
@@ -3422,7 +3470,7 @@ const Pantry = () => {
                                     inputMode="numeric"
                                     min="0"
                                     max="999"
-                                    aria-label="Cantidad"
+                                    aria-label={t('Cantidad')}
                                     value={qtyEditValue}
                                     onChange={(e) => {
                                         const n = parseInt(e.target.value, 10);
@@ -3460,7 +3508,7 @@ const Pantry = () => {
                                         boxShadow: '0 4px 14px -2px rgba(14, 165, 233, 0.5)',
                                         touchAction: 'manipulation',
                                     }}
-                                    aria-label="Aumentar cantidad"
+                                    aria-label={t('Aumentar cantidad')}
                                 >
                                     <Plus size={20} strokeWidth={3} />
                                 </button>
@@ -3502,7 +3550,7 @@ const Pantry = () => {
                                     color: 'var(--danger, #ef4444)',
                                     fontSize: '0.82rem', textAlign: 'center', fontWeight: 600,
                                 }}>
-                                    Al guardar con 0 se marcará como agotado.
+                                    {t('Al guardar con 0 se marcará como agotado.')}
                                 </p>
                             )}
 
@@ -3518,7 +3566,7 @@ const Pantry = () => {
                                         fontWeight: 700, cursor: qtyEditSaving ? 'not-allowed' : 'pointer',
                                     }}
                                 >
-                                    Cancelar
+                                    {t('Cancelar')}
                                 </button>
                                 <button
                                     type="button"
@@ -3533,13 +3581,13 @@ const Pantry = () => {
                                         try {
                                             await handleUpdateQuantity(targetItem.id, target);
                                             if (target === 0) {
-                                                toast.success(`${targetItem.ingredient_name} marcado como agotado`);
+                                                toast.success(t('{alimento} marcado como agotado', { alimento: targetItem.ingredient_name }));
                                             } else {
                                                 toast.success(`${targetItem.ingredient_name}: ${target} ${targetItem.unit}`);
                                             }
                                         } catch (err) {
                                             console.error('qty edit error', err);
-                                            toast.error('No se pudo actualizar la cantidad');
+                                            toast.error(t('No se pudo actualizar la cantidad'));
                                         } finally {
                                             setQtyEditSaving(false);
                                             setQtyEditItem(null);
@@ -3557,9 +3605,9 @@ const Pantry = () => {
                                     }}
                                 >
                                     {qtyEditSaving ? (
-                                        <><Loader2 size={16} className="spin-fast" /> Guardando…</>
+                                        <><Loader2 size={16} className="spin-fast" /> {t('Guardando…')}</>
                                     ) : (
-                                        <>Guardar</>
+                                        <>{t('Guardar')}</>
                                     )}
                                 </button>
                             </div>
@@ -3598,10 +3646,10 @@ const Pantry = () => {
                             </div>
 
                             <h2 id="pantry-delete-title" className={fstyles.confirmTitle}>
-                                ¿Vaciar la Nevera?
+                                {t('¿Vaciar la Nevera?')}
                             </h2>
                             <p className={fstyles.confirmText}>
-                                Vas a borrar <strong>todos los alimentos</strong> de la despensa. Esta acción no se puede deshacer.
+                                {t('Vas a borrar')} <strong>{t('todos los alimentos')}</strong> {t('de la despensa. Esta acción no se puede deshacer.')}
                             </p>
                             <div className={fstyles.confirmActions}>
                                 <button
@@ -3610,7 +3658,7 @@ const Pantry = () => {
                                     disabled={isDeletingAll}
                                     className={fstyles.confirmGhost}
                                 >
-                                    Cancelar
+                                    {t('Cancelar')}
                                 </button>
                                 <button
                                     type="button"
@@ -3618,7 +3666,7 @@ const Pantry = () => {
                                     disabled={isDeletingAll}
                                     className={fstyles.confirmDanger}
                                 >
-                                    {isDeletingAll ? <Loader2 size={16} className="spin-fast" /> : <Trash2 size={16} strokeWidth={2.5} />} Sí, vaciar
+                                    {isDeletingAll ? <Loader2 size={16} className="spin-fast" /> : <Trash2 size={16} strokeWidth={2.5} />} {t('Sí, vaciar')}
                                 </button>
                             </div>
                         </motion.div>

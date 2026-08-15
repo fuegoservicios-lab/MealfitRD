@@ -23,6 +23,7 @@ import {
     getCachedMasterList, setCachedMasterList,
     getCachedInventory, setCachedInventory, invalidateInventoryCache,
 } from '../../../utils/pantryCache';
+import { useT } from '../../../i18n';
 
 // Helper de transporte (mismo contrato que Pantry.jsx::_apiJson — duplicado a
 // propósito: importar desde pages/Pantry.jsx metería las 3200 líneas de la página
@@ -52,6 +53,7 @@ const UNIT_OPTIONS = ['unidad', 'lb', 'g', 'paquete', 'lata', 'botella', 'funda'
 
 export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
     const { formData } = useAssessment();
+    const t = useT();
     const [inventory, setInventory] = useState(() => getCachedInventory() || []);
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
     const [query, setQuery] = useState('');
@@ -94,13 +96,16 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                 }
             } catch (e) {
                 console.error('QPantryBuilder fetch:', e);
-                if (!cancelled) toast.error('No pudimos cargar tu Nevera. Reintenta en unos segundos.');
+                if (!cancelled) toast.error(t('No pudimos cargar tu Nevera. Reintenta en unos segundos.'));
             } finally {
                 if (!cancelled) setLoading(false);
             }
         })();
         return () => { cancelled = true; };
-    }, []);
+        // [P1-I18N-DASHBOARD · 2026-08-15] `t` es una referencia estable (la misma
+        // función de módulo que devuelve el hook), así que declararla NO reintroduce
+        // el fetch: solo satisface la regla de dependencias sin desactivarla.
+    }, [t]);
 
     // Medidor de factibilidad en vivo: mismo pre-flight determinista del backend
     // (cero costo LLM, RateLimiter server-side), con debounce para que el
@@ -178,7 +183,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
             setQuery('');
         } catch (e) {
             console.error('QPantryBuilder add:', e);
-            toast.error('No se pudo agregar el alimento.');
+            toast.error(t('No se pudo agregar el alimento.'));
         } finally {
             busyRef.current = false;
         }
@@ -197,7 +202,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
             await refetch();
         } catch (e) {
             console.error('QPantryBuilder qty:', e);
-            toast.error('No se pudo ajustar la cantidad.');
+            toast.error(t('No se pudo ajustar la cantidad.'));
         } finally {
             busyRef.current = false;
         }
@@ -218,7 +223,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
             await refetch();
         } catch (e) {
             console.error('QPantryBuilder unit:', e);
-            toast.error('No se pudo cambiar el envase.');
+            toast.error(t('No se pudo cambiar el envase.'));
         } finally {
             busyRef.current = false;
         }
@@ -242,7 +247,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
             await refetch();
         } catch (e) {
             console.error('QPantryBuilder qty-set:', e);
-            toast.error('No se pudo actualizar la cantidad.');
+            toast.error(t('No se pudo actualizar la cantidad.'));
         }
     };
 
@@ -317,7 +322,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
             await refetch();
         } catch (e) {
             console.error('QPantryBuilder brand:', e);
-            toast.error('No se pudo cambiar la marca.');
+            toast.error(t('No se pudo cambiar la marca.'));
             return;
         }
         // Preferencia global: fail-soft (el item ya quedó etiquetado; la pref es
@@ -345,7 +350,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
         } catch (e) {
             if (e?.status !== 404) {
                 console.error('QPantryBuilder delete:', e);
-                toast.error('No se pudo quitar el alimento.');
+                toast.error(t('No se pudo quitar el alimento.'));
             } else {
                 setInventory(prev => prev.filter(i => i.id !== item.id));
             }
@@ -394,8 +399,8 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Busca un alimento (pollo, arroz, plátano…)"
-                    aria-label="Buscar alimento para agregar a tu Nevera"
+                    placeholder={t('Busca un alimento (pollo, arroz, plátano…)')}
+                    aria-label={t('Buscar alimento para agregar a tu Nevera')}
                     style={{
                         width: '100%', padding: '0.85rem 1rem 0.85rem 2.4rem',
                         borderRadius: '0.9rem', border: '1px solid var(--border)',
@@ -403,7 +408,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                     }}
                 />
                 {results.length > 0 && (
-                    <div role="listbox" aria-label="Resultados del catálogo" style={{
+                    <div role="listbox" aria-label={t('Resultados del catálogo')} style={{
                         position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 20,
                         background: 'var(--bg-card)', border: '1px solid var(--border)',
                         borderRadius: '0.9rem', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
@@ -416,7 +421,8 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                     width: '100%', padding: '0.65rem 0.9rem', background: 'none',
                                     border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '0.9rem',
                                 }}>
-                                <span>{m.name}{inInventory.has(m.id) ? ' · ya en tu Nevera' : ''}</span>
+                                {/* El nombre sale del catálogo (SSOT del motor): NO se traduce. */}
+                                <span>{m.name}{inInventory.has(m.id) ? ` · ${t('ya en tu Nevera')}` : ''}</span>
                                 <Plus size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                             </button>
                         ))}
@@ -426,7 +432,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
 
             {/* Lista de lo agregado */}
             {loading ? (
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cargando tu Nevera…</p>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('Cargando tu Nevera…')}</p>
             ) : count === 0 ? (
                 <div style={{
                     padding: '1.25rem', borderRadius: '0.9rem', border: '1px dashed var(--border)',
@@ -434,7 +440,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem',
                 }}>
                     <Refrigerator size={22} />
-                    Tu Nevera está vacía — busca arriba y agrega lo que tienes en casa.
+                    {t('Tu Nevera está vacía — busca arriba y agrega lo que tienes en casa.')}
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '260px', overflowY: 'auto' }}>
@@ -467,7 +473,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                         value={item.brand}
                                         brands={(brandCache[norm(item.ingredient_name)] || [])}
                                         onSelect={(b) => changeBrand(item, b)}
-                                        ariaLabel={`Marca de ${item.ingredient_name}`}
+                                        ariaLabel={t('Marca de {alimento}', { alimento: item.ingredient_name })}
                                     />
                                 )}
                             </div>
@@ -476,7 +482,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                 botones pasan de ~22px de alto (la papelera daba 21: el 48%
                                 del minimo de Apple) a 44. */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
-                            <button type="button" aria-label={`Quitar 1 de ${item.ingredient_name}`}
+                            <button type="button" aria-label={t('Quitar 1 de {alimento}', { alimento: item.ingredient_name })}
                                 onClick={() => changeQty(item, -1)} disabled={(item.quantity || 0) <= 1}
                                 style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, cursor: (item.quantity || 0) <= 1 ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center' }}>
                                 <Minus size={16} />
@@ -484,7 +490,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                             {/* [P1-PANTRY-ROW-EDIT] Cantidad editable en directo ("escribir 200
                                 sin darle al + 200 veces"): commit en blur / Enter. */}
                             <input type="number" inputMode="decimal" min="0" step="any"
-                                aria-label={`Cantidad de ${item.ingredient_name}`}
+                                aria-label={t('Cantidad de {alimento}', { alimento: item.ingredient_name })}
                                 value={qtyDrafts[item.id] !== undefined ? qtyDrafts[item.id] : item.quantity}
                                 onChange={(e) => setQtyDrafts(prev => ({ ...prev, [item.id]: e.target.value }))}
                                 onBlur={() => commitQty(item)}
@@ -498,7 +504,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                             {/* [P1-PANTRY-SCAN-V0] Selector de envase (feedback owner:
                                 "no quiero una lata, quiero un paquete de habichuelas"). */}
                             <select value={item.unit || 'unidad'} className="qpb-select"
-                                aria-label={`Envase de ${item.ingredient_name}`}
+                                aria-label={t('Envase de {alimento}', { alimento: item.ingredient_name })}
                                 onChange={(e) => changeUnit(item, e.target.value)}
                                 style={{
                                     background: 'var(--bg-muted)', color: 'var(--text-muted)',
@@ -512,12 +518,12 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                     <option key={u} value={u}>{u}</option>
                                 ))}
                             </select>
-                            <button type="button" aria-label={`Agregar 1 de ${item.ingredient_name}`}
+                            <button type="button" aria-label={t('Agregar 1 de {alimento}', { alimento: item.ingredient_name })}
                                 onClick={() => changeQty(item, 1)}
                                 style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center' }}>
                                 <Plus size={16} />
                             </button>
-                            <button type="button" aria-label={`Eliminar ${item.ingredient_name}`}
+                            <button type="button" aria-label={t('Eliminar {alimento}', { alimento: item.ingredient_name })}
                                 onClick={() => removeItem(item)}
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-text, #ef4444)', minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center' }}>
                                 <Trash2 size={18} />
@@ -540,27 +546,25 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                     </div>
                     <p style={{ margin: '0.35rem 0 0', color: 'var(--text-muted)', fontSize: '0.83rem' }}>
                         {feas.feasible
-                            ? `Tu Nevera cubre ≈${feas.days_supported} de ${days} días de tu objetivo ✓`
-                            : `Tu Nevera cubre ≈${feas.days_supported || 0} de ${days} días — puedes crear el plan igual: la lista de compras te dirá lo que falte.`}
+                            ? t('Tu Nevera cubre ≈{cubiertos} de {dias} días de tu objetivo ✓', { cubiertos: feas.days_supported, dias: days })
+                            : t('Tu Nevera cubre ≈{cubiertos} de {dias} días — puedes crear el plan igual: la lista de compras te dirá lo que falte.', { cubiertos: feas.days_supported || 0, dias: days })}
                     </p>
                 </div>
             )}
 
             {belowMin && count > 0 && (
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.83rem', textAlign: 'center' }}>
-                    Con menos de {minItems} alimentos el plan sería casi igual al libre —
-                    agrega {minItems - count} más (proteínas, carbohidratos, vegetales) para
-                    que de verdad salga de tu Nevera.
+                    {t('Con menos de {minimo} alimentos el plan sería casi igual al libre — agrega {faltan} más (proteínas, carbohidratos, vegetales) para que de verdad salga de tu Nevera.', { minimo: minItems, faltan: minItems - count })}
                 </p>
             )}
             <NextButton
                 onClick={onFinish}
                 disabled={isSubmitting || belowMin}
                 label={isSubmitting
-                    ? 'Generando Plan…'
+                    ? t('Generando Plan…')
                     : (belowMin
-                        ? `Agrega al menos ${minItems} alimentos (${count}/${minItems})`
-                        : `Crear mi plan con esta Nevera (${count})`)}
+                        ? t('Agrega al menos {minimo} alimentos ({actual}/{minimo})', { minimo: minItems, actual: count })
+                        : t('Crear mi plan con esta Nevera ({n})', { n: count }))}
                 icon={Zap}
             />
         </div>

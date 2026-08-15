@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 // (SSOT compartido con el menú "más" móvil de DashboardLayout).
 import { Link } from 'react-router-dom';
 import { MORE_INFO_GROUPS } from './moreInfoLinks';
+import { useT } from '../../i18n';
 import styles from './AccountMenu.module.css';
 
 /* [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Card del menú de cuenta del sidebar.
@@ -147,14 +148,14 @@ AccountIdentityButton.propTypes = {
 
 export default function AccountMenu({
   user = { name: 'angelobrito915', email: 'angelobrito915@gmail.com' },
-  plan = 'Gratuito',
+  plan = null,
   planAccessory = null,
   avatar = null,
   subLabel = null,
   settingsSlot = null,
-  settingsLabel = 'Configuración',
-  logoutLabel = 'Cerrar sesión',
-  viewPlansLabel = 'Ver planes',
+  settingsLabel = null,
+  logoutLabel = null,
+  viewPlansLabel = null,
   onViewPlans,
   onViewPlansHover,
   onSettings,
@@ -163,10 +164,21 @@ export default function AccountMenu({
   onAccount,
   onHelp,
 }) {
+  const t = useT();
   // [P3-MORE-INFO-MENU · 2026-07-03] Vista del submenú "Más información": la
   // card intercambia su contenido por el panel de enlaces (patrón Claude.ai).
   // El popover se desmonta al cerrarse → el estado vuelve solo a la vista raíz.
   const [showMoreInfo, setShowMoreInfo] = useState(false);
+
+  // [P1-I18N-DASHBOARD · 2026-08-15] Los defaults de copy se resuelven AQUÍ y no
+  // en la lista de parámetros: `useT()` solo existe dentro del cuerpo, y un
+  // literal español en el default se le quedaría en español al llamador que no
+  // pasa la prop — que es exactamente el caso vivo (`DashboardLayout` pasa
+  // `plan`, `logoutLabel` y `viewPlansLabel`, pero NO `settingsLabel`).
+  const _plan = plan ?? t('Gratuito');
+  const _settingsLabel = settingsLabel ?? t('Configuración');
+  const _logoutLabel = logoutLabel ?? t('Cerrar sesión');
+  const _viewPlansLabel = viewPlansLabel ?? t('Ver planes');
 
   if (showMoreInfo) {
     return (
@@ -175,10 +187,10 @@ export default function AccountMenu({
           type="button"
           className={styles.backRow}
           onClick={() => setShowMoreInfo(false)}
-          aria-label="Volver al menú de cuenta"
+          aria-label={t('Volver al menú de cuenta')}
         >
           <ChevronLeft className={styles.backChevron} />
-          Más información
+          {t('Más información')}
         </button>
         <div className={styles.infoMenu}>
           {MORE_INFO_GROUPS.map((group, gi) => (
@@ -209,9 +221,9 @@ export default function AccountMenu({
       {/* Encabezado de plan */}
       <header className={styles.planHeader}>
         <div className={styles.planInfo}>
-          <span className={styles.kicker}>Tu plan</span>
+          <span className={styles.kicker}>{t('Tu plan')}</span>
           <span className={styles.planNameRow}>
-            <span className={styles.planName}>{plan}</span>
+            <span className={styles.planName}>{_plan}</span>
             {planAccessory && <span className={styles.planAccessory}>{planAccessory}</span>}
           </span>
         </div>
@@ -224,7 +236,7 @@ export default function AccountMenu({
           onTouchStart={onViewPlansHover}
           role="menuitem"
         >
-          {viewPlansLabel}
+          {_viewPlansLabel}
           <ChevronRight className={styles.verChevron} />
         </button>
       </header>
@@ -244,7 +256,7 @@ export default function AccountMenu({
             onTouchStart={onSettingsHover}
           >
             <span className={styles.iconChip}><GearIcon className={styles.icon} /></span>
-            <span className={styles.itemLabel}>{settingsLabel}</span>
+            <span className={styles.itemLabel}>{_settingsLabel}</span>
           </button>
         )}
 
@@ -257,7 +269,7 @@ export default function AccountMenu({
           onClick={() => setShowMoreInfo(true)}
         >
           <span className={styles.iconChip}><InfoIcon className={styles.icon} /></span>
-          <span className={styles.itemLabel}>Más información</span>
+          <span className={styles.itemLabel}>{t('Más información')}</span>
           <ChevronRight className={styles.itemChevron} />
         </button>
 
@@ -272,7 +284,7 @@ export default function AccountMenu({
           onClick={onHelp}
         >
           <span className={styles.iconChip}><HelpIcon className={styles.icon} /></span>
-          <span className={styles.itemLabel}>Obtener ayuda</span>
+          <span className={styles.itemLabel}>{t('Obtener ayuda')}</span>
         </button>
 
         {/* [P3-ACCOUNT-MENU-COMPACT · 2026-07-04] Ítems nuevos van ARRIBA de este
@@ -289,7 +301,7 @@ export default function AccountMenu({
           <span className={`${styles.iconChip} ${styles.logoutChip}`}>
             <LogoutIcon className={styles.icon} />
           </span>
-          <span className={styles.itemLabel}>{logoutLabel}</span>
+          <span className={styles.itemLabel}>{_logoutLabel}</span>
         </button>
       </div>
 
@@ -302,7 +314,7 @@ export default function AccountMenu({
           subLabel={subLabel}
           chevron="down"
           onClick={onAccount}
-          ariaLabel="Cerrar menú de cuenta"
+          ariaLabel={t('Cerrar menú de cuenta')}
         />
       </footer>
     </div>

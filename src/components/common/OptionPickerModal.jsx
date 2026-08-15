@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Loader2 } from 'lucide-react';
 import Modal from './Modal';
 import { isDarkActive } from '../../utils/theme';
+import { useT } from '../../i18n';
 
 const OptionPickerModal = ({
     isOpen,
@@ -34,6 +35,7 @@ const OptionPickerModal = ({
     // sin afectar al infoBand (que ya tiene min-height estable). El
     // infoBand solo cambia con `onMouseEnter` de otra opción — nunca con
     // `onMouseLeave`.
+    const t = useT();
     const [activeOption, setActiveOption] = useState(null);
     const [pinnedInfoOption, setPinnedInfoOption] = useState(null);
     // [APPEARANCE-THEME · 2026-05-29] En oscuro, los `option.bg` pastel claros
@@ -83,7 +85,7 @@ const OptionPickerModal = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: headerIcon ? '1rem' : '0.6rem' }}>
                 {/* Anuncio para Screen Readers cuando un botón está cargando */}
                 <div aria-live="polite" style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', border: 0 }}>
-                    {isNavigatingOption ? 'Preparando nuevo plan, esto tardará unos segundos' : ''}
+                    {isNavigatingOption ? t('Preparando nuevo plan, esto tardará unos segundos') : ''}
                 </div>
 
                 {options.map(option => {
@@ -207,7 +209,7 @@ const OptionPickerModal = ({
                                     fontWeight: 500,
                                     lineHeight: 1.35,
                                 }}>
-                                    {isLoading ? 'Preparando...' : (option.disabled ? (option.disabledDesc || option.desc) : option.desc)}
+                                    {isLoading ? t('Preparando...') : (option.disabled ? (option.disabledDesc || option.desc) : option.desc)}
                                 </div>
                             </div>
                         </button>

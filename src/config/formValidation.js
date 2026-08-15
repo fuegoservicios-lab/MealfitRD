@@ -243,6 +243,56 @@ export const FIELD_LABELS = {
 };
 
 /**
+ * [P1-I18N-DASHBOARD · 2026-08-15] Las mismas etiquetas, traducibles.
+ *
+ * Por qué DUPLICA los valores de `FIELD_LABELS` en vez de traducirlo al vuelo:
+ *
+ *   1. `FIELD_LABELS` es SSOT y lo parsean dos tests del backend
+ *      (`test_form_backend_parity_meta.py`, `test_p0_form_6_required_fields_sync.py`).
+ *      Convertirlo en función o meterle `t()` dentro toca un contrato ajeno.
+ *   2. `t(FIELD_LABELS[key])` FUNCIONARÍA en runtime —la clave del catálogo es
+ *      justamente el texto español— pero sería una clave DINÁMICA, invisible
+ *      para `npm run i18n:check`. O sea: nunca entraría en los catálogos y esas
+ *      22 etiquetas se quedarían en español para siempre, sin que nada avisara.
+ *      Es exactamente el fallo silencioso que el validador existe para impedir.
+ *
+ * El precio de la duplicación es explícito y barato: si alguien añade un campo
+ * a `FIELD_LABELS` y olvida esta tabla, el `??` lo pinta en español. Degrada,
+ * no miente.
+ *
+ * Es una FUNCIÓN, no una constante: un `t()` en ámbito de módulo se evalúa al
+ * importar —antes de que exista catálogo— y se congela en español para siempre.
+ */
+export const getFieldLabels = (t) => ({
+    appMode: t('Qué hace Bioboros por ti (plan o contador)'),
+    planSource: t('Cómo arma tu plan la IA'),
+    gender: t('Sexo biológico'),
+    age: t('Edad'),
+    height: t('Altura'),
+    weight: t('Peso'),
+    weightUnit: t('Unidad de peso (lb/kg)'),
+    activityLevel: t('Nivel de actividad'),
+    scheduleType: t('Tu horario cotidiano'),
+    sleepHours: t('Horas de sueño'),
+    stressLevel: t('Nivel de estrés'),
+    cookingTime: t('Tiempo para cocinar'),
+    budget: t('Presupuesto de compras'),
+    householdSize: t('Tamaño del hogar'),
+    groceryDuration: t('Duración entre compras'),
+    dietType: t('Tipo de dieta'),
+    allergies: t('Alergias o intolerancias'),
+    dislikes: t('Alimentos que no te gustan'),
+    medicalConditions: t('Condiciones médicas'),
+    mainGoal: t('Objetivo principal'),
+    struggles: t('Mayores obstáculos'),
+    motivation: t('Motivación personal'),
+});
+
+/** Etiqueta traducida de un campo; cae al español del SSOT y luego a la clave. */
+export const getFieldLabel = (key, t) =>
+    (typeof t === 'function' ? getFieldLabels(t)[key] : null) ?? FIELD_LABELS[key] ?? key;
+
+/**
  * Devuelve la primera key de `REQUIRED_FORM_FIELDS` cuyo valor está ausente o
  * vacío en `formData`. Null si todos completos.
  *

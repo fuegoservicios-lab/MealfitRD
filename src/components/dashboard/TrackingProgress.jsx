@@ -18,6 +18,7 @@ import { isDarkActive } from '../../utils/theme';
 import ScanMealModal from './ScanMealModal';
 // [P1-MANUAL-FOOD-LOG · 2026-08-11] El componedor manual: registrar sin foto.
 import LogMealModal from './LogMealModal';
+import { useT, useTn } from '../../i18n';
 import styles from './TrackingProgress.module.css';
 
 // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Cache local del card
@@ -48,17 +49,20 @@ const _CONSUMED_DEFAULT = { calories: 0, protein: 0, carbs: 0, fats: 0, meals: [
 // que emite el backend (`tools.py::_normalize_meal_type` + `ScanMealModal`
 // `_MEAL_TYPES`) — fallback capitalizado defensivo por si un valor legacy
 // distinto se cuela.
-const _MEAL_TYPE_LABELS = {
-    desayuno: 'Desayuno',
-    almuerzo: 'Almuerzo',
-    cena: 'Cena',
-    merienda: 'Merienda',
-    snack: 'Snack',
-};
+// [P1-I18N-DASHBOARD · 2026-08-15] Función y no constante: una tabla de copy en
+// ámbito de módulo se congela en español al importar. Las claves son los valores
+// de `meal_type` del backend y NO se traducen.
+const _getMealTypeLabels = (t) => ({
+    desayuno: t('Desayuno'),
+    almuerzo: t('Almuerzo'),
+    cena: t('Cena'),
+    merienda: t('Merienda'),
+    snack: t('Snack'),
+});
 
-const _mealTypeLabel = (mealType) => {
-    if (!mealType) return 'Comida';
-    return _MEAL_TYPE_LABELS[mealType] || (mealType.charAt(0).toUpperCase() + mealType.slice(1));
+const _mealTypeLabel = (mealType, t) => {
+    if (!mealType) return t('Comida');
+    return _getMealTypeLabels(t)[mealType] || (mealType.charAt(0).toUpperCase() + mealType.slice(1));
 };
 
 // Cap de filas visibles antes de requerir "Ver más" — evita que la card
@@ -131,6 +135,8 @@ const _buildConsumedSnapshot = ({ meals, totals, cacheKey }) => {
 };
 
 const TrackingProgress = ({ planData, userId }) => {
+    const t = useT();
+    const tn = useTn();
 
     // [P2-DIARY-SCAN-MACROS · 2026-05-30] Estado del modal de escaneo. Al
     // registrar una comida el modal dispara `mealfit:refresh-inventory`, que
@@ -355,8 +361,8 @@ const TrackingProgress = ({ planData, userId }) => {
         if (!meal?.id || deletingMealId) return;
 
         const ok = await confirmToast(
-            `¿Eliminar "${meal.meal_name}" del diario? Esta acción no se puede deshacer.`,
-            { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar' }
+            t('¿Eliminar "{nombre}" del diario? Esta acción no se puede deshacer.', { nombre: meal.meal_name }),
+            { confirmLabel: t('Eliminar'), cancelLabel: t('Cancelar') }
         );
         if (!ok) return;
 
@@ -365,7 +371,7 @@ const TrackingProgress = ({ planData, userId }) => {
             const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}`, { method: 'DELETE' });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data?.success) {
-                throw new Error(data?.detail || data?.message || 'No se pudo eliminar la comida.');
+                throw new Error(data?.detail || data?.message || t('No se pudo eliminar la comida.'));
             }
 
             // Recalcula totales/count con la fila ya fuera — mismo builder
@@ -375,14 +381,14 @@ const TrackingProgress = ({ planData, userId }) => {
                 meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
                 cacheKey: consumedCacheKey,
             }));
-            toast.success(`"${meal.meal_name}" eliminada del diario.`);
+            toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
         } catch (err) {
             console.error('Error eliminando comida del diario:', err);
-            toast.error('No se pudo eliminar la comida. Intenta de nuevo.');
+            toast.error(t('No se pudo eliminar la comida. Intenta de nuevo.'));
         } finally {
             setDeletingMealId(null);
         }
-    }, [deletingMealId, consumedCacheKey]);
+    }, [deletingMealId, consumedCacheKey, t]);
 
     // Funciones Helper para calcular Progreso
     // [P1-DIARY-HISTORY · 2026-07-31]
@@ -423,9 +429,16 @@ const TrackingProgress = ({ planData, userId }) => {
                         <Activity size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h2 className={styles.title}>Progreso en Tiempo Real</h2>
+                        <h2 className={styles.title}>{t('Progreso en Tiempo Real')}</h2>
                         <p className={styles.subtitle}>
-                            {loading ? 'Cargando registros...' : `${displayedConsumed.meals.length} ${displayedConsumed.meals.length === 1 ? 'comida registrada' : 'comidas registradas'} hoy`}
+                            {loading
+                                ? t('Cargando registros...')
+                                : tn(
+                                    displayedConsumed.meals.length,
+                                    '{n} comida registrada hoy',
+                                    '{n} comidas registradas hoy',
+                                    { n: displayedConsumed.meals.length }
+                                )}
                         </p>
                         {/* [P1-MACRO-ROW-MOBILE · 2026-08-11] La nota de la meta (P1-GOAL-ETA)
                             vivía aquí y se fue AL PIE de la tarjeta — busca `styles.etaChip`
@@ -450,21 +463,21 @@ const TrackingProgress = ({ planData, userId }) => {
                             type="button"
                         >
                             <Plus size={18} strokeWidth={2.5} />
-                            Registrar comida
+                            {t('Registrar comida')}
                         </button>
                         <button
                             className={`${styles.scanBtn} ${styles.scanBtnSecondary}`}
                             onClick={() => setScanOpen(true)}
                             type="button"
-                            aria-label="Escanear comida con la cámara"
-                            title="Escanear comida"
+                            aria-label={t('Escanear comida con la cámara')}
+                            title={t('Escanear comida')}
                         >
                             <Camera size={18} strokeWidth={2.5} />
                         </button>
                     </div>
                 ) : (
                     <div className={styles.guestBadge}>
-                        Inicia sesión para registrar comidas
+                        {t('Inicia sesión para registrar comidas')}
                     </div>
                 )}
             </div>
@@ -472,7 +485,7 @@ const TrackingProgress = ({ planData, userId }) => {
             <div className={styles.content}>
                 {/* Calorías (Main Bar) */}
                 <ProgressBar
-                    label="Calorías"
+                    label={t('Calorías')}
                     consumed={displayedConsumed.calories} goal={goalCal} unit="kcal"
                     perc={percCal} icon={Flame} darkIcon={FlameMacroIcon}
                     color="#F59E0B" lightColor="#FCD34D" gradient="linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%)"
@@ -489,21 +502,21 @@ const TrackingProgress = ({ planData, userId }) => {
                         darkIcon → la mancuerna sólida se mostraba TAMBIÉN en claro,
                         desentonando con los demás macros outline. */}
                     <ProgressBar
-                        label="Proteína"
+                        label={t('Proteína')}
                         consumed={displayedConsumed.protein} goal={goalPro} unit="g"
                         perc={percPro} icon={Dumbbell} darkIcon={ProteinIcon}
                         color="#3B82F6" lightColor="#93C5FD" gradient="linear-gradient(90deg, #93C5FD 0%, #3B82F6 100%)"
                     />
                     {/* Carbohidratos */}
                     <ProgressBar
-                        label="Carbohidratos"
+                        label={t('Carbohidratos')}
                         consumed={displayedConsumed.carbs} goal={goalCarb} unit="g"
                         perc={percCarb} icon={Wheat} color="#10B981" lightColor="#6EE7B7" gradient="linear-gradient(90deg, #6EE7B7 0%, #10B981 100%)"
                         fillWhiteStroke
                     />
                     {/* Grasas */}
                     <ProgressBar
-                        label="Grasas"
+                        label={t('Grasas')}
                         consumed={displayedConsumed.fats} goal={goalFat} unit="g"
                         perc={percFat} icon={Droplet} darkIcon={FatDropIcon}
                         color="#EC4899" lightColor="#F9A8D4" gradient="linear-gradient(90deg, #F9A8D4 0%, #EC4899 100%)"
@@ -523,7 +536,7 @@ const TrackingProgress = ({ planData, userId }) => {
                 <div className={styles.mealsSection}>
                     {_todaysMeals.length === 0 ? (
                         <p className={styles.mealsEmpty}>
-                            Aún no registras comidas hoy. Usa «Registrar comida», escanéala o cuéntaselo a tu coach en el chat.
+                            {t('Aún no registras comidas hoy. Usa «Registrar comida», escanéala o cuéntaselo a tu coach en el chat.')}
                         </p>
                     ) : (
                         <>
@@ -536,14 +549,14 @@ const TrackingProgress = ({ planData, userId }) => {
                                         <div className={styles.mealInfo}>
                                             <span className={styles.mealName}>{meal.meal_name}</span>
                                             <span className={styles.mealMeta}>
-                                                {_mealTypeLabel(meal.meal_type)} · {Math.round(meal.calories) || 0} kcal
+                                                {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal
                                             </span>
                                         </div>
                                         {meal.id && (
                                             <button
                                                 type="button"
                                                 className={styles.mealDeleteBtn}
-                                                aria-label={`Eliminar ${meal.meal_name} del diario`}
+                                                aria-label={t('Eliminar {nombre} del diario', { nombre: meal.meal_name })}
                                                 onClick={() => handleDeleteMeal(meal)}
                                                 disabled={deletingMealId === meal.id}
                                             >
@@ -561,7 +574,7 @@ const TrackingProgress = ({ planData, userId }) => {
                                     className={styles.mealsShowMore}
                                     onClick={() => setMealsExpanded(true)}
                                 >
-                                    Ver {hiddenMealsCount} más
+                                    {t('Ver {n} más', { n: hiddenMealsCount })}
                                 </button>
                             )}
                             {mealsExpanded && _todaysMeals.length > _MEALS_VISIBLE_CAP && (
@@ -570,7 +583,7 @@ const TrackingProgress = ({ planData, userId }) => {
                                     className={styles.mealsShowMore}
                                     onClick={() => setMealsExpanded(false)}
                                 >
-                                    Ver menos
+                                    {t('Ver menos')}
                                 </button>
                             )}
                         </>
@@ -596,7 +609,10 @@ const TrackingProgress = ({ planData, userId }) => {
             {planData?.goal_eta?.weeks_estimate ? (
                 <div className={styles.etaChip} title={planData.goal_eta.note}>
                     <Flag size={13} strokeWidth={2.5} aria-hidden="true" />
-                    Meta: {planData.goal_eta.target_weight_display} · ~{planData.goal_eta.weeks_estimate} semanas a tu ritmo{planData.goal_eta.pace ? ` (${planData.goal_eta.pace})` : ''}
+                    {t('Meta: {peso} · ~{semanas} semanas a tu ritmo', {
+                        peso: planData.goal_eta.target_weight_display,
+                        semanas: planData.goal_eta.weeks_estimate,
+                    })}{planData.goal_eta.pace ? ` (${planData.goal_eta.pace})` : ''}
                 </div>
             ) : null}
 

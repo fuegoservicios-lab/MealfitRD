@@ -3,9 +3,11 @@ import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { Mars, Venus } from 'lucide-react';
 import { PREGNANCY_CHIP_LABELS } from './_shared';
+import { useT } from '../../../i18n';
 
 export const QGender = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     // [P1-PREGNANCY-INTAKE-CAPTURE · 2026-06-19] Al fijar el género, limpia los chips de embarazo/lactancia
     // si el nuevo valor NO es mujer (los chips solo existen para mujeres; sin esto quedan huérfanos sin
     // chip visible para deseleccionarlos). Idempotente para 'female' (filter no-op si no hay valores).
@@ -28,13 +30,13 @@ export const QGender = ({ onAutoAdvance }) => {
                 User/UserCircle (personas genéricas) y no se distinguían
                 visualmente entre sí. */}
             <RadioCard
-                name="gender" value="female" label="Mujer" icon={Venus}
+                name="gender" value="female" label={t('Mujer')} icon={Venus}
                 checked={formData.gender === 'female'}
                 onChange={(e) => { setGender(e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (formData.gender === 'female') onAutoAdvance(); }}
             />
             <RadioCard
-                name="gender" value="male" label="Hombre" icon={Mars}
+                name="gender" value="male" label={t('Hombre')} icon={Mars}
                 checked={formData.gender === 'male'}
                 onChange={(e) => { setGender(e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (formData.gender === 'male') onAutoAdvance(); }}

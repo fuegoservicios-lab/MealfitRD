@@ -7,8 +7,10 @@ import styles from './LogoutConfirmModal.module.css';
 // handler — keyboard users no podían cerrar con ESC, screen readers no
 // anunciaban como modal, y el foco se perdía tras cerrar.
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
+import { useT } from '../../i18n';
 
 const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, isGuest = false }) => {
+    const t = useT();
     const [isClosing, setIsClosing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -63,16 +65,16 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, isGuest = 
             >
                 <h2 id="logout-confirm-title" className={styles.title}>
                     {isGuest
-                        ? <>¿Salir del{'\n'}modo invitado?</>
-                        : <>¿Confirmas que quieres{'\n'}cerrar sesión?</>}
+                        ? t('¿Salir del\nmodo invitado?')
+                        : t('¿Confirmas que quieres\ncerrar sesión?')}
                 </h2>
                 <p className={styles.subtitle}>
                     {isGuest ? (
-                        <>Perderás el plan y el progreso de tu sesión de invitado.{' '}
-                        <span className={styles.email}>Crea una cuenta gratis</span> antes de salir para guardarlo.</>
+                        <>{t('Perderás el plan y el progreso de tu sesión de invitado.')}{' '}
+                        <span className={styles.email}>{t('Crea una cuenta gratis')}</span> {t('antes de salir para guardarlo.')}</>
                     ) : (
-                        <>¿Cerrar sesión de Bioboros como{' '}
-                        <span className={styles.email}>{userEmail || 'tu cuenta'}</span>?</>
+                        <>{t('¿Cerrar sesión de Bioboros como')}{' '}
+                        <span className={styles.email}>{userEmail || t('tu cuenta')}</span>?</>
                     )}
                 </p>
 
@@ -85,8 +87,8 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, isGuest = 
                     >
                         <LogOut size={16} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
                         {isGuest
-                            ? (isLoading ? 'Saliendo...' : 'Salir')
-                            : (isLoading ? 'Cerrando sesión...' : 'Cerrar sesión')}
+                            ? (isLoading ? t('Saliendo...') : t('Salir'))
+                            : (isLoading ? t('Cerrando sesión...') : t('Cerrar sesión'))}
                     </button>
                     <button
                         className={styles.cancelBtn}
@@ -94,7 +96,7 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, isGuest = 
                         disabled={isLoading}
                         id="logout-cancel-btn"
                     >
-                        Cancelar
+                        {t('Cancelar')}
                     </button>
                 </div>
             </div>

@@ -5,6 +5,7 @@
 // chips de la Nevera (desktop + móvil) y el paso 21 del wizard.
 import { useState, useRef, useEffect } from 'react';
 import { Check, ChevronDown, Tag } from 'lucide-react';
+import { useT } from '../../i18n';
 
 /**
  * @param value      marca actual (null/'' = Genérico)
@@ -15,6 +16,7 @@ import { Check, ChevronDown, Tag } from 'lucide-react';
  * @param ariaLabel  etiqueta accesible del selector
  */
 export const BrandSelect = ({ value, brands = [], onSelect, className, inline = false, ariaLabel }) => {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const rootRef = useRef(null);
 
@@ -33,7 +35,7 @@ export const BrandSelect = ({ value, brands = [], onSelect, className, inline = 
     }, [open]);
 
     const current = (value && value !== 'Genérico') ? value : '';
-    const label = current || (inline ? 'Genérico (sin marca)' : 'Genérico');
+    const label = current || (inline ? t('Genérico (sin marca)') : t('Genérico'));
     // La marca actual siempre es opción aunque el súper ya no la liste.
     const options = current && !brands.some(b => b.brand === current)
         ? [{ brand: current, price: null }, ...brands]
@@ -51,7 +53,7 @@ export const BrandSelect = ({ value, brands = [], onSelect, className, inline = 
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 aria-label={ariaLabel}
-                title={`Marca: ${label} — tocar para cambiar`}
+                title={t('Marca: {marca} — tocar para cambiar', { marca: label })}
                 onClick={() => setOpen(o => !o)}
                 style={{
                     display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -74,7 +76,7 @@ export const BrandSelect = ({ value, brands = [], onSelect, className, inline = 
                     borderRadius: '0.75rem', boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
                     padding: '4px', display: 'flex', flexDirection: 'column',
                 }}>
-                    {[{ brand: '', price: null, _label: 'Genérico (sin marca)' }, ...options].map((opt) => {
+                    {[{ brand: '', price: null, _label: t('Genérico (sin marca)') }, ...options].map((opt) => {
                         const isSel = (opt.brand || '') === current;
                         return (
                             <button

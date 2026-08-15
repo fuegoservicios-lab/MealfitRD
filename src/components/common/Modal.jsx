@@ -5,8 +5,10 @@ import { X } from 'lucide-react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes effect manual).
 import { useLatestRef } from '../../hooks/useLatestRef';
+import { useT } from '../../i18n';
 
 const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disableClose = false, isBottomSheetOnMobile = false }) => {
+    const t = useT();
     const modalRef = useRef(null);
     const triggerRef = useRef(null);
     const [isCloseShaking, setIsCloseShaking] = useState(false);
@@ -186,7 +188,7 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                             onClick={handleCloseAttempt}
                             animate={isCloseShaking ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
                             transition={{ duration: 0.35 }}
-                            aria-label="Cerrar ventana modal"
+                            aria-label={t('Cerrar ventana modal')}
                             aria-disabled={disableClose}
                             style={{
                                 position: 'absolute', top: isMobile ? '1.25rem' : '1rem', right: isMobile ? '1.25rem' : '1rem',

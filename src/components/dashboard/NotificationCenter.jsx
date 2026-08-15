@@ -27,6 +27,7 @@ import { requestAgentPrefill } from '../../utils/agentPrefill';
 import { classify, restoreMicrosPanel } from './MicronutrientPanel';
 // [P1-REASONING-DISMISS · 2026-06-26] "Volver a mostrar" el panel de Razonamiento.
 import { restoreInsightsPanel } from '../../utils/insightsPanel';
+import { useT } from '../../i18n';
 import styles from './NotificationCenter.module.css';
 import Wordmark from '../common/Wordmark';
 
@@ -57,25 +58,26 @@ function metaFor(n) {
     return KIND_META.info;
 }
 
-function relativeTime(ts) {
+function relativeTime(ts, t) {
     if (!ts) return '';
     const diff = Date.now() - ts;
-    if (diff < 0) return 'ahora';
+    if (diff < 0) return t('ahora');
     const min = Math.floor(diff / 60000);
-    if (min < 1) return 'ahora';
-    if (min < 60) return `hace ${min} min`;
+    if (min < 1) return t('ahora');
+    if (min < 60) return t('hace {n} min', { n: min });
     const h = Math.floor(min / 60);
-    if (h < 24) return `hace ${h} h`;
+    if (h < 24) return t('hace {n} h', { n: h });
     const d = Math.floor(h / 24);
-    if (d === 1) return 'ayer';
-    if (d < 7) return `hace ${d} d`;
+    if (d === 1) return t('ayer');
+    if (d < 7) return t('hace {n} d', { n: d });
     const w = Math.floor(d / 7);
-    return `hace ${w} sem`;
+    return t('hace {n} sem', { n: w });
 }
 
 /* ----- vista expandida por tipo (información completa + acción) ----- */
 
 function MicrosDetail({ data, onAction }) {
+    const t = useT();
     // Array.isArray (no `|| []`): protege contra storage corrupto donde gaps sea
     // un objeto (truthy) → .map lanzaría.
     const gaps = Array.isArray(data?.gaps) ? data.gaps : [];
@@ -88,7 +90,7 @@ function MicrosDetail({ data, onAction }) {
                         el panel: chip BAJO/ALTO + frase ("Te faltan…/Te pasaste…"), no
                         barra. classify es el SSOT compartido. */}
                     {gaps.map((g, i) => {
-                        const s = classify(g);
+                        const s = classify(g, t);
                         return (
                             <div key={`g-${i}`} className={styles.exGap}>
                                 <div className={styles.exGapTop}>
@@ -101,7 +103,7 @@ function MicrosDetail({ data, onAction }) {
                                     </span>
                                 </div>
                                 <p className={styles.exGapText}>
-                                    {s.gapText} <span className={styles.exCur}>· tu plan aporta {g.valor}{g.unidad || ''}</span>
+                                    {s.gapText} <span className={styles.exCur}>{t('· tu plan aporta {valor}{unidad}', { valor: g.valor, unidad: g.unidad || '' })}</span>
                                 </p>
                             </div>
                         );
@@ -112,7 +114,7 @@ function MicrosDetail({ data, onAction }) {
             {supplements.length > 0 && (
                 <div className={styles.exSupps}>
                     <span className={styles.exLabel}>
-                        Sugerencias
+                        {t('Sugerencias')}
                     </span>
                     {supplements.map((it, i) => (
                         <div key={`s-${i}`} className={styles.exSupp}>
@@ -120,7 +122,7 @@ function MicrosDetail({ data, onAction }) {
                             <span>
                                 <strong>{it.nutriente}</strong> · {it.suplemento} {it.dosis_sugerida}
                                 {it.primero_alimentos && (
-                                    <span className={styles.exHint}> — primero alimentos: {it.primero_alimentos}</span>
+                                    <span className={styles.exHint}> {t('— primero alimentos: {alimentos}', { alimentos: it.primero_alimentos })}</span>
                                 )}
                                 {/* [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] precaución (UL / interacción / renal) */}
                                 {it.precaucion && (
@@ -145,23 +147,24 @@ function MicrosDetail({ data, onAction }) {
 
             <button type="button" className={styles.exAction} onClick={onAction}>
                 <MessageCircle size={14} strokeWidth={2.25} aria-hidden="true" />
-                Preguntar al coach cómo mejorarlos
+                {t('Preguntar al coach cómo mejorarlos')}
             </button>
         </>
     );
 }
 
 function QualityDetail({ data, onAction }) {
+    const t = useT();
     return (
         <>
             {data?.reasonLabel && (
                 <p className={styles.exReason}>
-                    <strong>Motivo ({data.severityLabel}):</strong> {data.reasonLabel}
+                    <strong>{t('Motivo ({severidad}):', { severidad: data.severityLabel })}</strong> {data.reasonLabel}
                 </p>
             )}
             {data?.guidance && <p className={styles.exGuidance}>{data.guidance}</p>}
             <button type="button" className={styles.exAction} onClick={onAction}>
-                Ir a mi plan
+                {t('Ir a mi plan')}
                 <ArrowRight size={14} strokeWidth={2.5} aria-hidden="true" />
             </button>
         </>
@@ -171,24 +174,27 @@ function QualityDetail({ data, onAction }) {
 /* [P1-REASONING-DISMISS · 2026-06-26] Vista expandida del Razonamiento archivado:
    muestra el contenido completo (Diagnóstico / Plan de Acción / Tip del Chef). El
    etiquetado replica la lógica del panel del dashboard (por palabra clave o índice). */
-function _insightTitle(insight, i) {
-    const t = (insight || '').toLowerCase();
-    if (t.includes('diagnóstico') || t.includes('diagnostico') || i === 0) return 'Diagnóstico';
-    if (t.includes('estrategia') || t.includes('acción') || t.includes('accion') || i === 1) return 'Plan de Acción';
-    if (t.includes('chef') || i === 2) return 'Tip del Chef';
-    return 'Nota';
+function _insightTitle(insight, i, t) {
+    // El local se llamaba `t`; renombrado a `txt` porque `t` es ahora la función
+    // de traducción que entra por parámetro.
+    const txt = (insight || '').toLowerCase();
+    if (txt.includes('diagnóstico') || txt.includes('diagnostico') || i === 0) return t('Diagnóstico');
+    if (txt.includes('estrategia') || txt.includes('acción') || txt.includes('accion') || i === 1) return t('Plan de Acción');
+    if (txt.includes('chef') || i === 2) return t('Tip del Chef');
+    return t('Nota');
 }
 function _insightClean(insight) {
     return (insight || '').includes(':') ? insight.split(':').slice(1).join(':').trim() : insight;
 }
 function InsightsDetail({ data }) {
+    const t = useT();
     const insights = Array.isArray(data?.insights) ? data.insights.filter(Boolean) : [];
     if (!insights.length) return null;
     return (
         <>
             {insights.map((ins, i) => (
                 <p key={`ins-${i}`} className={styles.exFallback}>
-                    <strong>{_insightTitle(ins, i)}: </strong>{_insightClean(ins)}
+                    <strong>{_insightTitle(ins, i, t)}: </strong>{_insightClean(ins)}
                 </p>
             ))}
         </>
@@ -199,6 +205,7 @@ function InsightsDetail({ data }) {
    de expansión cambian — clave de rendimiento con muchas notificaciones) ----- */
 
 const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle, onRemove, onAction, onRestore }) {
+    const t = useT();
     const { Icon, tone } = metaFor(n);
     const unread = !n.read;
     const hasDetail = n.kind === 'micros' || n.kind === 'quality' || n.kind === 'insights' || !!n.message;
@@ -218,7 +225,7 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
                     className={styles.cardToggle}
                     onClick={() => onToggle(n)}
                     aria-expanded={expanded}
-                    aria-label={expanded ? 'Contraer' : 'Ver información completa'}
+                    aria-label={expanded ? t('Contraer') : t('Ver información completa')}
                 >
                     <span className={styles.cardIcon} aria-hidden="true">
                         <Icon size={17} strokeWidth={2.2} />
@@ -231,7 +238,7 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
                         {!expanded && n.message && (
                             <p className={styles.cardMsg}>{n.message}</p>
                         )}
-                        {n.ts && <span className={styles.cardTime}>{relativeTime(n.ts)}</span>}
+                        {n.ts && <span className={styles.cardTime}>{relativeTime(n.ts, t)}</span>}
                     </div>
                     {hasDetail && (
                         <ChevronDown
@@ -251,8 +258,8 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
                             type="button"
                             className={styles.cardRestore}
                             onClick={() => onRestore(n)}
-                            aria-label="Volver a mostrar en el panel"
-                            title="Volver a mostrar en el panel"
+                            aria-label={t('Volver a mostrar en el panel')}
+                            title={t('Volver a mostrar en el panel')}
                         >
                             <Eye size={15} strokeWidth={2.1} />
                         </button>
@@ -261,8 +268,8 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
                         type="button"
                         className={styles.cardX}
                         onClick={() => onRemove(n.id)}
-                        aria-label="Borrar notificación"
-                        title="Borrar"
+                        aria-label={t('Borrar notificación')}
+                        title={t('Borrar')}
                     >
                         <Trash2 size={15} strokeWidth={2.1} />
                     </button>
@@ -291,9 +298,9 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
                                     {(n.kind === 'micros' || n.kind === 'quality') && (
                                         <button type="button" className={styles.exAction} onClick={() => onAction(n)}>
                                             {n.kind === 'micros' ? (
-                                                <><MessageCircle size={14} strokeWidth={2.25} aria-hidden="true" /> Preguntar al coach</>
+                                                <><MessageCircle size={14} strokeWidth={2.25} aria-hidden="true" /> {t('Preguntar al coach')}</>
                                             ) : (
-                                                <>Ir a mi plan <ArrowRight size={14} strokeWidth={2.5} aria-hidden="true" /></>
+                                                <>{t('Ir a mi plan')} <ArrowRight size={14} strokeWidth={2.5} aria-hidden="true" /></>
                                             )}
                                         </button>
                                     )}
@@ -308,6 +315,7 @@ const NotificationCard = memo(function NotificationCard({ n, expanded, onToggle,
 });
 
 export default function NotificationCenter({ hidden = false }) {
+    const t = useT();
     const [items, setItems] = useState(() => getNotifications());
     const [open, setOpen] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
@@ -375,8 +383,8 @@ export default function NotificationCenter({ hidden = false }) {
             restoreInsightsPanel(sig);
             setExpandedId((cur) => (cur === n.id ? null : cur));
             removeNotification(n.id);
-            toast('Listo, lo mostramos de nuevo', {
-                description: 'El razonamiento de tu plan vuelve a tu dashboard.',
+            toast(t('Listo, lo mostramos de nuevo'), {
+                description: t('El razonamiento de tu plan vuelve a tu dashboard.'),
             });
             closeDrawer();
             return;
@@ -387,11 +395,11 @@ export default function NotificationCenter({ hidden = false }) {
         restoreMicrosPanel(sig);
         setExpandedId((cur) => (cur === n.id ? null : cur));
         removeNotification(n.id);
-        toast('Listo, lo mostramos de nuevo', {
-            description: 'El panel de micronutrientes vuelve a tu dashboard.',
+        toast(t('Listo, lo mostramos de nuevo'), {
+            description: t('El panel de micronutrientes vuelve a tu dashboard.'),
         });
         closeDrawer();
-    }, [closeDrawer]);
+    }, [closeDrawer, t]);
 
     // Expandir/contraer; al expandir, marca leída.
     const handleToggle = useCallback((n) => {
@@ -416,8 +424,8 @@ export default function NotificationCenter({ hidden = false }) {
                 ? `Mi plan se queda corto/desbalanceado en: ${names}. ¿Qué alimentos o ajustes concretos me recomiendas para mejorarlos sin afectar mis otras metas?`
                 : 'Mi plan tiene algunos micronutrientes fuera de objetivo. ¿Qué alimentos o ajustes me recomiendas?';
             if (isGuest) {
-                toast('Crea tu cuenta para hablar con tu coach IA', {
-                    description: 'Te dirá exactamente cómo mejorar cada micronutriente de tu plan.',
+                toast(t('Crea tu cuenta para hablar con tu coach IA'), {
+                    description: t('Te dirá exactamente cómo mejorar cada micronutriente de tu plan.'),
                 });
                 navigate('/register');
                 closeDrawer();
@@ -431,14 +439,16 @@ export default function NotificationCenter({ hidden = false }) {
         // quality (u otros): llevar al plan donde están Cambiar Plato / Regenerar.
         navigate('/dashboard');
         closeDrawer();
-    }, [isGuest, navigate, closeDrawer]);
+    }, [isGuest, navigate, closeDrawer, t]);
 
     const trigger = (
         <button
             type="button"
             className={`${styles.handle} ${open ? styles.handleOpen : ''} ${unreadCount > 0 ? styles.handleAlert : ''}`}
             onClick={() => setOpen((v) => !v)}
-            aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
+            aria-label={unreadCount > 0
+                ? t('Notificaciones, {n} sin leer', { n: unreadCount })
+                : t('Notificaciones')}
             aria-expanded={open}
         >
             <span className={styles.handleGlow} aria-hidden="true" />
@@ -464,7 +474,7 @@ export default function NotificationCenter({ hidden = false }) {
                     <button
                         type="button"
                         className={styles.scrim}
-                        aria-label="Cerrar notificaciones"
+                        aria-label={t('Cerrar notificaciones')}
                         onClick={closeDrawer}
                     />
                     <motion.aside
@@ -473,7 +483,7 @@ export default function NotificationCenter({ hidden = false }) {
                         className={styles.drawer}
                         role="dialog"
                         aria-modal="true"
-                        aria-label="Centro de notificaciones"
+                        aria-label={t('Centro de notificaciones')}
                         initial={{ x: '110%', opacity: 0.6 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: '110%', opacity: 0.4 }}
@@ -482,7 +492,7 @@ export default function NotificationCenter({ hidden = false }) {
                         <header className={styles.head}>
                             <div className={styles.headTitle}>
                                 <span className={`${styles.headDot} ${unreadCount > 0 ? styles.headDotAlert : ''}`} aria-hidden="true" />
-                                <h2>Notificaciones</h2>
+                                <h2>{t('Notificaciones')}</h2>
                                 {count > 0 && <span className={styles.headCount}>{count}</span>}
                             </div>
                             <div className={styles.headActions}>
@@ -491,8 +501,8 @@ export default function NotificationCenter({ hidden = false }) {
                                         type="button"
                                         className={styles.markBtn}
                                         onClick={() => markAllNotificationsRead()}
-                                        aria-label="Marcar todas como leídas"
-                                        title="Marcar todas como leídas"
+                                        aria-label={t('Marcar todas como leídas')}
+                                        title={t('Marcar todas como leídas')}
                                     >
                                         <CheckCheck size={17} strokeWidth={2.2} />
                                     </button>
@@ -502,9 +512,9 @@ export default function NotificationCenter({ hidden = false }) {
                                         type="button"
                                         className={styles.clearBtn}
                                         onClick={handleClearAll}
-                                        aria-label="Limpiar todas las notificaciones"
+                                        aria-label={t('Limpiar todas las notificaciones')}
                                     >
-                                        Limpiar
+                                        {t('Limpiar')}
                                     </button>
                                 )}
                                 {count > 0 && <span className={styles.headDivider} aria-hidden="true" />}
@@ -512,7 +522,7 @@ export default function NotificationCenter({ hidden = false }) {
                                     type="button"
                                     className={styles.closeBtn}
                                     onClick={closeDrawer}
-                                    aria-label="Cerrar notificaciones"
+                                    aria-label={t('Cerrar notificaciones')}
                                 >
                                     <X size={18} strokeWidth={2.4} />
                                 </button>
@@ -525,10 +535,9 @@ export default function NotificationCenter({ hidden = false }) {
                                     <span className={styles.emptyOrb} aria-hidden="true">
                                         <BellOff size={26} strokeWidth={1.8} />
                                     </span>
-                                    <p className={styles.emptyTitle}>Todo al día</p>
+                                    <p className={styles.emptyTitle}>{t('Todo al día')}</p>
                                     <p className={styles.emptyText}>
-                                        Cuando descartes un aviso (micronutrientes, calidad del
-                                        plan…) se guardará aquí.
+                                        {t('Cuando descartes un aviso (micronutrientes, calidad del plan…) se guardará aquí.')}
                                     </p>
                                 </div>
                             ) : (

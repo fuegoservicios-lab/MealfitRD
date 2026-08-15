@@ -4,11 +4,15 @@
 // es CameraViewfinder (P1-SCANNER-SHARED): una copia garantiza que el próximo ajuste
 // entre en una y la otra siga emitiendo lo viejo.
 
-export const MEAL_TYPES = [
-    { value: 'desayuno', label: 'Desayuno' },
-    { value: 'almuerzo', label: 'Almuerzo' },
-    { value: 'cena', label: 'Cena' },
-    { value: 'merienda', label: 'Merienda' },
+// [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: una tabla de copy en
+// ámbito de módulo se evalúa al importar —antes de que el catálogo exista— y se
+// queda congelada en español para siempre. Los `value` NO se traducen: son el
+// contrato de slot con el backend (`_SLOT_CANON_MAP`).
+export const getMealTypes = (t) => [
+    { value: 'desayuno', label: t('Desayuno') },
+    { value: 'almuerzo', label: t('Almuerzo') },
+    { value: 'cena', label: t('Cena') },
+    { value: 'merienda', label: t('Merienda') },
 ];
 
 // La quinta opción, SOLO del componedor manual. `extra` no está en el mapa de slots
@@ -16,7 +20,7 @@ export const MEAL_TYPES = [
 // ni bloquea swap/PDF (P1-EATEN-RECIPE-LOCK). Las kcal cuentan igual. El escáner no
 // la ofrece a propósito: su flujo nació atado a los slots del plan y cambiarle el
 // default es otra conversación.
-export const MEAL_TYPE_EXTRA = { value: 'extra', label: 'Extra (fuera del plan)' };
+export const getMealTypeExtra = (t) => ({ value: 'extra', label: t('Extra (fuera del plan)') });
 
 // Auto-detección del tipo de comida por la hora local. Editable después.
 export const guessMealType = () => {

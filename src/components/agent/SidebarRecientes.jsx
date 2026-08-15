@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, Loader2, Ghost, Trash2 } from 'lucide-react';
+import { useT } from '../../i18n';
 
 export const SidebarRecientes = ({
     showSidebar,
@@ -13,6 +14,7 @@ export const SidebarRecientes = ({
     handleDeleteChat,
     isLoading
 }) => {
+    const t = useT();
     return (
         <div className="agent-sidebar" style={{
             width: showSidebar ? '320px' : '0px',
@@ -59,14 +61,14 @@ export const SidebarRecientes = ({
                         e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary) 32%, transparent)';
                     }}
                 >
-                    <Plus size={18} /> <span>Nuevo chat</span>
+                    <Plus size={18} /> <span>{t('Nuevo chat')}</span>
                 </button>
             </div>
             
             <div className="sidebar-scrollable" style={{ flex: 1, overflowY: 'auto', padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', marginTop: '0.25rem' }}>
                     <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                        Recientes
+                        {t('Recientes')}
                     </h3>
                 </div>
                 {isLoadingSessions ? (
@@ -90,10 +92,10 @@ export const SidebarRecientes = ({
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxWidth: '90%' }}>
                             <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                                Sin conversaciones aún
+                                {t('Sin conversaciones aún')}
                             </span>
                             <span style={{ fontSize: '0.8rem', lineHeight: 1.5, color: 'var(--text-light)' }}>
-                                Inicia un chat y aparecerá aquí.
+                                {t('Inicia un chat y aparecerá aquí.')}
                             </span>
                         </div>
                     </div>
@@ -115,7 +117,7 @@ export const SidebarRecientes = ({
                             )}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 {group.items.map(s => {
-                                    let originalTitle = s.title ? s.title.replace(/\[?\(Hora actual del usuario:[^)]*\)\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat';
+                                    let originalTitle = s.title ? s.title.replace(/\[?\(Hora actual del usuario:[^)]*\)\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || t('Nuevo chat') : t('Nuevo chat');
                                     if (originalTitle.length > 45) {
                                         originalTitle = originalTitle.substring(0, 45).trim() + '...';
                                     }
@@ -231,8 +233,8 @@ export const SidebarRecientes = ({
                                         
                                         <button
                                             className="chat-actions-hover"
-                                            title="Eliminar chat"
-                                            aria-label="Eliminar chat"
+                                            title={t('Eliminar chat')}
+                                            aria-label={t('Eliminar chat')}
                                             onClick={(e) => handleDeleteChat(s.id, e)}
                                             style={{
                                                 // [SIDEBAR-RECIENTES-DARK · 2026-06-16] Borde/hover

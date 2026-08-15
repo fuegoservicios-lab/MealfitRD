@@ -107,10 +107,19 @@ describe('P1-PANTRY-RECONCILIATION — la Nevera pregunta, no adivina', () => {
     it('cada botón tiene aria-label que nombra el alimento', () => {
         // Tres botones idénticos por fila: sin aria-label, un lector de
         // pantalla oye "Lo usé, Se dañó, Sigue ahí" N veces sin saber de qué.
-        for (const l of [/aria-label=\{`Ya usé \$\{it\.ingredient_name\}`\}/,
-                         /aria-label=\{`\$\{it\.ingredient_name\} se dañó`\}/,
-                         /aria-label=\{`\$\{it\.ingredient_name\} sigue en la nevera`\}/]) {
-            expect(_SRC).toMatch(l);
+        //
+        // [P1-I18N-DASHBOARD · 2026-08-15] Antes esto exigía la PLANTILLA exacta
+        // (`aria-label={`Ya usé ${it.ingredient_name}`}`). Al pasar el copy por
+        // `t()` la interpolación cambió de forma y el guard se puso rojo sin que
+        // se hubiera roto nada de lo que protege. Lo que importa es la PROPIEDAD
+        // —existe un aria-label por acción y NOMBRA el alimento—, no cómo se
+        // ensambla la cadena.
+        const _lineas = _SRC.split('\n');
+        for (const verbo of ['Ya usé', 'se dañó', 'sigue en la nevera']) {
+            const linea = _lineas.find((l) => l.includes('aria-label') && l.includes(verbo));
+            expect(linea, `sin aria-label para la acción «${verbo}»`).toBeTruthy();
+            expect(linea, `el aria-label de «${verbo}» no nombra el alimento`)
+                .toContain('it.ingredient_name');
         }
     });
 

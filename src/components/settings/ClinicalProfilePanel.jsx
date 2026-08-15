@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
 import useAutoguardado from '../../hooks/useAutoguardado';
+import { useT } from '../../i18n';
 import styles from './SuperPersonalizationPanel.module.css';
 
 const ENDPOINT = '/api/user/preferences/clinical-profile';
@@ -32,50 +33,59 @@ const EMPTY = {
     freeText: '',
 };
 
+/* [P1-I18N-DASHBOARD · 2026-08-15] Las cuatro tablas son FUNCIONES: un `t()` en
+   ámbito de módulo se evalúa al importar —antes de que exista el catálogo— y se
+   queda en español para siempre sin que nada falle a la vista.
+
+   `key`/`val`/`value`, los min/max y las UNIDADES (mg/dL, %, µUI/mL…) NO pasan por
+   el catálogo: los primeros son los identificadores que viajan al backend y las
+   segundas son notación clínica internacional, igual en los cinco idiomas. */
+
 // Mismos rangos anti-typo que `_CLINPROF_LAB_RANGES` (backend routers/user_data.py)
 // — el backend es SSOT (422 si drift); estos min/max solo dan feedback inmediato.
-const LAB_FIELDS = [
-    { key: 'glucosa_ayunas', label: 'Glucosa en ayunas', unit: 'mg/dL', ph: 'Ej. 92', min: 40, max: 500 },
-    { key: 'hba1c', label: 'HbA1c', unit: '%', ph: 'Ej. 5.4', min: 3, max: 15 },
-    { key: 'colesterol_total', label: 'Colesterol total', unit: 'mg/dL', ph: 'Ej. 180', min: 80, max: 500 },
-    { key: 'ldl', label: 'LDL', unit: 'mg/dL', ph: 'Ej. 100', min: 30, max: 400 },
-    { key: 'hdl', label: 'HDL', unit: 'mg/dL', ph: 'Ej. 50', min: 10, max: 150 },
-    { key: 'trigliceridos', label: 'Triglicéridos', unit: 'mg/dL', ph: 'Ej. 120', min: 30, max: 2000 },
-    { key: 'creatinina', label: 'Creatinina', unit: 'mg/dL', ph: 'Ej. 0.9', min: 0.2, max: 15 },
-    { key: 'tfg', label: 'TFG (filtrado renal)', unit: 'mL/min', ph: 'Ej. 95', min: 5, max: 150 },
-    { key: 'tsh', label: 'TSH', unit: 'µUI/mL', ph: 'Ej. 2.1', min: 0.01, max: 100 },
-    { key: 'acido_urico', label: 'Ácido úrico', unit: 'mg/dL', ph: 'Ej. 5.5', min: 1, max: 15 },
-    { key: 'hemoglobina', label: 'Hemoglobina', unit: 'g/dL', ph: 'Ej. 14', min: 5, max: 22 },
-    { key: 'vitamina_d', label: 'Vitamina D', unit: 'ng/mL', ph: 'Ej. 32', min: 4, max: 150 },
+const getLabFields = (t) => [
+    { key: 'glucosa_ayunas', label: t('Glucosa en ayunas'), unit: 'mg/dL', ph: t('Ej. 92'), min: 40, max: 500 },
+    { key: 'hba1c', label: 'HbA1c', unit: '%', ph: t('Ej. 5.4'), min: 3, max: 15 },
+    { key: 'colesterol_total', label: t('Colesterol total'), unit: 'mg/dL', ph: t('Ej. 180'), min: 80, max: 500 },
+    { key: 'ldl', label: 'LDL', unit: 'mg/dL', ph: t('Ej. 100'), min: 30, max: 400 },
+    { key: 'hdl', label: 'HDL', unit: 'mg/dL', ph: t('Ej. 50'), min: 10, max: 150 },
+    { key: 'trigliceridos', label: t('Triglicéridos'), unit: 'mg/dL', ph: t('Ej. 120'), min: 30, max: 2000 },
+    { key: 'creatinina', label: t('Creatinina'), unit: 'mg/dL', ph: t('Ej. 0.9'), min: 0.2, max: 15 },
+    { key: 'tfg', label: t('TFG (filtrado renal)'), unit: 'mL/min', ph: t('Ej. 95'), min: 5, max: 150 },
+    { key: 'tsh', label: 'TSH', unit: 'µUI/mL', ph: t('Ej. 2.1'), min: 0.01, max: 100 },
+    { key: 'acido_urico', label: t('Ácido úrico'), unit: 'mg/dL', ph: t('Ej. 5.5'), min: 1, max: 15 },
+    { key: 'hemoglobina', label: t('Hemoglobina'), unit: 'g/dL', ph: t('Ej. 14'), min: 5, max: 22 },
+    { key: 'vitamina_d', label: t('Vitamina D'), unit: 'ng/mL', ph: t('Ej. 32'), min: 4, max: 150 },
 ];
 
-const GI_OPTIONS = [
-    { val: 'reflujo', label: 'Reflujo / acidez' },
-    { val: 'estrenimiento', label: 'Estreñimiento' },
-    { val: 'diarrea', label: 'Diarrea frecuente' },
-    { val: 'distension', label: 'Distensión / gases' },
-    { val: 'ninguno', label: 'Ninguno' },
+const getGiOptions = (t) => [
+    { val: 'reflujo', label: t('Reflujo / acidez') },
+    { val: 'estrenimiento', label: t('Estreñimiento') },
+    { val: 'diarrea', label: t('Diarrea frecuente') },
+    { val: 'distension', label: t('Distensión / gases') },
+    { val: 'ninguno', label: t('Ninguno') },
 ];
 
-const TRAINING_TYPES = [
-    { value: '', label: 'Sin especificar' },
-    { value: 'fuerza', label: 'Fuerza / pesas' },
-    { value: 'cardio', label: 'Cardio' },
-    { value: 'mixto', label: 'Mixto (fuerza + cardio)' },
-    { value: 'crossfit', label: 'CrossFit / funcional' },
-    { value: 'calistenia', label: 'Calistenia' },
-    { value: 'deporte', label: 'Deporte (baloncesto, béisbol…)' },
+const getTrainingTypes = (t) => [
+    { value: '', label: t('Sin especificar') },
+    { value: 'fuerza', label: t('Fuerza / pesas') },
+    { value: 'cardio', label: t('Cardio') },
+    { value: 'mixto', label: t('Mixto (fuerza + cardio)') },
+    { value: 'crossfit', label: t('CrossFit / funcional') },
+    { value: 'calistenia', label: t('Calistenia') },
+    { value: 'deporte', label: t('Deporte (baloncesto, béisbol…)') },
 ];
 
-const TRAINING_TIMES = [
+const getTrainingTimes = (t) => [
     { value: '', label: '—' },
-    { value: 'manana', label: 'Mañana' },
-    { value: 'mediodia', label: 'Mediodía' },
-    { value: 'tarde', label: 'Tarde' },
-    { value: 'noche', label: 'Noche' },
+    { value: 'manana', label: t('Mañana') },
+    { value: 'mediodia', label: t('Mediodía') },
+    { value: 'tarde', label: t('Tarde') },
+    { value: 'noche', label: t('Noche') },
 ];
 
 export default function ClinicalProfilePanel({ onSaved, onEstado }) {
+    const t = useT();
     const { updateData } = useAssessment();
     const [cp, setCp] = useState(EMPTY);
     const [loading, setLoading] = useState(true);
@@ -123,12 +133,14 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
                 setTimeout(() => load(attempt + 1), 800);
             } else {
                 setLoadFailed(true);
-                toast.error('No se pudo cargar tu perfil clínico.');
+                toast.error(t('No se pudo cargar tu perfil clínico.'));
             }
         } finally {
             if (!willRetry) setLoading(false);
         }
-    }, []);
+        // `t` es referencialmente estable (el motor devuelve siempre la misma
+        // función); va en las deps solo para no dejar el hook incompleto.
+    }, [t]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -186,7 +198,7 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
             // arregle volverá a intentarlo solo.
             const err = await res.json().catch(() => null);
             fueRangoRef.current = true;
-            toast.error(err?.detail || 'Revisa los valores: hay alguno fuera de rango.');
+            toast.error(err?.detail || t('Revisa los valores: hay alguno fuera de rango.'));
             throw new Error('422');
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -195,7 +207,7 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
         try { updateData('clinical_profile', saved); } catch { /* no-op */ }
         if (onSaved) onSaved(saved);
         return undefined;
-    }, [onSaved, updateData]);
+    }, [onSaved, updateData, t]);
 
     const { estado, volcar } = useAutoguardado({
         valor: cp,
@@ -210,14 +222,14 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
     // botón el usuario no tendría NINGUNA señal de que su cambio no llegó.
     useEffect(() => {
         if (estado === 'error' && !fueRangoRef.current) {
-            toast.error('No se pudo guardar tu perfil clínico.');
+            toast.error(t('No se pudo guardar tu perfil clínico.'));
         }
-    }, [estado]);
+    }, [estado, t]);
 
     if (loading) {
         return (
             <div className={styles.loading}>
-                <Loader2 className={styles.spin} size={22} /> Cargando…
+                <Loader2 className={styles.spin} size={22} /> {t('Cargando…')}
             </div>
         );
     }
@@ -228,9 +240,9 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
     if (loadFailed) {
         return (
             <div className={styles.loading}>
-                <span>No pudimos cargar tu perfil clínico. Revisa tu conexión.</span>
+                <span>{t('No pudimos cargar tu perfil clínico. Revisa tu conexión.')}</span>
                 <button type="button" className={styles.save} onClick={() => load()}>
-                    Reintentar
+                    {t('Reintentar')}
                 </button>
             </div>
         );
@@ -240,23 +252,21 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
         <div className={styles.panel}>
             <div className={styles.intro}>
                 <div className={styles.introIcon}><FlaskConical size={20} /></div>
+                {/* Cinco claves: los dos `<strong>` son marcado y no caben dentro de
+                    una clave del catálogo (el motor traduce cadenas, no árboles JSX). */}
                 <p>
-                    Datos de nivel consulta: laboratorios, historial de peso, digestión y
-                    entrenamiento. Todo es <strong>opcional</strong> — mientras más completes,
-                    más precisa la calibración. <strong>No sustituye diagnóstico médico</strong>:
-                    si un valor sugiere algo, la IA lo usará con prudencia y te recomendará
-                    confirmarlo con un profesional.
+                    {t('Datos de nivel consulta: laboratorios, historial de peso, digestión y entrenamiento. Todo es')} <strong>{t('opcional')}</strong> {t('— mientras más completes, más precisa la calibración.')} <strong>{t('No sustituye diagnóstico médico')}</strong>: {t('si un valor sugiere algo, la IA lo usará con prudencia y te recomendará confirmarlo con un profesional.')}
                 </p>
             </div>
 
             {/* --- Laboratorios --- */}
             <div className={styles.field}>
-                <label className={styles.label}>Laboratorios recientes</label>
+                <label className={styles.label}>{t('Laboratorios recientes')}</label>
                 <p className={styles.hint}>
-                    Copia los valores de tu último análisis (deja vacío lo que no tengas).
+                    {t('Copia los valores de tu último análisis (deja vacío lo que no tengas).')}
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.75rem' }}>
-                    {LAB_FIELDS.map((f) => (
+                    {getLabFields(t).map((f) => (
                         <div key={f.key}>
                             <label className={styles.hint} htmlFor={`lab-${f.key}`} style={{ display: 'block', marginBottom: '0.25rem' }}>
                                 {f.label} ({f.unit})
@@ -275,7 +285,7 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
                 </div>
                 <div style={{ marginTop: '0.75rem', maxWidth: 240 }}>
                     <label className={styles.hint} htmlFor="lab-date" style={{ display: 'block', marginBottom: '0.25rem' }}>
-                        Fecha del análisis (aprox.)
+                        {t('Fecha del análisis (aprox.)')}
                     </label>
                     <input
                         id="lab-date" className={styles.select} type="month"
@@ -287,9 +297,9 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
 
             {/* --- Historia ponderal --- */}
             <div className={styles.field}>
-                <label className={styles.label}>Historial de peso</label>
+                <label className={styles.label}>{t('Historial de peso')}</label>
                 <p className={styles.hint}>
-                    Tu trayectoria de peso ayuda a calibrar el ritmo (dietas repetidas = metabolismo adaptado).
+                    {t('Tu trayectoria de peso ayuda a calibrar el ritmo (dietas repetidas = metabolismo adaptado).')}
                 </p>
                 <div className={styles.chips} style={{ marginBottom: '0.6rem' }}>
                     {['lb', 'kg'].map((u) => (
@@ -304,9 +314,9 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.75rem' }}>
                     {[
-                        { key: 'maxWeight', label: 'Peso máximo' },
-                        { key: 'minWeight', label: 'Peso mínimo (adulto)' },
-                        { key: 'weight6mAgo', label: 'Peso hace 6 meses' },
+                        { key: 'maxWeight', label: t('Peso máximo') },
+                        { key: 'minWeight', label: t('Peso mínimo (adulto)') },
+                        { key: 'weight6mAgo', label: t('Peso hace 6 meses') },
                     ].map((f) => (
                         <div key={f.key}>
                             <label className={styles.hint} htmlFor={`wh-${f.key}`} style={{ display: 'block', marginBottom: '0.25rem' }}>
@@ -328,17 +338,17 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
                         onClick={() => setWh('unintentionalLoss', !cp.weightHistory.unintentionalLoss)}
                         aria-pressed={cp.weightHistory.unintentionalLoss}
                     >
-                        He perdido peso sin proponérmelo últimamente
+                        {t('He perdido peso sin proponérmelo últimamente')}
                     </button>
                 </div>
             </div>
 
             {/* --- Síntomas digestivos --- */}
             <div className={styles.field}>
-                <label className={styles.label}>Digestión</label>
-                <p className={styles.hint}>Marca lo que te pasa con frecuencia — el menú se adapta.</p>
+                <label className={styles.label}>{t('Digestión')}</label>
+                <p className={styles.hint}>{t('Marca lo que te pasa con frecuencia — el menú se adapta.')}</p>
                 <div className={styles.chips}>
-                    {GI_OPTIONS.map((o) => (
+                    {getGiOptions(t).map((o) => (
                         <button
                             key={o.val} type="button"
                             className={`${styles.chip} ${cp.giSymptoms.includes(o.val) ? styles.chipActive : ''}`}
@@ -353,25 +363,25 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
 
             {/* --- Entrenamiento --- */}
             <div className={styles.field}>
-                <label className={styles.label}>Entrenamiento</label>
+                <label className={styles.label}>{t('Entrenamiento')}</label>
                 <p className={styles.hint}>
-                    Con tipo y horario, la IA coloca los carbohidratos y la proteína alrededor de tu entreno.
+                    {t('Con tipo y horario, la IA coloca los carbohidratos y la proteína alrededor de tu entreno.')}
                 </p>
                 <div className={styles.row}>
                     <div style={{ flex: 1, minWidth: 180 }}>
-                        <label className={styles.hint} htmlFor="tr-type" style={{ display: 'block', marginBottom: '0.25rem' }}>Tipo</label>
+                        <label className={styles.hint} htmlFor="tr-type" style={{ display: 'block', marginBottom: '0.25rem' }}>{t('Tipo')}</label>
                         <select id="tr-type" className={styles.select} value={cp.training.type} onChange={(e) => setTr('type', e.target.value)}>
-                            {TRAINING_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            {getTrainingTypes(t).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                     </div>
                     <div style={{ flex: 1, minWidth: 140 }}>
-                        <label className={styles.hint} htmlFor="tr-time" style={{ display: 'block', marginBottom: '0.25rem' }}>Horario habitual</label>
+                        <label className={styles.hint} htmlFor="tr-time" style={{ display: 'block', marginBottom: '0.25rem' }}>{t('Horario habitual')}</label>
                         <select id="tr-time" className={styles.select} value={cp.training.timeOfDay} onChange={(e) => setTr('timeOfDay', e.target.value)}>
-                            {TRAINING_TIMES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            {getTrainingTimes(t).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                     </div>
                     <div style={{ flex: 1, minWidth: 140 }}>
-                        <label className={styles.hint} htmlFor="tr-days" style={{ display: 'block', marginBottom: '0.25rem' }}>Días por semana</label>
+                        <label className={styles.hint} htmlFor="tr-days" style={{ display: 'block', marginBottom: '0.25rem' }}>{t('Días por semana')}</label>
                         <select id="tr-days" className={styles.select} value={String(cp.training.daysPerWeek || 0)} onChange={(e) => setTr('daysPerWeek', Number(e.target.value))}>
                             {[0, 1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n}>{n === 0 ? '—' : n}</option>)}
                         </select>
@@ -381,14 +391,14 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
 
             {/* --- Texto libre --- */}
             <div className={styles.field}>
-                <label className={styles.label} htmlFor="cp-free">Algo más que deba saber la IA (clínico)</label>
+                <label className={styles.label} htmlFor="cp-free">{t('Algo más que deba saber la IA (clínico)')}</label>
                 <p className={styles.hint}>
-                    Cirugías, diagnósticos en estudio, indicaciones de tu médico… La IA extrae lo relevante.
+                    {t('Cirugías, diagnósticos en estudio, indicaciones de tu médico… La IA extrae lo relevante.')}
                 </p>
                 <textarea
                     id="cp-free" className={styles.textarea}
                     rows={4} maxLength={MAX_FREETEXT}
-                    placeholder="Ej. Me quitaron la vesícula en 2024; mi doctora me pidió bajar los triglicéridos…"
+                    placeholder={t('Ej. Me quitaron la vesícula en 2024; mi doctora me pidió bajar los triglicéridos…')}
                     value={cp.freeText}
                     onChange={(e) => setCp((prev) => ({ ...prev, freeText: e.target.value }))}
                     onBlur={() => volcar()}

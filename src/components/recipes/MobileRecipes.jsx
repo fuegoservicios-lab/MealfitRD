@@ -4,9 +4,13 @@
 // MISMOS datos reales + handlers (PDF, días; el modo cocina se retiró —
 // P-RECIPES-COOK-REMOVED 2026-07-12).
 import { useId, useMemo, useState } from 'react';
-import { metaFor, STEP_ICONS, MACROS, ICONS, conicStops as _conicStops } from './recipesData';
+import { metaFor, STEP_ICONS, getMacros, ICONS, conicStops as _conicStops } from './recipesData';
 import { displayAjiMorron } from '../../utils/ingredientDisplay';
 import styles from './MobileRecipes.module.css';
+// [P1-I18N-DASHBOARD · 2026-08-15] Espejo de RecipesView.jsx: `metaFor(...)`
+// pasa a llamarse `mt` para dejarle el nombre `t` a la traducción, y
+// `formatNumber` sustituye al `toLocaleString('es-DO')` fijo.
+import { useT, formatNumber } from '../../i18n';
 // [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] anotaciones sin número (ver util).
 import { numberRecipeSteps } from '../../utils/recipeSteps';
 // [P1-EATEN-SLOT-COPY · 2026-07-28] Texto del chip "ya registraste tu
@@ -48,7 +52,8 @@ export function MobileRecipes({
   checkedIngredients = {}, onToggleIngredient,
   onPDF,
 }) {
-  const t = metaFor(meal.meal);
+  const t = useT();
+  const mt = metaFor(meal.meal);
   const [doneSteps, setDoneSteps] = useState(() => new Set());
   const toggleStep = (i) => setDoneSteps((prev) => {
     const next = new Set(prev);
@@ -58,7 +63,7 @@ export function MobileRecipes({
 
   const hasMacros = Number(meal.protein) > 0 || Number(meal.carbs) > 0 || Number(meal.fats) > 0;
   const { gradient, macroRow } = useMemo(() => {
-    const calc = MACROS.map((x) => ({ ...x, g: Number(meal[x.key]) || 0, kc: (Number(meal[x.key]) || 0) * x.kcal }));
+    const calc = getMacros().map((x) => ({ ...x, g: Number(meal[x.key]) || 0, kc: (Number(meal[x.key]) || 0) * x.kcal }));
     return { gradient: `conic-gradient(${_conicStops(calc).join(',')})`, macroRow: calc };
   }, [meal]);
 
@@ -79,7 +84,7 @@ export function MobileRecipes({
   const lockReasonId = useId();
 
   return (
-    <section className={styles.app} style={{ '--tone': t.tone }} aria-label="Recetas">
+    <section className={styles.app} style={{ '--tone': mt.tone }} aria-label={t('Recetas')}>
       {/* Barra superior fija */}
       <header className={styles.top}>
         {/* [P3-RECIPES-NO-TITLE · 2026-07-12] "Recetario" eliminado (pedido del
@@ -90,9 +95,9 @@ export function MobileRecipes({
               mención — antes no había ninguna y la pantalla no decía qué día
               estabas viendo. */}
           <span className={styles.diaUnico}>
-            {activeDayLabel}{activeDayEsHoy ? ' · hoy' : ''}
+            {activeDayLabel}{activeDayEsHoy ? ` · ${t('hoy')}` : ''}
           </span>
-          <span className={styles.sum}>Meta del día · <b>{Number(dayKcal || 0).toLocaleString('es-DO')}</b> kcal</span>
+          <span className={styles.sum}>{t('Meta del día')} · <b>{formatNumber(dayKcal || 0)}</b> kcal</span>
         </div>
         {days.length > 1 && (
           <div className={styles.days} role="tablist">
@@ -105,7 +110,7 @@ export function MobileRecipes({
       </header>
 
       {/* Selector de comidas (scroll horizontal) */}
-      <div className={styles.rail} aria-label="Comidas del día">
+      <div className={styles.rail} aria-label={t('Comidas del día')}>
         {meals.map((m, i) => {
           const mt = metaFor(m.meal);
           // [P1-EATEN-SLOT-RECIPES · 2026-07-28 · reversado parcialmente por
@@ -195,17 +200,16 @@ export function MobileRecipes({
             aria-disabled={isLocked || undefined}
             aria-describedby={isLocked ? lockReasonId : undefined}
           >
-            <Svg d={ICONS.pdf} size={17} /> Descargar PDF
+            <Svg d={ICONS.pdf} size={17} /> {t('Descargar PDF')}
           </button>
         </div>
 
         {ingredients.length > 0 && (
           <>
-            <h3 className={styles.secHead} style={{ '--accent': 'var(--secondary)' }}>Ingredientes</h3>
+            <h3 className={styles.secHead} style={{ '--accent': 'var(--secondary)' }}>{t('Ingredientes')}</h3>
             {/* [P2-RECIPE-HOUSEHOLD-NOTE · 2026-07-01] receta por persona; la lista de compras ya multiplica. */}
             <p style={{ fontSize: '0.75rem', opacity: 0.65, margin: '0 0 8px' }}>
-              Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad
-              (tu lista de compras ya lo tiene en cuenta).
+              {t('Porciones para 1 persona — si cocinas para tu hogar, multiplica cada cantidad (tu lista de compras ya lo tiene en cuenta).')}
             </p>
             <div className={styles.ing}>
               {ingredients.map((s, i) => {
@@ -239,7 +243,7 @@ export function MobileRecipes({
           </>
         )}
 
-        <h3 className={styles.secHead} style={{ '--accent': t.tone }}>Instrucciones</h3>
+        <h3 className={styles.secHead} style={{ '--accent': mt.tone }}>{t('Instrucciones')}</h3>
         {steps.length > 0 ? (
           <div className={styles.steps}>
             {numberRecipeSteps(steps).map(({ raw, annotation, number }, i) => {
@@ -267,12 +271,12 @@ export function MobileRecipes({
             <div className={`${styles.step} ${styles.finish}`}>
               <span className={styles.node}><Svg d={ICONS.check} size={18} /></span>
               <div className={styles.stepCard}>
-                <div className={styles.finishText}>¡Listo para disfrutar!</div>
+                <div className={styles.finishText}>{t('¡Listo para disfrutar!')}</div>
               </div>
             </div>
           </div>
         ) : (
-          <div className={styles.empty}>No hay pasos detallados. Guíate de la descripción general.</div>
+          <div className={styles.empty}>{t('No hay pasos detallados. Guíate de la descripción general.')}</div>
         )}
       </div>
     </section>

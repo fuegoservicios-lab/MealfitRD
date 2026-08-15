@@ -129,7 +129,14 @@ describe('[P1-MACRO-BARS-UNIFORM] las cuatro barras se leen igual en el teléfon
         expect(JSX, 'volvió el rótulo corto: solo tenía sentido con la fila de tres')
             .not.toMatch(/shortLabel/);
         expect(CSS).not.toMatch(/\.labelShort\s*\{/);
-        expect(JSX).toMatch(/label="Carbohidratos"/);
+        // [P1-I18N-DASHBOARD · 2026-08-15] Acepta el literal Y la forma envuelta
+        // en `t()`. Lo que este guard vigila es la PROPIEDAD —que el rótulo sea
+        // la palabra completa y no una abreviatura— no la GRAFÍA con la que se
+        // escribe el atributo. Anclado solo al literal, se ponía rojo el día que
+        // la app se volvió multiidioma, sin que nada del comportamiento vigilado
+        // hubiera cambiado: `label={t('Carbohidratos')}` sigue pintando
+        // «Carbohidratos» en español y su equivalente completo en los otros 4.
+        expect(JSX).toMatch(/label=(?:"Carbohidratos"|\{t\('Carbohidratos'\)\})/);
     });
 
     it('la nota de la meta sigue al pie, no encabezando la tarjeta', () => {

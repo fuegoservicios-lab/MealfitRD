@@ -7,10 +7,12 @@ import { ChevronLeft, LogIn, LogOut } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 import Wordmark from '../common/Wordmark';
 import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
+import { useT } from '../../i18n';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
     const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile } = useAssessment();
     const navigate = useNavigate();
+    const t = useT();
     const progress = (currentStep / (totalSteps - 1)) * 100;
     const [confirmarSalida, setConfirmarSalida] = useState(false);
 
@@ -113,14 +115,14 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                 <button
                     onClick={pedirConfirmacionSalida}
                     className={styles.loginExitBtn}
-                    aria-label="Volver al inicio de sesión"
+                    aria-label={t('Volver al inicio de sesión')}
                 >
                     <LogIn size={15} strokeWidth={2.4} aria-hidden="true" />
-                    Volver al login
+                    {t('Volver al login')}
                 </button>
                 <div className={styles.headerContent}>
                     {currentStep > 0 ? (
-                        <button onClick={prevStep} className={styles.backBtn} aria-label="Paso anterior">
+                        <button onClick={prevStep} className={styles.backBtn} aria-label={t('Paso anterior')}>
                             <ChevronLeft size={24} />
                         </button>
                     ) : (
@@ -138,7 +140,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         <button
                             onClick={pedirConfirmacionSalida}
                             className={`${styles.backBtn} ${styles.backToLogin}`}
-                            aria-label="Salir del formulario y volver al inicio de sesión"
+                            aria-label={t('Salir del formulario y volver al inicio de sesión')}
                         >
                             <LogOut size={22} aria-hidden="true" />
                         </button>
@@ -178,7 +180,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         (CSS: display:none base, inline-flex ≥900px). Solo desde el paso 2 (el
                         paso 1 no tiene "anterior"). El .backBtn del header se oculta ≥900px. */}
                     {currentStep > 0 && (
-                        <button onClick={prevStep} className={styles.cardBackBtn} aria-label="Paso anterior">
+                        <button onClick={prevStep} className={styles.cardBackBtn} aria-label={t('Paso anterior')}>
                             <ChevronLeft size={22} />
                         </button>
                     )}
@@ -197,7 +199,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                             {/* [FORM-VISUAL-V2 · 2026-07-02] Kicker de contexto sobre el
                                 título — orienta cuánto falta sin mirar el header. */}
                             <span className={styles.kicker}>
-                                Paso {currentStep + 1} de {totalSteps}
+                                {t('Paso {actual} de {total}', { actual: currentStep + 1, total: totalSteps })}
                             </span>
                             {/* [P1-WIZARD-STEP-FOCUS] `tabIndex={-1}` lo hace enfocable por
                                 código sin meterlo en el orden de tabulación. */}

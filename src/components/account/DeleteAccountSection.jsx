@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
 import Modal from '../common/Modal';
+import { useT } from '../../i18n';
 
 const DZ_STYLES = `
 .mf-dz-card {
@@ -80,6 +81,7 @@ const DZ_STYLES = `
 `;
 
 export default function DeleteAccountSection() {
+    const t = useT();
     const navigate = useNavigate();
     const { resetApp } = useAssessment();
     const [showModal, setShowModal] = useState(false);
@@ -97,19 +99,19 @@ export default function DeleteAccountSection() {
                 body: JSON.stringify({ confirm: 'ELIMINAR' }),
             });
             if (!res.ok) {
-                let detail = 'No se pudo eliminar la cuenta. Inténtalo de nuevo.';
+                let detail = t('No se pudo eliminar la cuenta. Inténtalo de nuevo.');
                 try { const j = await res.json(); if (j?.detail) detail = j.detail; } catch { /* sin body JSON */ }
                 throw new Error(detail);
             }
             // Borrado OK → logout total (limpia localStorage/caches + signOut +
             // session=null sincrónico) y al login. El componente se desmonta al
             // navegar, por eso NO reseteamos isDeleting en el happy-path.
-            toast.success('Tu cuenta fue eliminada.');
+            toast.success(t('Tu cuenta fue eliminada.'));
             await resetApp();
             navigate('/login', { replace: true });
         } catch (err) {
             console.error('Error eliminando cuenta:', err);
-            toast.error(err?.message || 'No se pudo eliminar la cuenta.');
+            toast.error(err?.message || t('No se pudo eliminar la cuenta.'));
             setIsDeleting(false);
         }
     };
@@ -120,16 +122,14 @@ export default function DeleteAccountSection() {
             <section className="mf-dz-card">
                 <span className="mf-dz-eyebrow">
                     <span className="mf-dz-eyebrow-dot"><AlertTriangle size={15} strokeWidth={2.25} /></span>
-                    Zona de peligro
+                    {t('Zona de peligro')}
                 </span>
-                <h2 className="mf-dz-title">Eliminar tu cuenta</h2>
+                <h2 className="mf-dz-title">{t('Eliminar tu cuenta')}</h2>
                 <p className="mf-dz-text">
-                    Esta acción es <strong>permanente</strong>. Se borrarán tu plan, tu progreso,
-                    tu nevera y todos tus datos, y se cancelará cualquier suscripción activa.
-                    No se puede deshacer.
+                    {t('Esta acción es')} <strong>{t('permanente')}</strong>{t('. Se borrarán tu plan, tu progreso, tu nevera y todos tus datos, y se cancelará cualquier suscripción activa. No se puede deshacer.')}
                 </p>
                 <button className="mf-dz-btn" onClick={() => { setConfirmText(''); setShowModal(true); }}>
-                    <Trash2 size={16} /> Eliminar mi cuenta
+                    <Trash2 size={16} /> {t('Eliminar mi cuenta')}
                 </button>
             </section>
 
@@ -141,14 +141,16 @@ export default function DeleteAccountSection() {
                 disableClose={isDeleting}
                 isBottomSheetOnMobile
             >
-                <h3 id="mf-dz-modal-title" className="mf-dz-mtitle">¿Eliminar tu cuenta?</h3>
+                <h3 id="mf-dz-modal-title" className="mf-dz-mtitle">{t('¿Eliminar tu cuenta?')}</h3>
                 <p className="mf-dz-mtext">
-                    Esta acción es <strong>permanente</strong>. Se borrarán tu plan, tu progreso,
-                    tu nevera y todos tus datos, y se cancelará cualquier suscripción activa.
-                    No se puede deshacer.
+                    {t('Esta acción es')} <strong>{t('permanente')}</strong>{t('. Se borrarán tu plan, tu progreso, tu nevera y todos tus datos, y se cancelará cualquier suscripción activa. No se puede deshacer.')}
                 </p>
                 <label className="mf-dz-label" htmlFor="mf-dz-confirm">
-                    Escribe ELIMINAR para confirmar
+                    {/* `ELIMINAR` va interpolado, no dentro de la clave: es la palabra
+                        EXACTA que compara `ready` (y el placeholder del campo). Si viajara
+                        dentro del texto traducible, una traducción la cambiaría y el botón
+                        de confirmar no se activaría nunca. */}
+                    {t('Escribe {palabra} para confirmar', { palabra: 'ELIMINAR' })}
                 </label>
                 <input
                     id="mf-dz-confirm"
@@ -164,11 +166,11 @@ export default function DeleteAccountSection() {
                 />
                 <div className="mf-dz-actions">
                     <button className="mf-dz-btn mf-dz-ghost" onClick={() => setShowModal(false)} disabled={isDeleting}>
-                        Cancelar
+                        {t('Cancelar')}
                     </button>
                     <button className="mf-dz-btn" onClick={handleDelete} disabled={!ready || isDeleting}>
                         {isDeleting && <Loader2 size={16} className="mf-dz-spin" />}
-                        {isDeleting ? 'Eliminando…' : 'Eliminar definitivamente'}
+                        {isDeleting ? t('Eliminando…') : t('Eliminar definitivamente')}
                     </button>
                 </div>
             </Modal>

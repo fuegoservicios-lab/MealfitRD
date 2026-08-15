@@ -17,9 +17,11 @@ import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { CalendarRange, Gauge } from 'lucide-react';
 import { toast } from 'sonner';
+import { useT } from '../../../i18n';
 
 export const QAppMode = ({ onAutoAdvance }) => {
     const { formData, updateData, isGuest } = useAssessment();
+    const t = useT();
     const value = formData.appMode;
     // [P1-GUEST-ONE-DEFINITION · 2026-08-12] La definición de invitado es LA DEL
     // CONTEXTO (isGuest = modo invitado explícito), no Boolean(userProfile?.id):
@@ -34,18 +36,18 @@ export const QAppMode = ({ onAutoAdvance }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <RadioCard
                 name="appMode" value="plan" icon={CalendarRange}
-                label="Plan de comidas completo"
-                desc="La IA te arma el menú de cada día, con recetas y lista de compras."
+                label={t('Plan de comidas completo')}
+                desc={t('La IA te arma el menú de cada día, con recetas y lista de compras.')}
                 checked={value === 'plan'}
                 onChange={(e) => { set(e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (value === 'plan') onAutoAdvance(); }}
             />
             <RadioCard
                 name="appMode" value="tracking" icon={Gauge}
-                label="Solo contar lo que como"
+                label={t('Solo contar lo que como')}
                 desc={isAuth
-                    ? 'Tus metas de calorías y macros, tu diario y el coach. Sin plan generado — lo enciendes cuando quieras.'
-                    : 'Requiere cuenta: tu diario vive en tu perfil. Inicia sesión para usar este modo.'}
+                    ? t('Tus metas de calorías y macros, tu diario y el coach. Sin plan generado — lo enciendes cuando quieras.')
+                    : t('Requiere cuenta: tu diario vive en tu perfil. Inicia sesión para usar este modo.')}
                 checked={value === 'tracking'}
                 // [P1-PLANSOURCE-DEAD-CONTROL] Sin cuenta, la tarjeta responde AL TOQUE
                 // con el porqué — un invitado en modo contador tendría un panel donde
@@ -55,8 +57,8 @@ export const QAppMode = ({ onAutoAdvance }) => {
                 onChange={(e) => { if (isAuth) { set(e.target.value); onAutoAdvance(); } }}
                 onClick={() => {
                     if (!isAuth) {
-                        toast.info('Necesitas una cuenta para el modo contador', {
-                            description: 'Tu diario vive en tu perfil. Inicia sesión y vuelve a este paso.',
+                        toast.info(t('Necesitas una cuenta para el modo contador'), {
+                            description: t('Tu diario vive en tu perfil. Inicia sesión y vuelve a este paso.'),
                             duration: 5000,
                         });
                         return;

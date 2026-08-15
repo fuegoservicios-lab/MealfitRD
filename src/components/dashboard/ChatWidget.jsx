@@ -5,6 +5,16 @@ import { fetchWithAuth } from '../../config/api';
 // [P3-LAZY-MARKDOWN · 2026-05-12] react-markdown ahora lazy via wrapper.
 import LazyMarkdown from '../common/LazyMarkdown';
 import { safeJSONParse } from '../../utils/safeJSONParse';
+import { useT } from '../../i18n';
+
+// [P1-I18N-DASHBOARD · 2026-08-15] SENTINELAS, no copy. Estas dos cadenas se
+// comparan contra lo que devuelve `/api/chat/history/{id}` para filtrar los
+// saludos que ya viven PERSISTIDOS en español en la base. Traducirlas rompería
+// el filtro en silencio: el saludo dejaría de reconocerse y saldría duplicado en
+// cada carga de historial. El texto que se PINTA sí pasa por `t()` — con estas
+// mismas cadenas como clave.
+const _GREETING_ES = '¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?';
+const _NEW_CHAT_GREETING_ES = '¡Hola! Soy tu asistente de nutrición IA. ¿En nuevo chat, dime qué necesitas?';
 
 // [P2-CHATWIDGET-BUBBLE-MEMO · 2026-05-31] Burbuja de mensaje memoizada.
 // Pre-fix, durante el streaming SSE cada token actualizaba `messages` (nuevo
@@ -16,6 +26,9 @@ import { safeJSONParse } from '../../utils/safeJSONParse';
 // (components/agent/MessageBubble.jsx). El componente solo depende de `msg`
 // (no cierra sobre state del ChatWidget) → seguro a nivel de módulo.
 const ChatWidgetBubble = memo(function ChatWidgetBubble({ msg }) {
+    // `memo` bloquea el re-render por props, no por contexto: `useT()` sigue
+    // repintando la burbuja cuando cambia el idioma.
+    const t = useT();
     return (
         <div style={{
             display: 'flex',
@@ -54,7 +67,7 @@ const ChatWidgetBubble = memo(function ChatWidgetBubble({ msg }) {
                     <div style={{ marginBottom: msg.content ? '0.5rem' : 0 }}>
                         <img
                             src={msg.imageUrl}
-                            alt="Imagen enviada"
+                            alt={t('Imagen enviada')}
                             style={{
                                 maxWidth: '220px',
                                 width: '100%',
@@ -94,6 +107,7 @@ import { safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { stripUiActionTags, reconcileFinalChatText } from '../../utils/chatStreamReconcile';
 
 const ChatWidget = () => {
+    const t = useT();
     // [P1-CHAT-NARRATION-KEPT-REVIEW-2 · 2026-07-28] `restoreSessionData`
     // agregado para el handler `onRefreshPlan` de `stripUiActionTags` —
     // paridad con AgentPage.jsx (único otro consumidor SSE de
@@ -153,7 +167,7 @@ const ChatWidget = () => {
                 safeLocalStorageSet('mealfit_guest_session', newId);
                 setLocalSessionId(newId);
                 setCurrentSessionId(newId);
-                setMessages([{ role: 'model', content: '¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?' }]);
+                setMessages([{ role: 'model', content: t('¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?') }]);
                 setChatSessions([]);
             }
         } else if (session?.user?.id || userProfile?.id) {
@@ -176,10 +190,10 @@ const ChatWidget = () => {
             };
             initUserSession();
         }
-    }, [session?.user?.id, userProfile?.id]);
+    }, [session?.user?.id, userProfile?.id, t]);
 
-    const [messages, setMessages] = useState([
-        { role: 'model', content: '¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?' }
+    const [messages, setMessages] = useState(() => [
+        { role: 'model', content: t('¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?') }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -248,7 +262,7 @@ const ChatWidget = () => {
             if (response.ok) {
                 const data = await response.json();
                 if (data.messages && data.messages.length > 0) {
-                    const filteredMessages = data.messages.filter(m => m.content !== '¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?' && m.content !== '¡Hola! Soy tu asistente de nutrición IA. ¿En nuevo chat, dime qué necesitas?');
+                    const filteredMessages = data.messages.filter(m => m.content !== _GREETING_ES && m.content !== _NEW_CHAT_GREETING_ES);
                     setMessages(filteredMessages.map(m => {
                         let content = m.content;
                         let isImage = false;
@@ -283,7 +297,7 @@ const ChatWidget = () => {
                     }));
                 } else {
                     // Chat nuevo vacío, poner el de bienvenida
-                    setMessages([{ role: 'model', content: '¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?' }]);
+                    setMessages([{ role: 'model', content: t('¡Hola! Soy tu asistente de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?') }]);
                 }
             }
         } catch (error) {
@@ -291,7 +305,7 @@ const ChatWidget = () => {
         } finally {
             setIsLoadingHistory(false);
         }
-    }, []);
+    }, [t]);
 
     // [P3-CHATWIDGET-TDZ-REORDER · 2026-06-01] useEffects movidos aquí, DEBAJO de sus
     // useCallback (fetchChatSessions/fetchSessionMessages), para eliminar la TDZ.
@@ -312,7 +326,7 @@ const ChatWidget = () => {
     const handleNewChat = () => {
         setCurrentSessionId(crypto.randomUUID());
         setShowHistory(false);
-        setMessages([{ role: 'model', content: '¡Hola! Soy tu asistente de nutrición IA. ¿En nuevo chat, dime qué necesitas?' }]);
+        setMessages([{ role: 'model', content: t('¡Hola! Soy tu asistente de nutrición IA. ¿En nuevo chat, dime qué necesitas?') }]);
     };
 
     const handleSend = async () => {
@@ -497,11 +511,11 @@ const ChatWidget = () => {
             } else {
                 let errData = {};
                 try { errData = await response.json(); } catch(e){}
-                setMessages(prev => [...prev, { role: 'model', content: `❌ Error al comunicarse con la IA: ${errData.detail || ''}` }]);
+                setMessages(prev => [...prev, { role: 'model', content: t('❌ Error al comunicarse con la IA: {detalle}', { detalle: errData.detail || '' }) }]);
             }
         } catch (error) {
             console.error("Chat Error:", error);
-            setMessages(prev => [...prev, { role: 'model', content: '❌ Error de conexión al servidor.' }]);
+            setMessages(prev => [...prev, { role: 'model', content: t('❌ Error de conexión al servidor.') }]);
         } finally {
             setIsLoading(false);
             setStreamingStatus(null);
@@ -556,7 +570,7 @@ const ChatWidget = () => {
                             // icon-only ArrowLeft (volver del historial al chat).
                             <button
                                 onClick={() => setShowHistory(false)}
-                                aria-label="Volver al chat actual"
+                                aria-label={t('Volver al chat actual')}
                                 style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '4px' }}
                                 onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                                 onMouseOut={e => e.currentTarget.style.background = 'none'}
@@ -577,11 +591,11 @@ const ChatWidget = () => {
                         )}
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {showHistory ? 'Historial de Chats' : 'Bioboros AI'}
+                                {showHistory ? t('Historial de Chats') : 'Bioboros AI'}
                             </h3>
                             {!showHistory && (
                                 <p style={{ margin: 0, fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
-                                    Asistente Nutricional Inteligente
+                                    {t('Asistente Nutricional Inteligente')}
                                 </p>
                             )}
                         </div>
@@ -595,8 +609,8 @@ const ChatWidget = () => {
                         {!showHistory && userProfile?.id && (
                             <button
                                 onClick={() => { setShowHistory(true); fetchChatSessions(); }}
-                                title="Ver Historial"
-                                aria-label="Ver historial de chats"
+                                title={t('Ver Historial')}
+                                aria-label={t('Ver historial de chats')}
                                 style={{
                                     background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '0.5rem', cursor: 'pointer', display: 'flex'
                                 }}
@@ -606,8 +620,8 @@ const ChatWidget = () => {
                         )}
                         <button
                             onClick={handleNewChat}
-                            title="Nuevo Chat"
-                            aria-label="Iniciar nuevo chat"
+                            title={t('Nuevo Chat')}
+                            aria-label={t('Iniciar nuevo chat')}
                             style={{
                                 background: '#3B82F6', border: 'none', color: 'white', padding: '0.5rem', borderRadius: '0.5rem', cursor: 'pointer', display: 'flex'
                             }}
@@ -622,7 +636,7 @@ const ChatWidget = () => {
                     <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {chatSessions.length === 0 ? (
                             <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem', fontSize: '0.9rem' }}>
-                                No tienes chats anteriores.
+                                {t('No tienes chats anteriores.')}
                             </div>
                         ) : (
                             chatSessions.map((s) => (
@@ -649,7 +663,7 @@ const ChatWidget = () => {
                                     onMouseOut={e => { if (currentSessionId !== s.id) e.currentTarget.style.borderColor = 'var(--border)'; }}
                                 >
                                     <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                                        {s.title ? s.title.replace(/\[?\(Hora actual del usuario:.*?\)?\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || 'Nuevo chat' : 'Nuevo chat'}
+                                        {s.title ? s.title.replace(/\[?\(Hora actual del usuario:.*?\)?\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || t('Nuevo chat') : t('Nuevo chat')}
                                     </span>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                         {new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -672,7 +686,7 @@ const ChatWidget = () => {
                         }}>
                             {isLoadingHistory ? (
                                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-light)', gap: '0.5rem' }}>
-                                    <Loader2 className="spin-fast" size={20} /> Cargando mensajes...
+                                    <Loader2 className="spin-fast" size={20} /> {t('Cargando mensajes...')}
                                 </div>
                             ) : (
                                 // [P2-CHATWIDGET-BUBBLE-MEMO · 2026-05-31]
@@ -702,7 +716,7 @@ const ChatWidget = () => {
                                             WebkitBackgroundClip: 'text',
                                             WebkitTextFillColor: 'transparent',
                                             animation: 'shimmer 2s linear infinite'
-                                        }}>{streamingStatus || 'Pensando...'}</span>
+                                        }}>{streamingStatus || t('Pensando...')}</span>
                                     </div>
                                 </div>
                             )}
@@ -727,7 +741,7 @@ const ChatWidget = () => {
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="Pregúntale a tu asistente..."
+                                    placeholder={t('Pregúntale a tu asistente...')}
                                     disabled={isLoading}
                                     style={{
                                         flex: 1,
@@ -760,7 +774,7 @@ const ChatWidget = () => {
                                 </button>
                             </div>
                             <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-light)' }}>
-                                La IA puede cometer errores. Considera verificar la información.
+                                {t('La IA puede cometer errores. Considera verificar la información.')}
                             </div>
                         </div>
                     </>
@@ -773,7 +787,7 @@ const ChatWidget = () => {
                 lectores de pantalla narran "botón" sin contexto. */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                aria-label={isOpen ? "Cerrar asistente Bioboros AI" : "Abrir asistente Bioboros AI"}
+                aria-label={isOpen ? t("Cerrar asistente Bioboros AI") : t("Abrir asistente Bioboros AI")}
                 aria-expanded={isOpen}
                 style={{
                     width: '3.5rem',

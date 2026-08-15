@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useLayoutEffect } from 'react';
+import { lazy, Suspense, useState, useEffect, useLayoutEffect, Fragment } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 // [P1-TOASTER-MISSING · 2026-05-30] sonner <Toaster/> — sin él la app NO
 // renderiza ningún toast (sonner no auto-monta). Ver el render abajo.
@@ -19,6 +19,11 @@ import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 // servidor keyed por-usuario + clear() en logout (fix estructural fuga PII).
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './queryClient';
+// [P1-I18N-DASHBOARD · 2026-08-15] Idioma de la interfaz. El Provider va por
+// ENCIMA de todo; `LocaleBoundary` (definido abajo) remonta el subárbol de
+// rutas al cambiar de idioma. Ver el comentario de LocaleBoundary para por qué
+// remontar y no confiar en el re-render.
+import { I18nProvider, useI18n } from './i18n';
 // [P3-11 · 2026-07-09] Skip-to-content: primer focusable del app-shell.
 import SkipLink from './components/common/SkipLink';
 // [P2-8 · 2026-07-09] Señal ambiental de conectividad (banner no-bloqueante).
@@ -381,6 +386,34 @@ function useAppToastTheme() {
     return tema;
 }
 
+/**
+ * [P1-I18N-DASHBOARD · 2026-08-15] Frontera de remontaje por idioma.
+ *
+ * Cambiar de idioma REMONTA el subárbol de rutas en vez de confiar en un
+ * re-render. Suena excesivo hasta que se mira dónde viven realmente las
+ * cadenas: hay copy que se calcula FUERA de un componente (tablas de etiquetas,
+ * handlers de error, helpers de formato) y hay subárboles memoizados. Un
+ * re-render normal no alcanza ni a los unos ni a los otros, así que un cambio
+ * de idioma dejaría media pantalla en español hasta la siguiente navegación —
+ * el fallo más difícil de diagnosticar de todo este sistema, porque se ve bien
+ * en cuanto navegas.
+ *
+ * El precio es perder el estado transitorio de la VISTA. Es aceptable: cambiar
+ * de idioma es un acto deliberado, único y hecho desde Configuración. Y los
+ * providers (sesión, TanStack Query, wizard) quedan POR ENCIMA de esta
+ * frontera, así que lo que sobrevive es todo lo que importa. El `Router` se
+ * remonta también, pero `BrowserRouter` lee `window.location` al montar: la
+ * ruta actual se conserva.
+ */
+function LocaleBoundary({ children }) {
+  const { locale } = useI18n();
+  // Fragment y no un <div>: un nodo DOM extra aquí se cuela entre padres flex/
+  // grid y sus hijos. `display:contents` lo esquivaría, pero arrastra bugs de
+  // accesibilidad conocidos en varios navegadores. Un Fragment con `key`
+  // remonta exactamente igual y no existe en el DOM.
+  return <Fragment key={locale}>{children}</Fragment>;
+}
+
 function App() {
     const appToastTheme = useAppToastTheme();
   // [APPEARANCE-THEME · 2026-05-28] Una sola vez al montar: re-aplica la pref
@@ -398,8 +431,14 @@ function App() {
   }, []);
 
   return (
+    <I18nProvider>
     <QueryClientProvider client={queryClient}>
     <AssessmentProvider>
+      {/* [P1-I18N-DASHBOARD · 2026-08-15] La frontera va AQUÍ dentro, no
+          envolviendo a los providers: al cambiar de idioma queremos remontar
+          las vistas, no tirar la sesión, la caché de TanStack Query ni el
+          estado del wizard. */}
+      <LocaleBoundary>
       <Router>
         {/* [P3-11] Primer elemento focusable: salta la navegación al #main-content. */}
         <SkipLink />
@@ -592,8 +631,10 @@ function App() {
           </Route>
         </ModalAwareRoutes>
       </Router>
+      </LocaleBoundary>
     </AssessmentProvider>
     </QueryClientProvider>
+    </I18nProvider>
   );
 }
 

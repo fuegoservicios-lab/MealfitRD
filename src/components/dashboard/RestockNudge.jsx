@@ -26,6 +26,7 @@ import {
     markAutoFilled,
     markReminderSent,
 } from '../../utils/restockNudge';
+import { useT } from '../../i18n';
 
 export default function RestockNudge({
     planData,
@@ -37,6 +38,7 @@ export default function RestockNudge({
     onConfirmRestock,
     onSilentRestock,
 }) {
+    const t = useT();
     const nowMs = Date.now();
     const k = planNudgeKey(planData);
     // [P1-DAILY-NOT-CYCLE · 2026-07-28] `userId` viaja en `ctx` para que
@@ -90,9 +92,9 @@ export default function RestockNudge({
             addNotification({
                 id: `restock_reminder_${k}`,
                 kind: 'info',
-                title: 'Llena tu Nevera tras comprar',
+                title: t('Llena tu Nevera tras comprar'),
                 message:
-                    'Cuando termines las compras de tu plan, toca "Ya compré la lista" para llenar tu Nevera. Así tu plan usa lo que ya tienes en casa.',
+                    t('Cuando termines las compras de tu plan, toca "Ya compré la lista" para llenar tu Nevera. Así tu plan usa lo que ya tienes en casa.'),
                 severity: 'info',
             });
         }
@@ -107,9 +109,9 @@ export default function RestockNudge({
                     addNotification({
                         id: `restock_autofill_${k}`,
                         kind: 'info',
-                        title: 'Llenamos tu Nevera automáticamente',
+                        title: t('Llenamos tu Nevera automáticamente'),
                         message:
-                            'Pasaron unos días desde el inicio de tu plan y tu Nevera seguía vacía, así que la llenamos con tu lista de compras. Revísala y quita lo que no hayas comprado.',
+                            t('Pasaron unos días desde el inicio de tu plan y tu Nevera seguía vacía, así que la llenamos con tu lista de compras. Revísala y quita lo que no hayas comprado.'),
                         severity: 'info',
                     });
                 })
@@ -313,10 +315,10 @@ export default function RestockNudge({
                         </span>
                         <div className="restock-nudge-txt">
                             <span className="restock-nudge-title">
-                                Tu Nevera está vacía para este plan
+                                {t('Tu Nevera está vacía para este plan')}
                             </span>
                             <span className="restock-nudge-desc">
-                                ¿Ya hiciste las compras? Llénala con un toque para que tu plan use lo que tienes.
+                                {t('¿Ya hiciste las compras? Llénala con un toque para que tu plan use lo que tienes.')}
                             </span>
                         </div>
                         <button
@@ -325,13 +327,13 @@ export default function RestockNudge({
                             className="restock-nudge-cta"
                         >
                             <Check size={15} strokeWidth={2.5} />
-                            Sí, ya compré
+                            {t('Sí, ya compré')}
                         </button>
                         <button
                             type="button"
                             onClick={hideBanner}
-                            aria-label="Descartar aviso"
-                            title="Descartar"
+                            aria-label={t('Descartar aviso')}
+                            title={t('Descartar')}
                             className="restock-nudge-x"
                         >
                             <X size={16} strokeWidth={2.25} />
@@ -397,10 +399,10 @@ export default function RestockNudge({
                                 id="restock-nudge-title"
                                 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem', letterSpacing: '-0.015em' }}
                             >
-                                ¿Ya hiciste las compras?
+                                {t('¿Ya hiciste las compras?')}
                             </h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: 1.55, margin: '0 auto 1.5rem', maxWidth: '320px' }}>
-                                Si ya compraste tu lista, llenamos tu Nevera para que tu plan aproveche lo que tienes y no vuelvas a comprar de más.
+                                {t('Si ya compraste tu lista, llenamos tu Nevera para que tu plan aproveche lo que tienes y no vuelvas a comprar de más.')}
                             </p>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <button
@@ -409,7 +411,7 @@ export default function RestockNudge({
                                     className="restock-nudge-prompt-cta"
                                 >
                                     <Check size={17} strokeWidth={2.4} />
-                                    Sí, ya compré — llenar mi Nevera
+                                    {t('Sí, ya compré — llenar mi Nevera')}
                                 </button>
                                 <button
                                     type="button"
@@ -424,7 +426,7 @@ export default function RestockNudge({
                                         cursor: 'pointer',
                                     }}
                                 >
-                                    Todavía no
+                                    {t('Todavía no')}
                                 </button>
                             </div>
                         </motion.div>

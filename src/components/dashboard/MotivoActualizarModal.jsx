@@ -3,6 +3,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 // [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+// [P1-I18N-DASHBOARD · 2026-08-15] En ESTE archivo se usa el `t` de módulo y no
+// `const t = useT()`: parte del copy son VALORES POR DEFECTO de parámetros
+// (`title`, `dislike`), que se evalúan antes de que ningún hook pueda correr.
+// La suscripción al cambio de idioma la da un `useT()` sin asignar en la raíz —
+// ningún subcomponente de este archivo está memoizado, así que re-renderizan con
+// ella.
+import { t, useT } from "../../i18n";
 
 /**
  * MotivoActualizarModal — "¿Por qué quieres actualizar?"
@@ -191,7 +198,7 @@ function RecommendedBadge({ c, size = "md", isDark = true }) {
         border: `1px solid ${tk.badgeBorder}`,
       }}
     >
-      <Icon name="star" size={small ? 10 : 11} fill={accent} /> Más elegida
+      <Icon name="star" size={small ? 10 : 11} fill={accent} /> {t("Más elegida")}
     </span>
   );
 }
@@ -535,7 +542,7 @@ function ComingBanner({ coming, faded, loading, onPick, isDark = true }) {
           border: `1px solid ${b.pillBorder}`,
         }}
       >
-        <Icon name={unlocked ? "check" : "calendar"} size={12} /> {unlocked ? "Hoy" : coming.unlockLabel}
+        <Icon name={unlocked ? "check" : "calendar"} size={12} /> {unlocked ? t("Hoy") : coming.unlockLabel}
       </span>
 
       {loading && <LoadingOverlay />}
@@ -544,7 +551,7 @@ function ComingBanner({ coming, faded, loading, onPick, isDark = true }) {
 }
 
 /* -------------------------------------------------------------- fila destructiva */
-function DislikeRow({ faded, loading, onPick, heading, label = "No me gustan estos platos", desc = "Evitar sugerencias similares", isDark = true }) {
+function DislikeRow({ faded, loading, onPick, heading, label = t("No me gustan estos platos"), desc = t("Evitar sugerencias similares"), isDark = true }) {
   const [hover, setHover] = useState(false);
   // [P2-MOTIVO-LIGHT-CONTRAST · 2026-07-12] Icono rojo legible en claro (deepOf).
   const dz = isDark
@@ -619,7 +626,7 @@ function DislikeRow({ faded, loading, onPick, heading, label = "No me gustan est
 /* ============================================================ componente raíz */
 export default function MotivoActualizarModal({
   open = false,
-  title = "¿Por qué quieres actualizar?",
+  title = t("¿Por qué quieres actualizar?"),
   subtitle = null,
   contextLabel = null,
   quota = { left: 0, total: 0 },
@@ -627,11 +634,14 @@ export default function MotivoActualizarModal({
   options = [],
   coming = null,
   extraRows = [],
-  dislike = { label: "No me gustan estos platos", desc: "Evitar sugerencias similares" },
+  dislike = { label: t("No me gustan estos platos"), desc: t("Evitar sugerencias similares") },
   pickingId = null,
   onPick = () => {},
   onClose = () => {},
 }) {
+  // Sin asignar a propósito: solo suscribe este árbol al cambio de idioma (ver
+  // la nota del import).
+  useT();
   const isMobile = useMediaQuery("(max-width: 768px)");
   // [P2-MOTIVO-LIGHT-CONTRAST · 2026-07-12] Tema activo para el color-math
   // sensible al tema (accentTokens): oscuro = valores originales, claro = acento
@@ -739,7 +749,9 @@ export default function MotivoActualizarModal({
                 {title}
               </h2>
               <span
-                title={unlimited ? "Regeneraciones ilimitadas (Premium)" : `Te quedan ${quota.left} de ${quota.total} regeneraciones este mes`}
+                title={unlimited
+                  ? t("Regeneraciones ilimitadas (Premium)")
+                  : t("Te quedan {restantes} de {total} regeneraciones este mes", { restantes: quota.left, total: quota.total })}
                 style={{
                   flex: "none",
                   display: "inline-flex",
@@ -770,11 +782,11 @@ export default function MotivoActualizarModal({
               {subtitle != null ? (
                 subtitle
               ) : sheet ? (
-                "Toca el motivo que mejor describe lo que buscas hoy."
+                t("Toca el motivo que mejor describe lo que buscas hoy.")
               ) : unlimited ? (
-                <>Toca el motivo que mejor describe lo que buscas hoy. Tienes <b style={{ color: "var(--primary)" }}>regeneraciones ilimitadas</b> (Premium).</>
+                <>{t("Toca el motivo que mejor describe lo que buscas hoy. Tienes")} <b style={{ color: "var(--primary)" }}>{t("regeneraciones ilimitadas")}</b> {t("(Premium).")}</>
               ) : (
-                <>Toca el motivo que mejor describe lo que buscas hoy. Te quedan <b style={{ color: "var(--primary)" }}>{quota.left} regeneraciones</b> este mes.</>
+                <>{t("Toca el motivo que mejor describe lo que buscas hoy. Te quedan")} <b style={{ color: "var(--primary)" }}>{t("{n} regeneraciones", { n: quota.left })}</b> {t("este mes.")}</>
               )}
             </p>
 
@@ -804,7 +816,7 @@ export default function MotivoActualizarModal({
                       color: "#FB923C",
                     }}
                   >
-                    <Icon name="refresh" size={11} /> Plato a cambiar
+                    <Icon name="refresh" size={11} /> {t("Plato a cambiar")}
                   </span>
                   <span style={{ fontSize: ".92rem", fontWeight: 700, lineHeight: 1.3, color: "var(--text-main)" }}>
                     {contextLabel}
@@ -832,7 +844,7 @@ export default function MotivoActualizarModal({
                     ))}
                   </div>
                 )}
-                <DislikeRow heading="¿No es lo que buscas?" label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} isDark={isDark} />
+                <DislikeRow heading={t("¿No es lo que buscas?")} label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} isDark={isDark} />
               </>
             ) : (
               /* ---- bento (escritorio) ---- */

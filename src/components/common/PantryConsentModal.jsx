@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "../../i18n";
 
 /**
  * PantryConsentModal — "Nevera estricta + consentimiento" [P1-PANTRY-STRICT-CONSENT · 2026-08-02]
@@ -83,6 +84,7 @@ function formatPrice(m) {
 }
 
 function IngredientRow({ item }) {
+  const t = useT();
   const qtyTxt = formatQty(item);
   const priceTxt = formatPrice(item);
   return (
@@ -110,7 +112,7 @@ function IngredientRow({ item }) {
             whiteSpace: "nowrap",
           }}
         >
-          {item?.name || "Ingrediente"}
+          {item?.name || t("Ingrediente")}
         </span>
         {qtyTxt && (
           <span style={{ fontSize: ".76rem", color: "var(--text-muted)", fontWeight: 500 }}>{qtyTxt}</span>
@@ -130,7 +132,7 @@ function IngredientRow({ item }) {
           {priceTxt}
         </span>
       ) : (
-        <span style={{ flex: "none", fontSize: ".76rem", color: "var(--text-light)" }}>precio no disp.</span>
+        <span style={{ flex: "none", fontSize: ".76rem", color: "var(--text-light)" }}>{t("precio no disp.")}</span>
       )}
     </div>
   );
@@ -161,6 +163,7 @@ export default function PantryConsentModal({
   onRetry = () => {},
   onClose = () => {},
 }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === "Escape" && !busy) onClose(); };
@@ -223,7 +226,7 @@ export default function PantryConsentModal({
           <button
             type="button"
             onClick={() => { if (!busy) onClose(); }}
-            aria-label="Cerrar"
+            aria-label={t("Cerrar")}
             disabled={busy}
             style={{
               position: "absolute", top: 15, right: 15, width: 34, height: 34,
@@ -254,12 +257,12 @@ export default function PantryConsentModal({
                 color: "var(--text-main)",
               }}
             >
-              Tu Nevera no alcanza
+              {t("Tu Nevera no alcanza")}
             </h2>
           </div>
 
           <p style={{ margin: "12px 0 0", fontSize: ".86rem", lineHeight: 1.5, fontWeight: 500, color: "var(--text-muted)" }}>
-            {message || `El chef necesita ${names.join(", ") || "un ingrediente"} que no está en tu Nevera.`}
+            {message || t("El chef necesita {ingredientes} que no está en tu Nevera.", { ingredientes: names.join(", ") || t("un ingrediente") })}
           </p>
 
           {missing.length > 0 && (
@@ -284,7 +287,7 @@ export default function PantryConsentModal({
               }}
             >
               <Icon name="cart" size={17} stroke={2} />
-              {busy ? "Añadiendo…" : "Añadir a la lista y continuar"}
+              {busy ? t("Añadiendo…") : t("Añadir a la lista y continuar")}
             </button>
             <button
               type="button"
@@ -299,7 +302,7 @@ export default function PantryConsentModal({
               }}
             >
               <Icon name="shuffle" size={16} stroke={2} />
-              Buscar otra opción
+              {t("Buscar otra opción")}
             </button>
             <button
               type="button"
@@ -312,7 +315,7 @@ export default function PantryConsentModal({
                 color: "var(--text-muted)",
               }}
             >
-              Cancelar
+              {t("Cancelar")}
             </button>
           </div>
         </div>

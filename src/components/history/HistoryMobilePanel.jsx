@@ -9,6 +9,11 @@ import { CalendarDays, Flame, Search, Pencil, Trash2, Clock, X, Check } from "lu
 import { mealEmojiFor } from "../../utils/mealEmoji";
 // [P1-2 · 2026-07-09] SSOT del coalescing days||meals||perfectDay (reemplaza la copia inline).
 import { firstDayMeals } from "../../utils/normalizePlanDays";
+// [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. `useT()` dentro de los
+// componentes (es lo que los suscribe al cambio de idioma); el `t`/`tn` sueltos
+// para helpers de módulo que se INVOCAN en render (`normalizePlan`,
+// `bucketTitle`, `activeBadge`), nunca al importar.
+import { t, tn, useT } from "../../i18n";
 
 /* --------------------------------------------------------- helpers */
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -18,6 +23,18 @@ const fmtTime = (d) => { let h = d.getHours(); const ap = h < 12 ? "a. m." : "p.
 const daysAgo = (d) => Math.floor((Date.now() - d.getTime()) / 86400000);
 function bucketOf(d) { const n = daysAgo(d); if (n <= 0) return "Hoy"; if (n === 1) return "Ayer"; if (n <= 6) return "Esta semana"; if (n <= 13) return "La semana pasada"; return "Más antiguos"; }
 const BUCKET_ORDER = ["Hoy", "Ayer", "Esta semana", "La semana pasada", "Más antiguos"];
+// [P1-I18N-DASHBOARD · 2026-08-15] Igual que en el panel de escritorio: el bucket
+// es un ID que resulta ser su propio texto español, así que se traduce al
+// PINTARLO (traducirlo en `bucketOf` cambiaría las claves de agrupación y el
+// orden de `BUCKET_ORDER`) y con LITERALES, porque un `t(variable)` es invisible
+// a `npm run i18n:check` y su traducción nacería huérfana.
+const bucketTitle = (id) => ({
+  "Hoy": t("Hoy"),
+  "Ayer": t("Ayer"),
+  "Esta semana": t("Esta semana"),
+  "La semana pasada": t("La semana pasada"),
+  "Más antiguos": t("Más antiguos"),
+})[id] || id;
 const parseGrams = (v) => { const n = parseInt(String(v ?? ""), 10); return Number.isFinite(n) ? n : 0; };
 
 function normalizePlan(raw, activePlanId) {
@@ -30,7 +47,7 @@ function normalizePlan(raw, activePlanId) {
   return {
     raw,
     id: String(raw.id),
-    name: raw.name || "Plan Generado",
+    name: raw.name || t("Plan Generado"),
     date: new Date(raw.created_at),
     active: !!activePlanId && raw.id === activePlanId,
     kcal: typeof raw.calories === "number" ? raw.calories : (parseInt(raw.calories, 10) || 0),
@@ -79,6 +96,7 @@ function Chips({ meals, max }) {
 
 /* Rename inline (reusa el flujo real: editingId / tempName / save / cancel) */
 function NameEditor({ tempName, setTempName, onSave, onCancel }) {
+  const t = useT();
   return (
     <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, minWidth: 0 }}>
       <input
@@ -89,13 +107,14 @@ function NameEditor({ tempName, setTempName, onSave, onCancel }) {
         style={{ flex: 1, minWidth: 0, appearance: "none", font: "inherit", fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: "1rem",
           color: "var(--text-main)", background: "var(--bg-page)", border: "1px solid var(--primary)", borderRadius: 9, padding: "5px 9px", outline: "none" }}
       />
-      <button type="button" title="Guardar" onClick={(e) => { e.stopPropagation(); onSave(); }} style={miniBtn}><Check size={15} /></button>
-      <button type="button" title="Cancelar" onClick={(e) => { e.stopPropagation(); onCancel(); }} style={miniBtn}><X size={15} /></button>
+      <button type="button" title={t("Guardar")} onClick={(e) => { e.stopPropagation(); onSave(); }} style={miniBtn}><Check size={15} /></button>
+      <button type="button" title={t("Cancelar")} onClick={(e) => { e.stopPropagation(); onCancel(); }} style={miniBtn}><X size={15} /></button>
     </div>
   );
 }
 
 function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tempName, setTempName, onEditSave, onEditCancel }) {
+  const t = useT();
   const [press, setPress] = useState(false);
   return (
     <div
@@ -121,7 +140,7 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-.01em", color: "var(--text-main)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
-              <button type="button" title="Renombrar" onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} /></button>
+              <button type="button" title={t("Renombrar")} onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} /></button>
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".75rem", color: "var(--text-light)", marginTop: 3 }}>
@@ -129,7 +148,7 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
           </div>
         </div>
         {!editing && (
-          <button type="button" title="Eliminar" onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} style={cardIconBtn}><Trash2 size={16} /></button>
+          <button type="button" title={t("Eliminar")} onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} style={cardIconBtn}><Trash2 size={16} /></button>
         )}
       </div>
       <Chips meals={plan.meals} max={2} />
@@ -162,6 +181,7 @@ export default function HistoryMobilePanel({
   onEditSave = () => {},
   onEditCancel = () => {},
 }) {
+  const t = useT();
   const q = searchQuery.trim().toLowerCase();
   const normalized = useMemo(() => plans.map((p) => normalizePlan(p, activePlanId)), [plans, activePlanId]);
   const active = normalized.find((p) => p.active);
@@ -183,15 +203,15 @@ export default function HistoryMobilePanel({
     <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "12px 16px calc(80px + env(safe-area-inset-bottom, 0px))", fontFamily: "var(--font-body)", color: "var(--text-main)" }}>
       {/* pastilla de conteo (centrada) */}
       <div style={{ display: "flex", justifyContent: "center" }}>
-        <span style={countPill}><CalendarDays size={13} /> {total} {total === 1 ? "plan nutricional" : "planes nutricionales"}</span>
+        <span style={countPill}><CalendarDays size={13} /> {tn(total, "{n} plan nutricional", "{n} planes nutricionales", { n: total })}</span>
       </div>
 
       {/* búsqueda */}
       <div style={searchWrap}>
         <Search size={16} style={{ flexShrink: 0 }} />
-        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar planes…" aria-label="Buscar planes por nombre" style={searchInput} />
+        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("Buscar planes…")} aria-label={t("Buscar planes por nombre")} style={searchInput} />
         {q && (
-          <button type="button" onClick={() => setSearchQuery("")} aria-label="Limpiar búsqueda" style={{ ...miniBtn, width: 28, height: 28 }}><X size={14} /></button>
+          <button type="button" onClick={() => setSearchQuery("")} aria-label={t("Limpiar búsqueda")} style={{ ...miniBtn, width: 28, height: 28 }}><X size={14} /></button>
         )}
       </div>
 
@@ -209,7 +229,7 @@ export default function HistoryMobilePanel({
       {BUCKET_ORDER.filter((g) => groups[g]).map((g) => (
         <div key={g} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={bucketLabel}>{g}</span>
+            <span style={bucketLabel}>{bucketTitle(g)}</span>
             <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
             <span style={bucketCount}>{groups[g].length}</span>
           </div>
@@ -230,8 +250,8 @@ export default function HistoryMobilePanel({
       {noResults && (
         <div style={{ padding: "40px 16px", textAlign: "center", color: "var(--text-light)" }}>
           <Search size={28} strokeWidth={1.75} />
-          <p style={{ marginTop: 10 }}>Sin resultados para <strong style={{ color: "var(--text-muted)" }}>“{searchQuery.trim()}”</strong></p>
-          <button type="button" onClick={() => setSearchQuery("")} style={clearBtn}>Limpiar búsqueda</button>
+          <p style={{ marginTop: 10 }}>{t("Sin resultados para")} <strong style={{ color: "var(--text-muted)" }}>“{searchQuery.trim()}”</strong></p>
+          <button type="button" onClick={() => setSearchQuery("")} style={clearBtn}>{t("Limpiar búsqueda")}</button>
         </div>
       )}
     </div>
@@ -252,7 +272,7 @@ const activeBadge = (paused = false) => (
     background: paused ? "color-mix(in srgb, #FBBF24 14%, transparent)" : "color-mix(in srgb, var(--secondary) 16%, transparent)",
     border: `1px solid ${paused ? "color-mix(in srgb, #FBBF24 34%, transparent)" : "color-mix(in srgb, var(--secondary) 36%, transparent)"}`,
     padding: "3px 9px", borderRadius: 99 }}>
-    <i style={{ width: 5, height: 5, borderRadius: "50%", background: paused ? "#FBBF24" : "var(--secondary)" }} /> {paused ? "En pausa" : "Activo"}
+    <i style={{ width: 5, height: 5, borderRadius: "50%", background: paused ? "#FBBF24" : "var(--secondary)" }} /> {paused ? t("En pausa") : t("Activo")}
   </span>
 );
 const cardIconBtn = { flex: "none", width: 30, height: 30, borderRadius: 9, display: "grid", placeItems: "center", cursor: "pointer",

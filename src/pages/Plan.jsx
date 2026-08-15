@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCrossed, ChefHat, ShoppingCart, ShieldCheck, AlertTriangle, RefreshCw, X } from 'lucide-react';
@@ -10,7 +10,7 @@ import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api
 import Wordmark from '../components/common/Wordmark';
 import { peekPendingStatusWithRetry } from '../utils/pendingStatusRetry';
 import RenewalCheckinModal from '../components/plan/RenewalCheckinModal';
-import { findFirstIncompleteField, FIELD_LABELS } from '../config/formValidation';
+import { findFirstIncompleteField, getFieldLabel } from '../config/formValidation';
 import { stripInternalFlags } from '../config/secureFormStorage';
 import { trackEvent } from '../utils/analytics';
 import { safeJSONParseObject } from '../utils/safeJSONParse';
@@ -18,6 +18,11 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 // id se persiste en setup del flow de plan; raw setItem rompe golden path
 // guest en iOS Private Mode.
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+// [P1-I18N-DASHBOARD · 2026-08-15] `t` suelta para el motor de generación
+// (`generateAIPlanStream` y sus helpers viven FUERA de React); `useT`/`useTn`
+// para los tres componentes de este archivo. Los mensajes de error que solo
+// alimentan un `console.*` o un `error.code` NO se traducen: nadie los lee.
+import { t, useT, useTn } from '../i18n';
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
@@ -96,7 +101,7 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
                 const body = await response.json();
                 detail = body?.detail || '';
             } catch { /* el body puede no ser JSON */ }
-            const err = new Error(detail || 'Has alcanzado el límite de créditos de tu plan.');
+            const err = new Error(detail || t('Has alcanzado el límite de créditos de tu plan.'));
             err.code = 'quota_exceeded';
             throw err;
         }
@@ -115,13 +120,13 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
             let _code, _msg;
             if (_detail && typeof _detail === 'object') {
                 _code = _detail.code || _detail.error_code || 'form_invalid';
-                _msg = _detail.message || 'Revisa los datos del formulario.';
+                _msg = _detail.message || t('Revisa los datos del formulario.');
             } else if (typeof _detail === 'string') {
                 _code = 'critical_restriction';
                 _msg = _detail;
             } else {
                 _code = 'form_invalid';
-                _msg = 'Revisa los datos del formulario.';
+                _msg = t('Revisa los datos del formulario.');
             }
             const err = new Error(_msg);
             err.code = _code;
@@ -304,7 +309,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 let _detail = null;
                 try { _detail = (await response.clone().json())?.detail; } catch { /* body no-JSON */ }
                 if (_detail && typeof _detail === 'object' && (_detail.message || _detail.code)) {
-                    const eForm = new Error(_detail.message || 'Revisa los datos del formulario.');
+                    const eForm = new Error(_detail.message || t('Revisa los datos del formulario.'));
                     eForm.code = _detail.code || 'form_invalid';
                     eForm.terminal = true;
                     throw eForm;
@@ -543,7 +548,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                     // 503 explícito del backend (LLM no disponible) → propagar para Retry.
                     if (response2.status === 503) {
                         const body = await response2.json().catch(() => ({}));
-                        const e503 = new Error(body?.detail || 'La IA no está disponible.');
+                        const e503 = new Error(body?.detail || t('La IA no está disponible.'));
                         e503.code = 'llm_unavailable';
                         throw e503;
                     }
@@ -555,13 +560,13 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                     if (response2.status === 422) {
                         const body = await response2.json().catch(() => ({}));
                         if (typeof body?.detail === 'string') {
-                            const e422 = new Error(body.detail || 'Revisa tus restricciones declaradas.');
+                            const e422 = new Error(body.detail || t('Revisa tus restricciones declaradas.'));
                             e422.code = 'critical_restriction';
                             throw e422;
                         }
                         // 422 de validación (detail dict): propagar como error genérico (no critical).
                         const eVal = new Error(
-                            (body?.detail && body.detail.message) || 'Revisa los datos del formulario.');
+                            (body?.detail && body.detail.message) || t('Revisa los datos del formulario.'));
                         throw eVal;
                     }
                     const data = await response2.json();
@@ -598,7 +603,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
             // (mismo patrón que `llm_unavailable`/`rate_limited`); el caller
             // muestra toast con botón "Reintentar" sin navegar al dashboard.
             console.warn("⚠️ SSE y endpoint síncrono fallaron — propagando offline_unavailable.");
-            const offlineErr = new Error("No pudimos conectarnos con la IA. Por favor, verifica tu conexión y reintenta.");
+            const offlineErr = new Error(t("No pudimos conectarnos con la IA. Por favor, verifica tu conexión y reintenta."));
             offlineErr.code = 'offline_unavailable';
             throw offlineErr;
         } finally {
@@ -661,6 +666,7 @@ const Plan = () => {
         isGuest, consumeGuestCredit, remainingCredits,
         // [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Ver los dos call sites de `ack` abajo.
         hydrateLatestPlan } = useAssessment();
+    const t = useT();
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     // [P2-LINT-ZERO · 2026-07-09] setTempPlan nunca se llamaba (setter muerto)
     // → tempPlan es constante null; se conserva porque el JSX lo referencia.
@@ -1023,8 +1029,8 @@ const Plan = () => {
                 // pasa (arranca con GUEST_PLAN_CREDITS disponibles).
                 if (isGuest && typeof remainingCredits === 'number' && remainingCredits <= 0) {
                     import('sonner').then(({ toast }) => {
-                        toast.info('Crea tu cuenta para generar más planes', {
-                            description: 'Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito (15/mes).',
+                        toast.info(t('Crea tu cuenta para generar más planes'), {
+                            description: t('Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito (15/mes).'),
                             duration: 9000,
                         });
                     });
@@ -1226,27 +1232,27 @@ const Plan = () => {
                 if (_hasObservations) {
                     import('sonner').then(({ toast }) => {
                         if (generatedPlan?._critical_rejection) {
-                            toast.error("Plan ajustado por seguridad médica", {
+                            toast.error(t("Plan ajustado por seguridad médica"), {
                                 description: generatedPlan?._review_disclaimer
-                                    || "El plan se ajustó para cumplir tus condiciones médicas. Considera regenerarlo o revisarlo con tu nutricionista.",
+                                    || t("El plan se ajustó para cumplir tus condiciones médicas. Considera regenerarlo o revisarlo con tu nutricionista."),
                                 duration: 12000,
                             });
                         } else if (generatedPlan?._review_failed_but_delivered) {
                             const _issues = Array.isArray(generatedPlan?._review_issues)
                                 ? generatedPlan._review_issues.slice(0, 2).map(String).join(' · ')
                                 : '';
-                            toast.warning("Plan generado con observaciones", {
+                            toast.warning(t("Plan generado con observaciones"), {
                                 description: _issues
                                     || generatedPlan?._review_disclaimer
-                                    || "Observaciones no-críticas. Puedes regenerarlo si prefieres.",
+                                    || t("Observaciones no-críticas. Puedes regenerarlo si prefieres."),
                                 duration: 10000,
                             });
                         } else if (
                             generatedPlan?._pantry_degraded_summary?.degraded
                             || generatedPlan?._initial_chunk_pantry_degraded
                         ) {
-                            toast.info("Algunos ingredientes faltan en tu nevera", {
-                                description: "Revisa la lista de compras antes de cocinar — algunos meals usan alternativas.",
+                            toast.info(t("Algunos ingredientes faltan en tu nevera"), {
+                                description: t("Revisa la lista de compras antes de cocinar — algunos meals usan alternativas."),
                                 duration: 8000,
                             });
                         } else if (generatedPlan?._partial_repair) {
@@ -1256,11 +1262,11 @@ const Plan = () => {
                             // `_review_disclaimer` honesto que el backend ya calculó para este caso
                             // exacto en vez de re-derivar el texto en el cliente.
                             const _rstats = generatedPlan?._repair_stats || {};
-                            toast.warning("Plan completado parcialmente", {
+                            toast.warning(t("Plan completado parcialmente"), {
                                 description: generatedPlan?._review_disclaimer
                                     || (Number.isFinite(_rstats.real_days) && Number.isFinite(_rstats.requested_days)
-                                        ? `${_rstats.real_days} de ${_rstats.requested_days} días fueron generados por IA; el resto se completó con un menú matemático. Puedes regenerar si prefieres un plan 100% personalizado.`
-                                        : "Algunos días de tu plan se completaron con un menú matemático porque la IA no entregó todos los días esperados."),
+                                        ? t('{reales} de {pedidos} días fueron generados por IA; el resto se completó con un menú matemático. Puedes regenerar si prefieres un plan 100% personalizado.', { reales: _rstats.real_days, pedidos: _rstats.requested_days })
+                                        : t("Algunos días de tu plan se completaron con un menú matemático porque la IA no entregó todos los días esperados.")),
                                 duration: 12000,
                             });
                         }
@@ -1302,8 +1308,8 @@ const Plan = () => {
                             }
                         } catch { /* localStorage best-effort */ }
                         import('sonner').then(({ toast }) => {
-                            toast.info("Tu plan se está generando", {
-                                description: "Ya tienes uno en curso. Te avisamos cuando esté listo.",
+                            toast.info(t("Tu plan se está generando"), {
+                                description: t("Ya tienes uno en curso. Te avisamos cuando esté listo."),
                                 duration: 6000,
                             });
                         });
@@ -1320,8 +1326,8 @@ const Plan = () => {
                         // el user lo VEA de inmediato (no solo navegar al dashboard con el plan viejo).
                         await tryAdoptDedupedPlan(error.planId);
                         import('sonner').then(({ toast }) => {
-                            toast.info("Tu plan ya estaba listo", {
-                                description: error.message || "Te lo mostramos en vez de crear otro, para no duplicarlo.",
+                            toast.info(t("Tu plan ya estaba listo"), {
+                                description: error.message || t("Te lo mostramos en vez de crear otro, para no duplicarlo."),
                                 duration: 6000,
                             });
                         });
@@ -1341,8 +1347,8 @@ const Plan = () => {
                         // ("revisa tus restricciones"), NO "IA saturada" — reintentar a ciegas no ayuda.
                         try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
-                            toast.error("Revisa tus restricciones", {
-                                description: error.message || "No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo.",
+                            toast.error(t("Revisa tus restricciones"), {
+                                description: error.message || t("No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo."),
                                 duration: 10000,
                             });
                         });
@@ -1388,8 +1394,8 @@ const Plan = () => {
                         // poleando un pipeline que nunca arrancó.
                         try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
-                            toast.error("Demasiadas condiciones médicas", {
-                                description: error.message || "Selecciona máximo 3 condiciones prioritarias para continuar.",
+                            toast.error(t("Demasiadas condiciones médicas"), {
+                                description: error.message || t("Selecciona máximo 3 condiciones prioritarias para continuar."),
                                 duration: 10000,
                             });
                         });
@@ -1401,8 +1407,8 @@ const Plan = () => {
                         // para ajustar presupuesto/metas. Reintentar a ciegas no ayuda.
                         try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
-                            toast.error("Ajusta tu presupuesto o tus metas", {
-                                description: error.message || "Tu presupuesto no alcanza para tus metas. Súbelo o reduce los días, las personas o tu meta calórica.",
+                            toast.error(t("Ajusta tu presupuesto o tus metas"), {
+                                description: error.message || t("Tu presupuesto no alcanza para tus metas. Súbelo o reduce los días, las personas o tu meta calórica."),
                                 duration: 12000,
                             });
                         });
@@ -1417,8 +1423,8 @@ const Plan = () => {
                         // backend vuelva → ilusión de "regeneración automática".
                         try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
-                            toast.error("La IA está saturada", {
-                                description: error.message || "Intenta de nuevo en 1-2 minutos.",
+                            toast.error(t("La IA está saturada"), {
+                                description: error.message || t("Intenta de nuevo en 1-2 minutos."),
                                 duration: 8000,
                             });
                         });
@@ -1437,10 +1443,10 @@ const Plan = () => {
                     if (error.code === 'quota_exceeded') {
                         try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
-                            toast.error("Límite de créditos alcanzado", {
-                                description: error.message || "Mejora tu plan para seguir generando.",
+                            toast.error(t("Límite de créditos alcanzado"), {
+                                description: error.message || t("Mejora tu plan para seguir generando."),
                                 action: {
-                                    label: "Mejorar plan",
+                                    label: t("Mejorar plan"),
                                     onClick: () => navigate('/dashboard/upgrade'),
                                 },
                                 duration: 10000,
@@ -1543,8 +1549,8 @@ const Plan = () => {
                         // <PendingPipelineRecovery /> no poolee un KV stale + rebotar al form para reintentar.
                         try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                         import('sonner').then(({ toast }) => {
-                            toast.error("Sin conexión con la IA", {
-                                description: error.message || "Verifica tu conexión y reintenta.",
+                            toast.error(t("Sin conexión con la IA"), {
+                                description: error.message || t("Verifica tu conexión y reintenta."),
                                 duration: 8000,
                             });
                         });
@@ -1574,15 +1580,15 @@ const Plan = () => {
                             const totalSeconds = Math.max(1, Number(error.retryAfter) || DEFAULT_RATE_LIMIT_RETRY_AFTER_S);
                             const showWithCountdown = (remaining) => {
                                 if (remaining > 0) {
-                                    toast.error('Demasiadas solicitudes', {
+                                    toast.error(t('Demasiadas solicitudes'), {
                                         id: toastId,
-                                        description: `Espera ${remaining}s antes de regenerar — el sistema te limitó por seguridad.`,
+                                        description: t('Espera {segundos}s antes de regenerar — el sistema te limitó por seguridad.', { segundos: remaining }),
                                         duration: Infinity,
                                     });
                                 } else {
-                                    toast.success('Listo para reintentar', {
+                                    toast.success(t('Listo para reintentar'), {
                                         id: toastId,
-                                        description: 'La ventana de espera terminó. Puedes regenerar desde el formulario.',
+                                        description: t('La ventana de espera terminó. Puedes regenerar desde el formulario.'),
                                         duration: 6000,
                                     });
                                 }
@@ -1619,8 +1625,8 @@ const Plan = () => {
 
                     if (_hasInProgressFlag) {
                         import('sonner').then(({ toast }) => {
-                            toast.info("Conexión interrumpida", {
-                                description: "Tu plan se sigue generando en segundo plano. Te avisamos cuando esté listo.",
+                            toast.info(t("Conexión interrumpida"), {
+                                description: t("Tu plan se sigue generando en segundo plano. Te avisamos cuando esté listo."),
                                 duration: 6000,
                             });
                         });
@@ -1639,7 +1645,7 @@ const Plan = () => {
                     // al volver el backend (KV row stale del intento fallido).
                     try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
                     import('sonner').then(({ toast }) => {
-                        toast.error("Error al generar el plan", { description: "Por favor, intenta nuevamente más tarde." });
+                        toast.error(t("Error al generar el plan"), { description: t("Por favor, intenta nuevamente más tarde.") });
                     });
                     navigate('/assessment', { replace: true });
                 }
@@ -1718,16 +1724,19 @@ const Plan = () => {
         } catch { /* localStorage best-effort */ }
         if (!incompleteToastShownRef.current) {
             incompleteToastShownRef.current = true;
-            const label = FIELD_LABELS[missing] || missing;
+            const label = getFieldLabel(missing, t);
             import('sonner').then(({ toast }) => {
-                toast.info(`Falta completar: ${label}`, {
-                    description: 'Te llevamos al cuestionario.',
+                toast.info(t('Falta completar: {campo}', { campo: label }), {
+                    description: t('Te llevamos al cuestionario.'),
                     duration: 4000,
                 });
             });
         }
         navigate('/assessment', { replace: true });
-    }, [loadingSensitive, formData, navigate]);
+        // `t` es la MISMA función en cada render (el motor la expone estable y el
+        // Provider solo cambia `locale`): está en deps por exhaustive-deps, no
+        // porque pueda re-disparar el effect.
+    }, [loadingSensitive, formData, navigate, t]);
 
     // 3. RENDERIZADO CONDICIONAL
 
@@ -1799,6 +1808,11 @@ const Plan = () => {
 
 // --- GAP 14: PANTALLA DE VISTA PREVIA (COMPARACIÓN) ---
 const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) => {
+    const t = useT();
+    const tn = useTn();
+    // Días programados de un plan — se lee dos veces (viejo y nuevo) y `tn`
+    // necesita el número por separado del texto.
+    const _daysOf = (p) => p?.total_days_requested || (p?.days ? p.days.length : 0);
     const [failedChunks, setFailedChunks] = useState([]);
     const [isRetrying, setIsRetrying] = useState(false);
     // [P1-ζ] Banner persistente cuando un chunk dead-letearó. El backend expone
@@ -1922,8 +1936,8 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                     const oldWeeks = Math.floor(previousDays / 7);
                     if (newWeeks > oldWeeks) {
                         import('sonner').then(({ toast }) => {
-                            toast.success(`¡Semana ${newWeeks} completada en background! 🚀`, {
-                                description: 'Tus nuevas comidas ya están listas.'
+                            toast.success(t('¡Semana {n} completada en background! 🚀', { n: newWeeks }), {
+                                description: t('Tus nuevas comidas ya están listas.')
                             });
                         });
                     }
@@ -1932,12 +1946,12 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
 
                 if (data.status === 'complete') {
                     import('sonner').then(({ toast }) => {
-                        toast.success('¡Todas las semanas han sido generadas exitosamente! 🎉');
+                        toast.success(t('¡Todas las semanas han sido generadas exitosamente! 🎉'));
                     });
                     clearInterval(intervalId);
                 } else if (data.status === 'failed') {
                     import('sonner').then(({ toast }) => {
-                        toast.error('Hubo un problema generando las próximas semanas.');
+                        toast.error(t('Hubo un problema generando las próximas semanas.'));
                     });
                     clearInterval(intervalId);
                 }
@@ -1952,7 +1966,8 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
             controller.abort();
             clearInterval(intervalId);
         };
-    }, [newPlan?.id, newPlan?.generation_status, isRetrying]);
+        // `t` es estable entre renders; va en deps solo por exhaustive-deps.
+    }, [newPlan?.id, newPlan?.generation_status, isRetrying, t]);
 
     // [P1-ζ] Forzar regeneración de un chunk dead-lettered en flexible_mode +
     // advisory_only. Es el último escalón cuando la cascada de recovery agotó
@@ -1965,8 +1980,8 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
             const res = await regenerateChunkSimplified(newPlan.id, chunkId);
             if (res.ok) {
                 import('sonner').then(({ toast }) => {
-                    toast.success('Generando versión simplificada', {
-                        description: 'Tus próximos días aparecerán en breve. Algunos ingredientes pueden ser sugerencias generales.',
+                    toast.success(t('Generando versión simplificada'), {
+                        description: t('Tus próximos días aparecerán en breve. Algunos ingredientes pueden ser sugerencias generales.'),
                     });
                 });
                 setRecoveryExhausted(prev => prev.filter(c => c.chunk_id !== chunkId && c.id !== chunkId));
@@ -1974,14 +1989,14 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
             } else {
                 const err = await res.json().catch(() => ({}));
                 import('sonner').then(({ toast }) => {
-                    toast.error('No se pudo iniciar la regeneración simplificada', {
-                        description: err.detail || 'Inténtalo de nuevo en unos segundos.',
+                    toast.error(t('No se pudo iniciar la regeneración simplificada'), {
+                        description: err.detail || t('Inténtalo de nuevo en unos segundos.'),
                     });
                 });
             }
         } catch (e) {
             console.error('[P1-ζ] handleSimplifyChunk:', e);
-            import('sonner').then(({ toast }) => toast.error('Error al iniciar la regeneración simplificada'));
+            import('sonner').then(({ toast }) => toast.error(t('Error al iniciar la regeneración simplificada')));
         } finally {
             setSimplifyingChunkId(null);
         }
@@ -1993,13 +2008,13 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
             const res = await retryPlanChunk(newPlan.id, chunkId);
             if (res.ok) {
                 import('sonner').then(({ toast }) => {
-                    toast.success('Reintento iniciado', { description: 'Generando la semana nuevamente...' });
+                    toast.success(t('Reintento iniciado'), { description: t('Generando la semana nuevamente...') });
                 });
                 setFailedChunks(prev => prev.filter(c => c.id !== chunkId));
                 // Refrescar página o reactivar polling
                 window.location.reload();
             } else {
-                import('sonner').then(({ toast }) => toast.error('Error al iniciar el reintento'));
+                import('sonner').then(({ toast }) => toast.error(t('Error al iniciar el reintento')));
             }
         } catch (e) {
             console.error(e);
@@ -2018,27 +2033,27 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
         }}>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                 <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', textAlign: 'center', color: 'white' }}>
-                    ¡Plan Generado!
+                    {t('¡Plan Generado!')}
                 </h2>
                 <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: '2rem' }}>
-                    Compara los cambios antes de aplicar tu nueva estrategia nutricional.
+                    {t('Compara los cambios antes de aplicar tu nueva estrategia nutricional.')}
                 </p>
 
                 <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column', marginBottom: '2rem' }}>
                     {oldPlan && (
                         <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
-                            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'rgba(255,255,255,0.5)' }}>Plan Anterior</h3>
+                            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'rgba(255,255,255,0.5)' }}>{t('Plan Anterior')}</h3>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                                <span>Calorías Diarias:</span>
+                                <span>{t('Calorías Diarias:')}</span>
                                 <strong>{oldPlan.calories || oldPlan.estimated_calories} kcal</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                                <span>Días Programados:</span>
-                                <strong>{oldPlan.total_days_requested || (oldPlan.days ? oldPlan.days.length : 0)} días</strong>
+                                <span>{t('Días Programados:')}</span>
+                                <strong>{tn(_daysOf(oldPlan), '{n} día', '{n} días', { n: _daysOf(oldPlan) })}</strong>
                             </div>
                             {oldPlan.macros && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                    <span>Macros (P/C/G):</span>
+                                    <span>{t('Macros (P/C/G):')}</span>
                                     <strong>{oldPlan.macros.protein} / {oldPlan.macros.carbs} / {oldPlan.macros.fats}</strong>
                                 </div>
                             )}
@@ -2046,18 +2061,18 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                     )}
                     
                     <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#10B981' }}>Nuevo Plan</h3>
+                        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#10B981' }}>{t('Nuevo Plan')}</h3>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                            <span>Calorías Diarias:</span>
+                            <span>{t('Calorías Diarias:')}</span>
                             <strong style={{ color: '#10B981' }}>{newPlan.calories || newPlan.estimated_calories} kcal</strong>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                            <span>Días Programados:</span>
-                            <strong style={{ color: '#10B981' }}>{newPlan.total_days_requested || (newPlan.days ? newPlan.days.length : 0)} días</strong>
+                            <span>{t('Días Programados:')}</span>
+                            <strong style={{ color: '#10B981' }}>{tn(_daysOf(newPlan), '{n} día', '{n} días', { n: _daysOf(newPlan) })}</strong>
                         </div>
                         {newPlan.macros && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                <span>Macros (P/C/G):</span>
+                                <span>{t('Macros (P/C/G):')}</span>
                                 <strong style={{ color: '#10B981' }}>{newPlan.macros.protein} / {newPlan.macros.carbs} / {newPlan.macros.fats}</strong>
                             </div>
                         )}
@@ -2073,7 +2088,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)'
                         }}
                     >
-                        Aceptar y Aplicar Nuevo Plan
+                        {t('Aceptar y Aplicar Nuevo Plan')}
                     </button>
                     {oldPlan && (
                         <button 
@@ -2084,7 +2099,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                 fontWeight: 600, fontSize: '1rem', cursor: 'pointer'
                             }}
                         >
-                            Mantener Plan Anterior
+                            {t('Mantener Plan Anterior')}
                         </button>
                     )}
                 </div>
@@ -2095,11 +2110,11 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                 {showReviewCriticalBanner && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '1rem', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
                         <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <AlertTriangle size={20} /> Plan reemplazado por seguridad
+                            <AlertTriangle size={20} /> {t('Plan reemplazado por seguridad')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '1rem', lineHeight: 1.5 }}>
                             {newPlan?._review_disclaimer
-                                || 'El plan generado violaba alguna restricción crítica (alergia o condición médica declarada). Por seguridad, te servimos un plan de contingencia matemático. Regenera para intentar de nuevo o revisa tus restricciones en el formulario.'}
+                                || t('El plan generado violaba alguna restricción crítica (alergia o condición médica declarada). Por seguridad, te servimos un plan de contingencia matemático. Regenera para intentar de nuevo o revisa tus restricciones en el formulario.')}
                         </p>
                         <button
                             onClick={onRegenerate}
@@ -2109,7 +2124,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                             }}
                         >
-                            <RefreshCw size={16} /> Regenerar plan
+                            <RefreshCw size={16} /> {t('Regenerar plan')}
                         </button>
                     </div>
                 )}
@@ -2119,11 +2134,11 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                 {showReviewWarningBanner && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.12)', borderRadius: '1rem', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
                         <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <ShieldCheck size={20} /> Verificación médica con observaciones
+                            <ShieldCheck size={20} /> {t('Verificación médica con observaciones')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
                             {newPlan?._review_disclaimer
-                                || 'Este plan no superó completamente la verificación médica automática. Las observaciones encontradas son no-críticas, pero te recomendamos regenerarlo o revisarlo con tu nutricionista.'}
+                                || t('Este plan no superó completamente la verificación médica automática. Las observaciones encontradas son no-críticas, pero te recomendamos regenerarlo o revisarlo con tu nutricionista.')}
                         </p>
                         {Array.isArray(newPlan?._review_issues) && newPlan._review_issues.length > 0 && (
                             <ul style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '1rem', paddingLeft: '1.25rem' }}>
@@ -2140,7 +2155,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
                             }}
                         >
-                            <RefreshCw size={16} /> Regenerar plan
+                            <RefreshCw size={16} /> {t('Regenerar plan')}
                         </button>
                     </div>
                 )}
@@ -2152,16 +2167,14 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                 {showPantryBanner && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.12)', borderRadius: '1rem', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
                         <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <ShoppingCart size={20} /> Algunos ingredientes no están en tu nevera
+                            <ShoppingCart size={20} /> {t('Algunos ingredientes no están en tu nevera')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                            Detectamos platos con ingredientes fuera de tu inventario actual. Puedes
-                            actualizar tu nevera para que el próximo plan los considere, o regenerar
-                            ahora con lo que tienes.
+                            {t('Detectamos platos con ingredientes fuera de tu inventario actual. Puedes actualizar tu nevera para que el próximo plan los considere, o regenerar ahora con lo que tienes.')}
                         </p>
                         {Array.isArray(pantrySummary?.degraded_days) && pantrySummary.degraded_days.length > 0 && (
                             <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.75rem' }}>
-                                Días afectados: {pantrySummary.degraded_days.map(d => `Día ${d}`).join(', ')}
+                                {t('Días afectados: {dias}', { dias: pantrySummary.degraded_days.map(d => t('Día {n}', { n: d })).join(', ') })}
                             </p>
                         )}
                         {newPlan?._initial_chunk_pantry_violation && (
@@ -2181,7 +2194,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
                                 }}
                             >
-                                <ShoppingCart size={16} /> Actualizar nevera
+                                <ShoppingCart size={16} /> {t('Actualizar nevera')}
                             </Link>
                             <button
                                 onClick={onRegenerate}
@@ -2191,7 +2204,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
                                 }}
                             >
-                                <RefreshCw size={16} /> Regenerar
+                                <RefreshCw size={16} /> {t('Regenerar')}
                             </button>
                         </div>
                     </div>
@@ -2204,20 +2217,18 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                 {(userActionRequired || recoveryExhausted.length > 0) && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '1rem', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
                         <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Activity size={20} /> {userActionRequired?.title || 'Tu plan necesita una decisión'}
+                            <Activity size={20} /> {userActionRequired?.title || t('Tu plan necesita una decisión')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '1rem' }}>
-                            {userActionRequired?.body || (
-                                'Algunas semanas no se pudieron generar tras varios intentos automáticos. ' +
-                                'Puedes generar una versión simplificada (con ingredientes generales) para no perder tus próximos días.'
-                            )}
+                            {userActionRequired?.body
+                                || t('Algunas semanas no se pudieron generar tras varios intentos automáticos. Puedes generar una versión simplificada (con ingredientes generales) para no perder tus próximos días.')}
                         </p>
                         {recoveryExhausted.length > 0 && recoveryExhausted.map((chunk) => {
                             const cid = chunk.chunk_id || chunk.id;
                             const wk = chunk.week_number || chunk.week || '?';
                             return (
                                 <div key={cid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '0.5rem' }}>
-                                    <span>Semana {wk}</span>
+                                    <span>{t('Semana {n}', { n: wk })}</span>
                                     <button
                                         onClick={() => handleSimplifyChunk(cid)}
                                         disabled={simplifyingChunkId === cid}
@@ -2238,7 +2249,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                     >
                                         {simplifyingChunkId === cid
                                             ? <Loader2 size={16} className="animate-spin" />
-                                            : 'Generar versión simplificada'}
+                                            : t('Generar versión simplificada')}
                                     </button>
                                 </div>
                             );
@@ -2249,14 +2260,14 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                 {failedChunks.length > 0 && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '1rem', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
                         <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Activity size={20} /> Problema al generar más semanas
+                            <Activity size={20} /> {t('Problema al generar más semanas')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', marginBottom: '1rem' }}>
-                            No te preocupes, tus primeros días ya están listos. Sin embargo, nuestro agente encontró problemas generando algunas semanas futuras de tu plan.
+                            {t('No te preocupes, tus primeros días ya están listos. Sin embargo, nuestro agente encontró problemas generando algunas semanas futuras de tu plan.')}
                         </p>
                         {failedChunks.map(chunk => (
                             <div key={chunk.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '0.5rem' }}>
-                                <span>Semana {chunk.week_number}</span>
+                                <span>{t('Semana {n}', { n: chunk.week_number })}</span>
                                 <button 
                                     onClick={() => handleRetry(chunk.id)}
                                     disabled={isRetrying}
@@ -2266,7 +2277,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                         opacity: isRetrying ? 0.7 : 1
                                     }}
                                 >
-                                    {isRetrying ? <Loader2 size={16} className="animate-spin" /> : 'Reintentar Semana'}
+                                    {isRetrying ? <Loader2 size={16} className="animate-spin" /> : t('Reintentar Semana')}
                                 </button>
                             </div>
                         ))}
@@ -2279,37 +2290,48 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
 PreviewScreen.propTypes = { oldPlan: PropTypes.object, newPlan: PropTypes.object, onAccept: PropTypes.func, onReject: PropTypes.func, onRegenerate: PropTypes.func };
 
 // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01] `steps` (10 objetos con refs a íconos
-// lucide module-level) y `tips` (5 strings) izados a module-scope. Antes vivían DENTRO
-// de LoadingScreen → se reconstruían en cada render, y LoadingScreen re-renderiza a
-// sub-segundo durante ~4-5 min (la barra de progreso + contador de tiempo + rotación
-// de tips). Dependen solo de imports module-level → se alocan una vez aquí.
-const LOADING_STEPS = [
-    { text: "Iniciando motor de Inteligencia Artificial", icon: Server, pct: 5, phase: null },
-    { text: "Analizando perfil biométrico y metabólico", icon: Activity, pct: 12, phase: 'analyzing' },
-    { text: "Calculando arquitectura de macronutrientes", icon: PieChart, pct: 25, phase: 'skeleton' },
-    { text: "Seleccionando ingredientes de alta biodisponibilidad", icon: Utensils, pct: 45, phase: 'day_1', dayCheck: 1 },
-    { text: "Optimizando sinergias metabólicas", icon: UtensilsCrossed, pct: 60, phase: 'day_2', dayCheck: 2 },
-    { text: "Estructurando patrones de alimentación", icon: ChefHat, pct: 75, phase: 'day_3', dayCheck: 3 },
-    // P1-B: el orquestador emite `phase=adversarial_judging` y `phase=critique`
-    // entre la generación paralela y `assembly`. Sin estas dos entradas, la
-    // barra se queda pegada en ~78% durante 30–90 s y el usuario percibe el
-    // app como colgado.
-    { text: "Comparando candidatos y eligiendo el mejor plan", icon: Activity, pct: 79, phase: 'adversarial_judging' },
-    { text: "Refinando coherencia y diversidad de platos", icon: ChefHat, pct: 81, phase: 'critique' },
-    { text: "Consolidando despensa y optimizando compras", icon: ShoppingCart, pct: 85, phase: 'assembly' },
-    { text: "Auditoría médica y calibración final", icon: ShieldCheck, pct: 93, phase: 'review' },
-];
+// lucide module-level) y `tips` (5 strings) izados fuera del cuerpo de LoadingScreen.
+// Antes vivían DENTRO del componente → se reconstruían en cada render, y LoadingScreen
+// re-renderiza a sub-segundo durante ~4-5 min (la barra de progreso + contador de
+// tiempo + rotación de tips).
+//
+// [P1-I18N-DASHBOARD · 2026-08-15] Ya no son CONSTANTES sino funciones. Una tabla de
+// copy con `t()` en ámbito de módulo se evalúa AL IMPORTAR —antes de que el catálogo
+// esté cargado— y queda congelada en español para siempre; en es-DO se ve perfecta,
+// que es justo lo que la vuelve invisible. El componente las llama una vez por montaje
+// vía `useMemo`, así que la asignación única que perseguía el hoist se conserva.
+function getLoadingSteps() {
+    return [
+        { text: t("Iniciando motor de Inteligencia Artificial"), icon: Server, pct: 5, phase: null },
+        { text: t("Analizando perfil biométrico y metabólico"), icon: Activity, pct: 12, phase: 'analyzing' },
+        { text: t("Calculando arquitectura de macronutrientes"), icon: PieChart, pct: 25, phase: 'skeleton' },
+        { text: t("Seleccionando ingredientes de alta biodisponibilidad"), icon: Utensils, pct: 45, phase: 'day_1', dayCheck: 1 },
+        { text: t("Optimizando sinergias metabólicas"), icon: UtensilsCrossed, pct: 60, phase: 'day_2', dayCheck: 2 },
+        { text: t("Estructurando patrones de alimentación"), icon: ChefHat, pct: 75, phase: 'day_3', dayCheck: 3 },
+        // P1-B: el orquestador emite `phase=adversarial_judging` y `phase=critique`
+        // entre la generación paralela y `assembly`. Sin estas dos entradas, la
+        // barra se queda pegada en ~78% durante 30–90 s y el usuario percibe el
+        // app como colgado.
+        { text: t("Comparando candidatos y eligiendo el mejor plan"), icon: Activity, pct: 79, phase: 'adversarial_judging' },
+        { text: t("Refinando coherencia y diversidad de platos"), icon: ChefHat, pct: 81, phase: 'critique' },
+        { text: t("Consolidando despensa y optimizando compras"), icon: ShoppingCart, pct: 85, phase: 'assembly' },
+        { text: t("Auditoría médica y calibración final"), icon: ShieldCheck, pct: 93, phase: 'review' },
+    ];
+}
 
-const LOADING_TIPS = [
-    "💡 Beber agua antes de cada comida ayuda a controlar el apetito",
-    "💡 Las proteínas aceleran tu metabolismo hasta un 30%",
-    "💡 Comer despacio mejora la digestión y saciedad",
-    "💡 El sueño es clave: sin él, las hormonas del hambre se descontrolan",
-    "💡 Una comida balanceada tiene proteína, carbohidrato y grasa saludable",
-];
+function getLoadingTips() {
+    return [
+        t("💡 Beber agua antes de cada comida ayuda a controlar el apetito"),
+        t("💡 Las proteínas aceleran tu metabolismo hasta un 30%"),
+        t("💡 Comer despacio mejora la digestión y saciedad"),
+        t("💡 El sueño es clave: sin él, las hormonas del hambre se descontrolan"),
+        t("💡 Una comida balanceada tiene proteína, carbohidrato y grasa saludable"),
+    ];
+}
 
 // --- PANTALLA DE CARGA PREMIUM CON PROGRESO REAL ---
 const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) => {
+    const t = useT();
     const [progress, setProgress] = useState(0);
     const displayProgress = status === 'ready' ? 100 : progress;
     const [tipIndex, setTipIndex] = useState(0);
@@ -2358,10 +2380,13 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // redirect desde el handler del botón sin depender del catch.
     const navigateCancel = useNavigate();
 
-    // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01] Alias a las constantes module-scope
-    // (LOADING_STEPS / LOADING_TIPS) — los arrays se alocan una vez, no en cada render.
-    const steps = LOADING_STEPS;
-    const tips = LOADING_TIPS;
+    // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01 · P1-I18N-DASHBOARD · 2026-08-15]
+    // Las tablas de copy se construyen UNA vez por montaje (deps vacías), no en cada
+    // render — el mismo ahorro que perseguía el hoist original. Un cambio de idioma
+    // REMONTA el subárbol de rutas (el Provider usa `locale` como `key`), así que no
+    // hace falta invalidar el memo.
+    const steps = useMemo(() => getLoadingSteps(), []);
+    const tips = useMemo(() => getLoadingTips(), []);
 
     // Progreso basado en eventos SSE reales
     useEffect(() => {
@@ -2459,15 +2484,15 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     const timeMessage = (() => {
         const transcurrido = formatElapsed(elapsedSec);
         if (elapsedSec < 30) {
-            return 'Esto suele tomar entre 9 y 10 minutos.';
+            return t('Esto suele tomar entre 9 y 10 minutos.');
         }
         if (elapsedSec < 10 * 60) {
-            return `Transcurrido ${transcurrido} · estimado 9-10 minutos`;
+            return t('Transcurrido {tiempo} · estimado 9-10 minutos', { tiempo: transcurrido });
         }
         if (elapsedSec < 13 * 60) {
-            return `Transcurrido ${transcurrido} · ya casi terminamos, espera un poco más`;
+            return t('Transcurrido {tiempo} · ya casi terminamos, espera un poco más', { tiempo: transcurrido });
         }
-        return `Transcurrido ${transcurrido} · gracias por tu paciencia · cerca del final`;
+        return t('Transcurrido {tiempo} · gracias por tu paciencia · cerca del final', { tiempo: transcurrido });
     })();
 
     // Determinar qué pasos ya se completaron (basado en progreso + días completados)
@@ -2582,14 +2607,14 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     letterSpacing: '-0.02em',
                     lineHeight: 1.2,
                 }}>
-                    Diseñando tu plan
+                    {t('Diseñando tu plan')}
                 </h2>
                 <p style={{
                     color: 'rgba(255,255,255,0.45)',
                     fontSize: '0.95rem', marginBottom: '2rem',
                     fontWeight: 400, letterSpacing: '0.005em',
                 }}>
-                    {steps[currentStep]?.text || 'Procesando...'}
+                    {steps[currentStep]?.text || t('Procesando...')}
                 </p>
 
                 {/* [P3-LOADING-TIME-ESTIMATE · 2026-05-16] Time estimate
@@ -2625,7 +2650,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     fontWeight: 400, letterSpacing: '0.005em',
                     lineHeight: 1.55, maxWidth: '320px', margin: '0 auto 3rem',
                 }}>
-                    Puedes salir si quieres. Te avisamos cuando tu plan esté listo.
+                    {t('Puedes salir si quieres. Te avisamos cuando tu plan esté listo.')}
                 </p>
 
                 {/* === TIP — sutil, sin emoji === */}
@@ -2692,7 +2717,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                                 e.currentTarget.style.color = 'rgba(255,255,255,0.35)';
                             }}
                         >
-                            Cancelar
+                            {t('Cancelar')}
                         </motion.button>
                     </div>
                 )}

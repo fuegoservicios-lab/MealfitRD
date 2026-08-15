@@ -35,11 +35,15 @@
  */
 
 import { toast as _defaultToast } from 'sonner';
+// [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo (esto no es un componente). Los
+// defaults viven en una desestructuración DENTRO de la función, así que se
+// evalúan en cada llamada — con el catálogo ya cargado, nunca al importar.
+import { t } from '../i18n';
 
 export function confirmToast(message, opts = {}) {
     const {
-        confirmLabel = 'Confirmar',
-        cancelLabel = 'Cancelar',
+        confirmLabel = t('Confirmar'),
+        cancelLabel = t('Cancelar'),
         duration = 10000,
         description,
         toastFn,

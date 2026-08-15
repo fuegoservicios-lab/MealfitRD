@@ -93,11 +93,29 @@ describe('P0-13 — navegación por useEffect, no por render', () => {
         expect(codeOnly).toMatch(navigatePattern);
     });
 
-    it('El useEffect tiene dependencias `[loadingSensitive, formData, navigate]`', () => {
+    it('El useEffect depende de loadingSensitive, formData y navigate', () => {
         // Sin formData en deps, el effect no re-evaluaría tras hidratación
         // post-login. Sin loadingSensitive, no aprovecharía el guard.
-        const depsPattern = /\}\s*,\s*\[\s*loadingSensitive\s*,\s*formData\s*,\s*navigate\s*\]\s*\)\s*;/;
-        expect(codeOnly).toMatch(depsPattern);
+        //
+        // [P1-I18N-DASHBOARD · 2026-08-15] El patrón exigía el array EXACTO
+        // (`]` pegado a `navigate`), y eso convertía en fallo cualquier
+        // dependencia añadida aunque fuera inocua. Al traducir el toast de este
+        // effect, `exhaustive-deps` sumó `t` — que es la MISMA función en cada
+        // render, así que no puede re-disparar nada. Lo que hay que vigilar es
+        // que las TRES sigan estando, no que no haya ninguna más: un guard que
+        // prohíbe crecer prohíbe también los arreglos correctos.
+        // Se identifica el effect por `navigate` y no por `loadingSensitive`:
+        // hay DOS effects que dependen de `loadingSensitive` (el otro es el del
+        // check-in adaptativo, `[loadingSensitive, checkinPending]`), y anclar
+        // al primero hacía que este test midiera el effect equivocado. Solo uno
+        // navega.
+        const allDeps = [...codeOnly.matchAll(/\}\s*,\s*\[([^\]]*)\]\s*\)\s*;/g)]
+            .map((m) => m[1].split(',').map((s) => s.trim()).filter(Boolean));
+        const deps = allDeps.find((d) => d.includes('navigate'));
+        expect(deps, 'no encontré el array de deps del effect que navega').toBeTruthy();
+        for (const required of ['loadingSensitive', 'formData', 'navigate']) {
+            expect(deps, `falta \`${required}\` en las deps del effect`).toContain(required);
+        }
     });
 });
 

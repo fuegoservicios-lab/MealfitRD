@@ -7,6 +7,7 @@ import LazyMarkdown from '../common/LazyMarkdown';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { SUPPORT_EMAIL } from './moreInfoLinks';
 import { safeJSONParse } from '../../utils/safeJSONParse';
+import { useT } from '../../i18n';
 import styles from './HelpChatWidget.module.css';
 
 /* [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda del ítem "Obtener ayuda"
@@ -25,29 +26,33 @@ const MAX_STORED = 30;   // mensajes persistidos (UI)
 const MAX_SENT = 12;     // mensajes enviados al backend (espejo del knob MAX_TURNS)
 const MAX_INPUT = 1500;  // espejo del knob MEALFIT_HELP_CHAT_MAX_CHARS
 
-const GREETING = {
+// [P1-I18N-DASHBOARD · 2026-08-15] Funciones y no constantes: un `t()` en ámbito
+// de módulo se evalúa al importar, antes de que el catálogo exista.
+const getGreeting = (t) => ({
     role: 'assistant',
-    content: '¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, planes y precios, la Nevera, las recetas, tu cuenta…',
+    content: t('¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, planes y precios, la Nevera, las recetas, tu cuenta…'),
+});
+
+// Cuerpo con llaves: el validador mide el ámbito contando llaves y una flecha que
+// devuelve un array pelado dejaría estos `t()` a profundidad 0.
+const getSuggestions = (t) => {
+    return [
+        t('¿Qué incluye cada plan y cuánto cuesta?'),
+        t('¿Cómo genero mi plan de comidas?'),
+        t('¿Para qué sirve la Nevera?'),
+    ];
 };
 
-const SUGGESTIONS = [
-    '¿Qué incluye cada plan y cuánto cuesta?',
-    '¿Cómo genero mi plan de comidas?',
-    '¿Para qué sirve la Nevera?',
-];
-
-const ERROR_FALLBACK = 'No pude responder ahora mismo. Intenta de nuevo en un momento o escríbenos por correo (abajo) y te ayudamos.';
-const RATE_LIMIT_MSG = 'Vamos muy rápido 😅 — espera unos segundos y vuelve a preguntar.';
-
-const loadStoredMessages = () => {
+const loadStoredMessages = (t) => {
     const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null;
     const parsed = raw ? safeJSONParse(raw, null) : null;
     if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    return [GREETING];
+    return [getGreeting(t)];
 };
 
 export default function HelpChatWidget({ onClose }) {
-    const [messages, setMessages] = useState(loadStoredMessages);
+    const t = useT();
+    const [messages, setMessages] = useState(() => loadStoredMessages(t));
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const listRef = useRef(null);
@@ -67,6 +72,8 @@ export default function HelpChatWidget({ onClose }) {
     }, []);
 
     const sendMessage = useCallback(async (text) => {
+        const errorFallback = t('No pude responder ahora mismo. Intenta de nuevo en un momento o escríbenos por correo (abajo) y te ayudamos.');
+        const rateLimitMsg = t('Vamos muy rápido 😅 — espera unos segundos y vuelve a preguntar.');
         const clean = (text ?? '').trim().slice(0, MAX_INPUT);
         if (!clean || isLoading) return;
         setInput('');
@@ -87,23 +94,23 @@ export default function HelpChatWidget({ onClose }) {
                 const reply = typeof data?.reply === 'string' ? data.reply.trim() : '';
                 setMessages(prev => [...prev, {
                     role: 'assistant',
-                    content: reply || ERROR_FALLBACK,
+                    content: reply || errorFallback,
                     isError: !reply,
                 }]);
             } else {
                 setMessages(prev => [...prev, {
                     role: 'assistant',
-                    content: res.status === 429 ? RATE_LIMIT_MSG : ERROR_FALLBACK,
+                    content: res.status === 429 ? rateLimitMsg : errorFallback,
                     isError: res.status !== 429,
                 }]);
             }
         } catch {
-            setMessages(prev => [...prev, { role: 'assistant', content: ERROR_FALLBACK, isError: true }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: errorFallback, isError: true }]);
         } finally {
             setIsLoading(false);
             inputRef.current?.focus();
         }
-    }, [messages, isLoading]);
+    }, [messages, isLoading, t]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -119,7 +126,7 @@ export default function HelpChatWidget({ onClose }) {
                 className={styles.panel}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Asistente de ayuda de Bioboros"
+                aria-label={t('Asistente de ayuda de Bioboros')}
                 ref={containerRef}
                 tabIndex={-1}
                 onClick={(e) => e.stopPropagation()}
@@ -129,10 +136,10 @@ export default function HelpChatWidget({ onClose }) {
                         <HelpCircle size={17} strokeWidth={2.2} />
                     </span>
                     <div className={styles.headerText}>
-                        <span className={styles.headerTitle}>Obtener ayuda</span>
-                        <span className={styles.headerSub}>Asistente de Bioboros</span>
+                        <span className={styles.headerTitle}>{t('Obtener ayuda')}</span>
+                        <span className={styles.headerSub}>{t('Asistente de Bioboros')}</span>
                     </div>
-                    <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Cerrar ayuda">
+                    <button type="button" className={styles.closeBtn} onClick={onClose} aria-label={t('Cerrar ayuda')}>
                         <X size={17} strokeWidth={2.4} />
                     </button>
                 </header>
@@ -149,13 +156,13 @@ export default function HelpChatWidget({ onClose }) {
                         </div>
                     ))}
                     {isLoading && (
-                        <div className={`${styles.bubble} ${styles.bubbleBot} ${styles.typing}`} aria-label="El asistente está escribiendo">
+                        <div className={`${styles.bubble} ${styles.bubbleBot} ${styles.typing}`} aria-label={t('El asistente está escribiendo')}>
                             <span /><span /><span />
                         </div>
                     )}
                     {showSuggestions && (
                         <div className={styles.suggestions}>
-                            {SUGGESTIONS.map((s) => (
+                            {getSuggestions(t).map((s) => (
                                 <button key={s} type="button" className={styles.suggestionChip} onClick={() => sendMessage(s)}>
                                     {s}
                                 </button>
@@ -171,7 +178,7 @@ export default function HelpChatWidget({ onClose }) {
                         className={styles.input}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Escribe tu duda…"
+                        placeholder={t('Escribe tu duda…')}
                         maxLength={MAX_INPUT}
                         disabled={isLoading}
                     />
@@ -179,7 +186,7 @@ export default function HelpChatWidget({ onClose }) {
                         type="submit"
                         className={styles.sendBtn}
                         disabled={isLoading || !input.trim()}
-                        aria-label="Enviar pregunta"
+                        aria-label={t('Enviar pregunta')}
                     >
                         <Send size={16} strokeWidth={2.3} />
                     </button>
@@ -188,7 +195,7 @@ export default function HelpChatWidget({ onClose }) {
                 <footer className={styles.footer}>
                     <Mail size={13} strokeWidth={2.25} aria-hidden="true" />
                     <span>
-                        ¿Prefieres correo?{' '}
+                        {t('¿Prefieres correo?')}{' '}
                         <a href={`mailto:${SUPPORT_EMAIL}`} className={styles.footerLink}>{SUPPORT_EMAIL}</a>
                     </span>
                 </footer>

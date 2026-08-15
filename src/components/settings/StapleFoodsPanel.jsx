@@ -15,6 +15,7 @@ import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
 import useAutoguardado from '../../hooks/useAutoguardado';
 import { getCachedMasterList, setCachedMasterList } from '../../utils/pantryCache';
+import { useT } from '../../i18n';
 import styles from './SuperPersonalizationPanel.module.css';
 
 const ENDPOINT = '/api/user/preferences/staple-foods';
@@ -23,6 +24,7 @@ const MAX_STAPLES = 8;
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export default function StapleFoodsPanel({ onSaved, onEstado }) {
+    const t = useT();
     const { updateData } = useAssessment();
     const [staples, setStaples] = useState([]);
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
@@ -47,12 +49,14 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
                 setTimeout(() => load(attempt + 1), 800);
             } else {
                 setLoadFailed(true);
-                toast.error('No se pudieron cargar tus básicos.');
+                toast.error(t('No se pudieron cargar tus básicos.'));
             }
         } finally {
             if (!willRetry) setLoading(false);
         }
-    }, []);
+        // `t` es referencialmente estable (el motor devuelve siempre la misma
+        // función); va en las deps solo para no dejar el hook incompleto.
+    }, [t]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -126,13 +130,13 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
         onEstado,
     });
 
-    useEffect(() => { if (estado === 'error') toast.error('No se pudieron guardar tus básicos.'); }, [estado]);
+    useEffect(() => { if (estado === 'error') toast.error(t('No se pudieron guardar tus básicos.')); }, [estado, t]);
 
     if (loading) {
         return (
             <div className={styles.loading}>
                 <Loader2 size={22} className={styles.spin} />
-                <span>Cargando tus básicos…</span>
+                <span>{t('Cargando tus básicos…')}</span>
             </div>
         );
     }
@@ -140,9 +144,9 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
     if (loadFailed) {
         return (
             <div className={styles.loading}>
-                <span>No pudimos cargar tus básicos. Revisa tu conexión.</span>
+                <span>{t('No pudimos cargar tus básicos. Revisa tu conexión.')}</span>
                 <button type="button" className={styles.save} onClick={() => load()}>
-                    Reintentar
+                    {t('Reintentar')}
                 </button>
             </div>
         );
@@ -151,11 +155,9 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
     return (
         <div className={styles.panel}>
             <div className={styles.field}>
-                <label className={styles.label}>Mis básicos</label>
+                <label className={styles.label}>{t('Mis básicos')}</label>
                 <p className={styles.hint}>
-                    Alimentos que comes de siempre — podrán repetirse entre días, y hasta el mismo
-                    día si los cocinamos distinto (ej. huevo hervido en la mañana, huevo revuelto en
-                    la noche), sin que eso cuente como falta de variedad. Máximo {MAX_STAPLES}.
+                    {t('Alimentos que comes de siempre — podrán repetirse entre días, y hasta el mismo día si los cocinamos distinto (ej. huevo hervido en la mañana, huevo revuelto en la noche), sin que eso cuente como falta de variedad. Máximo {max}.', { max: MAX_STAPLES })}
                 </p>
 
                 <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
@@ -164,14 +166,14 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder={atMax ? `Máximo ${MAX_STAPLES} básicos` : 'Busca un alimento del catálogo…'}
-                        aria-label="Buscar alimento para agregar a tus básicos"
+                        placeholder={atMax ? t('Máximo {max} básicos', { max: MAX_STAPLES }) : t('Busca un alimento del catálogo…')}
+                        aria-label={t('Buscar alimento para agregar a tus básicos')}
                         disabled={atMax}
                         className={styles.select}
                         style={{ paddingLeft: '2.2rem', cursor: 'text', opacity: atMax ? 0.6 : 1 }}
                     />
                     {results.length > 0 && !atMax && (
-                        <div role="listbox" aria-label="Resultados del catálogo" style={{
+                        <div role="listbox" aria-label={t('Resultados del catálogo')} style={{
                             position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 20,
                             background: 'var(--bg-card)', border: '1px solid var(--border)',
                             borderRadius: '0.75rem', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
@@ -192,13 +194,15 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
                 </div>
 
                 {staples.length === 0 ? (
-                    <p className={styles.hint} style={{ marginTop: 0 }}>Aún no has elegido ningún básico.</p>
+                    <p className={styles.hint} style={{ marginTop: 0 }}>{t('Aún no has elegido ningún básico.')}</p>
                 ) : (
                     <div className={styles.tagBox} style={{ cursor: 'default' }}>
                         {staples.map((name) => (
                             <span key={name} className={styles.tag}>
                                 {name}
-                                <button type="button" aria-label={`Quitar ${name} de tus básicos`} onClick={() => removeStaple(name)}>
+                                {/* `name` NO se traduce: es el nombre del alimento tal como vive
+                                    en `master_ingredients` — el SSOT del motor clínico. */}
+                                <button type="button" aria-label={t('Quitar {alimento} de tus básicos', { alimento: name })} onClick={() => removeStaple(name)}>
                                     <X size={13} />
                                 </button>
                             </span>

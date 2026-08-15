@@ -11,6 +11,7 @@ import { SENTINELS } from '../../../config/sentinels';
 import { Ban, Egg, Fish, Leaf, Milk, Nut, Wheat } from 'lucide-react';
 import { ChipOption, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
+import { useT } from '../../../i18n';
 
 export const QAllergies = ({ onManualAdvance }) => {
     // [P2-FORM-ALLERGY-SEVERITY · 2026-06-22] (audit fresco P2-25) DECISIÓN DE PRODUCTO documentada (el
@@ -21,9 +22,16 @@ export const QAllergies = ({ onManualAdvance }) => {
     // matices). Un toggle de severidad requiere diseño de producto + cambia el contrato del form (tests de
     // sentinel-drift); se difiere hasta que el owner lo priorice. NO añadir `allergySeverity` sin revisitar.
     const { formData, updateData } = useAssessment();
+    const t = useT();
     // [P0-B1] sentinel mutuamente exclusivo con cualquier alergia real.
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.allergies;
+    // [P1-I18N-DASHBOARD · 2026-08-15] La etiqueta sigue DERIVANDO del sentinel
+    // (P1-FORM-2: el valor manda), pero la clave se escribe con literal estático —
+    // `t(SENTINEL)` sería una clave dinámica que `npm run i18n:check` no puede ver y
+    // que ningún catálogo llegaría a tener. Si el SSOT se renombra, cae al valor
+    // crudo (sin traducir) en vez de pintar una etiqueta que ya no es el valor.
+    const sentinelLabel = SENTINEL === 'Ninguna' ? t('Ninguna') : SENTINEL;
     const noneSelected = (formData.allergies || []).includes(SENTINEL);
     const handleToggle = (value) => {
         // [P2-QCHIPS-INCLUDES-GUARD · 2026-06-01] `|| []`: si health_profile hidrata
@@ -44,18 +52,21 @@ export const QAllergies = ({ onManualAdvance }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                {/* [P1-I18N-DASHBOARD · 2026-08-15] El `val` es el alérgeno que consume
+                    el motor clínico (filtro de catálogo, guard de alergias): NO se
+                    traduce. Solo el `label` que se pinta en el chip. */}
                 {[
-                    { val: "Lacteos", label: "Lácteos", icon: Milk },
-                    { val: "Gluten", label: "Gluten", icon: Wheat },
-                    { val: "Huevo", label: "Huevo", icon: Egg },
-                    { val: "Mariscos", label: "Mariscos", icon: Fish },
-                    { val: "Frutos Secos", label: "Nueces", icon: Nut },
-                    { val: "Soya", label: "Soya", icon: Leaf },
+                    { val: "Lacteos", label: t('Lácteos'), icon: Milk },
+                    { val: "Gluten", label: t('Gluten'), icon: Wheat },
+                    { val: "Huevo", label: t('Huevo'), icon: Egg },
+                    { val: "Mariscos", label: t('Mariscos'), icon: Fish },
+                    { val: "Frutos Secos", label: t('Nueces'), icon: Nut },
+                    { val: "Soya", label: t('Soya'), icon: Leaf },
                 ].map(opt => (
                     <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={(formData.allergies || []).includes(opt.val)} onToggle={handleToggle} />
                 ))}
                 <ChipOption
-                    val={SENTINEL} label={SENTINEL} icon={Ban}
+                    val={SENTINEL} label={sentinelLabel} icon={Ban}
                     isSelected={(formData.allergies || []).includes(SENTINEL)}
                     onToggle={handleToggle}
                 />
@@ -63,7 +74,7 @@ export const QAllergies = ({ onManualAdvance }) => {
             {/* [P3-FORM-SENTINEL-LOCKS-FREETEXT · 2026-07-01] "Ninguna" bloquea el
                 free-text (contradicción de safety médica: sin alergias + escribir una). */}
             <Input
-                type="text" placeholder={noneSelected ? 'Marcaste «Ninguna»' : 'Otra (Ej. Maní, Fresa...)'}
+                type="text" placeholder={noneSelected ? t('Marcaste «Ninguna»') : t('Otra (Ej. Maní, Fresa...)')}
                 value={noneSelected ? '' : (formData.otherAllergies || '')}
                 onChange={(e) => updateData('otherAllergies', e.target.value)}
                 disabled={noneSelected}

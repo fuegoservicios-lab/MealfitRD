@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { APEX_ORIGIN } from '../../config/site';
 import { api, fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
+import { useT, useTn } from '../../i18n';
 
 /* [P1-SUPERMARKET-MATCH · 2026-07-02] "Marcas del súper" — conexión v1 entre la
    lista de compras y la base Supermercado RD (supermarket_products en Neon).
@@ -40,11 +41,12 @@ const itemDisplayName = (item) => {
     return typeof display === 'string' ? display.trim() : null;
 };
 
-const formatPrice = (value) => (
-    value === null || value === undefined
-        ? 'Precio relativo'
-        : `RD$${Number(value).toLocaleString('es-DO', { maximumFractionDigits: 2 })}`
-);
+// Cuerpo con llaves: el validador de i18n mide el ámbito contando llaves y una
+// flecha con cuerpo de expresión dejaría este `t()` a profundidad 0.
+const formatPrice = (value, t) => {
+    if (value === null || value === undefined) return t('Precio relativo');
+    return `RD$${Number(value).toLocaleString('es-DO', { maximumFractionDigits: 2 })}`;
+};
 
 const readLocalPrefs = () => {
     try {
@@ -119,6 +121,8 @@ const stableSortedVariants = (variants, targetG, chosenId) => {
 };
 
 const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPending }) => {
+    const t = useT();
+    const tn = useTn();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -256,7 +260,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
             setMatches(data?.matches || {});
         } catch (err) {
             console.error('[P1-SUPERMARKET-MATCH] match falló:', err);
-            setError('No se pudieron cargar las marcas del súper. Intenta de nuevo.');
+            setError(t('No se pudieron cargar las marcas del súper. Intenta de nuevo.'));
             setLoading(false);
             return;
         }
@@ -279,10 +283,10 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                 const discontinued = Array.isArray(data?.discontinued) ? data.discontinued : [];
                 if (discontinued.length > 0) {
                     const names_ = discontinued.map((d) => d.food_name || d.food_key).filter(Boolean);
-                    toast('Algunas marcas elegidas ya no están disponibles', {
+                    toast(t('Algunas marcas elegidas ya no están disponibles'), {
                         description: names_.length
-                            ? `${names_.join(', ')} — volvimos a la opción disponible más económica.`
-                            : 'El producto que habías elegido fue descontinuado — volvimos a la opción disponible más económica.',
+                            ? t('{alimentos} — volvimos a la opción disponible más económica.', { alimentos: names_.join(', ') })
+                            : t('El producto que habías elegido fue descontinuado — volvimos a la opción disponible más económica.'),
                     });
                 }
             } else {
@@ -294,7 +298,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
             setPrefsSource('local');
         }
         setLoading(false);
-    }, [matches, loading, names]);
+    }, [matches, loading, names, t]);
 
     const persistPref = useCallback(async (foodKey, productId, variant = null) => {
         setPrefs((prev) => {
@@ -459,11 +463,11 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                     "· N/M con opciones · N elegidas" no puede partir la barra en 2 líneas
                     ni empujar el ancho de la columna (ahora fija en 420px desktop). */}
                 <span style={{ fontSize: '0.82rem', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    Marcas del súper
+                    {t('Marcas del súper')}
                     {matches && (
                         <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
-                            {' '}· {matchedNames.length}/{names.length} con opciones
-                            {selection.length > 0 && <> · {selection.length} elegida{selection.length === 1 ? '' : 's'}</>}
+                            {' '}{t('· {conOpciones}/{total} con opciones', { conOpciones: matchedNames.length, total: names.length })}
+                            {selection.length > 0 && <> {tn(selection.length, '· {n} elegida', '· {n} elegidas', { n: selection.length })}</>}
                         </span>
                     )}
                 </span>
@@ -500,7 +504,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                 }}>
                     {loading && (
                         <p style={{ margin: '0.6rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            Buscando marcas en el supermercado…
+                            {t('Buscando marcas en el supermercado…')}
                         </p>
                     )}
                     {error && (
@@ -515,26 +519,21 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                     textDecoration: 'underline',
                                 }}
                             >
-                                Reintentar
+                                {t('Reintentar')}
                             </button>
                         </p>
                     )}
                     {matches && !loading && !error && matchedNames.length === 0 && (
                         <p style={{ margin: '0.6rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            Todavía no hay variantes de marca cargadas para los ítems de esta lista.
+                            {t('Todavía no hay variantes de marca cargadas para los ítems de esta lista.')}
                         </p>
                     )}
                     {matches && !loading && matchedNames.length > 0 && (
                         <>
                             <p style={{ margin: '0.55rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                Toca una variante para marcarla como tu preferida
-                                {prefsSource === 'local' && ' (se guarda en este dispositivo)'}.
-                                {' '}El chip <strong style={{ color: '#059669' }}>verde sólido</strong> es tu marca fija;
-                                el <strong>gris punteado</strong> es la que tu lista usa por defecto (la más
-                                económica) — tócala para fijarla. En despensa/duraderos ves todas las
-                                marcas en tamaños que cubren lo que tu plan necesita (los de tu tamaño
-                                primero); en frescos, las del tamaño que usa tu lista — siempre de la
-                                más económica a la más cara.
+                                {t('Toca una variante para marcarla como tu preferida')}
+                                {prefsSource === 'local' && ` ${t('(se guarda en este dispositivo)')}`}.
+                                {' '}{t('El chip')} <strong style={{ color: '#059669' }}>{t('verde sólido')}</strong> {t('es tu marca fija; el')} <strong>{t('gris punteado')}</strong> {t('es la que tu lista usa por defecto (la más económica) — tócala para fijarla. En despensa/duraderos ves todas las marcas en tamaños que cubren lo que tu plan necesita (los de tu tamaño primero); en frescos, las del tamaño que usa tu lista — siempre de la más económica a la más cara.')}
                             </p>
                             <ul style={{ listStyle: 'none', margin: '0.45rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                                 {matchedNames.map((name) => {
@@ -626,7 +625,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                     }}>
                                                         <Check size={11} strokeWidth={3} style={{ flexShrink: 0 }} aria-hidden="true" />
                                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                            {chosen.brand || 'Genérico'} · {formatPrice(chosen.price_rd)}
+                                                            {chosen.brand || t('Genérico')} · {formatPrice(chosen.price_rd, t)}
                                                         </span>
                                                     </span>
                                                 ) : defaultVariant ? (
@@ -634,7 +633,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                     // discreto (gris + check tenue + punteado): marca la que tu lista usa
                                                     // por defecto SIN competir con el verde sólido de tu elección manual.
                                                     <span
-                                                        title="Marca que tu lista usa ahora (la más económica) — tócala adentro para fijarla como tu preferida"
+                                                        title={t('Marca que tu lista usa ahora (la más económica) — tócala adentro para fijarla como tu preferida')}
                                                         style={{
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                                                             fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap',
@@ -646,15 +645,15 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                     >
                                                         <Check size={10} style={{ flexShrink: 0, color: 'var(--text-light)' }} aria-hidden="true" />
                                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                            {defaultVariant.brand || 'Genérico'} · {formatPrice(defaultVariant.price_rd)}
+                                                            {defaultVariant.brand || t('Genérico')} · {formatPrice(defaultVariant.price_rd, t)}
                                                         </span>
                                                     </span>
                                                 ) : (
                                                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                                        {variantCount} {sizedAny
-                                                            ? `marca${variantCount === 1 ? '' : 's'} en tu tamaño`
-                                                            : `opci${variantCount === 1 ? 'ón' : 'ones'}`}
-                                                        {minPrice !== null && <> · desde <strong style={{ color: 'var(--text-main)' }}>{formatPrice(minPrice)}</strong></>}
+                                                        {sizedAny
+                                                            ? tn(variantCount, '{n} marca en tu tamaño', '{n} marcas en tu tamaño', { n: variantCount })
+                                                            : tn(variantCount, '{n} opción', '{n} opciones', { n: variantCount })}
+                                                        {minPrice !== null && <> · {t('desde')} <strong style={{ color: 'var(--text-main)' }}>{formatPrice(minPrice, t)}</strong></>}
                                                     </span>
                                                 )}
                                                 <ChevronDown size={13} style={{ flexShrink: 0, color: 'var(--text-muted)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} aria-hidden="true" />
@@ -685,10 +684,10 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                             onClick={() => persistPref(foodKey, isChosen ? null : v.id, isChosen ? null : v)}
                                                                             aria-pressed={isChosen}
                                                                             title={isChosen
-                                                                                ? 'Quitar preferencia'
+                                                                                ? t('Quitar preferencia')
                                                                                 : isDefault
-                                                                                    ? 'Predeterminada de tu lista — tócala para fijarla como tu preferida'
-                                                                                    : 'Marcar como mi preferida'}
+                                                                                    ? t('Predeterminada de tu lista — tócala para fijarla como tu preferida')
+                                                                                    : t('Marcar como mi preferida')}
                                                                             style={{
                                                                                 display: 'flex', alignItems: 'center', gap: '0.45rem',
                                                                                 width: '100%', padding: '0.28rem 0.45rem',
@@ -714,21 +713,21 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                                 {isDefault && <Check size={10} strokeWidth={3} style={{ color: 'var(--text-light)' }} />}
                                                                             </span>
                                                                             <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                                                                                {v.brand || 'Genérico'}
+                                                                                {v.brand || t('Genérico')}
                                                                             </span>
                                                                             {/* [P2-BRANDS-DEFAULT-FROM-ACTIVE] etiqueta clara: manual (permanente) vs default de la lista. */}
                                                                             {isChosen && (
-                                                                                <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#fff', background: '#10B981', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>TU MARCA</span>
+                                                                                <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#fff', background: '#10B981', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>{t('TU MARCA')}</span>
                                                                             )}
                                                                             {isDefault && (
-                                                                                <span style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--text-muted)', border: '1px dashed var(--border)', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>DE TU LISTA</span>
+                                                                                <span style={{ fontSize: '0.58rem', fontWeight: 700, color: 'var(--text-muted)', border: '1px dashed var(--border)', padding: '0.05rem 0.32rem', borderRadius: '6px', whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>{t('DE TU LISTA')}</span>
                                                                             )}
                                                                             <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                                 {v.presentation || '—'}
                                                                             </span>
                                                                             {v.is_verified && <BadgeCheck size={12} style={{ flexShrink: 0, color: '#10B981' }} aria-hidden="true" />}
                                                                             <span style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                                                                                {formatPrice(v.price_rd)}
+                                                                                {formatPrice(v.price_rd, t)}
                                                                             </span>
                                                                         </button>
                                                                     );
@@ -740,7 +739,9 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                         rel="noopener noreferrer"
                                                                         style={{ display: 'inline-block', padding: '0.15rem 0.45rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textDecoration: 'underline' }}
                                                                     >
-                                                                        +{g.variants.length - g.shownVariants.length} {g.sizedApplied ? 'de otros tamaños en el catálogo' : 'más en el catálogo'}
+                                                                        {g.sizedApplied
+                                                                            ? t('+{n} de otros tamaños en el catálogo', { n: g.variants.length - g.shownVariants.length })
+                                                                            : t('+{n} más en el catálogo', { n: g.variants.length - g.shownVariants.length })}
                                                                     </a>
                                                                 )}
                                                             </li>
@@ -761,19 +762,20 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                     display: 'flex', alignItems: 'center', gap: '0.5rem',
                                 }}>
                                     <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-main)', flex: 1 }}>
-                                        Tu selección: {selection.length} marca{selection.length === 1 ? '' : 's'} elegida{selection.length === 1 ? '' : 's'}
+                                        {tn(
+                                            selection.length,
+                                            'Tu selección: {n} marca elegida',
+                                            'Tu selección: {n} marcas elegidas',
+                                            { n: selection.length }
+                                        )}
                                     </span>
                                     <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#059669', whiteSpace: 'nowrap' }}>
-                                        {formatPrice(selectionTotal)}
+                                        {formatPrice(selectionTotal, t)}
                                     </span>
                                 </div>
                             )}
                             <p style={{ margin: '0.55rem 0 0', fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                Precios de referencia de La Sirena y Supermercados Nacional (1 presentación
-                                por ítem elegido). Tus marcas elegidas se aplican al costo real de la lista
-                                al instante (recalculamos el plan al elegir) y quedan como tu
-                                predeterminado para todos tus planes futuros — sin elección, usamos la
-                                marca más económica del súper.
+                                {t('Precios de referencia de La Sirena y Supermercados Nacional (1 presentación por ítem elegido). Tus marcas elegidas se aplican al costo real de la lista al instante (recalculamos el plan al elegir) y quedan como tu predeterminado para todos tus planes futuros — sin elección, usamos la marca más económica del súper.')}
                             </p>
                         </>
                     )}
@@ -796,10 +798,13 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                     {matches && !loading && !error && unmatchedNames.length > 0 && (
                         <p style={{ margin: '0.55rem 0 0', fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
                             <strong style={{ color: 'var(--text-main)' }}>
-                                Sin marcas en el súper ({unmatchedNames.length}):
+                                {t('Sin marcas en el súper ({n}):', { n: unmatchedNames.length })}
                             </strong>{' '}
-                            {unmatchedNames.join(', ')}. Los compras igual — todavía no
-                            tenemos presentaciones cargadas para {unmatchedNames.length === 1 ? 'ese ítem' : 'esos ítems'}.
+                            {unmatchedNames.join(', ')}. {tn(
+                                unmatchedNames.length,
+                                'Los compras igual — todavía no tenemos presentaciones cargadas para ese ítem.',
+                                'Los compras igual — todavía no tenemos presentaciones cargadas para esos ítems.'
+                            )}
                         </p>
                     )}
                 </div>

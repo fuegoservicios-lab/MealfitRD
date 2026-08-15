@@ -6,6 +6,7 @@ import { checkLeakedPassword } from '../utils/checkLeakedPassword';
 import { humanizeAuthError } from '../utils/authErrors';
 import styles from './Auth.module.css';
 import Wordmark from '../components/common/Wordmark';
+import { useT } from '../i18n';
 
 // [P1-RESET-PASSWORD-FIX · 2026-06-18] El flujo "crear nueva contraseña" estaba ROTO:
 // llamaba authClient.auth.updateUser({password}), y el adapter de Neon Auth lo RECHAZA
@@ -16,6 +17,7 @@ import Wordmark from '../components/common/Wordmark';
 // ANTES de teclear; (2) se usa el método soportado por Better Auth:
 // getBetterAuthInstance().resetPassword({newPassword, token}).
 const ResetPassword = () => {
+    const t = useT();
     const navigate = useNavigate();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -57,18 +59,18 @@ const ResetPassword = () => {
         setSuccessMessage(null);
 
         if (!token) {
-            setError('El enlace de restablecimiento es inválido o expiró. Solicita uno nuevo desde "¿Olvidaste tu contraseña?".');
+            setError(t('El enlace de restablecimiento es inválido o expiró. Solicita uno nuevo desde "¿Olvidaste tu contraseña?".'));
             return;
         }
         if (password !== confirmPassword) {
-            setError('Las contraseñas no coinciden.');
+            setError(t('Las contraseñas no coinciden.'));
             return;
         }
 
         // [P3-PASSWORD-MIN-LENGTH · 2026-05-12] 8 caracteres (OWASP). HIBP abajo cubre
         // passwords filtradas; este cubre brute-force de cortas.
         if (password.length < 8) {
-            setError('La contraseña debe tener al menos 8 caracteres.');
+            setError(t('La contraseña debe tener al menos 8 caracteres.'));
             return;
         }
 
@@ -78,7 +80,7 @@ const ResetPassword = () => {
         const leak = await checkLeakedPassword(password);
         if (leak.leaked && leak.mode === 'block') {
             setError(
-                `Esta contraseña aparece en ${leak.count.toLocaleString()} filtraciones públicas conocidas. Por favor elige una más segura.`
+                t('Esta contraseña aparece en {cantidad} filtraciones públicas conocidas. Por favor elige una más segura.', { cantidad: leak.count.toLocaleString() })
             );
             setLoading(false);
             return;
@@ -92,18 +94,18 @@ const ResetPassword = () => {
             // null si el SDK no lo expone (el guard de abajo lo cubre).
             const ba = await authClient.auth.getBetterAuthInstance();
             if (!ba || typeof ba.resetPassword !== 'function') {
-                throw new Error('No pudimos procesar el restablecimiento. Solicita un nuevo enlace desde el inicio de sesión.');
+                throw new Error(t('No pudimos procesar el restablecimiento. Solicita un nuevo enlace desde el inicio de sesión.'));
             }
             const res = await ba.resetPassword({ newPassword: password, token });
             if (res?.error) {
                 const m = (res.error.message || res.error.statusText || '').toLowerCase();
                 if (m.includes('invalid') || m.includes('expired') || m.includes('token')) {
-                    throw new Error('El enlace de restablecimiento es inválido o expiró. Solicita uno nuevo desde "¿Olvidaste tu contraseña?".');
+                    throw new Error(t('El enlace de restablecimiento es inválido o expiró. Solicita uno nuevo desde "¿Olvidaste tu contraseña?".'));
                 }
-                throw new Error(res.error.message || 'No pudimos actualizar la contraseña.');
+                throw new Error(res.error.message || t('No pudimos actualizar la contraseña.'));
             }
 
-            setSuccessMessage('Contraseña actualizada exitosamente. Redirigiendo al inicio de sesión...');
+            setSuccessMessage(t('Contraseña actualizada exitosamente. Redirigiendo al inicio de sesión...'));
             redirectTimerRef.current = setTimeout(() => {
                 navigate('/login');
             }, 2000);
@@ -125,12 +127,12 @@ const ResetPassword = () => {
 
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                     <h1 className={styles.title}>
-                        {linkInvalid ? 'Enlace inválido o expirado' : 'Crear nueva contraseña'}
+                        {linkInvalid ? t('Enlace inválido o expirado') : t('Crear nueva contraseña')}
                     </h1>
                     <p className={styles.subtitle}>
                         {linkInvalid
-                            ? 'Este enlace de restablecimiento no es válido o ya expiró. Solicita uno nuevo desde el inicio de sesión.'
-                            : 'Escribe tu nueva contraseña a continuación para recuperar el acceso a tu cuenta.'}
+                            ? t('Este enlace de restablecimiento no es válido o ya expiró. Solicita uno nuevo desde el inicio de sesión.')
+                            : t('Escribe tu nueva contraseña a continuación para recuperar el acceso a tu cuenta.')}
                     </p>
                 </div>
 
@@ -152,12 +154,12 @@ const ResetPassword = () => {
 
                 {linkInvalid ? (
                     <Link to="/login" className={styles.submitBtn} style={{ marginTop: '0.5rem', textDecoration: 'none', justifyContent: 'center' }}>
-                        Volver al inicio de sesión <ArrowRight size={18} />
+                        {t('Volver al inicio de sesión')} <ArrowRight size={18} />
                     </Link>
                 ) : (
                     <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div className={styles.formGroup}>
-                            <label className={styles.label} htmlFor="reset-password-new">Nueva Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                            <label className={styles.label} htmlFor="reset-password-new">{t('Nueva Contraseña')} <span className={styles.requiredAsterisk}>*</span></label>
                             <div className={styles.inputWrapper}>
                                 <div className={styles.inputIcon} aria-hidden="true">
                                     <Lock size={18} />
@@ -178,7 +180,7 @@ const ResetPassword = () => {
                                     type="button"
                                     className={styles.passwordToggle}
                                     onClick={() => setShowPassword(!showPassword)}
-                                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                    aria-label={showPassword ? t('Ocultar contraseña') : t('Mostrar contraseña')}
                                 >
                                     {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                                 </button>
@@ -186,7 +188,7 @@ const ResetPassword = () => {
                         </div>
 
                         <div className={styles.formGroup}>
-                            <label className={styles.label} htmlFor="reset-password-confirm">Confirmar Contraseña <span className={styles.requiredAsterisk}>*</span></label>
+                            <label className={styles.label} htmlFor="reset-password-confirm">{t('Confirmar Contraseña')} <span className={styles.requiredAsterisk}>*</span></label>
                             <div className={styles.inputWrapper}>
                                 <div className={styles.inputIcon} aria-hidden="true">
                                     <Lock size={18} />
@@ -215,19 +217,19 @@ const ResetPassword = () => {
                             {loading ? (
                                 <>
                                     <Loader2 className={styles.loader} size={18} />
-                                    Actualizando...
+                                    {t('Actualizando...')}
                                 </>
                             ) : (
-                                <>Actualizar <ArrowRight size={18} /></>
+                                <>{t('Actualizar')} <ArrowRight size={18} /></>
                             )}
                         </button>
                     </form>
                 )}
 
                 <div className={styles.footerText}>
-                    ¿Recordaste tu contraseña?{' '}
+                    {t('¿Recordaste tu contraseña?')}{' '}
                     <Link to="/login" className={styles.link}>
-                        Inicia sesión aquí
+                        {t('Inicia sesión aquí')}
                     </Link>
                 </div>
             </div>

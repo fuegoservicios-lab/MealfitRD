@@ -14,6 +14,10 @@ import React from 'react';
 import { captureException } from '../utils/observability';
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop del auto-reload (ver util).
 import { shouldAutoReloadForChunkError } from '../utils/chunkReloadGuard';
+// [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo, no `useT()`: esto es una clase
+// y no puede llamar hooks. Las llamadas viven dentro de `render()`, así que se
+// evalúan con el catálogo ya cargado — nunca al importar.
+import { t } from '../i18n';
 
 export class GlobalErrorBoundary extends React.Component {
   constructor(props) {
@@ -113,8 +117,8 @@ export class GlobalErrorBoundary extends React.Component {
                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                  </svg>
               </div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Actualizando App...</h2>
-              <p className="text-slate-500 text-sm">Se detectó una nueva versión. Recargando para aplicar los cambios más recientes.</p>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">{t('Actualizando App...')}</h2>
+              <p className="text-slate-500 text-sm">{t('Se detectó una nueva versión. Recargando para aplicar los cambios más recientes.')}</p>
               <div className="mt-6 flex justify-center">
                 <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
               </div>
@@ -132,14 +136,14 @@ export class GlobalErrorBoundary extends React.Component {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">Algo salió mal</h2>
-            <p className="text-slate-500 text-sm mb-5">Ocurrió un error inesperado. Recargar la página suele resolverlo.</p>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">{t('Algo salió mal')}</h2>
+            <p className="text-slate-500 text-sm mb-5">{t('Ocurrió un error inesperado. Recargar la página suele resolverlo.')}</p>
             <button
               type="button"
               onClick={() => window.location.reload(true)}
               className="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
-              Recargar
+              {t('Recargar')}
             </button>
           </div>
         </div>

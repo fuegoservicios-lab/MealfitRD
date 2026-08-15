@@ -1,4 +1,5 @@
 import { Zap } from 'lucide-react';
+import { useT } from '../../i18n';
 import styles from './CreditsMeter.module.css';
 
 /* [P2-CREDITS-METER · 2026-06-15] Medidor de créditos del header del dashboard.
@@ -54,6 +55,7 @@ const ICON = {
 };
 
 export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitReached, isGuest = false }) {
+    const t = useT();
     const isUnlimited =
         remainingCredits === '∞' ||
         userPlanLimit === 'Ilimitado' ||
@@ -82,14 +84,14 @@ export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitR
     const gradId = `creditsGauge_${state}`;
     const dashOffset = CIRC * (1 - fraction);
 
-    const label = isGuest ? 'Prueba' : 'Créditos';
+    const label = isGuest ? t('Prueba') : t('Créditos');
     const ariaLabel = isGuest
         ? (remaining > 0
-            ? `Prueba gratis: ${remaining} de ${limit} generaciones`
-            : 'Prueba gratis usada. Crea tu cuenta para más')
+            ? t('Prueba gratis: {remaining} de {limit} generaciones', { remaining, limit })
+            : t('Prueba gratis usada. Crea tu cuenta para más'))
         : isUnlimited
-            ? 'Créditos ilimitados'
-            : `${remaining} de ${limit} créditos restantes`;
+            ? t('Créditos ilimitados')
+            : t('{remaining} de {limit} créditos restantes', { remaining, limit });
 
     return (
         <div

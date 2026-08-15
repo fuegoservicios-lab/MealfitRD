@@ -9,6 +9,7 @@ import { navItemsFor, isTrackingMode } from '../../config/dashboardNav';
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del data del Historial
 import { prefetchHistoryList } from '../../utils/historyCaches';
+import { useT } from '../../i18n';
 import styles from './BottomTabBar.module.css';
 
 // [P1-PLAN-MODE · 2026-08-11] Las entradas salen del SSOT (config/dashboardNav);
@@ -23,6 +24,7 @@ const _tabIcons = {
 };
 
 const BottomTabBar = () => {
+    const t = useT();
     const location = useLocation();
     const navigate = useNavigate();
     const { isGuest, userProfile, planData } = useAssessment();
@@ -67,7 +69,7 @@ const BottomTabBar = () => {
                         onClick={() => handleTap(tab.path)}
                         onTouchStart={_prefetch}
                         onMouseEnter={_prefetch}
-                        aria-label={locked ? `${tab.label} (crea tu cuenta para desbloquear)` : tab.label}
+                        aria-label={locked ? t('{label} (crea tu cuenta para desbloquear)', { label: tab.label }) : tab.label}
                         aria-current={isActive ? 'page' : undefined}
                         style={locked ? { opacity: 0.55 } : undefined}
                     >

@@ -7,6 +7,7 @@ import { budgetCycleDays } from '../../../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo personalizado por las metas (backend).
 import { useBudgetFloor } from '../../../hooks/useBudgetFloor';
 import { Banknote, Infinity as InfinityIcon, Landmark, SlidersHorizontal, Wallet } from 'lucide-react';
+import { useT } from '../../../i18n';
 
 // [P1-BUDGET-INPUT-HARDEN · 2026-07-09] Sanea el monto custom a ENTERO de dígitos (un presupuesto total
 // es un número redondo, sin centavos/exponentes/negativos): descarta todo lo no-dígito, quita ceros a la
@@ -22,6 +23,7 @@ export function sanitizeBudgetAmount(raw) {
 
 export const QBudget = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     const isCustom = formData.budget === 'custom';
     // [BUDGET-CURRENCY · 2026-05-31] Moneda del monto custom. Default 'DOP'
     // (peso dominicano, RD$) — el usuario puede cambiar a 'USD' (US$). Se envía
@@ -41,7 +43,11 @@ export const QBudget = ({ onAutoAdvance }) => {
     const tierRefLabel = (val) => {
         const ref = tierReferences && tierReferences[val];
         if (!ref || !(ref > 0)) return null;
-        return `≈ ${currencySymbol}${Number(ref).toLocaleString('en-US')} / ${cycleDays} días (referencia estimada)`;
+        return t('≈ {simbolo}{monto} / {dias} días (referencia estimada)', {
+            simbolo: currencySymbol,
+            monto: Number(ref).toLocaleString('en-US'),
+            dias: cycleDays,
+        });
     };
     useEffect(() => {
         if (Number(formData._budgetFloorMin) !== Number(minBudget)) {
@@ -64,10 +70,10 @@ export const QBudget = ({ onAutoAdvance }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {[
-                    { val: 'low', label: 'Económico', desc: 'Lo básico y esencial', icon: Wallet },
-                    { val: 'medium', label: 'Moderado', desc: 'Equilibrio calidad/precio', icon: Banknote },
-                    { val: 'high', label: 'Alto', desc: 'Mayor variedad', icon: Landmark },
-                    { val: 'unlimited', label: 'Sin límite', desc: 'Sin restricciones', icon: InfinityIcon }
+                    { val: 'low', label: t('Económico'), desc: t('Lo básico y esencial'), icon: Wallet },
+                    { val: 'medium', label: t('Moderado'), desc: t('Equilibrio calidad/precio'), icon: Banknote },
+                    { val: 'high', label: t('Alto'), desc: t('Mayor variedad'), icon: Landmark },
+                    { val: 'unlimited', label: t('Sin límite'), desc: t('Sin restricciones'), icon: InfinityIcon }
                 ].map(opt => (
                     <RadioCard
                         key={opt.val} name="budget" value={opt.val} label={opt.label}
@@ -86,8 +92,8 @@ export const QBudget = ({ onAutoAdvance }) => {
                 `budgetAmount` se envían al backend, que los inyecta al prompt del
                 LLM (`build_budget_context`) para ajustar ingredientes al presupuesto. */}
             <RadioCard
-                name="budget" value="custom" label="Personalizar"
-                desc="Define tu monto total de compras"
+                name="budget" value="custom" label={t('Personalizar')}
+                desc={t('Define tu monto total de compras')}
                 icon={SlidersHorizontal}
                 checked={isCustom}
                 onChange={() => updateData('budget', 'custom')}
@@ -96,11 +102,11 @@ export const QBudget = ({ onAutoAdvance }) => {
             {isCustom && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <Label htmlFor="budgetAmount" style={{ margin: 0 }}>Tu presupuesto total por ciclo de compras</Label>
+                        <Label htmlFor="budgetAmount" style={{ margin: 0 }}>{t('Tu presupuesto total por ciclo de compras')}</Label>
                         {/* [BUDGET-CURRENCY · 2026-05-31] Toggle RD$ (peso dominicano,
                             default) / US$ (dólar). Mismo patrón visual que LB/KG. */}
                         <UnitToggle
-                            ariaLabel="Moneda del presupuesto"
+                            ariaLabel={t('Moneda del presupuesto')}
                             value={budgetCurrency === 'USD' ? 'USD' : 'DOP'}
                             onChange={(v) => updateData('budgetCurrency', v)}
                             options={[{ value: 'DOP', label: 'RD$' }, { value: 'USD', label: 'US$' }]}
@@ -113,14 +119,14 @@ export const QBudget = ({ onAutoAdvance }) => {
                         }}>{currencySymbol}</span>
                         <Input
                             id="budgetAmount" type="number" inputMode="numeric"
-                            placeholder={budgetCurrency === 'USD' ? 'Ej. 100' : 'Ej. 5000'}
+                            placeholder={budgetCurrency === 'USD' ? t('Ej. 100') : t('Ej. 5000')}
                             min={minBudget} max={BUDGET_AMOUNT_MAX} step="1"
                             value={formData.budgetAmount || ''}
                             // [P1-BUDGET-INPUT-HARDEN · 2026-07-09] Sanea a entero (sin e/+/-/./absurdos) en cada
                             // cambio (cubre teclado Y paste) + bloquea las teclas inválidas de `type=number`.
                             onChange={(e) => updateData('budgetAmount', sanitizeBudgetAmount(e.target.value))}
                             onKeyDown={(e) => { if (['e', 'E', '+', '-', '.', ','].includes(e.key)) e.preventDefault(); }}
-                            aria-label={`Presupuesto total en ${budgetCurrency === 'USD' ? 'dólares' : 'pesos dominicanos'}`}
+                            aria-label={budgetCurrency === 'USD' ? t('Presupuesto total en dólares') : t('Presupuesto total en pesos dominicanos')}
                             aria-required="true"
                             aria-invalid={belowMin || undefined}
                             aria-describedby="budgetAmountHelp"
@@ -155,9 +161,18 @@ export const QBudget = ({ onAutoAdvance }) => {
                             mantiene un solo sitio de verdad. Si falta (fetch en vuelo o
                             caído) se omite la frase — mejor dar solo el piso que
                             inventar una cifra. */}
+                        {/* [P1-I18N-DASHBOARD · 2026-08-15] Cada rama es UNA frase completa
+                            en el catálogo (la variante «(según tus calorías y metas)» va
+                            dentro de su clave, no concatenada): un fragmento suelto entre
+                            paréntesis no se puede traducir sin ver la oración. El formato
+                            del número sigue en `en-US` a propósito — cambiarlo aquí sería
+                            un cambio de comportamiento, no una traducción. */}
                         {belowMin
-                            ? `⚠️ El mínimo para ${cycleDays} días es ${currencySymbol}${minBudget.toLocaleString('en-US')}.${typicalCost ? ` Un plan típico ronda ${currencySymbol}${typicalCost.toLocaleString('en-US')}.` : ''} Súbelo para poder crear un plan viable.`
-                            : `La IA ajustará los ingredientes para acercarse a este monto. Mínimo ${currencySymbol}${minBudget.toLocaleString('en-US')} para ${cycleDays} días${budgetIsPersonalized ? ' (según tus calorías y metas)' : ''}.${typicalCost ? ` Un plan típico ronda ${currencySymbol}${typicalCost.toLocaleString('en-US')}.` : ''}`}
+                            ? `${t('⚠️ El mínimo para {dias} días es {simbolo}{monto}.', { dias: cycleDays, simbolo: currencySymbol, monto: minBudget.toLocaleString('en-US') })}${typicalCost ? ` ${t('Un plan típico ronda {simbolo}{monto}.', { simbolo: currencySymbol, monto: typicalCost.toLocaleString('en-US') })}` : ''} ${t('Súbelo para poder crear un plan viable.')}`
+                            : `${t('La IA ajustará los ingredientes para acercarse a este monto.')} ${budgetIsPersonalized
+                                ? t('Mínimo {simbolo}{monto} para {dias} días (según tus calorías y metas).', { simbolo: currencySymbol, monto: minBudget.toLocaleString('en-US'), dias: cycleDays })
+                                : t('Mínimo {simbolo}{monto} para {dias} días.', { simbolo: currencySymbol, monto: minBudget.toLocaleString('en-US'), dias: cycleDays })
+                            }${typicalCost ? ` ${t('Un plan típico ronda {simbolo}{monto}.', { simbolo: currencySymbol, monto: typicalCost.toLocaleString('en-US') })}` : ''}`}
                     </span>
                 </div>
             )}

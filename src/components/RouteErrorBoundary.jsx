@@ -14,6 +14,10 @@ import React from 'react';
 import { captureException } from '../utils/observability';
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Anti-loop del auto-reload (ver util).
 import { shouldAutoReloadForChunkError } from '../utils/chunkReloadGuard';
+// [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo, no `useT()`: esto es una clase
+// y no puede llamar hooks. Las llamadas viven dentro de `render()`, así que se
+// evalúan con el catálogo ya cargado — nunca al importar.
+import { t } from '../i18n';
 
 const _isChunkLoadError = (error) => {
   const m = error?.message?.toLowerCase() || '';
@@ -85,7 +89,7 @@ export class RouteErrorBoundary extends React.Component {
         // El reload global esta en camino (500ms); loader mientras tanto.
         return (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary, #64748b)' }}>
-            Actualizando…
+            {t('Actualizando…')}
           </div>
         );
       }
@@ -103,10 +107,10 @@ export class RouteErrorBoundary extends React.Component {
           }}
         >
           <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 .4rem' }}>
-            Algo salió mal en esta sección
+            {t('Algo salió mal en esta sección')}
           </h2>
           <p style={{ fontSize: '.85rem', opacity: 0.7, margin: '0 0 1rem' }}>
-            El resto de la app sigue funcionando. Puedes reintentar sin recargar todo.
+            {t('El resto de la app sigue funcionando. Puedes reintentar sin recargar todo.')}
           </p>
           <button
             type="button"
@@ -122,7 +126,7 @@ export class RouteErrorBoundary extends React.Component {
               cursor: 'pointer',
             }}
           >
-            Reintentar
+            {t('Reintentar')}
           </button>
         </div>
       );

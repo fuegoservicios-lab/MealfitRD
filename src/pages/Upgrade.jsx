@@ -38,6 +38,7 @@ import {
     ShieldCheck, RefreshCw, CreditCard, BadgeCheck,
 } from 'lucide-react';
 import styles from './Upgrade.module.css';
+import { t, useT } from '../i18n';
 // [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01] lazy + gate por isPaymentOpen → el
 // chunk de PaymentModal (wrapper PayPal ~22KB) se baja al abrir el checkout, no al
 // montar esta página lazy. Comportamiento idéntico (PaymentModal ya devolvía null
@@ -75,48 +76,56 @@ const DISPLAY_BY_TIER = TIER_DISPLAY_NAME;
    [P1-CREDITS-LADDER · 2026-07-31] Los créditos salen de la lista de features:
    ahora son el HERO de cada tarjeta (bloque propio con cifra grande + gauge,
    ver renderPlanCard) porque son el diferenciador real. Max deja de vender
-   "ilimitado": 500/mes acotado (paridad backend auth._TIER_LIMITS). */
-const PLAN_SUMMARY = {
-    gratis: {
-        description: 'Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.',
-        features: [
-            'Todas las funciones incluidas',
-            'Plan de Comidas con IA',
-            'Recetas + Lista de Compras PDF',
-            'Asistente IA con Visión',
-            'Nevera Inteligente',
-        ],
-    },
-    /* [P2-LADDER-VS-PREDECESSOR · 2026-07-31] El salto se mide contra el
-       escalón ANTERIOR (pedido del owner), no contra Gratis: quien está en
-       Básico quiere saber qué gana pasando a Plus, no cuánto lleva sobre el
-       plan gratis. Los múltiplos y los nombres se DERIVAN de `TIER_CREDITS`
-       (config/plans.js) — escribirlos a mano era garantizar que un día el
-       ladder cambiara y la página siguiera prometiendo el salto viejo. */
-    basic: {
-        description: 'Más créditos para regenerar platos y días sin miedo a quedarte corto.',
-        features: [
-            creditsVsPredecessor('basic'),
-            includesPredecessor('basic'),
-        ],
-    },
-    plus: {
-        description: 'Combustible de sobra: ajusta, regenera y experimenta toda la semana.',
-        features: [
-            creditsVsPredecessor('plus'),
-            includesPredecessor('plus'),
-        ],
-    },
-    ultra: {
-        description: 'El tope más alto: para quien ajusta y optimiza su plan todos los días.',
-        features: [
-            creditsVsPredecessor('ultra'),
-            'Acceso Anticipado a Funciones',
-            'Soporte Prioritario VIP',
-            includesPredecessor('ultra'),
-        ],
-    },
-};
+   "ilimitado": 500/mes acotado (paridad backend auth._TIER_LIMITS).
+   [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: un `t()` en ámbito de
+   módulo se evalúa al importar —antes de que el catálogo esté cargado— y se
+   queda congelado en español para siempre. */
+function getPlanSummary() {
+    return {
+        gratis: {
+            description: t('Empieza con todo: plan completo, recetas, asistente y nevera. Gratis.'),
+            features: [
+                t('Todas las funciones incluidas'),
+                t('Plan de Comidas con IA'),
+                t('Recetas + Lista de Compras PDF'),
+                t('Asistente IA con Visión'),
+                t('Nevera Inteligente'),
+            ],
+        },
+        /* [P2-LADDER-VS-PREDECESSOR · 2026-07-31] El salto se mide contra el
+           escalón ANTERIOR (pedido del owner), no contra Gratis: quien está en
+           Básico quiere saber qué gana pasando a Plus, no cuánto lleva sobre el
+           plan gratis. Los múltiplos y los nombres se DERIVAN de `TIER_CREDITS`
+           (config/plans.js) — escribirlos a mano era garantizar que un día el
+           ladder cambiara y la página siguiera prometiendo el salto viejo.
+           [P1-I18N-DASHBOARD] Esas dos cadenas se COMPONEN en config/plans.js y
+           siguen en español: traducirlas aquí exigiría reimplementar el ladder,
+           que es justo lo que ese módulo existe para evitar. */
+        basic: {
+            description: t('Más créditos para regenerar platos y días sin miedo a quedarte corto.'),
+            features: [
+                creditsVsPredecessor('basic'),
+                includesPredecessor('basic'),
+            ],
+        },
+        plus: {
+            description: t('Combustible de sobra: ajusta, regenera y experimenta toda la semana.'),
+            features: [
+                creditsVsPredecessor('plus'),
+                includesPredecessor('plus'),
+            ],
+        },
+        ultra: {
+            description: t('El tope más alto: para quien ajusta y optimiza su plan todos los días.'),
+            features: [
+                creditsVsPredecessor('ultra'),
+                t('Acceso Anticipado a Funciones'),
+                t('Soporte Prioritario VIP'),
+                includesPredecessor('ultra'),
+            ],
+        },
+    };
+}
 
 /* [P1-CREDITS-LADDER · 2026-07-31] Ancho del gauge de créditos por tier —
    escala sqrt(créditos/500) para que la escalera se LEA (una escala lineal
@@ -136,124 +145,133 @@ const TIER_TONE = {
    CONFIG: tabla comparativa feature-by-feature
    ============================================================ */
 
-const COMP_FEATURES = [
-    {
-        category: 'Créditos & Generación',
-        rows: [
-            {
-                // [P1-CREDITS-LADDER · 2026-07-31] 15→10 y Max ∞→500 (paridad
-                // backend). El "ilimitado" era cola de costo sin acotar.
-                name: 'Créditos de IA al mes',
-                desc: 'Cada generación de plan consume 1 crédito',
-                values: { gratis: '10', basic: '50', plus: '200', ultra: '500' },
-            },
-            {
-                name: 'Regenerar plato individual',
-                desc: 'Cambiar un plato sin regenerar el plan completo',
-                values: { gratis: true, basic: true, plus: true, ultra: true },
-            },
-            {
-                name: 'Regenerar plan completo',
-                desc: 'Generar plan desde cero con nueva configuración',
-                values: { gratis: 'Limitado', basic: 'Limitado', plus: '✓', ultra: '✓' },
-            },
-        ],
-    },
-    {
-        category: 'Inteligencia & Aprendizaje',
-        rows: [
-            {
-                name: 'Asistente IA con Visión',
-                desc: 'Sube fotos de comida y el agente las analiza',
-                values: { gratis: true, basic: true, plus: true, ultra: true },
-            },
-            {
-                /* [P3-PRICING-HONEST-COPY · 2026-07-12] Incluida en TODOS los
-                   tiers (directiva del owner: Gratis accede a todo por ahora). */
-                name: 'Memoria a Largo Plazo',
-                desc: 'El agente recuerda tus preferencias y ajustes',
-                values: { gratis: true, basic: true, plus: true, ultra: true },
-            },
-        ],
-    },
-    {
-        category: 'Tracking & Métricas',
-        rows: [
-            {
-                name: 'Nevera Inteligente',
-                desc: 'Inventario sincronizado con tus compras',
-                values: { gratis: true, basic: true, plus: true, ultra: true },
-            },
-            {
-                name: 'Analizador de Macros',
-                desc: 'Desglose de calorías y macronutrientes',
-                values: { gratis: true, basic: true, plus: true, ultra: true },
-            },
-            // [P1-PHANTOM-FEATURE · 2026-05-31] 'Integración Apple Health/Fit'
-            // eliminada: no existe implementación (cero HealthKit/Google Fit en el
-            // codebase) y es arquitectónicamente imposible en una PWA pura (sin
-            // wrapper nativo Capacitor/Cordova). Vendida con ✓ en un plan de pago =
-            // riesgo de reembolsos/disputas. Reintroducir solo cuando exista de verdad.
-        ],
-    },
-    {
-        category: 'Soporte & Acceso',
-        rows: [
-            {
-                name: 'Historial de Planes',
-                desc: 'Revisa planes pasados y métricas evolutivas',
-                values: { gratis: true, basic: true, plus: true, ultra: true },
-            },
-            {
-                name: 'Acceso Anticipado',
-                desc: 'Prueba nuevas funciones antes que nadie',
-                values: { gratis: false, basic: false, plus: false, ultra: true },
-            },
-            {
-                name: 'Soporte Prioritario VIP',
-                desc: 'Respuesta < 24h con técnico dedicado',
-                values: { gratis: false, basic: false, plus: false, ultra: true },
-            },
-        ],
-    },
-];
+/* [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante (ver getPlanSummary).
+   Los `values` son datos: cifras y el check `'✓'` no pasan por el catálogo;
+   `'Limitado'` sí, porque se pinta como texto. */
+function getCompFeatures() {
+    return [
+        {
+            category: t('Créditos & Generación'),
+            rows: [
+                {
+                    // [P1-CREDITS-LADDER · 2026-07-31] 15→10 y Max ∞→500 (paridad
+                    // backend). El "ilimitado" era cola de costo sin acotar.
+                    name: t('Créditos de IA al mes'),
+                    desc: t('Cada generación de plan consume 1 crédito'),
+                    values: { gratis: '10', basic: '50', plus: '200', ultra: '500' },
+                },
+                {
+                    name: t('Regenerar plato individual'),
+                    desc: t('Cambiar un plato sin regenerar el plan completo'),
+                    values: { gratis: true, basic: true, plus: true, ultra: true },
+                },
+                {
+                    name: t('Regenerar plan completo'),
+                    desc: t('Generar plan desde cero con nueva configuración'),
+                    values: { gratis: t('Limitado'), basic: t('Limitado'), plus: '✓', ultra: '✓' },
+                },
+            ],
+        },
+        {
+            category: t('Inteligencia & Aprendizaje'),
+            rows: [
+                {
+                    name: t('Asistente IA con Visión'),
+                    desc: t('Sube fotos de comida y el agente las analiza'),
+                    values: { gratis: true, basic: true, plus: true, ultra: true },
+                },
+                {
+                    /* [P3-PRICING-HONEST-COPY · 2026-07-12] Incluida en TODOS los
+                       tiers (directiva del owner: Gratis accede a todo por ahora). */
+                    name: t('Memoria a Largo Plazo'),
+                    desc: t('El agente recuerda tus preferencias y ajustes'),
+                    values: { gratis: true, basic: true, plus: true, ultra: true },
+                },
+            ],
+        },
+        {
+            category: t('Tracking & Métricas'),
+            rows: [
+                {
+                    name: t('Nevera Inteligente'),
+                    desc: t('Inventario sincronizado con tus compras'),
+                    values: { gratis: true, basic: true, plus: true, ultra: true },
+                },
+                {
+                    name: t('Analizador de Macros'),
+                    desc: t('Desglose de calorías y macronutrientes'),
+                    values: { gratis: true, basic: true, plus: true, ultra: true },
+                },
+                // [P1-PHANTOM-FEATURE · 2026-05-31] 'Integración Apple Health/Fit'
+                // eliminada: no existe implementación (cero HealthKit/Google Fit en el
+                // codebase) y es arquitectónicamente imposible en una PWA pura (sin
+                // wrapper nativo Capacitor/Cordova). Vendida con ✓ en un plan de pago =
+                // riesgo de reembolsos/disputas. Reintroducir solo cuando exista de verdad.
+            ],
+        },
+        {
+            category: t('Soporte & Acceso'),
+            rows: [
+                {
+                    name: t('Historial de Planes'),
+                    desc: t('Revisa planes pasados y métricas evolutivas'),
+                    values: { gratis: true, basic: true, plus: true, ultra: true },
+                },
+                {
+                    name: t('Acceso Anticipado'),
+                    desc: t('Prueba nuevas funciones antes que nadie'),
+                    values: { gratis: false, basic: false, plus: false, ultra: true },
+                },
+                {
+                    name: t('Soporte Prioritario VIP'),
+                    desc: t('Respuesta < 24h con técnico dedicado'),
+                    values: { gratis: false, basic: false, plus: false, ultra: true },
+                },
+            ],
+        },
+    ];
+}
 
 /* ============================================================
    CONFIG: FAQ
    ============================================================ */
 
-const FAQ_ITEMS = [
-    {
-        q: '¿Puedo cancelar en cualquier momento?',
-        a: 'Sí. Tu suscripción se puede cancelar desde Ajustes en un click, sin penalización ni preguntas. Mantienes acceso al plan hasta el final del período facturado.',
-    },
-    {
-        q: '¿Qué pasa cuando se acaban mis créditos del mes?',
-        a: 'Los créditos se reinician automáticamente cada mes el día de tu fecha de inicio. Si necesitas más antes, puedes hacer upgrade a un plan superior y la diferencia se prorratea.',
-    },
-    {
-        q: '¿Ofrecen reembolsos?',
-        a: 'Las suscripciones no son reembolsables, salvo donde la ley lo exija. Puedes cancelar cuando quieras: detienes las renovaciones y conservas el acceso hasta el fin del período ya pagado. Dudas: fuego.servicios@gmail.com.',
-    },
-    {
-        q: '¿Mis datos están seguros?',
-        a: 'Todos los pagos se procesan vía PayPal (PCI-DSS Level 1). No almacenamos tarjetas en nuestros servidores. Tus datos nutricionales están encriptados en tránsito y en reposo, y nunca se comparten con terceros.',
-    },
-];
+/* [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante (ver getPlanSummary). */
+function getFaqItems() {
+    return [
+        {
+            q: t('¿Puedo cancelar en cualquier momento?'),
+            a: t('Sí. Tu suscripción se puede cancelar desde Ajustes en un click, sin penalización ni preguntas. Mantienes acceso al plan hasta el final del período facturado.'),
+        },
+        {
+            q: t('¿Qué pasa cuando se acaban mis créditos del mes?'),
+            a: t('Los créditos se reinician automáticamente cada mes el día de tu fecha de inicio. Si necesitas más antes, puedes hacer upgrade a un plan superior y la diferencia se prorratea.'),
+        },
+        {
+            q: t('¿Ofrecen reembolsos?'),
+            a: t('Las suscripciones no son reembolsables, salvo donde la ley lo exija. Puedes cancelar cuando quieras: detienes las renovaciones y conservas el acceso hasta el fin del período ya pagado. Dudas: fuego.servicios@gmail.com.'),
+        },
+        {
+            q: t('¿Mis datos están seguros?'),
+            a: t('Todos los pagos se procesan vía PayPal (PCI-DSS Level 1). No almacenamos tarjetas en nuestros servidores. Tus datos nutricionales están encriptados en tránsito y en reposo, y nunca se comparten con terceros.'),
+        },
+    ];
+}
 
 /* ============================================================
    COMPONENTES INLINE
    ============================================================ */
 
 const CompTableCell = ({ value, isCurrent }) => {
+    const t = useT();
     const cls = isCurrent ? styles.compTableCellHighlight : '';
     // [P3-UPGRADE-TABLE-POLISH · 2026-07-01] '✓' (string) se trata como `true` →
     // check verde consistente (antes salía como un tick de texto diminuto).
     if (value === true || value === '✓') {
-        return <td className={cls}><Check size={18} className={styles.compTableIconYes} aria-label="Incluido" /></td>;
+        return <td className={cls}><Check size={18} className={styles.compTableIconYes} aria-label={t('Incluido')} /></td>;
     }
     if (value === false) {
-        return <td className={cls}><X size={18} className={styles.compTableIconNo} aria-label="No incluido" /></td>;
+        return <td className={cls}><X size={18} className={styles.compTableIconNo} aria-label={t('No incluido')} /></td>;
     }
     // [P1-CREDITS-LADDER · 2026-07-31] Rama '∞' + InfinityIcon eliminadas:
     // Max ya no vende ilimitado (500/mes acotado) y ningún valor de la tabla
@@ -293,6 +311,7 @@ const FAQItem = ({ item, isOpen, onToggle }) => (
    ============================================================ */
 
 const Upgrade = () => {
+    const t = useT();
     const navigate = useNavigate();
     // [P3-UPGRADE-DESKTOP-MINIMAL · 2026-05-26] `remainingCredits` y
     // `PLAN_LIMIT` removidos del destructure — solo los usaba el
@@ -402,10 +421,13 @@ const Upgrade = () => {
     // rank ni navega (el cobro real lo deriva el backend del plan_id de PayPal,
     // I-Billing-1); solo valida que el tier sea conocido.
     useEffect(() => {
-        const t = searchParams.get('checkout');
+        // [P1-I18N-DASHBOARD · 2026-08-15] Se llamaba `t`, que ahora es la función
+        // de traducción del ámbito de arriba: dejarlo sombreado convierte cualquier
+        // `t('…')` futuro dentro de este efecto en un error mudo.
+        const tierParam = searchParams.get('checkout');
         const b = searchParams.get('billing');
-        if (!['basic', 'plus', 'ultra'].includes(t)) {
-            if (t !== null || b !== null) {
+        if (!['basic', 'plus', 'ultra'].includes(tierParam)) {
+            if (tierParam !== null || b !== null) {
                 setSearchParams((prev) => {
                     const p = new URLSearchParams(prev);
                     p.delete('checkout');
@@ -417,12 +439,12 @@ const Upgrade = () => {
         }
         // [ULTRA-MONTHLY-ONLY · 2026-06-19] Un link viejo con ?billing=annual para un
         // tier sin anual (Ultra) NO debe re-abrir un checkout anual: forzar mensual.
-        const annual = b === 'annual' && !ANNUAL_DISABLED_TIERS.has(t);
+        const annual = b === 'annual' && !ANNUAL_DISABLED_TIERS.has(tierParam);
         setBillingPeriod(annual ? 'annual' : 'monthly');
         setSelectedPlan({
-            tier: t,
-            price: PRICING[t][annual ? 'annual' : 'monthly'].price,
-            name: NAME_BY_TIER[t] + (annual ? ' (Anual)' : ' (Mensual)'),
+            tier: tierParam,
+            price: PRICING[tierParam][annual ? 'annual' : 'monthly'].price,
+            name: NAME_BY_TIER[tierParam] + (annual ? ' (Anual)' : ' (Mensual)'),
             isAnnual: annual,
         });
         setIsPaymentOpen(true);
@@ -433,15 +455,17 @@ const Upgrade = () => {
         // [P1-GUEST-PRICING · 2026-06-21] Invitado: Gratis = tier efectivo ("Invitado");
         // pagos → "Crear cuenta" (el checkout requiere auth).
         if (isGuest) {
-            return tier === 'gratis' ? 'Invitado' : 'Crear cuenta';
+            return tier === 'gratis' ? t('Invitado') : t('Crear cuenta');
         }
+        // El nombre comercial del plan (Gratis/Básico/Plus/Max) es dato, no copy:
+        // viaja interpolado y NO pasa por el catálogo.
         if (!userProfile?.id) {
-            return tier === 'gratis' ? 'Empezar Gratis' : `Cambiar a ${DISPLAY_BY_TIER[tier] || tier}`;
+            return tier === 'gratis' ? t('Empezar Gratis') : t('Cambiar a {plan}', { plan: DISPLAY_BY_TIER[tier] || tier });
         }
-        if (currentTier === tier) return 'Tu Plan Actual';
+        if (currentTier === tier) return t('Tu Plan Actual');
         const targetRank = TIER_RANK[tier] || 1;
-        if (targetRank < currentRank) return 'Incluido en tu Plan';
-        return tier === 'gratis' ? 'Empezar Gratis' : `Cambiar a ${DISPLAY_BY_TIER[tier] || tier}`;
+        if (targetRank < currentRank) return t('Incluido en tu Plan');
+        return tier === 'gratis' ? t('Empezar Gratis') : t('Cambiar a {plan}', { plan: DISPLAY_BY_TIER[tier] || tier });
     };
 
     const isButtonDisabled = (tier) => {
@@ -462,7 +486,7 @@ const Upgrade = () => {
         const isPopular = isPopularPlan(tier);
         const disabled = isButtonDisabled(tier);
         const isFree = tier === 'gratis';
-        const summary = PLAN_SUMMARY[tier];
+        const summary = getPlanSummary()[tier];
 
         const cardClass = [
             styles.planCard,
@@ -480,7 +504,7 @@ const Upgrade = () => {
             <div key={tier} className={cardClass} style={{ '--tone': TIER_TONE[tier] || '#94A3B8' }}>
                 {isPopular && (
                     <div className={`${styles.planCardBadge} ${styles.planCardBadgePopular}`}>
-                        Más Popular
+                        {t('Más Popular')}
                     </div>
                 )}
 
@@ -496,14 +520,14 @@ const Upgrade = () => {
                     </div>
                     {!isFree && isAnnual && getMonthlyEquiv(tier) && (
                         <div className={styles.planPriceEquivalent}>
-                            equivale a ${getMonthlyEquiv(tier)}/mes
+                            {t('equivale a ${monto}/mes', { monto: getMonthlyEquiv(tier) })}
                         </div>
                     )}
                     {/* [ULTRA-MONTHLY-ONLY · 2026-06-19] Ultra no tiene plan anual:
                         con el toggle en "Anual" aclaramos que se factura mensual. */}
                     {!isFree && isAnnual && ANNUAL_DISABLED_TIERS.has(tier) && (
                         <div className={styles.planPriceEquivalent}>
-                            Disponible solo en facturación mensual
+                            {t('Disponible solo en facturación mensual')}
                         </div>
                     )}
                     {/* [P1-LAUNCH-OFFER · 2026-07-31] Anclaje de lanzamiento: el
@@ -517,7 +541,7 @@ const Upgrade = () => {
                                 USD${LAUNCH_OFFER.futureMonthly[tier]}
                             </span>
                             <span className={styles.launchOfferPill}>
-                                Lanzamiento · sube el {LAUNCH_OFFER.deadlineShort}
+                                {t('Lanzamiento · sube el {fecha}', { fecha: LAUNCH_OFFER.deadlineShort })}
                             </span>
                         </div>
                     )}
@@ -531,7 +555,7 @@ const Upgrade = () => {
                 <div className={styles.creditBlock}>
                     <div className={styles.creditRow}>
                         <span className={styles.creditNumber}>{TIER_CREDITS[tier]}</span>
-                        <span className={styles.creditLabel}>créditos<br />al mes</span>
+                        <span className={styles.creditLabel}>{t('créditos')}<br />{t('al mes')}</span>
                     </div>
                     <div className={styles.creditGauge} aria-hidden="true">
                         <div
@@ -591,11 +615,11 @@ const Upgrade = () => {
                 <button
                     type="button"
                     onClick={() => navigate('/dashboard')}
-                    aria-label="Volver al dashboard"
+                    aria-label={t('Volver al dashboard')}
                     className={styles.backButton}
                 >
                     <ArrowLeft size={18} />
-                    Volver al Dashboard
+                    {t('Volver al Dashboard')}
                 </button>
             </header>
 
@@ -603,13 +627,13 @@ const Upgrade = () => {
             <section className={styles.hero}>
                 <div className={styles.heroBadge}>
                     <Zap size={12} />
-                    Planes Flexibles
+                    {t('Planes Flexibles')}
                 </div>
                 <h1 className={styles.heroTitle}>
-                    Invierte en tu <span className={styles.heroTitleGradient}>Salud</span>
+                    {t('Invierte en tu')} <span className={styles.heroTitleGradient}>{t('Salud')}</span>
                 </h1>
                 <p className={styles.heroSubtitle}>
-                    Elige tu plan. Cambia cuando quieras.
+                    {t('Elige tu plan. Cambia cuando quieras.')}
                 </p>
 
                 {/* [P3-UPGRADE-DESKTOP-MINIMAL · 2026-05-26] User context
@@ -625,14 +649,14 @@ const Upgrade = () => {
 
             {/* --- TOGGLE MENSUAL / ANUAL --- */}
             <div className={styles.toggleWrapper}>
-                <div className={styles.toggle} role="group" aria-label="Periodo de facturación">
+                <div className={styles.toggle} role="group" aria-label={t('Periodo de facturación')}>
                     <button
                         type="button"
                         className={`${styles.toggleOption} ${!isAnnual ? styles.toggleActive : ''}`}
                         onClick={() => setBillingPeriod('monthly')}
                         aria-pressed={!isAnnual}
                     >
-                        Mensual
+                        {t('Mensual')}
                     </button>
                     <button
                         type="button"
@@ -640,7 +664,7 @@ const Upgrade = () => {
                         onClick={() => setBillingPeriod('annual')}
                         aria-pressed={isAnnual}
                     >
-                        Anual
+                        {t('Anual')}
                         <span className={styles.toggleDiscountBadge}>-25%</span>
                     </button>
                 </div>
@@ -660,20 +684,23 @@ const Upgrade = () => {
                 En mobile la grid de cards arriba ya comunica lo esencial;
                 la tabla detallada solo aporta valor en desktop con espacio. */}
             <section className={`${styles.sectionWrapper} ${styles.sectionTable}`}>
-                <h2 className={styles.sectionTitle}>Compara todo en detalle</h2>
+                <h2 className={styles.sectionTitle}>{t('Compara todo en detalle')}</h2>
                 <p className={styles.sectionSubtitle}>
-                    Cada feature, cada plan. Encuentra exactamente lo que necesitas.
+                    {t('Cada feature, cada plan. Encuentra exactamente lo que necesitas.')}
                 </p>
 
                 <div className={styles.tableWrapper}>
                     <table className={styles.compTable}>
                         <thead>
                             <tr>
-                                <th>Característica</th>
+                                <th>{t('Característica')}</th>
+                                {/* Los nombres comerciales de los planes NO pasan por el
+                                    catálogo: son dato (TIER_DISPLAY_NAME), igual que en
+                                    las tarjetas y en PayPal. */}
                                 <th>Gratis</th>
                                 <th>Básico</th>
                                 <th className={styles.compTableCellHighlight}>
-                                    <span className={styles.compTablePopularBadge}>Popular</span>
+                                    <span className={styles.compTablePopularBadge}>{t('Popular')}</span>
                                     Plus
                                 </th>
                                 {/* [P1-CREDITS-LADDER] El tier interno se llama `ultra`
@@ -682,7 +709,7 @@ const Upgrade = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {COMP_FEATURES.map((section) => (
+                            {getCompFeatures().map((section) => (
                                 <React.Fragment key={section.category}>
                                     <tr className={styles.compTableCategoryRow}>
                                         <td colSpan={5}>
@@ -718,13 +745,13 @@ const Upgrade = () => {
                 de 6 items hace la página muy larga; quien quiera detalle
                 contacta soporte. */}
             <section className={`${styles.sectionWrapper} ${styles.sectionFaq}`}>
-                <h2 className={styles.sectionTitle}>Preguntas frecuentes</h2>
+                <h2 className={styles.sectionTitle}>{t('Preguntas frecuentes')}</h2>
                 <p className={styles.sectionSubtitle}>
-                    Si tienes otra duda, escríbenos a fuego.servicios@gmail.com.
+                    {t('Si tienes otra duda, escríbenos a fuego.servicios@gmail.com.')}
                 </p>
 
                 <div className={styles.faqList}>
-                    {FAQ_ITEMS.map((item, idx) => (
+                    {getFaqItems().map((item, idx) => (
                         <FAQItem
                             key={idx}
                             item={item}
@@ -742,7 +769,7 @@ const Upgrade = () => {
                 signals compactados — solo aparece en mobile. */}
             <div className={styles.trustLineMobile}>
                 <ShieldCheck size={14} aria-hidden="true" />
-                <span>Pago seguro · Datos protegidos · Cancela cuando quieras</span>
+                <span>{t('Pago seguro · Datos protegidos · Cancela cuando quieras')}</span>
             </div>
 
             {/* --- TRUST BADGES (desktop only) --- */}
@@ -751,42 +778,42 @@ const Upgrade = () => {
                     <div className={styles.trustIcon}>
                         <CreditCard size={20} />
                     </div>
-                    <h3 className={styles.trustTitle}>Pago seguro</h3>
-                    <p className={styles.trustDesc}>Procesado por PayPal (PCI-DSS L1)</p>
+                    <h3 className={styles.trustTitle}>{t('Pago seguro')}</h3>
+                    <p className={styles.trustDesc}>{t('Procesado por PayPal (PCI-DSS L1)')}</p>
                 </div>
                 <div className={styles.trustItem}>
                     <div className={styles.trustIcon}>
                         <ShieldCheck size={20} />
                     </div>
-                    <h3 className={styles.trustTitle}>Tus datos, protegidos</h3>
-                    <p className={styles.trustDesc}>No los vendemos ni entrenamos IA con ellos</p>
+                    <h3 className={styles.trustTitle}>{t('Tus datos, protegidos')}</h3>
+                    <p className={styles.trustDesc}>{t('No los vendemos ni entrenamos IA con ellos')}</p>
                 </div>
                 <div className={styles.trustItem}>
                     <div className={styles.trustIcon}>
                         <RefreshCw size={20} />
                     </div>
-                    <h3 className={styles.trustTitle}>Cambia de plan al instante</h3>
-                    <p className={styles.trustDesc}>Sube o baja tu plan cuando quieras</p>
+                    <h3 className={styles.trustTitle}>{t('Cambia de plan al instante')}</h3>
+                    <p className={styles.trustDesc}>{t('Sube o baja tu plan cuando quieras')}</p>
                 </div>
                 <div className={styles.trustItem}>
                     <div className={styles.trustIcon}>
                         <BadgeCheck size={20} />
                     </div>
-                    <h3 className={styles.trustTitle}>Cancela cuando quieras</h3>
-                    <p className={styles.trustDesc}>Sin penalización ni preguntas</p>
+                    <h3 className={styles.trustTitle}>{t('Cancela cuando quieras')}</h3>
+                    <p className={styles.trustDesc}>{t('Sin penalización ni preguntas')}</p>
                 </div>
             </section>
 
             {/* --- FOOTER LINKS --- */}
             <footer className={styles.footerLinks}>
-                <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacidad</a>
+                <a href="/privacy" target="_blank" rel="noopener noreferrer">{t('Privacidad')}</a>
                 ·
-                <a href="/terms" target="_blank" rel="noopener noreferrer">Términos</a>
+                <a href="/terms" target="_blank" rel="noopener noreferrer">{t('Términos')}</a>
                 ·
-                <a href="mailto:fuego.servicios@gmail.com">Soporte</a>
+                <a href="mailto:fuego.servicios@gmail.com">{t('Soporte')}</a>
                 <br />
                 <span style={{ marginTop: '0.5rem', display: 'inline-block' }}>
-                    © 2026 Bioboros · Hecho en República Dominicana 🇩🇴
+                    {t('© 2026 Bioboros · Hecho en República Dominicana 🇩🇴')}
                 </span>
             </footer>
         </div>

@@ -2,9 +2,11 @@
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { Armchair, Bike, Dumbbell, Footprints, Medal } from 'lucide-react';
+import { useT } from '../../../i18n';
 
 export const QActivityLevel = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {[
@@ -17,11 +19,11 @@ export const QActivityLevel = ({ onAutoAdvance }) => {
                 //   - Medal (Atleta): medalla = nivel competitivo.
                 // Antes Ligero y Moderado compartían `Activity` (no se
                 // distinguían) y User/TrendingUp/Target eran abstractos.
-                { val: 'sedentary', label: 'Sedentario', desc: 'Trabajo de escritorio, poco o ningún ejercicio.', icon: Armchair },
-                { val: 'light', label: 'Ligero', desc: 'Ejercicio suave de 1 a 3 días por semana.', icon: Footprints },
-                { val: 'moderate', label: 'Moderado', desc: 'Ejercicio moderado de 3 a 5 días por semana.', icon: Bike },
-                { val: 'active', label: 'Activo', desc: 'Deportes fuertes o ejercicio 6 a 7 días por semana.', icon: Dumbbell },
-                { val: 'athlete', label: 'Atleta', desc: 'Entrenamientos dobles, trabajo físico demandante.', icon: Medal }
+                { val: 'sedentary', label: t('Sedentario'), desc: t('Trabajo de escritorio, poco o ningún ejercicio.'), icon: Armchair },
+                { val: 'light', label: t('Ligero'), desc: t('Ejercicio suave de 1 a 3 días por semana.'), icon: Footprints },
+                { val: 'moderate', label: t('Moderado'), desc: t('Ejercicio moderado de 3 a 5 días por semana.'), icon: Bike },
+                { val: 'active', label: t('Activo'), desc: t('Deportes fuertes o ejercicio 6 a 7 días por semana.'), icon: Dumbbell },
+                { val: 'athlete', label: t('Atleta'), desc: t('Entrenamientos dobles, trabajo físico demandante.'), icon: Medal }
             ].map(opt => (
                 <RadioCard
                     key={opt.val} name="activityLevel" value={opt.val} label={opt.label} desc={opt.desc} icon={opt.icon}

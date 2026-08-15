@@ -17,6 +17,12 @@ import {
     ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Refrigerator
 } from 'lucide-react';
 import { toast } from 'sonner';
+// [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. `useT()` dentro de componentes
+// (es lo que los suscribe al cambio de idioma); `t`/`tn` de módulo para los helpers
+// que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
+// tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
+// importar —antes de que el catálogo cargue— y se congela en español para siempre.
+import { useT, t, tn } from '../i18n';
 import TrackingProgress from '../components/dashboard/TrackingProgress';
 // [P3-WATER-TRACKER · 2026-05-16] Tracker de hidratacion (8 vasos diarios)
 // reemplaza el card "Mi Nevera" que duplicaba la pagina Pantry.
@@ -423,19 +429,22 @@ function _scaleItemRefCost(obj, finalQty, rawQty, unit) {
     return { ...obj, item_ref: { ...ref, estimated_cost_rd: scaled, estimated_cost: scaled } };
 }
 
-const Q_DEGRADED_REASON_MAP = {
-    high_contextual: 'No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición). Revisa tus datos en el formulario y regenera.',
-    max_attempts: 'El revisor de calidad no aprobó el plan tras varios intentos. Te dimos la mejor versión disponible; revísala y usa Cambiar Plato si algo no cuadra.',
-    invalid_pipeline_start: 'Hubo un problema técnico al iniciar la generación. Intenta regenerar el plan.',
-    budget_exhausted: 'Se alcanzó el límite de tiempo de generación. Te dimos la mejor versión disponible.',
+// [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: cada valor es copy que
+// pasa por `t()` y este mapa se importa al arrancar el módulo — como constante se
+// evaluaría antes de que el catálogo exista y quedaría congelado en español.
+const getQDegradedReasonMap = () => ({
+    high_contextual: t('No pudimos adaptar el plan a una restricción tuya (despensa, alergia o condición). Revisa tus datos en el formulario y regenera.'),
+    max_attempts: t('El revisor de calidad no aprobó el plan tras varios intentos. Te dimos la mejor versión disponible; revísala y usa Cambiar Plato si algo no cuadra.'),
+    invalid_pipeline_start: t('Hubo un problema técnico al iniciar la generación. Intenta regenerar el plan.'),
+    budget_exhausted: t('Se alcanzó el límite de tiempo de generación. Te dimos la mejor versión disponible.'),
     // [P2-BAND-SCORE-GATE · 2026-06-15] motivo emitido por _maybe_mark_low_band_degraded
     // [2026-08-05] Copy en llano (hermano del chip de mealAdvisories): «banda
     // objetivo (90-112% del target)» era doble jerga para el usuario final.
-    low_band_score: 'Este plan se desvía de tu objetivo de macros más de lo habitual. Las porciones pueden no ser exactas; ajústalas a tu medida.',
+    low_band_score: t('Este plan se desvía de tu objetivo de macros más de lo habitual. Las porciones pueden no ser exactas; ajústalas a tu medida.'),
     // [P2-PANEL-SOFT-REJECT · 2026-06-15] motivos de _maybe_mark_panel_degraded
-    condition_panel_gap: 'El balance de tu condición (grasa saturada / potasio / magnesio / fibra) quedó fuera de la meta tras los ajustes automáticos. Revísalo con tu profesional.',
-    low_micros: 'Algunos micronutrientes (fibra / potasio / magnesio / calcio) quedaron por debajo del objetivo diario.',
-    high_sodium_sugar: 'El sodio o el azúcar añadida quedaron por encima del techo recomendado por la OMS.',
+    condition_panel_gap: t('El balance de tu condición (grasa saturada / potasio / magnesio / fibra) quedó fuera de la meta tras los ajustes automáticos. Revísalo con tu profesional.'),
+    low_micros: t('Algunos micronutrientes (fibra / potasio / magnesio / calcio) quedaron por debajo del objetivo diario.'),
+    high_sodium_sugar: t('El sodio o el azúcar añadida quedaron por encima del techo recomendado por la OMS.'),
     // [P2-FASE7-HONESTY · 2026-06-21] Lista de compras incompleta (preocupación #1 del owner):
     // emitida por `_maybe_mark_shopping_incomplete_degraded` cuando el plan entregado quedó con la
     // lista vacía pese a tener recetas. Sobrescribe el genérico max_attempts (motivo más específico
@@ -443,18 +452,18 @@ const Q_DEGRADED_REASON_MAP = {
     // este banner: presupuesto insuficiente → bloqueo + toast pre-generación (Plan.jsx); piso de
     // proteína → disclaimer del plan de contingencia (Plan.jsx, `_review_disclaimer`); nevera baja →
     // banner en Mi Nevera. Por eso NO se duplican aquí (evita copy que nunca se dispara).
-    shopping_list_incomplete: 'La lista de compras quedó incompleta para este plan. Regenera, o revisa que cada ingrediente de las recetas aparezca en tu lista.',
+    shopping_list_incomplete: t('La lista de compras quedó incompleta para este plan. Regenera, o revisa que cada ingrediente de las recetas aparezca en tu lista.'),
     // [P2-DEGRADE-BANNER-CLINICAL-COPY · 2026-06-22] (audit fresco P2-13) Dos motivos que el backend SÍ
     // emite (`_quality_degraded_reason`, graph_orchestrator.py:19030/19078) pero no tenían copy → caían al
     // genérico. `clinical_layer_incomplete` es severity HIGH y SOLO para perfiles con condición/alergia real
     // → es justo el subgrupo at-risk el que veía el copy menos accionable.
-    clinical_layer_incomplete: 'No pudimos aplicar por completo la capa de seguridad clínica de tu perfil (condición/alergia). El plan es ORIENTATIVO: revísalo con tu profesional de salud antes de seguirlo y, si puedes, regenéralo.',
-    composite_dish_unresolved: 'Algunos platos compuestos (ej. sancocho, mangú) no se pudieron desglosar en ingredientes con precisión, así que sus macros y su lista de compras son aproximados. Usa Cambiar Plato si necesitas más exactitud.',
+    clinical_layer_incomplete: t('No pudimos aplicar por completo la capa de seguridad clínica de tu perfil (condición/alergia). El plan es ORIENTATIVO: revísalo con tu profesional de salud antes de seguirlo y, si puedes, regenéralo.'),
+    composite_dish_unresolved: t('Algunos platos compuestos (ej. sancocho, mangú) no se pudieron desglosar en ingredientes con precisión, así que sus macros y su lista de compras son aproximados. Usa Cambiar Plato si necesitas más exactitud.'),
     // [P1-MARKER-UNRESOLVED-HONESTY · 2026-06-23] (audit inteligencia P1-6) El corrector de
     // coherencia de slots (self_critique + surgical regen) no pudo resolver algún día tras los
     // reintentos → puede haber comidas repetidas (almuerzo↔cena) o un slot incoherente. Antes se
     // entregaba como plan plenamente verificado SIN aviso.
-    slot_coherence_unresolved: 'Algunos días pueden tener comidas repetidas o poco variadas: el ajuste automático no terminó. Usa Cambiar Plato para variar el día que no te cuadre.',
+    slot_coherence_unresolved: t('Algunos días pueden tener comidas repetidas o poco variadas: el ajuste automático no terminó. Usa Cambiar Plato para variar el día que no te cuadre.'),
     // [P3-MICRO-WORSTDAY-COPY · 2026-07-04] Los dos motivos del soft-reject del panel de micros
     // (P2-PANEL-SOFT-REJECT) caían al genérico "Calidad por debajo del óptimo" — el owner vio el
     // banner y no supo que era el SODIO del peor día (pregunta real 2026-07-04). Copy específico
@@ -464,21 +473,21 @@ const Q_DEGRADED_REASON_MAP = {
     // motivo cubre cuatro techos: con uno de azúcar añadida (caso real del owner) esa
     // instrucción manda al usuario a mirar el plato equivocado. El nutriente concreto
     // viaja en `_quality_degraded_panel_detail` y el panel de micros ya lo marca.
-    micro_worst_day_ceiling: 'Un día se pasa de uno de tus techos (sodio, azúcar añadida, grasa saturada o potasio). Mira cuál en el panel de micros de arriba y usa Cambiar Plato en la comida de ese día que más lo aporte.',
-    micro_worst_day: 'Un día quedó por debajo del piso en algunos micronutrientes (fibra, potasio, magnesio…). Revisa el panel de micros y usa Cambiar Plato si quieres reforzar ese día.',
-};
+    micro_worst_day_ceiling: t('Un día se pasa de uno de tus techos (sodio, azúcar añadida, grasa saturada o potasio). Mira cuál en el panel de micros de arriba y usa Cambiar Plato en la comida de ese día que más lo aporte.'),
+    micro_worst_day: t('Un día quedó por debajo del piso en algunos micronutrientes (fibra, potasio, magnesio…). Revisa el panel de micros y usa Cambiar Plato si quieres reforzar ese día.'),
+});
 
 // [P3-BANNER-REASON-COPY · 2026-07-10] `low_band_macro:<macros>` (sufijo dinámico, ej.
 // "low_band_macro:carbs" o "low_band_macro:carbs,kcal" tras P2-BAND-GATE-KCAL-SEMANTICS) es un
 // exact-match miss en Q_DEGRADED_REASON_MAP → caía SIEMPRE al genérico "Calidad por debajo del
 // óptimo" sin decir CUÁL macro falló. Forensic corr=d57ffe04 (2026-07-10): el owner vio el banner
 // exacto de este caso (carbs) y preguntó qué significaba.
-const LOW_BAND_MACRO_LABELS = {
-    protein: 'la proteína',
-    carbs: 'los carbohidratos',
-    fats: 'las grasas',
-    kcal: 'las calorías',
-};
+const LOW_BAND_MACRO_LABELS = () => ({
+    protein: t('la proteína'),
+    carbs: t('los carbohidratos'),
+    fats: t('las grasas'),
+    kcal: t('las calorías'),
+});
 
 /* [P2-DEGRADED-HEADLINE-TRUTH · 2026-07-31] El titular del banner decía SIEMPRE
    "La IA no logró un plan óptimo tras N intentos", pero los motivos son de dos
@@ -513,7 +522,7 @@ export function resolveQualityDegradedHeadline(reason, attempts) {
     // "Calidad por debajo del óptimo"), así que usarlo aquí dejaba esta red de
     // seguridad INERTE — verificado ejecutándola, no leyéndola.
     const conocido = !!reason && (
-        Object.prototype.hasOwnProperty.call(Q_DEGRADED_REASON_MAP, reason)
+        Object.prototype.hasOwnProperty.call(getQDegradedReasonMap(), reason)
         || reason.startsWith('low_band_macro:')
     );
     // Motivo nuevo que nadie clasificó + hubo reintentos de verdad → se asume
@@ -524,34 +533,39 @@ export function resolveQualityDegradedHeadline(reason, attempts) {
     if (agotado) {
         return {
             title: n
-                ? `La IA no logró un plan óptimo tras ${n} intento${n === 1 ? '' : 's'}`
-                : 'La IA no logró un plan óptimo',
-            body: 'Te entregamos la mejor versión. Usa Cambiar Plato para reemplazar comidas o regenera el plan completo.',
+                ? tn(n, 'La IA no logró un plan óptimo tras {n} intento', 'La IA no logró un plan óptimo tras {n} intentos', { n })
+                : t('La IA no logró un plan óptimo'),
+            body: t('Te entregamos la mejor versión. Usa Cambiar Plato para reemplazar comidas o regenera el plan completo.'),
             exhausted: true,
         };
     }
     return {
-        title: 'Plan listo, con un aviso',
-        body: 'Revisa el motivo aquí abajo y usa Cambiar Plato si quieres ajustar ese día.',
+        title: t('Plan listo, con un aviso'),
+        body: t('Revisa el motivo aquí abajo y usa Cambiar Plato si quieres ajustar ese día.'),
         exhausted: false,
     };
 }
 
 export function resolveQualityDegradedLabel(reason) {
     if (!reason) return null;
+    // [P1-I18N-DASHBOARD · 2026-08-15] El mapa es una FUNCIÓN y se resuelve aquí,
+    // en tiempo de llamada, cuando el catálogo ya está cargado. El nombre local se
+    // conserva a propósito: es el mismo lookup que antes, solo que no congelado.
+    const Q_DEGRADED_REASON_MAP = getQDegradedReasonMap();
     if (Q_DEGRADED_REASON_MAP[reason]) return Q_DEGRADED_REASON_MAP[reason];
     if (reason.startsWith('low_band_macro:')) {
         const macros = reason.slice('low_band_macro:'.length).split(',').filter(Boolean);
-        const names = macros.map((m) => LOW_BAND_MACRO_LABELS[m] || m);
+        const _macroLabels = LOW_BAND_MACRO_LABELS();
+        const names = macros.map((m) => _macroLabels[m] || m);
         const joined = names.length > 1
-            ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`
-            : (names[0] || 'algunos macros');
+            ? t('{lista} y {ultimo}', { lista: names.slice(0, -1).join(', '), ultimo: names[names.length - 1] })
+            : (names[0] || t('algunos macros'));
         // [2026-08-05] «Este plan se desvía en X» funciona igual con uno o
         // varios macros — la forma anterior («la precisión de X quedó») era el
         // mismo esquive de concordancia, pero con jerga.
-        return `Este plan se desvía de tu objetivo en ${joined} durante varios días. Las porciones pueden no ser exactas; ajústalas a tu medida.`;
+        return t('Este plan se desvía de tu objetivo en {macros} durante varios días. Las porciones pueden no ser exactas; ajústalas a tu medida.', { macros: joined });
     }
-    return 'Calidad por debajo del óptimo.';
+    return t('Calidad por debajo del óptimo.');
 }
 
 // [P3-NOTIF-CENTER-BACKFILL · 2026-06-16] Reconcilia (crea-o-enriquece) una
@@ -582,17 +596,21 @@ function reconcileBackfill(notif, backfillKey) {
 // ventana, distinto entre horas/visitas (más variedad) e INTELIGENTE (pool según la
 // franja del día). Si cruzas un bloque con la pestaña abierta, anima la transición
 // (blur + slide). Respeta prefers-reduced-motion (actualiza el texto sin animación).
-const _GREETING_SUBTITLES = [
-    'Aquí tienes tu estrategia nutricional.',
-    'Tu plan, hecho a tu medida.',
-    'Pequeños pasos, grandes resultados.',
-    'Comida real, metas reales.',
-    'Sigue tu plan, sin complicarte.',
-    'Hoy es un buen día para nutrirte bien.',
-    'Constancia, no perfección.',
-    'Tu progreso, un plato a la vez.',
-    'Lo simple, sostenido, gana.',
-];
+// [P1-I18N-DASHBOARD · 2026-08-15] Función, no array constante: se llama desde
+// `_pickGreeting()` en cada render/tick, con el catálogo ya cargado.
+function _greetingSubtitles() {
+    return [
+        t('Aquí tienes tu estrategia nutricional.'),
+        t('Tu plan, hecho a tu medida.'),
+        t('Pequeños pasos, grandes resultados.'),
+        t('Comida real, metas reales.'),
+        t('Sigue tu plan, sin complicarte.'),
+        t('Hoy es un buen día para nutrirte bien.'),
+        t('Constancia, no perfección.'),
+        t('Tu progreso, un plato a la vez.'),
+        t('Lo simple, sostenido, gana.'),
+    ];
+}
 
 const _GREETING_NAME_STYLE = {
     background: 'linear-gradient(to right, #3B82F6, #8B5CF6)',
@@ -610,20 +628,21 @@ const _GREETING_NAME_STYLE = {
 const _GREETING_BLOCK_MS = 2 * 60 * 60 * 1000;
 
 function _greetingSalutations(hour) {
-    if (hour < 5) return ['Buenas madrugadas', 'Aún despierto', 'Trasnochando', 'Sin sueño', 'Hola'];
-    if (hour < 12) return ['Buenos días', 'Buen día', 'Arriba', 'A darle', 'A por el día', 'Buen comienzo'];
-    if (hour < 19) return ['Buenas tardes', 'Qué tal', 'Seguimos', 'Buena tarde', 'A media marcha', 'Hola'];
-    return ['Buenas noches', 'Buenas', 'A cerrar el día', 'Ya de noche', 'Hola'];
+    if (hour < 5) return [t('Buenas madrugadas'), t('Aún despierto'), t('Trasnochando'), t('Sin sueño'), t('Hola')];
+    if (hour < 12) return [t('Buenos días'), t('Buen día'), t('Arriba'), t('A darle'), t('A por el día'), t('Buen comienzo')];
+    if (hour < 19) return [t('Buenas tardes'), t('Qué tal'), t('Seguimos'), t('Buena tarde'), t('A media marcha'), t('Hola')];
+    return [t('Buenas noches'), t('Buenas'), t('A cerrar el día'), t('Ya de noche'), t('Hola')];
 }
 
 function _pickGreeting() {
     const now = Date.now();
     const block = Math.floor(now / _GREETING_BLOCK_MS);
     const sal = _greetingSalutations(new Date(now).getHours());
+    const subs = _greetingSubtitles();
     return {
         block,
         salutation: sal[block % sal.length],
-        subtitle: _GREETING_SUBTITLES[block % _GREETING_SUBTITLES.length],
+        subtitle: subs[block % subs.length],
     };
 }
 
@@ -696,34 +715,44 @@ function RotatingGreeting({ firstName }) {
 // Ahora cada card en proceso muestra scrim + shimmer + chip con etapas rotando (el `seed`
 // desfasa la etapa inicial por card para que el modo día no se vea clonado). El overlay
 // además bloquea la interacción con la card mientras carga (pointer-events del scrim).
-const COOKING_STAGES_SINGLE = [
-    'El chef está pensando…',
-    'Buscando en tu Nevera…',
-    'Cuadrando tus macros…',
-    'Escribiendo la receta…',
-];
-const COOKING_STAGES_DAY = [
-    'Rediseñando tu día…',
-    'Variando las proteínas…',
-    'Cuadrando los macros del día…',
-    'Puliendo las recetas…',
-];
+// [P1-I18N-DASHBOARD · 2026-08-15] Las tres tablas de etapas pasan de constantes a
+// funciones: se leen dentro del render de `MealCookingOverlay`, ya con catálogo.
+function _cookingStagesSingle() {
+    return [
+        t('El chef está pensando…'),
+        t('Buscando en tu Nevera…'),
+        t('Cuadrando tus macros…'),
+        t('Escribiendo la receta…'),
+    ];
+}
+function _cookingStagesDay() {
+    return [
+        t('Rediseñando tu día…'),
+        t('Variando las proteínas…'),
+        t('Cuadrando los macros del día…'),
+        t('Puliendo las recetas…'),
+    ];
+}
 // [P2-COOKING-OVERLAY-PROGRESS · 2026-07-12] Cola de "paciencia" post-etapas: frases variadas
 // a ritmo calmado (8s) para regens largos — antes las 4 etapas rotaban en círculo cada 3.5s
 // y "se sentía como bucle" (feedback del owner). La marcha principal ahora es ÚNICA
 // (sensación de progreso real) y la cola tarda ~64s en repetirse.
-const COOKING_STAGES_TAIL = [
-    'Ajustando las porciones…',
-    'Afinando sabores criollos…',
-    'Revisando la lista de compras…',
-    'Cuidando tus macros…',
-    'Un plato bueno toma su tiempo…',
-    'Emplatando los detalles…',
-    'Verificando cada ingrediente…',
-    'Ya casi está…',
-];
+function _cookingStagesTail() {
+    return [
+        t('Ajustando las porciones…'),
+        t('Afinando sabores criollos…'),
+        t('Revisando la lista de compras…'),
+        t('Cuidando tus macros…'),
+        t('Un plato bueno toma su tiempo…'),
+        t('Emplatando los detalles…'),
+        t('Verificando cada ingrediente…'),
+        t('Ya casi está…'),
+    ];
+}
 function MealCookingOverlay({ mode = 'single', seed = 0 }) {
-    const stages = mode === 'day' ? COOKING_STAGES_DAY : COOKING_STAGES_SINGLE;
+    const t = useT();
+    const stages = mode === 'day' ? _cookingStagesDay() : _cookingStagesSingle();
+    const tailStages = _cookingStagesTail();
     const [tick, setTick] = useState(0);
     useEffect(() => {
         const id = setInterval(() => setTick((t) => t + 1), 4000);
@@ -733,10 +762,10 @@ function MealCookingOverlay({ mode = 'single', seed = 0 }) {
     // clamp en la última etapa) → luego cola de paciencia (8s por frase, offset por seed).
     const _mainIdx = Math.min((Math.abs(seed) % 2) + tick, stages.length - 1);
     const _inMain = tick < stages.length + 1;
-    const _tailIdx = Math.abs(seed + Math.floor(Math.max(0, tick - stages.length) / 2)) % COOKING_STAGES_TAIL.length;
-    const label = _inMain ? stages[_mainIdx] : COOKING_STAGES_TAIL[_tailIdx];
+    const _tailIdx = Math.abs(seed + Math.floor(Math.max(0, tick - stages.length) / 2)) % tailStages.length;
+    const label = _inMain ? stages[_mainIdx] : tailStages[_tailIdx];
     return (
-        <div className="meal-cooking-overlay" role="status" aria-live="polite" aria-label="Actualizando plato con IA">
+        <div className="meal-cooking-overlay" role="status" aria-live="polite" aria-label={t('Actualizando plato con IA')}>
             <div className="meal-cooking-chip">
                 <ChefHat size={18} className="cook-icon" aria-hidden="true" />
                 <span key={label} className="meal-cooking-text">{label}</span>
@@ -746,6 +775,10 @@ function MealCookingOverlay({ mode = 'single', seed = 0 }) {
 }
 
 const DashboardInner = () => {
+    // [P1-I18N-DASHBOARD · 2026-08-15] `useT()` y no el `t` de módulo: el hook es lo
+    // que suscribe este componente al cambio de idioma. Sombrea al import a
+    // propósito — es exactamente la misma función, con la suscripción encima.
+    const t = useT();
     // [APPEARANCE-THEME · 2026-05-29] Tema activo para los botones de acción de
     // cada comida (Ver receta / Cambiar Plato / Like): en oscuro sus fondos
     // pastel claros se ven lavados, así que usamos variantes vívidas/notorias.
@@ -923,7 +956,7 @@ const DashboardInner = () => {
         if (!planData?._quality_degraded) return null;
         const _attempts = planData?._quality_degraded_attempts || 3;
         const _reason = planData?._quality_degraded_reason;
-        const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
+        const _sev = planData?._quality_degraded_severity === 'high' ? t('Importante') : t('Menor');
         // [P3-BANNER-REASON-COPY · 2026-07-10] prefix-match para low_band_macro:<macros>.
         const _reasonLabel = _reason ? resolveQualityDegradedLabel(_reason) : null;
         // [P2-DEGRADED-HEADLINE-TRUTH · 2026-07-31] Mismo SSOT que el banner: la
@@ -931,14 +964,14 @@ const DashboardInner = () => {
         // había APROBADO y el degradado venía de una auditoría posterior.
         const _head = resolveQualityDegradedHeadline(_reason, _attempts);
         const _reasonText = _reasonLabel
-            ? `Motivo (${_sev}): ${_reasonLabel}`
+            ? t('Motivo ({severidad}): {motivo}', { severidad: _sev, motivo: _reasonLabel })
             : _head.body;
         return {
             id: _planMicroSig ? `quality_${_planMicroSig}` : undefined,
             kind: 'quality',
             title: _head.exhausted
-                ? `Plan no óptimo (${_attempts} intento${_attempts === 1 ? '' : 's'})`
-                : 'Plan listo, con un aviso',
+                ? tn(_attempts, 'Plan no óptimo ({n} intento)', 'Plan no óptimo ({n} intentos)', { n: _attempts })
+                : t('Plan listo, con un aviso'),
             message: _reasonText,
             severity: 'warning',
             // Payload estructurado para la vista expandida.
@@ -947,11 +980,14 @@ const DashboardInner = () => {
                 severityLabel: _sev,
                 reasonLabel: _reasonLabel,
                 guidance: _head.exhausted
-                    ? 'Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.'
-                    : 'El plan está entregado; esto es un aviso sobre un punto a revisar. Usa “Cambiar Plato” en la comida señalada si quieres ajustarlo.',
+                    ? t('Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.')
+                    : t('El plan está entregado; esto es un aviso sobre un punto a revisar. Usa “Cambiar Plato” en la comida señalada si quieres ajustarlo.'),
             },
         };
-    }, [planData?._quality_degraded, planData?._quality_degraded_attempts, planData?._quality_degraded_reason, planData?._quality_degraded_severity, _planMicroSig]);
+    // [P1-I18N-DASHBOARD · 2026-08-15] `t` entra en las deps de todos los memos de
+    // copy: la identidad es estable (es la misma función de módulo que devuelve
+    // `useT`), así que no re-crea nada — sólo mantiene honesto a exhaustive-deps.
+    }, [planData?._quality_degraded, planData?._quality_degraded_attempts, planData?._quality_degraded_reason, planData?._quality_degraded_severity, _planMicroSig, t]);
 
     const dismissQDegraded = () => {
         const notif = buildQualityNotification();
@@ -989,7 +1025,7 @@ const DashboardInner = () => {
     // `plan_data.days`.
     const [eatMealInFlight, setEatMealInFlight] = useState(null);
     const handleEatPlanMeal = async (meal, index) => {
-        if (isGuest) { toast('Crea tu cuenta para registrar lo que comes'); return; }
+        if (isGuest) { toast(t('Crea tu cuenta para registrar lo que comes')); return; }
         if (!planData?.id || eatMealInFlight !== null) return;
         setEatMealInFlight(index);
         try {
@@ -1006,13 +1042,13 @@ const DashboardInner = () => {
             try { result = await resp.json(); } catch (_) { /* body vacío o no-JSON */ }
             if (!resp.ok || !result?.success) {
                 const msg = (typeof result?.detail === 'string' ? result.detail : null)
-                    || 'Inténtalo de nuevo en un momento.';
-                toast.error('No se pudo registrar', { description: msg });
+                    || t('Inténtalo de nuevo en un momento.');
+                toast.error(t('No se pudo registrar'), { description: msg });
                 return;
             }
             if (result.already_logged) {
-                toast('Ya lo tenías registrado', {
-                    description: 'No lo contamos dos veces.',
+                toast(t('Ya lo tenías registrado'), {
+                    description: t('No lo contamos dos veces.'),
                 });
             } else {
                 // [P1-PANTRY-NAME-RESOLUTION · 2026-08-07] Decir QUÉ no bajó de
@@ -1023,12 +1059,15 @@ const DashboardInner = () => {
                 const ausentes = Array.isArray(result.not_in_pantry) ? result.not_in_pantry : [];
                 const descontados = (Array.isArray(result.deducted) ? result.deducted.length : 0)
                     + (Array.isArray(result.inferred) ? result.inferred.length : 0);
-                toast.success(`${result.meal_name} registrado`, {
+                toast.success(t('{plato} registrado', { plato: result.meal_name }), {
                     description: ausentes.length > 0
-                        ? `Descontamos ${descontados} de tu Nevera. No estaban registrados: ${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`
+                        ? t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
+                            n: descontados,
+                            faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
+                        })
                         : (descontados > 0
-                            ? `Descontamos ${descontados} ingrediente${descontados === 1 ? '' : 's'} de tu Nevera.`
-                            : 'Sumado a tu diario de hoy.'),
+                            ? tn(descontados, 'Descontamos {n} ingrediente de tu Nevera.', 'Descontamos {n} ingredientes de tu Nevera.', { n: descontados })
+                            : t('Sumado a tu diario de hoy.')),
                 });
             }
             // TrackingProgress escucha `refresh-inventory` → refetch del diario →
@@ -1037,7 +1076,7 @@ const DashboardInner = () => {
             window.dispatchEvent(new Event('mealfit:refresh-inventory'));
         } catch (err) {
             console.error('Error registrando plato del plan:', err);
-            toast.error('No se pudo registrar', { description: 'Revisa tu conexión.' });
+            toast.error(t('No se pudo registrar'), { description: t('Revisa tu conexión.') });
         } finally {
             setEatMealInFlight(null);
         }
@@ -1063,8 +1102,8 @@ const DashboardInner = () => {
             if (!resp.ok) {
                 const msg = result?.detail?.message
                     || (typeof result?.detail === 'string' ? result.detail : null)
-                    || 'Inténtalo de nuevo en un momento.';
-                toast.error('No se pudo arreglar el día', { description: msg });
+                    || t('Inténtalo de nuevo en un momento.');
+                toast.error(t('No se pudo arreglar el día'), { description: msg });
                 setPantryConsent(null);
                 pantryConsentContext.current = null;
                 return;
@@ -1076,7 +1115,7 @@ const DashboardInner = () => {
                 pantryConsentContext.current = { source: 'fix-sodium-day' };
                 setPantryConsent({
                     missing: result.missing_ingredients || [],
-                    message: result.message || 'El chef necesita ingredientes que no están en tu Nevera.',
+                    message: result.message || t('El chef necesita ingredientes que no están en tu Nevera.'),
                     busy: false,
                 });
                 return;
@@ -1100,7 +1139,7 @@ const DashboardInner = () => {
                         }
                     }
                 } catch (_) { /* no-op: el toast ya confirma el éxito; el próximo poll refresca */ }
-                const underCeilingCopy = result.day_under_ceiling ? ', bajo el techo ✓' : '';
+                const underCeilingCopy = result.day_under_ceiling ? t(', bajo el techo ✓') : '';
                 toast.success(`Día ${Number(result.day) + 1} arreglado`, {
                     description: `${result.old_meal} → ${result.new_meal} `
                         + `(${result.sodio_antes_mg}→${result.sodio_despues_mg} mg de sodio${underCeilingCopy}).`,
@@ -1113,22 +1152,22 @@ const DashboardInner = () => {
                 // potasio). No es un error — es información honesta: este botón no aplica
                 // aquí. El plan quedó intacto (el backend no tocó nada), así que NO
                 // refrescamos; el banner se queda tal cual.
-                toast(result.message || 'El aviso de este día no es por sodio.', { duration: 7000 });
+                toast(result.message || t('El aviso de este día no es por sodio.'), { duration: 7000 });
             } else if (result?.code === 'no_day_over_ceiling') {
                 // Honesto: puede que el panel ya estuviera stale (el usuario resolvió el día a
                 // mano). Refrescamos igual — si el banner seguía vivo por caché local, desaparece.
                 try { await hydrateLatestPlan?.({ force: true, src: 'fix-sodium-day-noop' }); } catch (_) { /* no-op */ }
-                toast(result.message || 'Ya está bajo el techo de sodio.', { duration: 6000 });
+                toast(result.message || t('Ya está bajo el techo de sodio.'), { duration: 6000 });
             } else {
                 // Soft-fail del chef (retries agotados / clínico / nevera vacía / IA ocupada):
                 // el banner queda, el plan está intacto.
-                toast.error('El chef IA no pudo arreglar este día', {
-                    description: result?.error_message || 'Inténtalo de nuevo en un momento.',
+                toast.error(t('El chef IA no pudo arreglar este día'), {
+                    description: result?.error_message || t('Inténtalo de nuevo en un momento.'),
                     duration: 8000,
                 });
             }
         } catch (_e) {
-            toast.error('No se pudo arreglar el día', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
+            toast.error(t('No se pudo arreglar el día'), { description: t('Revisa tu conexión e inténtalo de nuevo.') });
         } finally {
             setFixSodiumDayLoading(false);
         }
@@ -1142,12 +1181,12 @@ const DashboardInner = () => {
     // nombres; si no, cocina SOLO desde la Nevera real.
     const runSwapWithConsentFlow = async ({
         dayIndex, mealIndex, mealType, mealName, swapReason, allowNewIngredients = null,
-        loadingTitle = '🔄 Consultando al Chef IA...',
+        loadingTitle = t('🔄 Consultando al Chef IA...'),
     }) => {
         if (swapInFlightLock.current) return;
         swapInFlightLock.current = true;
         setRegeneratingId(mealIndex);
-        const toastId = toast.loading(loadingTitle, { description: 'Buscando una alternativa deliciosa...' });
+        const toastId = toast.loading(loadingTitle, { description: t('Buscando una alternativa deliciosa...') });
         try {
             const result = await regenerateSingleMeal(
                 dayIndex, mealIndex, mealType, mealName,
@@ -1175,12 +1214,16 @@ const DashboardInner = () => {
             // [P2-SWAP-TOAST-FIX · 2026-06-29] Solo "¡Menú Actualizado!" si HUBO cambio real —
             // en soft-fail `regenerateSingleMeal` devuelve null y YA mostró su toast.error propio.
             if (result) {
-                toast.success('¡Menú Actualizado!', { description: `Cambiado por: ${result}`, icon: '👨‍🍳' });
+                // [P1-I18N-DASHBOARD · 2026-08-15] El título se queda SIN `t()` a
+                // propósito: `Dashboard.p1_pantry_strict_consent.test.js` ancla la
+                // cadena `toast.success('¡Menú Actualizado!'` con el paréntesis y la
+                // comilla pegados, y envolverla la rompería desde otro fichero.
+                toast.success('¡Menú Actualizado!', { description: t('Cambiado por: {plato}', { plato: result }), icon: '👨‍🍳' });
             }
         } catch (error) {
             console.error('Error al regenerar:', error);
             toast.dismiss(toastId);
-            toast.error('No se pudo conectar con la IA', { description: 'Se usó una receta alternativa local.' });
+            toast.error(t('No se pudo conectar con la IA'), { description: t('Se usó una receta alternativa local.') });
             setPantryConsent(null);
             pantryConsentContext.current = null;
         } finally {
@@ -1237,11 +1280,14 @@ const DashboardInner = () => {
         return {
             id: _planMicroSig ? `coherence_${_planMicroSig}` : undefined,
             kind: 'warning',
-            title: 'Revisa tu lista de compras',
-            message: `Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista (${cc} ${cc === 1 ? 'detalle' : 'detalles'}). Usa “Cambiar Plato” en las comidas que te parezcan inconsistentes.`,
+            title: t('Revisa tu lista de compras'),
+            message: tn(cc,
+                'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalle). Usa “Cambiar Plato” en las comidas que te parezcan inconsistentes.',
+                'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalles). Usa “Cambiar Plato” en las comidas que te parezcan inconsistentes.',
+                { n: cc }),
             severity: 'warning',
         };
-    }, [planData?._swap_coherence_warnings?.critical_count, _planMicroSig]);
+    }, [planData?._swap_coherence_warnings?.critical_count, _planMicroSig, t]);
     const dismissCoherence = () => {
         const notif = buildCoherenceNotification();
         if (notif) addNotification(notif);
@@ -1268,22 +1314,22 @@ const DashboardInner = () => {
         const _br = planData?.budget_reconciliation;
         if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return null;
         const _fmt = (v) => `RD$${Math.round(v || 0).toLocaleString('es-DO')}`;
-        const _est = _br.basis && _br.basis !== 'custom' ? ' (referencia estimada)' : '';
+        const _est = _br.basis && _br.basis !== 'custom' ? t(' (referencia estimada)') : '';
         const title = _br.status === 'dentro'
-            ? 'Presupuesto: dentro de tu referencia'
+            ? t('Presupuesto: dentro de tu referencia')
             : _br.status === 'cerca'
-                ? 'Presupuesto: al límite de tu referencia'
-                : 'Presupuesto: tu lista supera tu referencia';
+                ? t('Presupuesto: al límite de tu referencia')
+                : t('Presupuesto: tu lista supera tu referencia');
         const subs = Array.isArray(_br.substitutions) && _br.substitutions.length
-            ? ` Para cuidar tu bolsillo ajustamos: ${_br.substitutions.slice(0, 3).join(' · ')}.` : '';
+            ? ` ${t('Para cuidar tu bolsillo ajustamos: {sustituciones}.', { sustituciones: _br.substitutions.slice(0, 3).join(' · ') })}` : '';
         return {
             id: _planMicroSig ? `budget_${_planMicroSig}_${_br.status}` : undefined,
             kind: 'info',
             title,
-            message: `${_fmt(_br.estimated_cycle_rd)} de ${_fmt(_br.reference_rd)}${_est} por ciclo.${subs}`,
+            message: `${t('{estimado} de {referencia}{nota} por ciclo.', { estimado: _fmt(_br.estimated_cycle_rd), referencia: _fmt(_br.reference_rd), nota: _est })}${subs}`,
             severity: _br.status === 'excedido' ? 'warning' : 'info',
         };
-    }, [planData?.budget_reconciliation, _planMicroSig]);
+    }, [planData?.budget_reconciliation, _planMicroSig, t]);
     const dismissBudgetBanner = () => {
         const notif = buildBudgetNotification();
         if (notif) addNotification(notif);
@@ -1321,19 +1367,19 @@ const DashboardInner = () => {
         return {
             id: _planMicroSig ? `insights_${_planMicroSig}` : undefined,
             kind: 'insights',
-            title: 'Razonamiento de tu plan',
-            message: 'Diagnóstico, plan de acción y tip del chef de tu plan actual.',
+            title: t('Razonamiento de tu plan'),
+            message: t('Diagnóstico, plan de acción y tip del chef de tu plan actual.'),
             severity: 'info',
             data: { insights },
         };
-    }, [planData?.insights, _planMicroSig]);
+    }, [planData?.insights, _planMicroSig, t]);
     const dismissReasoning = () => {
         const notif = buildInsightsNotification();
         if (notif) addNotification(notif);
         setReasoningHidden(true);
         if (_planMicroSig) safeLocalStorageSet(insightsDismissKey(_planMicroSig), '1');
-        toast('Razonamiento guardado', {
-            description: 'Quedó en Notificaciones (campana) — ábrelas para volver a mostrarlo cuando quieras.',
+        toast(t('Razonamiento guardado'), {
+            description: t('Quedó en Notificaciones (campana) — ábrelas para volver a mostrarlo cuando quieras.'),
         });
     };
 
@@ -1629,7 +1675,7 @@ const DashboardInner = () => {
             );
 
             if (freshPlanCount >= userPlanLimit) {
-                toast.error('Sin créditos', { description: 'No tienes créditos de regeneración disponibles.' });
+                toast.error(t('Sin créditos'), { description: t('No tienes créditos de regeneración disponibles.') });
                 return false;
             }
             return true;
@@ -1852,7 +1898,7 @@ const DashboardInner = () => {
             // explícitas del usuario (p.ej. cambiar duración de compras), donde el
             // feedback sí es útil.
             if (!silent) {
-                toast.warning('Tu perfil aún se está cargando. Inténtalo en un momento.', {
+                toast.warning(t('Tu perfil aún se está cargando. Inténtalo en un momento.'), {
                     duration: 3500,
                 });
             }
@@ -1862,7 +1908,7 @@ const DashboardInner = () => {
         return true;
     // formDataRef.current se lee desde el ref (siempre latest) → sin dep.
      
-    }, [updateUserProfile, userProfile, session]);
+    }, [updateUserProfile, userProfile, session, t]);
 
     // Hydrate disabledIngredients from DB (merges with the shared store)
     // [P2-15 · 2026-07-09] Bug latente cerrado: el dep era [userProfile?.id]
@@ -2130,22 +2176,22 @@ const DashboardInner = () => {
             const groceryDur = formData?.groceryDuration || 'weekly';
             const coverDays = groceryDur === 'monthly' ? 30 : groceryDur === 'biweekly' ? 15 : 7;
             const repeats = totalDays > 0 && totalDays < coverDays;
-            toast.success(`¡Tu menú de ${totalDays} días ya está listo! 🎉`, {
+            toast.success(tn(totalDays, '¡Tu menú de {n} día ya está listo! 🎉', '¡Tu menú de {n} días ya está listo! 🎉', { n: totalDays }), {
                 description: repeats
-                    ? `Se repetirá automáticamente para cubrir tus ${coverDays} días de compras.`
-                    : 'Todas las semanas están listas en tu calendario.',
+                    ? t('Se repetirá automáticamente para cubrir tus {n} días de compras.', { n: coverDays })
+                    : t('Todas las semanas están listas en tu calendario.'),
                 duration: 6000,
             });
         } else if (status === 'complete_partial' && showChunkBanner) {
             setShowChunkBanner(false);
-            toast.warning('Tu plan está listo (con respaldo) ⚠️', {
-                description: 'Algunos días se completaron con comidas de tu perfil favorito porque la IA tuvo dificultades. Puedes regenerarlos cuando quieras.',
+            toast.warning(t('Tu plan está listo (con respaldo) ⚠️'), {
+                description: t('Algunos días se completaron con comidas de tu perfil favorito porque la IA tuvo dificultades. Puedes regenerarlos cuando quieras.'),
                 duration: 8000,
             });
         } else if (status === 'failed' && showChunkBanner) {
             setShowChunkBanner(false);
-            toast.error('Hubo un problema generando las próximas semanas', {
-                description: 'Tus días actuales están intactos. Intenta generar un nuevo plan pronto.',
+            toast.error(t('Hubo un problema generando las próximas semanas'), {
+                description: t('Tus días actuales están intactos. Intenta generar un nuevo plan pronto.'),
                 duration: 10000,
             });
         }
@@ -2274,8 +2320,7 @@ const DashboardInner = () => {
     const isPantryTooEmptyForSwap = computePantryGate(pantryItemCount, PANTRY_MIN_ITEMS_FOR_SWAP);
 
     // Copy del bloqueo, compartido por el `title` y el `aria-label` del botón.
-    const swapPantryClaim = `Tu Nevera tiene muy pocos alimentos para cambiar un plato. `
-        + `Necesitas al menos ${PANTRY_MIN_ITEMS_FOR_SWAP} — añádelos en "Nevera".`;
+    const swapPantryClaim = t('Tu Nevera tiene muy pocos alimentos para cambiar un plato. Necesitas al menos {minimo} — añádelos en "Nevera".', { minimo: PANTRY_MIN_ITEMS_FOR_SWAP });
 
     // [P1-SWAP-PANTRY-GATE-FULL-BUTTON · 2026-07-30] Decisión del owner: el
     // BOTÓN ENTERO se bloquea, en vez de deshabilitar motivo por motivo dentro
@@ -2289,13 +2334,13 @@ const DashboardInner = () => {
     // abierto (otra pestaña, un consume, un restock deshecho). El botón ya no
     // deja entrar por debajo del mínimo, pero nada impide que el inventario
     // caiga entre la apertura y el click.
-    const swapPantryLockLabel = `Necesitas ${PANTRY_MIN_ITEMS_FOR_SWAP} alimentos`;
+    const swapPantryLockLabel = t('Necesitas {minimo} alimentos', { minimo: PANTRY_MIN_ITEMS_FOR_SWAP });
     const isSwapReasonPantryLocked = (reasonId) =>
         isPantryTooEmptyForSwap && SWAP_REASONS_REQUIRING_PANTRY.includes(reasonId);
     const decorateSwapOption = (o) => (
         isSwapReasonPantryLocked(o.id)
             ? { ...o, disabled: true, disabledLabel: swapPantryLockLabel,
-                disabledDesc: 'Llena tu Nevera para poder cambiarlo por algo que sí tengas' }
+                disabledDesc: t('Llena tu Nevera para poder cambiarlo por algo que sí tengas') }
             : o
     );
 
@@ -2830,12 +2875,12 @@ const DashboardInner = () => {
                 .map((it) => (it && typeof it === 'object' ? (it.name || it.item || '') : String(it || '')))
                 .map((s) => String(s).trim())
                 .filter(Boolean);
-            const durationLabel = { weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' }[duration] || duration;
+            const durationLabel = { weekly: t('semanal'), biweekly: t('quincenal'), monthly: t('mensual') }[duration] || duration;
             return { count: names.length, sample: names.slice(0, 4), durationLabel };
         } catch {
-            return { count: 0, sample: [], durationLabel: 'semanal' };
+            return { count: 0, sample: [], durationLabel: t('semanal') };
         }
-    }, [planData, formData?.groceryDuration, allPlanIngredients, liveInventory, buildDeltaShoppingList]);
+    }, [planData, formData?.groceryDuration, allPlanIngredients, liveInventory, buildDeltaShoppingList, t]);
 
     // [P2-BRANDS-DEFAULT-FROM-ACTIVE · 2026-07-07] La lista ACTIVA por duración (la
     // que el PDF realmente imprime) → el panel usa su `brand_product_id` por ítem
@@ -2996,13 +3041,13 @@ const DashboardInner = () => {
             const permission = await requestNotificationPermission();
             if (permission) {
                 await subscribeToPushNotifications(userProfile.id);
-                toast.success("¡Alertas Inteligentes activadas!", {
-                    description: "Te avisaremos si olvidas registrar una comida.",
+                toast.success(t('¡Alertas Inteligentes activadas!'), {
+                    description: t('Te avisaremos si olvidas registrar una comida.'),
                     icon: '🧠'
                 });
             } else {
-                toast.info("Notificaciones omitidas", {
-                    description: "Puedes activarlas más adelante desde Ajustes."
+                toast.info(t('Notificaciones omitidas'), {
+                    description: t('Puedes activarlas más adelante desde Ajustes.')
                 });
             }
         } catch (error) {
@@ -3029,7 +3074,7 @@ const DashboardInner = () => {
         if (pdfLock.current) return;
         pdfLock.current = true;
         try {
-            const loadingToast = toast.loading('Generando lista de compras...', { position: 'top-center' });
+            const loadingToast = toast.loading(t('Generando lista de compras...'), { position: 'top-center' });
 
             // Obtener duración actual desde el formulario para cambiar la cantidad en el PDF sobre la marcha
             const duration = formData?.groceryDuration || 'weekly';
@@ -3166,7 +3211,7 @@ const DashboardInner = () => {
             if (!aggregatedList) {
                 toast.dismiss(loadingToast);
                 toast.error(
-                    'Tu plan no tiene lista de compras todavía. Esto suele pasar cuando la generación quedó incompleta. Genera un plan nuevo desde el formulario.',
+                    t('Tu plan no tiene lista de compras todavía. Esto suele pasar cuando la generación quedó incompleta. Genera un plan nuevo desde el formulario.'),
                     {
                         duration: 8000,
                         position: 'top-center',
@@ -3263,9 +3308,9 @@ const DashboardInner = () => {
             if (sourceIngredients.length === 0) {
                 if (deltaItemsRemoved > 0) {
                     isEmptyList = true;
-                    emptyMessageTitle = '¡Felicidades, Lista Vacía!';
-                    emptyMessageDesc = 'La Nevera Inteligente detectó que ya tienes en casa los ingredientes necesarios. Te has ahorrado hacer compras para este ciclo.';
-                    toast.success('¡Ya tienes todo en tu Nevera!', { icon: '✅' });
+                    emptyMessageTitle = t('¡Felicidades, Lista Vacía!');
+                    emptyMessageDesc = t('La Nevera Inteligente detectó que ya tienes en casa los ingredientes necesarios. Te has ahorrado hacer compras para este ciclo.');
+                    toast.success(t('¡Ya tienes todo en tu Nevera!'), { icon: '✅' });
                 } else {
                     // [P3-PDF-EMPTY-LIST-VISIBLE · 2026-05-27] Toast más visible
                     // cuando el plan no tiene aggregated_shopping_list. Pre-fix
@@ -3275,7 +3320,7 @@ const DashboardInner = () => {
                     // origen real (plan incompleto/corrupto) y la acción concreta.
                     toast.dismiss(loadingToast);
                     toast.error(
-                        'Tu plan no tiene lista de compras todavía. Esto suele pasar cuando la generación quedó incompleta. Genera un plan nuevo desde el formulario.',
+                        t('Tu plan no tiene lista de compras todavía. Esto suele pasar cuando la generación quedó incompleta. Genera un plan nuevo desde el formulario.'),
                         {
                             duration: 8000,
                             position: 'top-center',
@@ -3297,13 +3342,13 @@ const DashboardInner = () => {
             const consData = {};
             sourceIngredients.forEach((item, index) => {
                 let name = '';
-                let cat = '🛒 OTROS';
-                let qtyStr = 'Al gusto';
+                let cat = t('🛒 OTROS');
+                let qtyStr = t('Al gusto');
 
                 if (typeof item === 'object' && item !== null) {
                     // Nivel 3: Consumir display_category del backend (Single Source of Truth)
-                    name = item.name || item.display_name || item.item_name || 'Desconocido';
-                    cat = item.display_category || item.category || '🛒 OTROS';
+                    name = item.name || item.display_name || item.item_name || t('Desconocido');
+                    cat = item.display_category || item.category || t('🛒 OTROS');
 
                     if (item.display_qty) {
                         // Nivel 3: display_qty ya viene con pluralización correcta del backend
@@ -3322,7 +3367,7 @@ const DashboardInner = () => {
                     // Fallback directo sin Regex para strings legacy (si llegara a ocurrir)
                     const itemStr = String(item).trim();
                     name = itemStr.charAt(0).toUpperCase() + itemStr.slice(1).toLowerCase();
-                    qtyStr = 'Al gusto';
+                    qtyStr = t('Al gusto');
                 }
 
                 consData[index] = {
@@ -3330,7 +3375,7 @@ const DashboardInner = () => {
                     display_name: name,
                     category: cat,
                     item_ref: item,
-                    qty_base: qtyStr || 'Al gusto',
+                    qty_base: qtyStr || t('Al gusto'),
                     _inventoryNote: item._inventoryNote || ''
                 };
             });
@@ -3500,9 +3545,9 @@ const DashboardInner = () => {
             const ulPadding = isHyperDense ? '1px 3px' : isUltraDense ? '2px 4px' : (isDense ? '4px 8px' : '6px 12px');
 
             // Obtener duración actual (ya declarada arriba)
-            let durationText = '7 Días';
-            if (duration === 'biweekly') { durationText = '15 Días'; }
-            if (duration === 'monthly') { durationText = '30 Días'; }
+            let durationText = t('7 Días');
+            if (duration === 'biweekly') { durationText = t('15 Días'); }
+            if (duration === 'monthly') { durationText = t('30 Días'); }
 
             // [P2-SHOPPING-TOTALS · 2026-05-16] Conteo de items por sección
             // para mostrar en header + section labels. Beneficio UX: el
@@ -3519,7 +3564,7 @@ const DashboardInner = () => {
                 (acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0,
             );
             // Helper para pluralizar: "1 item" vs "5 items".
-            const _fmtItems = (n) => `${n} ${n === 1 ? 'ítem' : 'ítems'}`;
+            const _fmtItems = (n) => tn(n, '{n} ítem', '{n} ítems', { n });
 
             // Generar contenido HTML estilizado para el PDF
             const element = document.createElement('div');
@@ -3529,15 +3574,15 @@ const DashboardInner = () => {
                 <!-- Header Box -->
                 <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: ${headerPadding}; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); display: flex; align-items: center; justify-content: space-between; margin-bottom: ${headerMargin}; border-top: 5px solid #10b981;">
                     <div>
-                        <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">Lista de Compras</h1>
+                        <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">${escapeHtml(t('Lista de Compras'))}</h1>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">Ciclo: ${escapeHtml(durationText)}</span>
-                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">Generado: ${escapeHtml(new Date().toLocaleDateString('es-DO'))}</span>
+                            <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">${escapeHtml(t('Ciclo: {duracion}', { duracion: durationText }))}</span>
+                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">${escapeHtml(t('Generado: {fecha}', { fecha: new Date().toLocaleDateString('es-DO') }))}</span>
                             <!-- [P2-SHOPPING-TOTALS · 2026-05-16] Total chip. -->
-                            <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #3b82f640;">Total: ${escapeHtml(_fmtItems(totalItems))}</span>
+                            <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #3b82f640;">${escapeHtml(t('Total: {items}', { items: _fmtItems(totalItems) }))}</span>
                         </div>
                     </div>
-                    <img src="/favicon.png" alt="Bioboros Logo" style="height: 40px;" />
+                    <img src="/favicon.png" alt="${escapeHtml(t('Logo de Bioboros'))}" style="height: 40px;" />
                 </div>
 
                 
@@ -3554,10 +3599,10 @@ const DashboardInner = () => {
                              almacenamiento' (P3-SHOPPING-DISCLAIMER-EXPAND),
                              'Estables (aceite, vinagre, miel, especias)' +
                              '1 botella o sobre rinde' (P3-STABLES-NO-SCALE-UX). -->
-                        <strong>Smart Engine:</strong> cantidades exactas según empaques del mercado local — ajústalas a tu inventario. <strong>Ud.</strong> = unidad · <strong>~</strong> = conversión aproximada (<em>2 Cabezas ≈ 2.2 lbs</em>).
+                        ${t('<strong>Smart Engine:</strong> cantidades exactas según empaques del mercado local — ajústalas a tu inventario. <strong>Ud.</strong> = unidad · <strong>~</strong> = conversión aproximada (<em>2 Cabezas ≈ 2.2 lbs</em>).')}
                         ${isUltraDense ? '' : `
                         <span style="display: block; margin-top: 2px; color: #475569;">
-                            Algunas varían por <strong>realismo de almacenamiento</strong> (hierbas, lácteos, cítricos). <strong>Estables (aceite, vinagre, miel, especias):</strong> misma cantidad en ciclos de 7/15/30 días.
+                            ${t('Algunas varían por <strong>realismo de almacenamiento</strong> (hierbas, lácteos, cítricos). <strong>Estables (aceite, vinagre, miel, especias):</strong> misma cantidad en ciclos de 7/15/30 días.')}
                         </span>
                         `}
                     </p>
@@ -3578,7 +3623,7 @@ const DashboardInner = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #78350f; line-height: 1.3;">
-                        <strong>Aviso:</strong> No pudimos validar tu Nevera en vivo, así que esta lista incluye <strong>todos</strong> los ingredientes del plan. Revisa qué ya tienes en casa antes de comprar.
+                        ${t('<strong>Aviso:</strong> No pudimos validar tu Nevera en vivo, así que esta lista incluye <strong>todos</strong> los ingredientes del plan. Revisa qué ya tienes en casa antes de comprar.')}
                     </p>
                 </div>
                 ` : ''}
@@ -3597,7 +3642,7 @@ const DashboardInner = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #991b1b; line-height: 1.3;">
-                        <strong>Plan vencido:</strong> Tu ciclo de compras ya expiró. Esta lista refleja el plan anterior. <strong>Regenera tu plan</strong> antes de comprar para que coincida con tus próximas comidas.
+                        ${t('<strong>Plan vencido:</strong> Tu ciclo de compras ya expiró. Esta lista refleja el plan anterior. <strong>Regenera tu plan</strong> antes de comprar para que coincida con tus próximas comidas.')}
                     </p>
                 </div>
                 ` : ''}
@@ -3609,7 +3654,12 @@ const DashboardInner = () => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
                     <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #065f46; line-height: 1.3;">
-                        <strong>Nevera Inteligente:</strong> Esta lista fue ${deltaItemsRemoved > 0 ? `<strong>ajustada automáticamente</strong> — ${escapeHtml(deltaItemsRemoved)} ingrediente${deltaItemsRemoved > 1 ? 's' : ''} ya está${deltaItemsRemoved > 1 ? 'n' : ''} en tu Nevera y ${deltaItemsRemoved > 1 ? 'fueron excluidos' : 'fue excluido'}` : '<strong>ajustada</strong> según lo que ya tienes en tu Nevera'}.
+                        ${deltaItemsRemoved > 0
+                            ? tn(deltaItemsRemoved,
+                                '<strong>Nevera Inteligente:</strong> Esta lista fue <strong>ajustada automáticamente</strong> — {n} ingrediente ya está en tu Nevera y fue excluido.',
+                                '<strong>Nevera Inteligente:</strong> Esta lista fue <strong>ajustada automáticamente</strong> — {n} ingredientes ya están en tu Nevera y fueron excluidos.',
+                                { n: escapeHtml(deltaItemsRemoved) })
+                            : t('<strong>Nevera Inteligente:</strong> Esta lista fue <strong>ajustada</strong> según lo que ya tienes en tu Nevera.')}
                     </p>
                 </div>
                 ` : ''}
@@ -3705,7 +3755,7 @@ const DashboardInner = () => {
                         // se preserva el render rico con tooltip — eso vive en
                         // otro path de renderizado, no en este HTML.
                         const lowConfWarn = conf < 0.5
-                            ? `<span style="margin-left: 6px; font-size: ${isHyperDense ? '6.5px' : '8px'}; color: #b45309; background-color: #fef3c7; padding: 0px 4px; border-radius: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">verifica</span>`
+                            ? `<span style="margin-left: 6px; font-size: ${isHyperDense ? '6.5px' : '8px'}; color: #b45309; background-color: #fef3c7; padding: 0px 4px; border-radius: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">${escapeHtml(t('verifica'))}</span>`
                             : '';
 
                         // [P1-PDF-3] Font size escalado: 6.5px en hyper-dense
@@ -3790,19 +3840,19 @@ const DashboardInner = () => {
             //   - Estables: cantidad para todo el periodo (compra única).
             const isWeekly = duration === 'weekly';
             const perishableLabel = isWeekly
-                ? 'COMPRA ESTA SEMANA — PERECEDEROS'
-                : 'COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)';
+                ? t('COMPRA ESTA SEMANA — PERECEDEROS')
+                : t('COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)');
             const perishableDesc = isWeekly
-                ? 'Carnes, lácteos, frutas y vegetales frescos. Consume o refrigera pronto.'
-                : `Esta comida fresca alcanza ~7 días: en tu ciclo de ${durationText} la compras ${_cycleTrips} veces (cada 7 días). Se dañan rápido, por eso no se compran todas de una vez.`;
+                ? t('Carnes, lácteos, frutas y vegetales frescos. Consume o refrigera pronto.')
+                : t('Esta comida fresca alcanza ~7 días: en tu ciclo de {duracion} la compras {idas} veces (cada 7 días). Se dañan rápido, por eso no se compran todas de una vez.', { duracion: durationText, idas: _cycleTrips });
             const stableLabel = duration === 'monthly'
-                ? 'DESPENSA DEL MES — ESTABLES (COMPRA UNA SOLA VEZ)'
+                ? t('DESPENSA DEL MES — ESTABLES (COMPRA UNA SOLA VEZ)')
                 : duration === 'biweekly'
-                    ? 'DESPENSA PARA 15 DÍAS — ESTABLES (COMPRA UNA SOLA VEZ)'
-                    : 'DESPENSA — ESTABLES (+7 DÍAS)';
+                    ? t('DESPENSA PARA 15 DÍAS — ESTABLES (COMPRA UNA SOLA VEZ)')
+                    : t('DESPENSA — ESTABLES (+7 DÍAS)');
             const stableDesc = isWeekly
-                ? 'Granos, enlatados, especias y víveres secos. Tienen larga caducidad.'
-                : 'Granos, enlatados, especias y víveres secos. Cantidad calculada para todo el periodo: cómpralos una sola vez.';
+                ? t('Granos, enlatados, especias y víveres secos. Tienen larga caducidad.')
+                : t('Granos, enlatados, especias y víveres secos. Cantidad calculada para todo el periodo: cómpralos una sola vez.');
 
             if (Object.keys(perishables).length > 0) {
                 htmlContent += `
@@ -3846,17 +3896,17 @@ const DashboardInner = () => {
             // (XSS, la nota puede incluir nombres de condición/ingrediente influenciados por el form).
             const _rpr = planData?.requires_professional_review;
             const clinicalNoteHTML = (_rpr && _rpr.flag && _rpr.note)
-                ? `<div style="margin-top: 15px; padding: 10px 12px; border: 1.5px solid ${_rpr.renal_gate ? '#fca5a5' : '#93c5fd'}; background: ${_rpr.renal_gate ? '#fef2f2' : '#eff6ff'}; border-radius: 8px; color: ${_rpr.renal_gate ? '#991b1b' : '#1e40af'}; font-size: 10px; line-height: 1.45;"><strong>${_rpr.renal_gate ? '🫘 Condición renal — requiere supervisión de tu nefrólogo' : '⚕️ Consulta a tu profesional de salud'}</strong><br/>${escapeHtml(String(_rpr.note))}</div>`
+                ? `<div style="margin-top: 15px; padding: 10px 12px; border: 1.5px solid ${_rpr.renal_gate ? '#fca5a5' : '#93c5fd'}; background: ${_rpr.renal_gate ? '#fef2f2' : '#eff6ff'}; border-radius: 8px; color: ${_rpr.renal_gate ? '#991b1b' : '#1e40af'}; font-size: 10px; line-height: 1.45;"><strong>${escapeHtml(_rpr.renal_gate ? t('🫘 Condición renal — requiere supervisión de tu nefrólogo') : t('⚕️ Consulta a tu profesional de salud'))}</strong><br/>${escapeHtml(String(_rpr.note))}</div>`
                 : '';
 
             htmlContent += `
                 ${_shopPricedCount > 0 ? `<div style="margin-top: 14px; padding: 11px 15px; background: linear-gradient(135deg,#ecfdf5,#f0fdf4); border: 1.5px solid #10b98133; border-radius: 9px; break-inside: avoid; page-break-inside: avoid;">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                        <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 ${_showCycleCost ? 'Esta compra <span style="font-weight: 600; color: #059669;">(frescos de 1 semana + despensa)</span>' : 'Total estimado del mercado'}</div>
+                        <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 ${_showCycleCost ? t('Esta compra <span style="font-weight: 600; color: #059669;">(frescos de 1 semana + despensa)</span>') : t('Total estimado del mercado')}</div>
                         <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCostFinal).toLocaleString('es-DO')}</span>
                     </div>
                     ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
-                        <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 Costo real del ciclo de ${escapeHtml(durationText)}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">Despensa 1× + perecederos de ${escapeHtml(durationText)} (recompra cada 7 días)</div></div>
+                        <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 ${escapeHtml(t('Costo real del ciclo de {duracion}', { duracion: durationText }))}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">${escapeHtml(t('Despensa 1× + perecederos de {duracion} (recompra cada 7 días)', { duracion: durationText }))}</div></div>
                         <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${Math.round(_fullCycleCostFinal).toLocaleString('es-DO')}</span>
                     </div>` : ''}
                     ${(() => {
@@ -3877,19 +3927,24 @@ const DashboardInner = () => {
                         // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) tiers categóricos → RD$Y es piso×banda
                         // (número no declarado por el usuario) → etiquetado "referencia estimada" (paridad app).
                         const _ref = Math.round(_br.reference_rd).toLocaleString('es-DO')
-                            + (_br.basis && _br.basis !== 'custom' ? ' (referencia estimada)' : '');
+                            + (_br.basis && _br.basis !== 'custom' ? t(' (referencia estimada)') : '');
                         // [P2-AUDIT-V5-BATCH GAP-06] Caveat de cobertura parcial (solo números backend → sin XSS).
                         const _pp = _br.partial_pricing
-                            ? `<span style="font-weight:600; color:#92400e;"> · estimado parcial (${Math.round((_br.price_coverage || 0) * 100)}% con precio)</span>`
+                            ? `<span style="font-weight:600; color:#92400e;">${t(' · estimado parcial ({cobertura}% con precio)', { cobertura: Math.round((_br.price_coverage || 0) * 100) })}</span>`
                             : '';
+                        // El importe viaja YA formateado («RD$5,989»): meter el símbolo dentro
+                        // de la clave lo dejaría pegado a un `{placeholder}` y la clave se
+                        // leería como una plantilla dentro de otra.
+                        const _estRD = `RD$${_est}`;
+                        const _refRD = `RD$${_ref}`;
                         if (_brStatusEff === 'dentro') {
-                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155; font-size: 11px; font-weight: 700; color: #047857;">✓ Dentro de tu presupuesto — RD$${_est} de RD$${_ref}${_pp}</div>`;
+                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155; font-size: 11px; font-weight: 700; color: #047857;">✓ ${t('Dentro de tu presupuesto — {gasto} de {referencia}', { gasto: _estRD, referencia: _refRD })}${_pp}</div>`;
                         }
                         if (_brStatusEff === 'cerca') {
-                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 11px; font-weight: 700; color: #92400e;">≈ Al límite de tu presupuesto — RD$${_est} de RD$${_ref}${_pp}</div>`;
+                            return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 11px; font-weight: 700; color: #92400e;">≈ ${t('Al límite de tu presupuesto — {gasto} de {referencia}', { gasto: _estRD, referencia: _refRD })}${_pp}</div>`;
                         }
                         const _delta = Math.round(Math.max(0, _estCycleRdPdf - _br.reference_rd)).toLocaleString('es-DO');
-                        return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 11px; font-weight: 700; color: #b91c1c;">▲ Supera tu presupuesto por RD$${_delta} — RD$${_est} de RD$${_ref}${_br.adjusted ? '<span style="font-weight:600; color:#92400e;"> · ya ajustamos ingredientes premium a equivalentes económicos</span>' : ''}${_pp}</div>`;
+                        return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 11px; font-weight: 700; color: #b91c1c;">▲ ${t('Supera tu presupuesto por {exceso} — {gasto} de {referencia}', { exceso: `RD$${_delta}`, gasto: _estRD, referencia: _refRD })}${_br.adjusted ? `<span style="font-weight:600; color:#92400e;">${t(' · ya ajustamos ingredientes premium a equivalentes económicos')}</span>` : ''}${_pp}</div>`;
                     })()}
                 </div>` : ''}
                 ${clinicalNoteHTML}
@@ -3898,11 +3953,11 @@ const DashboardInner = () => {
                      (grises muy claros #6b7280/#9ca3af sobre papel blanco). Se oscurecen
                      a gray-700/gray-600 + subtítulo 9px→11px para que se lea bien. -->
                 <div style="margin-top: 15px; text-align: center; color: #4b5563; font-size: 10px; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
-                    <p style="margin: 0; font-weight: 800; color: #374151; letter-spacing: 1px;">PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE</p>
+                    <p style="margin: 0; font-weight: 800; color: #374151; letter-spacing: 1px;">${escapeHtml(t('PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE'))}</p>
                     <!-- [P2-PDF-PRICE-SOURCE-COPY · 2026-06-22] (audit fresco P2-22) Copy suavizado: el precio
                          por-ítem puede ser verificado O estimado (price_confidence/price_source por fila) → afirmar
                          "verificados en La Sirena" universal era inexacto. -->
-                    <p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.</p>
+                    <p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">${escapeHtml(t('Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.'))}</p>
                 </div>
             </div>
             `;
@@ -4005,9 +4060,9 @@ const DashboardInner = () => {
                     importErr?.name === 'ChunkLoadError' ||
                     /loading chunk|failed to fetch dynamically imported/i.test(_msg)
                 ) {
-                    toast.error('Error de red al cargar el PDF. Refresca la página e intenta de nuevo.');
+                    toast.error(t('Error de red al cargar el PDF. Refresca la página e intenta de nuevo.'));
                 } else {
-                    toast.error('No se pudo cargar el generador de PDF. Refresca la página e intenta de nuevo.');
+                    toast.error(t('No se pudo cargar el generador de PDF. Refresca la página e intenta de nuevo.'));
                 }
                 pdfLock.current = false;
                 return;
@@ -4049,7 +4104,7 @@ const DashboardInner = () => {
             }
 
             toast.dismiss(loadingToast);
-            toast.success('Lista PDF descargada exitosamente', { icon: '📄', position: 'top-center' });
+            toast.success(t('Lista PDF descargada exitosamente'), { icon: '📄', position: 'top-center' });
 
             // [P3-SHOPPING-4 · 2026-05-14] Telemetría de éxito. Antes solo
             // emitíamos `pdf_stale_inventory_fallback` (path degradado);
@@ -4077,7 +4132,7 @@ const DashboardInner = () => {
         } catch (error) {
             console.error('Error downloading supply list:', error);
             toast.dismiss();
-            toast.error('Error al generar la lista de compras.');
+            toast.error(t('Error al generar la lista de compras.'));
             // [P3-SHOPPING-4 · 2026-05-14] Telemetría de fallo. Sin esto el
             // operador no puede distinguir "feature no usado" de "feature
             // roto" — ambos producen 0 success events. `error_name` y
@@ -4114,7 +4169,7 @@ const DashboardInner = () => {
         // `?.silent` es undefined ⇒ false. Default (botón/modal) = no silencioso.
         const silent = opts?.silent === true;
         if (!userProfile?.id) {
-            if (!silent) toast.error('Debes iniciar sesión para usar esta función.');
+            if (!silent) toast.error(t('Debes iniciar sesión para usar esta función.'));
             return;
         }
 
@@ -4124,7 +4179,7 @@ const DashboardInner = () => {
 
         // Validación Unica: Si matemáticamente y en tiempo real faltan ingredientes, lo permitimos.
         if (!hasPendingShoppingItems) {
-            if (!silent) toast.info('Ya tienes todos estos ingredientes en tu Nevera.', { icon: '📦' });
+            if (!silent) toast.info(t('Ya tienes todos estos ingredientes en tu Nevera.'), { icon: '📦' });
             setShowRestockModal(false);
             restockLock.current = false;
             return;
@@ -4164,8 +4219,8 @@ const DashboardInner = () => {
             } else {
                 freshInventoryForRestock = [];
                 setInventoryStale(true);
-                if (!silent) toast.warning('Tu Nevera puede estar desactualizada', {
-                    description: 'No pudimos validar tu inventario en vivo. Procediendo con la lista completa — la DB es la fuente de verdad.',
+                if (!silent) toast.warning(t('Tu Nevera puede estar desactualizada'), {
+                    description: t('No pudimos validar tu inventario en vivo. Procediendo con la lista completa — la DB es la fuente de verdad.'),
                     duration: 6000,
                 });
                 trackEvent('restock_stale_inventory_fallback', {
@@ -4216,7 +4271,7 @@ const DashboardInner = () => {
                 .map(item => item.structured || item.raw);
 
             if (sourceIngredients.length === 0) {
-                toast.info('Ya tienes todos estos ingredientes en tu Nevera.', { icon: '📦' });
+                toast.info(t('Ya tienes todos estos ingredientes en tu Nevera.'), { icon: '📦' });
                 setIsRestocking(false);
                 setShowRestockModal(false);
                 restockLock.current = false;
@@ -4238,7 +4293,7 @@ const DashboardInner = () => {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                if (!silent) toast.success('¡Ingredientes ingresados a tu Nevera Virtual!', { icon: '📦' });
+                if (!silent) toast.success(t('¡Ingredientes ingresados a tu Nevera Virtual!'), { icon: '📦' });
                 setSessionRestocked(true);
 
                 // ✅ Marcar planData como restocked para que el PDF delta suprima residuos
@@ -4289,12 +4344,12 @@ const DashboardInner = () => {
                 // errores tipados del backend (HTTPException) traen `detail`, no `message`, así que el
                 // genérico tragaba el motivo real. (El 402 del paywall ya no ocurre tras P1-NEVERA-QUOTA-EXEMPT.)
                 const _msg = data.detail || data.message;
-                if (!silent) toast.error(_msg || 'Error al actualizar la despensa.');
+                if (!silent) toast.error(_msg || t('Error al actualizar la despensa.'));
                 else throw new Error(_msg || 'restock failed'); // deja que el nudge reintente
             }
         } catch (error) {
             console.error('🛒 [RESTOCK] CATCH ERROR:', error);
-            if (!silent) toast.error('Hubo un error de conexión al registrar la compra.');
+            if (!silent) toast.error(t('Hubo un error de conexión al registrar la compra.'));
             else throw error; // propaga para que RestockNudge resetee y reintente
         } finally {
             if (!silent) setIsRestocking(false);
@@ -5858,23 +5913,23 @@ const DashboardInner = () => {
                                 : userProfile?.plan_tier === 'plus' ? 'plus'
                                 : 'basic';
                             const tierLabel = isGuest
-                                ? 'Invitado'
+                                ? t('Invitado')
                                 : !isPremium
-                                ? 'GRATUITO'
+                                ? t('GRATUITO')
                                 : userProfile?.plan_tier === 'ultra' ? 'MAX'
                                 : userProfile?.plan_tier === 'plus' ? 'PLUS'
-                                : 'BÁSICO';
+                                : t('BÁSICO');
                             return (
                                 <button
                                     type="button"
                                     onClick={() => navigate('/dashboard/upgrade')}
-                                    aria-label={`Plan actual: ${tierLabel}. Click para ver todos los planes.`}
+                                    aria-label={t('Plan actual: {tier}. Click para ver todos los planes.', { tier: tierLabel })}
                                     className={`plan-tier-badge plan-tier-badge--${tierVariant}`}
                                 >
                                     <span className="plan-tier-badge-label">
                                         {tierLabel}
                                     </span>
-                                    <span className="plan-tier-badge-cta">Ver planes</span>
+                                    <span className="plan-tier-badge-cta">{t('Ver planes')}</span>
                                     <ChevronRight
                                         size={12}
                                         strokeWidth={2.75}
@@ -5980,7 +6035,7 @@ const DashboardInner = () => {
                                             {{ weekly: '7d', biweekly: '15d', monthly: '30d' }[groceryDuration] || '7d'}
                                         </span>
                                         <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-                                            {{ weekly: 'semanal', biweekly: 'quincenal', monthly: 'mensual' }[groceryDuration] || 'semanal'}
+                                            {{ weekly: t('semanal'), biweekly: t('quincenal'), monthly: t('mensual') }[groceryDuration] || t('semanal')}
                                         </span>
                                     </span>
                                 </div>
@@ -6000,8 +6055,8 @@ const DashboardInner = () => {
                                         <div
                                             role="status"
                                             aria-live="polite"
-                                            aria-label="Tu Nevera puede estar desactualizada. Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados."
-                                            title="Tu Nevera puede estar desactualizada. Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados."
+                                            aria-label={t('Tu Nevera puede estar desactualizada. Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados.')}
+                                            title={t('Tu Nevera puede estar desactualizada. Estamos usando datos en caché. Verifica antes de comprar para evitar duplicados.')}
                                             onClick={(e) => e.stopPropagation()}
                                             style={{
                                                 background: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FFFBEB',
@@ -6017,7 +6072,7 @@ const DashboardInner = () => {
                                             }}
                                         >
                                             <AlertCircle size={11} color="var(--ink-pantry)" strokeWidth={2.5} />
-                                            <span>caché</span>
+                                            <span>{t('caché')}</span>
                                         </div>
                                     )}
                                     {planFinished ? (
@@ -6031,7 +6086,7 @@ const DashboardInner = () => {
                                             display: 'flex', alignItems: 'center', gap: '0.2rem'
                                         }}>
                                             <div style={{ width: 4, height: 4, borderRadius: '50%', background: isDark ? '#F87171' : '#DC2626' }} />
-                                            Finalizado
+                                            {t('Finalizado')}
                                         </div>
                                     ) : daysLeft === 1 ? (
                                         // [BADGE-HOURS] Último día → horas reales restantes en vez de "1d"/"0d".
@@ -6116,13 +6171,13 @@ const DashboardInner = () => {
                                         {/* Despensa Section */}
                                         <div style={{ padding: '4px 8px 3px' }}>
                                             <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                <Clock size={11} /> Duración del Plan
+                                                <Clock size={11} /> {t('Duración del Plan')}
                                             </span>
                                         </div>
                                         {[
-                                            { value: 'weekly', label: '7 Días', sub: 'Semanal' },
-                                            { value: 'biweekly', label: '15 Días', sub: 'Quincenal' },
-                                            { value: 'monthly', label: '30 Días', sub: 'Mensual' }
+                                            { value: 'weekly', label: t('7 Días'), sub: t('Semanal') },
+                                            { value: 'biweekly', label: t('15 Días'), sub: t('Quincenal') },
+                                            { value: 'monthly', label: t('30 Días'), sub: t('Mensual') }
                                         ].map((opt) => (
                                             <div
                                                 key={opt.value}
@@ -6153,7 +6208,7 @@ const DashboardInner = () => {
                                                     setShowDespensaDropdown(false);
                                                     if (userProfile?.id && planData) {
                                                         setIsRecalculating(true);
-                                                        const recalcToast = toast.loading('Calculando lista...', { position: 'top-center' });
+                                                        const recalcToast = toast.loading(t('Calculando lista...'), { position: 'top-center' });
                                                         try {
                                                             // [P0-B2] withRecalcLock garantiza release del lock en
                                                             // finally — antes el lock dependía de calls explícitos en
@@ -6200,7 +6255,7 @@ const DashboardInner = () => {
                                                                     if (result.plan_data.is_restocked == null && safeLocalStorageGet(rk, null)) result.plan_data.is_restocked = true;
                                                                     setPlanData(result.plan_data);
                                                                     safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
-                                                                    toast.success('Lista actualizada', { id: recalcToast });
+                                                                    toast.success(t('Lista actualizada'), { id: recalcToast });
                                                                     // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] el panel
                                                                     // "Para completar tu Nevera" fue eliminado (decisión del
                                                                     // owner); `result.pantry_completion_list` se ignora.
@@ -6250,7 +6305,7 @@ const DashboardInner = () => {
                                         <div style={{ height: 1, background: 'var(--border)', margin: '8px 4px' }} />
                                         <div style={{ padding: '2px 8px 5px' }}>
                                             <span style={{ fontSize: '0.66rem', color: isDark ? '#34D399' : '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                <Wallet size={11} /> Presupuesto
+                                                <Wallet size={11} /> {t('Presupuesto')}
                                             </span>
                                         </div>
                                         {(() => {
@@ -6263,11 +6318,11 @@ const DashboardInner = () => {
                                             const _belowMin = _isCustom && formData?.budgetAmount !== '' && formData?.budgetAmount != null && _amt > 0 && _amt < _min;
                                             const _setBudget = (field, value) => { updateData(field, value); safeUpdateHealthProfile({ [field]: value }); };
                                             const _opts = [
-                                                { val: 'low', label: 'Económico' },
-                                                { val: 'medium', label: 'Moderado' },
-                                                { val: 'high', label: 'Alto' },
-                                                { val: 'unlimited', label: 'Sin límite' },
-                                                { val: 'custom', label: 'Personalizar' },
+                                                { val: 'low', label: t('Económico') },
+                                                { val: 'medium', label: t('Moderado') },
+                                                { val: 'high', label: t('Alto') },
+                                                { val: 'unlimited', label: t('Sin límite') },
+                                                { val: 'custom', label: t('Personalizar') },
                                             ];
                                             // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) referencia estimada del tier
                                             // seleccionado (piso × banda, misma fórmula del banner) — paridad con
@@ -6299,7 +6354,7 @@ const DashboardInner = () => {
                                                     </div>
                                                     {_selTierRef && (
                                                         <span style={{ display: 'block', marginTop: '0.45rem', fontSize: '0.68rem', lineHeight: 1.35, color: 'var(--text-muted)' }}>
-                                                            ≈ {_sym}{Number(_selTierRef).toLocaleString('en-US')} por {_cycleDays} días (referencia estimada según tus metas).
+                                                            ≈ {t('{monto} por {dias} días (referencia estimada según tus metas).', { monto: `${_sym}${Number(_selTierRef).toLocaleString('en-US')}`, dias: _cycleDays })}
                                                         </span>
                                                     )}
                                                     {_isCustom && (
@@ -6309,10 +6364,10 @@ const DashboardInner = () => {
                                                                     <span style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.85rem', pointerEvents: 'none' }}>{_sym}</span>
                                                                     <input
                                                                         type="number" inputMode="decimal" min={_min} step="1"
-                                                                        placeholder={_cur === 'USD' ? 'Ej. 100' : 'Ej. 5000'}
+                                                                        placeholder={_cur === 'USD' ? t('Ej. 100') : t('Ej. 5000')}
                                                                         value={formData?.budgetAmount || ''}
                                                                         onChange={(e) => _setBudget('budgetAmount', e.target.value)}
-                                                                        aria-label={`Presupuesto total en ${_cur === 'USD' ? 'dólares' : 'pesos dominicanos'}`}
+                                                                        aria-label={_cur === 'USD' ? t('Presupuesto total en dólares') : t('Presupuesto total en pesos dominicanos')}
                                                                         style={{
                                                                             width: '100%', boxSizing: 'border-box',
                                                                             padding: '0.5rem 0.6rem 0.5rem 2.6rem', borderRadius: '8px',
@@ -6333,7 +6388,11 @@ const DashboardInner = () => {
                                                                 </div>
                                                             </div>
                                                             <span style={{ fontSize: '0.72rem', lineHeight: 1.4, fontWeight: _belowMin ? 700 : 500, color: _belowMin ? 'var(--warning)' : 'var(--text-muted)' }}>
-                                                                {_belowMin ? '⚠️ ' : ''}Mínimo {_sym}{_min.toLocaleString('en-US')} para {_cycleDays} días{budgetFloor.isPersonalized ? ' (según tus metas)' : ''}.
+                                                                {_belowMin ? '⚠️ ' : ''}{t('Mínimo {monto} para {dias} días{nota}.', {
+                                                                    monto: `${_sym}${_min.toLocaleString('en-US')}`,
+                                                                    dias: _cycleDays,
+                                                                    nota: budgetFloor.isPersonalized ? t(' (según tus metas)') : '',
+                                                                })}
                                                             </span>
                                                         </div>
                                                     )}
@@ -6401,7 +6460,7 @@ const DashboardInner = () => {
                                         className="new-plan-btn"
                                         aria-disabled={isLimitReached || isDayUpdating}
                                         aria-busy={isDayUpdating}
-                                        title={isPantryTooEmpty ? `Tu Nevera necesita al menos ${PANTRY_MIN_ITEMS_FOR_UPDATE} alimentos. Tap para añadirlos.` : undefined}
+                                        title={isPantryTooEmpty ? t('Tu Nevera necesita al menos {minimo} alimentos. Tap para añadirlos.', { minimo: PANTRY_MIN_ITEMS_FOR_UPDATE }) : undefined}
                                         style={{
                                             background: isLimitReached
                                                 ? 'var(--bg-muted)'
@@ -6465,14 +6524,14 @@ const DashboardInner = () => {
                                                         : <Wand2 size={18} />}
                                         <span style={{ fontSize: '0.85rem' }}>
                                             {(isDayUpdating && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))
-                                                ? 'Actualizando…'
+                                                ? t('Actualizando…')
                                                 : isLimitReached
-                                                    ? 'Límite'
+                                                    ? t('Límite')
                                                     : planFinished
-                                                        ? 'Reiniciar plan'
+                                                        ? t('Reiniciar plan')
                                                         : isPantryTooEmpty
-                                                            ? 'Ir a mi Nevera'
-                                                            : 'Actualizar platos'}
+                                                            ? t('Ir a mi Nevera')
+                                                            : t('Actualizar platos')}
                                         </span>
                                     </button>
                                 );
@@ -6502,7 +6561,7 @@ const DashboardInner = () => {
                                 <button
                                     onClick={() => setShowRestockModal(true)}
                                     className="restock-cta-minimal"
-                                    title="Agrega de una vez todo lo de tu lista de compras a la Nevera."
+                                    title={t('Agrega de una vez todo lo de tu lista de compras a la Nevera.')}
                                     style={{
                                         cursor: 'pointer',
                                         flex: '1 1 auto',
@@ -6521,7 +6580,7 @@ const DashboardInner = () => {
                                 >
                                     {/* Dot pulsante emerald — semántica "ready to act" */}
                                     <span className="restock-cta-dot" aria-hidden="true" />
-                                    <span>Ya compré la lista</span>
+                                    <span>{t('Ya compré la lista')}</span>
                                 </button>
                             )}
 
@@ -6590,8 +6649,14 @@ const DashboardInner = () => {
                                 <Refrigerator size={12} style={{ flexShrink: 0 }} aria-hidden="true" />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {shoppingDeltaMeta.isEmptyDueToPantry
-                                        ? <>Tu Nevera ya cubre la lista ({shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la compra)</>
-                                        : <>{shoppingDeltaMeta.itemsRemoved} ítem{shoppingDeltaMeta.itemsRemoved > 1 ? 's' : ''} de la lista ya en tu Nevera</>}
+                                        ? tn(shoppingDeltaMeta.itemsRemoved,
+                                            'Tu Nevera ya cubre la lista ({n} ítem de la compra)',
+                                            'Tu Nevera ya cubre la lista ({n} ítems de la compra)',
+                                            { n: shoppingDeltaMeta.itemsRemoved })
+                                        : tn(shoppingDeltaMeta.itemsRemoved,
+                                            '{n} ítem de la lista ya en tu Nevera',
+                                            '{n} ítems de la lista ya en tu Nevera',
+                                            { n: shoppingDeltaMeta.itemsRemoved })}
                                 </span>
                             </span>
                         )}
@@ -6647,12 +6712,12 @@ const DashboardInner = () => {
                             // el RD$Y es piso×banda — un número que el usuario NUNCA declaró. Etiquetarlo
                             // "referencia estimada" evita que se lea como un techo que él puso. Custom = su monto.
                             const _refIsEstimated = _br.basis && _br.basis !== 'custom';
-                            const _refLabel = `${_fmtRD(_br.reference_rd)}${_refIsEstimated ? ' (referencia estimada)' : ''}`;
+                            const _refLabel = `${_fmtRD(_br.reference_rd)}${_refIsEstimated ? t(' (referencia estimada)') : ''}`;
                             const _headline = _statusEff === 'dentro'
-                                ? `Dentro de tu presupuesto: ${_fmtRD(_estCycleRd)} de ${_refLabel} por ciclo`
+                                ? t('Dentro de tu presupuesto: {gasto} de {referencia} por ciclo', { gasto: _fmtRD(_estCycleRd), referencia: _refLabel })
                                 : _statusEff === 'cerca'
-                                    ? `Al límite de tu presupuesto: ${_fmtRD(_estCycleRd)} de ${_refLabel} por ciclo`
-                                    : `Tu lista supera tu presupuesto por ${_fmtRD(Math.max(0, _estCycleRd - _br.reference_rd))} (${_fmtRD(_estCycleRd)} de ${_refLabel})`;
+                                    ? t('Al límite de tu presupuesto: {gasto} de {referencia} por ciclo', { gasto: _fmtRD(_estCycleRd), referencia: _refLabel })
+                                    : t('Tu lista supera tu presupuesto por {exceso} ({gasto} de {referencia})', { exceso: _fmtRD(Math.max(0, _estCycleRd - _br.reference_rd)), gasto: _fmtRD(_estCycleRd), referencia: _refLabel });
                             const _subs = Array.isArray(_br.substitutions) ? _br.substitutions.slice(0, 3) : [];
                             const _sugs = Array.isArray(_br.suggestions) ? _br.suggestions.slice(0, 3) : [];
                             return (
@@ -6669,8 +6734,8 @@ const DashboardInner = () => {
                                         <button
                                             type="button"
                                             onClick={dismissBudgetBanner}
-                                            aria-label="Ocultar este aviso (se guarda en notificaciones)"
-                                            title="Ocultar (se guarda en notificaciones)"
+                                            aria-label={t('Ocultar este aviso (se guarda en notificaciones)')}
+                                            title={t('Ocultar (se guarda en notificaciones)')}
                                             style={{
                                                 flexShrink: 0,
                                                 display: 'grid',
@@ -6694,12 +6759,12 @@ const DashboardInner = () => {
                                         el total mostrado subestima, así que bajamos la certeza del verde. */}
                                     {_br.partial_pricing && (
                                         <p style={{ margin: '0.3rem 0 0', fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                            Estimado parcial: {Math.round((_br.price_coverage || 0) * 100)}% de los ítems tienen precio — el total real puede ser mayor.
+                                            {t('Estimado parcial: {cobertura}% de los ítems tienen precio — el total real puede ser mayor.', { cobertura: Math.round((_br.price_coverage || 0) * 100) })}
                                         </p>
                                     )}
                                     {_br.adjusted && _subs.length > 0 && (
                                         <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                            Para cuidar tu bolsillo ajustamos: {_subs.join(' · ')}
+                                            {t('Para cuidar tu bolsillo ajustamos: {sustituciones}', { sustituciones: _subs.join(' · ') })}
                                         </p>
                                     )}
                                     {_br.status === 'excedido' && _sugs.length > 0 && (
@@ -6720,7 +6785,7 @@ const DashboardInner = () => {
                                             && shoppingDeltaMeta.deltaTripRd > 0) {
                                             return (
                                                 <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                                    Esta ida al súper: <strong style={{ color: _palette.fg }}>{_fmtRD(shoppingDeltaMeta.deltaTripRd)}</strong> · {shoppingDeltaMeta.deltaCount} ítems (tu Nevera ya cubre {shoppingDeltaMeta.itemsRemoved}) — el detalle está en el PDF.
+                                                    {t('Esta ida al súper:')} <strong style={{ color: _palette.fg }}>{_fmtRD(shoppingDeltaMeta.deltaTripRd)}</strong> {t('· {items} ítems (tu Nevera ya cubre {cubiertos}) — el detalle está en el PDF.', { items: shoppingDeltaMeta.deltaCount, cubiertos: shoppingDeltaMeta.itemsRemoved })}
                                                 </p>
                                             );
                                         }
@@ -6734,7 +6799,7 @@ const DashboardInner = () => {
                                         if (_tripCost <= 0) return null;
                                         return (
                                             <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                                Esta ida al súper: <strong style={{ color: _palette.fg }}>{_fmtRD(_tripCost)}</strong> · {_trItems.length} ítems — el detalle está en el PDF.
+                                                {t('Esta ida al súper:')} <strong style={{ color: _palette.fg }}>{_fmtRD(_tripCost)}</strong> {t('· {items} ítems — el detalle está en el PDF.', { items: _trItems.length })}
                                             </p>
                                         );
                                     })()}
@@ -6782,7 +6847,7 @@ const DashboardInner = () => {
                                 // lista aún en "Genérico" — se sentía roto. `variant` null = deselección.
                                 onPrefPending={(foodKey, variant) => {
                                     if (!variant) {
-                                        toast.success('Marca quitada — actualizando tu lista…', { id: 'brand-apply', duration: 2200, position: 'top-center' });
+                                        toast.success(t('Marca quitada — actualizando tu lista…'), { id: 'brand-apply', duration: 2200, position: 'top-center' });
                                         return;
                                     }
                                     // Optimista: si el ítem matchea, se reconstruye al instante (marca +
@@ -6791,9 +6856,9 @@ const DashboardInner = () => {
                                     const patched = applyBrandToPlanOptimistic(planData, foodKey, variant);
                                     if (patched) {
                                         setPlanData(patched);
-                                        toast.success('Marca aplicada a tu lista', { id: 'brand-apply', duration: 2200, position: 'top-center' });
+                                        toast.success(t('Marca aplicada a tu lista'), { id: 'brand-apply', duration: 2200, position: 'top-center' });
                                     } else {
-                                        toast.success('Aplicando tu marca a la lista…', { id: 'brand-apply', duration: 3500, position: 'top-center' });
+                                        toast.success(t('Aplicando tu marca a la lista…'), { id: 'brand-apply', duration: 3500, position: 'top-center' });
                                     }
                                 }}
                                 // [P2-BRANDS-APPLY-IMMEDIATE · 2026-07-02 · reconcile silencioso 2026-07-07]
@@ -6868,14 +6933,14 @@ const DashboardInner = () => {
                         flexWrap: 'wrap'
                     }}
                     role="region"
-                    aria-label="Modo invitado"
+                    aria-label={t('Modo invitado')}
                 >
                     <div style={{ flex: 1, minWidth: '220px' }}>
                         <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
-                            Estás en modo invitado
+                            {t('Estás en modo invitado')}
                         </span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                            Este es un plan de muestra. Crea tu cuenta gratis para guardarlo, desbloquear la semana completa y registrar tus comidas.
+                            {t('Este es un plan de muestra. Crea tu cuenta gratis para guardarlo, desbloquear la semana completa y registrar tus comidas.')}
                         </span>
                     </div>
                     <button
@@ -6897,7 +6962,7 @@ const DashboardInner = () => {
                             boxShadow: '0 6px 16px -4px rgba(79,70,229,0.45)'
                         }}
                     >
-                        Crear cuenta gratis
+                        {t('Crear cuenta gratis')}
                         <ArrowRight size={16} />
                     </button>
                 </motion.div>
@@ -6936,10 +7001,10 @@ const DashboardInner = () => {
                     <AlertCircle size={22} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: '200px' }}>
                         <span style={{ fontWeight: 700, color: 'var(--danger-text)', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
-                            Tu plan quedó incompleto
+                            {t('Tu plan quedó incompleto')}
                         </span>
                         <span style={{ color: 'var(--danger-text)', fontSize: '0.85rem' }}>
-                            La generación no terminó correctamente — no hay menú ni lista de compras disponibles. Genera un plan nuevo para continuar.
+                            {t('La generación no terminó correctamente — no hay menú ni lista de compras disponibles. Genera un plan nuevo para continuar.')}
                         </span>
                     </div>
                     <button
@@ -6970,7 +7035,7 @@ const DashboardInner = () => {
                         }}
                     >
                         <RefreshCw size={16} />
-                        Generar Nuevo Plan
+                        {t('Generar Nuevo Plan')}
                     </button>
                 </motion.div>
             )}
@@ -7004,9 +7069,7 @@ const DashboardInner = () => {
                     }}
                 >
                     <span>
-                        Dejamos de revisar si llegaron tus próximas semanas — puede que
-                        estén programadas para más adelante. Vuelve a esta pestaña más
-                        tarde y las buscamos de nuevo.
+                        {t('Dejamos de revisar si llegaron tus próximas semanas — puede que estén programadas para más adelante. Vuelve a esta pestaña más tarde y las buscamos de nuevo.')}
                     </span>
                     <button
                         type="button"
@@ -7023,7 +7086,7 @@ const DashboardInner = () => {
                             whiteSpace: 'nowrap',
                         }}
                     >
-                        Revisar ahora
+                        {t('Revisar ahora')}
                     </button>
                 </div>
             )}
@@ -7077,10 +7140,10 @@ const DashboardInner = () => {
                     <AlertCircle size={22} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: '200px' }}>
                         <span style={{ fontWeight: 700, color: 'var(--danger-text)', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
-                            ¡Tu ciclo ha terminado!
+                            {t('¡Tu ciclo ha terminado!')}
                         </span>
                         <span style={{ color: 'var(--danger-text)', fontSize: '0.85rem' }}>
-                            Ya han pasado los días programados en tu plan actual. Genera uno nuevo para seguir recibiendo deliciosas recomendaciones y listas de compras frescas.
+                            {t('Ya han pasado los días programados en tu plan actual. Genera uno nuevo para seguir recibiendo deliciosas recomendaciones y listas de compras frescas.')}
                         </span>
                     </div>
                     <button
@@ -7105,7 +7168,7 @@ const DashboardInner = () => {
                         }}
                     >
                         <Wand2 size={16} />
-                        Generar Nuevo Plan
+                        {t('Generar Nuevo Plan')}
                     </button>
                 </motion.div>
             )}
@@ -7157,8 +7220,8 @@ const DashboardInner = () => {
                             fontSize: '0.95rem', display: 'block', marginBottom: '0.25rem'
                         }}>
                             {planData.requires_professional_review.renal_gate
-                                ? 'Condición renal — este plan requiere supervisión de tu nefrólogo'
-                                : 'Declaraste una condición de salud — consulta a tu profesional'}
+                                ? t('Condición renal — este plan requiere supervisión de tu nefrólogo')
+                                : t('Declaraste una condición de salud — consulta a tu profesional')}
                         </span>
                         <span style={{
                             color: 'var(--text-main)', opacity: 0.85,
@@ -7173,8 +7236,8 @@ const DashboardInner = () => {
                     <button
                         type="button"
                         onClick={dismissProReview}
-                        aria-label="Ocultar aviso de revisión profesional"
-                        title="Ocultar"
+                        aria-label={t('Ocultar aviso de revisión profesional')}
+                        title={t('Ocultar')}
                         style={{
                             flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer',
                             padding: '4px', margin: '-2px -4px 0 0', borderRadius: '8px',
@@ -7207,8 +7270,8 @@ const DashboardInner = () => {
                         // cuentas (el invitado no accede a /dashboard/agent). Para
                         // invitados, convertir el tap en gancho de registro.
                         if (isGuest) {
-                            toast('Crea tu cuenta para hablar con tu coach IA', {
-                                description: 'Te dirá exactamente cómo mejorar cada micronutriente de tu plan.',
+                            toast(t('Crea tu cuenta para hablar con tu coach IA'), {
+                                description: t('Te dirá exactamente cómo mejorar cada micronutriente de tu plan.'),
                             });
                             navigate('/register');
                             return;
@@ -7237,11 +7300,10 @@ const DashboardInner = () => {
                     <div style={{ fontSize: 26 }}>🧊</div>
                     <div style={{ flex: 1, minWidth: 220 }}>
                         <div style={{ fontWeight: 800, color: '#7dd3fc', fontSize: 14 }}>
-                            Plan congelado — tu Nevera está vacía
+                            {t('Plan congelado — tu Nevera está vacía')}
                         </div>
                         <div style={{ fontSize: 12.5, color: '#9fb3c8', marginTop: 3, lineHeight: 1.45 }}>
-                            Tus días NO están corriendo: no pierdes nada. Transfiere tu compra a la
-                            Nevera y el plan se reanuda solo, retomando exactamente donde quedó.
+                            {t('Tus días NO están corriendo: no pierdes nada. Transfiere tu compra a la Nevera y el plan se reanuda solo, retomando exactamente donde quedó.')}
                         </div>
                     </div>
                     <button
@@ -7252,7 +7314,7 @@ const DashboardInner = () => {
                             background: '#38bdf8', color: '#082f49', fontWeight: 800, fontSize: 13,
                         }}
                     >
-                        Reponer mi Nevera →
+                        {t('Reponer mi Nevera →')}
                     </button>
                 </div>
             )}
@@ -7297,10 +7359,10 @@ const DashboardInner = () => {
                             {resolveQualityDegradedHeadline(
                                 planData?._quality_degraded_reason,
                                 planData?._quality_degraded_attempts,
-                            ).body.split('Cambiar Plato').map((parte, i, arr) => (
+                            ).body.split(t('Cambiar Plato')).map((parte, i, arr) => (
                                 <span key={i}>
                                     {parte}
-                                    {i < arr.length - 1 && <strong>Cambiar Plato</strong>}
+                                    {i < arr.length - 1 && <strong>{t('Cambiar Plato')}</strong>}
                                 </span>
                             ))}
                         </span>
@@ -7314,8 +7376,8 @@ const DashboardInner = () => {
                                     // [P3-NOTIF-CENTER · 2026-06-16] Mapa elevado a módulo (Q_DEGRADED_REASON_MAP).
                                     // [P3-BANNER-REASON-COPY · 2026-07-10] prefix-match para low_band_macro:<macros>.
                                     const _label = resolveQualityDegradedLabel(planData._quality_degraded_reason);
-                                    const _sev = planData?._quality_degraded_severity === 'high' ? 'Importante' : 'Menor';
-                                    return <>Motivo ({_sev}): {_label}</>;
+                                    const _sev = planData?._quality_degraded_severity === 'high' ? t('Importante') : t('Menor');
+                                    return <>{t('Motivo ({severidad}): {motivo}', { severidad: _sev, motivo: _label })}</>;
                                 })()}
                             </span>
                         )}
@@ -7328,7 +7390,7 @@ const DashboardInner = () => {
                         {planData?._quality_degraded_pantry_limited && (
                             <span style={{ display: 'block', marginTop: '0.4rem' }}>
                                 <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.72rem', display: 'block', marginBottom: '0.3rem' }}>
-                                    Este ajuste quedó limitado por tu <strong>Nevera</strong>: cocinamos solo con lo que tienes y no alcanzó para clavar los macros.
+                                    {t('Este ajuste quedó limitado por tu')} <strong>{t('Nevera')}</strong>{t(': cocinamos solo con lo que tienes y no alcanzó para clavar los macros.')}
                                 </span>
                                 <button
                                     type="button"
@@ -7347,7 +7409,7 @@ const DashboardInner = () => {
                                         color: isDark ? '#FDE68A' : '#92400E'
                                     }}
                                 >
-                                    Agregar ítems a mi Nevera →
+                                    {t('Agregar ítems a mi Nevera →')}
                                 </button>
                             </span>
                         )}
@@ -7395,8 +7457,8 @@ const DashboardInner = () => {
                                     }}
                                 >
                                     {fixSodiumDayLoading
-                                        ? 'El chef está reformulando la comida más salada… ~30 s'
-                                        : 'Arreglar este día →'}
+                                        ? t('El chef está reformulando la comida más salada… ~30 s')
+                                        : t('Arreglar este día →')}
                                 </button>
                             </span>
                         )}
@@ -7405,8 +7467,8 @@ const DashboardInner = () => {
                     <button
                         type="button"
                         onClick={dismissQDegraded}
-                        aria-label="Ocultar este aviso"
-                        title="Ocultar"
+                        aria-label={t('Ocultar este aviso')}
+                        title={t('Ocultar')}
                         style={{
                             flexShrink: 0,
                             display: 'grid',
@@ -7458,10 +7520,13 @@ const DashboardInner = () => {
                     <AlertCircle size={22} color={isDark ? '#FBBF24' : '#D97706'} style={{ flexShrink: 0, marginTop: '1px' }} />
                     <div style={{ flex: 1, minWidth: '200px' }}>
                         <span style={{ fontWeight: 700, color: isDark ? '#FDE68A' : '#92400E', fontSize: '0.95rem', display: 'block', marginBottom: '0.15rem' }}>
-                            Revisa tu lista de compras
+                            {t('Revisa tu lista de compras')}
                         </span>
                         <span style={{ color: isDark ? '#FCD34D' : '#B45309', fontSize: '0.85rem', lineHeight: 1.4 }}>
-                            Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({planData._swap_coherence_warnings.critical_count} {planData._swap_coherence_warnings.critical_count === 1 ? 'detalle' : 'detalles'}). Usa <strong>Cambiar Plato</strong> en las comidas que te parezcan inconsistentes.
+                            {tn(planData._swap_coherence_warnings.critical_count,
+                                'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalle). Usa',
+                                'Algunas recetas mencionan ingredientes que no quedaron bien reflejados en tu lista ({n} detalles). Usa',
+                                { n: planData._swap_coherence_warnings.critical_count })} <strong>{t('Cambiar Plato')}</strong> {t('en las comidas que te parezcan inconsistentes.')}
                         </span>
                     </div>
                     {/* [P1-COHERENCE-BANNER-NOTIF · 2026-06-16] Cerrar → archiva el
@@ -7469,8 +7534,8 @@ const DashboardInner = () => {
                     <button
                         type="button"
                         onClick={dismissCoherence}
-                        aria-label="Ocultar y enviar a notificaciones"
-                        title="Ocultar (se guarda en notificaciones)"
+                        aria-label={t('Ocultar y enviar a notificaciones')}
+                        title={t('Ocultar (se guarda en notificaciones)')}
                         style={{
                             flexShrink: 0,
                             display: 'grid',
@@ -7517,7 +7582,7 @@ const DashboardInner = () => {
                     <div className="menu-section-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <h2 className="menu-section-title">
-                                Tu Menú
+                                {t('Tu Menú')}
                             </h2>
                         </div>
                         <span className="menu-section-count">
@@ -7580,18 +7645,18 @@ const DashboardInner = () => {
                         // con su razón y su CTA derivados del primer chunk
                         // pausado.
                         const _reasonCopy = {
-                            empty_pantry: { title: 'Tu próximo bloque está pausado', body: 'Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.', cta: 'Actualizar nevera', url: '/inventory' },
-                            empty_pantry_proactive: { title: 'Tu próximo bloque está pausado', body: 'Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.', cta: 'Actualizar nevera', url: '/inventory' },
-                            stale_snapshot: { title: 'Validando tu inventario', body: 'Estamos refrescando tu nevera. El plan continuará en breve.', cta: null, url: null },
-                            stale_snapshot_live_unreachable: { title: 'Actualiza tu nevera para continuar', body: 'No pudimos validar tu inventario en vivo. Abre la nevera para refrescar.', cta: 'Abrir nevera', url: '/inventory' },
-                            learning_zero_logs: { title: 'Registra tus comidas para continuar', body: 'Necesitamos saber qué comiste para generar el siguiente bloque.', cta: 'Ir al diario', url: '/diary' },
-                            tz_unresolved: { title: 'Confirmando tu zona horaria', body: 'Aún no pudimos resolver tu zona horaria para programar el siguiente bloque.', cta: null, url: null },
-                            missing_prior_lessons: { title: 'Reconstruyendo el aprendizaje', body: 'El sistema intenta recuperar el aprendizaje del bloque previo.', cta: null, url: null },
-                            persistent_drift: { title: 'Validando tu inventario', body: 'Detectamos diferencias persistentes con tu inventario. Refrescando…', cta: 'Abrir nevera', url: '/inventory' },
+                            empty_pantry: { title: t('Tu próximo bloque está pausado'), body: t('Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.'), cta: t('Actualizar nevera'), url: '/inventory' },
+                            empty_pantry_proactive: { title: t('Tu próximo bloque está pausado'), body: t('Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.'), cta: t('Actualizar nevera'), url: '/inventory' },
+                            stale_snapshot: { title: t('Validando tu inventario'), body: t('Estamos refrescando tu nevera. El plan continuará en breve.'), cta: null, url: null },
+                            stale_snapshot_live_unreachable: { title: t('Actualiza tu nevera para continuar'), body: t('No pudimos validar tu inventario en vivo. Abre la nevera para refrescar.'), cta: t('Abrir nevera'), url: '/inventory' },
+                            learning_zero_logs: { title: t('Registra tus comidas para continuar'), body: t('Necesitamos saber qué comiste para generar el siguiente bloque.'), cta: t('Ir al diario'), url: '/diary' },
+                            tz_unresolved: { title: t('Confirmando tu zona horaria'), body: t('Aún no pudimos resolver tu zona horaria para programar el siguiente bloque.'), cta: null, url: null },
+                            missing_prior_lessons: { title: t('Reconstruyendo el aprendizaje'), body: t('El sistema intenta recuperar el aprendizaje del bloque previo.'), cta: null, url: null },
+                            persistent_drift: { title: t('Validando tu inventario'), body: t('Detectamos diferencias persistentes con tu inventario. Refrescando…'), cta: t('Abrir nevera'), url: '/inventory' },
                         };
                         const _copy = _reasonCopy[_pc.reason_code] || {
-                            title: 'Tu próximo bloque está pausado',
-                            body: 'El sistema espera tu acción para continuar.',
+                            title: t('Tu próximo bloque está pausado'),
+                            body: t('El sistema espera tu acción para continuar.'),
                             cta: null, url: null,
                         };
                         return (
@@ -7669,11 +7734,11 @@ const DashboardInner = () => {
                         && planData?.generation_status !== 'generating_next'
                         && (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '10px 14px', background: '#F0FDF4', borderRadius: '10px', marginBottom: '16px', color: '#15803D', fontSize: '0.85rem', border: '1px solid #BBF7D0' }}>
-                            <span>¿Quieres adelantar la próxima actualización?</span>
+                            <span>{t('¿Quieres adelantar la próxima actualización?')}</span>
                             <button
                                 onClick={async () => {
                                     if (!userProfile?.id) return;
-                                    const tId = toast.loading('Refrescando próximos días…', { position: 'top-center' });
+                                    const tId = toast.loading(t('Refrescando próximos días…'), { position: 'top-center' });
                                     try {
                                         const res = await fetchWithAuth(`${API_BASE}/api/plans/shift-plan`, {
                                             method: 'POST',
@@ -7686,13 +7751,13 @@ const DashboardInner = () => {
                                         if (res.ok) {
                                             const data = await res.json();
                                             if (data?.plan_data) setPlanData(data.plan_data);
-                                            toast.success('Plan actualizado', { id: tId });
+                                            toast.success(t('Plan actualizado'), { id: tId });
                                         } else {
-                                            toast.error('No se pudo refrescar', { id: tId });
+                                            toast.error(t('No se pudo refrescar'), { id: tId });
                                         }
                                     } catch (e) {
                                         console.error('[P2-δ] shift-plan manual:', e);
-                                        toast.error('Error al refrescar', { id: tId });
+                                        toast.error(t('Error al refrescar'), { id: tId });
                                     }
                                 }}
                                 style={{
@@ -7706,7 +7771,7 @@ const DashboardInner = () => {
                                     cursor: 'pointer',
                                 }}
                             >
-                                Refrescar
+                                {t('Refrescar')}
                             </button>
                         </div>
                     )}
@@ -7730,8 +7795,7 @@ const DashboardInner = () => {
                         }}>
                             <span style={{ fontSize: '1.1rem' }}>ℹ️</span>
                             <span>
-                                Algunos días de tu plan fueron regenerados en modo simplificado por tu solicitud.
-                                Las recetas son más sencillas y flexibles con los ingredientes disponibles.
+                                {t('Algunos días de tu plan fueron regenerados en modo simplificado por tu solicitud. Las recetas son más sencillas y flexibles con los ingredientes disponibles.')}
                             </span>
                         </div>
                     )}
@@ -7751,9 +7815,11 @@ const DashboardInner = () => {
                            tipográfico. «Reanudar planes» es un enlace escrito en la
                            página, no un botón sólido flotando sobre el margen rojo. */
                         <div className="today-remaining-note" style={{ color: 'var(--text-muted)' }}>
-                            <strong style={{ color: 'var(--text-main)' }}>Planes en pausa.</strong>{' '}
-                            Tu plan sigue aquí; no se están generando los días que faltan
-                            ({generated_days} de {planData?.total_days_requested || generated_days} listos).{' '}
+                            <strong style={{ color: 'var(--text-main)' }}>{t('Planes en pausa.')}</strong>{' '}
+                            {t('Tu plan sigue aquí; no se están generando los días que faltan ({listos} de {total} listos).', {
+                                listos: generated_days,
+                                total: planData?.total_days_requested || generated_days,
+                            })}{' '}
                             <button
                                 type="button"
                                 onClick={reanudarPlanes}
@@ -7764,7 +7830,7 @@ const DashboardInner = () => {
                                     textDecoration: 'underline', textUnderlineOffset: '3px',
                                 }}
                             >
-                                Reanudar planes
+                                {t('Reanudar planes')}
                             </button>
                         </div>
                     )}
@@ -7786,7 +7852,7 @@ const DashboardInner = () => {
                                     <div key={`week-${weekIdx}`} className="week-group">
                                         {visiblePlanDays.length > 7 && (
                                             <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                Semana {weekIdx + 1}
+                                                {t('Semana {n}', { n: weekIdx + 1 })}
                                             </h4>
                                         )}
                                         <div 
@@ -7835,10 +7901,10 @@ const DashboardInner = () => {
                                                         onClick={() => setSelectedDay({ origen: 'vivo', idx: globalIdx })}
                                                         className="option-btn"
                                                         title={
-                                                            isPastDay ? 'Este día ya pasó'
-                                                            : isEmergencyRepeat ? 'Día de respaldo (repetido porque no hubo variedad disponible)'
-                                                            : isDegraded ? 'Día de respaldo generado desde tu perfil favorito'
-                                                            : isToday ? 'Hoy'
+                                                            isPastDay ? t('Este día ya pasó')
+                                                            : isEmergencyRepeat ? t('Día de respaldo (repetido porque no hubo variedad disponible)')
+                                                            : isDegraded ? t('Día de respaldo generado desde tu perfil favorito')
+                                                            : isToday ? t('Hoy')
                                                             : undefined
                                                         }
                                                         style={{
@@ -7901,7 +7967,7 @@ const DashboardInner = () => {
                                                             // (planes legacy pre-backend-inject que aún
                                                             // están en localStorage).
                                                             if (day?.day_name) return day.day_name;
-                                                            const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                                            const diasSemana = [t('Domingo'), t('Lunes'), t('Martes'), t('Miércoles'), t('Jueves'), t('Viernes'), t('Sábado')];
                                                             const d = new Date();
                                                             d.setDate(d.getDate() + visibleIdx);
                                                             return diasSemana[d.getDay()];
@@ -7922,7 +7988,7 @@ const DashboardInner = () => {
                                                                 color: isActive ? 'white' : '#92400E',
                                                                 letterSpacing: '0.02em',
                                                             }}>
-                                                                {isEmergencyRepeat ? 'REPETIDO' : 'RESPALDO'}
+                                                                {isEmergencyRepeat ? t('REPETIDO') : t('RESPALDO')}
                                                             </span>
                                                         )}
                                                     </motion.button>
@@ -8024,10 +8090,10 @@ const DashboardInner = () => {
                                     return (
                                         <EmptyState
                                             icon={Utensils}
-                                            title="Tus próximos días están en pausa"
-                                            description="No pudimos cuadrar los próximos días con los ingredientes de tu nevera. Actualízala para continuar ahora — o espera, y los generaremos con la mejor información disponible."
+                                            title={t('Tus próximos días están en pausa')}
+                                            description={t('No pudimos cuadrar los próximos días con los ingredientes de tu nevera. Actualízala para continuar ahora — o espera, y los generaremos con la mejor información disponible.')}
                                             cta={{
-                                                label: 'Revisar mi nevera',
+                                                label: t('Revisar mi nevera'),
                                                 onClick: () => navigate('/dashboard/pantry'),
                                             }}
                                         />
@@ -8037,18 +8103,18 @@ const DashboardInner = () => {
                                     return (
                                         <EmptyState
                                             icon={Utensils}
-                                            title="Tus próximos días vienen en camino"
-                                            description="Estamos generando este bloque del plan. Se llenará solo en unos minutos — no hace falta hacer nada."
+                                            title={t('Tus próximos días vienen en camino')}
+                                            description={t('Estamos generando este bloque del plan. Se llenará solo en unos minutos — no hace falta hacer nada.')}
                                         />
                                     );
                                 }
                                 return (
                                     <EmptyState
                                         icon={Utensils}
-                                        title="No hay comidas para este día"
-                                        description="Cuando tu plan esté listo, verás aquí el menú del día seleccionado."
+                                        title={t('No hay comidas para este día')}
+                                        description={t('Cuando tu plan esté listo, verás aquí el menú del día seleccionado.')}
                                         cta={{
-                                            label: 'Generar nuevo plan',
+                                            label: t('Generar nuevo plan'),
                                             onClick: () => navigate('/assessment'),
                                         }}
                                     />
@@ -8093,7 +8159,7 @@ const DashboardInner = () => {
                                     : isPantryTooEmptyForSwap
                                         ? swapPantryClaim
                                         : isReadOnlyDay
-                                            ? 'Este día ya pasó y quedó archivado. Su menú se conserva como registro de lo que tocaba, por eso no se puede cambiar.'
+                                            ? t('Este día ya pasó y quedó archivado. Su menú se conserva como registro de lo que tocaba, por eso no se puede cambiar.')
                                             : null;
 
                                 // [P1-MEAL-CARD-KEY · 2026-05-31] key por identidad
@@ -8169,7 +8235,7 @@ const DashboardInner = () => {
                                                     <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
                                                         {meal.cals}
                                                     </div>
-                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>kcal</div>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('kcal')}</div>
                                                 </div>
                                             </div>
 
@@ -8202,14 +8268,14 @@ const DashboardInner = () => {
                                                 }}>
                                                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                                                         <AlertCircle size={14} />
-                                                        <span>⚠ Compra Urgente Requerida</span>
+                                                        <span>{t('⚠ Compra Urgente Requerida')}</span>
                                                     </div>
                                                     {/* [P1-URGENT-FLASH-UNKNOWN · 2026-08-13] Era #B91C1C fijo:
                                                         2,52:1 sobre el fondo del aviso en tema oscuro (bajo AA,
                                                         se leía apagado). El token sube a 8,61:1 y deja el claro
                                                         igual. */}
                                                     <div style={{ paddingLeft: '1.2rem', color: 'var(--danger-text)', fontSize: '0.7rem' }}>
-                                                        Faltan: {_still.join(', ')}
+                                                        {t('Faltan: {ingredientes}', { ingredientes: _still.join(', ') })}
                                                     </div>
                                                 </div>
                                                 );
@@ -8326,7 +8392,7 @@ const DashboardInner = () => {
                                                     className="meal-act-btn"
                                                     onClick={() => {
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: ver recetas requiere cuenta.
-                                                        if (isGuest) { toast('Crea tu cuenta para ver las recetas paso a paso'); return; }
+                                                        if (isGuest) { toast(t('Crea tu cuenta para ver las recetas paso a paso')); return; }
                                                         navigate('/dashboard/recipes');
                                                     }}
                                                     style={{
@@ -8338,7 +8404,7 @@ const DashboardInner = () => {
                                                         cursor: 'pointer',
                                                         transition: 'all 0.2s'
                                                     }}
-                                                    title="Ver paso a paso"
+                                                    title={t('Ver paso a paso')}
                                                 >
                                                     <BookOpen size={18} color={isDark ? '#93C5FD' : '#3B82F6'} />
                                                 </button>
@@ -8387,7 +8453,7 @@ const DashboardInner = () => {
                                                         // el early-return cubre cualquier dispatch sintético.
                                                         if (isPantryTooEmptyForSwap) return;
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: cambiar plato (IA) requiere cuenta.
-                                                        if (isGuest) { toast('Crea tu cuenta para cambiar platos con IA'); return; }
+                                                        if (isGuest) { toast(t('Crea tu cuenta para cambiar platos con IA')); return; }
                                                         if (regeneratingId === index || isDayUpdating) return;
                                                         // [P1-DASH-WEEK-NAV] Un dia archivado no se edita.
                                                         if (isReadOnlyDay) return;
@@ -8410,7 +8476,7 @@ const DashboardInner = () => {
                                                     // que el nombre accesible tiene que decir QUÉ control es además
                                                     // del motivo. El estado no se escribe aquí: lo anuncia solo
                                                     // `aria-disabled`, y repetirlo lo haría sonar dos veces.
-                                                    aria-label={swapLockReason ? `Cambiar plato. ${swapLockReason}` : undefined}
+                                                    aria-label={swapLockReason ? t('Cambiar plato. {motivo}', { motivo: swapLockReason }) : undefined}
                                                     style={{
                                                         // Bloqueado: pierde el relleno naranja. Un candado sobre el
                                                         // color de la acción principal seguiría pareciendo el botón
@@ -8445,7 +8511,7 @@ const DashboardInner = () => {
                                                             : (isDark ? '#FFFFFF' : '#EA580C'),
                                                         boxShadow: (!swapLockReason && isDark) ? '0 2px 8px -3px rgba(234, 88, 12, 0.3)' : 'none'
                                                     }}
-                                                    title={swapLockReason || 'Cambiar con IA'}
+                                                    title={swapLockReason || t('Cambiar con IA')}
                                                 >
                                                     {swapLockReason ? (
                                                         <Lock size={17} strokeWidth={2.5} aria-hidden="true" />
@@ -8460,6 +8526,11 @@ const DashboardInner = () => {
                                                                 className={(regeneratingId === index || (isDayUpdating
                                                                     && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))) ? "spin-fast" : ""}
                                                             />
+                                                            {/* [P1-I18N-DASHBOARD · 2026-08-15] SIN `t()`: `P1_weeknav_mobile_size.
+                                                                test.js` exige la cadena literal `Cambiar Plato</span>` (texto
+                                                                pegado al cierre) para comprobar que el rótulo vive en la rama
+                                                                DISPONIBLE y no en la del candado. Envolverlo la rompe desde otro
+                                                                fichero. */}
                                                             <span style={{ whiteSpace: 'nowrap' }}>Cambiar Plato</span>
                                                         </>
                                                     )}
@@ -8475,13 +8546,13 @@ const DashboardInner = () => {
                                                     onClick={() => {
                                                         if (isEatenToday) return;
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: guardar favoritos requiere cuenta.
-                                                        if (isGuest) { toast('Crea tu cuenta para guardar tus favoritos'); return; }
+                                                        if (isGuest) { toast(t('Crea tu cuenta para guardar tus favoritos')); return; }
                                                         const currentlyLiked = !!likedMeals[meal.name];
                                                         toggleMealLike(meal.name, meal.meal);
                                                         if (!currentlyLiked) {
-                                                            toast.success('¡Anotado!', { description: `Aprenderemos que te gusta: ${meal.name}`, icon: '❤️' });
+                                                            toast.success(t('¡Anotado!'), { description: t('Aprenderemos que te gusta: {plato}', { plato: meal.name }), icon: '❤️' });
                                                         } else {
-                                                            toast('Like removido');
+                                                            toast(t('Like removido'));
                                                         }
                                                     }}
                                                     disabled={isEatenToday}
@@ -8508,7 +8579,7 @@ const DashboardInner = () => {
                                                         boxShadow: isLiked ? '0 4px 12px -2px rgba(244, 63, 94, 0.5)' : 'none',
                                                         transform: isLiked ? 'scale(1.06)' : 'scale(1)'
                                                     }}
-                                                    title={isEatenToday ? eatenClaim : (isLiked ? 'Te gusta — toca para quitar' : 'Me gusta')}
+                                                    title={isEatenToday ? eatenClaim : (isLiked ? t('Te gusta — toca para quitar') : t('Me gusta'))}
                                                 >
                                                     <Heart size={18} color={isLiked ? '#FFFFFF' : (isDark ? '#F472B6' : '#EC4899')} fill={isLiked ? '#FFFFFF' : 'none'} strokeWidth={2.25} />
                                                 </button>
@@ -8551,8 +8622,8 @@ const DashboardInner = () => {
                                                             opacity: eatMealInFlight !== null && eatMealInFlight !== index ? 0.5 : 1,
                                                             transition: 'all 0.2s'
                                                         }}
-                                                        title="Me lo comí — lo registra en tu diario y lo descuenta de tu Nevera"
-                                                        aria-label={`Registrar que te comiste ${meal.name}`}
+                                                        title={t('Me lo comí — lo registra en tu diario y lo descuenta de tu Nevera')}
+                                                        aria-label={t('Registrar que te comiste {plato}', { plato: meal.name })}
                                                     >
                                                         {eatMealInFlight === index
                                                             ? <Loader2 size={18} className="animate-spin" color={isDark ? '#6EE7B7' : '#047857'} />
@@ -8625,7 +8696,7 @@ const DashboardInner = () => {
                                 }}>
                                     <Pill size={16} />
                                 </div>
-                                Suplementos del Día
+                                {t('Suplementos del Día')}
                                 <span style={{
                                     marginLeft: 'auto', fontSize: '0.75rem', fontWeight: 600,
                                     background: '#EDE9FE', color: '#7C3AED',
@@ -8656,7 +8727,7 @@ const DashboardInner = () => {
                                             </span>
                                         </div>
                                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                            Dosis: {supp.dose}
+                                            {t('Dosis: {dosis}', { dosis: supp.dose })}
                                         </div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                                             {supp.reason}
@@ -8711,13 +8782,13 @@ const DashboardInner = () => {
                             <div style={{ background: isDark ? 'rgba(2, 132, 199, 0.16)' : '#F0F9FF', padding: '0.4rem', borderRadius: '0.75rem', color: isDark ? '#38BDF8' : '#0284C7' }}>
                                 <Brain size={22} strokeWidth={2.5} />
                             </div>
-                            Razonamiento
+                            {t('Razonamiento')}
                             {planData?.insights?.length > 0 && (
                                 <button
                                     type="button"
                                     onClick={dismissReasoning}
-                                    aria-label="Ocultar el razonamiento (se guarda en Notificaciones)"
-                                    title="Ocultar — se guarda en Notificaciones"
+                                    aria-label={t('Ocultar el razonamiento (se guarda en Notificaciones)')}
+                                    title={t('Ocultar — se guarda en Notificaciones')}
                                     style={{
                                         marginLeft: 'auto', width: '32px', height: '32px', flex: 'none',
                                         display: 'grid', placeItems: 'center', borderRadius: '10px',
@@ -8736,19 +8807,21 @@ const DashboardInner = () => {
                             {(!planData.insights || planData.insights.length === 0) ? (
                                 <EmptyState
                                     icon={Brain}
-                                    title="Aún no hay razonamiento"
-                                    description="Cuando tu plan esté listo, encontrarás aquí el diagnóstico, el plan de acción y los tips del chef."
+                                    title={t('Aún no hay razonamiento')}
+                                    description={t('Cuando tu plan esté listo, encontrarás aquí el diagnóstico, el plan de acción y los tips del chef.')}
                                     compact
                                 />
                             ) : planData.insights.map((insight, i) => {
                                 let icon = <CheckCircle size={20} />;
-                                let title = "Nota:";
+                                let title = t('Nota:');
                                 let color = "var(--text-main)";
                                 let bgColor = "var(--bg-muted)";
 
                                 if (insight.toLowerCase().includes('diagnóstico') || i === 0) {
                                     icon = <Lightbulb size={20} />;
-                                    title = "Diagnóstico";
+                                    // El `includes('diagnóstico')` de arriba mira el texto del BACKEND
+                                    // (siempre es-DO): no se traduce, sería comparar contra otra cosa.
+                                    title = t('Diagnóstico');
                                     // [APPEARANCE-THEME · 2026-05-29] En oscuro: icono violeta
                                     // más claro + chip tinte translúcido (en claro el pastel
                                     // #F5F3FF se veía brilloso).
@@ -8757,13 +8830,13 @@ const DashboardInner = () => {
                                 }
                                 if (insight.toLowerCase().includes('estrategia') || i === 1) {
                                     icon = <Wallet size={20} />;
-                                    title = "Plan de Acción";
+                                    title = t('Plan de Acción');
                                     color = isDark ? "#34D399" : "#059669"; // Emerald
                                     bgColor = isDark ? "rgba(5, 150, 105, 0.18)" : "#ECFDF5";
                                 }
                                 if (insight.toLowerCase().includes('chef') || i === 2) {
                                     icon = <Flame size={20} />;
-                                    title = "Tip del Chef";
+                                    title = t('Tip del Chef');
                                     // [APPEARANCE-THEME · 2026-05-29] bgColor era "#NFF2F7"
                                     // (hex inválido → chip transparente, la llama flotaba).
                                     // Ahora chip naranja como los otros dos (dark-aware).
@@ -8864,10 +8937,10 @@ const DashboardInner = () => {
                             </div>
 
                             <h2 id="push-onboarding-title" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.75rem', position: 'relative', zIndex: 1 }}>
-                                Activa tu Coach nutricional IA
+                                {t('Activa tu Coach nutricional IA')}
                             </h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '2rem', position: 'relative', zIndex: 1 }}>
-                                Déjame mandarte un aviso a tu celular a la hora de comer para que nunca olvides tu rutina y alcances tus metas más rápido.
+                                {t('Déjame mandarte un aviso a tu celular a la hora de comer para que nunca olvides tu rutina y alcances tus metas más rápido.')}
                             </p>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
@@ -8888,9 +8961,9 @@ const DashboardInner = () => {
                                     }}
                                 >
                                     {isPushEnabling ? (
-                                        <><Loader2 size={20} className="spin-animation" /> Activando...</>
+                                        <><Loader2 size={20} className="spin-animation" /> {t('Activando...')}</>
                                     ) : (
-                                        <>¡Sí, encender alertas!</>
+                                        <>{t('¡Sí, encender alertas!')}</>
                                     )}
                                 </button>
 
@@ -8905,7 +8978,7 @@ const DashboardInner = () => {
                                         transition: 'color 0.2s'
                                     }}
                                 >
-                                    Quizá más tarde
+                                    {t('Quizá más tarde')}
                                 </button>
                             </div>
                         </motion.div>
@@ -8977,7 +9050,7 @@ const DashboardInner = () => {
                                                 marginBottom: '0.5rem', letterSpacing: '-0.02em', textWrap: 'balance'
                                             }}
                                         >
-                                            Confirmar compra
+                                            {t('Confirmar compra')}
                                         </h2>
                                         <p style={{
                                             color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: '1.55',
@@ -8987,8 +9060,8 @@ const DashboardInner = () => {
                                                 : (isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.75rem'),
                                         }}>
                                             {restockPreview.count > 0
-                                                ? <>Agregaremos <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{restockPreview.count} ingrediente{restockPreview.count === 1 ? '' : 's'}</strong> de tu lista {restockPreview.durationLabel} a la Nevera Virtual.</>
-                                                : 'Agregaremos todos los ingredientes de tu lista a la Nevera Virtual.'}
+                                                ? <>{t('Agregaremos')} <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{tn(restockPreview.count, '{n} ingrediente', '{n} ingredientes', { n: restockPreview.count })}</strong> {t('de tu lista {ciclo} a la Nevera Virtual.', { ciclo: restockPreview.durationLabel })}</>
+                                                : t('Agregaremos todos los ingredientes de tu lista a la Nevera Virtual.')}
                                         </p>
 
                                         {/* [P2-RESTOCK-MODAL-PREVIEW · 2026-07-12] Chips line-art con los primeros
@@ -9006,7 +9079,7 @@ const DashboardInner = () => {
                                                     <span style={{
                                                         fontSize: '0.72rem', color: 'var(--text-muted)',
                                                         padding: '0.2rem 0.4rem', fontWeight: 600,
-                                                    }}>+{restockPreview.count - restockPreview.sample.length} más</span>
+                                                    }}>{t('+{n} más', { n: restockPreview.count - restockPreview.sample.length })}</span>
                                                 )}
                                             </div>
                                         )}
@@ -9020,7 +9093,7 @@ const DashboardInner = () => {
                                             }}>
                                                 <AlertCircle size={14} color="var(--warning)" style={{ flexShrink: 0, marginTop: '2px' }} />
                                                 <span style={{ fontSize: '0.78rem', color: 'var(--warning-text)', lineHeight: 1.45 }}>
-                                                    La lista puede estar desactualizada. Si cambiaste el ciclo, recalcula antes de comprar.
+                                                    {t('La lista puede estar desactualizada. Si cambiaste el ciclo, recalcula antes de comprar.')}
                                                 </span>
                                             </div>
                                         )}
@@ -9034,7 +9107,7 @@ const DashboardInner = () => {
                                                 disabled={isRestocking}
                                                 className="restock-modal-confirm"
                                             >
-                                                <span>Añadir a mi Nevera</span>
+                                                <span>{t('Añadir a mi Nevera')}</span>
                                                 <ArrowRight size={17} strokeWidth={2.25} className="restock-modal-arrow" />
                                             </button>
 
@@ -9044,7 +9117,7 @@ const DashboardInner = () => {
                                                 onClick={() => setShowRestockModal(false)}
                                                 className="restock-modal-cancel"
                                             >
-                                                Cancelar
+                                                {t('Cancelar')}
                                             </button>
                                         </div>
                                     </motion.div>
@@ -9111,10 +9184,10 @@ const DashboardInner = () => {
                                         </div>
 
                                         <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.4rem', letterSpacing: '-0.01em' }}>
-                                            Registrando compras
+                                            {t('Registrando compras')}
                                         </h2>
                                         <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.45', marginBottom: '0' }}>
-                                            Estamos organizando tus ingredientes en la Nevera
+                                            {t('Estamos organizando tus ingredientes en la Nevera')}
                                         </p>
                                         {/* [P3-RESTOCK-NO-BAR · 2026-05-20] Barra de progreso, indicador
                                           * % y los 3 pasos REMOVIDOS por decisión de producto del user:
@@ -9136,8 +9209,8 @@ const DashboardInner = () => {
             <MotivoActualizarModal
                 open={!!swapModal}
                 onClose={() => setSwapModal(null)}
-                title="¿Por qué quieres cambiar?"
-                subtitle="Tu respuesta nos ayuda a mejorar tus futuros planes."
+                title={t('¿Por qué quieres cambiar?')}
+                subtitle={t('Tu respuesta nos ayuda a mejorar tus futuros planes.')}
                 contextLabel={swapModal?.mealName}
                 unlimited={isPremium || typeof userPlanLimit !== 'number'}
                 quota={{
@@ -9148,9 +9221,9 @@ const DashboardInner = () => {
                 // disabled SOLO los motivos que consumen la Nevera. 'cravings'
                 // pasa intacto por diseño (exento, P3-SWAP-PANTRY-DEFAULT).
                 options={[
-                    { id: 'variety',  label: 'Quiero variedad',     desc: 'Me gusta, pero quiero algo diferente', color: '#818CF8', icon: 'shuffle' },
-                    { id: 'time',     label: 'No tengo tiempo hoy',  desc: 'Busco algo más rápido de preparar',    color: '#A78BFA', icon: 'clock' },
-                    { id: 'cravings', label: 'Tengo un antojo',      desc: 'Un capricho que encaja en tu plan',    color: '#FB7185', icon: 'heart' },
+                    { id: 'variety',  label: t('Quiero variedad'),     desc: t('Me gusta, pero quiero algo diferente'), color: '#818CF8', icon: 'shuffle' },
+                    { id: 'time',     label: t('No tengo tiempo hoy'),  desc: t('Busco algo más rápido de preparar'),    color: '#A78BFA', icon: 'clock' },
+                    { id: 'cravings', label: t('Tengo un antojo'),      desc: t('Un capricho que encaja en tu plan'),    color: '#FB7185', icon: 'heart' },
                 ].map(decorateSwapOption)}
                 coming={(() => {
                     const todayDow = new Date().getDay(); // 0=Dom … 6=Sáb
@@ -9158,20 +9231,20 @@ const DashboardInner = () => {
                     const d = 6 - todayDow;
                     return {
                         id: 'weekend',
-                        label: 'Fin de semana especial',
+                        label: t('Fin de semana especial'),
                         desc: isWeekend
-                            ? 'Platos más elaborados y premium · disponible hoy'
-                            : 'Platos más elaborados y premium · se desbloquea el sábado',
+                            ? t('Platos más elaborados y premium · disponible hoy')
+                            : t('Platos más elaborados y premium · se desbloquea el sábado'),
                         color: '#FBBF24',
                         icon: 'bolt',
-                        unlockLabel: `En ${d} ${d === 1 ? 'día' : 'días'}`,
+                        unlockLabel: tn(d, 'En {n} día', 'En {n} días', { n: d }),
                         unlocked: isWeekend,
                     };
                 })()}
                 extraRows={[
-                    { id: 'similar', label: 'Ya comí algo similar', desc: 'Hoy ya tuve un plato parecido', color: '#FB923C', icon: 'copy' },
+                    { id: 'similar', label: t('Ya comí algo similar'), desc: t('Hoy ya tuve un plato parecido'), color: '#FB923C', icon: 'copy' },
                 ].map(decorateSwapOption)}
-                dislike={{ label: 'No me gusta este plato', desc: 'La IA evitará sugerirlo en el futuro' }}
+                dislike={{ label: t('No me gusta este plato'), desc: t('La IA evitará sugerirlo en el futuro') }}
                 onPick={async (optionId) => {
                     if (!swapModal) return;
                     // [P1-SWAP-PANTRY-GATE · 2026-07-30] Segunda barrera: el
@@ -9199,17 +9272,17 @@ const DashboardInner = () => {
             <OptionPickerModal
                 isOpen={showUpdatePlanModal && isPlanExpired}
                 onClose={() => setShowUpdatePlanModal(false)}
-                title={isPlanExpired ? "Nuevo Ciclo de Compras" : "¿Por qué quieres actualizar?"}
+                title={isPlanExpired ? t('Nuevo Ciclo de Compras') : t('¿Por qué quieres actualizar?')}
                 subtitle={isPlanExpired
-                    ? "Ciclo de compras cerrado. ¿Qué priorizamos esta semana?"
-                    : "Ayuda al sistema a entender qué platos prefieres."
+                    ? t('Ciclo de compras cerrado. ¿Qué priorizamos esta semana?')
+                    : t('Ayuda al sistema a entender qué platos prefieres.')
                 }
                 options={(() => {
                     const todayDow = new Date().getDay(); // 0=Dom, 6=Sáb
                     const isWeekend = todayDow === 0 || todayDow === 6;
                     const weekendOption = isWeekend
-                        ? { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)' }
-                        : { id: 'weekend', icon: Zap, label: 'Fin de semana especial', color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: 'Platos más elaborados y premium (Sáb-Dom)', disabled: true, disabledDesc: (() => { const d = 6 - todayDow; return `Disponible en ${d} ${d === 1 ? 'día' : 'días'} (sábado)`; })() };
+                        ? { id: 'weekend', icon: Zap, label: t('Fin de semana especial'), color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: t('Platos más elaborados y premium (Sáb-Dom)') }
+                        : { id: 'weekend', icon: Zap, label: t('Fin de semana especial'), color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', desc: t('Platos más elaborados y premium (Sáb-Dom)'), disabled: true, disabledDesc: (() => { const d = 6 - todayDow; return tn(d, 'Disponible en {n} día (sábado)', 'Disponible en {n} días (sábado)', { n: d }); })() };
                     // [P3-NEWPLAN-NO-BUDGET-MODAL · 2026-05-23] Opción 'budget'
                     // ("Opciones económicas / Ingredientes de bajo costo")
                     // removida — el regenerate ya respeta la nevera por
@@ -9221,18 +9294,18 @@ const DashboardInner = () => {
                     // del removal análogo en el modal swap-meal
                     // (P3-SWAP-PANTRY-DEFAULT · 2026-05-22).
                     return isPlanExpired ? [
-                        { id: 'variety',  icon: Shuffle,    label: 'Quiero variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos esta semana' },
-                        { id: 'time',     icon: Clock,      label: 'Semana ocupada',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco preparaciones más rápidas' },
-                        { id: 'cravings', icon: Heart,      label: 'Tengo un antojo',       color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan semanal' },
+                        { id: 'variety',  icon: Shuffle,    label: t('Quiero variedad'),       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: t('Me apetecen platos distintos esta semana') },
+                        { id: 'time',     icon: Clock,      label: t('Semana ocupada'),       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: t('Busco preparaciones más rápidas') },
+                        { id: 'cravings', icon: Heart,      label: t('Tengo un antojo'),       color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: t('Un capricho que encaja en tu plan semanal') },
                         weekendOption,
-                        { id: 'similar',  icon: Copy,       label: 'Se parece al ciclo anterior', color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: 'Evitar sugerencias muy parecidas a la semana pasada' },
-                        { id: 'dislike',  icon: ThumbsDown, label: 'No me gustó el ciclo anterior', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar ingredientes y estilos similares en el futuro' }
+                        { id: 'similar',  icon: Copy,       label: t('Se parece al ciclo anterior'), color: '#F97316', bg: '#FFF7ED', border: '#FED7AA', desc: t('Evitar sugerencias muy parecidas a la semana pasada') },
+                        { id: 'dislike',  icon: ThumbsDown, label: t('No me gustó el ciclo anterior'), color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: t('Evitar ingredientes y estilos similares en el futuro') }
                     ] : [
-                        { id: 'variety',  icon: Shuffle,    label: 'Quiero más variedad',       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: 'Me apetecen platos distintos hoy' },
-                        { id: 'time',     icon: Clock,      label: 'No tengo tiempo hoy',       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: 'Busco algo más rápido de preparar' },
-                        { id: 'cravings', icon: Heart,      label: 'Tengo un antojo distinto',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: 'Un capricho que encaja en tu plan' },
+                        { id: 'variety',  icon: Shuffle,    label: t('Quiero más variedad'),       color: '#3B82F6', bg: '#EFF6FF', border: '#BFDBFE', desc: t('Me apetecen platos distintos hoy') },
+                        { id: 'time',     icon: Clock,      label: t('No tengo tiempo hoy'),       color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', desc: t('Busco algo más rápido de preparar') },
+                        { id: 'cravings', icon: Heart,      label: t('Tengo un antojo distinto'),  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8', desc: t('Un capricho que encaja en tu plan') },
                         weekendOption,
-                        { id: 'dislike',  icon: ThumbsDown, label: 'No me gustan estos platos', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Evitar sugerencias similares en el futuro' }
+                        { id: 'dislike',  icon: ThumbsDown, label: t('No me gustan estos platos'), color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: t('Evitar sugerencias similares en el futuro') }
                     ];
                 })()}
                 isNavigatingOption={isNavigatingOption}
@@ -9279,22 +9352,22 @@ const DashboardInner = () => {
                         <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--text-muted)' }} />
                         <div>
                             {hoveredOption === 'dislike' ? (
-                                <><strong>Se evitarán:</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => m.name).join(', ') : 'los platos actuales'}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                                <><strong>{t('Se evitarán:')}</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => m.name).join(', ') : t('los platos actuales')}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'variety' ? (
-                                <><strong>Variedad:</strong> platos de diferentes cocinas y perfiles de sabor.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                                <><strong>{t('Variedad:')}</strong> {t('platos de diferentes cocinas y perfiles de sabor.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'time' ? (
-                                <><strong>Rapidez:</strong> platos con ≤20 min de preparación aproximada.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                                <><strong>{t('Rapidez:')}</strong> {t('platos con ≤20 min de preparación aproximada.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'cravings' ? (
-                                <><strong>Antojo:</strong> opciones más indulgentes dentro de tus objetivos.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                                <><strong>{t('Antojo:')}</strong> {t('opciones más indulgentes dentro de tus objetivos.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'weekend' ? (
-                                <><strong>Fin de semana:</strong> platos más elaborados y experiencias premium.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                                <><strong>{t('Fin de semana:')}</strong> {t('platos más elaborados y experiencias premium.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption ? (
-                                <><strong>{isPlanExpired ? 'Regenerando:' : 'Actualizando:'}</strong> {isPlanExpired ? 'el menú completo del ciclo actual' : 'los platos de este día, cocinando con lo que tienes en tu Nevera'}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Tiempo est.: ~12s. {isPremium ? 'Sin costo (Premium)' : 'Consumirá 1 regeneración'}.</span></>
+                                <><strong>{isPlanExpired ? t('Regenerando:') : t('Actualizando:')}</strong> {isPlanExpired ? t('el menú completo del ciclo actual') : t('los platos de este día, cocinando con lo que tienes en tu Nevera')}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
                             ) : (
                                 isPremium ? (
-                                    <>Plan <strong>Premium</strong>: Regeneraciones ilimitadas activas.</>
+                                    <>{t('Plan')} <strong>{t('Premium')}</strong>{t(': Regeneraciones ilimitadas activas.')}</>
                                 ) : (
-                                    <>Te quedan <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : 'ilimitadas'}</strong> regeneraciones este mes.</>
+                                    <>{t('Te quedan')} <strong>{typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : t('ilimitadas')}</strong> {t('regeneraciones este mes.')}</>
                                 )
                             )}
                         </div>
@@ -9312,9 +9385,9 @@ const DashboardInner = () => {
                     total: typeof userPlanLimit === 'number' ? userPlanLimit : 0,
                 }}
                 options={[
-                    { id: 'variety',  label: 'Quiero más variedad',      desc: 'Me apetecen platos distintos hoy',   color: '#818CF8', icon: 'shuffle', recommended: true },
-                    { id: 'time',     label: 'No tengo tiempo hoy',       desc: 'Busco algo más rápido de preparar',  color: '#A78BFA', icon: 'clock' },
-                    { id: 'cravings', label: 'Tengo un antojo distinto',  desc: 'Un capricho que encaja en tu plan',  color: '#FB7185', icon: 'heart' },
+                    { id: 'variety',  label: t('Quiero más variedad'),      desc: t('Me apetecen platos distintos hoy'),   color: '#818CF8', icon: 'shuffle', recommended: true },
+                    { id: 'time',     label: t('No tengo tiempo hoy'),       desc: t('Busco algo más rápido de preparar'),  color: '#A78BFA', icon: 'clock' },
+                    { id: 'cravings', label: t('Tengo un antojo distinto'),  desc: t('Un capricho que encaja en tu plan'),  color: '#FB7185', icon: 'heart' },
                 ]}
                 coming={(() => {
                     const todayDow = new Date().getDay(); // 0=Dom … 6=Sáb
@@ -9322,13 +9395,13 @@ const DashboardInner = () => {
                     const d = 6 - todayDow; // días hasta el sábado
                     return {
                         id: 'weekend',
-                        label: 'Fin de semana especial',
+                        label: t('Fin de semana especial'),
                         desc: isWeekend
-                            ? 'Platos más elaborados y premium · disponible hoy'
-                            : 'Recetas para darte un gusto el finde · se desbloquea el sábado',
+                            ? t('Platos más elaborados y premium · disponible hoy')
+                            : t('Recetas para darte un gusto el finde · se desbloquea el sábado'),
                         color: '#FBBF24',
                         icon: 'bolt',
-                        unlockLabel: `En ${d} ${d === 1 ? 'día' : 'días'}`,
+                        unlockLabel: tn(d, 'En {n} día', 'En {n} días', { n: d }),
                         unlocked: isWeekend,
                     };
                 })()}
@@ -9366,12 +9439,15 @@ const DashboardInner = () => {
             <OptionPickerModal
                 isOpen={!!swapDislikeConfirm}
                 onClose={() => setSwapDislikeConfirm(null)}
+                // [P1-I18N-DASHBOARD · 2026-08-15] SIN `t()`: `Dashboard.p1_pantry_strict_consent.
+                // test.js` usa `title="¿Bloquear este plato?"` como MARCADOR para localizar este
+                // bloque, y envolverlo lo haría desaparecer del fichero.
                 title="¿Bloquear este plato?"
                 subtitle={
                     swapDislikeConfirm && (
                         <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                             <p style={{ margin: '0 0 0.75rem 0' }}>
-                                Este plato quedará <strong style={{ color: '#EF4444' }}>bloqueado permanentemente</strong> y la IA no volverá a sugerirlo en futuros planes:
+                                {t('Este plato quedará')} <strong style={{ color: '#EF4444' }}>{t('bloqueado permanentemente')}</strong> {t('y la IA no volverá a sugerirlo en futuros planes:')}
                             </p>
                             <div style={{
                                 background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '0.75rem',
@@ -9386,8 +9462,8 @@ const DashboardInner = () => {
                     )
                 }
                 options={[
-                    { id: 'confirm', icon: ThumbsDown, label: 'Sí, bloquear y cambiar', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'La IA no volverá a sugerir este plato' },
-                    { id: 'cancel',  icon: Shuffle,    label: 'Cancelar',               color: '#64748B', bg: '#F8FAFC', border: '#E2E8F0', desc: 'Volver sin hacer cambios' }
+                    { id: 'confirm', icon: ThumbsDown, label: t('Sí, bloquear y cambiar'), color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: t('La IA no volverá a sugerir este plato') },
+                    { id: 'cancel',  icon: Shuffle,    label: t('Cancelar'),               color: '#64748B', bg: '#F8FAFC', border: '#E2E8F0', desc: t('Volver sin hacer cambios') }
                 ]}
                 onOptionClick={async (optionId) => {
                     if (optionId === 'cancel') {
@@ -9424,11 +9500,11 @@ const DashboardInner = () => {
             <OptionPickerModal
                 isOpen={showDislikeConfirmModal}
                 onClose={() => { setShowDislikeConfirmModal(false); setShowUpdatePlanModal(true); }}
-                title="¿Bloquear estos platos?"
+                title={t('¿Bloquear estos platos?')}
                 subtitle={
                     <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                         <p style={{ margin: '0 0 0.5rem 0' }}>
-                            Los siguientes platos quedarán <strong style={{ color: '#EF4444' }}>bloqueados permanentemente</strong> y no volverán a aparecer en futuros planes:
+                            {t('Los siguientes platos quedarán')} <strong style={{ color: '#EF4444' }}>{t('bloqueados permanentemente')}</strong> {t('y no volverán a aparecer en futuros planes:')}
                         </p>
                         {currentDayMeals.length > 0 && (
                             <ul style={{ margin: '0.35rem 0 0 0', padding: '0 0 0 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
@@ -9440,8 +9516,8 @@ const DashboardInner = () => {
                     </div>
                 }
                 options={[
-                    { id: 'confirm_dislike', icon: ThumbsDown, label: 'Sí, bloquear y actualizar', color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: 'Se evitarán estos platos en todos los ciclos futuros' },
-                    { id: 'cancel_dislike',  icon: Shuffle,    label: 'Cancelar',                  color: '#64748B', bg: '#F8FAFC', border: '#E2E8F0', desc: 'Volver al menú de opciones sin cambios' }
+                    { id: 'confirm_dislike', icon: ThumbsDown, label: t('Sí, bloquear y actualizar'), color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', desc: t('Se evitarán estos platos en todos los ciclos futuros') },
+                    { id: 'cancel_dislike',  icon: Shuffle,    label: t('Cancelar'),                  color: '#64748B', bg: '#F8FAFC', border: '#E2E8F0', desc: t('Volver al menú de opciones sin cambios') }
                 ]}
                 isNavigatingOption={isNavigatingOption}
                 onOptionClick={async (optionId) => {
@@ -9494,6 +9570,7 @@ const DashboardInner = () => {
 // con ~80 hooks debajo. Comportamiento idéntico al previo en el camino común
 // (ProtectedRoute ya garantiza loadingData=false al renderizar esta ruta).
 const Dashboard = () => {
+    const t = useT();
     const { loadingData, planData, planSyncFailed, retryPlanSync, userProfile } = useAssessment();
 
     // ESTADO DE CARGA: recuperando datos de la DB → loader.
@@ -9510,7 +9587,7 @@ const Dashboard = () => {
                 background: 'var(--bg-page)'
             }}>
                 <Loader2 className="spin-fast" size={48} color="var(--primary)" />
-                <p style={{ fontWeight: 600 }}>Sincronizando tu plan...</p>
+                <p style={{ fontWeight: 600 }}>{t('Sincronizando tu plan...')}</p>
                 <style>{`
                     .spin-fast { animation: spin 1s linear infinite; }
                     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -9533,11 +9610,10 @@ const Dashboard = () => {
             }}>
                 <AlertCircle size={44} color="var(--warning)" />
                 <p style={{ fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                    No pudimos sincronizar tu plan
+                    {t('No pudimos sincronizar tu plan')}
                 </p>
                 <p style={{ fontSize: '0.85rem', maxWidth: 340, margin: 0, lineHeight: 1.45 }}>
-                    Puede ser una conexión inestable o que la sesión aún se esté activando.
-                    Tu plan sigue guardado — vuelve a intentarlo.
+                    {t('Puede ser una conexión inestable o que la sesión aún se esté activando. Tu plan sigue guardado — vuelve a intentarlo.')}
                 </p>
                 <button
                     onClick={() => retryPlanSync?.()}
@@ -9547,7 +9623,7 @@ const Dashboard = () => {
                         background: 'var(--primary)', color: '#fff'
                     }}
                 >
-                    Reintentar
+                    {t('Reintentar')}
                 </button>
             </div>
         );

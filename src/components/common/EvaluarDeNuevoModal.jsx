@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "../../i18n";
 
 /**
  * EvaluarDeNuevoModal — "Evaluar de Nuevo"
@@ -64,18 +65,21 @@ function Icon({ name, size = 20, stroke = 2 }) {
 }
 
 /* ---------------------------------------------------------- datos por defecto */
-const DEFAULT_CHOICES = [
+// [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: una tabla de copy en
+// ámbito de módulo se evalúa al importar —antes de que el catálogo exista— y se
+// congela en español para siempre. Se llama en render (ver `choices` abajo).
+const getDefaultChoices = (t) => [
   {
     id: "renovar",
-    title: "Renovar plan actual",
-    desc: "Genera platos nuevos con los datos que ya configuraste.",
-    tag: { type: "rec", label: "Recomendado" },
+    title: t("Renovar plan actual"),
+    desc: t("Genera platos nuevos con los datos que ya configuraste."),
+    tag: { type: "rec", label: t("Recomendado") },
   },
   {
     id: "cero",
-    title: "Empezar desde cero",
-    desc: "Te lleva al formulario inicial y elimina tu plan actual.",
-    tag: { type: "danger", label: "Borra todo" },
+    title: t("Empezar desde cero"),
+    desc: t("Te lleva al formulario inicial y elimina tu plan actual."),
+    tag: { type: "danger", label: t("Borra todo") },
     destructive: true,
   },
 ];
@@ -266,16 +270,20 @@ const EDN_CSS = `
 `;
 
 /* ============================================================ componente raíz */
+// [P1-I18N-DASHBOARD · 2026-08-15] Los defaults de copy se resuelven DENTRO del
+// cuerpo (no en la firma): un default de parámetro no puede llamar al hook, y el
+// hook es lo que suscribe el componente al cambio de idioma.
 export default function EvaluarDeNuevoModal({
   open = true,
-  title = "Evaluar de Nuevo",
-  subtitle = "Elige cómo generar tu nuevo plan.",
-  choices = DEFAULT_CHOICES,
+  title = null,
+  subtitle = null,
+  choices = null,
   defaultChoice = "renovar",
   busy = false,
   onConfirm = () => {},
   onClose = () => {},
 }) {
+  const t = useT();
   const [selected, setSelected] = useState(defaultChoice);
 
   // ESC para cerrar + bloqueo del scroll del body mientras está abierto.
@@ -293,7 +301,11 @@ export default function EvaluarDeNuevoModal({
 
   if (!open) return null;
 
-  const current = choices.find((c) => c.id === selected) || choices[0];
+  const titleText = title ?? t("Evaluar de Nuevo");
+  const subtitleText = subtitle ?? t("Elige cómo generar tu nuevo plan.");
+  const choiceList = choices ?? getDefaultChoices(t);
+
+  const current = choiceList.find((c) => c.id === selected) || choiceList[0];
   const destructive = !!current.destructive;
 
   // Portal a <body>: garantiza que el overlay fixed cubra el viewport aunque algún
@@ -346,7 +358,7 @@ export default function EvaluarDeNuevoModal({
         <button
           type="button"
           onClick={() => { if (!busy) onClose(); }}
-          aria-label="Cerrar"
+          aria-label={t("Cerrar")}
           disabled={busy}
           style={{
             position: "absolute",
@@ -395,17 +407,17 @@ export default function EvaluarDeNuevoModal({
               color: "var(--text-main)",
             }}
           >
-            {title}
+            {titleText}
           </h2>
         </div>
 
         <p style={{ margin: "12px 0 0", fontSize: ".86rem", lineHeight: 1.5, fontWeight: 500, color: "var(--text-muted)" }}>
-          {subtitle}
+          {subtitleText}
         </p>
 
         {/* opciones (radio) */}
-        <div role="radiogroup" aria-label={title} style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
-          {choices.map((c) => (
+        <div role="radiogroup" aria-label={titleText} style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
+          {choiceList.map((c) => (
             <ChoiceRow key={c.id} choice={c} selected={c.id === selected} disabled={busy} onSelect={setSelected} />
           ))}
         </div>
@@ -414,9 +426,9 @@ export default function EvaluarDeNuevoModal({
         <div style={{ marginTop: 18 }}>
           <ConfirmButton
             destructive={destructive}
-            label={destructive ? "Empezar desde cero" : "Generar plan"}
+            label={destructive ? t("Empezar desde cero") : t("Generar plan")}
             busy={busy}
-            busyLabel={destructive ? "Borrando…" : "Generando…"}
+            busyLabel={destructive ? t("Borrando…") : t("Generando…")}
             onClick={() => { if (!busy) onConfirm(selected); }}
           />
         </div>

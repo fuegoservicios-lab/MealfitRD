@@ -9,8 +9,10 @@ import BotAvatar from './BotAvatar';
 import LazyMarkdown from '../common/LazyMarkdown';
 import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
+import { useT } from '../../i18n';
 
 const MessageActions = ({ content, sessionId, onRegenerate }) => {
+    const t = useT();
     const [copied, setCopied] = useState(false);
     const [feedback, setFeedback] = useState(null);
 
@@ -63,7 +65,7 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
                 onClick={() => handleFeedback('up')} 
                 style={actionBtnStyle(feedback === 'up')}
                 onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
-                title="Buena respuesta"
+                title={t('Buena respuesta')}
             >
                 <ThumbsUp size={18} strokeWidth={2} fill={feedback === 'up' ? 'currentColor' : 'none'} />
             </button>
@@ -71,7 +73,7 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
                 onClick={() => handleFeedback('down')} 
                 style={actionBtnStyle(feedback === 'down')}
                 onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
-                title="Mala respuesta"
+                title={t('Mala respuesta')}
             >
                 <ThumbsDown size={18} strokeWidth={2} fill={feedback === 'down' ? 'currentColor' : 'none'} />
             </button>
@@ -79,7 +81,7 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
                 onClick={onRegenerate} 
                 style={actionBtnStyle()}
                 onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
-                title="Regenerar respuesta"
+                title={t('Regenerar respuesta')}
             >
                 <RefreshCw size={18} strokeWidth={2} />
             </button>
@@ -87,7 +89,7 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
                 onClick={handleCopy} 
                 style={actionBtnStyle(copied)}
                 onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
-                title="Copiar"
+                title={t('Copiar')}
             >
                 {copied ? <Check size={18} strokeWidth={2.5} /> : <Copy size={18} strokeWidth={2} />}
             </button>
@@ -100,11 +102,13 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
 // si msg.retryable === true (errores no-retryables como 402 quota o 401/403
 // auth muestran solo el copy explicativo). Sin styles inline pesados; el
 // botón hereda paleta error (rojo).
-const ErrorRetryButton = ({ onClick }) => (
+const ErrorRetryButton = ({ onClick }) => {
+    const t = useT();
+    return (
     <button
         type="button"
         onClick={onClick}
-        aria-label="Reintentar el último mensaje"
+        aria-label={t('Reintentar el último mensaje')}
         style={{
             marginTop: '0.75rem',
             display: 'inline-flex',
@@ -124,11 +128,13 @@ const ErrorRetryButton = ({ onClick }) => (
         onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; }}
     >
         <RefreshCw size={15} strokeWidth={2.2} />
-        Reintentar
+        {t('Reintentar')}
     </button>
-);
+    );
+};
 
 export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId, onRegenerate, onErrorRetry }) => {
+    const t = useT();
     // [P1-CHAT-ERROR-DIFF · 2026-05-19] Variante visual para errores:
     // role="alert" (anuncio a screen readers — defensa-en-profundidad
     // mientras el aria-live container-level sigue pendiente), borde rojo
@@ -172,7 +178,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     <div style={{ marginBottom: msg.content ? '0.5rem' : 0 }}>
                         <img
                             src={msg.imageUrl}
-                            alt="Imagen enviada"
+                            alt={t('Imagen enviada')}
                             style={{
                                 maxWidth: '280px',
                                 width: '100%',

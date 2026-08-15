@@ -34,7 +34,11 @@
 //                                    // no el signo. Presente solo si magnitude=true.
 //   }
 
-import { getCoherenceHypothesisLabel } from './coherenceLabels.js';
+import { getCoherenceHypothesisLabelI18n } from './coherenceLabels.js';
+// [P1-I18N-DASHBOARD · 2026-08-15] `t`/`tn` de módulo: esto no es un componente.
+// Todas las llamadas viven dentro de las funciones que construyen el toast, así
+// que se evalúan al emitirlo — con el catálogo ya cargado, nunca al importar.
+import { t, tn } from '../i18n';
 
 /**
  * @typedef {Object} CoherenceWarningItem
@@ -123,7 +127,7 @@ export const buildCoherenceToast = (warnings) => {
 
     // Summary: primeros 2 items en formato "Food (causa)"
     const summary = validItems.slice(0, 2).map((w) => {
-        const label = getCoherenceHypothesisLabel(w.hypothesis) || 'revisar';
+        const label = getCoherenceHypothesisLabelI18n(w.hypothesis, t) || t('revisar');
         // Si hay delta_pct y es significativo, anexar la magnitud.
         //
         // [P1-COHERENCE-DELTA-SIGN · 2026-08-05] SIN signo. `delta_pct` no es un
@@ -137,21 +141,25 @@ export const buildCoherenceToast = (warnings) => {
         // solo aporta CUÁNTO se separa de lo que piden las recetas.
         if (typeof w.delta_pct === 'number' && Math.abs(w.delta_pct) >= 0.10) {
             const pct = Math.round(Math.abs(w.delta_pct) * 100);
-            return `${w.food.trim()} (${label}, ${pct}% de diferencia)`;
+            // El nombre del alimento NO se traduce (es el SSOT del motor clínico);
+            // lo que viaja al catálogo es el molde que lo rodea.
+            return t('{food} ({label}, {pct}% de diferencia)', { food: w.food.trim(), label, pct });
         }
-        return `${w.food.trim()} (${label})`;
+        return t('{food} ({label})', { food: w.food.trim(), label });
     });
 
-    const title =
-        validItems.length === 1
-            ? 'Lista revisada — 1 item puede necesitar ajuste manual'
-            : `Lista revisada — ${validItems.length} items pueden necesitar ajuste manual`;
+    const title = tn(
+        validItems.length,
+        'Lista revisada — {n} item puede necesitar ajuste manual',
+        'Lista revisada — {n} items pueden necesitar ajuste manual',
+        { n: validItems.length },
+    );
 
     // Description: lista summarized + hint "ver Historial > Ajustes" donde
     // el usuario puede inspeccionar todos los entries con `coherenceLabels`.
     let description = summary.join(' · ');
     if (validItems.length > summary.length) {
-        description += ` · y ${validItems.length - summary.length} más`;
+        description += ` · ${t('y {n} más', { n: validItems.length - summary.length })}`;
     }
     // Cap defensive (sonner trunca pero queremos cap explícito).
     if (description.length > 180) {
@@ -313,8 +321,10 @@ export const buildHistoricalCoherenceToast = (history, opts = {}) => {
         const action = e.action_taken;
         if (!action || _HISTORICAL_ACTION_BLACKLIST.has(action)) return false;
         if (windowHours > 0 && typeof e.ts === 'string') {
-            const t = Date.parse(e.ts);
-            if (!Number.isNaN(t) && t < cutoffMs) return false;
+            // [P1-I18N-DASHBOARD · 2026-08-15] `parsedTs`, no `t`: `t` es ahora el
+            // traductor importado y este local lo tapaba dentro del filtro.
+            const parsedTs = Date.parse(e.ts);
+            if (!Number.isNaN(parsedTs) && parsedTs < cutoffMs) return false;
         }
         // [P1-COHERENCE-BANNER-NOISE · 2026-06-22] Solo cuentan revisiones
         // ACCIONABLES. Un recálculo benigno (warn_only_recalc que solo halló
@@ -332,10 +342,12 @@ export const buildHistoricalCoherenceToast = (history, opts = {}) => {
     // → severidad warning (vale la pena que el usuario revise).
     const severity = 'warning';
 
+    // Ternario y no `tn`: el singular dice «una revisión», no «1 revisión» — un
+    // plural con `{n}` cambiaría el copy español para que encaje en el molde.
     const title = recent.length === 1
-        ? 'Tu lista de compras tuvo una revisión automática reciente'
-        : `Tu lista de compras tuvo ${recent.length} revisiones automáticas recientes`;
-    const description = 'Algunas cantidades pueden necesitar ajuste manual. Verifica los items antes de comprar.';
+        ? t('Tu lista de compras tuvo una revisión automática reciente')
+        : t('Tu lista de compras tuvo {n} revisiones automáticas recientes', { n: recent.length });
+    const description = t('Algunas cantidades pueden necesitar ajuste manual. Verifica los items antes de comprar.');
 
     return { severity, title, description, count: recent.length };
 };

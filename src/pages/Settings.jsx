@@ -27,6 +27,9 @@ import { trackEvent, isAnalyticsOptedOut, persistAnalyticsOptOut } from '../util
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
 // [APPEARANCE-THEME · 2026-05-28] Aplicar el tema en vivo al elegir en el toggle.
 import { applyThemePref, isDarkActive } from '../utils/theme';
+// [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma de la interfaz.
+import { LOCALES } from '../i18n/locales';
+import { useI18n, formatDate, formatNumber } from '../i18n';
 import Modal from '../components/common/Modal';
 import EvaluarDeNuevoModal from '../components/common/EvaluarDeNuevoModal';
 // [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Pantalla móvil inmersiva de Plan & Objetivo.
@@ -64,22 +67,26 @@ import { getAvatarId, persistAvatar } from '../utils/avatarStore';
 // html[data-theme] que activa los overrides de variables CSS oscuras en
 // index.css. Mapeo:
 //   system → prefers-color-scheme   ·   light → claro (Básico)   ·   dark → oscuro
-const THEME_OPTIONS = [
+//
+// [P1-I18N-DASHBOARD · 2026-08-15] FUNCIÓN, no constante: un `t()` en ámbito de
+// módulo se evalúa al importar —antes de que el catálogo cargue— y se congela en
+// español para siempre. `value` sigue siendo el identificador que se persiste.
+const getThemeOptions = (t) => [
     {
         value: 'system',
-        label: 'Sistema',
+        label: t('Sistema'),
         Icon: Monitor,
         iconBg: 'linear-gradient(135deg, #64748B 0%, #475569 100%)',
     },
     {
         value: 'light',
-        label: 'Claro',
+        label: t('Claro'),
         Icon: Sun,
         iconBg: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
     },
     {
         value: 'dark',
-        label: 'Oscuro',
+        label: t('Oscuro'),
         Icon: Moon,
         iconBg: 'linear-gradient(135deg, #4F46E5 0%, #1E293B 100%)',
     },
@@ -149,7 +156,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         if (!userProfile || typeof updateUserProfile !== 'function') return false;
         const payload = buildHealthProfilePayload(formData, overrides, session);
         if (!payload) {
-            toast.warning('Tu perfil aún se está cargando. Inténtalo en un momento.', {
+            toast.warning(t('Tu perfil aún se está cargando. Inténtalo en un momento.'), {
                 duration: 3500,
             });
             return false;
@@ -220,6 +227,53 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         return ['system', 'light', 'dark'].includes(cached) ? cached : 'system';
     });
 
+    // [P1-I18N-DASHBOARD · 2026-08-15] Idioma activo + mutador. La fuente de
+    // verdad es `user_profiles.locale`; el motor mantiene el espejo local.
+    // `t` sale del MISMO hook a propósito: es lo que suscribe esta pantalla al
+    // cambio de idioma (sin la suscripción, cambiar de idioma no la repinta).
+    const { locale, setLocale, t } = useI18n();
+
+    // [P1-I18N-DASHBOARD · 2026-08-15] Idioma de la interfaz.
+    //
+    // El orden importa y no es el obvio. Primero se APLICA (carga el catálogo,
+    // repinta) y solo después se PERSISTE en el perfil:
+    //
+    //   - Si el catálogo no baja (offline, deploy a medias, chunk 404), no se
+    //     guarda nada. Guardar primero dejaría el perfil diciendo `fr-FR`
+    //     mientras la pantalla sigue en español, y al siguiente arranque la app
+    //     intentaría un idioma que ya sabemos que no está disponible.
+    //   - Si el catálogo baja pero el PATCH falla (sin red, 401 expirado), el
+    //     idioma YA cambió y queda en `localStorage`. Ese es el estado correcto:
+    //     el usuario pidió francés y tiene francés; lo único que no viaja es la
+    //     preferencia a otros dispositivos, y eso se dice en el aviso en vez de
+    //     revertirle la pantalla por debajo. Deshacer lo que el usuario acaba de
+    //     pedir, porque falló una escritura que a él no le consta, es peor que
+    //     una sincronización pendiente.
+    const handleSelectLocale = async (code) => {
+        if (code === locale) return;
+
+        const applied = await setLocale(code);
+        if (!applied) {
+            toast.error(t('No se pudo cargar ese idioma. Revisa tu conexión.'));
+            return;
+        }
+
+        try {
+            const res = await fetchWithAuth('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fields: { locale: code } }),
+            });
+            if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
+            toast.success(t('Idioma guardado.'), { duration: 2000 });
+        } catch {
+            toast.warning(
+                t('Idioma cambiado en este dispositivo, pero no se pudo guardar en tu cuenta.'),
+                { duration: 4000 }
+            );
+        }
+    };
+
     const handleSelectTheme = (value) => {
         if (value === themePreference) return;
         setThemePreference(value);
@@ -227,7 +281,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // [APPEARANCE-THEME · 2026-05-28] Aplicar al instante (sin reload):
         // fija html[data-theme] → las variables CSS oscuras entran en efecto.
         applyThemePref(value);
-        toast.success('Preferencia de apariencia guardada.', { duration: 2000 });
+        toast.success(t('Preferencia de apariencia guardada.'), { duration: 2000 });
     };
 
     useEffect(() => {
@@ -262,13 +316,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (!res.ok) throw new Error('PUT failed');
             toast.success(
                 next === 'auto_proxy'
-                    ? 'Modo auto activado: ya no pausaremos tu plan por falta de logs.'
-                    : 'Modo manual activado: pausaremos tu plan si dejas de loguear comidas.',
+                    ? t('Modo auto activado: ya no pausaremos tu plan por falta de logs.')
+                    : t('Modo manual activado: pausaremos tu plan si dejas de loguear comidas.'),
             );
         } catch (e) {
             console.error('handleToggleLoggingPreference error:', e);
             setLoggingPreference(prev);
-            toast.error('No se pudo actualizar la preferencia. Inténtalo de nuevo.');
+            toast.error(t('No se pudo actualizar la preferencia. Inténtalo de nuevo.'));
         } finally {
             setIsLoggingPrefLoading(false);
         }
@@ -326,16 +380,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             // [P1-CONFIRM-TOAST-LAYOUT · 2026-08-12] Pregunta corta como título,
             // explicación como description — el layout nuevo del confirm.
             const ok = await confirmToast(
-                '¿Pausar la generación de planes?',
+                t('¿Pausar la generación de planes?'),
                 {
                     // [P1-TRACKING-WINS · 2026-08-14] Copy ajustado a la decisión
                     // «contador manda»: en seguimiento el dashboard pasa a ser el
                     // contador; el plan no desaparece pero ya no es la pantalla.
                     // El copy anterior («menú, recetas y lista siguen visibles»)
                     // describía el contrato viejo y habría prometido en falso.
-                    description: 'La app pasa a modo contador (macros y diario). Tu plan no se pierde: queda guardado en tu Historial y puedes reanudarlo cuando quieras — retoma exactamente donde quedó.',
-                    confirmLabel: 'Pausar planes',
-                    cancelLabel: 'Volver',
+                    description: t('La app pasa a modo contador (macros y diario). Tu plan no se pierde: queda guardado en tu Historial y puedes reanudarlo cuando quieras — retoma exactamente donde quedó.'),
+                    confirmLabel: t('Pausar planes'),
+                    cancelLabel: t('Volver'),
                 },
             );
             if (!ok) return;
@@ -368,13 +422,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             }
             if (!pausing && !planData) {
                 updateData('appMode', 'plan');
-                toast.success('Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.');
+                toast.success(t('Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.'));
             } else {
                 toast.success(pausing
-                    ? 'Planes en pausa. La app queda como contador; reanuda cuando quieras.'
+                    ? t('Planes en pausa. La app queda como contador; reanuda cuando quieras.')
                     : (data.plan_expired
-                        ? 'Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.'
-                        : 'Planes reanudados: la generación continúa donde quedó.'));
+                        ? t('Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.')
+                        : t('Planes reanudados: la generación continúa donde quedó.')));
             }
             // [P1-PAUSE-STALE-PLANDATA · 2026-08-12] Con plan vivo, RECARGAR tras el
             // toast — el mismo cierre que el botón Reanudar de la franja. El PUT dejó
@@ -389,7 +443,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             }
         } catch (e) {
             console.error('handleTogglePlanMode error:', e);
-            toast.error('No se pudo cambiar el modo. Inténtalo de nuevo.');
+            toast.error(t('No se pudo cambiar el modo. Inténtalo de nuevo.'));
         } finally {
             setIsPlanModeLoading(false);
         }
@@ -917,15 +971,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // cambiar el tema porque setThemePreference muta su propio estado).
     const _settingsDark = isDarkActive();
     const sectionsConfig = [
-        { id: 'profile', label: 'General', description: 'Cuenta, apariencia y notificaciones', Icon: Cog, iconBg: _settingsDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', iconColor: _settingsDark ? '#60A5FA' : '#3B82F6' },
-        { id: 'preferences', label: 'Capacidades', description: 'Modo automático, memoria y datos del agente', Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
+        { id: 'profile', label: t('General'), description: t('Cuenta, apariencia y notificaciones'), Icon: Cog, iconBg: _settingsDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', iconColor: _settingsDark ? '#60A5FA' : '#3B82F6' },
+        { id: 'preferences', label: t('Capacidades'), description: t('Modo automático, memoria y datos del agente'), Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
         // [P2-PRIVACY-SETTINGS · 2026-07-04] Privacidad va DEBAJO de Capacidades
         // (a pedido del owner): políticas, memoria y export de datos.
-        { id: 'privacy', label: 'Privacidad', description: 'Tus datos, memoria y políticas', Icon: ShieldCheck, iconBg: _settingsDark ? 'rgba(20, 184, 166, 0.18)' : '#CCFBF1', iconColor: _settingsDark ? '#2DD4BF' : '#0F766E' },
-        { id: 'superpers', label: 'Súper Personalización', description: 'Gustos, cocina, equipo y más para mejores planes', Icon: Fingerprint, iconBg: _settingsDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7', iconColor: _settingsDark ? '#FBBF24' : '#D97706' },
-        { id: 'clinical', label: 'Perfil Clínico Avanzado', description: 'Laboratorios, historial de peso, digestión y entrenamiento', Icon: Stethoscope, iconBg: _settingsDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2', iconColor: _settingsDark ? '#F87171' : '#DC2626' },
-        { id: 'plan', label: 'Plan & Objetivo', description: 'Meta principal y calorías', Icon: Trophy, iconBg: _settingsDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7', iconColor: _settingsDark ? '#34D399' : '#166534' },
-        { id: 'subscription', label: 'Suscripción', description: 'Tu plan y pagos', Icon: CreditCard, iconBg: _settingsDark ? 'rgba(99, 102, 241, 0.18)' : '#E0E7FF', iconColor: _settingsDark ? '#A5B4FC' : '#4F46E5' },
+        { id: 'privacy', label: t('Privacidad'), description: t('Tus datos, memoria y políticas'), Icon: ShieldCheck, iconBg: _settingsDark ? 'rgba(20, 184, 166, 0.18)' : '#CCFBF1', iconColor: _settingsDark ? '#2DD4BF' : '#0F766E' },
+        { id: 'superpers', label: t('Súper Personalización'), description: t('Gustos, cocina, equipo y más para mejores planes'), Icon: Fingerprint, iconBg: _settingsDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7', iconColor: _settingsDark ? '#FBBF24' : '#D97706' },
+        { id: 'clinical', label: t('Perfil Clínico Avanzado'), description: t('Laboratorios, historial de peso, digestión y entrenamiento'), Icon: Stethoscope, iconBg: _settingsDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2', iconColor: _settingsDark ? '#F87171' : '#DC2626' },
+        { id: 'plan', label: t('Plan & Objetivo'), description: t('Meta principal y calorías'), Icon: Trophy, iconBg: _settingsDark ? 'rgba(16, 185, 129, 0.18)' : '#DCFCE7', iconColor: _settingsDark ? '#34D399' : '#166534' },
+        { id: 'subscription', label: t('Suscripción'), description: t('Tu plan y pagos'), Icon: CreditCard, iconBg: _settingsDark ? 'rgba(99, 102, 241, 0.18)' : '#E0E7FF', iconColor: _settingsDark ? '#A5B4FC' : '#4F46E5' },
     ];
 
     const activeSectionMeta = sectionsConfig.find(s => s.id === activeSection) || null;
@@ -956,8 +1010,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             const next = !prev;
             persistAnalyticsOptOut(!next);
             toast.success(next
-                ? 'Gracias por ayudar a mejorar Bioboros.'
-                : 'Eventos de uso desactivados en este dispositivo.');
+                ? t('Gracias por ayudar a mejorar Bioboros.')
+                : t('Eventos de uso desactivados en este dispositivo.'));
             return next;
         });
     };
@@ -994,10 +1048,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             setAiTrainingConsent(next);
             toast.success(next
-                ? 'Gracias por tu confianza. Tus datos podrán usarse de forma anónima cuando exista el entrenamiento propio.'
-                : 'Listo. Tus datos no se usarán para entrenar modelos.');
+                ? t('Gracias por tu confianza. Tus datos podrán usarse de forma anónima cuando exista el entrenamiento propio.')
+                : t('Listo. Tus datos no se usarán para entrenar modelos.'));
         } catch {
-            toast.error('No se pudo guardar la preferencia. Intenta de nuevo.');
+            toast.error(t('No se pudo guardar la preferencia. Intenta de nuevo.'));
         } finally {
             setIsAiConsentLoading(false);
         }
@@ -1013,7 +1067,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         try {
             const res = await fetchWithAuth('/api/account/export');
             if (res.status === 429) {
-                toast.error('Acabas de exportar. Espera unos minutos e intenta de nuevo.');
+                toast.error(t('Acabas de exportar. Espera unos minutos e intenta de nuevo.'));
                 return;
             }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1027,9 +1081,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             a.click();
             a.remove();
             URL.revokeObjectURL(url);
-            toast.success('Datos exportados. Revisa tu carpeta de descargas.');
+            toast.success(t('Datos exportados. Revisa tu carpeta de descargas.'));
         } catch {
-            toast.error('No se pudo exportar tus datos. Intenta de nuevo en un momento.');
+            toast.error(t('No se pudo exportar tus datos. Intenta de nuevo en un momento.'));
         } finally {
             setIsExportingData(false);
         }
@@ -1159,17 +1213,17 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         const isEdge = ua.includes('Edg/');
         const isSafari = ua.includes('Safari') && !ua.includes('Chrome');
 
-        if (isBrave) return "Brave bloquea notificaciones por defecto. Haz clic en el escudo 🛡 de la barra de direcciones → Permisos del sitio → Notificaciones → Permitir.";
-        if (isFirefox) return "Permisos bloqueados en Firefox. Haz clic en el ícono de candado 🔒 en la barra de direcciones → Más información → Permisos → Notificaciones → Permitir.";
-        if (isSafari) return "Permisos bloqueados en Safari. Ve a Safari → Configuración para este sitio web → Notificaciones → Permitir.";
-        if (isEdge) return "Permisos bloqueados en Edge. Haz clic en el candado 🔒 en la barra de direcciones → Permisos para este sitio → Notificaciones → Permitir.";
-        return "Permisos bloqueados en el navegador. Haz clic en el candado 🔒 en la barra de direcciones → Permisos del sitio → Notificaciones → Permitir.";
+        if (isBrave) return t("Brave bloquea notificaciones por defecto. Haz clic en el escudo 🛡 de la barra de direcciones → Permisos del sitio → Notificaciones → Permitir.");
+        if (isFirefox) return t("Permisos bloqueados en Firefox. Haz clic en el ícono de candado 🔒 en la barra de direcciones → Más información → Permisos → Notificaciones → Permitir.");
+        if (isSafari) return t("Permisos bloqueados en Safari. Ve a Safari → Configuración para este sitio web → Notificaciones → Permitir.");
+        if (isEdge) return t("Permisos bloqueados en Edge. Haz clic en el candado 🔒 en la barra de direcciones → Permisos para este sitio → Notificaciones → Permitir.");
+        return t("Permisos bloqueados en el navegador. Haz clic en el candado 🔒 en la barra de direcciones → Permisos del sitio → Notificaciones → Permitir.");
     };
 
     const handleTogglePush = async () => {
         try {
             if (!isPushSupported()) {
-                toast.error("Tu navegador no soporta notificaciones Push.");
+                toast.error(t("Tu navegador no soporta notificaciones Push."));
                 return;
             }
 
@@ -1180,9 +1234,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 const success = await unsubscribeFromPushNotifications();
                 if (success) {
                     setPushEnabled(false);
-                    toast.success("Notificaciones de la IA desactivadas.");
+                    toast.success(t("Notificaciones de la IA desactivadas."));
                 } else {
-                    toast.error("Error al desactivar notificaciones.");
+                    toast.error(t("Error al desactivar notificaciones."));
                 }
             } else {
                 // Suscribir
@@ -1198,9 +1252,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 if (result && result.success) {
                     setPushEnabled(true);
                     setPushSubscribeError(null);
-                    toast.success("¡Notificaciones de la IA activadas con éxito!");
+                    toast.success(t("¡Notificaciones de la IA activadas con éxito!"));
                 } else {
-                    const errMsg = result?.error || 'Error desconocido al suscribirse.';
+                    const errMsg = result?.error || t('Error desconocido al suscribirse.');
                     setPushSubscribeError(errMsg);
                     toast.error(errMsg, { duration: 6000 });
                 }
@@ -1208,9 +1262,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             setIsPushLoading(false);
         } catch (err) {
             console.error("handleTogglePush error:", err);
-            const errMsg = err.message || 'Error inesperado.';
+            const errMsg = err.message || t('Error inesperado.');
             setPushSubscribeError(errMsg);
-            toast.error(`Error inesperado: ${errMsg}`);
+            toast.error(t('Error inesperado: {detalle}', { detalle: errMsg }));
             setIsPushLoading(false);
         }
     };
@@ -1225,7 +1279,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
         const trimmedName = userName.trim();
         if (!trimmedName) {
-            setNameError("Por favor, ingresa tu nombre.");
+            setNameError(t("Por favor, ingresa tu nombre."));
             return;
         }
         setNameError('');
@@ -1236,7 +1290,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         if (ageInput !== '' && ageInput != null) {
             ageNum = parseInt(ageInput, 10);
             if (isNaN(ageNum) || ageNum < 12 || ageNum > 100) {
-                toast.error("Edad fuera de rango (12–100 años).");
+                toast.error(t("Edad fuera de rango (12–100 años)."));
                 return;
             }
         }
@@ -1268,14 +1322,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
         if (result.success) {
             setSaveStatus('success');
-            toast.success("Perfil actualizado con éxito.", updatePayload.health_profile ? {
-                description: "Tu edad y sexo se aplicarán en tu próximo plan.",
+            toast.success(t("Perfil actualizado con éxito."), updatePayload.health_profile ? {
+                description: t("Tu edad y sexo se aplicarán en tu próximo plan."),
                 duration: 4500,
             } : undefined);
             setTimeout(() => setSaveStatus(''), 3000);
         } else {
             setSaveStatus('error');
-            toast.error("Hubo un error al guardar. Por favor verifica tu conexión.");
+            toast.error(t("Hubo un error al guardar. Por favor verifica tu conexión."));
         }
     };
 
@@ -1303,11 +1357,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         const heightValid = heightCm !== null && heightCm >= 100 && heightCm <= 250;
 
         if (weightInput && !weightValid) {
-            toast.error(`Peso fuera de rango (${_weightMin}-${_weightMax} ${weightUnit}).`);
+            toast.error(t('Peso fuera de rango ({min}-{max} {unidad}).', { min: _weightMin, max: _weightMax, unidad: weightUnit }));
             return;
         }
         if ((heightUnit === 'cm' ? heightInput : (heightFeet || heightInches)) && !heightValid) {
-            toast.error("Altura fuera de rango (100-250 cm equivalente).");
+            toast.error(t("Altura fuera de rango (100-250 cm equivalente)."));
             return;
         }
 
@@ -1334,8 +1388,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 userProfile?.id, checkPlanLimit, { ttlMs: 5000 },
             );
             if (typeof userPlanLimit === 'number' && _freshCount >= userPlanLimit) {
-                toast.error('Límite de regeneraciones alcanzado', {
-                    description: 'Tus nuevos datos no se guardaron porque requieren regenerar el plan, y has usado todos tus créditos este mes.',
+                toast.error(t('Límite de regeneraciones alcanzado'), {
+                    description: t('Tus nuevos datos no se guardaron porque requieren regenerar el plan, y has usado todos tus créditos este mes.'),
                     duration: 6000,
                 });
                 return;
@@ -1398,8 +1452,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         //    weight/height/weightUnit nuevos. El LLM recalcula macros con
         //    Mifflin-St Jeor sobre los nuevos valores y genera comidas
         //    coherentes.
-        toast.success("Datos guardados. Regenerando plan…", {
-            description: "Tu plan se actualizará con los nuevos cálculos de macros en unos segundos.",
+        toast.success(t("Datos guardados. Regenerando plan…"), {
+            description: t("Tu plan se actualizará con los nuevos cálculos de macros en unos segundos."),
             duration: 4000,
         });
 
@@ -1410,7 +1464,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             });
         } catch (err) {
             console.error('Error regenerando plan tras update body metrics:', err);
-            toast.error('No se pudo regenerar el plan. Tus datos se guardaron — reintenta el regenerate desde el Dashboard.');
+            toast.error(t('No se pudo regenerar el plan. Tus datos se guardaron — reintenta el regenerate desde el Dashboard.'));
         } finally {
             setIsRegeneratingFromMetrics(false);
         }
@@ -1421,9 +1475,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // por `confirmToast` (Promise-based, sonner). El nativo bloqueaba el
         // event loop, rompía dark theme y no era a11y. Mismo helper que ya
         // usaba el resto de Settings.jsx (P2-NEW-WINDOW-CONFIRM-SETTINGS).
-        const ok = await confirmToast("¿Seguro que deseas olvidar esta información?", {
-            confirmLabel: 'Olvidar',
-            cancelLabel: 'Cancelar',
+        const ok = await confirmToast(t("¿Seguro que deseas olvidar esta información?"), {
+            confirmLabel: t('Olvidar'),
+            cancelLabel: t('Cancelar'),
         });
         if (!ok) return;
 
@@ -1435,13 +1489,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (response.ok) {
                 // Actualizamos el estado local quitando el hecho borrado
                 setUserFacts(prev => prev.filter(f => f.id !== factId));
-                toast.success("Información olvidada con éxito.");
+                toast.success(t("Información olvidada con éxito."));
             } else {
-                toast.error("Hubo un problema al olvidar la información.");
+                toast.error(t("Hubo un problema al olvidar la información."));
             }
         } catch (error) {
             console.error("Error borrando fact:", error);
-            toast.error("No se pudo conectar con el servidor para borrar.");
+            toast.error(t("No se pudo conectar con el servidor para borrar."));
         } finally {
             setIsDeletingFact(null);
         }
@@ -1465,13 +1519,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             const data = await response.json();
             setLtmEnabled(Boolean(data.long_term_memory_enabled));
             toast.success(
-                next ? 'Memoria a largo plazo activada.' : 'Memoria a largo plazo pausada. Tus datos guardados se conservan.',
+                next ? t('Memoria a largo plazo activada.') : t('Memoria a largo plazo pausada. Tus datos guardados se conservan.'),
                 { duration: 3500 }
             );
         } catch (error) {
             console.error('Error toggling LTM:', error);
             setLtmEnabled(!next); // revertir
-            toast.error('No pudimos actualizar tu preferencia. Inténtalo de nuevo.');
+            toast.error(t('No pudimos actualizar tu preferencia. Inténtalo de nuevo.'));
         } finally {
             setIsLtmToggling(false);
         }
@@ -1508,8 +1562,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             setWaterTrackerEnabled(Boolean(data.water_tracker_enabled));
             toast.success(
                 next
-                    ? 'Hidratación activada.'
-                    : 'Hidratación oculta. Tu historial se conserva.',
+                    ? t('Hidratación activada.')
+                    : t('Hidratación oculta. Tu historial se conserva.'),
                 { duration: 3500 }
             );
         } catch (error) {
@@ -1518,7 +1572,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             try {
                 localStorage.setItem('mealfit_water_tracker_enabled', String(!next));
             } catch { /* localStorage no critico */ }
-            toast.error('No pudimos actualizar tu preferencia. Intentalo de nuevo.');
+            toast.error(t('No pudimos actualizar tu preferencia. Intentalo de nuevo.'));
         } finally {
             setIsWaterTrackerToggling(false);
         }
@@ -1539,16 +1593,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             const data = await response.json();
             if (response.ok && data.success) {
                 setShowCancelModal(false);
-                toast.success("Tu suscripción ha sido cancelada exitosamente.");
+                toast.success(t("Tu suscripción ha sido cancelada exitosamente."));
                 // Forzar la recarga del perfil global
                 setTimeout(() => window.location.reload(), 2000);
             } else {
-                toast.error(data.message || "Hubo un error al cancelar la suscripción.");
+                toast.error(data.message || t("Hubo un error al cancelar la suscripción."));
                 setShowCancelModal(false);
             }
         } catch (error) {
             console.error("Error cancelando suscripción:", error);
-            toast.error("No se pudo conectar con el servidor para cancelar. Inténtalo más tarde.");
+            toast.error(t("No se pudo conectar con el servidor para cancelar. Inténtalo más tarde."));
             setShowCancelModal(false);
         } finally {
             setIsCancelling(false);
@@ -1557,7 +1611,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
     // Datos derivados para la UI
     const userGoal = formData?.mainGoal || "Mejorar Salud";
-    const displayEmail = userProfile?.email || "Cargando correo...";
+    const displayEmail = userProfile?.email || t("Cargando correo...");
 
     // [SUBSCRIPTION-FREE-CANCEL-FIX · 2026-05-28] "Suscriptor de pago" se
     // determina con allowlist POSITIVA (tiers con suscripción PayPal real).
@@ -1575,11 +1629,17 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // capitalizados como "Gain Muscle" cuando llegan al UI, lo que rompe
     // i18n del producto (CLAUDE.md → "i18n: es-DO permanente"). El mapping
     // canónico vive aquí y se aplica al render del card Plan & Objetivo.
+    // [P1-I18N-DASHBOARD · 2026-08-15] La fila `'mejorar salud'` no es nueva copy:
+    // es el fallback de `userGoal` (arriba) hecho traducible. Antes caía al objeto
+    // por defecto de abajo, que pinta `String(userGoal)` sin pasar por el catálogo
+    // — o sea, la única meta que se quedaba en español en una pantalla en francés.
+    // Icono/acento/tinte son EXACTAMENTE los del fallback: cero cambio visual.
     const _GOAL_META = {
-        gain_muscle: { label: 'Ganar músculo', Icon: Dumbbell, accent: '#10B981', tint: '#D1FAE5' },
-        lose_fat:    { label: 'Perder grasa', Icon: TrendingDown, accent: '#F43F5E', tint: '#FFE4E6' },
-        maintenance: { label: 'Mantenimiento', Icon: Target, accent: '#4F46E5', tint: '#E0E7FF' },
-        performance: { label: 'Rendimiento', Icon: Activity, accent: '#F59E0B', tint: '#FEF3C7' },
+        gain_muscle: { label: t('Ganar músculo'), Icon: Dumbbell, accent: '#10B981', tint: '#D1FAE5' },
+        lose_fat:    { label: t('Perder grasa'), Icon: TrendingDown, accent: '#F43F5E', tint: '#FFE4E6' },
+        maintenance: { label: t('Mantenimiento'), Icon: Target, accent: '#4F46E5', tint: '#E0E7FF' },
+        performance: { label: t('Rendimiento'), Icon: Activity, accent: '#F59E0B', tint: '#FEF3C7' },
+        'mejorar salud': { label: t('Mejorar Salud'), Icon: Trophy, accent: '#4F46E5', tint: '#E0E7FF' },
     };
     const _goalMeta = _GOAL_META[String(userGoal).toLowerCase()] || {
         label: String(userGoal).replace(/_/g, ' '),
@@ -1685,10 +1745,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     type="button"
                     className={styles.exitSettingsBtn}
                     onClick={requestExit}
-                    aria-label={inDialog ? 'Cerrar configuración' : 'Volver'}
+                    aria-label={inDialog ? t('Cerrar configuración') : t('Volver')}
                 >
                     {inDialog ? <X size={20} strokeWidth={2.5} /> : <ArrowLeft size={20} strokeWidth={2.5} />}
-                    <span>{inDialog ? 'Cerrar' : 'Volver'}</span>
+                    <span>{inDialog ? t('Cerrar') : t('Volver')}</span>
                 </button>
 
                 {/* [P3-PROFILE-DISCARD-CONFIRM · 2026-05-20] Modal de
@@ -1717,12 +1777,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <AlertCircle size={22} strokeWidth={2.5} style={{ transform: 'translateY(0.5px)' }} />
                         </div>
                         <h3 id="discard-confirm-title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
-                            Tienes cambios sin guardar
+                            {t('Tienes cambios sin guardar')}
                         </h3>
                     </div>
+                    {/* [P1-I18N-DASHBOARD · 2026-08-15] La frase va partida en dos claves
+                        porque el motor traduce cadenas, no árboles JSX: el `<strong>` es
+                        marcado y no puede viajar dentro de la clave. */}
                     <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.55, margin: '0 0 1.5rem 0' }}>
-                        Editaste tu peso o altura pero no actualizaste tu plan. Si sales ahora,
-                        los nuevos valores se <strong>descartarán</strong>.
+                        {t('Editaste tu peso o altura pero no actualizaste tu plan. Si sales ahora, los nuevos valores se')}{' '}
+                        <strong>{t('descartarán')}</strong>.
                     </p>
                     <div className={styles.modalButtons}>
                         <button
@@ -1730,7 +1793,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             onClick={() => setShowDiscardConfirm(false)}
                             className={styles.modalBtnCancel}
                         >
-                            Seguir editando
+                            {t('Seguir editando')}
                         </button>
                         <button
                             type="button"
@@ -1740,7 +1803,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             }}
                             className={styles.modalBtnConfirm}
                         >
-                            Descartar y salir
+                            {t('Descartar y salir')}
                         </button>
                     </div>
                 </Modal>
@@ -1773,12 +1836,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     {/* [P3-CANCEL-MODAL-DARK · 2026-05-30] Título via var de tema:
                                         #0F172A (slate oscuro) era casi invisible sobre el modal oscuro. */}
                                     <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                                        Cancelar Suscripción
+                                        {t('Cancelar Suscripción')}
                                     </h3>
                                 </div>
-                                
+
                                 <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
-                                    ¿Estás seguro de que deseas cancelar tu suscripción? Perderás todos tus beneficios premium al finalizar tu ciclo actual. <strong style={{ color: 'var(--text-main)' }}>Esta acción no se puede deshacer.</strong>
+                                    {t('¿Estás seguro de que deseas cancelar tu suscripción? Perderás todos tus beneficios premium al finalizar tu ciclo actual.')} <strong style={{ color: 'var(--text-main)' }}>{t('Esta acción no se puede deshacer.')}</strong>
                                 </p>
                                 
                                 <div className={styles.modalButtons}>
@@ -1788,7 +1851,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         className={styles.modalBtnCancel}
                                         style={{ opacity: isCancelling ? 0.7 : 1, cursor: isCancelling ? 'not-allowed' : 'pointer' }}
                                     >
-                                        Mantener Plan
+                                        {t('Mantener Plan')}
                                     </button>
                                     <button 
                                         onClick={runCancelSubscription}
@@ -1796,7 +1859,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         className={styles.modalBtnConfirm}
                                         style={{ opacity: isCancelling ? 0.8 : 1, cursor: isCancelling ? 'wait' : 'pointer' }}
                                     >
-                                        {isCancelling ? 'Cancelando...' : 'Sí, Cancelar'}
+                                        {isCancelling ? t('Cancelando...') : t('Sí, Cancelar')}
                                     </button>
                                 </div>
                 </Modal>
@@ -1823,7 +1886,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             if (isNavigatingRef.current || isResetting) return;
                             isNavigatingRef.current = true;
                             setIsResetting(true);
-                            const toastId = toast.loading('Borrando preferencias...', { description: 'Preparando tu cuenta para un nuevo inicio.' });
+                            const toastId = toast.loading(t('Borrando preferencias...'), { description: t('Preparando tu cuenta para un nuevo inicio.') });
                             try {
                                 const _planIdToDelete = planData?.id;
                                 if (_planIdToDelete) {
@@ -1832,7 +1895,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 await fetchWithAuth('/api/account/reset-preferences', { method: 'POST' });
                                 resetForNewAssessment();
                                 toast.dismiss(toastId);
-                                toast.success('Cuenta reseteada', { description: 'Empecemos de nuevo.' });
+                                toast.success(t('Cuenta reseteada'), { description: t('Empecemos de nuevo.') });
                                 trackEvent('plan_regeneration_triggered', {
                                     reason: 'account_reset',
                                     source: 'settings_reset',
@@ -1846,7 +1909,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             } catch (error) {
                                 console.error("Error reseteando preferencias:", error);
                                 toast.dismiss(toastId);
-                                toast.error('Error', { description: 'Hubo un problema al borrar tus preferencias.' });
+                                toast.error(t('Error'), { description: t('Hubo un problema al borrar tus preferencias.') });
                                 setIsResetting(false);
                             } finally {
                                 setTimeout(() => { isNavigatingRef.current = false; }, 1000);
@@ -1875,16 +1938,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         role="status"
                         aria-live="polite"
                     >
-                        {acuse === 'pendiente' && 'Sin guardar…'}
-                        {acuse === 'guardando' && 'Guardando…'}
-                        {acuse === 'guardado' && 'Guardado'}
-                        {acuse === 'error' && 'No se guardó'}
+                        {acuse === 'pendiente' && t('Sin guardar…')}
+                        {acuse === 'guardando' && t('Guardando…')}
+                        {acuse === 'guardado' && t('Guardado')}
+                        {acuse === 'error' && t('No se guardó')}
                     </span>
                 )}
                 <div className={`${styles.pageHeader} ${activeSection ? styles.pageHeaderInSection : ''}`}>
                     {/* Default (desktop siempre, móvil cuando NO hay sección activa). */}
-                    <h1 className={`${styles.pageTitle} ${styles.titleDesktop}`}>Configuración</h1>
-                    <p className={`${styles.pageSubtitle} ${styles.subtitleDesktop}`}>Gestiona tu cuenta, plan y preferencias.</p>
+                    <h1 className={`${styles.pageTitle} ${styles.titleDesktop}`}>{t('Configuración')}</h1>
+                    <p className={`${styles.pageSubtitle} ${styles.subtitleDesktop}`}>{t('Gestiona tu cuenta, plan y preferencias.')}</p>
                     {/* Móvil cuando hay sección activa: refleja la sección.
                         [P3-PLANOBJETIVO-MOBILE · 2026-06-29] 'plan' se excluye: su
                         pantalla inmersiva (PlanObjetivo) ya renderiza su propio título
@@ -1900,7 +1963,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 </div>{/* /headerRow */}
 
                 <div className={`${styles.layout} ${activeSection ? styles.layoutWithSection : ''}`}>
-                    <aside className={styles.sidebar} aria-label="Secciones de ajustes">
+                    <aside className={styles.sidebar} aria-label={t('Secciones de ajustes')}>
                         <nav className={styles.sidebarNav}>
                             {sectionsConfig.map(s => {
                                 const isActive = activeSection === s.id;
@@ -1939,7 +2002,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     <>
                     <section className={styles.section}>
                         <h2 className={styles.sectionTitle}>
-                            Perfil
+                            {t('Perfil')}
                         </h2>
 
                         <div className={styles.profileFlex}>
@@ -1951,8 +2014,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 <button
                                     type="button"
                                     onClick={cycleAvatar}
-                                    title="Toca para cambiar tu avatar"
-                                    aria-label="Cambiar avatar (toca para alternar)"
+                                    title={t('Toca para cambiar tu avatar')}
+                                    aria-label={t('Cambiar avatar (toca para alternar)')}
                                     style={{ position: 'relative', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', borderRadius: '50%', lineHeight: 0 }}
                                 >
                                     {avatarId ? (
@@ -2005,7 +2068,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 <div style={{ width: '100%' }}>
                                     {/* [A11Y-FORMS · 2026-07-09] par htmlFor/id: el label anuncia el input. */}
                                     <label htmlFor="settings-full-name" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                        Nombre Completo <span style={{ color: '#EF4444' }}>*</span>
+                                        {t('Nombre Completo')} <span style={{ color: '#EF4444' }}>*</span>
                                     </label>
                                     <input
                                         id="settings-full-name"
@@ -2015,7 +2078,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             setUserName(e.target.value);
                                             if (nameError) setNameError('');
                                         }}
-                                        placeholder="Tu nombre aquí"
+                                        placeholder={t('Tu nombre aquí')}
                                         style={{
                                             width: '100%',
                                             padding: '0.875rem 1.25rem',
@@ -2081,7 +2144,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             {/* PESO */}
                                             <div>
                                                 <label style={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                                    Peso
+                                                    {t('Peso')}
                                                     <_UnitToggle unit={weightUnit} options={['kg', 'lb']} onChange={handleWeightUnitToggle} />
                                                 </label>
                                                 <input
@@ -2101,7 +2164,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             {/* ALTURA */}
                                             <div>
                                                 <label style={{ display: 'flex', alignItems: 'center', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                                    Altura
+                                                    {t('Altura')}
                                                     <_UnitToggle unit={heightUnit} options={['cm', 'ft']} onChange={handleHeightUnitToggle} />
                                                 </label>
                                                 {heightUnit === 'cm' ? (
@@ -2178,7 +2241,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                             {/* EDAD */}
                                             <div>
-                                                <label style={_lbl}>Edad</label>
+                                                <label style={_lbl}>{t('Edad')}</label>
                                                 <input
                                                     type="number" inputMode="numeric" min="12" max="100" step="1"
                                                     value={ageInput}
@@ -2189,10 +2252,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             </div>
                                             {/* SEXO BIOLÓGICO */}
                                             <div>
-                                                <label style={_lbl}>Sexo biológico</label>
+                                                <label style={_lbl}>{t('Sexo biológico')}</label>
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                                                    <button type="button" onClick={() => setGenderInput('male')} style={_genderBtn(genderInput === 'male')}>Hombre</button>
-                                                    <button type="button" onClick={() => setGenderInput('female')} style={_genderBtn(genderInput === 'female')}>Mujer</button>
+                                                    <button type="button" onClick={() => setGenderInput('male')} style={_genderBtn(genderInput === 'male')}>{t('Hombre')}</button>
+                                                    <button type="button" onClick={() => setGenderInput('female')} style={_genderBtn(genderInput === 'female')}>{t('Mujer')}</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -2208,11 +2271,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         <Mail size={18} color={_settingsDark ? '#A5B4FC' : 'var(--text-muted)'} />
                                     </div>
                                     <div className={styles.emailInfo}>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correo Electrónico (ID)</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('Correo Electrónico (ID)')}</span>
                                         <span style={{ color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 500, wordBreak: 'break-all' }}>{displayEmail}</span>
                                     </div>
                                     <div className={styles.emailBadge}>
-                                        <Shield size={14} /> <span className={styles.emailBadgeText}>Protegido</span>
+                                        <Shield size={14} /> <span className={styles.emailBadgeText}>{t('Protegido')}</span>
                                     </div>
                                 </div>
 
@@ -2239,8 +2302,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 }}>
                                     <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
                                     <div>
-                                        <strong>Cambios pendientes en peso/altura.</strong>{' '}
-                                        Para que se apliquen, debes regenerar el plan. Si sales sin hacerlo, los nuevos valores se descartarán.
+                                        <strong>{t('Cambios pendientes en peso/altura.')}</strong>{' '}
+                                        {t('Para que se apliquen, debes regenerar el plan. Si sales sin hacerlo, los nuevos valores se descartarán.')}
                                     </div>
                                 </div>
                             )}
@@ -2252,9 +2315,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         className={styles.updatePlanBtn}
                                     >
                                         {isRegeneratingFromMetrics ? (
-                                            <><Loader2 size={18} className="animate-spin" /> Regenerando…</>
+                                            <><Loader2 size={18} className="animate-spin" /> {t('Regenerando…')}</>
                                         ) : (
-                                            <><RefreshCw size={18} /> Actualizar Plan con Nuevos Datos</>
+                                            <><RefreshCw size={18} /> {t('Actualizar Plan con Nuevos Datos')}</>
                                         )}
                                     </button>
                                 ) : (
@@ -2285,11 +2348,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             queda visible: lo que solo te describe se
                                             guarda solo; lo que toca tu plan te pregunta. */}
                                         {isSaving ? (
-                                            <>Guardando...</>
+                                            <>{t('Guardando...')}</>
                                         ) : saveStatus === 'success' ? (
-                                            <>¡Guardado!</>
+                                            <>{t('¡Guardado!')}</>
                                         ) : (
-                                            <>Guardar para el próximo plan</>
+                                            <>{t('Guardar para el próximo plan')}</>
                                         )}
                                     </button>
                                 )}
@@ -2304,18 +2367,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         se aplica en vivo (html[data-theme] → variables CSS). */}
                     <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
                         <h2 className={styles.sectionTitle}>
-                            Apariencia
+                            {t('Apariencia')}
                         </h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                            Elige el tema de la aplicación. Usa “Sistema” para seguir la configuración de tu dispositivo.
+                            {t('Elige el tema de la aplicación. Usa “Sistema” para seguir la configuración de tu dispositivo.')}
                         </p>
 
                         <div
                             className={styles.themeGroup}
                             role="radiogroup"
-                            aria-label="Tema de la aplicación"
+                            aria-label={t('Tema de la aplicación')}
                         >
-                            {THEME_OPTIONS.map((opt) => {
+                            {getThemeOptions(t).map((opt) => {
                                 const { value, label, iconBg } = opt;
                                 const Icon = opt.Icon;
                                 const selected = themePreference === value;
@@ -2344,6 +2407,68 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             })}
                         </div>
                     </section>
+
+                    {/* [P1-I18N-DASHBOARD · 2026-08-15] Idioma.
+                        Sección PROPIA y no un bloque dentro de «Apariencia»:
+                        apariencia es cómo se VE la app, idioma es cómo se LEE.
+                        Un usuario que no entiende la pantalla no va a deducir
+                        que su problema se resuelve bajo un título que habla de
+                        temas de color. Con encabezado propio se encuentra
+                        escaneando, que es como se busca esto.
+                        Va inmediatamente después porque ambas son preferencias
+                        de presentación y viven en el panel «General». */}
+                    <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
+                        <h2 className={styles.sectionTitle}>
+                            {t('Idioma')}
+                        </h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                            {t('Cambia el idioma de la interfaz. Tu plan, tus recetas y el coach siguen en español.')}
+                        </p>
+
+                        <div
+                            className={styles.themeGroup}
+                            role="radiogroup"
+                            aria-label={t('Idioma de la interfaz')}
+                        >
+                            {LOCALES.map((opt) => {
+                                const selected = locale === opt.code;
+                                // Subtag de idioma en la insignia: 'pt-BR' → 'PT'.
+                                const subtag = opt.code.split('-')[0].toUpperCase();
+                                return (
+                                    <button
+                                        key={opt.code}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={selected}
+                                        onClick={() => handleSelectLocale(opt.code)}
+                                        className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
+                                    >
+                                        <span
+                                            className={`${styles.langBadge} ${selected ? styles.langBadgeActive : ''}`}
+                                            aria-hidden="true"
+                                        >
+                                            {subtag}
+                                        </span>
+                                        <span className={styles.themeOptionText}>
+                                            {/* `lang` por fila: sin él un lector de
+                                                pantalla en español pronuncia
+                                                «Français» con fonética española y el
+                                                usuario no reconoce su propio idioma
+                                                justo en la lista donde lo busca. */}
+                                            <span className={styles.langNative} lang={opt.code}>
+                                                {opt.native}
+                                            </span>
+                                        </span>
+                                        {selected && (
+                                            <span className={styles.themeCheck} aria-hidden="true">
+                                                <Check size={16} strokeWidth={3} />
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
                     </>
                     )}
 
@@ -2356,7 +2481,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     {activeSection === 'profile' && (
                         <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
                             <h2 className={styles.sectionTitle}>
-                                Notificaciones
+                                {t('Notificaciones')}
                             </h2>
 
                             <div style={{
@@ -2385,7 +2510,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     </div>
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.95rem' }}>
-                                            Alertas Inteligentes
+                                            {t('Alertas Inteligentes')}
                                             <span style={{
                                                 fontSize: '0.6rem',
                                                 background: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
@@ -2398,7 +2523,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             }}>Beta</span>
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
-                                            Recibe avisos en tu pantalla si olvidas registrar una comida
+                                            {t('Recibe avisos en tu pantalla si olvidas registrar una comida')}
                                         </div>
                                     </div>
                                 </div>
@@ -2408,7 +2533,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         checked={pushEnabled}
                                         onChange={handleTogglePush}
                                         disabled={isPushLoading || isPushBlocked}
-                                        aria-label="Activar avisos de comidas"
+                                        aria-label={t('Activar avisos de comidas')}
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
                                 </label>
@@ -2444,7 +2569,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     }}
                                 >
                                     <Lock size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--warning)' }} />
-                                    <span>Permiso bloqueado en el navegador. <strong>Toca aquí para ver cómo reactivarlo.</strong></span>
+                                    <span>{t('Permiso bloqueado en el navegador.')} <strong>{t('Toca aquí para ver cómo reactivarlo.')}</strong></span>
                                 </div>
                             )}
 
@@ -2462,10 +2587,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <AlertTriangle size={13} style={{ marginTop: '2px', flexShrink: 0, color: '#E11D48' }} />
                                     <span>
                                         {pushSubscribeError.includes('Brave') || pushSubscribeError.includes('push service')
-                                            ? <>Notificaciones bloqueadas por Brave. Habilita la mensajería push en <strong>brave://settings/privacy</strong>.</>
+                                            ? <>{t('Notificaciones bloqueadas por Brave. Habilita la mensajería push en')} <strong>brave://settings/privacy</strong>.</>
                                             : pushSubscribeError.includes('Service Worker') || pushSubscribeError.includes('timeout')
-                                                ? <>Servicio no disponible. Recarga la página e intenta de nuevo.</>
-                                                : <>No se pudo activar. Recarga la página e intenta de nuevo.</>
+                                                ? <>{t('Servicio no disponible. Recarga la página e intenta de nuevo.')}</>
+                                                : <>{t('No se pudo activar. Recarga la página e intenta de nuevo.')}</>
                                         }
                                     </span>
                                 </div>
@@ -2482,10 +2607,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     {activeSection === 'preferences' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
-                                Comportamiento del agente
+                                {t('Comportamiento del agente')}
                             </h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                                Ajusta cómo el agente registra tus comidas y aprende de ti.
+                                {t('Ajusta cómo el agente registra tus comidas y aprende de ti.')}
                             </p>
 
                             {/* [P1-PLAN-MODE · 2026-08-11] Card 0: Generación de planes.
@@ -2510,12 +2635,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         </div>
                                         <div className={styles.preferenceCardText}>
                                             <div className={styles.preferenceCardTitle}>
-                                                Generación de planes
+                                                {t('Generación de planes')}
                                             </div>
                                             <div className={styles.preferenceCardDesc}>
                                                 {planModeState === 'plan'
-                                                    ? 'Encendida. La IA genera tu menú, recetas y lista de compras.'
-                                                    : 'En pausa. La app funciona como contador; tu plan y tus datos se conservan.'}
+                                                    ? t('Encendida. La IA genera tu menú, recetas y lista de compras.')
+                                                    : t('En pausa. La app funciona como contador; tu plan y tus datos se conservan.')}
                                             </div>
                                         </div>
                                     </div>
@@ -2525,7 +2650,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             checked={planModeState === 'plan'}
                                             onChange={handleTogglePlanMode}
                                             disabled={isPlanModeLoading}
-                                            aria-label="Encender o pausar la generación de planes"
+                                            aria-label={t('Encender o pausar la generación de planes')}
                                         />
                                         <span className={styles.toggleSlider} style={{ opacity: isPlanModeLoading ? 0.5 : 1 }}></span>
                                     </label>
@@ -2545,10 +2670,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     </div>
                                     <div className={styles.preferenceCardText}>
                                         <div className={styles.preferenceCardTitle}>
-                                            Modo automático
+                                            {t('Modo automático')}
                                         </div>
                                         <div className={styles.preferenceCardDesc}>
-                                            Si confías en el plan y prefieres no loguear cada comida, actívalo. No pausaremos tu plan aunque dejes de registrar comidas.
+                                            {t('Si confías en el plan y prefieres no loguear cada comida, actívalo. No pausaremos tu plan aunque dejes de registrar comidas.')}
                                         </div>
                                     </div>
                                 </div>
@@ -2558,7 +2683,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         checked={loggingPreference === 'auto_proxy'}
                                         onChange={handleToggleLoggingPreference}
                                         disabled={isLoggingPrefLoading}
-                                        aria-label="Modo automático de avisos"
+                                        aria-label={t('Modo automático de avisos')}
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isLoggingPrefLoading ? 0.5 : 1 }}></span>
                                 </label>
@@ -2598,12 +2723,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         </div>
                                         <div className={styles.preferenceCardText}>
                                             <div className={styles.preferenceCardTitle}>
-                                                Memoria a Largo Plazo
+                                                {t('Memoria a Largo Plazo')}
                                             </div>
                                             <div className={styles.preferenceCardDesc}>
                                                 {ltmEnabled
-                                                    ? 'Activa. La IA aprende de tus conversaciones y recuerda lo importante.'
-                                                    : 'Pausada. La IA no aprende ni consulta lo aprendido. Tus datos guardados se conservan.'}
+                                                    ? t('Activa. La IA aprende de tus conversaciones y recuerda lo importante.')
+                                                    : t('Pausada. La IA no aprende ni consulta lo aprendido. Tus datos guardados se conservan.')}
                                             </div>
                                         </div>
                                     </div>
@@ -2613,7 +2738,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         disabled={isLtmToggling}
                                         role="switch"
                                         aria-checked={ltmEnabled}
-                                        aria-label="Activar o pausar la memoria a largo plazo"
+                                        aria-label={t('Activar o pausar la memoria a largo plazo')}
                                         style={{
                                             position: 'relative',
                                             width: '52px',
@@ -2677,7 +2802,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     borderLeft: '3px solid #3B82F6',
                                     lineHeight: 1.2,
                                 }}>
-                                    Personaliza tu panel
+                                    {t('Personaliza tu panel')}
                                 </h3>
                                 <p style={{
                                     color: 'var(--text-muted)',
@@ -2685,7 +2810,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     marginBottom: '1.25rem',
                                     paddingLeft: '0.75rem',
                                 }}>
-                                    Elige qué secciones quieres ver al entrar.
+                                    {t('Elige qué secciones quieres ver al entrar.')}
                                 </p>
 
                                 {/* Toggle: Hidratación — visible/oculta el
@@ -2700,12 +2825,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             </div>
                                             <div className={styles.preferenceCardText}>
                                                 <div className={styles.preferenceCardTitle}>
-                                                    Hidratación
+                                                    {t('Hidratación')}
                                                 </div>
                                                 <div className={styles.preferenceCardDesc}>
                                                     {waterTrackerEnabled
-                                                        ? 'Visible en tu Dashboard. Marca tus vasos diarios; la meta se calcula segun tu peso.'
-                                                        : 'Oculto del Dashboard. Tu historial de vasos se conserva si lo reactivas.'}
+                                                        ? t('Visible en tu Dashboard. Marca tus vasos diarios; la meta se calcula segun tu peso.')
+                                                        : t('Oculto del Dashboard. Tu historial de vasos se conserva si lo reactivas.')}
                                                 </div>
                                             </div>
                                         </div>
@@ -2715,7 +2840,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             disabled={isWaterTrackerToggling}
                                             role="switch"
                                             aria-checked={waterTrackerEnabled}
-                                            aria-label="Activar o desactivar la hidratacion del Dashboard"
+                                            aria-label={t('Activar o desactivar la hidratacion del Dashboard')}
                                             style={{
                                                 position: 'relative',
                                                 width: '52px',
@@ -2773,29 +2898,29 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     borderLeft: '3px solid #4F46E5',
                                     lineHeight: 1.2,
                                 }}>
-                                    Lo que el agente recuerda
+                                    {t('Lo que el agente recuerda')}
                                 </h3>
                                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.1rem', lineHeight: 1.5 }}>
-                                    Datos puntuales que la IA aprendió de tus conversaciones. Borra los que ya no necesite saber.
+                                    {t('Datos puntuales que la IA aprendió de tus conversaciones. Borra los que ya no necesite saber.')}
                                 </p>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                                     {!isPremium ? (
                                         <div style={{ textAlign: 'center', color: 'var(--text-light)', padding: '2.5rem 1.5rem', background: 'var(--bg-muted)', borderRadius: '1rem', border: '1px dashed var(--border)' }}>
                                             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
-                                            <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>Memoria a Largo Plazo</h4>
+                                            <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>{t('Memoria a Largo Plazo')}</h4>
                                             <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>
-                                                El Cerebro IA está disponible a partir del plan <strong>Básico</strong>.<br />
-                                                La IA aprenderá de tus gustos y conversaciones automáticamente.
+                                                {t('El Cerebro IA está disponible a partir del plan')} <strong>{t('Básico')}</strong>.<br />
+                                                {t('La IA aprenderá de tus gustos y conversaciones automáticamente.')}
                                             </p>
                                         </div>
                                     ) : isLoadingFacts ? (
                                         <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: 'var(--bg-muted)', borderRadius: '1rem' }}>
-                                            Conectando con el Cerebro Neural...
+                                            {t('Conectando con el Cerebro Neural...')}
                                         </div>
                                     ) : userFacts.length === 0 ? (
                                         <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', background: 'var(--bg-muted)', borderRadius: '1rem' }}>
-                                            Aún no he aprendido datos extra sobre ti. ¡Sigue conversando!
+                                            {t('Aún no he aprendido datos extra sobre ti. ¡Sigue conversando!')}
                                         </div>
                                     ) : (
                                         userFacts.map(fact => (
@@ -2808,14 +2933,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                     </div>
                                                     <div className={styles.factMeta}>
                                                         <span style={{ background: 'var(--bg-muted)', padding: '2px 8px', borderRadius: '4px', textTransform: 'capitalize' }}>
-                                                            {fact.metadata?.categoria || 'Dato'}
+                                                            {fact.metadata?.categoria || t('Dato')}
                                                         </span>
                                                         {fact.metadata?.ingrediente && (
                                                             <span style={{ border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '4px' }}>
                                                                 {fact.metadata.ingrediente}
                                                             </span>
                                                         )}
-                                                        <span>Añadido: {new Date(fact.created_at).toLocaleDateString()}</span>
+                                                        {/* [P1-I18N-DASHBOARD · 2026-08-15] `formatDate` y no
+                                                            `toLocaleDateString()`: el segundo sigue al navegador,
+                                                            así que un usuario con Chrome en inglés veía la fecha
+                                                            en inglés aunque tuviera la app en portugués. */}
+                                                        <span>{t('Añadido: {fecha}', { fecha: formatDate(fact.created_at) })}</span>
                                                     </div>
                                                 </div>
                                                 <button
@@ -2835,7 +2964,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                     }}
                                                     onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
                                                     onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                                                    title="Olvidar Dato"
+                                                    title={t('Olvidar Dato')}
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
@@ -2864,10 +2993,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     {activeSection === 'superpers' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
-                                Tus gustos y preferencias
+                                {t('Tus gustos y preferencias')}
                             </h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                                Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.
+                                {t('Dale a la IA más contexto sobre ti para planes clínicos y respuestas más precisas.')}
                             </p>
                             <SuperPersonalizationPanel onEstado={reportarEstado('superpers')} />
                             {/* [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos" — editable aquí
@@ -2885,10 +3014,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     {activeSection === 'clinical' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
-                                Perfil Clínico Avanzado
+                                {t('Perfil Clínico Avanzado')}
                             </h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                                Los datos que un nutriólogo pediría en consulta. Opcionales — cada uno que completes afina tu plan.
+                                {t('Los datos que un nutriólogo pediría en consulta. Opcionales — cada uno que completes afina tu plan.')}
                             </p>
                             <ClinicalProfilePanel onEstado={reportarEstado('clinico')} />
                         </section>
@@ -2901,17 +3030,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         (export JSON self-service + acceso a eliminar cuenta). */}
                     {activeSection === 'privacy' && (
                         <section className={styles.section}>
-                            <h2 className={styles.sectionTitle}>Privacidad</h2>
+                            <h2 className={styles.sectionTitle}>{t('Privacidad')}</h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.55 }}>
-                                En Bioboros creemos en prácticas transparentes de datos: tu información se usa
-                                para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra{' '}
-                                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Política de Privacidad</a>.
+                                {t('En Bioboros creemos en prácticas transparentes de datos: tu información se usa para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra')}{' '}
+                                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Política de Privacidad')}</a>.
                             </p>
 
                             {[
-                                { label: 'Cómo protegemos tus datos', path: '/data-protection' },
-                                { label: 'Cómo usamos tus datos', path: '/privacy' },
-                                { label: 'Cómo usamos la IA', path: '/ai-policy' },
+                                { label: t('Cómo protegemos tus datos'), path: '/data-protection' },
+                                { label: t('Cómo usamos tus datos'), path: '/privacy' },
+                                { label: t('Cómo usamos la IA'), path: '/ai-policy' },
                             ].map((link) => (
                                 <a
                                     key={link.path}
@@ -2931,7 +3059,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 </a>
                             ))}
 
-                            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>Preferencias</h3>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>{t('Preferencias')}</h3>
 
                             {/* Toggle REAL de analytics: trackEvent (Sentry breadcrumbs /
                                 PostHog / GA / GTM) gatea en isAnalyticsOptedOut. Equivalente
@@ -2943,10 +3071,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
                             }}>
                                 <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Ayuda a mejorar Bioboros</div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>{t('Ayuda a mejorar Bioboros')}</div>
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        Permitir eventos de uso anónimos (qué pantallas y funciones se usan) para mejorar
-                                        el producto. Nunca incluye tus datos de salud ni tus conversaciones. Se guarda por dispositivo.
+                                        {t('Permitir eventos de uso anónimos (qué pantallas y funciones se usan) para mejorar el producto. Nunca incluye tus datos de salud ni tus conversaciones. Se guarda por dispositivo.')}
                                     </div>
                                 </div>
                                 <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
@@ -2954,7 +3081,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         type="checkbox"
                                         checked={analyticsEnabled}
                                         onChange={handleToggleAnalytics}
-                                        aria-label="Permitir eventos de uso anónimos"
+                                        aria-label={t('Permitir eventos de uso anónimos')}
                                     />
                                     <span className={styles.toggleSlider}></span>
                                 </label>
@@ -2971,12 +3098,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
                             }}>
                                 <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Entrenamiento de modelos de IA</div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>{t('Entrenamiento de modelos de IA')}</div>
+                                    {/* [P1-I18N-DASHBOARD · 2026-08-15] Cuatro claves y no una: los dos
+                                        `<strong>` y el enlace son marcado, y el motor traduce cadenas.
+                                        El precio es que el traductor recibe fragmentos; el reparto sigue
+                                        el orden sujeto-verbo que comparten los cinco idiomas. */}
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        Hoy Bioboros <strong>no entrena</strong> modelos con tus datos. Si lo permites, tus
-                                        planes y conversaciones podrán usarse <strong>de forma anónima</strong> para entrenar
-                                        los modelos propios de Bioboros en el futuro.{' '}
-                                        <a href="/ai-policy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>Más información</a>.
+                                        {t('Hoy Bioboros')} <strong>{t('no entrena')}</strong> {t('modelos con tus datos. Si lo permites, tus planes y conversaciones podrán usarse')} <strong>{t('de forma anónima')}</strong> {t('para entrenar los modelos propios de Bioboros en el futuro.')}{' '}
+                                        <a href="/ai-policy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Más información')}</a>.
                                     </div>
                                 </div>
                                 <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
@@ -2985,7 +3114,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         checked={aiTrainingConsent}
                                         onChange={handleToggleAiTraining}
                                         disabled={isAiConsentLoading}
-                                        aria-label="Permitir uso futuro anónimo de mis datos para entrenar modelos de Bioboros"
+                                        aria-label={t('Permitir uso futuro anónimo de mis datos para entrenar modelos de Bioboros')}
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isAiConsentLoading ? 0.6 : 1 }}></span>
                                 </label>
@@ -2996,9 +3125,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 padding: '0.9rem 1.1rem', border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
                             }}>
                                 <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Memoria a Largo Plazo</div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>{t('Memoria a Largo Plazo')}</div>
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        Controla si la IA aprende de tus conversaciones. El toggle vive en Capacidades.
+                                        {t('Controla si la IA aprende de tus conversaciones. El toggle vive en Capacidades.')}
                                     </div>
                                 </div>
                                 <button
@@ -3010,20 +3139,20 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         color: 'var(--text-main)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
                                     }}
                                 >
-                                    Administrar
+                                    {t('Administrar')}
                                 </button>
                             </div>
 
-                            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>Tus datos</h3>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '1.75rem 0 0.75rem' }}>{t('Tus datos')}</h3>
                             <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
                                 padding: '0.9rem 1.1rem', marginBottom: '0.6rem',
                                 border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
                             }}>
                                 <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>Exportar datos</div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>{t('Exportar datos')}</div>
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        Descarga una copia JSON de tu perfil, planes, nevera, comidas registradas y memoria del agente.
+                                        {t('Descarga una copia JSON de tu perfil, planes, nevera, comidas registradas y memoria del agente.')}
                                     </div>
                                 </div>
                                 <button
@@ -3040,7 +3169,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     {isExportingData
                                         ? <Loader2 size={15} className={styles.spinner ?? ''} style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true" />
                                         : <Download size={15} aria-hidden="true" />}
-                                    {isExportingData ? 'Exportando…' : 'Exportar datos'}
+                                    {isExportingData ? t('Exportando…') : t('Exportar datos')}
                                 </button>
                             </div>
                             {/* [P2-PRIVACY-SETTINGS v4 · 2026-07-04] Zona de peligro real
@@ -3263,7 +3392,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         if (!isLimitReached) setShowEvaluateModal(true);
                                     }}
                                     evaluateDisabled={planData ? isLimitReached : false}
-                                    evaluateLabel={!planData ? 'Actualizar mis datos' : (isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de nuevo')}
+                                    evaluateLabel={!planData ? t('Actualizar mis datos') : (isLimitReached ? t('Límite de plan alcanzado') : t('Evaluar de nuevo'))}
                                 />
                                 {isLimitReached && (
                                     <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
@@ -3272,7 +3401,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             style={{ color: 'var(--primary)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
                                             onClick={(e) => { e.preventDefault(); navigateToSection('subscription'); }}
                                         >
-                                            Actualiza tu suscripción para continuar
+                                            {t('Actualiza tu suscripción para continuar')}
                                         </a>
                                     </div>
                                 )}
@@ -3281,7 +3410,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             {/* DESKTOP (>768px): card existente, intacta. */}
                             <div className="plan-objetivo-desktop">
                             <h2 className={`${styles.sectionTitle} plan-goal-title-mobile`}>
-                                Tu Objetivo Actual
+                                {t('Tu Objetivo Actual')}
                             </h2>
 
                             <div className="plan-goal-card">
@@ -3295,7 +3424,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         <_goalMeta.Icon size={30} color={_goalMeta.accent} strokeWidth={2} />
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div className="plan-goal-label">Meta principal</div>
+                                        <div className="plan-goal-label">{t('Meta principal')}</div>
                                         <div className="plan-goal-name">{_goalMeta.label}</div>
                                     </div>
                                 </div>
@@ -3304,9 +3433,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
                                 {/* Row 2: kcal */}
                                 <div className="plan-goal-kcal-row">
-                                    <span className="plan-goal-kcal-label">Calorías diarias</span>
+                                    <span className="plan-goal-kcal-label">{t('Calorías diarias')}</span>
                                     <span className="plan-goal-kcal-value">
-                                        {_goalKcal === null ? '—' : _goalKcal.toLocaleString('es-DO')}
+                                        {/* [P1-I18N-DASHBOARD · 2026-08-15] `formatNumber` sigue al idioma
+                                            activo; el `'es-DO'` clavado dejaba «2.000» en una pantalla en
+                                            inglés, donde ese punto se lee como decimal. */}
+                                        {_goalKcal === null ? '—' : formatNumber(_goalKcal)}
                                         <span className="plan-goal-kcal-unit">kcal</span>
                                     </span>
                                 </div>
@@ -3323,7 +3455,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     disabled={planData ? isLimitReached : false}
                                     className="plan-goal-cta"
                                 >
-                                    {!planData ? 'Actualizar mis datos' : (isLimitReached ? 'Límite de plan alcanzado' : 'Evaluar de Nuevo')}
+                                    {!planData ? t('Actualizar mis datos') : (isLimitReached ? t('Límite de plan alcanzado') : t('Evaluar de Nuevo'))}
                                     <ArrowRight size={19} strokeWidth={2.25} className="plan-goal-arrow" />
                                 </button>
 
@@ -3352,7 +3484,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 navigateToSection('subscription');
                                             }}
                                         >
-                                            Actualiza tu suscripción para continuar
+                                            {t('Actualiza tu suscripción para continuar')}
                                         </a>
                                     </div>
                                 )}
@@ -3365,7 +3497,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     {activeSection === 'subscription' && (
                     <section className={styles.section} id="subscription">
                         <h2 className={styles.sectionTitle} style={{ marginBottom: '1rem' }}>
-                            Suscripción y Pagos
+                            {t('Suscripción y Pagos')}
                         </h2>
                         
                         <div style={{
@@ -3380,13 +3512,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <div className={styles.planHeader}>
                                 <div style={{ width: '100%' }}>
                                     <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        Plan Actual
+                                        {t('Plan Actual')}
                                     </div>
                                     <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        {/* [P1-I18N-DASHBOARD · 2026-08-15] «Max» y «Plus» NO pasan por el
+                                            catálogo: son nombres propios de producto, idénticos en los cinco
+                                            idiomas. Los otros tres son adjetivos españoles y sí se traducen. */}
                                         {userProfile?.plan_tier === 'ultra' ? 'Max' :
-                                         userProfile?.plan_tier === 'plus' ? 'Plus' : 
-                                         userProfile?.plan_tier === 'basic' ? 'Básico' :
-                                         userProfile?.plan_tier === 'admin' ? 'Administrador' : 'Plan Gratis'}
+                                         userProfile?.plan_tier === 'plus' ? 'Plus' :
+                                         userProfile?.plan_tier === 'basic' ? t('Básico') :
+                                         userProfile?.plan_tier === 'admin' ? t('Administrador') : t('Plan Gratis')}
                                         
                                         {isPaidSubscriber && (
                                             <span style={{
@@ -3403,7 +3538,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 borderRadius: '1rem',
                                                 fontWeight: 600
                                             }}>
-                                                {userProfile?.subscription_status === 'CANCELLED' ? 'Activo (Cancelada)' : 'Activo'}
+                                                {userProfile?.subscription_status === 'CANCELLED' ? t('Activo (Cancelada)') : t('Activo')}
                                             </span>
                                         )}
                                     </div>
@@ -3439,7 +3574,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 if(!isCancelling) { e.currentTarget.style.background = _settingsDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2'; e.currentTarget.style.boxShadow = _settingsDark ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.05)'; }
                                             }}
                                         >
-                                            {isCancelling ? 'Cancelando...' : 'Cancelar Suscripción'}
+                                            {isCancelling ? t('Cancelando...') : t('Cancelar Suscripción')}
                                         </button>
                                     </div>
                                 )}
@@ -3461,7 +3596,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 }}>
                                     <AlertCircle size={18} style={{ flexShrink: 0 }} />
                                     <div>
-                                        Has cancelado la renovación automática. Mantendrás tus beneficios premium hasta el final de tu ciclo de facturación actual. Luego tu plan pasará a ser Gratis.
+                                        {t('Has cancelado la renovación automática. Mantendrás tus beneficios premium hasta el final de tu ciclo de facturación actual. Luego tu plan pasará a ser Gratis.')}
                                     </div>
                                 </div>
                             )}
@@ -3482,7 +3617,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 }}>
                                     <AlertCircle size={18} style={{ flexShrink: 0 }} />
                                     <div>
-                                        Al cancelar, la no-renovación será inmediata, pero mantendrás acceso hasta que termine tu periodo pagado actual.
+                                        {t('Al cancelar, la no-renovación será inmediata, pero mantendrás acceso hasta que termine tu periodo pagado actual.')}
                                     </div>
                                 </div>
                             )}
@@ -3490,7 +3625,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             {!isPaidSubscriber && userProfile?.plan_tier !== 'admin' && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                     <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                                        Estás en el <strong>Plan Gratis</strong>. No tienes ninguna suscripción activa que cancelar. Mejora tu plan para desbloquear más planes al mes, memoria a largo plazo y funciones premium.
+                                        {t('Estás en el')} <strong>{t('Plan Gratis')}</strong>. {t('No tienes ninguna suscripción activa que cancelar. Mejora tu plan para desbloquear más planes al mes, memoria a largo plazo y funciones premium.')}
                                     </div>
                                     <button
                                         onClick={() => navigate('/dashboard/upgrade')}
@@ -3520,7 +3655,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             e.currentTarget.style.filter = 'none';
                                         }}
                                     >
-                                        <Zap size={16} /> Mejorar mi plan
+                                        <Zap size={16} /> {t('Mejorar mi plan')}
                                     </button>
                                 </div>
                             )}

@@ -9,9 +9,11 @@ import { Input, Label } from '../../common/FormUI';
 // nativo a los inputs.
 import { BIO_RANGES, isBiometricInRange } from '../../../config/formValidation';
 import { NextButton } from './NextButton';
+import { useT } from '../../../i18n';
 
 export const QMeasurements = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     // [P1-13] `unit` derivado de formData (no `useState` local) para que
     // sobreviva al remount del componente cuando el usuario navega con
     // prevStep entre QMeasurements y QActivityLevel. ANTES, `useState('cm')`
@@ -127,10 +129,10 @@ export const QMeasurements = ({ onManualAdvance }) => {
             <div className="mf-field-grid">
                 <div>
                     <div className="mf-field-head">
-                        <Label htmlFor="age">Edad (años)&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                        <Label htmlFor="age">{t('Edad (años)')}&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                     </div>
                     <Input
-                        id="age" type="number" placeholder="Ej. 28"
+                        id="age" type="number" placeholder={t('Ej. 28')}
                         min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step={BIO_RANGES.age.step}
                         value={formData.age} onChange={e => updateData('age', e.target.value)}
                         aria-required="true"
@@ -138,9 +140,9 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 </div>
                 <div>
                     <div className="mf-field-head">
-                        <Label htmlFor="height">Altura&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                        <Label htmlFor="height">{t('Altura')}&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                         <UnitToggle
-                            ariaLabel="Unidad de altura"
+                            ariaLabel={t('Unidad de altura')}
                             value={unit}
                             onChange={setUnit}
                             options={[{ value: 'cm', label: 'CM' }, { value: 'ft', label: 'FT' }]}
@@ -148,7 +150,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
                     </div>
                     {unit === 'cm' ? (
                         <Input
-                            id="height" type="number" inputMode="decimal" placeholder="Ej. 170"
+                            id="height" type="number" inputMode="decimal" placeholder={t('Ej. 170')}
                             min={BIO_RANGES.heightCm.min} max={BIO_RANGES.heightCm.max} step={BIO_RANGES.heightCm.step}
                             value={formData.height} onChange={e => updateData('height', _normalizeDecimal(e.target.value))}
                             aria-required="true"
@@ -156,13 +158,13 @@ export const QMeasurements = ({ onManualAdvance }) => {
                     ) : (
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <Input
-                                type="number" placeholder="Pies" aria-label="Altura en pies"
+                                type="number" placeholder={t('Pies')} aria-label={t('Altura en pies')}
                                 min={BIO_RANGES.heightFt.min} max={BIO_RANGES.heightFt.max} step={BIO_RANGES.heightFt.step}
                                 value={feet} onChange={(e) => handleFtChange(e.target.value, inches)}
                                 aria-required="true"
                             />
                             <Input
-                                type="number" placeholder="Pulg" aria-label="Altura en pulgadas"
+                                type="number" placeholder={t('Pulg')} aria-label={t('Altura en pulgadas')}
                                 min={BIO_RANGES.heightIn.min} max={BIO_RANGES.heightIn.max} step={BIO_RANGES.heightIn.step}
                                 value={inches} onChange={(e) => handleFtChange(feet, e.target.value)}
                                 aria-required="true"
@@ -175,7 +177,7 @@ export const QMeasurements = ({ onManualAdvance }) => {
             <div className="mf-field-grid">
                 <div>
                     <div className="mf-field-head">
-                        <Label htmlFor="weight">Peso&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
+                        <Label htmlFor="weight">{t('Peso')}&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                         {/* [LB-DEFAULT-PRESELECT · 2026-05-31] LB es la unidad de peso
                             por defecto predeterminada (decisión de producto: el mercado
                             es-DO usa libras). Pre-fix (P1-FORM-3) el toggle mostraba un
@@ -189,14 +191,14 @@ export const QMeasurements = ({ onManualAdvance }) => {
                             backend por defecto (initialFormData), así que el contrato
                             P0-FORM-4 (weightUnit required + válido) se sigue cumpliendo. */}
                         <UnitToggle
-                            ariaLabel="Unidad de peso"
+                            ariaLabel={t('Unidad de peso')}
                             value={weightUnit}
                             onChange={handleWeightUnitChange}
                             options={[{ value: 'lb', label: 'LB' }, { value: 'kg', label: 'KG' }]}
                         />
                     </div>
                     <Input
-                        id="weight" type="number" inputMode="decimal" placeholder={weightUnit === 'lb' ? 'Ej. 150' : 'Ej. 70'}
+                        id="weight" type="number" inputMode="decimal" placeholder={weightUnit === 'lb' ? t('Ej. 150') : t('Ej. 70')}
                         min={weightRange.min} max={weightRange.max} step={weightRange.step}
                         value={formData.weight} onChange={e => updateData('weight', _normalizeDecimal(e.target.value))}
                         aria-required="true"
@@ -204,10 +206,10 @@ export const QMeasurements = ({ onManualAdvance }) => {
                 </div>
                 <div>
                     <div className="mf-field-head">
-                        <Label htmlFor="bodyFat">% Grasa (Opcional)</Label>
+                        <Label htmlFor="bodyFat">{t('% Grasa (Opcional)')}</Label>
                     </div>
                     <Input
-                        id="bodyFat" type="number" inputMode="decimal" placeholder="Ej. 20"
+                        id="bodyFat" type="number" inputMode="decimal" placeholder={t('Ej. 20')}
                         min={BIO_RANGES.bodyFat.min} max={BIO_RANGES.bodyFat.max} step={BIO_RANGES.bodyFat.step}
                         value={formData.bodyFat} onChange={e => updateData('bodyFat', _normalizeDecimal(e.target.value))}
                     />
@@ -217,10 +219,10 @@ export const QMeasurements = ({ onManualAdvance }) => {
                     Siempre en cm (una sola unidad — es como se mide con cinta en RD). */}
                 <div>
                     <div className="mf-field-head">
-                        <Label htmlFor="waistCm">Cintura en cm (Opcional)</Label>
+                        <Label htmlFor="waistCm">{t('Cintura en cm (Opcional)')}</Label>
                     </div>
                     <Input
-                        id="waistCm" type="number" inputMode="decimal" placeholder="Ej. 85"
+                        id="waistCm" type="number" inputMode="decimal" placeholder={t('Ej. 85')}
                         min={BIO_RANGES.waistCm.min} max={BIO_RANGES.waistCm.max} step={BIO_RANGES.waistCm.step}
                         value={formData.waistCm || ''} onChange={e => updateData('waistCm', _normalizeDecimal(e.target.value))}
                     />

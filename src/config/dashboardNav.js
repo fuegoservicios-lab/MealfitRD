@@ -7,12 +7,22 @@
 //     (P1-TRACKING-WINS): mientras el contador manda, las recetas viven en el
 //     Historial. Y «Plan» se rotula «Hoy»: tocar «Plan» y aterrizar en un diario
 //     es una promesa incumplida.
+//
+// [P1-I18N-DASHBOARD · 2026-08-15] Los rótulos pasan por `t()` DENTRO de la
+// función, nunca en una constante de módulo: una tabla de copy evaluada al
+// importar corre antes de que exista el catálogo y se congela en español para
+// siempre. Los dos consumidores llaman a `navItemsFor` en su render (y ambos
+// están suscritos vía `useT()`), así que el cambio de idioma los alcanza.
+// `Plan|nav` lleva sufijo de contexto: aquí es la PESTAÑA, no el sustantivo del
+// producto («tu plan»), y hay idiomas donde no es la misma palabra.
+import { t } from '../i18n';
+
 export const navItemsFor = ({ trackingMode = false } = {}) => [
-    { key: 'plan', label: trackingMode ? 'Hoy' : 'Plan', path: '/dashboard' },
-    { key: 'agent', label: 'Agente', path: '/dashboard/agent' },
-    { key: 'pantry', label: 'Nevera', path: '/dashboard/pantry' },
-    ...(trackingMode ? [] : [{ key: 'recipes', label: 'Recetas', path: '/dashboard/recipes' }]),
-    { key: 'history', label: 'Historial', path: '/history' },
+    { key: 'plan', label: trackingMode ? t('Hoy') : t('Plan|nav'), path: '/dashboard' },
+    { key: 'agent', label: t('Agente'), path: '/dashboard/agent' },
+    { key: 'pantry', label: t('Nevera'), path: '/dashboard/pantry' },
+    ...(trackingMode ? [] : [{ key: 'recipes', label: t('Recetas'), path: '/dashboard/recipes' }]),
+    { key: 'history', label: t('Historial'), path: '/history' },
 ];
 
 /** El modo, leído como lo lee el wrapper del Dashboard: perfil primero, espejo

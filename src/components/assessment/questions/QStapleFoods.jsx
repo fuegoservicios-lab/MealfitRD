@@ -21,6 +21,7 @@ import { fetchWithAuth } from '../../../config/api';
 import { Search, X } from 'lucide-react';
 import { NextButton } from './NextButton';
 import { getCachedMasterList, setCachedMasterList } from '../../../utils/pantryCache';
+import { useT, useTn } from '../../../i18n';
 
 const STAPLE_FOODS_MAX = 8;
 const MAX_RESULTS = 8;
@@ -48,6 +49,8 @@ const rankOf = (name, q) => {
 
 export const QStapleFoods = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
+    const tn = useTn();
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState((getCachedMasterList() || []).length === 0);
@@ -144,9 +147,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                Estos alimentos podrán repetirse entre días — y hasta el mismo día si los cocinamos
-                distinto (ej. huevo hervido en la mañana, huevo revuelto en la noche) — sin que eso
-                cuente como falta de variedad. Totalmente opcional: puedes seguir sin elegir ninguno.
+                {t('Estos alimentos podrán repetirse entre días — y hasta el mismo día si los cocinamos distinto (ej. huevo hervido en la mañana, huevo revuelto en la noche) — sin que eso cuente como falta de variedad. Totalmente opcional: puedes seguir sin elegir ninguno.')}
             </p>
 
             <div style={{ position: 'relative' }}>
@@ -155,8 +156,10 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder={atMax ? `Máximo ${STAPLE_FOODS_MAX} básicos` : 'Busca un alimento (huevo, pollo, arroz…)'}
-                    aria-label="Buscar alimento del catálogo para agregar a tus básicos"
+                    placeholder={atMax
+                        ? t('Máximo {n} básicos', { n: STAPLE_FOODS_MAX })
+                        : t('Busca un alimento (huevo, pollo, arroz…)')}
+                    aria-label={t('Buscar alimento del catálogo para agregar a tus básicos')}
                     disabled={atMax}
                     style={{
                         width: '100%', padding: '0.85rem 1rem 0.85rem 2.4rem',
@@ -166,7 +169,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                     }}
                 />
                 {results.length > 0 && !atMax && (
-                    <div role="listbox" aria-label="Resultados del catálogo" style={{
+                    <div role="listbox" aria-label={t('Resultados del catálogo')} style={{
                         position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 20,
                         background: 'var(--bg-card)', border: '1px solid var(--border)',
                         borderRadius: '0.9rem', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
@@ -195,17 +198,15 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                     background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
                     color: 'var(--warning-text)', fontSize: '0.82rem', lineHeight: 1.45,
                 }}>
-                    No pudimos cargar la lista de alimentos, así que el buscador no va a
-                    encontrar nada ahora mismo. Este paso es opcional: puedes seguir y
-                    añadir tus básicos más adelante desde Ajustes.
+                    {t('No pudimos cargar la lista de alimentos, así que el buscador no va a encontrar nada ahora mismo. Este paso es opcional: puedes seguir y añadir tus básicos más adelante desde Ajustes.')}
                 </p>
             )}
 
             {loading ? (
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cargando catálogo…</p>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('Cargando catálogo…')}</p>
             ) : staples.length === 0 ? (
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
-                    Aún no has elegido ningún básico.
+                    {t('Aún no has elegido ningún básico.')}
                 </p>
             ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -217,7 +218,8 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                             color: 'var(--text-main)', fontSize: '0.85rem', fontWeight: 600,
                         }}>
                             {name}
-                            <button type="button" aria-label={`Quitar ${name} de tus básicos`}
+                            {/* El nombre viene del catálogo (SSOT del motor): se interpola, no se traduce. */}
+                            <button type="button" aria-label={t('Quitar {alimento} de tus básicos', { alimento: name })}
                                 onClick={() => removeStaple(name)}
                                 style={{
                                     display: 'inline-flex', background: 'none', border: 'none',
@@ -235,16 +237,22 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                     margin: 0, padding: '0.7rem 0.9rem', borderRadius: '0.75rem',
                     border: '1px dashed var(--border)', color: 'var(--text-muted)', fontSize: '0.83rem',
                 }}>
+                    {/* [P1-I18N-DASHBOARD · 2026-08-15] La frase se parte donde manda el
+                        <strong>; los nombres de alimento salen del catálogo y se
+                        interpolan sin traducir. El conteo usa `tn`: la rama singular
+                        («uno», «ese espacio») ya existía escrita a mano. */}
                     {collapsedGroups.map((g) => (
                         <p key={g.join('|')} style={{ margin: '0 0 0.35rem' }}>
-                            Para la variedad, {g.map((n) => `«${n}»`).join(' y ')} cuentan como
-                            {' '}<strong>el mismo alimento</strong>: con elegir uno basta.
+                            {t('Para la variedad, {alimentos} cuentan como', { alimentos: g.map((n) => `«${n}»`).join(' y ') })}
+                            {' '}<strong>{t('el mismo alimento')}</strong>{t(': con elegir uno basta.')}
                         </p>
                     ))}
                     <p style={{ margin: 0 }}>
-                        Puedes quitar {freeableSlots === 1 ? 'uno' : freeableSlots} y dejar
-                        {' '}{freeableSlots === 1 ? 'ese espacio' : 'esos espacios'} para otro alimento.
-                        No es un error — si los dejas, funciona igual.
+                        {tn(freeableSlots,
+                            'Puedes quitar uno y dejar ese espacio para otro alimento.',
+                            'Puedes quitar {n} y dejar esos espacios para otro alimento.',
+                            { n: freeableSlots })}
+                        {' '}{t('No es un error — si los dejas, funciona igual.')}
                     </p>
                 </div>
             )}
@@ -253,7 +261,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                 {staples.length}/{STAPLE_FOODS_MAX}
             </p>
 
-            <NextButton onClick={onManualAdvance} disabled={false} label="Siguiente" />
+            <NextButton onClick={onManualAdvance} disabled={false} label={t('Siguiente')} />
         </div>
     );
 };

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { ChipOption, PREGNANCY_CHIP_LABELS, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
+import { useT } from '../../../i18n';
 
 // [FORM-MEDICAL-ICONS · 2026-07-03] Icono temático por condición — antes 5 de las 7
 // compartían `Activity` (indistinguibles) y las otras dos eran genéricas. Mapping literal:
@@ -107,9 +108,57 @@ export const hasOutOfScopeMedical = (fd) =>
 
 export const QMedical = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
+    const t = useT();
     // [P0-B1] sentinel exclusivo con cualquier condición médica real.
     // [P1-FORM-2] valor desde SSOT (sentinels.js).
     const SENTINEL = SENTINELS.medicalConditions;
+    // [P1-I18N-DASHBOARD · 2026-08-15] Etiqueta derivada del sentinel con clave
+    // estática — mismo patrón y mismo porqué que en QAllergies.jsx.
+    const sentinelLabel = SENTINEL === 'Ninguna' ? t('Ninguna') : SENTINEL;
+    /* [P1-I18N-DASHBOARD · 2026-08-15] SOLO ETIQUETAS. Los `val` —los arrays
+       literales que se renderizan más abajo— NO se traducen NUNCA: cada literal
+       CONTIENE el `term` con el que `detect_active_rules` / `medication_rules`
+       reconocen la regla clínica por SUBCADENA (ver P1-MEDICAL-SCOPE-GATE arriba),
+       y los dos `OUT_OF_SCOPE_*` se espejan literal en `routers/plans.py`; traducir
+       un valor apagaría la regla en silencio. Esos arrays siguen siendo la lista
+       SSOT (y lo que ancla `test_p1_medical_scope_gate.py`).
+
+       Por qué la tabla repite los literales en vez de `t(opt)`: una clave dinámica
+       no la ve `npm run i18n:check`, así que ningún catálogo llegaría a tenerla y
+       el chip quedaría sin traducir para siempre y sin aviso. Con el `?? opt` de
+       abajo, un chip nuevo que se olvide aquí se pinta en español —degradación
+       honesta— y jamás con un valor distinto. */
+    const conditionLabels = {
+        'Diabetes T2': t('Diabetes T2'),
+        'Hipertensión': t('Hipertensión'),
+        'Colesterol Alto': t('Colesterol Alto'),
+        'Gastritis': t('Gastritis'),
+        'SOP (PCOS)': t('SOP (PCOS)'),
+        'Hipotiroidismo': t('Hipotiroidismo'),
+        'Cirugía Bariátrica': t('Cirugía Bariátrica'),
+        'Enfermedad Renal': t('Enfermedad Renal'),
+        'Anemia': t('Anemia'),
+        'Gota / Ácido Úrico': t('Gota / Ácido Úrico'),
+        'Hígado Graso': t('Hígado Graso'),
+    };
+    const pregnancyLabels = { 'Embarazo': t('Embarazo'), 'Lactancia': t('Lactancia') };
+    const medicationLabels = {
+        'Metformina': t('Metformina'),
+        'Insulina': t('Insulina'),
+        'Glibenclamida': t('Glibenclamida'),
+        'Lisinopril': t('Lisinopril'),
+        'Losartán': t('Losartán'),
+        'Amlodipina': t('Amlodipina'),
+        'Hidroclorotiazida': t('Hidroclorotiazida'),
+        'Espironolactona': t('Espironolactona'),
+        'Atorvastatina': t('Atorvastatina'),
+        'Levotiroxina': t('Levotiroxina'),
+        'Omeprazol': t('Omeprazol'),
+        'Prednisona': t('Prednisona'),
+        'Warfarina': t('Warfarina'),
+        'Alopurinol': t('Alopurinol'),
+        'Antidepresivo IMAO': t('Antidepresivo IMAO'),
+    };
     // [P1-MEDICAL-CONDITIONS-CAP · 2026-08-01] `noneSelected` (usado antes
     // para el placeholder/disabled del input "Otra condición médica...")
     // se ELIMINÓ junto con el input — la sentinel "Ninguna" sigue siendo
@@ -142,7 +191,7 @@ export const QMedical = ({ onManualAdvance }) => {
         // impedir declarar "sin condiciones" ni el estado de embarazo).
         if (!already && value !== SENTINEL && !isPregnancyChip && atCap) {
             setCapMessage(
-                `Máximo ${MAX_MEDICAL_CONDITIONS} condiciones para garantizar la calidad clínica del plan. Deselecciona una para cambiar.`
+                t('Máximo {n} condiciones para garantizar la calidad clínica del plan. Deselecciona una para cambiar.', { n: MAX_MEDICAL_CONDITIONS })
             );
             return;
         }
@@ -205,7 +254,7 @@ export const QMedical = ({ onManualAdvance }) => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 {['Diabetes T2', 'Hipertensión', 'Colesterol Alto', 'Gastritis', 'SOP (PCOS)', 'Hipotiroidismo', 'Cirugía Bariátrica', 'Enfermedad Renal', 'Anemia', 'Gota / Ácido Úrico', 'Hígado Graso'].map(opt => (
                     <ChipOption
-                        key={opt} val={opt} label={opt} icon={CONDITION_ICONS[opt] || Activity}
+                        key={opt} val={opt} label={conditionLabels[opt] ?? opt} icon={CONDITION_ICONS[opt] || Activity}
                         isSelected={(formData.medicalConditions || []).includes(opt)}
                         onToggle={handleToggle}
                         disabled={isConditionChipDisabled(opt)}
@@ -215,12 +264,12 @@ export const QMedical = ({ onManualAdvance }) => {
                     (igual que Embarazo/Lactancia): declarar «tengo algo que no está
                     aquí» nunca debe quedar impedido por haber marcado ya 3. */}
                 <ChipOption
-                    val={OUT_OF_SCOPE_CONDITION} label="Otra condición" icon={CircleHelp}
+                    val={OUT_OF_SCOPE_CONDITION} label={t('Otra condición')} icon={CircleHelp}
                     isSelected={(formData.medicalConditions || []).includes(OUT_OF_SCOPE_CONDITION)}
                     onToggle={handleToggle}
                 />
                 <ChipOption
-                    val={SENTINEL} label={SENTINEL} icon={Ban}
+                    val={SENTINEL} label={sentinelLabel} icon={Ban}
                     isSelected={(formData.medicalConditions || []).includes(SENTINEL)}
                     onToggle={handleToggle}
                 />
@@ -247,16 +296,13 @@ export const QMedical = ({ onManualAdvance }) => {
                 >
                     <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
                     <span>
-                        <strong>Todavía no podemos calcular un plan seguro para esa condición.</strong>
+                        <strong>{t('Todavía no podemos calcular un plan seguro para esa condición.')}</strong>
                         <br />
-                        Nuestro motor aplica reglas clínicas verificadas solo para las condiciones
-                        y medicamentos de esta lista. Fuera de ellas no podemos garantizar que el
-                        plan sea adecuado para ti, y preferimos decírtelo antes que entregarte algo
-                        que parezca calculado y no lo esté.
+                        {t('Nuestro motor aplica reglas clínicas verificadas solo para las condiciones y medicamentos de esta lista. Fuera de ellas no podemos garantizar que el plan sea adecuado para ti, y preferimos decírtelo antes que entregarte algo que parezca calculado y no lo esté.')}
                         <br /><br />
-                        Si la que tienes <em>sí</em> está en la lista, desmárcala de aquí y márcala
-                        arriba. Si no, escríbenos: estamos ampliando la cobertura clínica y queremos
-                        saber cuál te falta.
+                        {/* El énfasis obliga a partir la frase en tres claves; el «sí» va
+                            aparte porque es justo la palabra que el <em> resalta. */}
+                        {t('Si la que tienes')} <em>{t('sí')}</em> {t('está en la lista, desmárcala de aquí y márcala arriba. Si no, escríbenos: estamos ampliando la cobertura clínica y queremos saber cuál te falta.')}
                     </span>
                 </div>
             )}
@@ -292,14 +338,14 @@ export const QMedical = ({ onManualAdvance }) => {
             {formData.gender === 'female' && (
                 <>
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '-0.75rem' }}>
-                        ¿Estás embarazada o lactando? (opcional)
+                        {t('¿Estás embarazada o lactando? (opcional)')}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
                         {/* [FORM-MEDICAL-ICONS · 2026-07-03] Baby (Embarazo) / Milk (Lactancia)
                             — antes ambos compartían Heart (genérico). */}
                         {PREGNANCY_CHIP_LABELS.map(opt => (
                             <ChipOption
-                                key={opt} val={opt} label={opt} icon={opt === 'Embarazo' ? Baby : Milk}
+                                key={opt} val={opt} label={pregnancyLabels[opt] ?? opt} icon={opt === 'Embarazo' ? Baby : Milk}
                                 isSelected={(formData.medicalConditions || []).includes(opt)}
                                 onToggle={handleToggle}
                             />
@@ -316,7 +362,7 @@ export const QMedical = ({ onManualAdvance }) => {
                 los 14 chips simplemente no se captura — el input "Otro medicamento..." fue retirado
                 (decisión de producto, alcance acotado al checklist). */}
             <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '-0.75rem' }}>
-                Medicamentos actuales (opcional)
+                {t('Medicamentos actuales (opcional)')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 {/* [P1-MEDICAL-SCOPE-GATE · 2026-08-09] «Antidepresivo IMAO» es el
@@ -328,7 +374,7 @@ export const QMedical = ({ onManualAdvance }) => {
                     regla reconoce. */}
                 {['Metformina', 'Insulina', 'Glibenclamida', 'Lisinopril', 'Losartán', 'Amlodipina', 'Hidroclorotiazida', 'Espironolactona', 'Atorvastatina', 'Levotiroxina', 'Omeprazol', 'Prednisona', 'Warfarina', 'Alopurinol', 'Antidepresivo IMAO'].map(med => (
                     <ChipOption
-                        key={med} val={med} label={med} icon={MED_ICONS[med] || Pill}
+                        key={med} val={med} label={medicationLabels[med] ?? med} icon={MED_ICONS[med] || Pill}
                         isSelected={(formData.medications || []).includes(med)}
                         onToggle={handleMedToggle}
                     />
@@ -338,14 +384,14 @@ export const QMedical = ({ onManualAdvance }) => {
                     el riesgo es más agudo que en condiciones, porque una interacción
                     fármaco-alimento no avisa antes de ocurrir. */}
                 <ChipOption
-                    val={OUT_OF_SCOPE_MEDICATION} label="Otro medicamento" icon={CircleHelp}
+                    val={OUT_OF_SCOPE_MEDICATION} label={t('Otro medicamento')} icon={CircleHelp}
                     isSelected={(formData.medications || []).includes(OUT_OF_SCOPE_MEDICATION)}
                     onToggle={handleMedToggle}
                 />
                 {/* [P3-MED-NONE-CHIP · 2026-07-01] Sentinel "Ninguno" exclusivo: al
                     marcarlo se deseleccionan los demás medicamentos. */}
                 <ChipOption
-                    val={MED_SENTINEL} label={MED_SENTINEL} icon={Ban}
+                    val={MED_SENTINEL} label={MED_SENTINEL === 'Ninguno' ? t('Ninguno') : MED_SENTINEL} icon={Ban}
                     isSelected={noMedications}
                     onToggle={handleMedToggle}
                 />
