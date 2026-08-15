@@ -20,7 +20,7 @@
 // Uso: npm run lint:count
 import { ESLint } from 'eslint';
 
-const CEILING = 164; // sincronizado a mano con ci.yml; el desajuste se avisa abajo
+const CEILING = 163; // sincronizado a mano con ci.yml; el desajuste se avisa abajo
 
 const eslint = new ESLint({ errorOnUnmatchedPattern: false });
 const report = await eslint.lintFiles(['.']);

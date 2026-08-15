@@ -151,7 +151,19 @@ export default defineConfig([
     languageOptions: {
       globals: { ...globals.node, ...globals.vitest },
     },
-    rules: { 'no-restricted-syntax': 'off' },
+    rules: {
+      'no-restricted-syntax': 'off',
+      // [P1-CI-GATE-PASSABLE · 2026-08-14] `react-refresh/only-export-components`
+      // apagada en tests, y no es una supresión: es alcance. La regla existe para
+      // que el Fast Refresh del dev server pueda reemplazar un módulo sin perder
+      // estado, y un fichero de test NUNCA participa en Fast Refresh — no lo sirve
+      // Vite en dev, no se monta en el navegador, no tiene estado que preservar.
+      // Un helper como `src/__tests__/utils/test-utils.jsx`, que exporta a la vez
+      // un wrapper de render y utilidades, es exactamente lo que un helper de
+      // tests DEBE ser; marcarlo era ruido que además consumía margen del techo de
+      // warnings, o sea que empujaba a subir el techo por un problema inexistente.
+      'react-refresh/only-export-components': 'off',
+    },
   },
   // [P3-LINT-GATE · 2026-05-30] Archivos de configuración / build / scripts
   // corren en node (process, __dirname, require, module, console).

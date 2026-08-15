@@ -33,18 +33,31 @@ jobs:
       # la leccion del commit ac042bd ("El gate del deploy tiene que poder pasar,
       # o entrena a saltarselo"), aplicada al otro gate.
       #
-      # 164 = medicion del 2026-08-14 tras borrar las 18 directivas huerfanas
-      # (`--fix-type directive`) y sacar `coverage/` del lint. Reparto: 98
-      # no-restricted-syntax (localStorage crudo, boy-scout declarado), 26
+      # 163 = medicion del 2026-08-14. Reparto: 98 no-restricted-syntax
+      # (localStorage crudo, boy-scout declarado), 25
       # react-refresh/only-export-components, 24 exhaustive-deps, 16
       # set-state-in-effect. CERO errores.
+      #
+      # Estuvo unas horas en 164 (tras borrar las 18 directivas huerfanas con
+      # `--fix-type directive` y sacar `coverage/` del lint). Una tanda del modo
+      # contador lo dejo en 165 -- un warning POR ENCIMA, o sea el job rojo otra
+      # vez, y esta vez `npm run lint:count` lo dijo con el numero delante: que es
+      # exactamente para lo que se anadio.
+      #
+      # Se BAJO a 163 en vez de subirlo a 165, porque el delta venia de CODIGO y la
+      # regla de abajo dice que entonces se arregla el codigo. Los dos warnings
+      # sobrantes eran `react-refresh/only-export-components` en helpers de TEST,
+      # donde la regla no puede aplicar jamas (Fast Refresh no toca un fichero de
+      # test: no lo sirve Vite en dev, no se monta, no tiene estado que preservar).
+      # Se apago ahi POR ALCANCE, no por conveniencia. El techo baja con el suelo:
+      # asi es un trinquete y el margen no se rellena sin que nadie lo vea.
       #
       # COMO RECALIBRAR cuando el toolchain se mueva: `npm run lint:count` da el
       # numero de hoy. Subirlo es legitimo SOLO si el delta viene de una regla
       # nueva (bump de plugin) y no de codigo nuevo — si viene de codigo, el
       # arreglo es el codigo. Escribe la causa aqui como estan escritas las dos
       # anteriores; sin causa, el proximo que lo vea no sabra si puede bajarlo.
-      - run: npx eslint . --max-warnings 164
+      - run: npx eslint . --max-warnings 163
       # El conteo queda en el log del job aunque el gate pase: la deriva de 148 a
       # 180 fue invisible durante un mes porque nadie tenia el numero delante.
       - run: npm run lint:count
