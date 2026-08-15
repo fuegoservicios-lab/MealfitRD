@@ -1826,8 +1826,16 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   color: var(--text-muted, #9CA3AF) !important;
   border: 1px solid var(--border, rgba(148, 163, 184, 0.28)) !important;
 }
+/* [P2-CONFIRM-BTN-GLARE · 2026-08-15] Gradiente de MARCA, no `var(--primary)`.
+   El token se aclara a #818CF8 en oscuro — correcto para textos y acentos sobre
+   fondo oscuro, pero como RELLENO con texto blanco da 2,98 de contraste (falla
+   WCAG 4,5) y se ve como una placa pastel brillando sobre la tarjeta (owner:
+   «se ve muy brilloso»). El gradiente es el que ya usan los CTA sólidos de la
+   app (p. ej. el «Guardar» de Settings, que es themeless a propósito: los
+   gradientes de marca se preservan en ambos temas): blanco encima da 4,47-6,29.
+   No es un color nuevo — es dejar de divergir del resto de botones primarios. */
 .bb-confirm-toast [data-button]:not([data-cancel]) {
-  background: var(--primary, #4F46E5) !important;
+  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%) !important;
   color: #fff !important;
   border: 0 !important;
 }
