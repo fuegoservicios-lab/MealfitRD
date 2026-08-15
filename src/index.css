@@ -1252,10 +1252,23 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
    El spinner lo difiere el componente (>250ms) para no parpadear en cargas
    rápidas; en cargas lentas da señal de vida (antes era indistinguible de un
    cuelgue en móvil lento). */
+/* [P2-LOADER-FLAT-PATCH · 2026-08-15] TRANSPARENTE, no `var(--bg-page)`.
+   El fondo del dashboard NO es un color plano: `.container` pinta
+   `--bg-page` MÁS una capa `::before` con cuatro glows radiales indigo/violeta
+   (ver DashboardLayout.module.css). Este loader se pintaba con el color plano
+   y a pantalla completa, así que durante el instante que tarda el chunk de la
+   página en llegar tapaba los glows con un rectángulo mate — el owner lo
+   describió como «se queda unos milisegundos una parte de la base del
+   dashboard, incluso de diferente color que el fondo», y era exactamente eso:
+   el mismo token, sin las capas de encima.
+   Sus tres usos viven DENTRO de un contenedor que ya pinta el fondo correcto
+   (el shell del dashboard o `Layout`), y `body` también lo pinta como último
+   respaldo — así que aquí no hay nada que pintar. Este elemento solo centra un
+   spinner y reserva alto para que la vista no salte al montar. */
 .page-loader {
   min-height: 100vh;
   width: 100%;
-  background: var(--bg-page);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
