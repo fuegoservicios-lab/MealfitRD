@@ -3,6 +3,8 @@ import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspens
 import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autosizeTextarea';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
+// [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
+import { isTrackingMode } from '../config/dashboardNav';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
@@ -235,7 +237,9 @@ const _computeFetchBackoffMs = (baseDelayMs, attempt) => {
     return Math.max(100, Math.round(exp + jitter));
 };
 
-const generateIntelligentWelcome = (userProfile, formData, planData) => {
+// [P1-AGENT-WELCOME-TRACKING · 2026-08-14] Exportada con nombre para poder
+// testear el gate del modo sin montar el componente entero (~3.800 líneas).
+export const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
     const nameParts = nameStr.split(' ');
     const firstName = nameParts[0] ? ' ' + nameParts[0] : '';
@@ -288,7 +292,22 @@ const generateIntelligentWelcome = (userProfile, formData, planData) => {
     else if (hour >= 15 && hour < 19) mealKeyword = 'snack';
     else mealKeyword = 'cena';
 
-    if (planData && !isPlanExpired && mealKeyword !== 'madrugada') {
+    // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] En modo CONTADOR el saludo no
+    // recita el plan. La pausa CONSERVA `plan_data` a propósito (es lo que
+    // permite «Reanudar» sin regenerar), así que para este gate un plan pausado
+    // y uno activo eran indistinguibles: con la generación desactivada, el
+    // agente abría con «De cena para hoy tienes: …» — la comida de un plan que
+    // el usuario pausó, presentada como si gobernara el día. Contradice
+    // P1-TRACKING-WINS (la elección explícita de tracking gana).
+    //
+    // Se consulta el MISMO SSOT que la nav del dashboard (`isTrackingMode`,
+    // config/dashboardNav.js) — perfil primero, espejo de localStorage después —
+    // en vez de reimplementar el modo aquí, que es como nacen las 4ªs tablas.
+    // Con `exactMealName` vacío, cada franja cae a sus variantes genéricas
+    // («¿Ya sabes qué vas a cenar?»): coaching de contador, que ya existía.
+    const enModoContador = isTrackingMode(userProfile, planData);
+
+    if (planData && !isPlanExpired && !enModoContador && mealKeyword !== 'madrugada') {
         const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
         if (planDays.length > 0 && !isNaN(cycleDayNum)) {
             const activeDayIndex = (cycleDayNum - 1) % planDays.length;
