@@ -137,7 +137,27 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
     // Dashboard. rootRef cierra en click-afuera / Escape.
     const rootRef = useRef(null);
     // prefs: { <food_key normalizado>: product_id } · source: 'server' | 'local'
-    const [prefs, setPrefs] = useState({});
+    //
+    // [P2-BRANDS-CHIP-CASCADE · 2026-08-15] Inicialización PEREZOSA desde el caché
+    // local, no `{}`.
+    //
+    // El rótulo del chip se armaba en TRES pasos visibles al refrescar: primero
+    // «Marcas del súper» a secas, luego «· 39/39 con opciones» cuando aterrizaba
+    // /supermarket/match, y por último «· 1 elegida» cuando aterrizaba
+    // /supermarket/preferences — dos viajes de red independientes, cada uno
+    // reescribiendo el texto. El dueño lo vio como que «el texto desaparece unos
+    // milisegundos».
+    //
+    // `readLocalPrefs()` ya existía y ya contenía la respuesta: es el espejo que
+    // este mismo componente escribe en cada elección (`LOCAL_PREFS_KEY`). Pero
+    // solo se leía en la rama de FALLO del fetch, así que en el camino feliz el
+    // dato local estaba ahí, disponible y sin usar, mientras la UI esperaba a la
+    // red para decir lo mismo.
+    //
+    // Con esto `selection` ya está calculada cuando llega `matches`, y el rótulo
+    // pasa de tres pasos a uno. El servidor sigue mandando: cuando responde
+    // sobrescribe estas preferencias y marca `prefsSource='server'`.
+    const [prefs, setPrefs] = useState(readLocalPrefs);
     const [prefsSource, setPrefsSource] = useState('local');
 
     const names = useMemo(() => {
