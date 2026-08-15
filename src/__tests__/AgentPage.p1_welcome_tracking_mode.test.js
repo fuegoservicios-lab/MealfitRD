@@ -24,7 +24,7 @@
  * ese contrato, vía el MISMO SSOT (`isTrackingMode`, config/dashboardNav.js) —
  * no una reimplementación local del modo.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { generateIntelligentWelcome } from '../pages/AgentPage';
 
 // Un plan de HOY con cena reconocible: `grocery_start_date` de hoy ⇒ día 1 del
@@ -59,6 +59,32 @@ beforeEach(() => {
 });
 
 describe('[P1-AGENT-WELCOME-TRACKING] el saludo respeta la pausa', () => {
+    // [P1-WELCOME-TEST-CLOCK · 2026-08-15] El reloj se FIJA, y no es cosmética.
+    //
+    // `generateIntelligentWelcome` lee `new Date().getHours()`, y `AgentPage.jsx:344`
+    // ya excluye la franja `madrugada` (00:00–05:00) de nombrar la comida del plan,
+    // ANTES de mirar el modo contador. Así que entre medianoche y las 5 de la
+    // mañana el primer test de este fichero pasaba **por la razón equivocada**: el
+    // saludo no nombraba platos porque era de madrugada, no porque el gate del modo
+    // contador funcionara. El guard del P-fix quedaba inerte 5 horas al día sin que
+    // nadie lo notara — *un veredicto que no puede fallar no informa*.
+    //
+    // Y a las 01:0x del 2026-08-15 se volvió visible por el otro lado: el tercer
+    // test («en modo PLAN el saludo SÍ recita la comida») FALLÓ, porque de
+    // madrugada tampoco la recita. Un test dependiente del reloj no es sólo
+    // flaky: es verde o rojo por motivos que no son el que se quiso probar.
+    //
+    // 13:00 pone la franja en una donde el saludo SÍ nombraría la comida, que es
+    // exactamente donde el gate del modo contador tiene algo que hacer. Se conserva
+    // el DÍA de `hoyISO` para que el plan siga siendo «el de hoy».
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(`${hoyISO}T13:00:00`));
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it('en modo CONTADOR no nombra ningún plato del plan pausado', () => {
         const saludo = generateIntelligentWelcome(PERFIL_TRACKING, FORM, PLAN);
         for (const plato of PLATOS) {

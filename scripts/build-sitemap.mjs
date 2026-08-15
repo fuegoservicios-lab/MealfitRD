@@ -90,10 +90,100 @@ ${todas.map((r) => entrada(r, hoy)).join('\n')}
 `;
 }
 
-// `lastmod` es la fecha de generación: el sitemap se regenera en cada build, así
-// que refleja cuándo se publicó el sitio, que es lo que un crawler quiere saber.
-const hoy = new Date().toISOString().slice(0, 10);
-const xml = construirSitemap(hoy);
-writeFileSync(SALIDA, xml, 'utf8');
-const cuantas = (xml.match(/<loc>/g) || []).length;
-console.log(`[sitemap] ${cuantas} URLs escritas en public/sitemap.xml (lastmod ${hoy})`);
+/**
+ * Hoy, en República Dominicana (UTC-4), no en UTC.
+ *
+ * [P3-SITEMAP-DIA-RD · 2026-08-15] `new Date().toISOString()` da la fecha UTC, así
+ * que cualquier build lanzado después de las 20:00 hora de RD estampaba el
+ * `lastmod` de MAÑANA — un sitemap que dice haberse publicado en el futuro. Se
+ * reprodujo el 2026-08-14: un build a las 22:5x escribió `2026-08-15`.
+ *
+ * Es la misma clase de bug de «¿el día de quién?» que este repo ya pagó en
+ * P1-AGENT-SESSION-DAY, y que `isLaunchOfferActive()` resuelve con este mismo
+ * offset. RD no aplica horario de verano, así que -04:00 es constante todo el año
+ * y no hace falta una librería de zonas.
+ */
+export function hoyEnRD(ahora = new Date()) {
+    return new Date(ahora.getTime() - 4 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * `llms.txt` — el mapa del sitio para modelos de lenguaje (llmstxt.org).
+ *
+ * [P3-LLMS-TXT · 2026-08-15] Antes NO existía, y eso no era neutro: el fallback
+ * SPA de nginx responde `index.html` con **HTTP 200** a cualquier ruta, así que un
+ * crawler que pedía `/llms.txt` recibía la portada en HTML y la interpretaba como
+ * el fichero. Lighthouse lo reportaba como «missing H1, no links» — describiendo,
+ * sin saberlo, el `index.html`.
+ *
+ * Se genera del MISMO SSOT que el sitemap por la misma razón: una lista a mano se
+ * queda atrás. Y el repo ya declara por escrito que le importan estos clientes —
+ * el `<noscript>` de `index.html` nombra a GPTBot, ClaudeBot y PerplexityBot como
+ * lectores que no ejecutan JS.
+ */
+const DESCRIPCION = {
+    '/': 'Portada: qué es Bioboros y para quién.',
+    '/precios': 'Planes, precios en USD y qué incluye cada nivel.',
+    '/como-funciona': 'El método, paso a paso.',
+    '/funciones': 'Qué incluye el producto.',
+    '/precision': 'Qué se mide y con qué margen.',
+    '/motor': 'Cómo se genera un plan: modelos, guardas clínicas y validación.',
+    '/research': 'Fundamento y referencias.',
+    '/novedades': 'Registro de cambios y anuncios.',
+    '/supermercado': 'Catálogo de presentaciones comprables en supermercados de RD.',
+    '/about': 'Quién está detrás.',
+};
+
+export function construirLlmsTxt() {
+    const rutas = PAPER_SURFACE_ROUTES.filter((r) => !NO_INDEXAR.has(r));
+    const producto = rutas.filter((r) => !LEGALES.has(r));
+    const legales = rutas.filter((r) => LEGALES.has(r));
+    const articulos = slugsDeArticulos();
+
+    const linea = (r) => `- [${ORIGEN}${r}](${ORIGEN}${r})${DESCRIPCION[r] ? `: ${DESCRIPCION[r]}` : ''}`;
+
+    return `# Bioboros
+
+> Planes de nutrición personalizada generados con IA para República Dominicana.
+> Se adaptan a condiciones médicas, medicamentos, alergias, presupuesto y a lo que
+> se consigue de verdad en un supermercado dominicano.
+
+Este fichero se GENERA desde \`scripts/build-sitemap.mjs\`; no lo edites a mano.
+Sus fuentes son las mismas que las del sitemap: \`src/utils/paperSurface.js\` y
+\`src/data/news.js\`.
+
+## Páginas
+
+${producto.map(linea).join('\n')}
+
+## Novedades
+
+${articulos.map((s) => `- [${ORIGEN}/novedades/${s}](${ORIGEN}/novedades/${s})`).join('\n')}
+
+## Legal
+
+${legales.map(linea).join('\n')}
+`;
+}
+
+// Los efectos (escribir en `public/`) SOLO al ejecutarlo, nunca al importarlo.
+//
+// Sin esta guarda, el test que importa este módulo para probar `hoyEnRD` reescribe
+// `public/sitemap.xml` y `public/llms.txt` en cada `npm test` — y `sitemap.xml`
+// lleva la fecha, así que el árbol de trabajo aparecía modificado sin que nadie lo
+// hubiera tocado. Un test que ensucia el repo al leerlo acaba enseñando a ignorar
+// `git status`, que es donde se esconden los cambios que sí importan.
+const EJECUTADO_DIRECTAMENTE = process.argv[1]
+    && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (EJECUTADO_DIRECTAMENTE) {
+    const hoy = hoyEnRD();
+    const xml = construirSitemap(hoy);
+    writeFileSync(SALIDA, xml, 'utf8');
+    const cuantas = (xml.match(/<loc>/g) || []).length;
+    console.log(`[sitemap] ${cuantas} URLs escritas en public/sitemap.xml (lastmod ${hoy}, día de RD)`);
+
+    const llms = construirLlmsTxt();
+    writeFileSync(path.join(AQUI, '..', 'public', 'llms.txt'), llms, 'utf8');
+    console.log(`[llms.txt] ${(llms.match(/^- \[/gm) || []).length} enlaces escritos en public/llms.txt`);
+}

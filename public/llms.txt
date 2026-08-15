@@ -1,0 +1,37 @@
+# Bioboros
+
+> Planes de nutrición personalizada generados con IA para República Dominicana.
+> Se adaptan a condiciones médicas, medicamentos, alergias, presupuesto y a lo que
+> se consigue de verdad en un supermercado dominicano.
+
+Este fichero se GENERA desde `scripts/build-sitemap.mjs`; no lo edites a mano.
+Sus fuentes son las mismas que las del sitemap: `src/utils/paperSurface.js` y
+`src/data/news.js`.
+
+## Páginas
+
+- [https://bioboros.com/](https://bioboros.com/): Portada: qué es Bioboros y para quién.
+- [https://bioboros.com/precios](https://bioboros.com/precios): Planes, precios en USD y qué incluye cada nivel.
+- [https://bioboros.com/como-funciona](https://bioboros.com/como-funciona): El método, paso a paso.
+- [https://bioboros.com/funciones](https://bioboros.com/funciones): Qué incluye el producto.
+- [https://bioboros.com/precision](https://bioboros.com/precision): Qué se mide y con qué margen.
+- [https://bioboros.com/motor](https://bioboros.com/motor): Cómo se genera un plan: modelos, guardas clínicas y validación.
+- [https://bioboros.com/research](https://bioboros.com/research): Fundamento y referencias.
+- [https://bioboros.com/novedades](https://bioboros.com/novedades): Registro de cambios y anuncios.
+- [https://bioboros.com/supermercado](https://bioboros.com/supermercado): Catálogo de presentaciones comprables en supermercados de RD.
+- [https://bioboros.com/about](https://bioboros.com/about): Quién está detrás.
+
+## Novedades
+
+- [https://bioboros.com/novedades/base-datos-supermercados-rd](https://bioboros.com/novedades/base-datos-supermercados-rd)
+
+## Legal
+
+- [https://bioboros.com/privacy](https://bioboros.com/privacy)
+- [https://bioboros.com/terms](https://bioboros.com/terms)
+- [https://bioboros.com/medical](https://bioboros.com/medical)
+- [https://bioboros.com/data-protection](https://bioboros.com/data-protection)
+- [https://bioboros.com/ai-policy](https://bioboros.com/ai-policy)
+- [https://bioboros.com/refunds](https://bioboros.com/refunds)
+- [https://bioboros.com/acceptable-use](https://bioboros.com/acceptable-use)
+- [https://bioboros.com/responsible-disclosure](https://bioboros.com/responsible-disclosure)

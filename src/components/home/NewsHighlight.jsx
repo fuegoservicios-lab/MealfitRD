@@ -149,10 +149,21 @@ const NewsHighlight = () => {
                                     <td className={`${styles.cell} ${styles.cellTitle}`}>
                                         {/* Sustituye a las columnas FECHA/TAG cuando estas se ocultan
                                             (<719px, ver .module.css) — MISMA información, no un adorno:
-                                            `aria-label` con el dateLabel legible es lo que anuncia un
-                                            lector de pantalla; los `<span>` visuales (ISO + tag) van
-                                            aria-hidden para no duplicar el anuncio. */}
-                                        <p className={styles.metaMobile} aria-label={`${n.dateLabel} · ${n.tag}`}>
+                                            el texto legible se anuncia y los `<span>` visuales (ISO +
+                                            tag) van aria-hidden para no duplicar el anuncio.
+
+                                            [P2-A11Y-ARIA-ON-P · 2026-08-15] Antes esto era un
+                                            `aria-label` en el `<p>`, y el efecto era el CONTRARIO del
+                                            buscado: ARIA prohíbe `aria-label` en un `<p>` (no tiene rol
+                                            que lo admita), así que los lectores lo IGNORAN — y como los
+                                            tres spans van aria-hidden, no quedaba nada que anunciar. La
+                                            fecha y el tag desaparecían por completo para quien usa
+                                            lector de pantalla. Peor que no haber puesto nada.
+                                            Lighthouse lo marcaba como `aria-prohibited-attr`.
+                                            El texto oculto visualmente no necesita ARIA: es contenido
+                                            de verdad, y por eso no se puede ignorar. */}
+                                        <p className={styles.metaMobile}>
+                                            <span className={styles.srOnly}>{`${n.dateLabel} · ${n.tag}`}</span>
                                             <span aria-hidden="true">{n.date}</span>
                                             <span className={styles.metaSep} aria-hidden="true">·</span>
                                             <span aria-hidden="true">{n.tag}</span>

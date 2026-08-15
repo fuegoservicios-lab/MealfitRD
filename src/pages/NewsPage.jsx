@@ -154,8 +154,14 @@ const NewsPage = () => {
                                                 `aria-label` con el dateLabel legible es lo que anuncia
                                                 un lector de pantalla; los `<span>` visuales van
                                                 aria-hidden para no duplicar el anuncio. */}
-                                            <p className={styles.metaMobile}
-                                               aria-label={`${n.dateLabel} · ${n.tag}`}>
+                                            {/* [P2-A11Y-ARIA-ON-P · 2026-08-15] Era un `aria-label` en el
+                                                `<p>`: ARIA lo PROHÍBE ahí (un párrafo no tiene rol que lo
+                                                admita), así que los lectores lo ignoraban y, con los tres
+                                                spans en aria-hidden, no quedaba nada que anunciar. Texto
+                                                oculto visualmente en su lugar — es contenido real, no una
+                                                anotación que se pueda descartar. */}
+                                            <p className={styles.metaMobile}>
+                                                <span className={styles.srOnly}>{`${n.dateLabel} · ${n.tag}`}</span>
                                                 <span aria-hidden="true">{n.date}</span>
                                                 <span className={styles.metaSep} aria-hidden="true">·</span>
                                                 <span aria-hidden="true">{n.tag}</span>
