@@ -119,7 +119,14 @@ describe('[P1-HIST-NEW-1 + P0-HIST-FIX-9] composición de clases', () => {
     it('renderiza después del badge dead_letter_reason', () => {
         // Orden visual importante: dead_letter_reason (categórico) antes
         // que error_message (raw). Mismo concepto, granularidad creciente.
-        const dlr = src.indexOf('c.dead_letter_reason &&');
+        //
+        // [P2-HIST-PAUSED-CHUNK-CHIP · 2026-08-15] El ancla era `c.dead_letter_reason &&`,
+        // la FORMA exacta del JSX. Ese badge pasó a decidirse en `chipDeChunkMuerto(c)`
+        // —porque pintaba «No recuperable» sobre chunks que la pausa canceló, que son
+        // justo los recuperables— y el test bloqueaba el arreglo sin que su INTENCIÓN
+        // (el orden de los dos badges) hubiera cambiado. Se reancla al nuevo mecanismo:
+        // lo que este test protege es el ORDEN, no cómo se calcula el primero.
+        const dlr = src.indexOf('chipDeChunkMuerto(c)');
         const em = src.indexOf('c.metrics.error_message');
         expect(dlr).toBeGreaterThan(-1);
         expect(em).toBeGreaterThan(-1);

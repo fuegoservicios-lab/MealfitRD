@@ -10,7 +10,7 @@ import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
 import { isTrackingMode } from '../config/dashboardNav';
-import { textoNeveraBaja } from './pantryLowBannerCopy';
+import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
@@ -1320,6 +1320,17 @@ const Pantry = () => {
         clearRestockedFlag = false,
     } = {}) => {
         try {
+            // [P2-PANTRY-PAUSED-SURFACES · 2026-08-15] En modo contador NO se recalcula
+            // la lista del plan pausado. Cada alta/baja de la Nevera disparaba un POST
+            // que reescribia `aggregated_shopping_list` de un plan que el usuario apago,
+            // y lo celebraba con un toast sobre una lista que su modo no muestra en
+            // ninguna pantalla.
+            //
+            // Se corta el RECALC entero, no solo el toast: silenciar el aviso dejaria el
+            // efecto (escrituras a meal_plans) sin la senal, que es peor -- un efecto
+            // invisible cuesta mas de diagnosticar que uno ruidoso. Al reanudar, el
+            // propio resume recalcula: no se pierde nada.
+            if (enModoContador) return;
             const savedPlan = safeLocalStorageGet('mealfit_plan', null);
             if (!savedPlan || !session?.user?.id) return;
 
@@ -2278,7 +2289,7 @@ const Pantry = () => {
                     <span
                         className={fstyles.shelf}
                         style={{ background: badgeStyle.background, color: badgeStyle.color, border: `1px solid ${badgeStyle.borderColor}` }}
-                        title={`Tu plan priorizará este ingrediente. ${badge.label}.`}
+                        title={tooltipCaducidad(badge.label, enModoContador)}
                     >
                         ⚠ {badge.label}
                     </span>
@@ -2431,7 +2442,7 @@ const Pantry = () => {
                         <span
                             className={mstyles.shelf}
                             style={{ background: badgeStyle.background, color: badgeStyle.color, border: `1px solid ${badgeStyle.borderColor}` }}
-                            title={`Tu plan priorizará este ingrediente. ${badge.label}.`}
+                            title={tooltipCaducidad(badge.label, enModoContador)}
                         >
                             ⚠ {badge.label}
                         </span>

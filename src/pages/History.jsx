@@ -148,6 +148,34 @@ const _dayNameForGlobalIdx = (startMid, globalIdx) => {
 // archiva los días antes de podarlos. Esta función SOLO se usa en el modal
 // del Historial — el Dashboard/Recetas leen `plan_data.days` directo (ventana
 // rolling intacta). Devuelve [] defensivamente. Helper exportado para test.
+/**
+ * [P2-HIST-PAUSED-CHUNK-CHIP · 2026-08-15] Qué chip merece un chunk con
+ * `dead_letter_reason`.
+ *
+ * El chip rojo «No recuperable: …» se pintaba con un solo criterio: que existiera
+ * `dead_letter_reason`. Pero la pausa FIRMA con ese campo los chunks que cancela
+ * —`'[P1-PLAN-MODE] paused_by_user'`— y esa firma existe para lo contrario de lo
+ * que el chip sugería: es el contrato por el que `_revive_paused_chunks` sabe
+ * cuáles resucitar al reanudar. El backend lo dice literal: «dead_lettered_at
+ * queda NULL — no es dead-letter».
+ *
+ * Así que al usuario que pausó se le mostraba en rojo «No recuperable:
+ * [P1-PLAN-MODE] paused_by_user»: dos mentiras y un marcador interno de
+ * ingeniería usado como texto de producto.
+ *
+ * El discriminador ya venía en el payload y nadie lo miraba: un fallo real llega
+ * con `status='failed'`; la pausa deja `status='cancelled'`.
+ */
+export const chipDeChunkMuerto = (c) => {
+    const razon = (c && typeof c.dead_letter_reason === 'string') ? c.dead_letter_reason.trim() : '';
+    if (!razon) return null;
+    const esPausa = c.status === 'cancelled' && razon.includes('paused_by_user');
+    if (esPausa) {
+        return { tono: 'neutro', texto: 'En pausa — se retoma al reanudar' };
+    }
+    return { tono: 'malo', texto: `No recuperable: ${razon}` };
+};
+
 export const _fullHistoryDays = (planData) => {
     if (!planData || typeof planData !== 'object') return [];
     const live = Array.isArray(planData.days) ? planData.days : [];
@@ -4083,12 +4111,18 @@ const History = () => {
                                                                     Repetición: {Math.round(c.metrics.learning_repeat_pct * 100)}%
                                                                 </span>
                                                             )}
-                                                            {c.dead_letter_reason && (
-                                                                <span className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                      title={`Razón por la que el chunk no se pudo recuperar automáticamente: ${c.dead_letter_reason}`}>
-                                                                    No recuperable: {c.dead_letter_reason}
-                                                                </span>
-                                                            )}
+                                                            {(() => {
+                                                                const _chip = chipDeChunkMuerto(c);
+                                                                if (!_chip) return null;
+                                                                return (
+                                                                    <span className={`${styles.detailItemCounter} ${_chip.tono === 'malo' ? styles.tierBadgeBad : ''}`}
+                                                                          title={_chip.tono === 'malo'
+                                                                              ? `Razón por la que el chunk no se pudo recuperar automáticamente: ${c.dead_letter_reason}`
+                                                                              : 'Este día se canceló al pausar la generación. Al reanudar tu plan se vuelve a encolar automáticamente.'}>
+                                                                        {_chip.texto}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                             {/* [P1-HIST-NEW-1 · 2026-05-09] Render
                                                                 de `error_message` (snapshot del
                                                                 último intento commiteado a

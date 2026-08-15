@@ -42,3 +42,26 @@ export function textoNeveraBaja(estado, enModoContador) {
     return `${hecho} Te recomendamos tener ~${objetivo} para que tus planes aprovechen mejor tu nevera. `
         + 'Mientras tanto, tus próximas listas de mantenimiento comprarán lo que falte automáticamente.';
 }
+
+/**
+ * [P2-PANTRY-PAUSED-SURFACES · 2026-08-15] El tooltip del chip de caducidad.
+ *
+ * Prometía «Tu plan priorizará este ingrediente» en las DOS vistas de la Nevera.
+ * Con la generación apagada eso no ocurre: el ingrediente se va a echar a perder
+ * y ninguna generación lo va a colocar en ningún plato. El chip ya trae un hecho
+ * verificable —«Caduca en N días»—; no necesita prestarle autoridad a un motor
+ * que no está corriendo.
+ *
+ * Vive aquí, junto al copy del banner, porque es la misma decisión sobre la misma
+ * pantalla: qué puede afirmar la Nevera cuando el plan no manda.
+ *
+ * @param {string} etiqueta  el hecho que ya calcula el badge («Caduca en 2 días»).
+ * @param {boolean} enModoContador  veredicto de `isTrackingMode`.
+ */
+export function tooltipCaducidad(etiqueta, enModoContador) {
+    const hecho = String(etiqueta || '').trim();
+    if (enModoContador) {
+        return hecho ? `${hecho}. Consúmelo pronto.` : 'Consúmelo pronto.';
+    }
+    return `Tu plan priorizará este ingrediente. ${hecho}.`;
+}
