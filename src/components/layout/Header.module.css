@@ -693,12 +693,28 @@
     background: #f1f5f9;
 }
 
+/* [P2-THEME-TOKENS-BOYSCOUT · 2026-08-15] Hex → token. Los `--danger*` YA existen
+   y ya están definidos por tema, así que la base con token da el valor correcto en
+   los tres sin necesidad de override:
+
+     tema      --danger    --danger-bg     antes (hex fijo)
+     claro     #EF4444     #FEF2F2         idéntico
+     oscuro    #F87171     #2A1517         lo daba el override de abajo (ya sobra)
+     papel     #0B0B0B     #F4F4F2         = --pa-ink / --pa-sunk
+
+   ⚠️ NO es un no-op puro en PAPEL, y conviene saberlo: el bloque papel sólo
+   sobrescribía `color`, nunca el hover. Así que hasta hoy, al pasar el ratón por
+   «Cerrar sesión» en la superficie papel salía un fondo ROSA (#fef2f2) heredado
+   de la base — una fuga de color en un tema declarado blanco y negro estricto
+   (P1-PAPER-THEME). Con el token pasa a #F4F4F2, que es el gris hundido del
+   propio sistema papel. Es un arreglo, pero es un CAMBIO VISUAL: si alguien
+   quería ese rosa, esto lo quita. */
 .accountItemDanger {
-    color: #ef4444;
+    color: var(--danger);
 }
 
 .accountItemDanger:hover {
-    background: #fef2f2;
+    background: var(--danger-bg);
 }
 
 .accountTrigger:focus-visible,
@@ -734,12 +750,6 @@
 }
 :global(html[data-theme="dark"]) .accountItem:hover {
     background: var(--bg-muted);
-}
-:global(html[data-theme="dark"]) .accountItemDanger {
-    color: var(--danger);
-}
-:global(html[data-theme="dark"]) .accountItemDanger:hover {
-    background: var(--danger-bg);
 }
 
 /* ============================================================================
@@ -1011,9 +1021,6 @@
     background: var(--pa-sunk);
 }
 
-:global(html[data-theme="paper"]) .accountItemDanger {
-    color: var(--pa-ink);
-}
 
 :global(html[data-theme="paper"]) .accountItemDanger:hover {
     background: var(--pa-sunk);
