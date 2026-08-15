@@ -22,7 +22,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 // (`generateAIPlanStream` y sus helpers viven FUERA de React); `useT`/`useTn`
 // para los tres componentes de este archivo. Los mensajes de error que solo
 // alimentan un `console.*` o un `error.code` NO se traducen: nadie los lee.
-import { t, useT, useTn } from '../i18n';
+import { t, useT, useTn, useI18n } from '../i18n';
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
@@ -2380,13 +2380,20 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // redirect desde el handler del botón sin depender del catch.
     const navigateCancel = useNavigate();
 
-    // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01 · P1-I18N-DASHBOARD · 2026-08-15]
-    // Las tablas de copy se construyen UNA vez por montaje (deps vacías), no en cada
-    // render — el mismo ahorro que perseguía el hoist original. Un cambio de idioma
-    // REMONTA el subárbol de rutas (el Provider usa `locale` como `key`), así que no
-    // hace falta invalidar el memo.
-    const steps = useMemo(() => getLoadingSteps(), []);
-    const tips = useMemo(() => getLoadingTips(), []);
+    // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01 · P1-I18N-SWAP-SMOOTH · 2026-08-15]
+    // Las tablas de copy se construyen una vez por IDIOMA, no en cada render — el
+    // ahorro que perseguía el hoist original se conserva, porque el idioma cambia
+    // como mucho un puñado de veces en la vida de la app.
+    //
+    // `locale` en las deps NO es defensivo: es el ÚNICO sitio de todo el dashboard
+    // donde un `useMemo` con deps vacías capturaba texto traducido. Mientras existió
+    // la frontera de remontaje daba igual (el componente entero se rehacía); al
+    // retirarla, sin esta dep la pantalla de carga se quedaría en el idioma que
+    // hubiera al montar. Es el caso raro pero real de cambiar de idioma con un plan
+    // generándose.
+    const { locale } = useI18n();
+    const steps = useMemo(() => getLoadingSteps(), [locale]);
+    const tips = useMemo(() => getLoadingTips(), [locale]);
 
     // Progreso basado en eventos SSE reales
     useEffect(() => {

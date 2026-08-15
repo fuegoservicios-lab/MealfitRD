@@ -232,6 +232,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // `t` sale del MISMO hook a propósito: es lo que suscribe esta pantalla al
     // cambio de idioma (sin la suscripción, cambiar de idioma no la repinta).
     const { locale, setLocale, t } = useI18n();
+    // [P1-I18N-SWAP-SMOOTH · 2026-08-15] Idioma pulsado cuyo catálogo aún viaja.
+    // Solo decide qué fila se pinta marcada; el idioma REAL lo sigue mandando el
+    // motor, así que esto no puede desincronizar nada.
+    const [pendingLocale, setPendingLocale] = useState(null);
 
     // [P1-I18N-DASHBOARD · 2026-08-15] Idioma de la interfaz.
     //
@@ -252,7 +256,25 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const handleSelectLocale = async (code) => {
         if (code === locale) return;
 
-        const applied = await setLocale(code);
+        // [P1-I18N-SWAP-SMOOTH · 2026-08-15] La marca se mueve YA, antes de
+        // esperar al catálogo.
+        //
+        // `setLocale` espera al `import()` del chunk del idioma: entre 100 y 300 ms
+        // la primera vez que se elige cada uno. Sin esto, pulsabas una fila y NO
+        // PASABA NADA durante ese rato — ni la marca se movía — y de golpe cambiaba
+        // la pantalla entera. Se leía como que el clic no había registrado, y era
+        // la mitad de la sensación de «raro» al cambiar de idioma.
+        //
+        // Se limpia SIEMPRE en el `finally`: si la carga falla, la marca tiene que
+        // volver al idioma que de verdad está activo. Un optimismo que no sabe
+        // retroceder es una mentira.
+        setPendingLocale(code);
+        let applied = false;
+        try {
+            applied = await setLocale(code);
+        } finally {
+            setPendingLocale(null);
+        }
         if (!applied) {
             toast.error(t('No se pudo cargar ese idioma. Revisa tu conexión.'));
             return;
@@ -2431,7 +2453,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             aria-label={t('Idioma de la interfaz')}
                         >
                             {LOCALES.map((opt) => {
-                                const selected = locale === opt.code;
+                                // Optimista: manda lo pulsado mientras su catálogo
+                                // viaja; al terminar (o al fallar) vuelve a mandar
+                                // el idioma real.
+                                const selected = (pendingLocale ?? locale) === opt.code;
                                 // Subtag de idioma en la insignia: 'pt-BR' → 'PT'.
                                 const subtag = opt.code.split('-')[0].toUpperCase();
                                 return (

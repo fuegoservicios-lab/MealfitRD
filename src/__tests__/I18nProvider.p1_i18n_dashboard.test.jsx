@@ -106,6 +106,50 @@ describe('[P1-I18N-DASHBOARD] I18nProvider', () => {
         });
     });
 
+    it('[P1-I18N-SWAP-SMOOTH] cambiar de idioma NO destruye el estado de la vista', async () => {
+        // Este es el test del arreglo. La primera versión envolvía las rutas en
+        // una frontera con `key={locale}` que REMONTABA todo el subárbol: el
+        // diálogo de Configuración se volvía a montar, repetía su animación de
+        // apertura y el scroll saltaba arriba — el dueño lo describió como que
+        // «se siente raro» y tenía razón.
+        //
+        // Un componente con estado propio (aquí un contador; en la app real, el
+        // scroll del diálogo y qué sección tienes abierta) debe SOBREVIVIR al
+        // cambio. Si alguien reintroduce el remontaje, el contador vuelve a 0 y
+        // esto se pone rojo.
+        function ConEstado() {
+            const t = useT();
+            const { setLocale } = useI18n();
+            const [n, setN] = React.useState(0);
+            return (
+                <div>
+                    <span data-testid="texto">{t('Guardar')}</span>
+                    <span data-testid="estado">{n}</span>
+                    <button onClick={() => setN((v) => v + 1)}>sumar</button>
+                    <button onClick={() => setLocale('fr-FR')}>fr</button>
+                </div>
+            );
+        }
+
+        const user = userEvent.setup();
+        await act(async () => {
+            render(<I18nProvider><ConEstado /></I18nProvider>);
+        });
+
+        await user.click(screen.getByText('sumar'));
+        await user.click(screen.getByText('sumar'));
+        expect(screen.getByTestId('estado')).toHaveTextContent('2');
+
+        await user.click(screen.getByText('fr'));
+        await waitFor(() => {
+            expect(screen.getByTestId('texto')).toHaveTextContent('Enregistrer');
+        });
+
+        // El texto cambió Y el estado sigue ahí. Las dos mitades importan: sin la
+        // primera no hubo traducción, sin la segunda volvimos al remontaje.
+        expect(screen.getByTestId('estado')).toHaveTextContent('2');
+    });
+
     it('SIN Provider, useT() sigue devolviendo el español (no revienta)', () => {
         // Los 252 ficheros de test de esta suite montan componentes sin
         // Provider. Si esto se rompe, la migración tumba la suite entera — y
