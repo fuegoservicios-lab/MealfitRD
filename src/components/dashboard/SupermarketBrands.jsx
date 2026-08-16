@@ -20,6 +20,54 @@ import { useT, useTn } from '../../i18n';
 
 const LOCAL_PREFS_KEY = 'mf_brand_prefs';
 
+// [P2-BRANDS-MATCH-CACHE · 2026-08-15] Caché local del /match, para que el chip
+// nazca completo.
+//
+// El rótulo se armaba en dos pasos al refrescar: «Marcas del súper» y, cuando
+// aterrizaba la red, «· 39/39 con opciones · 1 elegida». `prefs` ya se servía de
+// caché (P2-BRANDS-CHIP-CASCADE); esto cierra la mitad que faltaba.
+//
+// Va CLAVEADO POR LA LISTA: si cambian los ítems de la compra, las coincidencias
+// dejan de aplicar y el caché no debe casar. La firma es el conjunto de nombres
+// normalizado y ORDENADO — el orden de la lista no cambia qué marcas existen.
+//
+// TTL corto a propósito (15 min): la respuesta lleva PRECIOS. Un precio rancio
+// es peor que un rótulo que tarda 200 ms, así que el caché solo cubre el hueco
+// del primer pintado y siempre se revalida contra la red por detrás.
+const MATCH_CACHE_KEY = 'mf_brand_matches_v1';
+const MATCH_CACHE_TTL_MS = 15 * 60 * 1000;
+// Tope de tamaño: la respuesta ronda los 65 kB con 39 ítems. Con listas grandes
+// podría dispararse, y llenar la cuota de localStorage rompería OTRAS features
+// que la comparten (el plan, el formulario). Si no cabe, no se cachea: la
+// degradación es volver al comportamiento de antes, que funciona.
+const MATCH_CACHE_MAX_BYTES = 400 * 1024;
+
+const matchSignature = (names) => (names || []).map(norm).sort().join('|');
+
+const readCachedMatches = (signature) => {
+    if (!signature) return null;
+    try {
+        const raw = safeLocalStorageGet(MATCH_CACHE_KEY, null);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || parsed.signature !== signature) return null;
+        if (!parsed.expiresAt || Date.now() > parsed.expiresAt) return null;
+        const v = parsed.matches;
+        return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
+    } catch { return null; }
+};
+
+const writeCachedMatches = (signature, matches) => {
+    if (!signature || !matches || typeof matches !== 'object') return;
+    try {
+        const payload = JSON.stringify({
+            signature, matches, expiresAt: Date.now() + MATCH_CACHE_TTL_MS,
+        });
+        if (payload.length > MATCH_CACHE_MAX_BYTES) return;
+        safeLocalStorageSet(MATCH_CACHE_KEY, payload);
+    } catch { /* cuota llena: seguir sin caché */ }
+};
+
 // Simétrica a `_norm_food` del backend: minúsculas + sin acentos + espacios colapsados.
 const norm = (s) => (s || '')
     .normalize('NFD')
@@ -249,6 +297,14 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
     useEffect(() => {
         if (reconcileFiredRef.current) return;
         if (prefsSource !== 'server' || !matches) return;
+        // [P2-BRANDS-MATCH-CACHE · 2026-08-15] NUNCA reconciliar contra datos de
+        // caché. Este efecto dispara `onPrefApplied()`, que es un RECALCULO de la
+        // lista de compras en el backend — no un repintado. Con `matches` rancios
+        // (precios o productos que ya cambiaron) la comparación contra
+        // `defaultIdByKey` puede detectar una discrepancia que no existe y lanzar
+        // un recálculo por nada. La red llega unos cientos de ms después y baja
+        // esta bandera; el reconcile corre entonces, con datos que sí valen.
+        if (matchesFromCacheRef.current) return;
         if (!prefs || !Object.keys(prefs).length) return;
         let stale = false;
         for (const name of Object.keys(matches)) {
@@ -297,6 +353,9 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
     const inFlightRef = useRef(false);
     const loadedRef = useRef(false);
     const autoAttemptRef = useRef(0);
+    // [P2-BRANDS-MATCH-CACHE] `true` mientras lo que se muestra viene del caché y
+    // aún no lo confirmó la red. Lo consume el efecto de reconcile (ver allí).
+    const matchesFromCacheRef = useRef(false);
 
     const load = useCallback(async ({ manual = false } = {}) => {
         if (inFlightRef.current || loadedRef.current || names.length === 0) return;
@@ -305,7 +364,19 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
         if (!manual && autoAttemptRef.current >= 1) return;
         if (!manual) autoAttemptRef.current += 1;
         inFlightRef.current = true;
-        setLoading(true);
+
+        // [P2-BRANDS-MATCH-CACHE] Stale-while-revalidate: si hay caché para ESTA
+        // lista, se pinta YA (el chip nace con su «· N/M con opciones») y la red
+        // sigue corriendo por detrás para confirmarlo. `loading` NO se enciende en
+        // ese caso: encenderlo taparía con «Buscando…» algo que ya se puede leer.
+        const sig = matchSignature(names);
+        const cached = !manual ? readCachedMatches(sig) : null;
+        if (cached) {
+            setMatches(cached);
+            matchesFromCacheRef.current = true;
+        } else {
+            setLoading(true);
+        }
         // El error SOLO se limpia en un reintento explícito. Limpiarlo al
         // reentrar es lo que lo volvía invisible.
         if (manual) setError(null);
@@ -330,6 +401,11 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
             const data = await res.json();
             setMatches(data?.matches || {});
             loadedRef.current = true;
+            // [P2-BRANDS-MATCH-CACHE] La red mandó: se guarda para el próximo
+            // primer pintado y se levanta la bandera de «rancio», que es lo que
+            // rehabilita el reconcile.
+            matchesFromCacheRef.current = false;
+            writeCachedMatches(sig, data?.matches || {});
         } catch (err) {
             console.error('[P1-SUPERMARKET-MATCH] match falló:', err);
             // [P0-BRANDS-RETRY-STORM] Un 429 merece su propio copy: decirle
