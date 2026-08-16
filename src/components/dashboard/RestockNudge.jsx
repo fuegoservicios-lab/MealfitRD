@@ -193,15 +193,43 @@ export default function RestockNudge({
                 la izquierda. Ahora ≤640px es un grid — icono + texto arriba, X en la
                 esquina superior derecha, CTA verde full-width abajo. Desktop intacto. */}
             <style>{`
+                /* [P1-RESTOCK-BANNER-OPACO · 2026-08-15] El banner es una
+                   SUPERFICIE OPACA, no un tinte translúcido, y eso no es gusto:
+                   el fondo del tema claro es una ilustración con burbujas
+                   ('dashboard_bg_v2', DashboardLayout.module.css), así que un
+                   verde al 9 % dejaba pasar el dibujo por dentro del banner.
+
+                   Medido con el banner pintado cuatro veces a distintas alturas
+                   sobre ese fondo real: cuatro ejemplares IDÉNTICOS salían de
+                   colores distintos (30,4 puntos de diferencia en el rojo), y el
+                   texto secundario daba 3,96 de contraste contra su fondo real
+                   —umbral 4,5—, o sea que NO PASABA. No era que se viera
+                   deslucido: era ilegible según qué burbuja tocara detrás.
+
+                   Es el mismo fallo que P1-LIGHT-INK-CONTRACT documentó para la
+                   barra lateral y el encabezado en esta misma pantalla: una
+                   superficie translúcida sobre una ilustración hereda su
+                   legibilidad del dibujo. Allí se aplanó el ráster; aquí se
+                   cierra por donde toca, haciendo opaca la superficie.
+
+                   Se construye con 'color-mix' sobre los tokens y no con dos
+                   colores a mano, así que el tema oscuro sale solo: mezcla el
+                   mismo 9 % de verde contra SU '--bg-card', y sigue siendo la
+                   tarjeta oscura con un susurro verde. */
                 .restock-nudge-banner {
                     display: flex;
                     align-items: center;
                     gap: 0.75rem;
-                    background: rgba(16, 185, 129, 0.09);
-                    border: 1.5px solid rgba(16, 185, 129, 0.45);
+                    background: color-mix(in srgb, var(--secondary) 9%, var(--bg-card));
+                    border: 1.5px solid color-mix(in srgb, var(--secondary) 42%, var(--bg-card));
                     border-radius: 1rem;
                     padding: 0.85rem 1.1rem;
                     margin-bottom: 1.5rem;
+                    /* La sombra es lo que lo posa SOBRE la ilustración. Sin ella
+                       una superficie opaca sobre un dibujo parece un recorte
+                       pegado; con ella, una tarjeta encima. */
+                    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05),
+                                0 10px 24px -14px rgba(15, 23, 42, 0.18);
                 }
                 .restock-nudge-ico {
                     display: inline-flex;
@@ -210,7 +238,7 @@ export default function RestockNudge({
                     width: 34px;
                     height: 34px;
                     border-radius: 50%;
-                    background: rgba(16, 185, 129, 0.16);
+                    background: color-mix(in srgb, var(--secondary) 18%, var(--bg-card));
                     flex-shrink: 0;
                 }
                 .restock-nudge-txt { flex: 1; min-width: 200px; }
