@@ -45,7 +45,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--ink-proteins);
+    /* [P1-TRACKING-ICON-INK · 2026-08-16] Blanco, no `--ink-proteins`.
+       El rosa venía de la paleta de macros y aquí no significa nada: esta es la
+       cabecera de la tarjeta, no un indicador de proteína. Y sobre todo, en el
+       tema CLARO no se veía. Medido sobre los píxeles del icono ya pintado
+       (el trazo antialiaseado se mezcla con el fondo, así que la cuenta con los
+       hex planos se queda corta), relación entre el trazo y su pastilla:
+
+         claro   rosa #BE123C -> 1,54:1   ·  blanco -> 6,09:1
+         oscuro  rosa #FB7185 -> 4,11:1   ·  blanco -> 11,07:1
+
+       Un gráfico no textual pide 3:1. En claro el icono estaba a 1,54: casi la
+       misma luminosidad que su fondo, separado solo por el tono. En oscuro sí
+       pasaba — el fallo era del claro, y el blanco además lo unifica con la
+       convención ya escrita para este MISMO degradado en ScanMealModal
+       (.portionActive) y en AccountMenu: icono sobre pastilla de marca, blanco. */
+    color: #fff;
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
     flex-shrink: 0;
 }
@@ -685,7 +700,10 @@
 
 /* [APPEARANCE-THEME · 2026-05-29] Icono del header: vuelve el gradiente indigo
    (el azul de antes) pero MÁS PROFUNDO y SIN glow → mismo look, menos brilloso.
-   El icono Activity (rose) se conserva. */
+   [P1-TRACKING-ICON-INK · 2026-08-16] Este comentario decía «El icono Activity
+   (rose) se conserva». Ya no. Contra ESTA pastilla oscura el rosa daba 4,11:1 y
+   pasaba; el que no pasaba era el de la pastilla clara, a 1,54:1. Se unifican en
+   blanco: aquí sube a 11,07:1 y allí a 6,09:1. */
 :global(html[data-theme="dark"]) .headerIcon {
     background: linear-gradient(135deg, #4338CA 0%, #312E81 100%);
     box-shadow: none;
