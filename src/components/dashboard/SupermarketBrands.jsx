@@ -265,10 +265,50 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
         }
     }, [matches, prefs, prefsSource, defaultIdByKey, onPrefApplied]);
 
-    const load = useCallback(async () => {
-        if (matches || loading || names.length === 0) return;
+    // [P0-BRANDS-RETRY-STORM · 2026-08-15] EL GUARD VIVE EN REFS, NO EN ESTADO.
+    //
+    // Esto arregla una TORMENTA DE REINTENTOS medida en producción: 16.105
+    // respuestas 429 contra 12 doscientos, a ~12 peticiones por SEGUNDO desde el
+    // navegador del dueño. El panel se veía «Buscando marcas…» para siempre.
+    //
+    // El bucle, paso a paso:
+    //   1. `load` tenía deps `[matches, loading, names, t]` — o sea que `loading`,
+    //      la variable del propio guard, decidía la IDENTIDAD de la función.
+    //   2. El efecto de prefetch observaba `[names, load]`, así que cada cambio de
+    //      identidad de `load` lo re-disparaba.
+    //   3. El `catch` hacía `setError(...)` + `setLoading(false)` sin tocar
+    //      `matches`. Al volver `loading` a false nacía un `load` nuevo → el efecto
+    //      reentraba → el guard PASABA (matches null, loading false, y `error`
+    //      NUNCA estuvo en el guard) → otro fetch. Ciclo cerrado, sin tope.
+    //   4. `setError(null)` al reentrar borraba el error ~1 frame después de
+    //      ponerlo: por eso el usuario jamás vio el mensaje ni el botón
+    //      «Reintentar» — solo el «Buscando…» eterno.
+    //
+    // Y por qué se volvió PERMANENTE: este es el único llamante de /match con
+    // `fetch` pelado sin auth, así que su cupo de rate-limit es por IP (30/60 s).
+    // El bucle lo quemaba en ~2 s, y el limitador sellaba la ventana también con
+    // las peticiones RECHAZADAS (ver rate_limiter.py) ⇒ nunca drenaba. Por eso
+    // `curl` desde el propio VPS devolvía 200 en 30 ms mientras el navegador no
+    // pasaba nunca: son cupos distintos. Medir desde el servidor no podía verlo.
+    //
+    // El arreglo estructural es que las variables del guard salgan de la
+    // identidad de `load`: con refs, una transición del guard ya no rota la
+    // función que el efecto vigila, y el ciclo no puede cerrarse.
+    const inFlightRef = useRef(false);
+    const loadedRef = useRef(false);
+    const autoAttemptRef = useRef(0);
+
+    const load = useCallback(async ({ manual = false } = {}) => {
+        if (inFlightRef.current || loadedRef.current || names.length === 0) return;
+        // Una SOLA carga automática. El reintento es del usuario, con su botón:
+        // un panel que se reintenta solo es un panel que puede inundar.
+        if (!manual && autoAttemptRef.current >= 1) return;
+        if (!manual) autoAttemptRef.current += 1;
+        inFlightRef.current = true;
         setLoading(true);
-        setError(null);
+        // El error SOLO se limpia en un reintento explícito. Limpiarlo al
+        // reentrar es lo que lo volvía invisible.
+        if (manual) setError(null);
         try {
             // [P2-BRANDS-LOAD-TIMEOUT · 2026-08-15] `AbortSignal.timeout`: sin él,
             // una petición que NUNCA resuelve dejaba `loading=true` para siempre —
@@ -286,13 +326,20 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                 body: JSON.stringify({ names }),
                 signal: AbortSignal.timeout(12000),
             });
-            if (!res.ok) throw new Error(`Error ${res.status}`);
+            if (!res.ok) throw new Error(`Error ${res.status}`, { cause: res.status });
             const data = await res.json();
             setMatches(data?.matches || {});
+            loadedRef.current = true;
         } catch (err) {
             console.error('[P1-SUPERMARKET-MATCH] match falló:', err);
-            setError(t('No se pudieron cargar las marcas del súper. Intenta de nuevo.'));
+            // [P0-BRANDS-RETRY-STORM] Un 429 merece su propio copy: decirle
+            // «intenta de nuevo» a quien acaba de agotar el cupo invita justo a
+            // lo que causó el problema.
+            setError(err?.cause === 429
+                ? t('Demasiadas consultas seguidas. Espera un minuto y reintenta.')
+                : t('No se pudieron cargar las marcas del súper. Intenta de nuevo.'));
             setLoading(false);
+            inFlightRef.current = false;
             return;
         }
         // Preferencias: server para autenticados; localStorage como fallback
@@ -336,7 +383,10 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
             setPrefsSource('local');
         }
         setLoading(false);
-    }, [matches, loading, names, t]);
+        inFlightRef.current = false;
+        // [P0-BRANDS-RETRY-STORM] Deps SIN `matches` ni `loading`: son justo las
+        // dos que cerraban el ciclo. `names` sí, porque la petición las envía.
+    }, [names, t]);
 
     const persistPref = useCallback(async (foodKey, productId, variant = null) => {
         setPrefs((prev) => {
@@ -397,10 +447,16 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
     // [P3-BRANDS-PREFETCH · 2026-07-02] Cargar matches + prefs al montar, no al
     // primer click: el trigger muestra "· N/M con opciones · N elegidas"
     // sin tener que abrir el panel. Mismo fetch de siempre, solo adelantado —
-    // load() se auto-guarda (matches/loading) así que abrir después no re-fetchea.
+    // load() se auto-guarda (refs) así que abrir después no re-fetchea.
+    //
+    // [P0-BRANDS-RETRY-STORM · 2026-08-15] Deps `[names]`, NO `[names, load]`.
+    // Incluir `load` era la mitad del bucle: su identidad cambiaba con `loading`,
+    // así que el efecto se re-disparaba a sí mismo. Ahora `load` solo cambia si
+    // cambian `names` — que ya está en las deps — o `t`.
     useEffect(() => {
         if (names.length > 0) load();
-    }, [names, load]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [names]);
 
     // [P3-BRANDS-POPOVER-NO-DEFORM] Al ser overlay flotante, cerrar con click
     // fuera del componente o con Escape (igual que el dropdown de duración).
@@ -550,7 +606,17 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                             {error}{' '}
                             <button
                                 type="button"
-                                onClick={() => { setError(null); setMatches(null); load(); }}
+                                onClick={() => {
+                                    // [P0-BRANDS-RETRY-STORM] El reintento MANUAL
+                                    // es el único que rearma los guards. Repone
+                                    // también `loadedRef`/`inFlightRef`, que son
+                                    // ahora quienes mandan.
+                                    loadedRef.current = false;
+                                    inFlightRef.current = false;
+                                    setError(null);
+                                    setMatches(null);
+                                    load({ manual: true });
+                                }}
                                 style={{
                                     background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                                     color: 'var(--text-main)', fontWeight: 700, fontSize: '0.78rem',
