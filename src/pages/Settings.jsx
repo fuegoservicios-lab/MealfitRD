@@ -30,6 +30,11 @@ import { applyThemePref, isDarkActive } from '../utils/theme';
 // [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma de la interfaz.
 import { LOCALES } from '../i18n/locales';
 import { useI18n, formatDate, formatNumber } from '../i18n';
+// [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Selector de país, en oscuro hasta el
+// flip global (COUNTRY_SYSTEM_UI). SSOT compartido con QCountry.jsx — el
+// `code` es el dato del motor, `coerceCountry` es el mismo fail-safe que usa
+// el backend (constants.canonicalize_country).
+import { COUNTRIES, coerceCountry, COUNTRY_SYSTEM_UI } from '../config/countries';
 import Modal from '../components/common/Modal';
 import EvaluarDeNuevoModal from '../components/common/EvaluarDeNuevoModal';
 // [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Pantalla móvil inmersiva de Plan & Objetivo.
@@ -92,6 +97,38 @@ const getThemeOptions = (t) => [
     },
 ];
 
+// [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Etiqueta de país por código, con la
+// llamada a `t` escrita literal en cada rama — nunca `t(c.labelKey)`.
+//
+// `COUNTRIES` (config/countries.js) es el SSOT y guarda el nombre en
+// `labelKey`, pensado para leerse dinámicamente (así lo hace QCountry.jsx, y
+// su propio test PROHÍBE un literal de país en ese archivo — el nombre debe
+// salir del SSOT). Pero pasarle una VARIABLE a `t` es una clave DINÁMICA, y
+// `scripts/i18n-check.mjs` solo extrae llamadas escritas con la cadena
+// puesta directamente entre las comillas — el mismo motivo, ya documentado
+// en QAllergies.jsx para `sentinelLabel`, por el que apoyarse en el propio
+// SENTINEL tampoco sirve ahí. Sin este mapeo, las traducciones de país nunca
+// entrarían vivas al catálogo (0% detectable) y las 4 caerían al español en
+// silencio para siempre — exactamente el fallo que `i18n-check.mjs` existe
+// para cerrar en cualquier OTRA pantalla.
+//
+// El catálogo es GLOBAL: una vez que la clave está viva aquí, `t(c.labelKey)`
+// en QCountry.jsx resuelve la MISMA traducción en runtime sin que ese archivo
+// necesite un literal propio. Si añades un país a `COUNTRIES`, añade su
+// `case` aquí también — el fallback (`code`) evita un crash, pero deja esa
+// fila sin traducir hasta que alguien lo note.
+const getCountryLabel = (code, t) => {
+    switch (code) {
+        case 'DO': return t('República Dominicana');
+        case 'ES': return t('España');
+        case 'US': return t('Estados Unidos');
+        case 'MX': return t('México');
+        case 'PR': return t('Puerto Rico');
+        case 'CO': return t('Colombia');
+        default: return code;
+    }
+};
+
 // [P3-SETTINGS-UNITTOGGLE-HOIST · 2026-06-01] Definido en module scope (antes vivía
 // DENTRO de la IIFE de render → identidad de función NUEVA en cada keystroke de
 // peso/altura → React veía un "tipo" distinto y DESMONTABA+REMONTABA los 2 botones
@@ -147,7 +184,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // Obtenemos userProfile y updateUserProfile del contexto global
     // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
     // `buildHealthProfilePayload`.
-    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, isGuest, updateData } = useAssessment();
+    // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] `refreshProfileAndPlan` añadido: el
+    // selector de país necesita rehidratar `userProfile` desde el servidor
+    // tras el PATCH (mismo patrón que QTrackingFinish) sin arriesgar el
+    // merge superficial de `updateUserProfile` — ese pisaría TODO
+    // `health_profile` local con `{ country }` porque el PATCH manda solo la
+    // clave cambiada (I6: jsonb_set quirúrgico, no full-overwrite).
+    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, isGuest, updateData, refreshProfileAndPlan } = useAssessment();
 
     // [P1-FORM-9] Wrapper análogo al de Dashboard.jsx: filtra flags `_*` y
     // bloquea si la hidratación cifrada del formData parece estar in-flight.
@@ -293,6 +336,38 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 t('Idioma cambiado en este dispositivo, pero no se pudo guardar en tu cuenta.'),
                 { duration: 4000 }
             );
+        }
+    };
+
+    // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] País — en oscuro hasta el flip
+    // global (COUNTRY_SYSTEM_UI). Persiste por el MISMO PATCH key-level que
+    // usa la rama contador (QTrackingFinish): manda solo `{ country }`, y el
+    // backend hace jsonb_set quirúrgico — nunca full-overwrite de
+    // health_profile (I6). Tras el PATCH, `refreshProfileAndPlan` trae el
+    // perfil fresco del servidor en vez de mergear localmente: mandar solo
+    // la clave cambiada significa que un merge superficial en memoria
+    // (`{...prev, health_profile: {country}}`) borraría el resto de
+    // health_profile SOLO en el cliente — el mismo patrón exacto que
+    // QTrackingFinish ya usa, línea 107 de ese archivo.
+    const [isSavingCountry, setIsSavingCountry] = useState(false);
+    const handleSelectCountry = async (country) => {
+        if (isSavingCountry || country === coerceCountry(userProfile?.health_profile?.country)) return;
+        setIsSavingCountry(true);
+        try {
+            const res = await fetchWithAuth('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ health_profile: { country } }),
+            });
+            if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
+            try { await refreshProfileAndPlan(); } catch { /* best-effort, ver QTrackingFinish */ }
+            toast.success(t('País actualizado'), {
+                description: t('Se aplicará a tus próximos planes y bloques.'),
+            });
+        } catch {
+            toast.error(t('No se pudo guardar tu país. Inténtalo de nuevo.'));
+        } finally {
+            setIsSavingCountry(false);
         }
     };
 
@@ -2494,6 +2569,71 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             })}
                         </div>
                     </section>
+
+                    {/* [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] País — en oscuro
+                        hasta el flip global (COUNTRY_SYSTEM_UI, mismo gate que
+                        el paso del wizard en InteractiveAssessmentFlow.jsx).
+                        Persiste por el MISMO PATCH key-level que usa la rama
+                        contador (QTrackingFinish); aplica a los PRÓXIMOS
+                        bloques/planes — cada chunk congela su snapshot al
+                        generarse, así que el toast de éxito es honesto: no
+                        promete un refresh retroactivo del plan que ya existe.
+                        Va justo después de Idioma: ambas son "cómo el usuario
+                        LEE la app", esta además decide catálogo/medidas. */}
+                    {COUNTRY_SYSTEM_UI && (
+                    <section className={styles.section} style={{ borderTop: '1px solid var(--border)' }}>
+                        <h2 className={styles.sectionTitle}>
+                            {t('País')}
+                        </h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                            {t('Define tu cocina local y, donde ya está listo, los precios del súper. Aplica a tus próximos planes.')}
+                        </p>
+
+                        <div
+                            className={styles.themeGroup}
+                            role="radiogroup"
+                            aria-label={t('País de compra')}
+                        >
+                            {COUNTRIES.map((c) => {
+                                const selected = coerceCountry(userProfile?.health_profile?.country) === c.code;
+                                return (
+                                    <button
+                                        key={c.code}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={selected}
+                                        disabled={isSavingCountry}
+                                        onClick={() => handleSelectCountry(c.code)}
+                                        className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
+                                    >
+                                        {/* Insignia = código ISO, no bandera: mismo
+                                            criterio que la insignia de Idioma
+                                            (reutiliza langBadge — una clase paralela
+                                            solo para país habría que mantenerla en
+                                            los dos temas). */}
+                                        <span
+                                            className={`${styles.langBadge} ${selected ? styles.langBadgeActive : ''}`}
+                                            aria-hidden="true"
+                                        >
+                                            {c.code}
+                                        </span>
+                                        <span className={styles.themeOptionText}>
+                                            <span className={styles.langNative}>
+                                                {getCountryLabel(c.code, t)}
+                                                {c.beta ? ` · ${t('Beta')}` : ''}
+                                            </span>
+                                        </span>
+                                        {selected && (
+                                            <span className={styles.themeCheck} aria-hidden="true">
+                                                <Check size={16} strokeWidth={3} />
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+                    )}
                     </>
                     )}
 
