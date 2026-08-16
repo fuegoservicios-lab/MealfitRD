@@ -11,13 +11,13 @@
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { Globe2 } from 'lucide-react';
-import { COUNTRIES } from '../../../config/countries';
+import { COUNTRIES, DEFAULT_COUNTRY } from '../../../config/countries';
 import { useT } from '../../../i18n';
 
 export const QCountry = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
     const t = useT();
-    const value = formData.country || 'DO';
+    const value = formData.country || DEFAULT_COUNTRY;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

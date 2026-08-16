@@ -7,9 +7,9 @@
 // añadirlo allá (o viceversa), CI rojo.
 //
 // `COUNTRY_SYSTEM_UI` es la bandera de OSCURO del frontend: sin
-// VITE_COUNTRY_SYSTEM=1 en el build, ningún selector se monta. El flip final
-// (spec 2026-08-16) enciende esta env y MEALFIT_COUNTRY_SYSTEM del backend en
-// el mismo deploy.
+// VITE_COUNTRY_SYSTEM=1 o true en el build, ningún selector se monta. El flip
+// final (spec 2026-08-16) enciende esta env y MEALFIT_COUNTRY_SYSTEM del
+// backend en el mismo deploy.
 
 export const DEFAULT_COUNTRY = 'DO';
 
@@ -32,4 +32,6 @@ export function coerceCountry(raw) {
     return DEFAULT_COUNTRY;
 }
 
-export const COUNTRY_SYSTEM_UI = import.meta.env.VITE_COUNTRY_SYSTEM === '1';
+export const COUNTRY_SYSTEM_UI = ['1', 'true'].includes(
+    String(import.meta.env.VITE_COUNTRY_SYSTEM ?? '').toLowerCase()
+);
