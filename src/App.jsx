@@ -569,6 +569,18 @@ function App() {
               <ProtectedRoute><Upgrade /></ProtectedRoute>
             } />
 
+            {/* [P2-PRICING-CTA-NO-CHECKOUT · 2026-08-16] Alias `/upgrade`. El
+                landing estático del apex apuntó durante semanas a
+                `app.bioboros.com/upgrade`, un path que NUNCA existió: caía al
+                catch-all `*` → `<Layout><NotFound />` , o sea el Header/Footer de
+                marketing que el apex ya no usa (reporte del dueño: "me redirige a
+                una página de un diseño que ya ni existe"). El landing ya no ofrece
+                checkout, pero ese enlace vivió en producción y sigue en marcadores
+                e historiales: mandarlo a la página real de planes cuesta una línea
+                y evita que el último paso antes de pagar sea un 404. Mismo patrón
+                que P1-PANTRY-ROUTE-ALIAS / P2-LANDING-MANIFEST-SHORTCUT. */}
+            <Route path="/upgrade" element={<Navigate to="/dashboard/upgrade" replace />} />
+
             {/* Rutas Legales (Públicas) */}
             <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
             <Route path="/terms" element={<Layout><Terms /></Layout>} />
