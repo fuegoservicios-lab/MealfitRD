@@ -448,6 +448,25 @@ const Pantry = () => {
         const v = safeLocalStorageGet('mealfit_scan_btn', null);
         return v === '1' ? { photo_scan_enabled: true } : null;
     });
+    // [P2-PANTRY-BANNER-GAP · 2026-08-15] El defer de 700 ms solo se paga cuando
+    // YA hay algo en pantalla.
+    //
+    // El defer existe para no competir con el render inicial, y con el caché
+    // caliente es gratis: el banner ya se está pintando con el valor cacheado y
+    // la red solo lo confirma. Pero con el caché FRÍO —primer refresh tras un
+    // «Clear site data», o pasados los 10 min de TTL— esperar 700 ms es esperar
+    // teniendo NADA que enseñar: el banner ámbar falta ese rato y luego aparece
+    // de golpe. Es justo el hueco que el dueño describe.
+    //
+    // Peor aún: las deps son `[inventory.length]`, así que cuando el inventario
+    // aterriza (0 → N) el cleanup CANCELA el temporizador y arranca otro de
+    // 700 ms. Con el caché frío el hueco real es de ~1,4 s, no de 0,7.
+    //
+    // No se re-deriva `is_below` en el cliente a propósito: lo calcula
+    // `_count_meaningful_pantry_items` server-side contra `min_required`, y
+    // duplicar esa cuenta aquí sería una segunda fuente de verdad sobre cuándo la
+    // Nevera está baja — la clase de drift que P1-DIET-CANON-SSOT documenta.
+    const _statusDelayMs = pantryStatus ? 700 : 0;
     useEffect(() => {
         let cancelled = false;
         const t = setTimeout(async () => {
@@ -465,8 +484,15 @@ const Pantry = () => {
                     }
                 }
             } catch { /* fail-soft: sin aviso */ }
-        }, 700);
+        }, _statusDelayMs);
         return () => { cancelled = true; clearTimeout(t); };
+        // `_statusDelayMs` NO va en las deps a propósito: se deriva de
+        // `pantryStatus`, que este mismo efecto escribe. Incluirlo crearía la
+        // realimentación que costó 16.105 peticiones en el panel de marcas
+        // (P0-BRANDS-RETRY-STORM) — la variable que decide cómo corre un efecto no
+        // puede ser algo que el efecto cambia. Solo se lee en el primer arranque,
+        // que es cuando importa.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [inventory.length]);
     // [P6-SPEED-PANTRY-DEFER · 2026-06-01] El <input> sigue controlado por
     // `searchQuery` (caret instantáneo), pero las vistas pesadas
