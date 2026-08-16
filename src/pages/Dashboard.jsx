@@ -7675,6 +7675,10 @@ const DashboardInner = () => {
                         const _reasonCopy = {
                             empty_pantry: { title: t('Tu próximo bloque está pausado'), body: t('Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.'), cta: t('Actualizar nevera'), url: '/inventory' },
                             empty_pantry_proactive: { title: t('Tu próximo bloque está pausado'), body: t('Tu nevera está vacía. Añade ingredientes para que generemos los próximos días.'), cta: t('Actualizar nevera'), url: '/inventory' },
+                            // [P1-FIRST-PURCHASE-PAUSE · 2026-08-16] Pausa una-vez-por-plan: lista
+                            // entregada y ninguna compra marcada jamás. El copy pide el paso que
+                            // falta (la compra) y promete la reanudación sola (recovery a las 12h).
+                            awaiting_first_purchase: { title: t('Tu primera compra está pendiente'), body: t('Te dimos la lista de compras y aún no marcaste nada como comprado. Márcalo en la Nevera — o espera, y seguiremos solos con la mejor información disponible.'), cta: t('Ir a la Nevera'), url: '/inventory' },
                             stale_snapshot: { title: t('Validando tu inventario'), body: t('Estamos refrescando tu nevera. El plan continuará en breve.'), cta: null, url: null },
                             stale_snapshot_live_unreachable: { title: t('Actualiza tu nevera para continuar'), body: t('No pudimos validar tu inventario en vivo. Abre la nevera para refrescar.'), cta: t('Abrir nevera'), url: '/inventory' },
                             learning_zero_logs: { title: t('Registra tus comidas para continuar'), body: t('Necesitamos saber qué comiste para generar el siguiente bloque.'), cta: t('Ir al diario'), url: '/diary' },
