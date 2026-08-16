@@ -14,7 +14,8 @@ import {
     RefreshCw, ChefHat, Heart, Pill, Lock,
     Brain, Wallet, AlertCircle, Dumbbell,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, ChevronDown,
-    ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Refrigerator
+    ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Refrigerator,
+    CalendarClock
 } from 'lucide-react';
 import { toast } from 'sonner';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. `useT()` dentro de componentes
@@ -22,7 +23,17 @@ import { toast } from 'sonner';
 // que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
-import { useT, t, tn } from '../i18n';
+import { useT, t, tn, formatDate } from '../i18n';
+
+// [P1-DASH-GENERATING-HONESTY · 2026-08-16] «el próximo llega el <día>» a partir de
+// `next_chunk_eta`. Devuelve '' ante cualquier entrada inservible: el copy que lo
+// usa tiene una variante sin fecha, y una fecha inventada sería peor que ninguna.
+// Va por `formatDate` (Intl con el locale activo) y no por un formateador propio:
+// esta cadena la ven los cinco idiomas del dashboard.
+function _formatoDiaCorto(iso) {
+    if (!iso) return '';
+    return formatDate(iso, { weekday: 'long', day: 'numeric', month: 'long' });
+}
 import TrackingProgress from '../components/dashboard/TrackingProgress';
 // [P3-WATER-TRACKER · 2026-05-16] Tracker de hidratacion (8 vasos diarios)
 // reemplaza el card "Mi Nevera" que duplicaba la pagina Pantry.
@@ -8116,12 +8127,55 @@ const DashboardInner = () => {
                                         />
                                     );
                                 }
+                                // [P1-DASH-GENERATING-HONESTY · 2026-08-16] «Se llenará
+                                // en unos minutos» se mostraba con `in_flight_count > 0`,
+                                // que INCLUYE los chunks dormidos con `execute_after` a
+                                // días vista. La pantalla prometía minutos para algo
+                                // programado para el martes, y por eso el usuario lo leía
+                                // como congelado (reportado 2026-08-16). Es la misma
+                                // mentira que el Historial cerró en mayo (P3-HIST-CHUNK-
+                                // SCHEDULED) y que este Dashboard nunca heredó.
+                                //
+                                // `in_flight_count` se conserva como respaldo y NO se
+                                // sustituye por la suma de los dos: un chunk `processing`
+                                // con `execute_after` futuro cae fuera de AMBOS contadores
+                                // y el día desaparecería de la pantalla.
+                                const _corriendoAhora = Number(chunkStatusInfo?.running_now_count || 0) > 0;
+                                const _programados = Number(chunkStatusInfo?.scheduled_count || 0) > 0;
+                                if (_corriendoAhora) {
+                                    return (
+                                        <EmptyState
+                                            live
+                                            icon={ChefHat}
+                                            title={t('Estamos cocinando estos días')}
+                                            description={_programados
+                                                ? t('Este bloque se está generando ahora mismo. Los siguientes llegarán solos cuando toque — no hace falta hacer nada.')
+                                                : t('Este bloque se está generando ahora mismo. Se llenará solo en unos minutos — no hace falta hacer nada.')}
+                                        />
+                                    );
+                                }
+                                if (_programados) {
+                                    const _cuando = _formatoDiaCorto(chunkStatusInfo?.next_chunk_eta);
+                                    return (
+                                        <EmptyState
+                                            icon={CalendarClock}
+                                            title={t('Estos días aún no toca prepararlos')}
+                                            description={_cuando
+                                                ? `${t('Tu plan se genera por bloques, poco antes de que los necesites. El próximo llega el')} ${_cuando}.`
+                                                : t('Tu plan se genera por bloques, poco antes de que los necesites. El próximo llegará automáticamente cuando toque.')}
+                                        />
+                                    );
+                                }
                                 if (_emptyDayInFlight) {
+                                    // Respaldo para un backend anterior al desglose: hay
+                                    // cola viva pero no se sabe si corre o duerme. El copy
+                                    // no promete minutos — no mentir es más importante que
+                                    // ser específico.
                                     return (
                                         <EmptyState
                                             icon={Utensils}
                                             title={t('Tus próximos días vienen en camino')}
-                                            description={t('Estamos generando este bloque del plan. Se llenará solo en unos minutos — no hace falta hacer nada.')}
+                                            description={t('Este bloque del plan está en la cola. Se llenará solo — no hace falta hacer nada.')}
                                         />
                                     );
                                 }

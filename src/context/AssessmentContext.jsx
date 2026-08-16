@@ -280,6 +280,33 @@ export const conservarPlanId = (nuevo, previo) => {
 // letra) y muy por debajo de lo que tarda alguien en redactar una respuesta larga.
 const FORM_SAVE_MAX_WAIT_MS = 1500;
 
+// [P1-HYDRATE-DERIVED-FIELDS · 2026-08-16] Campos de `plan_data` que NO son estado
+// local: los deriva el servidor de los días y los recalcula cada vez que cambian.
+//
+// `micronutrient_report` se rehace en TRES superficies, las tres encendidas por
+// defecto — el merge del chunk (`_chunk_worker` T1), CADA avance de la ventana
+// rolling (`/shift-plan`, el evento más frecuente que hay) y el swap/regen de un
+// día. Las 4 `aggregated_shopping_list*` se rehacen en T2 del chunk worker.
+//
+// Este fichero tenía TRES merges de plan y cada uno llevaba su lista a mano:
+// `applyRegenPlan` y `applySwappedPlan` con listas que YA habían divergido entre
+// sí (una lleva `_quality_degraded*`, la otra no), y `hydrateLatestPlan` sin lista
+// ninguna — que es el bug de los micronutrientes congelados. La constante existe
+// para que el cuarto merge no nazca roto por el mismo motivo.
+//
+// Deliberadamente FUERA: `_day_regen_inflight` / `_meal_regen_inflight`, que son
+// marcadores de operación en curso y pertenecen a su merge concreto; adoptarlos
+// desde un poll pisaría el estado local de una operación viva.
+export const CAMPOS_DERIVADOS_DEL_SERVIDOR = Object.freeze([
+    'micronutrient_report',
+    'micronutrient_supplement_advice',
+    'dish_quality_report',
+    'aggregated_shopping_list',
+    'aggregated_shopping_list_weekly',
+    'aggregated_shopping_list_biweekly',
+    'aggregated_shopping_list_monthly',
+]);
+
 export const AssessmentProvider = ({ children }) => {
     // 1. CARGAR DATOS PERSISTENTES (LocalStorage)
     // [P2-LOCALSTORAGE-GETITEM-DEFENSIVE · 2026-05-15] Usar `safeLocalStorageGet`.
@@ -2125,6 +2152,29 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     // [P1-PLANDATA-ID-HYDRATE] repara estados previos que quedaron sin id.
                     id: prev.id ?? plan?.id,
                 };
+                // [P1-HYDRATE-DERIVED-FIELDS · 2026-08-16] Los campos que el SERVIDOR
+                // recalcula cuando aterriza un bloque nuevo. Sin esto, la lista blanca
+                // de arriba adoptaba `days` y dejaba lo derivado de ESOS días con el
+                // valor viejo: el usuario veía micronutrientes de hace tres días y
+                // tenía que refrescar la página (reportado 2026-08-16). Refrescar lo
+                // arreglaba porque `restoreSessionData` adopta el plan ENTERO.
+                //
+                // Se persiste en `mealfit_plan` (abajo), así que el estado congelado
+                // sobrevivía además a la navegación.
+                //
+                // ADOPTAR SI VIENE, NUNCA BORRAR SI FALTA. Los dos merges hermanos
+                // (`applyRegenPlan`, `applySwappedPlan`) sí borran, y ahí es correcto:
+                // van anclados a un persist concreto tras el cual el frontend recalcula.
+                // Aquí NO. El disparo es el poll de 25s / wake / focus, en momentos
+                // arbitrarios, y `/swap-meal/persist` y `/regenerate-day` vacían a
+                // propósito las 4 `aggregated_shopping_list*` para forzar el recálculo:
+                // un tick que cayera en esa ventana las borraría del estado local sin
+                // que nadie garantice el `/recalculate-shopping-list` siguiente.
+                // `micronutrient_report` no tiene ningún borrador server-side, así que
+                // para él ambas semánticas coinciden — la diferencia la pagan las listas.
+                for (const campo of CAMPOS_DERIVADOS_DEL_SERVIDOR) {
+                    if (campo in newPlanData) merged[campo] = newPlanData[campo];
+                }
                 safeLocalStorageSet('mealfit_plan', merged);
                 _tracePlanWrite(`merge-${src}`, plan?.id);
                 return merged;

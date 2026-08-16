@@ -5,12 +5,22 @@ import { useT } from '../../i18n';
 // [P1-I18N-DASHBOARD · 2026-08-15] El default de `title` se resuelve DENTRO del
 // cuerpo (no en la firma): un default de parámetro no puede llamar al hook, y el
 // hook es lo que suscribe el componente al cambio de idioma.
+// [P1-DASH-GENERATING-HONESTY · 2026-08-16] `live` = algo está ocurriendo AHORA
+// mismo del lado del servidor. El icono gira y sube de opacidad: un vacío quieto y
+// un vacío que está trabajando se leían IGUAL, y por eso el usuario reportaba que
+// "parecía congelado". Se apoya en `.spin-animation` (index.css), que ya cae bajo
+// el bloque global de `prefers-reduced-motion: reduce`.
+//
+// Solo debe pasarse cuando el servidor confirma trabajo en curso. Un giro
+// permanente sobre algo que en realidad está dormido es la misma mentira de antes,
+// ahora animada.
 export default function EmptyState({
     icon: Icon = Utensils,
     title = null,
     description = '',
     cta = null,
     compact = false,
+    live = false,
 }) {
     const t = useT();
     return (
@@ -30,9 +40,10 @@ export default function EmptyState({
         >
             <Icon
                 size={44}
-                color="var(--text-light)"
+                color={live ? 'var(--primary)' : 'var(--text-light)'}
                 strokeWidth={1.75}
-                style={{ marginBottom: '0.5rem', opacity: 0.6 }}
+                className={live ? 'spin-animation' : undefined}
+                style={{ marginBottom: '0.5rem', opacity: live ? 0.95 : 0.6 }}
             />
             <h3
                 style={{

@@ -1163,14 +1163,24 @@ const Plan = () => {
                 // de `oldPlan` se eliminó: su único uso era heredar cycle_start_date (ahora innecesario);
                 // el `oldPlan` del state (useState) es independiente y sigue intacto para el PreviewScreen.
                 //
-                // [P1-DAILY-NOT-CYCLE · 2026-07-28] Asimetría sin documentar (comentario únicamente,
-                // NINGÚN cambio de comportamiento): este es el ÚNICO sitio que mueve `cycle_start_date`.
-                // `/shift-plan` (`routers/plans.py::api_shift_plan`) y su equivalente en cron
-                // (`cron_tasks.py::_background_shift_plan_for_user`) avanzan la ventana rolling de un plan
-                // YA generado — grep confirma que ninguno de los dos toca `cycle_start_date` en absoluto,
-                // solo `grocery_start_date`/el corte de `days`. Consecuencia: cualquier bug o test anclado
-                // a "cycle_start_date cambió" es intermitente según CUÁL de los tres caminos tocó el plan
-                // por última vez — una renovación por botón lo mueve, un shift (manual o cron) no.
+                // [P1-DAILY-NOT-CYCLE · 2026-07-28 · CORREGIDO 2026-08-16] Asimetría sin documentar
+                // (comentario únicamente, NINGÚN cambio de comportamiento): este sitio mueve
+                // `cycle_start_date`. `/shift-plan` (`routers/plans.py::api_shift_plan`) y su equivalente
+                // en cron (`cron_tasks.py::_background_shift_plan_for_user`) avanzan la ventana rolling de
+                // un plan YA generado y NO la tocan, solo `grocery_start_date`/el corte de `days`.
+                // Consecuencia: cualquier bug o test anclado a "cycle_start_date cambió" es intermitente
+                // según CUÁL camino tocó el plan por última vez.
+                //
+                // ⚠️ La versión previa de este comentario afirmaba que este era el ÚNICO sitio y que
+                // "grep confirma". Era FALSO y costó una investigación: el grep de su autor solo miró las
+                // dos ramas del shift. `cron_tasks.py::_shift_plan_dates_for_freeze` (P1-PLAN-FREEZE,
+                // 2026-07-11 — ANTERIOR a este comentario) le suma N días junto a `_plan_start_date`,
+                // `plan_start_date` y `grocery_start_date` cuando un plan congelado se reanuda; corre por
+                // el sweep horario y por el hook de `/restock`, con `MEALFIT_PLAN_FREEZE_ENABLED` en True
+                // y cubriendo `partial`/`complete_partial`. Efecto real: un usuario que repone la nevera
+                // tras ≥48h mueve la firma `_planMicroSig` del Dashboard y resetea de golpe los descartes
+                // por-plan (qdeg/proreview/coherence/budget/insights), que quedan huérfanos sin TTL.
+                // (Segundo sitio menor: `AssessmentContext.jsx` la rellena cuando falta — idempotente.)
                 const now = new Date().toISOString();
                 generatedPlan.grocery_start_date = now;
                 generatedPlan.cycle_start_date = now;
