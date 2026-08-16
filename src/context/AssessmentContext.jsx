@@ -458,6 +458,8 @@ export const AssessmentProvider = ({ children }) => {
         waistCm: '', targetWeight: '', targetWeightAuto: false, goalPace: '',
         habitAlcohol: '', habitSmoking: '', habitCaffeine: '', habitWater: '',
         sleepHours: '', stressLevel: '', cookingTime: '', budget: '', budgetAmount: '', budgetCurrency: 'DOP', scheduleType: '',
+        // [P1-COUNTRY-SYSTEM-F0] ISO-3166; 'DO' explícito = conducta actual exacta.
+        country: 'DO',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',
         // [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos": alimentos que el usuario declara que come
         // de siempre (chips del catálogo verificado, máx 8 — QStapleFoods, paso OPCIONAL del

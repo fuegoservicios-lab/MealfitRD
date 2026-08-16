@@ -68,6 +68,9 @@ export const QTrackingFinish = () => {
             for (const extra of [
                 'otherAllergies', 'otherConditions', 'medications', 'otherMedications',
                 'targetWeight', 'goalPace', 'bodyFat', 'waistCm',
+                // [P1-COUNTRY-SYSTEM-F0] la rama corta es ALLOWLIST: sin esta
+                // entrada el país se cae al suelo en silencio en modo contador.
+                'country',
             ]) {
                 const v = formData[extra];
                 if (v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)) {

@@ -23,6 +23,10 @@ import { QTrackingFinish } from './questions/QTrackingFinish';
 // [P1-OUTSCOPE-SKIP-GATE · 2026-08-12] SSOT del gate «fuera de alcance» (vive
 // junto a sus literales en QMedical): salto y submit lo consumen.
 import { hasOutOfScopeMedical } from './questions/QMedical';
+// [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Paso país, gated en OSCURO tras
+// COUNTRY_SYSTEM_UI (import directo, mismo patrón que QPantryBuilder/QStapleFoods).
+import { QCountry } from './questions/QCountry';
+import { COUNTRY_SYSTEM_UI } from '../../config/countries';
 // [FORM-CTA-UNIFY · 2026-07-02] Icono del botón "Saltar" (antes glyph ⏭ de texto,
 // que renderiza distinto por plataforma; lucide es consistente con el resto).
 import { ChevronsRight } from 'lucide-react';
@@ -512,6 +516,18 @@ const InteractiveAssessmentFlow = () => {
             fields: ['motivation'],
             component: <QMotivation onManualAdvance={nextStep} />
         },
+        // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] El país, gated en OSCURO hasta el
+        // flip global. Va ANTES de QSupplements y no al final absoluto: el último
+        // paso lleva el submit (QSupplements/QPantryBuilder onFinish) y un paso
+        // después del submit no se pregunta nunca. El corrimiento de índices de
+        // mealfit_wizard_step ocurre UNA vez, en el deploy del flip — jamás en
+        // los deploys oscuros de la fase.
+        ...(COUNTRY_SYSTEM_UI ? [{
+            title: <>{t('¿En qué país haces la compra?')}</>,
+            subtitle: t('Adapta tus platos, medidas y — donde ya está listo — los precios del súper.'),
+            fields: ['country'],
+            component: <QCountry onAutoAdvance={handleAutoAdvance} />
+        }] : []),
         {
             title: t('Suplementación (Opcional)'),
             subtitle: t('¿Te gustaría incluir suplementos profesionales en tu plan?'),
@@ -584,6 +600,12 @@ const InteractiveAssessmentFlow = () => {
         _byField('dietType'),
         _byField('allergies'),
         _byField('medicalConditions'),
+        // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Mismo gate que en planOnlySteps —
+        // el país también se pregunta en la rama contador cuando el sistema esté
+        // encendido. `_byField` ya lo resuelve desde planOnlySteps (donde vive el
+        // step real); `.filter(Boolean)` defensivo si el gate está true pero el
+        // step no se encontrara.
+        ...(COUNTRY_SYSTEM_UI ? [_byField('country')].filter(Boolean) : []),
         {
             // [AUDIT-FORM-COPY · 2026-08-12] «Listo:» prometía completitud AL
             // ENTRAR al paso, con dos llamadas de red aún por delante que pueden
