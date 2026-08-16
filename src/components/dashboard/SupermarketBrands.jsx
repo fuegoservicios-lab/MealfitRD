@@ -437,6 +437,20 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                 });
                 setPrefs(flat);
                 setPrefsSource('server');
+                // [P2-BRANDS-PREFS-MIRROR · 2026-08-15] Espejar SIEMPRE lo que
+                // manda el servidor.
+                //
+                // El espejo local existía solo como fallback offline y se escribía
+                // únicamente cuando `prefsSource === 'local'`. Consecuencia: para
+                // un usuario autenticado —o sea, el caso normal— NUNCA se escribía,
+                // así que `readLocalPrefs()` devolvía `{}` en el primer pintado y
+                // el sufijo «· N elegidas» faltaba hasta que respondía la red. Era
+                // el último trozo del rótulo que seguía apareciendo tarde.
+                //
+                // Escribirlo aquí lo convierte además en un fallback HONESTO: si
+                // mañana no hay red, la Nevera arranca con las marcas que el
+                // servidor confirmó, no con las de la última vez que hubo un fallo.
+                try { safeLocalStorageSet(LOCAL_PREFS_KEY, JSON.stringify(flat)); } catch { /* cuota */ }
                 // [P1-SUPERMARKET-PREFS-DISCONTINUED · 2026-07-29] El backend ya excluyó
                 // de `preferences` (y auto-borró) los pins cuyo producto fue dado de baja
                 // — antes esto revertía en silencio al default/más barato sin que el
@@ -468,7 +482,12 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
         setPrefs((prev) => {
             const next = { ...prev };
             if (productId) next[foodKey] = productId; else delete next[foodKey];
-            if (prefsSource === 'local') {
+            // [P2-BRANDS-PREFS-MIRROR · 2026-08-15] Sin el `if (prefsSource ===
+            // 'local')`: el espejo se actualiza SIEMPRE, también con sesión. Así
+            // la elección que acabas de hacer está en el primer pintado del
+            // siguiente refresh, sin esperar a que el servidor la confirme otra
+            // vez. El servidor sigue siendo la verdad; esto es solo su eco local.
+            {
                 try { safeLocalStorageSet(LOCAL_PREFS_KEY, JSON.stringify(next)); } catch { /* noop */ }
             }
             return next;
