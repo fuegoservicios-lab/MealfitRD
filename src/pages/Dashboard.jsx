@@ -1304,12 +1304,28 @@ const DashboardInner = () => {
     // el status (p.ej. dentro→excedido), el banner REAPARECE — ocultar un "cerca" no
     // debe silenciar un futuro "excedido".
     const _budgetStatus = planData?.budget_reconciliation?.status || '';
-    const [budgetBannerHidden, setBudgetBannerHidden] = useState(false);
-    useEffect(() => {
-        const key = (_planMicroSig && _budgetStatus)
-            ? `mealfit_budget_dismissed_${_planMicroSig}_${_budgetStatus}` : null;
-        setBudgetBannerHidden(!!(key && safeLocalStorageGet(key, '') === '1'));
-    }, [_planMicroSig, _budgetStatus]);
+    // [P2-BUDGET-BANNER-FLASH · 2026-08-15] La ocultación se DERIVA en el render,
+    // no en un efecto.
+    //
+    // Antes: `useState(false)` + `useEffect` que leía localStorage. Consecuencia
+    // medible en cada refresh con el banner ya descartado: el primer render lo
+    // pintaba (hidden=false), el efecto corría DESPUÉS del paint y lo escondía —
+    // una franja ámbar de unos milisegundos que el dueño describió como «un
+    // subrayado amarillo del presupuesto». Es el mismo patrón que el parche mate
+    // del page-loader: un estado que nace con el valor equivocado y se corrige
+    // tras pintar es un parpadeo garantizado.
+    //
+    // `useMemo` con la MISMA clave (plan+status) lee la señal en el mismo render
+    // que decidiría pintar el banner: no existe frame intermedio. `_dismissTick`
+    // cubre el único caso que el memo no ve solo — el usuario acaba de pulsar la
+    // X (la clave no cambia, pero el valor guardado sí).
+    const _budgetDismissKey = (_planMicroSig && _budgetStatus)
+        ? `mealfit_budget_dismissed_${_planMicroSig}_${_budgetStatus}` : null;
+    const [_budgetDismissTick, _setBudgetDismissTick] = useState(0);
+    const budgetBannerHidden = useMemo(
+        () => !!(_budgetDismissKey && safeLocalStorageGet(_budgetDismissKey, '') === '1'),
+        [_budgetDismissKey, _budgetDismissTick]
+    );
     const buildBudgetNotification = useCallback(() => {
         const _br = planData?.budget_reconciliation;
         if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return null;
@@ -1333,10 +1349,11 @@ const DashboardInner = () => {
     const dismissBudgetBanner = () => {
         const notif = buildBudgetNotification();
         if (notif) addNotification(notif);
-        setBudgetBannerHidden(true);
-        const key = (_planMicroSig && _budgetStatus)
-            ? `mealfit_budget_dismissed_${_planMicroSig}_${_budgetStatus}` : null;
-        if (key) safeLocalStorageSet(key, '1');
+        // [P2-BUDGET-BANNER-FLASH] Primero el storage, después el tick: el memo
+        // re-lee al cambiar el tick, así que el orden inverso re-leería el valor
+        // viejo y la X parecería no responder.
+        if (_budgetDismissKey) safeLocalStorageSet(_budgetDismissKey, '1');
+        _setBudgetDismissTick((n) => n + 1);
         // Abre el centro para que el usuario vea dónde quedó archivado.
         openNotificationCenter();
     };

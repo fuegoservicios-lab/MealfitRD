@@ -270,10 +270,21 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
         setLoading(true);
         setError(null);
         try {
+            // [P2-BRANDS-LOAD-TIMEOUT · 2026-08-15] `AbortSignal.timeout`: sin él,
+            // una petición que NUNCA resuelve dejaba `loading=true` para siempre —
+            // «Buscando marcas en el supermercado…» eterno, sin error y sin botón
+            // de reintento (el dueño lo vio en vivo tras un refresh). El servidor
+            // respondía en 24 ms cuando se midió: el cuelgue era del LADO DEL
+            // NAVEGADOR (un Service Worker rancio puede retener un fetch sin
+            // contestarlo jamás). Un estado de carga sin salida no es un estado de
+            // carga: es una pantalla rota con un texto amable. 12 s es holgado
+            // para un endpoint que tarda milisegundos; al vencer, cae al mismo
+            // `catch` de siempre → error visible + «Reintentar».
             const res = await fetch(api('/api/supermarket/match'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ names }),
+                signal: AbortSignal.timeout(12000),
             });
             if (!res.ok) throw new Error(`Error ${res.status}`);
             const data = await res.json();
@@ -287,7 +298,14 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
         // Preferencias: server para autenticados; localStorage como fallback
         // (guests, sesión expirada, red). Nunca bloquea el panel.
         try {
-            const res = await fetchWithAuth('/api/supermarket/preferences');
+            // [P2-BRANDS-LOAD-TIMEOUT] Mismo timeout que el match, y por la misma
+            // razón: `setLoading(false)` vive DESPUÉS de esta llamada, así que un
+            // cuelgue aquí también congelaba el «Buscando…» — con los matches ya
+            // en mano y sin enseñarlos. Al vencer cae al `catch`, que ya degrada a
+            // las preferencias locales; el panel abre con lo que hay.
+            const res = await fetchWithAuth('/api/supermarket/preferences', {
+                signal: AbortSignal.timeout(12000),
+            });
             if (res.ok) {
                 const data = await res.json();
                 const flat = {};
