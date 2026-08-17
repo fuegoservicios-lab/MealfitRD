@@ -33,7 +33,7 @@
 // [P3-HELP-MENU-ITEM · 2026-07-03] Correo de soporte del ítem "Obtener ayuda"
 // (menú de cuenta desktop + menú "más" móvil). Mismo email canónico que
 // Footer.jsx (P3-FOOTER-SUPPORT) y Upgrade.jsx.
-export const SUPPORT_EMAIL = 'fuego.servicios@gmail.com';
+export const SUPPORT_EMAIL = 'bioboros.support@gmail.com';
 
 // Grupos separados por divider (arriba: conocer el producto; abajo: legal).
 export const MORE_INFO_GROUPS = [

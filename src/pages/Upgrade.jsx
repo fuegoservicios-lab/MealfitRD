@@ -249,7 +249,7 @@ function getFaqItems() {
         },
         {
             q: t('¿Ofrecen reembolsos?'),
-            a: t('Las suscripciones no son reembolsables, salvo donde la ley lo exija. Puedes cancelar cuando quieras: detienes las renovaciones y conservas el acceso hasta el fin del período ya pagado. Dudas: fuego.servicios@gmail.com.'),
+            a: t('Las suscripciones no son reembolsables, salvo donde la ley lo exija. Puedes cancelar cuando quieras: detienes las renovaciones y conservas el acceso hasta el fin del período ya pagado. Dudas: bioboros.support@gmail.com.'),
         },
         {
             q: t('¿Mis datos están seguros?'),
@@ -747,7 +747,7 @@ const Upgrade = () => {
             <section className={`${styles.sectionWrapper} ${styles.sectionFaq}`}>
                 <h2 className={styles.sectionTitle}>{t('Preguntas frecuentes')}</h2>
                 <p className={styles.sectionSubtitle}>
-                    {t('Si tienes otra duda, escríbenos a fuego.servicios@gmail.com.')}
+                    {t('Si tienes otra duda, escríbenos a bioboros.support@gmail.com.')}
                 </p>
 
                 <div className={styles.faqList}>
@@ -810,7 +810,7 @@ const Upgrade = () => {
                 ·
                 <a href="/terms" target="_blank" rel="noopener noreferrer">{t('Términos')}</a>
                 ·
-                <a href="mailto:fuego.servicios@gmail.com">{t('Soporte')}</a>
+                <a href="mailto:bioboros.support@gmail.com">{t('Soporte')}</a>
                 <br />
                 <span style={{ marginTop: '0.5rem', display: 'inline-block' }}>
                     {t('© 2026 Bioboros · Hecho en República Dominicana 🇩🇴')}

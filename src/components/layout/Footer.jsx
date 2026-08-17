@@ -184,11 +184,11 @@ const Footer = () => {
                         en desktop/tablet se ve exactamente igual que antes (forzado abierto). */}
                     <FooterColumn title={t('Soporte')} collapsible={isPaper}>
                                 <p className={styles.supportIntro}>{t('¿Dudas o problemas? Estamos para ayudarte.')}</p>
-                                <a href="mailto:fuego.servicios@gmail.com" className={styles.supportLink}>
+                                <a href="mailto:bioboros.support@gmail.com" className={styles.supportLink}>
                                     <span className={styles.supportIcon} aria-hidden="true">
                                         <Mail size={16} strokeWidth={2.25} />
                                     </span>
-                                    fuego.servicios@gmail.com
+                                    bioboros.support@gmail.com
                                 </a>
                                 <p className={styles.supportNote}>
                                     <Clock size={13} strokeWidth={2.25} aria-hidden="true" />

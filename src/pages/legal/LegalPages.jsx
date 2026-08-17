@@ -150,7 +150,7 @@ export const Privacy = () => (
         <p>En Bioboros nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos, qué cookies y almacenamiento local usamos, y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
 
         <h3>1. Identidad del Responsable del Tratamiento</h3>
-        <p>El responsable del tratamiento de sus datos es <strong>Bioboros</strong>, plataforma operada desde República Dominicana. Para cualquier consulta sobre privacidad puede contactarnos en <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>El responsable del tratamiento de sus datos es <strong>Bioboros</strong>, plataforma operada desde República Dominicana. Para cualquier consulta sobre privacidad puede contactarnos en <strong>bioboros.support@gmail.com</strong>.</p>
 
         <h3>2. Información que Recopilamos</h3>
         <p>Recopilamos únicamente la información necesaria para personalizar su plan nutricional y operar la plataforma. Las categorías exactas son:</p>
@@ -226,14 +226,14 @@ export const Privacy = () => (
         <ul>
             <li><strong>Acceder</strong> a la información que tenemos de usted desde Ajustes en la app o solicitándola por correo.</li>
             <li><strong>Rectificar</strong> datos incorrectos editando su perfil directamente.</li>
-            <li><strong>Eliminar</strong> su cuenta y todos los datos asociados directamente <strong>desde la app</strong> (Ajustes → Eliminar cuenta, con confirmación), o escribiendo a fuego.servicios@gmail.com. El borrado dispara CASCADE sobre todas las tablas vinculadas mediante claves foráneas.</li>
+            <li><strong>Eliminar</strong> su cuenta y todos los datos asociados directamente <strong>desde la app</strong> (Ajustes → Eliminar cuenta, con confirmación), o escribiendo a bioboros.support@gmail.com. El borrado dispara CASCADE sobre todas las tablas vinculadas mediante claves foráneas.</li>
             <li><strong>Exportar</strong> sus datos en formato JSON solicitándolo por correo (cumplimos en un plazo máximo de 30 días).</li>
             <li><strong>Oponerse</strong> al tratamiento para finalidades distintas a la ejecución del contrato.</li>
             <li><strong>Revocar el consentimiento</strong> cancelando su suscripción y eliminando la cuenta.</li>
         </ul>
 
         <h3>11. Menores de Edad</h3>
-        <p>Bioboros está destinada a personas mayores de 18 años. Aunque actualmente solicitamos la edad como dato declarativo del usuario, no realizamos verificación de identidad. Si descubrimos que un menor ha creado una cuenta sin consentimiento parental, eliminaremos la cuenta y sus datos asociados de inmediato. Padres o tutores pueden notificarnos en fuego.servicios@gmail.com.</p>
+        <p>Bioboros está destinada a personas mayores de 18 años. Aunque actualmente solicitamos la edad como dato declarativo del usuario, no realizamos verificación de identidad. Si descubrimos que un menor ha creado una cuenta sin consentimiento parental, eliminaremos la cuenta y sus datos asociados de inmediato. Padres o tutores pueden notificarnos en bioboros.support@gmail.com.</p>
 
         <h3>12. Transferencias Internacionales</h3>
         <p>Dado que algunos de nuestros proveedores (Neon, DeepSeek, PayPal, Sentry, PostHog, Oracle Cloud y Cohere) operan globalmente, sus datos pueden procesarse fuera de República Dominicana — principalmente en Estados Unidos y, en el caso de <strong>DeepSeek</strong>, en la <strong>República Popular China</strong> (ver Sección 4). Exigimos a estos proveedores marcos de protección reconocidos (Cláusulas Contractuales Estándar y/o equivalentes). Nunca enviamos a estos proveedores su nombre completo, correo electrónico ni datos de pago.</p>
@@ -324,7 +324,7 @@ export const Terms = () => (
         <p>Estos Términos se rigen por las leyes de la República Dominicana, incluyendo en lo pertinente la Ley 358-05 de Protección al Consumidor. Cualquier controversia que no pueda resolverse amistosamente será sometida a los tribunales competentes de la ciudad de Santo Domingo, Distrito Nacional.</p>
 
         <h3>10. Contacto</h3>
-        <p>Para cualquier consulta legal, técnica o comercial puede escribirnos a <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>Para cualquier consulta legal, técnica o comercial puede escribirnos a <strong>bioboros.support@gmail.com</strong>.</p>
     </LegalLayout>
 );
 
@@ -400,7 +400,7 @@ export const MedicalDisclaimer = () => (
         <p>Usted reconoce y acepta que la decisión de seguir cualquier plan, recomendación o sugerencia provista por Bioboros es <strong>exclusivamente suya</strong>. En la máxima medida permitida por la ley, Bioboros no asume responsabilidad alguna por consecuencias adversas para la salud, alteraciones nutricionales, reacciones alérgicas o cualquier otro perjuicio que pudiera resultar del uso de la plataforma sin consulta profesional previa.</p>
 
         <h3>8. Comunicación de Errores Nutricionales</h3>
-        <p>Si detecta un error específico en un cálculo, una combinación de alimentos potencialmente peligrosa, o cualquier recomendación que considere inadecuada, le pedimos reportarla a <strong>fuego.servicios@gmail.com</strong>. Tomamos en serio cada reporte y los usamos para mejorar la calibración de nuestros sistemas de validación.</p>
+        <p>Si detecta un error específico en un cálculo, una combinación de alimentos potencialmente peligrosa, o cualquier recomendación que considere inadecuada, le pedimos reportarla a <strong>bioboros.support@gmail.com</strong>. Tomamos en serio cada reporte y los usamos para mejorar la calibración de nuestros sistemas de validación.</p>
     </LegalLayout>
 );
 
@@ -416,7 +416,7 @@ export const DataProtection = () => (
         <p>A medida que ampliemos el servicio a otros países de Latinoamérica, respetaremos adicionalmente la normativa local de protección de datos que resulte aplicable a los residentes de cada jurisdicción (por ejemplo, la LFPDPPP en México, la Ley 1581 en Colombia, la LGPD en Brasil o la Ley 25.326 en Argentina), reconociéndole en cada caso los derechos equivalentes a los descritos aquí.</p>
 
         <h3>2. Responsable del Tratamiento</h3>
-        <p>El responsable es <strong>Bioboros</strong>, plataforma operada desde República Dominicana. Punto de contacto para cualquier asunto de datos personales: <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>El responsable es <strong>Bioboros</strong>, plataforma operada desde República Dominicana. Punto de contacto para cualquier asunto de datos personales: <strong>bioboros.support@gmail.com</strong>.</p>
 
         <h3>3. Sus Derechos como Titular</h3>
         <p>Usted, como titular de los datos, tiene en todo momento derecho a:</p>
@@ -435,7 +435,7 @@ export const DataProtection = () => (
         <ul>
             <li><strong>Acceso y rectificación inmediatos:</strong> edite su perfil, peso, objetivos, condiciones y preferencias directamente desde <strong>Ajustes</strong> en la aplicación.</li>
             <li><strong>Eliminación autoservicio:</strong> puede borrar su cuenta y todos los datos asociados desde la propia app; la eliminación dispara un borrado en cascada sobre todas las tablas vinculadas a su identificador.</li>
-            <li><strong>Solicitudes por correo:</strong> para acceso detallado, portabilidad (exportación JSON), oposición o cualquier otro derecho, escriba a <strong>fuego.servicios@gmail.com</strong> desde el correo asociado a su cuenta. Respondemos en un plazo máximo de <strong>treinta (30) días</strong>.</li>
+            <li><strong>Solicitudes por correo:</strong> para acceso detallado, portabilidad (exportación JSON), oposición o cualquier otro derecho, escriba a <strong>bioboros.support@gmail.com</strong> desde el correo asociado a su cuenta. Respondemos en un plazo máximo de <strong>treinta (30) días</strong>.</li>
         </ul>
         <p>No le cobramos por ejercer estos derechos. Podremos pedirle verificar su identidad para proteger su cuenta frente a solicitudes fraudulentas.</p>
 
@@ -449,7 +449,7 @@ export const DataProtection = () => (
         <p>Aplicamos cifrado en tránsito (TLS) y en reposo, aislamiento estricto por identificador de usuario en cada consulta a la base de datos (con tests automatizados que enforzan que ninguna consulta acceda a datos de otro usuario), autenticación con tokens firmados criptográficamente, y verificación de contraseñas filtradas (HaveIBeenPwned) al registrarse. El detalle técnico está en la Política de Privacidad.</p>
 
         <h3>8. Reclamaciones</h3>
-        <p>Si considera que el tratamiento de sus datos no se ajusta a la normativa, le pedimos contactarnos primero a <strong>fuego.servicios@gmail.com</strong> para resolverlo. Sin perjuicio de ello, usted conserva el derecho de presentar una reclamación ante la autoridad de control competente en materia de protección de datos de su jurisdicción.</p>
+        <p>Si considera que el tratamiento de sus datos no se ajusta a la normativa, le pedimos contactarnos primero a <strong>bioboros.support@gmail.com</strong> para resolverlo. Sin perjuicio de ello, usted conserva el derecho de presentar una reclamación ante la autoridad de control competente en materia de protección de datos de su jurisdicción.</p>
 
         <h3>9. Cambios en esta Política</h3>
         <p>Publicaremos cualquier actualización en esta página con su nueva fecha de "Última actualización". Si los cambios son materiales, se lo notificaremos por correo electrónico.</p>
@@ -493,7 +493,7 @@ export const AIUse = () => (
         </ul>
 
         <h3>5. Supervisión Humana y Decisiones Automatizadas</h3>
-        <p>El plan se genera de forma automatizada, pero es una <strong>herramienta de apoyo</strong>: tú decides si lo sigues, lo ajustas o lo descartas, y revisas las estimaciones (por ejemplo, al escanear una comida) antes de guardarlas. Conforme a la Ley 172-13, tienes derecho a no quedar sujeto a decisiones basadas únicamente en tratamiento automatizado que produzcan efectos significativos: puedes solicitar intervención humana o aclaraciones escribiéndonos a <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>El plan se genera de forma automatizada, pero es una <strong>herramienta de apoyo</strong>: tú decides si lo sigues, lo ajustas o lo descartas, y revisas las estimaciones (por ejemplo, al escanear una comida) antes de guardarlas. Conforme a la Ley 172-13, tienes derecho a no quedar sujeto a decisiones basadas únicamente en tratamiento automatizado que produzcan efectos significativos: puedes solicitar intervención humana o aclaraciones escribiéndonos a <strong>bioboros.support@gmail.com</strong>.</p>
 
         <h3>6. No Es Consejo Médico</h3>
         <p>Las recomendaciones generadas por IA son informativas y educativas, <strong>no constituyen consejo médico</strong> ni establecen una relación médico-paciente. Si tienes una condición de salud, consulta a un profesional. Lee el <strong>Aviso Médico</strong> para el detalle completo.</p>
@@ -502,7 +502,7 @@ export const AIUse = () => (
         <p>Trabajamos constantemente en mejorar la precisión y seguridad de nuestros sistemas. El uso de datos para mejorar el producto y para investigación se rige por la <strong>Política de Investigación</strong>, con las salvaguardas allí descritas.</p>
 
         <h3>8. Contacto</h3>
-        <p>¿Dudas sobre cómo usamos la IA? Escríbenos a <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>¿Dudas sobre cómo usamos la IA? Escríbenos a <strong>bioboros.support@gmail.com</strong>.</p>
     </LegalLayout>
 );
 
@@ -538,13 +538,13 @@ export const Research = () => (
         <p>La «memoria a largo plazo» del asistente (lo que recuerda de tus gustos y progreso) es una función de <strong>personalización privada de TU cuenta</strong>, no un mecanismo de investigación entre usuarios. No se cruza ni se agrega con datos de otras personas.</p>
 
         <h3>6. Tu Control (Oposición y Opt-out)</h3>
-        <p>Puedes oponerte a que tus datos —incluso de forma anonimizada— se usen para mejora del producto e investigación, escribiéndonos a <strong>fuego.servicios@gmail.com</strong>. Oponerte no afecta tu capacidad de usar el servicio. También puedes ejercer el resto de tus derechos según la <strong>Política de Protección de Datos</strong>.</p>
+        <p>Puedes oponerte a que tus datos —incluso de forma anonimizada— se usen para mejora del producto e investigación, escribiéndonos a <strong>bioboros.support@gmail.com</strong>. Oponerte no afecta tu capacidad de usar el servicio. También puedes ejercer el resto de tus derechos según la <strong>Política de Protección de Datos</strong>.</p>
 
         <h3>7. Base Legal</h3>
         <p>El tratamiento para mejora del producto se ampara en nuestro interés legítimo de ofrecer un servicio preciso y seguro, ponderado con tus derechos y limitado a datos no sensibles o disociados. Para cualquier investigación con datos sensibles identificables, la base será tu <strong>consentimiento expreso</strong>.</p>
 
         <h3>8. Cambios y Contacto</h3>
-        <p>Publicaremos cualquier actualización en esta página con su nueva fecha. Para preguntas sobre cómo investigamos y mejoramos, escríbenos a <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>Publicaremos cualquier actualización en esta página con su nueva fecha. Para preguntas sobre cómo investigamos y mejoramos, escríbenos a <strong>bioboros.support@gmail.com</strong>.</p>
     </LegalLayout>
 );
 
@@ -575,7 +575,7 @@ export const Refunds = () => (
         <p>Te recomendamos cancelar antes de tu fecha de renovación si no deseas continuar.</p>
 
         <h3>4. Excepciones Legales</h3>
-        <p>Cuando la Ley No. 358-05 de Protección al Consumidor u otra normativa aplicable te reconozca un derecho de reembolso o de retracto en un caso concreto, lo respetaremos. Si consideras que te corresponde, escríbenos a <strong>fuego.servicios@gmail.com</strong> desde el correo asociado a tu cuenta, indicando el plan y la fecha de compra; revisaremos tu solicitud y, cuando proceda, acreditaremos el reembolso por la misma vía de pago (PayPal).</p>
+        <p>Cuando la Ley No. 358-05 de Protección al Consumidor u otra normativa aplicable te reconozca un derecho de reembolso o de retracto en un caso concreto, lo respetaremos. Si consideras que te corresponde, escríbenos a <strong>bioboros.support@gmail.com</strong> desde el correo asociado a tu cuenta, indicando el plan y la fecha de compra; revisaremos tu solicitud y, cuando proceda, acreditaremos el reembolso por la misma vía de pago (PayPal).</p>
 
         <h3>5. Renovación Automática</h3>
         <p>Las suscripciones se renuevan automáticamente al final de cada período hasta que las canceles. Te recomendamos revisar tu fecha de renovación en Ajustes o en PayPal. Si modificamos los precios, te avisaremos con al menos <strong>treinta (30) días</strong> de anticipación antes de que el nuevo precio aplique a tu renovación.</p>
@@ -584,10 +584,10 @@ export const Refunds = () => (
         <p>Todos los pagos se procesan a través de PayPal. Bioboros no almacena tu número de tarjeta ni datos financieros. Validamos del lado del servidor que el plan reportado por PayPal coincida con el que seleccionaste.</p>
 
         <h3>7. Disputas</h3>
-        <p>Si tienes un problema con un cobro, contáctanos primero a <strong>fuego.servicios@gmail.com</strong> — la mayoría se resuelve rápido. Conservas tus derechos como consumidor bajo la Ley 358-05 y la posibilidad de acudir a las instancias de protección al consumidor que correspondan.</p>
+        <p>Si tienes un problema con un cobro, contáctanos primero a <strong>bioboros.support@gmail.com</strong> — la mayoría se resuelve rápido. Conservas tus derechos como consumidor bajo la Ley 358-05 y la posibilidad de acudir a las instancias de protección al consumidor que correspondan.</p>
 
         <h3>8. Contacto</h3>
-        <p>Para cualquier asunto de facturación, cancelaciones o reembolsos: <strong>fuego.servicios@gmail.com</strong>. Respondemos en menos de 24 horas.</p>
+        <p>Para cualquier asunto de facturación, cancelaciones o reembolsos: <strong>bioboros.support@gmail.com</strong>. Respondemos en menos de 24 horas.</p>
     </LegalLayout>
 );
 
@@ -599,7 +599,7 @@ export const AcceptableUse = () => (
         <p>Esta Política de Uso establece las reglas para utilizar Bioboros de forma responsable, segura y justa para todos. Complementa nuestros <strong>Términos de Servicio</strong> (donde se detalla la relación contractual completa) y se aplica a cualquier persona que acceda a la plataforma, ya sea con plan gratuito, de pago o en modo invitado. Al usar Bioboros, usted acepta cumplir estas reglas.</p>
 
         <h3>1. Quién Puede Usar la Plataforma</h3>
-        <p>Bioboros está destinada a personas <strong>mayores de 18 años</strong>, para su uso personal y no comercial. Usted es responsable de la confidencialidad de sus credenciales y de toda la actividad realizada bajo su cuenta. Si detecta un acceso no autorizado, notifíquenos de inmediato a <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>Bioboros está destinada a personas <strong>mayores de 18 años</strong>, para su uso personal y no comercial. Usted es responsable de la confidencialidad de sus credenciales y de toda la actividad realizada bajo su cuenta. Si detecta un acceso no autorizado, notifíquenos de inmediato a <strong>bioboros.support@gmail.com</strong>.</p>
 
         <h3>2. Uso Permitido</h3>
         <p>Puede usar Bioboros para:</p>
@@ -633,7 +633,7 @@ export const AcceptableUse = () => (
         <p>Usted es responsable del contenido que introduce: texto libre en el formulario y el chat, y fotos de comida. Al subirlo, declara que tiene derecho a hacerlo y que no infringe la ley ni derechos de terceros. Procesamos ese contenido únicamente para prestarle el servicio, según se describe en la <strong>Política de Privacidad</strong> y la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
 
         <h3>6. Seguridad e Informe de Vulnerabilidades</h3>
-        <p>No intente vulnerar la seguridad de la plataforma. Si descubre una vulnerabilidad o un comportamiento que considere inseguro, le pedimos reportarlo de forma responsable a <strong>fuego.servicios@gmail.com</strong> antes de divulgarlo públicamente. Agradecemos y tomamos en serio estos reportes.</p>
+        <p>No intente vulnerar la seguridad de la plataforma. Si descubre una vulnerabilidad o un comportamiento que considere inseguro, le pedimos reportarlo de forma responsable a <strong>bioboros.support@gmail.com</strong> antes de divulgarlo públicamente. Agradecemos y tomamos en serio estos reportes.</p>
 
         <h3>7. Consecuencias del Incumplimiento</h3>
         <p>El incumplimiento de esta Política puede dar lugar, según su gravedad, a: advertencias, limitación temporal de funciones, suspensión o terminación de la cuenta —<strong>sin derecho a reembolso</strong>— y, cuando corresponda, a las acciones legales pertinentes. Nos reservamos el derecho de actuar de inmediato ante conductas que pongan en riesgo a otros usuarios o a la infraestructura.</p>
@@ -645,7 +645,7 @@ export const AcceptableUse = () => (
         <p>Esta Política de Uso se interpreta junto con los <strong>Términos de Servicio</strong>, la <strong>Política de Privacidad</strong>, la <strong>Política de Protección de Datos</strong>, la <strong>Política de Uso de Inteligencia Artificial</strong> y el <strong>Aviso Médico</strong>. En caso de conflicto entre documentos sobre un mismo asunto, prevalecen los Términos de Servicio.</p>
 
         <h3>10. Cambios y Contacto</h3>
-        <p>Podremos actualizar esta Política para reflejar cambios en el servicio o en la normativa. La versión vigente se publica siempre en esta página con su fecha de "Última actualización". Para cualquier duda sobre el uso aceptable de la plataforma, escríbanos a <strong>fuego.servicios@gmail.com</strong>.</p>
+        <p>Podremos actualizar esta Política para reflejar cambios en el servicio o en la normativa. La versión vigente se publica siempre en esta página con su fecha de "Última actualización". Para cualquier duda sobre el uso aceptable de la plataforma, escríbanos a <strong>bioboros.support@gmail.com</strong>.</p>
     </LegalLayout>
 );
 
@@ -662,7 +662,7 @@ export const ResponsibleDisclosure = () => (
         <p>En Bioboros la seguridad de tus datos —especialmente tu información de salud— es una prioridad. Agradecemos a la comunidad de investigadores de seguridad que nos ayuda a proteger a nuestros usuarios. Esta Política explica cómo reportarnos una vulnerabilidad de forma responsable y qué puedes esperar de nosotros a cambio.</p>
 
         <h3>1. Cómo Reportar una Vulnerabilidad</h3>
-        <p>Si descubres una vulnerabilidad de seguridad, escríbenos a <strong>fuego.servicios@gmail.com</strong> con el asunto <em>«Reporte de seguridad»</em>. Para ayudarnos a reproducir y corregir el problema rápido, incluye en lo posible:</p>
+        <p>Si descubres una vulnerabilidad de seguridad, escríbenos a <strong>bioboros.support@gmail.com</strong> con el asunto <em>«Reporte de seguridad»</em>. Para ayudarnos a reproducir y corregir el problema rápido, incluye en lo posible:</p>
         <ul>
             <li>Una descripción clara de la vulnerabilidad y su posible impacto.</li>
             <li>Los pasos detallados para reproducirla (URL, parámetros, capturas o un video corto).</li>

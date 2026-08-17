@@ -156,8 +156,8 @@ const AboutPage = () => {
                         ¿Preguntas, ideas o quieres colaborar con nosotros? Estamos a un correo de
                         distancia y respondemos en menos de 24 horas.
                     </p>
-                    <a href="mailto:fuego.servicios@gmail.com" className={styles.mail}>
-                        fuego.servicios@gmail.com
+                    <a href="mailto:bioboros.support@gmail.com" className={styles.mail}>
+                        bioboros.support@gmail.com
                     </a>
                     <div className={styles.ctaRow}>
                         <Link to="/assessment" className={styles.ctaPrimary}>

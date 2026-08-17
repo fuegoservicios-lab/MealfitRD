@@ -133,7 +133,7 @@ const NOT_DO = [
 ];
 
 const CONTROL = [
-    { Icon: Sliders, title: 'Opt-out cuando quieras', text: 'Puedes oponerte a que tus datos —incluso anonimizados— se usen para mejora del producto, escribiendo a fuego.servicios@gmail.com. No afecta tu servicio.' },
+    { Icon: Sliders, title: 'Opt-out cuando quieras', text: 'Puedes oponerte a que tus datos —incluso anonimizados— se usen para mejora del producto, escribiendo a bioboros.support@gmail.com. No afecta tu servicio.' },
     { Icon: Lock, title: 'La memoria del coach es tuya', text: 'Lo que el asistente recuerda de tus gustos y tu progreso es personalización privada de tu cuenta; no se cruza ni se agrega con la de otras personas.' },
     { Icon: ShieldCheck, title: 'Base legal clara', text: 'La mejora del producto se ampara en interés legítimo sobre datos no sensibles o disociados. Para cualquier estudio con datos sensibles identificables, la base es tu consentimiento expreso.' },
 ];
@@ -141,7 +141,7 @@ const CONTROL = [
 const FAQ = [
     { q: '¿Usan mis datos de salud para investigar?', a: 'No de forma identificable sin tu permiso. Tu perfil de salud es dato sensible (Ley 172-13); por defecto solo trabajamos con datos disociados de tu identidad. Un estudio con datos identificables requeriría tu consentimiento expreso y separado, y podrías negarte sin afectar tu servicio.' },
     { q: '¿Entrenan la IA con lo que escribo o con mi plan?', a: 'No. No usamos tus datos para entrenar modelos de IA, ni propios ni de terceros. El modelo generativo base es de un proveedor externo y tampoco le cedemos tus datos para entrenamiento.' },
-    { q: '¿Cómo me opongo a que usen mis datos para mejorar el producto?', a: 'Escríbenos a fuego.servicios@gmail.com y lo aplicamos. Oponerte no afecta tu capacidad de usar Bioboros. También puedes ejercer el resto de tus derechos según la Política de Protección de Datos.' },
+    { q: '¿Cómo me opongo a que usen mis datos para mejorar el producto?', a: 'Escríbenos a bioboros.support@gmail.com y lo aplicamos. Oponerte no afecta tu capacidad de usar Bioboros. También puedes ejercer el resto de tus derechos según la Política de Protección de Datos.' },
 ];
 
 /* ─────────────────────────── helpers de animación ─────────────────────────── */
@@ -342,7 +342,7 @@ const ResearchPage = () => {
                         <strong>Vigente desde el 30 de junio de 2026.</strong> Para el detalle completo de tus
                         derechos, lee la <Link to="/data-protection">Política de Protección de Datos</Link> y la{' '}
                         <Link to="/privacy">Política de Privacidad</Link>. ¿Preguntas sobre cómo investigamos?
-                        Escríbenos a <strong>fuego.servicios@gmail.com</strong>.
+                        Escríbenos a <strong>bioboros.support@gmail.com</strong>.
                     </div>
                 </Reveal>
 
