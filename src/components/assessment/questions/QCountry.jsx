@@ -48,13 +48,24 @@ export const QCountry = ({ onAutoAdvance }) => {
         preselectedRef.current = true;
         if (!COUNTRY_SYSTEM_UI) return;
         if (value !== DEFAULT_COUNTRY) return;
+        // [fix-round 1 · review] El try envuelve SOLO la lectura de Intl — antes
+        // también envolvía `updateData(...)`, así que un bug REAL ahí (o en
+        // `countryFromTimeZone`) se habría tragado en silencio junto con el caso
+        // legítimo "Intl no disponible". Con el try angosto, esos dos casos ya no
+        // comparten manejo: un fallo ajeno a Intl se propaga (ruidoso, como debe
+        // ser), y solo lo esperado — un entorno sin `Intl.DateTimeFormat` — cae
+        // aquí. [P3-CONSOLE-DEV-GUARDS]: `console.error` se PRESERVA en prod
+        // (Sentry lo captura, a diferencia de log/warn/debug/info que esbuild
+        // dropea) — visibilidad real de un caso raro (browser viejo, polyfill
+        // roto) en vez de silencio total.
+        let tz;
         try {
-            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            updateData('country', countryFromTimeZone(tz));
-        } catch {
-            // best-effort: sin Intl/timeZone disponible el paso se queda en el
-            // default visible y el usuario elige a mano — cero impacto funcional.
+            tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        } catch (err) {
+            console.error('[P1-COUNTRY-SYSTEM-F2] Intl.DateTimeFormat no disponible — el país se queda en el default visible', err);
+            return;
         }
+        updateData('country', countryFromTimeZone(tz));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

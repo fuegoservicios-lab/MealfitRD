@@ -73,4 +73,17 @@ describe('countryFromTimeZone — Addendum §4 (preselección IANA)', () => {
             expect(countryFromTimeZone(offsetish)).toBe('DO');
         }
     });
+
+    it('[fix-round 1 · review] nombres que colisionan con el prototype chain de Object ⇒ DO, NUNCA la función/objeto heredado', () => {
+        // Regresión encontrada por el reviewer: `TZ_COUNTRY_EXACT[tzName]` sin guardia
+        // resuelve estas llaves vía Object.prototype (herencia), no vía una entrada propia
+        // de la tabla. Antes del fix, `countryFromTimeZone('constructor')` devolvía la
+        // función `Object` (truthy ⇒ `if (exact) return exact;` la confundía con un match
+        // real) en vez de 'DO'. `__proto__` es el caso más traicionero: como accessor de
+        // Object.prototype devuelve el propio objeto prototype (también truthy, un objeto,
+        // no una función) — ninguno de los dos es jamás un código de país string de 2 letras.
+        for (const tz of ['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__', 'isPrototypeOf']) {
+            expect(countryFromTimeZone(tz)).toBe('DO');
+        }
+    });
 });

@@ -98,10 +98,24 @@ const TZ_COUNTRY_PREFIXES = [
 // Traduce el NOMBRE de una zona horaria IANA a un país ISO-3166 alpha-2.
 // Toma una zona (string) — nunca un offset. Desconocido/ausente/basura/un
 // offset ⇒ `DEFAULT_COUNTRY` ('DO'), el mismo fail-safe que `coerceCountry`.
+//
+// [fix-round 1 · review] `TZ_COUNTRY_EXACT[tzName]` sin guardia es vulnerable
+// al prototype chain: para tzName='constructor'/'toString'/'valueOf'/etc.
+// devuelve la función heredada de Object.prototype (truthy, así que el viejo
+// `if (exact) return exact;` la confundía con un match real); para
+// '__proto__' devuelve el objeto prototype mismo (también truthy). Probado
+// empíricamente: `countryFromTimeZone('constructor')` devolvía la función
+// `Object`, no 'DO'. `coerceCountry` (arriba) ya evita esta clase de bug
+// usando un `Set` (`_CODES.has(code)` nunca consulta el prototype chain);
+// aquí, en vez de reescribir la tabla de 25 filas a otra estructura, se
+// guarda el ÚNICO punto de lectura con `hasOwnProperty.call` — dejando la
+// sintaxis de la tabla (y el cierre `};` que el test de paridad backend
+// localiza por texto) intacta.
 export function countryFromTimeZone(tzName) {
     if (typeof tzName === 'string' && tzName.length > 0) {
-        const exact = TZ_COUNTRY_EXACT[tzName];
-        if (exact) return exact;
+        if (Object.prototype.hasOwnProperty.call(TZ_COUNTRY_EXACT, tzName)) {
+            return TZ_COUNTRY_EXACT[tzName];
+        }
         for (const [prefix, code] of TZ_COUNTRY_PREFIXES) {
             if (tzName.startsWith(prefix)) return code;
         }

@@ -144,6 +144,23 @@ describe('[P1-COUNTRY-SYSTEM-F2] QCountry preselecciona por zona IANA sin pisar 
 
         expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(COUNTRIES.length);
     });
+
+    it('[fix-round 1 · review] Intl.DateTimeFormat lanza ⇒ console.error con el marker (P3-CONSOLE-DEV-GUARDS), updateData NUNCA se llama, el radio se queda en DO', () => {
+        // El try ahora envuelve SOLO la lectura de Intl — el catch loggea (Sentry lo
+        // captura en prod, error/trace/assert no se dropean) en vez de tragarse el
+        // fallo en silencio. Un bug real en updateData/countryFromTimeZone (fuera del
+        // try) ya NO pasaría por este catch — ver nota de código en QCountry.jsx.
+        vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => { throw new Error('Intl roto'); });
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const onUpdate = vi.fn();
+
+        const { container } = render(<Harness initialCountry={DEFAULT_COUNTRY} onUpdate={onUpdate} />);
+
+        expect(onUpdate).not.toHaveBeenCalled();
+        expect(checkedValue(container)).toBe('DO');
+        expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('P1-COUNTRY-SYSTEM-F2');
+    });
 });
 
 // El caso COUNTRY_SYSTEM_UI=false (defensa en profundidad) vive en
