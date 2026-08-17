@@ -618,11 +618,28 @@
         text-align: center;
     }
 
-    /* [P2-DIARY-SCAN-MACROS · 2026-05-30] Botón full-width en móvil. */
-    .scanBtn {
+    /* [P2-SCANBTN-PAIR-MOBILE · 2026-08-17] Aquí decía `width: 100%` desde que
+       este botón era ÚNICO (P2-DIARY-SCAN-MACROS · 2026-05-30). P1-MANUAL-FOOD-LOG
+       (2026-08-11) lo convirtió en un PAR dentro de `.logButtons`, y la regla
+       vieja, aplicada a AMBOS con el `flex-shrink: 0` de base, inflaba también la
+       cámara a ancho completo: dos botones de 100% en una fila desbordan, y el
+       `overflow: hidden` de `.card` decapitaba la cámara en el borde derecho
+       (reporte del dueño con captura, 2026-08-17; reproducido a 390px: la cámara
+       medía 216px y terminaba 90px fuera de la tarjeta). El par llena la fila
+       REPARTIÉNDOSELA: el compositor estira (flex: 1) y la cámara queda compacta
+       (flex: 0) — juntos cierran al ras del padding. NO reintroducir width en
+       `.scanBtn` mientras sean dos. */
+    .logButtons {
         width: 100%;
+    }
+    .scanBtn {
+        flex: 1 1 auto;
         justify-content: center;
         padding: 0.7rem 1rem;
+    }
+    .scanBtnSecondary {
+        flex: 0 0 auto;
+        padding: 0.7rem 0.95rem;
     }
 
     /* [P1-DIARY-EDITABLE · 2026-07-28] Menos padding vertical en móvil,
