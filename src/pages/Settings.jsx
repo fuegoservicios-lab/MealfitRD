@@ -2519,7 +2519,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             {t('Idioma')}
                         </h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                            {t('Cambia el idioma de la interfaz. Tu plan, tus recetas y el coach siguen en español.')}
+                            {t('Cambia el idioma de la interfaz. Tu plan y tus recetas siguen en español; el coach te responde en tu idioma.')}
                         </p>
 
                         <div
