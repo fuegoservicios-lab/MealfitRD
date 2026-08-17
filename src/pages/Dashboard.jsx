@@ -87,7 +87,10 @@ import PantryConsentModal from '../components/common/PantryConsentModal';
 import { API_BASE, fetchWithAuth, getPlanChunkStatus } from '../config/api';
 import { reanudarPlanes } from '../utils/planModeResume';
 // [P1-DASH-BUDGET-EDIT · 2026-06-23] Ciclo de compras (días) para el editor de presupuesto.
-import { minBudgetFor, budgetCycleDays } from '../config/formValidation';
+// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] effectiveBudgetCurrency — la moneda REALMENTE
+// vigente (nunca budgetCurrency crudo, que puede quedar STALE en una moneda beta tras un
+// rollback). Mismo helper SSOT que QBudget/InteractiveAssessmentFlow/useBudgetFloor (T6).
+import { minBudgetFor, budgetCycleDays, effectiveBudgetCurrency } from '../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo de presupuesto personalizado por las metas
 // (calorías × hogar × ciclo) — mismo número que exige el backend; fail-open al estático.
 import { useBudgetFloor } from '../hooks/useBudgetFloor';
@@ -274,7 +277,12 @@ const _BRAND_CONTAINER_WORDS = new Set([
 // que la lista ya compraba / el tamaño del nuevo envase), el label tamaño·marca y
 // el costo (conteo × precio). Correcto incluso cuando el tamaño difiere (Borges
 // 125ml vs la default Wala 500ml) — antes solo se cambiaba la marca dejando "500ml".
-const _rebuildItemFromVariant = (it, variant) => {
+// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] `suppressCost` (default false, byte-idéntico
+// para DO): país beta sin precios nativos ⇒ el backend NUNCA escribió `estimated_cost_rd`
+// para este plan (aggregator lo anula, ver `get_shopping_list_delta` backend) — el writer
+// optimista del cliente no debe resucitarlo al elegir marca. El resto del rebuild (marca,
+// tamaño, conteo) sigue aplicando: elegir marca sigue siendo útil sin precio.
+const _rebuildItemFromVariant = (it, variant, suppressCost = false) => {
     if (!it || typeof it !== 'object' || !variant) return it;
     const out = { ...it };
     const brand = (variant.brand && String(variant.brand).trim()) || 'Genérico';
@@ -309,7 +317,7 @@ const _rebuildItemFromVariant = (it, variant) => {
     out.sku_size_label = sizeLabel ? `${sizeLabel} · ${brand}` : brand;
     if (variant.id) out.brand_product_id = variant.id;
     if (sg > 0) out.package_grams = sg;
-    if (price > 0) {
+    if (price > 0 && !suppressCost) {
         const cost = Math.round(count * price);
         out.estimated_cost_rd = cost;
         if (typeof out.estimated_cost === 'number') out.estimated_cost = cost;
@@ -322,6 +330,9 @@ const _rebuildItemFromVariant = (it, variant) => {
 // sepa si mostrar "aplicada" al instante o "aplicando…" y esperar el recalc).
 const applyBrandToPlanOptimistic = (plan, foodKey, variant) => {
     if (!plan || !foodKey || !variant) return null;
+    // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] País beta sin precios nativos ⇒ el writer
+    // optimista se comporta como el backend: reconstruye marca/tamaño, JAMÁS costo.
+    const _suppressCost = plan?._pricing_mode === 'beta_no_prices';
     const keys = [
         'aggregated_shopping_list', 'aggregated_shopping_list_weekly',
         'aggregated_shopping_list_biweekly', 'aggregated_shopping_list_monthly',
@@ -334,7 +345,7 @@ const applyBrandToPlanOptimistic = (plan, foodKey, variant) => {
         let changed = false;
         const nl = list.map((it) => {
             const nm = _brandNorm(it && (it.name || it.display_name || it.item_name));
-            if (_brandKeyMatches(nm, foodKey)) { changed = true; return _rebuildItemFromVariant(it, variant); }
+            if (_brandKeyMatches(nm, foodKey)) { changed = true; return _rebuildItemFromVariant(it, variant, _suppressCost); }
             return it;
         });
         if (changed) { next[k] = nl; touched = true; }
@@ -3226,6 +3237,15 @@ const DashboardInner = () => {
                 console.warn('[P2-SHOPPING-1] emitHistoricalCoherenceToast falló (best-effort):', _histToastErr);
             }
 
+            // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] País beta sin precios nativos: el
+            // backend nunca emitió `estimated_cost_rd` para este plan (aggregator +
+            // shopping_cost_summary + budget_reconciliation ⇒ None/ausentes) — el PDF debe
+            // avisarlo en vez de mostrar una lista con cifras huérfanas o simplemente
+            // silenciosa. `effectivePlanData` (no el `planData` externo) porque puede haber
+            // sido refrescado arriba (drift sync) — mismo dato que ya usa el resto de esta
+            // función para todo lo demás.
+            const _isBetaPricing = effectivePlanData?._pricing_mode === 'beta_no_prices';
+
             // Usar la lista consolidada correcta según el ciclo seleccionado
             const aggregatedList = getDeltaSourceList(effectivePlanData, duration);
             // [P2-PDF-NO-AGG-GUARD · 2026-06-17] Si NO existe lista AGREGADA real (ni
@@ -3636,6 +3656,21 @@ const DashboardInner = () => {
                     </p>
                 </div>
 
+                ${_isBetaPricing ? `
+                <!-- [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] Aviso beta: el súper de tu país
+                     todavía no tiene precios propios en el motor — la lista sale sin importes.
+                     Mismo azul informativo que el disclaimer de cantidades (no es un aviso de
+                     error, es un estado del producto). -->
+                <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-left: 3px solid #3b82f6; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
+                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #3b82f6; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #1e3a8a; line-height: 1.3;">
+                        ${t('Precios del súper de tu país: próximamente. Tu lista sale sin importes.')}
+                    </p>
+                </div>
+                ` : ''}
+
                 ${freshInventoryStale ? `
                 <!-- [P1-PDF-1 · banner copy corregido P3-PDF-STALE-BANNER-COPY · 2026-05-30]
                      Stale Inventory Banner: el fetch fresco de la Nevera falló o
@@ -3984,8 +4019,11 @@ const DashboardInner = () => {
                     <p style="margin: 0; font-weight: 800; color: #374151; letter-spacing: 1px;">${escapeHtml(t('PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE'))}</p>
                     <!-- [P2-PDF-PRICE-SOURCE-COPY · 2026-06-22] (audit fresco P2-22) Copy suavizado: el precio
                          por-ítem puede ser verificado O estimado (price_confidence/price_source por fila) → afirmar
-                         "verificados en La Sirena" universal era inexacto. -->
-                    <p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">${escapeHtml(t('Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.'))}</p>
+                         "verificados en La Sirena" universal era inexacto.
+                         [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] País beta ⇒ el pie NUNCA menciona
+                         supermercados dominicanos (esta lista no tiene esos precios) — mismo aviso
+                         que la cabecera. DO mantiene el texto EXACTO de siempre. -->
+                    <p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">${escapeHtml(_isBetaPricing ? t('Precios del súper de tu país: próximamente. Tu lista sale sin importes.') : t('Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.'))}</p>
                 </div>
             </div>
             `;
@@ -6221,7 +6259,14 @@ const DashboardInner = () => {
                                                     // cuando el hook lo trae, el efecto de arriba lo ajusta a ESE valor
                                                     // ("según tus metas"). Si la red falla, queda el estático como fallback.
                                                     if (formData?.budget === 'custom') {
-                                                        const _afCur = formData?.budgetCurrency || 'DOP';
+                                                        // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7, fold de la review de T6)]
+                                                        // `budgetCurrency` crudo puede quedar STALE en una moneda beta
+                                                        // (bandera apagada tras rollback, país cambiado) — `minBudgetFor`
+                                                        // con esa moneda cruda leería el piso EUR/MXN/COP (75/1400/350000)
+                                                        // mientras el símbolo mostrado ya volvió a 'RD$', autorellenando un
+                                                        // monto absurdamente bajo. Mismo fix que QBudget/InteractiveAssessmentFlow/
+                                                        // useBudgetFloor (T6 fix-round 1).
+                                                        const _afCur = effectiveBudgetCurrency(formData?.country, formData?.budgetCurrency);
                                                         const _afMin = minBudgetFor(_afCur, opt.value);
                                                         if (String(_afMin) !== String(formData?.budgetAmount)) {
                                                             updateData('budgetAmount', String(_afMin));
@@ -6337,7 +6382,10 @@ const DashboardInner = () => {
                                             </span>
                                         </div>
                                         {(() => {
-                                            const _cur = formData?.budgetCurrency || 'DOP';
+                                            // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7, fold de la review de T6)]
+                                            // mismo motivo que el autofill de arriba: `budgetCurrency` crudo
+                                            // puede seguir en una moneda beta STALE tras un rollback.
+                                            const _cur = effectiveBudgetCurrency(formData?.country, formData?.budgetCurrency);
                                             const _sym = _cur === 'USD' ? 'US$' : 'RD$';
                                             const _min = budgetFloor.min;
                                             const _cycleDays = budgetCycleDays(groceryDuration);
@@ -6857,10 +6905,17 @@ const DashboardInner = () => {
                             no ha cargado el memo devuelve `null`, así que `?.hasItems` es
                             `undefined` — y en esa ventana la decisión segura es MOSTRAR.
                             Con `=== true` el panel parpadearía (oculto → visible) en cada
-                            carga, que es peor que mostrarlo de más un instante. */}
+                            carga, que es peor que mostrarlo de más un instante.
+
+                            [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] País beta sin precios
+                            nativos ⇒ el panel completo se oculta: "elegir marca más barata"
+                            no significa nada sin costos que comparar, y las cards del panel
+                            muestran RD$ por diseño (SupermarketBrands.jsx) — mostrarlas
+                            vacías/engañosas sería peor que no ofrecerlas todavía. */}
                         {brandsPanelList.length > 0
                             && shoppingDeltaMeta?.hasItems !== false
-                            && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            && !isPlanExpired && !planFinished && !isPlanCorrupted
+                            && planData?._pricing_mode !== 'beta_no_prices' && (
                             <SupermarketBrands
                                 // [P2-BRANDS-CANONICAL-SOURCE] canónica semanal — el panel de
                                 // marcas vive aunque ya hayas comprado todo el ciclo.
