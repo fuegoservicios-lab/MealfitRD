@@ -1,3 +1,9 @@
+// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16, fix-round 1] `coerceCountry`/`COUNTRY_SYSTEM_UI`
+// para `currencyOptionsForCountry`/`effectiveBudgetCurrency` más abajo. Import a nivel
+// de módulo (no local) porque este archivo no tiene ningún otro import — la única
+// excepción se documenta aquí para que no sorprenda en review.
+import { COUNTRY_SYSTEM_UI, coerceCountry } from './countries';
+
 // [P1-B6] Validación cliente-side del formData del wizard de assessment.
 //
 // Este módulo es la fuente de verdad ÚNICA en el frontend para los campos
@@ -182,6 +188,78 @@ export const minBudgetFor = (currency, groceryDuration) => {
     const table = BUDGET_MIN_TOTAL[currency] || BUDGET_MIN_TOTAL.DOP;
     return table[groceryDuration] ?? table.weekly;
 };
+
+// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16, fix-round 1 · review] Moneda del perfil BETA de
+// cada país — espejo minimal de `COUNTRY_PROFILES[cc]['currency']` (backend
+// constants.py), acotado a los 3 pares que habilitan una moneda nueva (ES→EUR,
+// MX→MXN, CO→COP). US/PR ya usan USD (toggle preexistente, no se duplica); DO usa DOP
+// (toggle preexistente). NO vive en config/countries.js (SSOT del spine F0, fuera del
+// alcance de F1-T6) — un drift contra COUNTRY_PROFILES lo detecta
+// test_p1_country_system_f1.py (sección T6:
+// test_beta_currency_by_country_coincide_con_country_profiles).
+//
+// Vive AQUÍ (no en QBudget.jsx, donde nació) porque QBudget NO es su único
+// consumidor: InteractiveAssessmentFlow.jsx (el gate "Siguiente Paso") y
+// useBudgetFloor.js (el piso estático) también necesitan resolver la moneda
+// vigente, y ambos YA importan de este módulo — importar un mapa de moneda desde un
+// componente de wizard hacia un hook/orquestador habría sido la dirección de
+// dependencia equivocada. UNA fuente, tres consumidores.
+export const BETA_CURRENCY_BY_COUNTRY = { ES: 'EUR', MX: 'MXN', CO: 'COP' };
+
+/**
+ * [P1-COUNTRY-SYSTEM-F1] Qué monedas ofrece el toggle de presupuesto. PURA — sin
+ * AssessmentContext/fetch/i18n — exportada para test unitario ligero
+ * (QBudget.p1_country_system_f1.test.jsx) sin montar ningún componente, mismo patrón
+ * que `sanitizeBudgetAmount`.
+ *
+ * `countrySystemUI=false` (oscuro, default) ⇒ `betaCurrency` SIEMPRE undefined y
+ * `options` es EXACTAMENTE [DOP, USD] — el toggle de hoy, byte-idéntico, sin importar
+ * el país. Encendido + país beta con moneda propia (ES/MX/CO) ⇒ 3ª opción con el
+ * código de esa moneda. DO (nativo) y US/PR (ya usan USD) quedan en [DOP, USD] incluso
+ * encendido — no hay moneda nueva que ofrecerles.
+ */
+export function currencyOptionsForCountry(rawCountry, countrySystemUI) {
+    const betaCurrency = countrySystemUI ? BETA_CURRENCY_BY_COUNTRY[coerceCountry(rawCountry)] : undefined;
+    return {
+        betaCurrency,
+        options: [
+            { value: 'DOP', label: 'RD$' },
+            { value: 'USD', label: 'US$' },
+            ...(betaCurrency ? [{ value: betaCurrency, label: betaCurrency }] : []),
+        ],
+    };
+}
+
+/**
+ * [P1-COUNTRY-SYSTEM-F1 · fix-round 1 · review] La moneda REALMENTE vigente — nunca
+ * `budgetCurrency` crudo.
+ *
+ * EL BUG QUE CIERRA: `budgetCurrency='EUR'` puede persistir en `formData`
+ * (localStorage) mientras `COUNTRY_SYSTEM_UI` estuvo encendida. Si la bandera se
+ * apaga después (rollback) — o el usuario cambia de país sin volver a tocar el
+ * toggle — `budgetCurrency` queda STALE: ya no es una opción legítima, pero nadie la
+ * limpia. Un call site que siga leyendo `formData.budgetCurrency` directo (placeholder
+ * en EUR, aria-label en euros, piso comparado contra el piso EUR) queda mintiendo
+ * mientras el gate real (backend `validate_budget_sufficient`, gateado por
+ * `MEALFIT_COUNTRY_SYSTEM`) ya volvió a tratar esa moneda como DOP — 422 con "RD$"
+ * contra una UI que pedía "≥75 EUR".
+ *
+ * Devuelve `budgetCurrency` SOLO cuando (a) es 'DOP'/'USD' —universales, válidas
+ * siempre— o (b) el country-system está encendido Y `budgetCurrency` coincide con la
+ * moneda beta del país declarado. Cualquier otro caso ⇒ 'DOP' (mismo fail-safe que el
+ * resto del sistema). Reusa `currencyOptionsForCountry` — CERO segundo mapa
+ * país→moneda.
+ *
+ * `countrySystemUI` es el 3er parámetro, OPCIONAL, default la bandera real del build
+ * (`COUNTRY_SYSTEM_UI`) — los call sites de producción llaman con 2 argumentos; el
+ * 3ro existe solo para que los tests puedan fijar el estado de la bandera sin mockear
+ * el módulo `config/countries`.
+ */
+export function effectiveBudgetCurrency(country, budgetCurrency, countrySystemUI = COUNTRY_SYSTEM_UI) {
+    if (budgetCurrency === 'DOP' || budgetCurrency === 'USD') return budgetCurrency;
+    const { betaCurrency } = currencyOptionsForCountry(country, countrySystemUI);
+    return betaCurrency && budgetCurrency === betaCurrency ? budgetCurrency : 'DOP';
+}
 
 /**
  * [P1-FORM-1] Construye el mapeo `field → step index` desde la declaración

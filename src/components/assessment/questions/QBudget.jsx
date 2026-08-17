@@ -3,16 +3,19 @@ import { useEffect } from 'react';
 import { UnitToggle } from './_shared';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard, Input, Label } from '../../common/FormUI';
-import { budgetCycleDays } from '../../../config/formValidation';
+// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16, fix-round 1] `currencyOptionsForCountry` (qué
+// monedas ofrecer) y `effectiveBudgetCurrency` (qué moneda está REALMENTE vigente)
+// viven en formValidation.js, no aquí — InteractiveAssessmentFlow.jsx y
+// useBudgetFloor.js también las necesitan y ambos ya importan de ese módulo.
+// COUNTRY_SYSTEM_UI sigue haciendo falta AQUÍ para pasárselo explícito a currencyOptionsForCountry.
+import { budgetCycleDays, currencyOptionsForCountry, effectiveBudgetCurrency } from '../../../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo personalizado por las metas (backend).
 import { useBudgetFloor } from '../../../hooks/useBudgetFloor';
 import { Banknote, Infinity as InfinityIcon, Landmark, SlidersHorizontal, Wallet } from 'lucide-react';
 import { useT } from '../../../i18n';
-// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Bandera dark del frontend + normalizador de país
-// (mismo SSOT que QCountry.jsx/Settings.jsx). NO se importa `COUNTRY_PROFILES` de
-// backend (no existe del lado JS) — la moneda por país beta vive en
-// `BETA_CURRENCY_BY_COUNTRY` abajo, acotada a los 3 pares que activan un toggle nuevo.
-import { COUNTRY_SYSTEM_UI, coerceCountry } from '../../../config/countries';
+// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Bandera dark del frontend (mismo SSOT que
+// QCountry.jsx/Settings.jsx).
+import { COUNTRY_SYSTEM_UI } from '../../../config/countries';
 
 // [P1-BUDGET-INPUT-HARDEN · 2026-07-09] Sanea el monto custom a ENTERO de dígitos (un presupuesto total
 // es un número redondo, sin centavos/exponentes/negativos): descarta todo lo no-dígito, quita ceros a la
@@ -26,38 +29,6 @@ export function sanitizeBudgetAmount(raw) {
     return String(Math.min(Number(digits), BUDGET_AMOUNT_MAX));
 }
 
-// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Moneda del perfil BETA de cada país — espejo
-// minimal de `COUNTRY_PROFILES[cc]['currency']` (backend constants.py), acotado a los
-// 3 pares que habilitan una moneda nueva AQUÍ (ES→EUR, MX→MXN, CO→COP). US/PR ya usan
-// USD (toggle preexistente, no se duplica); DO usa DOP (toggle preexistente). NO vive
-// en config/countries.js (SSOT del spine F0, fuera del alcance de F1-T6) — un drift
-// contra COUNTRY_PROFILES lo detecta test_p1_country_system_f1.py (sección T6).
-export const BETA_CURRENCY_BY_COUNTRY = { ES: 'EUR', MX: 'MXN', CO: 'COP' };
-
-/**
- * [P1-COUNTRY-SYSTEM-F1] Qué monedas ofrece el toggle de presupuesto. PURA —
- * sin AssessmentContext/fetch/i18n — exportada para test unitario ligero
- * (QBudget.p1_country_system_f1.test.jsx) sin montar el componente, mismo
- * patrón que `sanitizeBudgetAmount`.
- *
- * `countrySystemUI=false` (oscuro, default) ⇒ `betaCurrency` SIEMPRE undefined
- * y `options` es EXACTAMENTE [DOP, USD] — el toggle de hoy, byte-idéntico,
- * sin importar el país. Encendido + país beta con moneda propia (ES/MX/CO) ⇒
- * 3ª opción con el código de esa moneda. DO (nativo) y US/PR (ya usan USD)
- * quedan en [DOP, USD] incluso encendido — no hay moneda nueva que ofrecerles.
- */
-export function currencyOptionsForCountry(rawCountry, countrySystemUI) {
-    const betaCurrency = countrySystemUI ? BETA_CURRENCY_BY_COUNTRY[coerceCountry(rawCountry)] : undefined;
-    return {
-        betaCurrency,
-        options: [
-            { value: 'DOP', label: 'RD$' },
-            { value: 'USD', label: 'US$' },
-            ...(betaCurrency ? [{ value: betaCurrency, label: betaCurrency }] : []),
-        ],
-    };
-}
-
 export const QBudget = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
     const t = useT();
@@ -67,12 +38,19 @@ export const QBudget = ({ onAutoAdvance }) => {
     // al backend y `build_budget_context` la usa para el símbolo + escala.
     const budgetCurrency = formData.budgetCurrency || 'DOP';
     // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Oscuro (COUNTRY_SYSTEM_UI=false, default) ⇒
-    // `betaCurrency` siempre undefined y `currencyOptions` es EXACTAMENTE [DOP, USD] —
-    // el toggle de hoy. Ver `currencyOptionsForCountry` arriba.
-    const { betaCurrency, options: currencyOptions } = currencyOptionsForCountry(formData.country, COUNTRY_SYSTEM_UI);
-    const currencySymbol = budgetCurrency === 'USD' ? 'US$'
-        : (betaCurrency && budgetCurrency === betaCurrency) ? `${betaCurrency} `
-        : 'RD$';
+    // `options` es EXACTAMENTE [DOP, USD] — el toggle de hoy. Ver `currencyOptionsForCountry`
+    // (formValidation.js).
+    const { options: currencyOptions } = currencyOptionsForCountry(formData.country, COUNTRY_SYSTEM_UI);
+    // [P1-COUNTRY-SYSTEM-F1 · fix-round 1 · review] La moneda REALMENTE vigente — NUNCA
+    // `budgetCurrency` crudo. Cierra la ventana de rollback: `budgetCurrency='EUR'` puede
+    // sobrevivir en formData/localStorage aunque COUNTRY_SYSTEM_UI se haya apagado de
+    // nuevo o el usuario haya cambiado de país sin re-tocar el toggle — en ese caso deja
+    // de ser una opción legítima. Símbolo, resaltado del toggle, placeholder y aria-label
+    // pasan TODOS por aquí (ver `effectiveBudgetCurrency` en formValidation.js).
+    const effectiveCurrency = effectiveBudgetCurrency(formData.country, budgetCurrency);
+    const currencySymbol = effectiveCurrency === 'USD' ? 'US$'
+        : effectiveCurrency === 'DOP' ? 'RD$'
+        : `${effectiveCurrency} `;
     // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo PERSONALIZADO por las metas (calorías ×
     // hogar × ciclo) vía backend — el MISMO número que exige el gate de generación; fail-open al
     // estático mientras carga / si falla. Lo sincronizamos a `_budgetFloorMin` para que el gate
@@ -150,7 +128,7 @@ export const QBudget = ({ onAutoAdvance }) => {
                             default) / US$ (dólar). Mismo patrón visual que LB/KG. */}
                         <UnitToggle
                             ariaLabel={t('Moneda del presupuesto')}
-                            value={currencyOptions.some((o) => o.value === budgetCurrency) ? budgetCurrency : 'DOP'}
+                            value={effectiveCurrency}
                             onChange={(v) => updateData('budgetCurrency', v)}
                             options={currencyOptions}
                         />
@@ -163,13 +141,13 @@ export const QBudget = ({ onAutoAdvance }) => {
                         <Input
                             id="budgetAmount" type="number" inputMode="numeric"
                             placeholder={
-                                budgetCurrency === 'USD' ? t('Ej. 100')
+                                effectiveCurrency === 'USD' ? t('Ej. 100')
                                     // [P1-COUNTRY-SYSTEM-F1] EUR reusa el mismo ejemplo que USD (ambos son
                                     // números de 2-3 cifras) — cero clave i18n nueva para esa rama. MXN/COP
                                     // sí necesitan la suya (5000 sería absurdo en COP: ~1/70 del piso real).
-                                    : budgetCurrency === 'EUR' ? t('Ej. 100')
-                                        : budgetCurrency === 'MXN' ? t('Ej. 2000')
-                                            : budgetCurrency === 'COP' ? t('Ej. 400000')
+                                    : effectiveCurrency === 'EUR' ? t('Ej. 100')
+                                        : effectiveCurrency === 'MXN' ? t('Ej. 2000')
+                                            : effectiveCurrency === 'COP' ? t('Ej. 400000')
                                                 : t('Ej. 5000')
                             }
                             min={minBudget} max={BUDGET_AMOUNT_MAX} step="1"
@@ -179,10 +157,10 @@ export const QBudget = ({ onAutoAdvance }) => {
                             onChange={(e) => updateData('budgetAmount', sanitizeBudgetAmount(e.target.value))}
                             onKeyDown={(e) => { if (['e', 'E', '+', '-', '.', ','].includes(e.key)) e.preventDefault(); }}
                             aria-label={
-                                budgetCurrency === 'USD' ? t('Presupuesto total en dólares')
-                                    : budgetCurrency === 'EUR' ? t('Presupuesto total en euros')
-                                        : budgetCurrency === 'MXN' ? t('Presupuesto total en pesos mexicanos')
-                                            : budgetCurrency === 'COP' ? t('Presupuesto total en pesos colombianos')
+                                effectiveCurrency === 'USD' ? t('Presupuesto total en dólares')
+                                    : effectiveCurrency === 'EUR' ? t('Presupuesto total en euros')
+                                        : effectiveCurrency === 'MXN' ? t('Presupuesto total en pesos mexicanos')
+                                            : effectiveCurrency === 'COP' ? t('Presupuesto total en pesos colombianos')
                                                 : t('Presupuesto total en pesos dominicanos')
                             }
                             aria-required="true"

@@ -7,7 +7,7 @@
 // (lower bound, siempre disponible sin red). El valor solo sube al personalizarse (cal_scale>=1).
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../config/api';
-import { minBudgetFor } from '../config/formValidation';
+import { minBudgetFor, effectiveBudgetCurrency } from '../config/formValidation';
 
 // Campos del form que afectan el piso (biometría + meta + ciclo + moneda + hogar).
 const FLOOR_FIELDS = [
@@ -16,7 +16,11 @@ const FLOOR_FIELDS = [
 ];
 
 export function useBudgetFloor(formData) {
-    const currency = formData?.budgetCurrency || 'DOP';
+    // [P1-COUNTRY-SYSTEM-F1 · fix-round 1 · review] `effectiveBudgetCurrency`, no
+    // `formData?.budgetCurrency` crudo — mismo motivo que QBudget/InteractiveAssessmentFlow:
+    // una moneda beta STALE (bandera apagada tras un rollback, país cambiado) debe colapsar
+    // a DOP aquí también, o el piso ESTÁTICO que este hook expone como fallback mentiría.
+    const currency = effectiveBudgetCurrency(formData?.country, formData?.budgetCurrency);
     const groceryDuration = formData?.groceryDuration || 'weekly';
     // Fallback estático (sin red): piso a la caloría de referencia, mismo SSOT que el gate base.
     const staticMin = minBudgetFor(currency, groceryDuration);

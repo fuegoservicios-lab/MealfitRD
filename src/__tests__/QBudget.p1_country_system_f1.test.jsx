@@ -1,14 +1,23 @@
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] `currencyOptionsForCountry` decide qué monedas
-// ofrece el toggle de QBudget: PURA (sin AssessmentContext/fetch/i18n), así que se
-// testea directo sin montar el componente — mismo patrón que `sanitizeBudgetAmount`
-// (budget_input_harden.test.jsx importa el helper puro desde el barrel en vez de montar
-// el step completo, porque QBudget depende de AssessmentContext/useBudgetFloor/useT).
+// ofrece el toggle de QBudget; `effectiveBudgetCurrency` (fix-round 1, review) decide
+// qué moneda está REALMENTE vigente para todo lo demás (símbolo, placeholder,
+// aria-label, y — vía InteractiveAssessmentFlow.jsx/useBudgetFloor.js — el piso mismo).
+// Ambas son PURAS (sin AssessmentContext/fetch/i18n), así que se testean directo sin
+// montar ningún componente — mismo patrón que `sanitizeBudgetAmount`
+// (budget_input_harden.test.jsx). Viven en config/formValidation.js (no en QBudget.jsx):
+// InteractiveAssessmentFlow.jsx y useBudgetFloor.js también las consumen, y ambos ya
+// importan de formValidation — importar un helper de moneda desde un componente de
+// wizard hacia un hook/orquestador es la dirección de dependencia equivocada.
 //
-// Ancla el contrato "dark ⇒ exactamente [DOP, USD]" del brief de Task 6 sin necesitar
-// VITE_COUNTRY_SYSTEM en el entorno de test: `countrySystemUI` se pasa como argumento
-// explícito, no se lee de `import.meta.env` dentro del helper.
+// [fix-round 1 · review] El bug real que esto cierra: budgetCurrency='EUR' puede
+// persistir en formData (localStorage) con la bandera COUNTRY_SYSTEM_UI encendida, y
+// luego la bandera puede apagarse (rollback) sin que budgetCurrency se limpie. Antes
+// del fix, `currencySymbol` ya gateaba correctamente (recomputaba `betaCurrency` cada
+// vez), pero `placeholder`/`aria-label` y los pisos de InteractiveAssessmentFlow.jsx/
+// useBudgetFloor.js leían `budgetCurrency` crudo — con la bandera apagada seguían
+// mostrando/comparando en EUR. `effectiveBudgetCurrency` es la ÚNICA puerta correcta.
 import { describe, it, expect } from 'vitest';
-import { currencyOptionsForCountry, BETA_CURRENCY_BY_COUNTRY } from '../components/assessment/questions/QBudget';
+import { currencyOptionsForCountry, BETA_CURRENCY_BY_COUNTRY, effectiveBudgetCurrency } from '../config/formValidation';
 
 const DOP_USD = [
     { value: 'DOP', label: 'RD$' },
@@ -69,5 +78,55 @@ describe('P1-COUNTRY-SYSTEM-F1 · currencyOptionsForCountry', () => {
 
     it('BETA_CURRENCY_BY_COUNTRY es EXACTAMENTE {ES:EUR, MX:MXN, CO:COP}', () => {
         expect(BETA_CURRENCY_BY_COUNTRY).toEqual({ ES: 'EUR', MX: 'MXN', CO: 'COP' });
+    });
+});
+
+describe('P1-COUNTRY-SYSTEM-F1 · effectiveBudgetCurrency (fix-round 1)', () => {
+    it('DOP/USD siempre pasan tal cual, sin importar país/bandera', () => {
+        expect(effectiveBudgetCurrency('ES', 'DOP', true)).toBe('DOP');
+        expect(effectiveBudgetCurrency('ES', 'USD', true)).toBe('USD');
+        expect(effectiveBudgetCurrency(undefined, 'USD', false)).toBe('USD');
+    });
+
+    it('lit + país beta + moneda propia ⇒ la moneda pasa tal cual', () => {
+        expect(effectiveBudgetCurrency('ES', 'EUR', true)).toBe('EUR');
+        expect(effectiveBudgetCurrency('MX', 'MXN', true)).toBe('MXN');
+        expect(effectiveBudgetCurrency('CO', 'COP', true)).toBe('COP');
+    });
+
+    it('[ESCENARIO DE ROLLBACK] EUR persistido en formData + bandera apagada ⇒ DOP', () => {
+        // Reproduce el bug del review: el usuario eligió EUR con la bandera encendida,
+        // budgetCurrency='EUR' sobrevive en formData/localStorage, la bandera vuelve a
+        // apagarse (rollback) SIN que nadie limpie budgetCurrency.
+        expect(effectiveBudgetCurrency('ES', 'EUR', false)).toBe('DOP');
+        expect(effectiveBudgetCurrency('MX', 'MXN', false)).toBe('DOP');
+        expect(effectiveBudgetCurrency('CO', 'COP', false)).toBe('DOP');
+    });
+
+    it('moneda de OTRO país beta (mismatch) ⇒ DOP aunque la bandera esté encendida', () => {
+        expect(effectiveBudgetCurrency('ES', 'MXN', true)).toBe('DOP');
+        expect(effectiveBudgetCurrency('MX', 'COP', true)).toBe('DOP');
+    });
+
+    it('país sin moneda beta propia (DO/US/PR) + moneda beta ajena ⇒ DOP', () => {
+        expect(effectiveBudgetCurrency('DO', 'EUR', true)).toBe('DOP');
+        expect(effectiveBudgetCurrency('US', 'EUR', true)).toBe('DOP');
+    });
+
+    it('moneda basura ⇒ DOP', () => {
+        expect(effectiveBudgetCurrency('ES', 'XYZ', true)).toBe('DOP');
+        expect(effectiveBudgetCurrency('ES', undefined, true)).toBe('DOP');
+    });
+
+    it('país basura/ausente ⇒ coerceCountry cae a DO ⇒ DOP', () => {
+        expect(effectiveBudgetCurrency('basura', 'EUR', true)).toBe('DOP');
+        expect(effectiveBudgetCurrency(undefined, 'EUR', true)).toBe('DOP');
+    });
+
+    it('el 3er parámetro (countrySystemUI) es OPCIONAL — sin pasarlo, usa la bandera real del build (false en test)', () => {
+        // El punto: los call sites de producción llaman con 2 argumentos
+        // (país, budgetCurrency) — el 3ro es solo para tests.
+        expect(effectiveBudgetCurrency('ES', 'EUR')).toBe('DOP');
+        expect(effectiveBudgetCurrency('ES', 'DOP')).toBe('DOP');
     });
 });

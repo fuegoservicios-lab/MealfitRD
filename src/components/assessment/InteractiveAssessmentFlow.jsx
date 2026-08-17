@@ -43,7 +43,7 @@ import { toast } from 'sonner';
 // el array `steps` (más abajo) declara su propia propiedad `fields: [...]`
 // y el mapping se construye en runtime → reordenar/insertar steps no rompe
 // la navegación a campo faltante.
-import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor } from '../../config/formValidation';
+import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor, effectiveBudgetCurrency } from '../../config/formValidation';
 import { useT } from '../../i18n';
 
 /* [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] ¿El presupuesto personalizado alcanza
@@ -76,10 +76,16 @@ import { useT } from '../../i18n';
    como mínimo aplica el estático correcto para la duración/moneda ACTUAL; si
    sobre-bloquea por un cacheado alto stale, el usuario aterriza en el paso de
    presupuesto, QBudget se monta y el cache se corrige solo. */
+// [P1-COUNTRY-SYSTEM-F1 · fix-round 1 · review] `effectiveBudgetCurrency` (no
+// `fd.budgetCurrency` crudo) resuelve el piso: una moneda beta STALE (bandera apagada
+// tras un rollback, o país cambiado sin re-tocar QBudget) colapsa a DOP aquí IGUAL que
+// en QBudget — si no, este gate podría aceptar "≥75" pensando en EUR mientras el
+// backend, con el knob ya apagado, compara ese mismo monto contra el piso DOP (~4000+)
+// y rechaza con 422.
 const isCustomBudgetValid = (fd) => fd?.budget !== 'custom'
     || Number(fd.budgetAmount) >= Math.max(
         Number(fd._budgetFloorMin) || 0,
-        minBudgetFor(fd.budgetCurrency || 'DOP', fd.groceryDuration),
+        minBudgetFor(effectiveBudgetCurrency(fd?.country, fd?.budgetCurrency), fd.groceryDuration),
     );
 
 const InteractiveAssessmentFlow = () => {
