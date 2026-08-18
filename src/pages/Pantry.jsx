@@ -320,9 +320,11 @@ const getZoneDefinitions = () => {
     return ZONE_DEFINITIONS.map((z) => ({ ...z, label: labels[z.key] }));
 };
 
-// [P3-C · 2026-05-08] El helper `getEstimatedDailyConsumption` vive en
-// `frontend/src/utils/pantryConsumption.js` para que sea testeable sin
-// arrastrar este componente al bundle de tests.
+// [P2-CODIGO-MUERTO · 2026-08-18] Aqui habia un puntero a
+// `utils/pantryConsumption.js`, extraido en P3-C «para que sea testeable». Se
+// extrajo, se dejo de usar, y quedo un modulo que SOLO importaba su propio test:
+// una prueba verde vigilando codigo que produccion no ejecutaba. Borrados los
+// dos. Si vuelve a hacer falta estimar consumo diario, se escribe donde se use.
 
 // [P4-PANTRY-UNITS-HOIST] Unidades de envase/medida (estáticas) a module-scope —
 // definirlas en el render las re-alocaba en cada keystroke de búsqueda.

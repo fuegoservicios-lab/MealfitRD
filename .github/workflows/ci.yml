@@ -91,11 +91,21 @@ jobs:
       # nueva (bump de plugin) y no de codigo nuevo — si viene de codigo, el
       # arreglo es el codigo. Escribe la causa aqui como estan escritas las dos
       # anteriores; sin causa, el proximo que lo vea no sabra si puede bajarlo.
-      - run: npx eslint . --max-warnings 163
+      # [P2-CODIGO-MUERTO 2026-08-18] 163 -> 158. El techo BAJA con el suelo:
+      # borrar `ChatWidget.jsx` (829 lineas inalcanzables) se llevo sus 5
+      # warnings de localStorage. Si el techo no baja con el, el margen se
+      # rellena solo y sin que nadie lo vea, que es lo contrario de un trinquete.
+      - run: npx eslint . --max-warnings 158
       # El conteo queda en el log del job aunque el gate pase: la deriva de 148 a
       # 180 fue invisible durante un mes porque nadie tenia el numero delante.
       - run: npm run lint:count
       - run: npm run typecheck
+      # [P2-CODIGO-MUERTO] Modulos que no alcanza NADA de produccion. `ChatWidget.jsx`
+      # vivio aqui 829 lineas manteniendose vivo con sus PROPIOS tests: `grep` lo veia
+      # en catorce ficheros y parecia muy usado. Un fichero al que solo llegan sus
+      # tests no esta cubierto, esta sostenido. El gate recorre el grafo desde las
+      # entradas reales (main.jsx y el service worker) en vez de contar menciones.
+      - run: node scripts/huerfanos.mjs --gate
       - run: npm test
       - run: npm run build
 

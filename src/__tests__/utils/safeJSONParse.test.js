@@ -186,11 +186,6 @@ const _read = (rel) =>
 describe('P2-A · regresión estática de los sites migrados', () => {
     const cases = [
         {
-            file: 'components/dashboard/ChatWidget.jsx',
-            label: 'ChatWidget',
-            mustImport: 'safeJSONParse',
-        },
-        {
             file: 'pages/AgentPage.jsx',
             label: 'AgentPage',
             mustImport: 'safeJSONParse',
@@ -222,17 +217,6 @@ describe('P2-A · regresión estática de los sites migrados', () => {
         });
     }
 
-    it('ChatWidget.jsx no contiene `JSON.parse(savedListStr)` raw fuera de comentarios', () => {
-        const src = _read('components/dashboard/ChatWidget.jsx');
-        // Quitar comentarios single-line para reducir ruido.
-        const stripped = src.replace(/\/\/[^\n]*/g, '');
-        // Permitido: `JSON.parse(savedList)` solo dentro de un try (P1-B initializer).
-        // Buscar el patrón `savedListStr ? JSON.parse(savedListStr)` que era el
-        // patrón pre-fix runtime; debe estar 100% migrado a safeJSONParse.
-        const preFixPattern = /savedListStr\s*\?\s*JSON\.parse\(\s*savedListStr\s*\)/;
-        expect(preFixPattern.test(stripped)).toBe(false);
-    });
-
     it('AgentPage.jsx no contiene `JSON.parse(savedListStr)` raw runtime', () => {
         const src = _read('pages/AgentPage.jsx');
         const stripped = src.replace(/\/\/[^\n]*/g, '');
@@ -254,3 +238,8 @@ describe('P2-A · regresión estática de los sites migrados', () => {
         expect(preFixPattern.test(stripped)).toBe(false);
     });
 });
+
+// [P2-CODIGO-MUERTO · 2026-08-18] Los dos casos sobre `ChatWidget.jsx` se
+// fueron con el componente: estaba inalcanzable desde produccion (cero imports
+// fuera de tests, y su cadena exclusiva no aparecia en `dist/`). El resto de
+// sitios migrados sigue cubierto: se quito un sujeto muerto, no una garantia.
