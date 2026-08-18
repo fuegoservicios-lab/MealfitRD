@@ -1,8 +1,23 @@
+# [P2-SUPPLY-CHAIN 2026-08-18] Acciones fijadas por SHA, no por tag.
+#
+# Un tag como `@v4` es un puntero MUTABLE: quien controle el repo de la accion
+# puede moverlo, y tu workflow —que corre con acceso al repo y a los secrets—
+# ejecutaria codigo distinto sin que cambie una linea aqui. Ha pasado de verdad
+# en el ecosistema (tj-actions/changed-files, marzo 2025). Un SHA no se mueve.
+#
+# El comentario `# vN` de cada linea es a que tag apuntaba ese SHA el dia que se
+# fijo. Para actualizarlas: Dependabot abre el PR con el SHA nuevo.
 # [P1-2 · CI · 2026-07-12] Gate de calidad + seguridad para el repo frontend.
 # El repo es standalone (github.com/fuegoservicios-lab/MealfitRD) — antes NADA
 # corría en push. `quality` cubre lint+typecheck+test+build; `audit` gatea vulns
 # high/critical de prod fuera de la allowlist (scripts/audit-gate.mjs).
 name: ci
+
+# Permisos MINIMOS. Sin este bloque, el `GITHUB_TOKEN` hereda los del repo, que
+# suelen incluir escritura: un workflow que solo necesita leer codigo podria
+# empujar commits o publicar releases si algo que ejecuta se tuerce.
+permissions:
+  contents: read
 
 on:
   push:
@@ -13,8 +28,8 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: 22
           cache: npm
@@ -87,10 +102,35 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: node scripts/audit-gate.mjs
+
+  # [P2-SUPPLY-CHAIN 2026-08-18] SBOM por release y contrato de entorno.
+  #
+  # El SBOM (CycloneDX) es la lista de lo que de verdad va dentro del artefacto.
+  # Sin el, cuando salga el proximo advisory de una dependencia transitiva la
+  # pregunta «¿nos afecta?» se contesta reconstruyendo el arbol a mano.
+  suministro:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Falla si alguien mete en el artefacto una variable que no deberia estar
+      # ahi: `VITE_` publica su valor DENTRO del bundle, en texto plano.
+      - run: node scripts/env-gate.mjs
+      - name: SBOM CycloneDX
+        run: npm sbom --sbom-format cyclonedx --omit=dev > sbom.cyclonedx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cyclonedx.json
+          retention-days: 90
