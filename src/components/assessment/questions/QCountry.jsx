@@ -15,6 +15,7 @@ import { useEffect, useRef } from 'react';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { RadioCard } from '../../common/FormUI';
 import { Globe2 } from 'lucide-react';
+import { COUNTRY_FLAGS } from '../../common/CountryFlags';
 import { COUNTRIES, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI, countryFromTimeZone } from '../../../config/countries';
 import { useT } from '../../../i18n';
 
@@ -76,7 +77,10 @@ export const QCountry = ({ onAutoAdvance }) => {
                     key={c.code}
                     name="country"
                     value={c.code}
-                    icon={Globe2}
+                    // [P2-COUNTRY-FLAG-ICONS · 2026-08-18] La bandera del país en vez
+                    // del planeta genérico; Globe2 queda de fallback para un país
+                    // futuro sin bandera dibujada en COUNTRY_FLAGS.
+                    icon={COUNTRY_FLAGS[c.code] || Globe2}
                     label={c.beta ? `${t(c.labelKey)} · ${t('Beta')}` : t(c.labelKey)}
                     desc={c.beta
                         ? t('Adaptamos tu plan a tu cocina local. Los precios del súper de tu país llegan pronto — tu lista de compras saldrá sin importes.')
