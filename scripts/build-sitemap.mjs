@@ -18,7 +18,8 @@
 //                   ROUTING). Para un crawler es una página vacía que se mueve.
 //   · noticias con `href` — apuntan a otra página del sitio (p. ej. `/motor`), así
 //                   que su slug sería un duplicado de un destino ya listado.
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
@@ -166,24 +167,70 @@ ${legales.map(linea).join('\n')}
 `;
 }
 
-// Los efectos (escribir en `public/`) SOLO al ejecutarlo, nunca al importarlo.
-//
-// Sin esta guarda, el test que importa este módulo para probar `hoyEnRD` reescribe
-// `public/sitemap.xml` y `public/llms.txt` en cada `npm test` — y `sitemap.xml`
-// lleva la fecha, así que el árbol de trabajo aparecía modificado sin que nadie lo
-// hubiera tocado. Un test que ensucia el repo al leerlo acaba enseñando a ignorar
-// `git status`, que es donde se esconden los cambios que sí importan.
+/**
+ * [P2-BUILD-DETERMINISTA · 2026-08-18] La salida va al ARTEFACTO, no a `public/`.
+ *
+ * Escribir en `public/` tenía dos costes que se pagaban en cada build:
+ *
+ *   1. Ensuciaba el worktree. `public/` está versionado, así que `git status`
+ *      salía sucio sin que nadie hubiera tocado nada. Yo mismo tuve que revertir
+ *      `public/sitemap.xml` TRES veces en una sola jornada, y el guard de
+ *      «no publicar desde un árbol sucio» lo bloqueó una cuarta.
+ *   2. Rompía la reproducibilidad. El `lastmod` era la fecha de HOY, así que el
+ *      mismo commit producía ficheros distintos —y por tanto hashes distintos—
+ *      según el día en que lo construyeras.
+ *
+ * Ahora:
+ *   · Se escribe en `dist/`, que es el artefacto y no está versionado.
+ *   · `lastmod` sale de `SOURCE_DATE_EPOCH` si está definida (la variable
+ *     estándar de builds reproducibles) y, si no, del último commit que tocó el
+ *     contenido. Nunca de «hoy»: la fecha de publicación es una propiedad del
+ *     contenido, no del momento en que lo compilas.
+ */
+function fechaDeterminista() {
+    const epoch = process.env.SOURCE_DATE_EPOCH;
+    if (epoch && /^\d+$/.test(epoch)) {
+        return new Date(Number(epoch) * 1000).toISOString().slice(0, 10);
+    }
+    try {
+        const out = execSync('git log -1 --format=%cs -- src/data/news.js src/utils/paperSurface.js', {
+            cwd: path.join(AQUI, '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(out)) return out;
+    } catch { /* sin git: caemos al día de RD, que sigue siendo mejor que UTC */ }
+    return hoyEnRD();
+}
+
 const EJECUTADO_DIRECTAMENTE = process.argv[1]
     && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 
 if (EJECUTADO_DIRECTAMENTE) {
-    const hoy = hoyEnRD();
-    const xml = construirSitemap(hoy);
-    writeFileSync(SALIDA, xml, 'utf8');
+    const DEST = path.join(AQUI, '..', 'dist');
+    if (!existsSync(DEST)) mkdirSync(DEST, { recursive: true });
+
+    const fecha = fechaDeterminista();
+    const xml = construirSitemap(fecha);
+    writeFileSync(path.join(DEST, 'sitemap.xml'), xml, 'utf8');
     const cuantas = (xml.match(/<loc>/g) || []).length;
-    console.log(`[sitemap] ${cuantas} URLs escritas en public/sitemap.xml (lastmod ${hoy}, día de RD)`);
+    console.log(`[sitemap] ${cuantas} URLs en dist/sitemap.xml (lastmod ${fecha}, del contenido)`);
+
+    // [P2-BUILD-DETERMINISTA] `public/sitemap.xml` sigue existiendo, pero ya NO
+    // se reescribe en cada build: es un SNAPSHOT que se actualiza a proposito
+    // con `--snapshot`.
+    //
+    // Por que no se borra: cuatro asserts de
+    // `backend/tests/test_p2_landing_routes_ssot.py` lo leen para comprobar que
+    // el sitemap lista las rutas publicas — la deriva que este generador vino a
+    // cerrar. Borrarlo dejaria esa guarda sin sujeto.
+    //
+    // Por que no se regenera solo: era justo lo que ensuciaba el worktree en
+    // cada build y hacia que el mismo commit produjera hashes distintos.
+    if (process.argv.includes('--snapshot')) {
+        writeFileSync(path.join(AQUI, '..', 'public', 'sitemap.xml'), xml, 'utf8');
+        console.log('[sitemap] snapshot actualizado en public/sitemap.xml (a peticion)');
+    }
 
     const llms = construirLlmsTxt();
-    writeFileSync(path.join(AQUI, '..', 'public', 'llms.txt'), llms, 'utf8');
-    console.log(`[llms.txt] ${(llms.match(/^- \[/gm) || []).length} enlaces escritos en public/llms.txt`);
+    writeFileSync(path.join(DEST, 'llms.txt'), llms, 'utf8');
+    console.log(`[llms.txt] ${(llms.match(/^- \[/gm) || []).length} enlaces en dist/llms.txt`);
 }
