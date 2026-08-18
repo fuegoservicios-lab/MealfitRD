@@ -1,6 +1,18 @@
 # [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] security.txt (RFC 9116).
 # Companion de la Política de Divulgación Responsable (/responsible-disclosure).
-Contact: mailto:fuego.servicios@gmail.com
+# [P1-LANDING-CONTACT-TRUTH · 2026-08-18] Este buzon decia
+# `fuego.servicios@gmail.com` y contradecia a la propia politica que enlaza la
+# linea `Policy:` de abajo: /responsible-disclosure dice, en negrita y cinco
+# veces, que se escriba a bioboros.support@gmail.com — el mismo buzon que el
+# landing publica en otros 69 sitios.
+#
+# Un contacto de seguridad que no coincide con la pagina a la que el propio
+# fichero manda al investigador es peor que no tener security.txt: el que
+# encuentra el fallo lee una direccion aqui, otra alli, y no sabe cual esta
+# vigilada. Manda el que la POLITICA instruye usar; si la intencion era tener un
+# buzon de seguridad separado del soporte, hay que cambiar la politica tambien,
+# no solo esta linea.
+Contact: mailto:bioboros.support@gmail.com
 Policy: https://bioboros.com/responsible-disclosure
 Preferred-Languages: es, en
 Canonical: https://bioboros.com/.well-known/security.txt
