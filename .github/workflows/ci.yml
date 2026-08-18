@@ -52,6 +52,25 @@ jobs:
       # Se apago ahi POR ALCANCE, no por conveniencia. El techo baja con el suelo:
       # asi es un trinquete y el margen no se rellena sin que nadie lo vea.
       #
+      # [2026-08-18] El job llevaba rojo otra vez: 168 contra el techo de 163. El delta
+      # venia de CODIGO (5 exhaustive-deps nuevos + 1 react-refresh, menos 1 no-restricted
+      # que se fue), asi que se arreglo el codigo y el techo NO se toco. Vuelve a 163.
+      #
+      # Lo que hay que saber para la proxima: en `eslint-plugin-react-hooks@7` las reglas
+      # nuevas (`set-state-in-effect` y hermanas) vienen del React Compiler, y un
+      # `eslint-disable-next-line` BAILEA AL COMPONENTE ENTERO de esas reglas. Medido en
+      # este mismo arreglo: silenciar el `exhaustive-deps` de `LoadingScreen` (Plan.jsx)
+      # con un disable dejaba el conteo en 162 — pero uno de esos 6 warnings no estaba
+      # arreglado, estaba ESCONDIDO. Un techo que baja porque apagaste la luz no es un
+      # trinquete, es el mismo autoengano que el 148.
+      #
+      # Regla practica: para un «unnecessary dependency» que en realidad es real (patron
+      # tick, copy que depende del idioma), referencia la variable en el cuerpo con `void`
+      # en vez de un disable — satisface al linter sin mentir y sin apagar el compilador.
+      # El disable queda para lo que no se puede expresar de otra forma (una funcion no
+      # memoizada que NO debe entrar en las deps), y preferiblemente en un componente que
+      # ya tuviera uno.
+      #
       # COMO RECALIBRAR cuando el toolchain se mueva: `npm run lint:count` da el
       # numero de hoy. Subirlo es legitimo SOLO si el delta viene de una regla
       # nueva (bump de plugin) y no de codigo nuevo — si viene de codigo, el

@@ -164,7 +164,12 @@ describe('[P0-HIST-CACHE-INVALIDATION] visibilitychange listener', () => {
         // como anchor — solo aparece dentro del cuerpo del useEffect.
         const useEffectIdx = src.indexOf('_onVisibilityChange');
         expect(useEffectIdx).toBeGreaterThan(-1);
-        const block = src.slice(Math.max(0, useEffectIdx - 800), useEffectIdx + 4500);
+        // [P1-CI-GATE-PASSABLE] La ventana era 4500 y el cierre del efecto caia a 4384:
+        // 116 caracteres de holgura. Un comentario explicando POR QUE las deps son las que
+        // son tumbaba el test sin tocar nada de lo que el test afirma. Ensancharla no lo
+        // debilita: `}, [selectedPlan])` aparece UNA sola vez en todo el archivo, asi que
+        // no hay un segundo match que pueda dar un verde falso.
+        const block = src.slice(Math.max(0, useEffectIdx - 800), useEffectIdx + 5600);
         expect(block).toMatch(
             /document\.addEventListener\(\s*['"]visibilitychange['"]/
         );
@@ -198,7 +203,12 @@ describe('[P0-HIST-CACHE-INVALIDATION] visibilitychange listener', () => {
         // como anchor — solo aparece dentro del cuerpo del useEffect.
         const useEffectIdx = src.indexOf('_onVisibilityChange');
         expect(useEffectIdx).toBeGreaterThan(-1);
-        const block = src.slice(Math.max(0, useEffectIdx - 800), useEffectIdx + 4500);
+        // [P1-CI-GATE-PASSABLE] La ventana era 4500 y el cierre del efecto caia a 4384:
+        // 116 caracteres de holgura. Un comentario explicando POR QUE las deps son las que
+        // son tumbaba el test sin tocar nada de lo que el test afirma. Ensancharla no lo
+        // debilita: `}, [selectedPlan])` aparece UNA sola vez en todo el archivo, asi que
+        // no hay un segundo match que pueda dar un verde falso.
+        const block = src.slice(Math.max(0, useEffectIdx - 800), useEffectIdx + 5600);
         // Re-fetch del listado.
         // [P1-HISTORY-ABORT · 2026-05-23] Call site pasa `{ signal: _vSignal }`.
         expect(block).toMatch(/fetchHistory\(\s*(?:\{[^}]*\})?\s*\)/);
@@ -219,7 +229,12 @@ describe('[P0-HIST-CACHE-INVALIDATION] visibilitychange listener', () => {
         // como anchor — solo aparece dentro del cuerpo del useEffect.
         const useEffectIdx = src.indexOf('_onVisibilityChange');
         expect(useEffectIdx).toBeGreaterThan(-1);
-        const block = src.slice(Math.max(0, useEffectIdx - 800), useEffectIdx + 4500);
+        // [P1-CI-GATE-PASSABLE] La ventana era 4500 y el cierre del efecto caia a 4384:
+        // 116 caracteres de holgura. Un comentario explicando POR QUE las deps son las que
+        // son tumbaba el test sin tocar nada de lo que el test afirma. Ensancharla no lo
+        // debilita: `}, [selectedPlan])` aparece UNA sola vez en todo el archivo, asi que
+        // no hay un segundo match que pueda dar un verde falso.
+        const block = src.slice(Math.max(0, useEffectIdx - 800), useEffectIdx + 5600);
         // Sin esto, el listener captura el undefined inicial y nunca
         // invalida el cache del plan abierto.
         expect(block).toMatch(/\}\s*,\s*\[\s*selectedPlan\s*\]\s*\)/);

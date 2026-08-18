@@ -1345,7 +1345,18 @@ const DashboardInner = () => {
         ? `mealfit_budget_dismissed_${_planMicroSig}_${_budgetStatus}` : null;
     const [_budgetDismissTick, _setBudgetDismissTick] = useState(0);
     const budgetBannerHidden = useMemo(
-        () => !!(_budgetDismissKey && safeLocalStorageGet(_budgetDismissKey, '') === '1'),
+        // [P1-CI-GATE-PASSABLE] `_budgetDismissTick` es el patron TICK: no se lee para
+        // calcular nada, esta ahi para invalidar el memo — justo lo que describe el
+        // parrafo de arriba («cubre el unico caso que el memo no ve solo: el usuario
+        // acaba de pulsar la X»). eslint lo llama «unnecessary dependency» porque no
+        // aparece en el cuerpo; obedecerle devuelve el parpadeo ambar que
+        // P2-BUDGET-BANNER-FLASH cerro.
+        //
+        // `void` en vez de `eslint-disable-next-line` por lo mismo que en Plan.jsx: un
+        // disable bailea al componente entero de las reglas del React Compiler
+        // (`set-state-in-effect` y companiia), y este componente es el mas grande del
+        // repo — seria el peor sitio donde apagar esa cobertura sin querer.
+        () => { void _budgetDismissTick; return !!(_budgetDismissKey && safeLocalStorageGet(_budgetDismissKey, '') === '1'); },
         [_budgetDismissKey, _budgetDismissTick]
     );
     const buildBudgetNotification = useCallback(() => {

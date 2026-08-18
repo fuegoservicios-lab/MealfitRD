@@ -596,6 +596,14 @@ const History = () => {
             // (warning React + leak de body parseado retenido).
             try { controller.abort(); } catch { /* noop */ }
         };
+        // [P1-CI-GATE-PASSABLE] Mount-only A PROPOSITO: los 3 fetches de arriba son la
+        // carga inicial de la pagina, y el controller que crean es el que reusa el
+        // listener de visibilitychange. `fetchHistory` es una funcion declarada en el
+        // cuerpo del componente (no `useCallback`), asi que su identidad cambia en CADA
+        // render: meterla en las deps redispararia el efecto en bucle, abortando y
+        // relanzando los 3 fetches indefinidamente. El refresco no se pierde — lo cubre
+        // el listener de visibilitychange de abajo.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     },[]);
 
     // [P2-HIST-NEW-5 · 2026-05-09] Reset de la expansión del lifetime
@@ -640,6 +648,12 @@ const History = () => {
     // (alt-tab rápidos). Un cron transición típica toma >5min; 60s es
     // el piso por debajo del cual no esperamos cambio de estado real.
     useEffect(() => {
+        // [P1-CI-GATE-PASSABLE] `fetchHistory` NO va en las deps de este efecto (hay un
+        // `eslint-disable-next-line` al cierre). No esta memoizada — es una funcion
+        // declarada en el cuerpo del componente, asi que cambia de identidad en CADA
+        // render; anadirla desuscribiria y resuscribiria el listener de
+        // `visibilitychange` en cada uno. `selectedPlan` es la unica dependencia que de
+        // verdad gobierna que hace el listener al dispararse.
         const _STALE_MS = 60 * 1000;
         // [P0-HIST-NEW-2 · 2026-05-09] Bypass del threshold cuando
         // Plan.jsx señala una inserción reciente vía localStorage. El
@@ -737,6 +751,7 @@ const History = () => {
         return () => document.removeEventListener('visibilitychange', _onVisibilityChange);
         // selectedPlan en deps para que el listener cierre sobre el
         // valor actual al disparar (sino captura el undefined inicial).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedPlan]);
 
     // [P1-HISTORY-ABORT · 2026-05-23] options.signal cancela la fetch

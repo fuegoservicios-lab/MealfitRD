@@ -2402,8 +2402,21 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // hubiera al montar. Es el caso raro pero real de cambiar de idioma con un plan
     // generándose.
     const { locale } = useI18n();
-    const steps = useMemo(() => getLoadingSteps(), [locale]);
-    const tips = useMemo(() => getLoadingTips(), [locale]);
+    // [P1-CI-GATE-PASSABLE] El `void locale` NO es decorativo y NO es un disable.
+    //
+    // `getLoadingSteps()`/`getLoadingTips()` resuelven el idioma por dentro (el `t` de
+    // modulo), asi que eslint no ve a `locale` en el cuerpo y la declara «unnecessary
+    // dependency» — al reves de la verdad que explica el parrafo de arriba. Nombrarla
+    // aqui la hace visible para el linter Y para quien lea, sin mentir: la dependencia
+    // es real, solo era invisible sintacticamente.
+    //
+    // Se hace asi y no con `eslint-disable-next-line` A PROPOSITO: las reglas nuevas de
+    // `eslint-plugin-react-hooks@7` vienen del React Compiler y un disable BAILEA AL
+    // COMPONENTE ENTERO. Medido: poner el disable aqui hizo desaparecer el
+    // `set-state-in-effect` de `LoadingScreen` — el techo de lint bajaba de 168 a 162,
+    // pero uno de esos 6 no estaba arreglado sino ESCONDIDO.
+    const steps = useMemo(() => { void locale; return getLoadingSteps(); }, [locale]);
+    const tips = useMemo(() => { void locale; return getLoadingTips(); }, [locale]);
 
     // Progreso basado en eventos SSE reales
     useEffect(() => {
