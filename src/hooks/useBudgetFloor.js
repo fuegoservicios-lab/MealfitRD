@@ -28,7 +28,7 @@ export function useBudgetFloor(formData) {
     // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) tierReferences: referencia estimada por ciclo de cada
     // tier categórico (piso × banda low/medium/high, misma fórmula del banner del Dashboard) para
     // mostrarla al ELEGIR el tier — el usuario ya no descubre un "RD$Y" que nunca declaró.
-    const [result, setResult] = useState({ min: staticMin, isPersonalized: false, targetCalories: null, tierReferences: null });
+    const [result, setResult] = useState({ min: staticMin, isPersonalized: false, targetCalories: null, tierReferences: null, currency });
     const debounceRef = useRef(null);
 
     // Key estable: solo re-pedimos cuando cambia un campo que mueve el piso.
@@ -39,7 +39,7 @@ export function useBudgetFloor(formData) {
         // [P1-DASH-BUDGET-AUTOFILL · 2026-06-23] isPersonalized=false hasta que llegue el valor
         // real del backend para ESTOS inputs → el Dashboard espera ese flanco para auto-marcar el
         // monto al mínimo PERSONALIZADO de la nueva duración (no al estático).
-        setResult((r) => ({ ...r, min: staticMin, isPersonalized: false, tierReferences: null }));
+        setResult((r) => ({ ...r, min: staticMin, isPersonalized: false, tierReferences: null, currency }));
         if (debounceRef.current) clearTimeout(debounceRef.current);
         let cancelled = false;
         debounceRef.current = setTimeout(async () => {
@@ -49,6 +49,15 @@ export function useBudgetFloor(formData) {
                     const v = formData?.[f];
                     if (v != null && v !== '') body[f] = v;
                 });
+                // [P1-COUNTRY-SYSTEM-F2 · 2026-08-17 (Task 9, F7)] Lado-ENVÍO: `budgetCurrency`
+                // crudo del loop de arriba se sobre-escribe con `currency` (ya sanitizada vía
+                // `effectiveBudgetCurrency`, línea 23) — mismo bug-class que el review de F1-T6
+                // cerró para los lookups de `BUDGET_MIN_TOTAL`: una moneda beta STALE en
+                // `formData.budgetCurrency` (bandera apagada tras rollback, o país cambiado sin
+                // limpiar el campo) enviaría al backend una moneda que el fallback ESTÁTICO de
+                // este mismo hook (`staticMin`, arriba) ya no usa — el piso personalizado
+                // llegaría en una moneda distinta a la que la UI acaba de mostrar.
+                body.budgetCurrency = currency;
                 const res = await fetch(api('/api/plans/budget-floor'), {
                     method: 'POST',
                     credentials: 'include',
@@ -63,6 +72,15 @@ export function useBudgetFloor(formData) {
                     isPersonalized: true,
                     targetCalories: data.target_calories ?? null,
                     tierReferences: data.tier_references ?? null,
+                    // [P1-COUNTRY-SYSTEM-F2 · 2026-08-17 (Task 9, F7)] Lado-RECEPCIÓN: la moneda
+                    // AUTORITATIVA es la que el backend efectivamente usó para calcular
+                    // `min_budget` (`budget_floor_in_currency`, el mismo SSOT que el gate 422) —
+                    // no necesariamente la `currency` que se envió (p.ej. un `budgetCurrency`
+                    // reconocible localmente pero sin piso propio en `_BUDGET_CYCLE_FLOOR_
+                    // DEFAULTS_BY_CURRENCY` server-side cae a DOP ahí). Fallback a `currency`
+                    // local solo si el backend, contra su propio contrato documentado
+                    // (`Response: {..., currency, ...}`), no la trae.
+                    currency: data.currency || currency,
                 });
             } catch {
                 /* red caída → conservar el estático */
@@ -72,7 +90,7 @@ export function useBudgetFloor(formData) {
             cancelled = true;
             if (debounceRef.current) clearTimeout(debounceRef.current);
         };
-        // staticMin se deriva de currency+groceryDuration (ya en key); evitamos re-runs espurios.
+        // staticMin/currency se derivan de formData (ya en key); evitamos re-runs espurios.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [key]);
 
