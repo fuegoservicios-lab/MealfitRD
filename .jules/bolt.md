@@ -1,0 +1,3 @@
+## 2026-06-11 - Aggregated Regex Replaces Sequential Loops
+**Learning:** Sequential `.replace()` operations against multiple string patterns within a loop are significantly slower than combining those patterns into a single pre-compiled `RegExp` object (using `|` operator) outside of the React component execution. This turns O(N) operations into an O(1) operation during hot-path text manipulation.
+**Action:** Always combine static dictionary string replacements into a single aggregate regular expression to optimize parsing bottlenecks, especially within rendering pipelines or complex list reduction functions.
