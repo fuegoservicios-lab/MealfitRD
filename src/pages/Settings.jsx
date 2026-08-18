@@ -360,6 +360,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 body: JSON.stringify({ health_profile: { country } }),
             });
             if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
+            // [P1-COUNTRY-RENEWAL-PROFILE-WINS · 2026-08-18] Sincronizar TAMBIÉN la
+            // copia local del wizard (formData.country). Sin esto, «Renovar» reenvía
+            // el 'DO' sembrado por initialFormData y el país elegido aquí ni genera
+            // ni sobrevive (el merge post-pipeline lo pisaba en el perfil — incidente
+            // del día del flip). El backend ya hace ganar al perfil en renovaciones
+            // (update_reason); esta línea mantiene coherente ESTE dispositivo y la
+            // preselección de QCountry si el usuario reabre el wizard.
+            updateData('country', country);
             try { await refreshProfileAndPlan(); } catch { /* best-effort, ver QTrackingFinish */ }
             toast.success(t('País actualizado'), {
                 description: t('Se aplicará a tus próximos planes y bloques.'),
