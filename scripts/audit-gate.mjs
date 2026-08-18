@@ -16,24 +16,64 @@ import { execSync } from 'node:child_process';
 // importa: GHSA-qq9h-g4jm-xgf3 SÍ aplica a esta app (el login es email-OTP) y está
 // aquí porque la lógica vulnerable corre en el servidor de auth de Neon, donde un
 // bump de la copia cliente no llega. El veredicto por advisory vive en el doc.
-const ALLOWLIST = new Set([
-  'GHSA-wxw3-q3m9-c3jr', 'GHSA-pw9m-5jxm-xr6h', 'GHSA-2vg6-77g8-24mp',
-  'GHSA-7w99-5wm4-3g79', 'GHSA-392p-2q2v-4372', 'GHSA-9h47-pqcx-hjr4',
-  'GHSA-86j7-9j95-vpqj', 'GHSA-g38m-r43w-p2q7', 'GHSA-fmh4-wcc4-5jm3',
-  // [P1-DEPS-TRIAGE-2 · 2026-08-07]
-  'GHSA-qq9h-g4jm-xgf3', // APLICA — account takeover vía pre-account hijacking en
-                         // email-OTP. Server-side de Neon; acción pendiente con ellos.
-  // [P1-CI-GATE-PASSABLE · 2026-08-14] RETIRADA la entrada de GHSA-qwww-vcr4-c8h2
-  // (react-router, RSC Mode). Su triage decía «el fix de npm es bajar a 7.11.0 y
-  // reabre GHSA-84g9-w2xq-vcv6» — cierto cuando se escribió, falso desde que
-  // existe 7.18.2, que lo cierra hacia DELANTE. Ya no hace falta la excepción:
-  // el lockfile está en 7.18.2 y el advisory no aparece.
+// [P0-AUDIT-EXCEPCIONES · 2026-08-18] Una excepcion ya NO es un GHSA suelto.
+//
+// Antes esto era un `Set` de identificadores con la razon en un comentario. El
+// problema no es que la razon estuviera mal escrita —estaba muy bien escrita—
+// sino que un comentario no caduca, no tiene dueno y nadie lo revisa. La propia
+// nota de este fichero lo decia: «una entrada de allowlist congela el mundo del
+// dia en que se escribio». Y se cumplio: `GHSA-qq9h-g4jm-xgf3` entro el
+// 2026-08-07 con «sin via de remediacion desde este repo», y el 2026-08-18
+// `@neondatabase/auth@0.5.0-beta` ya trae `better-auth@1.6.23` — parcheado. La
+// excepcion sobrevivio a su motivo once dias sin que nada lo notara.
+//
+// Ahora cada excepcion lleva DUENO, CADUCIDAD y MITIGACION verificable, y el
+// gate falla cuando una caduca. Poder posponer sigue estando bien; lo que no
+// puede es posponerse para siempre y en silencio.
+const _NEON = { dueno: 'owner', caduca: '2026-11-30', mitigacion: 'triado en docs/security/deps-triage.md; sin via de remediacion desde este repo' };
+const EXCEPCIONES = {
+  'GHSA-wxw3-q3m9-c3jr': _NEON,
+  'GHSA-pw9m-5jxm-xr6h': _NEON,
+  'GHSA-2vg6-77g8-24mp': _NEON,
+  'GHSA-7w99-5wm4-3g79': _NEON,
+  'GHSA-392p-2q2v-4372': _NEON,
+  'GHSA-9h47-pqcx-hjr4': _NEON,
+  'GHSA-86j7-9j95-vpqj': _NEON,
+  'GHSA-g38m-r43w-p2q7': _NEON,
+  'GHSA-fmh4-wcc4-5jm3': _NEON,
+
+  // [P0-01 · 2026-08-18] Account takeover via pre-account hijacking en email-OTP.
+  // APLICA a esta app. Caducidad CORTA a proposito: ya existe salida por el lado
+  // cliente (@neondatabase/neon-js@0.7.0-beta -> @neondatabase/auth@0.5.0-beta ->
+  // better-auth@1.6.23) y lo que falta es confirmar con Neon la version del
+  // SERVIDOR gestionado, que es donde corre la logica vulnerable.
   //
-  // La lección va más allá de esta línea: una entrada de allowlist congela el
-  // mundo del día en que se escribió. «Sin fix upstream» caduca solo, en
-  // silencio, y sin nadie revisándola la excepción sobrevive a su motivo. Al
-  // tocar este fichero, comprueba si alguna otra ya tiene salida.
-]);
+  // MITIGACION VERIFICABLE, y verificada: la superficie de contrasena no esta
+  // expuesta. Login.jsx tiene CERO inputs `type="password"`, no existe pantalla
+  // de registro y nadie llama a `signUp()` ni `signInWithPassword()` fuera del
+  // adaptador. Anclado por src/__tests__/login_sin_password.test.js.
+  'GHSA-qq9h-g4jm-xgf3': {
+    dueno: 'owner',
+    caduca: '2026-09-15',
+    mitigacion: 'sin alta ni login por contrasena en la UI (anclado por src/__tests__/login_sin_password.test.js); pendiente confirmar la version del servidor con Neon',
+  },
+};
+const ALLOWLIST = new Set(Object.keys(EXCEPCIONES));
+
+// Una excepcion caducada FALLA el gate. Es el punto entero: sin esto, «lo reviso
+// mas adelante» y «no lo revisa nadie nunca» son el mismo estado.
+const HOY = new Date().toISOString().slice(0, 10);
+const _caducadas = Object.entries(EXCEPCIONES)
+  .filter(([, e]) => e.caduca < HOY)
+  .map(([id, e]) => id + ' (vencio ' + e.caduca + ', dueno ' + e.dueno + ')');
+if (_caducadas.length > 0) {
+  console.error(
+    '[audit-gate] Excepciones de seguridad CADUCADAS:\n - ' + _caducadas.join('\n - ') +
+    '\n\nUna excepcion vencida no se renueva sola: o se remedia, o se re-tria con fecha ' +
+    'y razon nuevas. Dejarla correr es como una excepcion sobrevive a su motivo.'
+  );
+  process.exit(1);
+}
 
 let report;
 try {
@@ -89,7 +129,9 @@ if (offenders.length > 0) {
   console.error(
     '[audit-gate] ❌ Vulnerabilidades high/critical NO allowlisteadas en deps de producción:\n - ' +
       offenders.join('\n - ') +
-      '\n\nSi son legítimas, tríalas en docs/security/deps-triage.md y añade el GHSA a la allowlist de este script.'
+      '\n\nSi son legitimas: trialas en docs/security/deps-triage.md y anade una entrada a ' +
+      '`EXCEPCIONES` de este script con dueno, caduca (YYYY-MM-DD) y mitigacion verificable. ' +
+      'Un GHSA suelto ya no vale: sin fecha, la excepcion sobrevive a su motivo.'
   );
   process.exit(1);
 }
