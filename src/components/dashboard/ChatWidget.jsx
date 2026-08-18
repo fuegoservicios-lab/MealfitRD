@@ -755,6 +755,7 @@ const ChatWidget = () => {
                                 />
                                 <button
                                     onClick={handleSend}
+                                    aria-label="Enviar mensaje"
                                     disabled={!input.trim() || isLoading}
                                     style={{
                                         background: input.trim() && !isLoading ? '#3B82F6' : '#CBD5E1',
@@ -770,7 +771,7 @@ const ChatWidget = () => {
                                         transition: 'all 0.2s'
                                     }}
                                 >
-                                    <Send size={18} />
+                                    <Send size={18} aria-hidden="true" />
                                 </button>
                             </div>
                             <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-light)' }}>
