@@ -2355,13 +2355,17 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // completo tarda ~3-5 min (skeleton ~22s + day_gen paralelo ~30s +
     // self-critique ~2min + reviewer + assembly). MUCHO más rápido que los
     // 12-13 min de la era Gemini (free-tier que saturaba pool).
-    // [P2-LOADING-ETA-57 · 2026-07-06 · rango subido a 9-10 min 2026-07-09] Rango honesto = 9-10 min
-    // (pedido del owner; consistente con prod: renovaciones monitoreadas 2026-07-09 tomaron 7.5-8.4 min
-    // con 2-3 intentos del reviewer — los retries son parte normal del pipeline, no la excepción). Copy adapta:
-    //   - <30s:    "Esto suele tomar entre 9 y 10 minutos."
-    //   - 30s-10m: "Transcurrido X:XX · estimado 9-10 minutos"
-    //   - 10-13m:  "Transcurrido X:XX · ya casi terminamos, espera un poco más"
-    //   - >13m:    "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
+    // [P2-LOADING-ETA-57 · 2026-07-06 · 9-10 min 2026-07-09 · REBAJADO a 3-6 min 2026-08-18]
+    // Rango honesto = 3-6 min, pedido del owner al ver que 9-10 quedó impreciso. El 9-10 fue
+    // TAMBIÉN pedido suyo (2026-07-09, renovaciones medían 7.5-8.4 min con 2-3 intentos del
+    // reviewer); desde entonces el pipeline se aceleró (P1-FLASH-PRIMARY, P1-SWAP-LUNA, bypass
+    // determinista del reviewer sin restricciones clínicas) y las 3 renovaciones monitoreadas
+    // en vivo el 2026-08-18 (DO/ES/US) entregaron la semana 1 en ~3-3.5 min de punta a punta.
+    // El techo 6 cubre el caso con retries del reviewer clínico. Copy adapta:
+    //   - <30s:   "Esto suele tomar entre 3 y 6 minutos."
+    //   - 30s-6m: "Transcurrido X:XX · estimado 3-6 minutos"
+    //   - 6-9m:   "Transcurrido X:XX · ya casi terminamos, espera un poco más"
+    //   - >9m:    "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
     // El start time se fija UNA VEZ al mount — incluso si el componente
     // re-renderea por cambios de status/streamPhase, el contador es continuo
     // desde el primer mount.
@@ -2514,12 +2518,12 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     const timeMessage = (() => {
         const transcurrido = formatElapsed(elapsedSec);
         if (elapsedSec < 30) {
-            return t('Esto suele tomar entre 9 y 10 minutos.');
+            return t('Esto suele tomar entre 3 y 6 minutos.');
         }
-        if (elapsedSec < 10 * 60) {
-            return t('Transcurrido {tiempo} · estimado 9-10 minutos', { tiempo: transcurrido });
+        if (elapsedSec < 6 * 60) {
+            return t('Transcurrido {tiempo} · estimado 3-6 minutos', { tiempo: transcurrido });
         }
-        if (elapsedSec < 13 * 60) {
+        if (elapsedSec < 9 * 60) {
             return t('Transcurrido {tiempo} · ya casi terminamos, espera un poco más', { tiempo: transcurrido });
         }
         return t('Transcurrido {tiempo} · gracias por tu paciencia · cerca del final', { tiempo: transcurrido });
