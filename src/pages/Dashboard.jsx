@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
 import { useT, t, tn, formatDate } from '../i18n';
+import { COUNTRIES } from '../config/countries';
 
 // [P1-DASH-GENERATING-HONESTY · 2026-08-16] «el próximo llega el <día>» a partir de
 // `next_chunk_eta`. Devuelve '' ante cualquier entrada inservible: el copy que lo
@@ -3256,6 +3257,16 @@ const DashboardInner = () => {
             // sido refrescado arriba (drift sync) — mismo dato que ya usa el resto de esta
             // función para todo lo demás.
             const _isBetaPricing = effectivePlanData?._pricing_mode === 'beta_no_prices';
+            // [P2-SHOPLIST-BETA-POLISH · 2026-08-18] Nombre del país para el aviso beta del
+            // PDF («España está en beta — ...»). Solo países beta reales de COUNTRIES; si el
+            // formData aún no hidrató el país, cae al copy genérico «Tu país está en beta».
+            // Los labelKey ya viven en los catálogos i18n (QCountry/Settings los usan).
+            const _betaCountryLabel = (() => {
+                if (!_isBetaPricing) return '';
+                const _cc = String(formData?.country || '').trim().toUpperCase();
+                const _row = COUNTRIES.find((c) => c.code === _cc && c.beta);
+                return _row ? t(_row.labelKey) : '';
+            })();
 
             // Usar la lista consolidada correcta según el ciclo seleccionado
             const aggregatedList = getDeltaSourceList(effectivePlanData, duration);
@@ -3408,6 +3419,11 @@ const DashboardInner = () => {
                     // Nivel 3: Consumir display_category del backend (Single Source of Truth)
                     name = item.name || item.display_name || item.item_name || t('Desconocido');
                     cat = item.display_category || item.category || t('🛒 OTROS');
+                    // [P2-SHOPLIST-BETA-POLISH · 2026-08-18] Los planes YA persistidos traen el
+                    // label interno viejo del backend; los nuevos llegan con el pasillo real
+                    // (Vegetales/Frutas/...). Este remap es display-only para los legacy — sin
+                    // él, el usuario ve una sección llamada «CATÁLOGO SIN PRECIO».
+                    if (cat === 'CATÁLOGO SIN PRECIO') cat = t('🌍 De tu país');
 
                     if (item.display_qty) {
                         // Nivel 3: display_qty ya viene con pluralización correcta del backend
@@ -3668,16 +3684,20 @@ const DashboardInner = () => {
                 </div>
 
                 ${_isBetaPricing ? `
-                <!-- [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] Aviso beta: el súper de tu país
-                     todavía no tiene precios propios en el motor — la lista sale sin importes.
-                     Mismo azul informativo que el disclaimer de cantidades (no es un aviso de
-                     error, es un estado del producto). -->
-                <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-left: 3px solid #3b82f6; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
-                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #3b82f6; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <!-- [P1-COUNTRY-SYSTEM-F1 T7 · redisenado P2-SHOPLIST-BETA-POLISH · 2026-08-18]
+                     Aviso beta minimalista: UNA línea, nombra el país cuando el formData lo
+                     trae, y violeta de marca (no el mismo azul del disclaimer de cantidades:
+                     son mensajes distintos — uno explica las unidades, este cuenta el estado
+                     beta del país). Globo en SVG inline (html2canvas-safe, sin emoji). -->
+                <div style="background-color: #f5f3ff; border: 1px solid #ddd6fe; border-left: 3px solid #7c3aed; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: center; gap: 8px;">
+                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #7c3aed;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <circle cx="12" cy="12" r="9" stroke-width="2" />
+                        <path stroke-linecap="round" stroke-width="2" d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18" />
                     </svg>
-                    <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #1e3a8a; line-height: 1.3;">
-                        ${t('Precios del súper de tu país: próximamente. Tu lista sale sin importes.')}
+                    <p style="margin: 0; font-size: ${isUltraDense ? '9.5px' : '11px'}; color: #4c1d95; line-height: 1.3;">
+                        ${_betaCountryLabel
+                            ? t('<strong>{country} está en beta</strong> — pronto añadiremos los precios nativos de tu súper a esta lista.', { country: escapeHtml(_betaCountryLabel) })
+                            : t('<strong>Tu país está en beta</strong> — pronto añadiremos los precios nativos de tu súper a esta lista.')}
                     </p>
                 </div>
                 ` : ''}
@@ -4034,7 +4054,7 @@ const DashboardInner = () => {
                          [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] País beta ⇒ el pie NUNCA menciona
                          supermercados dominicanos (esta lista no tiene esos precios) — mismo aviso
                          que la cabecera. DO mantiene el texto EXACTO de siempre. -->
-                    <p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">${escapeHtml(_isBetaPricing ? t('Precios del súper de tu país: próximamente. Tu lista sale sin importes.') : t('Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.'))}</p>
+                    <p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">${escapeHtml(_isBetaPricing ? t('Precios nativos de tu país: próximamente (beta).') : t('Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.'))}</p>
                 </div>
             </div>
             `;

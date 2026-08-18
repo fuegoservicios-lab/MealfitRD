@@ -99,16 +99,19 @@ describe('P1-COUNTRY-SYSTEM-F1 (T7) — aviso beta en el PDF (cabecera + pie)', 
     });
 
     it('la cabecera del PDF incluye un banner condicional con el aviso beta', () => {
+        // [P2-SHOPLIST-BETA-POLISH · 2026-08-18] copy nuevo: nombra el país cuando el
+        // formData lo trae (interpolación {country}) y cae al genérico si no.
         const body = _slice('${_isBetaPricing ? `', '` : \'\'}');
         expect(body).toContain(
-            "t('Precios del súper de tu país: próximamente. Tu lista sale sin importes.')"
+            "está en beta</strong> — pronto añadiremos los precios nativos de tu súper a esta lista.'"
         );
+        expect(body).toContain('{ country: escapeHtml(_betaCountryLabel) }');
     });
 
     it('el pie del PDF alterna entre el aviso beta y el texto DOP histórico — DOP EXACTO, sin tocar', () => {
         const i = _src.indexOf('<p style="margin: 6px 0 0; font-size: 11px; color: #4b5563;">');
         const line = _src.slice(i, _src.indexOf('</p>', i) + 4);
-        expect(line).toContain("_isBetaPricing ? t('Precios del súper de tu país: próximamente. Tu lista sale sin importes.')");
+        expect(line).toContain("_isBetaPricing ? t('Precios nativos de tu país: próximamente (beta).')");
         expect(line).toContain(
             ": t('Precios estimados a partir de supermercados dominicanos (Nacional/La Sirena); pueden variar según tienda y fecha.')"
         );
