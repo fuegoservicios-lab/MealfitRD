@@ -165,6 +165,25 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  // [P2-CROSS-BROWSER · 2026-08-18] Las reglas de hooks de React no aplican a
+  // Playwright, y confundirlas produce un error donde no hay ninguno.
+  //
+  // Una fixture de Playwright se declara `async ({ page }, use) => { … await
+  // use(page) }`: ese `use` es el callback que entrega el recurso al test. La
+  // regla `react-hooks/rules-of-hooks` lo lee como el hook `use` de React y
+  // levanta un ERROR —no un warning— por llamarlo fuera de un componente.
+  //
+  // No es una supresión, es alcance: en `e2e/` no hay React. Nada se monta, no
+  // existe un árbol de componentes y no hay orden de hooks que preservar. La
+  // alternativa era renombrar el parámetro para esquivar al linter, o sea
+  // deformar el código para que una regla que no le incumbe se calle — y de paso
+  // separarlo de todos los ejemplos de Playwright que alguien vaya a consultar.
+  {
+    files: ['e2e/**'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+    },
+  },
   // [P3-LINT-GATE · 2026-05-30] Archivos de configuración / build / scripts
   // corren en node (process, __dirname, require, module, console).
   {
