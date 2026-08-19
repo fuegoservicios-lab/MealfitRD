@@ -96,9 +96,16 @@ jobs:
       # warnings de localStorage. Si el techo no baja con el, el margen se
       # rellena solo y sin que nadie lo vea, que es lo contrario de un trinquete.
       - run: npx eslint . --max-warnings 158
-      # El conteo queda en el log del job aunque el gate pase: la deriva de 148 a
-      # 180 fue invisible durante un mes porque nadie tenia el numero delante.
-      - run: npm run lint:count
+      # [P2-LINT-RATCHET-POR-REGLA] El techo global es FUNGIBLE: arreglar un aviso
+      # de estilo libera hueco para que entre uno de hooks, y el numero total no
+      # se entera. Este gate pone techo POR REGLA, y una regla no declarada tiene
+      # techo 0 — asi un bump de plugin que trae reglas nuevas sale a la cara en
+      # vez de esconderse bajo el margen de las demas, que es literalmente lo que
+      # paso con `set-state-in-effect` y dejo este job rojo semanas.
+      # El conteo queda en el log del job pase o no pase: la deriva de 148 a 180
+      # fue invisible durante un mes porque nadie tenia el numero delante. Es la
+      # MISMA invocacion que gatea — correrlo dos veces solo pagaba eslint dos veces.
+      - run: npm run lint:count -- --gate
       - run: npm run typecheck
       # [P2-CODIGO-MUERTO] Modulos que no alcanza NADA de produccion. `ChatWidget.jsx`
       # vivio aqui 829 lineas manteniendose vivo con sus PROPIOS tests: `grep` lo veia
@@ -107,7 +114,26 @@ jobs:
       # entradas reales (main.jsx y el service worker) en vez de contar menciones.
       - run: node scripts/huerfanos.mjs --gate
       - run: npm test
+      # [P1-CI-GATE] i18n en ESTRICTO. El motor de traduccion usa el texto espanol
+      # COMO clave, asi que editar un copy huerfana su traduccion en los cuatro
+      # idiomas EN SILENCIO: la app sigue funcionando —lo no traducido cae a
+      # espanol— y nadie se entera hasta que un usuario lee media pantalla en otro
+      # idioma. Este comprobador es la unica defensa que existe contra eso, y no
+      # corria en CI. Medido al cablearlo: encontro 15 claves huerfanas x4 idiomas
+      # que dejo el borrado de codigo muerto de esta misma tanda.
+      # `--strict` ademas exige 100% de cobertura, que es el estado actual.
+      - run: npm run i18n:check:strict
+      # [P1-CI-GATE] El tope del bundle del agente. Existia el script y tampoco
+      # corria: un cap que nadie evalua no es un cap.
+      - run: npm run check:bundle-size
       - run: npm run build
+      # [P1-PRESUPUESTOS] Peso de la carga inicial, con techo. Habia guards para el
+      # precache y para la pagina del agente, y ninguno para lo primero que baja
+      # CUALQUIER visitante. El peso del arranque es la magnitud que empeora sin
+      # que nadie lo decida: un import nuevo en un fichero que ya estaba en el
+      # camino critico no crea ningun fichero, asi que no se ve en el diff. Va
+      # DESPUES del build porque mide `dist/`.
+      - run: npm run check:presupuestos
 
   audit:
     runs-on: ubuntu-latest
@@ -144,3 +170,45 @@ jobs:
           name: sbom-cyclonedx
           path: sbom.cyclonedx.json
           retention-days: 90
+
+  # [P2-CROSS-BROWSER · 2026-08-18] El smoke e2e, que existia desde mayo y NUNCA
+  # habia corrido en CI: `test:e2e` estaba en package.json y ningun job lo
+  # llamaba. Una prueba que solo se ejecuta cuando alguien se acuerda no es un
+  # gate, es documentacion.
+  #
+  # UN MOTOR POR JOB, no los tres en uno. Corren en paralelo (7 min cada uno en
+  # vez de 21 en serie) y, sobre todo, el informe dice CUAL falla sin abrir el
+  # log: «e2e (webkit)» en rojo y los otros dos verdes es un diagnostico, no una
+  # pista.
+  #
+  # WebKit es el que justifica todo esto: es el motor de Safari y el de TODOS los
+  # navegadores de iOS, y no hay forma de probarlo a mano desde Windows. En la
+  # primera pasada con los tres encontro dos defectos reales en pruebas que
+  # llevaban meses en verde con chromium solo.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false          # un motor rojo no oculta el resultado de los otros
+      matrix:
+        motor: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Solo el motor de ESTE job: bajar los tres a cada uno seria triplicar la
+      # descarga para usar un tercio.
+      - run: npx playwright install --with-deps ${{ matrix.motor }}
+      - run: npm run build
+      - run: npx playwright test --project=${{ matrix.motor }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        if: failure()
+        with:
+          name: playwright-${{ matrix.motor }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
