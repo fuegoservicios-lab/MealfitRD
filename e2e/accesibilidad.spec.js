@@ -57,7 +57,31 @@ for (const [ruta, nombre] of RUTAS) {
         const errores = [];
         page.on('pageerror', (e) => errores.push(String(e)));
 
-        await page.goto(ruta, { waitUntil: 'networkidle' });
+        /* [P2-E2E-ESPERA-ACOTADA · 2026-08-19] `networkidle` fuera: es una espera SIN
+           COTA. Se cumple cuando pasan 500 ms sin peticiones, asi que en una pagina
+           que sondea la API —y aqui el backend no existe, luego cada sondeo falla y
+           se reintenta— puede no cumplirse nunca. Medido: con los tres motores en
+           paralelo, `/supermercado` agoto los 30 s del test en Firefox; aislada,
+           navegar tarda 1,3 s y axe 0,9 s sobre 242 nodos. O sea que no era lentitud
+           de axe ni de la pagina: era la condicion de espera, que no acotaba nada.
+
+           Ahora se espera a hechos concretos y acotados: el documento cargado, la
+           raiz de React con contenido, y las tipografias —que cambian la geometria
+           y por tanto lo que axe mide de contraste y de tamaño—. */
+        await page.goto(ruta, { waitUntil: 'domcontentloaded' });
+        await expect(page.locator('#root')).toBeVisible({ timeout: 15_000 });
+        await page.evaluate(() => document.fonts?.ready);
+        /* Y la red, ACOTADA y sin castigar si no calla. `color-contrast` se calcula
+           sobre los pixeles pintados, asi que medir antes de que aplique el CSS de la
+           ruta —que llega en su propio trozo— produce violaciones que no existen:
+           al quitar `networkidle` de golpe aparecieron tres, una por ruta, en dos
+           motores distintos. El `networkidle` original acertaba por accidente en eso
+           y a cambio no acotaba nada.
+
+           Aqui se espera lo mismo pero con tope y con `catch`: si la red no calla
+           —una pagina que sondea una API caida no callara nunca— se sigue adelante y
+           lo que decide es axe, no el reloj. */
+        await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
 
         const constructor = new AxeBuilder({ page })
             .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
