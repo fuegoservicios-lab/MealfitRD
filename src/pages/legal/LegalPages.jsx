@@ -155,7 +155,7 @@ export const Privacy = () => (
         <h3>2. Información que Recopilamos</h3>
         <p>Recopilamos únicamente la información necesaria para personalizar su plan nutricional y operar la plataforma. Las categorías exactas son:</p>
         <ul>
-            <li><strong>Datos de cuenta:</strong> nombre, correo electrónico, contraseña (gestionada de forma segura mediante Neon Auth con hashing y sal — nunca almacenamos contraseñas en texto plano).</li>
+            <li><strong>Datos de cuenta:</strong> nombre, correo electrónico, <strong>sin contraseña</strong>: se entra con un código de un solo uso enviado al correo, o con Google, así que no recopilamos ni almacenamos ninguna.</li>
             <li><strong>Perfil de salud (<code>health_profile</code>):</strong> peso actual, estatura, edad, género, nivel de actividad física, objetivo (perder peso, ganar músculo, mantener), restricciones dietéticas, alergias alimentarias, condiciones de salud declaradas y preferencias culinarias.</li>
             <li><strong>Histórico nutricional:</strong> comidas registradas (<code>consumed_meals</code>), hidratación diaria, peso histórico (<code>weight_history</code>), inventario de despensa (<code>user_inventory</code>) e ítems agotados.</li>
             <li><strong>Datos de interacción con IA:</strong> mensajes con el asistente conversacional (<code>agent_messages</code>), planes generados (<code>meal_plans</code>), recetas expandidas, "lecciones aprendidas" derivadas de su uso (<code>user_facts</code>) almacenadas como embeddings vectoriales para personalización a largo plazo.</li>
@@ -194,7 +194,7 @@ export const Privacy = () => (
             <li><strong>Base de datos:</strong> Neon (PostgreSQL serverless gestionado por Neon, Inc.), con cifrado en reposo AES-256 y cifrado en tránsito TLS 1.2 o superior.</li>
             <li><strong>Aislamiento por <code>user_id</code>:</strong> cada consulta a la base de datos incluye un filtro explícito por su <code>user_id</code>, de modo que ninguna consulta puede acceder a información de otro usuario. Publicamos tests automatizados que verifican este contrato en cada cambio del código (invariantes I2/I6).</li>
             <li><strong>Autenticación:</strong> Neon Auth (Better Auth), con tokens JWT firmados mediante EdDSA y validados en el servidor —contra el JWKS de Neon Auth— en cada petición. Tokens de sesión en cookies HttpOnly + SameSite.</li>
-            <li><strong>Protección de contraseñas:</strong> verificación contra la base de datos HaveIBeenPwned al registrarse (k-anonymity) — si su contraseña aparece en una filtración pública conocida, le pedimos elegir otra.</li>
+            <li><strong>Acceso sin contraseña:</strong> el ingreso es por código de un solo uso al correo o con Google, así que no hay ninguna contraseña que robar, adivinar o reutilizar. El flujo residual de restablecimiento, si alguna vez se usa, comprueba la clave contra HaveIBeenPwned por k-anonimato.</li>
             <li><strong>Headers de seguridad web:</strong> HSTS, X-Frame-Options DENY, Content Security Policy, Referrer-Policy estrictos.</li>
         </ul>
 
@@ -446,7 +446,7 @@ export const DataProtection = () => (
         <p>Para generar su plan, parte de su perfil se procesa en servidores de nuestro proveedor de inteligencia artificial (actualmente DeepSeek), que pueden ubicarse fuera de República Dominicana, incluida la República Popular China. Esto constituye una transferencia internacional de datos. Nunca enviamos su nombre completo, correo ni datos de pago. El detalle está en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
 
         <h3>7. Medidas de Seguridad</h3>
-        <p>Aplicamos cifrado en tránsito (TLS) y en reposo, aislamiento estricto por identificador de usuario en cada consulta a la base de datos (con tests automatizados que enforzan que ninguna consulta acceda a datos de otro usuario), autenticación con tokens firmados criptográficamente, y verificación de contraseñas filtradas (HaveIBeenPwned) al registrarse. El detalle técnico está en la Política de Privacidad.</p>
+        <p>Aplicamos cifrado en tránsito (TLS) y en reposo, aislamiento estricto por identificador de usuario en cada consulta a la base de datos (con tests automatizados que enforzan que ninguna consulta acceda a datos de otro usuario), autenticación con tokens firmados criptográficamente, y acceso sin contraseña (código de un solo uso al correo, o Google). El detalle técnico está en la Política de Privacidad.</p>
 
         <h3>8. Reclamaciones</h3>
         <p>Si considera que el tratamiento de sus datos no se ajusta a la normativa, le pedimos contactarnos primero a <strong>bioboros.support@gmail.com</strong> para resolverlo. Sin perjuicio de ello, usted conserva el derecho de presentar una reclamación ante la autoridad de control competente en materia de protección de datos de su jurisdicción.</p>
