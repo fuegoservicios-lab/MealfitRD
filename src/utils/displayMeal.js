@@ -43,8 +43,11 @@ function _isNonEmptyString(v) {
 }
 
 function _originalDescription(meal) {
-    if (typeof meal.desc === 'string') return meal.desc;
-    if (typeof meal.description === 'string') return meal.description;
+    // [Ola final · FF-4] TAL CUAL, sin normalizar: `desc` si el meal la trae (aunque
+    // sea `''`), si no `description`, y solo `''` cuando ninguna de las dos existe —
+    // así el fallback devuelve exactamente lo que el call site leía antes del helper.
+    if (meal.desc !== undefined && meal.desc !== null) return meal.desc;
+    if (meal.description !== undefined && meal.description !== null) return meal.description;
     return '';
 }
 
@@ -58,10 +61,23 @@ function _originalDescription(meal) {
 export function mealDisplay(meal, locale) {
     if (!meal || typeof meal !== 'object') return EMPTY_DISPLAY;
 
-    const originalName = typeof meal.name === 'string' ? meal.name : '';
+    // [Ola final · FF-4] El FALLBACK devuelve el valor ORIGINAL TAL CUAL — la
+    // normalización a array es SOLO del camino `_display` (donde sirve para el
+    // length-match por índice). La v1 normalizaba también el fallback y eso DESARMÓ
+    // una defensa viva: `recipe` puede ser un string legacy (P2-RECIPE-DISCLAIMER-LIST:
+    // planes viejos, disclaimer de macro-balancing pre-fix), `toRecipeSteps` en
+    // Recipes.jsx existe justo para coercerlo a `[string]`, y al colapsarlo a `[]`
+    // ANTES el usuario perdía la receta ENTERA — en todos los locales, es-DO incluido
+    // (la única rotura real de la promesa de byte-identidad). Regla: este helper decide
+    // QUÉ valor mostrar, nunca cambia la FORMA de lo que el meal ya traía.
+    const originalName = meal.name ?? '';
     const originalDescription = _originalDescription(meal);
-    const originalRecipe = Array.isArray(meal.recipe) ? meal.recipe : [];
-    const originalIngredients = Array.isArray(meal.ingredients) ? meal.ingredients : [];
+    const originalRecipe = meal.recipe ?? [];
+    const originalIngredients = meal.ingredients ?? [];
+    // Solo para el check de longitud del camino `_display` (un no-array no tiene
+    // longitud comparable ⇒ el array traducido nunca gana sobre una forma legacy).
+    const recipeArr = Array.isArray(originalRecipe) ? originalRecipe : null;
+    const ingredientsArr = Array.isArray(originalIngredients) ? originalIngredients : null;
 
     // es-DO (o cualquier meal sin `_display`, o sin entrada para este locale)
     // resuelve directo a los originales — no hay nada más que consultar.
@@ -79,10 +95,11 @@ export function mealDisplay(meal, locale) {
 
     const name = _isNonEmptyString(entry.name) ? entry.name : originalName;
     const description = _isNonEmptyString(entry.description) ? entry.description : originalDescription;
-    const recipe = Array.isArray(entry.recipe) && entry.recipe.length === originalRecipe.length
+    const recipe = recipeArr && Array.isArray(entry.recipe) && entry.recipe.length === recipeArr.length
         ? entry.recipe
         : originalRecipe;
-    const ingredients = Array.isArray(entry.ingredients) && entry.ingredients.length === originalIngredients.length
+    const ingredients = ingredientsArr && Array.isArray(entry.ingredients)
+        && entry.ingredients.length === ingredientsArr.length
         ? entry.ingredients
         : originalIngredients;
 

@@ -277,6 +277,84 @@ describe('mealDisplay — no-mutación', () => {
 });
 
 // ---------------------------------------------------------------------------
+// OLA FINAL · FF-4 — el FALLBACK devuelve el valor ORIGINAL TAL CUAL.
+//
+// La v1 normalizaba también el camino de fallback (`Array.isArray(meal.recipe) ?
+// meal.recipe : []`) y eso DESARMÓ una defensa viva: `recipe` puede ser un string
+// legacy (P2-RECIPE-DISCLAIMER-LIST — planes viejos, disclaimer de macro-balancing
+// pre-fix), `toRecipeSteps` en Recipes.jsx existe justo para coercerlo a `[string]`,
+// y al colapsarlo a `[]` ANTES el usuario perdía la receta ENTERA. Medido por el
+// reviewer de fase: ANTES `["Hervir el plátano y majarlo."]`, DESPUÉS `[]` — en
+// TODOS los locales, es-DO incluido (la única rotura real de la byte-identidad).
+//
+// Regla anclada aquí: este helper decide QUÉ valor mostrar, jamás cambia la FORMA
+// de lo que el meal ya traía. La normalización es exclusiva del camino `_display`.
+// ---------------------------------------------------------------------------
+
+// Copia EXACTA de la coerción de Recipes.jsx (`toRecipeSteps`) — el consumidor real
+// del `recipe` que devuelve el helper. Su presencia allí la ancla el parser de abajo.
+const _toRecipeSteps = (r) =>
+    Array.isArray(r) ? r : (typeof r === 'string' && r.trim() ? [r] : []);
+
+describe('mealDisplay — FF-4: el fallback no normaliza la forma del original', () => {
+    const LEGACY_MEAL = Object.freeze({
+        meal: 'Desayuno',
+        name: 'Mangú',
+        desc: 'Plátano verde majado.',
+        recipe: 'Hervir el plátano y majarlo.', // string legacy, NO array
+        ingredients: ['3 plátanos verdes'],
+    });
+
+    it('recipe string legacy sobrevive TAL CUAL en es-DO (no se colapsa a [])', () => {
+        const d = mealDisplay(LEGACY_MEAL, 'es-DO');
+        expect(d.recipe).toBe('Hervir el plátano y majarlo.');
+        expect(d.recipe).not.toEqual([]);
+    });
+
+    it('la probe del reviewer: tras `toRecipeSteps` el usuario recupera su paso', () => {
+        expect(_toRecipeSteps(mealDisplay(LEGACY_MEAL, 'es-DO').recipe))
+            .toEqual(['Hervir el plátano y majarlo.']);
+        expect(_toRecipeSteps(mealDisplay(LEGACY_MEAL, 'en-US').recipe))
+            .toEqual(['Hervir el plátano y majarlo.']);
+    });
+
+    it('un `_display` con recipe array NO puede ganarle a un original string legacy', () => {
+        const meal = {
+            ...LEGACY_MEAL,
+            _display: {
+                'en-US': {
+                    name: 'Mashed plantain',
+                    description: 'Mashed green plantain.',
+                    recipe: ['Boil the plantain and mash it.'], // longitud incomparable
+                    ingredients: ['3 green plantains (plátanos verdes)'],
+                },
+            },
+        };
+        const d = mealDisplay(meal, 'en-US');
+        expect(d.recipe).toBe('Hervir el plátano y majarlo.');
+        // El resto de campos SÍ se traduce: el descarte sigue siendo POR CAMPO.
+        expect(d.name).toBe('Mashed plantain');
+        expect(d.ingredients).toEqual(['3 green plantains (plátanos verdes)']);
+    });
+
+    it('ingredients no-array legacy también sobrevive TAL CUAL', () => {
+        const meal = { name: 'X', desc: 'Y', recipe: [], ingredients: '100 g salami' };
+        expect(mealDisplay(meal, 'es-DO').ingredients).toBe('100 g salami');
+        expect(mealDisplay(meal, 'en-US').ingredients).toBe('100 g salami');
+    });
+
+    it('campos AUSENTES siguen cayendo a vacíos seguros (contrato de desestructuración)', () => {
+        const d = mealDisplay({ meal: 'Cena' }, 'en-US');
+        expect(d).toEqual({ name: '', description: '', recipe: [], ingredients: [] });
+    });
+
+    it('`description` como respaldo de `desc` sigue vivo', () => {
+        const d = mealDisplay({ name: 'X', description: 'desde description' }, 'en-US');
+        expect(d.description).toBe('desde description');
+    });
+});
+
+// ---------------------------------------------------------------------------
 // Parser blanket: las superficies Plan (Dashboard.jsx) y Recetas (Recipes.jsx)
 // consumen el helper — NUNCA acceden a `_display` directo. Mismo patrón que
 // otros tests parser-based del repo (tooltip-anchor: si el nombre del import
@@ -308,6 +386,15 @@ describe('Plan/Recetas consumen mealDisplay — NO acceso directo a `_display`',
     it('Recipes.jsx nunca lee `._display[` directo (fuera del import)', () => {
         const src = _readSrc('pages/Recipes.jsx');
         expect(src).not.toMatch(/\._display\[/);
+    });
+
+    it('FF-4: Recipes.jsx conserva la coerción `toRecipeSteps` sobre lo que devuelve el helper', () => {
+        const src = _readSrc('pages/Recipes.jsx');
+        // La defensa de P2-RECIPE-DISCLAIMER-LIST es la que convierte el string legacy que
+        // el helper devuelve TAL CUAL en `[string]`. Si alguien la borra creyendo que el
+        // helper ya normaliza, vuelve el crash de `.map` sobre un String.
+        expect(src).toMatch(/const toRecipeSteps = \(r\) =>/);
+        expect(src).toMatch(/toRecipeSteps\(_activeDisplay\.recipe\)/);
     });
 
     it('RecipesView.jsx y MobileRecipes.jsx (vistas presentacionales) tampoco leen `_display` directo', () => {
