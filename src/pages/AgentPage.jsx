@@ -289,11 +289,16 @@ export const generateIntelligentWelcome = (userProfile, formData, planData) => {
     const now = new Date();
     const hour = now.getHours();
 
-    let timeGreeting = '¡Hola';
-    if (hour >= 0 && hour < 5) timeGreeting = '¡Buenas madrugadas';
-    else if (hour >= 5 && hour < 12) timeGreeting = '¡Buenos días';
-    else if (hour >= 12 && hour < 19) timeGreeting = '¡Buenas tardes';
-    else timeGreeting = '¡Buenas noches';
+    // [P2-AGENT-WELCOME-I18N · 2026-08-19] El welcome es INTERFAZ templada client-side,
+    // no prosa del LLM — se traduce con t() como el resto del dashboard (el usuario
+    // reportó el saludo automático en español con la app en inglés). Los NOMBRES de
+    // platos ({plato}) siguen en español: son identificadores del sistema, la misma
+    // frontera dura del coach (Addendum §2).
+    let timeGreeting = t('¡Hola');
+    if (hour >= 0 && hour < 5) timeGreeting = t('¡Buenas madrugadas');
+    else if (hour >= 5 && hour < 12) timeGreeting = t('¡Buenos días');
+    else if (hour >= 12 && hour < 19) timeGreeting = t('¡Buenas tardes');
+    else timeGreeting = t('¡Buenas noches');
 
     let mealContext = '';
 
@@ -375,54 +380,54 @@ export const generateIntelligentWelcome = (userProfile, formData, planData) => {
 
     if (mealKeyword === 'madrugada') {
         const variants = [
-            'Veo que sigues despierto, ¡recuerda que el buen descanso es clave para tu progreso! Si necesitas ayuda con algo, aquí estoy.',
-            'A esta hora lo ideal es descansar, así que no te recomendaré comidas pesadas. ¡Cuéntame si puedo ayudarte en algo más!',
-            '¿Despierto hasta tarde? Si de verdad tienes hambre y necesitas algo súper ligero, pregúntame para no alterar tu meta.'
+            t('Veo que sigues despierto, ¡recuerda que el buen descanso es clave para tu progreso! Si necesitas ayuda con algo, aquí estoy.'),
+            t('A esta hora lo ideal es descansar, así que no te recomendaré comidas pesadas. ¡Cuéntame si puedo ayudarte en algo más!'),
+            t('¿Despierto hasta tarde? Si de verdad tienes hambre y necesitas algo súper ligero, pregúntame para no alterar tu meta.')
         ];
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else if (mealKeyword === 'desayuno') {
         const variants = exactMealName ? [
-            `Según tu plan, hoy te toca **${exactMealName}** de desayuno, ¿tienes los ingredientes listos o armamos una alternativa rápida?`,
-            `Para desayunar hoy tienes marcado **${exactMealName}**. ¡Cuéntame si ya lo preparaste o si quieres cambiar algo!`,
-            `Tu desayuno sugerido de hoy es **${exactMealName}**. ¿Preparado para arrancar el día con energía?`
+            t('Según tu plan, hoy te toca **{plato}** de desayuno, ¿tienes los ingredientes listos o armamos una alternativa rápida?', { plato: exactMealName }),
+            t('Para desayunar hoy tienes marcado **{plato}**. ¡Cuéntame si ya lo preparaste o si quieres cambiar algo!', { plato: exactMealName }),
+            t('Tu desayuno sugerido de hoy es **{plato}**. ¿Preparado para arrancar el día con energía?', { plato: exactMealName })
         ] : [
-            '¿Listo para tu desayuno o necesitas una idea rápida?',
-            '¡Es hora de desayunar! ¿Ya sabes qué vas a preparar?',
-            '¿Qué tienes pensado para el desayuno de hoy? Si no sabes, ¡te ayudo!'
+            t('¿Listo para tu desayuno o necesitas una idea rápida?'),
+            t('¡Es hora de desayunar! ¿Ya sabes qué vas a preparar?'),
+            t('¿Qué tienes pensado para el desayuno de hoy? Si no sabes, ¡te ayudo!')
         ];
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else if (mealKeyword === 'almuerzo') {
         const variants = exactMealName ? [
-            `Hoy de almuerzo tienes marcado **${exactMealName}**. ¿Ya lo preparaste o necesitas cambiar algo con los ingredientes que tienes?`,
-            `Es la hora del almuerzo y te toca **${exactMealName}**. ¿Te ayudo con la receta o tienes un plan distinto?`,
-            `Para tu almuerzo de hoy está planeado **${exactMealName}**. ¡Avisa si necesitas reemplazar algún ingrediente!`
+            t('Hoy de almuerzo tienes marcado **{plato}**. ¿Ya lo preparaste o necesitas cambiar algo con los ingredientes que tienes?', { plato: exactMealName }),
+            t('Es la hora del almuerzo y te toca **{plato}**. ¿Te ayudo con la receta o tienes un plan distinto?', { plato: exactMealName }),
+            t('Para tu almuerzo de hoy está planeado **{plato}**. ¡Avisa si necesitas reemplazar algún ingrediente!', { plato: exactMealName })
         ] : [
-            '¿Preparando ya el almuerzo o necesitas una receta rápida?',
-            '¡Llegó la hora de almorzar! ¿Qué vas a preparar?',
-            '¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.'
+            t('¿Preparando ya el almuerzo o necesitas una receta rápida?'),
+            t('¡Llegó la hora de almorzar! ¿Qué vas a preparar?'),
+            t('¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.')
         ];
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else if (mealKeyword === 'cena') {
         const variants = exactMealName ? [
-            `De cena para hoy tienes: **${exactMealName}**. ¿Quieres que te pase las instrucciones paso a paso o prefieres otra cosa?`,
-            `Para cerrar el día, tu cena sugerida es **${exactMealName}**. ¿Qué te parece?`,
-            `Tu cena de hoy será **${exactMealName}**. ¡Si necesitas hacerlo más fácil o cambiar ingredientes, estoy aquí!`
+            t('De cena para hoy tienes: **{plato}**. ¿Quieres que te pase las instrucciones paso a paso o prefieres otra cosa?', { plato: exactMealName }),
+            t('Para cerrar el día, tu cena sugerida es **{plato}**. ¿Qué te parece?', { plato: exactMealName }),
+            t('Tu cena de hoy será **{plato}**. ¡Si necesitas hacerlo más fácil o cambiar ingredientes, estoy aquí!', { plato: exactMealName })
         ] : [
-            '¿Buscando algo ligero antes de dormir o tu cena completa?',
-            '¡Es hora de cenar! ¿Ya sabes qué harás?',
-            '¿Qué cenaremos hoy? Dime tus opciones y te recomiendo algo rápido.'
+            t('¿Buscando algo ligero antes de dormir o tu cena completa?'),
+            t('¡Es hora de cenar! ¿Ya sabes qué harás?'),
+            t('¿Qué cenaremos hoy? Dime tus opciones y te recomiendo algo rápido.')
         ];
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else {
         // snack
         const variants = exactMealName ? [
-            `Es hora de tu snack o merienda: **${exactMealName}**. Si no lo tienes, dime qué hay en tu refri y lo resolvemos.`,
-            `Para tu merienda te toca **${exactMealName}**. ¿Listo para disfrutarla?`,
-            `Tu snack sugerido es **${exactMealName}**. ¡Cuéntame si prefieres otra opción dulce o salada!`
+            t('Es hora de tu snack o merienda: **{plato}**. Si no lo tienes, dime qué hay en tu refri y lo resolvemos.', { plato: exactMealName }),
+            t('Para tu merienda te toca **{plato}**. ¿Listo para disfrutarla?', { plato: exactMealName }),
+            t('Tu snack sugerido es **{plato}**. ¡Cuéntame si prefieres otra opción dulce o salada!', { plato: exactMealName })
         ] : [
-            '¿Necesitas un buen snack para calmar el hambre?',
-            '¡Hora de una merienda rápida! ¿Quieres ideas?',
-            '¿Qué te provoca de snack ahora mismo? Tengo varias opciones.'
+            t('¿Necesitas un buen snack para calmar el hambre?'),
+            t('¡Hora de una merienda rápida! ¿Quieres ideas?'),
+            t('¿Qué te provoca de snack ahora mismo? Tengo varias opciones.')
         ];
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     }
@@ -433,13 +438,13 @@ export const generateIntelligentWelcome = (userProfile, formData, planData) => {
     if (goalField) {
         const lowerGoal = goalField.toLowerCase();
         let goalText = '';
-        if (lowerGoal.includes('pérdida') || lowerGoal.includes('peso') || lowerGoal.includes('déficit') || lowerGoal.includes('bajar')) goalText = 'bajar de peso';
-        else if (lowerGoal.includes('músculo') || lowerGoal.includes('masa') || lowerGoal.includes('ganar')) goalText = 'ganar masa muscular';
-        else if (lowerGoal.includes('mantenimiento') || lowerGoal.includes('mantener')) goalText = 'mantenerte en forma';
-        else if (lowerGoal.includes('recomp')) goalText = 'recomponer tu cuerpo';
+        if (lowerGoal.includes('pérdida') || lowerGoal.includes('peso') || lowerGoal.includes('déficit') || lowerGoal.includes('bajar')) goalText = t('bajar de peso');
+        else if (lowerGoal.includes('músculo') || lowerGoal.includes('masa') || lowerGoal.includes('ganar')) goalText = t('ganar masa muscular');
+        else if (lowerGoal.includes('mantenimiento') || lowerGoal.includes('mantener')) goalText = t('mantenerte en forma');
+        else if (lowerGoal.includes('recomp')) goalText = t('recomponer tu cuerpo');
 
         if (goalText) {
-            goalContext = `Seguimos enfocados en tu meta de ${goalText}. `;
+            goalContext = t('Seguimos enfocados en tu meta de {meta}. ', { meta: goalText });
         }
     }
 
