@@ -8,7 +8,7 @@
     "build:sitemap": "node scripts/build-sitemap.mjs",
     "prebuild": "npm run build:sitemap",
     "build": "vite build",
-    "postbuild": "node scripts/build-route-meta.mjs && node scripts/precache-guard.mjs",
+    "postbuild": "node scripts/build-route-meta.mjs && node scripts/precache-guard.mjs && node scripts/precomprimir.mjs",
     "lint": "eslint .",
     "lint:count": "node scripts/lint-count.mjs",
     "i18n:check": "node scripts/i18n-check.mjs",
