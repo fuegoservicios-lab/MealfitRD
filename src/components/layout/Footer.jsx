@@ -11,6 +11,32 @@ import Wordmark from '../common/Wordmark';
 import { isPaperSurface } from '../../utils/paperSurface';
 import { useT } from '../../i18n';
 
+/**
+ * [P1-LEGAL-UNA-SOLA-COPIA · 2026-08-19] Los legales viven en el apex, y se sale
+ * de la aplicación para leerlos.
+ *
+ * POR QUÉ UN `<a>` Y NO UN `<Link>`. nginx redirige `app.bioboros.com/privacy`
+ * al apex con un 301, pero eso sólo atrapa una carga completa de página. Un
+ * `<Link>` lo resuelve React Router EN EL CLIENTE: nunca toca el servidor, así
+ * que el 301 no se ejecuta y el usuario sigue viendo la copia interna.
+ *
+ * O sea que la redirección sola cubre a quien teclea la URL y se le escapa a
+ * quien pincha en el pie —que es casi todo el mundo—. Media solución habría
+ * dejado el síntoma visible justo por el camino más usado.
+ *
+ * Y no es sólo estética: esa copia interna arrastraba el diseño y el nav
+ * anteriores —enlaces a `/funciones`, `/precision`, `/investigacion`, que en el
+ * apex son 301, 301 y 404—. El texto también divergió: el 19 de agosto la misma
+ * afirmación falsa sobre contraseñas vivía en TRES sitios a la vez.
+ */
+const APEX = 'https://bioboros.com';
+
+function EnlaceLegal({ a, children }) {
+    // `rel="noopener"` aunque no lleve `target`: es el mismo origen de marca pero
+    // otro origen web, y cuesta cero.
+    return <a href={`${APEX}${a}`} rel="noopener">{children}</a>;
+}
+
 // [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una página legal,
 // NO usar ese path como `from` del próximo Link (eso haría que "Volver" regrese de
 // Términos→Privacidad→Términos...). Mejor preservar el `state.from` heredado de cuando
@@ -141,19 +167,19 @@ const Footer = () => {
                         móvil. Los 5 links siguen siendo los mismos 5 destinos, un tap detrás.
                         Las 15 rutas no-papel conservan el <h4> plano, sin cambios. */}
                     <FooterColumn title={t('Términos y servicios')} collapsible={isPaper}>
-                                <Link to="/terms" state={{ from: fromPath }}>{t('Términos de Servicio')}</Link>
-                                <Link to="/acceptable-use" state={{ from: fromPath }}>{t('Política de Uso')}</Link>
-                                <Link to="/refunds" state={{ from: fromPath }}>{t('Reembolsos y Cancelaciones')}</Link>
-                                <Link to="/ai-policy" state={{ from: fromPath }}>{t('Uso de Inteligencia Artificial')}</Link>
-                                <Link to="/medical" state={{ from: fromPath }}>{t('Aviso Médico')}</Link>
+                                <EnlaceLegal a="/terms">{t('Términos de Servicio')}</EnlaceLegal>
+                                <EnlaceLegal a="/acceptable-use">{t('Política de Uso')}</EnlaceLegal>
+                                <EnlaceLegal a="/refunds">{t('Reembolsos y Cancelaciones')}</EnlaceLegal>
+                                <EnlaceLegal a="/ai-policy">{t('Uso de Inteligencia Artificial')}</EnlaceLegal>
+                                <EnlaceLegal a="/medical">{t('Aviso Médico')}</EnlaceLegal>
                     </FooterColumn>
                 </div>
 
                 <div className={styles.col}>
                     <FooterColumn title={t('Privacidad y datos')} collapsible={isPaper}>
-                                <Link to="/privacy" state={{ from: fromPath }}>{t('Política de Privacidad')}</Link>
-                                <Link to="/data-protection" state={{ from: fromPath }}>{t('Protección de Datos')}</Link>
-                                <Link to="/responsible-disclosure" state={{ from: fromPath }}>{t('Divulgación Responsable')}</Link>
+                                <EnlaceLegal a="/privacy">{t('Política de Privacidad')}</EnlaceLegal>
+                                <EnlaceLegal a="/data-protection">{t('Protección de Datos')}</EnlaceLegal>
+                                <EnlaceLegal a="/responsible-disclosure">{t('Divulgación Responsable')}</EnlaceLegal>
                     </FooterColumn>
                 </div>
 

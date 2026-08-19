@@ -57,9 +57,20 @@ describe('[P2-FOOTER-COLUMN-DEDUP] el pie ofrece lo mismo en ambos modos', () =>
     it('enlaza las políticas legales completas, no un subconjunto', () => {
         const { container } = enRuta('/');
         const hrefs = destinos(container);
+        // [P1-LEGAL-UNA-SOLA-COPIA · 2026-08-19] Ahora salen al APEX, no a una ruta
+        // interna. La intención de este caso no cambia —que estén las ocho y no un
+        // subconjunto—; cambia dónde viven. Se compara por el final de la URL para
+        // no atarlo al dominio, que es lo único accesorio aquí.
+        //
+        // Por qué dejaron de ser rutas internas: un <Link> lo resuelve React Router
+        // en el cliente, así que el 301 de nginx nunca se ejecuta y el usuario
+        // seguía viendo la copia interna —con el diseño y el nav anteriores—.
         for (const ruta of ['/terms', '/privacy', '/medical', '/refunds', '/ai-policy',
             '/acceptable-use', '/data-protection', '/responsible-disclosure']) {
-            expect(hrefs).toContain(ruta);
+            expect(
+                hrefs.some((h) => h.endsWith(ruta)),
+                `el pie no enlaza ${ruta} por ninguna vía`,
+            ).toBe(true);
         }
     });
 });
