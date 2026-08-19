@@ -20,6 +20,7 @@ import { fetchWithAuth } from '../../config/api';
 import { useLatestRef } from '../../hooks/useLatestRef';
 import { useT, useTn } from '../../i18n';
 import styles from './WaterTracker.module.css';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
 const DEFAULT_GOAL = 8;
 const GOAL_MIN = 6;
@@ -49,7 +50,7 @@ const sanitizeGoal = (raw) => {
 
 const readEnabledFromCache = () => {
     try {
-        const cached = localStorage.getItem(LS_ENABLED_KEY);
+        const cached = safeLocalStorageGet(LS_ENABLED_KEY, null);
         if (cached === null) return true;
         return cached === 'true';
     } catch {
@@ -61,7 +62,7 @@ const readWaterStateFromCache = (userId) => {
     try {
         const key = _waterCacheKey(userId, getLocalDateString());
         if (!key) return null;
-        const raw = localStorage.getItem(key);
+        const raw = safeLocalStorageGet(key, null);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed.glasses !== 'number' || typeof parsed.goal !== 'number') return null;
@@ -98,7 +99,7 @@ const WaterTracker = ({ userId }) => {
         try {
             const key = _waterCacheKey(userId, currentDate);
             if (!key) return;
-            localStorage.setItem(key, JSON.stringify({ glasses, goal, goalBasis, streak }));
+            safeLocalStorageSet(key, JSON.stringify({ glasses, goal, goalBasis, streak }));
         } catch { /* QuotaExceeded — fail-open */ }
     }, [glasses, goal, goalBasis, streak, currentDate, userId]);
 
@@ -134,7 +135,7 @@ const WaterTracker = ({ userId }) => {
             if (typeof data?.streak === 'number') setStreak(data.streak);
             if (typeof data?.enabled === 'boolean') {
                 setEnabled(data.enabled);
-                try { localStorage.setItem(LS_ENABLED_KEY, String(data.enabled)); } catch { /* no critico */ }
+                safeLocalStorageSet(LS_ENABLED_KEY, String(data.enabled));
             }
         } finally {
             setLoading(false);

@@ -1,3 +1,4 @@
+import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from './safeLocalStorage';
 // [P2-HIST-AUDIT-11 · 2026-05-09] Singleton de caches del modal del
 // Historial. Persiste cross-mount del componente <History> para que
 // un usuario que navega entre History ↔ Dashboard ↔ History no
@@ -86,7 +87,7 @@ const _ensureHistoryListHydrated = () => {
     _historyListHydrated = true;
     try {
         if (typeof localStorage !== 'undefined') {
-            const _raw = localStorage.getItem(_HISTORY_LIST_LS_KEY);
+            const _raw = safeLocalStorageGet(_HISTORY_LIST_LS_KEY, null);
             if (_raw) {
                 const _parsed = JSON.parse(_raw);
                 if (_parsed && Array.isArray(_parsed.value)) {
@@ -298,7 +299,7 @@ export const setCachedHistoryList = (plans, ttlMs = _HISTORY_LIST_TTL_MS) => {
     };
     try {
         if (typeof localStorage !== 'undefined') {
-            localStorage.setItem(_HISTORY_LIST_LS_KEY, JSON.stringify(_historyListEntry));
+            safeLocalStorageSet(_HISTORY_LIST_LS_KEY, JSON.stringify(_historyListEntry));
         }
     } catch (_e) {
         // Quota exceeded / disabled / private mode — no crítico.
@@ -318,7 +319,7 @@ export const invalidateHistoryListCache = () => {
     _historyListEntry = null;
     try {
         if (typeof localStorage !== 'undefined') {
-            localStorage.removeItem(_HISTORY_LIST_LS_KEY);
+            safeLocalStorageRemove(_HISTORY_LIST_LS_KEY);
         }
     } catch (_e) { /* no-op */ }
 };

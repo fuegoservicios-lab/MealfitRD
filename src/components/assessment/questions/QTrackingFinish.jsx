@@ -16,6 +16,7 @@ import { fetchWithAuth } from '../../../config/api';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { TRACKING_REQUIRED_FIELDS } from '../../../config/formValidation';
 import { useT } from '../../../i18n';
+import { safeLocalStorageSet } from '../../../utils/safeLocalStorage';
 
 export const QTrackingFinish = () => {
     const navigate = useNavigate();
@@ -93,7 +94,7 @@ export const QTrackingFinish = () => {
             });
             if (!r2.ok) throw new Error(t('No se pudo activar el modo contador.'));
 
-            try { localStorage.setItem('mealfit_plan_mode', 'tracking'); } catch { /* noop */ }
+            safeLocalStorageSet('mealfit_plan_mode', 'tracking');
 
             // [P1-TRACKING-FINISH-BOUNCE · 2026-08-12] Hidratar el contexto ANTES de
             // navegar, y no es opcional: el PATCH de arriba escribió health_profile en

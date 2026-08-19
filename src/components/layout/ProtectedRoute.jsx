@@ -1,6 +1,7 @@
 
 import { Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
+import { safeLocalStorageGet } from '../../utils/safeLocalStorage';
 
 const ProtectedRoute = ({ children, landing = false }) => {
     const { session, loadingAuth, loadingData, loadingProfile, userProfile, planData, isGuest } = useAssessment();
@@ -81,7 +82,7 @@ const ProtectedRoute = ({ children, landing = false }) => {
     // (bug reportado: "me saco al formulario"). El flag `mealfit_plan_in_progress` (Plan.jsx al arrancar el
     // SSE) es la señal síncrona; se auto-limpia (recovery: none/complete/stale>6h) → sin loop.
     let _hasPendingPlanRecovery = false;
-    try { _hasPendingPlanRecovery = !!localStorage.getItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+    _hasPendingPlanRecovery = !!safeLocalStorageGet('mealfit_plan_in_progress', null);
     if (_hasPendingPlanRecovery && !isOnPlan) {
         return <Navigate to="/plan" replace />;
     }
@@ -154,7 +155,7 @@ const ProtectedRoute = ({ children, landing = false }) => {
         // contestó cada vez que abre la app. Perfil primero, espejo localStorage
         // después (el perfil puede llegar tarde en el cold-start).
         let _localPlanMode = null;
-        try { _localPlanMode = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }
+        _localPlanMode = safeLocalStorageGet('mealfit_plan_mode', null);
         if (hasCompletedAssessment && (userProfile?.plan_mode || _localPlanMode) === 'tracking') {
             return <Navigate to="/dashboard" replace />;
         }

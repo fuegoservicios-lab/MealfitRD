@@ -1,3 +1,5 @@
+import { safeLocalStorageSet } from './safeLocalStorage';
+
 /**
  * [P2-A · 2026-05-08] Helper SSOT para parseo defensivo de JSON desde
  * `localStorage` (u otra fuente externa potencialmente corrupta).
@@ -82,15 +84,11 @@ function _handleCorrupt(raw, err, fallback, opts) {
         catch { /* el callback no debe propagar */ }
     }
     // Self-heal opcional: reescribir storage si nos dieron la key.
-    if (
-        typeof opts.storageKey === 'string' && opts.storageKey.length > 0 &&
-        typeof localStorage !== 'undefined'
-    ) {
-        try {
-            localStorage.setItem(opts.storageKey, JSON.stringify(fallback));
-        } catch {
-            // QuotaExceeded / storage disabled: best-effort, no propagar.
-        }
+    // [P2-LOCALSTORAGE-SSOT · 2026-08-19] El envoltorio ya comprueba que el storage
+    // exista y absorbe QuotaExceeded / modo privado devolviendo `false`, que es
+    // exactamente lo que hacian el `typeof` de la condicion y el `catch` vacio.
+    if (typeof opts.storageKey === 'string' && opts.storageKey.length > 0) {
+        safeLocalStorageSet(opts.storageKey, JSON.stringify(fallback));
     }
 }
 

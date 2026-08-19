@@ -45,6 +45,7 @@ import { toast } from 'sonner';
 // la navegación a campo faltante.
 import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor, effectiveBudgetCurrency } from '../../config/formValidation';
 import { useT } from '../../i18n';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
 /* [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] ¿El presupuesto personalizado alcanza
    el piso? SSOT de las TRES puertas que pueden dejar atrás el paso 11.
@@ -669,10 +670,10 @@ const InteractiveAssessmentFlow = () => {
     // tira y se recalcula al primer paso de la rama nueva.
     useEffect(() => {
         let _prevMode = null;
-        try { _prevMode = localStorage.getItem('mealfit_wizard_step_mode'); } catch { /* noop */ }
+        _prevMode = safeLocalStorageGet('mealfit_wizard_step_mode', null);
         const _mode = _isTracking ? 'tracking' : 'plan';
         if (_prevMode !== _mode) {
-            try { localStorage.setItem('mealfit_wizard_step_mode', _mode); } catch { /* noop */ }
+            safeLocalStorageSet('mealfit_wizard_step_mode', _mode);
             // [P1-WIZARD-MAXSTEP-BRANCH · 2026-08-12] maxReachedStep también es DE LA
             // RAMA, y se tira junto con currentStep. Heredarlo era el bug: llegar al
             // paso 9 de la rama corta hacía `canSkip=true` en los pasos 1-8 de la

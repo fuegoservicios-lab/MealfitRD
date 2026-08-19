@@ -128,7 +128,10 @@ describe('[P1-MEDICAL-CONDITIONS-CAP IMPORTANT-3-FIX] parser: catch de Plan.jsx'
         const branchIdx = codeOnly.indexOf("error.code === 'too_many_medical_conditions'");
         const nextIfIdx = codeOnly.indexOf('if (error.code ===', branchIdx + 1);
         const body = codeOnly.slice(branchIdx, nextIfIdx > -1 ? nextIfIdx : branchIdx + 2000);
-        expect(body).toMatch(/localStorage\.removeItem\('mealfit_plan_in_progress'\)/);
+        // [P2-LOCALSTORAGE-SSOT · 2026-08-19] Via el envoltorio unico. Lo que este
+        // ancla vigila no cambia: que el branch del 422 LIMPIE el flag, para no dejar
+        // un `mealfit_plan_in_progress` huerfano que resucite una generacion muerta.
+        expect(body).toMatch(/safeLocalStorageRemove\('mealfit_plan_in_progress'\)/);
     });
 
     it('el body del branch muestra un toast.error con `error.message` (el mensaje real del backend)', () => {

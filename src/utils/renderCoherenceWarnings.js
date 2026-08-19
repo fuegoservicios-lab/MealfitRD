@@ -39,6 +39,7 @@ import { getCoherenceHypothesisLabelI18n } from './coherenceLabels.js';
 // Todas las llamadas viven dentro de las funciones que construyen el toast, así
 // que se evalúan al emitirlo — con el catálogo ya cargado, nunca al importar.
 import { t, tn } from '../i18n';
+import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
 
 /**
  * @typedef {Object} CoherenceWarningItem
@@ -381,7 +382,7 @@ const _DISMISS_STORAGE_KEY = 'mealfit_coherence_toast_dismissed_at';
 const _readDismissAt = () => {
     try {
         const raw = typeof localStorage !== 'undefined'
-            ? localStorage.getItem(_DISMISS_STORAGE_KEY)
+            ? safeLocalStorageGet(_DISMISS_STORAGE_KEY, null)
             : null;
         if (raw === null || raw === undefined || raw === '') return null;
         const n = parseInt(raw, 10);
@@ -398,7 +399,7 @@ const _readDismissAt = () => {
 const _writeDismissAt = () => {
     try {
         if (typeof localStorage !== 'undefined') {
-            localStorage.setItem(_DISMISS_STORAGE_KEY, String(Date.now()));
+            safeLocalStorageSet(_DISMISS_STORAGE_KEY, String(Date.now()));
         }
     } catch { /* best-effort */ }
 };

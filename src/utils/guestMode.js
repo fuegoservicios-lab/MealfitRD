@@ -198,7 +198,7 @@ function stopGuestHeartbeat() {
     } catch { /* noop */ }
     _onVisibility = null;
     _onPageHide = null;
-    try { localStorage.removeItem(K_HEARTBEAT); } catch { /* noop */ }
+    safeLocalStorageRemove(K_HEARTBEAT);
 }
 
 /** Devuelve (creando si hace falta) el session_id efímero del invitado. */

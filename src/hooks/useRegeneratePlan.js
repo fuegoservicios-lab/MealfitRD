@@ -17,6 +17,7 @@ import { getFreshPlanCount } from '../utils/quotaCache';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo: los toasts se construyen dentro
 // de `regeneratePlan`, o sea al pulsar el botón — con el catálogo ya cargado.
 import { t } from '../i18n';
+import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 
 
 export const useRegeneratePlan = () => {
@@ -163,7 +164,7 @@ export const useRegeneratePlan = () => {
             let currentDisabledIngredients = disabledIngredients;
             if (currentDisabledIngredients === null) {
                 try {
-                    const saved = localStorage.getItem('mealfit_disabled_ingredients');
+                    const saved = safeLocalStorageGet('mealfit_disabled_ingredients', null);
                     if (saved) {
                         const parsed = JSON.parse(saved);
                         if (Array.isArray(parsed) && parsed.every(i => typeof i === 'string')) {

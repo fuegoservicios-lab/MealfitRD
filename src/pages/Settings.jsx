@@ -233,7 +233,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [pushEnabled, setPushEnabled] = useState(() => {
         try {
             if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
-            return localStorage.getItem('mealfit_push_enabled') === 'true';
+            return safeLocalStorageGet('mealfit_push_enabled', null) === 'true';
         } catch { return false; }
     });
     const [isPushLoading, setIsPushLoading] = useState(false);
@@ -242,7 +242,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
     // Persistir el último valor confirmado para hidratación instantánea en el próximo mount.
     useEffect(() => {
-        try { localStorage.setItem('mealfit_push_enabled', String(pushEnabled)); } catch {}
+        safeLocalStorageSet('mealfit_push_enabled', String(pushEnabled));
     }, [pushEnabled]);
 
     // [P1-4] Preferencia de logging: 'manual' (default) o 'auto_proxy'.
@@ -250,14 +250,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // Lazy init desde localStorage para evitar flash 'manual'→'auto_proxy' tras refresh.
     const [loggingPreference, setLoggingPreference] = useState(() => {
         try {
-            const cached = localStorage.getItem('mealfit_logging_preference');
+            const cached = safeLocalStorageGet('mealfit_logging_preference', null);
             return cached === 'auto_proxy' || cached === 'manual' ? cached : 'manual';
         } catch { return 'manual'; }
     });
     const [isLoggingPrefLoading, setIsLoggingPrefLoading] = useState(false);
 
     useEffect(() => {
-        try { localStorage.setItem('mealfit_logging_preference', loggingPreference); } catch {}
+        safeLocalStorageSet('mealfit_logging_preference', loggingPreference);
     }, [loggingPreference]);
 
     // [APPEARANCE-THEME · 2026-05-28] Preferencia de Apariencia (Sistema/
@@ -1648,7 +1648,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // Pre-actualizar localStorage para que el unmount del card sea
         // instantaneo al navegar al Dashboard (el state inicial lee de aqui).
         try {
-            localStorage.setItem('mealfit_water_tracker_enabled', String(next));
+            safeLocalStorageSet('mealfit_water_tracker_enabled', String(next));
             // Storage event para que un Dashboard abierto en otra tab
             // recoja el cambio sin reload (Fix 3 cross-tab).
             window.dispatchEvent(new StorageEvent('storage', {
@@ -1675,7 +1675,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             console.error('Error toggling water tracker:', error);
             setWaterTrackerEnabled(!next); // revertir
             try {
-                localStorage.setItem('mealfit_water_tracker_enabled', String(!next));
+                safeLocalStorageSet('mealfit_water_tracker_enabled', String(!next));
             } catch { /* localStorage no critico */ }
             toast.error(t('No pudimos actualizar tu preferencia. Intentalo de nuevo.'));
         } finally {

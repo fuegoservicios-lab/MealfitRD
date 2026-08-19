@@ -598,7 +598,7 @@ export const AssessmentProvider = ({ children }) => {
     // hidratar → arrancamos `false` y los consumers no esperan.
     const [loadingSensitive, setLoadingSensitive] = useState(() => {
         try {
-            return typeof localStorage !== 'undefined' && !!localStorage.getItem('mealfit_form_secure');
+            return typeof localStorage !== 'undefined' && !!safeLocalStorageGet('mealfit_form_secure', null);
         } catch {
             return false;
         }
@@ -628,8 +628,8 @@ export const AssessmentProvider = ({ children }) => {
     const [loadingProfile, setLoadingProfile] = useState(() => {
         try {
             return typeof localStorage !== 'undefined'
-                && !!localStorage.getItem('mealfit_user_id')
-                && localStorage.getItem('mealfit_user_id') !== 'guest';
+                && !!safeLocalStorageGet('mealfit_user_id', null)
+                && safeLocalStorageGet('mealfit_user_id', null) !== 'guest';
         } catch {
             return false;
         }
@@ -1665,7 +1665,7 @@ export const AssessmentProvider = ({ children }) => {
                 // a la pantalla de carga / dashboard con su plan recuperado (deep-search). Sin esto, "tab no
                 // viva" limpiaba la identidad guest → `ProtectedRoute` (!session && !isGuest) → /login.
                 let _guestHasPendingPlan = false;
-                try { _guestHasPendingPlan = !!localStorage.getItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                _guestHasPendingPlan = !!safeLocalStorageGet('mealfit_plan_in_progress', null);
                 // [P1-GUEST-SIBLING-TAB · 2026-08-09] `isGuestSessionAliveElsewhere()`
                 // es el tercer término, y cierra un bug reproducido en producción:
                 // `isGuestTabAlive()` vive en sessionStorage (POR PESTAÑA) pero la
@@ -1724,7 +1724,7 @@ export const AssessmentProvider = ({ children }) => {
                     // sin access_token ya no podremos descifrarlo. El public en
                     // `mealfit_form` se mantiene por compat (un guest puede seguir
                     // usando los campos no sensibles que llenó antes).
-                    try { localStorage.removeItem('mealfit_form_secure'); } catch { /* noop */ }
+                    safeLocalStorageRemove('mealfit_form_secure');
                 }
                 setLoadingData(false);
                 // [P1-10] Sin session no hay profile que hidratar.

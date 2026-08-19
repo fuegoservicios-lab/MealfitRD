@@ -1296,7 +1296,7 @@ const AgentPage = () => {
                 // y bloqueaba el load de history para todos los guests con storage
                 // corrupto, sin self-heal. `.slice(0, 40)` solo se aplica a arrays
                 // válidos; el validator garantiza el shape.
-                const savedListStr = localStorage.getItem('mealfit_guest_sessions_list');
+                const savedListStr = safeLocalStorageGet('mealfit_guest_sessions_list', null);
                 const parsedList = safeJSONParse(savedListStr, [currentSessionIdRef.current], {
                     validator: Array.isArray,
                     storageKey: 'mealfit_guest_sessions_list',

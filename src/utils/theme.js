@@ -12,6 +12,8 @@
 // data-theme síncronamente antes del primer paint. Este módulo re-aplica en
 // runtime (al montar la app y cuando el usuario cambia el toggle en Settings).
 
+import { safeLocalStorageGet } from './safeLocalStorage';
+
 const STORAGE_KEY = 'mealfit_theme';
 const VALID_PREFS = ['system', 'light', 'dark'];
 
@@ -22,7 +24,7 @@ const VALID_PREFS = ['system', 'light', 'dark'];
  *  (index.html) convierte un 'system' previo a 'dark' una sola vez. */
 export function getStoredThemePref() {
     try {
-        const v = localStorage.getItem(STORAGE_KEY);
+        const v = safeLocalStorageGet(STORAGE_KEY, null);
         return VALID_PREFS.includes(v) ? v : 'dark';
     } catch {
         return 'dark';

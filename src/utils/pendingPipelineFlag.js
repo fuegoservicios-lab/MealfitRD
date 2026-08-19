@@ -1,3 +1,4 @@
+import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from './safeLocalStorage';
 // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Flag local de "hay una generación de plan
 // en vuelo". Vivía dentro de `components/PendingPipelineRecovery.jsx`; se extrae porque
 // ahora también lo consulta el Dashboard (para no gritar "Tu plan quedó incompleto"
@@ -16,7 +17,7 @@ const MAX_AGE_MIN = 360;
 
 export function readPendingFlag() {
     try {
-        const raw = localStorage.getItem(LS_KEY);
+        const raw = safeLocalStorageGet(LS_KEY, null);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object') return null;
@@ -25,7 +26,7 @@ export function readPendingFlag() {
 }
 
 export function clearPendingFlag() {
-    try { localStorage.removeItem(LS_KEY); } catch { /* noop */ }
+    safeLocalStorageRemove(LS_KEY);
 }
 
 // Escribe el flag sintetizándolo desde la verdad del backend (KV). Se usa cuando el user
@@ -34,8 +35,8 @@ export function clearPendingFlag() {
 export function writePendingFlag(startedAtIso) {
     try {
         let uid = null;
-        try { uid = localStorage.getItem('mealfit_user_id') || null; } catch { /* noop */ }
-        localStorage.setItem(LS_KEY, JSON.stringify({
+        uid = safeLocalStorageGet('mealfit_user_id', null) || null;
+        safeLocalStorageSet(LS_KEY, JSON.stringify({
             user_id: uid,
             started_at: startedAtIso || new Date().toISOString(),
         }));

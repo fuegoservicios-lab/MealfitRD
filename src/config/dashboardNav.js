@@ -16,6 +16,7 @@
 // `Plan|nav` lleva sufijo de contexto: aquí es la PESTAÑA, no el sustantivo del
 // producto («tu plan»), y hay idiomas donde no es la misma palabra.
 import { t } from '../i18n';
+import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 
 export const navItemsFor = ({ trackingMode = false } = {}) => [
     { key: 'plan', label: trackingMode ? t('Hoy') : t('Plan|nav'), path: '/dashboard' },
@@ -40,7 +41,7 @@ export const navItemsFor = ({ trackingMode = false } = {}) => [
  
 export const isTrackingMode = (userProfile, _planData) => {
     let local = null;
-    try { local = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }
+    local = safeLocalStorageGet('mealfit_plan_mode', null);
     const mode = userProfile?.plan_mode || local;
     if (mode === 'tracking') return true;   // elección explícita: contador manda
     if (mode === 'plan') return false;

@@ -1,3 +1,4 @@
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 // [P1-B7] Storage seguro para datos sensibles del formulario.
 //
 // Antes, `mealfit_form` en localStorage contenía TODO el formData en plaintext
@@ -304,11 +305,12 @@ export const saveFormData = async (formData, session) => {
 
     // Public siempre en plain — campos como `age`, `gender`, `mainGoal` no son
     // PII médica y los leemos sync en el initial state del provider.
-    try {
-        localStorage.setItem(PUBLIC_KEY, JSON.stringify(publicData));
-    } catch (e) {
-        console.warn('[secureFormStorage] No se pudo guardar mealfit_form:', e);
-    }
+    // [P2-LOCALSTORAGE-SSOT · 2026-08-19] `onError` en vez de try/catch propio: es
+    // el mismo aviso, por el envoltorio unico. Sin el, un fallo de cuota dejaria
+    // de registrarse y el formulario se perderia en silencio.
+    safeLocalStorageSet(PUBLIC_KEY, JSON.stringify(publicData), {
+        onError: (e) => console.warn('[secureFormStorage] No se pudo guardar mealfit_form:', e),
+    });
 
     // [P1-FORM-KEY · 2026-06-21] Cifrar con la llave estable si está disponible;
     // si no, fallback al access_token (comportamiento anterior / pre-migración).
@@ -332,7 +334,7 @@ export const saveFormData = async (formData, session) => {
         // la hidratación resuelta el reemplazo total vuelve a ser correcto, así que
         // BORRAR una alergia vuelve a persistirse — un merge no lo permitiría.
         let _blobExists = false;
-        try { _blobExists = !!localStorage.getItem(SECURE_KEY); } catch { /* noop */ }
+        _blobExists = !!safeLocalStorageGet(SECURE_KEY, null);
 
         // Si NO hay blob no hay nada que destruir: escribir es siempre seguro.
         // Si LO HAY, solo escribimos cuando consta que ya lo leímos en esta página.
@@ -354,7 +356,13 @@ export const saveFormData = async (formData, session) => {
         try {
             const key = await _getAesKey(secret);
             const ciphertext = await encryptObject(sensitiveData, key);
-            localStorage.setItem(SECURE_KEY, ciphertext);
+            // [P2-LOCALSTORAGE-SSOT · 2026-08-19] El envoltorio devuelve `false` en vez
+            // de lanzar, y este `catch` —que cubre ademas el cifrado— es quien decide
+            // NO borrar el blob previo. Se relanza para que siga habiendo UN solo
+            // manejador y la decision de arriba se siga tomando.
+            if (!safeLocalStorageSet(SECURE_KEY, ciphertext)) {
+                throw new Error('localStorage rechazo el blob cifrado (cuota o modo privado)');
+            }
         } catch (e) {
             console.warn('[secureFormStorage] Encrypt falló — sensitive no persistido:', e);
             // NO borramos el blob previo: el cifrado es la ÚLTIMA sentencia del try,
@@ -387,7 +395,7 @@ export const loadFormData = async (session) => {
     let sensitiveData = {};
 
     try {
-        const raw = localStorage.getItem(PUBLIC_KEY);
+        const raw = safeLocalStorageGet(PUBLIC_KEY, null);
         if (raw) {
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object') {
@@ -406,7 +414,7 @@ export const loadFormData = async (session) => {
                     }
                 }
                 if (_purged) {
-                    try { localStorage.setItem(PUBLIC_KEY, JSON.stringify(publicData)); } catch { /* best-effort */ }
+                    safeLocalStorageSet(PUBLIC_KEY, JSON.stringify(publicData));
                 }
             }
         }
@@ -428,7 +436,7 @@ export const loadFormData = async (session) => {
     // blob se pudo leer, así que es la que deja constancia. `saveFormData` decide a
     // partir de ese hecho, no adivinando por el contenido.
     let _blob = null;
-    try { _blob = localStorage.getItem(SECURE_KEY); } catch { /* noop */ }
+    _blob = safeLocalStorageGet(SECURE_KEY, null);
 
     if (!_blob) {
         // Nada guardado todavía: la lectura queda resuelta y escribir no puede
@@ -477,7 +485,7 @@ export const loadFormData = async (session) => {
 export const migrateLegacyFormStorage = () => {
     let raw;
     try {
-        raw = localStorage.getItem(PUBLIC_KEY);
+        raw = safeLocalStorageGet(PUBLIC_KEY, null);
     } catch {
         return null;
     }
@@ -495,11 +503,9 @@ export const migrateLegacyFormStorage = () => {
     if (!hasSensitive) return null;  // ya migrado / nada que hacer
 
     const { publicData, sensitiveData } = splitFormData(parsed);
-    try {
-        localStorage.setItem(PUBLIC_KEY, JSON.stringify(publicData));
-    } catch (e) {
-        console.warn('[secureFormStorage] migrate: no se pudo reescribir mealfit_form:', e);
-    }
+    safeLocalStorageSet(PUBLIC_KEY, JSON.stringify(publicData), {
+        onError: (e) => console.warn('[secureFormStorage] migrate: no se pudo reescribir mealfit_form:', e),
+    });
     return { publicData, sensitiveData };
 };
 
@@ -507,8 +513,8 @@ export const migrateLegacyFormStorage = () => {
  * Borra ambas claves del storage. Llamado durante logout / resetApp.
  */
 export const clearFormStorage = () => {
-    try { localStorage.removeItem(PUBLIC_KEY); } catch { /* noop */ }
-    try { localStorage.removeItem(SECURE_KEY); } catch { /* noop */ }
+    safeLocalStorageRemove(PUBLIC_KEY);
+    safeLocalStorageRemove(SECURE_KEY);
     _invalidateAesKeyCache(); // [P2-FORM-SAVE-DEBOUNCE] no retener la clave tras limpiar
     // Ya no hay blob: la lectura queda trivialmente resuelta y el próximo usuario
     // de esta pestaña puede escribir desde cero sin quedar bloqueado por el estado
@@ -604,7 +610,7 @@ const _isHydrationLikelyPending = (formData, session) => {
     if (typeof localStorage === 'undefined') return false;
     let hasSecureBlob = false;
     try {
-        hasSecureBlob = !!localStorage.getItem(SECURE_KEY);
+        hasSecureBlob = !!safeLocalStorageGet(SECURE_KEY, null);
     } catch {
         return false;
     }

@@ -11,6 +11,7 @@
 // contador.
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../config/api';
+import { safeLocalStorageSet } from './safeLocalStorage';
 
 export const reanudarPlanes = async () => {
     const tId = toast.loading('Reanudando…', { position: 'top-center' });
@@ -23,7 +24,7 @@ export const reanudarPlanes = async () => {
         const d = await r.json().catch(() => null);
         toast.dismiss(tId);
         if (!r.ok || !d?.success) throw new Error(d?.detail || 'No se pudo reanudar.');
-        try { localStorage.setItem('mealfit_plan_mode', 'plan'); } catch { /* noop */ }
+        safeLocalStorageSet('mealfit_plan_mode', 'plan');
         toast.success(d.plan_expired
             ? 'Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.'
             : 'Planes reanudados: la generación continúa donde quedó.');

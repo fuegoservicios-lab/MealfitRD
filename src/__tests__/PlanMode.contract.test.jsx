@@ -250,7 +250,7 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         // contestar (el horario cotidiano se saltaba en la práctica). Un índice
         // máximo solo significa algo en el array donde se alcanzó.
         const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
-        const stampIdx = s.indexOf("localStorage.setItem('mealfit_wizard_step_mode'");
+        const stampIdx = s.indexOf("safeLocalStorageSet('mealfit_wizard_step_mode'");
         expect(stampIdx).toBeGreaterThan(-1);
         const bloque = s.slice(stampIdx, stampIdx + 2200);
         // [P1-MAXSTEP-LANDING-PARITY] el máximo aterriza DONDE aterriza el paso
@@ -267,7 +267,10 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain('const stepsShape = steps.map((st) => (st.fields || []).join');
         expect(s).toContain('useMemo(() => buildFieldToStepIndex(steps), [stepsShape])');
         // trampa 2: el índice persistido se tira al cambiar de modo
-        expect(s).toContain("localStorage.getItem('mealfit_wizard_step_mode')");
+        // [P2-LOCALSTORAGE-SSOT · 2026-08-19] Via el envoltorio unico; lo que se
+        // vigila sigue siendo que el indice persistido se LEA para tirarlo al
+        // cambiar de modo, no con que funcion se lee.
+        expect(s).toContain("safeLocalStorageGet('mealfit_wizard_step_mode', null)");
     });
 
     it('Wizard: «Saltar a la última pregunta» valida contra el contrato DE LA RAMA', () => {
@@ -381,7 +384,11 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         // toggle bidireccional propio, que serializa `plan_mode: next`).
         const helper = read('utils/planModeResume.js');
         expect(helper).toContain("JSON.stringify({ plan_mode: 'plan' })");
-        expect(helper).toContain("localStorage.setItem('mealfit_plan_mode', 'plan')");
+        // [P2-LOCALSTORAGE-SSOT · 2026-08-19] El espejo local ya no se escribe con
+        // `localStorage.setItem` a pelo sino con `safeLocalStorageSet`, que es el
+        // envoltorio unico del repo. Lo que este ancla vigila NO cambia: que el
+        // espejo se escriba, y que se escriba AQUI y en ningun otro sitio.
+        expect(helper).toContain("safeLocalStorageSet('mealfit_plan_mode', 'plan')");
         const dash = read('pages/Dashboard.jsx');
         expect(dash).toContain("from '../utils/planModeResume'");
         expect(dash).not.toContain("JSON.stringify({ plan_mode: 'plan' })");

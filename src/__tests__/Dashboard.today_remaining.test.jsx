@@ -127,6 +127,17 @@ async function _waitForTrackingProgressSettled() {
  * un evento ya despachado: si de verdad no llega, el test sigue fallando, solo
  * que por la razon correcta y no por lo cargada que estuviera la maquina.
  */
+/* ⚠ EL PLAZO DEL TEST TIENE QUE SER MAYOR QUE EL DE LA ESPERA.
+ *
+ * Al subir `_esperaTexto` a 5.000 ms quedo IGUAL que el plazo por defecto de un
+ * test de vitest, asi que bajo carga la espera se comia el presupuesto entero y
+ * lo que expiraba era el TEST —«Test timed out in 5000ms»— en vez de fallar la
+ * asercion. El sintoma engaña: parece que el test es lento cuando lo que pasa es
+ * que su reloj y el de su espera son el mismo.
+ *
+ * Con 20 s hay sitio para varias esperas seguidas y sigue habiendo tope. */
+vi.setConfig({ testTimeout: 20000 });
+
 const _esperaTexto = (texto) => screen.findByText(texto, {}, { timeout: 5000 });
 
 const _fmtKcal = (n) => n.toLocaleString('es-DO');

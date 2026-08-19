@@ -130,7 +130,7 @@ import { fixDayCtaApplies } from '../utils/fixDayCta';
 // `localStorage.getItem(...)` sin try/catch → iOS Private Mode lanzaba
 // SecurityError y el useEffect callback crasheaba silenciosamente, dejando
 // a usuarios nuevos sin el modal de onboarding push.
-import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 // [P3-NOTIF-CENTER · 2026-06-16] Archivar el banner "plan no óptimo" al cerrarlo
 // + backfill de avisos descartados antes de que existiera el centro.
 import { addNotification, getNotifications, setNotificationData, openNotificationCenter } from '../utils/notifications';
@@ -1776,7 +1776,7 @@ const DashboardInner = () => {
             // _pantryCountCacheKey aparezca.
             const initialUid = userProfile?.id;
             if (!initialUid) return null;
-            const v = localStorage.getItem(`mealfit_pantry_count_${initialUid}`);
+            const v = safeLocalStorageGet(`mealfit_pantry_count_${initialUid}`, null);
             const n = v == null ? null : parseInt(v, 10);
             return Number.isFinite(n) && n >= 0 ? n : null;
         } catch { return null; }
@@ -1786,7 +1786,7 @@ const DashboardInner = () => {
     useEffect(() => {
         if (!_pantryCountCacheKey) return;
         try {
-            const v = localStorage.getItem(_pantryCountCacheKey);
+            const v = safeLocalStorageGet(_pantryCountCacheKey, null);
             const n = v == null ? null : parseInt(v, 10);
             if (Number.isFinite(n) && n >= 0) setCachedPantryCount(n);
         } catch { /* private mode / quota */ }
@@ -2011,7 +2011,7 @@ const DashboardInner = () => {
         if (!_pantryCountCacheKey || !Array.isArray(liveInventory)) return;
         const count = liveInventory.length;
         setCachedPantryCount(count);
-        try { localStorage.setItem(_pantryCountCacheKey, String(count)); } catch { /* quota / private mode */ }
+        safeLocalStorageSet(_pantryCountCacheKey, String(count));
     }, [liveInventory, _pantryCountCacheKey]);
 
     // Fetch inventario real desde user_inventory (refleja consumos y ediciones de la Nevera)
@@ -3004,7 +3004,7 @@ const DashboardInner = () => {
         try {
             const initialUid = userProfile?.id;
             if (!initialUid) return null;
-            const v = localStorage.getItem(`mealfit_restock_btn_${initialUid}`);
+            const v = safeLocalStorageGet(`mealfit_restock_btn_${initialUid}`, null);
             if (v === '1') return true;
             if (v === '0') return false;
             return null;
@@ -3014,7 +3014,7 @@ const DashboardInner = () => {
     useEffect(() => {
         if (!_restockBtnCacheKey) return;
         try {
-            const v = localStorage.getItem(_restockBtnCacheKey);
+            const v = safeLocalStorageGet(_restockBtnCacheKey, null);
             if (v === '1') setCachedHasPendingShoppingItems(true);
             else if (v === '0') setCachedHasPendingShoppingItems(false);
         } catch { /* private mode */ }
@@ -3023,7 +3023,7 @@ const DashboardInner = () => {
     useEffect(() => {
         if (!_restockBtnCacheKey || computedHasPendingShoppingItems === null) return;
         setCachedHasPendingShoppingItems(computedHasPendingShoppingItems);
-        try { localStorage.setItem(_restockBtnCacheKey, computedHasPendingShoppingItems ? '1' : '0'); }
+        try { safeLocalStorageSet(_restockBtnCacheKey, computedHasPendingShoppingItems ? '1' : '0'); }
         catch { /* quota */ }
     }, [computedHasPendingShoppingItems, _restockBtnCacheKey]);
 
@@ -3204,7 +3204,7 @@ const DashboardInner = () => {
                             updated_at: latestRow.updated_at,
                         };
                         try {
-                            localStorage.setItem('mealfit_plan', JSON.stringify(fresh));
+                            safeLocalStorageSet('mealfit_plan', JSON.stringify(fresh));
                         } catch (_lsErr) { /* localStorage best-effort */ }
                         try { setPlanData(fresh); } catch (_setErr) { /* setter best-effort */ }
                         effectivePlanData = fresh;
@@ -7124,8 +7124,8 @@ const DashboardInner = () => {
                     <button
                         onClick={() => {
                             try {
-                                localStorage.removeItem('mealfit_plan');
-                                localStorage.removeItem('mealfit_plan_id');
+                                safeLocalStorageRemove('mealfit_plan');
+                                safeLocalStorageRemove('mealfit_plan_id');
                             } catch (_lsErr) { /* best-effort */ }
                             navigate('/assessment');
                         }}
@@ -9806,7 +9806,7 @@ const Dashboard = () => {
     // usuario acabara de elegir «solo contador»: el contador manda cuando es
     // elección explícita; el plan queda en Historial con «Reanudar».
     let _localMode = null;
-    try { _localMode = localStorage.getItem('mealfit_plan_mode'); } catch { /* noop */ }
+    _localMode = safeLocalStorageGet('mealfit_plan_mode', null);
     const _planMode = userProfile?.plan_mode || _localMode || null;
 
     if (_planMode === 'tracking') {

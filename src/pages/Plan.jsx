@@ -17,7 +17,7 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 // [P1-PROD-FINAL-3 · 2026-05-24] safeLocalStorage SSOT — el guest session
 // id se persiste en setup del flow de plan; raw setItem rompe golden path
 // guest en iOS Private Mode.
-import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` suelta para el motor de generación
 // (`generateAIPlanStream` y sus helpers viven FUERA de React); `useT`/`useTn`
 // para los tres componentes de este archivo. Los mensajes de error que solo
@@ -242,7 +242,7 @@ export const cancelGeneration = () => {
     // user canceló intencionalmente. Sin este clear, al recargar la página
     // el recovery polearia el KV y mostraría toast "Tu plan está listo" si
     // el backend alcanzó a completar antes del cancel cooperativo.
-    try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+    safeLocalStorageRemove('mealfit_plan_in_progress');
 };
 
 // Exportada para tests de regresión (P0-1): verificar que cuando SSE y el
@@ -715,7 +715,7 @@ const Plan = () => {
         let done = false;
         const readElapsedSec = () => {
             try {
-                const f = JSON.parse(localStorage.getItem('mealfit_plan_in_progress') || 'null');
+                const f = JSON.parse(safeLocalStorageGet('mealfit_plan_in_progress', null) || 'null');
                 const t = f?.started_at ? new Date(f.started_at).getTime() : NaN;
                 if (Number.isFinite(t)) return (Date.now() - t) / 1000;
             } catch { /* noop */ }
@@ -742,7 +742,7 @@ const Plan = () => {
                 try { await hydrateLatestPlan?.({ force: true, expectPlanId: planIdFinal, src: 'plan-page' }); } catch { /* noop */ }
             }
             fetchWithAuth(`/api/plans/pending-status/ack${qs}`, { method: 'POST' }).catch(() => {});
-            try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+            safeLocalStorageRemove('mealfit_plan_in_progress');
             navigate('/dashboard', { replace: true });
         };
         // Una vez que hubo un RESUME (o el SSE se marcó recovery), el stream SSE está muerto → el intervalo
@@ -780,7 +780,7 @@ const Plan = () => {
                     // KV existiera, es una pantalla ZOMBIE (completó+ackeó, o desapareció) → reconciliar al
                     // dashboard (carga el último plan; si de verdad no hay, ProtectedRoute lo maneja).
                     let flag = false;
-                    try { flag = !!localStorage.getItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                    flag = !!safeLocalStorageGet('mealfit_plan_in_progress', null);
                     if (act && flag && elapsed > 45) await goDashboard(sid, qs, null);
                     return;
                 }
@@ -830,7 +830,7 @@ const Plan = () => {
     // el usuario registra peso/señales (o pulsa Omitir) y recién entonces se genera.
     const [checkinPending, setCheckinPending] = useState(() => {
         try {
-            if (localStorage.getItem('mealfit_plan_in_progress')) return false;
+            if (safeLocalStorageGet('mealfit_plan_in_progress', null)) return false;
         } catch { /* noop */ }
         const _isRenewal = Boolean(
             (location.state?.previous_meals && location.state.previous_meals.length)
@@ -884,7 +884,7 @@ const Plan = () => {
         // Sync read porque tanto este useEffect como el useEffect del navigate
         // necesitan la misma decisión sin race.
         const _hasInProgressFlag = (() => {
-            try { return !!localStorage.getItem('mealfit_plan_in_progress'); }
+            try { return !!safeLocalStorageGet('mealfit_plan_in_progress', null); }
             catch { return false; }
         })();
 
@@ -968,10 +968,10 @@ const Plan = () => {
                             // navigate desde recovery sin pasar por el set
                             // pre-SSE más abajo).
                             try {
-                                const _existingFlag = localStorage.getItem('mealfit_plan_in_progress');
+                                const _existingFlag = safeLocalStorageGet('mealfit_plan_in_progress', null);
                                 if (!_existingFlag) {
-                                    localStorage.setItem('mealfit_plan_in_progress', JSON.stringify({
-                                        user_id: localStorage.getItem('mealfit_user_id') || null,
+                                    safeLocalStorageSet('mealfit_plan_in_progress', JSON.stringify({
+                                        user_id: safeLocalStorageGet('mealfit_user_id', null) || null,
                                         started_at: pendingData.started_at || new Date().toISOString(),
                                     }));
                                 }
@@ -1015,7 +1015,7 @@ const Plan = () => {
                                 const _aqs = _gsid ? `?session_id=${encodeURIComponent(_gsid)}` : '';
                                 fetchWithAuth(`/api/plans/pending-status/ack${_aqs}`, { method: 'POST' }).catch(() => {});
                             } catch { /* best-effort — igual navegamos al dashboard */ }
-                            try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                            safeLocalStorageRemove('mealfit_plan_in_progress');
                             navigate('/dashboard', { replace: true });
                             return;
                         }
@@ -1128,7 +1128,7 @@ const Plan = () => {
                 // flag al volver, consultará /api/plans/pending-status, y
                 // redirigirá al dashboard si el plan ya está listo.
                 try {
-                    localStorage.setItem('mealfit_plan_in_progress', JSON.stringify({
+                    safeLocalStorageSet('mealfit_plan_in_progress', JSON.stringify({
                         user_id: userId || null,
                         started_at: new Date().toISOString(),
                     }));
@@ -1309,9 +1309,9 @@ const Plan = () => {
                         // recovery polee (el user pudo llegar aquí desde un
                         // refresh donde el flag se perdió).
                         try {
-                            const _existingFlag = localStorage.getItem('mealfit_plan_in_progress');
+                            const _existingFlag = safeLocalStorageGet('mealfit_plan_in_progress', null);
                             if (!_existingFlag) {
-                                localStorage.setItem('mealfit_plan_in_progress', JSON.stringify({
+                                safeLocalStorageSet('mealfit_plan_in_progress', JSON.stringify({
                                     user_id: null,
                                     started_at: error.startedAt || new Date().toISOString(),
                                 }));
@@ -1330,8 +1330,8 @@ const Plan = () => {
                     // < N min (típico: se cayó la conexión TRAS generarlo y reintentaste). NO se generó
                     // otro (evita duplicado + doble costo LLM). Mostramos el plan que ya existe.
                     if (error.code === 'plan_recently_created') {
-                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
-                        try { localStorage.setItem('mealfit_history_dirty_at', String(Date.now())); } catch { /* noop */ }
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
+                        safeLocalStorageSet('mealfit_history_dirty_at', String(Date.now()));
                         // [P1-SSE-ADOPT-RECOVERY · 2026-06-25] Carga el plan ya creado en estado para que
                         // el user lo VEA de inmediato (no solo navegar al dashboard con el plan viejo).
                         await tryAdoptDedupedPlan(error.planId);
@@ -1355,7 +1355,7 @@ const Plan = () => {
                         // [P2-CRITICAL-REJECTION-CODE · 2026-06-18] Rechazo crítico: la IA no logró un
                         // plan que respete una restricción declarada (alergia/condición). Mensaje accionable
                         // ("revisa tus restricciones"), NO "IA saturada" — reintentar a ciegas no ayuda.
-                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Revisa tus restricciones"), {
                                 description: error.message || t("No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo."),
@@ -1402,7 +1402,7 @@ const Plan = () => {
                         // correctiva. Lo crítico ya está resuelto con el clear del
                         // flag: sin él, `<PendingPipelineRecovery />` seguiría
                         // poleando un pipeline que nunca arrancó.
-                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Demasiadas condiciones médicas"), {
                                 description: error.message || t("Selecciona máximo 3 condiciones prioritarias para continuar."),
@@ -1415,7 +1415,7 @@ const Plan = () => {
                         // [P2-BUDGET-FLOOR · 2026-06-21] El presupuesto declarado no alcanza las metas
                         // (o un dato del form es inválido). Mensaje accionable + volver al formulario
                         // para ajustar presupuesto/metas. Reintentar a ciegas no ayuda.
-                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Ajusta tu presupuesto o tus metas"), {
                                 description: error.message || t("Tu presupuesto no alcanza para tus metas. Súbelo o reduce los días, las personas o tu meta calórica."),
@@ -1431,7 +1431,7 @@ const Plan = () => {
                         // Sin clear, <PendingPipelineRecovery /> poleará un row
                         // stale del KV y redirigirá al user a /plan cuando el
                         // backend vuelva → ilusión de "regeneración automática".
-                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
                         import('sonner').then(({ toast }) => {
                             toast.error(t("La IA está saturada"), {
                                 description: error.message || t("Intenta de nuevo en 1-2 minutos."),
@@ -1451,7 +1451,7 @@ const Plan = () => {
                     // "Sin conexión con la IA" (mentira que mandaba al user a un
                     // loop en /assessment sin ver el paywall).
                     if (error.code === 'quota_exceeded') {
-                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Límite de créditos alcanzado"), {
                                 description: error.message || t("Mejora tu plan para seguir generando."),
@@ -1557,7 +1557,7 @@ const Plan = () => {
                         // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Backend REALMENTE caído /
                         // ERR_CONNECTION_REFUSED y sin pipeline vivo confirmado. Limpiar el flag para que
                         // <PendingPipelineRecovery /> no poolee un KV stale + rebotar al form para reintentar.
-                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Sin conexión con la IA"), {
                                 description: error.message || t("Verifica tu conexión y reintenta."),
@@ -1583,7 +1583,7 @@ const Plan = () => {
                         // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] El backend
                         // rechazó ANTES de iniciar pipeline (429). Sin clear,
                         // el flag stale dispararía recovery espurio.
-                        try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
                         import('sonner').then(({ toast }) => {
                             const toastId = 'rate-limit-toast';
                             const startedAt = Date.now();
@@ -1629,7 +1629,7 @@ const Plan = () => {
                     // al generar el plan" engañoso.
                     let _hasInProgressFlag = false;
                     try {
-                        const _flagRaw = localStorage.getItem('mealfit_plan_in_progress');
+                        const _flagRaw = safeLocalStorageGet('mealfit_plan_in_progress', null);
                         _hasInProgressFlag = !!_flagRaw;
                     } catch { /* localStorage best-effort */ }
 
@@ -1653,7 +1653,7 @@ const Plan = () => {
                     // [P3-CLEAR-FLAG-ON-FATAL · 2026-05-16] Clear del flag para
                     // que el recovery NO redirija al user a /plan automáticamente
                     // al volver el backend (KV row stale del intento fallido).
-                    try { localStorage.removeItem('mealfit_plan_in_progress'); } catch { /* noop */ }
+                    safeLocalStorageRemove('mealfit_plan_in_progress');
                     import('sonner').then(({ toast }) => {
                         toast.error(t("Error al generar el plan"), { description: t("Por favor, intenta nuevamente más tarde.") });
                     });
@@ -1730,7 +1730,7 @@ const Plan = () => {
         // al cuestionario aunque formData esté incompleto — el user vino
         // a recuperar su plan en curso, no a re-llenar el form.
         try {
-            if (localStorage.getItem('mealfit_plan_in_progress')) return;
+            if (safeLocalStorageGet('mealfit_plan_in_progress', null)) return;
         } catch { /* localStorage best-effort */ }
         if (!incompleteToastShownRef.current) {
             incompleteToastShownRef.current = true;
@@ -2379,7 +2379,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // se descartaba). El initializer lazy corre exactamente una vez.
     const [startTime] = useState(() => {
         try {
-            const f = JSON.parse(localStorage.getItem('mealfit_plan_in_progress') || 'null');
+            const f = JSON.parse(safeLocalStorageGet('mealfit_plan_in_progress', null) || 'null');
             const t = f?.started_at ? new Date(f.started_at).getTime() : NaN;
             if (Number.isFinite(t) && t < Date.now() && (Date.now() - t) < 6 * 3600 * 1000) return t;
         } catch { /* noop */ }

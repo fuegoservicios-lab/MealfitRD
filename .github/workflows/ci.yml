@@ -95,7 +95,7 @@ jobs:
       # borrar `ChatWidget.jsx` (829 lineas inalcanzables) se llevo sus 5
       # warnings de localStorage. Si el techo no baja con el, el margen se
       # rellena solo y sin que nadie lo vea, que es lo contrario de un trinquete.
-      - run: npx eslint . --max-warnings 158
+      - run: npx eslint . --max-warnings 66
       # [P2-LINT-RATCHET-POR-REGLA] El techo global es FUNGIBLE: arreglar un aviso
       # de estilo libera hueco para que entre uno de hooks, y el numero total no
       # se entera. Este gate pone techo POR REGLA, y una regla no declarada tiene

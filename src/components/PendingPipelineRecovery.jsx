@@ -23,6 +23,7 @@ import { useAssessment } from '../context/AssessmentContext';
 // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] El flag vive en su propio modulo
 // (lo comparte el Dashboard; exportar funciones desde un componente rompe fast-refresh).
 import { readPendingFlag, clearPendingFlag, writePendingFlag, isStale } from '../utils/pendingPipelineFlag';
+import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 
 const POLL_INTERVAL_MS = 10_000; // 10s
 // [P3-RECOVERY-BACKEND-DOWN-EXIT · 2026-05-16] Threshold de fallos
@@ -37,7 +38,7 @@ const _FAIL_THRESHOLD = 6;
 // keyea el KV por session_id para guests (para autenticados, verified_user_id gana y el
 // session_id se ignora). Ver backend.
 function getGuestSessionId() {
-    try { return localStorage.getItem('mealfit_guest_session_id') || null; } catch { return null; }
+    return safeLocalStorageGet('mealfit_guest_session_id', null) || null;
 }
 
 function _withSessionQS(path) {

@@ -1,3 +1,4 @@
+import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from './safeLocalStorage';
 // [P3-PANTRY-CACHE · 2026-05-19] Cache singleton de los dos datasets que
 // `Pantry.jsx` descarga al mount: `user_inventory` (varía con cada
 // add/delete/increment/restock) y `master_ingredients` (cuasi-inmutable,
@@ -57,7 +58,7 @@ const _MASTER_LIST_TTL_MS = 24 * 60 * 60 * 1000;
 const _INVENTORY_LS_KEY = 'mealfit_pantry_inventory_cache_v1';
 
 const _safeLsRemove = (key) => {
-    try { localStorage.removeItem(key); } catch { /* ignore */ }
+    safeLocalStorageRemove(key);
 };
 
 export const getCachedInventory = () => {
@@ -75,7 +76,7 @@ export const getCachedInventory = () => {
     // fallback. Cubre el caso post page reload donde el módulo se
     // re-evaluó y `_inventoryEntry` arrancó null.
     try {
-        const raw = localStorage.getItem(_INVENTORY_LS_KEY);
+        const raw = safeLocalStorageGet(_INVENTORY_LS_KEY, null);
         if (raw) {
             const parsed = JSON.parse(raw);
             if (parsed && Array.isArray(parsed.value)) {
@@ -104,7 +105,7 @@ export const setCachedInventory = (rows, ttlMs = _INVENTORY_TTL_MS) => {
     // localStorage para sobrevivir page reload. Best-effort: QuotaExceeded
     // en iOS Private Mode se ignora — el in-memory sigue activo.
     try {
-        localStorage.setItem(_INVENTORY_LS_KEY, JSON.stringify(entry));
+        safeLocalStorageSet(_INVENTORY_LS_KEY, JSON.stringify(entry));
     } catch { /* ignore */ }
 };
 
@@ -192,7 +193,7 @@ export const getCachedBrands = () => {
         return _brandsEntry.value;
     }
     try {
-        const raw = localStorage.getItem(_BRANDS_LS_KEY);
+        const raw = safeLocalStorageGet(_BRANDS_LS_KEY, null);
         if (raw) {
             const parsed = JSON.parse(raw);
             const v = parsed && parsed.value;
@@ -214,7 +215,7 @@ export const setCachedBrands = (map, ttlMs = _MASTER_LIST_TTL_MS) => {
     const entry = { value: map, expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null };
     _brandsEntry = entry;
     try {
-        localStorage.setItem(_BRANDS_LS_KEY, JSON.stringify(entry));
+        safeLocalStorageSet(_BRANDS_LS_KEY, JSON.stringify(entry));
     } catch { /* QuotaExceeded (iOS Private) — el in-memory sigue activo */ }
 };
 
@@ -250,7 +251,7 @@ export const getCachedPantryStatus = () => {
         return _statusEntry.value;
     }
     try {
-        const raw = localStorage.getItem(_STATUS_LS_KEY);
+        const raw = safeLocalStorageGet(_STATUS_LS_KEY, null);
         if (raw) {
             const parsed = JSON.parse(raw);
             const v = parsed && parsed.value;
@@ -272,7 +273,7 @@ export const setCachedPantryStatus = (status, ttlMs = _INVENTORY_TTL_MS) => {
     const entry = { value: status, expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null };
     _statusEntry = entry;
     try {
-        localStorage.setItem(_STATUS_LS_KEY, JSON.stringify(entry));
+        safeLocalStorageSet(_STATUS_LS_KEY, JSON.stringify(entry));
     } catch { /* QuotaExceeded — el in-memory sigue */ }
 };
 

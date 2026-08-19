@@ -48,6 +48,7 @@ import { shouldAutoReloadForChunkError } from './utils/chunkReloadGuard'
 import { initPostHog } from './utils/posthogClient'
 // [P1-LANDING-OBS-PAPER · 2026-08-14] Qué observabilidad corre según el host.
 import { shouldAttachSentryReplay, isMarketingVisit } from './utils/observabilityScope'
+import { safeLocalStorageGet } from './utils/safeLocalStorage';
 
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Listener CANONICO de Vite para fallos de
 // preload de chunks/CSS tras un deploy (cubre cualquier formato futuro del
@@ -132,7 +133,7 @@ const updateSW = _enApex ? _noop : registerSW({
       try {
         if (document.visibilityState !== 'hidden') return false;
         // El flag de generación en vuelo vive en localStorage (utils/pendingPipelineFlag).
-        const raw = localStorage.getItem('mealfit_plan_in_progress');
+        const raw = safeLocalStorageGet('mealfit_plan_in_progress', null);
         if (raw) {
           const started = Number(JSON.parse(raw)?.startedAt || 0);
           // Sólo bloquea si la generación es RECIENTE (< 30 min); un flag viejo es basura.

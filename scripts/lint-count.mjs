@@ -24,7 +24,7 @@
 // Uso: npm run lint:count
 import { ESLint } from 'eslint';
 
-const CEILING = 158; // sincronizado a mano con ci.yml; el desajuste se avisa abajo
+const CEILING = 66; // sincronizado a mano con ci.yml; el desajuste se avisa abajo
 
 /**
  * [P2-LINT-RATCHET-POR-REGLA · 2026-08-18] Un techo global tiene un agujero:
@@ -47,9 +47,18 @@ const CEILING = 158; // sincronizado a mano con ci.yml; el desajuste se avisa ab
  * cambiar deuda contabilizada por riesgo sin contabilizar.
  */
 const TECHOS_POR_REGLA = {
-    // Deuda de SSOT, no de seguridad: los 92 ya están guardados. Se consolidan
-    // en `safeLocalStorage` fichero a fichero, y este número baja con cada uno.
-    'no-restricted-syntax': 92,
+    // [P2-LOCALSTORAGE-SSOT · 2026-08-19] CERRADA. Eran 92 sitios en 22 ficheros,
+    // todos consolidados en `safeLocalStorage`. Techo 0: cualquier `localStorage`
+    // crudo que vuelva sale a la cara.
+    //
+    // No era deuda de seguridad —los 92 ya estaban dentro de un `try/catch`— sino
+    // de SSOT, y aun asi el cierre encontro tres cosas que un barrido ciego habria
+    // roto: tres escrituras de `secureFormStorage` cuyo `catch` REGISTRABA el fallo
+    // (migradas con el `onError` del envoltorio, que existe justo para eso), una
+    // que ademas decidia no borrar el blob cifrado previo (se relanza para
+    // conservar UN solo manejador), y cinco anclas de guards que citaban el literal
+    // `localStorage.setItem(...)` como prueba de que el espejo se escribia.
+    'no-restricted-syntax': 0,
     // Ficheros que exportan algo que no es un componente junto al componente.
     // Rompe el refresco en caliente del desarrollo; no afecta a producción.
     'react-refresh/only-export-components': 26,
