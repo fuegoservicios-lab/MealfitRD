@@ -23,8 +23,17 @@ import { toast } from 'sonner';
 // que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
-import { useT, t, tn, formatDate } from '../i18n';
+import { useT, useI18n, t, tn, formatDate } from '../i18n';
 import { COUNTRIES } from '../config/countries';
+// [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
+// del usuario — SSOT del fallback campo a campo (nombre/descripción) contra
+// el campo paralelo que el motor backend adjunta por locale al meal. El plan
+// sigue naciendo/persistiendo en español canónico (plan_display_i18n.py);
+// este helper es la ÚNICA vía frontend que lo lee — nunca se accede directo.
+// Nota: solo se usa para el TEXTO renderizado del título/descripción — la
+// identidad del plato (`meal.name` original) sigue siendo la clave de "me
+// gusta"/swap/PDF, que deben seguir resolviendo por el nombre canónico español.
+import { mealDisplay } from '../utils/displayMeal';
 
 // [P1-DASH-GENERATING-HONESTY · 2026-08-16] «el próximo llega el <día>» a partir de
 // `next_chunk_eta`. Devuelve '' ante cualquier entrada inservible: el copy que lo
@@ -802,6 +811,9 @@ const DashboardInner = () => {
     // que suscribe este componente al cambio de idioma. Sombrea al import a
     // propósito — es exactamente la misma función, con la suscripción encima.
     const t = useT();
+    // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Locale activo para `mealDisplay` —
+    // mismo hook (re-render en cambio de idioma), solo se lee `.locale`.
+    const { locale: _dashLocale } = useI18n();
     // [APPEARANCE-THEME · 2026-05-29] Tema activo para los botones de acción de
     // cada comida (Ver receta / Cambiar Plato / Like): en oscuro sus fondos
     // pastel claros se ven lavados, así que usamos variantes vívidas/notorias.
@@ -8285,6 +8297,13 @@ const DashboardInner = () => {
                             return currentDayMeals.map((meal, index) => {
                                 if (_isSupplementEntry(meal)) return null;
                                 const isLiked = meal.name ? !!likedMeals[meal.name] : false;
+                                // [P1-PLAN-DISPLAY-I18N · 2026-08-19] SOLO el texto pintado
+                                // (título/descripción) usa el nombre/desc traducidos — la
+                                // identidad (`meal.name` original) sigue siendo la clave de
+                                // "me gusta"/swap/PDF/aria-label de abajo, que deben resolver
+                                // por el nombre canónico español (I6-adyacente: el motor y sus
+                                // matchers nunca ven `_display`).
+                                const _mealDisp = mealDisplay(meal, _dashLocale);
                                 // [P1-TODAY-REMAINING · 2026-07-28] `index` aquí es el
                                 // MISMO índice real que P2-SWAP-INDEX-COUPLING protege
                                 // arriba — comparamos directo contra `todaysEatenIndices`
@@ -8387,7 +8406,7 @@ const DashboardInner = () => {
                                                         // lenguaje visual que el tab de un día pasado (~línea 6789).
                                                         textDecoration: isEatenToday ? 'line-through' : 'none',
                                                     }}>
-                                                        {meal.name}
+                                                        {_mealDisp.name}
                                                     </h3>
                                                 </div>
 
@@ -8529,7 +8548,7 @@ const DashboardInner = () => {
                                                 cansa igual que uno demasiado corto — el ojo pierde el salto
                                                 de línea. El tope lo acota sin volver a estrecharlo. */}
                                             <p className="meal-desc" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
-                                                {meal.desc}
+                                                {_mealDisp.description}
                                             </p>
                                         </div>
 

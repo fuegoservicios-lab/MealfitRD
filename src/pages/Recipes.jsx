@@ -65,7 +65,12 @@ import { getEatenSlotIndices, eatenClaimForSlot } from '../utils/todayRemaining'
 // estados vacíos, toasts) y el del PDF. Los DATOS del plan —nombre del plato,
 // descripción, ingredientes y pasos— salen del LLM y de la base: se pintan tal
 // cual, nunca pasan por `t()`.
-import { useT } from '../i18n';
+import { useT, useI18n } from '../i18n';
+// [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
+// del usuario — mismo helper SSOT que Dashboard.jsx. El PDF (handleDownloadPDF,
+// más abajo) queda FUERA de esta task a propósito (spec: "no PDFs — eso es
+// Task 5") y sigue recibiendo el meal ORIGINAL español, nunca el traducido.
+import { mealDisplay, mealDisplayName } from '../utils/displayMeal';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Recetas gana su primer fetch:
 // `GET /api/diary/consumed/{userId}` de solo LECTURA (mismo endpoint que
 // TrackingProgress.jsx en el Dashboard) para alimentar la anotación de abajo.
@@ -159,6 +164,8 @@ const Recipes = () => {
     // GET de solo lectura del diario de hoy (ver import de fetchWithAuth arriba).
     const { planData, userProfile } = useAssessment();
     const t = useT();
+    // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Locale activo para `mealDisplay`.
+    const { locale } = useI18n();
     const navigate = useNavigate();
     const contentRef = useRef(null);
     const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -631,9 +638,31 @@ const Recipes = () => {
                         ));
 
                         const currentMealIndex = Math.min(activeMealIndex, mealsWithEatenState.length - 1);
-                        const activeMeal = mealsWithEatenState[currentMealIndex];
+                        // [P1-PLAN-DISPLAY-I18N · 2026-08-19] `activeMealRaw` es el meal
+                        // ORIGINAL español — el PDF (`handleDownloadPDF`, más abajo) sigue
+                        // recibiendo ESTE, nunca el traducido (fuera de esta task). `activeMeal`
+                        // (sin sufijo) es la vista PINTADA: mismo objeto + name/desc/ingredients
+                        // reescritos con el fallback campo a campo de `mealDisplay` — el resto
+                        // de campos (cals, meal, prep_time, _isEatenToday, _eatenClaim...) viaja
+                        // intacto por el spread.
+                        const activeMealRaw = mealsWithEatenState[currentMealIndex];
+                        const _activeDisplay = mealDisplay(activeMealRaw, locale);
+                        const activeMeal = {
+                            ...activeMealRaw,
+                            name: _activeDisplay.name,
+                            desc: _activeDisplay.description,
+                            ingredients: _activeDisplay.ingredients,
+                        };
                         // [P2-RECIPE-DISCLAIMER-LIST] pasos coercidos a array (defensa).
-                        const activeRecipeSteps = toRecipeSteps(activeMeal.recipe);
+                        const activeRecipeSteps = toRecipeSteps(_activeDisplay.recipe);
+                        // [P1-PLAN-DISPLAY-I18N · 2026-08-19] El riel de comidas (MealRail)
+                        // también pinta `m.name` — mismo tratamiento que el título del
+                        // detalle: solo el TEXTO se traduce, el resto de cada meal (incluida
+                        // su identidad para _eatenClaim/_isEatenToday) viaja intacto.
+                        const mealsForRail = mealsWithEatenState.map((m) => ({
+                            ...m,
+                            name: mealDisplayName(m, locale),
+                        }));
                         // [P3-RECIPES-DAY-GOAL · 2026-06-24] El header muestra la META
                         // calórica del día (objetivo del plan = mismo `planData.calories`
                         // que usa TrackingProgress), NO la suma de los platos — que puede
@@ -674,7 +703,7 @@ const Recipes = () => {
                             activeDayEsHoy: !!_diaActivo?.esHoy,
                             activeDayGlobalIdx: activeDayIndex,
                             onSelectDay: (g) => { setActiveDayIndex(g); setActiveMealIndex(0); setCheckedIngredients({}); },
-                            meals: mealsWithEatenState,
+                            meals: mealsForRail,
                             activeMealIndex: currentMealIndex,
                             onSelectMeal: (i) => { setActiveMealIndex(i); setCheckedIngredients({}); },
                             meal: activeMeal,
@@ -682,7 +711,10 @@ const Recipes = () => {
                             dayKcal,
                             checkedIngredients,
                             onToggleIngredient: toggleIngredient,
-                            onPDF: () => handleDownloadPDF(activeMeal),
+                            // [P1-PLAN-DISPLAY-I18N · 2026-08-19] El PDF sigue recibiendo el
+                            // meal ORIGINAL español (`activeMealRaw`), nunca `activeMeal`
+                            // (vista pintada) — fuera de esta task, ver comentario del import.
+                            onPDF: () => handleDownloadPDF(activeMealRaw),
                         };
                         return isMobile
                             ? <MobileRecipes {...viewProps} />
