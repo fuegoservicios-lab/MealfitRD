@@ -95,6 +95,41 @@ const precacheAudiencePlugin = () => ({
   },
 })
 
+/**
+ * [P3-HTML-LIMPIO · 2026-08-18] Quita los comentarios de `index.html` AL CONSTRUIR.
+ *
+ * Los comentarios de este HTML son buenos y hay que conservarlos: explican por
+ * qué el zoom está bloqueado, por qué el arranque de idioma y el de tema van
+ * inline, qué hace cada bloque de SEO. Lo que no tiene sentido es EMBARCARLOS.
+ *
+ * Medido: 9.471 B crudos, 4.400 B gzip —el 43% del fichero—. Y el HTML no es un
+ * asset con hash: viaja, revalidado, en cada carga de cada visitante, así que
+ * esos 4,4 kB no se amortizan nunca con la caché como sí hacen los `.js`.
+ *
+ * ⚠ NO SE TOCA LO QUE HAY DENTRO DE `<script>` NI DE `<style>`. Un
+ * `String.replace(/<!--[\s\S]*?-->/g, '')` a pelo sobre todo el documento
+ * arrasaría con cualquier `-->` que aparezca dentro de una cadena de JavaScript
+ * —y aquí hay siete scripts inline, incluidos los dos arranques sin parpadeo, que
+ * son load-bearing: si se corrompen, la página parpadea en el tema equivocado o
+ * se queda en blanco—. Por eso se trocea primero y sólo se limpian los tramos de
+ * fuera.
+ *
+ * `apply: 'build'` a propósito: en desarrollo los comentarios se quedan, que es
+ * donde alguien los va a leer.
+ */
+const sinComentariosHtml = () => ({
+    name: 'sin-comentarios-html',
+    apply: 'build',
+    enforce: 'post',
+    transformIndexHtml(html) {
+        const trozos = html.split(/(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>)/i);
+        return trozos
+            .map((t, i) => (i % 2 === 1 ? t : t.replace(/<!--[\s\S]*?-->/g, '')))
+            .join('')
+            .replace(/\n{3,}/g, '\n\n');
+    },
+});
+
 export default defineConfig(({ mode }) => {
   // El origen de Neon Auth se deriva de `VITE_NEON_AUTH_URL` en vez de repetirse
   // a mano: el valor ya vive en `.env.production` y una segunda copia en el HTML
@@ -110,6 +145,7 @@ export default defineConfig(({ mode }) => {
   return {
   plugins: [
     react(),
+    sinComentariosHtml(),
     landingHeadPlugin(authOrigin),
     precacheAudiencePlugin(),
     VitePWA({
