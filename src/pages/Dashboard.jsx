@@ -164,7 +164,7 @@ import { usePlanPollLoop } from '../hooks/usePlanPollLoop';
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
-import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml } from '../utils/shoppingHelpers';
+import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
@@ -3833,6 +3833,18 @@ const DashboardInner = () => {
                             } catch (e) { }
                         } else if (typeof display === 'object' && display !== null) {
                             display = display.display_name || display.name || display.item_name || JSON.stringify(display);
+                        }
+
+                        // [P1-PLAN-DISPLAY-I18N · Task 5 · 2026-08-19] Lista de compras
+                        // BILINGÜE (spec: "el usuario cocina en su idioma pero COMPRA en
+                        // español", jamás inglés puro). `display_name_en` es un campo
+                        // ESTÁTICO del catálogo (backend shopping_calculator aggregator,
+                        // Task 5), no traducido por-locale como `meal._display` — el gloss
+                        // sale "English (Español)" para cualquier locale distinto de
+                        // es-DO. Fallback silencioso al nombre español si el ítem aún no
+                        // tiene `display_name_en` poblado.
+                        if (typeof display === 'string') {
+                            display = glossShoppingItemName(display, item.item_ref?.display_name_en, _dashLocale);
                         }
 
                         // Color del chip alineado con la durabilidad real del item:

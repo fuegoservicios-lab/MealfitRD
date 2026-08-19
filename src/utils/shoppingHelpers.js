@@ -140,6 +140,40 @@ export const escapeHtml = (value) => {
         .replace(/'/g, '&#39;');
 };
 
+// ============================================================
+// [P1-PLAN-DISPLAY-I18N · Task 5 · 2026-08-19] Gloss bilingüe de la lista
+// de compras del PDF — fase 1b de
+// docs/superpowers/specs/2026-08-19-plan-display-i18n-design.md, regla de
+// oro: "el usuario cocina en su idioma pero COMPRA en español" — los
+// ingredientes de la lista son SIEMPRE bilingües cuando el gloss existe,
+// JAMÁS inglés puro. `display_name_en` es un campo ESTÁTICO del catálogo
+// (backend/shopping_calculator.py::_display_name_en_for_item, poblado por
+// `scripts/fill_catalog_name_en.py`), no traducido por-locale como
+// `meal._display` — por eso el gloss es siempre "English (Español)" para
+// CUALQUIER locale distinto de es-DO (pt-BR/fr-FR/it-IT incluidos: no hay
+// glosses en portugués/francés/italiano, la fase 1b solo cubre inglés).
+// Fallback silencioso: sin `displayNameEn` o en es-DO, se muestra el
+// nombre español tal cual — nunca se lanza ni se rompe el PDF.
+// ============================================================
+
+/**
+ * `glossShoppingItemName(name, displayNameEn, locale)` -> string
+ *
+ * - es-DO (o `locale` ausente/falsy): siempre el nombre español, tal cual.
+ * - `displayNameEn` ausente/vacío: el nombre español, tal cual (fallback
+ *   silencioso — display_name_en aún no fue poblado para ese ítem).
+ * - En cualquier otro caso: "`displayNameEn` (`name`)", p.ej.
+ *   "Black beans (Habichuelas negras)".
+ */
+export const glossShoppingItemName = (name, displayNameEn, locale) => {
+    const spanishName = typeof name === 'string' ? name : (name == null ? '' : String(name));
+    if (!locale || locale === 'es-DO') return spanishName;
+    if (typeof displayNameEn !== 'string' || displayNameEn.trim() === '') return spanishName;
+    const englishGloss = displayNameEn.trim();
+    if (!spanishName) return englishGloss;
+    return `${englishGloss} (${spanishName})`;
+};
+
 export const getActiveShoppingList = (planData, duration) => {
     if (!planData || !duration) return null;
     // [P3-NEW-1 · 2026-05-10] Defense-in-depth contra
