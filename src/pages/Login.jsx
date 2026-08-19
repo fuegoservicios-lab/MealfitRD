@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { isSiteHost } from '../config/site';
+import { apexUrl } from '../config/site';
 import { authClient, sendEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
@@ -26,19 +26,10 @@ const RESEND_COOLDOWN_S = 30;
 // botón queda debajo del teclado.
 const OTP_LENGTH = 6;
 
-// [P3-LOGIN-LEGAL-LANDING · 2026-06-30] Las políticas "oficiales" viven en el LANDING de
-// marketing (apex mealfitrd.com), no en el app (app.mealfitrd.com). Desde el login
-// enlazamos al apex para que se vean en su contexto de marketing (header/footer del
-// landing), no con el chrome del app. En dev/preview (no *.mealfitrd.com) usamos la ruta
-// in-app para que siga funcionando localmente.
-const landingLegalUrl = (path) => {
-    if (typeof window === 'undefined') return path;
-    const { protocol, hostname } = window.location;
-    if (isSiteHost(hostname)) {
-        return `${protocol}//${hostname.replace(/^app\./i, '')}${path}`;
-    }
-    return path; // dev / preview → ruta in-app
-};
+// [P1-LEGAL-UNA-SOLA-COPIA . 2026-08-19] `landingLegalUrl` vivia aqui como
+// constante local. Se movio a `config/site.js::apexUrl` cuando el pie necesito
+// lo mismo: dos helpers para «la URL de la pagina publica» es como se empieza a
+// no saber cual usar.
 
 /* ---- SVG de Google ORIGINAL (los 4 colores) — a propósito, es mejor que el placeholder ---- */
 function GoogleIcon() {
@@ -443,9 +434,9 @@ const Login = () => {
                                     medias: son dos documentos distintos. */}
                                 <p className="mf-privacy">
                                     {t('Al continuar, aceptas nuestros')}{' '}
-                                    <a href={landingLegalUrl('/terms')} target="_blank" rel="noopener noreferrer">{t('Términos de Uso')}</a>
+                                    <a href={apexUrl('/terms')} target="_blank" rel="noopener noreferrer">{t('Términos de Uso')}</a>
                                     {' '}{t('y reconoces nuestra')}{' '}
-                                    <a href={landingLegalUrl('/privacy')} target="_blank" rel="noopener noreferrer">{t('Política de Privacidad')}</a>.
+                                    <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer">{t('Política de Privacidad')}</a>.
                                 </p>
                             </form>
 

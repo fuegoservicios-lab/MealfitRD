@@ -10,6 +10,7 @@ import Wordmark from '../common/Wordmark';
 // las rutas no-papel conservan el copyright de una sola línea.
 import { isPaperSurface } from '../../utils/paperSurface';
 import { useT } from '../../i18n';
+import { apexUrl } from '../../config/site';
 
 /**
  * [P1-LEGAL-UNA-SOLA-COPIA · 2026-08-19] Los legales viven en el apex, y se sale
@@ -29,12 +30,12 @@ import { useT } from '../../i18n';
  * apex son 301, 301 y 404—. El texto también divergió: el 19 de agosto la misma
  * afirmación falsa sobre contraseñas vivía en TRES sitios a la vez.
  */
-const APEX = 'https://bioboros.com';
+// El helper es SSOT en `config/site.js` (lo estrenó Login.jsx en junio).
 
 function EnlaceLegal({ a, children }) {
     // `rel="noopener"` aunque no lleve `target`: es el mismo origen de marca pero
     // otro origen web, y cuesta cero.
-    return <a href={`${APEX}${a}`} rel="noopener">{children}</a>;
+    return <a href={apexUrl(a)} rel="noopener">{children}</a>;
 }
 
 // [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una página legal,

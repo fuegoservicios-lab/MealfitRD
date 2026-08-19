@@ -52,3 +52,25 @@ export function isSiteHost(hostname) {
     const h = String(hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '')).toLowerCase();
     return h === SITE_DOMAIN || h.endsWith(`.${SITE_DOMAIN}`);
 }
+
+/**
+ * URL de una pagina publica (legales, precios, etc.) en el APEX.
+ *
+ * [P3-LOGIN-LEGAL-LANDING . 2026-06-30 . SSOT aqui P1-LEGAL-UNA-SOLA-COPIA . 2026-08-19]
+ * Nacio dentro de `Login.jsx` como constante local. Al hacer que el pie tambien
+ * saliera al apex escribi un SEGUNDO mecanismo sin ver el primero --una constante
+ * `APEX` con el dominio a pelo--, que es como se empieza a no saber cual usar.
+ *
+ * Este es mejor que el que yo habia escrito y por eso gana: quita el prefijo
+ * `app.` del host ACTUAL en vez de fijar el dominio, asi que funciona en
+ * cualquier entorno, y en dev/preview cae a la ruta interna para que el enlace
+ * no mande a produccion desde localhost.
+ */
+export function apexUrl(path) {
+    if (typeof window === 'undefined') return path;
+    const { protocol, hostname } = window.location;
+    if (isSiteHost(hostname)) {
+        return `${protocol}//${hostname.replace(/^app\./i, '')}${path}`;
+    }
+    return path; // dev / preview -> ruta in-app
+}

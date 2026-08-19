@@ -11,8 +11,13 @@ describe('[P1-LOGIN-LEGAL-TERMS] el consentimiento nombra los DOS documentos', (
         // Apple lo comprueba de forma vinculante. La ruta `/terms` y el helper del
         // dominio ya existían: enlazar solo privacidad era una omisión, no una decisión.
         const src = leer('src/pages/Login.jsx');
-        expect(src).toMatch(/landingLegalUrl\('\/terms'\)/);
-        expect(src).toMatch(/landingLegalUrl\('\/privacy'\)/);
+        // [P1-LEGAL-UNA-SOLA-COPIA . 2026-08-19] El helper se llamaba
+        // `landingLegalUrl` y vivia dentro de este fichero; ahora es
+        // `config/site.js::apexUrl`, compartido con el pie. Lo que este caso
+        // vigila --que el consentimiento nombre los DOS documentos y ambos salgan
+        // al apex-- no cambia.
+        expect(src).toMatch(/apexUrl\('\/terms'\)/);
+        expect(src).toMatch(/apexUrl\('\/privacy'\)/);
     });
 });
 

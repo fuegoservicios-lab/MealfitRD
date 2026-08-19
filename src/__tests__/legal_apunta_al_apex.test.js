@@ -49,6 +49,13 @@ describe('P1-LEGAL-UNA-SOLA-COPIA · el pie', () => {
     it('sigue habiendo ocho enlaces legales, y salen al apex', () => {
         const salidas = [...src.matchAll(/<EnlaceLegal a="\/([a-z-]+)"/g)].map((m) => m[1]);
         expect(salidas.sort()).toEqual([...LEGALES].sort());
-        expect(src).toContain("const APEX = 'https://bioboros.com'");
+        // Y por el helper COMPARTIDO, no por una constante propia. La primera
+        // version de este fichero fijaba el dominio a pelo en Footer.jsx, sin ver
+        // que `Login.jsx` ya tenia el mismo helper desde junio. Dos formas de
+        // decir «la URL de la pagina publica» es como se empieza a no saber cual
+        // usar; y la que ya existia es mejor, porque deriva el host del actual en
+        // vez de fijarlo y en dev cae a la ruta interna.
+        expect(src).toContain("from '../../config/site'");
+        expect(src).toContain('apexUrl(a)');
     });
 });
