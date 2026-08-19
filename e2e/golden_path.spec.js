@@ -1,5 +1,5 @@
 // @ts-check
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 /**
  * [P3-E2E-PLAYWRIGHT · 2026-05-12] Smoke tests del golden-path.
@@ -28,11 +28,38 @@ test.describe('Golden path smoke', () => {
     const consoleErrors = [];
     page.on('pageerror', (err) => consoleErrors.push(`pageerror: ${err.message}`));
     page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(`console.error: ${msg.text()}`);
+      if (msg.type() !== 'error') return;
+      /* [P2-CROSS-BROWSER · 2026-08-18] EL RUIDO DE `/api/` NO CUENTA, Y NO SE
+         AMPLÍA ESTE FILTRO. Sin backend levantado —ni en local ni en CI lo hay—
+         `/api/plans/pending-status` devuelve 500 y el navegador anota un
+         `console.error` de red. Es del entorno, no de la página; el test hermano
+         de `landing_depth.spec.js` lleva este mismo filtro y explica lo mismo.
+
+         Lo que destapó esto: al arreglar la espera —antes medía con `#root`
+         visible, o sea a los pocos cientos de milisegundos— este test empezó a
+         fallar en chromium Y en webkit. No había regresión ninguna: es que
+         durante meses no comprobaba «cero errores de consola», comprobaba «cero
+         errores ANTES de que llegara la primera respuesta de red». Una aserción
+         que se evalúa antes de que ocurra lo que vigila pasa siempre.
+
+         Se filtra por la URL del recurso, no por el texto: el mensaje del
+         navegador es genérico («Failed to load resource: … 500») y no nombra la
+         ruta. Filtrar por texto se tragaría también un 500 de un recurso propio. */
+      const url = msg.location?.()?.url || '';
+      if (url.includes('/api/')) return;
+      consoleErrors.push(`console.error: ${msg.text()}`);
     });
 
     await page.goto('/');
-    // Wait for splash to fade — proxy for React hydration done.
+    /* [P2-CROSS-BROWSER · 2026-08-18] ESPERAR LO QUE EL COMENTARIO DECÍA QUE SE
+       esperaba. La línea rezaba «wait for splash to fade» y lo que hacía era
+       esperar a que `#root` fuera VISIBLE, que ocurre bastante antes: `#root`
+       tiene caja en cuanto React monta el splash, con el contenido aún sin
+       pintar. Bajo carga —tres motores en paralelo— eso dejó el `innerText`
+       del body por debajo de los 20 caracteres que la última aserción exige, y
+       el test acusó una página en blanco que no existía. La señal correcta la
+       usaba ya el test de aquí al lado: el splash DESAPARECIDO. */
+    await expect(page.locator('#pwa-splash')).toBeHidden({ timeout: 15_000 });
     await expect(page.locator('#root')).toBeVisible({ timeout: 10_000 });
 
     // Validar que NO hubo ningún error de JS durante hydration.
@@ -44,9 +71,23 @@ test.describe('Golden path smoke', () => {
       `Errors capturados: ${consoleErrors.join(' | ')}`
     ).toHaveLength(0);
 
-    // Hay contenido renderizado (no blank page).
-    const bodyText = await page.locator('body').innerText();
-    expect(bodyText.length, 'Body parece vacío post-hydration').toBeGreaterThan(20);
+    /* Hay contenido renderizado (no blank page).
+
+       [P2-CROSS-BROWSER · 2026-08-18] CON REINTENTO, no de un solo disparo. Un
+       `await page.locator('body').innerText()` lee UNA vez: si en ese instante
+       el árbol aún no tiene texto, el test acusa una página en blanco que un
+       cuarto de segundo después ya no existe. Bajo la carga de tres motores en
+       paralelo eso pasó en Firefox —y solo en Firefox—.
+
+       Es la tercera vez en esta misma tanda que un test mide algo asíncrono sin
+       reintentar y el resultado depende de lo cargada que esté la máquina. El
+       patrón de Playwright para esto es `expect.poll`, que reevalúa hasta que
+       se cumple o vence el plazo: la aserción sigue siendo la misma, lo que
+       cambia es que ahora espera a poder responderla. */
+    await expect
+        .poll(async () => (await page.locator('body').innerText()).length,
+              { message: 'Body parece vacío post-hydration', timeout: 10_000 })
+        .toBeGreaterThan(20);
   });
 
   test('splash screen unmounts after hydration', async ({ page }) => {

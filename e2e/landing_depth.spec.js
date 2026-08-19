@@ -3,7 +3,7 @@
    que el navegador las APLICA — que es donde vive la diferencia entre «el CSS
    dice rotateY» y «la hoja se ve inclinada». */
 // @ts-check
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('03/04 — profundidad', () => {
     test('a >=1024px las hojas estan transformadas Y la lamina se ABRE', async ({ page }) => {
@@ -99,17 +99,28 @@ test.describe('03/04 — profundidad', () => {
 
     for (const ancho of ANCHOS) {
         test(`nada del aparejo de profundidad se sale de la pagina a ${ancho}px — con la lamina ABIERTA`, async ({ page }) => {
-            /* ⚠ EL ANCHO QUE MANDA ES `clientWidth`, NO EL DEL VIEWPORT. La
-               barra de scroll clásica de Chromium se come ~15px, y las media
-               queries se evalúan contra el ancho SIN barra: pedir un viewport
-               de 1024 dejaría `clientWidth` en ~1009 y el bloque `@media
-               (min-width: 1024px)` NO aplicaría — la cota es `display: none`
-               ahí y el test pasaría sin haber mirado nada. Se mide la barra y
-               se pide el viewport compensado. */
+            /* ⚠ EL ANCHO QUE MANDA ES `clientWidth`, NO EL DEL VIEWPORT. Las
+               media queries se evalúan contra el ancho SIN barra de scroll:
+               pedir un viewport de 1024 con una barra clásica deja
+               `clientWidth` en ~1016 y el bloque `@media (min-width: 1024px)`
+               NO aplica — la cota es `display: none` ahí y el test pasaría sin
+               haber mirado nada.
+
+               [P2-CROSS-BROWSER · 2026-08-18] LA COMPENSACIÓN SE MEDÍA ANTES DE
+               TIEMPO Y POR ESO NO COMPENSABA NUNCA. Estaba justo después del
+               `goto`, y ahí el documento aún mide 900px de alto — medido:
+               `scrollHeight` 900, luego 7.120 una vez asienta—, o sea que no
+               hay barra que medir y `barra` valía 0 SIEMPRE. En Chromium eso
+               nunca se notó porque usa barras superpuestas y `clientWidth` no
+               baja jamás; al añadir WebKit salió a la primera, con sus 8px
+               clásicos, en los tres anchos. Un cálculo defensivo que corre en
+               el único instante en que su respuesta es siempre cero no
+               protege: adorna.
+
+               Ahora se mide DESPUÉS de que la página asiente, que es cuando la
+               barra existe. */
             await page.setViewportSize({ width: ancho, height: 900 });
             await page.goto('/');
-            const barra = await page.evaluate(() => window.innerWidth - document.documentElement.clientWidth);
-            if (barra > 0) await page.setViewportSize({ width: ancho + barra, height: 900 });
 
             /* ⚠ HAY QUE ABRIR LA LÁMINA ANTES DE MEDIR. Cerrada, `--z` vale
                −240px y la perspectiva encoge ópticamente las cinco hojas: se
@@ -131,6 +142,17 @@ test.describe('03/04 — profundidad', () => {
                SIEMPRE más estrecho. El sesgo va todo en la misma dirección: el
                test podría pasar aunque la pose asentada desbordara. */
             await page.waitForTimeout(1400);
+
+            /* La barra, ya con la página a su alto real. Si hay que compensar,
+               se deja otro respiro: cambiar el viewport relanza el layout y la
+               pose 3D vuelve a moverse. */
+            const barra = await page.evaluate(
+                () => window.innerWidth - document.documentElement.clientWidth
+            );
+            if (barra > 0) {
+                await page.setViewportSize({ width: ancho + barra, height: 900 });
+                await page.waitForTimeout(700);
+            }
 
             const medida = await page.evaluate(() => {
                 const cw = document.documentElement.clientWidth;

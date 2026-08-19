@@ -1,5 +1,5 @@
 // @ts-check
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 /**
  * [P1-DETAIL-MODAL-FIT · 2026-08-10] La ficha de producto de /supermercado.

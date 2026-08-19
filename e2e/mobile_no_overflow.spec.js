@@ -1,5 +1,5 @@
 // @ts-check
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 /**
  * [P1-MOBILE-FIT · 2026-08-09] Nada medía el landing a anchos de móvil, y por
@@ -110,6 +110,16 @@ test.describe('Landing sin desbordes en móvil', () => {
         }
         window.scrollTo(0, 0);
       });
+      /* [P2-CROSS-BROWSER · 2026-08-18] LAS TIPOGRAFÍAS, ANTES DE MEDIR ANCHOS.
+         Este test mide cajas, y el ancho de una caja de texto depende de con
+         qué fuente se compuso: mientras la web font no ha cargado se pinta con
+         la de reserva, que es más ancha, y un elemento puede desbordar de
+         forma transitoria. Con `waitForTimeout` a secas eso es una carrera que
+         se gana casi siempre —y por eso llevaba meses en verde— hasta que la
+         máquina va cargada: en la primera pasada con los tres motores a la vez,
+         WebKit acusó un desborde en `/research` que no se reproduce solo.
+         `document.fonts.ready` convierte la carrera en una espera. */
+      await page.evaluate(() => document.fonts?.ready);
       await page.waitForTimeout(1200);
 
       // DOS defectos distintos, y el segundo es el que se coló:
