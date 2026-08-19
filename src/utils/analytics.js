@@ -8,7 +8,7 @@
 // puertas por las que `@sentry/*` entraba al entry síncrono. Con la fachada el
 // breadcrumb se ENCOLA si el SDK aún no arrancó, en vez de perderse: mejor que
 // el no-op que este comentario daba por bueno.
-import { addBreadcrumb } from './observability';
+import { addBreadcrumb, detenerReplaySentry } from './observability';
 import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
 import { SITE_DOMAIN, isSiteHost } from '../config/site';
 
@@ -66,8 +66,62 @@ const _localStorageSaysOptedOut = () => {
     }
 };
 
-export const isAnalyticsOptedOut = () =>
-    _localStorageSaysOptedOut() || _cookieSaysOptedOut();
+/**
+ * [P1-PRIVACY-GPC · 2026-08-18] La señal que el navegador ya trae puesta.
+ *
+ * `navigator.globalPrivacyControl` es una preferencia que el usuario configura
+ * UNA vez en su navegador (o que trae de serie: Firefox, Brave, DuckDuckGo, las
+ * extensiones de EFF) y que dice «no quiero que me rastreen» en todos los sitios
+ * a la vez. Está reconocida en la ley de California —y la fiscalía de ese estado
+ * ya ha sancionado por ignorarla—.
+ *
+ * Aquí no se estaba consultando. El resultado práctico: un usuario que YA había
+ * dicho que no, a nivel de navegador, entraba y se le inicializaba PostHog con
+ * `persistence: 'localStorage+cookie'` antes de que tuviera ocasión de decir
+ * nada dentro de la app —y el interruptor que se lo permite decir vive en
+ * Configuración, o sea después de registrarse—.
+ *
+ * NO se mira `doNotTrack`. Se diseñó para esto y fracasó: Internet Explorer lo
+ * mandaba activado por defecto, con lo que dejó de significar «este usuario ha
+ * elegido» y pasó a significar «este usuario usa cierto navegador»; Safari lo
+ * retiró por servir de huella digital. Una señal que no distingue la elección
+ * del ajuste de fábrica no es consentimiento.
+ */
+const _navegadorPideNoRastreo = () => {
+    try {
+        return window.navigator?.globalPrivacyControl === true;
+    } catch {
+        return false;
+    }
+};
+
+/** ¿Hay una elección EXPLÍCITA hecha dentro de la app? (`'1'` o `'0'`). */
+const _hayEleccionExplicita = () => {
+    try {
+        const v = safeLocalStorageGet(ANALYTICS_OPT_OUT_KEY, null);
+        return v === '1' || v === '0';
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * El orden importa, y es este:
+ *
+ *   1. Un «no» explícito —de cualquiera de los dos soportes— gana siempre.
+ *   2. Un «sí» explícito dentro de la app gana sobre GPC. El usuario tiene
+ *      delante un interruptor concreto de ESTE producto y lo ha encendido a
+ *      sabiendas; hacer que un ajuste global lo anule dejaría un control muerto
+ *      en pantalla, que es peor para la confianza que no tenerlo.
+ *   3. Sin elección en la app, manda GPC. Este es el caso que faltaba: el
+ *      visitante que aún no ha tocado nada, que es exactamente aquel sobre el
+ *      que se persistía sin preguntar.
+ */
+export const isAnalyticsOptedOut = () => {
+    if (_localStorageSaysOptedOut() || _cookieSaysOptedOut()) return true;
+    if (_hayEleccionExplicita()) return false;
+    return _navegadorPideNoRastreo();
+};
 
 /**
  * SSOT de la escritura del opt-out: deja los dos soportes coherentes.
@@ -87,6 +141,59 @@ export const persistAnalyticsOptOut = (optedOut) => {
     } catch {
         // Sin cookies el opt-out sigue vivo en localStorage para ESTE origen.
     }
+    _aplicarOptOutEnCaliente(optedOut);
+};
+
+/**
+ * [P1-PRIVACY-STOP-NOW · 2026-08-18] Que el interruptor haga lo que dice, YA.
+ *
+ * EL FALLO. `persistAnalyticsOptOut` escribía la bandera y nada más. La bandera
+ * la consultan `trackEvent` y el arranque de PostHog —o sea, la próxima carga—,
+ * así que en la sesión en la que el usuario apagaba el interruptor:
+ *
+ *   · PostHog seguía inicializado y seguía emitiendo por su cuenta. Sus
+ *     `capture_pageview`, `capture_pageleave` y el autocapture son internos del
+ *     SDK: no pasan por `trackEvent`, así que la bandera no los toca.
+ *   · Los identificadores que ya había escrito —`localStorage` MÁS cookie, que
+ *     es la persistencia configurada— se quedaban ahí.
+ *   · Y el replay de sesión de Sentry seguía grabando.
+ *
+ * El aviso decía «Eventos de uso desactivados en este dispositivo» mientras las
+ * tres cosas seguían pasando. Un control de privacidad que promete más de lo que
+ * hace es peor que no ofrecerlo: el usuario deja de mirar.
+ *
+ * Se usa `window.posthog` en vez de importar el módulo a propósito —
+ * `posthogClient.js` importa de AQUÍ, y un import de vuelta cerraría el ciclo—.
+ * Es el mismo objeto que `trackEvent` ya usa unas líneas más abajo.
+ *
+ * LO QUE NO APAGA: el reporte de ERRORES. No es analítica de producto, es lo que
+ * permite enterarse de que la app se rompió —y esa distinción ya estaba escrita
+ * en la cabecera de este fichero desde P2-PRIVACY-SETTINGS—. El replay sí cae,
+ * porque grabar la pantalla de alguien que acaba de pedir que no le sigan los
+ * pasos contradice lo que acaba de pedir.
+ */
+const _aplicarOptOutEnCaliente = (optedOut) => {
+    try {
+        const ph = typeof window !== 'undefined' ? window.posthog : null;
+        if (ph) {
+            if (optedOut) {
+                ph.opt_out_capturing?.();
+                // `reset` suelta el `distinct_id` y la persistencia asociada:
+                // sin esto el usuario deja de emitir pero sigue MARCADO.
+                ph.reset?.(true);
+            } else {
+                ph.opt_in_capturing?.();
+            }
+        }
+    } catch { /* la analítica jamás rompe la app */ }
+
+    if (!optedOut) return;
+    // El replay, vía la fachada. La primera versión de esta línea decía
+    // `window.Sentry?.getReplay?.()` —exactamente la línea muerta contra la que
+    // avisa el comentario que abre este fichero: `window.Sentry` no se asigna
+    // nunca. Habría quedado un opt-out que en el papel para el replay y en la
+    // práctica no toca nada.
+    detenerReplaySentry();
 };
 
 // [P0-FRONTEND-ANALYTICS · 2026-05-12] `process.env.NODE_ENV` rompe en runtime

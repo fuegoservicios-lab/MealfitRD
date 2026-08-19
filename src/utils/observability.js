@@ -101,6 +101,31 @@ export const registrarSentry = (mod) => {
     }
 };
 
+/**
+ * [P1-PRIVACY-STOP-NOW · 2026-08-18] Detiene el replay de sesión, si lo hay.
+ *
+ * Vive aquí y no en `analytics.js` porque el módulo del SDK lo guarda esta
+ * fachada: `window.Sentry` NO existe —`main.jsx` usa imports nombrados— y
+ * cualquier intento de alcanzarlo por ahí es una línea muerta. Ese error ya se
+ * pagó una vez con el breadcrumb (P3-SENTRY-BREADCRUMB-DEAD) y está escrito en
+ * la primera línea de `analytics.js`.
+ *
+ * No-op si Sentry aún no arrancó —y entonces no hay nada grabando— o si el
+ * replay no está adjunto, que es el caso en el apex por `observabilityScope`.
+ * Devuelve si de verdad paró algo, para que un test pueda distinguir «paró» de
+ * «no había nada», que sin esto son indistinguibles.
+ */
+export const detenerReplaySentry = () => {
+    try {
+        const replay = _sentry?.getReplay?.();
+        if (!replay?.stop) return false;
+        replay.stop();
+        return true;
+    } catch {
+        return false;
+    }
+};
+
 /** Reporta un error. Encola si Sentry aún no está. */
 export const captureException = (error, ctx) => {
     if (_sentry) {
