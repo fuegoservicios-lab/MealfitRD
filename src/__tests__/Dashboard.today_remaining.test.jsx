@@ -106,12 +106,29 @@ function _dispatchTodaysConsumed(meals) {
 // text ("N comidas registradas hoy") guarantees its dispatch already fired,
 // so our manual dispatch afterward is the LAST word.
 async function _waitForTrackingProgressSettled() {
-    await screen.findByText(/comidas? registradas? hoy/);
+    await _esperaTexto(/comidas? registradas? hoy/);
 }
 
 // Misma llamada que usa el código de producción (Dashboard.jsx) — así la
 // aserción no depende de qué locale ICU tenga el runtime que corre el test
 // (Node small-icu formatea distinto a un browser con full-icu).
+/**
+ * [P2-FLAKE-PLAZO . 2026-08-18] Espera a un re-render disparado por un EVENTO.
+ *
+ * `findByText` reintenta 1.000 ms por defecto, y eso basta cuando este fichero
+ * corre solo. Con la suite entera en paralelo no: el gate del deploy tumbo aqui
+ * un test que pasa aislado, tras rendirse a los 1.585 ms. No habia defecto de
+ * producto — habia un plazo calibrado para una maquina ociosa.
+ *
+ * Ocho esperas de este fichero usaban el plazo por defecto y ninguna lo
+ * declaraba, asi que el flake no era de un test: era del fichero.
+ *
+ * Subir el plazo NO enmascara nada. Lo que se espera es un re-render que sigue a
+ * un evento ya despachado: si de verdad no llega, el test sigue fallando, solo
+ * que por la razon correcta y no por lo cargada que estuviera la maquina.
+ */
+const _esperaTexto = (texto) => screen.findByText(texto, {}, { timeout: 5000 });
+
 const _fmtKcal = (n) => n.toLocaleString('es-DO');
 
 describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, nunca persistido)', () => {
@@ -127,7 +144,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
 
-        await screen.findByText('Mangú con los tres golpes');
+        await _esperaTexto('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
 
         // Antes de cualquier registro: nada atenuado, ninguna línea "Te quedan".
@@ -143,7 +160,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', meal_name: 'Huevos revueltos con salami', calories: 500 }]);
 
         // Match inequívoco (un solo slot 'Desayuno' hoy) → esa card se atenúa.
-        const desayunoName = await screen.findByText('Mangú con los tres golpes');
+        const desayunoName = await _esperaTexto('Mangú con los tres golpes');
         const desayunoCard = desayunoName.closest('.meal-card');
         expect(desayunoCard).toHaveStyle({ opacity: '0.55' });
         // Dim, NUNCA hide — el nombre sigue en el DOM, solo tachado.
@@ -205,11 +222,11 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         render(<Dashboard />, { customContext: { ..._baseContext, planData: plan } });
 
         // Auto-select debe aterrizar en "Hoy" (día 1, index 0).
-        await screen.findByText('Mangú de hoy');
+        await _esperaTexto('Mangú de hoy');
         await _waitForTrackingProgressSettled();
 
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        const hoyCard = await screen.findByText('Mangú de hoy');
+        const hoyCard = await _esperaTexto('Mangú de hoy');
         // El fallback sin `meal_name` ("algo") sigue nombrando el slot y NO
         // dice "esto" — ver todayRemaining.test.js para el caso con nombre.
         expect(hoyCard.closest('.meal-card')).toHaveAttribute('title', expect.stringContaining('desayuno'));
@@ -217,7 +234,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
         // Cambiar al tab "Mañana" — el mismo evento sigue en memoria, pero
         // `isTodayTabActive` debe ser false ahí: cero atenuación.
         fireEvent.click(screen.getByText('Mañana'));
-        const mananaName = await screen.findByText('Mangú de mañana');
+        const mananaName = await _esperaTexto('Mangú de mañana');
         const mananaCard = mananaName.closest('.meal-card');
         // Card no-hoy: SIN title en absoluto (solo los slots `isEatenToday`
         // reciben `eatenClaim`; los demás pasan `undefined` explícito).
@@ -231,7 +248,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FIVE_MEALS_TWO_MERIENDAS }]) },
         });
 
-        await screen.findByText('Yogur');
+        await _esperaTexto('Yogur');
         await _waitForTrackingProgressSettled();
 
         // Una sola fila 'merienda' — no hay forma de saber si fue la AM o la PM.
@@ -239,7 +256,7 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
 
         // Esperar a que el efecto del listener re-renderice (buscamos algo
         // que solo aparece tras el update: la línea de restantes).
-        await screen.findByText(/Te quedan/);
+        await _esperaTexto(/Te quedan/);
 
         for (const name of ['Yogur', 'Batido de proteína']) {
             const card = screen.getByText(name).closest('.meal-card');
@@ -256,11 +273,11 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
 
-        await screen.findByText('Mangú con los tres golpes');
+        await _esperaTexto('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         // Bloquea el primer slot (Desayuno, index 0).
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        await screen.findByText('Ya registraste tu desayuno');
+        await _esperaTexto('Ya registraste tu desayuno');
 
         // El modal muestra `contextLabel` (= meal.name del swapModal state)
         // justo después de la etiqueta "Plato a cambiar"
@@ -309,10 +326,10 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             customContext: { ..._baseContext, toggleMealLike, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
 
-        await screen.findByText('Mangú con los tres golpes');
+        await _esperaTexto('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        await screen.findByText('Ya registraste tu desayuno');
+        await _esperaTexto('Ya registraste tu desayuno');
 
         const eatenCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
         const [, swapBtn, likeBtn] = within(eatenCard).getAllByRole('button');
@@ -388,10 +405,10 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
 
-        await screen.findByText('Mangú con los tres golpes');
+        await _esperaTexto('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        await screen.findByText('Ya registraste tu desayuno');
+        await _esperaTexto('Ya registraste tu desayuno');
 
         const eatenCard = screen.getByText('Mangú con los tres golpes').closest('.meal-card');
         const [recipeBtn] = within(eatenCard).getAllByRole('button');
@@ -416,11 +433,11 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
 
-        await screen.findByText('Mangú con los tres golpes');
+        await _esperaTexto('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
 
-        const line = await screen.findByText(/Te quedan/);
+        const line = await _esperaTexto(/Te quedan/);
 
         // No fill, no border(-radius) — no es un chip/alert flotante.
         expect(line.style.background).toBe('');
@@ -449,10 +466,10 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
             customContext: { ..._baseContext, toggleMealLike, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
 
-        await screen.findByText('Mangú con los tres golpes');
+        await _esperaTexto('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
-        await screen.findByText('Ya registraste tu desayuno');
+        await _esperaTexto('Ya registraste tu desayuno');
 
         const almuerzoCard = screen.getByText('Arroz con pollo guisado').closest('.meal-card');
         const [recipeBtn, swapBtn, likeBtn] = within(almuerzoCard).getAllByRole('button');
@@ -492,7 +509,7 @@ describe('P1-REMAINING-LINE-HONEST — "Te quedan" reporta presupuesto Y planifi
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals }], 2050) },
         });
 
-        await screen.findByText('Tostadas Francesas');
+        await _esperaTexto('Tostadas Francesas');
         await _waitForTrackingProgressSettled();
 
         // Desayuno y Cena registrados (matches inequívocos) → 1.590 kcal
@@ -502,7 +519,7 @@ describe('P1-REMAINING-LINE-HONEST — "Te quedan" reporta presupuesto Y planifi
             { meal_type: 'cena', meal_name: 'Tres Golpes Nocturno', calories: 840 },
         ]);
 
-        const line = await screen.findByText(/Te quedan/);
+        const line = await _esperaTexto(/Te quedan/);
         // Presupuesto: 2050 - 1590 = 460.
         expect(line.textContent).toContain(`~${_fmtKcal(460)} kcal`);
         // Planificado: 813 + 471 = 1.284 (NO 460 — el bug original).
@@ -527,13 +544,13 @@ describe('P1-REMAINING-LINE-HONEST — "Te quedan" reporta presupuesto Y planifi
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }], 3000) },
         });
 
-        await screen.findByText('Mangú con los tres golpes');
+        await _esperaTexto('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         // Desayuno (500) registrado → presupuesto restante 3000-500=2500;
         // planificado restante = Almuerzo(700)+Merienda(250)+Cena(550)=1500.
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 500 }]);
 
-        const line = await screen.findByText(/Te quedan/);
+        const line = await _esperaTexto(/Te quedan/);
         expect(line.textContent).toContain(`~${_fmtKcal(2500)} kcal`);
         expect(line.textContent).toContain(`~${_fmtKcal(1500)} kcal`);
         expect(line.textContent).not.toMatch(/por encima|superaste/);
@@ -547,13 +564,13 @@ describe('P1-REMAINING-LINE-HONEST — "Te quedan" reporta presupuesto Y planifi
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }], 2000) },
         });
 
-        await screen.findByText('Mangú con los tres golpes');
+        await _esperaTexto('Mangú con los tres golpes');
         await _waitForTrackingProgressSettled();
         // 2.200 registradas en desayuno solo (foto sobreestimada, plausible)
         // contra meta 2000 → presupuesto -200, NUNCA "0 kcal".
         _dispatchTodaysConsumed([{ meal_type: 'desayuno', calories: 2200 }]);
 
-        const line = await screen.findByText(/Te quedan|superaste/);
+        const line = await _esperaTexto(/Te quedan|superaste/);
         expect(line.textContent).toMatch(/superaste/i);
         expect(line.textContent).toContain(`~${_fmtKcal(200)} kcal`);
         expect(line.textContent).not.toContain('~0 kcal');
