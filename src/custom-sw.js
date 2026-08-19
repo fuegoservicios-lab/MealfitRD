@@ -73,7 +73,29 @@ registerRoute(new NavigationRoute(
             return (await matchPrecache('index.html')) || Response.error();
         }
     },
-    { denylist: [/^\/api\//] },
+    // [P1-LEGAL-UNA-SOLA-COPIA . 2026-08-19] Las paginas publicas TAMBIEN fuera.
+    //
+    // nginx redirige con 301 las 16 rutas publicas de este host al apex, donde
+    // vive la unica copia. Pero un service worker que atiende la navegacion hace
+    // el `fetch` EL MISMO, asi que el 301 lo consume el worker y el navegador se
+    // queda en la URL de la app: medido, con el worker registrado la pagina no se
+    // movia de app.bioboros.com/privacy, y tras desregistrarlo aterrizaba en el
+    // apex a la primera.
+    //
+    // O sea que la redireccion funcionaba para el visitante nuevo y era INERTE
+    // para el que ya tiene la aplicacion instalada, que es justo la poblacion que
+    // importa. Sacarlas del denylist las devuelve al navegador, que sigue el 301
+    // como cualquier otra navegacion.
+    //
+    // La lista sale del sitemap del apex y no incluye ninguna ruta de la
+    // aplicacion (/login, /dashboard, /assessment...), que siguen con su fallback
+    // offline intacto.
+    {
+        denylist: [
+            /^\/api\//,
+            /^\/(about|acceptable-use|ai-policy|como-funciona|data-protection|medical|motor|novedades|precios|privacy|refunds|research|responsible-disclosure|supermercado|terms)(\/|$)/,
+        ],
+    },
 ));
 
 // [P2-PWA-SKIPWAITING · 2026-05-30] Activación bajo demanda (flujo "prompt") via
