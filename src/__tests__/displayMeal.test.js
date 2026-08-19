@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { mealDisplay, mealDisplayName } from '../utils/displayMeal';
+import { mealDisplay, mealDisplayName, mealSlotLabel } from '../utils/displayMeal';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -355,6 +355,69 @@ describe('mealDisplay — FF-4: el fallback no normaliza la forma del original',
 });
 
 // ---------------------------------------------------------------------------
+// [P1-PLAN-DISPLAY-I18N · fase 1c] `mealSlotLabel` — helper de DISPLAY puro
+// del SLOT ("Desayuno"/"Almuerzo"/"Merienda"/"Cena"/"Snack"). A diferencia de
+// `mealDisplay`, NUNCA lee `meal._display` (el slot es identificador de
+// posición, no contenido del LLM) — es un mapeo directo canónico → t(clave).
+// ---------------------------------------------------------------------------
+
+// `t` de prueba: espeja el catálogo real (en-US.json) para las 5 claves.
+const _fakeT = (key) => ({
+    Desayuno: 'Breakfast',
+    Almuerzo: 'Lunch',
+    Merienda: 'Snack',
+    Cena: 'Dinner',
+    Snack: 'Snack',
+}[key] ?? key);
+
+describe('mealSlotLabel — canónico exacto', () => {
+    it('traduce las 5 claves canónicas', () => {
+        expect(mealSlotLabel('Desayuno', _fakeT)).toBe('Breakfast');
+        expect(mealSlotLabel('Almuerzo', _fakeT)).toBe('Lunch');
+        expect(mealSlotLabel('Merienda', _fakeT)).toBe('Snack');
+        expect(mealSlotLabel('Cena', _fakeT)).toBe('Dinner');
+        expect(mealSlotLabel('Snack', _fakeT)).toBe('Snack');
+    });
+
+    it('case/acento-insensible', () => {
+        expect(mealSlotLabel('DESAYUNO', _fakeT)).toBe('Breakfast');
+        expect(mealSlotLabel('cena', _fakeT)).toBe('Dinner');
+        expect(mealSlotLabel('almuerzo', _fakeT)).toBe('Lunch');
+    });
+});
+
+describe('mealSlotLabel — variantes por prefijo', () => {
+    it('"Merienda AM"/"Merienda PM"/"Merienda Nocturna" traducen SOLO el prefijo', () => {
+        expect(mealSlotLabel('Merienda AM', _fakeT)).toBe('Snack AM');
+        expect(mealSlotLabel('Merienda PM', _fakeT)).toBe('Snack PM');
+        expect(mealSlotLabel('Merienda Nocturna', _fakeT)).toBe('Snack Nocturna');
+    });
+
+    it('"Merienda 1"/"Merienda 2" preservan el numeral', () => {
+        expect(mealSlotLabel('Merienda 1', _fakeT)).toBe('Snack 1');
+        expect(mealSlotLabel('Merienda 2', _fakeT)).toBe('Snack 2');
+    });
+});
+
+describe('mealSlotLabel — desconocido y bordes', () => {
+    it('slot desconocido -> el original TAL CUAL, nunca inventa traducción', () => {
+        expect(mealSlotLabel('Postre Especial', _fakeT)).toBe('Postre Especial');
+    });
+
+    it('valores no-string/vacíos -> el original tal cual, no lanza', () => {
+        expect(mealSlotLabel(null, _fakeT)).toBe(null);
+        expect(mealSlotLabel(undefined, _fakeT)).toBe(undefined);
+        expect(mealSlotLabel('', _fakeT)).toBe('');
+        expect(mealSlotLabel('   ', _fakeT)).toBe('   ');
+    });
+
+    it('sin `t` (no-función) -> fallback identidad, no lanza', () => {
+        expect(() => mealSlotLabel('Desayuno', undefined)).not.toThrow();
+        expect(mealSlotLabel('Desayuno', undefined)).toBe('Desayuno');
+    });
+});
+
+// ---------------------------------------------------------------------------
 // Parser blanket: las superficies Plan (Dashboard.jsx) y Recetas (Recipes.jsx)
 // consumen el helper — NUNCA acceden a `_display` directo. Mismo patrón que
 // otros tests parser-based del repo (tooltip-anchor: si el nombre del import
@@ -402,5 +465,33 @@ describe('Plan/Recetas consumen mealDisplay — NO acceso directo a `_display`',
         const mr = _readSrc('components/recipes/MobileRecipes.jsx');
         expect(rv).not.toMatch(/\._display\[/);
         expect(mr).not.toMatch(/\._display\[/);
+    });
+
+    // [P1-PLAN-DISPLAY-I18N · fase 1c] Dashboard.jsx consume `mealSlotLabel` para
+    // el rótulo del slot ("Desayuno"/"Almuerzo"/...) — antes se renderizaba
+    // `meal.meal` crudo (siempre español, sin importar el idioma del dashboard).
+    it('Dashboard.jsx importa y usa mealSlotLabel para el rótulo del slot', () => {
+        const src = _readSrc('pages/Dashboard.jsx');
+        expect(src).toMatch(/\bmealSlotLabel\b/);
+        expect(src).toMatch(/mealSlotLabel\(meal\.meal, t\)/);
+    });
+
+    it('History.jsx importa mealDisplay/mealSlotLabel desde utils/displayMeal', () => {
+        const src = _readSrc('pages/History.jsx');
+        expect(src).toMatch(/from ['"]\.\.\/utils\/displayMeal['"]/);
+        expect(/\bmealDisplay\(/.test(src)).toBe(true);
+        expect(/\bmealSlotLabel\(/.test(src)).toBe(true);
+    });
+
+    it('History.jsx nunca lee `._display[` directo (fuera del import)', () => {
+        const src = _readSrc('pages/History.jsx');
+        expect(src).not.toMatch(/\._display\[/);
+    });
+
+    it('HistoryDesktopPanel.jsx / HistoryMobilePanel.jsx (cards del listado) tampoco leen `_display` directo', () => {
+        const desktop = _readSrc('components/history/HistoryDesktopPanel.jsx');
+        const mobile = _readSrc('components/history/HistoryMobilePanel.jsx');
+        expect(desktop).not.toMatch(/\._display\[/);
+        expect(mobile).not.toMatch(/\._display\[/);
     });
 });

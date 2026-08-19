@@ -18,6 +18,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styles from './History.module.css';
 // [P1-CLINICAL-MEAL-COUNT · 2026-06-27] Emoji por SLOT (no por índice) — planes de 3/5/6 comidas.
 import { mealEmojiFor } from '../utils/mealEmoji';
+// [P1-PLAN-DISPLAY-I18N · fase 1c] Único helper autorizado para leer `_display` —
+// History.jsx NO debe tocar `meal._display`/`plan_data._display` directo (enforzado
+// por el test parser-based `displayMeal.test.js`). `mealSlotLabel` traduce el SLOT
+// canónico ("Desayuno"/"Almuerzo"/...) sin leer `_display` (no es contenido del LLM).
+import { mealDisplay, mealSlotLabel } from '../utils/displayMeal';
 // [P2-HIST-MODALS-A11Y · 2026-05-30] Hook SSOT (P2-CUSTOM-MODALS-A11Y) con
 // role=dialog + aria-modal + ESC + focus-trap + restore-focus + body overflow
 // lock para los 3 modales custom del Historial (detalle + reactivar + eliminar).
@@ -73,7 +78,7 @@ import HistoryMobilePanel from '../components/history/HistoryMobilePanel';
 // componente (es lo que lo suscribe al cambio de idioma); el `t` suelto para los
 // helpers de módulo (`_dayNameForGlobalIdx`, `chipDeChunkMuerto`) — se invocan en
 // render, nunca al importar, así que no caen en la trampa del ámbito de módulo.
-import { t, useT } from '../i18n';
+import { t, useT, useI18n } from '../i18n';
 
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
@@ -248,6 +253,9 @@ const History = () => {
     // [P1-I18N-DASHBOARD · 2026-08-15] Sombrea al `t` de módulo a propósito: es
     // la MISMA función, pero el hook suscribe el componente al cambio de idioma.
     const t = useT();
+    // [P1-PLAN-DISPLAY-I18N · fase 1c] Locale activo para `mealDisplay`/
+    // `display_names` — mismo patrón que Dashboard.jsx (`_dashLocale`).
+    const { locale } = useI18n();
     // [P3-HIST-LIST-CACHE · 2026-05-19] Stale-while-revalidate del listado.
     // Lazy-init lee el singleton del módulo `historyCaches`.
     // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Usa la versión "stale"
@@ -1218,6 +1226,12 @@ const History = () => {
                 return {
                     ...p,
                     name: trimmed,
+                    // [P1-PLAN-DISPLAY-I18N · fase 1c] Espejo cliente del DELETE-on-write
+                    // del backend (`api_rename_plan` popea `plan_data["_display"]`): sin
+                    // esto, el optimistic-update dejaba la traducción VIEJA visible hasta
+                    // el próximo fetch que invalida el cache (abajo) — el título volvía a
+                    // mentir por una ventana corta.
+                    plan_display_names: undefined,
                     ...(_isActiveRename ? { plan_modified_at: _modIso } : {}),
                     plan_data: p.plan_data
                         ? {
@@ -1237,6 +1251,9 @@ const History = () => {
                 setSelectedPlan({
                     ...selectedPlan,
                     name: trimmed,
+                    // [P1-PLAN-DISPLAY-I18N · fase 1c] Mismo espejo que arriba, para el
+                    // título del modal ya abierto.
+                    plan_display_names: undefined,
                     ...(_isActiveRename ? { plan_modified_at: _modIso } : {}),
                     plan_data: selectedPlan.plan_data
                         ? {
@@ -1771,7 +1788,12 @@ const History = () => {
         return (
             <div className={styles.mealPreviewContainer}>
                 {activeMeals.slice(0, 3).map((m, i) => {
-                    const shortName = m.name.length > 20 ? m.name.substring(0, 18) + '…' : m.name;
+                    // [P1-PLAN-DISPLAY-I18N · fase 1c] `display_names` viene del backend
+                    // (`/history-list::preview_meals`, clave LIGERA solo-nombres) — NUNCA
+                    // `_display` completo (ese vive en `plan_data.days[i].meals[j]`, fuera
+                    // del payload de listado). Fallback silencioso a `m.name` si falta.
+                    const displayName = m.display_names?.[locale] ?? m.name;
+                    const shortName = displayName.length > 20 ? displayName.substring(0, 18) + '…' : displayName;
                     return (
                         <div key={i} className={styles.mealPreviewBadge}>
                             <span>{mealEmojiFor(m.meal)}</span>
@@ -2003,7 +2025,11 @@ const History = () => {
                             {/* Header */}
                             <div className={styles.modalHeader}>
                                 <div>
-                                    <h2 id="history-detail-title" className={styles.modalTitle}>{selectedPlan.name || t('Detalles del Plan')}</h2>
+                                    {/* [P1-PLAN-DISPLAY-I18N · fase 1c] `plan_display_names` es la clave ligera
+                                        del listado (`/history-list`) — cae a `name` canónico español cuando
+                                        falta la traducción para este locale (es-DO, plan no enriquecido, o
+                                        renombrado a mano y aún no re-traducido). */}
+                                    <h2 id="history-detail-title" className={styles.modalTitle}>{selectedPlan.plan_display_names?.[locale] || selectedPlan.name || t('Detalles del Plan')}</h2>
                                     <span className={styles.modalDate}>
                                         {new Date(selectedPlan.created_at).toLocaleDateString('es-DO', {
                                             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -4733,14 +4759,19 @@ const History = () => {
                                         // pastilla kcal. El color es dinámico → estilos inline.
                                         const _ms = _mealTypeStyle(meal.meal, idx);
                                         const MealIcon = _ms.Icon;
+                                        // [P1-PLAN-DISPLAY-I18N · fase 1c] El modal SÍ tiene el meal
+                                        // completo (con `_display`, a diferencia de los chips del
+                                        // listado) — `mealDisplay` es el único helper autorizado para
+                                        // leerlo.
+                                        const _modalMealDisp = mealDisplay(meal, locale);
                                         return (
                                         <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: 12, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--bg-page)' }}>
                                             <span style={{ flex: 'none', width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', color: _ms.tone, background: `color-mix(in srgb, ${_ms.tone} 16%, transparent)`, border: `1px solid color-mix(in srgb, ${_ms.tone} 28%, transparent)` }}>
                                                 <MealIcon size={21} />
                                             </span>
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: _ms.tone }}>{meal.meal}</div>
-                                                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.3, marginTop: 2 }}>{meal.name}</div>
+                                                <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: _ms.tone }}>{mealSlotLabel(meal.meal, t)}</div>
+                                                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.3, marginTop: 2 }}>{_modalMealDisp.name}</div>
                                             </div>
                                             {meal.cals && (
                                                 /* [P3-HIST-KCAL-BADGE-DARK · 2026-06-24] Tinte naranja

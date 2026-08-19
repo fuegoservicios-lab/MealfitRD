@@ -110,3 +110,60 @@ export function mealDisplay(meal, locale) {
 export function mealDisplayName(meal, locale) {
     return mealDisplay(meal, locale).name;
 }
+
+// ============================================================
+// [P1-PLAN-DISPLAY-I18N · fase 1c] Etiqueta de SLOT ("Desayuno"/"Almuerzo"/
+// "Merienda"/"Cena"/"Snack") — a diferencia de `mealDisplay`, esto NO lee
+// `meal._display` (el slot es un valor CANÓNICO del dato, nunca se traduce
+// en el plan_data — es identificador de posición, no contenido del LLM). Es
+// un helper de DISPLAY puro: mapea el string español fijo a `t(<clave>)`.
+//
+// `meal.meal` real trae variantes ("Merienda AM"/"Merienda PM"/"Merienda
+// Nocturna"/"Merienda 1"/"Merienda 2" — ver nutrition_calculator.py:420-421,
+// graph_orchestrator.py:45678+, mismo universo que `mealEmojiFor` resuelve
+// por substring). Este helper traduce SOLO el prefijo reconocido y preserva
+// el resto TAL CUAL (" AM"/" PM"/" Nocturna"/" 1"...) — no hay clave i18n
+// para "Nocturna" ni tiene sentido traducir un numeral.
+// ============================================================
+
+const _SLOT_BASE_KEYS = ['Desayuno', 'Almuerzo', 'Merienda', 'Cena', 'Snack'];
+
+function _stripAccentsForSlot(s) {
+    return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/**
+ * `mealSlotLabel(slot, t) -> string`
+ *
+ * `t` es la función de traducción (`useT()`/`t` de `../i18n`). Case/acento-
+ * insensible contra las 5 claves canónicas. Fallback: si `slot` no matchea
+ * ninguna (ni exacto ni por prefijo), devuelve el valor ORIGINAL tal cual —
+ * nunca `undefined`/vacío para un slot desconocido.
+ */
+export function mealSlotLabel(slot, t) {
+    if (typeof slot !== 'string' || !slot.trim()) return slot;
+    const raw = slot.trim();
+    const normalized = _stripAccentsForSlot(raw).toLowerCase();
+    const translate = typeof t === 'function' ? t : (s) => s;
+
+    // 1. Match exacto (cubre "Desayuno"/"Almuerzo"/"Merienda"/"Cena"/"Snack" y
+    //    variantes de case/acento como "DESAYUNO"/"cena").
+    for (const key of _SLOT_BASE_KEYS) {
+        if (normalized === _stripAccentsForSlot(key).toLowerCase()) {
+            return translate(key);
+        }
+    }
+
+    // 2. Match por prefijo ("Merienda AM", "Merienda 1", "Merienda Nocturna"...):
+    //    traduce SOLO la palabra base, preserva el resto de la cadena tal cual.
+    for (const key of _SLOT_BASE_KEYS) {
+        const keyNorm = _stripAccentsForSlot(key).toLowerCase();
+        if (normalized.startsWith(keyNorm)) {
+            const suffix = raw.slice(key.length);
+            return `${translate(key)}${suffix}`;
+        }
+    }
+
+    // 3. Desconocido: el original tal cual (nunca inventar traducción).
+    return raw;
+}

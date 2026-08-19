@@ -33,7 +33,7 @@ import { COUNTRIES } from '../config/countries';
 // Nota: solo se usa para el TEXTO renderizado del título/descripción — la
 // identidad del plato (`meal.name` original) sigue siendo la clave de "me
 // gusta"/swap/PDF, que deben seguir resolviendo por el nombre canónico español.
-import { mealDisplay } from '../utils/displayMeal';
+import { mealDisplay, mealSlotLabel } from '../utils/displayMeal';
 
 // [P1-DASH-GENERATING-HONESTY · 2026-08-16] «el próximo llega el <día>» a partir de
 // `next_chunk_eta`. Devuelve '' ante cualquier entrada inservible: el copy que lo
@@ -8406,7 +8406,10 @@ const DashboardInner = () => {
                                                         textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 800,
                                                         color: 'var(--primary)', letterSpacing: '0.05em', marginBottom: '0.25rem'
                                                     }}>
-                                                        {meal.meal}
+                                                        {/* [P1-PLAN-DISPLAY-I18N · fase 1c] `meal.meal` es el slot
+                                                            CANÓNICO ("Desayuno"/"Almuerzo"/...) — nunca se traduce en el
+                                                            dato, solo al RENDERIZARLO. */}
+                                                        {mealSlotLabel(meal.meal, t)}
                                                     </div>
 
                                                     {/* [DASH-MEAL-TITLE-GAP · 2026-06-01] marginBottom

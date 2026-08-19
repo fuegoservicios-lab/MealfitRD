@@ -109,7 +109,9 @@ describe('[P1-HIST-5] state mirror — plan_data.name también se actualiza', ()
         // [P2-HIST-RENAME-NO-PROMOTE · 2026-07-12] El comment block + el spread
         // condicional `...(_isActiveRename ? {...} : {})` corrieron el mirror ~300
         // chars (fin del patrón en offset 3105). Ventana 3000→3400.
-        const block = src.slice(handlerIdx, handlerIdx + 3400);
+        // [P1-PLAN-DISPLAY-I18N · fase 1c] El pop `plan_display_names: undefined` +
+        // su comentario corrieron el fin del patrón a offset 3516. Ventana 3400→3700.
+        const block = src.slice(handlerIdx, handlerIdx + 3700);
 
         // Mirror sobre `plans` array.
         expect(block).toMatch(/setPlans\(/);
@@ -128,7 +130,10 @@ describe('[P1-HIST-5] state mirror — plan_data.name también se actualiza', ()
         // El assert del shape sigue intacto; solo la ventana de bytes necesitaba headroom.
         // [P2-HIST-RENAME-NO-PROMOTE · 2026-07-12] NO-PROMOTE empujó setSelectedPlan a
         // offset 3699 y el mirror termina en 4136. Ventana 3300→4400.
-        const block = src.slice(handlerIdx, handlerIdx + 4400);
+        // [P1-PLAN-DISPLAY-I18N · fase 1c] El pop `plan_display_names: undefined` +
+        // su comentario en AMBOS mirrors corrieron el fin del patrón a offset 4720.
+        // Ventana 4400→4900.
+        const block = src.slice(handlerIdx, handlerIdx + 4900);
 
         expect(block).toMatch(/setSelectedPlan\(/);
         // El selectedPlan también necesita el mirror del plan_data.
@@ -148,7 +153,9 @@ describe('[P1-HIST-5] state mirror — plan_data.name también se actualiza', ()
         // de matchear. `[\s\S]*?` (non-greedy) tolera el anidamiento y sigue anclando en
         // `: p.plan_data` (rama else devuelve p.plan_data, no un {name} fresco). Ventana
         // 2500→3400 (el patrón termina en offset 3178).
-        const block = src.slice(handlerIdx, handlerIdx + 3400);
+        // [P1-PLAN-DISPLAY-I18N · fase 1c] El pop `plan_display_names: undefined` +
+        // su comentario corrieron el fin del patrón a offset 3587. Ventana 3400→3700.
+        const block = src.slice(handlerIdx, handlerIdx + 3700);
         expect(block).toMatch(/p\.plan_data\s*\?\s*\{[\s\S]*?\}\s*:\s*p\.plan_data/);
     });
 });

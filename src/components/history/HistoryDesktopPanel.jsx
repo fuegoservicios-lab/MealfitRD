@@ -11,7 +11,7 @@ import { firstDayMeals } from "../../utils/normalizePlanDays";
 // componentes (es lo que los suscribe al cambio de idioma); el `t`/`tn` sueltos
 // para helpers de módulo (`normalizePlan`, `bucketTitle`) que se INVOCAN en
 // render, nunca al importar — ahí está la trampa del ámbito de módulo.
-import { t, tn, useT } from "../../i18n";
+import { t, tn, useT, useI18n } from "../../i18n";
 
 /**
  * HistoryDesktopPanel — vista "Historial" de escritorio (Bioboros).
@@ -87,17 +87,23 @@ const bucketTitle = (id) => ({
 })[id] || id;
 const parseGrams = (v) => { const n = parseInt(String(v ?? ""), 10); return Number.isFinite(n) ? n : 0; };
 
-function normalizePlan(raw, activePlanId) {
+// [P1-PLAN-DISPLAY-I18N · fase 1c] `locale` opcional: cuando se provee, el nombre
+// del plan cae a `raw.plan_display_names[locale]` (clave ligera del backend,
+// `/history-list::plan_display_names`) ANTES del `name` canónico español. NO se lee
+// `_display` completo — esa key nunca llega al listado (solo al modal, que abre
+// `plan_data` completo vía `History.jsx`). Fallback silencioso si falta la
+// traducción o `locale` es es-DO (el backend nunca la escribe para ese caso).
+function normalizePlan(raw, activePlanId, locale) {
   const rawMeals = Array.isArray(raw.preview_meals)
     ? raw.preview_meals
     : firstDayMeals(raw.plan_data);
   const meals = (Array.isArray(rawMeals) ? rawMeals : [])
     .filter((m) => m && m.name && !m.isSkipped)
-    .map((m) => ({ name: m.name, emoji: mealEmojiFor(m.meal) }));
+    .map((m) => ({ name: (locale && m.display_names?.[locale]) || m.name, emoji: mealEmojiFor(m.meal) }));
   return {
     raw,
     id: String(raw.id),
-    name: raw.name || t("Plan Generado"),
+    name: (locale && raw.plan_display_names?.[locale]) || raw.name || t("Plan Generado"),
     date: new Date(raw.created_at),
     active: !!activePlanId && raw.id === activePlanId,
     kcal: typeof raw.calories === "number" ? raw.calories : (parseInt(raw.calories, 10) || 0),
@@ -355,10 +361,16 @@ export default function HistoryDesktopPanel({
   onEditCancel = () => {},
 }) {
   const t = useT();
+  // [P1-PLAN-DISPLAY-I18N · fase 1c] Locale activo para el nombre del plan/meals
+  // traducidos — mismo patrón que Dashboard.jsx/History.jsx.
+  const { locale } = useI18n();
   const [sort, setSort] = useState("recent");
   const q = searchQuery.trim().toLowerCase();
 
-  const normalized = useMemo(() => plans.map((p) => normalizePlan(p, activePlanId)), [plans, activePlanId]);
+  const normalized = useMemo(
+    () => plans.map((p) => normalizePlan(p, activePlanId, locale)),
+    [plans, activePlanId, locale]
+  );
   const active = normalized.find((p) => p.active);
 
   const rest = useMemo(() => {
