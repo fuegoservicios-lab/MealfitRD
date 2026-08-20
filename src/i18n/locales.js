@@ -75,3 +75,51 @@ export function localeLabel(code) {
     const hit = LOCALES.find((l) => l.code === code);
     return hit ? hit.native : code;
 }
+
+// [P1-AUTO-LOCALE · 2026-08-20] Idioma del DISPOSITIVO, no del sitio.
+//
+// Hasta hoy `getStoredLocale()` leía localStorage y, si no había nada, caía a es-DO.
+// O sea que un visitante nuevo veía español SIEMPRE — por definición, no por fallo.
+//
+// IDIOMA, NO UBICACIÓN. La petición hablaba de «dónde está el teléfono», pero es el
+// idioma del dispositivo lo que se usa aquí, que es lo que hacen Anthropic u OpenAI y
+// lo que acierta más: un dominicano en Miami con el móvil en español debe leer español,
+// y un inglés de vacaciones en Punta Cana debe leer inglés. La geo-IP se equivoca justo
+// con viajeros, emigrados y VPN, y exige un servicio externo para acertar menos.
+//
+// Se mira `navigator.languages` (la lista ORDENADA de preferencias) y no solo
+// `navigator.language`: quien tiene el sistema en inglés pero prefiere portugués lo
+// declara ahí, y quedarse con el primero desperdicia lo que el usuario ya dijo.
+//
+// Coincidencia por etiqueta exacta primero y por subetiqueta después: `en-GB` no está
+// en la lista pero es inglés, y mandarlo a español por no ser `en-US` seria absurdo.
+// `es-ES` cae en es-DO por la misma regla — es la única variante de español que
+// ofrecemos, y la etiqueta ya no dice «República Dominicana» justamente por esto.
+//
+// Fail-closed como todo lo demás en este archivo: sin `navigator`, con la lista vacía o
+// con basura, devuelve el default. Nunca lanza.
+export function detectBrowserLocale() {
+    let preferidos = [];
+    try {
+        const nav = typeof navigator !== 'undefined' ? navigator : null;
+        if (!nav) return DEFAULT_LOCALE;
+        preferidos = Array.isArray(nav.languages) && nav.languages.length
+            ? nav.languages
+            : [nav.language].filter(Boolean);
+    } catch {
+        return DEFAULT_LOCALE;
+    }
+
+    for (const bruto of preferidos) {
+        if (typeof bruto !== 'string' || !bruto.trim()) continue;
+        const etiqueta = bruto.trim();
+        // 1. Exacta, sin importar mayúsculas (`EN-us` es válido en la especificación).
+        const exacta = LOCALE_CODES.find((c) => c.toLowerCase() === etiqueta.toLowerCase());
+        if (exacta) return exacta;
+        // 2. Por subetiqueta primaria: `en` → `en-US`, `pt` → `pt-BR`, `es` → `es-DO`.
+        const primaria = etiqueta.toLowerCase().split('-')[0];
+        const porIdioma = LOCALE_CODES.find((c) => c.toLowerCase().split('-')[0] === primaria);
+        if (porIdioma) return porIdioma;
+    }
+    return DEFAULT_LOCALE;
+}

@@ -43,11 +43,51 @@
       try {
         var SUPPORTED = ['es-DO', 'en-US', 'pt-BR', 'fr-FR', 'it-IT'];
         var stored = localStorage.getItem('mealfit_locale');
-        if (SUPPORTED.indexOf(stored) > 0) {
-          document.documentElement.setAttribute('lang', stored);
+        var elegido = SUPPORTED.indexOf(stored) > 0 ? stored : null;
+
+        // [P1-AUTO-LOCALE · 2026-08-20] Sin nada guardado, el idioma del DISPOSITIVO.
+        //
+        // Tiene que estar AQUI y no solo en el motor: `<html lang>` y el splash se
+        // pintan antes de que React monte, asi que un visitante nuevo arrancaria en
+        // espanol y saltaria al suyo medio segundo despues. Es el mismo motivo por el
+        // que existen los otros dos boot scripts de este <head>.
+        //
+        // NO en el landing: sus rutas siguen sin traducir (72 llamadas sueltas), y
+        // detectar ahi lo dejaria a medias, que es peor. La lista es copia literal de
+        // `src/utils/paperSurface.js`, anclada por test -- igual que SUPPORTED.
+        if (!elegido) {
+          var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about', '/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure'];
+          var enMarketing = PAPER.indexOf(location.pathname) !== -1
+            || location.pathname.indexOf('/novedades/') === 0;
+          if (!enMarketing) {
+            // `navigator.languages` (lista ORDENADA de preferencias) antes que
+            // `navigator.language`: quien tiene el sistema en ingles pero prefiere
+            // portugues lo declara ahi.
+            var pref = (navigator.languages && navigator.languages.length)
+              ? navigator.languages : [navigator.language];
+            for (var i = 0; i < pref.length && !elegido; i++) {
+              var tag = String(pref[i] || '').toLowerCase();
+              if (!tag) continue;
+              for (var j = 0; j < SUPPORTED.length; j++) {
+                // Exacta, o por subetiqueta primaria: `en-GB` es ingles aunque no
+                // este en la lista, y mandarlo a espanol seria absurdo.
+                if (SUPPORTED[j].toLowerCase() === tag
+                    || SUPPORTED[j].toLowerCase().split('-')[0] === tag.split('-')[0]) {
+                  elegido = SUPPORTED[j];
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // es-DO ya es el `lang` estatico del <html>: no hace falta reescribirlo, y el
+        // splash sin `__mfLocale` se queda en su espanol de marcado, que es correcto.
+        if (elegido && elegido !== 'es-DO') {
+          document.documentElement.setAttribute('lang', elegido);
           // [P1-SPLASH-I18N · 2026-08-20] Se publica para el splash, que está en
           // <body> y no puede leerlo desde aquí. Una sola lectura de localStorage.
-          window.__mfLocale = stored;
+          window.__mfLocale = elegido;
         }
       } catch (e) {
         /* el lang="es-DO" del <html> estático ya es el fallback correcto */

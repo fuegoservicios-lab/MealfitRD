@@ -39,6 +39,8 @@ import {
     DEFAULT_LOCALE,
     LOCALE_STORAGE_KEY,
     coerceLocale,
+    detectBrowserLocale,
+    isSupportedLocale,
     isSupportedLocale,
 } from './locales';
 import React, {
@@ -50,6 +52,9 @@ import React, {
     useState,
 } from 'react';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+// [P1-AUTO-LOCALE] SSOT de que rutas son marketing. Se reusa en vez de listar aqui
+// una segunda vez las rutas del landing: dos listas del mismo hecho drifean.
+import { isPaperSurface } from '../utils/paperSurface';
 
 // ---------------------------------------------------------------------------
 // Cargadores de catálogo
@@ -99,12 +104,41 @@ export function getLocale() {
 }
 
 /** Lee la preferencia persistida en este dispositivo. Fail-closed al default. */
+// [P1-AUTO-LOCALE · 2026-08-20] La detección NO se aplica en el landing.
+//
+// Es la parte que más fácil se pasa por alto: las rutas de marketing tienen hoy 72
+// llamadas sueltas a `t()` en 6.698 líneas. Auto-detectar ahí traduciría ESAS 72 y nada
+// más — un landing medio en inglés y medio en español, que es peor que en español
+// entero. Cuando el landing esté traducido al 100% (con URLs por idioma y `hreflang`,
+// decisión del dueño 2026-08-20) esta puerta se abre quitando el guard.
+//
+// El predicado es `isPaperSurface`, el SSOT que ya gobierna qué rutas son marketing —
+// no una segunda lista que drifearía a la primera de cambio.
+function _autoLocaleParaLaSuperficieActual() {
+    try {
+        if (typeof window !== 'undefined' && isPaperSurface(window.location.pathname)) {
+            return DEFAULT_LOCALE;
+        }
+    } catch {
+        return DEFAULT_LOCALE;
+    }
+    return detectBrowserLocale();
+}
+
 export function getStoredLocale() {
     // `safeLocalStorageGet` y no `localStorage.getItem` crudo: iOS Safari en
     // modo privado lanza `SecurityError` con solo tocar el objeto
     // (P2-FRONTEND-LOCALSTORAGE-LINT). El envoltorio lo absorbe y devuelve el
     // fallback. Además hay un lint del repo que lo exige.
-    return coerceLocale(safeLocalStorageGet(LOCALE_STORAGE_KEY, DEFAULT_LOCALE));
+    //
+    // [P1-AUTO-LOCALE · 2026-08-20] Lo GUARDADO gana sobre lo detectado, siempre. La
+    // detección es el SUELO —qué ve alguien que nunca ha elegido— no el techo: en cuanto
+    // el usuario elige idioma, o inicia sesión y llega el `locale` de su perfil, manda
+    // eso. Sin este orden, el selector de Configuración sería decorativo para cualquiera
+    // cuyo móvil esté en otro idioma.
+    const guardado = safeLocalStorageGet(LOCALE_STORAGE_KEY, null);
+    if (isSupportedLocale(guardado)) return guardado;
+    return _autoLocaleParaLaSuperficieActual();
 }
 
 function _persistLocal(code) {
