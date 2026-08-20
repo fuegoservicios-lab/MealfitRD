@@ -208,3 +208,29 @@ export function mealDifficultyLabel(difficulty, t) {
     const etiquetas = _etiquetasDificultad(traducir);
     return Object.prototype.hasOwnProperty.call(etiquetas, norm) ? etiquetas[norm] : raw;
 }
+
+// [P1-INSIGHTS-I18N · 2026-08-20] El RAZONAMIENTO del plan traducido.
+//
+// Hermano de `mealDisplay`: el ÚNICO lector autorizado de
+// `plan_data._display[locale].insights`. Las superficies NO leen `_display` directo
+// (contrato de P1-PLAN-DISPLAY-I18N, enforzado por `displayMeal.test.js`) — si cada
+// pantalla se lo lee por su cuenta, un cambio de forma en la capa las rompe todas y
+// hay que encontrarlas una a una.
+//
+// FALLBACK POR ÍNDICE, no por bloque. Si la traducción falta o llega con otra
+// longitud, cae al español ENTERO: el panel rotula cada entrada por POSICIÓN
+// (0=Diagnóstico, 1=Plan de Acción, 2=Tip del Chef), así que mezclar traducidas y
+// originales no daría «texto peor» — pondría el consejo del chef bajo el título de
+// diagnóstico. El backend valida lo mismo antes de persistir; esto es la segunda
+// mitad del mismo contrato, aquí porque un plan viejo puede traer cualquier cosa.
+export function planInsightsDisplay(planData, locale) {
+    const original = Array.isArray(planData?.insights)
+        ? planData.insights.filter(Boolean)
+        : [];
+    if (!original.length || !locale) return original;
+    const entrada = planData?._display?.[locale];
+    const traducidas = Array.isArray(entrada?.insights) ? entrada.insights : null;
+    if (!traducidas || traducidas.length !== original.length) return original;
+    if (!traducidas.every((x) => typeof x === 'string' && x.trim())) return original;
+    return traducidas;
+}

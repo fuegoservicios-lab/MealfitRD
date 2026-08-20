@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { mealDisplay, mealDisplayName, mealSlotLabel, mealDifficultyLabel } from '../utils/displayMeal';
+import { mealDisplay, mealDisplayName, mealSlotLabel, mealDifficultyLabel, planInsightsDisplay } from '../utils/displayMeal';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -590,5 +590,66 @@ describe('[P1-RECIPES-SLOT-I18N] las pantallas de Recetas USAN los helpers', () 
         const src = _readSrc('pages/Recipes.jsx');
         expect(src).toMatch(/mealSlotLabel\(\s*meal\.meal\s*,\s*t\s*\)/);
         expect(src).toMatch(/mealDifficultyLabel\(\s*meal\.difficulty\s*,\s*t\s*\)/);
+    });
+});
+
+/* [P1-INSIGHTS-I18N · 2026-08-20] El panel de Razonamiento seguía en español.
+ *
+ * Los TÍTULOS («Diagnóstico», «Plan de Acción», «Tip del Chef») ya pasaban por `t()`;
+ * el CUERPO lo escribe el LLM y nadie lo pasaba por `_display`. Con la app en inglés
+ * quedaba una tarjeta con cabeceras en inglés y prosa en español.
+ *
+ * Se traduce por el criterio de la jornada: no es «lo que escribe el LLM no se toca»,
+ * es «lo que el motor usa como IDENTIFICADOR no se toca». Por el razonamiento no
+ * resuelve nadie — es prosa para el usuario.
+ *
+ * FALLBACK POR BLOQUE, NO POR ÍNDICE, y es lo que este test protege. El panel rotula
+ * cada entrada por POSICIÓN (0=Diagnóstico, 1=Plan de Acción, 2=Tip del Chef), así que
+ * mezclar traducidas y originales no daría «texto peor»: pondría el consejo del chef
+ * bajo el título de diagnóstico. Ante cualquier duda, español entero.
+ */
+describe('[P1-INSIGHTS-I18N] planInsightsDisplay', () => {
+    const ES = ['Diagnóstico: uno', 'Estrategia: dos', 'Chef: tres'];
+    const EN = ['Diagnosis: one', 'Strategy: two', 'Chef: three'];
+    const plan = (extra) => ({ insights: ES, ...extra });
+
+    it('devuelve la traducción cuando está completa', () => {
+        const p = plan({ _display: { 'en-US': { insights: EN } } });
+        expect(planInsightsDisplay(p, 'en-US')).toEqual(EN);
+    });
+
+    it('sin `_display` devuelve el español', () => {
+        expect(planInsightsDisplay(plan(), 'en-US')).toEqual(ES);
+    });
+
+    it('con OTRA longitud cae al español ENTERO, no mezcla', () => {
+        // El caso que justifica el fallback por bloque: con 2 de 3, el tercer título
+        // («Tip del Chef») rotularía el segundo texto.
+        const p = plan({ _display: { 'en-US': { insights: EN.slice(0, 2) } } });
+        expect(planInsightsDisplay(p, 'en-US')).toEqual(ES);
+    });
+
+    it('con una entrada vacía cae al español entero', () => {
+        const p = plan({ _display: { 'en-US': { insights: ['ok', '   ', 'ok'] } } });
+        expect(planInsightsDisplay(p, 'en-US')).toEqual(ES);
+    });
+
+    it('es-DO (sin catálogo) devuelve el español sin tocar nada', () => {
+        expect(planInsightsDisplay(plan(), 'es-DO')).toEqual(ES);
+    });
+
+    it('tolera plan vacío, nulo o sin insights', () => {
+        expect(planInsightsDisplay(null, 'en-US')).toEqual([]);
+        expect(planInsightsDisplay({}, 'en-US')).toEqual([]);
+        expect(planInsightsDisplay({ insights: [] }, 'en-US')).toEqual([]);
+    });
+
+    it('las superficies NO leen `_display` directo: usan el helper', () => {
+        // Mismo contrato que `mealDisplay`. Si cada pantalla se lo lee por su cuenta, un
+        // cambio de forma en la capa las rompe todas y hay que encontrarlas una a una.
+        const src = _readSrc('pages/Dashboard.jsx');
+        expect(src).toMatch(/planInsightsDisplay\(planData, _dashLocale\)/);
+        expect(src, 'volvió el acceso crudo a planData.insights en el render')
+            .not.toMatch(/\)\s*:\s*planData\.insights\.map\(/);
     });
 });

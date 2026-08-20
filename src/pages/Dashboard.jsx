@@ -33,7 +33,7 @@ import { COUNTRIES } from '../config/countries';
 // Nota: solo se usa para el TEXTO renderizado del título/descripción — la
 // identidad del plato (`meal.name` original) sigue siendo la clave de "me
 // gusta"/swap/PDF, que deben seguir resolviendo por el nombre canónico español.
-import { mealDisplay, mealSlotLabel } from '../utils/displayMeal';
+import { mealDisplay, mealSlotLabel, planInsightsDisplay } from '../utils/displayMeal';
 
 // [P1-DASH-GENERATING-HONESTY · 2026-08-16] «el próximo llega el <día>» a partir de
 // `next_chunk_eta`. Devuelve '' ante cualquier entrada inservible: el copy que lo
@@ -1425,7 +1425,10 @@ const DashboardInner = () => {
         return () => window.removeEventListener(INSIGHTS_RESTORE_EVENT, onRestore);
     }, [_planMicroSig]);
     const buildInsightsNotification = useCallback(() => {
-        const insights = Array.isArray(planData?.insights) ? planData.insights.filter(Boolean) : [];
+        // [P1-INSIGHTS-I18N · 2026-08-20] El razonamiento traducido. Lector UNICO
+        // autorizado de `_display` (contrato P1-PLAN-DISPLAY-I18N); cae al espanol
+        // ENTERO si falta o no cuadra la longitud, porque el panel rotula por POSICION.
+        const insights = planInsightsDisplay(planData, _dashLocale);
         if (!insights.length) return null;
         return {
             id: _planMicroSig ? `insights_${_planMicroSig}` : undefined,
@@ -1435,7 +1438,9 @@ const DashboardInner = () => {
             severity: 'info',
             data: { insights },
         };
-    }, [planData?.insights, _planMicroSig, t]);
+        // [P1-INSIGHTS-I18N] `_dashLocale` en deps: sin el, cambiar de idioma dejaba
+        // el cierre viejo y la notificacion archivada seguia en espanol hasta recargar.
+    }, [planData?.insights, planData?._display, _dashLocale, _planMicroSig, t]);
     const dismissReasoning = () => {
         const notif = buildInsightsNotification();
         if (notif) addNotification(notif);
@@ -9006,7 +9011,7 @@ const DashboardInner = () => {
                                     description={t('Cuando tu plan esté listo, encontrarás aquí el diagnóstico, el plan de acción y los tips del chef.')}
                                     compact
                                 />
-                            ) : planData.insights.map((insight, i) => {
+                            ) : planInsightsDisplay(planData, _dashLocale).map((insight, i) => {
                                 let icon = <CheckCircle size={20} />;
                                 let title = t('Nota:');
                                 let color = "var(--text-main)";
