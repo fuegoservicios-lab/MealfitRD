@@ -169,21 +169,25 @@ describe('[P2-HIST-AUDIT-2] tabs nav JSX', () => {
     it('botón "Menú" siempre visible cuando los tabs aparecen', () => {
         const around = tabsBlock(src);
         expect(around).toMatch(/onClick=\{\(\)\s*=>\s*setActiveModalTab\(['"]menu['"]\)\}/);
-        expect(around).toMatch(/>\s*Menú\s*</);
+        // [P1-HIST-TABS-I18N · 2026-08-20] Los tres literales pasaron por `t()`: con la
+        // app en inglés las pestañas seguían diciendo «Menú / Lecciones / Ajustes». El
+        // guard se mantiene —el botón debe seguir ahí y con esa etiqueta— pero exige
+        // ahora la forma traducible. Si alguien vuelve al literal crudo, rojo.
+        expect(around).toMatch(/>\s*\{t\('Menú'\)\}\s*</);
     });
 
     it('botón "Lecciones" condicional + dispara _ensureLessonsDetail', () => {
         const around = tabsBlock(src);
         expect(around).toMatch(/_hasLessons\s*&&/);
         expect(around).toMatch(/_ensureLessonsDetail\(selectedPlan\.id\)/);
-        expect(around).toMatch(/>\s*Lecciones\s*\(\{_lessonsCount\}\)\s*</);
+        expect(around).toMatch(/\{t\('Lecciones \(\{n\}\)',\s*\{\s*n:\s*_lessonsCount\s*\}\)\}/);
     });
 
     it('botón "Ajustes" condicional + dispara _ensureCoherenceHistory', () => {
         const around = tabsBlock(src);
         expect(around).toMatch(/_hasAdjusts\s*&&/);
         expect(around).toMatch(/_ensureCoherenceHistory\(selectedPlan\.id\)/);
-        expect(around).toMatch(/>\s*Ajustes\s*\(\{_adjustsCount\}\)\s*</);
+        expect(around).toMatch(/\{t\('Ajustes \(\{n\}\)',\s*\{\s*n:\s*_adjustsCount\s*\}\)\}/);
     });
 });
 

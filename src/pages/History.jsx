@@ -2335,8 +2335,8 @@ const History = () => {
                                                     return (
                                                         <p className={styles.actionBannerCta}>
                                                             {_hideRestore
-                                                                ? (<>Vuelve al <strong>Dashboard</strong> para retomar la generación de los chunks bloqueados.</>)
-                                                                : (<>Pulsa <strong>Reactivar este Plan</strong> abajo para retomar la generación desde el Dashboard.</>)}
+                                                                ? (<>{t('Vuelve al')} <strong>Dashboard</strong> {t('para retomar la generación de los chunks bloqueados.')}</>)
+                                                                : (<>{t('Pulsa')} <strong>{t('Reactivar este Plan')}</strong> {t('abajo para retomar la generación desde el Dashboard.')}</>)}
                                                         </p>
                                                     );
                                                 })()}
@@ -2673,7 +2673,7 @@ const History = () => {
                                                 onClick={() => setActiveModalTab('menu')}
                                                 className={`${styles.modalTab} ${activeModalTab === 'menu' ? styles.modalTabActive : ''}`}
                                             >
-                                                Menú
+                                                {t('Menú')}
                                             </button>
                                             {_hasLessons && (
                                                 <button
@@ -2692,7 +2692,7 @@ const History = () => {
                                                     }}
                                                     className={`${styles.modalTab} ${activeModalTab === 'lessons' ? styles.modalTabActive : ''}`}
                                                 >
-                                                    Lecciones ({_lessonsCount})
+                                                    {t('Lecciones ({n})', { n: _lessonsCount })}
                                                 </button>
                                             )}
                                             {_hasAdjusts && (
@@ -2705,7 +2705,7 @@ const History = () => {
                                                     className={`${styles.modalTab} ${activeModalTab === 'adjustments' ? styles.modalTabActive : ''}`}
                                                     title={_adjustsTitle}
                                                 >
-                                                    Ajustes ({_adjustsCount})
+                                                    {t('Ajustes ({n})', { n: _adjustsCount })}
                                                 </button>
                                             )}
                                             {_hasMetrics && (
@@ -2723,7 +2723,9 @@ const History = () => {
                                                         recovery_exhausted (persistido en
                                                         plan_data sin queue rows), label cae a
                                                         "Métricas" sin contador. */}
-                                                    Métricas{_metricsTabCount > 0 ? ` (${_metricsTabCount})` : ''}
+                                                    {_metricsTabCount > 0
+                                                        ? t('Métricas ({n})', { n: _metricsTabCount })
+                                                        : t('Métricas')}
                                                 </button>
                                             )}
                                         </div>
@@ -3058,9 +3060,9 @@ const History = () => {
                                                             {_lcl.metrics_unavailable === true && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                    title="El chunk shippó días pero learning_metrics quedó NULL (T2 fail). El próximo chunk nace sin la información del anterior — riesgo de repetir comidas."
+                                                                    title={t('El chunk shippó días pero learning_metrics quedó NULL (T2 fail). El próximo chunk nace sin la información del anterior — riesgo de repetir comidas.')}
                                                                 >
-                                                                    Sin métricas T2
+                                                                    {t('Sin métricas T2')}
                                                                 </span>
                                                             )}
                                                             {_lcl.rebuilt_from_pipeline_failure === true && (
