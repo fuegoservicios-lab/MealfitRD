@@ -41,7 +41,6 @@ import {
     coerceLocale,
     detectBrowserLocale,
     isSupportedLocale,
-    isSupportedLocale,
 } from './locales';
 import React, {
     createContext,
