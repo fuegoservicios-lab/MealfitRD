@@ -63,6 +63,57 @@ export const TIER_DISPLAY_NAME = {
     ultra: 'Max',
 };
 
+// [P1-PRICING-I18N · 2026-08-20] El nombre comercial SÍ se traduce en el dashboard.
+//
+// La nota de arriba decía que estos nombres «no pasan por el catálogo: son dato, igual
+// que en PayPal». Decisión del dueño (2026-08-20), a la vista de la pantalla en inglés:
+// «Gratis» y «Básico» son palabras españolas, no marcas — Plus y Max ya eran neutras, y
+// la mezcla se leía a medio traducir.
+//
+// LO QUE NO CAMBIA, y es lo que hace esto seguro: las CLAVES internas
+// (`gratis`/`basic`/`plus`/`ultra`) siguen intactas. Las usan PayPal,
+// `user_profiles.plan_tier`, los knobs y `auth._TIER_LIMITS`. Aquí solo se traduce la
+// capa visible, que es justo la costura que `P2-TIER-DISPLAY-NAME` ya había separado.
+//
+// El `t` va por PARÁMETRO en vez de importarse: así el LANDING (español) sigue llamando
+// sin él y recibe el nombre español, y el dashboard lo pasa. Una sola fuente, y decide
+// quien pinta. Y evita la trampa del congelado: un mapa con `t()` a nivel de módulo se
+// evaluaría al importar, antes de que exista el catálogo.
+// Los literales van EXPLICITOS dentro de una funcion. `npm run i18n:check` da por
+// HUERFANA toda clave que no aparezca como literal en una llamada `t()`, y pasarlas por
+// variable (`t(base)`) las vuelve invisibles: el aviso de «cambiaron el copy y la
+// traduccion quedo atras» se apagaria con falsos positivos. Y dentro de una FUNCION
+// porque un mapa a nivel de modulo se evalua al importar, antes de que exista el
+// catalogo, y quedaria congelado en espanol.
+function _nombresTraducidos(t) {
+    return {
+        'Gratis': t('Gratis'),
+        'Básico': t('Básico'),
+        'Plus': t('Plus'),
+        'Max': t('Max'),
+    };
+}
+
+export function tierDisplayName(tier, t) {
+    const base = TIER_DISPLAY_NAME[tier] || tier;
+    if (typeof t !== 'function') return base;
+    const mapa = _nombresTraducidos(t);
+    return Object.prototype.hasOwnProperty.call(mapa, base) ? mapa[base] : base;
+}
+
+/** Etiqueta del periodo («/mes», «/año») traducida. Mismo criterio: el dato vive en
+ *  `PRICING`, la traducción la decide quien pinta. */
+function _periodosTraducidos(t) {
+    return { '/mes': t('/mes'), '/año': t('/año') };
+}
+
+export function periodLabel(label, t) {
+    if (typeof label !== 'string' || !label) return label;
+    if (typeof t !== 'function') return label;
+    const mapa = _periodosTraducidos(t);
+    return Object.prototype.hasOwnProperty.call(mapa, label) ? mapa[label] : label;
+}
+
 // [P2-LADDER-VS-PREDECESSOR · 2026-07-31] Cada plan se compara con el escalón
 // ANTERIOR, no con Gratis (pedido del owner: el salto que importa al decidir
 // es el que separa de donde estás, no del principio de la escalera).
@@ -73,20 +124,29 @@ export const TIER_PREDECESSOR = { basic: 'gratis', plus: 'basic', ultra: 'plus' 
  *  el mismo dato: tocar el ladder sin tocar el copy dejaría la página
  *  prometiendo saltos que ya no existen. `null` si el tier no tiene anterior
  *  (Gratis) o si el ladder dejara de crecer — nunca se inventa un salto. */
-export function creditsVsPredecessor(tier) {
+export function creditsVsPredecessor(tier, t) {
     const prev = TIER_PREDECESSOR[tier];
     if (!prev) return null;
     const ratio = TIER_CREDITS[tier] / TIER_CREDITS[prev];
     if (!Number.isFinite(ratio) || ratio <= 1) return null;
     const factor = Number.isInteger(ratio) ? String(ratio) : ratio.toFixed(1).replace('.', ',');
-    return `${factor}× más créditos que ${TIER_DISPLAY_NAME[prev]}`;
+    // [P1-PRICING-I18N] Sin `t` devuelve el español (el landing). El separador decimal
+    // se deja como está: es dato del ladder, no copy.
+    const plan = tierDisplayName(prev, t);
+    return typeof t === 'function'
+        ? t('{factor}× más créditos que {plan}', { factor, plan })
+        : `${factor}× más créditos que ${plan}`;
 }
 
 /** "Todo lo incluido en <anterior>" — misma razón: el nombre del escalón
  *  anterior se deriva, no se repite. */
-export function includesPredecessor(tier) {
+export function includesPredecessor(tier, t) {
     const prev = TIER_PREDECESSOR[tier];
-    return prev ? `Todo lo incluido en ${TIER_DISPLAY_NAME[prev]}` : null;
+    if (!prev) return null;
+    const plan = tierDisplayName(prev, t);
+    return typeof t === 'function'
+        ? t('Todo lo incluido en {plan}', { plan })
+        : `Todo lo incluido en ${plan}`;
 }
 
 // [P2-LANDING-COPY-TRUTH · 2026-08-14] Precios por tier y periodo.

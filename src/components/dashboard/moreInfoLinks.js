@@ -39,7 +39,7 @@ export const SUPPORT_EMAIL = 'bioboros.support@gmail.com';
 // producto; abajo: legal).
 //
 // Es una FUNCIÓN y no una constante, y no es un detalle de estilo: un
-// `const X = [{ label: t('...') }]` a nivel de módulo se evalúa UNA vez al importar
+// un mapa de etiquetas ya traducidas a nivel de módulo se evalúa UNA vez al importar
 // —antes de que `initLocale()` cargue el catálogo— y se queda congelado en español
 // para siempre, además de no reaccionar al cambio de idioma. En es-DO parece
 // correcto, que es lo que lo hace difícil de ver.

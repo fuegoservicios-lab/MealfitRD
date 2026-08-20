@@ -57,7 +57,7 @@ const PaymentModal = lazy(() => import('../components/dashboard/PaymentModal'));
 // [P1-CREDITS-LADDER + P1-LAUNCH-OFFER · 2026-07-31] Créditos por tier y
 // anclaje de precio de lanzamiento — SSOT compartido con Pricing.jsx.
 import {
-    ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME,
+    ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME, tierDisplayName, periodLabel,
     creditsVsPredecessor, includesPredecessor,
     PRICING, NAME_BY_TIER, TIER_RANK, isLaunchOfferActive, monthlyEquivalent,
 } from '../config/plans';
@@ -104,24 +104,24 @@ function getPlanSummary() {
         basic: {
             description: t('Más créditos para regenerar platos y días sin miedo a quedarte corto.'),
             features: [
-                creditsVsPredecessor('basic'),
-                includesPredecessor('basic'),
+                creditsVsPredecessor('basic', t),
+                includesPredecessor('basic', t),
             ],
         },
         plus: {
             description: t('Combustible de sobra: ajusta, regenera y experimenta toda la semana.'),
             features: [
-                creditsVsPredecessor('plus'),
-                includesPredecessor('plus'),
+                creditsVsPredecessor('plus', t),
+                includesPredecessor('plus', t),
             ],
         },
         ultra: {
             description: t('El tope más alto: para quien ajusta y optimiza su plan todos los días.'),
             features: [
-                creditsVsPredecessor('ultra'),
+                creditsVsPredecessor('ultra', t),
                 t('Acceso Anticipado a Funciones'),
                 t('Soporte Prioritario VIP'),
-                includesPredecessor('ultra'),
+                includesPredecessor('ultra', t),
             ],
         },
     };
@@ -342,7 +342,9 @@ const Upgrade = () => {
 
     // tier-aware: Ultra siempre mensual (ver ANNUAL_DISABLED_TIERS).
     const getPrice = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.price || '0';
-    const getPeriodLabel = (tier) => PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.label || '';
+    // [P1-PRICING-I18N · 2026-08-20] «/mes» y «/año» son copy, no dato de precio.
+    const getPeriodLabel = (tier) => periodLabel(
+        PRICING[tier]?.[isAnnualForTier(tier) ? 'annual' : 'monthly']?.label || '', t);
     const getMonthlyEquiv = (tier) => (isAnnualForTier(tier) ? monthlyEquivalent(tier) : null);
 
     const handleFreePlanClick = () => {
@@ -366,7 +368,7 @@ const Upgrade = () => {
         const price = getPrice(tier);
         // [ULTRA-MONTHLY-ONLY · 2026-06-19] Periodo efectivo tier-aware (Ultra → mensual).
         const annual = isAnnualForTier(tier);
-        const periodSuffix = annual ? ' (Anual)' : ' (Mensual)';
+        const periodSuffix = annual ? t(' (Anual)') : t(' (Mensual)');
         setSelectedPlan({ tier, price, name: name + periodSuffix, isAnnual: annual });
         setIsPaymentOpen(true);
         // [PAY-MODAL-PERSIST · 2026-06-18] Persistir el checkout en la URL para que
@@ -460,12 +462,12 @@ const Upgrade = () => {
         // El nombre comercial del plan (Gratis/Básico/Plus/Max) es dato, no copy:
         // viaja interpolado y NO pasa por el catálogo.
         if (!userProfile?.id) {
-            return tier === 'gratis' ? t('Empezar Gratis') : t('Cambiar a {plan}', { plan: DISPLAY_BY_TIER[tier] || tier });
+            return tier === 'gratis' ? t('Empezar Gratis') : t('Cambiar a {plan}', { plan: tierDisplayName(tier, t) });
         }
         if (currentTier === tier) return t('Tu Plan Actual');
         const targetRank = TIER_RANK[tier] || 1;
         if (targetRank < currentRank) return t('Incluido en tu Plan');
-        return tier === 'gratis' ? t('Empezar Gratis') : t('Cambiar a {plan}', { plan: DISPLAY_BY_TIER[tier] || tier });
+        return tier === 'gratis' ? t('Empezar Gratis') : t('Cambiar a {plan}', { plan: tierDisplayName(tier, t) });
     };
 
     const isButtonDisabled = (tier) => {
@@ -672,10 +674,14 @@ const Upgrade = () => {
 
             {/* --- PLANS GRID --- */}
             <div className={styles.plansGrid}>
-                {renderPlanCard('gratis', 'Gratis', 'Plan Gratis')}
-                {renderPlanCard('basic', 'Básico', 'Suscripción Básico')}
-                {renderPlanCard('plus', 'Plus', 'Suscripción Plus')}
-                {renderPlanCard('ultra', 'Max', 'Suscripción Max')}
+                {/* [P1-PRICING-I18N · 2026-08-20] El nombre visible sale del SSOT y pasa
+                    por `t()`; el `ctaName` es el rótulo que ve el usuario en el modal de
+                    pago (`planName`), NO viaja a PayPal — quien gobierna el cobro es el
+                    `tier`, que sigue siendo la clave interna intacta. */}
+                {renderPlanCard('gratis', tierDisplayName('gratis', t), t('Plan Gratis'))}
+                {renderPlanCard('basic', tierDisplayName('basic', t), t('Suscripción {plan}', { plan: tierDisplayName('basic', t) }))}
+                {renderPlanCard('plus', tierDisplayName('plus', t), t('Suscripción {plan}', { plan: tierDisplayName('plus', t) }))}
+                {renderPlanCard('ultra', tierDisplayName('ultra', t), t('Suscripción {plan}', { plan: tierDisplayName('ultra', t) }))}
             </div>
 
             {/* --- TABLA COMPARATIVA ---
@@ -694,18 +700,21 @@ const Upgrade = () => {
                         <thead>
                             <tr>
                                 <th>{t('Característica')}</th>
-                                {/* Los nombres comerciales de los planes NO pasan por el
-                                    catálogo: son dato (TIER_DISPLAY_NAME), igual que en
-                                    las tarjetas y en PayPal. */}
-                                <th>Gratis</th>
-                                <th>Básico</th>
+                                {/* [P1-PRICING-I18N · 2026-08-20] Los nombres comerciales
+                                    SÍ se traducen ahora (decisión del dueño): «Gratis» y
+                                    «Básico» son palabras españolas, no marcas. Lo que NO
+                                    cambia son las CLAVES internas — `gratis`/`basic`/
+                                    `plus`/`ultra` las usan PayPal, `user_profiles.plan_tier`
+                                    y los knobs. Se traduce la capa visible, nada más. */}
+                                <th>{tierDisplayName('gratis', t)}</th>
+                                <th>{tierDisplayName('basic', t)}</th>
                                 <th className={styles.compTableCellHighlight}>
                                     <span className={styles.compTablePopularBadge}>{t('Popular')}</span>
-                                    Plus
+                                    {tierDisplayName('plus', t)}
                                 </th>
                                 {/* [P1-CREDITS-LADDER] El tier interno se llama `ultra`
                                     pero el nombre comercial es Max (= tarjetas arriba). */}
-                                <th>Max</th>
+                                <th>{tierDisplayName('ultra', t)}</th>
                             </tr>
                         </thead>
                         <tbody>
