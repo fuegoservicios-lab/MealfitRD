@@ -428,6 +428,26 @@ export default defineConfig(({ mode }) => {
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
     css: true,
+    // [P1-VITEST-WORKER-STABILITY · 2026-08-20] Sin este tope, vitest arranca
+    // ~11 forks (nucleos - 1) y CADA uno monta jsdom + la app entera. En esta
+    // maquina (12 nucleos, 16,9 GB, ~3,6 GB libres con el editor abierto) los
+    // workers se MUEREN: "Worker exited unexpectedly".
+    //
+    // Lo grave no es que fallen, es COMO fallan: tres corridas seguidas dieron
+    // 247, 258 y 265 archivos. Los que no llegan a ejecutarse simplemente NO
+    // aparecen -- el resumen dice "255 passed" sin mencionar que faltan diez.
+    // Un total menor se lee igual de verde que el total completo, y el gate del
+    // deploy se apoya en eso. Es la misma forma del falso verde que
+    // P1-CI-GATE-INCONCLUSIVE cerro en pytest, al otro lado del mismo gate.
+    //
+    // Medido, no supuesto: con 4 workers, dos corridas consecutivas dieron
+    // 265/265 archivos y 2.697/2.697 tests, exit 0 y cero errores. Cuesta ~130 s
+    // frente a ~98 s. Treinta segundos por una cifra en la que se puede confiar
+    // es un cambio barato; el que sale caro es desplegar con la suite a medias.
+    //
+    // Knob por si otra maquina aguanta mas (o menos): VITEST_MAX_WORKERS.
+    maxWorkers: Number(process.env.VITEST_MAX_WORKERS) || 4,
+    minWorkers: 1,
     // [P1-4 · COVERAGE-REPORT-ONLY · 2026-07-09] @vitest/coverage-v8 en modo
     // REPORT-ONLY: thresholds en 0 → nunca falla CI (informa, no bloquea).
     // Publica lcov (artefacto CI) + text-summary (consola). Excluye targets no-
