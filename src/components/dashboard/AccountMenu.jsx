@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 // (SSOT compartido con el menú "más" móvil de DashboardLayout).
 import { Link } from 'react-router-dom';
 import { moreInfoGroups } from './moreInfoLinks';
+import { apexUrl } from '../../config/site';
 import { useT } from '../../i18n';
 import styles from './AccountMenu.module.css';
 
@@ -198,16 +199,32 @@ export default function AccountMenu({
               {gi > 0 && <div className={styles.infoDivider} role="separator" />}
                 {/* [P1-MORE-INFO-IN-APP · 2026-08-10] Misma corrección que en el menú
                     móvil: ruta in-app, misma pestaña. Ver moreInfoLinks.js. */}
+                {/* [P1-MORE-INFO-UNA-COPIA · 2026-08-20] `<a>` y NO `<Link>`, igual que el
+                    pie (P1-LEGAL-UNA-SOLA-COPIA). nginx redirige estas 16 rutas de
+                    `app.` al apex con un 301, pero eso solo atrapa una carga completa
+                    de pagina: un `<Link>` lo resuelve React Router EN EL CLIENTE, nunca
+                    toca el servidor, y el usuario se queda viendo la COPIA INTERNA — la
+                    que arrastra el diseno y el nav anteriores, y cuyo texto legal ya
+                    divergio (el 19-ago la misma afirmacion falsa sobre contrasenas vivia
+                    en TRES sitios).
+
+                    Aquel arreglo cerro el pie y se dejo los dos menus, que el 10-ago
+                    habian pasado a `<Link>` para no perder la sesion al salir al apex.
+                    Ese motivo se atendio de otra forma: MISMA PESTANA (sin `target`), asi
+                    que «atras» vuelve al dashboard y la sesion de `app.` sigue intacta —
+                    lo que aquel reporte pedia era no acabar en una pestana huerfana.
+                    Servir un contrato desincronizado es peor que un salto de dominio. */}
                 {group.map((link) => (
-                  <Link
+                  <a
                     key={link.path}
-                    to={link.path}
+                    href={apexUrl(link.path)}
+                    rel="noopener"
                     className={styles.infoLink}
                     role="menuitem"
                     onClick={() => onAccount?.()}
                   >
                     <span className={styles.itemLabel}>{link.label}</span>
-                  </Link>
+                  </a>
                 ))}
             </Fragment>
           ))}

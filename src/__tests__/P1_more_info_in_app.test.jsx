@@ -25,6 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import AccountMenu from '../components/dashboard/AccountMenu';
 import { moreInfoGroups } from '../components/dashboard/moreInfoLinks';
+import { apexUrl, isSiteHost } from '../config/site';
 
 const LEER = (...p) => fs.readFileSync(path.resolve(__dirname, '..', ...p), 'utf-8');
 
@@ -34,7 +35,22 @@ const LEER = (...p) => fs.readFileSync(path.resolve(__dirname, '..', ...p), 'utf
 const TODAS = moreInfoGroups().flat();
 
 describe('[P1-MORE-INFO-IN-APP] «Más información» no saca al usuario de su sesión', () => {
-    it('los enlaces del menú de cuenta son rutas in-app, en la misma pestaña', async () => {
+    // [P1-MORE-INFO-UNA-COPIA · 2026-08-20] Lo que este P-fix pedía —no acabar en una
+    // pestaña huérfana en otro dominio— sigue vigente y es lo que este test protege:
+    // MISMA PESTAÑA. Lo que cambió es el otro medio: dejaron de ser `<Link>`.
+    //
+    // Un `<Link>` lo resuelve React Router en el cliente, así que el 301 de nginx no
+    // llega a ejecutarse y el usuario se queda en la COPIA INTERNA de esas páginas —
+    // con el diseño y el nav anteriores, y con texto legal que ya divergió
+    // (P1-LEGAL-UNA-SOLA-COPIA arregló el pie el 19-ago y se dejó estos dos menús).
+    // Servir un contrato desincronizado es peor que un salto de dominio.
+    //
+    // OJO CON ESTE TEST: la versión anterior afirmaba `href === link.path` y HABRÍA
+    // SEGUIDO EN VERDE con el cambio, porque `apexUrl()` devuelve la ruta tal cual
+    // cuando el hostname no es de producción — y jsdom es `localhost`. Estaba
+    // midiendo la rama de desarrollo y creyendo que medía el contrato. Ahora se
+    // comprueban las DOS ramas explícitamente.
+    it('los enlaces del menú de cuenta salen al apex, en la misma pestaña', async () => {
         const user = userEvent.setup();
         render(
             <MemoryRouter>
@@ -50,12 +66,18 @@ describe('[P1-MORE-INFO-IN-APP] «Más información» no saca al usuario de su s
         expect(TODAS.length).toBeGreaterThanOrEqual(7);
         for (const link of TODAS) {
             const el = screen.getByRole('menuitem', { name: new RegExp(link.label, 'i') });
-            // Ruta relativa: si vuelve a llevar host, vuelve el salto de dominio.
-            expect(el.getAttribute('href'), `${link.label} debe ser ruta in-app`).toBe(link.path);
+            // En jsdom (`localhost`) `apexUrl` devuelve la ruta tal cual: es la rama
+            // de dev/preview, y comprobarla aquí es lo único que este render permite.
+            expect(el.getAttribute('href'), `${link.label} debe apuntar a su ruta`).toBe(link.path);
+            // Lo que el P-fix original protege y sigue vigente: MISMA pestaña. Una
+            // pestaña nueva en el apex es lo que dejaba al usuario huérfano.
             expect(
                 el.getAttribute('target'),
                 `${link.label} no debe abrir pestaña nueva desde el menú`,
             ).toBeNull();
+            // Y que sea navegación REAL, no client-side: sin esto el 301 no corre.
+            expect(el.tagName, `${link.label} debe ser <a>, no un <Link> de React Router`)
+                .toBe('A');
         }
     });
 
@@ -139,5 +161,42 @@ describe('[P1-MORE-INFO-I18N] las etiquetas del submenú se traducen', () => {
         expect(src).toMatch(/moreInfoGroups\(t\)\.map/);
         expect(src, 'quedó un consumidor de la constante vieja')
             .not.toMatch(/MORE_INFO_GROUPS/);
+    });
+});
+
+/* [P1-MORE-INFO-UNA-COPIA · 2026-08-20] La rama de PRODUCCIÓN de `apexUrl`.
+ *
+ * El test de arriba solo puede ver la rama de dev (jsdom es `localhost`). Esta
+ * comprueba la que de verdad importa: en `app.bioboros.com` el enlace tiene que
+ * salir al apex, porque es lo único que hace que el 301 de nginx se ejecute y el
+ * usuario deje de ver la copia interna.
+ */
+describe('[P1-MORE-INFO-UNA-COPIA] en producción los enlaces salen al apex', () => {
+    // `apexUrl(path)` lee `window.location` y no acepta el host por parámetro, así
+    // que la rama de producción se comprueba por sus dos piezas: el predicado —que
+    // SÍ es parametrizable— y la reescritura del subdominio en el fuente.
+    it('`app.bioboros.com` cuenta como host del sitio; `localhost` no', () => {
+        expect(isSiteHost('app.bioboros.com')).toBe(true);
+        expect(isSiteHost('bioboros.com')).toBe(true);
+        expect(isSiteHost('localhost')).toBe(false);
+        expect(isSiteHost('127.0.0.1')).toBe(false);
+    });
+
+    it('apexUrl quita el subdominio `app.` y conserva la ruta', () => {
+        const src = LEER('config/site.js');
+        expect(src).toMatch(/hostname\.replace\(\/\^app\\.\/i, ''\)/);
+        // Y en dev/preview devuelve la ruta tal cual (rama in-app).
+        expect(apexUrl('/terms')).toBe('/terms');
+    });
+
+    it('los DOS menús usan el helper, no un `<Link>`', () => {
+        for (const rel of ['components/dashboard/AccountMenu.jsx',
+                           'components/dashboard/DashboardLayout.jsx']) {
+            const src = LEER(rel);
+            expect(src, `${rel} sigue con <Link> hacia las páginas públicas`)
+                .toMatch(/href=\{apexUrl\(link\.path\)\}/);
+            expect(src, `${rel} volvió a <Link to={link.path}>`)
+                .not.toMatch(/<Link\s+[^>]*to=\{link\.path\}/);
+        }
     });
 });
