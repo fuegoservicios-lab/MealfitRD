@@ -2806,7 +2806,7 @@ const History = () => {
                                         if (!raw || typeof raw !== 'string') return '';
                                         const _d = new Date(raw);
                                         if (Number.isNaN(_d.getTime())) return '';
-                                        return _d.toLocaleString('es-DO', {
+                                        return formatDate(_d, {
                                             month: 'short', day: 'numeric',
                                             hour: '2-digit', minute: '2-digit',
                                         });

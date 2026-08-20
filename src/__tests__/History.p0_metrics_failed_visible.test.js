@@ -98,12 +98,20 @@ describe('[P0-HIST-METRICS-FAILED] label del tab con contador inteligente', () =
         expect(tabIdx).toBeGreaterThan(-1);
         const block = src.slice(tabIdx, tabIdx + 1500);
         // Texto literal "Métricas" justo antes de la expresión.
-        expect(block).toMatch(/M[eé]tricas\{\s*_metricsTabCount\s*>\s*0/);
-        // Branch true: ` (${_metricsTabCount})` (template literal con
-        // interpolación). Backtick + paréntesis abierto + ${...}.
-        expect(block).toMatch(/\?\s*`\s*\(\$\{_metricsTabCount\}\)`/);
-        // Branch false: '' (string vacío).
-        expect(block).toMatch(/:\s*['"]['"]\s*\}/);
+        // [P1-HIST-TABS-I18N · 2026-08-20] El literal pasó por `t()` para que el modal
+        // se lea en el idioma elegido. El guard NO se relaja —el copy debe seguir ahí,
+        // en ese sitio y con esa forma— solo cambia a la variante traducible.
+        expect(block).toMatch(/_metricsTabCount\s*>\s*0[\s\S]{0,120}t\('M[eé]tricas \(\{n\}\)'/);
+        // [P1-HIST-TABS-I18N · 2026-08-20] Las dos ramas cambiaron de FORMA, no de
+        // significado: eran un template literal (` (${n})`) y una cadena vacía; ahora
+        // son dos claves traducibles. Lo que el guard protege sigue igual —con
+        // contador cuando hay chunks, sin él cuando no— y sigue exigiendo que el
+        // contador SEA `_metricsTabCount` (la regresión que P0-HIST-METRICS-FAILED
+        // cerró era usar `_completedCount` solo).
+        // Branch true: con contador.
+        expect(block).toMatch(/\?\s*t\('M[eé]tricas \(\{n\}\)',\s*\{\s*n:\s*_metricsTabCount\s*\}\)/);
+        // Branch false: sin contador.
+        expect(block).toMatch(/:\s*t\('M[eé]tricas'\)\s*\}/);
     });
 
     it('label NO usa _completedCount sólo (regresión del fix)', () => {

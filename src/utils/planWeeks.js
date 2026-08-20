@@ -21,6 +21,8 @@
 //
 // Tooltip-anchor: P1-DASH-WEEK-NAV. Tests: src/__tests__/planWeeks.test.js.
 
+import { formatDate } from '../i18n';
+
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Abreviaturas de lunes a domingo, en el orden en que se pintan las columnas.
@@ -187,8 +189,10 @@ export function chunkCoveringDate(iso, firstLiveIso, chunkStatusInfo) {
     return upcoming.find(covers) || null;
 }
 
+// [P1-HIST-PANEL-FECHA-I18N · 2026-08-20] El nombre queda por compatibilidad de
+// call sites, pero ya NO es «Es»: `formatDate` lee el locale activo.
 function formatDayEs(date) {
-    return date.toLocaleDateString('es-DO', { weekday: 'long' });
+    return formatDate(date, { weekday: 'long' });
 }
 
 // Devuelve `label` (frase completa, para el `aria-label` y para la etiqueta de

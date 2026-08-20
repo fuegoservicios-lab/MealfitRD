@@ -21,7 +21,7 @@ import {
     resolveDayState,
     WEEKDAY_LABELS,
 } from '../../utils/planWeeks';
-import { useT } from '../../i18n';
+import { useT, formatDate } from '../../i18n';
 
 const RANGO = { month: 'short', day: 'numeric' };
 
@@ -106,8 +106,8 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                         onClick={() => setSemanaAbierta(i)}
                         aria-label={t('Semana {ordinal}, {inicio} a {fin}, {listos} de {total} días listos', {
                             ordinal: w.ordinal,
-                            inicio: w.start.toLocaleDateString('es-DO', RANGO),
-                            fin: w.end.toLocaleDateString('es-DO', RANGO),
+                            inicio: formatDate(w.start, RANGO),
+                            fin: formatDate(w.end, RANGO),
                             listos: w.readyCount,
                             total: w.cells.filter(Boolean).length,
                         })}
@@ -115,7 +115,7 @@ const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) =
                     >
                         <span className="plan-week-pill__title">{t('Semana {n}', { n: w.ordinal })}</span>
                         <span className="plan-week-pill__range">
-                            {w.start.toLocaleDateString('es-DO', RANGO)} – {w.end.toLocaleDateString('es-DO', RANGO)}
+                            {formatDate(w.start, RANGO)} – {formatDate(w.end, RANGO)}
                         </span>
                         {/* El conteo era una TERCERA línea de texto en cada
                             pastilla: cinco semanas × tres líneas llenaban el

@@ -119,11 +119,14 @@ describe('[P2-HIST-2] History.jsx — banner action_required en modal', () => {
         // que ese fallback persiste — anchor robusto en
         // `actionBannerCta}` (con `}`) evita matchear
         // `actionBannerCtaButton`, que es el botón configurable.
-        expect(src).toMatch(/Reactivar este Plan/);
+        // [P1-HIST-TABS-I18N · 2026-08-20] El literal pasó por `t()` para que el modal
+        // se lea en el idioma elegido. El guard NO se relaja —el copy debe seguir ahí,
+        // en ese sitio y con esa forma— solo cambia a la variante traducible.
+        expect(src).toMatch(/t\('Reactivar este Plan'\)/);
         const ctaIdx = src.indexOf('actionBannerCta}');
         expect(ctaIdx).toBeGreaterThan(-1);
         const block = src.slice(ctaIdx, ctaIdx + 400);
-        expect(block).toMatch(/<strong>Reactivar este Plan<\/strong>/);
+        expect(block).toMatch(/<strong>\{t\('Reactivar este Plan'\)\}<\/strong>/);
     });
 
     it('banner usa role="alert" para a11y (screen readers)', () => {

@@ -11,7 +11,7 @@ import { firstDayMeals } from "../../utils/normalizePlanDays";
 // componentes (es lo que los suscribe al cambio de idioma); el `t`/`tn` sueltos
 // para helpers de módulo (`normalizePlan`, `bucketTitle`) que se INVOCAN en
 // render, nunca al importar — ahí está la trampa del ámbito de módulo.
-import { t, tn, useT, useI18n } from "../../i18n";
+import { t, tn, useT, useI18n, formatDate } from "../../i18n";
 
 /**
  * HistoryDesktopPanel — vista "Historial" de escritorio (Bioboros).
@@ -66,10 +66,22 @@ function Icon({ name, size = 20 }) {
 }
 
 /* --------------------------------------------------------- helpers */
-const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-const fmtDate = (d) => `${DIAS[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
-const fmtTime = (d) => { let h = d.getHours(); const ap = h < 12 ? "a. m." : "p. m."; h = h % 12 || 12; return `${h}:${String(d.getMinutes()).padStart(2, "0")} ${ap}`; };
+// [P1-HIST-PANEL-FECHA-I18N · 2026-08-20] Era un formateador de fechas escrito a
+// MANO en español —arrays de días y meses, el «de … de …» montado a pelo y el
+// «a. m./p. m.»— duplicado en los dos paneles. Con la app en inglés la tarjeta
+// decía «martes, 18 de agosto de 2026 · 6:52 p. m.» debajo de un título ya
+// traducido.
+//
+// Lo que lo hacía invisible: NO usa `Intl`. El barrido que encontró y arregló los
+// `toLocaleDateString('es-DO')` del repo pasó por encima de esto sin verlo, porque
+// buscaba la API que este código precisamente no llama. Un formateador a mano no
+// aparece en una búsqueda por API.
+//
+// `formatDate` (i18n/index.js) delega en `Intl.DateTimeFormat` con el locale
+// ACTIVO, así que el orden de los campos, las preposiciones y el am/pm los pone
+// cada idioma por su cuenta — que es justo lo que un montaje manual no puede hacer.
+const fmtDate = (d) => formatDate(d, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const fmtTime = (d) => formatDate(d, { hour: "numeric", minute: "2-digit" });
 const daysAgo = (d) => Math.floor((Date.now() - d.getTime()) / 86400000);
 function bucketOf(d) { const n = daysAgo(d); if (n <= 0) return "Hoy"; if (n === 1) return "Ayer"; if (n <= 6) return "Esta semana"; if (n <= 13) return "La semana pasada"; return "Más antiguos"; }
 const BUCKET_ORDER = ["Hoy", "Ayer", "Esta semana", "La semana pasada", "Más antiguos"];

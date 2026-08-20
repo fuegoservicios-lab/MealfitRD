@@ -109,7 +109,10 @@ describe('[P2-HIST-AUDIT-7] render condicional', () => {
     it('fallback al copy hardcoded cuando NO hay custom CTA', () => {
         // El else del ternario debe tener el copy actual (Reactivar
         // este Plan abajo).
-        expect(block).toMatch(/Pulsa\s*<strong>Reactivar este Plan<\/strong>/);
+        // [P1-HIST-TABS-I18N · 2026-08-20] El literal pasó por `t()` para que el modal
+        // se lea en el idioma elegido. El guard NO se relaja —el copy debe seguir ahí,
+        // en ese sitio y con esa forma— solo cambia a la variante traducible.
+        expect(block).toMatch(/\{t\('Pulsa'\)\}\s*<strong>\{t\('Reactivar este Plan'\)\}<\/strong>/);
     });
 });
 
