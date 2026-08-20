@@ -45,7 +45,7 @@ import { splitWithAbsorb, findChunkContaining, parseStartLocal } from '../utils/
 // que un usuario que navega entre History ↔ Dashboard no dispare
 // los lazy fetches del modal de cero al volver.
 import { historyCaches, setCachedEntry, hydrateCacheDict, setCachedLifetimeEntry, hydrateLifetimeDict, invalidateCachesForPlan, getCachedHistoryListStale, setCachedHistoryList, invalidateHistoryListCache } from '../utils/historyCaches';
-import { resolverPlanDeUrl } from '../utils/historyDeepLink';
+import { resolverSincronizacionModal } from '../utils/historyDeepLink';
 // [P2-HIST-AUDIT-13 · 2026-05-09] SSOT del set de coherence
 // anomalous actions. Mirror de `backend/constants.py::COHERENCE_ANOMALOUS_ACTIONS`.
 import { isAnomalousCoherenceAction } from '../utils/coherenceActions';
@@ -503,8 +503,14 @@ const History = () => {
             return p;
         }, { replace: true });
     }, [setSearchParams]);
+    // [P1-HIST-MODAL-ONE-CLICK - 2026-08-20] Cerrar SOLO quita el plan de la URL;
+    // el estado lo cierra el efecto de sincronizacion. Antes hacia las dos cosas y
+    // hacian falta DOS clics: las dos escrituras no caen en el mismo render, asi
+    // que quedaba una pasada con la seleccion ya limpia y el parametro todavia
+    // puesto -- justo la que el efecto de restauracion interpretaba como "abrelo"
+    // (medido con una sonda; la secuencia esta en historyDeepLink.js). El segundo
+    // clic funcionaba porque para entonces la URL ya estaba limpia.
     const _closeDetailModal = useCallback(() => {
-        setSelectedPlan(null);
         _quitarPlanDeUrl();
     }, [_quitarPlanDeUrl]);
     const _closeRestoreConfirm = useCallback(() => setConfirmRestore(null), []);
@@ -1954,9 +1960,9 @@ const History = () => {
     // refresh que la motivó.
     const _planUrl = searchParams.get('plan');
     useEffect(() => {
-        if (selectedPlan) return;
-        const { accion, plan } = resolverPlanDeUrl(_planUrl, plans, !loading);
+        const { accion, plan } = resolverSincronizacionModal(_planUrl, selectedPlan, plans, !loading);
         if (accion === 'abrir') _abrirPlanEnEstado(plan);
+        else if (accion === 'cerrar') setSelectedPlan(null);
         else if (accion === 'limpiar') _quitarPlanDeUrl();
         // `_abrirPlanEnEstado` se redefine en cada render (no es callback
         // memoizado) — fuera de deps a propósito: incluirlo re-correría el

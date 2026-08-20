@@ -29,3 +29,48 @@ export const resolverPlanDeUrl = (idUrl, plans, listaLista) => {
     // Sin el plan a la vista: solo es «no existe» si la lista ya está completa.
     return { accion: listaLista ? 'limpiar' : 'esperar' };
 };
+
+// [P1-HIST-MODAL-ONE-CLICK · 2026-08-20] Hacía falta darle DOS veces a la X.
+//
+// El cierre hacía dos escrituras —`setSelectedPlan(null)` y `setSearchParams(...)`—
+// y NO caen en el mismo render. Medido con una sonda:
+//
+//   1. {selected: null,  planUrl: 'aaa'}   ← se limpia la selección…
+//   2. {selected: 'aaa', planUrl: 'aaa'}   ← …la URL aún no, y el efecto REABRE
+//   3. {selected: 'aaa', planUrl: null}    ← la URL se limpia tarde; ya hay selección
+//
+// El segundo clic sí cerraba porque para entonces la URL ya estaba limpia. Es
+// exactamente el modo de fallo que el comentario de arriba anticipaba: la
+// mitigación existía, pero dependía de que las dos escrituras cayeran juntas.
+//
+// La salida es UN SOLO ESCRITOR: quien cierra (la X, el overlay, ESC, el borrado)
+// solo quita el plan de la URL, y este helper decide qué hace el estado. Así el
+// cierre por botón y el cierre por «Atrás» recorren el MISMO camino — y de paso
+// arregla el Atrás, porque no existía ningún camino que cerrara al perder el
+// parámetro: el único efecto que miraba la URL solo sabía ABRIR.
+//
+// El caso `otro plan en la URL` (Atrás entre dos detalles) tampoco funcionaba: se
+// ignoraba con un `if (selectedPlan) return` y el modal seguía mostrando el plan
+// viejo mientras la URL apuntaba a otro.
+
+/**
+ * Decide qué debe hacer el ESTADO del modal para seguir a la URL, que es la
+ * fuente de verdad.
+ *
+ * @param {string|null} idUrl        valor de `?plan=`
+ * @param {object|null} seleccionado el plan abierto en estado, si lo hay
+ * @param {Array}       plans        lista de planes (puede estar a medio cargar)
+ * @param {boolean}     listaLista   la lista ya terminó de cargar
+ * @returns {{accion: 'nada'|'esperar'|'abrir'|'cerrar'|'limpiar', plan?: object}}
+ */
+export const resolverSincronizacionModal = (idUrl, seleccionado, plans, listaLista) => {
+    if (!seleccionado) return resolverPlanDeUrl(idUrl, plans, listaLista);
+    // Hay modal abierto: la URL manda.
+    if (!idUrl) return { accion: 'cerrar' };
+    if (String(seleccionado.id) === String(idUrl)) return { accion: 'nada' };
+    // Apunta a OTRO plan. Si aún no está en la lista NO se cierra ni se cambia:
+    // una ausencia de datos no es un dato (misma lección que `resolverPlanDeUrl`).
+    const lista = Array.isArray(plans) ? plans : [];
+    const plan = lista.find((p) => p && String(p.id) === String(idUrl));
+    return plan ? { accion: 'abrir', plan } : { accion: 'nada' };
+};
