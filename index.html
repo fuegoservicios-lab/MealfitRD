@@ -45,6 +45,9 @@
         var stored = localStorage.getItem('mealfit_locale');
         if (SUPPORTED.indexOf(stored) > 0) {
           document.documentElement.setAttribute('lang', stored);
+          // [P1-SPLASH-I18N · 2026-08-20] Se publica para el splash, que está en
+          // <body> y no puede leerlo desde aquí. Una sola lectura de localStorage.
+          window.__mfLocale = stored;
         }
       } catch (e) {
         /* el lang="es-DO" del <html> estático ya es el fallback correcto */
@@ -425,6 +428,53 @@
     <div class="splash-dots" aria-label="Cargando" aria-live="polite" aria-busy="true" role="status">
       <span></span><span></span><span></span>
     </div>
+    <!-- [P1-SPLASH-I18N · 2026-08-20] El splash se pinta ANTES de que React y el motor
+         de i18n existan, así que `t()` no está disponible: era la única superficie de la
+         app que seguía en español con el idioma en inglés, y la última que uno mira
+         porque dura un segundo.
+
+         El script va aquí, INMEDIATAMENTE después de los nodos, y no en un
+         `DOMContentLoaded`: corre durante el parseo, antes del primer paint, así que no
+         hay parpadeo de español. Mismo patrón que el boot del tema.
+
+         POR QUÉ EL TEXTO NO SALE DE LOS CATÁLOGOS: nadie llama a `t()` con estas
+         cadenas —no pueden, el motor aún no existe—, así que meterlas en los `.json`
+         las volvería HUÉRFANAS y `npm run i18n:check` empezaría a avisar de algo
+         correcto. Un guard que avisa de lo correcto se acaba ignorando. El SSOT es este
+         mapa, y `test_p1_splash_i18n.py` lo ancla: los 5 idiomas presentes y es-DO
+         idéntico al HTML estático.
+
+         Defensivo igual que sus hermanos: cualquier excepción deja el español del
+         marcado, que es el fallback correcto. -->
+    <script>
+      (function () {
+        try {
+          var TAGLINE = {
+            'es-DO': 'Nutrición personalizada con IA',
+            'en-US': 'AI-powered personalized nutrition',
+            'pt-BR': 'Nutrição personalizada com IA',
+            'fr-FR': 'Nutrition personnalisée par IA',
+            'it-IT': 'Nutrizione personalizzata con IA'
+          };
+          var CARGANDO = {
+            'es-DO': 'Cargando',
+            'en-US': 'Loading',
+            'pt-BR': 'Carregando',
+            'fr-FR': 'Chargement',
+            'it-IT': 'Caricamento'
+          };
+          var loc = window.__mfLocale;
+          if (loc && TAGLINE[loc]) {
+            var el = document.querySelector('.splash-tagline');
+            if (el) el.textContent = TAGLINE[loc];
+            var dots = document.querySelector('.splash-dots');
+            if (dots && CARGANDO[loc]) dots.setAttribute('aria-label', CARGANDO[loc]);
+          }
+        } catch (e) {
+          /* el español del marcado ya es el fallback correcto */
+        }
+      })();
+    </script>
   </div>
 
   <script type="module" src="/src/main.jsx"></script>
