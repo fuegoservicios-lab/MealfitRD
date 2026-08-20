@@ -24,11 +24,14 @@ import { MemoryRouter } from 'react-router-dom';
 import fs from 'node:fs';
 import path from 'node:path';
 import AccountMenu from '../components/dashboard/AccountMenu';
-import { MORE_INFO_GROUPS } from '../components/dashboard/moreInfoLinks';
+import { moreInfoGroups } from '../components/dashboard/moreInfoLinks';
 
 const LEER = (...p) => fs.readFileSync(path.resolve(__dirname, '..', ...p), 'utf-8');
 
-const TODAS = MORE_INFO_GROUPS.flat();
+// [P1-MORE-INFO-I18N · 2026-08-20] El SSOT pasó de constante a FUNCIÓN: sus
+// etiquetas van por `t()` y una constante de módulo las congelaría en español al
+// importar. Sin `t` devuelve el español, que es lo que estos tests comparan.
+const TODAS = moreInfoGroups().flat();
 
 describe('[P1-MORE-INFO-IN-APP] «Más información» no saca al usuario de su sesión', () => {
     it('los enlaces del menú de cuenta son rutas in-app, en la misma pestaña', async () => {
@@ -82,5 +85,59 @@ describe('[P1-MORE-INFO-IN-APP] «Más información» no saca al usuario de su s
         expect(src).toMatch(/href=\{link\.path\}/);
         expect(src).toMatch(/href="\/privacy"/);
         expect(src).not.toMatch(/href=\{landingUrl/);
+    });
+});
+
+/* [P1-MORE-INFO-I18N · 2026-08-20] El submenú «Más información» seguía en español
+ * con la app en inglés: «Acerca de Bioboros», «Novedades», «Términos de servicio»…
+ * colgando de un menú padre ya traducido (Settings / More info / Get help).
+ *
+ * SE TRADUCE LA ETIQUETA, NO EL CONTENIDO. El menú es chrome de la app; las páginas
+ * legales siguen SOLO en español a propósito (P1-I18N-DASHBOARD: traducir un
+ * contrato genera obligaciones). Un usuario en inglés lee «Terms of Service» y
+ * aterriza en un contrato en español — deliberado, y preferible a un menú a medias.
+ */
+describe('[P1-MORE-INFO-I18N] las etiquetas del submenú se traducen', () => {
+    const SRC_SSOT = LEER('components/dashboard/moreInfoLinks.js');
+
+    it('el SSOT es una FUNCIÓN, no una constante de módulo', () => {
+        // La trampa del congelado: un `const X = [{ label: t('...') }]` a nivel de
+        // módulo se evalúa UNA vez al importar —antes de que `initLocale()` cargue el
+        // catálogo— y se queda en español para siempre, además de no reaccionar al
+        // cambio de idioma. En es-DO parece correcto, que es lo que lo hace difícil
+        // de ver.
+        expect(SRC_SSOT).toMatch(/export function moreInfoGroups\(/);
+        expect(SRC_SSOT, 'volvió la constante congelada')
+            .not.toMatch(/export const MORE_INFO_GROUPS\s*=/);
+    });
+
+    it('las 7 etiquetas pasan por t()', () => {
+        for (const clave of [
+            'Acerca de Bioboros', 'Novedades', 'Cómo funciona', 'Supermercado RD',
+            'Términos de servicio', 'Política de privacidad', 'Aviso médico',
+        ]) {
+            // Sin escapado de metacaracteres a propósito: las 7 claves son palabras
+            // llanas. Escaparlas exigía un regex con `${}` DENTRO de la interpolación
+            // de un template literal, y eso no compila.
+            expect(SRC_SSOT, `«${clave}» no pasa por t()`)
+                .toContain(`label: t('${clave}')`);
+        }
+    });
+
+    it('los literales son visibles para i18n:check (alias llamado `t`)', () => {
+        // Si el alias local se llama `tr`/`traducir`, el checker no reconoce la
+        // llamada, da las 7 claves por HUÉRFANAS y ese aviso —«cambiaron el copy y
+        // la traducción quedó atrás»— se apaga a base de falsos positivos.
+        expect(SRC_SSOT).toMatch(/const t = typeof traducir === 'function'/);
+    });
+
+    it.each([
+        'components/dashboard/AccountMenu.jsx',
+        'components/dashboard/DashboardLayout.jsx',
+    ])('%s llama al SSOT con `t`', (rel) => {
+        const src = LEER(rel);
+        expect(src).toMatch(/moreInfoGroups\(t\)\.map/);
+        expect(src, 'quedó un consumidor de la constante vieja')
+            .not.toMatch(/MORE_INFO_GROUPS/);
     });
 });

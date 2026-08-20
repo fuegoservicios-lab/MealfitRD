@@ -29,7 +29,7 @@ import BottomTabBar from './BottomTabBar';
 import AccountMenu, { AccountIdentityButton } from './AccountMenu';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces "Más información" (SSOT compartido
 // con la card del menú de cuenta) — versión inline para el menú "más" móvil.
-import { MORE_INFO_GROUPS } from './moreInfoLinks';
+import { moreInfoGroups } from './moreInfoLinks';
 // [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda ("Obtener ayuda"). Lazy:
 // solo carga su chunk cuando el usuario lo abre.
 const HelpChatWidget = lazy(() => import('./HelpChatWidget'));
@@ -483,7 +483,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         </button>
                         {isMobileInfoOpen && (
                             <div className={styles.mobileMoreSubList}>
-                                {MORE_INFO_GROUPS.map((group, gi) => (
+                                {moreInfoGroups(t).map((group, gi) => (
                                     <Fragment key={gi}>
                                         {gi > 0 && <div className={styles.mobileMoreSubDivider} role="separator" />}
                                         {/* [P1-MORE-INFO-IN-APP · 2026-08-10] Navegación NORMAL: dentro de la app

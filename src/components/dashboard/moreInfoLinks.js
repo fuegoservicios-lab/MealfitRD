@@ -35,17 +35,38 @@
 // Footer.jsx (P3-FOOTER-SUPPORT) y Upgrade.jsx.
 export const SUPPORT_EMAIL = 'bioboros.support@gmail.com';
 
-// Grupos separados por divider (arriba: conocer el producto; abajo: legal).
-export const MORE_INFO_GROUPS = [
-  [
-    { label: 'Acerca de Bioboros', path: '/about' },
-    { label: 'Novedades', path: '/novedades' },
-    { label: 'Cómo funciona', path: '/como-funciona' },
-    { label: 'Supermercado RD', path: '/supermercado' },
-  ],
-  [
-    { label: 'Términos de servicio', path: '/terms' },
-    { label: 'Política de privacidad', path: '/privacy' },
-    { label: 'Aviso médico', path: '/medical' },
-  ],
-];
+// [P1-MORE-INFO-I18N · 2026-08-20] Grupos separados por divider (arriba: conocer el
+// producto; abajo: legal).
+//
+// Es una FUNCIÓN y no una constante, y no es un detalle de estilo: un
+// `const X = [{ label: t('...') }]` a nivel de módulo se evalúa UNA vez al importar
+// —antes de que `initLocale()` cargue el catálogo— y se queda congelado en español
+// para siempre, además de no reaccionar al cambio de idioma. En es-DO parece
+// correcto, que es lo que lo hace difícil de ver.
+//
+// SE TRADUCE LA ETIQUETA, NO EL CONTENIDO. El menú es chrome de la app y va en el
+// idioma del usuario; las páginas legales siguen SOLO en español a propósito
+// (P1-I18N-DASHBOARD: traducir un contrato genera obligaciones). O sea que un
+// usuario en inglés lee «Terms of Service» y aterriza en un contrato en español —
+// deliberado, y preferible a un menú medio traducido.
+// El parámetro se llama `traducir` y el local `t` a propósito: `i18n:check` busca
+// literales dentro de llamadas `t(...)`, así que pasar las claves por un alias con
+// otro nombre las vuelve invisibles y las da por HUÉRFANAS — y una huérfana es la
+// señal de «cambiaron el copy y la traducción quedó atrás». Apagar ese aviso con
+// falsos positivos desarma el guard.
+export function moreInfoGroups(traducir) {
+  const t = typeof traducir === 'function' ? traducir : (x) => x;
+  return [
+    [
+      { label: t('Acerca de Bioboros'), path: '/about' },
+      { label: t('Novedades'), path: '/novedades' },
+      { label: t('Cómo funciona'), path: '/como-funciona' },
+      { label: t('Supermercado RD'), path: '/supermercado' },
+    ],
+    [
+      { label: t('Términos de servicio'), path: '/terms' },
+      { label: t('Política de privacidad'), path: '/privacy' },
+      { label: t('Aviso médico'), path: '/medical' },
+    ],
+  ];
+}

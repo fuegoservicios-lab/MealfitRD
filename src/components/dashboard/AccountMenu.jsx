@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces del submenú "Más información"
 // (SSOT compartido con el menú "más" móvil de DashboardLayout).
 import { Link } from 'react-router-dom';
-import { MORE_INFO_GROUPS } from './moreInfoLinks';
+import { moreInfoGroups } from './moreInfoLinks';
 import { useT } from '../../i18n';
 import styles from './AccountMenu.module.css';
 
@@ -193,7 +193,7 @@ export default function AccountMenu({
           {t('Más información')}
         </button>
         <div className={styles.infoMenu}>
-          {MORE_INFO_GROUPS.map((group, gi) => (
+          {moreInfoGroups(t).map((group, gi) => (
             <Fragment key={gi}>
               {gi > 0 && <div className={styles.infoDivider} role="separator" />}
                 {/* [P1-MORE-INFO-IN-APP · 2026-08-10] Misma corrección que en el menú
