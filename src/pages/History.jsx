@@ -78,11 +78,34 @@ import HistoryMobilePanel from '../components/history/HistoryMobilePanel';
 // componente (es lo que lo suscribe al cambio de idioma); el `t` suelto para los
 // helpers de módulo (`_dayNameForGlobalIdx`, `chipDeChunkMuerto`) — se invocan en
 // render, nunca al importar, así que no caen en la trampa del ámbito de módulo.
-import { t, useT, useI18n } from '../i18n';
+import { t, useT, useI18n, formatDate } from '../i18n';
 
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
-const _DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+//
+// [P1-HIST-DIAS-I18N · 2026-08-19] Era un array crudo en español y era el ÚNICO
+// sitio que quedaba así: Recipes.jsx, Dashboard.jsx y DiaryHistory.jsx ya
+// pasaban estos mismos siete literales por `t()`, y los cuatro catálogos ya
+// traen la traducción. El modal del Historial se leía en inglés salvo los tabs
+// de día y el título «Menu — Martes».
+//
+// Es una FUNCIÓN, no una constante, y eso es load-bearing: un
+// `const [t('Domingo'), …]` a nivel de módulo se evalúa UNA vez al importar —
+// antes de que `initLocale()` haya cargado el catálogo— y se queda congelado en
+// español para siempre, además de no reaccionar al cambio de idioma. Los otros
+// tres call sites del repo ya lo hacen dentro del cuerpo de una función por esta
+// misma razón.
+// El cuerpo va con LLAVES a propósito: `scripts/i18n-check.mjs` decide el ámbito
+// contando llaves abiertas, y un cuerpo conciso `=> [...]` le sale a profundidad 0
+// —lo marca como ámbito de módulo aunque sea perezoso—. No se relaja el guard por
+// una limitación del heurístico: el cuerpo con llaves es igual de correcto y además
+// deja el diferimiento explícito para quien lo lea.
+const _diaSemana = (idx) => {
+    return [
+        t('Domingo'), t('Lunes'), t('Martes'), t('Miércoles'),
+        t('Jueves'), t('Viernes'), t('Sábado'),
+    ][idx];
+};
 
 // [P3-HIST-MODAL-MENU-CARDS · 2026-06-24] Estilo por tipo de comida para las
 // tarjetas del menú del modal (diseño del owner: cuadro de ícono coloreado +
@@ -147,7 +170,7 @@ const _dayNameForGlobalIdx = (startMid, globalIdx) => {
     }
     const d = new Date(startMid.getTime());
     d.setDate(d.getDate() + globalIdx);
-    return _DIAS_SEMANA[d.getDay()];
+    return _diaSemana(d.getDay());
 };
 
 // [P1-HIST-COMPLETE-PROGRESS · 2026-05-31] El Historial muestra el progreso
@@ -228,7 +251,7 @@ export const _dayNameForDay = (day, startMid, globalIdx) => {
     if (fecha) {
         const d = parseStartLocal(fecha);
         if (d instanceof Date && Number.isFinite(d.getTime())) {
-            return _DIAS_SEMANA[d.getDay()];
+            return _diaSemana(d.getDay());
         }
     }
     return _dayNameForGlobalIdx(startMid, globalIdx);
@@ -2031,7 +2054,9 @@ const History = () => {
                                         renombrado a mano y aún no re-traducido). */}
                                     <h2 id="history-detail-title" className={styles.modalTitle}>{selectedPlan.plan_display_names?.[locale] || selectedPlan.name || t('Detalles del Plan')}</h2>
                                     <span className={styles.modalDate}>
-                                        {new Date(selectedPlan.created_at).toLocaleDateString('es-DO', {
+                                        {/* [P1-HIST-DIAS-I18N] Era un `toLocaleDateString('es-DO')` fijo.
+                                            `formatDate` existe justo para esto: lee el locale ACTIVO. */}
+                                        {formatDate(selectedPlan.created_at, {
                                             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                                         })}
                                     </span>

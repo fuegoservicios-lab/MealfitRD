@@ -87,9 +87,17 @@ function unescape(s) {
     return s.replace(/\\(['"\\])/g, '$1').replace(/\\n/g, '\n');
 }
 
-/** Heurística de ámbito: ¿esta llamada está en el nivel superior del módulo?
- *  Cuenta llaves abiertas antes del offset. 0 ⇒ ámbito de módulo. */
-function isModuleScope(src, index) {
+/** Un solo escaneo, dos respuestas: profundidad de llaves antes del offset y si
+ *  ese offset cae DENTRO de un comentario o de una cadena.
+ *
+ *  [P1-HIST-DIAS-I18N · 2026-08-19] Lo segundo se añadió porque el matcher lee la
+ *  fuente CRUDA: un `t('Domingo')` citado dentro de un comentario —justo el que
+ *  explica esta misma trampa— se reportaba como llamada en ámbito de módulo. Un
+ *  guard que obliga a censurar la prosa que lo documenta es un guard que alguien
+ *  acaba desactivando. El filtro NO toca la extracción de claves: una clave
+ *  mencionada solo en un comentario sigue contando como viva, como hasta ahora
+ *  (vaciar comentarios antes de extraer la volvería huérfana y rompería el gate). */
+function scanAt(src, index) {
     let depth = 0;
     let inStr = null;
     let inLineComment = false;
@@ -110,7 +118,20 @@ function isModuleScope(src, index) {
         if (c === '{') depth++;
         else if (c === '}') depth--;
     }
-    return depth === 0;
+    return { depth, inComment: inLineComment || inBlockComment, inStr: inStr !== null };
+}
+
+/** ¿La llamada en `index` es código real en el nivel superior del módulo?
+ *
+ *  Se filtra por comentario y NO por cadena, a propósito. El escáner marca todo
+ *  lo que hay entre backticks como cadena, así que excluir `inStr` se tragaría
+ *  los `${t('Foo')}` de un template literal —que son llamadas REALES y hasta hoy
+ *  sí se reportaban—. Cambiar un falso positivo por un falso negativo no es
+ *  arreglar el guard. Un `t('x')` literal dentro de una cadena normal se sigue
+ *  reportando: es rarísimo y un aviso de más no hace daño. */
+function isModuleScopeCode(src, index) {
+    const { depth, inComment } = scanAt(src, index);
+    return depth === 0 && !inComment;
 }
 
 const files = walk(SRC);
@@ -128,7 +149,7 @@ for (const file of files) {
         if (!key) continue;
         if (!keys.has(key)) keys.set(key, []);
         if (!keys.get(key).includes(rel)) keys.get(key).push(rel);
-        if (isModuleScope(src, m.index)) moduleScopeHits.push({ file: rel, key });
+        if (isModuleScopeCode(src, m.index)) moduleScopeHits.push({ file: rel, key });
     }
     for (const m of src.matchAll(TN_CALL)) {
         // La clave de un plural es la forma «other» (el 2º literal).
@@ -137,7 +158,7 @@ for (const file of files) {
         if (!keys.has(other)) keys.set(other, []);
         if (!keys.get(other).includes(rel)) keys.get(other).push(rel);
         pluralKeys.add(other);
-        if (isModuleScope(src, m.index)) moduleScopeHits.push({ file: rel, key: other });
+        if (isModuleScopeCode(src, m.index)) moduleScopeHits.push({ file: rel, key: other });
     }
 }
 

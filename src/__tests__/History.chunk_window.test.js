@@ -140,7 +140,20 @@ describe('[P1-HIST-1] History.jsx — selector con navegación read-only entre c
         expect(src).toMatch(
             /_dayNameForDay\s*\(\s*_dayObj\s*,\s*_startMid\s*,\s*globalIdx\s*\)/
         );
-        expect(src).toMatch(/Domingo['"]\s*,\s*['"]Lunes['"]\s*,\s*['"]Martes/);
+        // [P1-HIST-DIAS-I18N · 2026-08-19] El array era literal en espanol y este
+        // assert lo daba por bueno. Ahora los siete nombres pasan por `t()`, que es
+        // lo que hace que el modal se lea en el idioma elegido; la clave SIGUE siendo
+        // el texto espanol (es-DO es la base y no lleva catalogo), asi que los tests
+        // de conducta de P1_hist_day_identity siguen esperando «Miercoles».
+        expect(src).toMatch(/t\(['"]Domingo['"]\)\s*,\s*t\(['"]Lunes['"]\)\s*,\s*t\(['"]Martes/);
+
+        // Y tiene que ser una FUNCION, no una constante de modulo. Un
+        // `const _X = [t('Domingo'), ...]` a nivel de modulo se evalua UNA vez al
+        // importar —antes de que `initLocale()` cargue el catalogo— y se queda
+        // congelado en espanol para siempre, ademas de no reaccionar al cambio de
+        // idioma. El bug se veria identico al que este P-fix cierra.
+        expect(src).toMatch(/const\s+_diaSemana\s*=\s*\(\s*idx\s*\)\s*=>/);
+        expect(src).not.toMatch(/const\s+_DIAS_SEMANA\s*=\s*\[/);
     });
 
     it('título "Menú — <Día>" usa el chunk QUE CONTIENE selectedDay', () => {
