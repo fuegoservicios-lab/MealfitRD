@@ -167,3 +167,44 @@ export function mealSlotLabel(slot, t) {
     // 3. Desconocido: el original tal cual (nunca inventar traducción).
     return raw;
 }
+
+// [P1-RECIPES-SLOT-I18N · 2026-08-20] Etiqueta de DIFICULTAD, hermana de
+// `mealSlotLabel` y por la misma razón.
+//
+// `meal.difficulty` lo escribe el LLM, pero NO es contenido creativo: es un
+// vocabulario cerrado de tres valores que el schema fija por defecto
+// (`schemas.py`: «Fácil», «Intermedio», «Difícil»). Medido en producción: 361
+// «Fácil» y 135 «Intermedio», nada más. Un enum disfrazado de texto libre.
+//
+// Por eso se traduce y los NOMBRES DE ALIMENTO no: la dificultad no la resuelve
+// nadie por su cadena. `pantry_names_match`, el guard de coherencia y el backstop
+// de alergias sí resuelven por el nombre del alimento, y traducirlo rompe las tres
+// —dos en silencio—. La regla no es «lo que escribe el LLM no se toca», es «lo que
+// el motor usa como IDENTIFICADOR no se toca».
+//
+// Desconocido ⇒ se devuelve tal cual (fail-open): si el modelo inventa un cuarto
+// valor, el usuario ve el original en vez de un hueco.
+// Los tres literales van EXPLÍCITOS dentro de una función, y las dos cosas
+// importan. Explícitos porque `npm run i18n:check` marca como huérfana toda clave
+// que no aparezca como literal en una llamada a `t()`: pasarlas por una variable
+// (`translate(key)`) las vuelve invisibles para el checker, y una clave huérfana
+// es la señal de «alguien cambió el copy y dejó la traducción atrás» — apagarla
+// con falsos positivos desarma el guard. Y dentro de una FUNCIÓN porque un
+// `const X = { 'Fácil': t('Fácil') }` a nivel de módulo se evalúa al importar,
+// antes de que el catálogo exista, y se queda congelado en español para siempre.
+function _etiquetasDificultad(t) {
+    return {
+        facil: t('Fácil'),
+        intermedio: t('Intermedio'),
+        dificil: t('Difícil'),
+    };
+}
+
+export function mealDifficultyLabel(difficulty, t) {
+    if (typeof difficulty !== 'string' || !difficulty.trim()) return difficulty;
+    const raw = difficulty.trim();
+    const norm = _stripAccentsForSlot(raw).toLowerCase();
+    const traducir = typeof t === 'function' ? t : (s) => s;
+    const etiquetas = _etiquetasDificultad(traducir);
+    return Object.prototype.hasOwnProperty.call(etiquetas, norm) ? etiquetas[norm] : raw;
+}

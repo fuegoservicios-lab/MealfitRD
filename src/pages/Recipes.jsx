@@ -70,7 +70,7 @@ import { useT, useI18n } from '../i18n';
 // del usuario — mismo helper SSOT que Dashboard.jsx. El PDF (handleDownloadPDF,
 // más abajo) queda FUERA de esta task a propósito (spec: "no PDFs — eso es
 // Task 5") y sigue recibiendo el meal ORIGINAL español, nunca el traducido.
-import { mealDisplay, mealDisplayName } from '../utils/displayMeal';
+import { mealDisplay, mealDisplayName, mealSlotLabel, mealDifficultyLabel } from '../utils/displayMeal';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Recetas gana su primer fetch:
 // `GET /api/diary/consumed/{userId}` de solo LECTURA (mismo endpoint que
 // TrackingProgress.jsx en el Dashboard) para alimentar la anotación de abajo.
@@ -371,7 +371,7 @@ const Recipes = () => {
         const metaChips = [
             _chip(`🔥 ${escapeHtml(meal.cals)} kcal`),
             meal.prep_time ? _chip(`⏱ ${escapeHtml(meal.prep_time)}`) : '',
-            meal.difficulty ? _chip(escapeHtml(meal.difficulty)) : '',
+            meal.difficulty ? _chip(escapeHtml(mealDifficultyLabel(meal.difficulty, t))) : '',
         ].filter(Boolean).join('');
 
         // [P2-PDF-RECIPE-MACROS · 2026-06-22] P/C/G con guards de presencia
@@ -394,7 +394,7 @@ const Recipes = () => {
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 0.18em solid #4F46E5; padding-bottom: 0.55em; margin-bottom: 0.9em;">
                     <div style="font-size: 1.15em; font-weight: 900; letter-spacing: -0.02em; color: #0F172A;">
                         <Wordmark />
-                        <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;${escapeHtml(t('Receta'))}&nbsp;·&nbsp;${escapeHtml(meal.meal)}</span>
+                        <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;${escapeHtml(t('Receta'))}&nbsp;·&nbsp;${escapeHtml(mealSlotLabel(meal.meal, t))}</span>
                     </div>
                     <div style="display: flex; gap: 0.4em; align-items: center;">${metaChips}</div>
                 </div>

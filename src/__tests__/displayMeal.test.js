@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { mealDisplay, mealDisplayName, mealSlotLabel } from '../utils/displayMeal';
+import { mealDisplay, mealDisplayName, mealSlotLabel, mealDifficultyLabel } from '../utils/displayMeal';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -493,5 +493,102 @@ describe('Plan/Recetas consumen mealDisplay — NO acceso directo a `_display`',
         const mobile = _readSrc('components/history/HistoryMobilePanel.jsx');
         expect(desktop).not.toMatch(/\._display\[/);
         expect(mobile).not.toMatch(/\._display\[/);
+    });
+});
+
+/* [P1-RECIPES-SLOT-I18N · 2026-08-20] Recetas era la única pantalla que pintaba el
+ * SLOT en crudo: con la app en inglés decía DESAYUNO / ALMUERZO / MERIENDA / CENA
+ * mientras Dashboard e Historial ya pasaban ese mismo campo por `mealSlotLabel`.
+ * Otra vez «no faltaba maquinaria, faltaba pedirla».
+ *
+ * La dificultad es su hermana y necesitaba helper propio. `meal.difficulty` lo
+ * escribe el LLM, pero NO es contenido creativo: `schemas.py` fija por defecto
+ * «Fácil» y describe el vocabulario, y en producción SOLO existen dos valores
+ * (361 «Fácil», 135 «Intermedio»). Es un enum disfrazado de texto libre.
+ *
+ * La regla que separa esto de los nombres de alimento —que JAMÁS se traducen— no
+ * es «lo que escribe el LLM no se toca», es «lo que el motor usa como
+ * IDENTIFICADOR no se toca». `pantry_names_match`, el guard de coherencia y el
+ * backstop de alergias resuelven por el nombre del alimento; por la dificultad no
+ * resuelve nadie.
+ */
+describe('[P1-RECIPES-SLOT-I18N] mealDifficultyLabel', () => {
+    const T = { 'Fácil': 'Easy', 'Intermedio': 'Intermediate', 'Difícil': 'Hard' };
+    const t = (k) => T[k] ?? k;
+
+    it('traduce los tres valores canónicos', () => {
+        expect(mealDifficultyLabel('Fácil', t)).toBe('Easy');
+        expect(mealDifficultyLabel('Intermedio', t)).toBe('Intermediate');
+        expect(mealDifficultyLabel('Difícil', t)).toBe('Hard');
+    });
+
+    it('tolera acentos y mayúsculas como el hermano de slots', () => {
+        expect(mealDifficultyLabel('FACIL', t)).toBe('Easy');
+        expect(mealDifficultyLabel('  difícil  ', t)).toBe('Hard');
+    });
+
+    it('un valor DESCONOCIDO cae al original, no a un hueco', () => {
+        // Fail-open: si el modelo inventa un cuarto nivel, el usuario ve lo que
+        // el modelo dijo — no una cadena vacía ni la clave cruda.
+        expect(mealDifficultyLabel('Extremo', t)).toBe('Extremo');
+    });
+
+    it('sin `t` devuelve el español, nunca revienta', () => {
+        expect(mealDifficultyLabel('Fácil')).toBe('Fácil');
+        expect(mealDifficultyLabel(null)).toBe(null);
+        expect(mealDifficultyLabel('')).toBe('');
+    });
+
+    it('los literales viven DENTRO de una función, no en ámbito de módulo', () => {
+        // Dos guards en uno. (a) `i18n:check` da por huérfana toda clave que no
+        // aparezca como literal en un `t()`: pasarlas por variable las vuelve
+        // invisibles y apaga el aviso de «cambiaron el copy y la traducción quedó
+        // atrás». (b) Un mapa a nivel de módulo se evalúa al importar, antes de que
+        // el catálogo exista, y queda congelado en español para siempre.
+        const src = readFileSync(join(__dirname, '..', 'utils', 'displayMeal.js'), 'utf-8');
+        expect(src).toMatch(/function _etiquetasDificultad\(t\)/);
+        expect(src).toMatch(/t\('Fácil'\)/);
+        expect(src).toMatch(/t\('Difícil'\)/);
+        expect(src, 'el mapa no puede ser una constante de módulo')
+            .not.toMatch(/^const\s+\w*[Dd]ificultad\w*\s*=\s*\{/m);
+    });
+});
+
+/* [P1-RECIPES-SLOT-I18N · 2026-08-20] El guard que faltaba.
+ *
+ * Los tests de arriba prueban el HELPER; ninguno probaba que las pantallas lo
+ * USARAN. Lo descubrí con una mutación: revertir `mealSlotLabel(m.meal, t)` a
+ * `{m.meal}` en RecipesView dejaba los 51 tests en verde — o sea que el bug
+ * reportado podía volver sin que nada chistara.
+ *
+ * Es exactamente el modo de fallo de este P-fix: el helper llevaba meses correcto
+ * y bien probado, y Recetas simplemente no lo llamaba. Un helper con tests no es
+ * una garantía de nada si sus call sites no están anclados.
+ */
+describe('[P1-RECIPES-SLOT-I18N] las pantallas de Recetas USAN los helpers', () => {
+    const PANTALLAS = [
+        'components/recipes/RecipesView.jsx',
+        'components/recipes/MobileRecipes.jsx',
+    ];
+
+    it.each(PANTALLAS)('%s pinta el slot traducido, no el campo crudo', (rel) => {
+        const src = _readSrc(rel);
+        expect(src, 'el slot vuelve a salir en español con la app en inglés')
+            .not.toMatch(/mealType[^>]*>\{\s*m\.meal\s*\}/);
+        expect(src).toMatch(/mealType[^>]*>\{\s*mealSlotLabel\(\s*m\.meal\s*,\s*t\s*\)\s*\}/);
+    });
+
+    it.each(PANTALLAS)('%s pinta la dificultad traducida', (rel) => {
+        const src = _readSrc(rel);
+        expect(src).not.toMatch(/\{\s*meal\.difficulty\s*\}/);
+        expect(src).toMatch(/mealDifficultyLabel\(\s*meal\.difficulty\s*,\s*t\s*\)/);
+    });
+
+    it('el PDF exporta lo mismo que se ve en pantalla', () => {
+        // Un PDF en español desde una pantalla en inglés es la misma incoherencia,
+        // solo que en un archivo que el usuario guarda y comparte.
+        const src = _readSrc('pages/Recipes.jsx');
+        expect(src).toMatch(/mealSlotLabel\(\s*meal\.meal\s*,\s*t\s*\)/);
+        expect(src).toMatch(/mealDifficultyLabel\(\s*meal\.difficulty\s*,\s*t\s*\)/);
     });
 });

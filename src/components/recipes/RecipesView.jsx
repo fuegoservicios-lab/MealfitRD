@@ -13,6 +13,7 @@ import styles from './RecipesView.module.css';
 // fijo: un menú en francés con cifras en formato dominicano delata la
 // traducción a medias.
 import { useT, formatNumber } from '../../i18n';
+import { mealSlotLabel, mealDifficultyLabel } from '../../utils/displayMeal';
 // [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] anotaciones sin número (ver util).
 import { numberRecipeSteps } from '../../utils/recipeSteps';
 // [P1-EATEN-SLOT-COPY · 2026-07-28] Texto del chip "ya registraste tu
@@ -131,7 +132,10 @@ function MealRail({ meals, active, onSelect, diaLabel = '', esHoy = false }) {
                   title={eaten ? m._eatenClaim : undefined}>
             <span className={styles.mealIco}><Svg d={mt.icon} size={20} /></span>
             <span className={styles.mealBody}>
-              <span className={styles.mealType}>{m.meal}</span>
+              {/* [P1-RECIPES-SLOT-I18N · 2026-08-20] El slot iba CRUDO aquí mientras
+                  Dashboard e Historial ya lo pasaban por `mealSlotLabel`: con la app en
+                  inglés, Recetas era la única pantalla que seguía diciendo DESAYUNO. */}
+              <span className={styles.mealType}>{mealSlotLabel(m.meal, t)}</span>
               <span className={styles.mealTitle}>{m.name}</span>
               <span className={styles.mealKcal}><Svg d={ICONS.flame} size={12} /> {m.cals} kcal</span>
               {eaten && (
@@ -227,7 +231,7 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
           <div className={styles.chips}>
             <span className={`${styles.chip} ${styles.kcal}`}><Svg d={ICONS.flame} size={13} /> {meal.cals} kcal</span>
             {meal.prep_time && <span className={styles.chip}><Svg d={ICONS.clock} size={13} /> {meal.prep_time}</span>}
-            {meal.difficulty && <span className={styles.chip}><Svg d={ICONS.chef} size={13} /> {meal.difficulty}</span>}
+            {meal.difficulty && <span className={styles.chip}><Svg d={ICONS.chef} size={13} /> {mealDifficultyLabel(meal.difficulty, t)}</span>}
             {/* [P1-EATEN-SLOT-RECIPES · 2026-07-28] Marcador quieto — misma fila
                 de chips (kcal/tiempo/dificultad), mismo peso visual: NO es un
                 banner, NO bloquea nada, NO oculta la receta, NO toca el botón
