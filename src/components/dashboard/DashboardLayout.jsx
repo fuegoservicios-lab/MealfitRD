@@ -30,7 +30,7 @@ import AccountMenu, { AccountIdentityButton } from './AccountMenu';
 // [P3-MORE-INFO-MENU · 2026-07-03] Enlaces "Más información" (SSOT compartido
 // con la card del menú de cuenta) — versión inline para el menú "más" móvil.
 import { moreInfoGroups } from './moreInfoLinks';
-import { apexUrl } from '../config/site';
+import { apexUrl } from '../../config/site';
 // [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda ("Obtener ayuda"). Lazy:
 // solo carga su chunk cuando el usuario lo abre.
 const HelpChatWidget = lazy(() => import('./HelpChatWidget'));
