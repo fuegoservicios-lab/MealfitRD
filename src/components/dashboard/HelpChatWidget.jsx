@@ -7,7 +7,7 @@ import LazyMarkdown from '../common/LazyMarkdown';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { SUPPORT_EMAIL } from './moreInfoLinks';
 import { safeJSONParse } from '../../utils/safeJSONParse';
-import { useT } from '../../i18n';
+import { useT, getLocale } from '../../i18n';
 import styles from './HelpChatWidget.module.css';
 
 /* [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda del ítem "Obtener ayuda"
@@ -87,6 +87,10 @@ export default function HelpChatWidget({ onClose }) {
                 body: JSON.stringify({
                     // Solo la cola reciente; el backend igual recorta (MAX_TURNS).
                     messages: history.slice(-MAX_SENT).map(({ role, content }) => ({ role, content })),
+                    // [P1-HELP-BOT-I18N · 2026-08-20] Sin esto el bot contesta SIEMPRE en
+                    // español: la regla 5 de su prompt se lo ordena. El backend valida
+                    // contra su lista y cae a es-DO si no lo reconoce.
+                    locale: getLocale(),
                 }),
             });
             if (res.ok) {
