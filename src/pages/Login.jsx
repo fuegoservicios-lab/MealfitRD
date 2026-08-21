@@ -13,7 +13,7 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 import PlanShowcase from '../components/auth/PlanShowcase';
 import './Login.css';
 import Wordmark from '../components/common/Wordmark';
-import { useT } from '../i18n';
+import { useI18n } from '../i18n';
 
 // [P1-EMAIL-OTP · 2026-06-21] Login SIN contraseña: un solo flujo correo → código.
 // [P3-LOGIN-EDITORIAL · 2026-06-29] Rediseño editorial oscuro de dos paneles (form +
@@ -109,7 +109,11 @@ const clearPendingOtp = () => {
 };
 
 const Login = () => {
-    const t = useT();
+    // [P1-I18N-AUTH-COPY · 2026-08-21] `useI18n()` y no `useT()`: `humanizeAuthError`
+    // necesita el `locale` además del `t`. Sin él no puede decidir si un mensaje
+    // español suelto del servidor es copy útil (en es-DO lo es) o ruido que el usuario
+    // no entiende (en cualquier otro idioma).
+    const { t, locale } = useI18n();
     const navigate = useNavigate();
     const location = useLocation();
     const { activateGuestMode, session } = useAssessment();
@@ -179,7 +183,7 @@ const Login = () => {
     const requestCode = async (targetEmail) => {
         const { error: sendError } = await sendEmailOtp(targetEmail);
         if (sendError) {
-            setError(humanizeAuthError(sendError));
+            setError(humanizeAuthError(sendError, t, locale));
             return false;
         }
         return true;
@@ -236,7 +240,7 @@ const Login = () => {
         // aquí legítimamente no existe; el fallback first-party entra de inmediato.
         const { error: otpError } = await verifyEmailOtpFirstParty(email.trim(), clean);
         if (otpError) {
-            setError(humanizeAuthError(otpError));
+            setError(humanizeAuthError(otpError, t, locale));
             setLoading(false);
             // Soltar el cerrojo: sin esto un código mal tecleado dejaría el botón muerto
             // para siempre y el usuario tendría que recargar para reintentar.
@@ -286,7 +290,7 @@ const Login = () => {
         } catch (err) {
             // No hubo redirect → limpiar el flag para no reintentar en un load normal.
             try { sessionStorage.removeItem('mf_oauth_pending'); } catch { /* noop */ }
-            setError(humanizeAuthError(err));
+            setError(humanizeAuthError(err, t, locale));
             setGoogleLoading(false);
         }
     };

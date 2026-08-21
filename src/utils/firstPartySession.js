@@ -15,6 +15,10 @@
 import { fetchWithTimeout, AUTH_BEST_EFFORT_TIMEOUT_MS } from './fetchWithTimeout';
 import { api, fetchWithAuth } from '../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from './safeLocalStorage';
+// [P1-I18N-AUTH-COPY · 2026-08-21] El `t` de MÓDULO: esto no es un componente. Lee el
+// catálogo vivo en el momento de la llamada, y todas las llamadas ocurren dentro de un
+// handler, así que no aplica la trampa del ámbito de módulo.
+import { t } from '../i18n';
 // [P1-FORM-KEY · 2026-06-21] La llave estable de cifrado del form viaja en las
 // respuestas de /api/auth/session y /me; la empujamos al storage seguro.
 import { setFormCryptoSecret } from '../config/secureFormStorage';
@@ -112,20 +116,32 @@ export async function verifyEmailOtpFirstParty(email, otp) {
             body: JSON.stringify({ email: (email || '').trim(), otp: (otp || '').trim() }),
         });
         if (!res.ok) {
+            // [P1-I18N-AUTH-COPY · 2026-08-21] Copy NUESTRO, traducido y declarado con
+            // `mfCopy` para que `humanizeAuthError` lo respete tal cual en vez de
+            // degradarlo al genérico. Antes esa decisión la tomaba un heurístico que
+            // olfateaba si el texto «parecía español» — que en francés fallaba justo
+            // aquí, perdiendo el mensaje más accionable del flujo de acceso.
             const msg = res.status === 401
-                ? 'Código inválido o expirado.'
-                : `No se pudo verificar el código (HTTP ${res.status}).`;
-            return { error: { message: msg, status: res.status } };
+                ? t('Código inválido o expirado.')
+                : t('No se pudo verificar el código (HTTP {status}).', { status: res.status });
+            return { error: { message: msg, mfCopy: true, status: res.status } };
         }
         const data = await res.json().catch(() => null);
         if (!data || !data.ok || !data.user_id) {
-            return { error: { message: 'Código inválido o expirado.' } };
+            return { error: { message: t('Código inválido o expirado.'), mfCopy: true } };
         }
         if (data.token) _storeToken(data.token);
         _applyFormKey(data);
         return { data, error: null };
     } catch (e) {
-        return { error: { message: e?.message || 'Error de red verificando el código.', code: e?.code, name: e?.name } };
+        return {
+            error: {
+                message: e?.message || t('Error de red verificando el código.'),
+                mfCopy: !e?.message,
+                code: e?.code,
+                name: e?.name,
+            },
+        };
     }
 }
 

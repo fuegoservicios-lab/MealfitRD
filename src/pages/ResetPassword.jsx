@@ -6,7 +6,7 @@ import { checkLeakedPassword } from '../utils/checkLeakedPassword';
 import { humanizeAuthError } from '../utils/authErrors';
 import styles from './Auth.module.css';
 import Wordmark from '../components/common/Wordmark';
-import { useT } from '../i18n';
+import { useI18n } from '../i18n';
 
 // [P1-RESET-PASSWORD-FIX · 2026-06-18] El flujo "crear nueva contraseña" estaba ROTO:
 // llamaba authClient.auth.updateUser({password}), y el adapter de Neon Auth lo RECHAZA
@@ -17,7 +17,10 @@ import { useT } from '../i18n';
 // ANTES de teclear; (2) se usa el método soportado por Better Auth:
 // getBetterAuthInstance().resetPassword({newPassword, token}).
 const ResetPassword = () => {
-    const t = useT();
+    // [P1-I18N-AUTH-COPY · 2026-08-21] `useI18n()` y no `useT()`: `humanizeAuthError`
+    // necesita tambien el `locale` para decidir si un mensaje espanol del servidor
+    // es copy util (en es-DO) o ruido que el usuario no entiende (en otro idioma).
+    const { t, locale } = useI18n();
     const navigate = useNavigate();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -110,7 +113,7 @@ const ResetPassword = () => {
                 navigate('/login');
             }, 2000);
         } catch (err) {
-            setError(humanizeAuthError(err));
+            setError(humanizeAuthError(err, t, locale));
         } finally {
             setLoading(false);
         }

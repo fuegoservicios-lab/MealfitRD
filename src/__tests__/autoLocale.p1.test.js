@@ -130,7 +130,9 @@ describe('[P1-AUTO-LOCALE] el boot de index.html hace lo mismo', () => {
         );
         const raiz = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
         const win = {};
-        // eslint-disable-next-line no-new-func
+        // `new Function` a propósito: es la única forma de medir la CONDUCTA de un
+        // script inline de `index.html`, que no es un módulo y no se puede importar.
+        // La entrada es un fichero del propio repo, no algo de fuera.
         const correr = new Function(
             'localStorage', 'navigator', 'location', 'document', 'window',
             `${cuerpo}\n;return { elegido: typeof elegido === 'undefined' ? null : elegido };`,

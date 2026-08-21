@@ -28,6 +28,10 @@
 // [P1-AUTH-TIMEOUT · 2026-08-10] Las 4 llamadas REST a Better Auth pasan por aquí:
 // sin plazo, una conexión colgada dejaba el botón del login girando para siempre.
 import { fetchWithTimeout } from './utils/fetchWithTimeout';
+// [P1-I18N-AUTH-COPY · 2026-08-21] El `t` de MÓDULO, no el hook: esto no es un
+// componente. Lee el catálogo VIVO en el momento de la llamada, y todas estas llamadas
+// ocurren dentro de un handler, así que no aplica la trampa del ámbito de módulo.
+import { t } from './i18n';
 
 const neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL;
 
@@ -79,15 +83,32 @@ async function _signInWithOAuth({ provider = 'google', options } = {}) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            return { data: null, error: { message: data?.message || `OAuth init falló (HTTP ${res.status})` } };
+            return {
+                data: null,
+                error: {
+                    message: data?.message || t('OAuth init falló (HTTP {status})', { status: res.status }),
+                    mfCopy: !data?.message,
+                },
+            };
         }
         if (data?.url && typeof window !== 'undefined') {
             window.location.href = data.url;
             return { data, error: null };
         }
-        return { data: null, error: { message: 'Neon Auth no devolvió URL de OAuth de Google.' } };
+        return {
+            data: null,
+            error: { message: t('No pudimos iniciar el acceso con Google. Inténtalo de nuevo.'), mfCopy: true },
+        };
     } catch (e) {
-        return { data: null, error: { message: e?.message || 'Error iniciando el login con Google.', code: e?.code, name: e?.name } };
+        return {
+            data: null,
+            error: {
+                message: e?.message || t('Error iniciando el login con Google.'),
+                mfCopy: !e?.message,
+                code: e?.code,
+                name: e?.name,
+            },
+        };
     }
 }
 
@@ -222,11 +243,28 @@ export async function sendEmailOtp(email) {
         });
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
-            return { error: { message: data?.message || `No se pudo enviar el código (HTTP ${res.status})`, status: res.status } };
+            // [P1-I18N-AUTH-COPY · 2026-08-21] `mfCopy` sólo cuando el texto es NUESTRO.
+            // Si Better Auth mandó `data.message`, ese texto es ajeno (y en inglés):
+            // marcarlo como propio lo colaría tal cual a la pantalla, que es justo lo
+            // que `humanizeAuthError` existe para impedir. Sin la marca, lo clasifica.
+            return {
+                error: {
+                    message: data?.message || t('No se pudo enviar el código (HTTP {status})', { status: res.status }),
+                    mfCopy: !data?.message,
+                    status: res.status,
+                },
+            };
         }
         return { error: null };
     } catch (e) {
-        return { error: { message: e?.message || 'Error de red enviando el código.', code: e?.code, name: e?.name } };
+        return {
+            error: {
+                message: e?.message || t('Error de red enviando el código.'),
+                mfCopy: !e?.message,
+                code: e?.code,
+                name: e?.name,
+            },
+        };
     }
 }
 
@@ -243,10 +281,25 @@ export async function signInWithEmailOtp(email, otp) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            return { data: null, error: { message: data?.message || 'Código inválido o expirado.', status: res.status } };
+            return {
+                data: null,
+                error: {
+                    message: data?.message || t('Código inválido o expirado.'),
+                    mfCopy: !data?.message,
+                    status: res.status,
+                },
+            };
         }
         return { data, error: null };
     } catch (e) {
-        return { data: null, error: { message: e?.message || 'Error de red verificando el código.', code: e?.code, name: e?.name } };
+        return {
+            data: null,
+            error: {
+                message: e?.message || t('Error de red verificando el código.'),
+                mfCopy: !e?.message,
+                code: e?.code,
+                name: e?.name,
+            },
+        };
     }
 }
