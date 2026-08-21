@@ -19,7 +19,7 @@ import {
     projectRemaining,
     groupIntoWeeks,
     resolveDayState,
-    WEEKDAY_LABELS,
+    getWeekdayLabels,
 } from '../../utils/planWeeks';
 import { useT, formatDate } from '../../i18n';
 
@@ -27,6 +27,11 @@ const RANGO = { month: 'short', day: 'numeric' };
 
 const PlanWeekNav = ({ planData, chunkStatusInfo, today, selected, onSelect }) => {
     const t = useT();
+    // [P1-I18N-UTILS-ETIQUETAS · 2026-08-21] Se llama EN RENDER, sin memoizar. El
+    // array es de siete cadenas —memoizarlo no ahorra nada— y `useT()` devuelve la
+    // `t` de MÓDULO, cuya identidad nunca cambia: en un `useMemo` con `[t]` las
+    // etiquetas se quedarían congeladas en el idioma anterior al cambiar de idioma.
+    const WEEKDAY_LABELS = getWeekdayLabels(t);
     const modelo = useMemo(() => {
         const { ok, entries } = buildTimeline(planData);
         if (!ok) return null;

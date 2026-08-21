@@ -22,6 +22,22 @@
 // `pending` y se pregunta "¿pendiente de qué?". Los labels es-DO
 // dan contexto sin necesidad de tooltip.
 
+// [P1-I18N-UTILS-ETIQUETAS · 2026-08-21] `t` entra como `_t` y NO se invoca en
+// ámbito de módulo: es solo el valor por defecto de `getChunkStatusLabel`, para
+// que un call site que aún no pasa su propia función de traducción lea el
+// catálogo ACTIVO en vez de quedarse clavado en español. El alias con guion bajo
+// lo deja además fuera del extractor textual de claves.
+import { t as _t } from '../i18n';
+
+// Este mapa se queda EXACTAMENTE como está: es el SSOT que parsean
+// `test_p0_hist_learn_3_status_cancelled_mapped.py` (exige la fila
+// `cancelled: 'Cancelado'` textual) y `test_p0_hist_fix_5_metrics_humanized.py`
+// (exige cada `<status>:`), y es el fallback en español cuando el catálogo no
+// cubre un code. Meterle la llamada de traducción DENTRO lo convertiría en
+// ámbito de módulo — evaluado al importar, congelado en español para siempre.
+// Sigue apareciendo en el detector de español sin envolver, y es correcto que
+// aparezca: son literales españoles sin envolver. Lo que se PINTA sale de la
+// tabla traducida de más abajo.
 const CHUNK_STATUS_LABELS = {
     completed: 'Completado',
     pending: 'En cola',

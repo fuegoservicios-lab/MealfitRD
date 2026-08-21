@@ -72,8 +72,17 @@ export function diaEnBandaObjetivo(comidas, objetivos, kcalObjetivo) {
   });
 }
 
-export function getMealAdvisories(meal, opciones) {
+/**
+ * @param {object} meal la comida del plan con sus flags advisory
+ * @param {object} [opciones] `{diaEnBanda}` — contexto del día
+ * @param {Function} [traducir] el `t` del motor de idioma. OPCIONAL: sin él los
+ *   chips salen en español, exactamente igual que antes de existir el motor.
+ *   Se recibe con otro nombre y se le pone de alias `t` porque el extractor de
+ *   claves de `npm run i18n:check` es textual y solo reconoce ese identificador.
+ */
+export function getMealAdvisories(meal, opciones, traducir) {
   if (!meal || typeof meal !== 'object') return [];
+  const t = typeof traducir === 'function' ? traducir : (s) => s;
   const out = [];
   // [P1-MACRO-BADGE-DIA-EN-BANDA · 2026-08-05] ¿El DÍA de este plato cierra en banda?
   // Ver el gate de `_macro_band_low` más abajo para por qué importa.
@@ -89,16 +98,16 @@ export function getMealAdvisories(meal, opciones) {
     // mismo P-fix) distingue las causas; sin el campo (planes viejos persistidos antes de este
     // fix) se conserva el label histórico como fallback seguro.
     if (meal._dish_quality_reason === 'portion_estimate') {
-      out.push({ key: 'dish_quality', label: 'Cantidad de un ingrediente estimada — puede variar' });
+      out.push({ key: 'dish_quality', label: t('Cantidad de un ingrediente estimada — puede variar') });
     } else {
-      out.push({ key: 'dish_quality', label: 'Receta básica — regenera para más detalle' });
+      out.push({ key: 'dish_quality', label: t('Receta básica — regenera para más detalle') });
     }
   }
   if (meal._slot_advisory) {
-    out.push({ key: 'slot', label: 'Horario inusual para este plato' });
+    out.push({ key: 'slot', label: t('Horario inusual para este plato') });
   }
   if (meal._appetibility_combo_warning) {
-    out.push({ key: 'combo', label: 'Combinación inusual (fruta dulce + salado)' });
+    out.push({ key: 'combo', label: t('Combinación inusual (fruta dulce + salado)') });
   }
   if (meal._macro_band_low && !diaEnBanda) {
     // [2026-08-05] Copy en llano a pedido del dueño: «banda objetivo» es
@@ -117,16 +126,16 @@ export function getMealAdvisories(meal, opciones) {
     //
     // La telemetría per-comida NO se toca (sigue en el log y en el flag persistido): lo que
     // deja de existir es la etiqueta visible cuando el día ya está donde debe.
-    out.push({ key: 'macro_band', label: 'Este plato se desvía un poco de tus macros' });
+    out.push({ key: 'macro_band', label: t('Este plato se desvía un poco de tus macros') });
   }
   if (meal._name_honesty_degraded) {
-    out.push({ key: 'name_honesty', label: 'El nombre puede no reflejar la proteína real' });
+    out.push({ key: 'name_honesty', label: t('El nombre puede no reflejar la proteína real') });
   }
   if (meal._recipe_contract_advisory) {
-    out.push({ key: 'recipe_contract', label: 'Receta con pasos incompletos — regenera para detalle' });
+    out.push({ key: 'recipe_contract', label: t('Receta con pasos incompletos — regenera para detalle') });
   }
   if (meal._cross_week_repeat) {
-    out.push({ key: 'cross_week_repeat', label: 'Se repite de una semana anterior — cámbialo si quieres variedad' });
+    out.push({ key: 'cross_week_repeat', label: t('Se repite de una semana anterior — cámbialo si quieres variedad') });
   }
   return out;
 }

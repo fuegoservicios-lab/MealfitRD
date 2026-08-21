@@ -29,6 +29,7 @@
 // ---------------------------------------------------------------------------
 // 1. Acciones del review/orchestrator (action_taken).
 // ---------------------------------------------------------------------------
+// [I18N-EXEMPT: SSOT es-DO parseado como literal de objeto por test_p1_3_coherence_labels_cross_language.py; las mismas etiquetas, envueltas, en la seccion 3]
 const COHERENCE_ACTION_LABELS = {
     // Estados normales (no anomalous): plan limpio o re-validación post-swap.
     not_applicable: 'Sin ajuste',
@@ -63,6 +64,7 @@ export const getCoherenceActionLabel = (code) => {
 // ---------------------------------------------------------------------------
 // 2. Hipótesis de divergencia (hypothesis).
 // ---------------------------------------------------------------------------
+// [I18N-EXEMPT: SSOT es-DO parseado como literal de objeto por test_p1_3_coherence_labels_cross_language.py; las mismas etiquetas, envueltas, en la seccion 3]
 const COHERENCE_HYPOTHESIS_LABELS = {
     // Food en receta TOTALMENTE ausente en lista. Causa típica: el cap
     // exact-match del aggregator engulló un modificador que hace que el

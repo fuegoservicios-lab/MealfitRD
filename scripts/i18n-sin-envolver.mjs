@@ -151,9 +151,30 @@ const EXENCION = /\[I18N-EXEMPT:\s*([^\]]{4,})\]/;
 
 /** ¿La línea `linea` (1-based) está exenta? Se mira ella y las 3 anteriores, el
  *  mismo radio que usa `P2-LOGGER-EXEMPT`. */
-function exenta(lineas, linea) {
+function exentaEnLinea(lineas, linea) {
     for (let i = Math.max(0, linea - 4); i < linea; i++) {
         if (EXENCION.test(lineas[i] || '')) return true;
+    }
+    return false;
+}
+
+/** ¿Está exento este hallazgo, por su línea o por la de su SENTENCIA?
+ *
+ *  El radio de 3 líneas vale para un hallazgo suelto y no para una tabla. Medido con un
+ *  bloque de 12 filas: el marcador puesto encima cubría las dos primeras y dejaba 20
+ *  hallazgos fuera. Y la tabla es justo el caso que más necesita la escotilla — el real
+ *  es `DOMINICAN_MEALS` (AssessmentContext.jsx), 26 líneas de nombres de platos que
+ *  alimentan un objeto `meal` del plan: su `name` acaba resolviéndose contra
+ *  `pantry_names_match`, el guard de coherencia y el backstop de alergias, así que
+ *  traducirlo rompe las tres, dos de ellas en silencio.
+ *
+ *  Por eso el marcador puede ir también sobre la SENTENCIA de nivel superior que
+ *  contiene el hallazgo: «exime esta tabla entera» es una unidad natural, y escribir el
+ *  marcador dieciséis veces sería ruido que nadie mantiene. */
+function exenta(lineas, linea, lineaSentencia) {
+    if (exentaEnLinea(lineas, linea)) return true;
+    if (lineaSentencia && lineaSentencia !== linea) {
+        return exentaEnLinea(lineas, lineaSentencia);
     }
     return false;
 }
@@ -180,13 +201,17 @@ export function detectarEnFuente(src) {
     const hallazgos = [];
     const vistos = new Set();
 
+    // Línea de la sentencia de nivel superior que se está recorriendo. Es lo que
+    // permite eximir una tabla entera con un solo marcador encima.
+    let lineaSentencia = 0;
+
     const anotar = (nodo, posicion) => {
         const texto = textoLiteral(nodo);
         if (texto === null || !pareceEspanol(texto)) return;
         const linea = nodo.loc ? nodo.loc.start.line : 0;
         const id = `${linea}:${texto}`;
         if (vistos.has(id)) return;
-        if (exenta(lineas, linea)) return;
+        if (exenta(lineas, linea, lineaSentencia)) return;
         vistos.add(id);
         hallazgos.push({ linea, texto: texto.trim().slice(0, 120), posicion });
     };
@@ -218,7 +243,7 @@ export function detectarEnFuente(src) {
                 const linea = nodo.loc ? nodo.loc.start.line : 0;
                 const limpio = texto.trim().replace(/\s+/g, ' ');
                 const id = `${linea}:${limpio}`;
-                if (!vistos.has(id) && !exenta(lineas, linea)) {
+                if (!vistos.has(id) && !exenta(lineas, linea, lineaSentencia)) {
                     vistos.add(id);
                     hallazgos.push({ linea, texto: limpio.slice(0, 120), posicion: 'jsx-text' });
                 }
@@ -321,7 +346,10 @@ export function detectarEnFuente(src) {
         }
     };
     prepasar(ast.program);
-    visitar(ast.program);
+    for (const sentencia of ast.program.body || []) {
+        lineaSentencia = sentencia.loc ? sentencia.loc.start.line : 0;
+        visitar(sentencia);
+    }
 
     hallazgos.sort((a, b) => a.linea - b.linea);
     return hallazgos;

@@ -21,7 +21,13 @@
 //
 // Tooltip-anchor: P1-DASH-WEEK-NAV. Tests: src/__tests__/planWeeks.test.js.
 
-import { formatDate } from '../i18n';
+// [P1-I18N-UTILS-ETIQUETAS · 2026-08-21] `t` entra como `_t` y NO se invoca aquí
+// arriba: es solo el VALOR POR DEFECTO de las funciones de abajo. Sirve para que
+// un call site que todavía no pasa su propia función de traducción siga leyendo
+// el catálogo ACTIVO en vez de quedarse clavado en español — el alias con guion
+// bajo además lo deja fuera del extractor textual de claves, que solo reconoce la
+// llamada escrita con el nombre desnudo.
+import { formatDate, t as _t } from '../i18n';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -31,7 +37,17 @@ export const DAY_MS = 24 * 60 * 60 * 1000;
 // lee como martes y que "X" para miércoles se entiende todavía menos — son
 // convención de calendario impreso, no algo que nadie descifre de un vistazo.
 // El ancho de la celda da de sobra para tres caracteres.
-export const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+//
+// [P1-I18N-UTILS-ETIQUETAS · 2026-08-21] FUNCIÓN y no constante, y no es estilo:
+// un array de etiquetas traducidas evaluado AL IMPORTAR corre antes de que exista
+// el catálogo y se congela en español para siempre — y en es-DO parece correcto,
+// así que sobrevive a cualquier revisión visual. Las siete cadenas van LITERALES
+// dentro de la función porque el extractor de claves es textual: una cadena
+// pasada por variable no se puede recolectar y el idioma nunca la vería.
+export function getWeekdayLabels(tFn) {
+    const t = typeof tFn === 'function' ? tFn : _t;
+    return [t('Lun'), t('Mar'), t('Mié'), t('Jue'), t('Vie'), t('Sáb'), t('Dom')];
+}
 
 // `new Date('2026-08-05')` se parsea como MEDIANOCHE UTC; en RD (UTC−4)
 // `toLocaleDateString` retrocede un día y el día se vería corrido. Construimos
@@ -201,48 +217,60 @@ function formatDayEs(date) {
 // ⚠️ La celda usa `short` y NUNCA `label`. La fila anterior repetía "se genera
 // vie" en cada uno de los cuatro días — la queja original del owner. La fecha
 // del lote se dice UNA vez, a nivel de semana; en la celda solo cabe una marca.
-export function resolveDayState(entry, ctx) {
+//
+// [P1-I18N-UTILS-ETIQUETAS · 2026-08-21] El tercer parámetro es la función de
+// traducción. `key` NO se traduce JAMÁS: es un identificador que el consumidor
+// compara (`st.key !== 'listo'` en PlanWeekNav) y que los tests fijan. Lo que se
+// traduce es lo que se LEE — `label` y `short`.
+export function resolveDayState(entry, ctx, tFn) {
     // ⚠️ `|| {}` y NO un default de destructuring: el Dashboard arranca con
     // `chunkStatusInfo = null` (no `undefined`) hasta que responde
     // `/chunk-status`, y un default solo cubre `undefined`.
     const { firstLiveIso, today } = ctx || {};
     const chunkStatusInfo = (ctx && ctx.chunkStatusInfo) || {};
+    // Se llama `t` a secas a propósito: el extractor de claves reconoce la
+    // llamada por el NOMBRE, así que un alias la volvería invisible para el
+    // catálogo. Y va dentro de la función, nunca en ámbito de módulo.
+    const t = typeof tFn === 'function' ? tFn : _t;
 
     if (entry.origen === 'archivado') {
-        return { key: 'pasado', label: 'ya pasó', short: '✓', navegable: true, editable: false };
+        return { key: 'pasado', label: t('ya pasó'), short: '✓', navegable: true, editable: false };
     }
     if (entry.origen === 'vivo') {
         const hoy = today && new Date(today.getFullYear(), today.getMonth(), today.getDate());
         if (hoy && entry.date.getTime() === hoy.getTime()) {
-            return { key: 'hoy', label: 'hoy', short: 'hoy', navegable: true, editable: true };
+            return { key: 'hoy', label: t('hoy'), short: t('hoy'), navegable: true, editable: true };
         }
-        return { key: 'listo', label: 'listo', short: 'listo', navegable: true, editable: true };
+        return { key: 'listo', label: t('listo'), short: t('listo'), navegable: true, editable: true };
     }
 
     // origen === 'futuro': el día no existe todavía. `overdue` solo puede
     // aplicar aquí — un día ya generado nunca está atrasado.
     if (chunkStatusInfo.overdue === true) {
-        return { key: 'atrasado', label: 'atrasado', short: 'atrasado', navegable: false, editable: false };
+        return { key: 'atrasado', label: t('atrasado'), short: t('atrasado'), navegable: false, editable: false };
     }
 
     const chunk = chunkCoveringDate(entry.iso, firstLiveIso, chunkStatusInfo);
     if (chunk?.status === 'pending_user_action') {
-        return { key: 'pausado', label: 'pausado', short: 'pausado', navegable: false, editable: false };
+        return { key: 'pausado', label: t('pausado'), short: t('pausado'), navegable: false, editable: false };
     }
     if (chunk?.status === 'processing') {
-        return { key: 'en_proceso', label: 'en proceso', short: 'en proceso', navegable: false, editable: false };
+        return { key: 'en_proceso', label: t('en proceso'), short: t('en proceso'), navegable: false, editable: false };
     }
     if (chunk) {
         const when = parseIsoDateLocal(String(chunk.execute_after || '').slice(0, 10));
+        // El día de la semana entra INTERPOLADO y no concatenado: en otras
+        // lenguas el nombre del día no cae al final de la frase, y una
+        // concatenación fija ese orden para siempre.
         return {
             key: 'sin_plan',
-            label: when ? `se genera ${formatDayEs(when)}` : 'en cola',
-            short: 'en cola',
+            label: when ? t('se genera {dia}', { dia: formatDayEs(when) }) : t('en cola'),
+            short: t('en cola'),
             navegable: false,
             editable: false,
         };
     }
-    return { key: 'sin_plan', label: 'aún sin plan', short: '·', navegable: false, editable: false };
+    return { key: 'sin_plan', label: t('aún sin plan'), short: '·', navegable: false, editable: false };
 }
 
 // [P1-DASH-WEEK-NAV] LA regla que impide corromper datos.
