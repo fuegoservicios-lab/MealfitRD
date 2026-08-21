@@ -189,21 +189,66 @@ for (const code of TARGET_CODES) {
     const orphans = [...catKeys].filter((k) => !liveKeys.has(k));
     const missing = [...liveKeys].filter((k) => !catKeys.has(k));
 
-    // Un plural mal declarado traduce en singular para siempre y nadie lo ve.
-    const badPlurals = [...pluralKeys].filter(
-        (k) => catKeys.has(k) && (typeof catalog[k] !== 'object' || catalog[k] === null)
-    );
+    // [P1-I18N-GATE-VALOR · 2026-08-21] Hasta hoy este bloque medía que la CLAVE
+    // existiera y nunca que el valor SIRVIERA. Medido sobre este mismo script:
+    // poner `""` en una clave viva daba «100.0% · 0 faltan · ✅» y exit 0 en
+    // ESTRICTO. Pasaban por traducidos `""`, `"   "`, `null`, `0`, `[]`, `{}`,
+    // `{one:'',other:''}` y un plural sin `one`.
+    //
+    // Y no era hipotético: lo escribe ESTE script. `--write-template` (abajo)
+    // rellena las faltantes con `''` / `{one:'',other:''}` directamente en el
+    // catálogo que se despacha, y `i18n-batches.mjs` lo invoca en cada `split`
+    // mientras su `merge` DESCARTA los vacíos en vez de completarlos. Toda clave
+    // que el traductor no devolviera quedaba en blanco con `missing = 0` para
+    // siempre.
+    //
+    // El usuario no ve un hueco —el motor cae al español— así que el defecto es
+    // el FALSO VERDE: la cobertura es el único número con el que alguien decide
+    // si un idioma está listo, y un 100% que incluye blancos no mide cobertura.
+    const util = (v, esPlural) => {
+        if (esPlural) {
+            if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+            // Las DOS formas. Un `{other}` sin `one` traduce en singular igual que
+            // el plural declarado como cadena que este check ya cazaba: era la
+            // misma clase de fallo mirada en una sola dirección.
+            return typeof v.one === 'string' && v.one.trim() !== ''
+                && typeof v.other === 'string' && v.other.trim() !== '';
+        }
+        return typeof v === 'string' && v.trim() !== '';
+    };
+    const motivo = (k) => {
+        const v = catalog[k];
+        const esPlural = pluralKeys.has(k);
+        if (util(v, esPlural)) return null;
+        const esObjeto = v !== null && typeof v === 'object' && !Array.isArray(v);
+        if (esPlural && !esObjeto) return 'plural declarado como valor simple';
+        if (!esPlural && esObjeto) return 'clave simple declarada como objeto de plural';
+        if (esPlural) return 'plural sin sus dos formas {one, other} rellenas';
+        return 'valor vacío o no textual';
+    };
+    // Solo sobre las claves VIVAS del catálogo: una huérfana ya se cuenta aparte,
+    // y restarla dos veces desfasaría la cobertura hacia abajo.
+    const inservibles = [...catKeys]
+        .filter((k) => liveKeys.has(k))
+        .map((k) => ({ key: k, motivo: motivo(k) }))
+        .filter((x) => x.motivo);
+
+    const traducidas = catKeys.size - orphans.length - inservibles.length;
 
     report.locales[code] = {
-        translated: catKeys.size - orphans.length,
+        translated: traducidas,
         missing: missing.length,
         orphans,
-        badPlurals,
-        coverage: liveKeys.size ? ((catKeys.size - orphans.length) / liveKeys.size) : 1,
+        unusable: inservibles,
+        coverage: liveKeys.size ? (traducidas / liveKeys.size) : 1,
     };
 
     if (orphans.length) hardFail = true;
-    if (badPlurals.length) hardFail = true;
+    // Falla SIEMPRE, con o sin `--strict`. Permisivo tolera lo AUSENTE a propósito
+    // (una migración a medias cae a español y deja pantallas coherentes); un valor
+    // inservible no es «todavía no traducido», es una clave que YA se procesó y
+    // salió vacía — siempre un error de la herramienta o del traductor.
+    if (inservibles.length) hardFail = true;
     if (STRICT && missing.length) hardFail = true;
 
     if (WRITE_TEMPLATE && missing.length) {
@@ -248,10 +293,16 @@ if (AS_JSON) {
             for (const k of r.orphans.slice(0, 15)) console.error(`     · ${JSON.stringify(k)}`);
             if (r.orphans.length > 15) console.error(`     … y ${r.orphans.length - 15} más`);
         }
-        if (r.badPlurals.length) {
-            console.error(`\n❌ ${code}: ${r.badPlurals.length} clave(s) de plural declaradas como cadena simple.`);
-            console.error('   Un plural sin objeto {one,other} traduce en singular SIEMPRE, sin avisar.');
-            for (const k of r.badPlurals) console.error(`     · ${JSON.stringify(k)}`);
+        if (r.unusable.length) {
+            console.error(`\n❌ ${code}: ${r.unusable.length} clave(s) presentes con un valor INSERVIBLE.`);
+            console.error('   Están en el catálogo, así que no cuentan como faltantes — pero el motor');
+            console.error('   las descarta y pinta español. Para el usuario son idénticas a no estar,');
+            console.error('   y para la cifra de cobertura contaban como traducidas: ese era el bug.');
+            console.error('   Si vienen de `--write-template`, es que el lote volvió sin traducir.');
+            for (const { key, motivo } of r.unusable.slice(0, 15)) {
+                console.error(`     · ${JSON.stringify(key)} — ${motivo}`);
+            }
+            if (r.unusable.length > 15) console.error(`     … y ${r.unusable.length - 15} más`);
         }
     }
 
