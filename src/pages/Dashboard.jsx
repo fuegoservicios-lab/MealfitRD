@@ -24,7 +24,11 @@ import { toast } from 'sonner';
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
 import { useT, useI18n, t, tn, formatDate } from '../i18n';
-import { COUNTRIES } from '../config/countries';
+// [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
+// Sin el símbolo, `currencyOptionsForCountry(pais, COUNTRY_SYSTEM_UI)` NO habría fallado:
+// `undefined` es falsy, así que habría devuelto [DOP, USD] en silencio — el bug intacto con
+// aspecto de arreglado. Un guard parser-based no lo ve; por eso hay uno de ÁMBITO abajo.
+import { COUNTRIES, COUNTRY_SYSTEM_UI } from '../config/countries';
 // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
 // del usuario — SSOT del fallback campo a campo (nombre/descripción) contra
 // el campo paralelo que el motor backend adjunta por locale al meal. El plan
@@ -100,7 +104,7 @@ import { reanudarPlanes } from '../utils/planModeResume';
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7)] effectiveBudgetCurrency — la moneda REALMENTE
 // vigente (nunca budgetCurrency crudo, que puede quedar STALE en una moneda beta tras un
 // rollback). Mismo helper SSOT que QBudget/InteractiveAssessmentFlow/useBudgetFloor (T6).
-import { minBudgetFor, budgetCycleDays, effectiveBudgetCurrency } from '../config/formValidation';
+import { minBudgetFor, budgetCycleDays, effectiveBudgetCurrency, budgetCurrencySymbol, currencyOptionsForCountry } from '../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo de presupuesto personalizado por las metas
 // (calorías × hogar × ciclo) — mismo número que exige el backend; fail-open al estático.
 import { useBudgetFloor } from '../hooks/useBudgetFloor';
@@ -6487,7 +6491,10 @@ const DashboardInner = () => {
                                             // mismo motivo que el autofill de arriba: `budgetCurrency` crudo
                                             // puede seguir en una moneda beta STALE tras un rollback.
                                             const _cur = effectiveBudgetCurrency(formData?.country, formData?.budgetCurrency);
-                                            const _sym = _cur === 'USD' ? 'US$' : 'RD$';
+                                            // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] SSOT compartido con QBudget:
+                                            // esta línea era una COPIA de dos ramas y EUR/MXN/COP caían al else,
+                                            // así que un español leía «Mínimo RD$245» sobre un monto en euros.
+                                            const _sym = budgetCurrencySymbol(_cur);
                                             const _min = budgetFloor.min;
                                             const _cycleDays = budgetCycleDays(groceryDuration);
                                             const _amt = Number(formData?.budgetAmount);
@@ -6554,12 +6561,15 @@ const DashboardInner = () => {
                                                                     />
                                                                 </div>
                                                                 <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '0.5rem', padding: '3px', flexShrink: 0 }}>
-                                                                    {['DOP', 'USD'].map(c => {
+                                                                    {/* [P1-DASH-BUDGET-CURRENCY · 2026-08-21] el literal de dos monedas
+                                                                        escondía la moneda beta del propio usuario: tocar el toggle la
+                                                                        perdía en silencio. Mismo SSOT de opciones que QBudget. */}
+                                                                    {currencyOptionsForCountry(formData?.country, COUNTRY_SYSTEM_UI).options.map(({ value: c }) => {
                                                                         const on = (_cur === c);
                                                                         return (
                                                                             <button key={c} type="button" onClick={() => _setBudget('budgetCurrency', c)} aria-pressed={on}
                                                                                 style={{ border: 'none', background: on ? 'var(--bg-card)' : 'transparent', padding: '4px 9px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700, color: on ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
-                                                                            >{c === 'USD' ? 'US$' : 'RD$'}</button>
+                                                                            >{budgetCurrencySymbol(c)}</button>
                                                                         );
                                                                     })}
                                                                 </div>

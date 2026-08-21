@@ -143,10 +143,21 @@ describe('P1-COUNTRY-SYSTEM-F1 (T7, fold de T6) — panel de presupuesto del Das
     });
 
     it('el símbolo/mínimo del panel de presupuesto usa effectiveBudgetCurrency, no budgetCurrency crudo', () => {
-        const i = _src.indexOf("const _sym = _cur === 'USD' ? 'US$' : 'RD$';");
+        // [RECONVERTIDO por P1-DASH-BUDGET-CURRENCY · 2026-08-21] Este test anclaba la GRAFÍA
+        // `const _sym = _cur === 'USD' ? 'US$' : 'RD$';` — que es exactamente el defecto que
+        // P1-DASH-BUDGET-CURRENCY quitó: esa expresión de dos ramas mandaba EUR/MXN/COP al else,
+        // así que un español leía «Mínimo RD$245» sobre un monto en euros.
+        //
+        // La auditoría del 2026-08-20 ya lo había señalado como guard DÉBIL: «comprueba que la
+        // función se invoque, no lo que devuelve — el `: 'RD$'` que ignora las monedas beta pasa
+        // sin despeinarse». Al reconvertirlo se cierra esa debilidad: ahora se ancla que el
+        // símbolo salga del SSOT compartido con QBudget, y que la copia de dos ramas no vuelva.
+        const i = _src.indexOf('const _sym = budgetCurrencySymbol(_cur);');
         expect(i).toBeGreaterThan(-1);
-        const before = _src.slice(Math.max(0, i - 300), i);
+        const before = _src.slice(Math.max(0, i - 600), i);
         expect(before).toContain('effectiveBudgetCurrency(formData?.country, formData?.budgetCurrency)');
+        // Lo que el guard viejo no podía ver: que no quede NINGUNA copia local de la regla.
+        expect(_src).not.toMatch(/===\s*'USD'\s*\?\s*'US\$'\s*:\s*'RD\$'/);
     });
 
     it('cero call sites restantes de `formData?.budgetCurrency || \'DOP\'` crudo en todo el archivo', () => {

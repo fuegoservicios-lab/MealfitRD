@@ -255,6 +255,31 @@ export function currencyOptionsForCountry(rawCountry, countrySystemUI) {
  * 3ro existe solo para que los tests puedan fijar el estado de la bandera sin mockear
  * el módulo `config/countries`.
  */
+/**
+ * [P1-DASH-BUDGET-CURRENCY · 2026-08-21] SSOT del símbolo de la moneda de presupuesto.
+ *
+ * Vive aquí, junto a `currencyOptionsForCountry` y `effectiveBudgetCurrency`, porque la política
+ * de moneda ya vive aquí y porque sus consumidores (QBudget, el panel del Dashboard, el hook del
+ * piso) ya importan de este módulo.
+ *
+ * EL BUG QUE CIERRA: la regla estaba escrita DOS veces. QBudget tenía la versión de tres ramas
+ * (USD → US$, DOP → RD$, resto → el código) y el panel del Dashboard su propia copia de dos
+ * (`_cur === 'USD' ? 'US$' : 'RD$'`), donde EUR/MXN/COP caían al `else`. Un usuario español con
+ * `budgetCurrency='EUR'` leía en el Dashboard «Mínimo RD$245 para 30 días» sobre un monto que el
+ * backend había calculado en EUROS. Escribirla una tercera vez para arreglarla habría sido el
+ * mismo error con más pasos.
+ *
+ * PURA y sin fallback a país: recibe una moneda YA resuelta (el caller la saca de
+ * `effectiveBudgetCurrency`, que es quien sabe de países y de banderas). Ausente/vacía ⇒ 'RD$',
+ * el mismo fail-safe que el resto del sistema.
+ */
+export function budgetCurrencySymbol(currency) {
+    const cur = String(currency ?? '').trim();
+    if (cur === 'USD') return 'US$';
+    if (cur === 'DOP' || cur === '') return 'RD$';
+    return cur;
+}
+
 export function effectiveBudgetCurrency(country, budgetCurrency, countrySystemUI = COUNTRY_SYSTEM_UI) {
     if (budgetCurrency === 'DOP' || budgetCurrency === 'USD') return budgetCurrency;
     const { betaCurrency } = currencyOptionsForCountry(country, countrySystemUI);
