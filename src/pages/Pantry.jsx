@@ -575,7 +575,10 @@ const Pantry = () => {
             const res = await fetchWithAuth('/api/supermarket/match', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ names: [item.name] }),
+                // [P1-BETA-PRICE-LEAKS · 2026-08-21] el país viaja para que el servidor
+                // decida si los precios en RD$ deben salir: esta pantalla los pintaba con
+                // «RD$» sin condición alguna a un usuario de país beta.
+                body: JSON.stringify({ names: [item.name], country: formData?.country }),
             });
             const data = res.ok ? await res.json() : null;
             const groups = (data?.matches && data.matches[item.name]) || [];
@@ -649,7 +652,8 @@ const Pantry = () => {
                 const res = await fetchWithAuth('/api/supermarket/match', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ names: _names }),
+                    // [P1-BETA-PRICE-LEAKS · 2026-08-21] ver el otro call site de este archivo.
+                    body: JSON.stringify({ names: _names, country: formData?.country }),
                 });
                 const data = res.ok ? await res.json() : null;
                 if (cancelled) return;

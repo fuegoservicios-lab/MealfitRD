@@ -269,7 +269,9 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                 const res = await fetchWithAuth('/api/supermarket/match', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ names }),
+                    // [P1-BETA-PRICE-LEAKS · 2026-08-21] el país viaja para que el servidor
+                    // decida si los precios en RD$ deben salir hacia un usuario beta.
+                    body: JSON.stringify({ names, country: formData?.country }),
                 });
                 const data = res.ok ? await res.json() : null;
                 if (cancelled) return;
