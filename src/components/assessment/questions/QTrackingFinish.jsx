@@ -73,10 +73,34 @@ export const QTrackingFinish = () => {
                 // entrada el país se cae al suelo en silencio en modo contador.
                 'country',
             ]) {
+                // (el huso se añade abajo, fuera de este bucle: no vive en formData)
                 const v = formData[extra];
                 if (v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)) {
                     hp[extra] = v;
                 }
+            }
+
+            // [P1-TRACKING-TZ-CAPTURE · 2026-08-21] El huso del dispositivo. No vive en
+            // `formData` (nadie lo contesta: es un dato del navegador), así que no puede ir en el
+            // bucle de arriba — pero sufre EXACTAMENTE el mecanismo que el comentario de
+            // `country` describe. Los únicos dos escritores de `tzOffset` en el perfil son
+            // /analyze y /shift-plan, y un usuario de modo contador no pasa por ninguno: su
+            // perfil se quedaba sin huso y `user_tz_offset_min` degradaba a 240 (RD) para
+            // siempre, dejando inerte todo F1-T5 justo para quien SÓLO usa el diario y el coach.
+            // En México eso significa que la cena de las 22:30 cuenta al día siguiente.
+            //
+            // Se calcula AQUÍ, en el submit, y nunca en una `const` de módulo: ese patrón se
+            // evalúa al importar y en la máquina de desarrollo el valor congelado coincide con el
+            // correcto, así que el fallo sólo aparecería en producción y sólo fuera de RD.
+            //
+            // Convención `getTimezoneOffset()` de JS (minutos a SUMAR a la hora local para llegar
+            // a UTC: RD=+240, España verano=−120) — la misma que lee `user_tz_offset_min`. Las
+            // DOS grafías, porque el lector acepta cualquiera y los otros dos escritores
+            // persisten ambas.
+            const _tzOffsetAhora = new Date().getTimezoneOffset();
+            if (Number.isFinite(_tzOffsetAhora)) {
+                hp.tzOffset = _tzOffsetAhora;
+                hp.tz_offset_minutes = _tzOffsetAhora;
             }
 
             const r1 = await fetchWithAuth('/api/profile', {
