@@ -41,6 +41,10 @@ import { fileURLToPath } from 'node:url';
 // gate apoyado en un transitivo muere con ERR_MODULE_NOT_FOUND en el siguiente
 // bump del lockfile sin que nadie lo haya decidido.
 import { parse } from '@babel/parser';
+// [P1-I18N-GATE-CIEGO-SIN-T · 2026-08-21] El NEGATIVO de este script: lo que
+// nunca se envolvió en `t()`. Ver la cabecera de esos dos módulos.
+import { detectarEnFuente } from './i18n-sin-envolver.mjs';
+import { clasificarAlcance } from './i18n-alcance.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC = join(__dirname, '..', 'src');
@@ -49,6 +53,12 @@ const LOCALES_DIR = join(SRC, 'i18n', 'locales');
 const STRICT = process.argv.includes('--strict');
 const AS_JSON = process.argv.includes('--json');
 const WRITE_TEMPLATE = process.argv.includes('--write-template');
+// [P1-I18N-GATE-CIEGO-SIN-T · 2026-08-21] Reescribe el trinquete de literales sin
+// envolver con el estado de hoy. Se invoca a mano y deja el cambio en el diff:
+// una línea que baja es una mejora que hay que poder ver; una que sube, un
+// retroceso que hay que poder discutir.
+const UPDATE_BASELINE = process.argv.includes('--update-baseline');
+const BASELINE_PATH = join(__dirname, 'i18n-sin-envolver.baseline.json');
 
 // SSOT de idiomas: se lee de locales.js en vez de repetir la lista.
 const LOCALES_SRC = readFileSync(join(SRC, 'i18n', 'locales.js'), 'utf8');
@@ -210,10 +220,22 @@ const keys = new Map();          // clave → [archivos]
 const pluralKeys = new Set();    // claves que se usan con tn()
 const moduleScopeHits = [];      // { file, key }
 
+// [P1-I18N-GATE-CIEGO-SIN-T · 2026-08-21] Aquí vivía
+//
+//     if (!/\bt\(|\btn\(/.test(src)) continue;
+//
+// y era el corazón del punto ciego: un fichero sin UNA SOLA llamada `t()` ni se
+// abría. Medido: 8 utils de etiquetas (planWeeks, shelfLife, authErrors,
+// chunkStatus, chunkKinds, foodSearch, routeMeta, todayRemaining) con español
+// puro dentro, invisibles para un gate que cantaba «100,0 % en los 4 idiomas».
+// El coste de abrirlos todos es de milisegundos; el de saltárselos era no ver la
+// mitad del problema.
+const contenidos = new Map();
 for (const file of files) {
     const src = readFileSync(file, 'utf8');
-    if (!/\bt\(|\btn\(/.test(src)) continue;
     const rel = relative(SRC, file).replace(/\\/g, '/');
+    contenidos.set(rel, src);
+    if (!/\bt\(|\btn\(/.test(src)) continue;
     const modOffsets = moduleScopeCallOffsets(src);
 
     for (const m of src.matchAll(T_CALL)) {
@@ -337,6 +359,67 @@ for (const code of TARGET_CODES) {
 if (moduleScopeHits.length) hardFail = true;
 
 // ---------------------------------------------------------------------------
+// [P1-I18N-GATE-CIEGO-SIN-T · 2026-08-21] Lo que NUNCA se envolvió en `t()`
+// ---------------------------------------------------------------------------
+// Todo lo de arriba mide el denominador que este script define: las claves que ya
+// pasan por `t()`. Esto mide el otro lado. Arranca como TRINQUETE y no como error
+// porque hay 153 cadenas vivas dentro del alcance: ponerlo en rojo el día uno
+// entrena a saltarse el gate, que es la lección de P1-CI-GATE-PASSABLE. El número
+// puede bajar, nunca subir; el día que llegue a 0, pasa a error.
+const { dentro: ficherosEnAlcance } = clasificarAlcance();
+const enAlcance = new Set(ficherosEnAlcance);
+
+const sinEnvolverPorArchivo = {};
+let sinEnvolverTotal = 0;
+for (const [rel, src] of contenidos) {
+    if (!enAlcance.has(rel)) continue;
+    const hallazgos = detectarEnFuente(src);
+    if (hallazgos.length) {
+        sinEnvolverPorArchivo[rel] = hallazgos.length;
+        sinEnvolverTotal += hallazgos.length;
+    }
+}
+
+let baseline = null;
+if (existsSync(BASELINE_PATH)) {
+    try { baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8')); } catch { baseline = null; }
+}
+
+if (UPDATE_BASELINE) {
+    const ordenado = Object.fromEntries(
+        Object.entries(sinEnvolverPorArchivo).sort(([a], [b]) => a.localeCompare(b))
+    );
+    writeFileSync(BASELINE_PATH, JSON.stringify({
+        _comentario: 'Trinquete de P1-I18N-GATE-CIEGO-SIN-T: literales en español, DENTRO '
+            + 'del alcance, que nunca pasaron por t(). Puede BAJAR, nunca subir. '
+            + 'Regenerar con `node scripts/i18n-check.mjs --update-baseline` y '
+            + 'revisar el diff: una línea que baja es una pantalla traducida.',
+        total: sinEnvolverTotal,
+        porArchivo: ordenado,
+    }, null, 2) + '\n', 'utf8');
+    console.log(`[i18n:check] trinquete reescrito: ${sinEnvolverTotal} en ${Object.keys(ordenado).length} archivos.`);
+}
+
+const retrocesos = [];
+if (baseline && !UPDATE_BASELINE) {
+    // Por FICHERO y no sólo por total: si uno mejora y otro empeora, el total
+    // puede quedar igual y el retroceso pasar inadvertido. Un trinquete que sólo
+    // mira la suma no es un trinquete, es un promedio.
+    for (const [rel, n] of Object.entries(sinEnvolverPorArchivo)) {
+        const previo = (baseline.porArchivo || {})[rel] ?? 0;
+        if (n > previo) retrocesos.push({ rel, previo, ahora: n });
+    }
+}
+if (retrocesos.length) hardFail = true;
+
+report.sinEnvolver = {
+    total: sinEnvolverTotal,
+    baseline: baseline ? baseline.total : null,
+    porArchivo: sinEnvolverPorArchivo,
+    retrocesos,
+};
+
+// ---------------------------------------------------------------------------
 // Salida
 // ---------------------------------------------------------------------------
 if (AS_JSON) {
@@ -387,6 +470,26 @@ if (AS_JSON) {
             console.error(`     · ${h.file}: ${JSON.stringify(h.key)}`);
         }
         if (moduleScopeHits.length > 15) console.error(`     … y ${moduleScopeHits.length - 15} más`);
+    }
+
+    // [P1-I18N-GATE-CIEGO-SIN-T] El trinquete de lo nunca envuelto.
+    const se = report.sinEnvolver;
+    if (se.retrocesos.length) {
+        console.error(`\n❌ ${se.retrocesos.length} archivo(s) con MÁS español sin envolver que antes.`);
+        console.error('   Estas cadenas no pasan por t(), así que no existen para el cotejo de');
+        console.error('   catálogos: un usuario en inglés las lee en español y la cobertura');
+        console.error('   sigue diciendo 100%. Envuélvelas en t(), o si de verdad no deben');
+        console.error('   traducirse marca la línea con  // [I18N-EXEMPT: <razón>]');
+        for (const r of se.retrocesos) {
+            console.error(`     · ${r.rel}: ${r.previo} → ${r.ahora}`);
+        }
+    } else if (se.baseline !== null && se.total < se.baseline) {
+        console.log(`\n🎉 español sin envolver: ${se.baseline} → ${se.total} (${se.baseline - se.total} menos).`);
+        console.log('   Baja el trinquete para que no se pueda volver atrás:');
+        console.log('     node scripts/i18n-check.mjs --update-baseline');
+    } else if (se.total) {
+        console.log(`\nℹ  español sin envolver, dentro de alcance: ${se.total} en `
+            + `${Object.keys(se.porArchivo).length} archivos (trinquete: ${se.baseline ?? '—'}).`);
     }
 
     if (!hardFail) console.log('\n✅ Catálogos coherentes.\n');

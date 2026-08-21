@@ -22,9 +22,14 @@
  *   node scripts/huerfanos.mjs           # informa
  *   node scripts/huerfanos.mjs --gate    # falla si hay huérfanos no declarados
  */
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// [P1-I18N-GATE-CIEGO-SIN-T · 2026-08-21] El recorrido del grafo se movió a
+// `lib/grafo-modulos.mjs` sin cambiarlo, porque el detector de i18n necesita el
+// MISMO para saber qué ficheros sólo se alcanzan a través del landing. Copiar el
+// resolvedor habría creado otra pareja de tablas que drifta.
+import { todosLosFicheros, alcanzablesDesde } from './lib/grafo-modulos.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(AQUI, '..', 'src');
@@ -43,74 +48,8 @@ const ACEPTADOS = new Set([
 ]);
 
 const ENTRADAS = ['main.jsx', 'custom-sw.js'];
-const EXT = ['.js', '.jsx', '.ts', '.tsx'];
 
-function todosLosFicheros(dir, acc = []) {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, e.name);
-        if (e.isDirectory()) {
-            if (e.name === '__tests__' || e.name === 'node_modules') continue;
-            todosLosFicheros(p, acc);
-        } else if (EXT.includes(path.extname(e.name)) && !e.name.endsWith('.d.ts')) {
-            acc.push(p);
-        }
-    }
-    return acc;
-}
-
-/** Resuelve un especificador relativo a un fichero real de `src`. */
-function resolver(desde, spec) {
-    if (!spec.startsWith('.')) return null;
-    const base = path.resolve(path.dirname(desde), spec);
-    const candidatos = [
-        base,
-        ...EXT.map((e) => base + e),
-        ...EXT.map((e) => path.join(base, 'index' + e)),
-    ];
-    for (const c of candidatos) {
-        if (existsSync(c) && statSync(c).isFile()) return c;
-    }
-    return null;
-}
-
-/**
- * DOS patrones, no una alternancia. El primer intento los unia en una sola
- * expresion con `(?:import|export)[\s\S]*?from` y esa parte, al cruzar lineas,
- * se TRAGABA los `import()` dinamicos que hubiera por medio: declaraba huerfanos
- * a `HelpChatWidget`, `PaymentModal` y `PendingPipelineRecovery`, que se cargan
- * con `lazy(() => import('./X'))` y estan vivisimos —comprobado, HelpChatWidget
- * aparece en el bundle desplegado—.
- *
- * Un detector de codigo muerto que senala codigo vivo es peor que no tenerlo:
- * la primera vez discutes el falso positivo, la segunda dejas de mirarlo. Por eso
- * se SOBREAPROXIMA a favor de «vivo»: se cogen TODOS los `from '...'` y TODOS los
- * `import('...')`, aunque alguno venga de un comentario. Contar de mas deja
- * codigo muerto sin detectar; contar de menos borra codigo que se usa.
- */
-const RE_FROM = /from\s*['"]([^'"]+)['"]/g;
-const RE_DINAMICO = /import\(\s*['"]([^'"]+)['"]\s*\)/g;
-
-const alcanzables = new Set();
-const cola = ENTRADAS.map((e) => path.join(SRC, e)).filter(existsSync);
-cola.forEach((f) => alcanzables.add(f));
-
-while (cola.length) {
-    const f = cola.pop();
-    let txt;
-    try { txt = readFileSync(f, 'utf8'); } catch { continue; }
-    const specs = [
-        ...[...txt.matchAll(RE_FROM)].map((m) => m[1]),
-        ...[...txt.matchAll(RE_DINAMICO)].map((m) => m[1]),
-    ];
-    for (const spec of specs) {
-        if (!spec) continue;
-        const destino = resolver(f, spec);
-        if (destino && !alcanzables.has(destino)) {
-            alcanzables.add(destino);
-            cola.push(destino);
-        }
-    }
-}
+const alcanzables = alcanzablesDesde(ENTRADAS.map((e) => path.join(SRC, e)).filter(existsSync));
 
 const todos = todosLosFicheros(SRC);
 const huerfanos = todos

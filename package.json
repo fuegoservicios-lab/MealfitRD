@@ -14,6 +14,7 @@
     "i18n:check": "node scripts/i18n-check.mjs",
     "i18n:check:strict": "node scripts/i18n-check.mjs --strict",
     "i18n:template": "node scripts/i18n-check.mjs --write-template",
+    "i18n:baseline": "node scripts/i18n-check.mjs --update-baseline",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
