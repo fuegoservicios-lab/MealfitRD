@@ -118,6 +118,13 @@ export function getLocale() {
 // El predicado es `isPaperSurface`, el SSOT que ya gobierna qué rutas son marketing —
 // no una segunda lista que drifearía a la primera de cambio.
 function _autoLocaleParaLaSuperficieActual() {
+    // [P2-I18N-AUTOLOCALE-SIN-KNOB · 2026-08-21] Mismo interruptor que el boot de
+    // index.html, leyendo la MISMA variable: si sólo se apagara uno de los dos, el
+    // `<html lang>` y la app discreparían, que es peor que cualquiera de los dos
+    // estados coherentes.
+    if (String(import.meta.env.VITE_AUTO_LOCALE ?? '').toLowerCase() === 'off') {
+        return DEFAULT_LOCALE;
+    }
     try {
         if (typeof window !== 'undefined' && isPaperSurface(window.location.pathname)) {
             return DEFAULT_LOCALE;
@@ -367,14 +374,20 @@ const I18nContext = createContext({
 /**
  * Provider. Va POR ENCIMA del Router en App.jsx.
  *
- * `locale` en el contexto es lo que fuerza el repintado: App.jsx lo usa como
- * `key` del subárbol de rutas, así que un cambio de idioma REMONTA la vista.
- * Es deliberado y es lo único correcto: hay cadenas que se calculan fuera de
- * componentes (tablas de copy, handlers) y un re-render normal no las alcanza
- * si el subárbol está memoizado. El precio es perder estado transitorio de la
- * vista al cambiar de idioma — algo que se hace una vez, a mano, desde
- * Configuración. Los providers quedan ARRIBA de la `key`, así que la sesión y
- * el estado del wizard sobreviven.
+ * [P3-I18N-DOC-PROVIDER-STALE · 2026-08-21] Este bloque describía el `key={locale}`
+ * que RETIRÓ `P1-I18N-SWAP-SMOOTH`, y lo llamaba «lo único correcto» — justo la
+ * reincidencia que su test prohíbe. Un docstring que recomienda el código que se
+ * quitó es peor que ninguno: el siguiente que lo lea lo va a reponer citándolo.
+ *
+ * Lo que pasa HOY: el Provider reparte `locale` por contexto y el repintado llega por
+ * `useT()` / `useI18n()`. Cambiar de idioma NO remonta, así que el estado transitorio
+ * de la vista SOBREVIVE — se retiró el remontaje precisamente porque el diálogo de
+ * Configuración se reabría y el scroll saltaba mientras mirabas la lista de idiomas.
+ *
+ * Y el peligro que justificaba el remontaje resultó no existir: `React.memo` no bloquea
+ * la propagación de contexto, y el copy calculado fuera de componentes se lee del
+ * catálogo VIVO en el momento de la llamada. El único hueco real eran dos `useMemo` con
+ * deps que no incluían `locale`, y esos se arreglaron uno a uno.
  */
 export function I18nProvider({ children }) {
     const [locale, setLocaleState] = useState(() => getStoredLocale());

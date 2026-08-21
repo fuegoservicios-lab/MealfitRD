@@ -256,11 +256,24 @@ describe('[P1-I18N-DASHBOARD] formato dependiente del idioma', () => {
         await loadLocale(DEFAULT_LOCALE);
     });
 
-    it('es-DO y en-US comparten formato numérico (no es un bug)', () => {
+    it('es-DO y en-US comparten formato numérico (no es un bug)', async () => {
         // Anclado a propósito: si alguien ve `1,234.5` en inglés y en español y
         // cree que el locale no se está aplicando, este test dice que sí se
         // aplica y que la coincidencia es real.
-        expect(formatNumber(1234.5, { minimumFractionDigits: 1 })).toBe('1,234.5');
+        //
+        // [P3-I18N-TEST-EN-US-NO-CARGA · 2026-08-21] Antes NUNCA cargaba en-US: hacía
+        // una sola llamada sobre el locale que hubiera quedado activo y afirmaba el
+        // resultado. O sea que medía UN lado y lo comparaba con una constante — no
+        // demostraba nada sobre la coincidencia, que es justo lo único que este test
+        // existe para demostrar. Ahora carga los dos y los compara entre sí.
+        await loadLocale(DEFAULT_LOCALE);
+        const es = formatNumber(1234.5, { minimumFractionDigits: 1 });
+        await loadLocale('en-US');
+        const en = formatNumber(1234.5, { minimumFractionDigits: 1 });
+
+        expect(es).toBe(en);
+        expect(es).toBe('1,234.5');
+        await loadLocale(DEFAULT_LOCALE);
     });
 
     it('formatNumber devuelve cadena vacía ante valores no numéricos', () => {

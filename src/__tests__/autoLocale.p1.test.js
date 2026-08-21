@@ -172,6 +172,61 @@ describe('[P1-AUTO-LOCALE] el boot de index.html hace lo mismo', () => {
         expect(r.lang).toBe('fr-FR');
     });
 
+    // [P2-I18N-AUTOLOCALE-SIN-KNOB · 2026-08-21] El interruptor, probado APAGADO.
+    //
+    // Un knob que nadie ejercita apagado no es un knob: es una línea de código que
+    // nadie sabe si funciona el día que hace falta. Y el día que hace falta es
+    // justamente el peor para descubrirlo.
+    //
+    // Se evalúa el bloque real sustituyendo el marcador que Vite reemplaza en el build,
+    // que es lo que de verdad llega al navegador.
+    const evaluarBootConKnob = (valorDelKnob, { guardado = null, idiomas = [] } = {}) => {
+        let cuerpo = html.slice(
+            html.indexOf('var SUPPORTED'),
+            html.indexOf('} catch', html.indexOf('var SUPPORTED')),
+        );
+        // replaceAll y no replace: el COMENTARIO de index.html tambien cita el
+        // marcador, y No se ha reemplazado ningún archivo con cadena sustituye solo la PRIMERA ocurrencia — o
+        // sea la de la prosa, dejando el codigo intacto. El test pasaba a verde
+        // creyendo medir el knob y medía el comentario. Octava vez en este repo de
+        // «un comentario derrotó al guard», y esta vez el guard era mío.
+        cuerpo = cuerpo.replaceAll('%VITE_AUTO_LOCALE%', valorDelKnob);
+        const raiz = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
+        const win = {};
+        const correr = new Function(
+            'localStorage', 'navigator', 'location', 'document', 'window',
+            `${cuerpo}
+;return { elegido: typeof elegido === 'undefined' ? null : elegido };`,
+        );
+        const { elegido } = correr(
+            { getItem: () => guardado },
+            { languages: idiomas, language: idiomas[0] },
+            { pathname: '/dashboard' },
+            { documentElement: raiz },
+            win,
+        );
+        return { elegido, publicado: win.__mfLocale };
+    };
+
+    it('con el knob en `off`, el dispositivo deja de mandar', () => {
+        const r = evaluarBootConKnob('off', { idiomas: ['fr-FR'] });
+        expect(r.elegido).toBeNull();
+        expect(r.publicado).toBeUndefined();
+    });
+
+    it('sin la variable definida, la autodetección sigue ENCENDIDA', () => {
+        // El marcador llega literal cuando la env var no existe. Ausente ⇒ encendido,
+        // que es la conducta desplegada: el knob sirve para APAGAR, no para activar.
+        const r = evaluarBootConKnob('%VITE_AUTO_LOCALE%', { idiomas: ['fr-FR'] });
+        expect(r.elegido).toBe('fr-FR');
+    });
+
+    it('el knob apagado NO pisa una elección guardada', () => {
+        // Apagar la autodetección no puede llevarse por delante lo que el usuario eligió.
+        const r = evaluarBootConKnob('off', { guardado: 'pt-BR', idiomas: ['fr-FR'] });
+        expect(r.elegido).toBe('pt-BR');
+    });
+
     it('un valor basura en localStorage no cuenta como elección', () => {
         const r = evaluarBoot({ guardado: 'jp', idiomas: ['pt-BR'] });
         expect(r.elegido).toBe('pt-BR');

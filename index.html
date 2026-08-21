@@ -53,6 +53,20 @@
         // de mas abajo (`elegido !== 'es-DO'`), asi que aqui no hay efecto colateral.
         var elegido = SUPPORTED.indexOf(stored) !== -1 ? stored : null;
 
+        // [P2-I18N-AUTOLOCALE-SIN-KNOB · 2026-08-21] Interruptor de la autodeteccion.
+        //
+        // P1-AUTO-LOCALE cambia el idioma de TODO visitante nuevo y se desplego sin
+        // forma de apagarlo: revertirlo exigia redeploy del frontend, contra la
+        // convencion escrita del repo («cambios que pueden necesitar revertirse sin
+        // redeploy van como knob») y a diferencia de su gemelo del backend, que si la
+        // cumple con MEALFIT_PLAN_DISPLAY_I18N.
+        //
+        // Vite sustituye `%VITE_AUTO_LOCALE%` en este HTML durante el build. Sin la
+        // variable definida el marcador llega literal, y por eso la comparacion es
+        // contra 'off': ausente ⇒ ENCENDIDO, que es la conducta de hoy. El gemelo de
+        // runtime vive en src/i18n/index.js y lee la MISMA variable.
+        var AUTO_LOCALE_OFF = '%VITE_AUTO_LOCALE%' === 'off';
+
         // [P1-AUTO-LOCALE · 2026-08-20] Sin nada guardado, el idioma del DISPOSITIVO.
         //
         // Tiene que estar AQUI y no solo en el motor: `<html lang>` y el splash se
@@ -63,7 +77,7 @@
         // NO en el landing: sus rutas siguen sin traducir (72 llamadas sueltas), y
         // detectar ahi lo dejaria a medias, que es peor. La lista es copia literal de
         // `src/utils/paperSurface.js`, anclada por test -- igual que SUPPORTED.
-        if (!elegido) {
+        if (!elegido && !AUTO_LOCALE_OFF) {
           var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about', '/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure'];
           var enMarketing = PAPER.indexOf(location.pathname) !== -1
             || location.pathname.indexOf('/novedades/') === 0;
