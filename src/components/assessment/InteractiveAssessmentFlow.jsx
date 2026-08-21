@@ -394,6 +394,31 @@ const InteractiveAssessmentFlow = () => {
             fields: ['cookingTime'],
             component: <QCookingTime onAutoAdvance={handleAutoAdvance} />
         },
+        // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16 · reubicado por P1-QCOUNTRY-BEFORE-BUDGET
+        // · 2026-08-21] El país, gated en OSCURO hasta el flip global.
+        //
+        // POR QUÉ ESTÁ AQUÍ Y NO AL FINAL. Nació antes de QSupplements porque el último paso
+        // lleva el submit y un paso después del submit no se pregunta nunca — razón correcta
+        // para no ponerlo el ÚLTIMO, pero que no exigía ponerlo el penúltimo. El coste medido de
+        // tenerlo ahí: QBudget corría DIEZ pasos antes con `formData.country` todavía en el 'DO'
+        // que siembra `initialFormData`, así que `currencyOptionsForCountry` devolvía exactamente
+        // [RD$, US$] y la opción EUR/MXN/COP que T6 construyó era INALCANZABLE en el alta. En la
+        // DB viva: las 8 filas de user_profiles con budgetCurrency 'DOP' o NULL, cero con moneda
+        // beta — incluida la cuenta que generó los dos planes beta.
+        //
+        // Ahora va ANTES de la duración de compra y del presupuesto, que son los dos pasos cuyo
+        // cálculo depende de la moneda. Sigue DESPUÉS de los datos corporales que abren el
+        // formulario: el arranque es lo que engancha, y el país no es una pregunta de apertura.
+        //
+        // El corrimiento de índices de `mealfit_wizard_step` (persistido en localStorage) ocurre
+        // en el deploy de este P-fix — es el segundo, tras el del flip; la doc de Fase 0 avisa de
+        // que cada movimiento lo paga una vez.
+        ...(COUNTRY_SYSTEM_UI ? [{
+            title: <>{t('¿En qué país haces la compra?')}</>,
+            subtitle: t('Adapta tus platos, medidas y — donde ya está listo — los precios del súper.'),
+            fields: ['country'],
+            component: <QCountry onAutoAdvance={handleAutoAdvance} />
+        }] : []),
         {
             // [BUDGET-ORDER · 2026-05-31] "Frecuencia de tus compras" va ANTES que
             // "Tu presupuesto" (pedido del usuario). Además es más coherente: el
@@ -523,18 +548,6 @@ const InteractiveAssessmentFlow = () => {
             fields: ['motivation'],
             component: <QMotivation onManualAdvance={nextStep} />
         },
-        // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] El país, gated en OSCURO hasta el
-        // flip global. Va ANTES de QSupplements y no al final absoluto: el último
-        // paso lleva el submit (QSupplements/QPantryBuilder onFinish) y un paso
-        // después del submit no se pregunta nunca. El corrimiento de índices de
-        // mealfit_wizard_step ocurre UNA vez, en el deploy del flip — jamás en
-        // los deploys oscuros de la fase.
-        ...(COUNTRY_SYSTEM_UI ? [{
-            title: <>{t('¿En qué país haces la compra?')}</>,
-            subtitle: t('Adapta tus platos, medidas y — donde ya está listo — los precios del súper.'),
-            fields: ['country'],
-            component: <QCountry onAutoAdvance={handleAutoAdvance} />
-        }] : []),
         {
             title: t('Suplementación (Opcional)'),
             subtitle: t('¿Te gustaría incluir suplementos profesionales en tu plan?'),
