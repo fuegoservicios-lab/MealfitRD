@@ -1091,10 +1091,16 @@ export const AssessmentProvider = ({ children }) => {
                     const _isComplete = _guestPlan && Array.isArray(_guestPlan.days) && _guestPlan.days.length > 0;
                     if (_isComplete) {
                         try {
+                            // [P1-GUEST-COUNTRY-ADOPT · 2026-08-21] También el FORMULARIO. Sin
+                            // esto la adopción guardaba el plan y descartaba lo que el invitado
+                            // contestó: un español que eligió España acababa con el perfil sin
+                            // país ⇒ 'DO', y desde ahí swaps y renovaciones dominicanos sobre un
+                            // plan marcado beta_no_prices. El backend aplica su propia allowlist
+                            // y sólo rellena huecos — aquí sólo se manda.
                             const _resp = await fetchWithAuth('/api/plans/adopt-guest-plan', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ plan_data: _guestPlan }),
+                                body: JSON.stringify({ plan_data: _guestPlan, form_data: formData }),
                             });
                             if (_resp.ok) {
                                 const _j = await _resp.json().catch(() => null);
@@ -1494,10 +1500,13 @@ export const AssessmentProvider = ({ children }) => {
         planPersistHealRef.current = uid;
         (async () => {
             try {
+                // [P1-GUEST-COUNTRY-ADOPT · 2026-08-21] El 2º call site del adopt: manda el
+                // formulario igual que el de arriba. Arreglar sólo uno dejaría la mitad de los
+                // registros con el perfil sin país.
                 const r = await fetchWithAuth('/api/plans/adopt-guest-plan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ plan_data: planData }),
+                    body: JSON.stringify({ plan_data: planData, form_data: formData }),
                 });
                 if (r.ok) {
                     const _j = await r.json().catch(() => null);
