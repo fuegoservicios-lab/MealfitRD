@@ -41,6 +41,18 @@ import {
 import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY, CHAT_CURRENT_SESSION_KEY } from '../utils/chatCacheKeys';
 import { isApexHost } from '../config/site';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
+//
+// [P1-I18N-MODULOS-SIN-T · 2026-08-21] Esta tabla NO se traduce, y no es un olvido.
+// `pickFallbackMeal` devuelve `{ name, desc, ... }` que pasa a ser una COMIDA del
+// plan, asi que su `name` acaba resolviendose contra `pantry_names_match`, el guard
+// de coherencia recetas<->lista y el backstop clinico de alergias. Traducir «Mangu
+// con Huevo» rompe las tres, y dos de ellas en silencio.
+//
+// Que el usuario lo lea en su idioma NO se resigna: lo cubre la capa `_display` +
+// el gloss `name_en` de P1-PLAN-DISPLAY-I18N, que traduce lo que se MUESTRA sin
+// tocar lo que el motor RESUELVE. Duplicar la tabla en cuatro catalogos seria la
+// via equivocada para el mismo objetivo.
+// [I18N-EXEMPT: nombres de plato = identificadores del motor; ver la nota de arriba]
 const DOMINICAN_MEALS = {
     breakfast: [
         { name: "Mangú con Huevo", tags: ['balanced', 'vegetarian'], desc: "Puré de plátano verde con huevo hervido.", recipe: ["Hervir plátanos verdes.", "Majar con agua de cocción.", "Hervir 2 huevos.", "Saltear cebolla roja en vinagre."], cals: 450 },
@@ -126,7 +138,9 @@ import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // [P1-I18N-DASHBOARD · 2026-08-15] Reconciliación del idioma con el perfil del
 // servidor (cross-device). Se importa la función de MÓDULO, no el hook: esto
 // corre dentro de `fetchProfile`, que no es un componente.
-import { syncLocaleFromProfile } from '../i18n';
+// [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: los avisos de abajo salen desde
+// dentro de callbacks (handlers, polling, catch), no en render.
+import { syncLocaleFromProfile, t } from '../i18n';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Loop de polling acotado (discriminador +
@@ -1940,8 +1954,8 @@ export const AssessmentProvider = ({ children }) => {
             if (now - _sessionExpiredAtRef.current < 5000) return; // ráfaga → maneja una vez
             _sessionExpiredAtRef.current = now;
             import('sonner')
-                .then(({ toast }) => toast.error('Tu sesión expiró', {
-                    description: 'Vuelve a iniciar sesión para continuar.',
+                .then(({ toast }) => toast.error(t('Tu sesión expiró'), {
+                    description: t('Vuelve a iniciar sesión para continuar.'),
                 }))
                 .catch(() => { /* toast best-effort */ });
             try { logoutFirstPartySession(); } catch { /* best-effort */ }
@@ -2545,7 +2559,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
 
             if (!userId) {
-                toast.error("Inicia sesión para guardar tus favoritos");
+                toast.error(t('Inicia sesión para guardar tus favoritos'));
                 setLikedMeals(prev => {
                     const newState = { ...prev };
                     delete newState[mealName];
@@ -2604,12 +2618,12 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     const regenerateDay = async (dayIndex, reason = 'variety') => {
         const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
         if (!userId || userId === 'guest') {
-            toast.error('Crea tu cuenta para actualizar platos con IA.');
+            toast.error(t('Crea tu cuenta para actualizar platos con IA.'));
             return { ok: false };
         }
         const planId = planData?.id || planData?.plan_id;
         if (planId == null) {
-            toast.error('No encontramos tu plan activo.');
+            toast.error(t('No encontramos tu plan activo.'));
             return { ok: false };
         }
         // [P5-DAY-LOADING-UX · 2026-06-23] El día completo es lento (3-5 min: 4 swaps
@@ -2623,8 +2637,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // resume respalda). Se cae "con lo que tienes en tu Nevera", que además
         // solo era cierto en el modo pantry — este toast también sale con
         // reason='variety'.
-        const _dayLoadingId = toast.loading('Actualizando tu día…', {
-            description: 'Tarda de 3 a 5 minutos. Puedes salir — seguimos cocinando.',
+        const _dayLoadingId = toast.loading(t('Actualizando tu día…'), {
+            description: t('Tarda de 3 a 5 minutos. Puedes salir — seguimos cocinando.'),
         });
         // [P1-DAY-REGEN-RESUME · 2026-07-10] Marker persistente del regen in-flight: si el
         // usuario refresca/cierra, el BACKEND sigue generando (el POST corre server-side hasta
@@ -2671,29 +2685,29 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             });
             const data = resp.ok ? await resp.json() : null;
             if (!resp.ok) {
-                toast.error('No se pudo actualizar el día', { description: 'Inténtalo de nuevo en un momento.' });
+                toast.error(t('No se pudo actualizar el día'), { description: t('Inténtalo de nuevo en un momento.') });
                 return { ok: false };
             }
             // Soft-fail: Nevera insuficiente → avisar, NO se consumió regeneración.
             if (data?.regen_failed === true) {
                 if (data.error_code === 'pantry_insufficient_for_goal') {
-                    toast.error('Faltan ingredientes en tu Nevera', {
-                        description: data.error_message || 'Tu Nevera no alcanza para cubrir tu objetivo del día. Agrega más ítems (sobre todo proteína).',
+                    toast.error(t('Faltan ingredientes en tu Nevera'), {
+                        description: data.error_message || t('Tu Nevera no alcanza para cubrir tu objetivo del día. Agrega más ítems (sobre todo proteína).'),
                         duration: 8000,
-                        action: { label: 'Mi Nevera', onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
+                        action: { label: t('Mi Nevera'), onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
                     });
                 } else if (data.error_code === 'ai_exhausted_retries') {
                     // [P2-REGEN-DAY-HONEST-CODE · 2026-07-10] Antes TODO "regenerated=0" llegaba
                     // como pantry_insufficient_for_goal y mandábamos al usuario a comprar
                     // ingredientes aunque la causa fuera el guardrail del LLM (visto en vivo
                     // 2026-07-10 con la Nevera recién restockeada). Copy honesto + Reintentar.
-                    toast.error('El chef no encontró alternativas esta vez', {
-                        description: data.error_message || 'No se descontó tu crédito. Vuelve a intentarlo en un momento.',
+                    toast.error(t('El chef no encontró alternativas esta vez'), {
+                        description: data.error_message || t('No se descontó tu crédito. Vuelve a intentarlo en un momento.'),
                         duration: 8000,
-                        action: { label: 'Reintentar', onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
+                        action: { label: t('Reintentar'), onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
                     });
                 } else {
-                    toast.error('No se pudo actualizar el día', { description: data.error_message || 'Inténtalo de nuevo.' });
+                    toast.error(t('No se pudo actualizar el día'), { description: data.error_message || t('Inténtalo de nuevo.') });
                 }
                 return { ok: false, regen_failed: true };
             }
@@ -2734,19 +2748,19 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // [P1-REGEN-DAY-PARTIAL-AI-DEGRADE · 2026-06-24] La IA se cayó a mitad del día: se persistió
                 // lo logrado SIN cobrar crédito y SIN perder platos. Aviso accionable "Reintentar" (distinto
                 // del toast de slots_kept, que comunica falta de inventario, no caída del proveedor).
-                _emitirDesenlace = () => toast.warning('La IA se interrumpió', {
-                    description: data.ai_interrupted_message || 'Algunos platos no se actualizaron. Reintenta para completar el día (no se descontó tu crédito).',
+                _emitirDesenlace = () => toast.warning(t('La IA se interrumpió'), {
+                    description: data.ai_interrupted_message || t('Algunos platos no se actualizaron. Reintenta para completar el día (no se descontó tu crédito).'),
                     duration: 9000,
-                    action: { label: 'Reintentar', onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
+                    action: { label: t('Reintentar'), onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
                 });
             } else if (data?.day_quality_warning) {
                 // [P1-REGEN-DAY-WARNING-SURFACE · 2026-06-24] (re-audit P1-3) El backend computa este aviso
                 // honesto cuando el día quedó por debajo del objetivo de proteína; antes el frontend lo
                 // descartaba y mostraba "¡Día actualizado!" verde sobre un día sub-objetivo.
-                _emitirDesenlace = () => toast.warning('Día actualizado, pero por debajo de tu objetivo', {
+                _emitirDesenlace = () => toast.warning(t('Día actualizado, pero por debajo de tu objetivo'), {
                     description: data.day_quality_warning,
                     duration: 9000,
-                    action: { label: 'Mi Nevera', onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
+                    action: { label: t('Mi Nevera'), onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
                 });
             } else if (kept.length > 0) {
                 // [P1-KEPT-REASON-HONEST · 2026-08-05] El motivo lo dice el BACKEND, no lo
@@ -2757,13 +2771,13 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // la misma clasificación (`_kept_reasons`) que la rama de fallo total ya usaba.
                 // Sin el campo (backend viejo) conservamos el copy anterior.
                 const _motivo = data?.slots_kept_reason;
-                _emitirDesenlace = () => toast.success('Día actualizado', {
+                _emitirDesenlace = () => toast.success(t('Día actualizado'), {
                     description: _motivo === 'ai'
-                        ? 'Algunos platos se conservaron: el chef IA no encontró alternativas que cuadraran con tus macros. Puedes reintentar.'
-                        : 'Algunos platos se conservaron porque tu Nevera no daba para cambiarlos.',
+                        ? t('Algunos platos se conservaron: el chef IA no encontró alternativas que cuadraran con tus macros. Puedes reintentar.')
+                        : t('Algunos platos se conservaron porque tu Nevera no daba para cambiarlos.'),
                 });
             } else {
-                _emitirDesenlace = () => toast.success('¡Día actualizado con lo que tienes en tu Nevera!');
+                _emitirDesenlace = () => toast.success(t('¡Día actualizado con lo que tienes en tu Nevera!'));
             }
             // Recalcular la lista de compras (el backend strippeó las listas agregadas).
             // [P5-REGEN-DAY-RECALC-RETRY · 2026-06-23] El día ya quedó persistido atómicamente
@@ -2811,8 +2825,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             try { _emitirDesenlace(); } catch (_) { /* un toast no puede tumbar el flujo */ }
             if (!_recalcOk) {
                 // No dejamos al usuario con un PDF/lista potencialmente desincronizada sin aviso.
-                toast('Tu lista de compras se está actualizando', {
-                    description: 'Si el PDF se ve incompleto, recárgalo en unos segundos.',
+                toast(t('Tu lista de compras se está actualizando'), {
+                    description: t('Si el PDF se ve incompleto, recárgalo en unos segundos.'),
                     duration: 6000,
                 });
             }
@@ -2825,7 +2839,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             } catch (_) { /* no-op */ }
             return { ok: true };
         } catch (_e) {
-            toast.error('No se pudo actualizar el día', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
+            toast.error(t('No se pudo actualizar el día'), { description: t('Revisa tu conexión e inténtalo de nuevo.') });
             return { ok: false };
         } finally {
             toast.dismiss(_dayLoadingId);
@@ -2908,7 +2922,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             safeLocalStorageRemove('mealfit_day_regen_inflight');
             if (!cancelled) { setDayRegenInFlight(false); setDayRegenIndex(null); }  // [P2-DAYREGEN-OVERLAY-SCOPE]
             if (applied && !cancelled) {
-                toast.success('¡Día actualizado!', { description: 'Tus platos nuevos ya están listos.', icon: '👨‍🍳' });
+                toast.success(t('¡Día actualizado!'), { description: t('Tus platos nuevos ya están listos.'), icon: '👨‍🍳' });
                 // [P1-CREDITS-LIVE-REFRESH · 2026-07-10] el regen cobró 1 crédito server-side →
                 // refrescar el contador en vivo (antes solo se veía al recargar la web).
                 try {
@@ -3056,7 +3070,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             safeLocalStorageRemove('mealfit_meal_regen_inflight');
             if (!cancelled) setMealRegenInFlight(null);
             if (applied && !cancelled) {
-                toast.success('¡Plato actualizado!', { description: 'Tu plato nuevo ya está listo.', icon: '👨‍🍳' });
+                toast.success(t('¡Plato actualizado!'), { description: t('Tu plato nuevo ya está listo.'), icon: '👨‍🍳' });
             }
         };
         let sawFlag = false;
@@ -3263,24 +3277,24 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // en DevTools del browser.
             if (newMealData?.swap_failed === true) {
                 const errCode = newMealData.error_code || 'unknown';
-                const errMsg = newMealData.error_message || 'No se pudo generar una alternativa.';
+                const errMsg = newMealData.error_message || t('No se pudo generar una alternativa.');
                 if (errCode === 'pantry_insufficient_for_goal') {
                     // [P5-PANTRY-SUFFICIENCY · 2026-06-23] La Nevera no cubre las macros del
                     // objetivo para este plato → avisar y llevar a la Nevera para agregar ítems.
-                    toast.error('Faltan ingredientes en tu Nevera', {
+                    toast.error(t('Faltan ingredientes en tu Nevera'), {
                         description: errMsg,
                         duration: 8000,
                         action: {
-                            label: 'Mi Nevera',
+                            label: t('Mi Nevera'),
                             onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } },
                         },
                     });
                 } else if (errCode === 'swap_strict_pantry_no_inventory') {
-                    toast.error('Nevera vacía', { description: errMsg });
+                    toast.error(t('Nevera vacía'), { description: errMsg });
                 } else if (errCode === 'swap_llm_retries_exhausted') {
-                    toast.error('Chef IA sin alternativa', { description: errMsg });
+                    toast.error(t('Chef IA sin alternativa'), { description: errMsg });
                 } else {
-                    toast.error('No se pudo cambiar el plato', { description: errMsg });
+                    toast.error(t('No se pudo cambiar el plato'), { description: errMsg });
                 }
                 // [P2-SWAP-TOAST-FIX · 2026-06-29] soft-fail: ya mostramos el toast.error específico arriba.
                 // Devolver `null` (NO `currentName`) para que el caller (Dashboard) NO dispare el toast.success
@@ -3325,7 +3339,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // telemetría muda `_macro_band_low` → entrega en silencio). Toast honesto + accionable
             // (espejo del day_quality_warning de regenerate-day).
             if (newMealData.swap_quality_warning) {
-                toast.warning('Plato cambiado, pero menos preciso', {
+                toast.warning(t('Plato cambiado, pero menos preciso'), {
                     description: newMealData.swap_quality_warning,
                     duration: 8000,
                 });
@@ -3462,7 +3476,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                             // con el backend.
                             setPlanData(prevPlanSnapshot);
                             safeLocalStorageSet('mealfit_plan', prevPlanSnapshot);
-                            toast.error('No se pudo cambiar el plato', { description: 'Inténtalo de nuevo.' });
+                            toast.error(t('No se pudo cambiar el plato'), { description: t('Inténtalo de nuevo.') });
                         } else {
                             // GAP 3: Recalcular la lista de compras como un Delta Matemático
                             // [P3-RECALC-503-CLASSIFICATION · 2026-05-16] Retry 1× en
@@ -3513,15 +3527,15 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                                 }
                                 if (!_swapRecalcOk) {
                                     // No dejamos al usuario con un PDF/lista potencialmente desincronizada sin aviso.
-                                    toast('Tu lista de compras se está actualizando', {
-                                        description: 'Si el PDF se ve incompleto, recárgalo en unos segundos.',
+                                    toast(t('Tu lista de compras se está actualizando'), {
+                                        description: t('Si el PDF se ve incompleto, recárgalo en unos segundos.'),
                                         duration: 6000,
                                     });
                                 }
                             } catch (recalcErr) {
                                 // Defensa final: cualquier excepción inesperada → aviso honesto, nunca silencio.
-                                toast('Tu lista de compras se está actualizando', {
-                                    description: 'Si el PDF se ve incompleto, recárgalo en unos segundos.',
+                                toast(t('Tu lista de compras se está actualizando'), {
+                                    description: t('Si el PDF se ve incompleto, recárgalo en unos segundos.'),
                                     duration: 6000,
                                 });
                             }
@@ -3536,7 +3550,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     // → revertir local es seguro (DB es SSOT).
                     setPlanData(prevPlanSnapshot);
                     safeLocalStorageSet('mealfit_plan', prevPlanSnapshot);
-                    toast.error('No se pudo cambiar el plato', { description: 'Revisa tu conexión e inténtalo de nuevo.' });
+                    toast.error(t('No se pudo cambiar el plato'), { description: t('Revisa tu conexión e inténtalo de nuevo.') });
                 }
             }
 
@@ -3553,7 +3567,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // (que produciría un plato genérico ignorando la razón del user).
             // Mostrar toast con el copy específico y preservar el plato actual.
             if (error?.status === 422 && error?.code === 'swap_strict_pantry_no_inventory') {
-                toast.error('Nevera vacía', { description: error.detailMessage });
+                toast.error(t('Nevera vacía'), { description: error.detailMessage });
                 return null;  // [P2-SWAP-TOAST-FIX] soft-fail → null para suprimir el success toast del caller
             }
 
@@ -3563,7 +3577,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // Preserva el plato original (NO setPlanData) y muestra toast
             // amigable con el copy del backend.
             if (error?.status === 422 && error?.code === 'swap_llm_retries_exhausted') {
-                toast.error('Chef IA sin alternativa', { description: error.detailMessage });
+                toast.error(t('Chef IA sin alternativa'), { description: error.detailMessage });
                 return null;  // [P2-SWAP-TOAST-FIX] soft-fail → null para suprimir el success toast del caller
             }
 
@@ -3712,7 +3726,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     'Abortando para evitar pintar plan ajeno en el UI.'
                 );
                 try {
-                    toast.error('No se pudo restaurar el plan (sesión inválida).');
+                    toast.error(t('No se pudo restaurar el plan (sesión inválida).'));
                 } catch (_toastErr) { /* toast es best-effort */ }
                 return;
             }
@@ -3807,8 +3821,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                             restoreResp.status,
                             errBody,
                         );
-                        toast.warning('Plan restaurado localmente', {
-                            description: 'No se pudo sincronizar con la nube.',
+                        toast.warning(t('Plan restaurado localmente'), {
+                            description: t('No se pudo sincronizar con la nube.'),
                         });
                     }
                 }
@@ -3859,7 +3873,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     'Abortando (no pintar plan ajeno o sin owner en UI).'
                 );
                 try {
-                    toast.error('No se pudo restaurar el plan (sesión inválida).');
+                    toast.error(t('No se pudo restaurar el plan (sesión inválida).'));
                 } catch (_toastErr) { /* toast es best-effort */ }
                 return { success: false, error: 'ownership_mismatch' };
             }
@@ -3884,16 +3898,16 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             if (!response.ok) {
                 const errBody = await response.json().catch(() => ({}));
                 console.error('❌ Error en restore endpoint:', response.status, errBody);
-                toast.warning('Plan restaurado localmente', {
-                    description: 'No se pudo sincronizar con la nube.'
+                toast.warning(t('Plan restaurado localmente'), {
+                    description: t('No se pudo sincronizar con la nube.')
                 });
                 return { success: false, status: response.status, error: errBody };
             }
             return await response.json();
         } catch (apiError) {
             console.error('❌ Error de red al restaurar plan:', apiError);
-            toast.warning('Plan restaurado localmente', {
-                description: 'No se pudo sincronizar con la nube.'
+            toast.warning(t('Plan restaurado localmente'), {
+                description: t('No se pudo sincronizar con la nube.')
             });
             return { success: false, error: String(apiError) };
         }
@@ -4053,7 +4067,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
 
             if (subscriptionId) {
                 // Validación Segura B2B con nuestro Backend
-                toast.loading('Verificando tu pago. Por favor espera...', { id: 'payment-verify' });
+                toast.loading(t('Verificando tu pago. Por favor espera...'), { id: 'payment-verify' });
                 const response = await fetchWithAuth('/api/subscription/verify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -4071,10 +4085,10 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
 
                 if (!response.ok) {
                     const errData = await response.json();
-                    throw new Error(errData.detail || "Fallo en la verificación del pago en el servidor.");
+                    throw new Error(errData.detail || t('Fallo en la verificación del pago en el servidor.'));
                 }
                 
-                toast.success('Pago verificado exitosamente.', { id: 'payment-verify' });
+                toast.success(t('Pago verificado exitosamente.'), { id: 'payment-verify' });
 
                 // [P5-SPEED-UPGRADE-PARALLEL · 2026-06-01] Recargar perfil + créditos en
                 // paralelo: refreshProfileAndPlan (SELECT user_profiles) y checkPlanLimit
@@ -4110,15 +4124,15 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const planNames = { basic: 'Bioboros Básico', plus: 'Bioboros Plus', ultra: 'Bioboros Max' };
             const planName = planNames[tier] || 'Bioboros Plus';
             
-            toast.success(`¡Bienvenido a ${planName}!`, {
-                description: 'Has desbloqueado acceso premium.',
+            toast.success(t('¡Bienvenido a {plan}!', { plan: planName }), {
+                description: t('Has desbloqueado acceso premium.'),
                 duration: 5000,
                 icon: '🌟'
             });
             return true;
         } catch (error) {
             console.error("Error upgrading user:", error);
-            toast.error(error.message || 'Error al actualizar perfil');
+            toast.error(error.message || t('Error al actualizar perfil'));
             toast.dismiss('payment-verify');
             return false;
         }

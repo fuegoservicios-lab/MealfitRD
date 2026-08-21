@@ -24,6 +24,9 @@ import { useAssessment } from '../context/AssessmentContext';
 // (lo comparte el Dashboard; exportar funciones desde un componente rompe fast-refresh).
 import { readPendingFlag, clearPendingFlag, writePendingFlag, isStale } from '../utils/pendingPipelineFlag';
 import { safeLocalStorageGet } from '../utils/safeLocalStorage';
+// [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: estos avisos salen desde dentro de
+// callbacks asincronos (polling, efectos), no en render.
+import { t } from '../i18n';
 
 const POLL_INTERVAL_MS = 10_000; // 10s
 // [P3-RECOVERY-BACKEND-DOWN-EXIT · 2026-05-16] Threshold de fallos
@@ -168,8 +171,8 @@ export default function PendingPipelineRecovery() {
                                 generatingToastShownRef.current = true;
                                 try {
                                     const { toast } = await import('sonner');
-                                    toast.info('Retomando tu plan en curso', {
-                                        description: 'Te llevamos a la pantalla de carga.',
+                                    toast.info(t('Retomando tu plan en curso'), {
+                                        description: t('Te llevamos a la pantalla de carga.'),
                                         duration: 4000,
                                     });
                                 } catch { /* noop */ }
@@ -212,8 +215,8 @@ export default function PendingPipelineRecovery() {
                             }
                             try {
                                 const { toast } = await import('sonner');
-                                toast.success('Tu plan está listo 🎉', {
-                                    description: 'Te llevamos al dashboard.',
+                                toast.success(t('Tu plan está listo 🎉'), {
+                                    description: t('Te llevamos al dashboard.'),
                                     duration: 3500,
                                 });
                             } catch { /* noop */ }
@@ -252,8 +255,8 @@ export default function PendingPipelineRecovery() {
                     clearPendingFlag();
                     try {
                         const { toast } = await import('sonner');
-                        toast.error('Sin conexión con el servidor', {
-                            description: 'No pudimos verificar tu plan. Vuelve a intentar.',
+                        toast.error(t('Sin conexión con el servidor'), {
+                            description: t('No pudimos verificar tu plan. Vuelve a intentar.'),
                             duration: 8000,
                         });
                     } catch { /* noop */ }
@@ -293,8 +296,8 @@ export default function PendingPipelineRecovery() {
                     // Toast informativo + redirect.
                     try {
                         const { toast } = await import('sonner');
-                        toast.success('Tu plan está listo 🎉', {
-                            description: 'Te llevamos al dashboard.',
+                        toast.success(t('Tu plan está listo 🎉'), {
+                            description: t('Te llevamos al dashboard.'),
                             duration: 3500,
                         });
                     } catch { /* sonner no disponible — silencioso */ }
@@ -307,8 +310,8 @@ export default function PendingPipelineRecovery() {
                 await ackPendingStatus();
                 try {
                     const { toast } = await import('sonner');
-                    toast.error('La generación falló', {
-                        description: status.error || 'Intenta de nuevo.',
+                    toast.error(t('La generación falló'), {
+                        description: status.error || t('Intenta de nuevo.'),
                         duration: 6000,
                     });
                 } catch { /* noop */ }
@@ -334,8 +337,8 @@ export default function PendingPipelineRecovery() {
                         generatingToastShownRef.current = true;
                         try {
                             const { toast } = await import('sonner');
-                            toast.info("Retomando tu plan en curso", {
-                                description: "Te llevamos a la pantalla de carga.",
+                            toast.info(t('Retomando tu plan en curso'), {
+                                description: t('Te llevamos a la pantalla de carga.'),
                                 duration: 4000,
                             });
                         } catch { /* sonner no disponible — silencioso */ }
@@ -351,8 +354,8 @@ export default function PendingPipelineRecovery() {
                         generatingToastShownRef.current = true;
                         try {
                             const { toast } = await import('sonner');
-                            toast.info("Tu plan se está generando", {
-                                description: "Te avisamos cuando esté listo.",
+                            toast.info(t('Tu plan se está generando'), {
+                                description: t('Te avisamos cuando esté listo.'),
                                 duration: 5000,
                             });
                         } catch { /* sonner no disponible — silencioso */ }
