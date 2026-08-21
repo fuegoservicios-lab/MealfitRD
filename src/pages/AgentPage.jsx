@@ -2975,14 +2975,32 @@ const AgentPage = () => {
             }
         });
 
+        // [P2-I18N-MEMOS-CONGELADOS · 2026-08-21] El memo devuelve los grupos SIN
+        // etiqueta. Antes las traducia aqui dentro, y como `useT()` devuelve la funcion
+        // de MODULO —cuya identidad nunca cambia— ponerla en las deps es un no-op para
+        // un cambio de idioma: las etiquetas se congelaban en el idioma anterior hasta
+        // recargar.
+        //
+        // Anadir `locale` a las deps tampoco vale: el cuerpo no lo nombra, asi que
+        // `exhaustive-deps` lo declara innecesario y el aviso se reporta en la linea del
+        // `useMemo`, donde una directiva de escape queda huerfana.
+        //
+        // La salida es sacar el rotulado FUERA. Lo caro es agrupar N sesiones por fecha;
+        // rotular son tres cadenas por render, y asi siguen SIEMPRE al idioma vivo sin
+        // pelearse con el linter.
         return [
-            { id: 'hoy', label: t('Hoy'), items: groups['Hoy'] },
-            { id: '30dias', label: '', items: groups['Últimos 30 días'] },
-            { id: 'antiguos', label: t('Más antiguos'), items: groups['Más antiguos'] }
+            { id: 'hoy', items: groups['Hoy'] },
+            { id: '30dias', items: groups['Últimos 30 días'] },
+            { id: 'antiguos', items: groups['Más antiguos'] }
         ].filter(g => g.items.length > 0);
-        // `t` es la MISMA función de módulo en cada render (el hook solo suscribe),
-        // así que listarlo no reabre el memo durante el streaming.
-    }, [chatSessions, t]);
+        // `t` ya no se usa aqui dentro; `chatSessions` es la unica entrada real.
+    }, [chatSessions]);
+
+    // Rotulado fuera del memo: barato y siempre en el idioma activo.
+    const ETIQUETA_GRUPO = { hoy: t('Hoy'), '30dias': '', antiguos: t('Más antiguos') };
+    const gruposConEtiqueta = groupedSessions.map(
+        (g) => ({ ...g, label: ETIQUETA_GRUPO[g.id] ?? '' })
+    );
     return (
         <>
             <style>{`
@@ -3133,7 +3151,7 @@ const AgentPage = () => {
                     handleNewChat={handleNewChat}
                     isLoadingSessions={isLoadingSessions}
                     chatSessions={chatSessions}
-                    groupedSessions={groupedSessions}
+                    groupedSessions={gruposConEtiqueta}
                     currentSessionId={currentSessionId}
                     setCurrentSessionId={setCurrentSessionId}
                     handleDeleteChat={handleDeleteChat}

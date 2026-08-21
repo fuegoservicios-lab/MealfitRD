@@ -2966,12 +2966,25 @@ const DashboardInner = () => {
                 .map((it) => (it && typeof it === 'object' ? (it.name || it.item || '') : String(it || '')))
                 .map((s) => String(s).trim())
                 .filter(Boolean);
-            const durationLabel = { weekly: t('semanal'), biweekly: t('quincenal'), monthly: t('mensual') }[duration] || duration;
-            return { count: names.length, sample: names.slice(0, 4), durationLabel };
+            // [P2-I18N-MEMOS-CONGELADOS · 2026-08-21] El memo devuelve la CLAVE de la
+            // duracion, no su rotulo. Traducir aqui dentro congelaba la etiqueta en el
+            // idioma anterior: `useT()` devuelve la funcion de MODULO, cuya identidad
+            // nunca cambia, asi que ponerla en las deps es un no-op para un cambio de
+            // idioma. Y anadir `locale` tampoco vale — el cuerpo no lo nombra, asi que
+            // `exhaustive-deps` lo declara innecesario.
+            //
+            // Lo caro aqui es el delta contra el inventario; rotular es una cadena. Se
+            // saca fuera y asi sigue SIEMPRE al idioma vivo.
+            return { count: names.length, sample: names.slice(0, 4), duration };
         } catch {
-            return { count: 0, sample: [], durationLabel: t('semanal') };
+            return { count: 0, sample: [], duration: 'weekly' };
         }
-    }, [planData, formData?.groceryDuration, allPlanIngredients, liveInventory, buildDeltaShoppingList, t]);
+    }, [planData, formData?.groceryDuration, allPlanIngredients, liveInventory, buildDeltaShoppingList]);
+
+    // Rotulado fuera del memo: barato y siempre en el idioma activo.
+    const _restockDurationLabel = {
+        weekly: t('semanal'), biweekly: t('quincenal'), monthly: t('mensual'),
+    }[restockPreview.duration] || restockPreview.duration;
 
     // [P2-BRANDS-DEFAULT-FROM-ACTIVE · 2026-07-07] La lista ACTIVA por duración (la
     // que el PDF realmente imprime) → el panel usa su `brand_product_id` por ítem
@@ -9321,7 +9334,7 @@ const DashboardInner = () => {
                                                 : (isShoppingListStale ? '0 auto 1.25rem' : '0 auto 1.75rem'),
                                         }}>
                                             {restockPreview.count > 0
-                                                ? <>{t('Agregaremos')} <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{tn(restockPreview.count, '{n} ingrediente', '{n} ingredientes', { n: restockPreview.count })}</strong> {t('de tu lista {ciclo} a la Nevera Virtual.', { ciclo: restockPreview.durationLabel })}</>
+                                                ? <>{t('Agregaremos')} <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{tn(restockPreview.count, '{n} ingrediente', '{n} ingredientes', { n: restockPreview.count })}</strong> {t('de tu lista {ciclo} a la Nevera Virtual.', { ciclo: _restockDurationLabel })}</>
                                                 : t('Agregaremos todos los ingredientes de tu lista a la Nevera Virtual.')}
                                         </p>
 

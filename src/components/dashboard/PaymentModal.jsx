@@ -16,7 +16,7 @@ import { trackEvent } from '../../utils/analytics';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useIsMobile } from '../../hooks/useMediaQuery';
-import { useT } from '../../i18n';
+import { useI18n } from '../../i18n';
 
 /* ─── Plan Feature Map ─── */
 // [P2-PAYMENT-FEATURES-ALIGN · 2026-05-31] La pantalla de checkout anunciaba como
@@ -60,7 +60,9 @@ const PaymentModal = ({
     price = "25.00", planName = "Suscripción Plus",
     tier = "plus", isAnnual = false
 }) => {
-    const t = useT();
+    // [P2-I18N-PAYPAL-LOCALE · 2026-08-21] Hace falta `locale` ademas de `t` para
+    // decirle al SDK de PayPal en que idioma hablar.
+    const { t, locale } = useI18n();
     const [couponCode, setCouponCode] = useState('');
     const [couponLoading, setCouponLoading] = useState(false);
     const [couponResult, setCouponResult] = useState(null);
@@ -102,11 +104,29 @@ const PaymentModal = ({
         );
     }
     // PayPal
+    //
+    // [P2-I18N-PAYPAL-LOCALE · 2026-08-21] El widget hablaba el idioma que PayPal
+    // dedujera del navegador o de la IP, no el que el usuario eligio en la app. Un
+    // frances con el movil en ingles pagaba en ingles dentro de una interfaz en frances.
+    //
+    // MAPA EXPLICITO, nunca `getLocale().replace('-','_')`: PayPal usa `xx_XX` y su
+    // lista NO es la nuestra — `es_DO` no existe ahi, y un locale no soportado no
+    // degrada, rompe el widget. Por eso el espanol se OMITE en vez de forzarse a
+    // `es_ES`: dejar que PayPal deduzca es la conducta de hoy y es correcta para un
+    // dominicano; mandarle Espana seria cambiarla a peor.
+    const _PAYPAL_LOCALE = {
+        'en-US': 'en_US',
+        'pt-BR': 'pt_BR',
+        'fr-FR': 'fr_FR',
+        'it-IT': 'it_IT',
+    }[locale];
+
     const initialOptions = {
         "client-id": _paypalClientId,
         currency: "USD",
         intent: "subscription",
-        vault: true
+        vault: true,
+        ...(_PAYPAL_LOCALE ? { locale: _PAYPAL_LOCALE } : {}),
     };
 
     // [P2-PAYPAL-PLAN-FAIL-LOUD · 2026-07-09] Env-only, SIN fallbacks hardcoded
