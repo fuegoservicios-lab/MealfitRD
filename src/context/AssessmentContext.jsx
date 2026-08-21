@@ -319,6 +319,21 @@ export const CAMPOS_DERIVADOS_DEL_SERVIDOR = Object.freeze([
     'aggregated_shopping_list_weekly',
     'aggregated_shopping_list_biweekly',
     'aggregated_shopping_list_monthly',
+    // [P1-DISPLAY-PLAN-MERGE · 2026-08-21] El `_display` de NIVEL PLAN: el nombre y los
+    // insights traducidos. El de por-comida viaja dentro de `days` y por eso sí llegaba;
+    // éste cuelga de la raíz de `plan_data` y se quedaba en el valor viejo.
+    //
+    // Síntoma: con el dashboard en inglés, las comidas salían traducidas y el panel
+    // «Razonamiento de tu plan» seguía en español TODA la sesión — hasta recargar, que
+    // es lo único que lo curaba (`restoreSessionData` adopta el plan entero). Y el
+    // estado partido sobrevivía a la navegación, porque el merge se persiste en
+    // `mealfit_plan`.
+    //
+    // El servidor escribe los DOS niveles en la misma mutación atómica, así que un plan
+    // con las comidas en inglés y los insights en español sólo lo puede fabricar el
+    // cliente. Es la clase exacta de P1-HYDRATE-DERIVED-FIELDS, con un campo derivado
+    // nuevo que esta lista no había aprendido.
+    '_display',
 ]);
 
 export const AssessmentProvider = ({ children }) => {

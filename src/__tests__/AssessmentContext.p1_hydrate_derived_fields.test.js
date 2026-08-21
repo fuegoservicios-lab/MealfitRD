@@ -71,6 +71,12 @@ describe('la lista SSOT de campos derivados del servidor', () => {
             'aggregated_shopping_list_weekly',
             'aggregated_shopping_list_biweekly',
             'aggregated_shopping_list_monthly',
+            // [P1-DISPLAY-PLAN-MERGE · 2026-08-21] El `_display` de NIVEL PLAN
+            // (nombre e insights traducidos). El de por-comida viaja dentro de
+            // `days` y por eso sí llegaba; éste cuelga de la raíz y se quedaba
+            // viejo, dejando el panel de razonamiento en español toda la sesión
+            // con el resto del dashboard en inglés.
+            '_display',
         ]) {
             expect(lista, `falta ${campo}: se quedaría viejo tras cada bloque nuevo`).toContain(campo);
         }
