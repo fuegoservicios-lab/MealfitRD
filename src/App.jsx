@@ -22,7 +22,7 @@ import { queryClient } from './queryClient';
 // [P1-I18N-DASHBOARD · 2026-08-15] Idioma de la interfaz. El Provider va por
 // ENCIMA de todo: su cambio de contexto es lo que repinta el árbol. Ver el
 // comentario sobre el `return` para por qué se retiró el remontaje que hubo aquí.
-import { I18nProvider } from './i18n';
+import { I18nProvider, useT } from './i18n';
 // [P3-11 · 2026-07-09] Skip-to-content: primer focusable del app-shell.
 import SkipLink from './components/common/SkipLink';
 // [P2-8 · 2026-07-09] Señal ambiental de conectividad (banner no-bloqueante).
@@ -169,14 +169,22 @@ const ApexAppRedirect = () => {
 // spinner aparece recién a los 250ms: cargas rápidas no parpadean, cargas
 // lentas muestran progreso.
 const PageLoader = () => {
+  // [P3-I18N-SPINNER-CARGANDO · 2026-08-21] Es el fallback de Suspense de TODA la app y
+  // anunciaba «Cargando» en los cinco idiomas. Sólo lo oye quien usa lector de
+  // pantalla, así que ninguna revisión visual lo habría visto — el gemelo de
+  // `index.html` sí se tradujo el 20-ago y éste se quedó atrás.
+  //
+  // El temporizador se renombra a `temporizador`: se llamaba `t` y habría sombreado a
+  // la función de traducción.
+  const t = useT();
   const [showSpinner, setShowSpinner] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setShowSpinner(true), 250);
-    return () => clearTimeout(t);
+    const temporizador = setTimeout(() => setShowSpinner(true), 250);
+    return () => clearTimeout(temporizador);
   }, []);
   return (
     <div className="page-loader">
-      {showSpinner && <div className="page-loader__spinner" role="status" aria-label="Cargando" />}
+      {showSpinner && <div className="page-loader__spinner" role="status" aria-label={t('Cargando')} />}
     </div>
   );
 };

@@ -91,6 +91,10 @@ const _subscribers = new Set();
 // resultado está obsoleto y aplicarlo pisaría una elección más reciente.
 let _peticion = 0;
 
+/** Resultado de `loadLocale` cuando una petición más nueva la adelantó: ni éxito
+ *  (no aplicó nada) ni fallo (no hay nada que reportarle al usuario). */
+export const SUPERSEDED = 'superseded';
+
 function _notify() {
     for (const fn of _subscribers) {
         try { fn(_locale); } catch { /* un suscriptor roto no tumba a los demás */ }
@@ -289,7 +293,13 @@ export async function loadLocale(code) {
         const mod = await loader();
         // Otra petición entró mientras este chunk viajaba: la nuestra ya no es
         // la elección vigente del usuario. Descartar en silencio.
-        if (mia !== _peticion) return false;
+        //
+        // [P3-I18N-LOADLOCALE-SUPERSEDED · 2026-08-21] Se devuelve un SENTINEL, no
+        // `false`. Antes «me descartaron» y «falló» eran el mismo valor, así que tocar
+        // dos idiomas seguidos sacaba un toast rojo de conexión aunque la carga hubiera
+        // ido bien. Y devolver `true` sería peor: `setLocale` persistiría el idioma
+        // SUPERADO encima del nuevo.
+        if (mia !== _peticion) return SUPERSEDED;
 
         const data = mod && mod.default ? mod.default : mod;
         if (!data || typeof data !== 'object') return false;
@@ -398,7 +408,9 @@ export function I18nProvider({ children }) {
         const target = coerceLocale(code);
         if (target === getLocale()) return true;
         const ok = await loadLocale(target);
-        if (ok) _persistLocal(target);
+        // Sólo se persiste el éxito REAL: con `SUPERSEDED` la elección vigente es otra
+        // y guardar ésta pisaría la del usuario.
+        if (ok === true) _persistLocal(target);
         // `loadLocale` ya notificó a los suscriptores, así que el estado se
         // actualiza por esa vía; no hace falta un setState extra aquí.
         return ok;

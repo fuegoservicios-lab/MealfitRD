@@ -29,7 +29,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 import { applyThemePref, isDarkActive } from '../utils/theme';
 // [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma de la interfaz.
 import { LOCALES } from '../i18n/locales';
-import { useI18n, formatDate, formatNumber } from '../i18n';
+import { SUPERSEDED, formatDate, formatNumber, useI18n } from '../i18n';
 // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Selector de país, en oscuro hasta el
 // flip global (COUNTRY_SYSTEM_UI). SSOT compartido con QCountry.jsx — el
 // `code` es el dato del motor, `coerceCountry` es el mismo fail-safe que usa
@@ -318,6 +318,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         } finally {
             setPendingLocale(null);
         }
+        // [P3-I18N-LOADLOCALE-SUPERSEDED · 2026-08-21] `SUPERSEDED` no es un fallo:
+        // significa que el usuario tocó OTRO idioma mientras este chunk viajaba, así
+        // que la carga fue bien y simplemente ya no es la elección vigente. Antes
+        // compartía valor con el fallo real y tocar dos idiomas seguidos sacaba un
+        // toast rojo de conexión sin que nada hubiera ido mal.
+        //
+        // Tampoco se persiste el perfil: lo hará la petición que sí ganó.
+        if (applied === SUPERSEDED) return;
         if (!applied) {
             toast.error(t('No se pudo cargar ese idioma. Revisa tu conexión.'));
             return;

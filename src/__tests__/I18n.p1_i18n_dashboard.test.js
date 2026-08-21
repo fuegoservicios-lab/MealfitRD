@@ -14,13 +14,7 @@
  *     revisión). El plural pasa por `Intl.PluralRules`, no por `n === 1`.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-    t,
-    tn,
-    getLocale,
-    loadLocale,
-    formatNumber,
-} from '../i18n';
+import { SUPERSEDED, formatNumber, getLocale, loadLocale, t, tn } from '../i18n';
 import {
     DEFAULT_LOCALE,
     LOCALES,
@@ -219,9 +213,18 @@ describe('[P1-I18N-DASHBOARD] carga de catálogo', () => {
 
         expect(getLocale()).toBe('it-IT');
         expect(t('Guardar')).toBe('Salva');
-        // La perdedora se descarta en silencio y lo declara devolviendo false.
+        // [P3-I18N-LOADLOCALE-SUPERSEDED · 2026-08-21] La perdedora devuelve
+        // `SUPERSEDED`, no `false`. Antes compartía valor con el fallo real, y eso
+        // tenía dos consecuencias: Settings sacaba un toast rojo de conexión cuando el
+        // usuario simplemente había tocado dos idiomas seguidos, y era imposible
+        // distinguir «no apliqué porque me adelantaron» de «no pude cargar».
+        //
+        // Devolver `true` habría sido peor que `false`: `setLocale` persiste el idioma
+        // cuando la carga va bien, así que la perdedora habría guardado SU locale
+        // encima del que el usuario acabó eligiendo.
         expect(okIt).toBe(true);
-        expect(okFr).toBe(false);
+        expect(okFr).toBe(SUPERSEDED);
+        expect(okFr).not.toBe(false);
 
         await loadLocale(DEFAULT_LOCALE);
     });
