@@ -1,6 +1,6 @@
 import { useAssessment } from '../context/AssessmentContext';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { ChefHat } from 'lucide-react';
+import { ChefHat, CalendarClock, Utensils } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRef, useState, useEffect } from 'react';
 // [P2-LAZY-PDF · 2026-05-13] html2pdf.js (976 KB) importado dinámico
@@ -65,7 +65,11 @@ import { getEatenSlotIndices, eatenClaimForSlot } from '../utils/todayRemaining'
 // estados vacíos, toasts) y el del PDF. Los DATOS del plan —nombre del plato,
 // descripción, ingredientes y pasos— salen del LLM y de la base: se pintan tal
 // cual, nunca pasan por `t()`.
-import { useT, useI18n } from '../i18n';
+// [P1-RECIPES-COOKING-STATE · 2026-08-21] `formatDate` para la fecha del próximo
+// bloque en el vacío «aún no toca prepararlos» — Intl con el locale activo, el
+// mismo formateador que usa el Dashboard (no un array de días a mano: la lección
+// de P1-HIST-DIAS-I18N).
+import { useT, useI18n, formatDate } from '../i18n';
 // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
 // del usuario — mismo helper SSOT que Dashboard.jsx. El PDF (handleDownloadPDF,
 // más abajo) queda FUERA de esta task a propósito (spec: "no PDFs — eso es
@@ -82,7 +86,10 @@ import { mealDisplay, mealDisplayName, mealSlotLabel, mealDifficultyLabel } from
 // desde esta página", no "cero fetchWithAuth" — un GET no escribe plan_data
 // ni ninguna otra tabla (regla del brief: "Lock where an action mutates;
 // annotate where the surface only reads").
-import { fetchWithAuth } from '../config/api';
+// [P1-RECIPES-COOKING-STATE · 2026-08-21] `getPlanChunkStatus`: el vacío del día
+// hereda la honestidad del Dashboard (pausado / cocinando / programado) en vez
+// del «Cuando tu plan esté completo…» estático que mentía durante la generación.
+import { fetchWithAuth, getPlanChunkStatus } from '../config/api';
 
 // [P2-RECIPE-DISCLAIMER-LIST · 2026-05-30] Coerción defensiva de `recipe` a
 // array de pasos. El contrato es `List[str]` (MealModel.recipe) y todo el
@@ -173,6 +180,39 @@ const Recipes = () => {
     const isMobile = useIsMobile();
     const [checkedIngredients, setCheckedIngredients] = useState({});
     const [activeMealIndex, setActiveMealIndex] = useState(0);
+
+    // [P1-RECIPES-COOKING-STATE · 2026-08-21] Snapshot de /chunk-status para que
+    // el vacío del día distinga pausado / cocinando / programado, igual que el
+    // Dashboard (P1-DASH-GENERATING-HONESTY). One-shot abortable por [planId,
+    // status] — el MISMO patrón piggyback del Dashboard, no un interval propio:
+    // cuando el bloque termina, el poll del plan (AssessmentContext) hidrata los
+    // días y este vacío se desmonta solo. Gate por estado ACTIVO: los planes sin
+    // generation_status (p. ej. los harnesses de tests hermanos, cuyo mock de
+    // config/api ni define getPlanChunkStatus) no disparan la llamada.
+    const [chunkStatusInfo, setChunkStatusInfo] = useState(null);
+    const _genStatusForChunks = planData?.generation_status;
+    useEffect(() => {
+        const _activo = (
+            _genStatusForChunks === 'partial'
+            || _genStatusForChunks === 'generating'
+            || _genStatusForChunks === 'generating_next'
+            || _genStatusForChunks === 'rolling'
+            || _genStatusForChunks === 'complete_partial'
+        );
+        if (!_activo || !planData?.id) return undefined;
+        const controller = new AbortController();
+        const signal = controller.signal;
+        getPlanChunkStatus(planData.id, { signal })
+            .then(async (r) => {
+                if (signal.aborted || !r || !r.ok) return;
+                const body = await r.json().catch(() => null);
+                if (signal.aborted) return;
+                if (body && typeof body === 'object') setChunkStatusInfo(body);
+            })
+            .catch(() => { /* best-effort: sin datos, el vacío cae al copy estático */ });
+        return () => controller.abort();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planData?.id, _genStatusForChunks]);
 
     // Scroll to top on mount (cuando se navega desde BottomTabBar o sidebar)
     useEffect(() => {
@@ -595,6 +635,54 @@ const Recipes = () => {
                         const validMeals = (dayObj && dayObj.meals) || [];
 
                         if (!dayObj || validMeals.length === 0) {
+                            // [P1-RECIPES-COOKING-STATE · 2026-08-21] MISMA escalera y
+                            // MISMA precedencia que el vacío de "Tu Menú" en
+                            // Dashboard.jsx (P1-DASH-GENERATING-HONESTY): pausado gana
+                            // a cocinando; cocinando (trabajo real AHORA, icono live)
+                            // gana a programado; sin cola viva, el estático de siempre.
+                            // Copy REUTILIZADO del Dashboard — cero claves nuevas de
+                            // catálogo. La paridad de condiciones la ancla
+                            // test_p1_recipes_cooking_state.py: si el Dashboard cambia
+                            // su escalera, ese test exige mover esta a la vez.
+                            const _recPaused = Number(chunkStatusInfo?.pending_user_action_count || 0) > 0;
+                            const _recCorriendoAhora = Number(chunkStatusInfo?.running_now_count || 0) > 0;
+                            const _recProgramados = Number(chunkStatusInfo?.scheduled_count || 0) > 0;
+                            if (_recPaused) {
+                                return (
+                                    <EmptyState
+                                        icon={Utensils}
+                                        title={t('Tus próximos días están en pausa')}
+                                        description={t('No pudimos cuadrar los próximos días con los ingredientes de tu nevera. Actualízala para continuar ahora — o espera, y los generaremos con la mejor información disponible.')}
+                                        cta={{ label: t('Revisar mi nevera'), onClick: () => navigate('/dashboard/pantry') }}
+                                    />
+                                );
+                            }
+                            if (_recCorriendoAhora) {
+                                return (
+                                    <EmptyState
+                                        live
+                                        icon={ChefHat}
+                                        title={t('Estamos cocinando estos días')}
+                                        description={_recProgramados
+                                            ? t('Este bloque se está generando ahora mismo. Los siguientes llegarán solos cuando toque — no hace falta hacer nada.')
+                                            : t('Este bloque se está generando ahora mismo. Se llenará solo en unos minutos — no hace falta hacer nada.')}
+                                    />
+                                );
+                            }
+                            if (_recProgramados) {
+                                const _recCuando = chunkStatusInfo?.next_chunk_eta
+                                    ? formatDate(chunkStatusInfo.next_chunk_eta, { weekday: 'long', day: 'numeric', month: 'long' })
+                                    : '';
+                                return (
+                                    <EmptyState
+                                        icon={CalendarClock}
+                                        title={t('Estos días aún no toca prepararlos')}
+                                        description={_recCuando
+                                            ? `${t('Tu plan se genera por bloques, poco antes de que los necesites. El próximo llega el')} ${_recCuando}.`
+                                            : t('Tu plan se genera por bloques, poco antes de que los necesites. El próximo llegará automáticamente cuando toque.')}
+                                    />
+                                );
+                            }
                             return (
                                 <EmptyState
                                     icon={ChefHat}
