@@ -123,10 +123,16 @@ jobs:
       # que dejo el borrado de codigo muerto de esta misma tanda.
       # `--strict` ademas exige 100% de cobertura, que es el estado actual.
       - run: npm run i18n:check:strict
+      - run: npm run build
       # [P1-CI-GATE] El tope del bundle del agente. Existia el script y tampoco
       # corria: un cap que nadie evalua no es un cap.
+      #
+      # [P1-CI-QUALITY-ABORTADO · 2026-08-21] Va DESPUES del build, y antes no.
+      # Lee `dist/assets/AgentPage-*.js`, que en un checkout limpio no existe
+      # todavia: colocado antes, el paso no podia pasar NUNCA y abortaba el job
+      # con todo lo que venia detras. Misma razon por la que
+      # `check:presupuestos` ya estaba despues — solo que a este se le olvido.
       - run: npm run check:bundle-size
-      - run: npm run build
       # [P1-PRESUPUESTOS] Peso de la carga inicial, con techo. Habia guards para el
       # precache y para la pagina del agente, y ninguno para lo primero que baja
       # CUALQUIER visitante. El peso del arranque es la magnitud que empeora sin

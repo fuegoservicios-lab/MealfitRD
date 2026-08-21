@@ -62,11 +62,18 @@ function readCapKb() {
 
 function findAgentChunks() {
   if (!existsSync(DIST_ASSETS)) {
+    // [P1-CI-QUALITY-ABORTADO · 2026-08-21] exit 2 = «no pude medir», exit 1 =
+    // «medí y excede». No son lo mismo y colapsarlos costó caro: este paso estuvo
+    // colocado ANTES del `build` en el job `quality`, así que en cada run de CI
+    // moría aquí con exit 1 — indistinguible de un bundle pasado de tamaño— y
+    // abortaba el job entero con los pasos siguientes sin ejecutar. Con el código
+    // separado, un futuro error de orden se lee como lo que es. Mismo criterio y
+    // mismo código que `presupuestos.mjs`, su hermano de after-build.
     console.error(
       `[P3-AGENT-BUNDLE-CAP] ${DIST_ASSETS} no existe. ` +
         `Corre \`npm run build\` antes de \`npm run check:bundle-size\`.`
     );
-    process.exit(1);
+    process.exit(2);
   }
   const files = readdirSync(DIST_ASSETS);
   const chunks = files.filter(

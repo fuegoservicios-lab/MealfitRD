@@ -1431,11 +1431,23 @@ const DashboardInner = () => {
         window.addEventListener(INSIGHTS_RESTORE_EVENT, onRestore);
         return () => window.removeEventListener(INSIGHTS_RESTORE_EVENT, onRestore);
     }, [_planMicroSig]);
+    // [P1-CI-QUALITY-ABORTADO · 2026-08-21] Las dos ramas que `planInsightsDisplay`
+    // lee, izadas fuera del callback. Las deps de abajo YA eran las correctas —
+    // esa funcion (utils/displayMeal.js:226-236) solo mira `insights` y
+    // `_display[locale]`— pero el callback nombraba `planData` entero, y la regla
+    // `exhaustive-deps` no ve a traves de una frontera de funcion: pedia el objeto
+    // completo. Izarlas satisface al linter SIN ensanchar la recreacion, que es lo
+    // que habria hecho anadir `planData` a las deps.
+    const _insightsRaw = planData?.insights;
+    const _insightsDisplayMap = planData?._display;
     const buildInsightsNotification = useCallback(() => {
         // [P1-INSIGHTS-I18N · 2026-08-20] El razonamiento traducido. Lector UNICO
         // autorizado de `_display` (contrato P1-PLAN-DISPLAY-I18N); cae al espanol
         // ENTERO si falta o no cuadra la longitud, porque el panel rotula por POSICION.
-        const insights = planInsightsDisplay(planData, _dashLocale);
+        const insights = planInsightsDisplay(
+            { insights: _insightsRaw, _display: _insightsDisplayMap },
+            _dashLocale,
+        );
         if (!insights.length) return null;
         return {
             id: _planMicroSig ? `insights_${_planMicroSig}` : undefined,
@@ -1447,7 +1459,7 @@ const DashboardInner = () => {
         };
         // [P1-INSIGHTS-I18N] `_dashLocale` en deps: sin el, cambiar de idioma dejaba
         // el cierre viejo y la notificacion archivada seguia en espanol hasta recargar.
-    }, [planData?.insights, planData?._display, _dashLocale, _planMicroSig, t]);
+    }, [_insightsRaw, _insightsDisplayMap, _dashLocale, _planMicroSig, t]);
     const dismissReasoning = () => {
         const notif = buildInsightsNotification();
         if (notif) addNotification(notif);
