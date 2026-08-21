@@ -806,6 +806,13 @@ function MealCookingOverlay({ mode = 'single', seed = 0 }) {
     );
 }
 
+// [P1-NOTEBOOK-MARGIN-EMPTY · 2026-08-21] Predicado ÚNICO de "esta entry es un
+// suplemento" (P2-SWAP-INDEX-COUPLING lo usaba inline en el render). Hoisted a
+// scope de módulo porque ahora lo comparten el render del timeline Y el gate del
+// margen del cuaderno — dos copias del predicado divergen (lección
+// P1-DIET-CANON-SSOT).
+const _isSupplementEntry = (m) => m.meal?.toLowerCase().includes('suplemento');
+
 const DashboardInner = () => {
     // [P1-I18N-DASHBOARD · 2026-08-15] `useT()` y no el `t` de módulo: el hook es lo
     // que suscribe este componente al cambio de idioma. Sombrea al import a
@@ -4625,6 +4632,16 @@ const DashboardInner = () => {
     const currentDayMeals = currentDayRecord?.meals || [];
     const currentDaySupplements = currentDayRecord?.supplements || [];
 
+    // [P1-NOTEBOOK-MARGIN-EMPTY · 2026-08-21] ¿El día activo tiene platos que
+    // renderizar? MISMA condición que decide EmptyState vs timeline en el render
+    // (displayMeals.length === 0, con el mismo predicado de suplementos). Cuando
+    // NO hay filas, el margen rojo del cuaderno (`.meals-container::before`, un
+    // pseudo-elemento POSICIONADO que pinta por encima de los hijos en flujo)
+    // atravesaba el banner ámbar de pausa y el EmptyState — reportado por el
+    // dueño: «choca con las rayas rojas». Un margen sin filas que anotar no es
+    // decoración, es ruido: se apaga vía `meals-container--sin-filas`.
+    const dayHasMealCards = currentDayMeals.some((m) => !_isSupplementEntry(m));
+
     // [P1-TODAY-REMAINING · 2026-07-28] Solo aplica al tab de HOY — un día
     // pasado o futuro no tiene "ya comido hoy" que atenuar. `currentDayMeals`
     // SIN filtrar (mismos índices que usa el swap, ver P2-SWAP-INDEX-COUPLING
@@ -4831,6 +4848,18 @@ const DashboardInner = () => {
                     border-right: 1px solid rgba(248, 113, 113, 0.6);
                     z-index: 0;
                     pointer-events: none;
+                }
+                /* [P1-NOTEBOOK-MARGIN-EMPTY · 2026-08-21] Sin filas de platos
+                   (día pausado / cocinando / programado → EmptyState + banner
+                   ámbar), el margen rojo atravesaba ambos: el ::before es
+                   POSICIONADO y pinta por encima de los hijos en flujo. Un
+                   margen sin renglones que anotar es ruido, no cuaderno.
+                   La clase la pone el JSX con la MISMA condición que elige
+                   EmptyState vs timeline (dayHasMealCards). DEBE ir después
+                   de la regla base — misma especificidad, gana la última — y
+                   apaga también la gemela oscura (esa regla no toca display). */
+                .meals-container--sin-filas::before {
+                    display: none;
                 }
                 /* [P1-MEAL-CARD-ROWS · 2026-08-09] DOS FILAS, no dos columnas.
                    Era «grid-template-columns: 1fr auto»: texto contra un bloque de
@@ -7721,7 +7750,7 @@ const DashboardInner = () => {
             <div className="main-grid">
 
                 {/* Left Column: MEALS TIMELINE */}
-                <div className="meals-container" style={{ flex: 2, alignSelf: 'start' }}>
+                <div className={`meals-container${dayHasMealCards ? '' : ' meals-container--sin-filas'}`} style={{ flex: 2, alignSelf: 'start' }}>
                     <div className="menu-section-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <h2 className="menu-section-title">
@@ -8221,7 +8250,9 @@ const DashboardInner = () => {
                             // `meal_index` del jsonb_set backend → el swap sobrescribía
                             // OTRA comida. Inalcanzable hoy (0 suplementos en .meals en
                             // prod) pero blindaje del acoplamiento UI↔write↔backend.
-                            const _isSupplementEntry = (m) => m.meal?.toLowerCase().includes('suplemento');
+                            // [P1-NOTEBOOK-MARGIN-EMPTY] `_isSupplementEntry` vive a
+                            // scope de módulo — la misma condición gatea el margen
+                            // rojo del cuaderno (`dayHasMealCards`).
                             const displayMeals = currentDayMeals.filter(m => !_isSupplementEntry(m));
 
                             if (displayMeals.length === 0) {
