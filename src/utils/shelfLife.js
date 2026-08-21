@@ -34,7 +34,17 @@
  *   Row de `user_inventory` con join a `master_ingredients`.
  * @returns {{daysLeft: number, severity: 'expired'|'urgent'|'warn', label: string} | null}
  */
-export function getShelfLifeBadge(item) {
+// [P1-I18N-TIEMPO-RELATIVO · 2026-08-21] Fallbacks para cuando el consumidor no
+// pasa las funciones de traduccion: el modulo se queda PURO (sin importar el motor
+// ni React) y sus tests siguen midiendo la aritmetica de caducidad sin montar nada.
+// Interpolan igual que el motor para que el resultado sea identico al de antes.
+const _interp = (s, vars) => String(s).replace(/\{(\w+)\}/g, (m, k) => (
+    vars && k in vars ? String(vars[k]) : m
+));
+const _tFallback = (es) => es;
+const _tnFallback = (n, one, other, vars) => _interp(n === 1 ? one : other, vars);
+
+export function getShelfLifeBadge(item, tFn, tnFn) {
     if (!item || typeof item !== 'object') return null;
     const createdAt = item.created_at;
     const master = item.master_ingredients || {};
@@ -60,16 +70,33 @@ export function getShelfLifeBadge(item) {
 
     if (daysLeft > 3) return null;
 
+    // [P1-I18N-TIEMPO-RELATIVO · 2026-08-21] Los cuatro rótulos pasan por el motor.
+    //
+    // Se usa `tn()` y no `Intl.RelativeTimeFormat`, aunque el plan apuntaba a lo
+    // segundo: `RelativeTimeFormat` da «hace 2 días» / «mañana», pero el VERBO
+    // («Caducó» / «Caduca») es copy nuestro y no sale de ahí. Lo único que hay que
+    // delegar al idioma es el plural — y eso es exactamente lo que `tn()` hace, con
+    // las `Intl.PluralRules` del locale activo. Importa: el francés mete el 0 en
+    // singular y el portugués tiene categoría `many`, así que un `n === 1` a mano
+    // —lo que había aquí— da la forma equivocada en dos de los cuatro idiomas.
+    // Los alias se llaman `t` y `tn` A PROPOSITO. El extractor de i18n-check busca
+    // literalmente `t(` y `tn(` con lookbehind de no-palabra: con `_t(` y `_tn(` las
+    // cuatro claves de este bloque NO se recolectan y el idioma nunca las ve.
+    // Medido: con los alias subrayados el checker reportaba 0 claves nuevas.
+    const tn = typeof tnFn === 'function' ? tnFn : _tnFallback;
+    const t = typeof tFn === 'function' ? tFn : _tFallback;
+
     let severity, label;
     if (daysLeft < 0) {
+        const n = Math.abs(daysLeft);
         severity = 'expired';
-        label = `Caducó hace ${Math.abs(daysLeft)} día${Math.abs(daysLeft) === 1 ? '' : 's'}`;
+        label = tn(n, 'Caducó hace {n} día', 'Caducó hace {n} días', { n });
     } else if (daysLeft <= 1) {
         severity = 'urgent';
-        label = daysLeft === 0 ? 'Caduca hoy' : 'Caduca mañana';
+        label = daysLeft === 0 ? t('Caduca hoy') : t('Caduca mañana');
     } else {
         severity = 'warn';
-        label = `Caduca en ${daysLeft} días`;
+        label = tn(daysLeft, 'Caduca en {n} día', 'Caduca en {n} días', { n: daysLeft });
     }
 
     return { daysLeft, severity, label };

@@ -2322,7 +2322,7 @@ const Pantry = () => {
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
         const atFloor = item.quantity <= 1;
-        const badge = getShelfLifeBadge(item);
+        const badge = getShelfLifeBadge(item, t, tn);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
         // [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] El estado de atención de la fila
         // cuelga de la CADUCIDAD, no de la cantidad (ver la nota larga donde
@@ -2469,7 +2469,7 @@ const Pantry = () => {
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
         const atFloor = item.quantity <= 1;
-        const badge = getShelfLifeBadge(item);
+        const badge = getShelfLifeBadge(item, t, tn);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
         // [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] El estado de atención de la fila
         // cuelga de la CADUCIDAD, no de la cantidad (ver la nota larga donde

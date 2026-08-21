@@ -307,7 +307,17 @@
   "Cada feature, cada plan. Encuentra exactamente lo que necesitas.": "Cada recurso, cada plano. Encontre exatamente o que você precisa.",
   "Cada generación de plan consume 1 crédito": "Cada geração de plano consome 1 crédito",
   "Cada semana": "Toda semana",
+  "Caduca en {n} días": {
+    "one": "Vence em {n} dia",
+    "other": "Vence em {n} dias"
+  },
+  "Caduca hoy": "Vence hoje",
+  "Caduca mañana": "Vence amanhã",
   "Caducan pronto": "Vencem em breve",
+  "Caducó hace {n} días": {
+    "one": "Venceu há {n} dia",
+    "other": "Venceu há {n} dias"
+  },
   "Cafeína (café, té, energizantes)": "Cafeína (café, chá, energéticos)",
   "Calculando arquitectura de macronutrientes": "Calculando a arquitetura de macronutrientes",
   "Calculando la mejor respuesta metabólica...": "Calculando a melhor resposta metabólica...",

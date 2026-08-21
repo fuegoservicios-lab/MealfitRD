@@ -307,7 +307,17 @@
   "Cada feature, cada plan. Encuentra exactamente lo que necesitas.": "Chaque fonctionnalité, chaque plan. Trouvez exactement ce qu'il vous faut.",
   "Cada generación de plan consume 1 crédito": "Chaque génération de plan consomme 1 crédit",
   "Cada semana": "Chaque semaine",
+  "Caduca en {n} días": {
+    "one": "Périme dans {n} jour",
+    "other": "Périme dans {n} jours"
+  },
+  "Caduca hoy": "Périme aujourd’hui",
+  "Caduca mañana": "Périme demain",
   "Caducan pronto": "Bientôt périmés",
+  "Caducó hace {n} días": {
+    "one": "Périmé depuis {n} jour",
+    "other": "Périmé depuis {n} jours"
+  },
   "Cafeína (café, té, energizantes)": "Caféine (café, thé, boissons énergisantes)",
   "Calculando arquitectura de macronutrientes": "Calcul de l'architecture des macronutriments",
   "Calculando la mejor respuesta metabólica...": "Calcul de la meilleure réponse métabolique...",
