@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useI18n } from '../../i18n';
 // [P1-LANDING-BENCH-1 · 2026-08-07] Hechos estructurales desde el SSOT — las
 // meta descriptions escribían «17 micronutrientes» y «+200 alimentos» a mano
 // (esta última era la 4ª grafía distinta del mismo catálogo).
@@ -106,8 +107,42 @@ function isKnownPath(path) {
         || KNOWN_PREFIXES.some((p) => path.startsWith(p));
 }
 
+// [P1-I18N-ROUTE-TITLES · 2026-08-21] Los titulos de las rutas de APP, traducibles.
+//
+// POR QUE NO SE TRADUCE `TITLES` DE `routeMeta.js`. Ese modulo es el SSOT del BUILD:
+// lo importa Node en el prerender de rutas y alimenta ademas `og:title` y
+// `twitter:title`. Sus lectores son buscadores y unfurlers, que no tienen locale y a
+// los que interesa el espanol canonico; y no puede importar el motor de i18n porque
+// eso arrastraria React a un script de build.
+//
+// Asi que se separa por AUDIENCIA, no por fichero: el `<meta description>`, el
+// canonical y los titulos sociales siguen saliendo del SSOT en espanol, y lo unico
+// que se traduce es el `document.title` de las rutas que hay DETRAS DEL LOGIN, que
+// las lee una persona y no un rastreador.
+//
+// Las rutas de marketing no estan aqui a proposito: su copy sigue sin traducir
+// (decision de producto) y ademas varias se auto-gestionan el titulo via SELF_MANAGED.
+const TITULOS_APP = (t) => ({
+    '/login': t('Iniciar sesión'),
+    '/reset-password': t('Restablecer contraseña'),
+    '/assessment': t('Crear mi plan'),
+    '/plan': t('Diseñando tu plan'),
+    '/dashboard': t('Mi plan'),
+    '/dashboard/pantry': t('Mi nevera'),
+    '/dashboard/recipes': t('Recetas'),
+    '/dashboard/agent': t('Asistente'),
+    '/dashboard/settings': t('Ajustes'),
+    '/dashboard/upgrade': t('Planes'),
+    '/history': t('Historial'),
+});
+
 export default function RouteTitle() {
     const { pathname } = useLocation();
+    // [P1-I18N-ROUTE-TITLES · 2026-08-21] `locale` va en las deps del efecto de
+    // abajo. Sin el, el titulo solo se recalcula al NAVEGAR: quien cambia de idioma
+    // desde Configuracion se queda con la pestana en espanol hasta moverse de ruta.
+    const { t, locale } = useI18n();
+
     useEffect(() => {
         const path = pathname.replace(/\/+$/, '') || '/';
 
@@ -121,7 +156,7 @@ export default function RouteTitle() {
         // <h1>, así que Google acabará clasificándola como soft-404 igualmente; lo que
         // cierra esto es el ruido de rastreo y, sobre todo, la autodeclaración canónica.
         if (!isKnownPath(path)) {
-            document.title = `Página no encontrada · ${BRAND}`;
+            document.title = `${t('Página no encontrada')} · ${BRAND}`;
             removeCanonical();
             setMetaByName('robots', 'noindex, follow');
             return;
@@ -135,7 +170,11 @@ export default function RouteTitle() {
 
         // Título — las páginas de marketing con título propio lo setean ellas mismas.
         if (!SELF_MANAGED.has(path)) {
-            document.title = TITLES[path] || BRAND;
+            // Las rutas de APP van por catalogo (las lee una persona logueada); las de
+            // marketing siguen saliendo del SSOT de build en espanol, igual que su
+            // canonical y su description.
+            const appTitulo = TITULOS_APP(t)[path];
+            document.title = appTitulo ? `${appTitulo} · ${BRAND}` : (TITLES[path] || BRAND);
         }
 
         // Description + canonical — gestionados aquí para TODAS las rutas.
@@ -156,6 +195,6 @@ export default function RouteTitle() {
         const socialTitle = TITLES[path] || document.title || BRAND;
         setMetaByProp('og:title', socialTitle);
         setMetaByName('twitter:title', socialTitle);
-    }, [pathname]);
+    }, [pathname, t, locale]);
     return null;
 }

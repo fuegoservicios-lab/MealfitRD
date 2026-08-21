@@ -156,11 +156,23 @@ describe('[P1-I18N-DASHBOARD] carga de catálogo', () => {
         // un catálogo vacío o mal cosido pasaría toda la suite en verde —
         // porque un catálogo vacío degrada al español, que es justo lo que el
         // resto de los tests esperan.
+        // [P2-I18N-GLOSARIO-NEVERA · 2026-08-21] «Nevera» pasa de la palabra de
+        // DESPENSA a la de FRIGORÍFICO. Es el cajón frío, y traducirlo como almacén
+        // seco chocaba con «Alacena», que es la otra pestaña de la misma pantalla:
+        // los dos vacíos salían idénticos carácter a carácter.
+        //
+        // El italiano se queda en «Dispensa» A PROPÓSITO y no es un olvido: en
+        // italiano `dispensa` es femenino y `frigo` masculino, así que cambiar el
+        // término descuadra artículos y adjetivos en las 98 cadenas que lo mencionan
+        // («La tua frigo è vuota»). Se intentó por regex y salieron cosas peores
+        // («nella tuo frigo»). Queda como gap con nombre propio, para una pasada que
+        // revise cadena por cadena. Un término correcto con gramática rota se lee
+        // peor que un término impreciso bien escrito.
         const esperado = {
-            'en-US': { 'Guardar': 'Save', 'Idioma': 'Language', 'Nevera': 'Pantry' },
-            'pt-BR': { 'Guardar': 'Salvar', 'Nevera': 'Despensa' },
-            'fr-FR': { 'Guardar': 'Enregistrer', 'Idioma': 'Langue' },
-            'it-IT': { 'Guardar': 'Salva', 'Historial': 'Cronologia' },
+            'en-US': { 'Guardar': 'Save', 'Idioma': 'Language', 'Nevera': 'Fridge', 'Alacena': 'Cupboard' },
+            'pt-BR': { 'Guardar': 'Salvar', 'Nevera': 'Geladeira', 'Alacena': 'Armário' },
+            'fr-FR': { 'Guardar': 'Enregistrer', 'Idioma': 'Langue', 'Nevera': 'Frigo' },
+            'it-IT': { 'Guardar': 'Salva', 'Historial': 'Cronologia', 'Nevera': 'Dispensa' },
         };
         for (const [code, pares] of Object.entries(esperado)) {
             const ok = await loadLocale(code);
