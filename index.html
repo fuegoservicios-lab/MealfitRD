@@ -43,7 +43,15 @@
       try {
         var SUPPORTED = ['es-DO', 'en-US', 'pt-BR', 'fr-FR', 'it-IT'];
         var stored = localStorage.getItem('mealfit_locale');
-        var elegido = SUPPORTED.indexOf(stored) > 0 ? stored : null;
+        // [P1-I18N-BOOT-DEFAULT-INDEX0 · 2026-08-21] `!== -1`, no `> 0`. Con `> 0`,
+        // un 'es-DO' guardado (indice 0) se leia como «no hay nada guardado» y caia a
+        // la autodeteccion de abajo: un dominicano con el navegador en ingles que
+        // habia elegido Espanol a mano veia el splash en INGLES y `<html lang>` en
+        // en-US, y solo despues React lo corregia. Las dos capas discrepaban sobre
+        // que significa «nada guardado» — `getStoredLocale()` (src/i18n/index.js) si
+        // respeta 'es-DO'. Que es-DO no reescriba el atributo ya lo decide la guarda
+        // de mas abajo (`elegido !== 'es-DO'`), asi que aqui no hay efecto colateral.
+        var elegido = SUPPORTED.indexOf(stored) !== -1 ? stored : null;
 
         // [P1-AUTO-LOCALE · 2026-08-20] Sin nada guardado, el idioma del DISPOSITIVO.
         //
