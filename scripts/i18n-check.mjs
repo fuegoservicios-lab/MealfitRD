@@ -36,6 +36,11 @@
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// [P1-I18N-EXTRACTOR-AST · 2026-08-21] Declarado en devDependencies a propósito.
+// Hasta hoy llegaba de rebote por `@vitejs/plugin-react` → `@babel/core`, y un
+// gate apoyado en un transitivo muere con ERR_MODULE_NOT_FOUND en el siguiente
+// bump del lockfile sin que nadie lo haya decidido.
+import { parse } from '@babel/parser';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC = join(__dirname, '..', 'src');
@@ -121,15 +126,81 @@ function scanAt(src, index) {
     return { depth, inComment: inLineComment || inBlockComment, inStr: inStr !== null };
 }
 
-/** ¿La llamada en `index` es código real en el nivel superior del módulo?
+/** Offsets de las llamadas `t()`/`tn()` que corren AL IMPORTAR, vía AST.
  *
- *  Se filtra por comentario y NO por cadena, a propósito. El escáner marca todo
- *  lo que hay entre backticks como cadena, así que excluir `inStr` se tragaría
- *  los `${t('Foo')}` de un template literal —que son llamadas REALES y hasta hoy
- *  sí se reportaban—. Cambiar un falso positivo por un falso negativo no es
- *  arreglar el guard. Un `t('x')` literal dentro de una cadena normal se sigue
- *  reportando: es rarísimo y un aviso de más no hace daño. */
-function isModuleScopeCode(src, index) {
+ *  [P1-I18N-EXTRACTOR-AST · 2026-08-21] Esto lo decidía un contador de llaves, y
+ *  era ciego al ejemplo que la propia doc usa para explicar la trampa:
+ *
+ *      const TABS = [{ label: t('Plan') }];   // ❌ congelado en español
+ *
+ *  Un literal de objeto o de array TAMBIÉN abre llave, así que toda tabla de copy
+ *  —la forma real del bug; nadie escribe `const X = t('...')` suelto— salía con
+ *  `depth >= 1` y no se reportaba. Medido antes del cambio: cazaba 1 de 3 formas.
+ *
+ *  La pregunta «¿esto corre al importar?» es «¿hay una función entre la llamada y
+ *  la raíz del módulo?», y eso no lo responde un contador de llaves: lo responde
+ *  un AST. De regalo desaparece el caso del comentario (un `t('x')` citado en
+ *  prosa no es un CallExpression, así que no existe para el walker) sin necesidad
+ *  del filtro que hubo que añadir a mano en P1-HIST-DIAS-I18N.
+ *
+ *  Devuelve `null` si el fichero no parsea; el llamador cae al heurístico viejo
+ *  en vez de quedarse ciego. */
+const NODOS_FUNCION = new Set([
+    'FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression',
+    'ObjectMethod', 'ClassMethod', 'ClassPrivateMethod',
+]);
+
+function moduleScopeCallOffsets(src) {
+    let ast;
+    try {
+        ast = parse(src, {
+            sourceType: 'module',
+            errorRecovery: true,
+            plugins: ['jsx', 'typescript', 'classProperties', 'decorators-legacy'],
+        });
+    } catch {
+        return null;
+    }
+    const offsets = new Set();
+    const visitar = (nodo, dentroDeFuncion) => {
+        if (!nodo || typeof nodo.type !== 'string') return;
+        if (
+            !dentroDeFuncion
+            && nodo.type === 'CallExpression'
+            && nodo.callee
+            && nodo.callee.type === 'Identifier'
+            && (nodo.callee.name === 't' || nodo.callee.name === 'tn')
+        ) {
+            offsets.add(nodo.callee.start);
+        }
+        // El nodo función en sí vive en el ámbito de fuera; su CUERPO no.
+        const siguiente = dentroDeFuncion || NODOS_FUNCION.has(nodo.type);
+        for (const clave of Object.keys(nodo)) {
+            if (clave === 'loc' || clave === 'leadingComments'
+                || clave === 'trailingComments' || clave === 'innerComments') continue;
+            const valor = nodo[clave];
+            if (Array.isArray(valor)) {
+                for (const hijo of valor) {
+                    if (hijo && typeof hijo.type === 'string') visitar(hijo, siguiente);
+                }
+            } else if (valor && typeof valor.type === 'string') {
+                visitar(valor, siguiente);
+            }
+        }
+    };
+    visitar(ast.program, false);
+    return offsets;
+}
+
+/** ¿La llamada en `index` corre al importar?
+ *
+ *  Con AST disponible la respuesta es exacta. Sin él (fichero que no parsea) cae
+ *  al heurístico de llaves de siempre: filtra por comentario y NO por cadena,
+ *  porque el escáner marca todo lo que hay entre backticks como cadena y excluir
+ *  `inStr` se tragaría los `${t('Foo')}` de un template literal, que son llamadas
+ *  REALES. Cambiar un falso positivo por un falso negativo no es arreglar nada. */
+function isModuleScopeCode(src, index, offsets) {
+    if (offsets) return offsets.has(index);
     const { depth, inComment } = scanAt(src, index);
     return depth === 0 && !inComment;
 }
@@ -143,13 +214,14 @@ for (const file of files) {
     const src = readFileSync(file, 'utf8');
     if (!/\bt\(|\btn\(/.test(src)) continue;
     const rel = relative(SRC, file).replace(/\\/g, '/');
+    const modOffsets = moduleScopeCallOffsets(src);
 
     for (const m of src.matchAll(T_CALL)) {
         const key = unescape(m[2]);
         if (!key) continue;
         if (!keys.has(key)) keys.set(key, []);
         if (!keys.get(key).includes(rel)) keys.get(key).push(rel);
-        if (isModuleScopeCode(src, m.index)) moduleScopeHits.push({ file: rel, key });
+        if (isModuleScopeCode(src, m.index, modOffsets)) moduleScopeHits.push({ file: rel, key });
     }
     for (const m of src.matchAll(TN_CALL)) {
         // La clave de un plural es la forma «other» (el 2º literal).
@@ -158,7 +230,7 @@ for (const file of files) {
         if (!keys.has(other)) keys.set(other, []);
         if (!keys.get(other).includes(rel)) keys.get(other).push(rel);
         pluralKeys.add(other);
-        if (isModuleScopeCode(src, m.index)) moduleScopeHits.push({ file: rel, key: other });
+        if (isModuleScopeCode(src, m.index, modOffsets)) moduleScopeHits.push({ file: rel, key: other });
     }
 }
 
