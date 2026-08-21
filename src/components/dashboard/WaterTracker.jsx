@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes effect manual).
 import { useLatestRef } from '../../hooks/useLatestRef';
-import { useT, useTn } from '../../i18n';
+import { formatNumber, useT, useTn } from '../../i18n';
 import styles from './WaterTracker.module.css';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
@@ -248,7 +248,7 @@ const WaterTracker = ({ userId }) => {
     const pct = goal > 0 ? Math.min(100, Math.round((glasses / goal) * 100)) : 0;
     const complete = glasses >= goal;
     const liters = (ml) =>
-        (ml / 1000).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' L';
+        formatNumber((ml / 1000), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' L';
     const fmtGlasses = glasses % 1 ? glasses.toString().replace('.', ',') : String(glasses);
 
     // Subtítulo: menciona el peso cuando la meta viene de la fórmula personalizada.
@@ -296,7 +296,7 @@ const WaterTracker = ({ userId }) => {
                             <h3 className={styles.title}>{t('Hidratación')}</h3>
                             <p className={styles.sub}>
                                 {isPersonalized ? (
-                                    <>{t('Meta personalizada para')} <b>{Number(goalBasis.weight_kg).toLocaleString('es-DO')} kg</b> · {t('~{ml} ml por vaso', { ml: mlPerGlass })}</>
+                                    <>{t('Meta personalizada para')} <b>{formatNumber(Number(goalBasis.weight_kg))} kg</b> · {t('~{ml} ml por vaso', { ml: mlPerGlass })}</>
                                 ) : (
                                     <>{t('Meta diaria de')} <b>{t('{n} vasos', { n: goal })}</b> · {t('~{ml} ml por vaso', { ml: mlPerGlass })}</>
                                 )}

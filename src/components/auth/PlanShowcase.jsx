@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Loader2, Dumbbell, RefreshCw } from 'lucide-react';
 // [P2-LINT-ZERO · 2026-07-09] Hook SSOT reactivo (P2-14) para reduce-motion.
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { t, useT } from '../../i18n';
+import { formatNumber, t, useT } from '../../i18n';
 
 /* [P3-LOGIN-SHOWCASE-DEMO · 2026-06-29] Demo de producto del login: loop narrativo de
    4 escenas que enseña qué hace Bioboros (objetivo → la IA genera → tu plan → ajustas).
@@ -177,7 +177,7 @@ function ScenePlan() {
                             transition={{ duration: 1.3, ease: 'easeOut' }} />
                     </svg>
                     <div className="mf-ring__center">
-                        <span className="mf-ring__value">{kcal.toLocaleString('es-DO')}</span>
+                        <span className="mf-ring__value">{formatNumber(kcal)}</span>
                         <span className="mf-ring__goal">{t('de 2,100')}</span>
                     </div>
                 </div>
@@ -252,7 +252,7 @@ function SceneAjuste() {
                 <div className="mf-summary__row">
                     <span className="mf-summary__label">{t('Calorías de hoy')}</span>
                     <span className="mf-summary__val">
-                        <NumFlip>{total.toLocaleString('es-DO')}</NumFlip><small> / 2,100</small>
+                        <NumFlip>{formatNumber(total)}</NumFlip><small> / 2,100</small>
                     </span>
                     <AnimatePresence>
                         {swapped && (

@@ -78,7 +78,7 @@ import HistoryMobilePanel from '../components/history/HistoryMobilePanel';
 // componente (es lo que lo suscribe al cambio de idioma); el `t` suelto para los
 // helpers de módulo (`_dayNameForGlobalIdx`, `chipDeChunkMuerto`) — se invocan en
 // render, nunca al importar, así que no caen en la trampa del ámbito de módulo.
-import { t, useT, useI18n, formatDate } from '../i18n';
+import { formatDate, t, useI18n, useT } from '../i18n';
 
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
@@ -3421,7 +3421,7 @@ const History = () => {
                                         <ul className={styles.detailList}>
                                             {_list.map((lesson) => {
                                                 const _ts = lesson.created_at
-                                                    ? new Date(lesson.created_at).toLocaleString('es-DO', {
+                                                    ? formatDate(new Date(lesson.created_at), {
                                                         month: 'short', day: 'numeric',
                                                         hour: '2-digit', minute: '2-digit',
                                                     })
@@ -3577,7 +3577,7 @@ const History = () => {
                                                 // (preserva diagnóstico cuando el catálogo va detrás del backend).
                                                 const _actionLabel = getCoherenceActionLabelI18n(_action, t) || _action;
                                                 const _ts = (entry && typeof entry.ts === 'string')
-                                                    ? new Date(entry.ts).toLocaleString('es-DO', {
+                                                    ? formatDate(new Date(entry.ts), {
                                                         month: 'short', day: 'numeric',
                                                         hour: '2-digit', minute: '2-digit',
                                                     })
@@ -3766,7 +3766,7 @@ const History = () => {
                                         if (_diffMs < 0) {
                                             return {
                                                 rel: 'ahora',
-                                                iso: _d.toLocaleString('es-DO'),
+                                                iso: formatDate(_d, { dateStyle: 'medium', timeStyle: 'short' }),
                                             };
                                         }
                                         const _sec = Math.floor(_diffMs / 1000);
@@ -3789,7 +3789,7 @@ const History = () => {
                                         }
                                         return {
                                             rel: _rel,
-                                            iso: _d.toLocaleString('es-DO'),
+                                            iso: formatDate(_d, { dateStyle: 'medium', timeStyle: 'short' }),
                                         };
                                     };
                                     // [P1-HIST-LM-WHITELIST · 2026-05-09]

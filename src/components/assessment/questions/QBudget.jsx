@@ -12,7 +12,7 @@ import { budgetCycleDays, currencyOptionsForCountry, effectiveBudgetCurrency } f
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo personalizado por las metas (backend).
 import { useBudgetFloor } from '../../../hooks/useBudgetFloor';
 import { Banknote, Infinity as InfinityIcon, Landmark, SlidersHorizontal, Wallet } from 'lucide-react';
-import { useT } from '../../../i18n';
+import { formatNumber, useT } from '../../../i18n';
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Bandera dark del frontend (mismo SSOT que
 // QCountry.jsx/Settings.jsx).
 import { COUNTRY_SYSTEM_UI } from '../../../config/countries';
@@ -66,7 +66,7 @@ export const QBudget = ({ onAutoAdvance }) => {
         if (!ref || !(ref > 0)) return null;
         return t('≈ {simbolo}{monto} / {dias} días (referencia estimada)', {
             simbolo: currencySymbol,
-            monto: Number(ref).toLocaleString('en-US'),
+            monto: formatNumber(Number(ref)),
             dias: cycleDays,
         });
     };
@@ -204,11 +204,11 @@ export const QBudget = ({ onAutoAdvance }) => {
                             del número sigue en `en-US` a propósito — cambiarlo aquí sería
                             un cambio de comportamiento, no una traducción. */}
                         {belowMin
-                            ? `${t('⚠️ El mínimo para {dias} días es {simbolo}{monto}.', { dias: cycleDays, simbolo: currencySymbol, monto: minBudget.toLocaleString('en-US') })}${typicalCost ? ` ${t('Un plan típico ronda {simbolo}{monto}.', { simbolo: currencySymbol, monto: typicalCost.toLocaleString('en-US') })}` : ''} ${t('Súbelo para poder crear un plan viable.')}`
+                            ? `${t('⚠️ El mínimo para {dias} días es {simbolo}{monto}.', { dias: cycleDays, simbolo: currencySymbol, monto: formatNumber(minBudget) })}${typicalCost ? ` ${t('Un plan típico ronda {simbolo}{monto}.', { simbolo: currencySymbol, monto: formatNumber(typicalCost) })}` : ''} ${t('Súbelo para poder crear un plan viable.')}`
                             : `${t('La IA ajustará los ingredientes para acercarse a este monto.')} ${budgetIsPersonalized
-                                ? t('Mínimo {simbolo}{monto} para {dias} días (según tus calorías y metas).', { simbolo: currencySymbol, monto: minBudget.toLocaleString('en-US'), dias: cycleDays })
-                                : t('Mínimo {simbolo}{monto} para {dias} días.', { simbolo: currencySymbol, monto: minBudget.toLocaleString('en-US'), dias: cycleDays })
-                            }${typicalCost ? ` ${t('Un plan típico ronda {simbolo}{monto}.', { simbolo: currencySymbol, monto: typicalCost.toLocaleString('en-US') })}` : ''}`}
+                                ? t('Mínimo {simbolo}{monto} para {dias} días (según tus calorías y metas).', { simbolo: currencySymbol, monto: formatNumber(minBudget), dias: cycleDays })
+                                : t('Mínimo {simbolo}{monto} para {dias} días.', { simbolo: currencySymbol, monto: formatNumber(minBudget), dias: cycleDays })
+                            }${typicalCost ? ` ${t('Un plan típico ronda {simbolo}{monto}.', { simbolo: currencySymbol, monto: formatNumber(typicalCost) })}` : ''}`}
                     </span>
                 </div>
             )}

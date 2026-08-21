@@ -1,3 +1,8 @@
+// [P1-I18N-FORMATOS-CLAVADOS · 2026-08-21] `formatNumber` sigue al idioma activo;
+// el `toLocaleString('es-DO')` que habia aqui pintaba las cifras con separadores
+// dominicanos en los cuatro idiomas, y en pt-BR la coma es DECIMAL: «1,850 kcal» se
+// lee como 1,85.
+import { formatNumber } from '../i18n';
 /**
  * [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
  * diario en cada render, NUNCA persistido en `plan_data` (invariante I6,
@@ -260,7 +265,7 @@ export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unloc
  * @returns {string}
  */
 export function todayRemainingLine({ remainingKcal, plannedKcal, remainingCount }) {
-  const fmt = (n) => Math.round(n).toLocaleString('es-DO');
+  const fmt = (n) => formatNumber(Math.round(n));
   const comidas = `${remainingCount} comida${remainingCount === 1 ? '' : 's'}`;
   const sumar = remainingCount === 1 ? 'suma' : 'suman';
 

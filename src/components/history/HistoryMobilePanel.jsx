@@ -13,7 +13,10 @@ import { firstDayMeals } from "../../utils/normalizePlanDays";
 // componentes (es lo que los suscribe al cambio de idioma); el `t`/`tn` sueltos
 // para helpers de módulo que se INVOCAN en render (`normalizePlan`,
 // `bucketTitle`, `activeBadge`), nunca al importar.
-import { t, tn, useT, useI18n, formatDate } from "../../i18n";
+// [P1-I18N-FORMATOS-CLAVADOS · 2026-08-21] `formatNumber` se suma a los que ya
+// estaban: los `toLocaleString('es-DO')` fijos de las kcal pintaban separadores
+// dominicanos en las cuatro traducciones, y en pt-BR la coma es DECIMAL.
+import { t, tn, useT, useI18n, formatDate, formatNumber } from "../../i18n";
 
 /* --------------------------------------------------------- helpers */
 // [P1-HIST-PANEL-FECHA-I18N · 2026-08-20] Era un formateador de fechas escrito a
@@ -171,7 +174,7 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
         <MacroBar macros={plan.macros} />
         {plan.kcal > 0 && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "none", fontWeight: 800, fontFamily: "var(--font-heading)", fontSize: ".86rem", color: "#FB923C" }}>
-            <Flame size={13} /> {plan.kcal.toLocaleString("es-DO")}
+            <Flame size={13} /> {formatNumber(plan.kcal)}
           </span>
         )}
       </div>

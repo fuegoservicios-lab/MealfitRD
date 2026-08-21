@@ -85,11 +85,15 @@ describe('[P1-HIST-CHUNK-TIMESTAMPS] anchor + helper', () => {
     it('_fmtRelTime devuelve {rel, iso} con ISO absoluto local', () => {
         const helperIdx = src.indexOf('const _fmtRelTime');
         const block = src.slice(helperIdx, helperIdx + 3000);
-        // ISO absoluto via `Date.toLocaleString('es-DO')` (no UTC raw).
-        expect(block).toMatch(/_d\.toLocaleString\(['"]es-DO['"]\)/);
+        // [P1-I18N-FORMATOS-CLAVADOS · 2026-08-21] Antes anclaba el literal
+        // `_d.toLocaleString('es-DO')`. La propiedad que este test defiende es que
+        // el sello absoluto salga en hora LOCAL y no en UTC crudo — no con qué
+        // locale. Clavar 'es-DO' hacía justo lo contrario de lo que quiere: dejaba
+        // la fecha en formato dominicano para los cuatro idiomas.
+        expect(block).toMatch(/formatDate\(_d/);
         // Estructura del return.
         expect(block).toMatch(/rel:\s*_rel/);
-        expect(block).toMatch(/iso:\s*_d\.toLocaleString/);
+        expect(block).toMatch(/iso:\s*formatDate\(_d/);
     });
 });
 

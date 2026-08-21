@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, Loader2, Ghost, Trash2 } from 'lucide-react';
-import { useT } from '../../i18n';
+import { formatDate, useT } from '../../i18n';
 
 export const SidebarRecientes = ({
     showSidebar,
@@ -125,7 +125,7 @@ export const SidebarRecientes = ({
                                     const dateStr = s.last_activity || s.created_at;
                                     const dateObj = dateStr ? new Date(dateStr) : null;
                                     const formattedDate = dateObj && !isNaN(dateObj) 
-                                        ? dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')
+                                        ? formatDate(dateObj, { day: 'numeric', month: 'short' }).replace('.', '')
                                         : '';
 
                                     return (

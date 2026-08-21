@@ -11,7 +11,10 @@ import { firstDayMeals } from "../../utils/normalizePlanDays";
 // componentes (es lo que los suscribe al cambio de idioma); el `t`/`tn` sueltos
 // para helpers de módulo (`normalizePlan`, `bucketTitle`) que se INVOCAN en
 // render, nunca al importar — ahí está la trampa del ámbito de módulo.
-import { t, tn, useT, useI18n, formatDate } from "../../i18n";
+// [P1-I18N-FORMATOS-CLAVADOS · 2026-08-21] `formatNumber` se suma a los que ya
+// estaban: los `toLocaleString('es-DO')` fijos de las kcal pintaban separadores
+// dominicanos en las cuatro traducciones, y en pt-BR la coma es DECIMAL.
+import { t, tn, useT, useI18n, formatDate, formatNumber } from "../../i18n";
 
 /**
  * HistoryDesktopPanel — vista "Historial" de escritorio (Bioboros).
@@ -299,7 +302,7 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
           <RecipeChips meals={plan.meals} max={4} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
-          {plan.kcal > 0 && <span style={kcalBig}><b style={{ fontSize: "1.5rem", color: "#FB923C" }}>{plan.kcal.toLocaleString("es-DO")}</b><span>{t("kcal/día")}</span></span>}
+          {plan.kcal > 0 && <span style={kcalBig}><b style={{ fontSize: "1.5rem", color: "#FB923C" }}>{formatNumber(plan.kcal)}</b><span>{t("kcal/día")}</span></span>}
           {/* [P1-CTA-HOVER-PARITY · 2026-08-13] La clase aporta LO ÚNICO que un
               estilo inline no puede declarar: las sombras de :hover/:active.
               El resto del botón sigue viniendo de btn("primary"). */}
@@ -344,7 +347,7 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         {(plan.macros.p || plan.macros.c || plan.macros.g) ? <MacroBar macros={plan.macros} /> : <span />}
-        {plan.kcal > 0 && <span style={{ ...kcalBig, gap: 4 }}><b style={{ fontSize: "1.1rem", color: "#FB923C" }}>{plan.kcal.toLocaleString("es-DO")}</b><span>{t("kcal")}</span></span>}
+        {plan.kcal > 0 && <span style={{ ...kcalBig, gap: 4 }}><b style={{ fontSize: "1.1rem", color: "#FB923C" }}>{formatNumber(plan.kcal)}</b><span>{t("kcal")}</span></span>}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <IconButton name="pencil" title={t("Renombrar")} onClick={() => onEdit && onEdit()} />
           <IconButton name="trash" danger title={t("Eliminar")} onClick={() => onDelete && onDelete()} />

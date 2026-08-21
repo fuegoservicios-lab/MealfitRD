@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { APEX_ORIGIN } from '../../config/site';
 import { api, fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
-import { useT, useTn } from '../../i18n';
+import { formatNumber, useT, useTn } from '../../i18n';
 
 /* [P1-SUPERMARKET-MATCH · 2026-07-02] "Marcas del súper" — conexión v1 entre la
    lista de compras y la base Supermercado RD (supermarket_products en Neon).
@@ -93,7 +93,7 @@ const itemDisplayName = (item) => {
 // flecha con cuerpo de expresión dejaría este `t()` a profundidad 0.
 const formatPrice = (value, t) => {
     if (value === null || value === undefined) return t('Precio relativo');
-    return `RD$${Number(value).toLocaleString('es-DO', { maximumFractionDigits: 2 })}`;
+    return `RD$${formatNumber(Number(value), { maximumFractionDigits: 2 })}`;
 };
 
 const readLocalPrefs = () => {

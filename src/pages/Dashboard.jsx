@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 // que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
-import { useT, useI18n, t, tn, formatDate } from '../i18n';
+import { formatDate, formatNumber, t, tn, useI18n, useT } from '../i18n';
 // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
 // Sin el símbolo, `currencyOptionsForCountry(pais, COUNTRY_SYSTEM_UI)` NO habría fallado:
 // `undefined` es falsy, así que habría devuelto [DOP, USD] en silencio — el bug intacto con
@@ -1386,7 +1386,7 @@ const DashboardInner = () => {
     const buildBudgetNotification = useCallback(() => {
         const _br = planData?.budget_reconciliation;
         if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return null;
-        const _fmt = (v) => `RD$${Math.round(v || 0).toLocaleString('es-DO')}`;
+        const _fmt = (v) => `RD$${formatNumber(Math.round(v || 0))}`;
         const _est = _br.basis && _br.basis !== 'custom' ? t(' (referencia estimada)') : '';
         const title = _br.status === 'dentro'
             ? t('Presupuesto: dentro de tu referencia')
@@ -3692,7 +3692,7 @@ const DashboardInner = () => {
                         <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">${escapeHtml(t('Lista de Compras'))}</h1>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">${escapeHtml(t('Ciclo: {duracion}', { duracion: durationText }))}</span>
-                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">${escapeHtml(t('Generado: {fecha}', { fecha: new Date().toLocaleDateString('es-DO') }))}</span>
+                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">${escapeHtml(t('Generado: {fecha}', { fecha: formatDate(new Date()) }))}</span>
                             <!-- [P2-SHOPPING-TOTALS · 2026-05-16] Total chip. -->
                             <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #3b82f640;">${escapeHtml(t('Total: {items}', { items: _fmtItems(totalItems) }))}</span>
                         </div>
@@ -3931,7 +3931,7 @@ const DashboardInner = () => {
                         // [P3-SHOPPING-COST-TOTAL · 2026-06-20] Precio estimado por ítem (RD$, del motor de costeo).
                         const _costVal = item.item_ref && (item.item_ref.estimated_cost_rd ?? item.item_ref.estimated_cost);
                         const costStr = (typeof _costVal === 'number' && _costVal > 0)
-                            ? `<span style="font-weight: 600; color: #9ca3af; font-size: ${qtyFont}; margin-top: 2px; white-space: nowrap;">RD$${Math.round(_costVal).toLocaleString('es-DO')}</span>`
+                            ? `<span style="font-weight: 600; color: #9ca3af; font-size: ${qtyFont}; margin-top: 2px; white-space: nowrap;">RD$${formatNumber(Math.round(_costVal))}</span>`
                             : '';
 
                         // [P1-PDF-3] En hyper-dense, ocultamos `_inventoryNote`
@@ -4049,11 +4049,11 @@ const DashboardInner = () => {
                 ${_shopPricedCount > 0 ? `<div style="margin-top: 14px; padding: 11px 15px; background: linear-gradient(135deg,#ecfdf5,#f0fdf4); border: 1.5px solid #10b98133; border-radius: 9px; break-inside: avoid; page-break-inside: avoid;">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                         <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 ${_showCycleCost ? t('Esta compra <span style="font-weight: 600; color: #059669;">(frescos de 1 semana + despensa)</span>') : t('Total estimado del mercado')}</div>
-                        <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${Math.round(_shopTotalCostFinal).toLocaleString('es-DO')}</span>
+                        <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${formatNumber(Math.round(_shopTotalCostFinal))}</span>
                     </div>
                     ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
                         <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 ${escapeHtml(t('Costo real del ciclo de {duracion}', { duracion: durationText }))}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">${escapeHtml(t('Despensa 1× + perecederos de {duracion} (recompra cada 7 días)', { duracion: durationText }))}</div></div>
-                        <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${Math.round(_fullCycleCostFinal).toLocaleString('es-DO')}</span>
+                        <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${formatNumber(Math.round(_fullCycleCostFinal))}</span>
                     </div>` : ''}
                     ${(() => {
                         // [P1-BUDGET-RECONCILE · 2026-07-02] Estado honesto del presupuesto en el PDF:
@@ -4069,10 +4069,10 @@ const DashboardInner = () => {
                         const _estCycleRdPdf = _deltaAware ? _fullCycleCostFinal : (_br.estimated_cycle_rd || 0);
                         const _brStatusEff = (_deltaAware && _estCycleRdPdf <= _br.reference_rd)
                             ? 'dentro' : _br.status;
-                        const _est = Math.round(_estCycleRdPdf).toLocaleString('es-DO');
+                        const _est = formatNumber(Math.round(_estCycleRdPdf));
                         // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) tiers categóricos → RD$Y es piso×banda
                         // (número no declarado por el usuario) → etiquetado "referencia estimada" (paridad app).
-                        const _ref = Math.round(_br.reference_rd).toLocaleString('es-DO')
+                        const _ref = formatNumber(Math.round(_br.reference_rd))
                             + (_br.basis && _br.basis !== 'custom' ? t(' (referencia estimada)') : '');
                         // [P2-AUDIT-V5-BATCH GAP-06] Caveat de cobertura parcial (solo números backend → sin XSS).
                         const _pp = _br.partial_pricing
@@ -4089,7 +4089,7 @@ const DashboardInner = () => {
                         if (_brStatusEff === 'cerca') {
                             return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f59e0b55; font-size: 11px; font-weight: 700; color: #92400e;">≈ ${t('Al límite de tu presupuesto — {gasto} de {referencia}', { gasto: _estRD, referencia: _refRD })}${_pp}</div>`;
                         }
-                        const _delta = Math.round(Math.max(0, _estCycleRdPdf - _br.reference_rd)).toLocaleString('es-DO');
+                        const _delta = formatNumber(Math.round(Math.max(0, _estCycleRdPdf - _br.reference_rd)));
                         return `<div style="margin-top: 7px; padding-top: 7px; border-top: 1px dashed #f8717155; font-size: 11px; font-weight: 700; color: #b91c1c;">▲ ${t('Supera tu presupuesto por {exceso} — {gasto} de {referencia}', { exceso: `RD$${_delta}`, gasto: _estRD, referencia: _refRD })}${_br.adjusted ? `<span style="font-weight:600; color:#92400e;">${t(' · ya ajustamos ingredientes premium a equivalentes económicos')}</span>` : ''}${_pp}</div>`;
                     })()}
                 </div>` : ''}
@@ -6538,7 +6538,7 @@ const DashboardInner = () => {
                                                     </div>
                                                     {_selTierRef && (
                                                         <span style={{ display: 'block', marginTop: '0.45rem', fontSize: '0.68rem', lineHeight: 1.35, color: 'var(--text-muted)' }}>
-                                                            ≈ {t('{monto} por {dias} días (referencia estimada según tus metas).', { monto: `${_sym}${Number(_selTierRef).toLocaleString('en-US')}`, dias: _cycleDays })}
+                                                            ≈ {t('{monto} por {dias} días (referencia estimada según tus metas).', { monto: `${_sym}${formatNumber(Number(_selTierRef))}`, dias: _cycleDays })}
                                                         </span>
                                                     )}
                                                     {_isCustom && (
@@ -6576,7 +6576,7 @@ const DashboardInner = () => {
                                                             </div>
                                                             <span style={{ fontSize: '0.72rem', lineHeight: 1.4, fontWeight: _belowMin ? 700 : 500, color: _belowMin ? 'var(--warning)' : 'var(--text-muted)' }}>
                                                                 {_belowMin ? '⚠️ ' : ''}{t('Mínimo {monto} para {dias} días{nota}.', {
-                                                                    monto: `${_sym}${_min.toLocaleString('en-US')}`,
+                                                                    monto: `${_sym}${formatNumber(_min)}`,
                                                                     dias: _cycleDays,
                                                                     nota: budgetFloor.isPersonalized ? t(' (según tus metas)') : '',
                                                                 })}
@@ -6877,7 +6877,7 @@ const DashboardInner = () => {
                             if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd
                                 || budgetBannerHidden || _restockedNow
                                 || isPlanExpired || planFinished || isPlanCorrupted) return null;
-                            const _fmtRD = (v) => `RD$${Math.round(v || 0).toLocaleString('es-DO')}`;
+                            const _fmtRD = (v) => `RD$${formatNumber(Math.round(v || 0))}`;
                             // [P1-PDF-COST-DELTA-AWARE · 2026-07-12] Con Nevera descontando ítems, el
                             // estimado del backend describe el plan COMPLETO — usar el ciclo delta-aware
                             // (paridad con el recuadro del PDF). El estimado solo BAJA → el status solo

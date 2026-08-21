@@ -68,7 +68,7 @@ import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
 // se usa `useT()`, que además suscribe al cambio de idioma.
-import { t, useT } from '../i18n';
+import { formatDate, t, useT } from '../i18n';
 
 const _captureAgentPageException = (err, tags) => {
     try {
@@ -2059,7 +2059,7 @@ const AgentPage = () => {
                 }
 
                 // Obtener hora actual local formateada
-                const currentTime = new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
+                const currentTime = formatDate(new Date(), { hour: '2-digit', minute: '2-digit', hour12: true });
                 const timeContext = `(Hora actual del usuario: ${currentTime})`;
 
                 // [P1-CHAT-VISION-GEMMA · 2026-07-12] Instrucción POR MODO según

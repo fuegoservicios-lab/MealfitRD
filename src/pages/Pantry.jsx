@@ -14,7 +14,7 @@ import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. El hook es lo que suscribe el
 // componente al cambio de catálogo; las tablas de copy de abajo son FUNCIONES por
 // eso mismo (una constante con `t()` se congelaría en español al importar).
-import { t, useT, useTn } from '../i18n';
+import { formatNumber, t, useT, useTn } from '../i18n';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
@@ -2317,7 +2317,7 @@ const Pantry = () => {
     // se preservan tal cual.
     const fmtQty = (n) => {
         const v = Number(n) || 0;
-        return Number.isInteger(v) ? String(v) : v.toLocaleString('es-DO', { maximumFractionDigits: 2 });
+        return Number.isInteger(v) ? String(v) : formatNumber(v, { maximumFractionDigits: 2 });
     };
 
     const renderRow = (item) => {
@@ -3345,7 +3345,7 @@ const Pantry = () => {
                                                                                     onClick={() => setPickerBrand(brand)}
                                                                                     style={brandPillStyle(pickerBrand === brand)}
                                                                                 >
-                                                                                    {brand}{price != null ? ` · RD$${Number(price).toLocaleString('es-DO', { maximumFractionDigits: 0 })}` : ''}
+                                                                                    {brand}{price != null ? ` · RD$${formatNumber(Number(price), { maximumFractionDigits: 0 })}` : ''}
                                                                                 </button>
                                                                             ))}
                                                                         </div>
