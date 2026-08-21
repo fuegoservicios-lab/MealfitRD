@@ -102,6 +102,33 @@ const ProtectedRoute = ({ children, landing = false }) => {
         return <Navigate to="/assessment" replace />;
     }
 
+    // [P1-ASSESSMENT-POP-DASHBOARD · 2026-08-20] Guard INVERSO del de arriba:
+    // llegada FRÍA a /assessment (POP: cold-start, URL tecleada y — el caso
+    // reportado — el CTA "Crear mi plan" del apex, que es landing ESTÁTICA sin
+    // sesión y aterriza vía window.location.replace en app.*/assessment) con el
+    // assessment YA completado → su sitio es el dashboard, no re-llenar el
+    // formulario. POP-only para NO tocar los `navigate('/assessment')` internos
+    // (renovar/regenerar desde Dashboard/History/Settings/DashboardTracking son
+    // PUSH); la exención `reload` (mismo patrón que LANDING-REFRESH-STAY abajo)
+    // conserva el F5 a mitad de una renovación. La rama tracking espeja las
+    // líneas del bloque landing-POP: perfil completo sin plan A PROPÓSITO
+    // también va al dashboard (su contador), mientras que perfil completo sin
+    // plan en modo plan SÍ se queda — el formulario es su destino real.
+    if (isOnAssessment && navigationType === 'POP') {
+        const assessNavEntry = typeof performance !== 'undefined' && typeof performance.getEntriesByType === 'function'
+            ? performance.getEntriesByType('navigation')[0]
+            : undefined;
+        if (assessNavEntry?.type !== 'reload') {
+            if (planData) {
+                return <Navigate to="/dashboard" replace />;
+            }
+            const _assessLocalPlanMode = safeLocalStorageGet('mealfit_plan_mode', null);
+            if (hasCompletedAssessment && (userProfile?.plan_mode || _assessLocalPlanMode) === 'tracking') {
+                return <Navigate to="/dashboard" replace />;
+            }
+        }
+    }
+
     // [P3-LANDING-SKIP-POP-ONLY · 2026-05-20] Redirect `/` → `/dashboard`
     // SOLO en navegación POP (cold-start, refresh, browser back/forward).
     // Navegación PUSH/REPLACE (Link click → "Inicio" del menú de cuenta,
