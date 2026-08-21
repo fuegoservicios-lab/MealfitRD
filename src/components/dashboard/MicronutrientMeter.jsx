@@ -212,6 +212,40 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
     if (!panel || !panel.length) return null;
     const nFloors = nReached + nAtt;
 
+    // [P1-MICROS-EMPTY-QUIET · 2026-08-21] Reporte VACUO: todos los valores en 0.
+    // Ocurre cuando el plan no tiene platos que medir (día pausado antes de
+    // materializar, plan en pausa) — el promedio de cero comidas es cero en los
+    // 17 micros. Renderizar el panel completo aquí es un muro de 15 tarjetas al
+    // 0% con dosis de suplementos y precauciones clínicas sobre comidas que NO
+    // existen (reportado por el dueño: «mucho contexto innecesario»). La señal
+    // es DATA-driven y no el estado de la cola: cualquier plato real aporta algo
+    // a alguno de los micros, así que todo-ceros ⇔ nada que medir. Se conserva
+    // la identidad del panel (cabecera + una línea) en vez de desaparecerlo.
+    const _allZero = panel.every((e) => !(Number(e.valor) > 0));
+    if (_allZero) {
+        return (
+            <motion.section
+                className={styles.panel}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                role="region"
+                aria-label={t('Micronutrientes')}
+            >
+                <header className={styles.head}>
+                    <span className={styles.badge} aria-hidden="true"><FlaskIcon /></span>
+                    <div className={styles.headText}>
+                        <h3 className={styles.title}>{t('Micronutrientes')}</h3>
+                        <span className={styles.sub}>{t('En espera de tus platos')}</span>
+                    </div>
+                </header>
+                <p className={styles.emptyNote}>
+                    {t('Aún no hay platos que medir. Cuando tu plan tenga comidas, aquí verás cuánto aportan a cada micronutriente.')}
+                </p>
+            </motion.section>
+        );
+    }
+
     return (
         <motion.section
             className={styles.panel}

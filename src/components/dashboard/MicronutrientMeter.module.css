@@ -206,6 +206,11 @@
 
 .disclaimer { margin: 12px 2px 2px; font-size: .68rem; line-height: 1.5; color: var(--text-muted); }
 
+/* [P1-MICROS-EMPTY-QUIET · 2026-08-21] Nota del estado compacto (reporte
+   todo-ceros: sin platos que medir). Mismos tokens muted que .disclaimer/.sub
+   — es información de espera, no un aviso. */
+.emptyNote { margin: 12px 2px 2px; font-size: .82rem; line-height: 1.55; color: var(--text-muted); }
+
 /* ---------- Chips "Al día" (expandibles → cantidad exacta) ---------- */
 .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-items: start; }
 .q {
