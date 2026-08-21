@@ -579,6 +579,18 @@ export const AssessmentProvider = ({ children }) => {
         ...(_legacySensitive || {}),
     });
 
+    // [P1-GUEST-COUNTRY-ADOPT · 2026-08-21] Espejo de `formData` para los cuerpos ASÍNCRONOS que
+    // lo leen sin querer re-ejecutarse cuando cambia: la adopción del plan de invitado (dentro de
+    // `restoreSessionData`) y el self-heal de persistencia.
+    //
+    // POR QUÉ UN REF Y NO LA DEPENDENCIA. `exhaustive-deps` pedía `formData` en esos dos hooks, y
+    // añadirlo sería literalmente peor: `formData` cambia en CADA tecla del wizard, así que
+    // `restoreSessionData` se recrearía constantemente —y de ella cuelgan otros efectos— y el
+    // self-heal se re-dispararía. Los dos cuerpos quieren el valor MÁS RECIENTE en el momento en
+    // que corren, que es exactamente lo que un ref da. Es el mismo idioma que este archivo ya usa
+    // para `session`, `planData` y `checkPlanLimit`, con el hook SSOT `useLatestRef` (P3-4).
+    const formDataRef = useLatestRef(formData);
+
     // [P1-3] Flag de hidratación pendiente del sensitive cifrado.
     // ----------------------------------------------------------------
     // El descifrado de `mealfit_form_secure` (AES-GCM con clave HKDF derivada
@@ -1114,7 +1126,7 @@ export const AssessmentProvider = ({ children }) => {
                             const _resp = await fetchWithAuth('/api/plans/adopt-guest-plan', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ plan_data: _guestPlan, form_data: formData }),
+                                body: JSON.stringify({ plan_data: _guestPlan, form_data: formDataRef.current }),
                             });
                             if (_resp.ok) {
                                 const _j = await _resp.json().catch(() => null);
@@ -1141,7 +1153,7 @@ export const AssessmentProvider = ({ children }) => {
             guestAdoptPendingRef.current = false; // [P1-GUEST-ADOPT-1] one-shot: nunca persiste cross-call
             setLoadingData(false);
         }
-    }, []);
+    }, [formDataRef]);
 
     // [P1-LOGIN-PLAN-SYNC-RETRY · 2026-07-03] Reintento manual desde el guard del
     // Dashboard cuando la sincronización del plan falló (botón "Reintentar").
@@ -1520,7 +1532,7 @@ export const AssessmentProvider = ({ children }) => {
                 const r = await fetchWithAuth('/api/plans/adopt-guest-plan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ plan_data: planData, form_data: formData }),
+                    body: JSON.stringify({ plan_data: planData, form_data: formDataRef.current }),
                 });
                 if (r.ok) {
                     const _j = await r.json().catch(() => null);
@@ -1538,7 +1550,7 @@ export const AssessmentProvider = ({ children }) => {
             }
         })();
          
-    }, [planData, userProfile]);
+    }, [planData, userProfile, formDataRef]);
 
     useEffect(() => {
         const handleAuthChange = async (currentSession) => {
