@@ -390,7 +390,12 @@ const Pantry = () => {
     // se declaran fuera de todo componente.
     const t = useT();
     const tn = useTn();
-    const { session, setPlanData, userProfile, planData } = useAssessment();
+    // [P1-BETA-PRICE-LEAKS fix · 2026-08-21] `formData` faltaba en la desestructuración
+    // y los dos POST a `/api/supermarket/match` de este fichero ya lo usaban
+    // (`country: formData?.country`). Un identificador NO DECLARADO lanza
+    // ReferenceError: el `?.` protege contra `null`/`undefined`, no contra un símbolo
+    // que no existe. Así que la ruta de marcas de la Nevera reventaba, no degradaba.
+    const { session, setPlanData, userProfile, planData, formData } = useAssessment();
     // [P1-PANTRY-LOW-BANNER-TRACKING · 2026-08-14] Mismo SSOT que la nav y el
     // Historial: el modo NO se reimplementa aqui.
     const enModoContador = isTrackingMode(userProfile, planData);
@@ -598,7 +603,10 @@ const Pantry = () => {
         } catch {
             setBrandCache(prev => ({ ...prev, [key]: { loading: false, brands: [] } }));
         }
-    }, []);
+        // [P1-BETA-PRICE-LEAKS fix · 2026-08-21] `formData?.country` es dependencia
+        // REAL desde que el POST lo envia: si el usuario cambia de pais, el match de
+        // marcas debe rehacerse o seguiria pintando los precios del pais viejo.
+    }, [formData?.country]);
 
     // [P1-PANTRY-DASH-PARITY · 2026-07-11] Cambiar la marca de un item EXISTENTE
     // (paridad con el paso 21 del wizard): PATCH etiqueta el item Y la elección

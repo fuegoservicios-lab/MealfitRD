@@ -211,7 +211,6 @@ const Recipes = () => {
             })
             .catch(() => { /* best-effort: sin datos, el vacío cae al copy estático */ });
         return () => controller.abort();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planData?.id, _genStatusForChunks]);
 
     // Scroll to top on mount (cuando se navega desde BottomTabBar o sidebar)
