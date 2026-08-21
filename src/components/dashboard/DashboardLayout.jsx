@@ -1,4 +1,5 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { nativeHidesCommerce } from '../../config/platform';
 import PropTypes from 'prop-types';
 // [P2-MOTION-REDUCED-USER · 2026-07-09] framer-motion respeta prefers-reduced-
 // motion del SO en TODO el árbol del dashboard (el kill-switch CSS de index.css
@@ -269,7 +270,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         if (item.locked) {
                             return (
                                 <Link
-                                    to="/dashboard/upgrade"
+                                    /* [P1-IOS-NATIVE-SHELL] en nativo el candado no enlaza al
+                                       comercio (Apple 3.1.1): queda inerte en el dashboard. */
+                                    to={nativeHidesCommerce() ? '/dashboard' : '/dashboard/upgrade'}
                                     key={item.path}
                                     className={styles.navItem}
                                     onClick={closeMenu}
@@ -325,13 +328,15 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                                 planAccessory={null}
                                 /* [P3-CTA-MEJORAR-PLAN · 2026-06-30] "Mejorar plan" invita a subir
                                    de tier (Gratuito/Básico/Plus); Ultra ya está en el tope → "Ver planes". */
-                                viewPlansLabel={isUltraTier ? t('Ver planes') : t('Mejorar plan')}
+                                /* [P1-IOS-NATIVE-SHELL · 2026-08-21] null ⇒ AccountMenu no pinta
+                                   el CTA de planes: en la app nativa no existe comercio. */
+                                viewPlansLabel={nativeHidesCommerce() ? null : (isUltraTier ? t('Ver planes') : t('Mejorar plan'))}
                                 avatar={accountAvatarNode}
                                 subLabel={accountSubLabel}
                                 settingsSlot={isGuest ? <GuestAppearanceToggle /> : null}
                                 logoutLabel={logoutLabel}
-                                onViewPlans={() => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/upgrade'); }}
-                                onViewPlansHover={() => prefetchRoute('/dashboard/upgrade')}
+                                onViewPlans={nativeHidesCommerce() ? undefined : () => { setIsAccountMenuOpen(false); closeMenu(); navigate('/dashboard/upgrade'); }}
+                                onViewPlansHover={nativeHidesCommerce() ? undefined : () => prefetchRoute('/dashboard/upgrade')}
                                 onSettings={openSettingsDialog}
                                 onSettingsHover={() => prefetchRoute('/dashboard/settings')}
                                 onLogout={() => { setIsAccountMenuOpen(false); setShowLogoutModal(true); }}

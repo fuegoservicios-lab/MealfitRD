@@ -668,3 +668,14 @@
   color: var(--mf-text); font-size: 0.82rem; font-weight: 600; line-height: 1; white-space: nowrap;
 }
 .mf-toast svg { color: var(--mf-secondary); flex-shrink: 0; }
+
+/* [P1-IOS-NATIVE-SHELL · 2026-08-21] Sign in with Apple: negro sobre blanco (guía de Apple). */
+.mf-btn--apple {
+    background: #000;
+    color: #fff;
+    border: 1px solid #000;
+    margin-top: 0.5rem;
+}
+.mf-btn--apple:hover:not(:disabled) {
+    background: #1a1a1a;
+}

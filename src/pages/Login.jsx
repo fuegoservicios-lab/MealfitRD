@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { appleSignInEnabled } from '../config/platform';
 import { apexUrl } from '../config/site';
 import { authClient, sendEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -30,6 +31,15 @@ const OTP_LENGTH = 6;
 // constante local. Se movio a `config/site.js::apexUrl` cuando el pie necesito
 // lo mismo: dos helpers para «la URL de la pagina publica» es como se empieza a
 // no saber cual usar.
+
+/* ---- Logo de Apple (monocromo, como exige su guía de Sign in with Apple) ---- */
+function AppleIcon() {
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M16.365 12.77c-.02-2.27 1.855-3.36 1.94-3.41-1.06-1.55-2.705-1.76-3.29-1.785-1.4-.14-2.735.825-3.445.825-.71 0-1.805-.805-2.97-.785-1.525.025-2.935.89-3.72 2.26-1.59 2.755-.405 6.83 1.14 9.07.755 1.095 1.655 2.325 2.835 2.28 1.14-.045 1.57-.735 2.945-.735 1.375 0 1.76.735 2.965.71 1.225-.02 2-1.115 2.75-2.215.865-1.27 1.22-2.5 1.24-2.565-.025-.01-2.38-.915-2.4-3.65zM14.1 6.12c.63-.76 1.05-1.82.935-2.87-.905.035-2 .6-2.65 1.36-.58.67-1.09 1.75-.955 2.78 1.01.08 2.04-.515 2.67-1.27z" />
+        </svg>
+    );
+}
 
 /* ---- SVG de Google ORIGINAL (los 4 colores) — a propósito, es mejor que el placeholder ---- */
 function GoogleIcon() {
@@ -270,7 +280,10 @@ const Login = () => {
         }
     };
 
-    const handleGoogle = async () => {
+    // [P1-IOS-NATIVE-SHELL · 2026-08-21] Un solo handler OAuth parametrizado por provider:
+    // Sign in with Apple es OBLIGATORIO en la App Store si se ofrece Google (guideline 4.8).
+    // Mismo flujo Better Auth (`sign-in/social`), mismo flag de retorno.
+    const handleOAuth = async (provider) => {
         if (googleLoading) return;
         setGoogleLoading(true);
         setError(null);
@@ -282,7 +295,7 @@ const Login = () => {
         try { sessionStorage.setItem('mf_oauth_pending', '1'); } catch { /* noop */ }
         try {
             const { error: oauthError } = await authClient.auth.signInWithOAuth({
-                provider: 'google',
+                provider,
                 options: { redirectTo: `${window.location.origin}/dashboard` },
             });
             if (oauthError) throw oauthError;
@@ -294,6 +307,9 @@ const Login = () => {
             setGoogleLoading(false);
         }
     };
+
+    const handleGoogle = () => handleOAuth('google');
+    const handleApple = () => handleOAuth('apple');
 
     const handleGuest = async () => {
         if (guestLoading) return;
@@ -393,6 +409,14 @@ const Login = () => {
                                 <button type="button" className="mf-btn mf-btn--google" onClick={handleGoogle} disabled={googleLoading}>
                                     <GoogleIcon /> {googleLoading ? t('Conectando con Google…') : t('Continuar con Google')}
                                 </button>
+                                {/* [P1-IOS-NATIVE-SHELL] Apple exige el botón con la MISMA prominencia
+                                    que Google (4.8). Gateado por env hasta que el provider exista en
+                                    Neon Auth; sin provider, un botón que falla sería peor que ninguno. */}
+                                {appleSignInEnabled() && (
+                                    <button type="button" className="mf-btn mf-btn--apple" onClick={handleApple} disabled={googleLoading}>
+                                        <AppleIcon /> {t('Continuar con Apple')}
+                                    </button>
+                                )}
 
                                 <div className="mf-divider"><span>o</span></div>
 

@@ -244,6 +244,11 @@ export default function AccountMenu({
             {planAccessory && <span className={styles.planAccessory}>{planAccessory}</span>}
           </span>
         </div>
+        {/* [P1-IOS-NATIVE-SHELL · 2026-08-21] Sin handler no hay CTA: en la app nativa
+            DashboardLayout no pasa `onViewPlans` porque Apple (3.1.1) prohíbe enlazar al
+            comercio. OJO: `viewPlansLabel={null}` NO basta — el `??` de arriba lo rellena
+            con «Ver planes». El gate es la AUSENCIA del handler. */}
+        {typeof onViewPlans === 'function' && (
         <button
           type="button"
           className={styles.verBtn}
@@ -256,6 +261,7 @@ export default function AccountMenu({
           {_viewPlansLabel}
           <ChevronRight className={styles.verChevron} />
         </button>
+        )}
       </header>
 
       {/* Acciones */}

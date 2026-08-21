@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+import { nativeHidesCommerce } from '../../config/platform';
 // [POSTHOG-ANALYTICS · 2026-07-12] Evento del embudo de pago.
 import { trackEvent } from '../../utils/analytics';
 // [P2-CUSTOM-MODALS-A11Y · 2026-05-24] Hook SSOT de defenses a11y mínimas.
@@ -189,7 +190,10 @@ const PaymentModal = ({
         return actions.subscription.create(payload);
     };
 
-    if (!isOpen) return null;
+    // [P1-IOS-NATIVE-SHELL · 2026-08-21] Defensa en profundidad: aunque en nativo ninguna
+    // ruta ni CTA llega aquí, el checkout PayPal jamás se pinta dentro de la app de la
+    // App Store (Apple 3.1.1). Va DESPUÉS de los hooks para no violar sus reglas.
+    if (!isOpen || nativeHidesCommerce()) return null;
 
     return (
         <AnimatePresence>

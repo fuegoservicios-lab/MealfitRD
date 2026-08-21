@@ -31,6 +31,11 @@
     "postcss": "^8.5.23"
   },
   "dependencies": {
+    "@capacitor/camera": "^8.2.3",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/push-notifications": "^8.1.2",
     "@neondatabase/neon-js": "^0.6.2-beta",
     "@paypal/react-paypal-js": "^8.9.2",
     "@sentry/react": "^10.47.0",

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useLayoutEffect } from 'react';
+import { nativeHidesCommerce } from './config/platform';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 // [P1-TOASTER-MISSING · 2026-05-30] sonner <Toaster/> — sin él la app NO
 // renderiza ningún toast (sonner no auto-monta). Ver el render abajo.
@@ -136,6 +137,12 @@ const PrecisionPage = lazy(() => import('./pages/PrecisionPage'));
 // localhost/apex es false → comportamiento idéntico al previo. Split estilo
 // Anthropic (anthropic.com vs claude.ai) / OpenAI (openai.com vs chatgpt.com).
 const IS_APP_HOST = typeof window !== 'undefined' && /^app\./i.test(window.location.hostname);
+// [P1-IOS-NATIVE-SHELL · 2026-08-21] En la app nativa (App Store) NO existe comercio:
+// el landing, /precios y /dashboard/upgrade colapsan a /dashboard (que sin sesión ya
+// manda a /login). Se consulta UNA vez por carga; la decisión vive en
+// config/platform.js, no aquí.
+const NATIVE_NO_COMMERCE = nativeHidesCommerce();
+
 
 // [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] En el APEX (mealfitrd.com / www) solo
 // vive el MARKETING (landing + páginas legales). CUALQUIER ruta de la app
@@ -503,7 +510,7 @@ function App() {
                 entra directo a la app (→ /dashboard, ProtectedRoute decide el
                 destino real). En el apex se muestra la landing de marketing. */}
             <Route path="/" element={
-              IS_APP_HOST
+              (IS_APP_HOST || NATIVE_NO_COMMERCE)
                 ? <Navigate to="/dashboard" replace />
                 : (
                   <ProtectedRoute landing>
@@ -574,7 +581,9 @@ function App() {
                 Sigue ProtectedRoute (logged-in only) y mantiene el path
                 `/dashboard/upgrade` para no romper bookmarks. */}
             <Route path="/dashboard/upgrade" element={
-              <ProtectedRoute><Upgrade /></ProtectedRoute>
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <ProtectedRoute><Upgrade /></ProtectedRoute>
             } />
 
             {/* [P2-PRICING-CTA-NO-CHECKOUT · 2026-08-16] Alias `/upgrade`. El
@@ -621,7 +630,11 @@ function App() {
             <Route path="/motor" element={<Layout><Engine /></Layout>} />
 
             {/* [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Precios (pública, indexable, en el apex). */}
-            <Route path="/precios" element={<Layout><PricingPage /></Layout>} />
+            <Route path="/precios" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><PricingPage /></Layout>
+            } />
 
             {/* [P3-DETAIL-PAGES · 2026-06-29] Detalle de las 3 secciones (públicas, indexables, apex). */}
             <Route path="/como-funciona" element={<Layout><HowItWorksPage /></Layout>} />

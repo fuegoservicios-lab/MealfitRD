@@ -56,7 +56,8 @@ export default defineConfig([
   // checkout limpio `coverage/` no existe, así que el gate medía 180 y el
   // desarrollador veía 182. Un techo de warnings sólo sirve si las dos orillas
   // cuentan lo mismo; si no, cada recalibración nace desfasada.
-  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp', 'ds-bundle', 'coverage']),
+  // [P1-IOS-NATIVE-SHELL] 'ios' es el proyecto Xcode generado por Capacitor: no es JS nuestro.
+  globalIgnores(['dist', 'dev-dist', 'scratch', 'tmp', 'ds-bundle', 'coverage', 'ios']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
