@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 // que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
-import { formatDate, formatNumber, t, tn, useI18n, useT } from '../i18n';
+import { formatDate, formatNumber, i18nKey, t, tn, useI18n, useT } from '../i18n';
 // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
 // Sin el símbolo, `currencyOptionsForCountry(pais, COUNTRY_SYSTEM_UI)` NO habría fallado:
 // `undefined` es falsy, así que habría devuelto [DOP, USD] en silencio — el bug intacto con
@@ -171,7 +171,7 @@ import { useLatestRef } from '../hooks/useLatestRef';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { glossClinicalNote } from '../utils/clinicalNoteGloss';
-import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty } from '../utils/shoppingHelpers';
+import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
@@ -3493,18 +3493,20 @@ const DashboardInner = () => {
             const consData = {};
             sourceIngredients.forEach((item, index) => {
                 let name = '';
-                let cat = t('🛒 OTROS');
+                // [P2-I18N-PDF-CATEGORIAS · 2026-08-22] `i18nKey`, no `t`: `cat` agrupa los
+                // ítems y alimenta dos comparaciones literales. Se traduce al IMPRIMIR.
+                let cat = i18nKey('🛒 OTROS');
                 let qtyStr = t('Al gusto');
 
                 if (typeof item === 'object' && item !== null) {
                     // Nivel 3: Consumir display_category del backend (Single Source of Truth)
                     name = item.name || item.display_name || item.item_name || t('Desconocido');
-                    cat = item.display_category || item.category || t('🛒 OTROS');
+                    cat = item.display_category || item.category || i18nKey('🛒 OTROS');
                     // [P2-SHOPLIST-BETA-POLISH · 2026-08-18] Los planes YA persistidos traen el
                     // label interno viejo del backend; los nuevos llegan con el pasillo real
                     // (Vegetales/Frutas/...). Este remap es display-only para los legacy — sin
                     // él, el usuario ve una sección llamada «CATÁLOGO SIN PRECIO».
-                    if (cat === 'CATÁLOGO SIN PRECIO') cat = t('🌍 De tu país');
+                    if (cat === 'CATÁLOGO SIN PRECIO') cat = i18nKey('🌍 De tu país');
 
                     if (item.display_qty) {
                         // Nivel 3: display_qty ya viene con pluralización correcta del backend.
@@ -3729,6 +3731,18 @@ const DashboardInner = () => {
             // Generar contenido HTML estilizado para el PDF
             const element = document.createElement('div');
 
+            // [P2-I18N-PDF-LEYENDA-UD · 2026-08-22] La leyenda decodifica lo que el documento
+            // IMPRIME, así que sus dos ejemplos salen de las MISMAS llamadas que traducen las
+            // líneas de la lista, interpolados. Escritos a mano divergen sin que nada lo note:
+            // pt-BR prometía «Un.» y fr-FR «U.» para una abreviatura que sale «Ud.» en los
+            // cuatro idiomas, y el ejemplo decía «2 Cabezas» donde la línea ya ponía «2 Heads».
+            const _leyendaUd = t('Ud.');
+            const _leyendaCabezasRaw = t('cabezas');
+            const _leyendaCabezas = _leyendaCabezasRaw
+                ? _leyendaCabezasRaw.charAt(0).toUpperCase() + _leyendaCabezasRaw.slice(1)
+                : _leyendaCabezasRaw;
+
+
             let htmlContent = `
             <div style="font-family: 'Inter', system-ui, sans-serif; padding: ${rootPadding}; color: #1f2937; background-color: #ffffff;">
                 <!-- Header Box -->
@@ -3759,7 +3773,7 @@ const DashboardInner = () => {
                              almacenamiento' (P3-SHOPPING-DISCLAIMER-EXPAND),
                              'Estables (aceite, vinagre, miel, especias)' +
                              '1 botella o sobre rinde' (P3-STABLES-NO-SCALE-UX). -->
-                        ${t('<strong>Smart Engine:</strong> cantidades exactas según empaques del mercado local — ajústalas a tu inventario. <strong>Ud.</strong> = unidad · <strong>~</strong> = conversión aproximada (<em>2 Cabezas ≈ 2.2 lbs</em>).')}
+                        ${t('<strong>Smart Engine:</strong> cantidades exactas según empaques del mercado local — ajústalas a tu inventario. <strong>{ud}</strong> = unidad · <strong>~</strong> = conversión aproximada (<em>2 {cabezas} ≈ 2.2 lbs</em>).', { ud: _leyendaUd, cabezas: _leyendaCabezas })}
                         ${isUltraDense ? '' : `
                         <span style="display: block; margin-top: 2px; color: #475569;">
                             ${t('Algunas varían por <strong>realismo de almacenamiento</strong> (hierbas, lácteos, cítricos). <strong>Estables (aceite, vinagre, miel, especias):</strong> misma cantidad en ciclos de 7/15/30 días.')}
@@ -3888,7 +3902,7 @@ const DashboardInner = () => {
                     <div style="background-color: #ffffff; border: 1px solid #f3f4f6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); margin-bottom: ${catMargin}; ${cardStyle}">
                         <div style="background-color: #f8fafc; padding: ${catHeaderPadding}; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
                             ${icon}
-                            <h3 style="margin: 0; font-size: ${catTitleFont}; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(cat)}</h3>
+                            <h3 style="margin: 0; font-size: ${catTitleFont}; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(glossShoppingCategory(cat, t))}</h3>
                         </div>
                         <ul style="${ulStyle}">
                     `;

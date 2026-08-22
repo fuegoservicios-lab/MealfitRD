@@ -129,7 +129,10 @@ describe('P1-1 — Dashboard.jsx aplica escapeHtml en el htmlContent del PDF', (
         // La interpolación cruda `${cat}` (sin escapar) ya NO debe aparecer.
         // Filtros: solo dentro del header del card.
         // Buscar la interpolación correcta `${escapeHtml(cat)}`.
-        expect(codeOnly).toMatch(/\$\{\s*escapeHtml\(\s*cat\s*\)\s*\}/);
+        // [P2-I18N-PDF-CATEGORIAS · 2026-08-22] Reanclado a la PROPIEDAD: que `cat` pase por
+        // `escapeHtml`. El rótulo ahora se traduce al imprimir --`escapeHtml(glossShoppingCategory(
+        // cat, t))`-- y el escape sigue por fuera, que es lo único que este test protege.
+        expect(codeOnly).toMatch(/\$\{\s*escapeHtml\([^}]*\bcat\b[^}]*\)\s*\}/);
         // Y el patrón roto `${cat}` (sin escapeHtml) NO debe estar en código.
         expect(codeOnly).not.toMatch(/h3[^>]*>\$\{cat\}<\/h3>/);
     });

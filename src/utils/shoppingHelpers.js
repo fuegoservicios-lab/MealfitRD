@@ -1,3 +1,5 @@
+import { i18nKey } from '../i18n';
+
 // ============================================================
 // [P0-2] Parser robusto de `market_qty` para items del shopping list.
 // ------------------------------------------------------------
@@ -171,7 +173,88 @@ export const glossShoppingItemName = (name, displayNameEn, locale) => {
     if (typeof displayNameEn !== 'string' || displayNameEn.trim() === '') return spanishName;
     const englishGloss = displayNameEn.trim();
     if (!spanishName) return englishGloss;
+    // [P3-I18N-PDF-GLOSS-TAUTOLOGICO · 2026-08-22] «Cilantro (Cilantro)».
+    //
+    // El gloss existe para decir en inglés lo que el nombre español no dice. Cuando son la
+    // MISMA palabra no añade nada y encima le quita sitio a la línea, que en el PDF compite
+    // con la cantidad. MEDIDO sobre `master_ingredients`: 23 de 347 filas (6,6 %).
+    //
+    // La comparación va sin acentos y sin caja a propósito: **17 de esas 23 sólo se
+    // diferencian en una tilde** --Salmón/Salmon, Melón/Melon, Kétchup/Ketchup,
+    // Jícama/Jicama, Kéfir/Kefir--, que es justo lo que un `===` no habría visto. Gana el
+    // nombre ESPAÑOL, que es el que el motor usa como identificador de punta a punta.
+    if (_sinAcentos(englishGloss) === _sinAcentos(spanishName)) return spanishName;
     return `${englishGloss} (${spanishName})`;
+};
+
+/** Minúsculas sin diacríticos, para comparar dos grafías de la misma palabra. */
+const _sinAcentos = (s) =>
+    String(s ?? '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .trim()
+        .toLowerCase();
+
+// ============================================================
+// [P2-I18N-PDF-CATEGORIAS · 2026-08-22] Los rótulos de sección del PDF.
+//
+// Las cabeceras de la lista --PROTEÍNAS, VEGETALES, DESPENSA-- salían en español crudo justo
+// debajo de banners que sí se traducen. Vienen de `display_category`, que compone el backend.
+//
+// SE TRADUCE AL IMPRIMIR, NUNCA EN EL DATO, y esa distinción es lo único que hace el arreglo
+// seguro: `cat` no es sólo un rótulo, es la CLAVE con la que se agrupan los ítems en
+// `perishables`/`stables`, la que ordena las secciones, y la que consultan dos comparaciones
+// literales (`'CATÁLOGO SIN PRECIO'` y el heurístico de subcadena `PERISHABLE_PREFIXES`, que
+// decide si un alimento va a la sección de 7 días o a la de despensa). Traducirla en el
+// `consData` habría mandado la carne a la sección equivocada del documento con el que alguien
+// hace la compra, y sólo para quien NO habla español.
+//
+// (Medido: `is_perishable` viene como bool en los 3.558 ítems de los 43 planes vivos, así que
+// ese heurístico hoy es inalcanzable. Da igual: sigue en el código, y una defensa que depende
+// de que un dato nunca falte no es una defensa.)
+//
+// Vocabulario CERRADO, espejo de `DISPLAY_CATEGORY_MAP` + `_get_display_category` en
+// `backend/shopping_calculator.py`. Se resuelve sin acentos ni caja porque conviven las dos
+// grafías en producción (`VEGETALES` en 750 ítems y `Vegetales` en 2, de las filas beta).
+// La cabecera lleva `text-transform: uppercase`, así que la caja de la traducción da igual.
+// ============================================================
+
+const _CATEGORIAS_DE_LISTA = {
+    proteinas: i18nKey('PROTEÍNAS'),
+    lacteos: i18nKey('LÁCTEOS'),
+    frutas: i18nKey('FRUTAS'),
+    vegetales: i18nKey('VEGETALES'),
+    viveres: i18nKey('VÍVERES'),
+    despensa: i18nKey('DESPENSA'),
+    especias: i18nKey('ESPECIAS'),
+    suplementos: i18nKey('SUPLEMENTOS'),
+    otros: i18nKey('OTROS'),
+    '🛒 otros': i18nKey('🛒 OTROS'),
+    '🚨 compra urgente': i18nKey('🚨 Compra Urgente'),
+    'catalogo sin precio': i18nKey('CATÁLOGO SIN PRECIO'),
+    '🌍 de tu pais': i18nKey('🌍 De tu país'),
+};
+
+/** Las claves del vocabulario, para el guard de paridad con el backend. */
+export const CATEGORIAS_DE_LISTA_CLAVES = Object.values(_CATEGORIAS_DE_LISTA);
+
+/**
+ * `glossShoppingCategory(categoria, t)` -> string
+ *
+ * DISPLAY-ONLY. Una categoría desconocida --un pasillo nuevo del backend-- pasa TAL CUAL:
+ * una sección en español es una degradación; una sección sin título es un documento roto.
+ */
+export const glossShoppingCategory = (categoria, t) => {
+    if (typeof categoria !== 'string' || !categoria.trim()) return categoria;
+    if (typeof t !== 'function') return categoria;
+    const clave = _CATEGORIAS_DE_LISTA[_sinAcentos(categoria)];
+    if (!clave) return categoria;
+    try {
+        const trad = t(clave);
+        return typeof trad === 'string' && trad ? trad : categoria;
+    } catch {
+        return categoria;
+    }
 };
 
 // ============================================================
@@ -227,6 +310,23 @@ const _ENVASES_TRADUCIBLES = (t) => ({
     barrita: t('barrita'), barritas: t('barritas'),
     unidad: t('unidad'), unidades: t('unidades'),
     'cartón': t('cartón'), carton: t('cartón'), cartones: t('cartones'),
+    // [P2-I18N-PDF-LEYENDA-UD · 2026-08-22] Los cuatro que el primer espejo se dejó, medidos
+    // sobre los 43 planes vivos: `diente(s)` y `taza(s)` están en el `PLURALS` del backend, y
+    // `malla`/`bandeja` llegan desde las presentaciones de `supermarket_products`.
+    diente: t('diente'), dientes: t('dientes'),
+    taza: t('taza'), tazas: t('tazas'),
+    malla: t('malla'), mallas: t('mallas'),
+    bandeja: t('bandeja'), bandejas: t('bandejas'),
+    cda: t('cda'), cdas: t('cdas'),
+    cdta: t('cdta'), cdtas: t('cdtas'),
+});
+
+// Abreviaturas de unidad: van con PUNTO, así que no las alcanza el barrido de sustantivos
+// --su regex captura sólo letras-- y se quedaban en español las cuatro veces que aparecen.
+// `Ud.`/`Uds.` es la TERCERA forma más frecuente de la flota: 524 de 3.558 ítems.
+const _ABREVIATURAS_DE_UNIDAD = (t) => ({
+    'ud.': t('Ud.'),
+    'uds.': t('Uds.'),
 });
 
 // Símbolos internacionales: NO se traducen. «lbs» es lo que dice el estante en RD, y
@@ -253,6 +353,23 @@ export const glossShoppingQty = (displayQty, t) => {
     } catch {
         return displayQty;  // una `t` rota no puede dejar la lista sin cantidades
     }
+
+    // 0. La abreviatura de unidad, que lleva punto. Va ANTES del barrido de sustantivos
+    //    porque aquél captura sólo letras y dejaría `Ud.` intacto. Misma ancla al principio.
+    let abreviaturas;
+    try {
+        abreviaturas = _ABREVIATURAS_DE_UNIDAD(t);
+    } catch {
+        abreviaturas = {};
+    }
+    out = out.replace(
+        /^(\s*[\d]+(?:[.,][\d]+)?\s+)(Uds?\.)/u,
+        (todo, cantidad, abrev) => {
+            const trad = abreviaturas[abrev.toLowerCase()];
+            if (!trad || trad === abrev) return todo;
+            return cantidad + trad;
+        },
+    );
 
     // 1. El sustantivo de envase que sigue a la cantidad. Anclado al PRINCIPIO, así que no
     //    puede alcanzar nada de dentro del paréntesis.
