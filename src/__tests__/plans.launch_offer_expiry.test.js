@@ -47,6 +47,60 @@ describe('[P2-LANDING-COPY-TRUTH] caducidad de la oferta de lanzamiento', () => 
         expect(isLaunchOfferActive(enRD('2026-10-01T12:00:00'))).toBe(false);
     });
 
+    // ── [P3-LAUNCH-OFFER-LOCAL-DAY · 2026-08-22] El día es el DEL USUARIO ──────────────────
+    //
+    // La caducidad estaba anclada a las 23:59:59 de RD para todo el mundo, y eso rompe en la
+    // dirección que el comentario del propio knob dice querer evitar: para quien vive al OESTE de
+    // RD la oferta muere ANTES de que acabe su día 15. En California (UTC−7) se apaga a las 19:59
+    // del 15 mientras las tarjetas siguen diciendo «sube el 15 de septiembre» — cuatro horas de
+    // urgencia que el copy promete y el código no da. EE. UU. es uno de los seis países del
+    // selector.
+    //
+    // Al ESTE pasa lo contrario y es benigno: un español la conserva hasta las 05:59 del 16. Pero
+    // «sube el 15» tampoco es cierto ahí, así que la regla honesta es la misma para todos: la
+    // oferta vive mientras la fecha LOCAL del usuario no pase del plazo.
+    //
+    // El huso se INYECTA (2º parámetro) en vez de leerse del reloj del runner. Es la lección de
+    // `test_el_signo_es_el_de_getTimezoneOffset`: un caso cuyo resultado depende de dónde corra no
+    // es una defensa, es un intermitente.
+    const enHuso = (iso, offsetMin) => {
+        // `iso` es hora LOCAL del usuario; se convierte al instante absoluto correspondiente.
+        const abs = Math.abs(offsetMin);
+        const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+        const mm = String(abs % 60).padStart(2, '0');
+        // getTimezoneOffset: POSITIVO = OESTE, así que UTC−4 (RD, 240) es el sufijo `-04:00`.
+        return new Date(`${iso}${offsetMin >= 0 ? '-' : '+'}${hh}:${mm}`);
+    };
+
+    const RD = 240;        // UTC−4
+    const PACIFICO = 420;  // UTC−7 (California en septiembre)
+    const MADRID = -120;   // UTC+2 (España en verano)
+
+    it('el usuario de California la conserva TODO su día 15 — el caso que la ancla a RD rompía', () => {
+        // 20:00 del 15 en California = 23:00 del 15 en RD (todavía viva por casualidad), pero
+        // 23:30 del 15 en California = 02:30 del 16 en RD: con el ancla dominicana, muerta.
+        expect(isLaunchOfferActive(enHuso('2026-09-15T23:30:00', PACIFICO), PACIFICO)).toBe(true);
+    });
+
+    it('y le vence en cuanto empieza SU día 16', () => {
+        expect(isLaunchOfferActive(enHuso('2026-09-16T00:30:00', PACIFICO), PACIFICO)).toBe(false);
+    });
+
+    it('el usuario de Madrid tampoco la arrastra hasta su día 16', () => {
+        // Con el ancla dominicana la conservaba hasta las 05:59 del 16 en Madrid.
+        expect(isLaunchOfferActive(enHuso('2026-09-16T00:30:00', MADRID), MADRID)).toBe(false);
+    });
+
+    it('el dominicano ve exactamente lo de siempre — byte-identidad de conducta', () => {
+        expect(isLaunchOfferActive(enHuso('2026-09-15T23:59:00', RD), RD)).toBe(true);
+        expect(isLaunchOfferActive(enHuso('2026-09-16T00:01:00', RD), RD)).toBe(false);
+    });
+
+    it('sin huso inyectado sigue funcionando (los dos call sites llaman sin argumentos)', () => {
+        // No se afirma el veredicto —depende del reloj— sino que no revienta y decide algo.
+        expect(typeof isLaunchOfferActive()).toBe('boolean');
+    });
+
     it('el interruptor manual sigue mandando dentro del plazo', () => {
         // Apagar antes de tiempo tiene que seguir siendo posible: la fecha es un
         // techo automático, no un sustituto del control del dueño.

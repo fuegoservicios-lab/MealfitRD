@@ -224,12 +224,27 @@ export const LAUNCH_OFFER = {
     futureMonthly: { basic: '14.99', plus: '29.99', ultra: '69.99' },
 };
 
-// La oferta vence al FINAL del día 15 en República Dominicana (UTC−4, sin horario
-// de verano). El offset es load-bearing y no cosmético: `new Date('2026-09-15')`
-// se interpreta como medianoche UTC, que son las 20:00 del día 14 en RD — la
-// urgencia moriría a media tarde de la víspera. Es el mismo «¿día de quién?» que
-// ya se pagó en P1-AGENT-SESSION-DAY.
-const RD_UTC_OFFSET = '-04:00';
+// [P3-LAUNCH-OFFER-LOCAL-DAY · 2026-08-22] La oferta vence al final del día 15
+// DEL USUARIO, no del de República Dominicana.
+//
+// Estaba anclada a las 23:59:59 de RD (UTC−4) para todo el mundo, y eso rompía
+// justo en la dirección que la advertencia de honestidad de arriba dice querer
+// evitar: al OESTE de RD la urgencia moría ANTES de que acabase el día que las
+// tarjetas anuncian. En California (UTC−7) se apagaba a las 19:59 del 15 con el
+// copy diciendo «sube el 15 de septiembre» — cuatro horas prometidas y no dadas.
+// EE. UU. es uno de los seis países del selector. Al ESTE pasaba lo contrario y
+// era benigno (un español la conservaba hasta las 05:59 del 16), pero «sube el
+// 15» tampoco era cierto ahí.
+//
+// El «¿día de quién?» sigue siendo el punto —la lección de P1-AGENT-SESSION-DAY—;
+// lo que cambia es la respuesta: el del usuario. `new Date('2026-09-15')` sigue
+// siendo medianoche UTC, así que la comparación NO se hace con `Date.parse` de
+// una cadena con sufijo fijo sino sobre la fecha local derivada del huso.
+//
+// El huso se puede INYECTAR (2º parámetro) para que los tests no dependan del
+// reloj de la máquina que los corre: un caso cuyo veredicto cambia según dónde
+// corra no es una defensa, es un intermitente (test_el_signo_es_el_de_
+// getTimezoneOffset lo pagó en el backend).
 
 /**
  * ¿Sigue viva la oferta de lanzamiento?
@@ -237,11 +252,16 @@ const RD_UTC_OFFSET = '-04:00';
  * `now` se inyecta para que el guard pueda probar el antes y el después sin
  * tocar el reloj del sistema.
  */
-export function isLaunchOfferActive(now = new Date()) {
+export function isLaunchOfferActive(now = new Date(), tzOffsetMin = null) {
     if (!LAUNCH_OFFER.active) return false;
-    const vence = Date.parse(`${LAUNCH_OFFER.deadlineISO}T23:59:59${RD_UTC_OFFSET}`);
-    if (Number.isNaN(vence)) return false; // fecha ilegible ⇒ no anunciamos urgencia
-    return now.getTime() <= vence;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(LAUNCH_OFFER.deadlineISO || ''))) return false;
+    // Convención `getTimezoneOffset()`: POSITIVO = OESTE de UTC (RD = 240). La hora local es
+    // `utc − offset`, así que desplazar el instante y leer su parte de fecha en UTC da la fecha
+    // LOCAL del usuario sin depender del huso del proceso.
+    const off = Number.isFinite(tzOffsetMin) ? tzOffsetMin : now.getTimezoneOffset();
+    const local = new Date(now.getTime() - off * 60000);
+    if (Number.isNaN(local.getTime())) return false; // fecha ilegible ⇒ no anunciamos urgencia
+    return local.toISOString().slice(0, 10) <= LAUNCH_OFFER.deadlineISO;
 }
 
 export default ANNUAL_DISABLED_TIERS;

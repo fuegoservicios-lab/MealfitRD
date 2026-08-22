@@ -21,7 +21,7 @@
  *   1. `apexUrl()` en nativo devuelve el apex ABSOLUTO aunque el host sea localhost.
  *   2. Ningún enlace legal del dashboard es relativo: todos pasan por `apexUrl()`.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
