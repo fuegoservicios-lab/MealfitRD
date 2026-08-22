@@ -93,7 +93,22 @@ workflows:
       - name: Perfiles de firma desde la API key (decisión 3)
         # `--create` genera el certificado de distribución y el perfil App Store si no
         # existen; en builds siguientes los reutiliza. Sin Mac ni Keychain local.
+        #
+        # [Build #3, 2026-08-22] «Cannot save Signing Certificates without certificate
+        # private key». Para CREAR un certificado hace falta una clave RSA con la que
+        # generar la solicitud (CSR): la API key de Apple AUTORIZA, no firma. La clave
+        # vive en la env var secreta CERTIFICATE_PRIVATE_KEY (grupo `default`), que la
+        # CLI de Codemagic lee sola. Se genera una vez (`openssl genrsa 2048`) y no es
+        # un .p12: es la semilla con la que Codemagic fabrica los certificados.
+        #
+        # `set -e`: sin él, el fetch falló en la línea 0 y el paso salió en VERDE; el
+        # error apareció dos pasos después, en Xcode, disfrazado de «requires a
+        # provisioning profile».
         script: |
+          set -e
+          if [ -z "$CERTIFICATE_PRIVATE_KEY" ]; then
+            echo "ERROR: falta CERTIFICATE_PRIVATE_KEY (env var secreta, grupo default)"; exit 1
+          fi
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
