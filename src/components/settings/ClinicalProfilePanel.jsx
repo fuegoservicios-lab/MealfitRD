@@ -21,6 +21,9 @@ import { useAssessment } from '../../context/AssessmentContext';
 import useAutoguardado from '../../hooks/useAutoguardado';
 import { useT } from '../../i18n';
 import styles from './SuperPersonalizationPanel.module.css';
+// [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
+// en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
+import { mensajeDeError } from '../../utils/errorCopy';
 
 const ENDPOINT = '/api/user/preferences/clinical-profile';
 const MAX_FREETEXT = 1500;
@@ -198,7 +201,7 @@ export default function ClinicalProfilePanel({ onSaved, onEstado }) {
             // arregle volverá a intentarlo solo.
             const err = await res.json().catch(() => null);
             fueRangoRef.current = true;
-            toast.error(err?.detail || t('Revisa los valores: hay alguno fuera de rango.'));
+            toast.error(mensajeDeError(err, t('Revisa los valores: hay alguno fuera de rango.'), t));
             throw new Error('422');
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

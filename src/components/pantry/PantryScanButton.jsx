@@ -51,6 +51,9 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 // nacer una segunda copia. Lo que sigue viviendo aquí es lo propio de la Nevera.
 import CameraViewfinder from '../common/CameraViewfinder';
 import { useT, useTn } from '../../i18n';
+// [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
+// en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
+import { mensajeDeError } from '../../utils/errorCopy';
 
 const _apiJson = async (path, options = {}) => {
     const resp = await fetchWithAuth(path, options);
@@ -152,7 +155,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
             });
             const data = await resp.json().catch(() => null);
             if (!resp.ok) {
-                toast.error(data?.detail || t('No pudimos analizar la foto.'));
+                toast.error(mensajeDeError(data, t('No pudimos analizar la foto.'), t));
                 return;
             }
             const items = (data?.items || []).map(it => ({

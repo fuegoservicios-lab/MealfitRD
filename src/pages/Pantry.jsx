@@ -41,6 +41,9 @@ import fstyles from './Pantry.fridge.module.css';
 // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Layout móvil dedicado (tarjeta por
 // alimento) — se elige por breakpoint JS, no por container query.
 import mstyles from './Pantry.mobileFridge.module.css';
+// [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
+// en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
+import { mensajeDeError } from '../utils/errorCopy';
 
 // [P1-NEON-DB-MIGRATION · 2026-06-12] Helper de transporte: fetchWithAuth +
 // parse JSON + throw en non-2xx con `status`/`detail` del backend. Los
@@ -1259,7 +1262,7 @@ const Pantry = () => {
             const data = await res.json().catch(() => null);
             if (!res.ok || !data?.success) {
                 toast.error(t('No se pudo actualizar'), {
-                    description: data?.detail || t('Inténtalo de nuevo en un momento.'),
+                    description: mensajeDeError(data, t('Inténtalo de nuevo en un momento.'), t),
                 });
                 return;
             }

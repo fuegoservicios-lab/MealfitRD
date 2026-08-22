@@ -23,6 +23,9 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 // para los tres componentes de este archivo. Los mensajes de error que solo
 // alimentan un `console.*` o un `error.code` NO se traducen: nadie los lee.
 import { t, useT, useTn, useI18n } from '../i18n';
+// [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
+// en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
+import { mensajeDeError } from '../utils/errorCopy';
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
@@ -2000,7 +2003,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                 const err = await res.json().catch(() => ({}));
                 import('sonner').then(({ toast }) => {
                     toast.error(t('No se pudo iniciar la regeneración simplificada'), {
-                        description: err.detail || t('Inténtalo de nuevo en unos segundos.'),
+                        description: mensajeDeError(err, t('Inténtalo de nuevo en unos segundos.'), t),
                     });
                 });
             }

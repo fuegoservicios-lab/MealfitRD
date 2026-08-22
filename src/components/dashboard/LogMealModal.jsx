@@ -36,6 +36,9 @@ import { getMealTypes, getMealTypeExtra, clampMacro } from './mealLogShared';
 import MacroInput from '../common/MacroInput';
 import { useT } from '../../i18n';
 import styles from './LogMealModal.module.css';
+// [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
+// en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
+import { mensajeDeError } from '../../utils/errorCopy';
 
 const _MACRO_CLASSES = {
     field: styles.macroField,
@@ -162,7 +165,7 @@ const LogMealModal = ({ onClose }) => {
             });
             const data = await res.json().catch(() => null);
             if (res.status === 422) {
-                toast.error(data?.detail || t('Hay una línea que no se pudo resolver. Revísala.'));
+                toast.error(mensajeDeError(data, t('Hay una línea que no se pudo resolver. Revísala.'), t));
                 return;
             }
             if (!res.ok || !data?.success) {

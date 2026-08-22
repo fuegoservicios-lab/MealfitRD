@@ -55,8 +55,8 @@
     "en-US": "diary", "pt-BR": "diario", "fr-FR": "journal", "it-IT": "diario"
   },
   "Meta": {
-    "nota": "El objetivo nutricional. No confundir con «metadata».",
-    "en-US": "goal", "pt-BR": "meta", "fr-FR": "objectif", "it-IT": "obiettivo"
+    "nota": "El objetivo nutricional. No confundir con «metadata». El italiano va como RAIZ («obiettiv») y no como palabra entera: el italiano pluraliza cambiando la vocal final —obiettivo/obiettivi— asi que exigir el singular exacto marcaba como desvio una traduccion correcta. El ingles, el portugues y el frances pluralizan anadiendo -s, y ahi el singular sigue siendo subcadena del plural.",
+    "en-US": "goal", "pt-BR": "meta", "fr-FR": "objectif", "it-IT": "obiettiv"
   },
   "Créditos": { "en-US": "credits", "pt-BR": "creditos", "fr-FR": "credits", "it-IT": "crediti" },
   "Presupuesto": { "en-US": "budget", "pt-BR": "orcamento", "fr-FR": "budget", "it-IT": "budget" },
