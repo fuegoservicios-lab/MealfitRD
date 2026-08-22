@@ -155,18 +155,34 @@ describe('[P1-I18N-DASHBOARD] carga de catálogo', () => {
         // seco chocaba con «Alacena», que es la otra pestaña de la misma pantalla:
         // los dos vacíos salían idénticos carácter a carácter.
         //
-        // El italiano se queda en «Dispensa» A PROPÓSITO y no es un olvido: en
-        // italiano `dispensa` es femenino y `frigo` masculino, así que cambiar el
-        // término descuadra artículos y adjetivos en las 98 cadenas que lo mencionan
-        // («La tua frigo è vuota»). Se intentó por regex y salieron cosas peores
-        // («nella tuo frigo»). Queda como gap con nombre propio, para una pasada que
-        // revise cadena por cadena. Un término correcto con gramática rota se lee
-        // peor que un término impreciso bien escrito.
+        // [P2-I18N-GLOSARIO-ITALIANO · 2026-08-22] EL APLAZAMIENTO ITALIANO, CERRADO.
+        //
+        // Aquí decía que el italiano se quedaba en «Dispensa» a propósito, porque
+        // `dispensa` es femenino y `frigo` masculino y cambiarlo descuadra artículos y
+        // adjetivos en las 98 cadenas que lo mencionan. Se intentó por regex y salió
+        // peor («nella tuo frigo», 45 residuos), y quedó anotado «para una pasada que
+        // revise cadena por cadena».
+        //
+        // Esa pasada es esta. Lo que faltaba no era paciencia: era ENUMERAR. Se
+        // extrajeron las 46 formas que existen de verdad alrededor de «dispensa» (109
+        // apariciones) y se sustituyeron de MÁS LARGA A MÁS CORTA. El fallo anterior fue
+        // tratar «preposición + posesivo + nombre» como dos sustituciones, y en italiano
+        // es una: `nella tua Dispensa` → `nel tuo Frigo`, no `nella` + `tuo frigo`.
+        //
+        // 104 cadenas, cero residuos y cero concordancias imposibles (verificado con un
+        // detector de las combinaciones que no pueden existir: `nella tuo`, `la mio`,
+        // `il tua`…). El alcance se acotó a las claves cuya CLAVE ESPAÑOLA dice «Nevera»:
+        // las que dicen «Despensa» siguen en «dispensa», que ahí es lo correcto.
+        //
+        // Y «Alacena» pasa a «Pantry»/«Despensa»/«Garde-manger»/«Dispensa», alineada con
+        // «Despensa»: son la MISMA zona —`getTempZones` la marca como `'seco'` y la
+        // categoría en BD es `DESPENSA Y GRANOS`— y tenían dos nombres distintos por
+        // idioma. «Credenza» era además un mueble de comedor.
         const esperado = {
-            'en-US': { 'Guardar': 'Save', 'Idioma': 'Language', 'Nevera': 'Fridge', 'Alacena': 'Cupboard' },
-            'pt-BR': { 'Guardar': 'Salvar', 'Nevera': 'Geladeira', 'Alacena': 'Armário' },
+            'en-US': { 'Guardar': 'Save', 'Idioma': 'Language', 'Nevera': 'Fridge', 'Alacena': 'Pantry' },
+            'pt-BR': { 'Guardar': 'Salvar', 'Nevera': 'Geladeira', 'Alacena': 'Despensa' },
             'fr-FR': { 'Guardar': 'Enregistrer', 'Idioma': 'Langue', 'Nevera': 'Frigo' },
-            'it-IT': { 'Guardar': 'Salva', 'Historial': 'Cronologia', 'Nevera': 'Dispensa' },
+            'it-IT': { 'Guardar': 'Salva', 'Historial': 'Cronologia', 'Nevera': 'Frigo', 'Alacena': 'Dispensa' },
         };
         for (const [code, pares] of Object.entries(esperado)) {
             const ok = await loadLocale(code);

@@ -311,7 +311,17 @@ function revisarGlosario(catalogosPorCodigo) {
             const nombres = [termino, ...(spec.alias || [])].map(sinAcentos);
             const quiere = sinAcentos(esperada);
             for (const [k, v] of Object.entries(cat)) {
-                const clave = sinAcentos(k);
+                // [P3-I18N-SIN-GLOSARIO · placeholders 2026-08-22] Los `{plato}` y
+                // `{plan}` se quitan ANTES de buscar el término: el nombre de un
+                // placeholder es un IDENTIFICADOR, no prosa — el traductor lo copia tal
+                // cual y debe hacerlo. Medido: 22 de los 39 desvíos italianos que
+                // quedaban eran exactamente eso.
+                //
+                // Es la tercera cara del mismo error en dos días —«sal» dentro de
+                // «salt», «plan» dentro de `plan_chunk_queue`, y ahora «plato» dentro de
+                // `{plato}`—: un término del producto puede aparecer donde no está
+                // hablando de sí mismo.
+                const clave = sinAcentos(k).replace(/\{[^}]*\}/g, ' ');
                 // [P3-I18N-SIN-GLOSARIO · frontera 2026-08-21] Por PALABRA, no por
                 // subcadena. `plan_chunk_queue` contiene «plan» y no es la palabra
                 // «Plan»: es el nombre de una tabla, y el traductor lo deja igual a

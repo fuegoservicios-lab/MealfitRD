@@ -40,25 +40,29 @@
   },
   "Plan": { "en-US": "plan", "pt-BR": "plano", "fr-FR": "plan", "it-IT": "piano" },
   "Receta": { "en-US": "recipe", "pt-BR": "receita", "fr-FR": "recette", "it-IT": "ricetta" },
-  "Comida": {
-    "nota": "El PLATO de una franja horaria, no el acto de comer.",
-    "en-US": "meal", "pt-BR": "refeicao", "fr-FR": "repas", "it-IT": "pasto"
+  "_Comida_retirado": {
+    "nota": "RETIRADO 2026-08-22. «Comida» en espanol es un HOMOGRAFO: la comida de una franja horaria (meal/pasto) y la comida como sustancia (food/cibo). El glosario solo puede exigir una, y exigir «pasto» convertia en desvio traducciones correctas — «Comida real, metas reales» es *Cibo vero*, «No detectamos comida en la foto» es *cibo*, «Disfruta de tu comida» es *Buon appetito*. Medido: 15 de los ejemplos que quedaban eran esto. Un termino que no se puede exigir por subcadena no pertenece a una tabla que compara por subcadena; forzarlo pediria mistraducciones y el guard se acabaria apagando. Si algun dia hace falta anclar el sentido de FRANJA, la via es marcar esas claves, no el termino."
   },
-  "Plato": { "en-US": "dish", "pt-BR": "prato", "fr-FR": "plat", "it-IT": "piatto" },
+  "Plato": {
+    "nota": "MEDIDO 2026-08-22: el ingles dice «meal» en 29 cadenas y «dish» en 11 — el copy ingles es inconsistente consigo mismo, y esas 11 quedan como deuda en el trinquete. Se pacta el uso DOMINANTE: un glosario registra como llama el producto a las cosas, no como preferiria llamarlas quien lo escribe. Los otros tres idiomas si son consistentes (prato 49/49, plat 38/49, piatto 49/49).",
+    "en-US": "meal", "pt-BR": "prato", "fr-FR": "plat", "it-IT": "piatto"
+  },
   "Lista de compras": {
     "en-US": "shopping list", "pt-BR": "lista de compras",
     "fr-FR": "liste de courses", "it-IT": "lista della spesa"
   },
   "Historial": { "en-US": "history", "pt-BR": "historico", "fr-FR": "historique", "it-IT": "cronologia" },
-  "Diario": {
-    "nota": "El registro de lo que comiste, no el adjetivo «de cada dia».",
-    "en-US": "diary", "pt-BR": "diario", "fr-FR": "journal", "it-IT": "diario"
+  "_Diario_retirado": {
+    "nota": "RETIRADO 2026-08-22, por lo mismo que «Comida»: «diario» en espanol es HOMOGRAFO — el registro de lo que comiste y el adjetivo «de cada dia». «A diario» es *Daily*, «estres diario» es *daily stress*, y exigir «diary» los marcaba como desvios. Un termino que no se puede exigir por subcadena no pertenece a una tabla que compara por subcadena. La nota original de esta entrada YA distinguia los dos sentidos: sabia el problema y aun asi la puse."
   },
   "Meta": {
     "nota": "El objetivo nutricional. No confundir con «metadata». El italiano va como RAIZ («obiettiv») y no como palabra entera: el italiano pluraliza cambiando la vocal final —obiettivo/obiettivi— asi que exigir el singular exacto marcaba como desvio una traduccion correcta. El ingles, el portugues y el frances pluralizan anadiendo -s, y ahi el singular sigue siendo subcadena del plural.",
     "en-US": "goal", "pt-BR": "meta", "fr-FR": "objectif", "it-IT": "obiettiv"
   },
-  "Créditos": { "en-US": "credits", "pt-BR": "creditos", "fr-FR": "credits", "it-IT": "crediti" },
+  "Créditos": {
+    "nota": "RAIZ y no palabra entera: «credit limit» usa el singular atributivo, y exigir «credits» marcaba como desvio dos cadenas correctas. Misma razon que la raiz italiana de «Meta».",
+    "en-US": "credit", "pt-BR": "credito", "fr-FR": "credit", "it-IT": "credit"
+  },
   "Presupuesto": { "en-US": "budget", "pt-BR": "orcamento", "fr-FR": "budget", "it-IT": "budget" },
   "Ingrediente": { "en-US": "ingredient", "pt-BR": "ingrediente", "fr-FR": "ingredient", "it-IT": "ingrediente" },
   "Semana": { "en-US": "week", "pt-BR": "semana", "fr-FR": "semaine", "it-IT": "settimana" },
@@ -67,7 +71,10 @@
     "nota": "Lo que HAY en la Nevera. Es un contenido, no la pantalla.",
     "en-US": "inventory", "pt-BR": "estoque", "fr-FR": "inventaire", "it-IT": "inventario"
   },
-  "Porción": { "en-US": "portion", "pt-BR": "porcao", "fr-FR": "portion", "it-IT": "porzione" },
+  "Porción": {
+    "nota": "El ingles usa «serving» y no «portion» — es lo que dice una etiqueta nutricional en EE. UU.",
+    "en-US": "serving", "pt-BR": "porcao", "fr-FR": "portion", "it-IT": "porzione"
+  },
   "Escanear": { "en-US": "scan", "pt-BR": "escanear", "fr-FR": "scanner", "it-IT": "scansiona" },
   "Coach": {
     "nota": "Se queda igual en los cuatro: es el nombre del asistente, no una palabra.",

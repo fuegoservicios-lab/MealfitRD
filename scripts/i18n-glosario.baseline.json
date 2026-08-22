@@ -1,9 +1,9 @@
 {
   "_comentario": "Trinquete de P3-I18N-SIN-GLOSARIO: claves cuya traducción no usa la palabra pactada en `src/i18n/glosario.json`. Puede BAJAR, nunca subir. No es un fallo duro porque hay reformulaciones legítimas — una frase que rodea el sustantivo en vez de nombrarlo. Regenerar con `node scripts/i18n-check.mjs --update-baseline`.",
   "porIdioma": {
-    "en-US": 71,
-    "pt-BR": 35,
-    "fr-FR": 30,
-    "it-IT": 143
+    "en-US": 23,
+    "pt-BR": 5,
+    "fr-FR": 15,
+    "it-IT": 6
   }
 }
