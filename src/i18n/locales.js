@@ -7,11 +7,19 @@
 //   - `scripts/i18n-check.mjs` (sabe qué catálogos deben existir),
 //   - el backend `_LOCALE_VALUES` + el CHECK de `user_profiles.locale`.
 //
-// Añadir un idioma es: una entrada aquí + un JSON en `locales/` + la misma
-// entrada en el CHECK de la migración y en `_LOCALE_VALUES` del backend. El
-// test `test_p1_i18n_dashboard.py` falla si esos cuatro sitios divergen —
-// una lista de idiomas que vive en cinco lados y no se verifica es la misma
-// forma de drift que P1-DIET-CANON-SSOT cerró para `dietType`.
+// [P2-I18N-ESPEJOS-SIN-ANCLA · 2026-08-21] Aquí decía que la lista vive en cinco
+// lados y que `test_p1_i18n_dashboard.py` falla si divergen. Son DOCE, y siete no
+// los anclaba nadie: los mapas de `LOADERS`, `_COACH_LANGUAGE_NAMES`,
+// `_TITLE_LANGUAGE_DIRECTIVES`, `_DISPLAY_LANGUAGE_DIRECTIVES` y los dos addenda
+// del display, más el JSON del catálogo.
+//
+// La lista completa, con QUÉ SE VE si falta cada uno, está en la §6 de
+// `backend/docs/i18n_dashboard.md`. Un espejo por test en
+// `backend/tests/test_p2_i18n_espejos_sin_ancla.py`.
+//
+// Lo que hace este drift peligroso es que no rompe nada: el idioma que falte en un
+// espejo simplemente deja ESA superficie en español. Es la misma forma que
+// P1-DIET-CANON-SSOT cerró para `dietType`, pero más callada.
 
 /** Idioma base del producto. NO tiene archivo de catálogo: es el fallback.
  *  Las claves del código SON el texto es-DO, así que un usuario dominicano

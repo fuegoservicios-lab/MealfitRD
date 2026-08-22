@@ -19,7 +19,7 @@
 // ⚠️ NOMBRADOS, nunca `import * as`. Un star-import reintroduce el namespace
 // entero dentro de ESTE chunk y anula justo el tree-shaking que el módulo existe
 // para conservar — es literalmente el bug que cerró P2-SENTRY-TREESHAKE.
-import { init, captureException, addBreadcrumb } from '@sentry/react';
+import { init, captureException, addBreadcrumb, setTag } from '@sentry/react';
 
 /**
  * Inicializa Sentry y devuelve la superficie que la fachada necesita.
@@ -31,9 +31,9 @@ import { init, captureException, addBreadcrumb } from '@sentry/react';
  * 427.010 B vuelven al critical path sin que ningún test de comportamiento falle.
  *
  * @param {object} config Opciones de `Sentry.init`, compuestas en main.jsx.
- * @returns {Promise<{captureException: Function, addBreadcrumb: Function}>}
+ * @returns {Promise<{captureException: Function, addBreadcrumb: Function, setTag: Function}>}
  */
 export async function arrancarSentry(config) {
     init(config);
-    return { captureException, addBreadcrumb };
+    return { captureException, addBreadcrumb, setTag };
 }

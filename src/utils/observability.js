@@ -91,6 +91,12 @@ export const registrarSentry = (mod) => {
     try { _desinstalarHandlers?.(); } catch { /* noop */ }
     _desinstalarHandlers = null;
 
+    // La etiqueta de idioma, ANTES de vaciar la cola: los errores encolados durante el
+    // arranque son precisamente los que se pierden si se aplica después.
+    if (_idiomaPendiente) {
+        try { _sentry.setTag?.('locale', _idiomaPendiente); } catch { /* noop */ }
+    }
+
     const pendientes = _cola;
     _cola = [];
     for (const item of pendientes) {
@@ -124,6 +130,31 @@ export const detenerReplaySentry = () => {
     } catch {
         return false;
     }
+};
+
+/**
+ * [P2-I18N-OBSERVABILIDAD-CERO · 2026-08-21] Marca en qué idioma pasó lo que pasó.
+ *
+ * MEDIDO antes de esto: `locale`/`lang` no aparecían ni una vez en `analytics.js`,
+ * `observability.js`, `observabilityScope.js`, `sentryBoot.js` ni `main.jsx`, y había
+ * CERO `setTag`/`setContext` en todo el frontend. `P1-AUTO-LOCALE` se desplegó cambiando
+ * el idioma de todo visitante nuevo sin una sola señal que dijera si funcionaba.
+ *
+ * Es una etiqueta y no un contexto a propósito: en Sentry las etiquetas se pueden
+ * FILTRAR y agrupar, y la pregunta que se hace al triar es «¿esto le pasa solo a los
+ * franceses?». Un contexto habría que abrirlo evento a evento.
+ *
+ * Se guarda el último valor aunque Sentry no haya arrancado todavía: el idioma se fija
+ * en el boot síncrono, mucho antes de que el SDK esté, y sin esto la etiqueta faltaría
+ * justo en los errores de arranque — que son los que más importan.
+ */
+let _idiomaPendiente = null;
+
+export const etiquetarIdioma = (locale) => {
+    if (typeof locale !== 'string' || !locale) return;
+    _idiomaPendiente = locale;
+    if (!_sentry?.setTag) return;
+    try { _sentry.setTag('locale', locale); } catch { /* la telemetría jamás rompe la app */ }
 };
 
 /** Reporta un error. Encola si Sentry aún no está. */

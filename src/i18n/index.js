@@ -54,6 +54,12 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 // [P1-AUTO-LOCALE] SSOT de que rutas son marketing. Se reusa en vez de listar aqui
 // una segunda vez las rutas del landing: dos listas del mismo hecho drifean.
 import { isPaperSurface } from '../utils/paperSurface';
+// [P2-I18N-OBSERVABILIDAD-CERO · 2026-08-21] La FACHADA, no `@sentry/react`. No
+// importa nada —es un módulo sin dependencias, encola hasta que el SDK arranca— así
+// que no mete un byte de Sentry en el entry, que es lo que prohíbe la regla del
+// apex (`@sentry` fuera del entry, `landing_apex_antipatterns.md`).
+import { etiquetarIdioma, captureException } from '../utils/observability';
+import { trackEvent } from '../utils/analytics';
 
 // ---------------------------------------------------------------------------
 // Cargadores de catálogo
@@ -159,6 +165,11 @@ function _applyLang(code) {
     try {
         document.documentElement.setAttribute('lang', code);
     } catch { /* SSR / DOM ausente */ }
+    // [P2-I18N-OBSERVABILIDAD-CERO · 2026-08-21] El idioma, a la telemetría. Va AQUÍ y
+    // no en el Provider porque este es el único punto por el que pasan las tres vías de
+    // cambio: arranque, selector y `syncLocaleFromProfile`. Poner la etiqueta en React
+    // dejaría fuera el arranque, que es cuando más falta hace.
+    etiquetarIdioma(code);
 }
 
 // ---------------------------------------------------------------------------
@@ -339,8 +350,22 @@ export async function loadLocale(code) {
         _applyLang(target);
         _notify();
         return true;
-    } catch {
-        // Chunk inalcanzable: nos quedamos donde estábamos.
+    } catch (err) {
+        // Chunk inalcanzable: nos quedamos donde estábamos. SIGUE siendo fail-soft —una
+        // app en su idioma base es una degradación, una pantalla en blanco es una
+        // caída— pero deja de ser invisible.
+        //
+        // [P2-I18N-OBSERVABILIDAD-CERO · 2026-08-21] Este `catch` estaba VACÍO, y su
+        // booleano se descarta en el arranque. O sea: el único modo de fallo del motor
+        // de idiomas no dejaba rastro en ningún sitio. Un deploy a medias que dejara un
+        // chunk de catálogo sin subir habría puesto a todos los franceses en español
+        // sin un solo evento.
+        try {
+            captureException(err, {
+                tags: { locale_target: target },
+                extra: { motivo: 'no se pudo cargar el catálogo de idioma' },
+            });
+        } catch { /* la telemetría jamás rompe la app */ }
         return false;
     }
 }
@@ -468,11 +493,25 @@ export function I18nProvider({ children }) {
 
     const setLocale = useCallback(async (code) => {
         const target = coerceLocale(code);
-        if (target === getLocale()) return true;
+        const anterior = getLocale();
+        if (target === anterior) return true;
         const ok = await loadLocale(target);
         // Sólo se persiste el éxito REAL: con `SUPERSEDED` la elección vigente es otra
         // y guardar ésta pisaría la del usuario.
         if (ok === true) _persistLocal(target);
+        // [P2-I18N-OBSERVABILIDAD-CERO · 2026-08-21] El evento va con el RESULTADO, no
+        // con la intención: «alguien pulsó Français» y «Français llegó a cargarse» son
+        // preguntas distintas, y la segunda es la que dice si el motor funciona.
+        // `SUPERSEDED` se registra aparte porque no es ni éxito ni fallo — es el usuario
+        // tocando dos idiomas seguidos, y contarlo como fallo inventaría una tasa de
+        // error que no existe.
+        try {
+            trackEvent('locale_changed', {
+                de: anterior,
+                a: target,
+                resultado: ok === true ? 'ok' : (ok === SUPERSEDED ? 'superseded' : 'fallo'),
+            });
+        } catch { /* la telemetría jamás rompe la app */ }
         // `loadLocale` ya notificó a los suscriptores, así que el estado se
         // actualiza por esa vía; no hace falta un setState extra aquí.
         return ok;
