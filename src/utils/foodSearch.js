@@ -1,4 +1,6 @@
 // [P1-MANUAL-FOOD-LOG · 2026-08-11] El buscador del componedor: LISTA en el cliente,
+// [P2-I18N-FOODSEARCH · 2026-08-22] `t` de módulo, invocada al construir el resultado.
+import { t } from '../i18n';
 // ARITMÉTICA en el servidor.
 //
 // La lista (filtro + ranking + alias) corre aquí sobre el catálogo que el cliente ya
@@ -58,7 +60,10 @@ export function searchFoods(query, foods, dishes, max = 12) {
                 kind: 'dish',
                 ref: `dish:${d.slug}`,
                 label: d.label,
-                sub: `Plato criollo · ración ${Math.round(d.finished_g)} g`,
+                // [P2-I18N-FOODSEARCH · 2026-08-22] El subtítulo lo LEE el usuario al
+                // buscar qué comió. El `label` del plato NO se traduce: es el identificador
+                // con el que el motor resuelve.
+                sub: t('Plato criollo · ración {g} g', { g: Math.round(d.finished_g) }),
                 item: d,
                 // Un plato completo responde mejor a «qué me comí» que un ingrediente
                 // crudo del mismo rango: a rango igual, el plato va primero.
@@ -135,7 +140,7 @@ export function previewLine(entry, qty, unit) {
 export function unitsFor(entry) {
     if (entry.kind === 'dish') {
         return [
-            { unit: 'racion', label: 'ración' },
+            { unit: 'racion', label: t('ración') },
             { unit: 'g', label: 'g' },
         ];
     }

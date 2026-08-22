@@ -1418,7 +1418,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     setPushSubscribeError(null);
                     toast.success(t("¡Notificaciones de la IA activadas con éxito!"));
                 } else {
-                    const errMsg = result?.error || t('Error desconocido al suscribirse.');
+                    // [P2-I18N-PUSH-TOGGLE-ERROR-ES · 2026-08-22] El util devuelve un
+                    // CÓDIGO; el texto se resuelve AQUÍ, que es donde se sabe el idioma
+                    // activo. El `result.error` que sobrevive es el mensaje del NAVEGADOR
+                    // (no copy nuestro), y por eso se respeta tal cual.
+                    const _copyPush = {
+                        push_unsupported: t('Push no soportado en este navegador.'),
+                        vapid_missing: t('No se configuró la llave VAPID.'),
+                        brave_blocks_push: t("Brave bloquea Push por defecto. Ve a brave://settings/privacy y activa 'Usar servicios de Google para mensajería push'."),
+                    };
+                    const errMsg = _copyPush[result?.code]
+                        || result?.error
+                        || t('Error desconocido al suscribirse.');
                     setPushSubscribeError(errMsg);
                     toast.error(errMsg, { duration: 6000 });
                 }

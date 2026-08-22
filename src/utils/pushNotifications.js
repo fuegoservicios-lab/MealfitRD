@@ -41,13 +41,18 @@ export const requestNotificationPermission = async () => {
  * Suscribe el dispositivo y guarda el objeto de suscripción en el Backend.
  */
 export const subscribeToPushNotifications = async () => {
-    if (!isPushSupported()) return { success: false, error: "Push no soportado en este navegador." };
+    // [P2-I18N-PUSH-TOGGLE-ERROR-ES · 2026-08-22] Este util devuelve un CÓDIGO, no TEXTO
+    // de pantalla. Antes componía la frase en español y `Settings.jsx` la pintaba cruda:
+    // un francés en Brave recibía en español la ÚNICA pantalla que le explica cómo
+    // arreglarlo. Es el mismo canal que `P1-I18N-SERVER-COPY-GANA` cerró para el backend:
+    // quien conoce el idioma activo es quien RENDERIZA, no quien detecta el fallo.
+    if (!isPushSupported()) return { success: false, code: 'push_unsupported' };
     
     // El frontend .env contiene esto
     const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
     if (!publicVapidKey) {
         console.error("No VITE_VAPID_PUBLIC_KEY configurado.");
-        return { success: false, error: "No se configuró la llave VAPID." };
+        return { success: false, code: 'vapid_missing' };
     }
 
     try {
@@ -92,13 +97,12 @@ export const subscribeToPushNotifications = async () => {
         
         // Brave bloquea los servicios de Google Push (FCM) por defecto
         if (err.name === 'AbortError' || (err.message && err.message.includes('push service'))) {
-            return { 
-                success: false, 
-                error: "Brave bloquea Push por defecto. Ve a brave://settings/privacy y activa 'Usar servicios de Google para mensajería push'." 
-            };
+            return { success: false, code: 'brave_blocks_push' };
         }
         
-        return { success: false, error: err.message };
+        // Sin código conocido: se pasa el mensaje del NAVEGADOR, que no es copy nuestro
+        // (lo compone el motor y suele venir ya en el idioma del sistema).
+        return { success: false, code: null, error: err.message };
     }
 };
 

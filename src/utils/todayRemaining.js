@@ -2,7 +2,11 @@
 // el `toLocaleString('es-DO')` que habia aqui pintaba las cifras con separadores
 // dominicanos en los cuatro idiomas, y en pt-BR la coma es DECIMAL: «1,850 kcal» se
 // lee como 1,85.
-import { formatNumber } from '../i18n';
+// [P2-I18N-TODAY-REMAINING · 2026-08-22] `t`/`tn` de MÓDULO, invocadas DENTRO de las
+// funciones: se resuelven al renderizar, no al importar, así que leen el catálogo activo.
+// Un `t()` evaluado en ámbito de módulo se congelaría en el idioma de arranque — y en
+// es-DO parecería correcto, que es lo que hace esa trampa tan difícil de ver.
+import { formatNumber, t, tn } from '../i18n';
 /**
  * [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
  * diario en cada render, NUNCA persistido en `plan_data` (invariante I6,
@@ -193,7 +197,19 @@ export function joinNamesEsDo(names) {
  * nombra un plato (ni el del plan, ni el del diario) y nunca dice "esto".
  */
 export function eatenChipLabel(slotMealType) {
-  return `Ya registraste tu ${canonicalSlotKey(slotMealType) || 'comida'}`;
+  // [P2-I18N-TODAY-REMAINING · 2026-08-22] El slot se traduce para PINTARLO, y sólo aquí:
+  // `canonicalSlotKey` sigue devolviendo la clave canónica española a todos los demás
+  // llamadores, que la usan para EMPAREJAR el registro del diario con el slot del plan.
+  // Traducir esa salida en origen rompería el emparejamiento en silencio — es la misma
+  // frontera que protege los nombres de alimento.
+  const _slots = {
+    desayuno: t('desayuno'),
+    almuerzo: t('almuerzo'),
+    cena: t('cena'),
+    merienda: t('merienda'),
+  };
+  const _clave = canonicalSlotKey(slotMealType);
+  return t('Ya registraste tu {slot}', { slot: (_clave && _slots[_clave]) || t('comida') });
 }
 
 /**
@@ -266,17 +282,40 @@ export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unloc
  */
 export function todayRemainingLine({ remainingKcal, plannedKcal, remainingCount }) {
   const fmt = (n) => formatNumber(Math.round(n));
-  const comidas = `${remainingCount} comida${remainingCount === 1 ? '' : 's'}`;
-  const sumar = remainingCount === 1 ? 'suma' : 'suman';
+
+  // [P2-I18N-TODAY-REMAINING · 2026-08-22] Las cuatro ramas van como FRASE COMPLETA con
+  // plural, no compuestas por trozos.
+  //
+  // Antes se armaban con dos piezas españolas —`${remainingCount} comida(s)` y la
+  // concordancia verbal `suma`/`suman`— y esa concordancia no transfiere: en inglés es
+  // «add up to» con cualquier número, y en francés y portugués el orden de la frase
+  // cambia. Un traductor al que le pasas trozos no puede mover el orden, así que la frase
+  // queda con sintaxis española y palabras del otro idioma.
+  //
+  // El plural lo decide `Intl.PluralRules` del locale activo dentro de `tn`, no un
+  // `n === 1`: el francés mete el 0 en singular y el portugués tiene categoría `many`.
+  const n = remainingCount;
 
   if (remainingKcal == null) {
-    return `Te quedan ${comidas} del plan, que ${sumar} ~${fmt(plannedKcal)} kcal estimadas.`;
+    return tn(n,
+      'Te quedan {n} comida del plan, que suma ~{kcal} kcal estimadas.',
+      'Te quedan {n} comidas del plan, que suman ~{kcal} kcal estimadas.',
+      { n, kcal: fmt(plannedKcal) });
   }
   if (remainingKcal < 0) {
-    return `Ya superaste tu meta de hoy por ~${fmt(-remainingKcal)} kcal estimadas, y aún te quedan ${comidas} del plan por comer (~${fmt(plannedKcal)} kcal).`;
+    return tn(n,
+      'Ya superaste tu meta de hoy por ~{exceso} kcal estimadas, y aún te queda {n} comida del plan por comer (~{kcal} kcal).',
+      'Ya superaste tu meta de hoy por ~{exceso} kcal estimadas, y aún te quedan {n} comidas del plan por comer (~{kcal} kcal).',
+      { n, exceso: fmt(-remainingKcal), kcal: fmt(plannedKcal) });
   }
   if (plannedKcal > remainingKcal) {
-    return `Te quedan ~${fmt(remainingKcal)} kcal estimadas de presupuesto, pero ${comidas} del plan ${sumar} ~${fmt(plannedKcal)} kcal — unas ~${fmt(plannedKcal - remainingKcal)} kcal por encima de tu meta de hoy.`;
+    return tn(n,
+      'Te quedan ~{presupuesto} kcal estimadas de presupuesto, pero {n} comida del plan suma ~{kcal} kcal — unas ~{exceso} kcal por encima de tu meta de hoy.',
+      'Te quedan ~{presupuesto} kcal estimadas de presupuesto, pero {n} comidas del plan suman ~{kcal} kcal — unas ~{exceso} kcal por encima de tu meta de hoy.',
+      { n, presupuesto: fmt(remainingKcal), kcal: fmt(plannedKcal), exceso: fmt(plannedKcal - remainingKcal) });
   }
-  return `Te quedan ~${fmt(remainingKcal)} kcal estimadas de presupuesto para ${comidas} del plan, que ${sumar} ~${fmt(plannedKcal)} kcal.`;
+  return tn(n,
+    'Te quedan ~{presupuesto} kcal estimadas de presupuesto para {n} comida del plan, que suma ~{kcal} kcal.',
+    'Te quedan ~{presupuesto} kcal estimadas de presupuesto para {n} comidas del plan, que suman ~{kcal} kcal.',
+    { n, presupuesto: fmt(remainingKcal), kcal: fmt(plannedKcal) });
 }

@@ -2736,5 +2736,20 @@
   "cartones": "boîtes de",
   "alcanza ~{n} de {m} días — recompra": "couvre ~{n} des {m} jours — à racheter",
   "alcanza ~{n} días — no recompres cada semana": "couvre ~{n} jours — pas besoin d'en racheter chaque semaine",
-  "c/u": "chacun"
+  "c/u": "chacun",
+  "Push no soportado en este navegador.": "Les notifications push ne sont pas prises en charge par ce navigateur.",
+  "No se configuró la llave VAPID.": "La clé VAPID n'est pas configurée.",
+  "Brave bloquea Push por defecto. Ve a brave://settings/privacy y activa 'Usar servicios de Google para mensajería push'.": "Brave bloque les notifications push par défaut. Allez dans brave://settings/privacy et activez « Utiliser les services Google pour la messagerie push ».",
+  "Plato criollo · ración {g} g": "Plat local · portion de {g} g",
+  "ración": "portion",
+  "desayuno": "petit-déjeuner",
+  "almuerzo": "déjeuner",
+  "cena": "dîner",
+  "merienda": "collation",
+  "Ya registraste tu {slot}": "Vous avez déjà enregistré votre {slot}",
+  "comida": "repas",
+  "Te quedan {n} comidas del plan, que suman ~{kcal} kcal estimadas.": {"one":"Il vous reste {n} repas de votre plan, soit ~{kcal} kcal estimées.","other":"Il vous reste {n} repas de votre plan, soit ~{kcal} kcal estimées."},
+  "Ya superaste tu meta de hoy por ~{exceso} kcal estimadas, y aún te quedan {n} comidas del plan por comer (~{kcal} kcal).": {"one":"Vous avez déjà dépassé votre objectif du jour de ~{exceso} kcal estimées, et il vous reste {n} repas du plan (~{kcal} kcal).","other":"Vous avez déjà dépassé votre objectif du jour de ~{exceso} kcal estimées, et il vous reste {n} repas du plan (~{kcal} kcal)."},
+  "Te quedan ~{presupuesto} kcal estimadas de presupuesto, pero {n} comidas del plan suman ~{kcal} kcal — unas ~{exceso} kcal por encima de tu meta de hoy.": {"one":"Il vous reste ~{presupuesto} kcal estimées de budget, mais {n} repas du plan représente ~{kcal} kcal — soit ~{exceso} kcal au-dessus de votre objectif du jour.","other":"Il vous reste ~{presupuesto} kcal estimées de budget, mais {n} repas du plan représentent ~{kcal} kcal — soit ~{exceso} kcal au-dessus de votre objectif du jour."},
+  "Te quedan ~{presupuesto} kcal estimadas de presupuesto para {n} comidas del plan, que suman ~{kcal} kcal.": {"one":"Il vous reste ~{presupuesto} kcal estimées de budget pour {n} repas du plan, soit ~{kcal} kcal.","other":"Il vous reste ~{presupuesto} kcal estimées de budget pour {n} repas du plan, soit ~{kcal} kcal."}
 }
