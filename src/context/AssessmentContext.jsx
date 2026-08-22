@@ -192,6 +192,23 @@ const _hydrateFieldQualifies = (k, cur, v) => {
         return (cur === 'DOP' || cur === null || cur === undefined || cur === '')
             && typeof v === 'string' && v && v !== cur;
     }
+    // [P2-COUNTRY-HYDRATE-FORMDATA · 2026-08-21] `country` es el TERCER caso de la misma clase
+    // que el comentario de arriba ya describe — «default truthy/false nunca califica como vacío»—
+    // y entró después de aquel audit (F0, 2026-08-16), así que nadie lo revisó contra esta regla.
+    //
+    // Con el default `'DO'` (truthy) la rama genérica de abajo jamás califica, así que el país
+    // PERSISTIDO no hidrataba nunca: quien eligió España veía «República Dominicana»
+    // preseleccionada en otro dispositivo o al empezar un segundo plan. Y el modo de fallo no es
+    // que se vea mal — es que un default sembrado es indistinguible de una elección, así que el
+    // usuario avanza sin tocarlo y el plan sale dominicano sin que nadie haya decidido eso.
+    //
+    // Espejo EXACTO de `budgetCurrency`, a propósito: es la misma forma (string con default
+    // truthy, el DB refleja la última elección persistida, la edición viva la protege
+    // `editedFieldsRef`). Un criterio propio aquí sería una segunda regla para el mismo problema.
+    if (k === 'country') {
+        return (cur === 'DO' || cur === null || cur === undefined || cur === '')
+            && typeof v === 'string' && v && v !== cur;
+    }
     return cur === null || cur === undefined || cur === '' || (Array.isArray(cur) && cur.length === 0);
 };
 
