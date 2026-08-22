@@ -174,6 +174,121 @@ export const glossShoppingItemName = (name, displayNameEn, locale) => {
     return `${englishGloss} (${spanishName})`;
 };
 
+// ============================================================
+// [P1-I18N-CANTIDAD-LISTA · 2026-08-22] …y la CANTIDAD, que se quedó atrás.
+//
+// El contrato bilingüe resolvió el NOMBRE y dejó en español todo lo que lo rodea. MEDIDO
+// sobre las listas reales de 24 planes de producción: **811 de 898 ítems (90,3 %)** llevan
+// sustantivo de envase o prosa española en `display_qty`. Lo que lee un francés en el PDF
+// que se lleva al súper:
+//
+//     Black beans (Habichuelas rojas) — 1 paquete (800gr · Genérico) · alcanza ~6 de 7 días — recompra
+//
+// Sabe QUÉ comprar y no CUÁNTO, en qué presentación, ni para cuántos días — que es
+// exactamente lo que el documento existe para decirle.
+//
+// POR QUÉ SE GLOSA AL RENDERIZAR Y NO SE REESTRUCTURA EL BACKEND. Parecía más limpio emitir
+// campos (`container_key`, `coverage_note`) y componer aquí. Se descarta porque `display_qty`
+// vive al lado de `market_unit` y `market_qty_numeric`, que son DATO: los usa `/restock` para
+// construir las filas de `user_inventory`. El propio backend lo tiene escrito —«convertir el
+// DATO metería gramos donde la deducción espera libras: la Nevera descontaría mal y en
+// silencio»— y hay UN camino por el que el display sí toca el dato: `Dashboard.jsx` cae a
+// `parseMarketQty(ing.display_qty)` cuando `resolveShopQty(ing)` devuelve 0.
+//
+// Glosar al RENDERIZAR no persiste nada. Y hay red doble: `parseMarketQty` lee el número
+// INICIAL de la cadena, y esta función no lo toca jamás.
+//
+// LA REGLA QUE LO HACE SEGURO: sólo se traduce el sustantivo de envase que va INMEDIATAMENTE
+// tras la cantidad, y las dos cláusulas de cobertura. **Nunca dentro del paréntesis**, porque
+// ahí viven marcas y tamaños reales — «2 funda (Selecto 1 Lb · Wala c/u)». Traducir «Lb» ahí
+// falsificaría la etiqueta y el usuario no encontraría el producto en el estante, y
+// «Selecto»/«Wala» son nombres propios. Es la frontera de siempre aplicada a una cadena: se
+// traduce lo que se lee como idioma, no lo que identifica un producto en el mundo.
+// ============================================================
+
+// Vocabulario CERRADO de envases, espejo de `PLURALS` en `backend/shopping_calculator.py`.
+// Singular y plural van separados: el plural español no siempre lo es en el idioma destino.
+const _ENVASES_TRADUCIBLES = (t) => ({
+    paquete: t('paquete'), paquetes: t('paquetes'),
+    funda: t('funda'), fundas: t('fundas'),
+    fundita: t('fundita'), funditas: t('funditas'),
+    pote: t('pote'), potes: t('potes'),
+    lata: t('lata'), latas: t('latas'),
+    frasco: t('frasco'), frascos: t('frascos'),
+    botella: t('botella'), botellas: t('botellas'),
+    tarro: t('tarro'), tarros: t('tarros'),
+    sobre: t('sobre'), sobres: t('sobres'),
+    sobrecito: t('sobrecito'), sobrecitos: t('sobrecitos'),
+    envase: t('envase'), envases: t('envases'),
+    cabeza: t('cabeza'), cabezas: t('cabezas'),
+    mazo: t('mazo'), mazos: t('mazos'),
+    hoja: t('hoja'), hojas: t('hojas'),
+    rebanada: t('rebanada'), rebanadas: t('rebanadas'),
+    barrita: t('barrita'), barritas: t('barritas'),
+    unidad: t('unidad'), unidades: t('unidades'),
+    'cartón': t('cartón'), carton: t('cartón'), cartones: t('cartones'),
+});
+
+// Símbolos internacionales: NO se traducen. «lbs» es lo que dice el estante en RD, y
+// traducir «g»/«ml»/«oz» sería inventar una unidad que el envase no lleva.
+const _UNIDADES_NO_TRADUCIBLES = new Set(['lb', 'lbs', 'kg', 'g', 'gr', 'ml', 'l', 'oz']);
+
+/**
+ * `glossShoppingQty(displayQty, t)` -> string
+ *
+ * La cantidad de un ítem de la lista, en el idioma del usuario. DISPLAY-ONLY: no muta el
+ * ítem y nunca debe alimentar `/restock` ni la resolución de la Nevera.
+ *
+ * Sin `t`, con una entrada que no sea texto, o sin traducción disponible: devuelve la
+ * entrada TAL CUAL. Una cantidad en español es una degradación; una vacía es un fallo.
+ */
+export const glossShoppingQty = (displayQty, t) => {
+    if (typeof displayQty !== 'string' || !displayQty.trim()) return displayQty;
+    if (typeof t !== 'function') return displayQty;
+
+    let out = displayQty;
+    let envases;
+    try {
+        envases = _ENVASES_TRADUCIBLES(t);
+    } catch {
+        return displayQty;  // una `t` rota no puede dejar la lista sin cantidades
+    }
+
+    // 1. El sustantivo de envase que sigue a la cantidad. Anclado al PRINCIPIO, así que no
+    //    puede alcanzar nada de dentro del paréntesis.
+    out = out.replace(
+        /^(\s*[\d]+(?:[.,][\d]+)?(?:\s*[½¼¾⅓⅔])?\s+|\s*[½¼¾⅓⅔]\s+)([A-Za-zÁÉÍÓÚÑáéíóúñ]+)/u,
+        (todo, cantidad, palabra) => {
+            const clave = palabra.toLowerCase();
+            if (_UNIDADES_NO_TRADUCIBLES.has(clave)) return todo;
+            const trad = envases[clave];
+            if (!trad || trad === clave) return todo;
+            // Se preserva la mayúscula inicial del original: «1 Mazo» → «1 Bunch».
+            const conCaja = palabra[0] === palabra[0].toUpperCase()
+                ? trad.charAt(0).toUpperCase() + trad.slice(1)
+                : trad;
+            return cantidad + conCaja;
+        },
+    );
+
+    // 2. Las dos cláusulas de cobertura, ENTERAS. Se traducen como frase y no por partes:
+    //    el orden de «alcanza para N de M días» no es el mismo en francés ni en portugués.
+    out = out.replace(
+        /alcanza\s*~(\d+)\s*de\s*(\d+)\s*días\s*—\s*recompra/u,
+        (_m, n, m) => t('alcanza ~{n} de {m} días — recompra', { n, m }),
+    );
+    out = out.replace(
+        /alcanza\s*~(\d+)\s*días\s*—\s*no recompres cada semana/u,
+        (_m, n) => t('alcanza ~{n} días — no recompres cada semana', { n }),
+    );
+
+    // 3. «c/u» va DENTRO del paréntesis pero no es marca ni tamaño: es la aclaración de que
+    //    el tamaño es POR envase, y sin ella «9 potes (16 oz)» se lee como el total.
+    out = out.replace(/\bc\/u\b/gu, () => t('c/u'));
+
+    return out;
+};
+
 export const getActiveShoppingList = (planData, duration) => {
     if (!planData || !duration) return null;
     // [P3-NEW-1 · 2026-05-10] Defense-in-depth contra

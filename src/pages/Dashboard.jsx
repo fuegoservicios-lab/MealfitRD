@@ -170,7 +170,7 @@ import { usePlanPollLoop } from '../hooks/usePlanPollLoop';
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
-import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName } from '../utils/shoppingHelpers';
+import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
@@ -3506,8 +3506,12 @@ const DashboardInner = () => {
                     if (cat === 'CATÁLOGO SIN PRECIO') cat = t('🌍 De tu país');
 
                     if (item.display_qty) {
-                        // Nivel 3: display_qty ya viene con pluralización correcta del backend
-                        qtyStr = item.display_qty;
+                        // Nivel 3: display_qty ya viene con pluralización correcta del backend.
+                        // [P1-I18N-CANTIDAD-LISTA · 2026-08-22] …y en español. Se glosa AQUÍ,
+                        // al componer el PDF, y no en el ítem: `display_qty` alimenta
+                        // `parseMarketQty` en el camino de `/restock`, así que mutarlo tocaría
+                        // el dato con el que la Nevera descuenta.
+                        qtyStr = glossShoppingQty(item.display_qty, t);
                     } else if (item.market_qty !== undefined && item.market_unit !== undefined && item.market_qty !== '') {
                         qtyStr = `${item.market_qty} ${item.market_unit}`;
                     } else if (item.display_string) {
