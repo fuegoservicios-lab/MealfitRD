@@ -99,13 +99,20 @@ describe('[P1-MORE-INFO-IN-APP] «Más información» no saca al usuario de su s
         }
     });
 
-    it('las páginas legales de Configuración conservan la pestaña nueva, pero in-app', () => {
+    it('las páginas legales de Configuración conservan la pestaña nueva, con destino en el apex', () => {
         // Matiz deliberado: viven dentro del diálogo de Configuración y navegar en la
         // misma pestaña sacaría al usuario del ajuste a media frase. Lo que cambia es
         // el DESTINO, no el comportamiento de apertura.
         const src = LEER('pages', 'Settings.jsx');
         expect(src).toMatch(/href=\{link\.path\}/);
-        expect(src).toMatch(/href="\/privacy"/);
+        // [P1-LEGAL-LINKS-APEX · 2026-08-22] El destino dejó de ser la ruta relativa:
+        // en `capacitor://` un `href="/privacy"` abría la COPIA interna obsoleta, y Apple
+        // exige que la política accesible desde la app sea LA política. Este assert
+        // afirmaba `href="/privacy"` (la decisión anterior) y quedó rojo en main; ahora
+        // afirma la vigente: el href pasa por `apexUrl()` y NO vuelve al literal.
+        expect(src).toMatch(/href=\{apexUrl\('\/privacy'\)\} target="_blank"/);
+        expect(src, 'volvió el literal relativo que en nativo abre la copia obsoleta')
+            .not.toMatch(/href="\/privacy"/);
         expect(src).not.toMatch(/href=\{landingUrl/);
     });
 });
