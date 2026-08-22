@@ -162,9 +162,12 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-        # Grupo de probadores internos (hasta 100, sin revisión de Apple). Crear el
-        # grupo en App Store Connect → TestFlight con este nombre exacto.
-        beta_groups:
-          - Equipo Bioboros
+        # SIN `beta_groups` para el grupo interno. [Build #6, 2026-08-22] «Failed to
+        # add build to 'Equipo Bioboros' beta group. Builds cannot be assigned to this
+        # internal group. Cannot add internal group to a build»: los grupos INTERNOS no
+        # se asignan por API — Apple los reparte sola (el grupo tiene distribución
+        # automática y la invitación llegó al iPhone a los 3 min). `beta_groups` es
+        # para grupos EXTERNOS; ponerlo aquí dejaba el post-processing en rojo sin
+        # que nada hubiera fallado de verdad.
         # Sin `submit_to_app_store`: el envío a revisión es un acto deliberado que
         # pasa por la ficha, las capturas y la cuenta de demo — no por un build.
