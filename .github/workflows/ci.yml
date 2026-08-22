@@ -34,6 +34,30 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # [P1-CI-GATE] i18n en ESTRICTO. El motor de traduccion usa el texto espanol
+      # COMO clave, asi que editar un copy huerfana su traduccion en los cuatro
+      # idiomas EN SILENCIO: la app sigue funcionando —lo no traducido cae a
+      # espanol— y nadie se entera hasta que un usuario lee media pantalla en otro
+      # idioma. Este comprobador es la unica defensa que existe contra eso.
+      # `--strict` ademas exige 100% de cobertura, que es el estado actual.
+      #
+      # [P2-I18N-GATE-ACTIONS-INALCANZABLE · 2026-08-22] VA EL PRIMERO, y esa es la
+      # decision que importa. Antes era el paso 10 de una cadena SERIAL sin
+      # `if: always()`, detras de cinco pasos bloqueantes. Medido: 21 corridas
+      # consecutivas con este paso en `skipped` (2026-08-21T23:37 -> 2026-08-22T06:09),
+      # y toda la ola que cerro los 58 gaps de i18n se mergeo sin que corriera ni una vez.
+      #
+      # La causa de aquellas 21 fue UN `vi` importado y sin usar en un test: un error de
+      # eslint —no un aviso— que `--max-warnings` no puede absorber. O sea que el gate que
+      # vigila las traducciones dependia de que NADIE dejara un import muerto en ningun
+      # sitio del repo. Y no es hipotetico que se repita: el conteo de avisos esta HOY
+      # justo en el tope (66 de 66), asi que el margen para volver a tumbarlo es cero.
+      #
+      # Ponerlo delante en vez de darle `if: always()` es a proposito: tarda ~2 s, su fallo
+      # es de una linea, y asi la causa sale antes que los ~2 min de vitest. Es el MISMO
+      # orden que ya usa el gate de release (`scripts/run_ci.ps1`, «Frontend i18n» antes de
+      # «Frontend vitest»), que es justo el que NO se rompio en esas 21 corridas.
+      - run: npm run i18n:check:strict
       # Tope = estado actual (P2-LINT-ZERO lo baja a 0). Bloquea warnings NUEVOS.
       #
       # [P1-CI-GATE-PASSABLE · 2026-08-14] 148 -> 164, y la razon importa mas que
@@ -114,15 +138,6 @@ jobs:
       # entradas reales (main.jsx y el service worker) en vez de contar menciones.
       - run: node scripts/huerfanos.mjs --gate
       - run: npm test
-      # [P1-CI-GATE] i18n en ESTRICTO. El motor de traduccion usa el texto espanol
-      # COMO clave, asi que editar un copy huerfana su traduccion en los cuatro
-      # idiomas EN SILENCIO: la app sigue funcionando —lo no traducido cae a
-      # espanol— y nadie se entera hasta que un usuario lee media pantalla en otro
-      # idioma. Este comprobador es la unica defensa que existe contra eso, y no
-      # corria en CI. Medido al cablearlo: encontro 15 claves huerfanas x4 idiomas
-      # que dejo el borrado de codigo muerto de esta misma tanda.
-      # `--strict` ademas exige 100% de cobertura, que es el estado actual.
-      - run: npm run i18n:check:strict
       - run: npm run build
       # [P1-CI-GATE] El tope del bundle del agente. Existia el script y tampoco
       # corria: un cap que nadie evalua no es un cap.
