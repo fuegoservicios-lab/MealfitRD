@@ -312,7 +312,26 @@ function revisarGlosario(catalogosPorCodigo) {
             const quiere = sinAcentos(esperada);
             for (const [k, v] of Object.entries(cat)) {
                 const clave = sinAcentos(k);
-                if (!nombres.some((n) => clave.includes(n))) continue;
+                // [P3-I18N-SIN-GLOSARIO · frontera 2026-08-21] Por PALABRA, no por
+                // subcadena. `plan_chunk_queue` contiene «plan» y no es la palabra
+                // «Plan»: es el nombre de una tabla, y el traductor lo deja igual a
+                // propósito. Sin la frontera, cada mención de un identificador del
+                // sistema contaba como desvío del glosario.
+                //
+                // Es la MISMA clase que `P3-DISPLAY-SUBSTRING-SIN-FRONTERA` cerró el
+                // mismo día en el validador de `_display` («sal» dentro de «salt»).
+                // Aparece en sitios distintos porque un `includes` es fácil de
+                // escribir y el fallo no se ve hasta que un dato concreto lo destapa.
+                //
+                // `String.raw` y no un template literal a secas: dentro de un template
+                // el parser se come la barra y la clase queda `[w]` —la LETRA w—, así
+                // que `plan_chunk_queue` seguía casando y el guard PARECÍA arreglado.
+                // Me pasó dos veces seguidas contando escapes a mano.
+                if (!nombres.some((termino) => new RegExp(
+                    String.raw`(?<![\w])`
+                    + termino.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+                    + String.raw`(?![\w])`,
+                ).test(clave))) continue;
                 const texto = typeof v === 'string' ? v : (v && v.other) || '';
                 if (!texto) continue;
                 if (!sinAcentos(texto).includes(quiere)) desvios.push({ termino, clave: k });

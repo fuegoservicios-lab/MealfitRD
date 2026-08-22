@@ -30,6 +30,15 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Estos guards anclaban la GRAFÍA española del
+// JSX. Al envolver el copy en `t()` la grafía cambió y la conducta no: mismos datos,
+// mismo orden, mismos chips. Se reanclan a la PROPIEDAD —la clave y la variable en la
+// MISMA llamada— que es lo que de verdad protegen.
+//
+// La regla, que este repo aprendió tres veces el mismo día (aquí, en los guards de
+// pytest del chip de progreso, y en el del chip de caducidad que reportó otra sesión):
+// si el guard puede expresarse por la propiedad, que no dependa de cómo se escriba.
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -86,7 +95,7 @@ describe('[P1-HIST-NEW-2] presentación visual', () => {
         // terminal — no solo mostrar el timestamp crudo.
         const idx = src.indexOf('c.dead_lettered_at');
         const block = src.slice(idx, idx + 1500);
-        expect(block).toMatch(/title=\{`[^`]*\$\{_dl\.iso\}/);
+        expect(block).toMatch(/t\('Dead-letter[^']*\{fecha\}[^']*',\s*\{\s*fecha:\s*_dl\.iso/);
         expect(block).toMatch(/estado\s+terminal/i);
     });
 });

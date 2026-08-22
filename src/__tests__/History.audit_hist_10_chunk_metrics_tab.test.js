@@ -27,6 +27,14 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Guards reanclados a la PROPIEDAD. Anclaban
+// la GRAFÍA española del JSX; al envolver el copy en `t()` la grafía cambió y la
+// conducta no: mismos datos, mismo orden, mismos chips.
+//
+// La regla, aprendida tres veces el mismo día: si el guard puede expresarse por la
+// propiedad, que no dependa de cómo se escriba.
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
@@ -203,7 +211,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 30000);
+        const block = src.slice(tabIdx, tabIdx + 42000);
         expect(block).toMatch(/_list\.map\s*\(/);
         expect(block).toMatch(/c\.week_number/);
         expect(block).toMatch(/c\.chunk_kind/);
@@ -237,7 +245,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 30000);
+        const block = src.slice(tabIdx, tabIdx + 42000);
         // Buscar el helper local _fmtDuration con ambos branches.
         expect(block).toMatch(/_fmtDuration/);
         expect(block).toMatch(/ms\s*\/\s*1000/);
@@ -273,7 +281,7 @@ describe('[P2-HIST-AUDIT-10] learning_metrics keys whitelisted', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 30000);
+        const block = src.slice(tabIdx, tabIdx + 42000);
         expect(block).toMatch(/synth_quality_score/);
         expect(block).toMatch(/synthesized_count/);
         expect(block).toMatch(/queue_count/);

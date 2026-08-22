@@ -29,6 +29,14 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Guards reanclados a la PROPIEDAD. Anclaban
+// la GRAFÍA española del JSX; al envolver el copy en `t()` la grafía cambió y la
+// conducta no: mismos datos, mismo orden, mismos chips.
+//
+// La regla, aprendida tres veces el mismo día: si el guard puede expresarse por la
+// propiedad, que no dependa de cómo se escriba.
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
@@ -113,7 +121,7 @@ describe('[P2-HIST-NEW-2] cap visual de chips', () => {
         // _extra = entries.length - 3
         expect(block).toMatch(/_entries\.length\s*-\s*3/);
         // Render del +N más con copy es-DO.
-        expect(block).toMatch(/\+\{_extra\}\s+m[aá]s/);
+        expect(block).toMatch(/t\('\+\{n\} más',\s*\{\s*n:\s*_extra/);
     });
 
     it('JSON.stringify completo en title= del chip "+N más"', () => {

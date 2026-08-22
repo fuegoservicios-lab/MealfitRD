@@ -78,7 +78,7 @@ import HistoryMobilePanel from '../components/history/HistoryMobilePanel';
 // componente (es lo que lo suscribe al cambio de idioma); el `t` suelto para los
 // helpers de módulo (`_dayNameForGlobalIdx`, `chipDeChunkMuerto`) — se invocan en
 // render, nunca al importar, así que no caen en la trampa del ámbito de módulo.
-import { formatDate, t, useI18n, useT } from '../i18n';
+import { formatDate, t, tn, useI18n, useT } from '../i18n';
 
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
@@ -2889,26 +2889,26 @@ const History = () => {
                                                     <div className={styles.lifetimeCountersRow}>
                                                         {typeof _rej === 'number' && (
                                                             <span className={styles.detailItemCounter}
-                                                                  title="Total de violaciones de rechazos detectadas en el lifetime de este plan">
-                                                                Rechazos: {_rej}
+                                                                  title={t('Total de violaciones de rechazos detectadas en el lifetime de este plan')}>
+                                                                {t('Rechazos: {n}', { n: _rej })}
                                                             </span>
                                                         )}
                                                         {typeof _alg === 'number' && _alg > 0 && (
                                                             <span className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                  title="Violaciones de alergias — el sistema las trata como inmortales">
-                                                                Alergias: {_alg}
+                                                                  title={t('Violaciones de alergias — el sistema las trata como inmortales')}>
+                                                                {t('Alergias: {n}', { n: _alg })}
                                                             </span>
                                                         )}
                                                         {typeof _logs === 'number' && (
                                                             <span className={styles.detailItemCounter}
-                                                                  title="Lecciones derivadas de logs reales del usuario">
-                                                                Logs: {_logs}
+                                                                  title={t('Lecciones derivadas de logs reales del usuario')}>
+                                                                {t('Logs: {n}', { n: _logs })}
                                                             </span>
                                                         )}
                                                         {typeof _proxy === 'number' && _proxy > 0 && (
                                                             <span className={styles.detailItemCounter}
-                                                                  title="Lecciones generadas via proxy (sin log explícito del usuario)">
-                                                                Proxy: {_proxy}
+                                                                  title={t('Lecciones generadas via proxy (sin log explícito del usuario)')}>
+                                                                {t('Proxy: {n}', { n: _proxy })}
                                                             </span>
                                                         )}
                                                     </div>
@@ -3044,17 +3044,17 @@ const History = () => {
                                                             {_signalLabel && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${_signalSev}`}
-                                                                    title="Fuerza de la señal de aprendizaje que el cron extrajo del chunk anterior. 'Débil' indica baja confianza para el próximo prompt."
+                                                                    title={t("Fuerza de la señal de aprendizaje que el cron extrajo del chunk anterior. 'Débil' indica baja confianza para el próximo prompt.")}
                                                                 >
-                                                                    Señal: {_signalLabel}
+                                                                    {t('Señal: {valor}', { valor: _signalLabel })}
                                                                 </span>
                                                             )}
                                                             {_lcl.low_confidence === true && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                    title="El cron marcó este aprendizaje como baja confianza — los próximos chunks pueden tener menos precisión hasta que llegue señal nueva (logs / interacciones)."
+                                                                    title={t('El cron marcó este aprendizaje como baja confianza — los próximos chunks pueden tener menos precisión hasta que llegue señal nueva (logs / interacciones).')}
                                                                 >
-                                                                    Baja confianza
+                                                                    {t('Baja confianza')}
                                                                 </span>
                                                             )}
                                                             {_lcl.metrics_unavailable === true && (
@@ -3068,73 +3068,73 @@ const History = () => {
                                                             {_lcl.rebuilt_from_pipeline_failure === true && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                    title="El cron tuvo que reconstruir el aprendizaje tras un crash del pipeline LangGraph. Señal de inestabilidad — revisa logs si recurre."
+                                                                    title={t('El cron tuvo que reconstruir el aprendizaje tras un crash del pipeline LangGraph. Señal de inestabilidad — revisa logs si recurre.')}
                                                                 >
-                                                                    Reconstruido tras crash
+                                                                    {t('Reconstruido tras crash')}
                                                                 </span>
                                                             )}
                                                             {_lcl.rebuilt_from_queue === true && (
                                                                 <span
                                                                     className={styles.detailItemCounter}
-                                                                    title="Aprendizaje reconstruido desde plan_chunk_queue.learning_metrics — recovery path normal cuando _recent_chunk_lessons se perdió."
+                                                                    title={t('Aprendizaje reconstruido desde plan_chunk_queue.learning_metrics — recovery path normal cuando _recent_chunk_lessons se perdió.')}
                                                                 >
-                                                                    Reconstruido (queue)
+                                                                    {t('Reconstruido (queue)')}
                                                                 </span>
                                                             )}
                                                             {_lcl.rebuilt_from_preflight === true && (
                                                                 <span
                                                                     className={styles.detailItemCounter}
-                                                                    title="Aprendizaje reconstruido desde un preflight — fallback cuando ni queue ni days tenían señal recuperable."
+                                                                    title={t('Aprendizaje reconstruido desde un preflight — fallback cuando ni queue ni days tenían señal recuperable.')}
                                                                 >
-                                                                    Reconstruido (preflight)
+                                                                    {t('Reconstruido (preflight)')}
                                                                 </span>
                                                             )}
                                                             {typeof _lcl.rebuilt_source_status === 'string' && _lcl.rebuilt_source_status.trim() && (
                                                                 <span
                                                                     className={styles.detailItemCounter}
-                                                                    title={`Status del origen desde el que el cron reconstruyó: ${_lcl.rebuilt_source_status}`}
+                                                                    title={t('Status del origen desde el que el cron reconstruyó: {origen}', { origen: _lcl.rebuilt_source_status })}
                                                                 >
-                                                                    Origen: {_trunc(_lcl.rebuilt_source_status, 18)}
+                                                                    {t('Origen: {valor}', { valor: _trunc(_lcl.rebuilt_source_status, 18) })}
                                                                 </span>
                                                             )}
                                                             {_rep && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${_rep.sev}`}
-                                                                    title="% de meals del último chunk que ya habían aparecido antes en el plan. >20% indica fatiga; >60% es señal fuerte de bucle."
+                                                                    title={t('% de meals del último chunk que ya habían aparecido antes en el plan. >20% indica fatiga; >60% es señal fuerte de bucle.')}
                                                                 >
-                                                                    Repetición meals: {_rep.txt}
+                                                                    {t('Repetición meals: {valor}', { valor: _rep.txt })}
                                                                 </span>
                                                             )}
                                                             {_baseRep && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${_baseRep.sev}`}
-                                                                    title="% de bases (proteína/carbo) repetidas vs chunks previos del plan. Complementa Repetición meals — alto base pct con bajo meal pct = recetas distintas, mismos ingredientes."
+                                                                    title={t('% de bases (proteína/carbo) repetidas vs chunks previos del plan. Complementa Repetición meals — alto base pct con bajo meal pct = recetas distintas, mismos ingredientes.')}
                                                                 >
-                                                                    Repetición bases: {_baseRep.txt}
+                                                                    {t('Repetición bases: {valor}', { valor: _baseRep.txt })}
                                                                 </span>
                                                             )}
                                                             {typeof _lcl.allergy_violations === 'number' && _lcl.allergy_violations > 0 && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                    title="Violaciones de alergias detectadas en el último chunk. Las alergias son inmortales — el próximo chunk hereda este conteo."
+                                                                    title={t('Violaciones de alergias detectadas en el último chunk. Las alergias son inmortales — el próximo chunk hereda este conteo.')}
                                                                 >
-                                                                    Alergias: {_lcl.allergy_violations}
+                                                                    {t('Alergias: {n}', { n: _lcl.allergy_violations })}
                                                                 </span>
                                                             )}
                                                             {typeof _lcl.rejection_violations === 'number' && _lcl.rejection_violations > 0 && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                    title="Meals rechazados que reaparecieron en el último chunk."
+                                                                    title={t('Meals rechazados que reaparecieron en el último chunk.')}
                                                                 >
-                                                                    Rechazos: {_lcl.rejection_violations}
+                                                                    {t('Rechazos: {n}', { n: _lcl.rejection_violations })}
                                                                 </span>
                                                             )}
                                                             {typeof _lcl.fatigued_violations === 'number' && _lcl.fatigued_violations > 0 && (
                                                                 <span
                                                                     className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                    title="Meals con fatiga (presencia frecuente reciente) que volvieron a aparecer."
+                                                                    title={t('Meals con fatiga (presencia frecuente reciente) que volvieron a aparecer.')}
                                                                 >
-                                                                    Fatiga: {_lcl.fatigued_violations}
+                                                                    {t('Fatiga: {n}', { n: _lcl.fatigued_violations })}
                                                                 </span>
                                                             )}
                                                             {_listChip('Reaparecieron', _lcl.rejected_meals_that_reappeared, styles.tierBadgeWarn)}
@@ -3519,7 +3519,7 @@ const History = () => {
                                                                                 className={styles.detailItemCounter}
                                                                                 title={_fullJson}
                                                                             >
-                                                                                +{_extra} más
+                                                                                {t('+{n} más', { n: _extra })}
                                                                             </span>
                                                                         )}
                                                                     </>
@@ -3827,7 +3827,7 @@ const History = () => {
                                     const _LM_DISPLAY_GROUPS = [
                                         {
                                             id: 'synthesis',
-                                            title: 'Síntesis y escalación',
+                                            title: t('Síntesis y escalación'),
                                             keys: [
                                                 // [G8-LM-CATALOG-HONESTY · 2026-05-29] Removidas
                                                 // synth_quality_score / synthesized_count / queue_count:
@@ -3850,7 +3850,7 @@ const History = () => {
                                         },
                                         {
                                             id: 'repetition',
-                                            title: 'Repetición',
+                                            title: t('Repetición'),
                                             keys: [
                                                 ['learning_repeat_pct', 'Meals repetidos', 'pct'],
                                                 ['ingredient_base_repeat_pct', 'Bases repetidas', 'pct'],
@@ -3878,7 +3878,7 @@ const History = () => {
                                         },
                                         {
                                             id: 'pantry',
-                                            title: 'Pantry y señal',
+                                            title: t('Pantry y señal'),
                                             keys: [
                                                 ['inventory_activity_proxy_used', 'Proxy inventario', 'bool'],
                                                 ['inventory_activity_mutations', 'Mutaciones inv.', 'int'],
@@ -4012,9 +4012,15 @@ const History = () => {
                                                 <div
                                                     className={`${styles.modalDetailEmpty} ${styles.metricsTruncatedNotice}`}
                                                     role="status"
-                                                    title={`El plan tiene ${_adjustedTotal} chunks dentro de su alcance${_filteredOutCount > 0 ? ` (más ${_filteredOutCount} chunk(s) fuera del alcance que se omitieron)` : ''}; el endpoint cap a ${_meta.limit ?? 50} para evitar payloads grandes.`}
+                                                    title={
+                                                        t('El plan tiene {total} chunks dentro de su alcance', { total: _adjustedTotal })
+                                                        + (_filteredOutCount > 0
+                                                            ? ' ' + t('(más {n} chunk(s) fuera del alcance que se omitieron)', { n: _filteredOutCount })
+                                                            : '')
+                                                        + '; ' + t('el endpoint cap a {limite} para evitar payloads grandes.', { limite: _meta.limit ?? 50 })
+                                                    }
                                                 >
-                                                    Mostrando {_list.length} de {_adjustedTotal} chunks. Los más antiguos no aparecen — usa el panel admin si necesitas el detalle completo.
+                                                    {t('Mostrando {n} de {total} chunks. Los más antiguos no aparecen — usa el panel admin si necesitas el detalle completo.', { n: _list.length, total: _adjustedTotal })}
                                                 </div>
                                             )}
                                         <ul className={styles.detailList}>
@@ -4315,8 +4321,8 @@ const History = () => {
                                                                 if (!_esc) return null;
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${styles.tierBadgeWarn}`}
-                                                                          title={`Escalado a no-recoverable el ${_esc.iso}`}>
-                                                                        Escalado: {_esc.rel}
+                                                                          title={t('Escalado a no-recoverable el {fecha}', { fecha: _esc.iso })}>
+                                                                        {t('Escalado: {cuando}', { cuando: _esc.rel })}
                                                                     </span>
                                                                 );
                                                             })()}
@@ -4349,7 +4355,7 @@ const History = () => {
                                                                 if (!_dl) return null;
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}
-                                                                          title={`Dead-letter (estado terminal) desde ${_dl.iso}. El sistema dejó de reintentar este chunk.`}>
+                                                                          title={t('Dead-letter (estado terminal) desde {fecha}. El sistema dejó de reintentar este chunk.', { fecha: _dl.iso })}>
                                                                         Dead-letter: {_dl.rel}
                                                                     </span>
                                                                 );
@@ -4359,7 +4365,7 @@ const History = () => {
                                                                 if (_lp) {
                                                                     return (
                                                                         <span className={styles.detailItemCounter}
-                                                                              title={`Learning commiteado el ${_lp.iso} — disponible para chunks posteriores.`}>
+                                                                              title={t('Learning commiteado el {fecha} — disponible para chunks posteriores.', { fecha: _lp.iso })}>
                                                                             Learning: {_lp.rel}
                                                                         </span>
                                                                     );
@@ -4392,7 +4398,7 @@ const History = () => {
                                                             {typeof c.expected_preemption_seconds === 'number'
                                                                 && c.expected_preemption_seconds > 0 && (
                                                                 <span className={styles.detailItemCounter}
-                                                                      title="SLA esperado: tiempo predicho hasta el pickup del chunk. Útil para comparar con lag real.">
+                                                                      title={t('SLA esperado: tiempo predicho hasta el pickup del chunk. Útil para comparar con lag real.')}>
                                                                     SLA: {c.expected_preemption_seconds}s
                                                                 </span>
                                                             )}
@@ -4426,7 +4432,14 @@ const History = () => {
                                                                     : styles.tierBadgeWarn;
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${_cls}`}
-                                                                          title={`Lag (${_lag}s) supera el SLA esperado (${_sla}s) por ${_label}. ${_severe ? 'Anomalía severa: revisar worker pool / lock heredado.' : 'Worker pool bajo presión o cron lag.'}`}>
+                                                                          title={
+                                                                              t('Lag ({lag}s) supera el SLA esperado ({sla}s) por {exceso}.',
+                                                                                { lag: _lag, sla: _sla, exceso: _label })
+                                                                              + ' '
+                                                                              + (_severe
+                                                                                  ? t('Anomalía severa: revisar worker pool / lock heredado.')
+                                                                                  : t('Worker pool bajo presión o cron lag.'))
+                                                                          }>
                                                                         Lag {_label} SLA
                                                                     </span>
                                                                 );
@@ -4472,10 +4485,16 @@ const History = () => {
                                                                 const _cls = _warn ? styles.tierBadgeWarn : '';
                                                                 const _reasonsTxt = _reasons.length > 0
                                                                     ? _reasons.join(', ')
-                                                                    : 'sin razón registrada';
+                                                                    : t('sin razón registrada');
                                                                 return (
                                                                     <span className={`${styles.detailItemCounter} ${_cls}`}
-                                                                          title={`Diferido ${_n} ${_n === 1 ? 'vez' : 'veces'} por gates del pipeline. Razones: ${_reasonsTxt}.`}>
+                                                                          title={
+                                                                              tn(_n,
+                                                                                  'Diferido {n} vez por gates del pipeline.',
+                                                                                  'Diferido {n} veces por gates del pipeline.',
+                                                                                  { n: _n })
+                                                                              + ' ' + t('Razones: {razones}.', { razones: _reasonsTxt })
+                                                                          }>
                                                                         Diferido {_n}×
                                                                     </span>
                                                                 );
@@ -5128,29 +5147,52 @@ const History = () => {
                                                 <span className={styles.missingDaysIcon}>{_icon}</span>
                                                 <strong className={styles.missingDaysTitle}>
                                                     {_missingDays > 0
-                                                        ? (_missingDays === 1
-                                                            ? 'Falta 1 día por generar'
-                                                            : `Faltan ${_missingDays} días por generar`)
-                                                        : (_exhaustedCount === 1
-                                                            ? '1 bloque sin completar'
-                                                            : `${_exhaustedCount} bloques sin completar`)}
+                                                        ? tn(_missingDays,
+                                                            'Falta {n} día por generar',
+                                                            'Faltan {n} días por generar',
+                                                            { n: _missingDays })
+                                                        : tn(_exhaustedCount,
+                                                            '{n} bloque sin completar',
+                                                            '{n} bloques sin completar',
+                                                            { n: _exhaustedCount })}
                                                 </strong>
                                                 {_missingDays > 0 && (
                                                     <span
                                                         className={styles.missingDaysCount}
-                                                        title={`${_generatedTotal} día(s) generado(s) (${_planDaysLen} disponible(s) hoy${_expiredDays > 0 ? `, ${_expiredDays} ya pasó(aron)` : ''}) · ${_missingDays} por generar · plan original: ${_displayTotal} días`}
+                                                        title={
+                                                            tn(_generatedTotal,
+                                                                '{n} día generado',
+                                                                '{n} días generados',
+                                                                { n: _generatedTotal })
+                                                            + ' (' + tn(_planDaysLen,
+                                                                '{n} disponible hoy',
+                                                                '{n} disponibles hoy',
+                                                                { n: _planDaysLen })
+                                                            + (_expiredDays > 0
+                                                                ? ', ' + tn(_expiredDays,
+                                                                    '{n} ya pasó',
+                                                                    '{n} ya pasaron',
+                                                                    { n: _expiredDays })
+                                                                : '')
+                                                            + ') · ' + t('{n} por generar', { n: _missingDays })
+                                                            + ' · ' + t('plan original: {n} días', { n: _displayTotal })
+                                                        }
                                                     >
-                                                        {_generatedTotal} de {_displayTotal} listos
+                                                        {t('{hechos} de {total} listos', { hechos: _generatedTotal, total: _displayTotal })}
                                                     </span>
                                                 )}
                                             </div>
                                             {_missingDays > 0 && _missingRange && (
                                                 <p className={styles.missingDaysSubtitle}>
-                                                    Falta{_missingDays === 1 ? '' : 'n'} {_missingRange}
+                                                    {/* [P1-I18N-HISTORY-FORENSE · 2026-08-21] La «n» de «Faltan» era
+                                                        una interpolación (`Falta{n===1?'':'n'}`): ningún escáner de
+                                                        literales la ve como plural, y en inglés esa letra no existe. */}
+                                                    {tn(_missingDays, 'Falta {rango}', 'Faltan {rango}', { rango: _missingRange })}
                                                     {_expiredDays > 0 && (
-                                                        _expiredDays === 1
-                                                            ? '. (1 día ya pasó y no aparece en el menú)'
-                                                            : `. (${_expiredDays} días ya pasaron y no aparecen en el menú)`
+                                                        '. ' + tn(_expiredDays,
+                                                            '({n} día ya pasó y no aparece en el menú)',
+                                                            '({n} días ya pasaron y no aparecen en el menú)',
+                                                            { n: _expiredDays })
                                                     )}
                                                     {_expiredDays === 0 && '.'}
                                                 </p>

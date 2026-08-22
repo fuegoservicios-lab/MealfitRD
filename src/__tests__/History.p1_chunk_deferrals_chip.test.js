@@ -94,8 +94,15 @@ describe('[P1-HIST-NEW-6] label + tooltip', () => {
         // Singular "1 vez" vs plural "N veces" — copy es-DO natural.
         const idx = src.indexOf('c.deferrals_count');
         const block = src.slice(idx, idx + 2000);
-        expect(block).toMatch(/_n\s*===\s*1\s*\?\s*['"]vez['"]/);
-        expect(block).toMatch(/['"]veces['"]/);
+        // [P1-I18N-HISTORY-FORENSE · 2026-08-21] El plural pasa del ternario
+        // español `_n === 1 ? 'vez' : 'veces'` a `tn()`, que lo resuelve con
+        // `Intl.PluralRules`. El ternario sólo sabe que el español tiene dos
+        // formas; el ruso tiene tres. Se ancla la PROPIEDAD —que existan las
+        // dos formas y que el conteo entre en la frase— y no el cómo.
+        expect(block).toMatch(/tn\(_n,/);
+        expect(block).toMatch(/Diferido \{n\} vez/);
+        expect(block).toMatch(/Diferido \{n\} veces/);
+        expect(block).toMatch(/'Diferido \{n\} veces por gates del pipeline\.'/);
     });
 
     it('tooltip incluye reasons o fallback "sin razón"', () => {

@@ -31,6 +31,14 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Guards reanclados a la PROPIEDAD. Anclaban
+// la GRAFÍA española del JSX; al envolver el copy en `t()` la grafía cambió y la
+// conducta no: mismos datos, mismo orden, mismos chips.
+//
+// La regla, aprendida tres veces el mismo día: si el guard puede expresarse por la
+// propiedad, que no dependa de cómo se escriba.
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
@@ -128,7 +136,7 @@ describe('[P1-HIST-NEW-4] render del notice', () => {
         // tras filtrar chunks fantasma de weeks fuera del plan.
         const idx = src.indexOf('chunkMetricsMeta[selectedPlan.id]');
         const block = src.slice(idx, idx + 3000);
-        expect(block).toMatch(/Mostrando\s*\{_list\.length\}\s*de\s*\{_adjustedTotal\}/);
+        expect(block).toMatch(/t\('Mostrando \{n\} de \{total\} chunks[^']*',\s*\{\s*n:\s*_list\.length,\s*total:\s*_adjustedTotal/);
     });
 
     it('tooltip menciona el cap del backend (LIMIT 50)', () => {

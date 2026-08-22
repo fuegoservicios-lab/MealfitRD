@@ -29,6 +29,16 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Estos guards anclaban la GRAFÍA española del
+// JSX. Al envolver el copy en `t()` la grafía cambió y la conducta no: mismos datos,
+// mismo orden, mismos chips. Se reanclan a la PROPIEDAD —la clave y la variable en la
+// MISMA llamada— que es lo que de verdad protegen.
+//
+// La regla, que este repo aprendió tres veces el mismo día (aquí, en los tres guards
+// de pytest del chip de progreso, y en el del chip de caducidad que reportó otra
+// sesión): si el guard puede expresarse por la propiedad, que no dependa de cómo se
+// escriba.
+
 import {
     historyCaches,
     setCachedLifetimeEntry,
@@ -231,10 +241,10 @@ describe('[P1-HIST-LIFETIME-LESSONS] render del sub-bloque lifetime', () => {
         const anchorIdx = src.indexOf('lifetimeCountersRow');
         expect(anchorIdx).toBeGreaterThan(-1);
         const block = src.slice(anchorIdx, anchorIdx + 4000);
-        expect(block).toMatch(/Rechazos:\s*\{_rej\}/);
-        expect(block).toMatch(/Alergias:\s*\{_alg\}/);
-        expect(block).toMatch(/Logs:\s*\{_logs\}/);
-        expect(block).toMatch(/Proxy:\s*\{_proxy\}/);
+        expect(block).toMatch(/t\('Rechazos: \{n\}',\s*\{\s*n:\s*_rej/);
+        expect(block).toMatch(/t\('Alergias: \{n\}',\s*\{\s*n:\s*_alg/);
+        expect(block).toMatch(/t\('Logs: \{n\}',\s*\{\s*n:\s*_logs/);
+        expect(block).toMatch(/t\('Proxy: \{n\}',\s*\{\s*n:\s*_proxy/);
     });
 
     it('listas top: blocklist + rechazos + repetidos + bases', () => {

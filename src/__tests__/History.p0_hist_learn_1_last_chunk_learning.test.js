@@ -25,6 +25,14 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Guards reanclados a la PROPIEDAD. Anclaban
+// la GRAFÍA española del JSX; al envolver el copy en `t()` la grafía cambió y la
+// conducta no: mismos datos, mismo orden, mismos chips.
+//
+// La regla, aprendida tres veces el mismo día: si el guard puede expresarse por la
+// propiedad, que no dependa de cómo se escriba.
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
@@ -101,7 +109,7 @@ describe('[P0-HIST-LEARN-1] render del bloque', () => {
     it('chips de severity para signal/confidence/T2/crash', () => {
         const anchorIdx = src.indexOf('Snapshot del último chunk aprendido');
         const block = src.slice(anchorIdx, anchorIdx + 30000);
-        expect(block).toMatch(/Señal:\s*\{_signalLabel\}/);
+        expect(block).toMatch(/t\('Señal: \{valor\}',\s*\{\s*valor:\s*_signalLabel/);
         expect(block).toMatch(/Baja confianza/);
         expect(block).toMatch(/Sin métricas T2/);
         expect(block).toMatch(/Reconstruido tras crash/);

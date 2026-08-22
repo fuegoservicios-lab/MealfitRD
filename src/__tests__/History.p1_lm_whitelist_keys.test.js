@@ -35,6 +35,14 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Guards reanclados a la PROPIEDAD. Anclaban
+// la GRAFÍA española del JSX; al envolver el copy en `t()` la grafía cambió y la
+// conducta no: mismos datos, mismo orden, mismos chips.
+//
+// La regla, aprendida tres veces el mismo día: si el guard puede expresarse por la
+// propiedad, que no dependa de cómo se escriba.
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
@@ -72,10 +80,10 @@ describe('[P1-HIST-LM-WHITELIST] anchor + estructura del catálogo', () => {
             expect(block).toMatch(new RegExp(`id:\\s*['"]${id}['"]`));
         }
         // Títulos legibles (mezcla mayúsculas/minúsculas).
-        expect(block).toMatch(/title:\s*['"]S[ií]ntesis y escalaci[oó]n['"]/);
-        expect(block).toMatch(/title:\s*['"]Repetici[oó]n['"]/);
+        expect(src).toMatch(/title:\s*t\('Síntesis y escalación'\)/);
+        expect(block).toMatch(/title:\s*t\('Repetición'\)/);
         expect(block).toMatch(/title:\s*['"]Violaciones['"]/);
-        expect(block).toMatch(/title:\s*['"]Pantry y se[nñ]al['"]/);
+        expect(block).toMatch(/title:\s*t\('Pantry y señal'\)/);
     });
 });
 

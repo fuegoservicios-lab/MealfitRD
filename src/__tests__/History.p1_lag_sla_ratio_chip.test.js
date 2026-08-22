@@ -32,6 +32,14 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Guards reanclados a la PROPIEDAD. Anclaban
+// la GRAFÍA española del JSX; al envolver el copy en `t()` la grafía cambió y la
+// conducta no: mismos datos, mismo orden, mismos chips.
+//
+// La regla, aprendida tres veces el mismo día: si el guard puede expresarse por la
+// propiedad, que no dependa de cómo se escriba.
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
@@ -46,7 +54,7 @@ describe('[P1-HIST-NEW-5] anchor + lectura de inputs', () => {
 
     it('lee SLA desde c.expected_preemption_seconds', () => {
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         expect(block).toMatch(/c\.expected_preemption_seconds/);
     });
 
@@ -54,7 +62,7 @@ describe('[P1-HIST-NEW-5] anchor + lectura de inputs', () => {
         // _lag = c.metrics?.lag_seconds || c.lag_seconds_at_pickup
         // ya está calculado arriba en el map. El IIFE lo reusa.
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         expect(block).toMatch(/_lag/);
     });
 });
@@ -65,7 +73,7 @@ describe('[P1-HIST-NEW-5] guards defensivos', () => {
         // chunks sin reserva (SLA=0 o null) no deben disparar el chip —
         // no hay base contra la cual comparar.
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         expect(block).toMatch(
             /typeof\s+_sla\s*!==\s*['"]number['"]\s*\|\|\s*_sla\s*<=\s*0/
         );
@@ -74,7 +82,7 @@ describe('[P1-HIST-NEW-5] guards defensivos', () => {
     it('skip cuando _lag no es number > 0', () => {
         // Chunks pending sin lag commiteado o lag=0 no son anómalos.
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         expect(block).toMatch(
             /typeof\s+_lag\s*!==\s*['"]number['"]\s*\|\|\s*_lag\s*<=\s*0/
         );
@@ -84,7 +92,7 @@ describe('[P1-HIST-NEW-5] guards defensivos', () => {
         // Threshold de "anomalía" arranca en 2× — chunks que tardan
         // un poco más del SLA esperado son ruido normal.
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         expect(block).toMatch(/_ratio\s*<\s*2/);
     });
 });
@@ -93,7 +101,7 @@ describe('[P1-HIST-NEW-5] guards defensivos', () => {
 describe('[P1-HIST-NEW-5] severity por threshold', () => {
     it('severe: ratio >= 5 usa tierBadgeBad (rojo)', () => {
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         expect(block).toMatch(/_severe\s*=\s*_ratio\s*>=\s*5/);
         // Severe → tierBadgeBad asignado a _cls.
         expect(block).toMatch(/_severe\s*\?\s*styles\.tierBadgeBad\s*:\s*styles\.tierBadgeWarn/);
@@ -103,7 +111,7 @@ describe('[P1-HIST-NEW-5] severity por threshold', () => {
         // Por exclusión: si no es severe y pasó el guard de >= 2,
         // cae a warn. El ternario lo cubre.
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         expect(block).toMatch(/styles\.tierBadgeWarn/);
     });
 });
@@ -112,7 +120,7 @@ describe('[P1-HIST-NEW-5] severity por threshold', () => {
 describe('[P1-HIST-NEW-5] label format', () => {
     it('ratio < 10: formato "X.Y×" con un decimal', () => {
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         // _ratio.toFixed(1) + "×".
         expect(block).toMatch(/_ratio\.toFixed\(1\)/);
     });
@@ -121,7 +129,7 @@ describe('[P1-HIST-NEW-5] label format', () => {
         // Para anomalías muy grandes (ej. 47×) un decimal sería ruido —
         // entero comunica mejor.
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         expect(block).toMatch(/_ratio\s*>=\s*10/);
         expect(block).toMatch(/Math\.round\(_ratio\)/);
     });
@@ -131,17 +139,17 @@ describe('[P1-HIST-NEW-5] label format', () => {
 describe('[P1-HIST-NEW-5] tooltip + posición', () => {
     it('tooltip incluye los dos valores + ratio + interpretación', () => {
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
+        const block = src.slice(idx, idx + 5500);
         // Template literal con _lag, _sla, _label, y copy interpretativa.
-        expect(block).toMatch(/title=\{`[\s\S]*?_lag[\s\S]*?_sla[\s\S]*?_label/);
+        expect(block).toMatch(/t\('Lag \(\{lag\}s\) supera el SLA esperado \(\{sla\}s\)[^']*',\s*\{\s*lag:\s*_lag,\s*sla:\s*_sla/);
         // Copy diferenciada por severidad.
         expect(block).toMatch(/Anomal[ií]a severa/i);
     });
 
     it('chip text muestra "Lag X× SLA"', () => {
         const idx = src.indexOf('[P1-HIST-NEW-5');
-        const block = src.slice(idx, idx + 3500);
-        expect(block).toMatch(/Lag\s*\{_label\}\s*SLA/);
+        const block = src.slice(idx, idx + 5500);
+        expect(block).toMatch(/Lag \{_label\} SLA/);
     });
 
     it('render se ubica entre chip SLA y chip reservation_status', () => {

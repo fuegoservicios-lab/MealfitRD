@@ -36,6 +36,16 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Estos guards anclaban la GRAFÍA española del
+// JSX. Al envolver el copy en `t()` la grafía cambió y la conducta no: mismos datos,
+// mismo orden, mismos chips. Se reanclan a la PROPIEDAD —la clave y la variable en la
+// MISMA llamada— que es lo que de verdad protegen.
+//
+// La regla, que este repo aprendió tres veces el mismo día (aquí, en los tres guards
+// de pytest del chip de progreso, y en el del chip de caducidad que reportó otra
+// sesión): si el guard puede expresarse por la propiedad, que no dependa de cómo se
+// escriba.
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -108,7 +118,7 @@ describe('[P1-HIST-CHUNK-TIMESTAMPS] render escalated_at', () => {
         // El IIFE consume escalated_at via _fmtRelTime.
         expect(block).toMatch(/_fmtRelTime\(c\.escalated_at\)/);
         // Chip text "Escalado: <rel>".
-        expect(block).toMatch(/Escalado:\s*\{_esc\.rel\}/);
+        expect(block).toMatch(/t\('Escalado: \{cuando\}',\s*\{\s*cuando:\s*_esc\.rel/);
         // tierBadgeWarn (amber) — no es error nuevo, marca histórica.
         expect(block).toMatch(/styles\.tierBadgeWarn/);
         // Tooltip con ISO completo.
@@ -132,7 +142,7 @@ describe('[P1-HIST-CHUNK-TIMESTAMPS] render learning_persisted_at', () => {
         expect(block).toMatch(/_fmtRelTime\(c\.learning_persisted_at\)/);
         expect(block).toMatch(/Learning:\s*\{_lp\.rel\}/);
         // Tooltip que explica el contexto.
-        expect(block).toMatch(/Learning commiteado el \$\{_lp\.iso\}/);
+        expect(block).toMatch(/t\('Learning commiteado el \{fecha\}[^']*',\s*\{\s*fecha:\s*_lp\.iso/);
     });
 
     it('edge case: status=completed pero learning_persisted_at=null → chip "Sin aprendizaje guardado" warn', () => {

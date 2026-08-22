@@ -34,6 +34,14 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// [P1-I18N-HISTORY-FORENSE · 2026-08-21] Guards reanclados a la PROPIEDAD. Anclaban
+// la GRAFÍA española del JSX; al envolver el copy en `t()` la grafía cambió y la
+// conducta no: mismos datos, mismo orden, mismos chips.
+//
+// La regla, aprendida tres veces el mismo día: si el guard puede expresarse por la
+// propiedad, que no dependa de cómo se escriba.
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
@@ -71,7 +79,7 @@ describe('[P2-HIST-AUDIT-8] guard de render (gap real)', () => {
         // _exhaustedCount === 0.
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
         expect(blockIdx).toBeGreaterThan(-1);
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
             /_missingDays\s*===\s*0\s*&&\s*_exhaustedCount\s*===\s*0[^?]*return\s+null/
         );
@@ -79,13 +87,13 @@ describe('[P2-HIST-AUDIT-8] guard de render (gap real)', () => {
 
     it('lee total_days_requested top-level (P1-HIST-AUDIT-4 summary)', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(/_plan\.total_days_requested/);
     });
 
     it('fallback a plan_data.total_days_requested (legacy)', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(/_plan\.plan_data\?\.total_days_requested/);
     });
 });
@@ -98,7 +106,7 @@ describe('[P2-HIST-AUDIT-8] range string singular/plural', () => {
         // ambiguo junto al chip "4/6". Nuevo formato natural:
         // "el día N" / "del día N al día M".
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
             /_missingDays\s*===\s*1[^]*?el\s+d[ií]a\s*\$\{[^}]+\}/
         );
@@ -108,7 +116,7 @@ describe('[P2-HIST-AUDIT-8] range string singular/plural', () => {
         // [P0-HIST-FIX-2 · 2026-05-09] Reemplaza "Días N–M" (en-dash
         // ambiguo) por la frase explícita.
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
             /_missingDays\s*>\s*1[^]*?del\s+d[ií]a\s*\$\{[^}]+\}\s*al\s+d[ií]a\s*\$\{/
         );
@@ -122,7 +130,7 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
         // botón concreto del modal ("Reactivar este Plan") en lugar
         // del verbo abstracto "regenerar".
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         // [actualizado · P3-HIST-ACTIVE-NO-REACTIVATE] El copy "Reactivar
         // este Plan" se extrajo a la variable _ctaRetryWithInfo; el branch
         // exhausted la interpola en _reason y setea tone 'bad'.
@@ -137,7 +145,7 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
         // [P0-HIST-FIX-2 · 2026-05-09] Copy explica QUÉ se espera
         // (nevera/registro/fecha) en vez del genérico "esperando acción".
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
             /_puac\s*>\s*0[^]*?_tone\s*=\s*['"]warn['"]/
         );
@@ -146,7 +154,7 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
 
     it('failed > 0 (sin pending_user_action) → tone Bad', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
             /_failedC\s*>\s*0[^]*?_tone\s*=\s*['"]bad['"]/
         );
@@ -158,7 +166,7 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
         // Antes "Generación en proceso — vuelve a abrir el plan en
         // unos minutos" era poco accionable (¿cuánto tiempo?).
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
             /_inFlight\s*>\s*0[^]*?_tone\s*=\s*['"]info['"]/
         );
@@ -170,7 +178,7 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
 
     it('fallback general (else) usa tone Info', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         // [P0-HIST-FIX-2 · 2026-05-09] El else ahora asigna también
         // _icon (📅) además de _reason y _tone.
         expect(block).toMatch(
@@ -183,7 +191,7 @@ describe('[P2-HIST-AUDIT-8] prioridad de reasons', () => {
 describe('[P2-HIST-AUDIT-8] mapeo tone → CSS class', () => {
     it('tone "bad" mapea a styles.missingDaysBad', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
             /_tone\s*===\s*['"]bad['"][^?]*\?\s*styles\.missingDaysBad/
         );
@@ -191,7 +199,7 @@ describe('[P2-HIST-AUDIT-8] mapeo tone → CSS class', () => {
 
     it('tone "warn" mapea a styles.missingDaysWarn', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
             /_tone\s*===\s*['"]warn['"][^?]*\?\s*styles\.missingDaysWarn/
         );
@@ -199,7 +207,7 @@ describe('[P2-HIST-AUDIT-8] mapeo tone → CSS class', () => {
 
     it('tone fallback mapea a styles.missingDaysInfo', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(/styles\.missingDaysInfo/);
     });
 });
@@ -208,7 +216,7 @@ describe('[P2-HIST-AUDIT-8] mapeo tone → CSS class', () => {
 describe('[P2-HIST-AUDIT-8] precedencia counters (embedded > summary fallback)', () => {
     it('lee chunk_pending_user_action_count embedded primero', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         // typeof check defensivo — coherente con getStatusInfo
         // (P1-AUDIT-HIST-4).
         expect(block).toMatch(
@@ -218,7 +226,7 @@ describe('[P2-HIST-AUDIT-8] precedencia counters (embedded > summary fallback)',
 
     it('fallback a summary cuando embedded ausente', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
-        const block = src.slice(blockIdx, blockIdx + 23000);
+        const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(/_summaryEntry/);
         expect(block).toMatch(/chunkStatusSummary\[_plan\.id\]/);
     });
@@ -241,9 +249,11 @@ describe('[P0-HIST-FIX-2] counter unambiguo "X de Y listos"', () => {
         // genera 3 días no 2".
         const idx = src.lastIndexOf('P0-HIST-FIX-2');
         expect(idx).toBeGreaterThan(-1);
-        const block = src.slice(idx, idx + 6000);
+        const block = src.slice(idx, idx + 9000);
         expect(block).toMatch(
-            /\{_generatedTotal\}\s*de\s*\{_displayTotal\}\s*listos/
+            // [P1-I18N-HISTORY-FORENSE · 2026-08-21] Por PROPIEDAD, no por grafía:
+            // el chip pasó por `t()` y sigue usando las MISMAS dos variables.
+            /t\('\{hechos\} de \{total\} listos',\s*\{\s*hechos:\s*_generatedTotal,\s*total:\s*_displayTotal/
         );
         // Anti-pattern: el chip viejo `{_missingDays}/{_totalRequested}`
         // NO debe regresar.
@@ -262,11 +272,11 @@ describe('[P0-HIST-FIX-2] counter unambiguo "X de Y listos"', () => {
         // (template-in-template para el branch de _expiredDays), así
         // que `[^`]*` no funciona — usamos lazy any-char [\s\S]*?.
         const idx = src.lastIndexOf('P0-HIST-FIX-2');
-        const block = src.slice(idx, idx + 6000);
+        const block = src.slice(idx, idx + 9000);
         // El title= debe arrancar template literal y contener "por
         // generar" + "plan original:" en algún punto antes del cierre.
-        expect(block).toMatch(/title=\{`[\s\S]*?por generar/);
-        expect(block).toMatch(/title=\{`[\s\S]*?plan original:/);
+        expect(block).toMatch(/t\('\{n\} por generar',\s*\{\s*n:\s*_missingDays/);
+        expect(block).toMatch(/t\('plan original: \{n\} días',\s*\{\s*n:\s*_displayTotal/);
     });
 
     it('título header dice "Faltan N días por generar" (singular/plural)', () => {
@@ -277,9 +287,14 @@ describe('[P0-HIST-FIX-2] counter unambiguo "X de Y listos"', () => {
         // el marker aparece varias veces en el bloque (range, reason,
         // counter). El último corresponde al return del IIFE.
         const idx = src.lastIndexOf('P0-HIST-FIX-2');
-        const block = src.slice(idx, idx + 6000);
-        expect(block).toMatch(/Falta\s+1\s+d[ií]a\s+por\s+generar/);
-        expect(block).toMatch(/Faltan\s+\$\{_missingDays\}\s+d[ií]as\s+por\s+generar/);
+        const block = src.slice(idx, idx + 9000);
+        expect(block).toMatch(/tn\(_missingDays,\s*'Falta \{n\} día por generar',\s*'Faltan \{n\} días por generar'/);
+        // [P1-I18N-HISTORY-FORENSE · 2026-08-21] Aquí se anclaba
+        // `Faltan ${_missingDays} días por generar`, la interpolación
+        // española. Ahora el plural lo resuelve `tn()` con
+        // `Intl.PluralRules` y la línea de arriba lo comprueba: la
+        // propiedad —que existan singular y plural con el conteo
+        // dentro— sigue anclada, la grafía ya no.
     });
 });
 
@@ -292,7 +307,7 @@ describe('[P0-HIST-FIX-3] expired days handling (mismatch active vs original)', 
     it('declara _displayTotal = max(_activeTotal, _legacyTotalDays)', () => {
         const idx = src.indexOf('P0-HIST-FIX-3');
         expect(idx).toBeGreaterThan(-1);
-        const block = src.slice(idx, idx + 4000);
+        const block = src.slice(idx, idx + 6500);
         expect(block).toMatch(
             /_displayTotal\s*=\s*Math\.max\(\s*_activeTotal\s*,\s*_legacyTotalDays\s*\)/
         );
@@ -335,7 +350,7 @@ describe('[P0-HIST-FIX-3] expired days handling (mismatch active vs original)', 
         // — sin esta línea el user se confunde "¿el chip dice 3
         // pero solo veo 2 días?".
         const idx = src.lastIndexOf('P0-HIST-FIX-2');
-        const block = src.slice(idx, idx + 6000);
+        const block = src.slice(idx, idx + 9000);
         expect(block).toMatch(/_expiredDays\s*>\s*0/);
         expect(block).toMatch(/ya\s+pas[oó]\s+y\s+no\s+aparece/);
         expect(block).toMatch(/ya\s+pasaron\s+y\s+no\s+aparecen/);
@@ -345,7 +360,7 @@ describe('[P0-HIST-FIX-3] expired days handling (mismatch active vs original)', 
         // Plan healthy sin shift: _expiredDays = 0 → subtitle solo
         // dice "Faltan del día N al día M." sin paréntesis adicional.
         const idx = src.lastIndexOf('P0-HIST-FIX-2');
-        const block = src.slice(idx, idx + 6000);
+        const block = src.slice(idx, idx + 9000);
         expect(block).toMatch(/_expiredDays\s*===\s*0\s*&&\s*['"]\.\s*['"]/);
     });
 });
@@ -359,9 +374,9 @@ describe('[P0-HIST-FIX-2] subtitle con rango concreto', () => {
         // el marker aparece varias veces en el bloque (range, reason,
         // counter). El último corresponde al return del IIFE.
         const idx = src.lastIndexOf('P0-HIST-FIX-2');
-        const block = src.slice(idx, idx + 6000);
+        const block = src.slice(idx, idx + 9000);
         expect(block).toMatch(/styles\.missingDaysSubtitle/);
-        expect(block).toMatch(/Falta\{_missingDays\s*===\s*1\s*\?\s*['"]['"]\s*:\s*['"]n['"]\}/);
+        expect(block).toMatch(/tn\(_missingDays,\s*'Falta \{rango\}',\s*'Faltan \{rango\}'/);
     });
 
     it('CSS .missingDaysSubtitle declarado', () => {
@@ -400,7 +415,7 @@ describe('[P0-HIST-FIX-2] icon variable por tono', () => {
         // el marker aparece varias veces en el bloque (range, reason,
         // counter). El último corresponde al return del IIFE.
         const idx = src.lastIndexOf('P0-HIST-FIX-2');
-        const block = src.slice(idx, idx + 6000);
+        const block = src.slice(idx, idx + 9000);
         expect(block).toMatch(
             /<span\s+className=\{styles\.missingDaysIcon\}>\{_icon\}<\/span>/
         );
