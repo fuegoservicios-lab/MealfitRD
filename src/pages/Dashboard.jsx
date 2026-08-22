@@ -170,6 +170,7 @@ import { usePlanPollLoop } from '../hooks/usePlanPollLoop';
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
+import { glossClinicalNote } from '../utils/clinicalNoteGloss';
 import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
@@ -4086,7 +4087,7 @@ const DashboardInner = () => {
             // (XSS, la nota puede incluir nombres de condición/ingrediente influenciados por el form).
             const _rpr = planData?.requires_professional_review;
             const clinicalNoteHTML = (_rpr && _rpr.flag && _rpr.note)
-                ? `<div style="margin-top: 15px; padding: 10px 12px; border: 1.5px solid ${_rpr.renal_gate ? '#fca5a5' : '#93c5fd'}; background: ${_rpr.renal_gate ? '#fef2f2' : '#eff6ff'}; border-radius: 8px; color: ${_rpr.renal_gate ? '#991b1b' : '#1e40af'}; font-size: 10px; line-height: 1.45;"><strong>${escapeHtml(_rpr.renal_gate ? t('🫘 Condición renal — requiere supervisión de tu nefrólogo') : t('⚕️ Consulta a tu profesional de salud'))}</strong><br/>${escapeHtml(String(_rpr.note))}</div>`
+                ? `<div style="margin-top: 15px; padding: 10px 12px; border: 1.5px solid ${_rpr.renal_gate ? '#fca5a5' : '#93c5fd'}; background: ${_rpr.renal_gate ? '#fef2f2' : '#eff6ff'}; border-radius: 8px; color: ${_rpr.renal_gate ? '#991b1b' : '#1e40af'}; font-size: 10px; line-height: 1.45;"><strong>${escapeHtml(_rpr.renal_gate ? t('🫘 Condición renal — requiere supervisión de tu nefrólogo') : t('⚕️ Consulta a tu profesional de salud'))}</strong><br/>${escapeHtml(glossClinicalNote(String(_rpr.note), t))}</div>`
                 : '';
 
             htmlContent += `
