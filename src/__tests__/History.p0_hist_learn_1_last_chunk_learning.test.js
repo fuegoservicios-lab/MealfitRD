@@ -148,10 +148,14 @@ describe('[P0-HIST-LEARN-1] render del bloque', () => {
         const block = src.slice(anchorIdx, anchorIdx + 30000);
         // _listChip helper local + 4 invocaciones.
         expect(block).toMatch(/_listChip\s*=\s*\(/);
-        expect(block).toMatch(/_listChip\(\s*['"]Reaparecieron['"]/);
-        expect(block).toMatch(/_listChip\(\s*['"]Meals repetidos['"]/);
-        expect(block).toMatch(/_listChip\(\s*['"]Bases repetidas['"]/);
-        expect(block).toMatch(/_listChip\(\s*['"]Alergias hit['"]/);
+        // [P2-I18N-HIST-FORENSE-ROTULOS · 2026-08-22] `_listChip` recibe ahora un `id`
+        // canónico delante del rótulo: la `key` de React no puede derivar de un texto que
+        // cambia con el idioma. Lo que este test defiende —que el chip se invoque para
+        // esa lista— sigue igual.
+        expect(block).toMatch(/_listChip\(\s*['"]reaparecieron['"]\s*,\s*t\(['"]Reaparecieron['"]\)/);
+        expect(block).toMatch(/_listChip\(\s*['"]meals-repetidos['"]\s*,\s*t\(['"]Meals repetidos['"]\)/);
+        expect(block).toMatch(/_listChip\(\s*['"]bases-repetidas['"]\s*,\s*t\(['"]Bases repetidas['"]\)/);
+        expect(block).toMatch(/_listChip\(\s*['"]alergias-hit['"]\s*,\s*t\(['"]Alergias hit['"]\)/);
     });
 
     it('lista cap visual top 5 + "+N más" en title=', () => {

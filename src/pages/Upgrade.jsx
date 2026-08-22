@@ -38,7 +38,7 @@ import {
     ShieldCheck, RefreshCw, CreditCard, BadgeCheck,
 } from 'lucide-react';
 import styles from './Upgrade.module.css';
-import { t, useT } from '../i18n';
+import { formatDate, t, useT } from '../i18n';
 // [P5-SPEED-PAYMENTMODAL-LAZY · 2026-06-01] lazy + gate por isPaymentOpen → el
 // chunk de PaymentModal (wrapper PayPal ~22KB) se baja al abrir el checkout, no al
 // montar esta página lazy. Comportamiento idéntico (PaymentModal ya devolvía null
@@ -550,7 +550,24 @@ const Upgrade = () => {
                                 USD${LAUNCH_OFFER.futureMonthly[tier]}
                             </span>
                             <span className={styles.launchOfferPill}>
-                                {t('Lanzamiento · sube el {fecha}', { fecha: LAUNCH_OFFER.deadlineShort })}
+                                {/* [P2-I18N-FECHA-LANZAMIENTO-CLAVADA · 2026-08-22] La fecha se
+                                    DERIVA del ISO, no se lee de `deadlineShort` — que es la
+                                    cadena española de la landing («15 sep») y se estaba
+                                    inyectando dentro de una frase traducida: «Lancement ·
+                                    augmente le 15 sep».
+
+                                    `timeZone: 'UTC'` es load-bearing: `new Date('2026-09-15')`
+                                    es medianoche UTC, así que al oeste de Greenwich se
+                                    formatearía como día 14 — el mismo «¿día de quién?» que el
+                                    comentario de `P3-LAUNCH-OFFER-LOCAL-DAY` documenta al lado
+                                    de esta constante. Aquí la respuesta es distinta a la de la
+                                    caducidad: lo que se PINTA es la fecha del calendario, no un
+                                    instante, y esa no depende de dónde esté el lector. */}
+                                {t('Lanzamiento · sube el {fecha}', {
+                                    fecha: formatDate(new Date(LAUNCH_OFFER.deadlineISO), {
+                                        day: 'numeric', month: 'short', timeZone: 'UTC',
+                                    }),
+                                })}
                             </span>
                         </div>
                     )}

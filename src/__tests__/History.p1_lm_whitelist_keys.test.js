@@ -179,7 +179,11 @@ describe('[P1-HIST-LM-WHITELIST] tipos declarados en cada tuple', () => {
         // separados por commas: ['key', 'label', 'type'].
         // Aserción defensiva: el tipo (3er string del tuple) está
         // en la whitelist de tipos válidos.
-        const _tupleRegex = /\[\s*['"][a-z_]+['"]\s*,\s*['"][^'"]+['"]\s*,\s*['"]([a-z_]+)['"]\s*\]/g;
+        // [P2-I18N-HIST-FORENSE-ROTULOS · 2026-08-22] El rótulo (2º elemento) va ahora
+        // envuelto en `t(...)`. Lo que este test defiende es el SHAPE de la tupla y que el
+        // 3er elemento sea un tipo válido del switch — ninguna de las dos cosas depende de
+        // que el rótulo esté tecleado en crudo, así que el regex acepta las dos formas.
+        const _tupleRegex = /\[\s*['"][a-z_]+['"]\s*,\s*(?:t\()?['"][^'"]+['"]\)?\s*,\s*['"]([a-z_]+)['"]\s*\]/g;
         const _matches = [...block.matchAll(_tupleRegex)];
         // Esperamos al menos 25 tuples (4 grupos con 6-9 keys c/u).
         expect(_matches.length).toBeGreaterThanOrEqual(25);

@@ -2504,13 +2504,13 @@ const History = () => {
                                     // emergency/failed/paused/error. Tiers
                                     // desconocidos caen al fallback "Otro".
                                     const _TIER_LABELS = {
-                                        llm: 'Calidad LLM',
-                                        shuffle: 'Re-mezclado',
-                                        edge: 'Edge case',
-                                        emergency: 'Emergencia',
-                                        failed: 'Fallo',
-                                        paused: 'Pausado',
-                                        error: 'Error',
+                                        llm: t('Calidad LLM'),
+                                        shuffle: t('Re-mezclado'),
+                                        edge: t('Edge case'),
+                                        emergency: t('Emergencia'),
+                                        failed: t('Fallo'),
+                                        paused: t('Pausado'),
+                                        error: t('Error'),
                                     };
                                     const _TIER_CLASSES = {
                                         llm: styles.tierBadgeOk,
@@ -3016,7 +3016,12 @@ const History = () => {
                                                 // Lista compacta: top 5 items + "+N más"
                                                 // en title= tooltip. Mismo patrón que el
                                                 // metadata de lessons (P2-HIST-NEW-2).
-                                                const _listChip = (label, items, sevClass) => {
+                                                // [P2-I18N-HIST-FORENSE-ROTULOS · 2026-08-22] `id` va aparte del
+                                                // rótulo: la `key` de React no puede derivar de un texto que
+                                                // cambia con el idioma. Es la misma regla que rige en el resto
+                                                // del repo —la identidad sale del canónico, jamás del display—
+                                                // y aquí, además, dos rótulos podrían colisionar al traducirse.
+                                                const _listChip = (id, label, items, sevClass) => {
                                                     if (!Array.isArray(items) || items.length === 0) return null;
                                                     const _shown = items.slice(0, 5).map((it) => _trunc(String(it), 22));
                                                     const _extra = Math.max(0, items.length - 5);
@@ -3024,7 +3029,7 @@ const History = () => {
                                                     const _full = items.map((it) => String(it)).join('\n');
                                                     return (
                                                         <span
-                                                            key={`lcl-list-${label}`}
+                                                            key={`lcl-list-${id}`}
                                                             className={`${styles.detailItemCounter} ${sevClass || ''}`}
                                                             title={_full}
                                                         >
@@ -3138,10 +3143,10 @@ const History = () => {
                                                                     {t('Fatiga: {n}', { n: _lcl.fatigued_violations })}
                                                                 </span>
                                                             )}
-                                                            {_listChip('Reaparecieron', _lcl.rejected_meals_that_reappeared, styles.tierBadgeWarn)}
-                                                            {_listChip('Meals repetidos', _lcl.repeated_meal_names)}
-                                                            {_listChip('Bases repetidas', _lcl.repeated_bases)}
-                                                            {_listChip('Alergias hit', _lcl.allergy_hits, styles.tierBadgeBad)}
+                                                            {_listChip('reaparecieron', t('Reaparecieron'), _lcl.rejected_meals_that_reappeared, styles.tierBadgeWarn)}
+                                                            {_listChip('meals-repetidos', t('Meals repetidos'), _lcl.repeated_meal_names)}
+                                                            {_listChip('bases-repetidas', t('Bases repetidas'), _lcl.repeated_bases)}
+                                                            {_listChip('alergias-hit', t('Alergias hit'), _lcl.allergy_hits, styles.tierBadgeBad)}
                                                         </div>
                                                     </div>
                                                 );
@@ -3817,52 +3822,52 @@ const History = () => {
                                                 // telemetría, NO al catálogo de learning_metrics.
                                                 // recovery_attempts / escalation_reason SÍ tienen productor
                                                 // (merge de _escalate_unrecoverable_chunk) → se quedan.
-                                                ['recovery_attempts', 'Reintentos recovery', 'int'],
-                                                ['escalation_reason', 'Razón escalación', 'str'],
-                                                ['shuffle_learning_applied', 'Shuffle aplicado', 'bool'],
-                                                ['shuffle_source', 'Fuente shuffle', 'str'],
-                                                ['learning_confidence', 'Confianza aprendizaje', 'str'],
-                                                ['pipeline_failed', 'Pipeline falló', 'bool'],
+                                                ['recovery_attempts', t('Reintentos recovery'), 'int'],
+                                                ['escalation_reason', t('Razón escalación'), 'str'],
+                                                ['shuffle_learning_applied', t('Shuffle aplicado'), 'bool'],
+                                                ['shuffle_source', t('Fuente shuffle'), 'str'],
+                                                ['learning_confidence', t('Confianza aprendizaje'), 'str'],
+                                                ['pipeline_failed', t('Pipeline falló'), 'bool'],
                                             ],
                                         },
                                         {
                                             id: 'repetition',
                                             title: t('Repetición'),
                                             keys: [
-                                                ['learning_repeat_pct', 'Meals repetidos', 'pct'],
-                                                ['ingredient_base_repeat_pct', 'Bases repetidas', 'pct'],
-                                                ['total_new_meals', 'Meals del chunk', 'int'],
-                                                ['prior_meals_count', 'Meals previos', 'int'],
-                                                ['prior_meal_bases_count', 'Bases previas', 'int'],
-                                                ['rejected_count', 'Rechazos previos', 'int'],
-                                                ['allergy_keywords_count', 'Keywords alergia', 'int'],
-                                                ['sample_repeats', 'Ejemplos repetidos', 'preview'],
-                                                ['sample_repeated_bases', 'Ejemplos bases', 'preview'],
+                                                ['learning_repeat_pct', t('Meals repetidos'), 'pct'],
+                                                ['ingredient_base_repeat_pct', t('Bases repetidas'), 'pct'],
+                                                ['total_new_meals', t('Meals del chunk'), 'int'],
+                                                ['prior_meals_count', t('Meals previos'), 'int'],
+                                                ['prior_meal_bases_count', t('Bases previas'), 'int'],
+                                                ['rejected_count', t('Rechazos previos'), 'int'],
+                                                ['allergy_keywords_count', t('Keywords alergia'), 'int'],
+                                                ['sample_repeats', t('Ejemplos repetidos'), 'preview'],
+                                                ['sample_repeated_bases', t('Ejemplos bases'), 'preview'],
                                             ],
                                         },
                                         {
                                             id: 'violations',
                                             title: 'Violaciones',
                                             keys: [
-                                                ['rejection_violations', 'Rechazos', 'severity'],
-                                                ['allergy_violations', 'Alergias', 'severity_high'],
-                                                ['fatigued_violations', 'Fatiga', 'severity'],
-                                                ['pantry_quantity_violations', 'Cantidades pantry', 'severity'],
-                                                ['sample_rejection_hits', 'Ej. rechazos', 'preview'],
-                                                ['sample_allergy_hits', 'Ej. alergias', 'preview'],
-                                                ['sample_pantry_quantity_violations', 'Ej. cantidades', 'str'],
+                                                ['rejection_violations', t('Rechazos'), 'severity'],
+                                                ['allergy_violations', t('Alergias'), 'severity_high'],
+                                                ['fatigued_violations', t('Fatiga'), 'severity'],
+                                                ['pantry_quantity_violations', t('Cantidades pantry'), 'severity'],
+                                                ['sample_rejection_hits', t('Ej. rechazos'), 'preview'],
+                                                ['sample_allergy_hits', t('Ej. alergias'), 'preview'],
+                                                ['sample_pantry_quantity_violations', t('Ej. cantidades'), 'str'],
                                             ],
                                         },
                                         {
                                             id: 'pantry',
                                             title: t('Pantry y señal'),
                                             keys: [
-                                                ['inventory_activity_proxy_used', 'Proxy inventario', 'bool'],
-                                                ['inventory_activity_mutations', 'Mutaciones inv.', 'int'],
-                                                ['sparse_logging_proxy_used', 'Proxy logging', 'bool'],
-                                                ['learning_signal_strength', 'Fuerza señal', 'str'],
-                                                ['pantry_degraded_reason', 'Pantry degradada', 'str'],
-                                                ['pantry_snapshot_age_hours_at_pickup', 'Edad snapshot', 'hours'],
+                                                ['inventory_activity_proxy_used', t('Proxy inventario'), 'bool'],
+                                                ['inventory_activity_mutations', t('Mutaciones inv.'), 'int'],
+                                                ['sparse_logging_proxy_used', t('Proxy logging'), 'bool'],
+                                                ['learning_signal_strength', t('Fuerza señal'), 'str'],
+                                                ['pantry_degraded_reason', t('Pantry degradada'), 'str'],
+                                                ['pantry_snapshot_age_hours_at_pickup', t('Edad snapshot'), 'hours'],
                                             ],
                                         },
                                     ];

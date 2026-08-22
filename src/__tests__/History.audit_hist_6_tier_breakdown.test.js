@@ -79,7 +79,10 @@ describe('[P1-AUDIT-HIST-6] guards: omitir render cuando breakdown vacío', () =
 
 describe('[P1-AUDIT-HIST-6] mapeo tier → label + clase de color', () => {
     it('tier `llm` mapea a label "Calidad LLM" + tierBadgeOk', () => {
-        expect(src).toMatch(/llm:\s*['"]Calidad LLM['"]/);
+        // [P2-I18N-HIST-FORENSE-ROTULOS · 2026-08-22] El rótulo pasa por el motor. La
+        // propiedad que este test defiende es el MAPEO tier→rótulo, no que el texto esté
+        // tecleado en el mapa: reanclado a `llm: t('Calidad LLM')`.
+        expect(src).toMatch(/llm:\s*t\(['"]Calidad LLM['"]\)/);
         expect(src).toMatch(/llm:\s*styles\.tierBadgeOk/);
     });
 
