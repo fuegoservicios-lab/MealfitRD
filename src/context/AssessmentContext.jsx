@@ -144,7 +144,7 @@ import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // corre dentro de `fetchProfile`, que no es un componente.
 // [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: los avisos de abajo salen desde
 // dentro de callbacks (handlers, polling, catch), no en render.
-import { syncLocaleFromProfile, t } from '../i18n';
+import { getLocale, syncLocaleFromProfile, t } from '../i18n';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Loop de polling acotado (discriminador +
@@ -1297,6 +1297,32 @@ export const AssessmentProvider = ({ children }) => {
                 // una pantalla en blanco solo si crees que el idioma es más
                 // importante que la app.
                 syncLocaleFromProfile(data.locale);
+
+                // [P1-I18N-PROFILE-DEFAULT-PISA · 2026-08-21] Y si el perfil NO trae
+                // idioma —`NULL`, o sea «nunca elegí»— se le escribe el ACTIVO, que es
+                // el que la autodetección puso y el usuario no cambió.
+                //
+                // Cierra el caso por el otro lado. Sin esto, la migración deja al usuario
+                // nuevo dependiendo de la detección en CADA dispositivo, y el contrato de
+                // arriba dice lo contrario: «el idioma sigue al USUARIO, no al
+                // dispositivo». Con esto, la primera sesión fija la preferencia y a partir
+                // de ahí viaja con él.
+                //
+                // SÓLO cuando no hay ninguno. Si el perfil trae un idioma es una elección
+                // real, y pisarla sería este mismo defecto del revés — que es justo lo que
+                // hacía el DEFAULT sembrado.
+                //
+                // Fire-and-forget deliberado, igual que su vecino de arriba: es una
+                // conveniencia, no un requisito. Si falla, el usuario sigue viendo su
+                // idioma detectado y el próximo login lo reintenta.
+                if (!data.locale) {
+                    const _activo = getLocale();
+                    fetchWithAuth('/api/profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fields: { locale: _activo } }),
+                    }).catch(() => { /* el próximo login lo reintenta */ });
+                }
                 // Sincronizar UI form data con health_profile (si existe y tiene datos)
                 if (data.health_profile && Object.keys(data.health_profile).length > 0) {
                     // [P0-FORM-3] Filtra campos que el usuario ya editó desde el
