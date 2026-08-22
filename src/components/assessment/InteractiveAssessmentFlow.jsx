@@ -625,7 +625,22 @@ const InteractiveAssessmentFlow = () => {
         // encendido. `_byField` ya lo resuelve desde planOnlySteps (donde vive el
         // step real); `.filter(Boolean)` defensivo si el gate está true pero el
         // step no se encontrara.
-        ...(COUNTRY_SYSTEM_UI ? [_byField('country')].filter(Boolean) : []),
+        // [P2-TRACKING-COUNTRY-INERT · 2026-08-21] El copy del step real promete «tus platos,
+        // medidas y — donde ya está listo — los precios del súper». En la rama contador NO hay
+        // platos generados ni lista de la compra ni precios: la pregunta se hacía con una promesa
+        // que esa rama no puede cumplir, y el usuario la contesta creyendo que decide algo que no
+        // va a pasar. Se sobreescribe SÓLO el subtítulo — mismo patrón y misma razón que el step de
+        // objetivos doce líneas más arriba, que ya lo hace («en esta rama no hay plan por diseño»).
+        //
+        // Lo que el país SÍ hace aquí, y por eso la pregunta se queda: filtra las sugerencias del
+        // coach (`suggest_foods_for_nutrient`), decide el aviso de calibración del escáner y fija
+        // el huso con el que se corta el día del diario y del agua.
+        ...(COUNTRY_SYSTEM_UI
+            ? [_byField('country')].filter(Boolean).map((_s) => ({
+                ..._s,
+                subtitle: t('Adapta las sugerencias del coach y cómo se leen los alimentos que registras.'),
+            }))
+            : []),
         {
             // [AUDIT-FORM-COPY · 2026-08-12] «Listo:» prometía completitud AL
             // ENTRAR al paso, con dos llamadas de red aún por delante que pueden
