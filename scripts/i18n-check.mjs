@@ -58,6 +58,9 @@ const WRITE_TEMPLATE = process.argv.includes('--write-template');
 // una línea que baja es una mejora que hay que poder ver; una que sube, un
 // retroceso que hay que poder discutir.
 const UPDATE_BASELINE = process.argv.includes('--update-baseline');
+// [P3-I18N-TRINQUETE-SIN-COMPROBACION-DE-DIRECCION · 2026-08-22] Subir el trinquete deja de
+// ser gratis y silencioso: hay que decirlo, y entonces sale escrito en el log.
+const ALLOW_RATCHET_UP = process.argv.includes('--allow-ratchet-up');
 const BASELINE_PATH = join(__dirname, 'i18n-sin-envolver.baseline.json');
 
 // SSOT de idiomas: se lee de locales.js en vez de repetir la lista.
@@ -244,7 +247,17 @@ for (const file of files) {
     const src = readFileSync(file, 'utf8');
     const rel = relative(SRC, file).replace(/\\/g, '/');
     contenidos.set(rel, src);
-    if (!/\bt\(|\btn\(/.test(src)) continue;
+    // [P3-I18N-KEYDECL-TRAS-EL-FILTRO-BARATO · 2026-08-22] `i18nKey` entra en el filtro.
+    //
+    // `P1-I18N-GATE-CIEGO-SIN-T` quitó de aquí el `\bi18nKey\(` al reducir el filtro, y con
+    // eso la extracción de declaraciones quedó DETRÁS de una puerta que no las deja pasar:
+    // un fichero que sólo DECLARA claves —el patrón `{ titleKey: i18nKey('Montaje') }`, que
+    // resuelve otro— ni se abría. Su traducción aparecía entonces como HUÉRFANA en los
+    // cuatro idiomas, y el mensaje del gate invita literalmente a borrarla.
+    //
+    // Es el mismo defecto que ese P-fix cerró, un nivel más abajo: no ver un fichero porque
+    // no contiene la forma que esperabas.
+    if (!/\bt\(|\btn\(|\bi18nKey\(/.test(src)) continue;
     const modOffsets = moduleScopeCallOffsets(src);
 
     for (const m of src.matchAll(T_CALL)) {
@@ -409,15 +422,53 @@ for (const code of TARGET_CODES) {
         }
         return typeof v === 'string' && v.trim() !== '';
     };
+    // [P2-I18N-GATE-CIEGO-PLACEHOLDER · 2026-08-22] …y que el valor CONSERVE lo que la
+    // clave interpola.
+    //
+    // El bloque de arriba mide que el valor exista y sirva. No miraba los `{placeholders}`,
+    // y ésos no son estilo: son el contrato entre la cadena y el código que la llama.
+    //
+    //   · Un placeholder PERDIDO borra el dato de la pantalla. «Te quedan {n} comidas» sin
+    //     `{n}` deja «Te quedan comidas»: una frase que parece correcta y no dice nada.
+    //   · Un placeholder INVENTADO se pinta LITERAL —`_interpolate` sólo sustituye las
+    //     claves que le pasan— así que el usuario ve `{dias}` en crudo en su pantalla.
+    //
+    // Las dos formas se cuelan enteras por el check de cobertura, porque la clave existe y
+    // el valor es una cadena no vacía. Y ninguna la ve una revisión en es-DO, que no pasa
+    // por el catálogo.
+    //
+    // [P3-I18N-CHECK-SIN-MARCADO · 2026-08-22] Y lo mismo con el MARCADO. Nueve claves
+    // llevan HTML que entra al `innerHTML` del PDF; una traducción que se deja un
+    // `</strong>` rompe el documento a partir de ahí. El validador de secuencia de tags
+    // existía SÓLO en la herramienta de merge, o sea que vigilaba la puerta por la que
+    // entran las traducciones nuevas y no el estado del catálogo.
+    const _placeholders = (s) => (String(s).match(/\{[a-zA-Z0-9_]+\}/g) || []).slice().sort().join(',');
+    const _tags = (s) => (String(s).match(/<\/?[a-zA-Z][^>]*>/g) || [])
+        .map((x) => x.replace(/\s[^>]*/, '').toLowerCase()).join('>');
+    const _formas = (v) => (typeof v === 'string' ? [v]
+        : (v && typeof v === 'object' && !Array.isArray(v) ? Object.values(v).filter((x) => typeof x === 'string') : []));
+
     const motivo = (k) => {
         const v = catalog[k];
         const esPlural = pluralKeys.has(k);
-        if (util(v, esPlural)) return null;
-        const esObjeto = v !== null && typeof v === 'object' && !Array.isArray(v);
-        if (esPlural && !esObjeto) return 'plural declarado como valor simple';
-        if (!esPlural && esObjeto) return 'clave simple declarada como objeto de plural';
-        if (esPlural) return 'plural sin sus dos formas {one, other} rellenas';
-        return 'valor vacío o no textual';
+        if (!util(v, esPlural)) {
+            const esObjeto = v !== null && typeof v === 'object' && !Array.isArray(v);
+            if (esPlural && !esObjeto) return 'plural declarado como valor simple';
+            if (!esPlural && esObjeto) return 'clave simple declarada como objeto de plural';
+            if (esPlural) return 'plural sin sus dos formas {one, other} rellenas';
+            return 'valor vacío o no textual';
+        }
+        const espPh = _placeholders(k);
+        const espTags = _tags(k);
+        for (const forma of _formas(v)) {
+            if (_placeholders(forma) !== espPh) {
+                return `placeholders distintos de la clave (esperaba [${espPh || '—'}], tiene [${_placeholders(forma) || '—'}])`;
+            }
+            if (_tags(forma) !== espTags) {
+                return `secuencia de etiquetas HTML distinta de la clave (esperaba [${espTags || '—'}], tiene [${_tags(forma) || '—'}])`;
+            }
+        }
+        return null;
     };
     // Solo sobre las claves VIVAS del catálogo: una huérfana ya se cuenta aparte,
     // y restarla dos veces desfasaría la cobertura hacia abajo.
@@ -479,12 +530,62 @@ for (const [rel, src] of contenidos) {
     }
 }
 
+// [P2-I18N-TRINQUETE-DESAPARECE-EN-SILENCIO · 2026-08-22] Un trinquete que se apaga solo no
+// es un trinquete.
+//
+// Antes: si el fichero faltaba o no parseaba, `baseline = null`, el bloque de retrocesos no
+// corría y el gate salía VERDE. O sea que la forma más fácil de desactivar la única defensa
+// contra el español sin envolver era BORRAR un fichero — y nada lo decía. El pytest que lo
+// ancla hace `skip` cuando no lo encuentra, así que tampoco avisaba.
+//
+// Ahora la ausencia y la corrupción son fallo duro, y sólo `--update-baseline` (que existe
+// justo para (re)crearlo) las perdona. Es la misma regla que este repo ya tiene escrita para
+// el gate de CI: «no concluyente» no puede colapsar a verde.
 let baseline = null;
 if (existsSync(BASELINE_PATH)) {
-    try { baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8')); } catch { baseline = null; }
+    try {
+        baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+    } catch (e) {
+        if (!UPDATE_BASELINE) {
+            console.error(`\n❌ El trinquete de español sin envolver no es JSON válido: ${e.message}`);
+            console.error('   Sin él, el gate NO puede detectar un retroceso y saldría verde por omisión.');
+            console.error('   Arréglalo, o regenéralo a conciencia con `node scripts/i18n-check.mjs --update-baseline`.');
+            hardFail = true;
+        }
+        baseline = null;
+    }
+} else if (!UPDATE_BASELINE) {
+    console.error(`\n❌ Falta el trinquete de español sin envolver (${relative(join(__dirname, '..'), BASELINE_PATH)}).`);
+    console.error('   Sin él, el gate NO puede detectar un retroceso y saldría verde por omisión —');
+    console.error('   borrar este fichero era la forma más fácil de desactivar la defensa, en silencio.');
+    console.error('   Si es la primera vez, créalo con `node scripts/i18n-check.mjs --update-baseline`.');
+    hardFail = true;
 }
 
 if (UPDATE_BASELINE) {
+    // [P3-I18N-TRINQUETE-SIN-COMPROBACION-DE-DIRECCION · 2026-08-22] «Puede BAJAR, nunca
+    // subir» vivía SÓLO en el comentario del fichero. `--update-baseline` reescribía el
+    // valor sin mirar, así que la forma de convertir un rojo en verde era ejecutar el
+    // comando que el propio mensaje de error sugiere.
+    //
+    // No se prohíbe subirlo —hay casos legítimos: una tanda que añade una pantalla nueva a
+    // medio traducir— pero deja de ser gratis y silencioso: hay que decirlo con
+    // `--allow-ratchet-up`, y entonces la subida sale escrita en el log y en el diff.
+    const subidas = [];
+    if (baseline) {
+        for (const [rel, n] of Object.entries(sinEnvolverPorArchivo)) {
+            const previo = (baseline.porArchivo || {})[rel] ?? 0;
+            if (n > previo) subidas.push(`${rel}: ${previo} → ${n}`);
+        }
+    }
+    if (subidas.length && !ALLOW_RATCHET_UP) {
+        console.error('\n❌ `--update-baseline` SUBIRÍA el trinquete en estos ficheros:');
+        for (const s of subidas) console.error(`     · ${s}`);
+        console.error('   El trinquete puede BAJAR, nunca subir: eso es lo que lo hace un trinquete.');
+        console.error('   Si de verdad quieres subirlo (una pantalla nueva a medio traducir), dilo:');
+        console.error('     node scripts/i18n-check.mjs --update-baseline --allow-ratchet-up');
+        process.exit(1);
+    }
     const ordenado = Object.fromEntries(
         Object.entries(sinEnvolverPorArchivo).sort(([a], [b]) => a.localeCompare(b))
     );
@@ -578,7 +679,14 @@ if (AS_JSON) {
             String(r.translated).padEnd(13) +
             String(r.missing).padEnd(9) +
             String(r.orphans.length).padEnd(12) +
-            (r.coverage * 100).toFixed(1) + '%'
+            // [P3-I18N-COBERTURA-REDONDEA-A-100 · 2026-08-22] El porcentaje NO puede
+            // decir 100.0% si falta algo. `toFixed` REDONDEA: con 2.524 de 2.525 daba
+            // «100.0%» junto a un «1» en la columna FALTAN, y la cobertura es el unico
+            // numero con el que alguien decide si un idioma esta listo. Se trunca hacia
+            // abajo, y el 100 se reserva para el 100 de verdad.
+            ((r.missing > 0 || r.orphans.length > 0 || (r.unusable || []).length > 0)
+                ? Math.min(99.9, Math.floor(r.coverage * 1000) / 10).toFixed(1)
+                : (r.coverage * 100).toFixed(1)) + '%'
         );
     }
 
