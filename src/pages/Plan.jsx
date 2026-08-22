@@ -7,6 +7,8 @@ import PropTypes from 'prop-types';
 
 import { useAssessment } from '../context/AssessmentContext';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
+// [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Gate único de comercio (config/platform.js).
+import { nativeHidesCommerce } from '../config/platform';
 import Wordmark from '../components/common/Wordmark';
 import { peekPendingStatusWithRetry } from '../utils/pendingStatusRetry';
 import RenewalCheckinModal from '../components/plan/RenewalCheckinModal';
@@ -1456,16 +1458,21 @@ const Plan = () => {
                     if (error.code === 'quota_exceeded') {
                         safeLocalStorageRemove('mealfit_plan_in_progress');
                         import('sonner').then(({ toast }) => {
+                            // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] En nativo el paywall INFORMA
+                            // del límite pero no vende: sin acción «Mejorar plan» ni navegación
+                            // a upgrade (Apple 3.1.1 / 3.1.3(b): ni vender ni ENLAZAR a compra).
                             toast.error(t("Límite de créditos alcanzado"), {
-                                description: error.message || t("Mejora tu plan para seguir generando."),
-                                action: {
+                                description: nativeHidesCommerce()
+                                    ? t("Has usado los créditos de este mes. Se renuevan al inicio del próximo ciclo.")
+                                    : (error.message || t("Mejora tu plan para seguir generando.")),
+                                action: nativeHidesCommerce() ? undefined : {
                                     label: t("Mejorar plan"),
                                     onClick: () => navigate('/dashboard/upgrade'),
                                 },
                                 duration: 10000,
                             });
                         });
-                        navigate('/dashboard/upgrade', { replace: true });
+                        if (!nativeHidesCommerce()) navigate('/dashboard/upgrade', { replace: true });
                         return;
                     }
                     // [P3-ERROR-REDIRECT-ASSESSMENT · 2026-05-16] SSE + endpoint

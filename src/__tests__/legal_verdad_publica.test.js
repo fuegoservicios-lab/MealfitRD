@@ -78,6 +78,10 @@ const REFUTADAS = [
         frase: 'contrata su suscripción dentro de la app',
         porque: 'la app de la App Store no tiene comercio (Apple 3.1.1, P1-IOS-NATIVE-SHELL); describe un flujo que no existe',
     },
+    {
+        frase: 'consentimiento expreso de un padre o tutor',
+        porque: 'decisión del dueño 2026-08-22: solo 18+, sin excepción — datos de salud y medicación, sin mecanismo de consentimiento parental, y los otros dos documentos ya decían 18+',
+    },
 ];
 
 describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {

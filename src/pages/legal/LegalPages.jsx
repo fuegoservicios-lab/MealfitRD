@@ -272,7 +272,7 @@ export const Terms = () => (
         <h3>2. Elegibilidad y Registro</h3>
         <p>Para utilizar Bioboros usted debe:</p>
         <ul>
-            <li>Tener al menos 18 años cumplidos (o contar con consentimiento expreso de un padre o tutor legal).</li>
+            <li>Tener al menos 18 años cumplidos. Bioboros trata datos de salud y medicación y no está diseñada para menores; no ofrecemos registro con consentimiento parental.</li>
             <li>Proporcionar información veraz y mantenerla actualizada.</li>
             <li>Tener capacidad legal para celebrar este contrato según las leyes de su jurisdicción.</li>
             <li>No estar suspendido previamente de la plataforma por violación de términos.</li>

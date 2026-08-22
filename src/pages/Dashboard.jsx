@@ -29,6 +29,8 @@ import { formatDate, formatNumber, t, tn, useI18n, useT } from '../i18n';
 // `undefined` es falsy, así que habría devuelto [DOP, USD] en silencio — el bug intacto con
 // aspecto de arreglado. Un guard parser-based no lo ve; por eso hay uno de ÁMBITO abajo.
 import { COUNTRIES, COUNTRY_SYSTEM_UI } from '../config/countries';
+// [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Gate único de comercio (config/platform.js).
+import { nativeHidesCommerce } from '../config/platform';
 // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
 // del usuario — SSOT del fallback campo a campo (nombre/descripción) contra
 // el campo paralelo que el motor backend adjunta por locale al meal. El plan
@@ -6138,14 +6140,18 @@ const DashboardInner = () => {
                             return (
                                 <button
                                     type="button"
-                                    onClick={() => navigate('/dashboard/upgrade')}
-                                    aria-label={t('Plan actual: {tier}. Click para ver todos los planes.', { tier: tierLabel })}
+                                    // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] En nativo el badge INFORMA el
+                                    // tier pero no lleva a ningún sitio: no existe comercio (Apple 3.1.1).
+                                    onClick={nativeHidesCommerce() ? undefined : () => navigate('/dashboard/upgrade')}
+                                    aria-label={nativeHidesCommerce() ? t('Plan actual: {tier}.', { tier: tierLabel }) : t('Plan actual: {tier}. Click para ver todos los planes.', { tier: tierLabel })}
                                     className={`plan-tier-badge plan-tier-badge--${tierVariant}`}
                                 >
                                     <span className="plan-tier-badge-label">
                                         {tierLabel}
                                     </span>
-                                    <span className="plan-tier-badge-cta">{t('Ver planes')}</span>
+                                    {!nativeHidesCommerce() && (
+                                        <span className="plan-tier-badge-cta">{t('Ver planes')}</span>
+                                    )}
                                     <ChevronRight
                                         size={12}
                                         strokeWidth={2.75}

@@ -614,20 +614,45 @@ function App() {
             {/* [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable. */}
             <Route path="/acceptable-use" element={<Layout><AcceptableUse /></Layout>} />
             {/* [P3-ABOUT-PAGE · 2026-06-30] Acerca de Bioboros (categoría Empresas). */}
-            <Route path="/about" element={<Layout><About /></Layout>} />
+            <Route path="/about" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><About /></Layout>
+            } />
             {/* [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad). */}
             <Route path="/responsible-disclosure" element={<Layout><ResponsibleDisclosure /></Layout>} />
 
             {/* [P3-NEWS-1 · 2026-07-01] Novedades (pública, indexable): índice + artículo. */}
-            <Route path="/novedades" element={<Layout><NewsPage /></Layout>} />
-            <Route path="/novedades/:slug" element={<Layout><NewsArticlePage /></Layout>} />
+            <Route path="/novedades" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><NewsPage /></Layout>
+            } />
+            <Route path="/novedades/:slug" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><NewsArticlePage /></Layout>
+            } />
 
             {/* [P1-SUPERMARKET-DB · 2026-07-02] Supermercado RD (pública, indexable, apex).
                 Base de datos viva de alimentos verificados; edición admin en la misma página. */}
-            <Route path="/supermercado" element={<Layout><SupermarketPage /></Layout>} />
+            <Route path="/supermercado" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><SupermarketPage /></Layout>
+            } />
 
             {/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Motor v1.0.0 (pública, indexable, en el apex). */}
-            <Route path="/motor" element={<Layout><Engine /></Layout>} />
+            {/* [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Las páginas de marketing también
+                colapsan en nativo: citan precios en RD$, enlazan a /precios y hablan de
+                planes. La Fase 1 gateó tres rutas; un revisor de Apple pulsa lo que ve,
+                no teclea URLs, pero un enlace interno desde cualquier página lo llevaría
+                aquí. Mismo gate, misma salida. */}
+            <Route path="/motor" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><Engine /></Layout>
+            } />
 
             {/* [P3-PRICING-SEPARATE-PAGE · 2026-06-29] Precios (pública, indexable, en el apex). */}
             <Route path="/precios" element={
@@ -637,9 +662,21 @@ function App() {
             } />
 
             {/* [P3-DETAIL-PAGES · 2026-06-29] Detalle de las 3 secciones (públicas, indexables, apex). */}
-            <Route path="/como-funciona" element={<Layout><HowItWorksPage /></Layout>} />
-            <Route path="/funciones" element={<Layout><FeaturesPage /></Layout>} />
-            <Route path="/precision" element={<Layout><PrecisionPage /></Layout>} />
+            <Route path="/como-funciona" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><HowItWorksPage /></Layout>
+            } />
+            <Route path="/funciones" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><FeaturesPage /></Layout>
+            } />
+            <Route path="/precision" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <Layout><PrecisionPage /></Layout>
+            } />
 
             {/* Fallback — [P3-10 · 2026-07-09] 404 real con navegación de
                 escape (antes: Navigate a "/" sin feedback, que enmascaraba

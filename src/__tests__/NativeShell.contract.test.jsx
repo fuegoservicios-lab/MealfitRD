@@ -90,6 +90,49 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
         expect(src).toMatch(/path="\/precios" element=\{\s*NATIVE_NO_COMMERCE\s*\?\s*<Navigate to="\/dashboard" replace \/>/);
     });
 
+    // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Auditoría antes del primer build: la Fase 1 gateó
+    // tres RUTAS, pero el comercio también vive en CTAs y en páginas de marketing que
+    // siguen enrutadas. Un revisor de Apple no navega por URL: pulsa botones. Un botón
+    // «Ver planes» que colapsa a /dashboard sigue siendo un botón de upgrade a sus ojos.
+    it('App.jsx: las páginas de marketing (motor, funciones, cómo funciona, precisión, about, novedades, supermercado) colapsan a /dashboard en nativo', () => {
+        const src = read('App.jsx');
+        // Sin regex dinámica: en un template string `\{` y `\s` pierden el backslash
+        // antes de llegar a RegExp (me pasó). Se busca el literal exacto del JSX.
+        for (const ruta of ['/motor', '/como-funciona', '/funciones', '/precision', '/about', '/novedades', '/novedades/:slug', '/supermercado']) {
+            const i = src.indexOf(`<Route path="${ruta}" element={`);
+            expect(i, `${ruta} no está enrutada`).toBeGreaterThan(0);
+            // La ventana termina en el cierre de ESTE <Route … />, no a N caracteres:
+            // una ventana fija se comía la ruta siguiente (gateada) y el guard daba
+            // verde por el vecino. Medido por mutación: quitar el gate de /funciones
+            // pasaba porque /precision venía justo detrás.
+            const fin = src.indexOf('/>', i);
+            const ventana = src.slice(i, fin);
+            expect(ventana, `${ruta} debe colapsar a /dashboard bajo NATIVE_NO_COMMERCE (citan precios en RD$ y enlazan a /precios)`)
+                .toMatch(/NATIVE_NO_COMMERCE\s*\?\s*<Navigate to="\/dashboard" replace $/);
+        }
+    });
+
+    it('Dashboard: el badge del tier NO es un botón a /dashboard/upgrade en nativo', () => {
+        const src = read('pages/Dashboard.jsx');
+        // El onClick del badge pasa por el gate: en nativo no navega a ningún sitio.
+        expect(src).toMatch(/nativeHidesCommerce\(\)\s*\?\s*undefined\s*:\s*\(\) => navigate\('\/dashboard\/upgrade'\)/);
+        // Y el texto «Ver planes» tampoco se pinta.
+        expect(src).toMatch(/!nativeHidesCommerce\(\) && \(\s*<span className="plan-tier-badge-cta">\{t\('Ver planes'\)\}<\/span>/);
+    });
+
+    it('Plan: el paywall del 402 no ofrece «Mejorar plan» ni navega a upgrade en nativo', () => {
+        const src = read('pages/Plan.jsx');
+        // Hay DOS `quota_exceeded` en Plan.jsx: el primero solo PROPAGA el error
+        // (no pinta nada); el que vende es el que monta el toast. Se ancla a ese.
+        const i = src.indexOf('toast.error(t("Límite de créditos alcanzado")');
+        expect(i, 'no se encontró el toast del paywall').toBeGreaterThan(0);
+        const bloque = src.slice(i - 400, i + 1200);
+        expect(bloque).toMatch(/nativeHidesCommerce\(\)/);
+        // La acción del toast y el navigate quedan fuera en nativo.
+        expect(bloque).toMatch(/action:\s*nativeHidesCommerce\(\)\s*\?\s*undefined/);
+        expect(bloque).toMatch(/if \(!nativeHidesCommerce\(\)\) navigate\('\/dashboard\/upgrade'/);
+    });
+
     it('DashboardLayout: candado del nav, label y handlers del AccountMenu pasan por el gate', () => {
         const src = read('components/dashboard/DashboardLayout.jsx');
         expect(src).toMatch(/import \{ nativeHidesCommerce \} from '\.\.\/\.\.\/config\/platform'/);
