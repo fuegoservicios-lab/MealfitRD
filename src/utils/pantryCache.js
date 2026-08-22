@@ -130,6 +130,11 @@ export const getCachedMasterList = () => {
 
 export const setCachedMasterList = (rows, ttlMs = _MASTER_LIST_TTL_MS) => {
     if (!Array.isArray(rows)) return;
+    // [P1-PANTRY-CATALOG-EMPTY-CACHE · 2026-08-22] Un catálogo VACÍO nunca se cachea:
+    // `Boolean([])` es true, así que un fetch que volvió sin items dejaba la PWA del
+    // iPhone (que vive en memoria días) 24 h sin autocompletado y sin volver a pedirlo.
+    // El catálogo real tiene 347 filas; vacío = «no cargado», no «no hay nada».
+    if (rows.length === 0) return;
     _masterListEntry = {
         value: rows,
         expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null,

@@ -1043,7 +1043,34 @@ const Pantry = () => {
     // vigente (TTL 24h, casi-inmutable), arrancamos el ref en `true` para
     // skipear el fetch redundante. Lazy useRef init via callback no existe
     // como `useState(() => ...)`, así que evaluamos directo.
-    const masterListLoaded = useRef(Boolean(getCachedMasterList()));
+    // [P1-PANTRY-CATALOG-EMPTY-CACHE · 2026-08-22] «Cargado» = con filas. `Boolean([])`
+    // era true y un catálogo vacío quedaba como definitivo para toda la vida de la PWA.
+    const masterListLoaded = useRef((getCachedMasterList() || []).length > 0);
+    const catalogInFlight = useRef(false);
+    const [catalogLoading, setCatalogLoading] = useState(false);
+    // Pide el catálogo si aún no hay filas (al abrir el buscador o al teclear): no
+    // depende de que fetchData haya tenido éxito en su Promise.all con el inventario.
+    const ensureCatalog = useCallback(async () => {
+        if (masterListLoaded.current || catalogInFlight.current) return;
+        catalogInFlight.current = true;
+        setCatalogLoading(true);
+        try {
+            const json = await _apiJson('/api/catalog');
+            const rows = json?.items || [];
+            if (rows.length > 0) {
+                setMasterList(rows);
+                setCachedMasterList(rows);
+                masterListLoaded.current = true;
+            }
+        } catch (e) {
+            console.error('[pantry] catalog fetch failed', e);
+        } finally {
+            catalogInFlight.current = false;
+            setCatalogLoading(false);
+        }
+    }, []);
+    useEffect(() => { if (showAddMenu) ensureCatalog(); }, [showAddMenu, ensureCatalog]);
+    useEffect(() => { if (addItemSearch.trim()) ensureCatalog(); }, [addItemSearch, ensureCatalog]);
 
     // Refs para modo sostenido (velocímetro)
     const holdIntervalRef = useRef({});
@@ -1321,8 +1348,8 @@ const Pantry = () => {
             setCachedInventory(_invRows);
 
             // Fetch Master List (solo una vez; cambios son rarísimos)
-            if (needMaster) {
-                const _masterRows = masterJson?.items || [];
+            if (needMaster && (masterJson?.items || []).length > 0) {
+                const _masterRows = masterJson.items;
                 setMasterList(_masterRows);
                 // [P3-PANTRY-CACHE · 2026-05-19] Catálogo cuasi-inmutable.
                 // Cache 24h cross-mount cubre toda la sesión típica del
@@ -3391,7 +3418,15 @@ const Pantry = () => {
                                     );
                                 })}
 
-                                {addItemSearch.trim() && suggestedMasterItems.length === 0 && (
+                                {/* [P1-PANTRY-CATALOG-EMPTY-CACHE] Mientras el catálogo baja NO se
+                                    dice «No encontramos»: en PC salía durante segundos con el
+                                    catálogo aún en vuelo y parecía que el alimento no existía. */}
+                                {addItemSearch.trim() && suggestedMasterItems.length === 0 && (catalogLoading || masterList.length === 0) && (
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)' }} role="status" aria-live="polite">
+                                        <div style={{ fontWeight: 600 }}>{t('Cargando catálogo…')}</div>
+                                    </div>
+                                )}
+                                {addItemSearch.trim() && suggestedMasterItems.length === 0 && !catalogLoading && masterList.length > 0 && (
                                     <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)' }}>
                                         <Package size={32} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
                                         <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{t('No encontramos "{consulta}"', { consulta: addItemSearch.trim() })}</div>
