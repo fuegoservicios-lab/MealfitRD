@@ -18,6 +18,7 @@
 // tooltip-anchor: isNativeApp (test_p1_ios_native_shell.py, NativeShell.contract.test.jsx)
 
 import { Capacitor } from '@capacitor/core';
+import { registerNativeProbe } from './site';
 
 export function isNativeApp() {
     try {
@@ -26,6 +27,11 @@ export function isNativeApp() {
         return false;
     }
 }
+
+// [P1-LEGAL-LINKS-APEX · 2026-08-22] `apexUrl()` (site.js) necesita saber si está
+// en nativo pero NO puede importar este módulo (site.js también corre en Node, sin
+// Capacitor). Se le inyecta la sonda al cargar platform.js, que sólo vive en el bundle.
+registerNativeProbe(isNativeApp);
 
 // Nombre del CONTRATO, no del mecanismo: lo que las superficies preguntan es «¿debo
 // esconder el comercio?», no «¿estoy en iOS?». Si un día el comercio nativo existe

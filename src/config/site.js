@@ -17,8 +17,6 @@
  *   public/.well-known/security.txt · index.html (og:url, canonical, JSON-LD)
  */
 
-import { isNativeApp } from './platform';
-
 /** Dominio desnudo, sin protocolo ni subdominio. */
 export const SITE_DOMAIN = 'bioboros.com';
 
@@ -68,14 +66,27 @@ export function isSiteHost(hostname) {
  * cualquier entorno, y en dev/preview cae a la ruta interna para que el enlace
  * no mande a produccion desde localhost.
  */
+// [P1-LEGAL-LINKS-APEX · 2026-08-22] Sonda «estoy en la app nativa», INYECTADA.
+//
+// site.js NO puede importar `./platform`: lo cargan tres scripts de Node fuera de
+// Vite (build-sitemap, build-route-meta, landingHead) que ni resuelven `./platform`
+// sin extensión ni deben arrastrar el runtime nativo. Lo aprendí con el build del VPS
+// en rojo. Así que la dependencia va al revés: `platform.js` (que sí conoce
+// Capacitor y sólo vive dentro del bundle) registra la sonda al cargarse. En Node
+// nunca se registra y apexUrl() se comporta como siempre.
+let _isNativeProbe = () => false;
+export function registerNativeProbe(fn) {
+    _isNativeProbe = typeof fn === 'function' ? fn : () => false;
+}
+
 export function apexUrl(path) {
     if (typeof window === 'undefined') return path;
-    // [P1-LEGAL-LINKS-APEX · 2026-08-22] En la app nativa el host es `localhost`
-    // (capacitor://localhost), igual que en dev — pero aquí NO hay ruta interna que
-    // valga: la copia JSX de las legales quedó obsoleta frente al apex (única copia
-    // desde P1-LEGAL-UNA-SOLA-COPIA) y Apple exige que la política accesible desde
-    // la app sea LA política. Así que en nativo el apex es siempre absoluto.
-    if (isNativeApp()) return `${APEX_ORIGIN}${path}`;
+    // En la app nativa el host es `localhost` (capacitor://localhost), igual que en
+    // dev — pero aquí NO hay ruta interna que valga: la copia JSX de las legales
+    // quedó obsoleta frente al apex (única copia desde P1-LEGAL-UNA-SOLA-COPIA) y
+    // Apple exige que la política accesible desde la app sea LA política. Así que en
+    // nativo el apex es siempre absoluto.
+    if (_isNativeProbe()) return `${APEX_ORIGIN}${path}`;
     const { protocol, hostname } = window.location;
     if (isSiteHost(hostname)) {
         return `${protocol}//${hostname.replace(/^app\./i, '')}${path}`;

@@ -26,13 +26,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const { nativeFlag } = vi.hoisted(() => ({ nativeFlag: { value: false } }));
-vi.mock('../config/platform', async (importOriginal) => {
-    const real = await importOriginal();
-    return { ...real, isNativeApp: () => nativeFlag.value };
-});
+// La sonda se INYECTA (site.js no puede importar platform: lo cargan scripts de
+// Node sin Capacitor — el build del VPS lo enseñó en rojo). El test ejercita el
+// mecanismo real en vez de mockear isNativeApp: registra una sonda y la retira.
+import { apexUrl, APEX_ORIGIN, registerNativeProbe } from '../config/site';
+import { isNativeApp } from '../config/platform';
 
-import { apexUrl, APEX_ORIGIN } from '../config/site';
+const nativeFlag = { value: false };
 
 const _dir = path.dirname(fileURLToPath(import.meta.url));
 const src = (rel) => readFileSync(path.join(_dir, '..', rel), 'utf-8');
@@ -43,8 +43,8 @@ const RUTAS_LEGALES = [
 ];
 
 describe('[P1-LEGAL-LINKS-APEX] apexUrl() en la app nativa', () => {
-    beforeEach(() => { nativeFlag.value = false; });
-    afterEach(() => { nativeFlag.value = false; });
+    beforeEach(() => { nativeFlag.value = false; registerNativeProbe(() => nativeFlag.value); });
+    afterEach(() => { nativeFlag.value = false; registerNativeProbe(isNativeApp); });
 
     it('en nativo devuelve el apex absoluto aunque el host sea localhost', () => {
         nativeFlag.value = true;
@@ -54,6 +54,17 @@ describe('[P1-LEGAL-LINKS-APEX] apexUrl() en la app nativa', () => {
 
     it('en web-dev (localhost, NO nativo) sigue devolviendo la ruta interna', () => {
         expect(apexUrl('/privacy')).toBe('/privacy');
+    });
+
+    // Sin esto, la feature nace INERTE: una sonda que nadie registra es `() => false`
+    // para siempre y el test de arriba sólo probaría que el mecanismo existe.
+    it('platform.js registra la sonda al cargarse (no es un hook muerto)', () => {
+        const code = src('config/platform.js');
+        expect(code).toMatch(/registerNativeProbe\(isNativeApp\)/);
+    });
+
+    it('site.js NO importa platform (lo cargan scripts de Node sin Capacitor)', () => {
+        expect(src('config/site.js')).not.toMatch(/from ['"]\.\/platform['"]/);
     });
 });
 
