@@ -310,6 +310,22 @@ export default defineConfig(({ mode }) => {
     drop: ['debugger'],
     pure: ['console.log', 'console.warn', 'console.debug', 'console.info'],
   } : {},
+  // [P3-I18N-JSON-NAMEDEXPORTS · 2026-08-21] `namedExports: true` (el default)
+  // cortocircuita la propia regla `stringify: 'auto'` de Vite: para poder ofrecer
+  // `import { clave } from 'x.json'` hay que emitir un objeto literal, y entonces el
+  // umbral de tamaño que decidiría usar `JSON.parse` no se llega a aplicar.
+  //
+  // MEDIDO: los cuatro catálogos salen como objeto literal de 184-200 kB — 19 veces el
+  // umbral de 10 kB. Un objeto literal de ese tamaño lo tiene que parsear el motor de
+  // JS con el parser completo; `JSON.parse` sobre una cadena usa un parser dedicado y
+  // es varias veces más rápido en arranque frío, que es exactamente cuando esto corre
+  // (un usuario no hispano abriendo la app por primera vez).
+  //
+  // Es seguro globalmente: los ÚNICOS cuatro imports de JSON de toda la app son estos
+  // catálogos, y los cuatro toman `.default` (`LOADERS` en `i18n/index.js`). Cero
+  // imports nombrados desde JSON en `src/`.
+  json: { namedExports: false, stringify: 'auto' },
+
   build: {
     // [P2-SOURCEMAPS-HIDDEN · 2026-07-30] Sin sourcemaps, TODO error de frontend
     // llega a Sentry como `t.default` dentro de una función llamada `Ln` — no es

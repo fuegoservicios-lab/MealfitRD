@@ -27,6 +27,62 @@ const SRC = join(__dirname, '..', 'src');
 const LOCALES_DIR = join(SRC, 'i18n', 'locales');
 const PARTS = join(LOCALES_DIR, '_parts');
 
+// [P3-I18N-MERGE-NO-VALIDA-EL-VALOR · 2026-08-21] El comando que ESCRIBE los catálogos
+// no miraba lo que escribe: comprobaba que la clave existiera, que la cadena no estuviera
+// vacía y que un plural trajera `other`. Nada más.
+//
+// MEDIDO: 9 de las 2.461 claves llevan marcado (`<strong>`), y ese marcado entra crudo al
+// `innerHTML` del PDF y a los banners del dashboard.
+//
+// NO es XSS de usuario —los catálogos viven en el repo y pasan por review—: es integridad
+// de marcado. Un `<strong>` sin cerrar en la traducción portuguesa deja en negrita el
+// resto del banner, o se come el nodo siguiente. Y un `{dias}` que se pierde al traducir
+// hace desaparecer el número de la frase: «te quedan  para renovar», y nadie lo nota
+// hasta que lo lee un usuario.
+//
+// Se compara la SECUENCIA de tags y el CONJUNTO de placeholders contra el original, no su
+// mera presencia: `<strong>a</strong><em>b</em>` y `<em>b</em><strong>a</strong>` tienen
+// los mismos tags y no dicen lo mismo.
+const TAG_RX = /<\/?[a-zA-Z][^>]*>/g;
+const PH_RX = /\{(\w+)\}/g;
+
+const secuenciaDeTags = (s) =>
+    (String(s).match(TAG_RX) || []).map((t) => t.toLowerCase().replace(/\s+[^>]*>/, '>'));
+
+const placeholdersDe = (s) =>
+    [...String(s).matchAll(PH_RX)].map((m) => m[1]).sort();
+
+/**
+ * ¿Qué le pasa a este valor? `null` si está bien.
+ *
+ * La clave ES el texto español (convención del motor), así que el original está
+ * literalmente delante: no hace falta ir a buscarlo a ningún sitio.
+ */
+function validarValor(clave, valor) {
+    // Un plural se valida forma a forma contra la MISMA clave: la clave de un `tn()` es
+    // su forma «other», y las dos formas traducidas tienen que conservar su marcado.
+    const formas = typeof valor === 'string' ? [valor] : Object.values(valor || {});
+    for (const forma of formas) {
+        if (typeof forma !== 'string') return 'una forma del plural no es una cadena';
+
+        const tagsOrig = secuenciaDeTags(clave);
+        const tagsTrad = secuenciaDeTags(forma);
+        if (tagsOrig.join('') !== tagsTrad.join('')) {
+            return `el marcado no coincide (original ${JSON.stringify(tagsOrig)}, `
+                 + `traducción ${JSON.stringify(tagsTrad)})`;
+        }
+
+        const phOrig = placeholdersDe(clave);
+        const phTrad = placeholdersDe(forma);
+        if (phOrig.join(',') !== phTrad.join(',')) {
+            return `los placeholders no coinciden (original ${JSON.stringify(phOrig)}, `
+                 + `traducción ${JSON.stringify(phTrad)})`;
+        }
+    }
+    return null;
+}
+
+
 const LOCALES_SRC = readFileSync(join(SRC, 'i18n', 'locales.js'), 'utf8');
 const DEFAULT_LOCALE = (LOCALES_SRC.match(/DEFAULT_LOCALE\s*=\s*'([^']+)'/) || [])[1];
 const TARGETS = [...LOCALES_SRC.matchAll(/\{\s*code:\s*'([^']+)'/g)]
@@ -109,6 +165,12 @@ if (mode === 'split') {
                 }
                 if (typeof v === 'string' && v.trim() === '') { skipped++; continue; }
                 if (v && typeof v === 'object' && !v.other) { skipped++; continue; }
+                const problema = validarValor(k, v);
+                if (problema) {
+                    console.error(`  \u26a0 ${p}: ${problema} \u2192 ${JSON.stringify(k.slice(0, 60))}`);
+                    skipped++;
+                    continue;
+                }
                 catalog[k] = v;
                 merged++;
             }

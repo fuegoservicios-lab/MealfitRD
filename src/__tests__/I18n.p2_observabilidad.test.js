@@ -87,20 +87,26 @@ describe('[P2-I18N-OBSERVABILIDAD-CERO]', () => {
         vi.doMock('../i18n/locales/fr-FR.json', () => ({ default: CATALOGO_FR }));
         const { trackEvent } = await import('../utils/analytics');
         const React = await import('react');
-        const { render, waitFor } = await import('@testing-library/react');
+        const { render } = await import('@testing-library/react');
         const { I18nProvider, useI18n } = await import('../i18n');
 
-        let cambiar = null;
+        // El cambio se dispara desde un click y no capturando `setLocale` en una
+        // variable de fuera: `react-hooks/globals` prohíbe reasignar desde el render, y
+        // un botón es además más parecido a lo que hace el usuario.
         const Vista = () => {
-            const ctx = useI18n();
-            // Guardar la función en una closure de test no es reasignar estado de React.
-            cambiar = ctx.setLocale;
-            return null;
+            const { setLocale } = useI18n();
+            return React.createElement(
+                'button',
+                { 'data-testid': 'cambiar', onClick: () => setLocale('fr-FR') },
+                'FR',
+            );
         };
-        render(React.createElement(I18nProvider, null, React.createElement(Vista)));
-        await waitFor(() => expect(cambiar).not.toBeNull());
+        const { getByTestId } = render(
+            React.createElement(I18nProvider, null, React.createElement(Vista)),
+        );
 
-        await cambiar('fr-FR');
+        const { act } = await import('react');
+        await act(async () => { getByTestId('cambiar').click(); });
 
         const llamada = trackEvent.mock.calls.find((c) => c[0] === 'locale_changed');
         expect(llamada, 'no se emitió `locale_changed`').toBeTruthy();

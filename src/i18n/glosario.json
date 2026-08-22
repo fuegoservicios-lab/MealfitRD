@@ -1,0 +1,76 @@
+{
+  "_doc": [
+    "[P3-I18N-SIN-GLOSARIO · 2026-08-21] Los sustantivos que el usuario aprende como",
+    "NOMBRE de algo: una pantalla, un objeto, un estado. No son palabras cualesquiera —",
+    "si «Nevera» sale unas veces como «fridge» y otras como «refrigerator», el usuario no",
+    "sabe si son la misma pantalla.",
+    "",
+    "POR QUE HACIA FALTA: sin glosario ni memoria entre lotes, cada tanda de traduccion",
+    "reinventa el termino. Medido sobre los catalogos: el MISMO objeto fisico se llama",
+    "«Nevera», «Despensa» y «Alacena» en el copy espanol, y cada uno recibio su propia",
+    "traduccion — fridge/pantry/cupboard, frigo/garde-manger/placard. Y fr-FR usa «frigo»",
+    "en la mayoria de sitios y «refrigerateur» en el escaner, para la misma cosa.",
+    "",
+    "COMO SE USA: `npm run i18n:check` avisa cuando una clave espanola menciona un termino",
+    "y su traduccion no trae la palabra pactada. Es un TRINQUETE, no un fallo duro: hay",
+    "reformulaciones legitimas (una frase que rodea el sustantivo en vez de nombrarlo), y",
+    "un guard que grita con cada una se apaga en una semana. Lo que impide es que el",
+    "numero SUBA.",
+    "",
+    "COMO SE ANADE UN TERMINO: una entrada aqui con las cuatro traducciones. Si el termino",
+    "tiene sinonimos en el copy espanol, van en `alias` — se comprueban contra la MISMA",
+    "palabra pactada, que es justo lo que impide que tres nombres del mismo objeto acaben",
+    "en tres traducciones."
+  ],
+
+  "Nevera": {
+    "nota": "La Nevera Inteligente: el inventario de lo que TIENES. Antes esto llevaba a «Despensa» y «Alacena» como alias suyos, y el propio chequeo lo refuto: esas dos nombran la seccion de SECOS de la lista de compras, no la nevera. Forzarlas a «fridge» habria sido una mala traduccion escrita a proposito.",
+    "en-US": "fridge",
+    "pt-BR": "geladeira",
+    "fr-FR": "frigo",
+    "it-IT": "frigo"
+  },
+  "Despensa": {
+    "alias": ["Alacena"],
+    "nota": "La seccion de estables/secos de la lista de compras. «Despensa» y «Alacena» SI son sinonimos entre si en el copy espanol, y por eso comparten traduccion; con la Nevera no tienen nada que ver.",
+    "en-US": "pantry",
+    "pt-BR": "despensa",
+    "fr-FR": "garde-manger",
+    "it-IT": "dispensa"
+  },
+  "Plan": { "en-US": "plan", "pt-BR": "plano", "fr-FR": "plan", "it-IT": "piano" },
+  "Receta": { "en-US": "recipe", "pt-BR": "receita", "fr-FR": "recette", "it-IT": "ricetta" },
+  "Comida": {
+    "nota": "El PLATO de una franja horaria, no el acto de comer.",
+    "en-US": "meal", "pt-BR": "refeicao", "fr-FR": "repas", "it-IT": "pasto"
+  },
+  "Plato": { "en-US": "dish", "pt-BR": "prato", "fr-FR": "plat", "it-IT": "piatto" },
+  "Lista de compras": {
+    "en-US": "shopping list", "pt-BR": "lista de compras",
+    "fr-FR": "liste de courses", "it-IT": "lista della spesa"
+  },
+  "Historial": { "en-US": "history", "pt-BR": "historico", "fr-FR": "historique", "it-IT": "cronologia" },
+  "Diario": {
+    "nota": "El registro de lo que comiste, no el adjetivo «de cada dia».",
+    "en-US": "diary", "pt-BR": "diario", "fr-FR": "journal", "it-IT": "diario"
+  },
+  "Meta": {
+    "nota": "El objetivo nutricional. No confundir con «metadata».",
+    "en-US": "goal", "pt-BR": "meta", "fr-FR": "objectif", "it-IT": "obiettivo"
+  },
+  "Créditos": { "en-US": "credits", "pt-BR": "creditos", "fr-FR": "credits", "it-IT": "crediti" },
+  "Presupuesto": { "en-US": "budget", "pt-BR": "orcamento", "fr-FR": "budget", "it-IT": "budget" },
+  "Ingrediente": { "en-US": "ingredient", "pt-BR": "ingrediente", "fr-FR": "ingredient", "it-IT": "ingrediente" },
+  "Semana": { "en-US": "week", "pt-BR": "semana", "fr-FR": "semaine", "it-IT": "settimana" },
+  "Ciclo": { "en-US": "cycle", "pt-BR": "ciclo", "fr-FR": "cycle", "it-IT": "ciclo" },
+  "Inventario": {
+    "nota": "Lo que HAY en la Nevera. Es un contenido, no la pantalla.",
+    "en-US": "inventory", "pt-BR": "estoque", "fr-FR": "inventaire", "it-IT": "inventario"
+  },
+  "Porción": { "en-US": "portion", "pt-BR": "porcao", "fr-FR": "portion", "it-IT": "porzione" },
+  "Escanear": { "en-US": "scan", "pt-BR": "escanear", "fr-FR": "scanner", "it-IT": "scansiona" },
+  "Coach": {
+    "nota": "Se queda igual en los cuatro: es el nombre del asistente, no una palabra.",
+    "en-US": "coach", "pt-BR": "coach", "fr-FR": "coach", "it-IT": "coach"
+  }
+}

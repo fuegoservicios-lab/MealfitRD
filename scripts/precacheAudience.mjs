@@ -84,20 +84,29 @@ export const FAMILIAS_NO_PRECACHEABLES = [
         // bajaría los cuatro idiomas en la instalación del SW para una página
         // que no usa ninguno.
         //
-        // Y quien SÍ los necesita no los echa de menos: `loadLocale()` sólo
-        // dispara desde el I18nProvider cuando la preferencia guardada no es
-        // es-DO, o sea tras haber entrado al dashboard al menos una vez. En esa
-        // primera visita el chunk se descarga por red y a partir de ahí lo
-        // sirve la caché normal del navegador. Lo único que se pierde es tener
-        // el idioma disponible OFFLINE en la primera carga tras cambiarlo, que
-        // es una ventana de segundos.
+        // [P3-I18N-PRECACHE-PREMISA-CADUCA · 2026-08-21] Aquí decía que quien los
+        // necesita no los echa de menos, «porque `loadLocale()` sólo dispara cuando la
+        // preferencia guardada no es es-DO, o sea tras haber entrado al dashboard al
+        // menos una vez». `P1-AUTO-LOCALE` invalidó esa premisa EL MISMO DÍA: el boot
+        // detecta el idioma del navegador y carga el catálogo en la PRIMERA visita, sin
+        // preferencia guardada y sin haber entrado nunca.
+        //
+        // La decisión no cambia; el trade-off sí, y ahora es peor de lo que decía. Un
+        // visitante francés nuevo se baja el catálogo POR RED en su primera carga —55,5
+        // kB brotli, en paralelo con el resto del arranque— en vez de tenerlo listo. No
+        // se precachea igualmente porque el coste del otro lado es peor: los cuatro
+        // idiomas (~210 kB brotli) en la instalación del service worker de TODO
+        // visitante, incluidos los hispanos, que son la mayoría y no usan ninguno.
+        //
+        // Lo que se pierde de verdad: el idioma no está disponible offline hasta la
+        // segunda carga. A partir de ahí lo sirve la caché normal del navegador.
         //
         // `es-DO` no aparece aquí porque no tiene catálogo: es el fallback, y
         // sus textos ya viajan dentro del código como claves.
         id: 'i18n-catalogs',
         marcadores: [],
         rutas: ['src/i18n/locales/'],
-        gate: 'loadLocale() — sólo con preferencia ≠ es-DO, P1-I18N-DASHBOARD',
+        gate: 'loadLocale() — preferencia guardada ≠ es-DO O autodetección del navegador en la primera visita (P1-AUTO-LOCALE)',
     },
 ];
 

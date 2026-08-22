@@ -273,10 +273,62 @@ for (const file of files) {
 }
 
 // ---------------------------------------------------------------------------
+// Glosario: el mismo sustantivo, la misma palabra (P3-I18N-SIN-GLOSARIO · 2026-08-21)
+// ---------------------------------------------------------------------------
+//
+// Sin glosario ni memoria entre lotes, cada tanda de traducción reinventa el término.
+// MEDIDO sobre los catálogos: el MISMO objeto físico se llama «Nevera», «Despensa» y
+// «Alacena» en el copy español, y cada uno recibió su propia traducción —
+// fridge/pantry/cupboard, frigo/garde-manger/placard—. Y fr-FR usa «frigo» en casi todos
+// los sitios y «réfrigérateur» en el escáner, para la misma cosa.
+//
+// Es un TRINQUETE y no un fallo duro a propósito: hay reformulaciones legítimas —una
+// frase que rodea el sustantivo en vez de nombrarlo— y un guard que grita con cada una
+// se apaga en una semana. Ya se pagó esa lección en el landing (27 avisos → 14 reales).
+// Lo que impide es que el número SUBA.
+const GLOSARIO_PATH = join(SRC, 'i18n', 'glosario.json');
+const BASELINE_GLOSARIO = join(__dirname, 'i18n-glosario.baseline.json');
+
+const sinAcentos = (x) => String(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/** Desvíos del glosario por idioma, o `null` si no hay glosario. */
+function revisarGlosario(catalogosPorCodigo) {
+    if (!existsSync(GLOSARIO_PATH)) return null;
+    const glosario = JSON.parse(readFileSync(GLOSARIO_PATH, 'utf8'));
+    const porIdioma = {};
+
+    for (const code of TARGET_CODES) {
+        const cat = catalogosPorCodigo[code];
+        if (!cat) continue;
+        const desvios = [];
+        for (const [termino, spec] of Object.entries(glosario)) {
+            if (termino.startsWith('_') || !spec || typeof spec !== 'object') continue;
+            const esperada = spec[code];
+            if (!esperada) continue;
+            // El término y sus sinónimos españoles apuntan a LA MISMA palabra: eso es
+            // justo lo que impide que tres nombres del mismo objeto acaben en tres
+            // traducciones distintas.
+            const nombres = [termino, ...(spec.alias || [])].map(sinAcentos);
+            const quiere = sinAcentos(esperada);
+            for (const [k, v] of Object.entries(cat)) {
+                const clave = sinAcentos(k);
+                if (!nombres.some((n) => clave.includes(n))) continue;
+                const texto = typeof v === 'string' ? v : (v && v.other) || '';
+                if (!texto) continue;
+                if (!sinAcentos(texto).includes(quiere)) desvios.push({ termino, clave: k });
+            }
+        }
+        porIdioma[code] = desvios;
+    }
+    return porIdioma;
+}
+
+// ---------------------------------------------------------------------------
 // Cotejo contra catálogos
 // ---------------------------------------------------------------------------
 const liveKeys = new Set(keys.keys());
 const report = { locales: {}, moduleScope: moduleScopeHits, totalKeys: liveKeys.size };
+const catalogosLeidos = {};   // los reusa el chequeo de glosario, para no releerlos
 let hardFail = false;
 
 for (const code of TARGET_CODES) {
@@ -294,6 +346,8 @@ for (const code of TARGET_CODES) {
         hardFail = true;
         continue;
     }
+
+    catalogosLeidos[code] = catalog;
 
     const catKeys = new Set(Object.keys(catalog));
     const orphans = [...catKeys].filter((k) => !liveKeys.has(k));
@@ -428,6 +482,50 @@ if (baseline && !UPDATE_BASELINE) {
 }
 if (retrocesos.length) hardFail = true;
 
+// --- Glosario: mismo trinquete, por IDIOMA -----------------------------------
+// Por idioma y no por total, por la misma razón que el de arriba va por fichero: si el
+// francés mejora y el italiano empeora, la suma queda igual y el retroceso pasa
+// inadvertido. Un trinquete que sólo mira la suma es un promedio.
+const glosarioPorIdioma = revisarGlosario(catalogosLeidos) || {};
+const glosarioConteo = Object.fromEntries(
+    Object.entries(glosarioPorIdioma).map(([code, d]) => [code, d.length])
+);
+
+let baseGlosario = null;
+if (existsSync(BASELINE_GLOSARIO)) {
+    try { baseGlosario = JSON.parse(readFileSync(BASELINE_GLOSARIO, 'utf8')); } catch { baseGlosario = null; }
+}
+
+if (UPDATE_BASELINE) {
+    writeFileSync(BASELINE_GLOSARIO, JSON.stringify({
+        _comentario: 'Trinquete de P3-I18N-SIN-GLOSARIO: claves cuya traducción no usa la '
+            + 'palabra pactada en `src/i18n/glosario.json`. Puede BAJAR, nunca subir. '
+            + 'No es un fallo duro porque hay reformulaciones legítimas — una frase que '
+            + 'rodea el sustantivo en vez de nombrarlo. Regenerar con '
+            + '`node scripts/i18n-check.mjs --update-baseline`.',
+        porIdioma: glosarioConteo,
+    }, null, 2) + '\n', 'utf8');
+    console.log(`[i18n:check] trinquete del glosario reescrito: ${JSON.stringify(glosarioConteo)}`);
+}
+
+const retrocesosGlosario = [];
+if (baseGlosario && !UPDATE_BASELINE) {
+    for (const [code, n] of Object.entries(glosarioConteo)) {
+        const previo = (baseGlosario.porIdioma || {})[code] ?? 0;
+        if (n > previo) retrocesosGlosario.push({ code, previo, ahora: n });
+    }
+}
+if (retrocesosGlosario.length) hardFail = true;
+
+report.glosario = {
+    porIdioma: glosarioConteo,
+    baseline: baseGlosario ? baseGlosario.porIdioma : null,
+    retrocesos: retrocesosGlosario,
+    ejemplos: Object.fromEntries(
+        Object.entries(glosarioPorIdioma).map(([c, d]) => [c, d.slice(0, 5)])
+    ),
+};
+
 report.sinEnvolver = {
     total: sinEnvolverTotal,
     baseline: baseline ? baseline.total : null,
@@ -475,6 +573,23 @@ if (AS_JSON) {
             }
             if (r.unusable.length > 15) console.error(`     … y ${r.unusable.length - 15} más`);
         }
+    }
+
+    if (retrocesosGlosario.length) {
+        console.error(`\n\u274c GLOSARIO: ${retrocesosGlosario.length} idioma(s) con MÁS desvíos que el trinquete.`);
+        console.error('   Un término del producto se tradujo de una forma nueva. Si es');
+        console.error('   deliberado, actualiza `src/i18n/glosario.json`; si no, usa la');
+        console.error('   palabra pactada — el usuario no sabe que dos nombres son la misma');
+        console.error('   pantalla.');
+        for (const r of retrocesosGlosario) {
+            console.error(`     · ${r.code}: ${r.previo} \u2192 ${r.ahora}`);
+            for (const d of (glosarioPorIdioma[r.code] || []).slice(0, 3)) {
+                console.error(`         «${d.termino}» en ${JSON.stringify(d.clave.slice(0, 55))}`);
+            }
+        }
+    } else if (Object.keys(glosarioConteo).length) {
+        const tot = Object.values(glosarioConteo).reduce((a, b) => a + b, 0);
+        console.log(`\n\u2139  glosario: ${tot} desvío(s) tolerado(s) ${JSON.stringify(glosarioConteo)}`);
     }
 
     if (moduleScopeHits.length) {
