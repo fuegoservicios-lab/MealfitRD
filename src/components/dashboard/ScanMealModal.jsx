@@ -17,6 +17,11 @@ import styles from './ScanMealModal.module.css';
 // ~17 call sites en el mismo commit que la extracción.
 import MacroInput from '../common/MacroInput';
 import { useT, useTn } from '../../i18n';
+// [P2-VISION-COUNTRY-COPY · 2026-08-21] SSOT de países del frontend (espejo del backend con
+// test de paridad). Comparar contra 'DO' a mano aquí sería la tabla que P1-DIET-CANON-SSOT
+// prohíbe.
+import { coerceCountry, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI } from '../../config/countries';
+import { useAssessment } from '../../context/AssessmentContext';
 import {
     getMealTypes as _getMealTypes,
     guessMealType as _guessMealType,
@@ -137,6 +142,15 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
 
     const isBusy = phase === 'scanning' || phase === 'saving';
 
+    // [P2-VISION-COUNTRY-COPY · 2026-08-21] El país del usuario, sólo para decidir si se
+    // muestra el aviso de calibración del escáner. Mismo patrón que el resto del
+    // dashboard (`DashboardTracking` ya lee `formData` de aquí).
+    // `|| {}`: este modal se renderiza AISLADO en sus tests (y podría montarse fuera del
+    // provider en un futuro shell), y sin la guarda `useAssessment()` devuelve undefined y
+    // el destructuring revienta el componente entero. Un aviso informativo no puede ser la
+    // razón por la que el escáner deja de abrirse: 10 tests lo dijeron al primer intento.
+    const { formData: _scanFormData } = useAssessment() || {};
+    const country = _scanFormData?.country;
     const { containerRef } = useModalAccessibility({
         isOpen,
         onClose,
@@ -477,6 +491,21 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                 ? t('Toma una foto de tu plato y la IA estimará las macros. Podrás revisarlas antes de registrar.')
                                 : t('Sube una foto de tu plato y la IA estimará las macros. Podrás revisarlas antes de registrar.')}
                         </p>
+                        {/* [P2-VISION-COUNTRY-COPY · 2026-08-21] La spec de visión ACEPTÓ que el
+                            escáner fuera dominicano en v1, pero con una condición escrita: «se
+                            documenta en el copy del escáner para beta». Esa condición nunca se
+                            cumplió — era la deuda de una decisión que nadie escribió, así que el
+                            usuario beta no tenía forma de saber contra qué está calibrado.
+                            El prompt de `vision_agent.py` dice literalmente «Eres un nutricionista
+                            dominicano» y pide el nombre «en español dominicano»; a un plato español
+                            o mexicano le pone el nombre criollo más parecido. El modal ya deja
+                            editar nombre y macros antes de guardar, así que el aviso es accionable
+                            y no un descargo. */}
+                        {COUNTRY_SYSTEM_UI && coerceCountry(country) !== DEFAULT_COUNTRY && (
+                            <p className={styles.hint}>
+                                {t('El escáner está calibrado con cocina dominicana: fuera de RD puede nombrar tu plato con el criollo más parecido. Revisa el nombre y las macros antes de registrar.')}
+                            </p>
+                        )}
                         {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] De dos botones apilados a
                             OPTION-CARDS estilo action-sheet: icono en tile + label +
                             sublabel + chevron. La cámara lleva el tile primary (acción
