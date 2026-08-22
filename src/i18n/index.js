@@ -291,6 +291,30 @@ export function formatDate(value, options) {
 }
 
 /** `Intl.NumberFormat` con el locale activo. */
+// [P2-I18N-DASH-MONEDA-ARIA-PLACEHOLDER · 2026-08-22] El NOMBRE de una moneda, por locale.
+//
+// El símbolo ya se resolvía; el nombre estaba en un ternario de dos ramas
+// (`USD ? 'dólares' : 'pesos dominicanos'`) escrito cuando sólo había dos monedas. Con el
+// sistema de países vivo son CINCO, así que a un español con EUR el lector de pantalla le
+// decía «Presupuesto total en pesos dominicanos».
+//
+// No se traduce con claves: `Intl.DisplayNames` ya conoce el nombre de cada moneda en cada
+// idioma («euro», «peso dominicano», «dollar des États-Unis»). Cinco monedas × cuatro
+// idiomas serían veinte claves que nadie revisaría, y que se quedarían atrás en cuanto
+// entre la sexta.
+//
+// Degrada al CÓDIGO ISO (`EUR`), que es información correcta aunque más seca — nunca a una
+// cadena vacía, porque esto alimenta un `aria-label`.
+export function formatCurrencyName(code) {
+    const iso = String(code || '').toUpperCase();
+    if (!iso) return '';
+    try {
+        return new Intl.DisplayNames([_locale], { type: 'currency' }).of(iso) || iso;
+    } catch {
+        return iso;
+    }
+}
+
 export function formatNumber(value, options) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '';

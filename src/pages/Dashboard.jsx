@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 // que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
-import { formatDate, formatNumber, i18nKey, t, tn, useI18n, useT } from '../i18n';
+import { formatCurrencyName, formatDate, formatNumber, i18nKey, t, tn, useI18n, useT } from '../i18n';
 import { WORDMARK_TEXT } from '../components/common/Wordmark';
 import { pdfFileName } from '../utils/pdfFileName';
 // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
@@ -6632,10 +6632,15 @@ const DashboardInner = () => {
                                                                     <span style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.85rem', pointerEvents: 'none' }}>{_sym}</span>
                                                                     <input
                                                                         type="number" inputMode="decimal" min={_min} step="1"
-                                                                        placeholder={_cur === 'USD' ? t('Ej. 100') : t('Ej. 5000')}
+                                                                        // [P2-I18N-DASH-MONEDA-ARIA-PLACEHOLDER · 2026-08-22] El ejemplo sale del
+                                                                        // MÍNIMO real de esa moneda y ciclo (SSOT `BUDGET_MIN_TOTAL`), no de un
+                                                                        // ternario de dos ramas: con cinco monedas vivas, «Ej. 5000» en euros
+                                                                        // no es un ejemplo, es una cifra absurda. Y siendo el mínimo, además
+                                                                        // enseña el orden de magnitud que el backend va a aceptar.
+                                                                        placeholder={t('Ej. {monto}', { monto: formatNumber(minBudgetFor(_cur, formData?.groceryDuration || 'weekly')) })}
                                                                         value={formData?.budgetAmount || ''}
                                                                         onChange={(e) => _setBudget('budgetAmount', e.target.value)}
-                                                                        aria-label={_cur === 'USD' ? t('Presupuesto total en dólares') : t('Presupuesto total en pesos dominicanos')}
+                                                                        aria-label={t('Presupuesto total en {moneda}', { moneda: formatCurrencyName(_cur) })}
                                                                         style={{
                                                                             width: '100%', boxSizing: 'border-box',
                                                                             padding: '0.5rem 0.6rem 0.5rem 2.6rem', borderRadius: '8px',

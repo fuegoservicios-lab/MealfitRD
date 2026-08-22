@@ -69,6 +69,17 @@ const R = 40;
 const C = 2 * Math.PI * R;
 const TARGET_OFFSET = C * (1 - 0.74);
 
+// [P2-I18N-META-LITERAL-PLANSHOWCASE · 2026-08-22] La meta de la demo, UNA vez.
+//
+// Estaba tecleada como TEXTO en dos sitios («de 2,100» y «/ 2,100») con separador de
+// millares estadounidense: en francés la línea salía «1 900 / 2,100» — la mitad
+// formateada por locale y la mitad no, en el mismo renglón. Era el ejemplo que el plan
+// anterior usaba como «la prueba más visible» de que el formateo no seguía al idioma.
+//
+// Y peor: el número vivía DENTRO de la clave de traducción (`t('de 2,100')`), así que
+// cambiar la meta de la demo huerfanaba cuatro traducciones en silencio.
+const META_DEMO_KCAL = 2100;
+
 const fade = {
     initial: { opacity: 0, y: 16 },
     animate: { opacity: 1, y: 0 },
@@ -178,7 +189,7 @@ function ScenePlan() {
                     </svg>
                     <div className="mf-ring__center">
                         <span className="mf-ring__value">{formatNumber(kcal)}</span>
-                        <span className="mf-ring__goal">{t('de 2,100')}</span>
+                        <span className="mf-ring__goal">{t('de {meta}', { meta: formatNumber(META_DEMO_KCAL) })}</span>
                     </div>
                 </div>
                 <div className="mf-macros">
@@ -252,7 +263,7 @@ function SceneAjuste() {
                 <div className="mf-summary__row">
                     <span className="mf-summary__label">{t('Calorías de hoy')}</span>
                     <span className="mf-summary__val">
-                        <NumFlip>{formatNumber(total)}</NumFlip><small> / 2,100</small>
+                        <NumFlip>{formatNumber(total)}</NumFlip><small> / {formatNumber(META_DEMO_KCAL)}</small>
                     </span>
                     <AnimatePresence>
                         {swapped && (

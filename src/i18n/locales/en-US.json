@@ -2787,5 +2787,12 @@
   "cdtas": "tsp",
   "PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE": "PROCESSED BY {marca} - INTELLIGENT NUTRITION",
   "Disfruta de tu comida. Generado automáticamente por {marca}.": "Enjoy your meal. Generated automatically by {marca}.",
-  "Logo de {marca}": "{marca} logo"
+  "Logo de {marca}": "{marca} logo",
+  "hace <1m": "<1m ago",
+  "hace {h} h {m} min": "{h}h {m}m ago",
+  "hace {d} d {h} h": "{d}d {h}h ago",
+  "hace {n} días": {"one":"{n} day ago","other":"{n} days ago"},
+  "de {meta}": "of {meta}",
+  "Ej. {monto}": "e.g. {monto}",
+  "Presupuesto total en {moneda}": "Total budget in {moneda}"
 }

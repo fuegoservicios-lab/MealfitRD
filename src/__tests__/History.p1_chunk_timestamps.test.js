@@ -59,51 +59,34 @@ describe('[P1-HIST-CHUNK-TIMESTAMPS] anchor + helper', () => {
         expect(src).toMatch(/\[P1-HIST-CHUNK-TIMESTAMPS\s*·\s*2026-05-09\]/);
     });
 
-    it('helper _fmtRelTime declarado', () => {
-        expect(src).toMatch(/const\s+_fmtRelTime\s*=\s*\(\s*iso\s*\)\s*=>/);
+    // [P2-I18N-RELTIME-HISTORY-CRUDO · 2026-08-22] Estos cinco tests PARSEABAN el cuerpo del
+    // helper dentro de `History.jsx`, y tres de ellos clavaban el copy ESPAÑOL —
+    // `hace ${_days}d ${_remH}h`, `'ahora'`— así que mantenían en español justo lo que
+    // había que traducir. Es la cuarta instancia del mismo antipatrón en este repo.
+    //
+    // La aritmética vive ahora en un módulo PURO (`utils/relativeTime.js`), así que se puede
+    // medir la CONDUCTA en vez de la forma del código. Lo que queda aquí es que
+    // `History.jsx` siga delegando en él y componiendo el sello absoluto en hora local.
+
+    it('History.jsx delega en el módulo de tiempo relativo, no lo reimplementa', () => {
+        expect(src).toMatch(/import\s*\{[^}]*\bformatRelativeTime\b[^}]*\}\s*from\s*['"][^'"]*relativeTime/);
+        const helperIdx = src.indexOf('const _fmtRelTime');
+        expect(helperIdx).toBeGreaterThan(-1);
+        const block = src.slice(helperIdx, helperIdx + 800);
+        expect(block).toMatch(/formatRelativeTime\(iso,\s*t,\s*tn\)/);
+        // Y NO vuelve a construir el texto a mano.
+        expect(block).not.toMatch(/hace\s/);
     });
 
-    it('_fmtRelTime devuelve null para input inválido', () => {
+    it('_fmtRelTime devuelve {rel, iso} con el sello absoluto en hora LOCAL', () => {
         const helperIdx = src.indexOf('const _fmtRelTime');
-        const block = src.slice(helperIdx, helperIdx + 3000);
-        // Guard 1: type check + truthy.
-        expect(block).toMatch(/!iso\s*\|\|\s*typeof iso\s*!==\s*['"]string['"]/);
-        // Guard 2: Date parse fail.
-        expect(block).toMatch(/Number\.isNaN\(_d\.getTime\(\)\)/);
-    });
-
-    it('_fmtRelTime maneja future timestamps como "ahora"', () => {
-        // Clock skew o backend bug puede emitir timestamp futuro.
-        // No render "hace -5m" — visible-feo.
-        const helperIdx = src.indexOf('const _fmtRelTime');
-        const block = src.slice(helperIdx, helperIdx + 3000);
-        expect(block).toMatch(/_diffMs\s*<\s*0/);
-        expect(block).toMatch(/['"]ahora['"]/);
-    });
-
-    it('_fmtRelTime tiene branches para sec/min/hour/day', () => {
-        const helperIdx = src.indexOf('const _fmtRelTime');
-        const block = src.slice(helperIdx, helperIdx + 3000);
-        // Cada granularidad: s (<1m), min (<60min), h (<24h), d.
-        expect(block).toMatch(/_sec\s*<\s*60/);
-        expect(block).toMatch(/_min\s*<\s*60/);
-        expect(block).toMatch(/_h\s*<\s*24/);
-        // Format con días + horas restantes.
-        expect(block).toMatch(/hace \$\{_days\}d \$\{_remH\}h/);
-    });
-
-    it('_fmtRelTime devuelve {rel, iso} con ISO absoluto local', () => {
-        const helperIdx = src.indexOf('const _fmtRelTime');
-        const block = src.slice(helperIdx, helperIdx + 3000);
+        const block = src.slice(helperIdx, helperIdx + 800);
         // [P1-I18N-FORMATOS-CLAVADOS · 2026-08-21] Antes anclaba el literal
-        // `_d.toLocaleString('es-DO')`. La propiedad que este test defiende es que
-        // el sello absoluto salga en hora LOCAL y no en UTC crudo — no con qué
-        // locale. Clavar 'es-DO' hacía justo lo contrario de lo que quiere: dejaba
-        // la fecha en formato dominicano para los cuatro idiomas.
-        expect(block).toMatch(/formatDate\(_d/);
-        // Estructura del return.
-        expect(block).toMatch(/rel:\s*_rel/);
-        expect(block).toMatch(/iso:\s*formatDate\(_d/);
+        // `_d.toLocaleString('es-DO')`. La propiedad que este test defiende es que el sello
+        // absoluto salga en hora LOCAL y no en UTC crudo — no con qué locale. Clavar 'es-DO'
+        // hacía justo lo contrario: dejaba la fecha en formato dominicano para los 4 idiomas.
+        expect(block).toMatch(/rel:\s*_r\.rel/);
+        expect(block).toMatch(/iso:\s*formatDate\(_r\.fecha/);
     });
 });
 

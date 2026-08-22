@@ -29,7 +29,7 @@ import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarDays, ChevronRight } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
-import { useT } from '../../i18n';
+import { formatDate, useT } from '../../i18n';
 import styles from './DiaryHistory.module.css';
 
 const DIAS_TIRA = 14;
@@ -57,7 +57,17 @@ const getMacros = (t) => [
     { key: 'healthy_fats', label: t('Grasas'), color: '#F472B6', goal: 'fats' },
 ];
 
-const DIA_LETRA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+// [P2-I18N-DIARIO-FORMATEADORES-A-MANO · 2026-08-22] La inicial del día, por locale.
+//
+// Era `['D', 'L', 'M', 'M', 'J', 'V', 'S']` a nivel de módulo: iniciales ESPAÑOLAS, sin
+// pasar por el motor y sin que ninguna defensa las viera — un barrido por llamadas a `t()`
+// no encuentra un formateador escrito a mano, que es como sobrevivió a tres pasadas.
+//
+// No se traduce con siete claves: `Intl` ya sabe la forma NARROW de cada idioma, y ahí
+// acierta donde una tabla a mano falla — en inglés la tira es S M T W T F S, no D L M M J V S,
+// y en portugués D S T Q Q S S. Siete claves × 4 idiomas serían 28 oportunidades de teclear
+// mal una letra que nadie revisaría jamás.
+const diaLetra = (d) => formatDate(d, { weekday: 'narrow' });
 // Cuerpo con llaves a propósito: el validador (`scripts/i18n-check.mjs`) mide el
 // ámbito contando llaves, así que una flecha que devuelve un array pelado deja
 // sus `t()` a profundidad 0 y los reporta —con razón formal— como ámbito de
@@ -112,8 +122,10 @@ const horaFiable = (meal) => {
     return consumido;
 };
 
-const hhmm = (d) =>
-    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+// [P2-I18N-DIARIO-FORMATEADORES-A-MANO · 2026-08-22] La hora, por locale. Era 24 h fijo
+// («15:05») para los cinco idiomas: en en-US se lee «3:05 PM», y esa diferencia no es
+// cosmética — «03:05» y «15:05» son horas distintas para quien espera AM/PM.
+const hhmm = (d) => formatDate(d, { timeStyle: 'short' });
 
 const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {} }) => {
     const t = useT();
@@ -325,7 +337,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                     ? t('{kcal} kcal · {n} comida(s)', { kcal, n: r.meals_count })
                                     : t('Sin registro')}
                             >
-                                <span className={styles.dayLetter}>{DIA_LETRA[d.getDay()]}</span>
+                                <span className={styles.dayLetter}>{diaLetra(d)}</span>
                                 <span className={`${styles.rail} ${conDatos ? '' : styles.railEmpty}`}>
                                     {conDatos && (
                                         <motion.span

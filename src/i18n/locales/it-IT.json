@@ -2787,5 +2787,12 @@
   "cdtas": "cucchiaini",
   "PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE": "ELABORATO DA {marca} - NUTRIZIONE INTELLIGENTE",
   "Disfruta de tu comida. Generado automáticamente por {marca}.": "Buon appetito. Generato automaticamente da {marca}.",
-  "Logo de {marca}": "Logo di {marca}"
+  "Logo de {marca}": "Logo di {marca}",
+  "hace <1m": "<1 min fa",
+  "hace {h} h {m} min": "{h} h {m} min fa",
+  "hace {d} d {h} h": "{d} g {h} h fa",
+  "hace {n} días": {"one":"{n} giorno fa","other":"{n} giorni fa"},
+  "de {meta}": "su {meta}",
+  "Ej. {monto}": "Es. {monto}",
+  "Presupuesto total en {moneda}": "Budget totale in {moneda}"
 }

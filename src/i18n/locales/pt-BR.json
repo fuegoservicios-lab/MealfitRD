@@ -2787,5 +2787,12 @@
   "cdtas": "colheres de chá",
   "PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE": "PROCESSADO POR {marca} - NUTRIÇÃO INTELIGENTE",
   "Disfruta de tu comida. Generado automáticamente por {marca}.": "Aproveite sua comida. Gerado automaticamente pelo {marca}.",
-  "Logo de {marca}": "Logo do {marca}"
+  "Logo de {marca}": "Logo do {marca}",
+  "hace <1m": "há <1min",
+  "hace {h} h {m} min": "há {h}h {m}min",
+  "hace {d} d {h} h": "há {d}d {h}h",
+  "hace {n} días": {"one":"há {n} dia","other":"há {n} dias"},
+  "de {meta}": "de {meta}",
+  "Ej. {monto}": "Ex.: {monto}",
+  "Presupuesto total en {moneda}": "Orçamento total em {moneda}"
 }

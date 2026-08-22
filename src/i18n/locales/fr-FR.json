@@ -2787,5 +2787,12 @@
   "cdtas": "c. à c.",
   "PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE": "TRAITÉ PAR {marca} - NUTRITION INTELLIGENTE",
   "Disfruta de tu comida. Generado automáticamente por {marca}.": "Bon appétit. Généré automatiquement par {marca}.",
-  "Logo de {marca}": "Logo {marca}"
+  "Logo de {marca}": "Logo {marca}",
+  "hace <1m": "il y a <1 min",
+  "hace {h} h {m} min": "il y a {h} h {m} min",
+  "hace {d} d {h} h": "il y a {d} j {h} h",
+  "hace {n} días": {"one":"il y a {n} jour","other":"il y a {n} jours"},
+  "de {meta}": "sur {meta}",
+  "Ej. {monto}": "Ex. : {monto}",
+  "Presupuesto total en {moneda}": "Budget total en {moneda}"
 }

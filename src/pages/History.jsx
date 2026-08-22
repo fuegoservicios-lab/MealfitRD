@@ -79,6 +79,7 @@ import HistoryMobilePanel from '../components/history/HistoryMobilePanel';
 // helpers de módulo (`_dayNameForGlobalIdx`, `chipDeChunkMuerto`) — se invocan en
 // render, nunca al importar, así que no caen en la trampa del ámbito de módulo.
 import { formatDate, t, tn, useI18n, useT } from '../i18n';
+import { formatRelativeTime } from '../utils/relativeTime';
 
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
@@ -3755,41 +3756,17 @@ const History = () => {
                                     // zona horaria local (Date.toLocaleString)
                                     // para que el operador vea su timestamp
                                     // sin hacer math mental UTC→DO.
+                                    // [P2-I18N-RELTIME-HISTORY-CRUDO · 2026-08-22] La aritmética
+                                    // y los rótulos viven en `utils/relativeTime.js`. Aquí sólo
+                                    // queda componer el ISO absoluto del `title`, que ya sigue el
+                                    // locale por `formatDate`. Antes esto construía «hace 2h 15m»
+                                    // en español fijo y lo interpolaba DENTRO de un `t()`.
                                     const _fmtRelTime = (iso) => {
-                                        if (!iso || typeof iso !== 'string') return null;
-                                        const _d = new Date(iso);
-                                        if (Number.isNaN(_d.getTime())) return null;
-                                        const _diffMs = Date.now() - _d.getTime();
-                                        // Future timestamps (clock skew o
-                                        // bug del backend): mostramos como
-                                        // "ahora" en lugar de "hace -5m".
-                                        if (_diffMs < 0) {
-                                            return {
-                                                rel: 'ahora',
-                                                iso: formatDate(_d, { dateStyle: 'medium', timeStyle: 'short' }),
-                                            };
-                                        }
-                                        const _sec = Math.floor(_diffMs / 1000);
-                                        const _min = Math.floor(_sec / 60);
-                                        const _h = Math.floor(_min / 60);
-                                        const _days = Math.floor(_h / 24);
-                                        let _rel;
-                                        if (_sec < 60) _rel = 'hace <1m';
-                                        else if (_min < 60) _rel = `hace ${_min}m`;
-                                        else if (_h < 24) {
-                                            const _remMin = _min - _h * 60;
-                                            _rel = _remMin > 0
-                                                ? `hace ${_h}h ${_remMin}m`
-                                                : `hace ${_h}h`;
-                                        } else {
-                                            const _remH = _h - _days * 24;
-                                            _rel = _remH > 0
-                                                ? `hace ${_days}d ${_remH}h`
-                                                : `hace ${_days}d`;
-                                        }
+                                        const _r = formatRelativeTime(iso, t, tn);
+                                        if (!_r) return null;
                                         return {
-                                            rel: _rel,
-                                            iso: formatDate(_d, { dateStyle: 'medium', timeStyle: 'short' }),
+                                            rel: _r.rel,
+                                            iso: formatDate(_r.fecha, { dateStyle: 'medium', timeStyle: 'short' }),
                                         };
                                     };
                                     // [P1-HIST-LM-WHITELIST · 2026-05-09]
