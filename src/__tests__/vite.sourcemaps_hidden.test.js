@@ -42,8 +42,19 @@ const _deploy = _hasDeploy ? readFileSync(_deployPath, 'utf-8') : '';
 const describeDeploy = _hasDeploy ? describe : describe.skip;
 
 describe('P2-SOURCEMAPS-HIDDEN · generación', () => {
-    it('el build genera sourcemaps', () => {
-        expect(_viteCfg).toMatch(/sourcemap:\s*['"]hidden['"]/);
+    it('el build web genera sourcemaps ocultos', () => {
+        // [P3-VITE-GUARD-SPELLING . 2026-08-22] Exigia `sourcemap: 'hidden'` pegado.
+        // `P1-IOS-NATIVE-SHELL` lo puso detras de un ternario
+        // (`mode === 'native' ? false : 'hidden'`) y el guard cayo por la GRAFIA.
+        // La propiedad --el build web emite sourcemaps ocultos-- no cambio.
+        expect(_viteCfg).toMatch(/sourcemap:[^\n]*['"]hidden['"]/);
+    });
+
+    it('el binario nativo NO los lleva dentro', () => {
+        // Propiedad nueva que el cambio trajo y nadie ancló: un .ipa se distribuye
+        // como fichero, asi que un sourcemap empaquetado viaja con el y no hay
+        // servidor que lo pueda dejar fuera del alcance de nadie.
+        expect(_viteCfg).toMatch(/mode\s*===\s*['"]native['"]\s*\?\s*false/);
     });
 
     it("es 'hidden', NUNCA true — `true` publica el enlace en el bundle", () => {

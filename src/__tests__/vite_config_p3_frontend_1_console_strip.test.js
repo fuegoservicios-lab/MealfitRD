@@ -42,12 +42,27 @@ describe('P3-FRONTEND-1: vite.config strip console en build prod', () => {
         expect(pattern.test(src)).toBe(true);
     });
 
-    it('B) esbuild block gated por mode === "production"', () => {
-        // Esperamos algo como:
-        //   esbuild: mode === 'production' ? { ... } : {}
-        // O conditional spread. Ambos patterns aceptados.
-        const pattern = /mode\s*===\s*['"]production['"][\s\S]{0,200}esbuild|esbuild\s*:\s*mode\s*===\s*['"]production['"]/;
-        expect(pattern.test(src)).toBe(true);
+    it('B) el bloque esbuild sigue gateado, y su puerta incluye production', () => {
+        // [P3-VITE-GUARD-SPELLING . 2026-08-22] Esto exigia el literal
+        // `mode === 'production'` PEGADO al bloque esbuild. `P1-IOS-NATIVE-SHELL`
+        // extrajo la condicion a `esDistribuible` (production O native) porque el
+        // binario iOS necesita los mismos endurecimientos -- un cambio correcto que
+        // rompio el guard por la GRAFIA, no por la propiedad.
+        //
+        // Se ancla la propiedad en dos mitades, que es lo que la hace no-vacua:
+        //   (a) el bloque esbuild esta gateado por ALGO, no incondicional;
+        //   (b) esa puerta se define incluyendo `mode === 'production'`.
+        // Con solo (a), renombrar la puerta a `true` pasaria; con solo (b), quitar
+        // el gate del bloque pasaria.
+        const gate = src.match(/esbuild\s*:\s*([A-Za-z_$][\w$]*)\s*\?/);
+        expect(gate, 'el bloque esbuild dejo de estar gateado: se aplicaria tambien en dev').not.toBeNull();
+        const nombre = gate[1];
+        // Sin `new RegExp` con plantilla: en un template literal `\s` se queda en `s` y `\n` se
+        // convierte en un salto REAL, así que el patrón nunca casaba. Buscar la línea a mano es
+        // más corto y no tiene escapes que se puedan perder por el camino.
+        const linea = src.split('\n').find((l) => l.includes(`const ${nombre}`) && l.includes('='));
+        expect(linea, `no encuentro donde se define la puerta \`${nombre}\``).toBeTruthy();
+        expect(linea).toMatch(/mode\s*===\s*['"]production['"]/);
     });
 
     it('C) pure incluye console.log/warn/debug/info', () => {
