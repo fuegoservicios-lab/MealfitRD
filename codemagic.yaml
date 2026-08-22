@@ -98,8 +98,8 @@ workflows:
         # private key». Para CREAR un certificado hace falta una clave RSA con la que
         # generar la solicitud (CSR): la API key de Apple AUTORIZA, no firma. La clave
         # vive en la env var secreta CERTIFICATE_PRIVATE_KEY (grupo `default`), que la
-        # CLI de Codemagic lee sola. Se genera una vez (`openssl genrsa 2048`) y no es
-        # un .p12: es la semilla con la que Codemagic fabrica los certificados.
+        # CLI de Codemagic lee sola. Se genera una vez (`openssl genrsa 2048`) y NO es
+        # un certificado exportado: es la semilla con la que Codemagic los fabrica.
         #
         # `set -e`: sin él, el fetch falló en la línea 0 y el paso salió en VERDE; el
         # error apareció dos pasos después, en Xcode, disfrazado de «requires a
