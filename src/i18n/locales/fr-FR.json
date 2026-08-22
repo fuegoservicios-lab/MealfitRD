@@ -57,6 +57,8 @@
   "<strong>Smart Engine:</strong> cantidades exactas según empaques del mercado local — ajústalas a tu inventario. <strong>Ud.</strong> = unidad · <strong>~</strong> = conversión aproximada (<em>2 Cabezas ≈ 2.2 lbs</em>).": "<strong>Smart Engine :</strong> quantités exactes selon les emballages du marché local — ajustez-les à votre inventaire. <strong>U.</strong> = unité · <strong>~</strong> = conversion approximative (<em>2 têtes ≈ 2,2 lb</em>).",
   "<strong>Tu país está en beta</strong> — pronto añadiremos los precios nativos de tu súper a esta lista.": "<strong>Votre pays est en bêta</strong> — les prix natifs de votre supermarché arrivent bientôt sur cette liste.",
   "<strong>{country} está en beta</strong> — pronto añadiremos los precios nativos de tu súper a esta lista.": "<strong>{country} est en bêta</strong> — les prix natifs de votre supermarché arrivent bientôt sur cette liste.",
+  "{country} está en beta — pronto añadiremos los precios nativos de tu súper a esta lista.": "{country} est en bêta — les prix natifs de votre supermarché arrivent bientôt sur cette liste.",
+  "Tu país está en beta — pronto añadiremos los precios nativos de tu súper a esta lista.": "Votre pays est en bêta — les prix natifs de votre supermarché arrivent bientôt sur cette liste.",
   "> 8 horas": "> 8 heures",
   "A cerrar el día": "On boucle la journée",
   "A darle": "C'est parti",

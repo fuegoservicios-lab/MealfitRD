@@ -2947,6 +2947,23 @@ const DashboardInner = () => {
     // quedan en 0 y el panel DESAPARECÍA ("¿por qué el menú del supermercado
     // desaparece?" — owner, plan ff673061). Gestionar marcas debe poder hacerse
     // siempre, comprado o no. Fallback a la lista activa para planes viejos.
+    // [P2-DASH-BETA-NOTICE · 2026-08-21] La condición del régimen beta, UNA vez. Antes vivía
+    // repetida en cada sitio que oculta un panel; con el aviso añadido serían cuatro copias de
+    // la misma pregunta, y basta que una se quede atrás para que el usuario vea el aviso sin los
+    // paneles ocultos (o al revés). El nombre del país sale de `COUNTRIES`, el SSOT del frontend
+    // —sólo países beta REALES—; sin país hidratado cae al copy genérico, que es el mismo camino
+    // que ya usa el PDF.
+    const _dashBetaPricing = planData?._pricing_mode === 'beta_no_prices';
+    // Sin `useMemo` a propósito: es un `find` sobre seis elementos, así que memorizarlo no ahorra
+    // nada — y el memo pedía `t` en las dependencias, lo que subía el lint a 67 avisos sobre un
+    // techo de 66 y ponía el gate en rojo por una micro-optimización que no existía.
+    const _dashBetaCountryLabel = (() => {
+        if (!_dashBetaPricing) return '';
+        const _cc = String(formData?.country || '').trim().toUpperCase();
+        const _row = COUNTRIES.find((c) => c.code === _cc && c.beta);
+        return _row ? t(_row.labelKey) : '';
+    })();
+
     const brandsPanelList = useMemo(() => {
         const weekly = planData?.aggregated_shopping_list_weekly;
         if (Array.isArray(weekly) && weekly.length > 0) return weekly;
@@ -7051,10 +7068,30 @@ const DashboardInner = () => {
                             no significa nada sin costos que comparar, y las cards del panel
                             muestran RD$ por diseño (SupermarketBrands.jsx) — mostrarlas
                             vacías/engañosas sería peor que no ofrecerlas todavía. */}
+                        {/* [P2-DASH-BETA-NOTICE · 2026-08-21] Al usuario beta se le caen TRES paneles
+                            —Marcas, banner de presupuesto y «Esta ida al súper»— y el render
+                            condicional colapsa el layout sin dejar nada: un hueco mudo. Desde
+                            dentro no hay forma de distinguir «tu país está en beta» de «algo se
+                            rompió», que es la lectura por defecto cuando desaparece la mitad de
+                            una pantalla.
+
+                            El copy que lo explica YA EXISTÍA y ya estaba traducido en los cuatro
+                            idiomas — vivía sólo dentro del PDF (`_betaCountryLabel`, ~línea 3751).
+                            Esto lo saca a la pantalla con la MISMA clave: cero claves nuevas, cero
+                            traducción pendiente. La condición es la misma que oculta los paneles,
+                            escrita una vez arriba (`_dashBetaPricing`) en vez de repetida, para que
+                            aviso y ocultación no puedan divergir. */}
+                        {_dashBetaPricing && !isPlanExpired && !planFinished && !isPlanCorrupted && (
+                            <p className="today-remaining-note" style={{ color: 'var(--text-muted)', margin: '0 0 12px' }}>
+                                {_dashBetaCountryLabel
+                                    ? t('{country} está en beta — pronto añadiremos los precios nativos de tu súper a esta lista.', { country: _dashBetaCountryLabel })
+                                    : t('Tu país está en beta — pronto añadiremos los precios nativos de tu súper a esta lista.')}
+                            </p>
+                        )}
                         {brandsPanelList.length > 0
                             && shoppingDeltaMeta?.hasItems !== false
                             && !isPlanExpired && !planFinished && !isPlanCorrupted
-                            && planData?._pricing_mode !== 'beta_no_prices' && (
+                            && !_dashBetaPricing && (
                             <SupermarketBrands
                                 // [P2-BRANDS-CANONICAL-SOURCE] canónica semanal — el panel de
                                 // marcas vive aunque ya hayas comprado todo el ciclo.

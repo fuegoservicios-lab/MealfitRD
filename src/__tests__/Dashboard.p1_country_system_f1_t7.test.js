@@ -73,11 +73,32 @@ describe('P1-COUNTRY-SYSTEM-F1 (T7) — writer optimista de marca (_rebuildItemF
 
 describe('P1-COUNTRY-SYSTEM-F1 (T7) — panel "Marcas del súper" oculto en modo beta', () => {
     it('la condición de render de SupermarketBrands incluye el gate de pricing_mode', () => {
+        // [reconvertido · P2-DASH-BETA-NOTICE · 2026-08-21] Antes exigía el LITERAL
+        // `planData?._pricing_mode !== 'beta_no_prices'` dentro de la condición. Esa grafía se
+        // hoisteó a `_dashBetaPricing` porque el aviso nuevo hacía la MISMA pregunta: con dos
+        // copias basta que una se quede atrás para que el usuario vea el aviso sin los paneles
+        // ocultos, o al revés.
+        //
+        // La propiedad que este test protege —«el panel de Marcas está gateado por el régimen de
+        // precios beta»— no cambia; lo que cambia es dónde se escribe la condición. Se comprueba
+        // el gate por su nombre Y que ese nombre esté definido a partir de `_pricing_mode`, así
+        // que sigue siendo imposible que el gate exista sin mirar el dato.
         const i = _src.indexOf('{brandsPanelList.length > 0');
         expect(i).toBeGreaterThan(-1);
         const j = _src.indexOf('<SupermarketBrands', i);
         const window = _src.slice(i, j);
-        expect(window).toContain("planData?._pricing_mode !== 'beta_no_prices'");
+        expect(window).toContain('!_dashBetaPricing');
+        expect(_src).toContain("const _dashBetaPricing = planData?._pricing_mode === 'beta_no_prices';");
+    });
+
+    it('el aviso beta usa EXACTAMENTE el mismo gate que oculta los paneles', () => {
+        // El punto entero del hoist: aviso y ocultación no pueden divergir. Si alguien le pone al
+        // aviso una condición propia, esto falla — y el modo de fallo sería el peor de los dos
+        // (paneles ocultos SIN explicación, que es el gap que se estaba cerrando).
+        const i = _src.indexOf('{_dashBetaPricing &&');
+        expect(i).toBeGreaterThan(-1);
+        const j = _src.indexOf('{brandsPanelList.length > 0', i);
+        expect(j).toBeGreaterThan(i);
     });
 
     it('el gate nuevo NO reemplaza los guards preexistentes (isPlanExpired/planFinished/isPlanCorrupted/hasItems)', () => {
