@@ -34,6 +34,26 @@ import { test as base, expect } from '@playwright/test';
 
 const ES_LOCAL = (host) => host === '127.0.0.1' || host === 'localhost' || host === '[::1]';
 
+// [P2-I18N-E2E-MONOLINGUE · 2026-08-21] Las reglas de axe apagadas viven AQUI y no en
+// `accesibilidad.spec.js`, porque desde hoy hay DOS specs que corren axe (el otro mide
+// las rutas traducidas). Dos listas con las mismas exclusiones y los motivos en una sola
+// es exactamente el drift que este repo cierra a mano una y otra vez.
+/**
+ * Reglas apagadas, con su razón. NO es una lista de cosas que arreglar luego:
+ * es una lista de decisiones ya tomadas.
+ */
+export const REGLAS_APAGADAS = {
+    // [P1-VIEWPORT-ZOOM-LOCK] `user-scalable=no` es DECISIÓN DEL DUEÑO, y ya se
+    // revirtió una vez (`P2-A11Y-VIEWPORT-ZOOM` la quitó por accesibilidad y se
+    // volvió a poner: se quiere el tacto de app nativa). El coste WCAG 1.4.4 está
+    // aceptado por escrito y la vía real es la escala de fuente del sistema
+    // operativo. Si esta regla se enciende, el gate se pondría rojo en TODAS las
+    // rutas por una decisión de producto — y un gate que siempre está rojo por
+    // algo que no vas a cambiar es un gate que se acaba ignorando entero.
+    // Cambiar esto exige reabrir la decisión, no editar esta línea.
+    'meta-viewport': 'decisión de producto P1-VIEWPORT-ZOOM-LOCK, documentada en CLAUDE.md',
+};
+
 export const test = base.extend({
     page: async ({ page }, use) => {
         await page.route('**/*', async (route) => {
@@ -52,5 +72,45 @@ export const test = base.extend({
         await use(page);
     },
 });
+
+/**
+ * [P2-I18N-E2E-MONOLINGUE · 2026-08-21] Una variante de `test` que arranca el navegador
+ * con un idioma ya elegido.
+ *
+ * MEDIDO antes de esto: `grep -rniE "locale|lang|i18n|fr-FR" e2e/` daba UN hit, y era la
+ * palabra «franja» en un comentario. Los dos únicos instrumentos de este repo con motor
+ * de render —axe sobre 9 rutas, y el medidor de desbordes— corrían en CI midiendo SOLO
+ * español. O sea: la app se despliega en cinco idiomas y ninguna prueba de navegador ha
+ * cargado nunca ninguno de los otros cuatro.
+ *
+ * Y es justo el instrumento que hace falta: los guards del repo son parsers de código y
+ * ninguno puede ver que «Garde-manger» no cabe donde cabía «Nevera». Eso solo lo sabe un
+ * motor de render con la fuente cargada.
+ *
+ * POR QUÉ `addInitScript` Y NO NAVEGAR Y CAMBIAR EL SELECTOR: el script corre ANTES de
+ * cualquier código de la página, así que el primer paint ya sale en el idioma pedido. Ir
+ * al selector mediría la app DESPUÉS de un cambio de idioma, que es otro caso —y además
+ * añadiría una dependencia de la UI de Configuración a pruebas que no van de eso.
+ *
+ * UNA CORRECCIÓN, porque cuesta creerla: esto SÍ funciona en las rutas de marketing. El
+ * motor fuerza `es-DO` ahí, pero sólo para la AUTODETECCIÓN — `getStoredLocale()`
+ * devuelve lo guardado antes de consultar el guard de superficie («lo guardado gana sobre
+ * lo detectado, siempre», P1-AUTO-LOCALE). Sembrar la preferencia gana en todas partes.
+ *
+ * @param {string} locale p.ej. 'fr-FR'
+ */
+export function conIdioma(locale) {
+    return test.extend({
+        page: async ({ page }, use) => {
+            await page.addInitScript(
+                ([clave, valor]) => {
+                    try { window.localStorage.setItem(clave, valor); } catch { /* modo privado */ }
+                },
+                ['mealfit_locale', locale],
+            );
+            await use(page);
+        },
+    });
+}
 
 export { expect };

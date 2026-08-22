@@ -16,7 +16,7 @@
  * de configuración lejano. Una exclusión sin motivo escrito se vuelve permanente
  * en dos semanas porque nadie recuerda si protegía algo.
  */
-import { test, expect } from './fixtures';
+import { test, expect, REGLAS_APAGADAS } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 /**
@@ -36,21 +36,6 @@ const RUTAS = [
     ['/terms', 'términos'],
 ];
 
-/**
- * Reglas apagadas, con su razón. NO es una lista de cosas que arreglar luego:
- * es una lista de decisiones ya tomadas.
- */
-const REGLAS_APAGADAS = {
-    // [P1-VIEWPORT-ZOOM-LOCK] `user-scalable=no` es DECISIÓN DEL DUEÑO, y ya se
-    // revirtió una vez (`P2-A11Y-VIEWPORT-ZOOM` la quitó por accesibilidad y se
-    // volvió a poner: se quiere el tacto de app nativa). El coste WCAG 1.4.4 está
-    // aceptado por escrito y la vía real es la escala de fuente del sistema
-    // operativo. Si esta regla se enciende, el gate se pondría rojo en TODAS las
-    // rutas por una decisión de producto — y un gate que siempre está rojo por
-    // algo que no vas a cambiar es un gate que se acaba ignorando entero.
-    // Cambiar esto exige reabrir la decisión, no editar esta línea.
-    'meta-viewport': 'decisión de producto P1-VIEWPORT-ZOOM-LOCK, documentada en CLAUDE.md',
-};
 
 for (const [ruta, nombre] of RUTAS) {
     test(`axe sin violaciones en ${ruta} (${nombre})`, async ({ page }) => {
