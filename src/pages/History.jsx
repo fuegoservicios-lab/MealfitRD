@@ -5066,29 +5066,39 @@ const History = () => {
                                     // [P1-HIST-ACTIVE-IDENTITY · 2026-05-31] Ocultar "Reactivar"
                                     // para el plan actual (no por ventana temporal). Ver currentPlanId.
                                     const _hideRestore = !!currentPlanId && _plan?.id === currentPlanId;
+                                    // [P1-I18N-HIST-DIAS-FALTANTES · 2026-08-22] El párrafo que dice QUÉ HACER
+                                    // salía en español crudo dentro de un bloque cuyo título y subtítulo SÍ
+                                    // estaban traducidos, y encima mandaba pulsar un botón que en inglés se
+                                    // llama de otra forma. Escapaba al detector por FORMA: son ternarios y
+                                    // templates, y el escáner no mira dentro de ninguno de los dos.
+                                    //
+                                    // El nombre del botón se interpola desde su MISMA clave de traducción
+                                    // (`t('Reactivar este Plan')`), no se reescribe aquí: si mañana cambia el
+                                    // rótulo, la instrucción cambia con él en los cinco idiomas.
+                                    const _btnReactivar = t('Reactivar este Plan');
                                     const _ctaText = _hideRestore
-                                        ? 'Vuelve al Dashboard para retomar la generación.'
-                                        : 'Pulsa "Reactivar este Plan" abajo para retomar la generación.';
+                                        ? t('Vuelve al Dashboard para retomar la generación.')
+                                        : t('Pulsa «{boton}» abajo para retomar la generación.', { boton: _btnReactivar });
                                     const _ctaRetry = _hideRestore
-                                        ? 'Vuelve al Dashboard para reintentarlo.'
-                                        : 'Pulsa "Reactivar este Plan" abajo para reintentarlo.';
+                                        ? t('Vuelve al Dashboard para reintentarlo.')
+                                        : t('Pulsa «{boton}» abajo para reintentarlo.', { boton: _btnReactivar });
                                     const _ctaRetryWithInfo = _hideRestore
-                                        ? 'Vuelve al Dashboard para reintentarlo con la información actualizada.'
-                                        : 'Pulsa "Reactivar este Plan" abajo para reintentarlo con la información actualizada.';
+                                        ? t('Vuelve al Dashboard para reintentarlo con la información actualizada.')
+                                        : t('Pulsa «{boton}» abajo para reintentarlo con la información actualizada.', { boton: _btnReactivar });
 
                                     let _reason;
                                     let _tone; // 'bad' | 'warn' | 'info'
                                     let _icon; // emoji por tono
                                     if (_exhaustedCount > 0) {
-                                        _reason = `No fue posible generar estos días automáticamente. ${_ctaRetryWithInfo}`;
+                                        _reason = t('No fue posible generar estos días automáticamente. {cta}', { cta: _ctaRetryWithInfo });
                                         _tone = 'bad';
                                         _icon = '⚠️';
                                     } else if (_puac > 0) {
-                                        _reason = `Bioboros está esperando que actualices algo (tu nevera, tu registro de comidas, o la fecha del plan). ${_ctaText}`;
+                                        _reason = t('Bioboros está esperando que actualices algo (tu nevera, tu registro de comidas, o la fecha del plan). {cta}', { cta: _ctaText });
                                         _tone = 'warn';
                                         _icon = '⏸️';
                                     } else if (_failedC > 0) {
-                                        _reason = `Hubo un error al generar estos días. ${_ctaRetry}`;
+                                        _reason = t('Hubo un error al generar estos días. {cta}', { cta: _ctaRetry });
                                         _tone = 'bad';
                                         _icon = '⚠️';
                                     } else if (_runningNow > 0) {
@@ -5101,9 +5111,9 @@ const History = () => {
                                         // > 0 también, mencionar que hay más
                                         // dormidos para no engañar.
                                         if (_scheduled > 0) {
-                                            _reason = `Bioboros está generando algunos ahora en segundo plano. El resto (${_scheduled} ${_scheduled === 1 ? 'chunk' : 'chunks'}) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.`;
+                                            _reason = tn(_scheduled, 'Bioboros está generando algunos ahora en segundo plano. El resto ({n} bloque) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.', 'Bioboros está generando algunos ahora en segundo plano. El resto ({n} bloques) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.', { n: _scheduled });
                                         } else {
-                                            _reason = 'Bioboros los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.';
+                                            _reason = t('Bioboros los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.');
                                         }
                                         _tone = 'info';
                                         _icon = '🔄';
@@ -5116,7 +5126,7 @@ const History = () => {
                                         // su día programado. Este es el caso del
                                         // user que reportó "no debería generarlos
                                         // ahora ya que no ha llegado su tiempo".
-                                        _reason = 'Estos días se generarán automáticamente cuando llegue su momento. No tienes que hacer nada — los verás listos un par de días antes de comerlos.';
+                                        _reason = t('Estos días se generarán automáticamente cuando llegue su momento. No tienes que hacer nada — los verás listos un par de días antes de comerlos.');
                                         _tone = 'info';
                                         _icon = '⏳';
                                     } else if (_inFlight > 0) {
@@ -5124,11 +5134,11 @@ const History = () => {
                                         // sin el split nuevo. Copy neutro
                                         // (NO "generando ahora") para no
                                         // mentir.
-                                        _reason = 'Bioboros los generará automáticamente cuando llegue su momento. No necesitas hacer nada.';
+                                        _reason = t('Bioboros los generará automáticamente cuando llegue su momento. No necesitas hacer nada.');
                                         _tone = 'info';
                                         _icon = '⏳';
                                     } else {
-                                        _reason = 'Estos días aún no se han generado.';
+                                        _reason = t('Estos días aún no se han generado.');
                                         _tone = 'info';
                                         _icon = '📅';
                                     }

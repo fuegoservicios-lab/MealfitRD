@@ -87,10 +87,17 @@ describe('P1-FIX-SODIUM-DAY', () => {
     });
 
     it('éxito: toast con el delta de sodio antes→después y el día 1-indexado', () => {
-        const win = _sliceFrom("result?.fixed === true", 2200);
-        expect(win).toContain('toast.success(`Día ${Number(result.day) + 1} arreglado`');
+        // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] Ventana ampliada y asserts por
+        // PROPIEDAD: el titulo del toast pasa ahora por `t()`, asi que exigir el template
+        // literal exacto mantenia la cadena en español en los cinco idiomas -- un guard no
+        // puede ser la razon de que una pantalla no se traduzca. Lo que hay que preservar
+        // es QUE DATOS lleva el aviso: el dia 1-indexado, el plato viejo→nuevo y el delta
+        // de sodio.
+        const win = _sliceFrom("result?.fixed === true", 3000);
+        expect(win).toMatch(/toast\.success\(/);
+        expect(win).toContain('Number(result.day) + 1');
         expect(win).toContain('${result.old_meal} → ${result.new_meal}');
-        expect(win).toContain('${result.sodio_antes_mg}→${result.sodio_despues_mg} mg de sodio');
+        expect(win).toMatch(/result\.sodio_antes_mg[\s\S]{0,80}result\.sodio_despues_mg/);
         expect(win).toContain('bajo el techo ✓');
     });
 

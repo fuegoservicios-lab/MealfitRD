@@ -399,7 +399,13 @@ describe('[P0-HIST-FIX-2] icon variable por tono', () => {
         // [actualizado] Slice ampliado a 7400: las ramas scheduled/running
         // (P3-HIST-CHUNK-SCHEDULED) alargaron el cascade y empujaron el
         // emoji 📅 del else hasta ~offset 6903.
-        const block = src.slice(idx, idx + 7400);
+        // [P1-I18N-HIST-DIAS-FALTANTES · 2026-08-22] Acotado por ESTRUCTURA: el cascade
+        // termina donde se asigna el ultimo `_icon`. La ventana por bytes ya se habia
+        // ampliado una vez («las ramas scheduled/running alargaron el cascade y empujaron
+        // el emoji 📅 hasta ~6903») y volvio a quedarse corta al envolver las seis ramas
+        // en `t()`. Un presupuesto de bytes mide cuanto se escribe, no que hace el codigo.
+        const _finIcon = src.indexOf("_icon = '📅'", idx);
+        const block = src.slice(idx, _finIcon > idx ? _finIcon + 200 : idx + 12000);
         // Los 4 emojis canónicos deben aparecer asignados a _icon.
         expect(block).toMatch(/_icon\s*=\s*['"]⚠️['"]/);
         expect(block).toMatch(/_icon\s*=\s*['"]⏸️['"]/);

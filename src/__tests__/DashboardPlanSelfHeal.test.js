@@ -94,10 +94,19 @@ describe('[P1-SW-AUTO-APPLY-SAFE] el arreglo tiene que llegar al navegador', () 
     });
 
     it('conserva el toast como salida manual', () => {
-        const i = MAIN.indexOf('P1-SW-AUTO-APPLY-SAFE');
-        const body = MAIN.slice(i, i + 2600);
-        expect(body).toMatch(/Nueva versión disponible/);
-        expect(body).toMatch(/label:\s*'Actualizar'/);
+        // [P2-I18N-PWA-UPDATE-TOAST · 2026-08-22] La ventana se acota por ESTRUCTURA
+        // (hasta el siguiente marcador del fichero) y los rotulos se comprueban dentro de
+        // `t()`. Antes eran 2600 BYTES desde el marcador, y tres lineas de import nuevas
+        // dejaron el toast fuera: el guard medía el TAMAÑO del codigo, no su estructura.
+        // El ancla es el CALLBACK, no el marcador: `P1-SW-AUTO-APPLY-SAFE` aparece también
+        // en la lista de markers del comentario de cabecera, y anclar ahí recortaba la
+        // ventana a 26 caracteres — un guard que "encuentra" el sitio equivocado y falla
+        // por eso cuesta más que el que no existe.
+        const i = MAIN.indexOf('onNeedRefresh() {');
+        const _fin = MAIN.indexOf('P2-PWA-UPDATE-POLL', i + 10);
+        const body = MAIN.slice(i, _fin > i ? _fin : i + 4000);
+        expect(body).toMatch(/t\(\s*'Nueva versión disponible'\s*\)/);
+        expect(body).toMatch(/label:\s*t\(\s*'Actualizar'\s*\)/);
     });
 
     it('limpia su listener al aplicar (sin fugas)', () => {

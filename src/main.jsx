@@ -54,6 +54,9 @@ import { initPostHog } from './utils/posthogClient'
 // [P1-LANDING-OBS-PAPER · 2026-08-14] Qué observabilidad corre según el host.
 import { shouldAttachSentryReplay, isMarketingVisit } from './utils/observabilityScope'
 import { safeLocalStorageGet } from './utils/safeLocalStorage';
+// [P2-I18N-PWA-UPDATE-TOAST · 2026-08-22] `t` de MODULO, invocada dentro del callback
+// del service worker: se resuelve al mostrar el aviso, no al importar.
+import { t } from './i18n';
 
 // [P2-CHUNK-RELOAD-GUARD · 2026-07-09] Listener CANONICO de Vite para fallos de
 // preload de chunks/CSS tras un deploy (cubre cualquier formato futuro del
@@ -155,11 +158,18 @@ const updateSW = _sinSW ? _noop : registerSW({
     };
     if (_safeToApply()) { updateSW(true); return; }
     document.addEventListener('visibilitychange', _applyIfSafe);
-    toast('Nueva versión disponible', {
-      description: 'Recarga para obtener las últimas mejoras.',
+    // [P2-I18N-PWA-UPDATE-TOAST · 2026-08-22] Sale en CADA despliegue y con
+    // `duration: Infinity` no caduca, así que es de los avisos que más se ven — y era de
+    // los pocos que quedaban íntegramente en español en los cinco idiomas.
+    //
+    // Se llama `t()` aquí dentro y no en ámbito de módulo: esto corre cuando el service
+    // worker anuncia versión nueva, mucho después del arranque, así que lee el catálogo
+    // ACTIVO. Un `const` con `t()` arriba se congelaría en el idioma de carga.
+    toast(t('Nueva versión disponible'), {
+      description: t('Recarga para obtener las últimas mejoras.'),
       duration: Infinity,
       action: {
-        label: 'Actualizar',
+        label: t('Actualizar'),
         onClick: () => { document.removeEventListener('visibilitychange', _applyIfSafe); updateSW(true); },
       },
     })

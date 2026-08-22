@@ -1190,9 +1190,15 @@ const DashboardInner = () => {
                     }
                 } catch (_) { /* no-op: el toast ya confirma el éxito; el próximo poll refresca */ }
                 const underCeilingCopy = result.day_under_ceiling ? t(', bajo el techo ✓') : '';
-                toast.success(`Día ${Number(result.day) + 1} arreglado`, {
+                // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] La CUARTA cadena de la misma
+                // clase en este fichero: el titulo del toast del arreglo de sodio.
+                toast.success(t('Día {n} arreglado', { n: Number(result.day) + 1 }), {
                     description: `${result.old_meal} → ${result.new_meal} `
-                        + `(${result.sodio_antes_mg}→${result.sodio_despues_mg} mg de sodio${underCeilingCopy}).`,
+                        + t('({antes}→{despues} mg de sodio{nota}).', {
+                            antes: result.sodio_antes_mg,
+                            despues: result.sodio_despues_mg,
+                            nota: underCeilingCopy,
+                        }),
                     duration: 8000,
                 });
             } else if (result?.code === 'ceiling_not_sodium') {
@@ -1268,7 +1274,7 @@ const DashboardInner = () => {
                 // propósito: `Dashboard.p1_pantry_strict_consent.test.js` ancla la
                 // cadena `toast.success('¡Menú Actualizado!'` con el paréntesis y la
                 // comilla pegados, y envolverla la rompería desde otro fichero.
-                toast.success('¡Menú Actualizado!', { description: t('Cambiado por: {plato}', { plato: result }), icon: '👨‍🍳' });
+                toast.success(t('¡Menú Actualizado!'), { description: t('Cambiado por: {plato}', { plato: result }), icon: '👨‍🍳' });
             }
         } catch (error) {
             console.error('Error al regenerar:', error);
@@ -9781,10 +9787,12 @@ const DashboardInner = () => {
             <OptionPickerModal
                 isOpen={!!swapDislikeConfirm}
                 onClose={() => setSwapDislikeConfirm(null)}
-                // [P1-I18N-DASHBOARD · 2026-08-15] SIN `t()`: `Dashboard.p1_pantry_strict_consent.
-                // test.js` usa `title="¿Bloquear este plato?"` como MARCADOR para localizar este
-                // bloque, y envolverlo lo haría desaparecer del fichero.
-                title="¿Bloquear este plato?"
+                // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] Antes iba SIN `t()` a propósito,
+                // porque el guard usaba el literal como MARCADOR para localizar este bloque. O
+                // sea: un test estaba manteniendo una cadena visible en español en los cinco
+                // idiomas. Se cambió el ANCLA (ahora localiza por `<OptionPickerModal` +
+                // `swapReason: 'dislike'`, que son estructura y no copy), no el copy.
+                title={t('¿Bloquear este plato?')}
                 subtitle={
                     swapDislikeConfirm && (
                         <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -9818,7 +9826,8 @@ const DashboardInner = () => {
                     // runSwapWithConsentFlow (early-return silencioso antes del toast.loading).
                     await runSwapWithConsentFlow({
                         dayIndex, mealIndex, mealType, mealName, swapReason: 'dislike',
-                        loadingTitle: '👎 Registrando preferencia...',
+                        // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] Ver la nota del title.
+                        loadingTitle: t('👎 Registrando preferencia...'),
                     });
                 }}
             />

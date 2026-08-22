@@ -37,11 +37,22 @@ describe('P1-PANTRY-STRICT-CONSENT', () => {
     });
 
     it('runSwapWithConsentFlow existe y detecta needsConsent ANTES de tratar el resultado como éxito', () => {
-        const win = _sliceFrom('const runSwapWithConsentFlow = async (', 2200);
+        // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] La ventana se acota por ESTRUCTURA:
+        // desde la declaracion de la funcion hasta la siguiente declaracion de nivel
+        // superior del componente. Antes eran 2200 BYTES, y anadir dos comentarios dejo el
+        // toast 26 bytes fuera del borde -- el guard media el TAMANO del codigo, no su
+        // estructura. Es la misma familia que ya obligo a ensanchar dos veces la ventana de
+        // History.audit_hist_10.
+        const _iFn = _src.indexOf('const runSwapWithConsentFlow = async (');
+        const _iFin = _src.indexOf('\n    const ', _iFn + 10);
+        const win = _src.slice(_iFn, _iFin > _iFn ? _iFin : undefined);
         expect(win).toContain('result.needsConsent');
         expect(win).toContain('setPantryConsent({ missing: result.missing, message: result.message, busy: false })');
         const iNeeds = win.indexOf('result.needsConsent');
-        const iSuccessToast = win.indexOf("toast.success('¡Menú Actualizado!'");
+        // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] Se ancla por ESTRUCTURA. Antes
+        // buscaba el literal crudo, y por eso el copy tenía que quedarse en español:
+        // un guard no puede ser la razón de que una pantalla no se traduzca.
+        const iSuccessToast = win.search(/toast\.success\(\s*t\(/);
         expect(iNeeds).toBeGreaterThan(-1);
         expect(iSuccessToast).toBeGreaterThan(iNeeds);
     });
@@ -58,10 +69,13 @@ describe('P1-PANTRY-STRICT-CONSENT', () => {
     });
 
     it('la confirmación de "No me gusta" usa runSwapWithConsentFlow con loadingTitle propio', () => {
-        const win = _sliceFrom("title=\"¿Bloquear este plato?\"", 3000);
+        // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] Localiza por estructura, no por copy.
+        // `isOpen={!!swapDislikeConfirm}` es unico en el fichero; `<OptionPickerModal`
+        // aparece cuatro veces, asi que anclar ahi cae en el modal equivocado.
+        const win = _sliceFrom('isOpen={!!swapDislikeConfirm}', 6000);
         expect(win).toContain('await runSwapWithConsentFlow({');
         expect(win).toContain("swapReason: 'dislike'");
-        expect(win).toContain("loadingTitle: '👎 Registrando preferencia...'");
+        expect(win).toMatch(/loadingTitle:\s*t\(/);
     });
 
     it('handleFixSodiumDay acepta allowNewIngredients y lo manda condicionalmente en el body', () => {
