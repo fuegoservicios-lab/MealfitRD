@@ -135,6 +135,11 @@ export default defineConfig(({ mode }) => {
   // a mano: el valor ya vive en `.env.production` y una segunda copia en el HTML
   // fue justo lo que dejó el preconnect apuntando a un host que el apex no usa.
   const env = loadEnv(mode, process.cwd(), '')
+  // [P1-IOS-CODEMAGIC · 2026-08-22] `native` es el build del binario iOS
+  // (`npm run build:native`, lo corre Codemagic). Se DISTRIBUYE igual que production,
+  // así que hereda sus dos endurecimientos: sin console.* y sin sourcemaps dentro.
+  // El modo es distinto de `production` solo para que Vite cargue `.env.native`.
+  const esDistribuible = mode === 'production' || mode === 'native'
   let authOrigin = ''
   try {
     authOrigin = env.VITE_NEON_AUTH_URL ? new URL(env.VITE_NEON_AUTH_URL).origin : ''
@@ -306,7 +311,7 @@ export default defineConfig(({ mode }) => {
   // [P3-FRONTEND-1 · 2026-05-12] esbuild config solo en production. En dev
   // y test los logs se preservan (debug interactivo + Vitest specs que
   // inspeccionan console output siguen funcionando).
-  esbuild: mode === 'production' ? {
+  esbuild: esDistribuible ? {
     drop: ['debugger'],
     pure: ['console.log', 'console.warn', 'console.debug', 'console.info'],
   } : {},
@@ -341,7 +346,11 @@ export default defineConfig(({ mode }) => {
     // en este repo incluyen razonamiento de negocio (umbrales, incidentes).
     // Por eso el deploy los SUBE a Sentry y luego los BORRA de `dist/`, y nginx
     // además deniega `*.map` como segunda barrera. Ver deploy-mealfit.ps1.
-    sourcemap: 'hidden',
+    // [P1-IOS-CODEMAGIC · 2026-08-22] En `native` NO se generan: nadie los sube a
+    // Sentry ni los borra (ese paso vive en deploy-mealfit.ps1, que aquí no corre),
+    // así que 130 .map (~20 MB) irían dentro del .ipa exponiendo lo mismo que el
+    // párrafo de arriba dice que no se publica. Medido: dist/ nativo 24 MB, 23 de assets.
+    sourcemap: mode === 'native' ? false : 'hidden',
     // Target modern browsers for smaller output
     target: 'es2020',
     // Enable CSS code splitting

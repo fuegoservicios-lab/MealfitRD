@@ -28,6 +28,7 @@ import { createRoot } from 'react-dom/client'
 import { registrarSentry, registrarArranqueSentry } from './utils/observability'
 import { registerSW } from 'virtual:pwa-register'
 import { isApexHost } from './config/site'
+import { isNativeApp } from './config/platform'
 
 // [P3-SW-NO-APEX · 2026-08-18] En el APEX no se registra service worker: es
 // HTML estatico y la PWA es del producto, que vive en app.bioboros.com. Sin
@@ -37,6 +38,10 @@ import { isApexHost } from './config/site'
 // bioboros-cinematic/bioboros/custom-sw.js. Mismo criterio que
 // P3-APEX-NO-SESSION (App.jsx, AssessmentContext).
 const _enApex = typeof window !== 'undefined' && isApexHost();
+// [P1-IOS-CODEMAGIC · 2026-08-22] En la app nativa tampoco: WebKit no registra
+// service workers en capacitor:// y el intento acaba como error en consola (y en
+// Sentry). Los recursos ya viven en el binario; no hay nada que precachear.
+const _sinSW = _enApex || isNativeApp();
 const _noop = () => {};
 
 import { toast } from 'sonner'
@@ -115,7 +120,7 @@ if (typeof document !== 'undefined') {
 // P2-PWA-UPDATE-POLL) operan sobre callbacks POSTERIORES al registro, así que
 // siguen aplicando el deploy exactamente igual, un `load` más tarde.
 // No lo re-añadas: el guard es backend/tests/test_p1_landing_sw_defer.py.
-const updateSW = _enApex ? _noop : registerSW({
+const updateSW = _sinSW ? _noop : registerSW({
   onNeedRefresh() {
     // [P1-SW-AUTO-APPLY-SAFE · 2026-07-25] El toast por sí solo NO basta: si el usuario no lo
     // pulsa, sigue con el bundle viejo INDEFINIDAMENTE. Medido en vivo el 25/07: el navegador

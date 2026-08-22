@@ -38,6 +38,10 @@ dist-ssr
 # build-time (solo runtime). Secretos reales (service_role, paypal_secret,
 # webhook_id, api keys) viven en backend/.env y NUNCA aquí.
 !.env.production
+# [P1-IOS-CODEMAGIC 2026-08-22] .env.native: mismo contrato que .env.production
+# (solo VITE_* publicas, SIN claves PayPal). Lo lee `vite build --mode native` en
+# la Mac de Codemagic, asi que tiene que viajar en el repo.
+!.env.native
 
 # Editor directories and files
 .vscode/*

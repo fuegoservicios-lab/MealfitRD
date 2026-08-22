@@ -1,0 +1,125 @@
+# [P1-IOS-CODEMAGIC · 2026-08-22] Bioboros → TestFlight, sin una Mac.
+#
+# Fase 2 de P1-IOS-NATIVE-SHELL (spec: docs/superpowers/specs/2026-08-21-ios-native-shell-design.md).
+# Codemagic compila en sus Macs, firma con la API key de App Store Connect y sube el
+# binario a TestFlight. Test ancla: backend/tests/test_p1_ios_codemagic.py.
+#
+# CINCO DECISIONES que no son obvias (cada una con su razón en el paso que la aplica):
+#   1. `build:native`, no `build`: el postbuild de nginx sobra dentro del WebView.
+#   2. `.env.native`: API absoluta (capacitor://) y sin claves de pago (Apple 3.1.1).
+#   3. Firma con API key (`fetch-signing-files --create`), nunca certificados a mano.
+#   4. `cap sync` EN LA MAC: el Package.swift commiteado lo generó Windows y trae
+#      backslashes; y no hay scheme compartido. Lo commiteado NO compila en macOS.
+#   5. Sin `triggering`: se lanza a mano. 500 min/mes de Mac no aguantan un build
+#      por commit.
+#
+# LO QUE TIENES QUE CONFIGURAR EN CODEMAGIC (una vez):
+#   Teams → Integrations → App Store Connect: sube la API key (.p8) con su Key ID e
+#   Issuer ID, y llámala `bioboros_asc`. Es el único secreto; el YAML lo referencia
+#   por ese nombre y nunca lo contiene.
+
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    # Apple Silicon. Xcode lo fija Codemagic; si un build rompe por versión de Xcode,
+    # fijarla aquí (`xcode: 16.x`) es un cambio de una línea.
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      # Nombre de la integración en Teams → Integrations. El .p8 vive en Codemagic,
+      # no aquí ni en el repo.
+      app_store_connect: bioboros_asc
+
+    environment:
+      node: 22
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.bioboros.app
+      vars:
+        BUNDLE_ID: "com.bioboros.app"
+        # Workspace y scheme que `cap sync` genera/repara en la Mac (paso 4).
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        # ID numérico de la app en App Store Connect (General → App Information →
+        # Apple ID). Se lee desde una env var de Codemagic para no commitearlo
+        # antes de que exista: Codemagic → app → Environment variables → APP_STORE_APP_ID.
+        APP_STORE_APP_ID: $APP_STORE_APP_ID
+
+    # No hay `triggering`: build manual (decisión 5). Desde el panel → Start new build.
+
+    scripts:
+      - name: Dependencias web (lockfile, reproducible)
+        script: npm ci
+
+      - name: Build web para el BINARIO (decisión 1 y 2)
+        # `--mode native` carga .env.native. Sin postbuild: ni HTML por ruta, ni .br,
+        # ni sitemap, ni precache — todo eso es para nginx. Y el service worker no se
+        # registra en capacitor:// de todos modos.
+        script: npm run build:native
+
+      - name: Sanidad del bundle nativo
+        # Dos cosas que, si fallan, Apple rechaza y nosotros no nos enteraríamos
+        # hasta la revisión: ninguna clave PayPal dentro, y la API absoluta.
+        script: |
+          set -e
+          # Solo el JS que se EJECUTA (`--include=*.js`): los sourcemaps arrastran los
+          # comentarios del codigo fuente, y plans.js cita dos IDs en el post-mortem de
+          # P0-ANNUAL-PLANS-MISCONFIGURED. Medido en local: el guard sin el filtro daba
+          # falso positivo por un .js.map. Los .map no viajan dentro del binario.
+          if grep -rqE --include="*.js" "P-[0-9A-Z]{24,26}" dist/assets/; then
+            echo "ERROR: hay plan IDs de PayPal dentro del bundle nativo (Apple 3.1.1)"; exit 1
+          fi
+          if ! grep -rq "https://app.bioboros.com" dist/assets/; then
+            echo "ERROR: el bundle no lleva la API absoluta (VITE_API_BASE_URL)"; exit 1
+          fi
+          echo "bundle nativo OK"
+
+      - name: Capacitor sync en la Mac (decisión 4)
+        # Regenera Package.swift (el commiteado tiene backslashes de Windows), copia
+        # dist/ a ios/App/App/public y deja el scheme compartido que xcodebuild exige.
+        script: npx cap sync ios
+
+      - name: Perfiles de firma desde la API key (decisión 3)
+        # `--create` genera el certificado de distribución y el perfil App Store si no
+        # existen; en builds siguientes los reutiliza. Sin Mac ni Keychain local.
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain initialize
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: Build number = último de TestFlight + 1
+        # Apple rechaza un build number repetido. Se lee el último de App Store Connect
+        # en vez de contar a mano; MARKETING_VERSION (1.0) se toca a mano al publicar.
+        script: |
+          set -e
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" || echo 0)
+          NEXT=$((LATEST + 1))
+          echo "build number: $LATEST -> $NEXT"
+          agvtool new-version -all "$NEXT"
+        working_directory: ios/App
+
+      - name: IPA firmado
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Grupo de probadores internos (hasta 100, sin revisión de Apple). Crear el
+        # grupo en App Store Connect → TestFlight con este nombre exacto.
+        beta_groups:
+          - Equipo Bioboros
+        # Sin `submit_to_app_store`: el envío a revisión es un acto deliberado que
+        # pasa por la ficha, las capturas y la cuenta de demo — no por un build.
