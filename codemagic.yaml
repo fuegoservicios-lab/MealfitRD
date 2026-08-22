@@ -136,14 +136,27 @@ workflows:
           # `--project`, use-profiles busca desde el cwd y no lo encuentra.
           xcode-project use-profiles --project "$XCODE_PROJECT"
 
-      - name: Build number = último de TestFlight + 1
-        # Apple rechaza un build number repetido. Se lee el último de App Store Connect
-        # en vez de contar a mano; MARKETING_VERSION (1.0) se toca a mano al publicar.
+      - name: Build number = max(último de TestFlight + 1, contador de Codemagic)
+        # Apple rechaza un build number repetido. MARKETING_VERSION (1.0) se toca a
+        # mano al publicar.
+        #
+        # [Build #7, 2026-08-22] «The bundle version must be higher than the
+        # previously uploaded version: '1'». La consulta a App Store Connect
+        # devolvió VACÍO (no un error: el `|| echo 0` no saltó), así que
+        # `$((+1))` dio 1 otra vez — el mismo número que el build #6 ya había
+        # subido. Ahora: (a) se imprime la respuesta CRUDA para verlo, y (b) el
+        # suelo es `BUILD_NUMBER`, el contador propio de Codemagic (este build
+        # era el 7): monotónico y sin depender de que Apple conteste. Se toma el
+        # mayor de los dos para no bajar nunca.
         script: |
           set -e
-          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" || echo 0)
+          RAW=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>&1 || true)
+          echo "App Store Connect respondió: '${RAW}'"
+          LATEST=$(printf '%s' "$RAW" | grep -oE '[0-9]+' | tail -1)
+          LATEST=${LATEST:-0}
           NEXT=$((LATEST + 1))
-          echo "build number: $LATEST -> $NEXT"
+          if [ "${BUILD_NUMBER:-0}" -gt "$NEXT" ]; then NEXT="$BUILD_NUMBER"; fi
+          echo "build number: testflight=$LATEST codemagic=${BUILD_NUMBER:-?} -> $NEXT"
           agvtool new-version -all "$NEXT"
         working_directory: ios/App
 
