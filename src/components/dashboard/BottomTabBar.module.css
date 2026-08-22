@@ -77,11 +77,18 @@
         letter-spacing: 0.02em;
         line-height: 1;
         font-family: var(--font-body);
-        /* [P2-I18N-NAV-DESBORDE · 2026-08-21] Los rotulos del dashboard son cortos en
-           espanol —«Nevera», «Plan», «Recetas»— y no lo son en todos los idiomas:
-           «Garde-manger» tiene el doble de caracteres que «Nevera», y en frances la
-           etiqueta partia en dos lineas, empujando la altura de la barra y
-           desalineando los cinco iconos.
+        /* [P2-I18N-NAV-DESBORDE · 2026-08-21 · MEDIDO Y CORREGIDO 2026-08-22]
+           ESTO NO ARREGLO NADA, y conviene que lo diga en vez de figurar como fix.
+           El gap afirmaba que «Garde-manger» partia en dos lineas la barra en frances.
+           Con el dashboard ya medible en navegador (`e2e/dashboard_idioma.spec.js`),
+           las dos mitades resultaron falsas:
+             · el rotulo del frigo en frances es «Frigo» (31 px), no «Garde-manger» —
+               eso ultimo traduce «Despensa», que es otra pantalla;
+             · la barra mide 65 px en los CINCO idiomas, y medida con y SIN estas cuatro
+               declaraciones da exactamente lo mismo. Algun ancestro ya acotaba.
+           Se conservan porque declarar la intencion en la etiqueta es correcto y barato
+           —y porque el margen es de dos letras: «Cronologia» ocupa 64 px en una celda de
+           64—, pero la proteccion real es el test, que es un numero recomprobable.
            Recortar con puntos suspensivos es peor que envolver SOLO si la palabra
            recortada deja de reconocerse; aqui el icono de encima ya identifica la
            pestana, asi que un «Garde-man…» sigue siendo legible y la barra conserva su

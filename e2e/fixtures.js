@@ -113,4 +113,59 @@ export function conIdioma(locale) {
     });
 }
 
+/**
+ * [P2-I18N-E2E-DASHBOARD · 2026-08-22] Como `conIdioma`, pero además entra al dashboard
+ * en modo INVITADO.
+ *
+ * POR QUÉ ESTO Y NO UN FIXTURE DE AUTENTICACIÓN. El plan daba por hecho que medir el
+ * dashboard exigía montar sesión: falsificar un JWT, o un doble del servidor de auth. No
+ * hace falta — el producto ya tiene «Probar sin cuenta», y `ProtectedRoute` deja pasar a
+ * un invitado por `/`, `/assessment`, `/plan`, `/dashboard` y `/dashboard/upgrade`.
+ * Sembrar las mismas claves que pone ese botón cuesta tres líneas.
+ *
+ * Y es mejor prueba, no sólo más barata: mide un camino que un usuario recorre de verdad,
+ * no un estado que sólo existe dentro del test.
+ *
+ * LO QUE NO ALCANZA, y por eso esto no cierra el hueco entero: un invitado no tiene
+ * Nevera, Historial ni Recetas persistidas, así que las rutas con persistencia siguen sin
+ * medirse. Lo que SÍ alcanza es la barra de pestañas —que se pinta igual— y ahí vive
+ * `P2-I18N-NAV-DESBORDE`, que era lo que había que poder medir.
+ *
+ * Las claves son las de `utils/guestMode.js` (`K_MODE`, `K_SESSION`): si se renombran
+ * allí, esto deja de entrar y los tests lo dicen en el primer assert.
+ *
+ * @param {string} locale p.ej. 'fr-FR'
+ */
+export function conIdiomaInvitado(locale) {
+    return test.extend({
+        page: async ({ page }, use) => {
+            await page.addInitScript(
+                ([loc]) => {
+                    try {
+                        window.localStorage.setItem('mealfit_locale', loc);
+                        window.localStorage.setItem('mealfit_guest_mode', '1');
+                        window.localStorage.setItem('mealfit_guest_session_id', 'e2e-invitado');
+                        // El marcador de sesión de TAB vive en sessionStorage: sin él,
+                        // `guestMode` trata la visita como «salí y volví» y limpia.
+                        window.sessionStorage.setItem('mealfit_guest_tab_alive', '1');
+                        // Y un plan mínimo. Sin él, `ProtectedRoute` calcula
+                        // `hasCompletedAssessment = !!planData` = false y rebota al
+                        // FORMULARIO — que es donde acabó la primera versión de esto.
+                        // No se falsifica un plan «realista»: sólo lo justo para pasar
+                        // el gate, porque lo que se mide es el CHROME (la barra de
+                        // pestañas), no el contenido.
+                        window.localStorage.setItem('mealfit_plan', JSON.stringify({
+                            name: 'Plan e2e',
+                            days: [],
+                            calories: 2000,
+                        }));
+                    } catch { /* modo privado */ }
+                },
+                [locale],
+            );
+            await use(page);
+        },
+    });
+}
+
 export { expect };
