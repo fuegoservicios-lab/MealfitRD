@@ -942,6 +942,19 @@ const AgentPage = () => {
     const previewUrlRef = useRef(null);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    // [P1-CHAT-ATTACH-MENU · 2026-08-22] Segunda entrada SOLO para la cámara: con
+    // `capture` iOS abre la cámara directa, sin la hoja nativa de tres opciones
+    // («Fototeca / Hacer foto / Seleccionar archivo») que el dueño leyó como confusa.
+    const cameraInputRef = useRef(null);
+    const [showAttachMenu, setShowAttachMenu] = useState(false);
+    useEffect(() => {
+        if (!showAttachMenu) return undefined;
+        const close = (e) => { if (!e.target.closest?.('[data-attach-root]')) setShowAttachMenu(false); };
+        const esc = (e) => { if (e.key === 'Escape') setShowAttachMenu(false); };
+        document.addEventListener('pointerdown', close);
+        document.addEventListener('keydown', esc);
+        return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', esc); };
+    }, [showAttachMenu]);
     // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
     // donde tap del botón send NO debe abrir keyboard).
@@ -2742,22 +2755,66 @@ const AgentPage = () => {
                             style={{ display: 'none' }}
                             onChange={handleFileSelect}
                         />
+                        <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            ref={cameraInputRef}
+                            style={{ display: 'none' }}
+                            onChange={handleFileSelect}
+                        />
 
-                        <button
-                            type="button"
-                            aria-label={t('Adjuntar imagen')}
-                            className={`attachment-btn ${isTurnActive ? 'disabled' : ''}`}
-                            disabled={isTurnActive}
-                            onClick={() => {
-                                if (fileInputRef.current) {
-                                    fileInputRef.current.value = '';
-                                    fileInputRef.current.click();
-                                }
-                            }}
-                            title={t('Adjuntar imagen')}
-                        >
-                            <Paperclip size={20} strokeWidth={2} />
-                        </button>
+                        <div data-attach-root style={{ position: 'relative', flexShrink: 0 }}>
+                            <button
+                                type="button"
+                                aria-label={t('Adjuntar imagen')}
+                                aria-haspopup="menu"
+                                aria-expanded={showAttachMenu}
+                                className={`attachment-btn ${isTurnActive ? 'disabled' : ''}`}
+                                disabled={isTurnActive}
+                                onClick={() => setShowAttachMenu((v) => !v)}
+                                title={t('Adjuntar imagen')}
+                            >
+                                <Paperclip size={20} strokeWidth={2} />
+                            </button>
+                            {/* [P1-CHAT-ATTACH-MENU] Menú PROPIO de dos opciones en vez de la hoja
+                                nativa de iOS: cada una dispara su propio <input>. */}
+                            {showAttachMenu && (
+                                <div
+                                    role="menu"
+                                    style={{
+                                        position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
+                                        minWidth: '200px', padding: '6px',
+                                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                                        borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+                                        zIndex: 30, animation: 'fadeInUp 0.18s ease-out',
+                                    }}
+                                >
+                                    {[
+                                        { key: 'camera', Icon: Camera, label: t('Tomar foto'), ref: cameraInputRef },
+                                        { key: 'gallery', Icon: ImageIcon, label: t('Elegir de la galería'), ref: fileInputRef },
+                                    ].map(({ key, Icon, label, ref }) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={() => {
+                                                setShowAttachMenu(false);
+                                                if (ref.current) { ref.current.value = ''; ref.current.click(); }
+                                            }}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+                                                minHeight: '44px', padding: '0 12px', border: 'none', borderRadius: '8px',
+                                                background: 'transparent', color: 'var(--text-main)',
+                                                font: 'inherit', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+                                            }}
+                                        >
+                                            <Icon size={18} /> {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
 
                         {/* Convertido de <input type="text"> a <textarea> para
                             que iOS Safari NO active el "Form Assistant" (la barra
