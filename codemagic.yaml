@@ -34,6 +34,10 @@ workflows:
 
     environment:
       node: 22
+      # Grupo de variables de la app en Codemagic (Environment variables → Group
+      # `default`). Sin importarlo, `$APP_STORE_APP_ID` llega vacía al build.
+      groups:
+        - default
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.bioboros.app
