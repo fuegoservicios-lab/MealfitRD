@@ -531,16 +531,59 @@ export const SUPPLEMENT_BLOCKERS = {
     },
 };
 
+/**
+ * [P1-I18N-SUPPLEMENT-HINT · 2026-08-22] Los mismos siete avisos, traducibles.
+ *
+ * Los `hint` de arriba se pintaban CRUDOS en dos sitios: como `description` de un toast
+ * cuyo título sí estaba traducido, y dentro del `aria-label` del chip vetado. Un usuario en
+ * inglés con hipertensión declarada tocaba «Pre-Workout» y leía:
+ *
+ *     «Not recommended with your medical profile.
+ *      No recomendado con hipertensión, embarazo/lactancia, gastritis o antidepresivos IMAO.»
+ *
+ * Y esa segunda línea es la ÚNICA frase que le explica por qué no puede marcarlo: el chip se
+ * ve, no se puede marcar, y el tap explica — ése es el patrón dead-control con MOTIVO que
+ * `P1-PLANSOURCE-DEAD-CONTROL` fijó. Sin poder leer el motivo, vuelve a ser un control que
+ * no funciona y no dice por qué.
+ *
+ * Estaban DENTRO de las 96 cadenas sin envolver desde el 21-ago: el gate las veía y las
+ * contaba, que es distinto de que alguien las mirara.
+ *
+ * FUNCIÓN de `t` (no constante) por el congelado de siempre, y literales a la vista porque
+ * el extractor es textual. `SUPPLEMENT_BLOCKERS` se queda intacto: es el espejo UI de
+ * `constants.SUPPLEMENT_CONTRAINDICATIONS` y lo parsea `test_p1_supplement_clinical_gate.py`.
+ *
+ * LAS CONDICIONES NO SE TOCAN, y esto es la frontera: `'Hipertensión'`, `'Enfermedad Renal'`,
+ * `'Warfarina'` son los chips EXACTOS de QMedical, comparados por igualdad de string contra
+ * el backend. Traducirlas rompería el gate clínico en silencio — la misma clase de daño que
+ * traducir un nombre de alimento.
+ */
+const _hintsTraducidos = (t) => ({
+    pre_workout: t('No recomendado con hipertensión, embarazo/lactancia, gastritis o antidepresivos IMAO.'),
+    fat_burner: t('No recomendado con hipertensión, embarazo/lactancia, gastritis, hipotiroidismo o IMAO.'),
+    creatine: t('No recomendado con enfermedad renal.'),
+    whey_protein: t('Tu plan renal ya controla la proteína: sin proteína suplementaria.'),
+    vegan_protein: t('Tu plan renal ya controla la proteína: sin proteína suplementaria.'),
+    bcaa: t('Tu plan renal ya controla la proteína: sin aminoácidos suplementarios.'),
+    omega3: t('No recomendado con anticoagulantes (riesgo de sangrado).'),
+});
+
 /** Los suplementos vetados para este formData: `{clave: hint}`. Igualdad
  *  exacta contra los chips (una condición de texto libre no se evalúa aquí —
- *  el backend sí la ve con sus registries y barre post-gen). */
-export const blockedSupplementsFor = (formData) => {
+ *  el backend sí la ve con sus registries y barre post-gen).
+ *
+ *  `t` es opcional: sin ella el hint sale en español, que es degradar y no mentir. */
+export const blockedSupplementsFor = (formData, t) => {
     const conds = formData?.medicalConditions || [];
     const meds = formData?.medications || [];
+    let traducidos = null;
+    if (typeof t === 'function') {
+        try { traducidos = _hintsTraducidos(t); } catch { traducidos = null; }
+    }
     const out = {};
     for (const [key, spec] of Object.entries(SUPPLEMENT_BLOCKERS)) {
         if (spec.conditions.some((c) => conds.includes(c)) || spec.medications.some((m) => meds.includes(m))) {
-            out[key] = spec.hint;
+            out[key] = (traducidos && traducidos[key]) || spec.hint;
         }
     }
     return out;

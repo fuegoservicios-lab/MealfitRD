@@ -86,7 +86,9 @@ export const QSupplements = ({ onFinish, isSubmitting, finishLabel }) => {
     // (P1-PLANSOURCE-DEAD-CONTROL): el chip se ve, no se puede marcar, y el
     // tap explica por qué — un control que desaparece sin explicación parece
     // un bug; uno gris que explica es una decisión clínica visible.
-    const blocked = blockedSupplementsFor(formData);
+    // [P1-I18N-SUPPLEMENT-HINT · 2026-08-22] `t` en render: el hint viaja al toast y al
+    // aria-label del chip vetado, y era la unica frase que explicaba POR QUE esta bloqueado.
+    const blocked = blockedSupplementsFor(formData, t);
 
     // Auto-limpieza: si una selección vieja quedó vetada (marcó el suplemento
     // ANTES de declarar la condición y volvió atrás), se retira con aviso.

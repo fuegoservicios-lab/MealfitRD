@@ -420,9 +420,12 @@ export default function NotificationCenter({ hidden = false }) {
         if (n.kind === 'micros') {
             const gaps = Array.isArray(n.data?.gaps) ? n.data.gaps : [];
             const names = gaps.map((g) => g.nutriente).filter(Boolean).join(', ');
+            // [P1-I18N-PREFILL-COACH · 2026-08-22] Las dos ramas del ternario iban en
+            // español. El escáner de español sin envolver no mira dentro de un ternario,
+            // así que ninguna de las dos estaba ni siquiera contada en las 96.
             const question = names
-                ? `Mi plan se queda corto/desbalanceado en: ${names}. ¿Qué alimentos o ajustes concretos me recomiendas para mejorarlos sin afectar mis otras metas?`
-                : 'Mi plan tiene algunos micronutrientes fuera de objetivo. ¿Qué alimentos o ajustes me recomiendas?';
+                ? t('Mi plan se queda corto/desbalanceado en: {nutrientes}. ¿Qué alimentos o ajustes concretos me recomiendas para mejorarlos sin afectar mis otras metas?', { nutrientes: names })
+                : t('Mi plan tiene algunos micronutrientes fuera de objetivo. ¿Qué alimentos o ajustes me recomiendas?');
             if (isGuest) {
                 toast(t('Crea tu cuenta para hablar con tu coach IA'), {
                     description: t('Te dirá exactamente cómo mejorar cada micronutriente de tu plan.'),

@@ -297,7 +297,7 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                             key={`att-${e.key || i}`}
                             e={e}
                             adviceItem={findAdvice(e, adviceItems)}
-                            onAsk={onAsk ? () => onAsk(buildQuestion(e), e.nutriente) : undefined}
+                            onAsk={onAsk ? () => onAsk(buildQuestion(e, t), e.nutriente) : undefined}
                         />
                     ))}
                 </>
@@ -395,9 +395,27 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
 }
 
 // Pregunta natural y accionable para el coach IA, con los números reales del gap.
-function buildQuestion(e) {
+//
+// [P1-I18N-PREFILL-COACH · 2026-08-22] Va traducida, y NO por la razón que parece: esto
+// no es prosa del LLM, es texto que la app ESCRIBE POR EL USUARIO en su caja de chat.
+// `requestAgentPrefill` lo deja en el textarea y le pone el foco SIN enviarlo, así que el
+// usuario lo LEE y lo edita antes de mandarlo. Con la app en inglés aterrizaba en el chat
+// con la caja ya escrita en español, que es más raro todavía que una etiqueta sin traducir.
+//
+// El NOMBRE del nutriente se interpola tal cual: no es identificador del motor de
+// alimentos (esos no se traducen jamás), y traducirlo aquí no aportaría nada al coach.
+function buildQuestion(e, t) {
     const n = (e.nutriente || '').toLowerCase();
-    return `Mi plan se queda corto en ${n} (${_fmtN(e.valor)}${e.unidad} de ${_fmtN(e.piso)}${e.unidad}). ¿Qué alimentos o ajustes me recomiendas para subirlo?`;
+    // El extractor del gate es TEXTUAL y solo reconoce `t(`: llamarlo por un alias
+    // local (`_t(`) dejaba estas claves invisibles para `i18n:check`, o sea sin entrar
+    // nunca en los catalogos y en espanol para siempre. Se reasigna el parametro.
+    if (typeof t !== 'function') t = (s) => s;
+    return t('Mi plan se queda corto en {nutriente} ({valor}{unidad} de {piso}{unidad}). ¿Qué alimentos o ajustes me recomiendas para subirlo?', {
+        nutriente: n,
+        valor: _fmtN(e.valor),
+        unidad: e.unidad,
+        piso: _fmtN(e.piso),
+    });
 }
 
 /* — Iconos (línea, currentColor) — */

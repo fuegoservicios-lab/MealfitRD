@@ -143,13 +143,23 @@ export function buildMicrosNotification({ report, advice, t = _t, tn = _tn }) {
 }
 
 // Pregunta natural y accionable para el coach IA, con los números reales del gap.
-function buildQuestion(g) {
+//
+// [P1-I18N-PREFILL-COACH · 2026-08-22] Traducida por la misma razón que su gemela de
+// `MicronutrientMeter`: no es prosa del LLM, es texto que la app escribe POR el usuario en
+// su caja de chat y que él LEE y edita antes de enviar.
+function buildQuestion(g, t) {
     const isCeil = g.techo !== undefined && g.techo !== null;
     const n = (g.nutriente || '').toLowerCase();
+    // Ver la nota del gemelo en MicronutrientMeter: el extractor solo ve `t(`.
+    if (typeof t !== 'function') t = (s) => s;
     if (isCeil) {
-        return `En mi plan, el ${n} quedó por encima del objetivo (${g.valor}${g.unidad}, techo ${g.techo}${g.unidad}). ¿Cómo lo reduzco sin afectar mis otras metas?`;
+        return t('En mi plan, el {nutriente} quedó por encima del objetivo ({valor}{unidad}, techo {techo}{unidad}). ¿Cómo lo reduzco sin afectar mis otras metas?', {
+            nutriente: n, valor: g.valor, unidad: g.unidad, techo: g.techo,
+        });
     }
-    return `Mi plan se queda corto en ${n} (${g.valor}${g.unidad} de ${g.piso}${g.unidad}). ¿Qué alimentos o ajustes me recomiendas para subirlo?`;
+    return t('Mi plan se queda corto en {nutriente} ({valor}{unidad} de {piso}{unidad}). ¿Qué alimentos o ajustes me recomiendas para subirlo?', {
+        nutriente: n, valor: g.valor, unidad: g.unidad, piso: g.piso,
+    });
 }
 
 export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
@@ -271,7 +281,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                         <div className={styles.meters}>
                             {gaps.map((g, i) => {
                                 const s = classify(g, t);
-                                const ask = onAsk ? () => onAsk(buildQuestion(g), g.nutriente) : undefined;
+                                const ask = onAsk ? () => onAsk(buildQuestion(g, t), g.nutriente) : undefined;
                                 const Tag = ask ? 'button' : 'div';
                                 // Línea de brecha (cifra en color de severidad). Déficit → "Faltan";
                                 // exceso → "Te pasaste"; en límite → "En tu límite de".

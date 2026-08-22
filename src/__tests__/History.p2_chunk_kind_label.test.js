@@ -122,10 +122,18 @@ describe('[P2-HIST-NEW-4] uso en el badge del tab Métricas', () => {
         const computeIdx = src.indexOf('[P2-HIST-NEW-4', idx + 1);
         expect(computeIdx).toBeGreaterThan(-1);
         const block = src.slice(computeIdx, computeIdx + 2500);
-        // El compute llama a getChunkKindLabel(_kindRaw) || _kindRaw.
-        expect(block).toMatch(
-            /getChunkKindLabel\(_kindRaw\)\s*\|\|\s*_kindRaw/
-        );
+        // [P1-I18N-UTILS-ETIQUETAS-INERTE · 2026-08-22] Se ancla la PROPIEDAD, no la
+        // grafía. Antes exigía `getChunkKindLabel(_kindRaw) || _kindRaw` literal, así que
+        // pasarle la función de traducción —que es lo que hacía falta para que el chip
+        // dejara de salir en español— ponía este guard rojo sin que la conducta empeorara.
+        // Es la lección que el repo ya pagó tres veces en un día: si el guard puede
+        // expresarse por la propiedad, que no dependa de cómo se escriba.
+        //
+        // Lo que de verdad hay que preservar son dos cosas: que resuelva por el helper
+        // SSOT (y no con un mapa propio) y que caiga al code crudo cuando el helper no
+        // conoce el kind — mejor `· rolling_refill_v2` que silenciar el chunk.
+        expect(block).toMatch(/getChunkKindLabel\(\s*_kindRaw\s*(?:,[^)]*)?\)/);
+        expect(block).toMatch(/getChunkKindLabel\([^)]*\)\s*\|\|\s*_kindRaw/);
     });
 
     it('badge separator " · " se preserva (consistente con previous render)', () => {

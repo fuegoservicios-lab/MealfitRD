@@ -27,6 +27,18 @@
 // que un call site que aún no pasa su propia función de traducción lea el
 // catálogo ACTIVO en vez de quedarse clavado en español. El alias con guion bajo
 // lo deja además fuera del extractor textual de claves.
+//
+// [P1-I18N-UTILS-ETIQUETAS-INERTE · 2026-08-22] …y durante un día esto fue TODO lo que
+// hubo. El commit que dice haber convertido cinco utils dejó aquí exactamente dos cosas:
+// este import y un comentario que prometía «la tabla traducida de más abajo». Esa tabla
+// no existía: el fichero terminaba en los dos mapas españoles, `getChunkStatusLabel` no
+// recibía `t`, `_t` no se invocaba nunca, y 6 de las 7 etiquetas ni siquiera estaban en
+// los catálogos. Medido con el catálogo en-US CARGADO y `t('Guardar') === 'Save'`:
+// `getChunkStatusLabel('completed')` seguía devolviendo «Completado».
+//
+// Los otros cuatro utils de aquel commit sí se convirtieron de verdad. O sea que esto no
+// era «falta un arreglo», era un arreglo que PARECÍA hecho — y de los dos, el segundo es
+// peor: nadie vuelve a mirar lo que ya tiene su marcador puesto.
 import { t as _t } from '../i18n';
 
 // Este mapa se queda EXACTAMENTE como está: es el SSOT que parsean
@@ -36,8 +48,8 @@ import { t as _t } from '../i18n';
 // cubre un code. Meterle la llamada de traducción DENTRO lo convertiría en
 // ámbito de módulo — evaluado al importar, congelado en español para siempre.
 // Sigue apareciendo en el detector de español sin envolver, y es correcto que
-// aparezca: son literales españoles sin envolver. Lo que se PINTA sale de la
-// tabla traducida de más abajo.
+// aparezca: son literales españoles sin envolver. Lo que se PINTA sale de
+// `_etiquetasTraducidas`, justo debajo.
 const CHUNK_STATUS_LABELS = {
     completed: 'Completado',
     pending: 'En cola',
@@ -77,11 +89,55 @@ const CHUNK_STATUS_SEVERITY = {
  * @param {string|null|undefined} status
  * @returns {string} label o el code original si no mapea.
  */
-export const getChunkStatusLabel = (status) => {
+/**
+ * [P1-I18N-UTILS-ETIQUETAS-INERTE · 2026-08-22] Las mismas etiquetas, traducibles.
+ *
+ * Es una FUNCIÓN de `t` y no una constante, por la razón de siempre en este repo: un
+ * `t('…')` en ámbito de módulo se evalúa AL IMPORTAR —antes de que exista catálogo— y se
+ * congela en español para siempre. Y en es-DO parece correcto, así que sobrevive a
+ * cualquier revisión visual.
+ *
+ * Los literales van ENTEROS y a la vista: el extractor de `i18n-check` es textual y sólo
+ * reconoce una llamada con la cadena escrita dentro. (Y ojo con escribir el ejemplo
+ * literalmente en un comentario: el extractor NO distingue prosa de código, así que la
+ * cadena de ejemplo entra como clave viva y el gate pide traducirla — pasó al escribir
+ * este mismo bloque.) Pasar `CHUNK_STATUS_LABELS[k]` por variable funcionaría en
+ * runtime —la clave del catálogo ES el texto español— pero sería una clave DINÁMICA,
+ * invisible para el gate: nunca entraría en los catálogos y estas siete se quedarían en
+ * español para siempre sin que nada avisara. Es el fallo silencioso que el validador
+ * existe para impedir, y la misma razón por la que `getFieldLabels` duplica sus valores.
+ */
+const _etiquetasTraducidas = (t) => ({
+    completed: t('Completado'),
+    pending: t('En cola'),
+    processing: t('Procesando'),
+    stale: t('Reanudando'),
+    failed: t('Falló'),
+    pending_user_action: t('Esperando acción'),
+    cancelled: t('Cancelado'),
+});
+
+/**
+ * Etiqueta del estado en el idioma activo.
+ *
+ * `tFn` es opcional y su default es la `t` de módulo (no invocada aquí arriba, ver el
+ * import): así un call site que todavía no pasa su propia función lee igualmente el
+ * catálogo ACTIVO en vez de quedarse clavado en español. Si el catálogo no cubre el code
+ * —o `tFn` no es función— cae al mapa es-DO, y de ahí al code crudo: mejor enseñar
+ * `mystery_status` que silenciar la señal.
+ */
+export const getChunkStatusLabel = (status, tFn) => {
     if (typeof status !== 'string') return '';
     const _trimmed = status.trim();
     if (!_trimmed) return '';
-    return CHUNK_STATUS_LABELS[_trimmed] || _trimmed;
+    const _t_ = typeof tFn === 'function' ? tFn : _t;
+    let _traducida;
+    try {
+        _traducida = _etiquetasTraducidas(_t_)[_trimmed];
+    } catch {
+        _traducida = undefined;  // una `t` rota no puede tumbar el chip
+    }
+    return _traducida || CHUNK_STATUS_LABELS[_trimmed] || _trimmed;
 };
 
 /**

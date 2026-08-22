@@ -4041,7 +4041,13 @@ const History = () => {
                                                 // que silenciar la señal del chunk).
                                                 const _kindRaw = c.chunk_kind || '';
                                                 const _kindLabelText = _kindRaw
-                                                    ? (getChunkKindLabel(_kindRaw) || _kindRaw)
+                                                    // [P1-I18N-UTILS-ETIQUETAS-INERTE]
+                                                    // `t` se pasa en RENDER, nunca por
+                                                    // `useMemo([t])`: la identidad de la
+                                                    // `t` de módulo no cambia al cambiar
+                                                    // de idioma, así que memoizar por
+                                                    // ella congelaría el rótulo.
+                                                    ? (getChunkKindLabel(_kindRaw, t) || _kindRaw)
                                                     : '';
                                                 const _kindLabel = _kindLabelText
                                                     ? ` · ${_kindLabelText}`
@@ -4150,7 +4156,9 @@ const History = () => {
                                                 // cola? ¿esperando? El helper
                                                 // `getChunkStatusLabel` mapea
                                                 // a labels es-DO.
-                                                const _statusLabel = getChunkStatusLabel(c.status) || c.status;
+                                                // [P1-I18N-UTILS-ETIQUETAS-INERTE] `t` en
+                                                // render (ver el hermano de arriba).
+                                                const _statusLabel = getChunkStatusLabel(c.status, t) || c.status;
                                                 const _hasTier = c.quality_tier
                                                     && typeof c.quality_tier === 'string'
                                                     && c.quality_tier.trim();
