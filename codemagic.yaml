@@ -114,8 +114,15 @@ workflows:
           if [ -z "$CERTIFICATE_PRIVATE_KEY_B64" ]; then
             echo "ERROR: falta CERTIFICATE_PRIVATE_KEY_B64 (env var secreta, grupo default)"; exit 1
           fi
+          # [Build #5] «RSA key not ok: q not prime». La clave es correcta en origen;
+          # lo que se corrompió fue el base64 en el TRÁNSITO (2312 chars pegados a
+          # mano). Antes de validar, se mide lo que LLEGÓ contra lo esperado: un log
+          # que dice «llegaron 2311, esperaba 2312» vale más que cinco errores de
+          # primos. Se quitan espacios/saltos que el portapapeles pueda colar.
+          B64=$(printf '%s' "$CERTIFICATE_PRIVATE_KEY_B64" | tr -d ' \n\r\t')
+          echo "base64 recibido: ${#B64} chars (esperado 2312), sha256 $(printf '%s' "$B64" | shasum -a 256 | cut -c1-16) (esperado 4cd052670268e3e2)"
           KEY_FILE="$HOME/cert_private_key.pem"
-          echo "$CERTIFICATE_PRIVATE_KEY_B64" | base64 --decode > "$KEY_FILE"
+          printf '%s' "$B64" | base64 --decode > "$KEY_FILE"
           chmod 600 "$KEY_FILE"
           # Sanidad: tiene que ser una clave RSA legible antes de pedir nada a Apple.
           openssl rsa -in "$KEY_FILE" -check -noout
