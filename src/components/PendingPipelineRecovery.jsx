@@ -27,6 +27,8 @@ import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 // [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: estos avisos salen desde dentro de
 // callbacks asincronos (polling, efectos), no en render.
 import { t } from '../i18n';
+// [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Ver la nota de errorCopy.js.
+import { mensajeDeError } from '../utils/errorCopy';
 
 const POLL_INTERVAL_MS = 10_000; // 10s
 // [P3-RECOVERY-BACKEND-DOWN-EXIT · 2026-05-16] Threshold de fallos
@@ -311,7 +313,10 @@ export default function PendingPipelineRecovery() {
                 try {
                     const { toast } = await import('sonner');
                     toast.error(t('La generación falló'), {
-                        description: status.error || t('Intenta de nuevo.'),
+                        // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] `status.error` lo compone
+                        // el backend en español, así que ganaba y el fallback traducido era
+                        // rama muerta: título en inglés, cuerpo en español, misma llamada.
+                        description: mensajeDeError(status, t('Intenta de nuevo.'), t),
                         duration: 6000,
                     });
                 } catch { /* noop */ }

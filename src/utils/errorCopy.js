@@ -44,6 +44,11 @@ const COPY_POR_CODIGO = {
     pantry_insufficient_for_goal: (t) => t('Lo que hay en tu Nevera no alcanza para tus metas.'),
     budget_insufficient: (t) => t('El presupuesto no alcanza para el plan que pediste.'),
     budget_below_goal_floor: (t) => t('Ese presupuesto queda por debajo de lo que tus metas necesitan.'),
+    // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Los dos códigos del arreglo de sodio. No son
+    // errores —son información honesta: «este botón no aplica aquí»— pero viajan por el
+    // MISMO `||` y con el mismo desenlace, así que se traducen por el mismo canal.
+    ceiling_not_sodium: (t) => t('El aviso de este día no es por sodio.'),
+    no_day_over_ceiling: (t) => t('Ya está bajo el techo de sodio.'),
 };
 
 /** El código que trae una respuesta de error, mire donde mire el backend. */

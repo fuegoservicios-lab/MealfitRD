@@ -41,6 +41,23 @@ const _HISTORY_PATH = join(__dirname, '..', 'pages', 'History.jsx');
 const _API_PATH = join(__dirname, '..', 'config', 'api.ts');
 
 const src = readFileSync(_HISTORY_PATH, 'utf8');
+
+// [P1-I18N-UTILS-ETIQUETAS-INERTE · 2026-08-22] El bloque del tab se acota por ESTRUCTURA,
+// no por un presupuesto de bytes.
+//
+// Estas ventanas eran `src.slice(tabIdx, tabIdx + N)` con N entre 12.000 y 48.000, y ya se
+// habian ensanchado DOS veces por la misma causa (42000 -> 44000 el 2026-07-12, «el bloque
+// crecio y "Calidad reducida" quedo justo fuera»). O sea que median el TAMANO del codigo y
+// no su estructura: cualquier cambio que anada texto --incluido un COMENTARIO-- los acerca
+// al borde sin que nada avise, y el dia que se pasan acusan a un cambio que no rompio nada.
+// Paso otra vez al anadir dos comentarios en `History.jsx`.
+//
+// El bloque del tab `metrics` termina donde empieza su hermano `menu`. Eso no depende de
+// cuanto se escriba dentro.
+function _bloqueDeMetrics(desde) {
+    const fin = src.indexOf("activeModalTab === 'menu'", desde);
+    return src.slice(desde, fin > desde ? fin : undefined);
+}
 const apiSrc = readFileSync(_API_PATH, 'utf8');
 
 
@@ -177,7 +194,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
         expect(tabIdx).toBeGreaterThan(-1);
-        const block = src.slice(tabIdx, tabIdx + 12000);
+        const block = _bloqueDeMetrics(tabIdx);
         expect(block).toMatch(/['"]loading['"]/);
         expect(block).toMatch(/Cargando m[eé]tricas/);
     });
@@ -188,7 +205,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 12000);
+        const block = _bloqueDeMetrics(tabIdx);
         expect(block).toMatch(/['"]error['"]/);
         expect(block).toMatch(/No se pudo cargar el detalle/);
     });
@@ -199,7 +216,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 12000);
+        const block = _bloqueDeMetrics(tabIdx);
         expect(block).toMatch(/no tiene m[eé]tricas registradas/);
     });
 
@@ -211,7 +228,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 42000);
+        const block = _bloqueDeMetrics(tabIdx);
         expect(block).toMatch(/_list\.map\s*\(/);
         expect(block).toMatch(/c\.week_number/);
         expect(block).toMatch(/c\.chunk_kind/);
@@ -232,7 +249,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 44000);
+        const block = _bloqueDeMetrics(tabIdx);
         expect(block).toMatch(/Duraci[oó]n/);
         expect(block).toMatch(/Espera:/);
         expect(block).toMatch(/Intentos/);
@@ -245,7 +262,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 42000);
+        const block = _bloqueDeMetrics(tabIdx);
         // Buscar el helper local _fmtDuration con ambos branches.
         expect(block).toMatch(/_fmtDuration/);
         expect(block).toMatch(/ms\s*\/\s*1000/);
@@ -264,7 +281,7 @@ describe('[P2-HIST-AUDIT-10] render del tab "metrics"', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 48000);
+        const block = _bloqueDeMetrics(tabIdx);
         // Render condicional del dead_letter_reason con clase Bad.
         expect(block).toMatch(/c\.dead_letter_reason/);
         expect(block).toMatch(/styles\.tierBadgeBad/);
@@ -281,7 +298,7 @@ describe('[P2-HIST-AUDIT-10] learning_metrics keys whitelisted', () => {
         const _allMatches = [...src.matchAll(/activeModalTab === 'metrics'/g)];
         expect(_allMatches.length).toBeGreaterThanOrEqual(2);
         const tabIdx = _allMatches[1].index;
-        const block = src.slice(tabIdx, tabIdx + 42000);
+        const block = _bloqueDeMetrics(tabIdx);
         expect(block).toMatch(/synth_quality_score/);
         expect(block).toMatch(/synthesized_count/);
         expect(block).toMatch(/queue_count/);

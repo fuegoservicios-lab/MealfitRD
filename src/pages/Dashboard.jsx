@@ -214,6 +214,8 @@ import { buildHealthProfilePayload } from '../config/secureFormStorage';
 import { isDarkActive } from '../utils/theme';
 // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Dueño del flag de "generación en vuelo".
 import { hasPendingPipelineInFlight } from '../utils/pendingPipelineFlag';
+// [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Ver la nota de errorCopy.js.
+import { mensajeDeError } from '../utils/errorCopy';
 
 // [P2-BRANDS-OPTIMISTIC · 2026-07-07] Update en TIEMPO REAL del brand elegido en
 // "Marcas del súper". El display de cada ítem es un solo string backend
@@ -1163,7 +1165,7 @@ const DashboardInner = () => {
                 pantryConsentContext.current = { source: 'fix-sodium-day' };
                 setPantryConsent({
                     missing: result.missing_ingredients || [],
-                    message: result.message || t('El chef necesita ingredientes que no están en tu Nevera.'),
+                    message: mensajeDeError(result, t('El chef necesita ingredientes que no están en tu Nevera.'), t),
                     busy: false,
                 });
                 return;
@@ -1200,17 +1202,17 @@ const DashboardInner = () => {
                 // potasio). No es un error — es información honesta: este botón no aplica
                 // aquí. El plan quedó intacto (el backend no tocó nada), así que NO
                 // refrescamos; el banner se queda tal cual.
-                toast(result.message || t('El aviso de este día no es por sodio.'), { duration: 7000 });
+                toast(mensajeDeError(result, t('El aviso de este día no es por sodio.'), t), { duration: 7000 });
             } else if (result?.code === 'no_day_over_ceiling') {
                 // Honesto: puede que el panel ya estuviera stale (el usuario resolvió el día a
                 // mano). Refrescamos igual — si el banner seguía vivo por caché local, desaparece.
                 try { await hydrateLatestPlan?.({ force: true, src: 'fix-sodium-day-noop' }); } catch (_) { /* no-op */ }
-                toast(result.message || t('Ya está bajo el techo de sodio.'), { duration: 6000 });
+                toast(mensajeDeError(result, t('Ya está bajo el techo de sodio.'), t), { duration: 6000 });
             } else {
                 // Soft-fail del chef (retries agotados / clínico / nevera vacía / IA ocupada):
                 // el banner queda, el plan está intacto.
                 toast.error(t('El chef IA no pudo arreglar este día'), {
-                    description: result?.error_message || t('Inténtalo de nuevo en un momento.'),
+                    description: mensajeDeError(result, t('Inténtalo de nuevo en un momento.'), t),
                     duration: 8000,
                 });
             }

@@ -68,6 +68,8 @@ import { getAvatarId, persistAvatar } from '../utils/avatarStore';
 // (P1-LEGAL-UNA-SOLA-COPIA). Un href relativo funcionaba en web por el 301 de
 // nginx; en la app nativa (capacitor://) abriría la copia JSX obsoleta.
 import { apexUrl } from '../config/site';
+// [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Ver la nota de errorCopy.js.
+import { mensajeDeError } from '../utils/errorCopy';
 // [P2-PRIVACY-SETTINGS · 2026-07-04] Enlaces de políticas de la sección
 // Privacidad — abren en el apex (mismo patrón que el menú "Más información").
 // [P1-MORE-INFO-IN-APP · 2026-08-10] Los enlaces legales de esta pantalla CONSERVAN
@@ -1759,7 +1761,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 // Forzar la recarga del perfil global
                 setTimeout(() => window.location.reload(), 2000);
             } else {
-                toast.error(data.message || t("Hubo un error al cancelar la suscripción."));
+                toast.error(mensajeDeError(data, t("Hubo un error al cancelar la suscripción."), t));
                 setShowCancelModal(false);
             }
         } catch (error) {

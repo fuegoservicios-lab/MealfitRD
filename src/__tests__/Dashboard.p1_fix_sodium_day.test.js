@@ -102,7 +102,12 @@ describe('P1-FIX-SODIUM-DAY', () => {
         expect(i).toBeGreaterThan(-1);
         const iNext = _src.indexOf("result?.code === 'no_day_over_ceiling'", i);
         const win = _src.slice(i, iNext);
-        expect(win).toContain('toast(result.message');
+        // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Se ancla la PROPIEDAD: que el aviso
+        // salga del payload del servidor (por su código) y no de un literal inventado
+        // en el cliente. Antes exigía la grafia `toast(result.message`, asi que pasar
+        // el mensaje por `mensajeDeError` --que es lo que lo hace legible para un
+        // usuario no hispano-- ponía el guard rojo sin que la conducta empeorara.
+        expect(win).toMatch(/toast\(\s*(?:result\.message|mensajeDeError\(\s*result)/);
         expect(win).not.toContain('toast.error');
         expect(win).not.toContain('setPlanData');
         expect(win).not.toContain('hydrateLatestPlan');
@@ -111,7 +116,8 @@ describe('P1-FIX-SODIUM-DAY', () => {
     it('no_day_over_ceiling: toast informativo (NO error) + refresco honesto (puede ser stale)', () => {
         const win = _sliceFrom("result?.code === 'no_day_over_ceiling'", 500);
         expect(win).toContain('hydrateLatestPlan?.(');
-        expect(win).toContain("toast(result.message");
+        // [P1-I18N-SERVER-COPY-GANA] Propiedad, no grafia (ver el hermano de arriba).
+        expect(win).toMatch(/toast\(\s*(?:result\.message|mensajeDeError\(\s*result)/);
         expect(win).not.toContain('toast.error');
     });
 
@@ -120,7 +126,9 @@ describe('P1-FIX-SODIUM-DAY', () => {
         const iElse = _src.indexOf('} else {', i);
         const win = _src.slice(iElse, iElse + 800);
         expect(win).toContain('toast.error');
-        expect(win).toContain('result?.error_message');
+        // [P1-I18N-SERVER-COPY-GANA] El motivo tiene que venir del payload del servidor;
+        // por que canal lo resuelva es implementacion.
+        expect(win).toMatch(/result\?\.error_message|mensajeDeError\(\s*result/);
         expect(win).not.toContain('setPlanData');
     });
 

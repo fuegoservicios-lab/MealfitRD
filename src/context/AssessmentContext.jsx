@@ -161,6 +161,9 @@ import {
     loadGuestSensitiveFields,
     clearGuestSensitiveFields,
 } from '../config/secureFormStorage';
+// [P1-I18N-SERVER-COPY-GANA · 2026-08-22] El `error_message` del servidor viene
+// SIEMPRE en español; el `||` hacía que ganara sobre el fallback traducido.
+import { mensajeDeError } from '../utils/errorCopy';
 
 const AssessmentContext = createContext();
 
@@ -2766,7 +2769,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             if (data?.regen_failed === true) {
                 if (data.error_code === 'pantry_insufficient_for_goal') {
                     toast.error(t('Faltan ingredientes en tu Nevera'), {
-                        description: data.error_message || t('Tu Nevera no alcanza para cubrir tu objetivo del día. Agrega más ítems (sobre todo proteína).'),
+                        description: mensajeDeError(data, t('Tu Nevera no alcanza para cubrir tu objetivo del día. Agrega más ítems (sobre todo proteína).'), t),
                         duration: 8000,
                         action: { label: t('Mi Nevera'), onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
                     });
@@ -2776,12 +2779,12 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     // ingredientes aunque la causa fuera el guardrail del LLM (visto en vivo
                     // 2026-07-10 con la Nevera recién restockeada). Copy honesto + Reintentar.
                     toast.error(t('El chef no encontró alternativas esta vez'), {
-                        description: data.error_message || t('No se descontó tu crédito. Vuelve a intentarlo en un momento.'),
+                        description: mensajeDeError(data, t('No se descontó tu crédito. Vuelve a intentarlo en un momento.'), t),
                         duration: 8000,
                         action: { label: t('Reintentar'), onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
                     });
                 } else {
-                    toast.error(t('No se pudo actualizar el día'), { description: data.error_message || t('Inténtalo de nuevo.') });
+                    toast.error(t('No se pudo actualizar el día'), { description: mensajeDeError(data, t('Inténtalo de nuevo.'), t) });
                 }
                 return { ok: false, regen_failed: true };
             }
@@ -2823,7 +2826,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // lo logrado SIN cobrar crédito y SIN perder platos. Aviso accionable "Reintentar" (distinto
                 // del toast de slots_kept, que comunica falta de inventario, no caída del proveedor).
                 _emitirDesenlace = () => toast.warning(t('La IA se interrumpió'), {
-                    description: data.ai_interrupted_message || t('Algunos platos no se actualizaron. Reintenta para completar el día (no se descontó tu crédito).'),
+                    description: mensajeDeError(data, t('Algunos platos no se actualizaron. Reintenta para completar el día (no se descontó tu crédito).'), t),
                     duration: 9000,
                     action: { label: t('Reintentar'), onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
                 });
@@ -3351,7 +3354,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // en DevTools del browser.
             if (newMealData?.swap_failed === true) {
                 const errCode = newMealData.error_code || 'unknown';
-                const errMsg = newMealData.error_message || t('No se pudo generar una alternativa.');
+                const errMsg = mensajeDeError(newMealData, t('No se pudo generar una alternativa.'), t);
                 if (errCode === 'pantry_insufficient_for_goal') {
                     // [P5-PANTRY-SUFFICIENCY · 2026-06-23] La Nevera no cubre las macros del
                     // objetivo para este plato → avisar y llevar a la Nevera para agregar ítems.
