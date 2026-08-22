@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from "react";
+// [P3-I18N-RADIOGROUP-TECLADO · 2026-08-21] Este grupo declaraba `radiogroup` y no
+// implementaba nada de lo que ese rol promete: tres paradas de tabulador en vez de
+// una, y las flechas sin efecto — que es justo lo que un lector de pantalla anuncia
+// al entrar en el grupo.
+import { useRadioGroupAccesible } from './useRadioGroupAccesible';
 import { createPortal } from "react-dom";
 import { useT } from "../../i18n";
 
@@ -115,15 +120,14 @@ function Tag({ tag }) {
 }
 
 /* --------------------------------------------------------- fila seleccionable */
-function ChoiceRow({ choice, selected, disabled, onSelect }) {
+function ChoiceRow({ choice, selected, disabled, onSelect, propsRadio }) {
   const [hover, setHover] = useState(false);
   const accent = choice.destructive ? "var(--danger)" : "var(--primary)";
 
   return (
     <button
       type="button"
-      role="radio"
-      aria-checked={selected}
+      {...propsRadio}
       disabled={disabled}
       onClick={() => onSelect(choice.id)}
       onMouseEnter={() => setHover(true)}
@@ -299,6 +303,15 @@ export default function EvaluarDeNuevoModal({
     };
   }, [open, busy, onClose]);
 
+  // [P3-I18N-RADIOGROUP-TECLADO · 2026-08-21] Flechas con envoltura, Home/End y una sola
+  // parada de tabulador para las tres opciones.
+  //
+  // ARRIBA del `if (!open) return null`, no junto a su uso: un hook detras de un return
+  // temprano es una llamada CONDICIONAL, y React exige el mismo orden en cada render.
+  // Por eso las opciones se calculan aqui y no se reusa `choiceList`, que vive despues.
+  const _idsOpciones = (choices ?? getDefaultChoices(t)).map((c) => c.id);
+  const rgOpciones = useRadioGroupAccesible(_idsOpciones, selected, setSelected);
+
   if (!open) return null;
 
   const titleText = title ?? t("Evaluar de Nuevo");
@@ -416,9 +429,16 @@ export default function EvaluarDeNuevoModal({
         </p>
 
         {/* opciones (radio) */}
-        <div role="radiogroup" aria-label={titleText} style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
+        <div {...rgOpciones.propsGrupo} aria-label={titleText} style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
           {choiceList.map((c) => (
-            <ChoiceRow key={c.id} choice={c} selected={c.id === selected} disabled={busy} onSelect={setSelected} />
+            <ChoiceRow
+              key={c.id}
+              choice={c}
+              selected={c.id === selected}
+              disabled={busy}
+              onSelect={setSelected}
+              propsRadio={rgOpciones.propsRadio(c.id)}
+            />
           ))}
         </div>
 

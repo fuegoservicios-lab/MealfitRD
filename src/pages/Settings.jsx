@@ -37,6 +37,11 @@ import { SUPERSEDED, formatDate, formatNumber, useI18n } from '../i18n';
 // el backend (constants.canonicalize_country).
 import { COUNTRIES, coerceCountry, COUNTRY_SYSTEM_UI } from '../config/countries';
 import Modal from '../components/common/Modal';
+// [P3-I18N-RADIOGROUP-TECLADO · 2026-08-21] Los tres grupos de radio de esta
+// pantalla —tema, idioma, pais— declaraban `role="radiogroup"` y no implementaban
+// nada de lo que ese rol promete: N paradas de tabulador en vez de 1, y las flechas
+// sin efecto. Un lector de pantalla ANUNCIA las flechas al entrar en el grupo.
+import { useRadioGroupAccesible } from '../components/common/useRadioGroupAccesible';
 import EvaluarDeNuevoModal from '../components/common/EvaluarDeNuevoModal';
 // [P3-PLANOBJETIVO-MOBILE · 2026-06-29] Pantalla móvil inmersiva de Plan & Objetivo.
 import PlanObjetivo from '../components/settings/PlanObjetivo';
@@ -387,6 +392,26 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             setIsSavingCountry(false);
         }
     };
+
+    // [P3-I18N-RADIOGROUP-TECLADO · 2026-08-21] Un hook por grupo. Aportan el teclado
+    // (flechas con envoltura, Home/End) y el roving tabindex — una sola parada de
+    // tabulador en vez de N—, y el marcado de cada grupo se queda tal cual: lo que se
+    // comparte es la conducta, no el aspecto.
+    const rgTema = useRadioGroupAccesible(
+        getThemeOptions(t).map((o) => o.value),
+        themePreference,
+        (v) => handleSelectTheme(v),
+    );
+    const rgIdioma = useRadioGroupAccesible(
+        LOCALES.map((o) => o.code),
+        pendingLocale ?? locale,
+        (v) => handleSelectLocale(v),
+    );
+    const rgPais = useRadioGroupAccesible(
+        COUNTRIES.map((c) => c.code),
+        coerceCountry(userProfile?.health_profile?.country),
+        (v) => handleSelectCountry(v),
+    );
 
     const handleSelectTheme = (value) => {
         if (value === themePreference) return;
@@ -2492,7 +2517,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
                         <div
                             className={styles.themeGroup}
-                            role="radiogroup"
+                            {...rgTema.propsGrupo}
                             aria-label={t('Tema de la aplicación')}
                         >
                             {getThemeOptions(t).map((opt) => {
@@ -2503,8 +2528,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <button
                                         key={value}
                                         type="button"
-                                        role="radio"
-                                        aria-checked={selected}
+                                        {...rgTema.propsRadio(value)}
                                         onClick={() => handleSelectTheme(value)}
                                         className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
                                     >
@@ -2544,7 +2568,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
                         <div
                             className={styles.themeGroup}
-                            role="radiogroup"
+                            {...rgIdioma.propsGrupo}
                             aria-label={t('Idioma de la interfaz')}
                         >
                             {LOCALES.map((opt) => {
@@ -2558,8 +2582,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <button
                                         key={opt.code}
                                         type="button"
-                                        role="radio"
-                                        aria-checked={selected}
+                                        {...rgIdioma.propsRadio(opt.code)}
                                         onClick={() => handleSelectLocale(opt.code)}
                                         className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
                                     >
@@ -2611,7 +2634,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
                         <div
                             className={styles.themeGroup}
-                            role="radiogroup"
+                            {...rgPais.propsGrupo}
                             aria-label={t('País de compra')}
                         >
                             {COUNTRIES.map((c) => {
@@ -2620,8 +2643,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <button
                                         key={c.code}
                                         type="button"
-                                        role="radio"
-                                        aria-checked={selected}
+                                        {...rgPais.propsRadio(c.code)}
                                         disabled={isSavingCountry}
                                         onClick={() => handleSelectCountry(c.code)}
                                         className={`${styles.themeOption} ${selected ? styles.themeOptionActive : ''}`}
