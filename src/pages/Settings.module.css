@@ -184,6 +184,12 @@
     align-items: flex-start;
     gap: var(--settings-close-inset);
     padding: var(--settings-pad-y) var(--settings-close-inset) 0.75rem var(--settings-pad-x);
+    /* [P1-SETTINGS-SAFE-AREA-TOP · 2026-08-22] El hueco del notch/reloj. En la app
+       nativa (contentInset 'never') el documento empieza en el borde físico y el
+       título y la X quedaban DEBAJO de la barra de estado (iPhone, build 8). Mismo
+       patrón que la cabecera del dashboard. Va DESPUÉS del shorthand, que si no la
+       pisaría; en web/Android sin notch el inset es 0 y no cambia nada. */
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--settings-pad-y));
     border-bottom: 1px solid var(--border-color, rgba(148, 163, 184, 0.18));
 }
 

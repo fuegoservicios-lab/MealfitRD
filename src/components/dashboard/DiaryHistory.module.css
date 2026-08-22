@@ -37,6 +37,10 @@
     background: var(--bg-card, #0f172a);
     border-left: 1px solid var(--border, rgba(148, 163, 184, 0.14));
     box-shadow: -24px 0 60px -30px rgba(0, 0, 0, 0.9);
+    /* [P1-SETTINGS-SAFE-AREA-TOP · 2026-08-22] Arriba también: el cajón es fixed
+       desde el borde físico y en la app nativa (contentInset 'never') su cabecera
+       quedaría bajo el reloj, como le pasó a Configuración. Abajo ya lo tenía. */
+    padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
