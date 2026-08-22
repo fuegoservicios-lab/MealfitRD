@@ -495,13 +495,35 @@
      a diferencia de `hidden`, NUNCA crea un contenedor de scroll, así que el
      documento sigue scrolleando cuando el teclado encoge el viewport: el fallo que
      este bloque cierra sigue cerrado. e2e: login_no_overscroll.spec.js. */
+  /* [P1-LOGIN-NO-DOC-SCROLL · 2026-08-22] CERO scroll cuando todo cabe. Con el documento
+     como scroller, iOS rebota aunque el contenido mida exacto (medido por el dueño tras
+     el fix del glow). Lo que no rebota en iOS es un CONTENEDOR cuyo contenido cabe: el
+     login pasa a ser su propio scroller (height fija + overflow-y auto) y el documento
+     deja de serlo (html/body overflow hidden, solo mientras el login está montado, vía
+     :has). Si el contenido NO cabe (iPhone SE), el scroll ocurre dentro del login. Los
+     glows pierden sus desplazamientos negativos: con overflow auto generarían recorrido. */
+  html:has(.mf-login),
+  body:has(.mf-login) {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   .mf-login {
     grid-template-columns: 1fr;
     position: relative;
     inset: auto;
-    min-height: 100dvh;
-    overflow: clip;
+    height: 100dvh;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
+  /* fixed: un elemento fijo no añade recorrido al scroller (los glows miden 520-560 px
+     en una caja de 390). Con 'absolute' y offsets 0 seguían creando 180 px de scroll
+     horizontal dentro del login (medido). */
+  .mf-glow { position: fixed; }
+  .mf-glow--a { left: -160px; top: -120px; }
+  .mf-glow--b { right: -140px; bottom: -160px; }
   .mf-showcase { display: none; }
 
   .mf-form {

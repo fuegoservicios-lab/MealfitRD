@@ -28,13 +28,24 @@ for (const vp of VIEWPORTS) {
     await page.setViewportSize(vp);
     await page.goto('/login', { waitUntil: 'networkidle' });
     await page.waitForSelector('.mf-login');
-    const m = await page.evaluate(() => ({
-      scrollHeight: document.scrollingElement.scrollHeight,
-      innerHeight: window.innerHeight,
-      loginHeight: Math.round(document.querySelector('.mf-login').getBoundingClientRect().height),
-    }));
-    // El login mide min-height 100dvh; si el contenido cabe, documento === viewport.
-    // Si no cabe (320×568), el documento mide lo que mide el login — nunca más.
-    expect(m.scrollHeight, JSON.stringify(m)).toBeLessThanOrEqual(Math.max(m.innerHeight, m.loginHeight));
+    const m = await page.evaluate(() => {
+      const l = document.querySelector('.mf-login');
+      return {
+        scrollHeight: document.scrollingElement.scrollHeight,
+        innerHeight: window.innerHeight,
+        bodyOverflow: getComputedStyle(document.body).overflowY,
+        loginScrollH: l.scrollHeight, loginClientH: l.clientHeight,
+        loginScrollW: l.scrollWidth, loginClientW: l.clientWidth,
+        formContentH: document.querySelector('.mf-form').scrollHeight,
+      };
+    });
+    // [P1-LOGIN-NO-DOC-SCROLL] El DOCUMENTO nunca scrollea en el login (iOS rebota el
+    // documento aunque el contenido quepa exacto; un contenedor que cabe, no).
+    expect(m.bodyOverflow, JSON.stringify(m)).toBe('hidden');
+    expect(m.scrollHeight, JSON.stringify(m)).toBe(m.innerHeight);
+    // El login es su propio scroller: sin recorrido horizontal nunca, y sin recorrido
+    // vertical salvo que el CONTENIDO del formulario de verdad no quepa (iPhone SE).
+    expect(m.loginScrollW, JSON.stringify(m)).toBeLessThanOrEqual(m.loginClientW);
+    expect(m.loginScrollH, JSON.stringify(m)).toBeLessThanOrEqual(Math.max(m.loginClientH, m.formContentH));
   });
 }
