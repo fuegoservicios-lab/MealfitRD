@@ -60,7 +60,26 @@ export const QAllergies = ({ onManualAdvance }) => {
                     { val: "Gluten", label: t('Gluten'), icon: Wheat },
                     { val: "Huevo", label: t('Huevo'), icon: Egg },
                     { val: "Mariscos", label: t('Mariscos'), icon: Fish },
+                    // [P2-ALLERGEN-CHIPS-REACH-ENGINE · 2026-08-21] Dos chips que el motor YA sabía
+                    // bloquear y que el formulario no tenía cómo pedirle:
+                    //
+                    // · «Pescado»: el marisco tenía chip y el pescado no, en un beta cuyo primer
+                    //   país es España — el catálogo trae boquerones, anchoas, merluza, bacalao y
+                    //   trucha. El alérgico tenía que ESCRIBIRLO en el campo libre, y que funcione
+                    //   si lo escribes no es lo mismo que ofrecerlo: media seguridad de un chip es
+                    //   que el usuario no tenga que acordarse.
+                    //
+                    // · «Maní»: `Frutos Secos` NO lo cubre. Verificado contra el backstop — chip
+                    //   `Frutos Secos` + «50 g de Maní» PASA. El cacahuete es una legumbre y el
+                    //   motor los separa a propósito, así que un alérgico marcaba el único chip
+                    //   que le sonaba y se quedaba sin protección CREYENDO que la tenía.
+                    //
+                    // Comparten icono con su vecino a propósito: `Fish` y `Nut` ya están
+                    // importados y añadir dos glifos de `lucide` engorda el bundle sin decir nada
+                    // que la etiqueta no diga.
+                    { val: "Pescado", label: t('Pescado'), icon: Fish },
                     { val: "Frutos Secos", label: t('Nueces'), icon: Nut },
+                    { val: "Mani", label: t('Maní'), icon: Nut },
                     { val: "Soya", label: t('Soya'), icon: Leaf },
                 ].map(opt => (
                     <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={(formData.allergies || []).includes(opt.val)} onToggle={handleToggle} />
