@@ -19,6 +19,7 @@ vi.mock('../config/platform', () => ({
     isNativeApp: vi.fn(() => false),
     nativeHidesCommerce: vi.fn(() => false),
     appleSignInEnabled: vi.fn(() => false),
+    nativeHidesOAuthRedirect: vi.fn(() => false),
 }));
 vi.mock('@paypal/react-paypal-js', () => ({
     PayPalScriptProvider: ({ children }) => <>{children}</>,
@@ -159,6 +160,30 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
         expect(src).toMatch(/if \(!isOpen \|\| nativeHidesCommerce\(\)\) return null;/);
         const hooksEnd = src.lastIndexOf('useModalAccessibility(');
         expect(src.indexOf('nativeHidesCommerce()) return null')).toBeGreaterThan(hooksEnd);
+    });
+
+    // [P1-IOS-OAUTH-GATE · 2026-08-22] Primer build en el iPhone: «Continuar con Google»
+    // salía a Safari y terminaba en «Safari no puede abrir la página porque la dirección
+    // no es válida» — Neon Auth devuelve a `capacitor://localhost/dashboard`, que ningún
+    // navegador abre. El OAuth por redirección NO funciona en nativo sin un esquema de URL
+    // propio (deep link) + intercambio de código en el backend: trabajo de diseño, no un
+    // parche. Hasta entonces el botón no se pinta: un botón que acaba en un error de
+    // Safari es justo lo que un revisor de Apple pulsaría. Y con solo correo en nativo,
+    // la guideline 4.8 (Sign in with Apple obligatorio si hay Google) NO aplica.
+    it('Login: en nativo no se pinta «Continuar con Google» (OAuth por redirección no vuelve a capacitor://)', () => {
+        const src = read('pages/Login.jsx');
+        expect(src).toMatch(/import \{[^}]*nativeHidesOAuthRedirect[^}]*\} from '\.\.\/config\/platform'/);
+        const i = src.indexOf("t('Continuar con Google')");
+        expect(i).toBeGreaterThan(0);
+        const antes = src.slice(Math.max(0, i - 400), i);
+        expect(antes, 'el botón de Google debe ir dentro de `{!nativeHidesOAuthRedirect() && (`').toMatch(/!nativeHidesOAuthRedirect\(\) && \(/);
+        // El separador «o» tampoco: sin botón encima quedaría colgado sobre el correo.
+        expect(src).toMatch(/\(!nativeHidesOAuthRedirect\(\) \|\| appleSignInEnabled\(\)\) && \(\s*<div className="mf-divider">/);
+    });
+
+    it('platform.js: nativeHidesOAuthRedirect es un gate propio (no reusar nativeHidesCommerce: cuando llegue el deep link se apaga solo éste)', () => {
+        const src = read('config/platform.js');
+        expect(src).toMatch(/export function nativeHidesOAuthRedirect\(\)/);
     });
 
     it('Login: Sign in with Apple existe, gateado por appleSignInEnabled, con su clave en los 4 catálogos', () => {

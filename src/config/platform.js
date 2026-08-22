@@ -40,6 +40,18 @@ export function nativeHidesCommerce() {
     return isNativeApp();
 }
 
+// [P1-IOS-OAUTH-GATE · 2026-08-22] OAuth por REDIRECCIÓN (Google) no vuelve a la app
+// nativa: Neon Auth redirige al `callbackURL`, que en el WebView es
+// `capacitor://localhost/dashboard`, y Safari lo rechaza («la dirección no es válida»
+// — medido en el primer build de TestFlight). Arreglarlo de verdad es un esquema de URL
+// propio (deep link) + intercambio del código en el backend: diseño, no parche. Mientras
+// no exista, el botón no se pinta: un revisor de Apple pulsaría justo ese botón. Gate
+// PROPIO (no reusar `nativeHidesCommerce`): cuando llegue el deep link se apaga sólo
+// éste y el comercio sigue escondido.
+export function nativeHidesOAuthRedirect() {
+    return isNativeApp();
+}
+
 // Sign in with Apple (guideline 4.8: obligatorio si se ofrece Google). El provider se
 // configura en Neon Auth cuando la membresía esté aprobada; hasta entonces el botón no
 // se pinta. Env explícita, no derivada de `isNativeApp()`: el botón también debe verse

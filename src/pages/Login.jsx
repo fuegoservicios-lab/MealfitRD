@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { appleSignInEnabled } from '../config/platform';
+import { appleSignInEnabled, nativeHidesOAuthRedirect } from '../config/platform';
 import { apexUrl } from '../config/site';
 import { authClient, sendEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -407,9 +407,14 @@ const Login = () => {
                     {step === 'email' ? (
                         <>
                             <form className="mf-card" onSubmit={handleEmailSubmit}>
-                                <button type="button" className="mf-btn mf-btn--google" onClick={handleGoogle} disabled={googleLoading}>
-                                    <GoogleIcon /> {googleLoading ? t('Conectando con Google…') : t('Continuar con Google')}
-                                </button>
+                                {/* [P1-IOS-OAUTH-GATE] En nativo el OAuth por redirección no
+                                    vuelve a la app (capacitor:// no es una URL que Safari abra):
+                                    el botón no se pinta hasta que exista el deep link. */}
+                                {!nativeHidesOAuthRedirect() && (
+                                    <button type="button" className="mf-btn mf-btn--google" onClick={handleGoogle} disabled={googleLoading}>
+                                        <GoogleIcon /> {googleLoading ? t('Conectando con Google…') : t('Continuar con Google')}
+                                    </button>
+                                )}
                                 {/* [P1-IOS-NATIVE-SHELL] Apple exige el botón con la MISMA prominencia
                                     que Google (4.8). Gateado por env hasta que el provider exista en
                                     Neon Auth; sin provider, un botón que falla sería peor que ninguno. */}
@@ -419,7 +424,11 @@ const Login = () => {
                                     </button>
                                 )}
 
-                                <div className="mf-divider"><span>o</span></div>
+                                {/* El «o» separa OAuth de correo: sin ningún botón encima
+                                    (nativo sin deep link, sin provider Apple) quedaría colgado. */}
+                                {(!nativeHidesOAuthRedirect() || appleSignInEnabled()) && (
+                                    <div className="mf-divider"><span>o</span></div>
+                                )}
 
                                 <input
                                     id="login-email"
