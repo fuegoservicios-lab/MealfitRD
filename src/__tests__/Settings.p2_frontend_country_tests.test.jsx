@@ -139,3 +139,62 @@ describe('[P2-FRONTEND-COUNTRY-TESTS] paridad con el fuente real', () => {
         expect(s).toContain('COUNTRIES.map((c) => c.code)');
     });
 });
+
+describe('[P3-COUNTRY-PICK-EXPLICIT] tocar «República Dominicana» sin país guardado SÍ persiste', () => {
+    // EL CASO. El guard de salida temprana era:
+    //
+    //     if (isSavingCountry || country === coerceCountry(userProfile?.health_profile?.country))
+    //
+    // y `coerceCountry(undefined)` devuelve 'DO'. O sea que para un perfil SIN país —quince de los
+    // dieciséis vivos hoy— tocar la tarjeta de República Dominicana comparaba 'DO' contra 'DO' y
+    // salía sin escribir nada: sin PATCH, sin toast, sin rastro. El usuario cree que eligió; el
+    // sistema no se entera.
+    //
+    // No es cosmético aunque el motor caiga a DO igual. `canonicalize_country` distingue
+    // explícitamente «ausente» (fail-safe legítimo, silencioso) de «valor que no canoniza»
+    // (corrupción, con warning) — esa es toda la razón de ser de `P2-COUNTRY-FAILSAFE-LOUD`. Con
+    // la elección sin registrar, ese usuario se queda en la casilla «ausente» para siempre, y
+    // nadie puede distinguir «eligió RD» de «nunca contestó». Es la misma familia que el «default
+    // sembrado» que este repo ya pagó dos veces: una elección que no deja rastro es
+    // indistinguible de no haber elegido.
+    // ⚠️ SIN COMENTARIOS, y la primera versión enseñó por qué: leía 900 caracteres crudos desde
+    // `const handleSelectCountry`, y la nota que explica este arreglo (a) los llena enteros, así
+    // que el código quedaba fuera de la ventana, y (b) CITA la expresión vieja, así que el guard
+    // negativo acusaba al texto que documenta su propia corrección. Comentario-vence-guard, la
+    // decimotercera de esta ola. Un guard sobre fuente tiene que mirar CÓDIGO.
+    const _bloqueHandler = () => {
+        const fs = require('fs');
+        const path = require('path');
+        const s = fs.readFileSync(path.join(process.cwd(), 'src/pages/Settings.jsx'), 'utf-8');
+        const codigo = s
+            .replace(/\/\*[\s\S]*?\*\//g, ' ')
+            .split('\n')
+            .filter((l) => !l.trim().startsWith('//'))
+            .join('\n');
+        const i = codigo.indexOf('const handleSelectCountry');
+        expect(i).toBeGreaterThan(0);
+        return codigo.slice(i, i + 600);
+    };
+
+    it('el guard distingue «sin país» de «país = DO»', () => {
+        // La forma que producía el no-op: comparar contra `coerceCountry(...)` sobre el campo
+        // crudo, que convierte la ausencia en 'DO'.
+        expect(_bloqueHandler()).not.toMatch(
+            /country === coerceCountry\(userProfile\?\.health_profile\?\.country\)/,
+        );
+    });
+
+    it('la salida temprana exige que el país guardado EXISTA', () => {
+        // Positivo: sin esto, borrar la comparación entera también pasaría el caso de arriba —
+        // y eso reintroduciría el PATCH redundante en cada toque sobre el país ya elegido.
+        expect(_bloqueHandler()).toMatch(/!=\s*null|!==\s*undefined/);
+    });
+
+    it('sigue evitando el PATCH redundante cuando el país YA está guardado', () => {
+        // El error simétrico, anclado: quitar la guarda entera haría que tocar la tarjeta ya
+        // marcada mandara un PATCH cada vez.
+        const bloque = _bloqueHandler();
+        expect(bloque).toContain('return;');
+        expect(bloque).toContain('coerceCountry(');
+    });
+});

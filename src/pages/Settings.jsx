@@ -369,7 +369,23 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // QTrackingFinish ya usa, línea 107 de ese archivo.
     const [isSavingCountry, setIsSavingCountry] = useState(false);
     const handleSelectCountry = async (country) => {
-        if (isSavingCountry || country === coerceCountry(userProfile?.health_profile?.country)) return;
+        // [P3-COUNTRY-PICK-EXPLICIT · 2026-08-22] La salida temprana exige que el país guardado
+        // EXISTA. Antes comparaba contra `coerceCountry(userProfile?.health_profile?.country)` a
+        // secas, y ese helper devuelve 'DO' ante la ausencia: para un perfil SIN país —quince de
+        // los dieciséis vivos— tocar la tarjeta de República Dominicana comparaba 'DO' contra 'DO'
+        // y salía sin escribir nada. Sin PATCH, sin toast, sin rastro: el usuario cree que eligió
+        // y el sistema no se entera.
+        //
+        // No es cosmético aunque el motor caiga a DO igual. `canonicalize_country` distingue
+        // «ausente» (fail-safe legítimo y silencioso) de «valor que no canoniza» (corrupción, con
+        // warning) — es toda la razón de ser de P2-COUNTRY-FAILSAFE-LOUD. Con la elección sin
+        // registrar, ese usuario se queda en «ausente» para siempre y nadie puede distinguir
+        // «eligió RD» de «nunca contestó». Misma familia que el «default sembrado».
+        //
+        // Se conserva la guarda para el caso que SÍ justifica saltarse el PATCH: el país ya
+        // guardado y el usuario vuelve a tocar la misma tarjeta.
+        const _paisGuardado = userProfile?.health_profile?.country;
+        if (isSavingCountry || (_paisGuardado != null && country === coerceCountry(_paisGuardado))) return;
         setIsSavingCountry(true);
         try {
             const res = await fetchWithAuth('/api/profile', {
