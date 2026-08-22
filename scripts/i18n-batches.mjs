@@ -14,7 +14,7 @@
  * puestos. `merge` valida que las CLAVES no hayan cambiado — un traductor que
  * "arregla" una clave rompe el enlace con el código y su trabajo nace huérfano.
  */
-import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // `execFileSync` y no `execSync`: no hay shell de por medio, así que ningún
@@ -43,7 +43,20 @@ if (mode === 'split') {
         stdio: 'ignore',
     });
 
-    if (existsSync(PARTS)) rmSync(PARTS, { recursive: true, force: true });
+    // [P2-I18N-BATCHES-DESTRUCTIVO · 2026-08-21] La misma trampa que el `merge`, una
+    // función más arriba: re-partir borraba `_parts/` con los `.done.json` que el
+    // traductor ya había entregado y nadie había cosido todavía. Si hay trabajo dentro,
+    // se archiva; si está vacía, se borra y ya.
+    if (existsSync(PARTS)) {
+        const hechos = readdirSync(PARTS).filter((f) => f.endsWith('.done.json'));
+        if (hechos.length) {
+            const archivo = `${PARTS}.pre-split-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+            renameSync(PARTS, archivo);
+            console.warn(`  ⚠ había ${hechos.length} lote(s) traducidos sin coser: archivados en ${archivo}`);
+        } else {
+            rmSync(PARTS, { recursive: true, force: true });
+        }
+    }
     mkdirSync(PARTS, { recursive: true });
 
     for (const lang of TARGETS) {
@@ -103,8 +116,26 @@ if (mode === 'split') {
         const ordered = Object.fromEntries(Object.keys(catalog).sort().map((k) => [k, catalog[k]]));
         writeFileSync(catalogPath, JSON.stringify(ordered, null, 2) + '\n', 'utf8');
     }
-    rmSync(PARTS, { recursive: true, force: true });
-    console.log(`[i18n:batches] ${merged} traducciones cosidas, ${skipped} descartadas. _parts/ eliminado.`);
+    // [P2-I18N-BATCHES-DESTRUCTIVO · 2026-08-21] Antes: `rmSync` incondicional y salida
+    // 0. Se llevaba por delante los lotes cuyas claves acababa de DESCARTAR —clave
+    // desconocida, valor vacío, plural sin `other`— y también los que el traductor
+    // todavía no había entregado, que viven en la misma carpeta. Sin salida distinta de
+    // cero, nadie se enteraba.
+    //
+    // Ahora: con descartes, la carpeta NO se toca (hay que poder mirar qué se cayó) y
+    // se sale 1. Sin descartes, se ARCHIVA en vez de borrarse — un `rename` cuesta lo
+    // mismo que un borrado y deja el trabajo del traductor recuperable si el merge
+    // resulta estar mal.
+    if (skipped > 0) {
+        console.error(
+            `[i18n:batches] ${merged} traducciones cosidas y ${skipped} DESCARTADAS. ` +
+            `${PARTS} se conserva intacto para que puedas ver qué se cayó.`,
+        );
+        process.exit(1);
+    }
+    const archivo = `${PARTS}.merged-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    renameSync(PARTS, archivo);
+    console.log(`[i18n:batches] ${merged} traducciones cosidas, 0 descartadas. _parts/ archivado en ${archivo}.`);
 } else {
     console.error('Uso: node scripts/i18n-batches.mjs split <n> | merge');
     process.exit(1);

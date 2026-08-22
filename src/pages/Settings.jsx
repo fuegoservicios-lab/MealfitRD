@@ -2539,7 +2539,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             {t('Idioma')}
                         </h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                            {t('Cambia el idioma de la interfaz. Tu plan y tus recetas siguen en español; el coach te responde en tu idioma.')}
+                            {t('Cambia el idioma de la app. Tu plan, tus recetas y el coach te llegan traducidos; los nombres de los alimentos se quedan en español, que es como los identifica el motor.')}
                         </p>
 
                         <div

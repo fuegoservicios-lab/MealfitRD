@@ -392,6 +392,7 @@ const I18nContext = createContext({
     tn,
     setLocale: async () => false,
     ready: true,
+    catalogVersion: 0,
 });
 
 /**
@@ -416,6 +417,23 @@ export function I18nProvider({ children }) {
     const [locale, setLocaleState] = useState(() => getStoredLocale());
     const [ready, setReady] = useState(() => getStoredLocale() === DEFAULT_LOCALE);
 
+    // [P2-I18N-READY-LOAD-BEARING · 2026-08-21] El disparador del repintado, EXPLÍCITO.
+    //
+    // Hasta ahora lo era `ready`, y por accidente. Con `fr-FR` guardado: `locale` nace
+    // ya en `fr-FR`, el primer render pinta con el catálogo vacío (todo en español), y
+    // el efecto de arranque hace `setLocaleState(getLocale())` — que escribe EL MISMO
+    // valor, así que React lo descarta y no repinta. El único cambio de estado que
+    // quedaba era `setReady(true)`.
+    //
+    // O sea: un booleano con CERO consumidores en todo el frontend y default `true` en
+    // el contexto sostenía el arranque de los cuatro idiomas que no son es-DO. Un imán
+    // de borrado: el día que alguien lo limpie por «no lo usa nadie», el francés
+    // arranca en español y nada falla — simplemente se lee mal.
+    //
+    // El contador sube cuando el CATÁLOGO cambia, que es la condición real. `ready` se
+    // queda (es API pública del contexto) pero deja de ser lo que sostiene el mecanismo.
+    const [catalogVersion, setCatalogVersion] = useState(0);
+
     // Sin guarda `mounted`: desde React 18 un setState sobre un componente
     // desmontado es un no-op silencioso — la vieja advertencia que justificaba
     // ese ref ya no existe. Mantenerlo aquí además rompía la regla
@@ -426,6 +444,7 @@ export function I18nProvider({ children }) {
         (async () => {
             await initLocale();
             setLocaleState(getLocale());
+            setCatalogVersion((n) => n + 1);   // el repintado de arranque cuelga de aquí
             setReady(true);
         })();
     }, []);
@@ -435,7 +454,14 @@ export function I18nProvider({ children }) {
     // igual. Sin esta suscripción, el idioma del perfil se aplicaría al DOM
     // (`<html lang>`) y al catálogo pero el subárbol no se remontaría.
     useEffect(() => {
-        const onChange = (next) => setLocaleState(next);
+        // El contador sube TAMBIÉN aquí: `loadLocale` notifica tras cambiar el
+        // catálogo, y hay un caso en que `next` es el locale que ya estaba en el estado
+        // (recarga del mismo idioma) — ahí `setLocaleState` es un no-op y sin el
+        // contador no habría repintado.
+        const onChange = (next) => {
+            setLocaleState(next);
+            setCatalogVersion((n) => n + 1);
+        };
         _subscribers.add(onChange);
         return () => { _subscribers.delete(onChange); };
     }, []);
@@ -453,14 +479,14 @@ export function I18nProvider({ children }) {
     }, []);
 
     const value = useMemo(
-        () => ({ locale, t, tn, setLocale, ready }),
-        [locale, setLocale, ready]
+        () => ({ locale, t, tn, setLocale, ready, catalogVersion }),
+        [locale, setLocale, ready, catalogVersion]
     );
 
     return React.createElement(I18nContext.Provider, { value }, children);
 }
 
-/** Acceso completo: `{ locale, t, tn, setLocale, ready }`. */
+/** Acceso completo: `{ locale, t, tn, setLocale, ready, catalogVersion }`. */
 export function useI18n() {
     return useContext(I18nContext);
 }

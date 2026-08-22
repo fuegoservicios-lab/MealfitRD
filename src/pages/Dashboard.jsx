@@ -4126,9 +4126,24 @@ const DashboardInner = () => {
 
             // [P1-PDF-XSS-AUDITED: htmlContent compuesto con escapeHtml() en
             // toda interpolación user-controlled (display_name, category,
-            // displayQty, _inventoryNote, durationText, banners). El render
-            // se hace en un div detached que se pasa a html2pdf — no se
-            // inyecta al DOM live. Auditoría P1-1 + P1-PDF-XSS-BLANKET.]
+            // displayQty, _inventoryNote, durationText, banners). Auditoría
+            // P1-1 + P1-PDF-XSS-BLANKET.
+            //
+            // [P2-PDF-MARCADOR-FALSO · 2026-08-21] Este marcador decía «se hace en un div
+            // detached — no se inyecta al DOM live», y es FALSO: la rama
+            // `!paginateFormally` de más abajo hace `document.body.appendChild(element)`
+            // para medir `scrollHeight` (fuera de pantalla y con `visibility:hidden`, y
+            // se retira acto seguido, pero insertado).
+            //
+            // La diferencia no es cosmética. `innerHTML` sobre un nodo DETACHED no
+            // dispara cargas de recursos, así que un `<img onerror=…>` inyectado ahí
+            // nunca corre; al insertarlo en el documento, SÍ. O sea: la defensa real es
+            // `escapeHtml()`, y siempre lo fue — el «detached» era un colchón que no
+            // existe. Si alguien añade una interpolación sin escapar confiando en esta
+            // nota, no hay segunda línea.
+            //
+            // Se corrige en vez de borrarse: un marcador de auditoría que describe mal
+            // el mecanismo es peor que ninguno, porque el siguiente lector le cree.]
             element.innerHTML = htmlContent;
 
             // [P1-PDF-3] Configuración de paginación según densidad.
