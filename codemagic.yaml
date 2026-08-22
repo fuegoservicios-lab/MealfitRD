@@ -45,8 +45,10 @@ workflows:
       # `fetch-signing-files --create` (decisión 3).
       vars:
         BUNDLE_ID: "com.bioboros.app"
-        # Workspace y scheme que `cap sync` genera/repara en la Mac (paso 4).
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        # [Build #2, 2026-08-22] PROYECTO, no workspace: Capacitor 8 con Swift
+        # Package Manager no genera .xcworkspace (eso es CocoaPods). Solo existe
+        # ios/App/App.xcodeproj — estaba en el repo y asumí el layout de Pods.
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         # ID numérico de la app en App Store Connect (General → App Information →
         # Apple ID). Se lee desde una env var de Codemagic para no commitearlo
@@ -83,8 +85,9 @@ workflows:
           echo "bundle nativo OK"
 
       - name: Capacitor sync en la Mac (decisión 4)
-        # Regenera Package.swift (el commiteado tiene backslashes de Windows), copia
-        # dist/ a ios/App/App/public y deja el scheme compartido que xcodebuild exige.
+        # Regenera Package.swift (el commiteado tiene backslashes de Windows) y copia
+        # dist/ a ios/App/App/public. El scheme compartido NO lo genera (medido):
+        # viaja commiteado en ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme.
         script: npx cap sync ios
 
       - name: Perfiles de firma desde la API key (decisión 3)
@@ -98,7 +101,7 @@ workflows:
           keychain add-certificates
           # El proyecto Xcode vive en ios/App (Capacitor), no en la raíz: sin
           # `--project`, use-profiles busca desde el cwd y no lo encuentra.
-          xcode-project use-profiles --project "ios/App/App.xcodeproj"
+          xcode-project use-profiles --project "$XCODE_PROJECT"
 
       - name: Build number = último de TestFlight + 1
         # Apple rechaza un build number repetido. Se lee el último de App Store Connect
@@ -114,7 +117,7 @@ workflows:
       - name: IPA firmado
         script: |
           xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
+            --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME"
 
     artifacts:
