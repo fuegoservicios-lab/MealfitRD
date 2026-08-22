@@ -17,6 +17,9 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { useI18n } from '../../i18n';
+// [P1-CHECKOUT-CREDITS-TRUTH · 2026-08-22] SSOT del ladder: las cifras y los
+// múltiplos se derivan, jamás se copian (ver `getPlanFeatures`).
+import { TIER_CREDITS, creditsVsPredecessor, includesPredecessor } from '../../config/plans';
 
 /* ─── Plan Feature Map ─── */
 // [P2-PAYMENT-FEATURES-ALIGN · 2026-05-31] La pantalla de checkout anunciaba como
@@ -30,22 +33,38 @@ import { useI18n } from '../../i18n';
    cambia. Se retiran los claims de "Memoria" como exclusivas de pago. */
 // [P1-I18N-DASHBOARD · 2026-08-15] Funciones y no constantes: una tabla de copy
 // en ámbito de módulo se evalúa al importar, antes de que el catálogo exista.
+//
+// [P1-CHECKOUT-CREDITS-TRUTH · 2026-08-22] Las cifras se DERIVAN de
+// `config/plans.js`; estaban escritas a mano y se quedaron en el ladder VIEJO
+// (cuando Gratis eran 15): Básico decía "3× más que Gratis" (son 5×), Plus "13×"
+// (son 20×) y Max vendía "Créditos Ilimitados" cuando `auth._TIER_LIMITS` corta
+// en 500. La landing y `/upgrade` sí derivaban desde `P1-CREDITS-LADDER`
+// (31-jul), así que el usuario leía «500 Créditos al mes» en la tarjeta y
+// «ilimitado» en la pantalla donde pone la tarjeta — una contradicción dentro
+// del mismo embudo, justo en el paso del dinero.
+//
+// El comentario `P2-PAYMENT-FEATURES-ALIGN` de arriba dice que esta pantalla se
+// alineó con Pricing.jsx, y es cierto: se alineó en MAYO. Por eso ahora no se
+// copia el resultado sino la FUENTE — `creditsVsPredecessor`/`includesPredecessor`
+// son los mismos helpers que usan las otras dos superficies, así que el próximo
+// cambio de ladder llega aquí solo.
 const getPlanFeatures = (t) => ({
     basic: [
-        { icon: "⚡", text: t("50 Créditos de IA al mes") },
-        { icon: "📈", text: t("3× más que Gratis") },
-        { icon: "✅", text: t("Todo lo incluido en Gratis") },
+        { icon: "⚡", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.basic }) },
+        { icon: "📈", text: creditsVsPredecessor('basic', t) },
+        { icon: "✅", text: includesPredecessor('basic', t) },
     ],
     plus: [
-        { icon: "⚡", text: t("200 Créditos de IA al mes") },
-        { icon: "📈", text: t("13× más que Gratis") },
-        { icon: "✅", text: t("Todo lo incluido en Básico") },
+        { icon: "⚡", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.plus }) },
+        { icon: "📈", text: creditsVsPredecessor('plus', t) },
+        { icon: "✅", text: includesPredecessor('plus', t) },
     ],
     ultra: [
-        { icon: "∞", text: t("Créditos Ilimitados") },
-        { icon: "🚀", text: t("Generación Ilimitada de Planes") },
+        { icon: "⚡", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.ultra }) },
+        { icon: "📈", text: creditsVsPredecessor('ultra', t) },
         { icon: "🔮", text: t("Acceso Anticipado a Funciones") },
         { icon: "👑", text: t("Soporte Prioritario VIP") },
+        { icon: "✅", text: includesPredecessor('ultra', t) },
     ]
 });
 
@@ -58,7 +77,11 @@ const getPlanDisplay = (t) => ({
 const PaymentModal = ({
     isOpen, onClose, onSuccess,
     price = "25.00", planName = "Suscripción Plus",
-    tier = "plus", isAnnual = false
+    tier = "plus", isAnnual = false,
+    // [P1-BILLING-ORPHAN-RECOVERY · 2026-08-22] Id del usuario que paga. Viaja a
+    // PayPal como `custom_id` para que un cobro cuyo `/verify` no llegó siga
+    // siendo atribuible desde el webhook (ver `handleCreateSubscription`).
+    userId = null
 }) => {
     // [P2-I18N-PAYPAL-LOCALE · 2026-08-21] Hace falta `locale` ademas de `t` para
     // decirle al SDK de PayPal en que idioma hablar.
@@ -174,7 +197,9 @@ const PaymentModal = ({
     const discountAmount = (originalPrice * discountPercent / 100);
     const finalPrice = (originalPrice - discountAmount).toFixed(2);
     const _planFeatures = getPlanFeatures(t);
-    const features = _planFeatures[tier] || _planFeatures.plus;
+    // `.filter(Boolean)`: `creditsVsPredecessor` devuelve null si el ladder dejara
+    // de crecer — sin el filtro quedaría una fila vacía con su icono.
+    const features = (_planFeatures[tier] || _planFeatures.plus).filter((f) => f && f.text);
 
     const handleCreateSubscription = (data, actions) => {
         const paypalPlanId = PLAN_IDS[isAnnual ? 'annual' : 'monthly'][tier];
@@ -190,6 +215,24 @@ const PaymentModal = ({
         }
 
         const payload = { 'plan_id': paypalPlanId };
+
+        // [P1-BILLING-ORPHAN-RECOVERY · 2026-08-22] `custom_id` = quién paga.
+        //
+        // Hasta ahora `POST /api/subscription/verify` era el ÚNICO camino por el que
+        // una suscripción llegaba a `user_profiles`, y lo dispara ESTE navegador desde
+        // `onApprove`. Si entre la aprobación y esa llamada se cae la red, el usuario
+        // cierra la pestaña o `/verify` devuelve 5xx, PayPal cobra y el sistema no se
+        // entera: `paypal_subscription_id` queda NULL y los webhooks filtran justo por
+        // esa columna → 0 filas, no-op silencioso. Cobro sin acceso y sin alerta.
+        //
+        // PayPal nos devuelve este campo FIRMADO dentro del webhook, así que el backend
+        // puede adoptar al huérfano sin depender de que el navegador sobreviva. El TIER
+        // lo sigue derivando ÉL del `plan_id` (I-Billing-1): esto dice a quién, no qué.
+        //
+        // Solo se añade si hay valor: PayPal guardaría un "undefined" literal.
+        if (typeof userId === 'string' && userId.trim()) {
+            payload.custom_id = userId.trim().slice(0, 127);  // cap de PayPal
+        }
 
         if (discountPercent > 0) {
             payload.plan = {
@@ -627,7 +670,8 @@ PaymentModal.propTypes = {
     price: PropTypes.string,
     planName: PropTypes.string,
     tier: PropTypes.string,
-    isAnnual: PropTypes.bool
+    isAnnual: PropTypes.bool,
+    userId: PropTypes.string
 };
 
 export default PaymentModal;

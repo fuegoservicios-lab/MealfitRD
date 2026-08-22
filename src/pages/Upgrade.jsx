@@ -317,7 +317,10 @@ const Upgrade = () => {
     // `PLAN_LIMIT` removidos del destructure — solo los usaba el
     // `userContextCard` que ya no se renderiza. `currentTierLabel` también
     // eliminado abajo por la misma razón.
-    const { planData, upgradeUserPlan, userProfile, isGuest } = useAssessment();
+    // [P1-BILLING-ORPHAN-RECOVERY · 2026-08-22] `session` para el `custom_id` del
+    // checkout: MISMA fuente que usa `upgradeUserPlan` al llamar a `/verify`, para
+    // que el id que viaja a PayPal y el que se verifica sean el mismo.
+    const { planData, upgradeUserPlan, userProfile, isGuest, session } = useAssessment();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [billingPeriod, setBillingPeriod] = useState('monthly');
@@ -605,6 +608,7 @@ const Upgrade = () => {
                         planName={selectedPlan?.name || 'Suscripción Básico'}
                         tier={selectedPlan?.tier || 'basic'}
                         isAnnual={selectedPlan?.isAnnual || false}
+                        userId={session?.user?.id}
                     />
                 </Suspense>
             )}
