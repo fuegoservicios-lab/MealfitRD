@@ -15,7 +15,7 @@ import styles from './RecipesView.module.css';
 import { useT, formatNumber } from '../../i18n';
 import { mealSlotLabel, mealDifficultyLabel } from '../../utils/displayMeal';
 // [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] anotaciones sin número (ver util).
-import { numberRecipeSteps } from '../../utils/recipeSteps';
+import { numberRecipeSteps, parseRecipeStep } from '../../utils/recipeSteps';
 // [P1-EATEN-SLOT-COPY · 2026-07-28] Texto del chip "ya registraste tu
 // <slot>" — SSOT compartido con Dashboard.jsx/MobileRecipes.jsx. El detalle
 // (qué se registró + kcal) llega precomputado en `meal._eatenClaim`
@@ -28,20 +28,10 @@ const Svg = ({ d, size = 18 }) => (
        dangerouslySetInnerHTML={{ __html: d }} />
 );
 
-// Secciones especiales del paso (mismo contrato que generateRecipeHTML en
-// Recipes.jsx): "Mise en place:", "El Toque de Fuego:", "Montaje:".
-const SECTIONS = [
-  { rx: /^mise en place:\s*/i, title: 'Mise en place' },
-  { rx: /^(el\s+)?toque de fuego:\s*/i, title: 'El Toque de Fuego' },
-  { rx: /^montaje:\s*/i, title: 'Montaje' },
-];
-function parseStep(raw) {
-  const s = String(raw || '');
-  for (const sec of SECTIONS) {
-    if (sec.rx.test(s)) return { title: sec.title, body: s.replace(sec.rx, '') };
-  }
-  return { title: null, body: s };
-}
+// [P1-DISPLAY-VOCAB-CERRADO · 2026-08-21] `SECTIONS` + `parseStep` vivían aquí Y en el
+// otro componente de recetas, byte a byte, mientras la otra mitad del mismo vocabulario
+// (las anotaciones) ya estaba en `utils/recipeSteps.js`. Ahora hay un solo sitio, y el
+// rótulo se traduce en el render — no en el módulo, que congelaría el idioma.
 // **negrita** → <strong>
 function renderBold(text) {
   return String(text).split(/(\*\*.*?\*\*)/g).map((part, i) =>
@@ -371,7 +361,8 @@ function RecipeDetail({ meal, steps, checkedIngredients, onToggleIngredient, onP
               {numberRecipeSteps(steps).map(({ raw, annotation, number }, i) => {
                 const si = STEP_ICONS[i % STEP_ICONS.length];
                 const done = doneSteps.has(i);
-                const { title, body } = parseStep(raw);
+                const { titleKey, body } = parseRecipeStep(raw);
+              const title = titleKey ? t(titleKey) : null;
                 return (
                   // [P1-EATEN-RECIPE-LOCK · 2026-07-28] Mismo tratamiento que los
                   // checkboxes de ingredientes: `aria-disabled` + click inerte

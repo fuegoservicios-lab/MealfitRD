@@ -47,7 +47,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 // [P3-AJI-MORRON-DISPLAY · 2026-06-22] Terminología RD: pimiento dulce → "ají morrón"
 // en el texto del ingrediente mostrado (conservador; no toca cubanela/pimienta/paprika).
 import { displayAjiMorron } from '../utils/ingredientDisplay';
-import { isRecipeAnnotation } from '../utils/recipeSteps';
+import { isRecipeAnnotation, parseRecipeStep } from '../utils/recipeSteps';
 import Wordmark from '../components/common/Wordmark';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] SSOT del matcher "ya comiste esto hoy"
 // (utils/todayRemaining.js) — el MISMO módulo que usa Dashboard.jsx
@@ -362,19 +362,25 @@ const Recipes = () => {
         const stepsHTML = _recipeSteps.length ? _recipeSteps.map((step) => {
             const _isNote = isRecipeAnnotation(step);
             if (!_isNote) _stepNo += 1;
-            let sectionTitle = "";
-            let color = "#4F46E5";
-            let content = step;
-            const lowerT = (typeof step === 'string' ? step : '').toLowerCase();
-            if (lowerT.startsWith("mise en place:")) { sectionTitle = "Mise en place"; color = "#00B4D8"; }
-            if (lowerT.startsWith("el toque de fuego:") || lowerT.startsWith("toque de fuego:")) { sectionTitle = "El Toque de Fuego"; color = "#F97316"; }
-            if (lowerT.startsWith("montaje:")) { sectionTitle = "Montaje"; color = "#8B5CF6"; }
-
-            if (sectionTitle) {
-                const prefixRegex = sectionTitle.toLowerCase() === "toque de fuego" || sectionTitle.toLowerCase() === "el toque de fuego"
-                    ? /(el )?toque de fuego:\s*/i : new RegExp(`${sectionTitle}:\\s*`, 'i');
-                content = content.replace(prefixRegex, '');
-            }
+            // [P1-DISPLAY-VOCAB-CERRADO · 2026-08-21] Este era el TERCER ejemplar del
+            // mismo vocabulario —`startsWith` a mano, con un regex de recorte que
+            // reconstruía el patrón a partir del propio título—. Ahora resuelve contra el
+            // SSOT (`utils/recipeSteps.js`) y aquí queda sólo lo propio de esta
+            // superficie: el color de cada sección.
+            //
+            // El rótulo sale en ESPAÑOL a propósito: el PDF entero lo está
+            // (P2-I18N-PDF-RECETA) y traducir sólo estas tres palabras dejaría un
+            // documento mestizo. Cuando el PDF se traduzca, esto pasa por `t(titleKey)`
+            // igual que sus dos hermanos de pantalla.
+            const _COLOR_SECCION = {
+                'Mise en place': '#00B4D8',
+                'El Toque de Fuego': '#F97316',
+                'Montaje': '#8B5CF6',
+            };
+            const { titleKey, body: _cuerpoPaso } = parseRecipeStep(step);
+            const sectionTitle = titleKey || "";
+            const color = _COLOR_SECCION[titleKey] || "#4F46E5";
+            let content = titleKey ? _cuerpoPaso : step;
 
             return `
                 <div style="display: flex; gap: 0.6em; margin-bottom: 0.7em;">

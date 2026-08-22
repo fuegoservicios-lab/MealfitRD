@@ -1,3 +1,5 @@
+import { i18nKey } from '../i18n';
+
 // [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] Clasifica un "paso" de receta en ACCIÓN de cocina
 // vs ANOTACIÓN informativa.
 //
@@ -50,4 +52,36 @@ export function numberRecipeSteps(steps) {
         if (!annotation) n += 1;
         return { raw, annotation, number: annotation ? null : n };
     });
+}
+
+// [P1-DISPLAY-VOCAB-CERRADO · 2026-08-21] La OTRA mitad del mismo vocabulario cerrado:
+// las etiquetas de SECCIÓN. Vivían duplicadas byte a byte en `RecipesView.jsx` y
+// `MobileRecipes.jsx`, al lado de un util que ya poseía las anotaciones. Se unifican
+// aquí — la lección de P1-DIET-CANON-SSOT, donde tres tablas a mano driftearon.
+//
+// El prefijo español es un IDENTIFICADOR, no prosa: el backend lo conserva literal
+// aunque traduzca el resto de la línea (`plan_display_i18n._VOCAB_CERRADO`), y aquí se
+// reconoce por él. Lo que se traduce es el RÓTULO que ve el usuario.
+//
+// Por eso esto devuelve `titleKey` y NO un título ya traducido: un `t()` a nivel de
+// módulo se evalúa al importar y congela la etiqueta en el idioma de arranque —y en
+// es-DO parece correcto—. Traduce el componente, en cada render.
+export const RECIPE_SECTIONS = [
+    { rx: /^mise en place:\s*/i, titleKey: i18nKey('Mise en place') },
+    { rx: /^(el\s+)?toque de fuego:\s*/i, titleKey: i18nKey('El Toque de Fuego') },
+    { rx: /^montaje:\s*/i, titleKey: i18nKey('Montaje') },
+];
+
+/**
+ * Separa la etiqueta de sección del cuerpo del paso.
+ * @param {unknown} raw texto del paso
+ * @returns {{titleKey: string|null, body: string}} `titleKey` es la clave i18n (que en
+ *   este motor ES el texto español); el componente la pasa por `t()`.
+ */
+export function parseRecipeStep(raw) {
+    const s = String(raw || '');
+    for (const sec of RECIPE_SECTIONS) {
+        if (sec.rx.test(s)) return { titleKey: sec.titleKey, body: s.replace(sec.rx, '') };
+    }
+    return { titleKey: null, body: s };
 }

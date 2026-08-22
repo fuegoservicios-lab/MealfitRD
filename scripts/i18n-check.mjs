@@ -97,6 +97,15 @@ function walk(dir, out = []) {
 // propósito y se reportan aparte como sospechosas.
 const T_CALL = /(?<![\w.])t\(\s*(['"])((?:(?!\1)[^\\]|\\.)*)\1/g;
 const TN_CALL = /(?<![\w.])tn\(\s*[^,]+,\s*(['"])((?:(?!\1)[^\\]|\\.)*)\1\s*,\s*(['"])((?:(?!\3)[^\\]|\\.)*)\3/g;
+// [P1-DISPLAY-VOCAB-CERRADO · 2026-08-21] `i18nKey('…')` declara una clave que se
+// resuelve en otro sitio (una tabla de rótulos con `t(sec.titleKey)`). Sin esto, esa
+// clave sale HUÉRFANA en los cuatro catálogos y el mensaje del gate invita a borrar
+// justo la traducción que hace falta.
+//
+// NO cuenta como violación de ámbito de módulo: es identidad pura, no lee el catálogo,
+// así que ponerla en un `const` de módulo no congela nada. Esa es toda la diferencia
+// con `t()`, y es la razón de que exista.
+const KEY_DECL = /(?<![\w.])i18nKey\(\s*(['"])((?:(?!\1)[^\\]|\\.)*)\1/g;
 
 function unescape(s) {
     return s.replace(/\\(['"\\])/g, '$1').replace(/\\n/g, '\n');
@@ -222,7 +231,7 @@ const moduleScopeHits = [];      // { file, key }
 
 // [P1-I18N-GATE-CIEGO-SIN-T · 2026-08-21] Aquí vivía
 //
-//     if (!/\bt\(|\btn\(/.test(src)) continue;
+//     if (!/\bt\(|\btn\(|\bi18nKey\(/.test(src)) continue;
 //
 // y era el corazón del punto ciego: un fichero sin UNA SOLA llamada `t()` ni se
 // abría. Medido: 8 utils de etiquetas (planWeeks, shelfLife, authErrors,
@@ -244,6 +253,13 @@ for (const file of files) {
         if (!keys.has(key)) keys.set(key, []);
         if (!keys.get(key).includes(rel)) keys.get(key).push(rel);
         if (isModuleScopeCode(src, m.index, modOffsets)) moduleScopeHits.push({ file: rel, key });
+    }
+    for (const m of src.matchAll(KEY_DECL)) {
+        const key = unescape(m[2]);
+        if (!key) continue;
+        if (!keys.has(key)) keys.set(key, []);
+        if (!keys.get(key).includes(rel)) keys.get(key).push(rel);
+        // sin `moduleScopeHits`: ver el comentario de KEY_DECL
     }
     for (const m of src.matchAll(TN_CALL)) {
         // La clave de un plural es la forma «other» (el 2º literal).

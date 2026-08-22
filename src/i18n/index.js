@@ -218,6 +218,29 @@ export function t(key, vars) {
  *   "{n} días restantes": { "one": "{n} day left", "other": "{n} days left" }
  * Sin la categoría exacta cae a `other`, y sin objeto cae al español.
  */
+/**
+ * [P1-DISPLAY-VOCAB-CERRADO · 2026-08-21] Declara que esta cadena ES una clave de
+ * traducción, aunque quien la resuelva sea otro sitio.
+ *
+ * Identidad pura: no lee el catálogo y por eso puede vivir en ámbito de módulo sin
+ * congelar nada. Lo único que hace es ser VISIBLE para `scripts/i18n-check.mjs`, que
+ * solo reconoce `t('literal')`.
+ *
+ * Sin esto, una tabla de rótulos —`{ titleKey: i18nKey('Montaje') }` resuelta más tarde
+ * con `t(titleKey)`— aparece como clave HUÉRFANA en los cuatro catálogos, y el mensaje
+ * del gate invita a borrar la traducción que sí hace falta.
+ *
+ * Se declara con una LLAMADA y no con un comentario a propósito: si alguien renombra la
+ * clave, el extractor lo ve, porque lee el argumento de verdad.
+ *
+ *   const SECCIONES = [{ rx: /^montaje:/i, titleKey: i18nKey('Montaje') }];
+ *   // …y en el render:  t(sec.titleKey)
+ *
+ * @param {string} clave la clave (que en este motor ES el texto español)
+ * @returns {string} la misma clave, sin tocar
+ */
+export const i18nKey = (clave) => clave;
+
 export function tn(count, one, other, vars) {
     const n = Number(count);
     const key = other;
