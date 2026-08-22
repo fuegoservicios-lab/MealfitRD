@@ -116,6 +116,10 @@ const getAlternativeMeal = (mealType, currentMealName, targetCalories, userDietT
     };
 };
 import { toast } from 'sonner';
+// [P2-FRONTEND-DOMINICAN-FALLBACK · 2026-08-21] SSOT de países del frontend (espejo del
+// backend con test de paridad). Comparar contra 'DO' a mano aquí sería la tabla que
+// P1-DIET-CANON-SSOT prohíbe.
+import { coerceCountry, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI } from '../config/countries';
 // [P1-GENERATE-TURNS-MODE-ON · 2026-08-14] Espejo local del modo tras generar.
 import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
@@ -3629,6 +3633,31 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             console.error("❌ Falló IA, usando fallback local...", error);
 
             // Fallback Local
+            //
+            // [P2-FRONTEND-DOMINICAN-FALLBACK · 2026-08-21] La red local es `DOMINICAN_MEALS`:
+            // mangú, La Bandera, sancocho. Para un dominicano es exactamente lo que debe hacer;
+            // para un usuario beta son tres cosas malas a la vez — le da un plato que no puede
+            // cocinar (sus víveres no están en su lista ni en su catálogo de país), lo PERSISTE en
+            // el plan (así que la receta y la lista de la compra dejan de coincidir: la
+            // incoherencia que el guard existe para cazar, metida por el propio frontend) y lo
+            // hace en silencio (ve un plato nuevo sin saber que la IA falló).
+            //
+            // NO se curan tablas de platos por país. Cinco listas de recetas con sus calorías
+            // escritas de memoria son datos nutricionales fabricados — la clase que costó la
+            // auditoría de procedencia del catálogo. En beta se hace lo honesto: no sustituir,
+            // avisar, y dejar el plato original intacto. Es la MISMA forma que la rama
+            // `swap_llm_retries_exhausted` de diez líneas más arriba, no una inventada.
+            //
+            // Queda abierto que un usuario beta con el swap fallido se quede sin alternativa: eso
+            // se cierra AÑADIENDO plantillas curadas, hermano de P1-BETA-FRAGMENT-DEPTH.
+            const _fbCountry = coerceCountry(formData?.country);
+            if (COUNTRY_SYSTEM_UI && _fbCountry !== DEFAULT_COUNTRY) {
+                toast.error(t('Chef IA sin alternativa'), {
+                    description: t('No pudimos cambiar este plato. Tu plan queda como estaba; inténtalo de nuevo en un momento.'),
+                    duration: 6000,
+                });
+                return null;
+            }
             const localFallback = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);
 
             const updatedPlan = { ...planData };
