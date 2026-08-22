@@ -37,7 +37,7 @@ import { COUNTRIES, COUNTRY_SYSTEM_UI } from '../config/countries';
 // Nota: solo se usa para el TEXTO renderizado del título/descripción — la
 // identidad del plato (`meal.name` original) sigue siendo la clave de "me
 // gusta"/swap/PDF, que deben seguir resolviendo por el nombre canónico español.
-import { mealDisplay, mealSlotLabel, planInsightsDisplay } from '../utils/displayMeal';
+import { langDeCampo, mealDisplay, mealSlotLabel, planInsightsDisplay } from '../utils/displayMeal';
 
 // [P1-DASH-GENERATING-HONESTY · 2026-08-16] «el próximo llega el <día>» a partir de
 // `next_chunk_eta`. Devuelve '' ante cualquier entrada inservible: el copy que lo
@@ -8509,7 +8509,15 @@ const DashboardInner = () => {
                                                     {/* [DASH-MEAL-TITLE-GAP · 2026-06-01] marginBottom
                                                         0.25rem → 0.5rem: el chip de tiempo ("10 min")
                                                         quedaba pegado al título. */}
-                                                    <h3 style={{
+                                                    {/* [P2-I18N-LANG-POR-PARTE · 2026-08-21] `lang` SOLO cuando el
+                                                        nombre cayó al español dentro de una interfaz que no lo está.
+                                                        Sin esto, un lector de pantalla en francés sintetiza «Pollo
+                                                        guisado con arroz blanco» con fonética francesa — no suena
+                                                        raro: es ininteligible. Cuando la traducción SÍ llegó, heredar
+                                                        `<html lang>` es lo correcto y un `lang` redundante es ruido
+                                                        que se queda obsoleto en cuanto cambie la traducción. */}
+                                                    <h3 lang={langDeCampo(meal, 'name', _dashLocale) || undefined}
+                                                        style={{
                                                         fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem',
                                                         // [P1-TODAY-REMAINING · 2026-07-28] line-through, mismo
                                                         // lenguaje visual que el tab de un día pasado (~línea 6789).

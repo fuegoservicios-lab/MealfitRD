@@ -44,6 +44,10 @@ export function MobileRecipes({
   meal, steps = [], dayKcal, activeDayLabel = '', activeDayEsHoy = false,
   checkedIngredients = {}, onToggleIngredient,
   onPDF,
+  // [P2-I18N-LANG-POR-PARTE · 2026-08-21] `langs` lo calcula el CALLER: aquí el meal
+  // llega ya traducido, así que desde dentro no hay forma de saber qué campo cayó al
+  // español. `{}` por defecto — sin él, un consumidor viejo pintaría `lang="undefined"`.
+  langs = {},
 }) {
   const t = useT();
   const mt = metaFor(meal.meal);
@@ -139,7 +143,9 @@ export function MobileRecipes({
           <p id={lockReasonId} className={styles.srOnly}>{meal._eatenClaim}</p>
         )}
         <div className={styles.head}>
-          <h2 className={styles.title}>{meal.name}</h2>
+          {/* [P2-I18N-LANG-POR-PARTE · 2026-08-21] `lang` sólo si ESTE campo cayó
+              al español; si vino traducido, hereda `<html lang>`. */}
+          <h2 className={styles.title} lang={langs?.name || undefined}>{meal.name}</h2>
           <div className={styles.chips}>
             <span className={`${styles.chip} ${styles.kcal}`}><Svg d={ICONS.flame} size={13} /> {meal.cals} kcal</span>
             {meal.prep_time && <span className={styles.chip}><Svg d={ICONS.clock} size={13} /> {meal.prep_time}</span>}
@@ -176,7 +182,7 @@ export function MobileRecipes({
           </div>
         )}
 
-        {meal.desc && <p className={styles.desc}>“{meal.desc}”</p>}
+        {meal.desc && <p className={styles.desc} lang={langs?.desc || undefined}>“{meal.desc}”</p>}
 
         {/* [P-RECIPES-COOK-REMOVED · 2026-07-12] Botón "Cocinar" retirado —
             única acción: descargar PDF (estilo primary).
@@ -256,7 +262,7 @@ export function MobileRecipes({
                   <span className={styles.node}>{done ? <Svg d={ICONS.check} size={18} /> : (annotation ? '•' : number)}</span>
                   <div className={styles.stepCard}>
                     {title && <div className={styles.stepTitle}>{title}</div>}
-                    <div className={styles.stepText}>{renderBold(body)}</div>
+                    <div className={styles.stepText} lang={langs?.recipe || undefined}>{renderBold(body)}</div>
                   </div>
                 </div>
               );

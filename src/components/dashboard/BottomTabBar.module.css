@@ -24,6 +24,12 @@
 
     .tab {
         flex: 1;
+        /* [P2-I18N-NAV-DESBORDE · 2026-08-21] `min-width: 0` es load-bearing y va AQUI,
+           no en la etiqueta. Un flex item tiene `min-width: auto` por defecto, o sea que
+           NO puede encoger por debajo del ancho minimo de su contenido: sin esto, el
+           `text-overflow` de `.tabLabel` no llega a activarse nunca porque la celda se
+           ensancha en vez de recortar, y lo que se desborda es la barra entera. */
+        min-width: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -71,6 +77,21 @@
         letter-spacing: 0.02em;
         line-height: 1;
         font-family: var(--font-body);
+        /* [P2-I18N-NAV-DESBORDE · 2026-08-21] Los rotulos del dashboard son cortos en
+           espanol —«Nevera», «Plan», «Recetas»— y no lo son en todos los idiomas:
+           «Garde-manger» tiene el doble de caracteres que «Nevera», y en frances la
+           etiqueta partia en dos lineas, empujando la altura de la barra y
+           desalineando los cinco iconos.
+           Recortar con puntos suspensivos es peor que envolver SOLO si la palabra
+           recortada deja de reconocerse; aqui el icono de encima ya identifica la
+           pestana, asi que un «Garde-man…» sigue siendo legible y la barra conserva su
+           geometria — que es lo que el usuario usa para orientarse sin leer.
+           `line-height: 1` de arriba hacia el desborde aun mas visible: la segunda
+           linea se pegaba a la primera. */
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .tabActive .tabLabel {

@@ -74,7 +74,7 @@ import { useT, useI18n, formatDate } from '../i18n';
 // del usuario — mismo helper SSOT que Dashboard.jsx. El PDF (handleDownloadPDF,
 // más abajo) queda FUERA de esta task a propósito (spec: "no PDFs — eso es
 // Task 5") y sigue recibiendo el meal ORIGINAL español, nunca el traducido.
-import { mealDisplay, mealDisplayName, mealSlotLabel, mealDifficultyLabel } from '../utils/displayMeal';
+import { langDeCampo, mealDisplay, mealDisplayName, mealSlotLabel, mealDifficultyLabel } from '../utils/displayMeal';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] Recetas gana su primer fetch:
 // `GET /api/diary/consumed/{userId}` de solo LECTURA (mismo endpoint que
 // TrackingProgress.jsx en el Dashboard) para alimentar la anotación de abajo.
@@ -831,9 +831,21 @@ const Recipes = () => {
                             dayKcal,
                             checkedIngredients,
                             onToggleIngredient: toggleIngredient,
-                            // [P1-PLAN-DISPLAY-I18N · 2026-08-19] El PDF sigue recibiendo el
-                            // meal ORIGINAL español (`activeMealRaw`), nunca `activeMeal`
-                            // (vista pintada) — fuera de esta task, ver comentario del import.
+                            // [P2-I18N-LANG-POR-PARTE · 2026-08-21] En qué idioma quedó cada
+                            // campo. Lo calcula el caller porque las vistas reciben el meal YA
+                            // traducido y no pueden saber cuál cayó al español.
+                            //
+                            // Tres campos y tres respuestas posibles, y por eso no vale un
+                            // `lang` de bloque: el nombre puede estar traducido y la receta no
+                            // —el validador del backend descarta por CAMPO y por LÍNEA—, así
+                            // que marcar el contenedor entero mentiría sobre la mitad.
+                            langs: {
+                                name: langDeCampo(activeMealRaw, 'name', locale),
+                                desc: langDeCampo(activeMealRaw, 'description', locale),
+                                recipe: langDeCampo(activeMealRaw, 'recipe', locale),
+                            },
+                            // [P2-I18N-PDF-RECETA · 2026-08-21] El PDF recibe el meal ORIGINAL y
+                            // lo traduce DENTRO del handler — ver `handleDownloadPDF`.
                             onPDF: () => handleDownloadPDF(activeMealRaw),
                         };
                         return isMobile

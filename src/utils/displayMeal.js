@@ -106,6 +106,80 @@ export function mealDisplay(meal, locale) {
     return { name, description, recipe, ingredients };
 }
 
+// ============================================================
+// [P2-I18N-LANG-POR-PARTE · 2026-08-21] En qué IDIOMA está cada trozo
+// ============================================================
+//
+// MEDIDO antes de esto: **un solo** `lang=` en todo `frontend/src`, y es el de los
+// nombres nativos del selector de idioma. CERO en cualquier CONTENIDO. Así que bajo
+// `<html lang="fr-FR">` un lector de pantalla sintetiza «Pollo guisado con arroz blanco»
+// con fonética francesa — no es que suene raro: es ininteligible. WCAG 3.1.2 (Language
+// of Parts) existe exactamente para esto, y axe no puede detectarlo: no hay forma
+// automática de saber que un texto no está en el idioma que declara su ancestro.
+//
+// EL MATIZ ES LOAD-BEARING: se marca POR PARTE, no en bloque. Un `lang="es"` de bloque
+// sería INCORRECTO en la lista de compras, donde la cadena es bilingüe por diseño
+// («Black beans (Habichuelas negras)»): marcarla entera como española haría pronunciar
+// «Black beans» a la española, que es el mismo defecto del revés.
+//
+// Y sólo se marca lo que HACE FALTA. Cuando el campo sí viene traducido, heredar
+// `<html lang>` es lo correcto y añadir un `lang` redundante es ruido que además se
+// queda obsoleto en cuanto cambie la traducción.
+
+/** El idioma base del contenido del plan: lo escribe el LLM en español canónico. */
+const _IDIOMA_DEL_PLAN = 'es';
+
+/**
+ * ¿Con qué `lang` hay que marcar este campo, o `null` si no hace falta?
+ *
+ * Devuelve `'es'` sólo cuando el campo se está pintando en español DENTRO de una
+ * interfaz que no lo está — que es el único caso en que la marca añade información.
+ *
+ * @param {object} meal   el meal crudo (con su `_display`, si lo tiene)
+ * @param {'name'|'description'|'recipe'|'ingredients'} campo
+ * @param {string} locale el locale ACTIVO de la interfaz
+ * @returns {'es'|null}
+ */
+export function langDeCampo(meal, campo, locale) {
+    // En español la interfaz y el contenido coinciden: marcar no aporta nada.
+    if (!locale || locale.startsWith('es')) return null;
+
+    const entry = meal && typeof meal._display === 'object' && meal._display
+        ? meal._display[locale]
+        : null;
+    if (!entry || typeof entry !== 'object') return _IDIOMA_DEL_PLAN;
+
+    // La MISMA regla de aceptación que usa `mealDisplay` arriba, campo a campo. Si
+    // divergiera, el `lang` diría una cosa y el texto pintado sería otra — y eso es
+    // peor que no marcar, porque el lector de pantalla obedece la marca.
+    if (campo === 'name') return _isNonEmptyString(entry.name) ? null : _IDIOMA_DEL_PLAN;
+    if (campo === 'description') {
+        return _isNonEmptyString(entry.description) ? null : _IDIOMA_DEL_PLAN;
+    }
+    const original = Array.isArray(meal?.[campo === 'recipe' ? 'recipe' : 'ingredients'])
+        ? meal[campo === 'recipe' ? 'recipe' : 'ingredients']
+        : null;
+    const traducido = entry[campo];
+    const vale = original && Array.isArray(traducido) && traducido.length === original.length;
+    return vale ? null : _IDIOMA_DEL_PLAN;
+}
+
+// [P2-I18N-LANG-POR-PARTE · 2026-08-21] AQUÍ IBA `partesDeLineaDeCompra`, y se retiró
+// antes de nacer. El plan pedía marcar POR PARTE la línea bilingüe de la lista de compras
+// («Black beans (Habichuelas negras)»), y tenía razón en el principio: un `lang="es"` de
+// bloque ahí haría pronunciar «Black beans» a la española, que es el mismo defecto del
+// revés.
+//
+// Pero MEDIDO: esa línea tiene UN solo consumidor en todo el frontend
+// (`Dashboard.jsx`, la llamada a `glossShoppingItemName`) y está dentro del generador de
+// HTML del **PDF**. `html2pdf` rasteriza con html2canvas y embebe una imagen: no hay capa
+// de texto ni árbol de accesibilidad, así que un `lang` ahí no lo lee nadie. En PANTALLA
+// la lista bilingüe no se pinta hoy.
+//
+// Un helper sin consumidores es peor que el hueco: parece cubrir el caso y nadie lo
+// llama. Queda anotado en su lugar — **el día que la lista bilingüe se pinte en pantalla,
+// hay que partir la línea en DOS nodos** y marcar solo el paréntesis, no el contenedor.
+
 /** Atajo: solo el nombre a mostrar (evita desestructurar en el call site). */
 export function mealDisplayName(meal, locale) {
     return mealDisplay(meal, locale).name;
