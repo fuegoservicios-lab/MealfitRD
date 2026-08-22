@@ -604,7 +604,6 @@
   "Digestión": "Digestion",
   "Diseña tu plan libremente, con lo que mejor encaje en tus metas. No mira tu Nevera.": "Conçoit votre plan librement, avec ce qui colle le mieux à vos objectifs. Ne regarde pas votre frigo.",
   "Diseñando tu plan": "Conception de votre plan",
-  "Disfruta de tu comida. Generado automáticamente por Bioboros.": "Bon appétit. Généré automatiquement par Bioboros.",
   "Disminuir cantidad": "Diminuer la quantité",
   "Disminuir {alimento}": "Diminuer {alimento}",
   "Disponible en {n} días (sábado)": {
@@ -1167,7 +1166,6 @@
   "Lo usé": "Je l'ai utilisé",
   "Lock del usuario activo en otro chunk ({id}…). Lleva {seg}s. Este chunk espera turno.": "Verrou utilisateur actif sur un autre bloc ({id}…). Depuis {seg} s. Ce bloc attend son tour.",
   "Lock zombi": "Verrou zombie",
-  "Logo de Bioboros": "Logo Bioboros",
   "Logs: {n}": "Logs : {n}",
   "Los compras igual — todavía no tenemos presentaciones cargadas para esos ítems.": {
     "one": "Vous l'achetez quand même — nous n'avons pas encore de conditionnements pour cet article.",
@@ -1511,7 +1509,6 @@
   "Otra…": "Autre…",
   "Otro medicamento": "Autre médicament",
   "Otros (Ej. Apio, Curry, Picante...)": "Autres (ex. Apio, Curry, Picante...)",
-  "PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE": "TRAITÉ PAR MEALFITRD IA - NUTRITION INTELLIGENTE",
   "Paga con tu tarjeta local": "Payez avec votre carte locale",
   "Paga seguro con PayPal": "Paiement sécurisé avec PayPal",
   "Pago seguro": "Paiement sécurisé",
@@ -2787,5 +2784,8 @@
   "cda": "c. à s.",
   "cdas": "c. à s.",
   "cdta": "c. à c.",
-  "cdtas": "c. à c."
+  "cdtas": "c. à c.",
+  "PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE": "TRAITÉ PAR {marca} - NUTRITION INTELLIGENTE",
+  "Disfruta de tu comida. Generado automáticamente por {marca}.": "Bon appétit. Généré automatiquement par {marca}.",
+  "Logo de {marca}": "Logo {marca}"
 }

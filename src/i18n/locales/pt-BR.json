@@ -604,7 +604,6 @@
   "Digestión": "Digestão",
   "Diseña tu plan libremente, con lo que mejor encaje en tus metas. No mira tu Nevera.": "Monta seu plano livremente, com o que melhor encaixa nas suas metas. Não olha sua Geladeira.",
   "Diseñando tu plan": "Desenhando seu plano",
-  "Disfruta de tu comida. Generado automáticamente por Bioboros.": "Aproveite sua comida. Gerado automaticamente pelo Bioboros.",
   "Disminuir cantidad": "Diminuir quantidade",
   "Disminuir {alimento}": "Diminuir {alimento}",
   "Disponible en {n} días (sábado)": {
@@ -1167,7 +1166,6 @@
   "Lo usé": "Usei",
   "Lock del usuario activo en otro chunk ({id}…). Lleva {seg}s. Este chunk espera turno.": "Lock do usuário ativo em outro chunk ({id}…). Já são {seg}s. Este chunk aguarda a vez.",
   "Lock zombi": "Lock zumbi",
-  "Logo de Bioboros": "Logo do Bioboros",
   "Logs: {n}": "Logs: {n}",
   "Los compras igual — todavía no tenemos presentaciones cargadas para esos ítems.": {
     "one": "Você compra do mesmo jeito — ainda não temos apresentações cadastradas para esse item.",
@@ -1511,7 +1509,6 @@
   "Otra…": "Outra…",
   "Otro medicamento": "Outro medicamento",
   "Otros (Ej. Apio, Curry, Picante...)": "Outros (Ex. Apio, Curry, Picante...)",
-  "PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE": "PROCESSADO POR MEALFITRD IA - NUTRIÇÃO INTELIGENTE",
   "Paga con tu tarjeta local": "Pague com seu cartão local",
   "Paga seguro con PayPal": "Pague com segurança via PayPal",
   "Pago seguro": "Pagamento seguro",
@@ -2787,5 +2784,8 @@
   "cda": "colher de sopa",
   "cdas": "colheres de sopa",
   "cdta": "colher de chá",
-  "cdtas": "colheres de chá"
+  "cdtas": "colheres de chá",
+  "PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE": "PROCESSADO POR {marca} - NUTRIÇÃO INTELIGENTE",
+  "Disfruta de tu comida. Generado automáticamente por {marca}.": "Aproveite sua comida. Gerado automaticamente pelo {marca}.",
+  "Logo de {marca}": "Logo do {marca}"
 }

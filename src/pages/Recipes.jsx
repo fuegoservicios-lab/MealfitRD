@@ -48,7 +48,8 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 // en el texto del ingrediente mostrado (conservador; no toca cubanela/pimienta/paprika).
 import { displayAjiMorron } from '../utils/ingredientDisplay';
 import { isRecipeAnnotation, parseRecipeStep } from '../utils/recipeSteps';
-import Wordmark from '../components/common/Wordmark';
+import { WORDMARK_TEXT, wordmarkHtml } from '../components/common/Wordmark';
+import { pdfFileName } from '../utils/pdfFileName';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] SSOT del matcher "ya comiste esto hoy"
 // (utils/todayRemaining.js) — el MISMO módulo que usa Dashboard.jsx
 // (P1-TODAY-REMAINING), importado aquí en vez de reimplementado. Incluye la
@@ -444,7 +445,7 @@ const Recipes = () => {
                 <!-- HEADER -->
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 0.18em solid #4F46E5; padding-bottom: 0.55em; margin-bottom: 0.9em;">
                     <div style="font-size: 1.15em; font-weight: 900; letter-spacing: -0.02em; color: #0F172A;">
-                        <Wordmark />
+                        ${wordmarkHtml()}
                         <span style="font-size: 0.6em; font-weight: 600; color: #64748B;">&nbsp;·&nbsp;${escapeHtml(t('Receta'))}&nbsp;·&nbsp;${escapeHtml(mealSlotLabel(meal.meal, t))}</span>
                     </div>
                     <div style="display: flex; gap: 0.4em; align-items: center;">${metaChips}</div>
@@ -472,7 +473,7 @@ const Recipes = () => {
 
                 <!-- FOOTER -->
                 <div style="margin-top: 1.2em; padding-top: 0.6em; border-top: 1px solid #E2E8F0; text-align: center; color: #94A3B8; font-size: 0.62em;">
-                    ${escapeHtml(t('Disfruta de tu comida. Generado automáticamente por Bioboros.'))}
+                    ${escapeHtml(t('Disfruta de tu comida. Generado automáticamente por {marca}.', { marca: WORDMARK_TEXT }))}
                 </div>
             </div>
         `;
@@ -536,7 +537,7 @@ const Recipes = () => {
                 // [P1-PDF-ONE-PAGE] margin DEBE coincidir con PDF_PAGE_MM.margin
                 // — el fit del probe se calcula contra esa área útil.
                 margin: [PDF_PAGE_MM.margin, PDF_PAGE_MM.margin, PDF_PAGE_MM.margin, PDF_PAGE_MM.margin],
-                filename: `Receta_${_mealSlug}_${_planIdPrefix}_${_today}.pdf`,
+                filename: pdfFileName(t('Receta'), _mealSlug, _planIdPrefix, _today),
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2.5, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' },
                 jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }

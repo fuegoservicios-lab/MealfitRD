@@ -24,6 +24,8 @@ import { toast } from 'sonner';
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
 import { formatDate, formatNumber, i18nKey, t, tn, useI18n, useT } from '../i18n';
+import { WORDMARK_TEXT } from '../components/common/Wordmark';
+import { pdfFileName } from '../utils/pdfFileName';
 // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
 // Sin el símbolo, `currencyOptionsForCountry(pais, COUNTRY_SYSTEM_UI)` NO habría fallado:
 // `undefined` es falsy, así que habría devuelto [DOP, USD] en silencio — el bug intacto con
@@ -3756,7 +3758,7 @@ const DashboardInner = () => {
                             <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #3b82f640;">${escapeHtml(t('Total: {items}', { items: _fmtItems(totalItems) }))}</span>
                         </div>
                     </div>
-                    <img src="/favicon.png" alt="${escapeHtml(t('Logo de Bioboros'))}" style="height: 40px;" />
+                    <img src="/favicon.png" alt="${escapeHtml(t('Logo de {marca}', { marca: WORDMARK_TEXT }))}" style="height: 40px;" />
                 </div>
 
                 
@@ -4158,7 +4160,7 @@ const DashboardInner = () => {
                      (grises muy claros #6b7280/#9ca3af sobre papel blanco). Se oscurecen
                      a gray-700/gray-600 + subtítulo 9px→11px para que se lea bien. -->
                 <div style="margin-top: 15px; text-align: center; color: #4b5563; font-size: 10px; border-top: 2px dashed #cbd5e1; padding-top: 10px;">
-                    <p style="margin: 0; font-weight: 800; color: #374151; letter-spacing: 1px;">${escapeHtml(t('PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE'))}</p>
+                    <p style="margin: 0; font-weight: 800; color: #374151; letter-spacing: 1px;">${escapeHtml(t('PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE', { marca: WORDMARK_TEXT }))}</p>
                     <!-- [P2-PDF-PRICE-SOURCE-COPY · 2026-06-22] (audit fresco P2-22) Copy suavizado: el precio
                          por-ítem puede ser verificado O estimado (price_confidence/price_source por fila) → afirmar
                          "verificados en La Sirena" universal era inexacto.
@@ -4219,7 +4221,7 @@ const DashboardInner = () => {
             const _today = new Date().toISOString().slice(0, 10);
             const opt = {
                 margin: paginateFormally ? [6, 4, 8, 4] : [4, 0, 0, 0],
-                filename: `Lista_de_compras_${durationText.replace(/ /g, '_')}_${_today}_${_planIdPrefix}.pdf`,
+                filename: pdfFileName(t('Lista de Compras'), durationText, _today, _planIdPrefix),
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
                 pagebreak: { mode: pagebreakMode },

@@ -604,7 +604,6 @@
   "Digestión": "Digestione",
   "Diseña tu plan libremente, con lo que mejor encaje en tus metas. No mira tu Nevera.": "Progetta il tuo piano liberamente, con ciò che si adatta meglio ai tuoi obiettivi. Non guarda il tuo Frigo.",
   "Diseñando tu plan": "Progettiamo il tuo piano",
-  "Disfruta de tu comida. Generado automáticamente por Bioboros.": "Buon appetito. Generato automaticamente da Bioboros.",
   "Disminuir cantidad": "Riduci quantità",
   "Disminuir {alimento}": "Riduci {alimento}",
   "Disponible en {n} días (sábado)": {
@@ -1167,7 +1166,6 @@
   "Lo usé": "L'ho usato",
   "Lock del usuario activo en otro chunk ({id}…). Lleva {seg}s. Este chunk espera turno.": "Lock dell'utente attivo su un altro chunk ({id}…). Dura da {seg}s. Questo chunk attende il suo turno.",
   "Lock zombi": "Lock zombie",
-  "Logo de Bioboros": "Logo di Bioboros",
   "Logs: {n}": "Log: {n}",
   "Los compras igual — todavía no tenemos presentaciones cargadas para esos ítems.": {
     "one": "Lo compri comunque — non abbiamo ancora formati caricati per quell'articolo.",
@@ -1511,7 +1509,6 @@
   "Otra…": "Altra…",
   "Otro medicamento": "Altro farmaco",
   "Otros (Ej. Apio, Curry, Picante...)": "Altri (Es. Apio, Curry, Picante...)",
-  "PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE": "ELABORATO DA MEALFITRD IA - NUTRIZIONE INTELLIGENTE",
   "Paga con tu tarjeta local": "Paga con la tua carta locale",
   "Paga seguro con PayPal": "Paga in sicurezza con PayPal",
   "Pago seguro": "Pagamento sicuro",
@@ -2787,5 +2784,8 @@
   "cda": "cucchiaio",
   "cdas": "cucchiai",
   "cdta": "cucchiaino",
-  "cdtas": "cucchiaini"
+  "cdtas": "cucchiaini",
+  "PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE": "ELABORATO DA {marca} - NUTRIZIONE INTELLIGENTE",
+  "Disfruta de tu comida. Generado automáticamente por {marca}.": "Buon appetito. Generato automaticamente da {marca}.",
+  "Logo de {marca}": "Logo di {marca}"
 }

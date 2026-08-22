@@ -604,7 +604,6 @@
   "Digestión": "Digestion",
   "Diseña tu plan libremente, con lo que mejor encaje en tus metas. No mira tu Nevera.": "Designs your plan freely, with whatever best fits your goals. It doesn't look at your Fridge.",
   "Diseñando tu plan": "Designing your plan",
-  "Disfruta de tu comida. Generado automáticamente por Bioboros.": "Enjoy your meal. Generated automatically by Bioboros.",
   "Disminuir cantidad": "Decrease quantity",
   "Disminuir {alimento}": "Decrease {alimento}",
   "Disponible en {n} días (sábado)": {
@@ -1167,7 +1166,6 @@
   "Lo usé": "I used it",
   "Lock del usuario activo en otro chunk ({id}…). Lleva {seg}s. Este chunk espera turno.": "User lock active on another chunk ({id}…). It's been {seg}s. This chunk is waiting its turn.",
   "Lock zombi": "Zombie lock",
-  "Logo de Bioboros": "Bioboros logo",
   "Logs: {n}": "Logs: {n}",
   "Los compras igual — todavía no tenemos presentaciones cargadas para esos ítems.": {
     "one": "You buy it anyway — we don't have package sizes loaded for that item yet.",
@@ -1511,7 +1509,6 @@
   "Otra…": "Other…",
   "Otro medicamento": "Other medication",
   "Otros (Ej. Apio, Curry, Picante...)": "Others (e.g. Apio, Curry, Picante...)",
-  "PROCESADO POR MEALFITRD IA - NUTRICIÓN INTELIGENTE": "PROCESSED BY MEALFITRD IA - SMART NUTRITION",
   "Paga con tu tarjeta local": "Pay with your local card",
   "Paga seguro con PayPal": "Pay securely with PayPal",
   "Pago seguro": "Secure payment",
@@ -2787,5 +2784,8 @@
   "cda": "tbsp",
   "cdas": "tbsp",
   "cdta": "tsp",
-  "cdtas": "tsp"
+  "cdtas": "tsp",
+  "PROCESADO POR {marca} - NUTRICIÓN INTELIGENTE": "PROCESSED BY {marca} - INTELLIGENT NUTRITION",
+  "Disfruta de tu comida. Generado automáticamente por {marca}.": "Enjoy your meal. Generated automatically by {marca}.",
+  "Logo de {marca}": "{marca} logo"
 }
