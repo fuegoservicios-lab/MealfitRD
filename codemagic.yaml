@@ -97,20 +97,31 @@ workflows:
         # [Build #3, 2026-08-22] «Cannot save Signing Certificates without certificate
         # private key». Para CREAR un certificado hace falta una clave RSA con la que
         # generar la solicitud (CSR): la API key de Apple AUTORIZA, no firma. La clave
-        # vive en la env var secreta CERTIFICATE_PRIVATE_KEY (grupo `default`), que la
-        # CLI de Codemagic lee sola. Se genera una vez (`openssl genrsa 2048`) y NO es
+        # vive en la env var secreta CERTIFICATE_PRIVATE_KEY_B64 (grupo `default`), en
+        # base64. Se genera una vez (`openssl genrsa 2048 | base64 -w0`) y NO es
         # un certificado exportado: es la semilla con la que Codemagic los fabrica.
         #
         # `set -e`: sin él, el fetch falló en la línea 0 y el paso salió en VERDE; el
         # error apareció dos pasos después, en Xcode, disfrazado de «requires a
         # provisioning profile».
+        # [Build #4] `--certificate-key: Provided value is not valid`. La clave llegó
+        # (enmascarada) pero pegada en un campo web un PEM pierde sus saltos de línea y
+        # en una sola línea no es válido. Por eso la variable guarda la clave en
+        # BASE64 (una línea, sin ambigüedad) y aquí se decodifica a fichero y se pasa
+        # por ruta con `@file:` — nunca se confía en cómo trate el panel un multilínea.
         script: |
           set -e
-          if [ -z "$CERTIFICATE_PRIVATE_KEY" ]; then
-            echo "ERROR: falta CERTIFICATE_PRIVATE_KEY (env var secreta, grupo default)"; exit 1
+          if [ -z "$CERTIFICATE_PRIVATE_KEY_B64" ]; then
+            echo "ERROR: falta CERTIFICATE_PRIVATE_KEY_B64 (env var secreta, grupo default)"; exit 1
           fi
+          KEY_FILE="$HOME/cert_private_key.pem"
+          echo "$CERTIFICATE_PRIVATE_KEY_B64" | base64 --decode > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          # Sanidad: tiene que ser una clave RSA legible antes de pedir nada a Apple.
+          openssl rsa -in "$KEY_FILE" -check -noout
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key "@file:$KEY_FILE" \
             --create
           keychain initialize
           keychain add-certificates
