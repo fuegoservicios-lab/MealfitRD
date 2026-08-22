@@ -117,7 +117,24 @@ export const SidebarRecientes = ({
                             )}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 {group.items.map(s => {
-                                    let originalTitle = s.title ? s.title.replace(/\[?\(Hora actual del usuario:[^)]*\)\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim() || t('Nuevo chat') : t('Nuevo chat');
+                                    // [P1-I18N-CHAT-TITULOS-SERVIDOR · 2026-08-22] Los rótulos
+                                    // GENÉRICOS los resuelve el cliente por `title_key`; el
+                                    // backend ya no manda su texto. Antes componía «Nuevo Chat»
+                                    // e «Interacción con imagen o sistema» en español y aquí se
+                                    // pintaban crudos: en la app en inglés la columna listaba
+                                    // «Nuevo Chat» bajo un encabezado que decía «Today».
+                                    //
+                                    // `title` sólo llega con contenido REAL (el `[SYSTEM_TITLE]`,
+                                    // que nace ya en el idioma del usuario, o lo que él escribió),
+                                    // y eso no se traduce.
+                                    const _rotulosGenericos = {
+                                        empty: t('Nuevo chat'),
+                                        image_or_system: t('Interacción con imagen o sistema'),
+                                    };
+                                    let originalTitle = s.title
+                                        ? (s.title.replace(/\[?\(Hora actual del usuario:[^)]*\)\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim()
+                                            || _rotulosGenericos[s.title_key] || t('Nuevo chat'))
+                                        : (_rotulosGenericos[s.title_key] || t('Nuevo chat'));
                                     if (originalTitle.length > 45) {
                                         originalTitle = originalTitle.substring(0, 45).trim() + '...';
                                     }
