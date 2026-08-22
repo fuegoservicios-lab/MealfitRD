@@ -6,6 +6,7 @@ import { fetchWithAuth } from '../../config/api';
 import LazyMarkdown from '../common/LazyMarkdown';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { SUPPORT_EMAIL } from './moreInfoLinks';
+import { nativeHidesCommerce } from '../../config/platform';
 import { safeJSONParse } from '../../utils/safeJSONParse';
 import { useT, getLocale } from '../../i18n';
 import styles from './HelpChatWidget.module.css';
@@ -28,19 +29,25 @@ const MAX_INPUT = 1500;  // espejo del knob MEALFIT_HELP_CHAT_MAX_CHARS
 
 // [P1-I18N-DASHBOARD · 2026-08-15] Funciones y no constantes: un `t()` en ámbito
 // de módulo se evalúa al importar, antes de que el catálogo exista.
+// [P1-HELP-BOT-NATIVE-NO-COMMERCE · 2026-08-22] En la app nativa el bot no presenta
+// «planes y precios» ni los sugiere (Apple 3.1.1): la directiva real va en el backend
+// (`hide_commerce`), esto es la cara visible.
 const getGreeting = (t) => ({
     role: 'assistant',
-    content: t('¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, planes y precios, la Nevera, las recetas, tu cuenta…'),
+    content: nativeHidesCommerce()
+        ? t('¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, la Nevera, las recetas, tu cuenta…')
+        : t('¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, planes y precios, la Nevera, las recetas, tu cuenta…'),
 });
 
 // Cuerpo con llaves: el validador mide el ámbito contando llaves y una flecha que
 // devuelve un array pelado dejaría estos `t()` a profundidad 0.
 const getSuggestions = (t) => {
-    return [
-        t('¿Qué incluye cada plan y cuánto cuesta?'),
+    const base = [
         t('¿Cómo genero mi plan de comidas?'),
         t('¿Para qué sirve la Nevera?'),
     ];
+    if (nativeHidesCommerce()) return [t('¿Cómo cambio un plato del día?'), ...base];
+    return [t('¿Qué incluye cada plan y cuánto cuesta?'), ...base];
 };
 
 const loadStoredMessages = (t) => {
@@ -91,6 +98,8 @@ export default function HelpChatWidget({ onClose }) {
                     // español: la regla 5 de su prompt se lo ordena. El backend valida
                     // contra su lista y cae a es-DO si no lo reconoce.
                     locale: getLocale(),
+                    // [P1-HELP-BOT-NATIVE-NO-COMMERCE] en nativo el backend no cita precios.
+                    hide_commerce: nativeHidesCommerce(),
                 }),
             });
             if (res.ok) {

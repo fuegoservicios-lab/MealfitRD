@@ -221,4 +221,9 @@
     border-right: 0;
     border-bottom: 0;
   }
+  /* [P1-HELP-BOT-NATIVE-NO-COMMERCE · 2026-08-22] La hoja ocupa la pantalla entera:
+     la cabecera pisaba el reloj y la X la batería (iPhone, medido). Mismo patrón que
+     Configuración: cada superficie que arranca en el borde reserva su notch. */
+  .header { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
+  .footer { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
 }
