@@ -40,13 +40,13 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { todosLosFicheros, alcanzablesDesde, resolver } from './lib/grafo-modulos.mjs';
+import { ENTRADAS } from './entradas.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(AQUI, '..', 'src');
 const APP = path.join(SRC, 'App.jsx');
 const PAPER = path.join(SRC, 'utils', 'paperSurface.js');
 
-const ENTRADAS = ['main.jsx', 'custom-sw.js'];
 
 /** Las rutas de marketing, leídas del SSOT: exactas y por prefijo. */
 export function rutasDeMarketing() {

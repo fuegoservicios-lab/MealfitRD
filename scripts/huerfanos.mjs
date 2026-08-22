@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 // MISMO para saber qué ficheros sólo se alcanzan a través del landing. Copiar el
 // resolvedor habría creado otra pareja de tablas que drifta.
 import { todosLosFicheros, alcanzablesDesde } from './lib/grafo-modulos.mjs';
+import { ENTRADAS } from './entradas.mjs';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(AQUI, '..', 'src');
@@ -47,7 +48,6 @@ const ACEPTADOS = new Set([
     'types/shopping.d.ts',
 ]);
 
-const ENTRADAS = ['main.jsx', 'custom-sw.js'];
 
 const alcanzables = alcanzablesDesde(ENTRADAS.map((e) => path.join(SRC, e)).filter(existsSync));
 

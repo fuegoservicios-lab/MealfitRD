@@ -424,8 +424,36 @@ describe('mealSlotLabel — desconocido y bordes', () => {
 // o el patrón `_display[` cambian de forma, este test debe fallar ANTES de
 // que el acceso directo llegue a producción).
 // ---------------------------------------------------------------------------
+// [P2-I18N-GUARD-DISPLAY-CIEGO-AL-OPTIONAL-CHAINING · 2026-08-22] La PROPIEDAD, no la
+// grafía.
+//
+// El guard prohibía literalmente `._display[` y no veía `?._display?.[`, que es la forma
+// idiomática de este repo: media docena de ficheros encadenan `planData?.` por costumbre.
+// O sea que la regla se saltaba escribiendo el mismo acceso con la sintaxis que todo el
+// mundo usa — y en verde. (Auditado: hoy NO hay ninguna violación de esa forma en el
+// árbol; lo que estaba roto era la defensa, no el código.)
+//
+// LO QUE SE PROHÍBE ES INDEXAR, no leer. `planData?._display` entero pasado al helper es
+// el contrato —el helper decide qué locale y con qué reglas de aceptación—; sacar
+// `[locale]` a mano en la página es saltárselo, que es justo lo que produce media pantalla
+// traducida cuando la traducción no valida.
+const ACCESO_INDEXADO_A_DISPLAY = /_display\s*(?:\?\.)?\[/;
+
 function _readSrc(relPath) {
     return readFileSync(join(__dirname, '..', relPath), 'utf-8');
+}
+
+// La fuente SIN comentarios. Al anclar por PROPIEDAD en vez de por grafía, el guard empezó
+// a saltar por la PROSA que explica el arreglo —un `// _display[locale]` dentro de un
+// comentario de `Dashboard.jsx`—, que es el comentario-vence-guard de siempre en su
+// dirección menos obvia: aquí el comentario DISPARA la regla en vez de satisfacerla.
+// Recortar la prosa ajena sería lo fácil y lo equivocado: la regla mira código.
+function _readCode(relPath) {
+    return _readSrc(relPath)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .split('\n')
+        .filter((l) => !l.trimStart().startsWith('//'))
+        .join('\n');
 }
 
 describe('Plan/Recetas consumen mealDisplay — NO acceso directo a `_display`', () => {
@@ -435,9 +463,9 @@ describe('Plan/Recetas consumen mealDisplay — NO acceso directo a `_display`',
         expect(/\bmealDisplay(Name)?\(/.test(src)).toBe(true);
     });
 
-    it('Dashboard.jsx nunca lee `._display[` directo (fuera del import)', () => {
-        const src = _readSrc('pages/Dashboard.jsx');
-        expect(src).not.toMatch(/\._display\[/);
+    it('Dashboard.jsx nunca INDEXA `_display` por locale (en cualquier grafia)', () => {
+        const src = _readCode('pages/Dashboard.jsx');
+        expect(src).not.toMatch(ACCESO_INDEXADO_A_DISPLAY);
     });
 
     it('Recipes.jsx importa mealDisplay/mealDisplayName desde utils/displayMeal', () => {
@@ -446,9 +474,9 @@ describe('Plan/Recetas consumen mealDisplay — NO acceso directo a `_display`',
         expect(/\bmealDisplay(Name)?\(/.test(src)).toBe(true);
     });
 
-    it('Recipes.jsx nunca lee `._display[` directo (fuera del import)', () => {
-        const src = _readSrc('pages/Recipes.jsx');
-        expect(src).not.toMatch(/\._display\[/);
+    it('Recipes.jsx nunca INDEXA `_display` por locale (en cualquier grafia)', () => {
+        const src = _readCode('pages/Recipes.jsx');
+        expect(src).not.toMatch(ACCESO_INDEXADO_A_DISPLAY);
     });
 
     it('FF-4: Recipes.jsx conserva la coerción `toRecipeSteps` sobre lo que devuelve el helper', () => {
@@ -460,11 +488,11 @@ describe('Plan/Recetas consumen mealDisplay — NO acceso directo a `_display`',
         expect(src).toMatch(/toRecipeSteps\(_activeDisplay\.recipe\)/);
     });
 
-    it('RecipesView.jsx y MobileRecipes.jsx (vistas presentacionales) tampoco leen `_display` directo', () => {
+    it('RecipesView.jsx y MobileRecipes.jsx (vistas presentacionales) tampoco INDEXAN `_display` por locale', () => {
         const rv = _readSrc('components/recipes/RecipesView.jsx');
         const mr = _readSrc('components/recipes/MobileRecipes.jsx');
-        expect(rv).not.toMatch(/\._display\[/);
-        expect(mr).not.toMatch(/\._display\[/);
+        expect(rv).not.toMatch(ACCESO_INDEXADO_A_DISPLAY);
+        expect(mr).not.toMatch(ACCESO_INDEXADO_A_DISPLAY);
     });
 
     // [P1-PLAN-DISPLAY-I18N · fase 1c] Dashboard.jsx consume `mealSlotLabel` para
@@ -483,16 +511,16 @@ describe('Plan/Recetas consumen mealDisplay — NO acceso directo a `_display`',
         expect(/\bmealSlotLabel\(/.test(src)).toBe(true);
     });
 
-    it('History.jsx nunca lee `._display[` directo (fuera del import)', () => {
-        const src = _readSrc('pages/History.jsx');
-        expect(src).not.toMatch(/\._display\[/);
+    it('History.jsx nunca INDEXA `_display` por locale (en cualquier grafia)', () => {
+        const src = _readCode('pages/History.jsx');
+        expect(src).not.toMatch(ACCESO_INDEXADO_A_DISPLAY);
     });
 
-    it('HistoryDesktopPanel.jsx / HistoryMobilePanel.jsx (cards del listado) tampoco leen `_display` directo', () => {
-        const desktop = _readSrc('components/history/HistoryDesktopPanel.jsx');
-        const mobile = _readSrc('components/history/HistoryMobilePanel.jsx');
-        expect(desktop).not.toMatch(/\._display\[/);
-        expect(mobile).not.toMatch(/\._display\[/);
+    it('HistoryDesktopPanel.jsx / HistoryMobilePanel.jsx (cards del listado) tampoco INDEXAN `_display` por locale', () => {
+        const desktop = _readCode('components/history/HistoryDesktopPanel.jsx');
+        const mobile = _readCode('components/history/HistoryMobilePanel.jsx');
+        expect(desktop).not.toMatch(ACCESO_INDEXADO_A_DISPLAY);
+        expect(mobile).not.toMatch(ACCESO_INDEXADO_A_DISPLAY);
     });
 });
 

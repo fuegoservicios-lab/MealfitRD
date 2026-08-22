@@ -161,10 +161,34 @@ function _persistLocal(code) {
     safeLocalStorageSet(LOCALE_STORAGE_KEY, code);
 }
 
+// [P2-I18N-MANIFEST-HREF-CONGELADO · 2026-08-22] El manifiesto sigue al idioma VIVO.
+//
+// `index.html` lo reescribe en el boot con el locale que encuentra guardado, y ahí se
+// quedaba: cambiar de idioma con el selector dejaba el manifiesto en el anterior. No es
+// cosmético — el manifiesto es lo ÚNICO que el sistema operativo recuerda de la app, así
+// que quien instalaba la PWA después de cambiar de idioma se llevaba al escritorio el
+// nombre del idioma viejo, y ahí ya no hay forma de corregirlo desde la web.
+//
+// Va aquí por el mismo motivo que la telemetría de abajo: `_applyLang` es el único punto
+// por el que pasan las TRES vías de cambio (arranque, selector y `syncLocaleFromProfile`).
+// Los cuatro `manifest.<locale>.json` los genera `scripts/build-manifests-i18n.mjs` para
+// exactamente los locales no-base, así que la regla es total: base → `/manifest.json`.
+function _aplicarManifiesto(code) {
+    try {
+        const lnk = document.querySelector('link[rel="manifest"]');
+        if (!lnk) return;
+        const href = code === DEFAULT_LOCALE ? '/manifest.json' : `/manifest.${code}.json`;
+        // Sólo se toca si cambia: reescribir el mismo `href` hace que algunos navegadores
+        // vuelvan a pedir el fichero en cada cambio de idioma.
+        if (lnk.getAttribute('href') !== href) lnk.setAttribute('href', href);
+    } catch { /* SSR / DOM ausente */ }
+}
+
 function _applyLang(code) {
     try {
         document.documentElement.setAttribute('lang', code);
     } catch { /* SSR / DOM ausente */ }
+    _aplicarManifiesto(code);
     // [P2-I18N-OBSERVABILIDAD-CERO · 2026-08-21] El idioma, a la telemetría. Va AQUÍ y
     // no en el Provider porque este es el único punto por el que pasan las tres vías de
     // cambio: arranque, selector y `syncLocaleFromProfile`. Poner la etiqueta en React
@@ -390,6 +414,20 @@ export async function loadLocale(code) {
                 extra: { motivo: 'no se pudo cargar el catálogo de idioma' },
             });
         } catch { /* la telemetría jamás rompe la app */ }
+
+        // [P2-I18N-LANG-MIENTE-SI-FALLA-CATALOGO · 2026-08-22] El atributo vuelve al idioma
+        // que de verdad se está pintando.
+        //
+        // `initLocale` aplica `lang` con el locale GUARDADO antes de pedir su catálogo —
+        // tiene que hacerlo, si no la app arranca declarando español y parpadea. Pero si el
+        // chunk no baja, el texto cae al español y el atributo se queda diciendo `fr-FR`.
+        // Un lector de pantalla lee entonces castellano con voz francesa, y `hreflang` /
+        // los correctores del navegador toman la decisión equivocada.
+        //
+        // Se reaplica `_locale`, que es el idioma REALMENTE vigente tras el fallo — no
+        // `DEFAULT_LOCALE`: si el usuario venía de un idioma cargado y falla el SIGUIENTE,
+        // lo que se sigue pintando es el anterior, no el español.
+        _applyLang(_locale);
         return false;
     }
 }
