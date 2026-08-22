@@ -164,7 +164,9 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                     style={{
                         width: '100%', padding: '0.85rem 1rem 0.85rem 2.4rem',
                         borderRadius: '0.9rem', border: '1px solid var(--border)',
-                        background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.95rem',
+                        // [P2-MOBILE-AUDIT-LOGIN-WIZARD] 1rem, no 0.95: iOS hace zoom al enfocar
+                        // cualquier campo con fuente < 16px y el zoom se queda tras cerrar el teclado.
+                        background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '1rem',
                         opacity: atMax ? 0.6 : 1,
                     }}
                 />

@@ -249,7 +249,16 @@
   text-align: center;
   line-height: 1.5;
 }
-.mf-privacy a { color: var(--mf-text-dim); text-decoration: underline; }
+/* [P2-MOBILE-AUDIT-LOGIN-WIZARD · 2026-08-22] Zona táctil: los enlaces medían 16 px de
+   alto (medido en WebKit a 390 px). `inline-block` + relleno vertical ensancha lo que
+   se toca sin mover la línea; el margen negativo devuelve el espacio al párrafo. */
+.mf-privacy a {
+  color: var(--mf-text-dim);
+  text-decoration: underline;
+  display: inline-block;
+  padding: 0.45rem 0;
+  margin: -0.45rem 0;
+}
 .mf-privacy a:hover { color: var(--mf-text); }
 
 .mf-guest-sub {

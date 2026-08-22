@@ -19,7 +19,8 @@ export const QMotivation = ({ onManualAdvance }) => {
                     aria-label={t('Tu motivación')}
                     style={{
                         width: '100%', padding: '1.25rem', paddingLeft: '3rem', borderRadius: '1rem',
-                        border: '1px solid var(--border)', fontSize: '0.95rem', fontFamily: 'inherit',
+                        // [P2-MOBILE-AUDIT-LOGIN-WIZARD] 1rem: < 16px dispara el zoom de iOS al enfocar.
+                        border: '1px solid var(--border)', fontSize: '1rem', fontFamily: 'inherit',
                         resize: 'vertical', outline: 'none', transition: 'all 0.25s ease', background: 'var(--bg-card)', color: 'var(--text-main)'
                     }}
                 />
