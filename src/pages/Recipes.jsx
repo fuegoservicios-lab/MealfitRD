@@ -368,17 +368,23 @@ const Recipes = () => {
             // SSOT (`utils/recipeSteps.js`) y aquí queda sólo lo propio de esta
             // superficie: el color de cada sección.
             //
-            // El rótulo sale en ESPAÑOL a propósito: el PDF entero lo está
-            // (P2-I18N-PDF-RECETA) y traducir sólo estas tres palabras dejaría un
-            // documento mestizo. Cuando el PDF se traduzca, esto pasa por `t(titleKey)`
-            // igual que sus dos hermanos de pantalla.
+            // [P2-I18N-PDF-RECETA · 2026-08-21] Y el rótulo YA pasa por `t()`. Este
+            // comentario decía «sale en ESPAÑOL a propósito, porque el PDF entero lo
+            // está» y dejaba apuntado que el día que el PDF se tradujera esto pasaría por
+            // `t(titleKey)`. Ese día es hoy: el handler traduce el meal completo antes de
+            // generar el HTML, así que un rótulo español aquí sería justo el documento
+            // mestizo que aquello quería evitar.
+            //
+            // El prefijo del DATO sigue en español —es el identificador con el que se
+            // reconoce la sección, `utils/recipeSteps.js`—; lo que se traduce es lo que
+            // el usuario lee.
             const _COLOR_SECCION = {
                 'Mise en place': '#00B4D8',
                 'El Toque de Fuego': '#F97316',
                 'Montaje': '#8B5CF6',
             };
             const { titleKey, body: _cuerpoPaso } = parseRecipeStep(step);
-            const sectionTitle = titleKey || "";
+            const sectionTitle = titleKey ? t(titleKey) : "";
             const color = _COLOR_SECCION[titleKey] || "#4F46E5";
             let content = titleKey ? _cuerpoPaso : step;
 
@@ -472,7 +478,28 @@ const Recipes = () => {
         `;
     };
 
-    const handleDownloadPDF = async (meal) => {
+    const handleDownloadPDF = async (mealRaw) => {
+        // [P2-I18N-PDF-RECETA · 2026-08-21] El PDF salia en ESPANOL mientras la pantalla
+        // de la que cuelga el boton salia traducida. La vista calculaba
+        // `mealDisplay(activeMealRaw, locale)` y pintaba eso; aqui llegaba el meal crudo.
+        //
+        // Se traduce DENTRO del handler y no en el call site: el handler es el ACTO, y
+        // cualquier boton futuro que lo invoque queda cubierto sin wiring. Es la misma
+        // leccion que P2-DISPLAY-POP-VECINO.
+        //
+        // `recipe` tambien, y esa es la diferencia con la vista: la pantalla pasa los
+        // pasos aparte (`activeRecipeSteps`), pero `generateRecipeHTML` los lee de
+        // `meal.recipe`. Sin esta linea el PDF saldria con nombre e ingredientes
+        // traducidos y la receta en espanol — peor que el estado de partida, porque
+        // parece un fallo en vez de una decision.
+        const _d = mealDisplay(mealRaw, locale);
+        const meal = {
+            ...mealRaw,
+            name: _d.name,
+            desc: _d.description,
+            ingredients: _d.ingredients,
+            recipe: _d.recipe,
+        };
         const toastId = toast.loading(t('Generando PDF de alta calidad...'));
         try {
             // [P1-PDF-ONE-PAGE · 2026-07-12] Espera a que las fuentes de la

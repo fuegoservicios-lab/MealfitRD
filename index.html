@@ -532,6 +532,22 @@
             var dots = document.querySelector('.splash-dots');
             if (dots && CARGANDO[loc]) dots.setAttribute('aria-label', CARGANDO[loc]);
           }
+
+          /* [P2-I18N-MANIFEST-MONOLINGUE · 2026-08-21] El manifiesto, al idioma.
+             `name`, `description` y los seis literales de los tres atajos estaban en
+             espanol con `lang: es-DO`, asi que un frances instalaba la PWA desde una app
+             ya en frances y el icono de su escritorio decia «Nutricion con IA». No es
+             cosmetico: el manifiesto es lo UNICO que el sistema operativo recuerda de la
+             app, y el usuario ve ese nombre cada vez que abre el movil.
+
+             Se aprovecha `window.__mfLocale`, que el boot de mas arriba YA resolvio.
+             Solo se reescribe cuando el locale NO es el base: asi, si el generador no
+             corrio o fallo, el href se queda en `/manifest.json` y la conducta es
+             exactamente la de hoy. */
+          if (loc && loc !== 'es-DO' && TAGLINE[loc]) {
+            var lnk = document.querySelector('link[rel="manifest"]');
+            if (lnk) lnk.setAttribute('href', '/manifest.' + loc + '.json');
+          }
         } catch (e) {
           /* el español del marcado ya es el fallback correcto */
         }
