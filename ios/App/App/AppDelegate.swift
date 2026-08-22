@@ -27,6 +27,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // [P1-IOS-WEBVIEW-SCROLL] Sin rebote (rubber-band) al llegar al tope o al final:
+        // la app se siente nativa, no una web dentro de un marco. Es propiedad del
+        // UIScrollView que envuelve al WebView: ningun CSS del documento la controla, y
+        // apagar `scrollEnabled` en capacitor.config apaga el scroll ENTERO (no hacer).
+        // Se fija aqui porque el WebView ya existe al activarse la app; repetirlo en
+        // cada activacion es idempotente.
+        if let bridgeVC = window?.rootViewController as? CAPBridgeViewController {
+            bridgeVC.webView?.scrollView.bounces = false
+        }
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

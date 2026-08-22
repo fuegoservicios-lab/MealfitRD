@@ -6164,12 +6164,16 @@ const DashboardInner = () => {
                                     {!nativeHidesCommerce() && (
                                         <span className="plan-tier-badge-cta">{t('Ver planes')}</span>
                                     )}
-                                    <ChevronRight
-                                        size={12}
-                                        strokeWidth={2.75}
-                                        className="plan-tier-badge-chevron"
-                                        aria-hidden="true"
-                                    />
+                                    {/* La flecha también: en nativo el chip es una etiqueta, no
+                                        un control (visto en el build 8: «GRATUITO ›» sin destino). */}
+                                    {!nativeHidesCommerce() && (
+                                        <ChevronRight
+                                            size={12}
+                                            strokeWidth={2.75}
+                                            className="plan-tier-badge-chevron"
+                                            aria-hidden="true"
+                                        />
+                                    )}
                                 </button>
                             );
                         })()}

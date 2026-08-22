@@ -9,18 +9,20 @@ const config: CapacitorConfig = {
   appName: 'Bioboros',
   webDir: 'dist',
   ios: {
-    // [P1-IOS-WEBVIEW-SCROLL · 2026-08-22] Primer build en el iPhone: «el scroll del
-    // login sobrepasa lo normal, como si se saliera de la pantalla». Dos causas:
+    // [P1-IOS-WEBVIEW-SCROLL · 2026-08-22 · corregido el mismo día] Primer build en
+    // el iPhone: «el scroll del login sobrepasa lo normal, como si se saliera de la
+    // pantalla». Mi primer arreglo fue apagar `scrollEnabled` creyendo que dejaba el
+    // scroll al contenido web: NO — apaga el scroll ENTERO del WebView (build 8: el
+    // dashboard quedó clavado; el login pareció arreglado porque cabe en una
+    // pantalla). NO volver a ponerlo. Lo que de verdad sobraba era el inset:
     //
-    //  - `scrollEnabled: false`. El WebView vive dentro de un UIScrollView NATIVO que
-    //    rebota (rubber-band); `overscroll-behavior-y: none` en `body` no lo frena
-    //    porque eso es CSS del documento y el que rebota es el contenedor nativo.
-    //    Con esto el scroll lo hace el contenido web, que sí obedece al CSS.
     //  - `contentInset: 'never'` (era 'automatic'). 'automatic' suma el alto de la
-    //    barra de estado al área desplazable; el login mide `min-height: 100dvh` y la
-    //    página acababa midiendo 100dvh + inset — al llegar abajo «sobraba» justo esa
-    //    franja. El CSS ya gestiona el notch con `env(safe-area-inset-*)`.
-    scrollEnabled: false,
+    //    barra de estado al área desplazable; el login mide `min-height: 100dvh` y
+    //    la página acababa midiendo 100dvh + inset — al llegar abajo «sobraba» justo
+    //    esa franja. El CSS ya gestiona el notch con `env(safe-area-inset-*)`.
+    //  - El rebote (rubber-band) es del UIScrollView nativo y ningún CSS lo frena:
+    //    se apaga donde vive, `webView.scrollView.bounces = false` en
+    //    ios/App/App/AppDelegate.swift.
     contentInset: 'never',
     // La PWA ya pinta su propio color de barra por página (useThemeColor); el WebView
     // nativo no debe superponer un fondo blanco al arrancar.

@@ -119,6 +119,10 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
         expect(src).toMatch(/nativeHidesCommerce\(\)\s*\?\s*undefined\s*:\s*\(\) => navigate\('\/dashboard\/upgrade'\)/);
         // Y el texto «Ver planes» tampoco se pinta.
         expect(src).toMatch(/!nativeHidesCommerce\(\) && \(\s*<span className="plan-tier-badge-cta">\{t\('Ver planes'\)\}<\/span>/);
+        // [2026-08-22, visto en el build 8 del iPhone] La flecha › seguía pintada: un
+        // chip «GRATUITO ›» que no va a ningún sitio invita a pulsar y, para un revisor,
+        // sugiere un upgrade escondido. En nativo el chip es una etiqueta: sin flecha.
+        expect(src).toMatch(/!nativeHidesCommerce\(\) && \(\s*<ChevronRight[\s\S]{0,200}plan-tier-badge-chevron/);
     });
 
     it('Plan: el paywall del 402 no ofrece «Mejorar plan» ni navega a upgrade en nativo', () => {
