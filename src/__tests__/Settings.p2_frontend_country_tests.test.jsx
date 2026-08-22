@@ -39,7 +39,7 @@ vi.mock('sonner', () => ({
  * en un test de andamiaje — que es como se acaba con un guard que mide el entorno en vez de la
  * regla. La paridad con el original la ancla el test de abajo, que lee el fuente.
  */
-const crearHandler = ({ paisActual = 'DO', okRed = true } = {}) => {
+const crearHandler = ({ paisActual = 'DO' } = {}) => {
     let guardando = false;
     const { coerceCountry } = { coerceCountry: (raw) => {
         const c = String(raw ?? '').trim().toUpperCase();
