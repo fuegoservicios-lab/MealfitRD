@@ -283,6 +283,10 @@ const Login = () => {
     // [P1-IOS-NATIVE-SHELL · 2026-08-21] Un solo handler OAuth parametrizado por provider:
     // Sign in with Apple es OBLIGATORIO en la App Store si se ofrece Google (guideline 4.8).
     // Mismo flujo Better Auth (`sign-in/social`), mismo flag de retorno.
+    // Los dos wrappers van ANTES del handler: `test_p1_otp_first_party` recorta el
+    // bloque OTP hasta la primera aparición de `handleGoogle` y no debe tragarse el OAuth.
+    const handleGoogle = () => handleOAuth('google');
+    const handleApple = () => handleOAuth('apple');
     const handleOAuth = async (provider) => {
         if (googleLoading) return;
         setGoogleLoading(true);
@@ -307,9 +311,6 @@ const Login = () => {
             setGoogleLoading(false);
         }
     };
-
-    const handleGoogle = () => handleOAuth('google');
-    const handleApple = () => handleOAuth('apple');
 
     const handleGuest = async () => {
         if (guestLoading) return;
