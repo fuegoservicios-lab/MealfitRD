@@ -25,8 +25,10 @@ import { MICROS_TRACKED, VERIFIED_FOODS_LABEL } from './systemFacts.js';
 
 export const BRAND = 'Bioboros';
 
+// [I18N-EXEMPT: metadato SEO del HTML servido; mismo motivo que TITLES]
 export const HOME_DESC = 'Planes de alimentación 100% personalizados con IA avanzada. Adaptados a tus gustos, presupuesto y estilo de vida. Comienza gratis.';
 
+// [I18N-EXEMPT: metadatos SEO que Node estampa en el HTML servido, ANTES de que exista un locale]
 export const TITLES = {
     '/': 'Bioboros | Nutrición Personalizada con IA',
     '/login': `Iniciar sesión · ${BRAND}`,
@@ -62,6 +64,7 @@ export const TITLES = {
 
 // Description por ruta para el snippet de buscadores. ≤ ~160 chars, es-DO,
 // adaptada al contenido real de cada página. Rutas sin entry → HOME_DESC.
+// [I18N-EXEMPT: metadato SEO del HTML servido; mismo motivo que TITLES]
 export const DESCRIPTIONS = {
     '/': HOME_DESC,
     '/login': 'Inicia sesión en Bioboros para acceder a tu plan nutricional personalizado con IA, tu lista de compras y tu coach.',

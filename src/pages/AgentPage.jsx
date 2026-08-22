@@ -2093,6 +2093,7 @@ const AgentPage = () => {
                 setChatSessions((prev) => {
                     const exists = prev.some(s => s.id === currentSessionId);
                     if (!exists) {
+                        // [I18N-EXEMPT: CENTINELA que el backend reconoce para saber que el titulo aun no existe (P1-I18N-CHAT-TITULOS-SERVIDOR)]
                         return [{ id: currentSessionId, title: 'Generando título...', created_at: new Date().toISOString() }, ...prev];
                     }
                     return prev;

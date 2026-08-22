@@ -50,6 +50,7 @@ import { t as _t } from '../i18n';
 // Sigue apareciendo en el detector de español sin envolver, y es correcto que
 // aparezca: son literales españoles sin envolver. Lo que se PINTA sale de
 // `_etiquetasTraducidas`, justo debajo.
+// [I18N-EXEMPT: SSOT canonico de estados; lo que se PINTA sale de _etiquetasTraducidas, debajo]
 const CHUNK_STATUS_LABELS = {
     completed: 'Completado',
     pending: 'En cola',

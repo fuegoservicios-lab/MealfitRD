@@ -748,6 +748,15 @@ if (AS_JSON) {
         console.error('   catálogos: un usuario en inglés las lee en español y la cobertura');
         console.error('   sigue diciendo 100%. Envuélvelas en t(), o si de verdad no deben');
         console.error('   traducirse marca la línea con  // [I18N-EXEMPT: <razón>]');
+        // [P2-I18N-ESCANER-RECALL · 2026-08-22] El trinquete llegó a CERO (78 → 0, y con un
+        // detector MÁS ancho que el que produjo el 78: de los 78, cuarenta y ocho eran tablas
+        // SSOT deliberadas que ahora llevan su marcador). Desde cero, «subió» y «existe» son
+        // lo mismo, y el aviso puede decirlo: esto NO es deuda heredada, es tuyo.
+        if (se.baseline === 0) {
+            console.error('');
+            console.error('   ⚠️  El trinquete está en CERO desde P2-I18N-ESCANER-RECALL, así que');
+            console.error('   esto no es deuda heredada: la cadena la acabas de introducir tú.');
+        }
         for (const r of se.retrocesos) {
             console.error(`     · ${r.rel}: ${r.previo} → ${r.ahora}`);
         }

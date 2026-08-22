@@ -180,6 +180,7 @@ const Header = () => {
                     {isPaper && (
                         <div className={styles.editionTag} aria-hidden="true">
                             <span className={styles.editionRule} />
+                            // [I18N-EXEMPT: marca tipografica de la edicion, aria-hidden; no es copy que nadie lea]
                             <span className={styles.editionLabel}>ES-DO / V1</span>
                         </div>
                     )}

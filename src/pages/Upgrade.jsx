@@ -626,7 +626,7 @@ const Upgrade = () => {
                         onClose={closePayment}
                         onSuccess={(subId, coupon) => handlePaymentSuccess(selectedPlan?.tier, subId, coupon)}
                         price={selectedPlan?.price || '9.99'}
-                        planName={selectedPlan?.name || 'Suscripción Básico'}
+                        planName={/* [I18N-EXEMPT: NOMBRE del plan en PayPal, no copy: viaja al proveedor y sale en el cargo] */ selectedPlan?.name || 'Suscripción Básico'}
                         tier={selectedPlan?.tier || 'basic'}
                         isAnnual={selectedPlan?.isAnnual || false}
                         userId={session?.user?.id}

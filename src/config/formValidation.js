@@ -330,6 +330,7 @@ export const buildFieldToStepIndex = (steps) => {
 // Labels human-readable para los toasts.
 // [P1-2] Cada entry de REQUIRED_FORM_FIELDS DEBE tener su label aquí o el toast
 // muestra el nombre técnico del field ("scheduleType" en vez de "Tu horario").
+// [I18N-EXEMPT: SSOT canonico de campos; los rotulos traducidos viven en getFieldLabels(t)]
 export const FIELD_LABELS = {
     appMode: 'Qué hace Bioboros por ti (plan o contador)',
     planSource: 'Cómo arma tu plan la IA',
@@ -493,6 +494,7 @@ export const TRACKING_REQUIRED_FIELDS = [
 // que el usuario marque algo que el motor va a vetar). Keyed por los CHIPS
 // EXACTOS del wizard (QMedical) — igualdad de string, jamás substring.
 // Test de paridad backend: test_p1_supplement_clinical_gate.py.
+// [I18N-EXEMPT: SSOT clinico con paridad backend; el hint se traduce en blockedSupplementsFor(t)]
 export const SUPPLEMENT_BLOCKERS = {
     pre_workout: {
         conditions: ['Hipertensión', 'Embarazo', 'Lactancia', 'Gastritis'],

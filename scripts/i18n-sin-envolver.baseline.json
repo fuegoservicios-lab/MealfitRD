@@ -1,15 +1,5 @@
 {
   "_comentario": "Trinquete de P1-I18N-GATE-CIEGO-SIN-T: literales en español, DENTRO del alcance, que nunca pasaron por t(). Puede BAJAR, nunca subir. Regenerar con `node scripts/i18n-check.mjs --update-baseline` y revisar el diff: una línea que baja es una pantalla traducida.",
-  "total": 78,
-  "porArchivo": {
-    "components/assessment/questions/QSupplements.jsx": 4,
-    "components/history/HistoryDesktopPanel.jsx": 3,
-    "components/history/HistoryMobilePanel.jsx": 3,
-    "components/layout/Header.jsx": 1,
-    "config/formValidation.js": 24,
-    "config/plans.js": 3,
-    "data/routeMeta.js": 36,
-    "pages/AgentPage.jsx": 1,
-    "utils/chunkStatus.js": 3
-  }
+  "total": 0,
+  "porArchivo": {}
 }

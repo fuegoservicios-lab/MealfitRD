@@ -113,9 +113,11 @@ describe('[P2-HIST-NEW-5] botón toggle', () => {
     it('copy es-DO: "Ver menos" expandido / "Ver todos los N" colapsado', () => {
         const idx = src.indexOf('lifetimeHistoryToggle');
         const block = src.slice(Math.max(0, idx - 200), idx + 1500);
-        // Ternario _expanded ? 'Ver menos' : `Ver todos los ${N}`.
-        expect(block).toMatch(/_expanded[\s\S]*?\?\s*['"]Ver menos['"]/);
-        expect(block).toMatch(/Ver todos los\s+\$\{_history\.length\}/);
+        // [P2-I18N-ESCANER-RECALL · 2026-08-22] El copy pasa por el motor y la cuenta va
+        // como placeholder. Lo que este test defiende es el TERNARIO —dos textos distintos
+        // segun el estado— y que el colapsado diga cuantos hay; no la sintaxis del literal.
+        expect(block).toMatch(/_expanded[\s\S]*?\?\s*t\(['"]Ver menos['"]\)/);
+        expect(block).toMatch(/Ver todos los \{n\}[\s\S]*?_history\.length/);
     });
 
     it('aria-expanded refleja el state booleano', () => {

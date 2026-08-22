@@ -11,6 +11,7 @@ import { useT } from '../../../i18n';
 // [P1-FORM-14] Metadata UI por suplemento. Las claves DEBEN coincidir EXACTAMENTE
 // con `SUPPLEMENTS` (SSOT en formValidation.js). El check de invariante debajo
 // avisa en dev si hay drift. Mismo patrón que `DIET_TYPE_META` de P1-FORM-8.
+// [I18N-EXEMPT: SSOT de claves-emoji con invariante de dev; los rotulos van en getSupplementLabels(t)]
 const SUPPLEMENT_META = {
     whey_protein:  { label: 'Proteína Whey', emoji: '🥛' },
     vegan_protein: { label: 'Prot. Vegana',  emoji: '🌱' },

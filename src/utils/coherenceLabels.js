@@ -54,6 +54,7 @@ const COHERENCE_ACTION_LABELS = {
  * @param {string|null|undefined} code
  * @returns {string|null}
  */
+// [I18N-EXEMPT: SSOT canonico espejo de las tres fuentes Python; las variantes I18n estan debajo]
 export const getCoherenceActionLabel = (code) => {
     if (typeof code !== 'string') return null;
     const _t = code.trim();

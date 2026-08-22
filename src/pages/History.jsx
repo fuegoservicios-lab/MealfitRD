@@ -3352,8 +3352,8 @@ const History = () => {
                                                             aria-expanded={_expanded}
                                                         >
                                                             {_expanded
-                                                                ? 'Ver menos'
-                                                                : `Ver todos los ${_history.length}`}
+                                                                ? t('Ver menos')
+                                                                : t('Ver todos los {n}', { n: _history.length })}
                                                         </button>
                                                     )}
                                                 </div>
@@ -3847,7 +3847,7 @@ const History = () => {
                                         },
                                         {
                                             id: 'violations',
-                                            title: 'Violaciones',
+                                            title: t('Violaciones'),
                                             keys: [
                                                 ['rejection_violations', t('Rechazos'), 'severity'],
                                                 ['allergy_violations', t('Alergias'), 'severity_high'],

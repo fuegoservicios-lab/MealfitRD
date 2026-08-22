@@ -133,6 +133,9 @@ self.addEventListener('push', (event) => {
         try {
             data = event.data.json();
         } catch (e) {
+            // El copy de los push SI se traduce, pero en el backend, donde hay locale:
+            // P1-I18N-PUSH-CRON-ESPANOL. Esto es el fallback de un payload que no parseo.
+            // [I18N-EXEMPT: el service worker corre fuera de React, sin motor de i18n]
             data = { title: "Nuevo Mensaje", body: event.data.text() };
         }
     }

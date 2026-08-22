@@ -75,6 +75,34 @@ const FUNCIONAL = new RegExp(
     'iu',
 );
 
+// [P2-I18N-ESCANER-RECALL · 2026-08-22] La segunda marca: la MORFOLOGÍA.
+//
+// `pareceEspanol` exige un diacrítico o una palabra funcional CON espacio, y su comentario
+// afirmaba que la rama funcional «no cuesta nada en recall». Costaba 39: los rótulos del
+// panel forense del Historial —«Calidad LLM», «Pausado», «Emergencia», «Reintentos
+// recovery»— no llevan tilde ni palabra funcional, así que el fichero reportaba CERO
+// hallazgos con 39 cadenas en español dentro.
+//
+// Estas terminaciones no las produce el inglés (`-ción` vs `-tion`, `-idad` vs `-ity`,
+// `-miento` vs `-ment`, `-ancia` vs `-ance`), así que el falso positivo caro —una cadena
+// inglesa marcada como española— sigue siendo improbable. Aun así NO se mezclan con
+// `pareceEspanol`: se usan sólo donde la POSICIÓN ya es evidencia (una tabla de rótulos, un
+// `aria-label`, una tupla `[id, rótulo, tipo]`). En un `return` suelto o en texto JSX el
+// riesgo no compensa.
+const MORFOLOGIA = /(ción|ciones|dad|dades|mente|miento|mientos|ería|eza|anza|ado|ada|ados|adas|ando|endo|aje|ancia|encia|oso|osa|ismo|ista|ivo|iva)$/i;
+
+/** ¿Copy en español, en una posición que YA es evidencia de copy? */
+export function pareceEspanolEnPosicionFuerte(texto) {
+    const s = String(texto || '').trim();
+    if (pareceEspanol(s)) return true;
+    if (s.length < 3 || !/\p{L}/u.test(s)) return false;
+    if (/^[\p{Lu}\p{N}_.:-]+$/u.test(s)) return false;
+    if (/^(?:https?:|\/|#|@|data:|\.)/.test(s)) return false;
+    // Un rótulo empieza en mayúscula; `completed` o `okButton` no son rótulos.
+    if (!/^[\p{Lu}]/u.test(s)) return false;
+    return s.split(/\s+/).some((w) => MORFOLOGIA.test(w.replace(/[^\p{L}]/gu, '')));
+}
+
 /** ¿Este literal es copy en español? Conservador en LONGITUD, no en marca: una
  *  cadena de una letra o puramente numérica/simbólica nunca es copy. */
 export function pareceEspanol(texto) {
@@ -205,9 +233,10 @@ export function detectarEnFuente(src) {
     // permite eximir una tabla entera con un solo marcador encima.
     let lineaSentencia = 0;
 
-    const anotar = (nodo, posicion) => {
+    const anotar = (nodo, posicion, fuerte = false) => {
         const texto = textoLiteral(nodo);
-        if (texto === null || !pareceEspanol(texto)) return;
+        const marca = fuerte ? pareceEspanolEnPosicionFuerte : pareceEspanol;
+        if (texto === null || !marca(texto)) return;
         const linea = nodo.loc ? nodo.loc.start.line : 0;
         const id = `${linea}:${texto}`;
         if (vistos.has(id)) return;
@@ -258,14 +287,14 @@ export function detectarEnFuente(src) {
                 const v = nodo.value.type === 'JSXExpressionContainer'
                     ? nodo.value.expression
                     : nodo.value;
-                if (v && !yaTraducidos.has(v)) anotar(v, `attr:${nombre}`);
+                if (v && !yaTraducidos.has(v)) anotar(v, `attr:${nombre}`, true);
             }
         }
 
         if ((nodo.type === 'ObjectProperty' || nodo.type === 'Property') && nodo.key && !nodo.computed) {
             const nombre = nodo.key.name || nodo.key.value;
             if (PROPIEDADES.has(nombre) && nodo.value && !yaTraducidos.has(nodo.value)) {
-                anotar(nodo.value, `prop:${nombre}`);
+                anotar(nodo.value, `prop:${nombre}`, true);
             }
         }
 
@@ -284,10 +313,10 @@ export function detectarEnFuente(src) {
                 if (!p || (p.type !== 'ObjectProperty' && p.type !== 'Property')) return false;
                 if (yaTraducidos.has(p.value)) return false;
                 const texto = textoLiteral(p.value);
-                return texto !== null && pareceEspanol(texto);
+                return texto !== null && pareceEspanolEnPosicionFuerte(texto);
             });
             if (candidatos.length >= 2) {
-                for (const p of candidatos) anotar(p.value, 'tabla-de-copy');
+                for (const p of candidatos) anotar(p.value, 'tabla-de-copy', true);
             }
         }
 
@@ -303,6 +332,55 @@ export function detectarEnFuente(src) {
             && nodo.id.type === 'Identifier' && PROPIEDADES.has(nodo.id.name)
             && nodo.init && !yaTraducidos.has(nodo.init)) {
             anotar(nodo.init, `var:${nodo.id.name}`);
+        }
+
+        // [P2-I18N-ESCANER-RECALL · 2026-08-22] TUPLA DE RÓTULO: `['id', 'Rótulo', 'tipo']`.
+        //
+        // Es la forma en la que vivían 28 de los 39 rótulos del panel forense del Historial,
+        // y ningún nodo de los de arriba la alcanza: no es una propiedad de objeto, no es un
+        // atributo y no es un return. El indicio es la ESTRUCTURA — el primer elemento es un
+        // identificador en snake_case y el último un tipo — así que un array de frases
+        // sueltas no dispara.
+        if (nodo.type === 'ArrayExpression') {
+            const els = nodo.elements || [];
+            const todosStr = els.length >= 2 && els.length <= 3
+                && els.every((e) => e && e.type === 'StringLiteral');
+            if (todosStr && /^[a-z][a-z0-9_]*$/.test(els[0].value)) {
+                for (let i = 1; i < els.length; i++) {
+                    // El último elemento de una tupla de 3 es el TIPO, no copy.
+                    if (els.length === 3 && i === 2) continue;
+                    if (!yaTraducidos.has(els[i])) anotar(els[i], 'tupla-de-rotulo', true);
+                }
+            }
+        }
+
+        // El argumento de un `toast` puede llegar envuelto: `toast.error(msg || 'texto')` es
+        // el patrón que `P1-I18N-SERVER-COPY-GANA` cerró a mano en cuatro canales, y
+        // `toast(cond ? 'a' : 'b')` su hermano. El nodo que se anotaba era la expresión
+        // entera, cuyo `textoLiteral` es null: pasaba de largo.
+        if (esLlamadaToast(nodo)) {
+            const primero = (nodo.arguments || [])[0];
+            if (primero && primero.type === 'ConditionalExpression') {
+                if (!yaTraducidos.has(primero.consequent)) anotar(primero.consequent, 'toast:ternario');
+                if (!yaTraducidos.has(primero.alternate)) anotar(primero.alternate, 'toast:ternario');
+            }
+            if (primero && primero.type === 'LogicalExpression') {
+                if (!yaTraducidos.has(primero.right)) anotar(primero.right, 'toast:fallback');
+            }
+        }
+
+        // `{'texto'}` / `{cond ? 'a' : 'b'}` / `{x || 'a'}` como HIJO de JSX. El contenedor
+        // es un nodo intermedio que el recorrido cruzaba sin mirar su expresión.
+        if (nodo.type === 'JSXExpressionContainer' && nodo.expression) {
+            const e = nodo.expression;
+            if (e.type === 'StringLiteral' && !yaTraducidos.has(e)) anotar(e, 'jsx-expr');
+            if (e.type === 'ConditionalExpression') {
+                if (!yaTraducidos.has(e.consequent)) anotar(e.consequent, 'jsx-expr');
+                if (!yaTraducidos.has(e.alternate)) anotar(e.alternate, 'jsx-expr');
+            }
+            if (e.type === 'LogicalExpression' && !yaTraducidos.has(e.right)) {
+                anotar(e.right, 'jsx-expr');
+            }
         }
 
         if (nodo.type === 'ReturnStatement' && nodo.argument && !yaTraducidos.has(nodo.argument)) {

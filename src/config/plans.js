@@ -180,6 +180,7 @@ export const PRICING = {
 // [PAY-MODAL-PERSIST · 2026-06-18 · movido al SSOT P2-LANDING-COPY-TRUTH] Nombre
 // del plan para re-derivar el `name` del modal al rehidratarlo desde la URL tras
 // un refresh. Estaba duplicado en las dos superficies que abren checkout.
+// [I18N-EXEMPT: NOMBRE del plan en PayPal, no copy: viaja al proveedor y sale en el cargo del usuario]
 export const NAME_BY_TIER = {
     basic: 'Suscripción Básico',
     plus: 'Suscripción Plus',

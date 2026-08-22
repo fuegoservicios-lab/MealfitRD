@@ -36,7 +36,9 @@ import { t, tn, useT, useI18n, formatDate, formatNumber } from "../../i18n";
 const fmtDate = (d) => formatDate(d, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const fmtTime = (d) => formatDate(d, { hour: "numeric", minute: "2-digit" });
 const daysAgo = (d) => Math.floor((Date.now() - d.getTime()) / 86400000);
+// [I18N-EXEMPT: IDs de agrupacion, no copy: se traducen al PINTAR en bucketTitle (ver nota debajo)]
 function bucketOf(d) { const n = daysAgo(d); if (n <= 0) return "Hoy"; if (n === 1) return "Ayer"; if (n <= 6) return "Esta semana"; if (n <= 13) return "La semana pasada"; return "Más antiguos"; }
+// [I18N-EXEMPT: IDs de agrupacion; el orden se resuelve por el canonico, no por el rotulo]
 const BUCKET_ORDER = ["Hoy", "Ayer", "Esta semana", "La semana pasada", "Más antiguos"];
 // [P1-I18N-DASHBOARD · 2026-08-15] Igual que en el panel de escritorio: el bucket
 // es un ID que resulta ser su propio texto español, así que se traduce al

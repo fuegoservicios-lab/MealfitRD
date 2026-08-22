@@ -2828,5 +2828,7 @@
   "Proxy logging": "Logging proxy",
   "Fuerza señal": "Signal strength",
   "Pantry degradada": "Pantry degraded",
-  "Edad snapshot": "Snapshot age"
+  "Edad snapshot": "Snapshot age",
+  "Ver todos los {n}": "Show all {n}",
+  "Violaciones": "Violations"
 }
