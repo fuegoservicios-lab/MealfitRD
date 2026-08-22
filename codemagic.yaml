@@ -38,9 +38,11 @@ workflows:
       # `default`). Sin importarlo, `$APP_STORE_APP_ID` llega vacía al build.
       groups:
         - default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.bioboros.app
+      # SIN `ios_signing` aquí. [Build #1, 2026-08-22] Ese bloque es la firma
+      # automática de Codemagic: corre ANTES de los scripts y solo BUSCA perfiles que
+      # ya existan — en la primera subida no hay ninguno y falló con «No matching
+      # profiles found» sin llegar nunca al paso que los CREA. La firma va solo por
+      # `fetch-signing-files --create` (decisión 3).
       vars:
         BUNDLE_ID: "com.bioboros.app"
         # Workspace y scheme que `cap sync` genera/repara en la Mac (paso 4).
@@ -94,7 +96,9 @@ workflows:
             --create
           keychain initialize
           keychain add-certificates
-          xcode-project use-profiles
+          # El proyecto Xcode vive en ios/App (Capacitor), no en la raíz: sin
+          # `--project`, use-profiles busca desde el cwd y no lo encuentra.
+          xcode-project use-profiles --project "ios/App/App.xcodeproj"
 
       - name: Build number = último de TestFlight + 1
         # Apple rechaza un build number repetido. Se lee el último de App Store Connect
