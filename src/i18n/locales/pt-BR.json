@@ -106,7 +106,7 @@
   "Adjuntar imagen": "Anexar imagem",
   "Administrador": "Administrador",
   "Administrar": "Gerenciar",
-  "Afinando sabores criollos…": "Afinando sabores criollos…",
+  "Afinando sabores criollos…": "Afinando sabores crioulos…",
   "Agente": "Agente",
   "Agotados": "Esgotados",
   "Agotar": "Esgotar",
@@ -2308,7 +2308,7 @@
     "other": "dias"
   },
   "el endpoint cap a {limite} para evitar payloads grandes.": "o endpoint limita a {limite} para evitar payloads grandes.",
-  "el menú completo del ciclo actual": "o menu completo do ciclo atual",
+  "el menú completo del ciclo actual": "o cardápio completo do ciclo atual",
   "el mismo alimento": "o mesmo alimento",
   "en cola": "na fila",
   "en las comidas que te parezcan inconsistentes.": "nas refeições que parecerem inconsistentes.",
@@ -2508,7 +2508,7 @@
     "other": "{n} itens da lista já na sua Geladeira"
   },
   "{plato} registrado": "{plato} registrado",
-  "{reales} de {pedidos} días fueron generados por IA; el resto se completó con un menú matemático. Puedes regenerar si prefieres un plan 100% personalizado.": "{reales} de {pedidos} dias foram gerados por IA; o resto foi completado com um menu matemático. Você pode regenerar se preferir um plano 100% personalizado.",
+  "{reales} de {pedidos} días fueron generados por IA; el resto se completó con un menú matemático. Puedes regenerar si prefieres un plan 100% personalizado.": "{reales} de {pedidos} dias foram gerados por IA; o resto foi completado com um cardápio matemático. Você pode regenerar se preferir um plano 100% personalizado.",
   "{remaining} de {limit} créditos restantes": "{remaining} de {limit} créditos restantes",
   "{unidad} de {nombre}": "{unidad} de {nombre}",
   "~{ml} ml por vaso": "~{ml} ml por copo",
