@@ -66,7 +66,12 @@ export const DESCRIPTIONS = {
     '/': HOME_DESC,
     '/login': 'Inicia sesión en Bioboros para acceder a tu plan nutricional personalizado con IA, tu lista de compras y tu coach.',
     '/assessment': 'Crea tu plan nutricional personalizado con IA en minutos. Adaptado a tus gustos, presupuesto y condición. Gratis para empezar, sin tarjeta.',
-    '/precios': 'Planes y precios de Bioboros: empieza gratis o sube a Básico, Plus o Ultra. Precios reales en RD$, sin tarjeta para comenzar.',
+    // [P3-BETA-COPY-TRUTH · 2026-08-22] Decía «Precios reales en RD$» y los tres planes se cobran
+    // en USD vía PayPal (SSOT: config/plans.js). Falso desde antes del flip y para cualquier
+    // visitante, dominicano incluido — y aparece en el snippet de buscadores, o sea justo donde
+    // alguien decide si hace clic. Ojo al corregir por grep: el RD$ de `/supermercado` sí es
+    // cierto (es el súper dominicano) y tocarlo empeoraría un texto correcto.
+    '/precios': 'Planes y precios de Bioboros: empieza gratis o sube a Básico, Plus o Ultra. Precios en USD, sin tarjeta para comenzar.',
     '/funciones': 'Todo lo que hace Bioboros: plan diario calibrado, recetas paso a paso, lista de compras costeada en RD$, coach IA 24/7 y nevera inteligente.',
     '/como-funciona': 'El método de Bioboros paso a paso: de tu perfil clínico-metabólico al plato, con validación nutricional determinista en cada etapa.',
     '/precision': `La precisión que medimos en Bioboros: banda de macros, piso de proteína, ${MICROS_TRACKED} micronutrientes vs DRI y guardas clínicas por condición.`,

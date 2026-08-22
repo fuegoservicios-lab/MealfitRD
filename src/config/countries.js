@@ -50,9 +50,11 @@ export const COUNTRY_SYSTEM_UI = ['1', 'true'].includes(
 // nombres por regex sobre este fuente; renombrar cualquiera sin tocar el test
 // lo rompe primero a él, no a producción.
 //
-// Exact-match primero (O(1)); las únicas zonas que necesitan PREFIJO son las
-// que empiezan con "America/Indiana/" o "America/Kentucky/" — condados de
-// EE.UU. sin una zona IANA única por su historial de DST no uniforme.
+// Exact-match primero (O(1)); las zonas que necesitan PREFIJO son las de
+// "America/Indiana/", "America/Kentucky/" y "America/North_Dakota/" — estados
+// de EE.UU. cuyos condados no comparten una zona IANA única por su historial
+// de DST no uniforme. La lista de prefijos vive abajo y es la fuente; esta
+// frase la resume, así que si añades uno, añádelo también aquí.
 //
 // [CUIDADO al editar este comentario]: nunca peguen barra y asterisco
 // consecutivos en esta prosa (por ejemplo para denotar un comodín de ruta) —
@@ -65,6 +67,11 @@ const TZ_COUNTRY_EXACT = {
     'America/Puerto_Rico': 'PR',
     'Europe/Madrid': 'ES',
     'Atlantic/Canary': 'ES',
+    // [P3-TZ-COUNTRY-COVERAGE] Ceuta y Melilla. Es 'Africa/Ceuta', NO 'Europe/Ceuta':
+    // la ciudad está en el continente africano y la base IANA la nombra por ahí. La
+    // auditoría pedía la grafía europea, que no existe — habría metido una fila muerta
+    // que no casa con ningún navegador, dejando el hueco abierto con la tarea en verde.
+    'Africa/Ceuta': 'ES',
     'America/Bogota': 'CO',
     // México
     'America/Mexico_City': 'MX',
@@ -78,6 +85,10 @@ const TZ_COUNTRY_EXACT = {
     'America/Matamoros': 'MX',
     'America/Ojinaga': 'MX',
     'America/Bahia_Banderas': 'MX',
+    // [P3-TZ-COUNTRY-COVERAGE] Zona real desde tzdata 2022g: Ciudad Juarez dejo de
+    // seguir a Chihuahua cuando Mexico abolio el horario de verano salvo en la
+    // franja fronteriza. Un navegador actualizado la reporta con este nombre.
+    'America/Ciudad_Juarez': 'MX',
     // Estados Unidos (continental + Alaska/Hawái)
     'America/New_York': 'US',
     'America/Chicago': 'US',
@@ -88,11 +99,25 @@ const TZ_COUNTRY_EXACT = {
     'Pacific/Honolulu': 'US',
     'America/Detroit': 'US',
     'America/Boise': 'US',
+    // [P3-TZ-COUNTRY-COVERAGE] El sureste y el oeste de Alaska tienen zonas propias:
+    // 'America/Anchorage' no las cubre. Y Menominee (Michigan) va en horario del
+    // Centro, asi que tampoco cae bajo Detroit.
+    'America/Juneau': 'US',
+    'America/Sitka': 'US',
+    'America/Metlakatla': 'US',
+    'America/Yakutat': 'US',
+    'America/Nome': 'US',
+    'America/Adak': 'US',
+    'America/Menominee': 'US',
 };
 
 const TZ_COUNTRY_PREFIXES = [
     ['America/Indiana/', 'US'],
     ['America/Kentucky/', 'US'],
+    // [P3-TZ-COUNTRY-COVERAGE] Dakota del Norte tiene TRES zonas (Center, New_Salem,
+    // Beulah) que comparten forma: un prefijo las cubre y no hay que acordarse de las
+    // tres, igual que con Indiana y Kentucky.
+    ['America/North_Dakota/', 'US'],
 ];
 
 // Traduce el NOMBRE de una zona horaria IANA a un país ISO-3166 alpha-2.
