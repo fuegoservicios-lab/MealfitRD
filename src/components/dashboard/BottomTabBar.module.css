@@ -75,7 +75,11 @@
         font-size: 0.75rem;
         font-weight: 600;
         letter-spacing: 0.02em;
-        line-height: 1;
+        /* [P2-TABBAR-DESCENDER-CLIP · 2026-08-22] Era `line-height: 1`: la caja de
+           línea medía exactamente el em y los descendentes (la g de «Agente») colgaban
+           fuera; el `overflow: hidden` de abajo los cortaba — visto en el iPhone,
+           build 8. 1.25 deja el hueco del descendente sin mover la barra (64 px). */
+        line-height: 1.25;
         font-family: var(--font-body);
         /* [P2-I18N-NAV-DESBORDE · 2026-08-21 · MEDIDO Y CORREGIDO 2026-08-22]
            ESTO NO ARREGLO NADA, y conviene que lo diga en vez de figurar como fix.
@@ -93,8 +97,8 @@
            recortada deja de reconocerse; aqui el icono de encima ya identifica la
            pestana, asi que un «Garde-man…» sigue siendo legible y la barra conserva su
            geometria — que es lo que el usuario usa para orientarse sin leer.
-           `line-height: 1` de arriba hacia el desborde aun mas visible: la segunda
-           linea se pegaba a la primera. */
+           El line-height compacto de arriba hacia el desborde aun mas visible: la
+           segunda linea se pegaba a la primera. */
         max-width: 100%;
         white-space: nowrap;
         overflow: hidden;
