@@ -14,8 +14,9 @@
 #      por commit.
 #
 # LO QUE TIENES QUE CONFIGURAR EN CODEMAGIC (una vez):
-#   Teams → Integrations → App Store Connect: sube la API key (.p8) con su Key ID e
-#   Issuer ID, y llámala `bioboros_asc`. Es el único secreto; el YAML lo referencia
+#   Settings → Integrations → App Store Connect (cuenta Individual: la integración vive
+#   en los ajustes de la cuenta, no en «Teams», que es de pago y pide tarjeta): sube
+#   la API key (.p8) con su Key ID e Issuer ID, y llámala `bioboros_asc`. Es el único secreto; el YAML lo referencia
 #   por ese nombre y nunca lo contiene.
 
 workflows:
