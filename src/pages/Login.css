@@ -477,15 +477,21 @@
      que subirlo. Contraintuitivo: en un iPhone SE el contenido SÍ desborda, así que
      allí había scroll de rescate. El defecto era PEOR en el teléfono grande.
      `position:relative` (no `static`) es obligatorio: los glows son `absolute` y este
-     es su bloque contenedor. `overflow-x:clip` sigue recortándolos sin crear un
-     contenedor de scroll — es el único par mixto válido con `overflow-y:visible`. */
+     es su bloque contenedor.
+     [P1-LOGIN-GLOW-OVERSCROLL · 2026-08-22] `overflow: clip` en LOS DOS ejes. Antes
+     era `overflow-x: clip; overflow-y: visible` con la creencia de que el clip
+     horizontal «seguía recortando los glows»: solo de lado. `.mf-glow--b` lleva
+     `bottom: -160px` y colgaba por debajo del login — 162 px de scroll REAL vacío
+     al final de la página (medido: scrollHeight 1006 en un viewport de 844). `clip`,
+     a diferencia de `hidden`, NUNCA crea un contenedor de scroll, así que el
+     documento sigue scrolleando cuando el teclado encoge el viewport: el fallo que
+     este bloque cierra sigue cerrado. e2e: login_no_overscroll.spec.js. */
   .mf-login {
     grid-template-columns: 1fr;
     position: relative;
     inset: auto;
     min-height: 100dvh;
-    overflow-x: clip;
-    overflow-y: visible;
+    overflow: clip;
   }
   .mf-showcase { display: none; }
 
