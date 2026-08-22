@@ -146,7 +146,7 @@ const LegalLayout = ({ title, lastUpdated, children }) => {
    POLÍTICA DE PRIVACIDAD
    ============================================================================ */
 export const Privacy = () => (
-    <LegalLayout title="Política de Privacidad" lastUpdated="14 de Agosto, 2026">
+    <LegalLayout title="Política de Privacidad" lastUpdated="22 de Agosto, 2026">
         <p>En Bioboros nos tomamos en serio la protección de sus datos. Esta Política describe con precisión técnica qué información recopilamos, cómo la procesamos, dónde la almacenamos, con quién la compartimos, qué cookies y almacenamiento local usamos, y qué derechos tiene usted sobre ella. La transparencia es nuestro principio fundamental.</p>
 
         <h3>1. Identidad del Responsable del Tratamiento</h3>
@@ -178,14 +178,14 @@ export const Privacy = () => (
         {/* [P1-AI-CONFIDENTIAL · 2026-07-11] Las identidades/versiones de los modelos
             son secreto comercial y rotan; el PROVEEDOR (receptor de datos) sí se
             divulga — es la parte legalmente relevante bajo la Ley 172-13. */}
-        <p>Como motor generativo utilizamos <strong>modelos de IA de última generación de proveedores externos</strong> — actualmente el proveedor es <strong>DeepSeek</strong>. La identidad, versión y combinación específica de los modelos que orquestamos constituye información confidencial de Bioboros (secreto comercial) y <strong>puede cambiar sin previo aviso</strong> a medida que evaluamos y adoptamos mejores modelos, siempre manteniendo los mismos estándares de calidad y validación. Si cambiara el <em>proveedor</em> que recibe sus datos, actualizaremos esta política. El uso de un proveedor externo significa que ciertos datos suyos viajan a su API para ejecutar la inferencia. Específicamente enviamos al proveedor:</p>
+        <p>Como motor generativo utilizamos <strong>modelos de IA de última generación de proveedores externos</strong>. Hoy son <strong>dos</strong>: <strong>DeepSeek</strong> genera su plan y mueve la conversación con el coach; <strong>OpenAI</strong> realiza la revisión clínica de los planes de pago, actúa como respaldo cuando DeepSeek no responde y <strong>procesa las fotos de comida que usted escanea</strong>. La identidad, versión y combinación específica de los modelos que orquestamos constituye información confidencial de Bioboros (secreto comercial) y <strong>puede cambiar sin previo aviso</strong> a medida que evaluamos y adoptamos mejores modelos, siempre manteniendo los mismos estándares de calidad y validación. Lo que <strong>no</strong> cambia sin avisarle es <em>quién</em> recibe sus datos: si añadiéramos o sustituyéramos un proveedor, actualizaremos esta política antes. Específicamente enviamos a los proveedores:</p>
         <ul>
             <li>Su perfil de salud completo (peso, altura, edad, género, restricciones).</li>
             <li>Sus preferencias y comidas que le gustan/no le gustan.</li>
             <li>El historial reciente de la conversación con el asistente.</li>
-            <li>Las fotos de comida que usted decide compartir (cuando el análisis visual esté habilitado).</li>
+            <li>Las fotos de comida que usted decide escanear (sólo a OpenAI).</li>
         </ul>
-        <p>DeepSeek trata estos datos bajo sus <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" className={styles.link}>Términos de Servicio y Política de Privacidad de la Plataforma Abierta</a>. Tenga en cuenta que los servidores del proveedor de inferencia pueden estar ubicados fuera de la República Dominicana (incluida la República Popular China), por lo que el envío implica una transferencia internacional de datos. No anonimizamos los datos antes de enviarlos porque la personalización requiere su contexto específico; sin embargo, NUNCA enviamos su nombre completo, correo electrónico ni datos de pago.</p>
+        <p>DeepSeek trata estos datos bajo sus <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" className={styles.link}>Términos de Servicio y Política de Privacidad de la Plataforma Abierta</a>; sus servidores pueden estar ubicados fuera de la República Dominicana, incluida la <strong>República Popular China</strong>. OpenAI trata estos datos bajo sus <a href="https://openai.com/policies/" target="_blank" rel="noopener noreferrer" className={styles.link}>políticas de uso de la API</a> (que excluyen el uso de los datos de la API para entrenar sus modelos); sus servidores están principalmente en <strong>Estados Unidos</strong>. En ambos casos el envío implica una transferencia internacional de datos. No anonimizamos los datos antes de enviarlos porque la personalización requiere su contexto específico; sin embargo, NUNCA enviamos su nombre completo, correo electrónico ni datos de pago.</p>
         <p>Adicionalmente, NOSOTROS no usamos sus datos personales para entrenar modelos propios. La "memoria a largo plazo" del agente se basa en embeddings vectoriales privados de SU cuenta — no se cruza ni se agrega con otros usuarios.</p>
 
         <h3>5. Infraestructura y Seguridad Técnica</h3>
@@ -210,7 +210,9 @@ export const Privacy = () => (
         <p>Para operar la plataforma compartimos datos estrictamente necesarios con los siguientes proveedores. Todos están bajo contratos de procesamiento de datos:</p>
         <ul>
             <li><strong>Neon, Inc.</strong> — almacenamiento de base de datos y autenticación.</li>
-            <li><strong>DeepSeek (Hangzhou DeepSeek Artificial Intelligence Basic Technology Research Co., Ltd.)</strong> — inferencia con modelos de IA generativa (perfil de salud, conversaciones y, cuando esté habilitado, imágenes).</li>
+            <li><strong>DeepSeek (Hangzhou DeepSeek Artificial Intelligence Basic Technology Research Co., Ltd.)</strong> — generación del plan y conversación con el coach (perfil de salud, preferencias y conversación).</li>
+            <li><strong>OpenAI, L.L.C.</strong> — revisión clínica de los planes de pago, red de respaldo de la generación y <strong>análisis de las fotos de comida</strong> (perfil de salud, conversación e imágenes que usted escanea).</li>
+            <li><strong>ElevenLabs Inc.</strong> — <em>solo si usted activa el Modo Llamada del coach</em>: convierte en audio el texto de las respuestas del asistente. Recibe ese texto (que puede contener referencias a su plan o su salud), no su identidad.</li>
             <li><strong>PayPal Holdings, Inc.</strong> — procesamiento de pagos y suscripciones.</li>
             <li><strong>Functional Software, Inc. (Sentry)</strong> — monitoreo de errores técnicos.</li>
             <li><strong>PostHog, Inc.</strong> — analítica de producto (visitas, uso de secciones y embudo de registro). Sin datos de salud, correo ni nombre.</li>
@@ -227,7 +229,7 @@ export const Privacy = () => (
             <li><strong>Acceder</strong> a la información que tenemos de usted desde Ajustes en la app o solicitándola por correo.</li>
             <li><strong>Rectificar</strong> datos incorrectos editando su perfil directamente.</li>
             <li><strong>Eliminar</strong> su cuenta y todos los datos asociados directamente <strong>desde la app</strong> (Ajustes → Eliminar cuenta, con confirmación), o escribiendo a bioboros.support@gmail.com. El borrado dispara CASCADE sobre todas las tablas vinculadas mediante claves foráneas.</li>
-            <li><strong>Exportar</strong> sus datos en formato JSON solicitándolo por correo (cumplimos en un plazo máximo de 30 días).</li>
+            <li><strong>Exportar</strong> sus datos en formato JSON <strong>al instante desde la app</strong> (Ajustes → Privacidad → Exportar datos). Si prefiere pedirlo por correo, cumplimos en un plazo máximo de 30 días.</li>
             <li><strong>Oponerse</strong> al tratamiento para finalidades distintas a la ejecución del contrato.</li>
             <li><strong>Revocar el consentimiento</strong> cancelando su suscripción y eliminando la cuenta.</li>
         </ul>
@@ -236,7 +238,7 @@ export const Privacy = () => (
         <p>Bioboros está destinada a personas mayores de 18 años. Aunque actualmente solicitamos la edad como dato declarativo del usuario, no realizamos verificación de identidad. Si descubrimos que un menor ha creado una cuenta sin consentimiento parental, eliminaremos la cuenta y sus datos asociados de inmediato. Padres o tutores pueden notificarnos en bioboros.support@gmail.com.</p>
 
         <h3>12. Transferencias Internacionales</h3>
-        <p>Dado que algunos de nuestros proveedores (Neon, DeepSeek, PayPal, Sentry, PostHog, Oracle Cloud y Cohere) operan globalmente, sus datos pueden procesarse fuera de República Dominicana — principalmente en Estados Unidos y, en el caso de <strong>DeepSeek</strong>, en la <strong>República Popular China</strong> (ver Sección 4). Exigimos a estos proveedores marcos de protección reconocidos (Cláusulas Contractuales Estándar y/o equivalentes). Nunca enviamos a estos proveedores su nombre completo, correo electrónico ni datos de pago.</p>
+        <p>Dado que nuestros proveedores (Neon, DeepSeek, OpenAI, ElevenLabs, PayPal, Sentry, PostHog, Oracle Cloud, Cohere y, si usted los usa, Google y Apple) operan globalmente, sus datos pueden procesarse fuera de República Dominicana — principalmente en Estados Unidos y, en el caso de <strong>DeepSeek</strong>, en la <strong>República Popular China</strong> (ver Sección 4). Exigimos a estos proveedores marcos de protección reconocidos (Cláusulas Contractuales Estándar y/o equivalentes). Nunca enviamos a estos proveedores su nombre completo, correo electrónico ni datos de pago.</p>
 
         <h3>13. Cookies y Almacenamiento Local</h3>
         <p>Aplicamos un principio de minimalismo: solo usamos los almacenamientos estrictamente necesarios para que el servicio funcione, para recordar sus preferencias entre visitas y para medir el uso del producto. <strong>No utilizamos cookies de publicidad, marketing ni retargeting</strong> — sin Google Analytics, Meta/TikTok Pixel, identificadores publicitarios (IDFA, GAID) ni fingerprinting del navegador. Sí utilizamos una cookie de <strong>analítica de producto propia</strong> (PostHog), descrita abajo y en la Sección 7, que usted puede desactivar.</p>
@@ -260,7 +262,7 @@ export const Privacy = () => (
    TÉRMINOS DE SERVICIO
    ============================================================================ */
 export const Terms = () => (
-    <LegalLayout title="Términos de Servicio" lastUpdated="11 de Julio, 2026">
+    <LegalLayout title="Términos de Servicio" lastUpdated="22 de Agosto, 2026">
         <p>Bienvenido a Bioboros. Al acceder o utilizar nuestra plataforma usted acepta los presentes Términos de Servicio, que constituyen un acuerdo legalmente vinculante entre usted y Bioboros. Por favor léalos con atención.</p>
 
         <h3>1. Naturaleza del Servicio</h3>
@@ -283,7 +285,7 @@ export const Terms = () => (
         <p>Todos los pagos se procesan mediante PayPal. La suscripción se renueva automáticamente al final de cada período (mensual o anual) salvo que usted la cancele desde Ajustes o desde su cuenta de PayPal antes de la fecha de renovación. Las cancelaciones surten efecto al final del período facturado en curso — no realizamos prorrateo de devolución por períodos parcialmente consumidos.</p>
         <p><strong>Reembolsos:</strong> las suscripciones <strong>no son reembolsables</strong>, salvo donde la ley aplicable lo exija. Puede cancelar en cualquier momento para detener las renovaciones futuras; conservará el acceso hasta el final del período ya pagado. El detalle está en la <strong>Política de Reembolsos y Cancelaciones</strong>.</p>
         <p>Reservamos el derecho de modificar los precios y planes con notificación previa de treinta (30) días para suscriptores existentes.</p>
-        <p><strong>Compras a través de tiendas de aplicaciones:</strong> si usted descarga Bioboros desde el App Store de Apple o Google Play y contrata su suscripción dentro de la app, el cobro, la renovación, la cancelación y los reembolsos de esa suscripción se gestionan a través de la tienda correspondiente y se rigen además por los términos de Apple o Google, según aplique. La gestión de esas suscripciones se realiza desde los ajustes de su cuenta de la tienda, no desde PayPal.</p>
+        <p><strong>Aplicación para iPhone:</strong> si usted usa Bioboros desde la app de la App Store, esa app <strong>no vende suscripciones ni incluye ninguna compra</strong>: sólo refleja el plan que usted tenga contratado. Todas las suscripciones se contratan, renuevan y cancelan exclusivamente en bioboros.com a través de PayPal, según se describe en esta sección. Apple no interviene en el cobro ni en la gestión de su suscripción.</p>
 
         <h3>4. Uso Aceptable</h3>
         <p>Usted se compromete a NO:</p>
@@ -408,7 +410,7 @@ export const MedicalDisclaimer = () => (
    POLÍTICA DE PROTECCIÓN DE DATOS (Ley 172-13)
    ============================================================================ */
 export const DataProtection = () => (
-    <LegalLayout title="Política de Protección de Datos" lastUpdated="11 de Julio, 2026">
+    <LegalLayout title="Política de Protección de Datos" lastUpdated="22 de Agosto, 2026">
         <p>Esta Política desarrolla los derechos que la legislación de protección de datos le reconoce sobre su información personal y le explica, paso a paso, cómo ejercerlos en Bioboros. Complementa nuestra <strong>Política de Privacidad</strong> (qué datos tratamos) centrándose en <strong>sus derechos como titular</strong> de esos datos.</p>
 
         <h3>1. Marco Legal Aplicable</h3>
@@ -443,7 +445,7 @@ export const DataProtection = () => (
         <p>Su perfil incluye datos de salud (peso, condiciones declaradas como diabetes o enfermedad renal, alergias) que la Ley 172-13 considera <strong>datos sensibles</strong>. Los tratamos <strong>exclusivamente</strong> para generar y ajustar su plan nutricional, con la finalidad limitada que usted consiente al completar el formulario, y nunca para publicidad. No los compartimos con terceros salvo el proveedor de inferencia estrictamente necesario para producir su plan (ver Política de Privacidad y Política de Uso de IA).</p>
 
         <h3>6. Transferencias Internacionales</h3>
-        <p>Para generar su plan, parte de su perfil se procesa en servidores de nuestro proveedor de inteligencia artificial (actualmente DeepSeek), que pueden ubicarse fuera de República Dominicana, incluida la República Popular China. Esto constituye una transferencia internacional de datos. Nunca enviamos su nombre completo, correo ni datos de pago. El detalle está en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
+        <p>Para generar y revisar su plan, y para analizar las fotos que escanea, parte de su perfil se procesa en servidores de nuestros proveedores de inteligencia artificial — <strong>DeepSeek</strong> (cuyos servidores pueden ubicarse en la República Popular China) y <strong>OpenAI</strong> (Estados Unidos). Esto constituye una transferencia internacional de datos. Nunca enviamos su nombre completo, correo ni datos de pago. El detalle está en la <strong>Política de Uso de Inteligencia Artificial</strong>.</p>
 
         <h3>7. Medidas de Seguridad</h3>
         <p>Aplicamos cifrado en tránsito (TLS) y en reposo, aislamiento estricto por identificador de usuario en cada consulta a la base de datos (con tests automatizados que enforzan que ninguna consulta acceda a datos de otro usuario), autenticación con tokens firmados criptográficamente, y acceso sin contraseña (código de un solo uso al correo, o Google). El detalle técnico está en la Política de Privacidad.</p>
@@ -460,24 +462,24 @@ export const DataProtection = () => (
    POLÍTICA DE USO DE INTELIGENCIA ARTIFICIAL
    ============================================================================ */
 export const AIUse = () => (
-    <LegalLayout title="Política de Uso de Inteligencia Artificial" lastUpdated="11 de Julio, 2026">
+    <LegalLayout title="Política de Uso de Inteligencia Artificial" lastUpdated="22 de Agosto, 2026">
         <p>Bioboros usa inteligencia artificial de forma central en su producto. Creemos que debe saber, con transparencia, dónde interviene la IA, qué datos suyos utiliza, cuáles son sus límites y qué control conserva usted sobre las decisiones. Esta política lo explica.</p>
 
         <h3>1. Dónde Usamos IA</h3>
         <ul>
             <li><strong>Generación de tu plan:</strong> un sistema de orquestación coordina varios pasos —generación, cálculo determinista de macronutrientes, validación y guardas clínicas— para producir tu plan diario, recetas y lista de compras.</li>
             <li><strong>Coach conversacional:</strong> el asistente responde preguntas, cambia comidas, regenera días y registra tu consumo, recalculando con el motor determinista.</li>
-            <li><strong>Análisis de fotos de comida:</strong> cuando esta función esté disponible, podrás subir una foto para estimar sus macros; revisas y confirmas antes de guardar.</li>
+            <li><strong>Escáner de comida:</strong> puedes fotografiar un plato para que la IA identifique los alimentos y estime sus macros; tú revisas y confirmas antes de guardarlo en tu diario. La foto no se conserva una vez analizada.</li>
         </ul>
 
         <h3>2. Modelos Confidenciales y en Evolución — y Qué Datos Viajan</h3>
         <p>Orquestamos <strong>varios modelos de IA de última generación</strong> de proveedores externos. La identidad, versión y combinación exacta de esos modelos es <strong>información confidencial de Bioboros</strong> (secreto comercial): los evaluamos y rotamos constantemente para darte el mejor resultado, por lo que <strong>pueden cambiar sin previo aviso</strong>. Todo cambio de modelo pasa por la misma barra de calidad, validación determinista y guardas clínicas descritas en esta política.</p>
-        <p>Lo que sí divulgamos siempre es <strong>quién recibe tus datos</strong>: actualmente el proveedor de inferencia es <strong>DeepSeek</strong>. Si el proveedor cambiara, actualizaremos esta política y la Política de Protección de Datos. Para producir tu plan enviamos al proveedor únicamente lo necesario:</p>
+        <p>Lo que sí divulgamos siempre es <strong>quién recibe tus datos</strong>. Hoy son dos proveedores: <strong>DeepSeek</strong> genera tu plan y mueve la conversación con el coach; <strong>OpenAI</strong> hace la revisión clínica de los planes de pago, actúa como respaldo cuando DeepSeek no responde y <strong>analiza las fotos que escaneas</strong>. Si añadiéramos o sustituyéramos un proveedor, actualizaremos esta política y la Política de Protección de Datos antes. Para producir tu plan les enviamos únicamente lo necesario:</p>
         <ul>
             <li>Tu perfil de salud (peso, estatura, edad, género, nivel de actividad, condiciones y restricciones declaradas).</li>
             <li>Tus preferencias y los alimentos que te gustan o no.</li>
             <li>El historial reciente de tu conversación con el asistente.</li>
-            <li>Las fotos de comida que decidas compartir (cuando el análisis visual esté habilitado).</li>
+            <li>Las fotos de comida que decidas escanear (sólo a OpenAI).</li>
         </ul>
         <p><strong>NUNCA</strong> enviamos al proveedor tu nombre completo, tu correo electrónico ni tus datos de pago. El proveedor trata estos datos bajo sus propios términos y sus servidores pueden estar fuera de República Dominicana (ver «Transferencias Internacionales» en la Política de Protección de Datos).</p>
 

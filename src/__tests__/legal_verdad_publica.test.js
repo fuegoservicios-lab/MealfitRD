@@ -53,6 +53,31 @@ const REFUTADAS = [
         frase: 'verificación de contraseñas filtradas (HaveIBeenPwned) al registrarse',
         porque: 'la misma afirmación en prosa, dos párrafos más abajo de la lista',
     },
+    // [P1-POLITICAS-VERDAD-IA-PAISES · 2026-08-22] Medido contra el VPS: hay DOS
+    // proveedores de IA (OPENAI_API_KEY viva; gpt-5.6 es el reviewer clínico de pago,
+    // la red de fallback y el motor del escáner), el escáner está HABILITADO
+    // (MEALFIT_VISION_PROVIDER=openai_compatible) y la app nativa NO vende nada
+    // (P1-IOS-NATIVE-SHELL). Las mismas frases se retiraron del apex ese día.
+    {
+        frase: 'actualmente el proveedor es',
+        porque: 'nombra UN proveedor de IA y hay dos (DeepSeek + OpenAI); omitir al que recibe las fotos es omitir a un destinatario',
+    },
+    {
+        frase: 'actualmente el proveedor de inferencia es',
+        porque: 'misma afirmación en la Política de IA',
+    },
+    {
+        frase: 'cuando el análisis visual esté habilitado',
+        porque: 'el escáner de fotos está habilitado en producción y las fotos van a OpenAI; presentarlo como futuro oculta un tratamiento que ya ocurre',
+    },
+    {
+        frase: 'cuando esta función esté disponible',
+        porque: 'misma afirmación, otra redacción',
+    },
+    {
+        frase: 'contrata su suscripción dentro de la app',
+        porque: 'la app de la App Store no tiene comercio (Apple 3.1.1, P1-IOS-NATIVE-SHELL); describe un flujo que no existe',
+    },
 ];
 
 describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {

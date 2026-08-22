@@ -56,6 +56,10 @@ const PaymentModal = lazy(() => import('../components/dashboard/PaymentModal'));
 // siempre mensual. El toggle "Anual" no aplica a esta tarjeta. (= Pricing.jsx)
 // [P1-CREDITS-LADDER + P1-LAUNCH-OFFER · 2026-07-31] Créditos por tier y
 // anclaje de precio de lanzamiento — SSOT compartido con Pricing.jsx.
+// [P1-LEGAL-LINKS-APEX · 2026-08-22] Las legales viven SOLO en el apex
+// (P1-LEGAL-UNA-SOLA-COPIA). Un href relativo funcionaba en web por el 301 de
+// nginx; en la app nativa (capacitor://) abriría la copia JSX obsoleta.
+import { apexUrl } from '../config/site';
 import {
     ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME, tierDisplayName, periodLabel,
     creditsVsPredecessor, includesPredecessor,
@@ -819,9 +823,9 @@ const Upgrade = () => {
 
             {/* --- FOOTER LINKS --- */}
             <footer className={styles.footerLinks}>
-                <a href="/privacy" target="_blank" rel="noopener noreferrer">{t('Privacidad')}</a>
+                <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer">{t('Privacidad')}</a>
                 ·
-                <a href="/terms" target="_blank" rel="noopener noreferrer">{t('Términos')}</a>
+                <a href={apexUrl('/terms')} target="_blank" rel="noopener noreferrer">{t('Términos')}</a>
                 ·
                 <a href="mailto:bioboros.support@gmail.com">{t('Soporte')}</a>
                 <br />

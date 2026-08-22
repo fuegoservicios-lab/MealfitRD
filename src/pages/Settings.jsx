@@ -64,6 +64,10 @@ import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
 import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';
+// [P1-LEGAL-LINKS-APEX · 2026-08-22] Las legales viven SOLO en el apex
+// (P1-LEGAL-UNA-SOLA-COPIA). Un href relativo funcionaba en web por el 301 de
+// nginx; en la app nativa (capacitor://) abriría la copia JSX obsoleta.
+import { apexUrl } from '../config/site';
 // [P2-PRIVACY-SETTINGS · 2026-07-04] Enlaces de políticas de la sección
 // Privacidad — abren en el apex (mismo patrón que el menú "Más información").
 // [P1-MORE-INFO-IN-APP · 2026-08-10] Los enlaces legales de esta pantalla CONSERVAN
@@ -3240,13 +3244,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             <h2 className={styles.sectionTitle}>{t('Privacidad')}</h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.55 }}>
                                 {t('En Bioboros creemos en prácticas transparentes de datos: tu información se usa para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra')}{' '}
-                                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Política de Privacidad')}</a>.
+                                <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Política de Privacidad')}</a>.
                             </p>
 
                             {[
-                                { label: t('Cómo protegemos tus datos'), path: '/data-protection' },
-                                { label: t('Cómo usamos tus datos'), path: '/privacy' },
-                                { label: t('Cómo usamos la IA'), path: '/ai-policy' },
+                                { label: t('Cómo protegemos tus datos'), path: apexUrl('/data-protection') },
+                                { label: t('Cómo usamos tus datos'), path: apexUrl('/privacy') },
+                                { label: t('Cómo usamos la IA'), path: apexUrl('/ai-policy') },
                             ].map((link) => (
                                 <a
                                     key={link.path}
@@ -3312,7 +3316,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         el orden sujeto-verbo que comparten los cinco idiomas. */}
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
                                         {t('Hoy Bioboros')} <strong>{t('no entrena')}</strong> {t('modelos con tus datos. Si lo permites, tus planes y conversaciones podrán usarse')} <strong>{t('de forma anónima')}</strong> {t('para entrenar los modelos propios de Bioboros en el futuro.')}{' '}
-                                        <a href="/ai-policy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Más información')}</a>.
+                                        <a href={apexUrl('/ai-policy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Más información')}</a>.
                                     </div>
                                 </div>
                                 <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
