@@ -44,8 +44,8 @@
     "nota": "RETIRADO 2026-08-22. «Comida» en espanol es un HOMOGRAFO: la comida de una franja horaria (meal/pasto) y la comida como sustancia (food/cibo). El glosario solo puede exigir una, y exigir «pasto» convertia en desvio traducciones correctas — «Comida real, metas reales» es *Cibo vero*, «No detectamos comida en la foto» es *cibo*, «Disfruta de tu comida» es *Buon appetito*. Medido: 15 de los ejemplos que quedaban eran esto. Un termino que no se puede exigir por subcadena no pertenece a una tabla que compara por subcadena; forzarlo pediria mistraducciones y el guard se acabaria apagando. Si algun dia hace falta anclar el sentido de FRANJA, la via es marcar esas claves, no el termino."
   },
   "Plato": {
-    "nota": "MEDIDO 2026-08-22: el ingles dice «meal» en 29 cadenas y «dish» en 11 — el copy ingles es inconsistente consigo mismo, y esas 11 quedan como deuda en el trinquete. Se pacta el uso DOMINANTE: un glosario registra como llama el producto a las cosas, no como preferiria llamarlas quien lo escribe. Los otros tres idiomas si son consistentes (prato 49/49, plat 38/49, piatto 49/49).",
-    "en-US": "meal", "pt-BR": "prato", "fr-FR": "plat", "it-IT": "piatto"
+    "nota": "SIN PACTO PARA en-US, y no es un olvido. MEDIDO 2026-08-22: el ingles usa TRES palabras para lo que el espanol llama «plato», y las tres son correctas en su sitio — «meal» (la comida de una franja del plan: «Swap Meal»), «plate» (el plato FISICO que se fotografia: «Frame the plate and capture», 9 cadenas del escaner) y «dish» (el plato compuesto como termino culinario: «a food or a dish», «composite dish»). Un termino con tres sentidos no se puede exigir por subcadena; exigir cualquiera de los tres convertiria en desvio dos usos correctos. Misma decision que con «Comida» y «Diario», pero SOLO para el ingles: el portugues (prato 49/49), el frances (plat 38/49) y el italiano (piatto 49/49) si son consistentes, asi que ahi el pacto se mantiene y sigue vigilando. [ampliado 2026-08-22] El FRANCES tiene el mismo triple sentido: «plat» para la comida del plan (38) y «assiette» para el plato fisico del escaner (11) — «Cadrez l'assiette et capturez». Tambien sale del pacto. Quedan portugues e italiano, que si son consistentes. Lo que si se arreglo aparte fue la incoherencia DENTRO del flujo de swap: el boton decia «Swap Meal» y sus errores «We couldn't swap the dish» — siete cadenas alineadas.",
+    "pt-BR": "prato", "it-IT": "piatto"
   },
   "Lista de compras": {
     "en-US": "shopping list", "pt-BR": "lista de compras",
@@ -68,8 +68,8 @@
   "Semana": { "en-US": "week", "pt-BR": "semana", "fr-FR": "semaine", "it-IT": "settimana" },
   "Ciclo": { "en-US": "cycle", "pt-BR": "ciclo", "fr-FR": "cycle", "it-IT": "ciclo" },
   "Inventario": {
-    "nota": "Lo que HAY en la Nevera. Es un contenido, no la pantalla.",
-    "en-US": "inventory", "pt-BR": "estoque", "fr-FR": "inventaire", "it-IT": "inventario"
+    "nota": "Lo que HAY en la Nevera. Es un contenido, no la pantalla. [corregido 2026-08-22] El portugues decia «estoque» y el catalogo usa «inventário» en las 5 cadenas — el cognado. Mi preferencia contra el uso medido, por tercera vez en esta pasada: un glosario registra como llama el producto a las cosas.",
+    "en-US": "inventory", "pt-BR": "inventario", "fr-FR": "inventaire", "it-IT": "inventario"
   },
   "Porción": {
     "nota": "El ingles usa «serving» y no «portion» — es lo que dice una etiqueta nutricional en EE. UU.",
