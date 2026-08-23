@@ -506,6 +506,27 @@ export function detectarEnFuente(src) {
                            'html-en-plantilla', true);
                 }
             }
+            // [P3-I18N-GATE-HTML-CIEGO-A-LA-PROSA-PEGADA-A-INTERPOLACION · 2026-08-23] La
+            // regla de arriba mira cada `quasi` POR SEPARADO, y la forma que los PDF usan
+            // en casi todas sus líneas es `<td>${qty} unidades de ${name}</td>`: el trozo
+            // « unidades de » no tiene etiqueta a ningún lado y `<td>` y `</td>` viven en
+            // otros quasis. Se reconstruye el ESQUELETO del template —cada `${…}` pasa a
+            // un marcador— y se aplica la misma regla sobre él. El marcador no cuenta
+            // como letra: hacen falta 6 caracteres de prosa además de las interpolaciones.
+            if (nodo.quasis.length > 1) {
+                const esqueleto = nodo.quasis
+                    .map((q) => (q.value && typeof q.value.cooked === 'string') ? q.value.cooked : '')
+                    .join('\u0000');
+                if (esqueleto.indexOf('<') !== -1) {
+                    for (const m of esqueleto.matchAll(/<[a-zA-Z][^<>]*>([^<>{}]{6,})<\//g)) {
+                        if (m[1].indexOf('\u0000') === -1) continue;   // sin interpolación: ya lo vio el bucle de arriba
+                        const texto = m[1].replace(/\u0000/g, ' ').replace(/\s+/g, ' ').trim();
+                        if (!texto || texto.length < 6) continue;
+                        anotar({ type: 'StringLiteral', value: texto, loc: nodo.loc },
+                               'html-en-plantilla', true);
+                    }
+                }
+            }
         }
 
         // `{'texto'}` / `{cond ? 'a' : 'b'}` / `{x || 'a'}` como HIJO de JSX. El contenedor
