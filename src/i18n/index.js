@@ -440,14 +440,32 @@ export function formatCurrencyName(code) {
  * un importe, no en qué se cobra (el `currency_code: 'USD'` que viaja a PayPal no se toca,
  * y no debe tocarse: el precio es el mismo para todo el mundo).
  */
-export function formatCurrency(value, code = 'USD') {
+export function formatCurrency(value, code = 'USD', options) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '';
     try {
-        return new Intl.NumberFormat(_locale, { style: 'currency', currency: code }).format(n);
+        return new Intl.NumberFormat(_locale, { style: 'currency', currency: code, ...(options || {}) }).format(n);
     } catch {
         // Degrada al formato de siempre antes que dejar el precio en blanco.
         return `US$${n.toFixed(2)}`;
+    }
+}
+
+/**
+ * [P3-I18N-MONEDA-COMPUESTA-A-MANO-EN-EL-PRESUPUESTO · 2026-08-23] El símbolo de una moneda
+ * como lo escribe el locale activo: «RD$», «US$», «$», «€». El formulario lo componía a mano
+ * (`USD → 'US$'`, `DOP → 'RD$'`, lo demás `CODE + ' '`), así que para EUR/MXN/COP el
+ * «símbolo» era el código ISO y los importes salían «EUR 1.200» donde el francés escribe
+ * «1 200 €». Para un IMPORTE usa `formatCurrency` (pone el símbolo donde toca); esto es
+ * sólo para el adorno de un input, donde el número lo escribe el usuario.
+ */
+export function currencySymbol(code = 'USD') {
+    try {
+        const parts = new Intl.NumberFormat(_locale, { style: 'currency', currency: code }).formatToParts(0);
+        const p = parts.find((x) => x.type === 'currency');
+        return p ? p.value : code;
+    } catch {
+        return code;
     }
 }
 

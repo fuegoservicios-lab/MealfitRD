@@ -12,7 +12,7 @@ import { budgetCycleDays, currencyOptionsForCountry, effectiveBudgetCurrency } f
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo personalizado por las metas (backend).
 import { useBudgetFloor } from '../../../hooks/useBudgetFloor';
 import { Banknote, Infinity as InfinityIcon, Landmark, SlidersHorizontal, Wallet } from 'lucide-react';
-import { formatNumber, useT } from '../../../i18n';
+import { useT, formatCurrency, currencySymbol as currencySymbolFor } from '../../../i18n';
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Bandera dark del frontend (mismo SSOT que
 // QCountry.jsx/Settings.jsx).
 import { COUNTRY_SYSTEM_UI } from '../../../config/countries';
@@ -48,9 +48,13 @@ export const QBudget = ({ onAutoAdvance }) => {
     // de ser una opción legítima. Símbolo, resaltado del toggle, placeholder y aria-label
     // pasan TODOS por aquí (ver `effectiveBudgetCurrency` en formValidation.js).
     const effectiveCurrency = effectiveBudgetCurrency(formData.country, budgetCurrency);
-    const currencySymbol = effectiveCurrency === 'USD' ? 'US$'
-        : effectiveCurrency === 'DOP' ? 'RD$'
-        : `${effectiveCurrency} `;
+    // [P3-I18N-MONEDA-COMPUESTA-A-MANO-EN-EL-PRESUPUESTO · 2026-08-23] Antes: `USD → 'US$'`,
+    // `DOP → 'RD$'` y lo demás `CODE + ' '` — para EUR/MXN/COP el «símbolo» era el código
+    // ISO y los importes salían «EUR 1.200». Ahora el símbolo del adorno lo da `Intl` para el
+    // locale activo y los IMPORTES de los avisos pasan enteros por `formatCurrency`, que
+    // pone el símbolo donde cada idioma lo escribe («1 200 €», «$1,200», «RD$1,200»).
+    const currencySymbol = currencySymbolFor(effectiveCurrency);
+    const money = (v) => formatCurrency(v, effectiveCurrency, { maximumFractionDigits: 0 });
     // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo PERSONALIZADO por las metas (calorías ×
     // hogar × ciclo) vía backend — el MISMO número que exige el gate de generación; fail-open al
     // estático mientras carga / si falla. Lo sincronizamos a `_budgetFloorMin` para que el gate
@@ -64,9 +68,8 @@ export const QBudget = ({ onAutoAdvance }) => {
     const tierRefLabel = (val) => {
         const ref = tierReferences && tierReferences[val];
         if (!ref || !(ref > 0)) return null;
-        return t('≈ {simbolo}{monto} / {dias} días (referencia estimada)', {
-            simbolo: currencySymbol,
-            monto: formatNumber(Number(ref)),
+        return t('≈ {importe} / {dias} días (referencia estimada)', {
+            importe: money(Number(ref)),
             dias: cycleDays,
         });
     };
@@ -204,11 +207,11 @@ export const QBudget = ({ onAutoAdvance }) => {
                             del número sigue en `en-US` a propósito — cambiarlo aquí sería
                             un cambio de comportamiento, no una traducción. */}
                         {belowMin
-                            ? `${t('⚠️ El mínimo para {dias} días es {simbolo}{monto}.', { dias: cycleDays, simbolo: currencySymbol, monto: formatNumber(minBudget) })}${typicalCost ? ` ${t('Un plan típico ronda {simbolo}{monto}.', { simbolo: currencySymbol, monto: formatNumber(typicalCost) })}` : ''} ${t('Súbelo para poder crear un plan viable.')}`
+                            ? `${t('⚠️ El mínimo para {dias} días es {importe}.', { dias: cycleDays, importe: money(minBudget) })}${typicalCost ? ` ${t('Un plan típico ronda {importe}.', { importe: money(typicalCost) })}` : ''} ${t('Súbelo para poder crear un plan viable.')}`
                             : `${t('La IA ajustará los ingredientes para acercarse a este monto.')} ${budgetIsPersonalized
-                                ? t('Mínimo {simbolo}{monto} para {dias} días (según tus calorías y metas).', { simbolo: currencySymbol, monto: formatNumber(minBudget), dias: cycleDays })
-                                : t('Mínimo {simbolo}{monto} para {dias} días.', { simbolo: currencySymbol, monto: formatNumber(minBudget), dias: cycleDays })
-                            }${typicalCost ? ` ${t('Un plan típico ronda {simbolo}{monto}.', { simbolo: currencySymbol, monto: formatNumber(typicalCost) })}` : ''}`}
+                                ? t('Mínimo {importe} para {dias} días (según tus calorías y metas).', { importe: money(minBudget), dias: cycleDays })
+                                : t('Mínimo {importe} para {dias} días.', { importe: money(minBudget), dias: cycleDays })
+                            }${typicalCost ? ` ${t('Un plan típico ronda {importe}.', { importe: money(typicalCost) })}` : ''}`}
                     </span>
                 </div>
             )}
