@@ -39,15 +39,20 @@ describe('P1-PANTRY-STRICT-CONSENT (AssessmentContext.regenerateSingleMeal)', ()
     });
 
     it('needs_new_ingredients se chequea ANTES que swap_failed y retorna un objeto de consentimiento', () => {
-        const win = _sliceFrom('const newMealData = await response.json();', 1800);
-        const iNeeds = win.indexOf("newMealData?.needs_new_ingredients === true");
-        const iFailed = win.indexOf("newMealData?.swap_failed === true");
+        // [P1-I18N-CONSENT-MODAL-SERVIDOR-GANA · 2026-08-23] Acotado por ESTRUCTURA (de
+        // un `if` al siguiente), no por un presupuesto de 1.800 caracteres que el comentario
+        // del arreglo desbordaba. Y `message` se ancla por PROPIEDAD —que venga resuelto por
+        // `mensajeDeError`, o sea por CÓDIGO y traducido— en vez de clavar la grafía
+        // `message: newMealData.message`, que era exactamente el defecto: el español del
+        // servidor ganando sobre un fallback que además no pasaba por `t()`.
+        const iNeeds = _src.indexOf("newMealData?.needs_new_ingredients === true");
+        const iFailed = _src.indexOf("newMealData?.swap_failed === true");
         expect(iNeeds).toBeGreaterThan(-1);
         expect(iFailed).toBeGreaterThan(iNeeds);
-        const needsWin = win.slice(iNeeds, iFailed);
+        const needsWin = _src.slice(iNeeds, iFailed);
         expect(needsWin).toContain('needsConsent: true');
         expect(needsWin).toContain('missing: newMealData.missing_ingredients || []');
-        expect(needsWin).toContain('message: newMealData.message');
+        expect(needsWin).toMatch(/message:\s*mensajeDeError\(newMealData,/);
     });
 
     it('marker anchor presente', () => {

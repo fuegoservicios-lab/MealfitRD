@@ -42,6 +42,11 @@ const COPY_POR_CODIGO = {
     swap_clinical_violation: (t) => t('El plato de recambio chocaba con tus restricciones, así que no lo aplicamos.'),
     swap_strict_pantry_no_inventory: (t) => t('No hay nada en tu Nevera con lo que armar el recambio.'),
     pantry_insufficient_for_goal: (t) => t('Lo que hay en tu Nevera no alcanza para tus metas.'),
+    // [P1-I18N-CONSENT-MODAL-SERVIDOR-GANA · 2026-08-23] El modal «Tu Nevera no alcanza».
+    // El backend ya mandaba `code: "needs_new_ingredients"` y `_codigoDe` ya lo leía; lo
+    // que faltaba era esta fila. Sin ella, el único call site que no pasaba por aquí
+    // pintaba `newMealData.message` —español siempre— y su `||` era rama muerta.
+    needs_new_ingredients: (t) => t('El chef necesita ingredientes que no están en tu Nevera.'),
     budget_insufficient: (t) => t('El presupuesto no alcanza para el plan que pediste.'),
     budget_below_goal_floor: (t) => t('Ese presupuesto queda por debajo de lo que tus metas necesitan.'),
     // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Los dos códigos del arreglo de sodio. No son

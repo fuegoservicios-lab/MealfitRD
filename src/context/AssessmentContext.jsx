@@ -3347,10 +3347,17 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // consentimiento en vez de tratarlo como error genérico. Retorna un objeto (no
             // string/null) para que el caller lo distinga de un plato exitoso.
             if (newMealData?.needs_new_ingredients === true) {
+                // [P1-I18N-CONSENT-MODAL-SERVIDOR-GANA · 2026-08-23] Era
+                // `newMealData.message || '…'`: el backend SIEMPRE manda `message` (en
+                // español), así que el `||` no llegaba nunca a la derecha — y la derecha era
+                // un literal sin `t()`. El guard por propiedad no lo veía porque no está en
+                // posición `toast(`/`description:`: es un `return` que el Dashboard pinta
+                // después. Se resuelve por CÓDIGO (`code: "needs_new_ingredients"`, que el
+                // backend ya mandaba), igual que su hermano de la línea 1184 del Dashboard.
                 return {
                     needsConsent: true,
                     missing: newMealData.missing_ingredients || [],
-                    message: newMealData.message || 'El chef necesita ingredientes que no están en tu Nevera.',
+                    message: mensajeDeError(newMealData, t('El chef necesita ingredientes que no están en tu Nevera.'), t),
                 };
             }
 
