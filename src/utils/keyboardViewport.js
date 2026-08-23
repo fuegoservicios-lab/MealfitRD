@@ -59,9 +59,48 @@ export function medirTeclado({ innerHeight, vvHeight, vvOffsetTop }) {
     };
 }
 
+/**
+ * [P1-KB-ALTO-DE-REFERENCIA · 2026-08-23] El alto SIN teclado, recordado.
+ *
+ * `H − vv.height` supone que `innerHeight` es el alto de la pantalla sin teclado. En
+ * Safari lo es. En la PWA de pantalla de inicio (y en algunos WebViews) iOS encoge
+ * `innerHeight` JUNTO con el visual viewport al abrir el teclado: los dos bajan a la vez,
+ * la resta da 0 y el sistema concluye «no hay teclado» con el teclado en pantalla. Es la
+ * segunda cara del mismo defecto que P1-KB-VIEWPORT-MATH cerró por el lado del paneo:
+ * la referencia se movía con lo que medía.
+ *
+ * La referencia correcta es el alto MÁXIMO observado: un teclado sólo puede encoger, así
+ * que el máximo es, por construcción, el alto sin teclado.
+ *
+ * Indexado por ANCHO. Un giro a horizontal encoge el alto LEGÍTIMAMENTE, y un máximo
+ * global recordaría el de vertical y diría «teclado» con el teclado cerrado. Pero un giro
+ * cambia también el ancho, y un teclado no: el ancho identifica la orientación sin
+ * escuchar ningún evento. Cada orientación aprende su propio máximo.
+ *
+ * Es un módulo-singleton a propósito: las tres superficies (chat, nevera, ayuda) deben
+ * compartir la misma referencia o cada una aprendería el alto por su cuenta.
+ */
+const _altoSinTecladoPorAncho = new Map();
+
+/** Alto de referencia sin teclado para este ancho: el mayor `innerHeight` visto con él. */
+export function altoDeReferencia(innerHeight, innerWidth = 0) {
+    const h = Number(innerHeight) || 0;
+    const w = Number(innerWidth) || 0;
+    const previo = _altoSinTecladoPorAncho.get(w) || 0;
+    if (h > previo) { _altoSinTecladoPorAncho.set(w, h); return h; }
+    return previo;
+}
+
+/** Solo para tests: olvida los máximos aprendidos. */
+export function _reiniciarAltoDeReferencia() {
+    _altoSinTecladoPorAncho.clear();
+}
+
 /** Lee el `window` real y delega en la función pura. Sin visualViewport → todo a cero. */
 export function medirTecladoDeVentana(win = typeof window !== 'undefined' ? window : null) {
     const vv = win && win.visualViewport;
     if (!win || !vv) return { kb: 0, layoutInset: 0, abierto: false };
-    return medirTeclado({ innerHeight: win.innerHeight, vvHeight: vv.height, vvOffsetTop: vv.offsetTop });
+    // La referencia es el alto sin teclado, no el `innerHeight` del instante: si iOS los
+    // encoge a la vez, el del instante ya lleva el teclado restado.
+    return medirTeclado({ innerHeight: altoDeReferencia(win.innerHeight, win.innerWidth), vvHeight: vv.height, vvOffsetTop: vv.offsetTop });
 }
