@@ -1027,7 +1027,7 @@
   "Hígado": "Liver",
   "Hígado Graso": "Fatty Liver",
   "Idioma": "Language",
-  "Idioma cambiado en este dispositivo, pero no se pudo guardar en tu cuenta.": "Language changed on this device, but we couldn't save it to your account.",
+  "Idioma cambiado, pero no se pudo guardar en tu cuenta. Volverá al anterior la próxima vez que entres.": "Language changed, but it could not be saved to your account. It will revert to the previous one next time you sign in.",
   "Idioma de la interfaz": "Interface language",
   "Idioma guardado.": "Language saved.",
   "Imagen enviada": "Image sent",

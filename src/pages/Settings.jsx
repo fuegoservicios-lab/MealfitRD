@@ -352,9 +352,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
             toast.success(t('Idioma guardado.'), { duration: 2000 });
         } catch {
+            // [P2-I18N-TOAST-PROMETE-LO-QUE-NO-CUMPLE · 2026-08-22] El aviso decía que el
+            // cambio «queda en este dispositivo». No queda: al volver a entrar,
+            // `syncLocaleFromProfile` lee el perfil —que conserva el idioma anterior,
+            // porque el PATCH es justo lo que falló— y lo revierte. Prometer persistencia
+            // local y revertirla sola es peor que no prometer nada: el idioma vuelve sin
+            // explicación y el siguiente diagnóstico del usuario es «el selector no
+            // funciona».
             toast.warning(
-                t('Idioma cambiado en este dispositivo, pero no se pudo guardar en tu cuenta.'),
-                { duration: 4000 }
+                t('Idioma cambiado, pero no se pudo guardar en tu cuenta. Volverá al anterior la próxima vez que entres.'),
+                { duration: 5000 }
             );
         }
     };

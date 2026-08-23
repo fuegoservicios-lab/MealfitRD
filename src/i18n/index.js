@@ -50,7 +50,7 @@ import React, {
     useMemo,
     useState,
 } from 'react';
-import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from '../utils/safeLocalStorage';
 // [P1-AUTO-LOCALE] SSOT de que rutas son marketing. Se reusa en vez de listar aqui
 // una segunda vez las rutas del landing: dos listas del mismo hecho drifean.
 import { isPaperSurface } from '../utils/paperSurface';
@@ -159,6 +159,53 @@ export function getStoredLocale() {
 
 function _persistLocal(code) {
     safeLocalStorageSet(LOCALE_STORAGE_KEY, code);
+}
+
+// [P2-I18N-LOCALE-SOBREVIVE-LOGOUT · 2026-08-22] De quién es la preferencia guardada.
+//
+// La clave del idioma no está scopeada por usuario y sobrevive al logout, así que en un
+// dispositivo compartido la cuenta siguiente hereda el idioma de la anterior. Heredarlo a
+// la vista sería un detalle; el problema es que el estampado de `P1-I18N-PROFILE-DEFAULT-
+// PISA` lo escribe en el perfil del recién llegado —su `locale` es NULL— y desde ahí viaja
+// a TODOS sus dispositivos. Una elección que el usuario nunca hizo se vuelve su
+// preferencia permanente.
+//
+// Se distingue el origen: una preferencia AUTODETECTADA no tiene dueño (nadie la eligió) y
+// se puede estampar sin daño; una ELEGIDA a mano, o traída del perfil, lleva el id de
+// quien la eligió y no se hereda.
+//
+// NO se borra en `_clearUserScopedCaches`: de sus seis llamadores, dos no son cambio de
+// usuario (sesión expirada, entrada en modo invitado) y ahí el borrado le quitaría el
+// idioma a quien no ha cambiado de cuenta. El dueño se comprueba al ENTRAR, que es el
+// único momento en que se sabe quién es el usuario.
+const LOCALE_OWNER_KEY = 'mealfit_locale_owner';
+
+function _persistOwner(userId) {
+    if (userId) safeLocalStorageSet(LOCALE_OWNER_KEY, String(userId));
+}
+
+/**
+ * Reclama el idioma guardado para `userId`, o lo descarta si es de otra cuenta.
+ *
+ * Devuelve el locale que queda ACTIVO, que es el que el llamador puede estampar en el
+ * perfil sin miedo. Si la preferencia era de otro, se descarta y se vuelve a la
+ * autodetección — el suelo, lo que ve alguien que nunca ha elegido.
+ */
+export async function claimLocaleForUser(userId) {
+    const duenno = safeLocalStorageGet(LOCALE_OWNER_KEY, null);
+    if (duenno && userId && duenno !== String(userId)) {
+        safeLocalStorageRemove(LOCALE_STORAGE_KEY);
+        safeLocalStorageRemove(LOCALE_OWNER_KEY);
+        const detectado = _autoLocaleParaLaSuperficieActual();
+        if (detectado !== _locale) {
+            // Fail-soft como todo este módulo: si el catálogo no baja, se queda el que
+            // hay. Un idioma heredado es peor que ninguno sólo si además se persiste, y
+            // el `_persistOwner` de abajo ya no lo hará con el dueño equivocado.
+            try { await loadLocale(detectado); } catch { /* se queda el activo */ }
+        }
+    }
+    _persistOwner(userId);
+    return getLocale();
 }
 
 // [P2-I18N-MANIFEST-HREF-CONGELADO · 2026-08-22] El manifiesto sigue al idioma VIVO.

@@ -1027,7 +1027,7 @@
   "Hígado": "Foie",
   "Hígado Graso": "Stéatose hépatique",
   "Idioma": "Langue",
-  "Idioma cambiado en este dispositivo, pero no se pudo guardar en tu cuenta.": "Langue changée sur cet appareil, mais impossible de l'enregistrer sur votre compte.",
+  "Idioma cambiado, pero no se pudo guardar en tu cuenta. Volverá al anterior la próxima vez que entres.": "Langue modifiée, mais impossible de l'enregistrer sur votre compte. Elle reviendra à la précédente à votre prochaine connexion.",
   "Idioma de la interfaz": "Langue de l'interface",
   "Idioma guardado.": "Langue enregistrée.",
   "Imagen enviada": "Image envoyée",

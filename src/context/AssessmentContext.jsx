@@ -144,7 +144,7 @@ import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // corre dentro de `fetchProfile`, que no es un componente.
 // [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: los avisos de abajo salen desde
 // dentro de callbacks (handlers, polling, catch), no en render.
-import { getLocale, syncLocaleFromProfile, t } from '../i18n';
+import { claimLocaleForUser, syncLocaleFromProfile, t } from '../i18n';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Loop de polling acotado (discriminador +
@@ -1299,6 +1299,15 @@ export const AssessmentProvider = ({ children }) => {
                 // estaba. Un idioma equivocado durante un instante es peor que
                 // una pantalla en blanco solo si crees que el idioma es más
                 // importante que la app.
+                // [P2-I18N-LOCALE-SOBREVIVE-LOGOUT · 2026-08-22] Reclamar ANTES de
+                // sincronizar. El orden es load-bearing: al revés, el sello del
+                // usuario ANTERIOR seguiría puesto cuando corre la comprobación, y
+                // ésta descartaría el idioma que el perfil ACABA de aplicar.
+                //
+                // `_activo` es lo que queda tras descartar una preferencia ajena: el
+                // único valor que se puede estampar abajo sin heredarle a este
+                // usuario la elección de otro.
+                const _activo = await claimLocaleForUser(userId);
                 syncLocaleFromProfile(data.locale);
 
                 // [P1-I18N-PROFILE-DEFAULT-PISA · 2026-08-21] Y si el perfil NO trae
@@ -1319,7 +1328,6 @@ export const AssessmentProvider = ({ children }) => {
                 // conveniencia, no un requisito. Si falla, el usuario sigue viendo su
                 // idioma detectado y el próximo login lo reintenta.
                 if (!data.locale) {
-                    const _activo = getLocale();
                     fetchWithAuth('/api/profile', {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },

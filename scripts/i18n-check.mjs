@@ -537,6 +537,57 @@ if (moduleScopeHits.length) hardFail = true;
 const { dentro: ficherosEnAlcance } = clasificarAlcance();
 const enAlcance = new Set(ficherosEnAlcance);
 
+// [P2-I18N-GATE-SIN-REGLA-FORMATO-CLAVADO · 2026-08-22] Un locale escrito a mano.
+//
+// La migración de los formateadores clavados aterrizó y el trinquete que el propio plan
+// pedía no se escribió nunca: un `toLocaleString('es-DO')` nuevo entra hoy con el gate en
+// verde, y pinta separadores dominicanos en las cuatro traducciones — en pt-BR la coma es
+// DECIMAL, así que no es cosmético.
+//
+// MEDIDO antes de escribir la regla: en `src/` quedan DIEZ apariciones y NUEVE son
+// comentarios que documentan el arreglo. Código real: **una**. O sea que esto no es una
+// migración pendiente disfrazada de regla — es sólo la regla, y por eso el detector tiene
+// que saltarse los comentarios: si no, la documentación del arreglo dispara el guard que
+// el arreglo instaló. Es la misma trampa que ya ha costado once falsos rojos este mes.
+//
+// La excepción es `SupermarketPage.jsx`: la página del supermercado es superficie
+// SÓLO-ESPAÑOL por decisión de alcance (el landing no se traduce), así que ahí un `es-DO`
+// fijo es correcto y no una omisión. Se nombra el fichero, no se relaja la regla.
+const LOCALE_CLAVADO = /(?:toLocale(?:Date|Time)?String|Intl\.(?:NumberFormat|DateTimeFormat|RelativeTimeFormat|ListFormat|DisplayNames))\(\s*['"][a-z]{2}-[A-Z]{2}['"]/;
+const FORMATO_EXENTO = new Set([
+    // Superficie sólo-español por alcance: el landing no se traduce.
+    //
+    // La ruta va SIN el prefijo `src/`: las claves de `contenidos` son relativas a esa
+    // carpeta. Escribirla con prefijo dejaba la exención inerte y el gate rojo por un
+    // fichero que está bien — un falso rojo enseña a apagar el gate.
+    'pages/SupermarketPage.jsx',
+]);
+
+const formatosClavados = [];
+for (const [rel, src] of contenidos) {
+    if (FORMATO_EXENTO.has(rel.replace(/\\/g, '/'))) continue;
+    src.split('\n').forEach((linea, i) => {
+        const limpia = linea.trimStart();
+        // Sólo CÓDIGO. Un comentario que cita el patrón está documentando por qué no se
+        // usa, y ponerse rojo por eso enseña a no documentarlo.
+        if (limpia.startsWith('//') || limpia.startsWith('*') || limpia.startsWith('/*')
+            || limpia.startsWith('{/*')) return;
+        if (LOCALE_CLAVADO.test(linea)) {
+            formatosClavados.push(`${rel}:${i + 1}: ${limpia.slice(0, 100)}`);
+        }
+    });
+}
+if (formatosClavados.length) {
+    hardFail = true;
+    console.error('');
+    console.error('❌ LOCALE CLAVADO EN UN FORMATEADOR — usa `formatDate`/`formatNumber`/');
+    console.error('   `formatCurrency` de `src/i18n`, que leen el idioma ACTIVO.');
+    console.error('   Un locale fijo pinta separadores dominicanos en las cuatro');
+    console.error('   traducciones, y en pt-BR la coma es DECIMAL.');
+    for (const f of formatosClavados) console.error(`     ${f}`);
+    console.error('');
+}
+
 const sinEnvolverPorArchivo = {};
 let sinEnvolverTotal = 0;
 for (const [rel, src] of contenidos) {

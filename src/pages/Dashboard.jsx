@@ -41,7 +41,7 @@ import { nativeHidesCommerce } from '../config/platform';
 // Nota: solo se usa para el TEXTO renderizado del título/descripción — la
 // identidad del plato (`meal.name` original) sigue siendo la clave de "me
 // gusta"/swap/PDF, que deben seguir resolviendo por el nombre canónico español.
-import { langDeCampo, mealDisplay, mealSlotLabel, planInsightsDisplay } from '../utils/displayMeal';
+import { langDeCampo, mealDisplay, mealDisplayName, mealSlotLabel, planInsightsDisplay } from '../utils/displayMeal';
 
 // [P1-DASH-GENERATING-HONESTY · 2026-08-16] «el próximo llega el <día>» a partir de
 // `next_chunk_eta`. Devuelve '' ante cualquier entrada inservible: el copy que lo
@@ -1112,7 +1112,22 @@ const DashboardInner = () => {
                 const ausentes = Array.isArray(result.not_in_pantry) ? result.not_in_pantry : [];
                 const descontados = (Array.isArray(result.deducted) ? result.deducted.length : 0)
                     + (Array.isArray(result.inferred) ? result.inferred.length : 0);
-                toast.success(t('{plato} registrado', { plato: result.meal_name }), {
+                // [P3-I18N-SEAM-NOMBRE-CANONICO-EN-MODALES · 2026-08-22] El aviso usa el
+                // nombre que el usuario ACABA de tocar, no el canónico del servidor.
+                //
+                // La tarjeta pinta el plato traducido y este aviso decía el nombre
+                // español canónico: dos nombres para la misma cosa, en la misma
+                // pantalla y con un segundo de diferencia.
+                //
+                // El arreglo NO cruza la frontera. `result.meal_name` sigue llegando
+                // canónico y sigue siendo lo que el motor resuelve; simplemente no se
+                // PINTA. Traducirlo en el servidor, o mandar el traducido en la
+                // respuesta, sí la cruzaría: ese campo es un identificador y acabaría
+                // en un sitio que resuelve por él. El cliente ya tiene el nombre para
+                // mostrar —lo usó para dibujar la tarjeta— así que lo reusa y cae al
+                // canónico sólo si falta.
+                const _platoVisible = mealDisplayName(meal, _dashLocale) || result.meal_name;
+                toast.success(t('{plato} registrado', { plato: _platoVisible }), {
                     description: ausentes.length > 0
                         ? t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
                             n: descontados,
