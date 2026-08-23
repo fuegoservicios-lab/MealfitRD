@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes effect manual).
 import { useLatestRef } from '../../hooks/useLatestRef';
-import { formatNumber, useT, useTn } from '../../i18n';
+import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import styles from './WaterTracker.module.css';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
@@ -276,7 +276,7 @@ const WaterTracker = ({ userId }) => {
                             vidrio vacío (antes: blanco fijo → "0%" invisible sobre vidrio
                             pálido). En oscuro no cambia (siempre blanco). */}
                         <div className={styles.glassCenter}>
-                            <span className={`${styles.pct} ${pct >= 60 ? styles.onWater : ''}`}>{pct}%</span>
+                            <span className={`${styles.pct} ${pct >= 60 ? styles.onWater : ''}`}>{formatPercent(pct)}</span>
                             <span className={`${styles.pctSub} ${pct >= 60 ? styles.onWater : ''}`}>{fmtGlasses} / {goal}</span>
                         </div>
                     </div>

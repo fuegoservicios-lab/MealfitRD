@@ -58,7 +58,8 @@ describe('[P1-I18N-CANTIDAD-LISTA] la cantidad de la lista sigue el idioma', () 
         await loadLocale('fr-FR');
         const salida = glossShoppingQty('2 fundas (Selecto 1 Lb · Wala c/u)', t);
         // El envase sí; la etiqueta del producto, jamás.
-        expect(salida).toContain('sachets');
+        // [P3-I18N-ENVASES-DISTINTOS-QUE-COLAPSAN] «fundas» es la bolsa («sacs»); «sachets» es «sobres».
+        expect(salida).toContain('sacs');
         expect(salida).toContain('Selecto 1 Lb');
         expect(salida).toContain('Wala');
         expect(salida).not.toMatch(/livre|Livre/);   // «Lb» NO se traduce
@@ -133,7 +134,9 @@ describe('[P1-I18N-CANTIDAD-LISTA] la cantidad de la lista sigue el idioma', () 
 
     it('una cadena que no reconoce vuelve intacta', async () => {
         await loadLocale('fr-FR');
-        for (const entrada of ['Al gusto', '1 zanahoria mediana', 'None']) {
+        // «Al gusto» era el primer ejemplo de esta lista; desde
+        // P3-I18N-SHOPPING-HELPERS-RELLENOS SÍ se reconoce (tenía traducción y nadie la pedía).
+        for (const entrada of ['1 zanahoria mediana', 'None', 'A ojo']) {
             expect(glossShoppingQty(entrada, t)).toBe(entrada);
         }
     });
@@ -203,5 +206,72 @@ describe('[P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO] glossUnitWord',
         await loadLocale(DEFAULT_LOCALE);
         const { glossUnitWord } = await import('../utils/shoppingHelpers');
         expect(glossUnitWord('funda', t)).toBe('funda');
+    });
+});
+
+// [P3-I18N-SHOPPING-HELPERS-RELLENOS · 2026-08-23] Los rellenos que `shoppingHelpers`
+// fabrica en español («Al gusto», «Ingrediente», «Desconocido») tenían traducción en los
+// cuatro catálogos y nadie la pedía. Se quedan en español en el DATO (claves de mapa, viajan
+// al backend) y se glosan al pintar.
+describe('[P3-I18N-SHOPPING-HELPERS-RELLENOS] rellenos al pintar', () => {
+    it('«Al gusto» se glosa en glossShoppingQty (y sus variantes de caja)', async () => {
+        const { glossShoppingQty } = await import('../utils/shoppingHelpers');
+        const t = (k) => ({ 'Al gusto': 'Selon le goût' })[k] || k;
+        expect(glossShoppingQty('Al gusto', t)).toBe('Selon le goût');
+        expect(glossShoppingQty('al gusto ', t)).toBe('Selon le goût');
+        expect(glossShoppingQty('2 lb', t)).toBe('2 lb');
+    });
+
+    it('«Ingrediente» y «Desconocido» se glosan en glossShoppingName; un nombre real no se toca', async () => {
+        const { glossShoppingName } = await import('../utils/shoppingHelpers');
+        const t = (k) => ({ Ingrediente: 'Ingrédient', Desconocido: 'Inconnu' })[k] || k;
+        expect(glossShoppingName('Ingrediente', t)).toBe('Ingrédient');
+        expect(glossShoppingName('desconocido', t)).toBe('Inconnu');
+        expect(glossShoppingName('Pollo', t)).toBe('Pollo');
+        expect(glossShoppingName('Pollo')).toBe('Pollo');
+        expect(glossShoppingName(undefined, t)).toBe(undefined);
+    });
+
+    it('el dato NO cambia: calculateAllPlanIngredients sigue fabricando el español', async () => {
+        const { calculateAllPlanIngredients } = await import('../utils/shoppingHelpers');
+        const plan = { days: [{ meals: [{ name: 'X', ingredients: [{ name: '' }] }] }] };
+        const out = calculateAllPlanIngredients(plan, false, []);
+        const json = JSON.stringify(out);
+        expect(json).toMatch(/Al gusto|Ingrediente|Desconocido/);
+    });
+});
+
+// [P3-I18N-ENVASES-DISTINTOS-QUE-COLAPSAN · 2026-08-23] «funda» (la bolsa) y «sobre» (el
+// sachet) eran ambas «sachet» en francés: dos envases distintos de la lista salían con la
+// misma palabra, y el usuario no sabía si comprar una bolsa o un sobrecito. Se distinguen
+// en los cuatro catálogos; este guard mide los pares en los que el español distingue.
+describe('[P3-I18N-ENVASES-DISTINTOS-QUE-COLAPSAN] envases que el español distingue', () => {
+    const PARES = [['funda', 'sobre'], ['fundas', 'sobres'], ['fundita', 'sobrecito'], ['funditas', 'sobrecitos']];
+    for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
+        it(`${loc}: funda≠sobre y fundita≠sobrecito`, async () => {
+            const cat = (await import(`../i18n/locales/${loc}.json`)).default;
+            for (const [a, b] of PARES) {
+                expect(cat[a], `${loc} sin «${a}»`).toBeTruthy();
+                expect(cat[b], `${loc} sin «${b}»`).toBeTruthy();
+                expect(cat[a].toLowerCase(), `${loc}: «${a}» y «${b}» colapsan en «${cat[a]}»`).not.toBe(cat[b].toLowerCase());
+            }
+        });
+    }
+});
+
+// [P3-I18N-UD-DENTRO-DEL-PARENTESIS · 2026-08-23] El PDF explicaba «U. = unité» y seguía
+// imprimiendo «Ud.» dentro del paréntesis en el 11 % de sus líneas: el paso 0 sólo glosaba la
+// abreviatura anclada al principio. «Ud.» es una unidad, no una marca.
+describe('[P3-I18N-UD-DENTRO-DEL-PARENTESIS] la abreviatura también dentro del paréntesis', () => {
+    it('«(12 Ud. · Selecto)» → «(12 U. · Selecto)», marca y tamaño intactos', async () => {
+        await loadLocale('fr-FR');
+        const out = glossShoppingQty('1 paquete (12 Ud. · Selecto)', t);
+        expect(out).toMatch(/^1 paquet \(12 U\. · Selecto\)$/);
+        expect(glossShoppingQty('2 Ud. (Wala 1 Ud. c/u)', t)).toBe('2 U. (Wala 1 U. chacun)');
+        expect(glossShoppingQty('3 unidades (2 Uds. c/u)', t)).not.toMatch(/Uds\./);
+    });
+    it('en es-DO no cambia nada', async () => {
+        await loadLocale(DEFAULT_LOCALE);
+        expect(glossShoppingQty('1 paquete (12 Ud. · Selecto)', t)).toBe('1 paquete (12 Ud. · Selecto)');
     });
 });

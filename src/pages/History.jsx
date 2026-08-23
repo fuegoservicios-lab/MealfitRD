@@ -81,6 +81,8 @@ import HistoryMobilePanel from '../components/history/HistoryMobilePanel';
 import { formatDate, t, tn, useI18n, useT } from '../i18n';
 import { formatRelativeTime } from '../utils/relativeTime';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../data/routeMeta';
 // [P-HISTORY-DAY-LABELS] Nombres de día (mismo SSOT que Recipes.jsx y
 // Dashboard.jsx). Capitalizados para títulos ("Menú — Viernes") y tabs.
 //
@@ -3186,7 +3188,7 @@ const History = () => {
                                                         {_renderList(
                                                             _summary.permanent_meal_blocklist,
                                                             t('Blocklist permanente'),
-                                                            t('Meals que aparecieron en ≥2 chunks del plan — Bioboros los evita en regeneraciones futuras.')
+                                                            t('Meals que aparecieron en ≥2 chunks del plan — {app} los evita en regeneraciones futuras.', { app: BRAND })
                                                         )}
                                                         {_renderList(
                                                             _summary.top_rejection_hits,
@@ -5082,7 +5084,7 @@ const History = () => {
                                         _tone = 'bad';
                                         _icon = '⚠️';
                                     } else if (_puac > 0) {
-                                        _reason = t('Bioboros está esperando que actualices algo (tu nevera, tu registro de comidas, o la fecha del plan). {cta}', { cta: _ctaText });
+                                        _reason = t('{app} está esperando que actualices algo (tu nevera, tu registro de comidas, o la fecha del plan). {cta}', { app: BRAND, cta: _ctaText });
                                         _tone = 'warn';
                                         _icon = '⏸️';
                                     } else if (_failedC > 0) {
@@ -5099,9 +5101,9 @@ const History = () => {
                                         // > 0 también, mencionar que hay más
                                         // dormidos para no engañar.
                                         if (_scheduled > 0) {
-                                            _reason = tn(_scheduled, 'Bioboros está generando algunos ahora en segundo plano. El resto ({n} bloque) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.', 'Bioboros está generando algunos ahora en segundo plano. El resto ({n} bloques) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.', { n: _scheduled });
+                                            _reason = tn(_scheduled, '{app} está generando algunos ahora en segundo plano. El resto ({n} bloque) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.', '{app} está generando algunos ahora en segundo plano. El resto ({n} bloques) se generará automáticamente cuando llegue su momento — no tienes que hacer nada.', { app: BRAND, n: _scheduled });
                                         } else {
-                                            _reason = t('Bioboros los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.');
+                                            _reason = t('{app} los está generando ahora en segundo plano. Cierra el modal y vuelve a abrirlo en 2 a 5 minutos para verlos listos.', { app: BRAND });
                                         }
                                         _tone = 'info';
                                         _icon = '🔄';
@@ -5122,7 +5124,7 @@ const History = () => {
                                         // sin el split nuevo. Copy neutro
                                         // (NO "generando ahora") para no
                                         // mentir.
-                                        _reason = t('Bioboros los generará automáticamente cuando llegue su momento. No necesitas hacer nada.');
+                                        _reason = t('{app} los generará automáticamente cuando llegue su momento. No necesitas hacer nada.', { app: BRAND });
                                         _tone = 'info';
                                         _icon = '⏳';
                                     } else {

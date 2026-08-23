@@ -70,6 +70,8 @@ import { getAvatarId, persistAvatar } from '../utils/avatarStore';
 import { apexUrl } from '../config/site';
 // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Ver la nota de errorCopy.js.
 import { mensajeDeError } from '../utils/errorCopy';
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../data/routeMeta';
 // [P2-PRIVACY-SETTINGS · 2026-07-04] Enlaces de políticas de la sección
 // Privacidad — abren en el apex (mismo patrón que el menú "Más información").
 // [P1-MORE-INFO-IN-APP · 2026-08-10] Los enlaces legales de esta pantalla CONSERVAN
@@ -1181,7 +1183,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             const next = !prev;
             persistAnalyticsOptOut(!next);
             toast.success(next
-                ? t('Gracias por ayudar a mejorar Bioboros.')
+                ? t('Gracias por ayudar a mejorar {app}.', { app: BRAND })
                 : t('Eventos de uso desactivados en este dispositivo.'));
             return next;
         });
@@ -3281,7 +3283,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>{t('Privacidad')}</h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.55 }}>
-                                {t('En Bioboros creemos en prácticas transparentes de datos: tu información se usa para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra')}{' '}
+                                {t('En {app} creemos en prácticas transparentes de datos: tu información se usa para generar y mejorar TU plan, nunca se vende. Conoce el detalle en nuestra', { app: BRAND })}{' '}
                                 <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Política de Privacidad')}</a>.
                             </p>
 
@@ -3320,7 +3322,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 border: '1px solid var(--border)', borderRadius: '0.875rem', background: 'var(--bg-card)',
                             }}>
                                 <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>{t('Ayuda a mejorar Bioboros')}</div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-main)' }}>{t('Ayuda a mejorar {app}', { app: BRAND })}</div>
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
                                         {t('Permitir eventos de uso anónimos (qué pantallas y funciones se usan) para mejorar el producto. Nunca incluye tus datos de salud ni tus conversaciones. Se guarda por dispositivo.')}
                                     </div>
@@ -3353,7 +3355,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         El precio es que el traductor recibe fragmentos; el reparto sigue
                                         el orden sujeto-verbo que comparten los cinco idiomas. */}
                                     <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.5 }}>
-                                        {t('Hoy Bioboros')} <strong>{t('no entrena')}</strong> {t('modelos con tus datos. Si lo permites, tus planes y conversaciones podrán usarse')} <strong>{t('de forma anónima')}</strong> {t('para entrenar los modelos propios de Bioboros en el futuro.')}{' '}
+                                        {t('Hoy {app}', { app: BRAND })} <strong>{t('no entrena')}</strong> {t('modelos con tus datos. Si lo permites, tus planes y conversaciones podrán usarse')} <strong>{t('de forma anónima')}</strong> {t('para entrenar los modelos propios de {app} en el futuro.', { app: BRAND })}{' '}
                                         <a href={apexUrl('/ai-policy')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('Más información')}</a>.
                                     </div>
                                 </div>
@@ -3363,7 +3365,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         checked={aiTrainingConsent}
                                         onChange={handleToggleAiTraining}
                                         disabled={isAiConsentLoading}
-                                        aria-label={t('Permitir uso futuro anónimo de mis datos para entrenar modelos de Bioboros')}
+                                        aria-label={t('Permitir uso futuro anónimo de mis datos para entrenar modelos de {app}', { app: BRAND })}
                                     />
                                     <span className={styles.toggleSlider} style={{ opacity: isAiConsentLoading ? 0.6 : 1 }}></span>
                                 </label>

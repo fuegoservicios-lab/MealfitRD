@@ -4,6 +4,8 @@
 // excepción se documenta aquí para que no sorprenda en review.
 import { COUNTRY_SYSTEM_UI, coerceCountry } from './countries';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../data/routeMeta';
 // [P1-B6] Validación cliente-side del formData del wizard de assessment.
 //
 // Este módulo es la fuente de verdad ÚNICA en el frontend para los campos
@@ -378,7 +380,7 @@ export const FIELD_LABELS = {
  * importar —antes de que exista catálogo— y se congela en español para siempre.
  */
 export const getFieldLabels = (t) => ({
-    appMode: t('Qué hace Bioboros por ti (plan o contador)'),
+    appMode: t('Qué hace {app} por ti (plan o contador)', { app: BRAND }),
     planSource: t('Cómo arma tu plan la IA'),
     gender: t('Sexo biológico'),
     age: t('Edad'),

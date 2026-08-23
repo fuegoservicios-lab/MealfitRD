@@ -6,6 +6,8 @@ import { Share, X } from 'lucide-react';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
 import { useT } from '../i18n';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../data/routeMeta';
 const IOSInstallPrompt = () => {
     const [showPrompt, setShowPrompt] = useState(false);
     const t = useT();
@@ -62,7 +64,7 @@ const IOSInstallPrompt = () => {
             <img src="/favicon.png" alt="Bioboros" style={{ width: 34, height: 34, borderRadius: '9px', flexShrink: 0 }} />
             <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.25 }}>
-                    {t('Instala Bioboros')}
+                    {t('Instala {app}', { app: BRAND })}
                 </p>
                 {/* [P1-I18N-DASHBOARD · 2026-08-15] La frase va partida porque el icono
                     de «Compartir» de iOS vive DENTRO de ella; el sufijo `|` desambigua

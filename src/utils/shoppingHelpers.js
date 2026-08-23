@@ -427,9 +427,31 @@ export const glossUnitWord = (unit, t) => {
     return unit[0] === unit[0].toUpperCase() ? trad.charAt(0).toUpperCase() + trad.slice(1) : trad;
 };
 
+// [P3-I18N-SHOPPING-HELPERS-RELLENOS · 2026-08-23] Los tres rellenos que este módulo
+// FABRICA en español cuando el dato no trae cantidad o nombre («Al gusto», «Ingrediente»,
+// «Desconocido»). Se quedan en español EN EL DATO a propósito: son claves del mapa de
+// ingredientes y viajan al backend en `useRegeneratePlan`. Lo que cambia es el pintado:
+// `glossShoppingQty` reconoce «Al gusto» y `glossShoppingName` los dos nombres. Sus
+// traducciones ya existían en los cuatro catálogos, sin nadie que las pidiera.
+const _RELLENOS_DE_NOMBRE = new Set(['ingrediente', 'desconocido']);
+export const glossShoppingName = (name, t) => {
+    if (typeof name !== 'string' || typeof t !== 'function') return name;
+    const k = name.trim().toLowerCase();
+    if (!_RELLENOS_DE_NOMBRE.has(k)) return name;
+    try {
+        return k === 'ingrediente' ? t('Ingrediente') : t('Desconocido');
+    } catch {
+        return name;
+    }
+};
+
 export const glossShoppingQty = (displayQty, t) => {
     if (typeof displayQty !== 'string' || !displayQty.trim()) return displayQty;
     if (typeof t !== 'function') return displayQty;
+    // [P3-I18N-SHOPPING-HELPERS-RELLENOS] el relleno de cantidad, tal cual o con variantes.
+    if (/^al gusto$/i.test(displayQty.trim())) {
+        try { return t('Al gusto'); } catch { return displayQty; }
+    }
 
     let out = displayQty;
     let envases;
@@ -487,6 +509,16 @@ export const glossShoppingQty = (displayQty, t) => {
     // 3. «c/u» va DENTRO del paréntesis pero no es marca ni tamaño: es la aclaración de que
     //    el tamaño es POR envase, y sin ella «9 potes (16 oz)» se lee como el total.
     out = out.replace(/\bc\/u\b/gu, () => t('c/u'));
+    // [P3-I18N-UD-DENTRO-DEL-PARENTESIS · 2026-08-23] La abreviatura de unidad también
+    // DENTRO del paréntesis: «(12 Ud. · Selecto)». El paso 0 sólo la buscaba anclada al
+    // principio, así que el PDF explicaba «U. = unité» en su leyenda y seguía imprimiendo
+    // «Ud.» en el 11 % de sus líneas. «Ud.» es una unidad, no una marca — la marca y el
+    // tamaño del paréntesis siguen intactos, igual que con `c/u` justo arriba.
+    out = out.replace(/(\d)\s+(Uds?\.)/gu, (todo, cifra, abrev) => {
+        const trad = abreviaturas[abrev.toLowerCase()];
+        if (!trad || trad === abrev) return todo;
+        return `${cifra} ${trad}`;
+    });
 
     // 3b. «Genérico» — la marca que NO es una marca. [P2-I18N-GENERICO-SE-IMPRIME-EN-ESPANOL
     //     · 2026-08-23] La regla de no tocar el paréntesis existe para los nombres propios

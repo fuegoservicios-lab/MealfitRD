@@ -14,7 +14,7 @@ import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. El hook es lo que suscribe el
 // componente al cambio de catálogo; las tablas de copy de abajo son FUNCIONES por
 // eso mismo (una constante con `t()` se congelaría en español al importar).
-import { compareText, formatNumber, t, useT, useTn } from '../i18n';
+import { compareText, formatNumber, t, useT, useTn, formatTemperature } from '../i18n';
 import { glossUnitWord } from '../utils/shoppingHelpers';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
@@ -2746,7 +2746,7 @@ const Pantry = () => {
                     ))}
                 </div>
                 {tempZone === 'frio' && (
-                    <span className={mstyles.temp}><Snowflake size={15} />{t('3°C · Frío Max')} <span className={mstyles.dot} /></span>
+                    <span className={mstyles.temp}><Snowflake size={15} />{t('{temp} · Frío Max', { temp: formatTemperature(3, { weightUnit: formData?.weightUnit }) })} <span className={mstyles.dot} /></span>
                 )}
             </div>
 
@@ -2862,7 +2862,7 @@ const Pantry = () => {
                             temperatura que declarar. */}
                         {tempZone === 'frio' && (
                             <span className={fstyles.temp}>
-                                <Snowflake size={13} /> {t('3°C · Frío Max')} <span className={fstyles.dot} />
+                                <Snowflake size={13} /> {t('{temp} · Frío Max', { temp: formatTemperature(3, { weightUnit: formData?.weightUnit }) })} <span className={fstyles.dot} />
                             </span>
                         )}
 

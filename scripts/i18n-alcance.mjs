@@ -135,6 +135,14 @@ export function paginasDeMarketing() {
 export class AlcanceColapsado extends Error {}
 
 export function clasificarAlcance({ entradas = ENTRADAS } = {}) {
+    // Válvula para los ARNESES de test (`test_p1_i18n_extractor_ast.py` y hermanos), que
+    // montan un `src/` sintético de dos ficheros sin `main.jsx`: con ella todo `src/` está
+    // dentro y no hay grafo. Es explícita y ruidosa a propósito; CI no la define.
+    if (process.env.I18N_CHECK_SIN_GRAFO === '1') {
+        console.warn('[i18n-alcance] I18N_CHECK_SIN_GRAFO=1: sin grafo, TODO src/ en alcance (sólo arneses).');
+        const rel = (f) => path.relative(SRC, f).split(path.sep).join('/');
+        return { dentro: todosLosFicheros(SRC).map(rel).sort(), fuera: [] };
+    }
     const marketing = paginasDeMarketing();
     const rutasDeEntrada = entradas.map((e) => path.join(SRC, e));
     const ausentes = rutasDeEntrada.filter((r) => !existsSync(r));

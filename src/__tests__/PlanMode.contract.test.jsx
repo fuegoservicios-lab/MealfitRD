@@ -229,7 +229,7 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(REQUIRED_FORM_FIELDS[1]).toBe('planSource');
         const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
         for (const [titulo, campo] of [
-            ['¿Qué quieres que haga Bioboros por ti?', 'appMode'],
+            ['¿Qué quieres que haga {app} por ti?', 'appMode'],  // [P3-I18N-MARCA-HORNEADA] la marca va como {app}
             ['¿Cómo quieres que la IA arme tu plan?', 'planSource'],
         ]) {
             const stepIdx = s.indexOf(titulo);

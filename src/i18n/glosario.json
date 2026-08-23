@@ -44,7 +44,8 @@
     "fr-FR": "garde-manger",
     "it-IT": "dispensa"
   },
-  "Plan": { "en-US": "plan", "pt-BR": "plano", "fr-FR": "plan", "it-IT": "piano" },
+  "Plan": {
+    "nota": "[P3-I18N-GLOSARIO-TOLERA-DERIVA-REAL · 2026-08-23] El italiano va como RAIZ («pian»), como «obiettiv»: piano/piani pluraliza cambiando la vocal y «piani» no contiene «piano», asi que una traduccion correcta contaba como desvio.", "en-US": "plan", "pt-BR": "plano", "fr-FR": "plan", "it-IT": "pian" },
   "Receta": { "en-US": "recipe", "pt-BR": "receita", "fr-FR": "recette", "it-IT": "ricetta" },
   "_Comida_retirado": {
     "nota": "RETIRADO 2026-08-22. «Comida» en espanol es un HOMOGRAFO: la comida de una franja horaria (meal/pasto) y la comida como sustancia (food/cibo). El glosario solo puede exigir una, y exigir «pasto» convertia en desvio traducciones correctas — «Comida real, metas reales» es *Cibo vero*, «No detectamos comida en la foto» es *cibo*, «Disfruta de tu comida» es *Buon appetito*. Medido: 15 de los ejemplos que quedaban eran esto. Un termino que no se puede exigir por subcadena no pertenece a una tabla que compara por subcadena; forzarlo pediria mistraducciones y el guard se acabaria apagando. Si algun dia hace falta anclar el sentido de FRANJA, la via es marcar esas claves, no el termino."

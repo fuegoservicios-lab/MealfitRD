@@ -440,14 +440,32 @@ export function formatCurrencyName(code) {
  * un importe, no en qué se cobra (el `currency_code: 'USD'` que viaja a PayPal no se toca,
  * y no debe tocarse: el precio es el mismo para todo el mundo).
  */
-export function formatCurrency(value, code = 'USD') {
+export function formatCurrency(value, code = 'USD', options) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '';
     try {
-        return new Intl.NumberFormat(_locale, { style: 'currency', currency: code }).format(n);
+        return new Intl.NumberFormat(_locale, { style: 'currency', currency: code, ...(options || {}) }).format(n);
     } catch {
         // Degrada al formato de siempre antes que dejar el precio en blanco.
         return `US$${n.toFixed(2)}`;
+    }
+}
+
+/**
+ * [P3-I18N-MONEDA-COMPUESTA-A-MANO-EN-EL-PRESUPUESTO · 2026-08-23] El símbolo de una moneda
+ * como lo escribe el locale activo: «RD$», «US$», «$», «€». El formulario lo componía a mano
+ * (`USD → 'US$'`, `DOP → 'RD$'`, lo demás `CODE + ' '`), así que para EUR/MXN/COP el
+ * «símbolo» era el código ISO y los importes salían «EUR 1.200» donde el francés escribe
+ * «1 200 €». Para un IMPORTE usa `formatCurrency` (pone el símbolo donde toca); esto es
+ * sólo para el adorno de un input, donde el número lo escribe el usuario.
+ */
+export function currencySymbol(code = 'USD') {
+    try {
+        const parts = new Intl.NumberFormat(_locale, { style: 'currency', currency: code }).formatToParts(0);
+        const p = parts.find((x) => x.type === 'currency');
+        return p ? p.value : code;
+    } catch {
+        return code;
     }
 }
 
@@ -490,6 +508,39 @@ export function formatNumber(value, options) {
     } catch {
         return String(n);
     }
+}
+
+/**
+ * [P3-I18N-PORCENTAJE-PEGADO-AL-NUMERO · 2026-08-23] Un porcentaje YA en puntos (50, no 0.5)
+ * con el signo como lo escribe cada idioma: «50%» en español, inglés, portugués e italiano;
+ * «50 %» en francés (espacio fino irrompible, U+202F, que es lo que `Intl` emite). Siete
+ * `{x}%` pegados a mano en el dashboard pintaban «50%» a un francés. `Intl` recibe la
+ * fracción, por eso se divide; `maximumFractionDigits` por defecto 0 porque los valores del
+ * dashboard ya vienen redondeados.
+ */
+export function formatPercent(points, options) {
+    const n = Number(points);
+    if (!Number.isFinite(n)) return '';
+    try {
+        return new Intl.NumberFormat(_locale, { style: 'percent', maximumFractionDigits: 0, ...(options || {}) }).format(n / 100);
+    } catch {
+        return `${n}%`;
+    }
+}
+
+/**
+ * [P3-I18N-3C-CLAVADO · 2026-08-23] Una temperatura en la escala del usuario. `t('3°C · Frío
+ * Max')` salía «3°C · Max Cold» a un público imperial: la escala no es copy, es una unidad, y
+ * la decide el usuario (su `weightUnit`, la señal imperial que el formulario ya tiene) antes
+ * que el idioma (en-US como respaldo cuando no eligió). Celsius con el signo pegado, como
+ * `Intl` lo hace en todos los locales del producto; Fahrenheit redondeado a entero.
+ */
+export function formatTemperature(celsius, { weightUnit } = {}) {
+    const c = Number(celsius);
+    if (!Number.isFinite(c)) return '';
+    const imperial = weightUnit === 'lb' || (!weightUnit && _locale === 'en-US');
+    if (imperial) return `${Math.round(c * 9 / 5 + 32)}°F`;
+    return `${c}°C`;
 }
 
 // ---------------------------------------------------------------------------
@@ -721,6 +772,24 @@ export function I18nProvider({ children }) {
         };
         _subscribers.add(onChange);
         return () => { _subscribers.delete(onChange); };
+    }, []);
+
+    // [P3-I18N-LOCALE-SIN-SINCRONIA-ENTRE-PESTANAS · 2026-08-23] El idioma era la única
+    // preferencia de localStorage que no se propagaba entre pestañas: el tema, el agua, las
+    // notificaciones y el plan escuchan `storage`; el idioma no. Con dos pestañas abiertas,
+    // elegir «Français» en Configuración dejaba la otra en español hasta recargar — y al
+    // volver a ella, el usuario veía «el selector no funciona». `storage` sólo dispara en
+    // las OTRAS pestañas (la que escribe ya aplicó), y sólo para nuestra clave.
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const onStorage = (e) => {
+            if (!e || e.key !== LOCALE_STORAGE_KEY) return;
+            const next = e.newValue;
+            if (!isSupportedLocale(next) || next === getLocale()) return;
+            loadLocale(next);   // notifica a los suscriptores: repinta igual que el selector
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
     }, []);
 
     const setLocale = useCallback(async (code) => {

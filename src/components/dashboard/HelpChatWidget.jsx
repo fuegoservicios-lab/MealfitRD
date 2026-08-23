@@ -12,6 +12,8 @@ import { safeJSONParse } from '../../utils/safeJSONParse';
 import { useT, getLocale } from '../../i18n';
 import styles from './HelpChatWidget.module.css';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../../data/routeMeta';
 /* [P2-HELP-CHATBOT · 2026-07-04] Chatbot de ayuda del ítem "Obtener ayuda"
    (menú de cuenta desktop + menú "más" móvil). Responde dudas de PRODUCTO
    (qué es Bioboros, planes/precios, cómo usar cada sección) vía
@@ -36,8 +38,8 @@ const MAX_INPUT = 1500;  // espejo del knob MEALFIT_HELP_CHAT_MAX_CHARS
 const getGreeting = (t) => ({
     role: 'assistant',
     content: nativeHidesCommerce()
-        ? t('¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, la Nevera, las recetas, tu cuenta…')
-        : t('¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, planes y precios, la Nevera, las recetas, tu cuenta…'),
+        ? t('¡Hola! Soy el asistente de {app}. Pregúntame lo que quieras sobre la app: cómo funciona, la Nevera, las recetas, tu cuenta…', { app: BRAND })
+        : t('¡Hola! Soy el asistente de {app}. Pregúntame lo que quieras sobre la app: cómo funciona, planes y precios, la Nevera, las recetas, tu cuenta…', { app: BRAND }),
 });
 
 // Cuerpo con llaves: el validador mide el ámbito contando llaves y una flecha que
@@ -163,7 +165,7 @@ export default function HelpChatWidget({ onClose }) {
                 style={vvBox ? { top: vvBox.top, bottom: 'auto', height: vvBox.height } : undefined}
                 role="dialog"
                 aria-modal="true"
-                aria-label={t('Asistente de ayuda de Bioboros')}
+                aria-label={t('Asistente de ayuda de {app}', { app: BRAND })}
                 ref={containerRef}
                 tabIndex={-1}
                 onClick={(e) => e.stopPropagation()}
@@ -174,7 +176,7 @@ export default function HelpChatWidget({ onClose }) {
                     </span>
                     <div className={styles.headerText}>
                         <span className={styles.headerTitle}>{t('Obtener ayuda')}</span>
-                        <span className={styles.headerSub}>{t('Asistente de Bioboros')}</span>
+                        <span className={styles.headerSub}>{t('Asistente de {app}', { app: BRAND })}</span>
                     </div>
                     <button type="button" className={styles.closeBtn} onClick={onClose} aria-label={t('Cerrar ayuda')}>
                         <X size={17} strokeWidth={2.4} />

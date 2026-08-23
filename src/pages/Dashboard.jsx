@@ -173,7 +173,7 @@ import { useLatestRef } from '../hooks/useLatestRef';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { glossClinicalNote } from '../utils/clinicalNoteGloss';
-import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory, buildGlossIndex } from '../utils/shoppingHelpers';
+import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory, buildGlossIndex, glossShoppingName } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
@@ -3534,7 +3534,8 @@ const DashboardInner = () => {
 
                 if (typeof item === 'object' && item !== null) {
                     // Nivel 3: Consumir display_category del backend (Single Source of Truth)
-                    name = item.name || item.display_name || item.item_name || t('Desconocido');
+                    // [P3-I18N-SHOPPING-HELPERS-RELLENOS] «Ingrediente»/«Desconocido» fabricados en el dato se glosan aquí.
+                    name = glossShoppingName(item.name || item.display_name || item.item_name || t('Desconocido'), t);
                     cat = item.display_category || item.category || i18nKey('🛒 OTROS');
                     // [P2-SHOPLIST-BETA-POLISH · 2026-08-18] Los planes YA persistidos traen el
                     // label interno viejo del backend; los nuevos llegan con el pasillo real
@@ -8983,7 +8984,11 @@ const DashboardInner = () => {
                                                         const currentlyLiked = !!likedMeals[meal.name];
                                                         toggleMealLike(meal.name, meal.meal);
                                                         if (!currentlyLiked) {
-                                                            toast.success(t('¡Anotado!'), { description: t('Aprenderemos que te gusta: {plato}', { plato: meal.name }), icon: '❤️' });
+                                                            // [P3-I18N-SEAM-NOMBRE-CANONICO-DOS-HERMANOS · 2026-08-23] Mismo criterio que el aviso
+                                                            // de «registrado» (l. ~1115): la tarjeta pinta el plato TRADUCIDO; el toast y el
+                                                            // nombre accesible del botón decían el canónico español. `meal.name` sigue siendo lo
+                                                            // que el motor resuelve (`likedMeals[meal.name]`); sólo cambia lo que se PINTA.
+                                                            toast.success(t('¡Anotado!'), { description: t('Aprenderemos que te gusta: {plato}', { plato: mealDisplayName(meal, _dashLocale) || meal.name }), icon: '❤️' });
                                                         } else {
                                                             toast(t('Like removido'));
                                                         }
@@ -9056,7 +9061,7 @@ const DashboardInner = () => {
                                                             transition: 'all 0.2s'
                                                         }}
                                                         title={t('Me lo comí — lo registra en tu diario y lo descuenta de tu Nevera')}
-                                                        aria-label={t('Registrar que te comiste {plato}', { plato: meal.name })}
+                                                        aria-label={t('Registrar que te comiste {plato}', { plato: mealDisplayName(meal, _dashLocale) || meal.name })}
                                                     >
                                                         {eatMealInFlight === index
                                                             ? <Loader2 size={18} className="animate-spin" color={isDark ? '#6EE7B7' : '#047857'} />

@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
-import { useT } from '../../i18n';
+import { useT, formatPercent } from '../../i18n';
 
 const SCALE = [1, 2, 3, 4, 5];
 
@@ -150,7 +150,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 <div style={{ marginBottom: 16 }}>{scaleRow(energy, setEnergy, t('Baja'), t('Alta'))}</div>
 
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    {t('¿Cuánto del plan seguiste?')} <span style={{ color: '#34d399' }}>{adherence}%</span>
+                    {t('¿Cuánto del plan seguiste?')} <span style={{ color: '#34d399' }}>{formatPercent(adherence)}</span>
                 </label>
                 <input
                     type="range" min="0" max="100" step="10" value={adherence}
