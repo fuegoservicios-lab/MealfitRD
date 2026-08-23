@@ -20,7 +20,17 @@ import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 //   misconfig falle ALTO (404) en vez de degradar a HTML silencioso.
 //   Está documentada en `.env.example`; no la hard-throweamos porque '' es
 //   una config legítima para deploys same-origin.
-export const API_BASE = import.meta.env.DEV ? 'http://127.0.0.1:3001' : (import.meta.env.VITE_API_BASE_URL || '');
+//
+// [P2-DEV-LAN-HTTPS · 2026-08-23] En desarrollo la URL absoluta a 127.0.0.1 solo vale
+// cuando la página ES ese mismo equipo por HTTP. Servida al teléfono (`npm run dev:lan`,
+// host de la red local y HTTPS), `127.0.0.1` es el PROPIO teléfono y además sería
+// contenido mixto: ahí se va same-origin, que el proxy `/api` de Vite reenvía al
+// backend local. `http://localhost:5173` no cambia.
+const _devSameOrigin = typeof location !== 'undefined'
+    && (location.protocol === 'https:' || !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname));
+export const API_BASE = import.meta.env.DEV
+    ? (_devSameOrigin ? '' : 'http://127.0.0.1:3001')
+    : (import.meta.env.VITE_API_BASE_URL || '');
 
 // Helper to build API URLs
 export const api = (path) => `${API_BASE}${path}`;
