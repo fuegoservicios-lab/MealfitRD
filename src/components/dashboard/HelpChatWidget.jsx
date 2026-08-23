@@ -66,6 +66,25 @@ export default function HelpChatWidget({ onClose }) {
     const inputRef = useRef(null);
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
 
+    // [P1-HELP-BOT-KEYBOARD · 2026-08-22] En móvil la hoja es fixed a 100dvh y el teclado
+    // de iOS NO encoge el layout viewport: el campo de texto quedaba DEBAJO del teclado.
+    // Mismo patrón que la hoja de la Nevera: seguir al visualViewport (alto + offset).
+    const [vvBox, setVvBox] = useState(null);
+    useEffect(() => {
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        if (!vv) return undefined;
+        const mobile = () => window.matchMedia('(max-width: 640px)').matches;
+        const update = () => {
+            if (!mobile()) { setVvBox(null); return; }
+            const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+            setVvBox(kb > 0 ? { top: Math.round(vv.offsetTop), height: Math.round(vv.height) } : null);
+        };
+        update();
+        vv.addEventListener('resize', update);
+        vv.addEventListener('scroll', update);
+        return () => { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); };
+    }, []);
+
     // Persistir historial (acotado) + autoscroll al fondo en cada mensaje.
     useEffect(() => {
         try {
@@ -137,6 +156,7 @@ export default function HelpChatWidget({ onClose }) {
         <div className={styles.overlay} onClick={onClose}>
             <section
                 className={styles.panel}
+                style={vvBox ? { top: vvBox.top, bottom: 'auto', height: vvBox.height } : undefined}
                 role="dialog"
                 aria-modal="true"
                 aria-label={t('Asistente de ayuda de Bioboros')}
