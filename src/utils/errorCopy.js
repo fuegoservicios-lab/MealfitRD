@@ -54,6 +54,15 @@ const COPY_POR_CODIGO = {
     // MISMO `||` y con el mismo desenlace, así que se traducen por el mismo canal.
     ceiling_not_sodium: (t) => t('El aviso de este día no es por sodio.'),
     no_day_over_ceiling: (t) => t('Ya está bajo el techo de sodio.'),
+    // [P2-I18N-PLAN-TOASTS-ERROR-MESSAGE · 2026-08-23] Las 8 ramas de error de la pantalla
+    // de generación pasan ahora por aquí. Este código trae un DATO (`max`, el cap de
+    // condiciones) que la prosa necesita: el segundo argumento es el `detail` del servidor.
+    // La clave es byte-idéntica al texto que emite el backend en es-DO, así que en español
+    // no cambia nada y en los otros cuatro se traduce.
+    too_many_medical_conditions: (t, d) => t(
+        'Para garantizar la calidad clínica del plan, selecciona máximo {max} condiciones prioritarias.',
+        { max: (d && Number.isFinite(Number(d.max))) ? Number(d.max) : 3 },
+    ),
 };
 
 /** El código que trae una respuesta de error, mire donde mire el backend. */
@@ -94,7 +103,10 @@ export function mensajeDeError(data, fallback, t) {
         }
     }
 
-    if (copy) return copy(t);
+    if (copy) {
+        const detalle = (data && typeof data.detail === 'object' && data.detail) ? data.detail : data;
+        return copy(t, detalle);
+    }
     return fallback;
 }
 
