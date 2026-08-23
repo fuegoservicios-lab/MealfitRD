@@ -544,7 +544,8 @@ export default defineConfig(({ mode }) => {
     // P1-CI-GATE-INCONCLUSIVE cerro en pytest, al otro lado del mismo gate.
     //
     // Medido, no supuesto: con 4 workers, dos corridas consecutivas dieron
-    // 265/265 archivos y 2.697/2.697 tests, exit 0 y cero errores. Cuesta ~130 s
+    // 265/265 archivos y 2.697/2.697 tests, exit 0 y cero errores (a 2026-08-23
+    // la suite creció a ~319 archivos / ~3.120 tests y sigue estable). Cuesta ~130 s
     // frente a ~98 s. Treinta segundos por una cifra en la que se puede confiar
     // es un cambio barato; el que sale caro es desplegar con la suite a medias.
     //
