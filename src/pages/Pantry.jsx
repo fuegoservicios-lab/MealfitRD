@@ -2090,6 +2090,9 @@ const Pantry = () => {
             const matches = masterList.filter(m =>
                 (m.name || '').toLowerCase().includes(q)
                 || (m.aliases && m.aliases.some(a => (a || '').toLowerCase().includes(q)))
+                // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] El gloss inglés como
+                // vía de entrada; lo seleccionado sigue siendo `m.name`. Cubre 1 idioma de 4.
+                || (m.name_en || '').toLowerCase().includes(q)
             );
             if (matches.length === 1) hit = matches[0];
         }
@@ -2235,7 +2238,9 @@ const Pantry = () => {
         const q = addItemSearch.toLowerCase();
         return masterList.filter(m => 
             m.name.toLowerCase().includes(q) || 
-            (m.aliases && m.aliases.some(a => a.toLowerCase().includes(q)))
+            (m.aliases && m.aliases.some(a => a.toLowerCase().includes(q))) ||
+            // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4] ver arriba.
+            (m.name_en || '').toLowerCase().includes(q)
         ).slice(0, 8); // Top 8 suggestions
     }, [addItemSearch, masterList]);
 
