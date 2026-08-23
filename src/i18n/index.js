@@ -595,7 +595,13 @@ export async function syncLocaleFromProfile(profileLocale) {
     if (!isSupportedLocale(profileLocale)) return false;
     if (profileLocale === _locale) return false;
     const ok = await loadLocale(profileLocale);
-    if (ok) _persistLocal(profileLocale);
+    // [P2-I18N-SYNC-PERSISTE-EL-IDIOMA-SUPERADO · 2026-08-23] `=== true`, no truthy:
+    // `SUPERSEDED` es un string y pasaba el `if (ok)`. Carrera real del arranque: llega el
+    // perfil con fr-FR, el usuario toca «Italiano» antes de que baje el chunk francés, el
+    // francés se descarta en pantalla... y se GUARDABA en el dispositivo, así que el
+    // siguiente arranque revertía la elección que el usuario acababa de hacer. `setLocale`
+    // ya lo hacía bien («sólo se persiste el éxito REAL»); esta era la otra vía.
+    if (ok === true) _persistLocal(profileLocale);
     return ok;
 }
 
