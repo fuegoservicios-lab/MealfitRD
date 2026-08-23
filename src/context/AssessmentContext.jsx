@@ -144,7 +144,7 @@ import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // corre dentro de `fetchProfile`, que no es un componente.
 // [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: los avisos de abajo salen desde
 // dentro de callbacks (handlers, polling, catch), no en render.
-import { claimLocaleForUser, syncLocaleFromProfile, t } from '../i18n';
+import { claimLocaleForUser, localeParaEstampar, syncLocaleFromProfile, t } from '../i18n';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Loop de polling acotado (discriminador +
@@ -1327,11 +1327,15 @@ export const AssessmentProvider = ({ children }) => {
                 // Fire-and-forget deliberado, igual que su vecino de arriba: es una
                 // conveniencia, no un requisito. Si falla, el usuario sigue viendo su
                 // idioma detectado y el próximo login lo reintenta.
-                if (!data.locale) {
+                // [P1-I18N-CLAIM-Y-ESTAMPADO-SIN-GUARD-DE-CONDUCTA · 2026-08-23] La
+                // decisión vive en `localeParaEstampar` (i18n/index.js), que es pura y
+                // tiene guard de conducta; aquí sólo queda el efecto.
+                const _estampar = localeParaEstampar(data.locale, _activo);
+                if (_estampar) {
                     fetchWithAuth('/api/profile', {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ fields: { locale: _activo } }),
+                        body: JSON.stringify({ fields: { locale: _estampar } }),
                     }).catch(() => { /* el próximo login lo reintenta */ });
                 }
                 // Sincronizar UI form data con health_profile (si existe y tiene datos)

@@ -568,6 +568,27 @@ export async function syncLocaleFromProfile(profileLocale) {
     return ok;
 }
 
+/**
+ * [P1-I18N-CLAIM-Y-ESTAMPADO-SIN-GUARD-DE-CONDUCTA · 2026-08-23] ¿Hay que estampar el
+ * idioma activo en el perfil, y cuál?
+ *
+ * Es la DECISIÓN del estampado de `P1-I18N-PROFILE-DEFAULT-PISA`, sacada del `useEffect`
+ * del Provider para poder ejecutarla en un test. La regla entera cabe en dos líneas y las
+ * dos son load-bearing:
+ *   · SÓLO cuando el perfil NO trae idioma (`NULL` = «nunca elegí»). Si trae uno es una
+ *     elección real y pisarla sería el defecto del DEFAULT sembrado, del revés.
+ *   · Lo que se estampa es lo ACTIVO tras `claimLocaleForUser` — nunca lo que había en el
+ *     dispositivo antes de reclamar, que en un dispositivo compartido es la elección del
+ *     usuario anterior y desde el perfil viajaría a todos los suyos.
+ *
+ * Devuelve el locale a estampar, o `null` si no toca. Pura: sin red, sin DOM.
+ */
+export function localeParaEstampar(profileLocale, activoTrasReclamar) {
+    if (profileLocale) return null;
+    if (!isSupportedLocale(activoTrasReclamar)) return null;
+    return activoTrasReclamar;
+}
+
 // ---------------------------------------------------------------------------
 // Capa React
 // ---------------------------------------------------------------------------
