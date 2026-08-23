@@ -6,6 +6,7 @@ import { useAssessment } from '../../context/AssessmentContext';
 import { ChevronLeft, LogIn, LogOut } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 import Wordmark from '../common/Wordmark';
+import LocaleSwitcher from '../common/LocaleSwitcher';
 import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 import { useT } from '../../i18n';
 
@@ -154,7 +155,13 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         [FORM-STEP-COUNTER-DEDUP · 2026-07-03] La píldora contador "N / M" del
                         header eliminada a pedido — duplicaba el kicker "Paso N de M" de la card.
                         Spacer para que `:last-child { justify-self: end }` no capture el logo. */}
-                    <div className={styles.backSpacer} aria-hidden="true" />
+                    {/* [P2-I18N-SIN-SELECTOR-ANTES-DE-TENER-CUENTA · 2026-08-23] El spacer
+                        pasa a ser el selector de idioma: el invitado llega al formulario sin
+                        cuenta y, hasta hoy, sin forma de corregir la autodetección. Sigue
+                        siendo el `:last-child` del grid → `justify-self: end`. */}
+                    <div className={styles.backSpacer}>
+                        <LocaleSwitcher id="mf-locale-wizard" />
+                    </div>
                 </div>
                 
                 {/* Progress Bar under header */}
