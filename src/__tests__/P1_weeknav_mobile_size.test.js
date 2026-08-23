@@ -264,15 +264,36 @@ describe('[P1-SWAP-LOCK-EXPLAINS] un bloqueo que se puede preguntar', () => {
         // y la ventana se quedaba corta — la misma trampa de siempre, con otra ropa.
         const iTernario = DASH.indexOf('{swapLockReason ? (');
         expect(iTernario, 'el botón ya no distingue bloqueado de disponible').toBeGreaterThan(0);
-        const rama = DASH.slice(iTernario, iTernario + 1800);
+        // [P1-I18N-BOTON-CAMBIAR-PLATO-CLAVADO-POR-TEST · 2026-08-23] Acotado por ESTRUCTURA
+        // —hasta el cierre del fragmento de la rama disponible— y no por un presupuesto de
+        // 1.800 caracteres. El presupuesto ya iba justo (el rótulo estaba a ~1.770) y el
+        // comentario que explica por qué el rótulo ahora pasa por `t()` lo desbordó: el
+        // guard se puso rojo acusando a un rótulo que SÍ estaba, sólo que fuera de la
+        // mirilla. Es la trampa (g) del repo, presupuesto de bytes, y la respuesta no es
+        // ampliar el presupuesto — es dejar de tenerlo.
+        const iCierre = DASH.indexOf('</>', iTernario);
+        expect(iCierre, 'no encuentro el cierre del fragmento de la rama disponible').toBeGreaterThan(iTernario);
+        const rama = DASH.slice(iTernario, iCierre);
 
         expect(rama, 'la rama bloqueada no pinta un candado').toMatch(/\?\s*\(\s*<Lock/);
         // El rótulo sobrevive, pero en la OTRA rama: el pedido era «un candado nada más»,
         // no quitar el texto también del botón que sí funciona.
-        expect(rama, 'desapareció el rótulo del botón disponible').toMatch(/Cambiar Plato<\/span>/);
+        //
+        // [P1-I18N-BOTON-CAMBIAR-PLATO-CLAVADO-POR-TEST · 2026-08-23] Anclado por ESTRUCTURA
+        // (`data-testid="swap-label"`), no por el copy `Cambiar Plato</span>`. Exigir el
+        // literal hacía que el botón principal de cada comida saliera en español en los
+        // cinco idiomas —la traducción existía, revisada, y la prosa del propio Dashboard
+        // la usaba viva: «usa Changer de plat en esa comida», nombrando un botón que en la
+        // pantalla del usuario se llamaba de otra manera—. El código llevaba escrito «SIN
+        // t(): el test exige la cadena literal». Es la quinta instancia de
+        // P1-I18N-TEST-CLAVA-EL-COPY, y la más visible. Lo que este test protege —que el
+        // rótulo viva en la rama disponible, después del candado— no depende del idioma.
+        expect(rama, 'desapareció el rótulo del botón disponible').toMatch(/data-testid="swap-label"/);
+        expect(rama, 'el rótulo vuelve a estar clavado en español: envuélvelo en t()')
+            .toMatch(/data-testid="swap-label"[^>]*>\s*\{t\(/);
         expect(
             rama.indexOf('<Lock'),
             'el rótulo aparece antes que el candado: estarían intercambiadas las ramas',
-        ).toBeLessThan(rama.indexOf('Cambiar Plato</span>'));
+        ).toBeLessThan(rama.indexOf('data-testid="swap-label"'));
     });
 });

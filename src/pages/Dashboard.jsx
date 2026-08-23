@@ -8955,12 +8955,14 @@ const DashboardInner = () => {
                                                                 className={(regeneratingId === index || (isDayUpdating
                                                                     && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))) ? "spin-fast" : ""}
                                                             />
-                                                            {/* [P1-I18N-DASHBOARD · 2026-08-15] SIN `t()`: `P1_weeknav_mobile_size.
-                                                                test.js` exige la cadena literal `Cambiar Plato</span>` (texto
-                                                                pegado al cierre) para comprobar que el rótulo vive en la rama
-                                                                DISPONIBLE y no en la del candado. Envolverlo la rompe desde otro
-                                                                fichero. */}
-                                                            <span style={{ whiteSpace: 'nowrap' }}>Cambiar Plato</span>
+                                                            {/* [P1-I18N-BOTON-CAMBIAR-PLATO-CLAVADO-POR-TEST · 2026-08-23]
+                                                                Este rótulo llevaba escrito «SIN t(): el test exige la cadena
+                                                                literal». El test se reancló por ESTRUCTURA (`data-testid`),
+                                                                así que ya no hay razón para que el botón principal de cada
+                                                                comida salga en español en los cinco idiomas — sobre todo
+                                                                cuando siete avisos de esta misma pantalla nombran el botón
+                                                                YA traducido («usa Changer de plat en esa comida»). */}
+                                                            <span data-testid="swap-label" style={{ whiteSpace: 'nowrap' }}>{t('Cambiar Plato')}</span>
                                                         </>
                                                     )}
                                                 </button>
