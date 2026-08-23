@@ -139,10 +139,71 @@ export const setCachedMasterList = (rows, ttlMs = _MASTER_LIST_TTL_MS) => {
         value: rows,
         expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null,
     };
+    _publicarIndiceDelGloss(rows, ttlMs);
 };
 
 export const invalidateMasterListCache = () => {
     _masterListEntry = null;
+    _safeLsRemove(GLOSS_INDEX_LS_KEY);
+};
+
+// [P1-I18N-GLOSS-INERTE-EN-CARGA-NUEVA-POR-CACHE-FRIA · 2026-08-23] El índice del gloss
+// de la lista de compras, PERSISTIDO.
+//
+// El respaldo del gloss del PDF (`P3-I18N-PDF-GLOSS-PLANES-VIEJOS`) leía `getCachedMasterList`,
+// que es sólo memoria y la llenan cinco sitios —ninguno es el Dashboard, donde vive el
+// botón de descarga—. En cualquier carga nueva el índice salía vacío y el PDF en español.
+// Medido contra producción: 2.742 de 3.605 ítems (76 %) dependen de este respaldo.
+//
+// POR QUÉ NO SE PERSISTE EL CATÁLOGO ENTERO como hace el inventario: medido contra Neon,
+// son 567 KB (54 columnas × 347 filas). El gloss sólo necesita `name` + `name_en`: 17 KB.
+// `localStorage` tiene cuota y la comparte toda la app, así que se persiste lo que se usa.
+//
+// Se PUBLICA desde `setCachedMasterList` —o sea, desde los cinco sitios que ya traen el
+// catálogo, sin cablear ninguno— y se LEE desde el Dashboard. Mismo TTL que el catálogo.
+export const GLOSS_INDEX_LS_KEY = 'mealfit_gloss_index_v1';
+
+const _sinAcentos = (s) => String(s ?? '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+const _publicarIndiceDelGloss = (rows, ttlMs) => {
+    try {
+        const pares = [];
+        for (const m of rows) {
+            const es = m && typeof m.name === 'string' ? m.name : '';
+            const en = m && typeof m.name_en === 'string' ? m.name_en.trim() : '';
+            if (es && en) pares.push([_sinAcentos(es), en]);
+        }
+        if (!pares.length) return;
+        safeLocalStorageSet(GLOSS_INDEX_LS_KEY, JSON.stringify({
+            value: pares,
+            expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null,
+        }));
+    } catch { /* quota / privado — fail-open: el gloss cae al español, como antes */ }
+};
+
+/**
+ * El índice `nombre-sin-acentos -> name_en`, como `Map`. Vacío si no hay nada cacheado o
+ * si caducó: el PDF sale en español, que es la conducta de antes, nunca un error.
+ */
+export const getCachedGlossIndex = () => {
+    const idx = new Map();
+    try {
+        const raw = safeLocalStorageGet(GLOSS_INDEX_LS_KEY, null);
+        if (!raw) return idx;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.value)) return idx;
+        if (typeof parsed.expiresAt === 'number' && Date.now() > parsed.expiresAt) {
+            _safeLsRemove(GLOSS_INDEX_LS_KEY);
+            return idx;
+        }
+        for (const par of parsed.value) {
+            if (Array.isArray(par) && typeof par[0] === 'string' && typeof par[1] === 'string') {
+                idx.set(par[0], par[1]);
+            }
+        }
+    } catch { /* JSON roto — fail-open */ }
+    return idx;
 };
 
 // [P1-MANUAL-FOOD-LOG · 2026-08-11] Los 60 platos criollos de /api/catalog/dishes.

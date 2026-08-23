@@ -118,7 +118,7 @@ import { trackEvent } from '../utils/analytics';
 // con `inventory = getCachedInventory()` ya poblado → cero skeleton + cero
 // fetch dup. Pre-fix Pantry hacía su propio fetch al mount (~300-800ms)
 // pese a que Dashboard ya había hecho refetch para `setLiveInventory`.
-import { getCachedInventory, setCachedInventory, invalidateInventoryCache, getCachedMasterList } from '../utils/pantryCache';
+import { getCachedInventory, setCachedInventory, invalidateInventoryCache, getCachedMasterList, getCachedGlossIndex } from '../utils/pantryCache';
 // [P1-SWAP-PANTRY-GATE · 2026-07-30] Umbrales + gate de Nevera. La lógica pura
 // vive en su propio módulo para poder testearla EJECUTÁNDOLA (los tests de este
 // archivo son parser-based y no ejecutan nada). Ver utils/pantryGate.js.
@@ -3227,7 +3227,18 @@ const DashboardInner = () => {
         // para los planes que nacieron sin `display_name_en` embebido — medido, TODOS los 49
         // vivos. Vacio si el catalogo aun no esta cacheado: el gloss cae al nombre espanol,
         // que es exactamente la conducta de antes.
-        const _glossIdx = buildGlossIndex(getCachedMasterList() || []);
+        //
+        // [P1-I18N-GLOSS-INERTE-EN-CARGA-NUEVA-POR-CACHE-FRIA · 2026-08-23] «Aún no está
+        // cacheado» era EL CASO NORMAL, no el raro: `getCachedMasterList` es sólo memoria y
+        // la llenan cinco sitios, ninguno esta pantalla. Quien abre la app y descarga sin
+        // pasar por la Nevera tenía el índice vacío — 2.742 de 3.605 ítems de producción
+        // (76 %) dependen de este respaldo. Ahora, si la memoria está fría, se lee el índice
+        // PERSISTIDO (17 KB, sólo name+name_en) que cualquiera de los cinco publicó en una
+        // sesión anterior. Si tampoco hay, español, como antes.
+        const _masterEnMemoria = getCachedMasterList();
+        const _glossIdx = _masterEnMemoria
+            ? buildGlossIndex(_masterEnMemoria)
+            : getCachedGlossIndex();
         try {
             const loadingToast = toast.loading(t('Generando lista de compras...'), { position: 'top-center' });
 
