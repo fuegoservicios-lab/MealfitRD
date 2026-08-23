@@ -28,6 +28,9 @@ import { t, useT, useTn, useI18n } from '../i18n';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
 import { mensajeDeError } from '../utils/errorCopy';
+// [P1-I18N-SERVER-COPY-GANA-SIGUE-ABIERTO · 2026-08-23] El `_review_disclaimer` del backend
+// viene siempre en español; se glosa al imprimir, igual que la nota clínica.
+import { glossReviewDisclaimer } from '../utils/clinicalNoteGloss';
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
@@ -1248,7 +1251,12 @@ const Plan = () => {
                     import('sonner').then(({ toast }) => {
                         if (generatedPlan?._critical_rejection) {
                             toast.error(t("Plan ajustado por seguridad médica"), {
-                                description: generatedPlan?._review_disclaimer
+                                // [P1-I18N-SERVER-COPY-GANA-SIGUE-ABIERTO · 2026-08-23]
+                                // `_review_disclaimer` lo compone el backend SIEMPRE, y
+                                // siempre en español, así que el `|| t(…)` de al lado era
+                                // rama muerta: la traducción existía y no se pintaba jamás.
+                                // Se glosa al imprimir, igual que la nota clínica.
+                                description: glossReviewDisclaimer(generatedPlan?._review_disclaimer, t)
                                     || t("El plan se ajustó para cumplir tus condiciones médicas. Considera regenerarlo o revisarlo con tu nutricionista."),
                                 duration: 12000,
                             });
@@ -1278,7 +1286,9 @@ const Plan = () => {
                             // exacto en vez de re-derivar el texto en el cliente.
                             const _rstats = generatedPlan?._repair_stats || {};
                             toast.warning(t("Plan completado parcialmente"), {
-                                description: generatedPlan?._review_disclaimer
+                                // [P1-I18N-SERVER-COPY-GANA-SIGUE-ABIERTO · 2026-08-23] Ver
+                                // la nota de la rama de arriba.
+                                description: glossReviewDisclaimer(generatedPlan?._review_disclaimer, t)
                                     || (Number.isFinite(_rstats.real_days) && Number.isFinite(_rstats.requested_days)
                                         ? t('{reales} de {pedidos} días fueron generados por IA; el resto se completó con un menú matemático. Puedes regenerar si prefieres un plan 100% personalizado.', { reales: _rstats.real_days, pedidos: _rstats.requested_days })
                                         : t("Algunos días de tu plan se completaron con un menú matemático porque la IA no entregó todos los días esperados.")),

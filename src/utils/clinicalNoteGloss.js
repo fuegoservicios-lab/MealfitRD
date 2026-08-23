@@ -94,6 +94,61 @@ const _TOPE_PROTEINA_CLAVE = i18nKey(
     ' Se aplicó un límite conservador de proteína a ~{proteina}g/día (≈{gkg} g/kg) como medida de seguridad.',
 );
 
+// [P1-I18N-SERVER-COPY-GANA-SIGUE-ABIERTO · 2026-08-23] El OTRO texto español que el
+// backend compone entero y el cliente pintaba crudo: `_review_disclaimer`.
+//
+// Son seis variantes fijas en `graph_orchestrator.py` y todas explican POR QUÉ el plan salió
+// como salió. La peor, la de rechazo médico crítico, se pinta con el título ya traducido
+// («Plan ajustado por seguridad médica») y debajo, en español: «El sistema detectó
+// violaciones críticas (alergias o condiciones médicas)…». Es la misma forma
+// cabecera-traducida-sobre-cuerpo-español que la nota clínica, y por eso usa el MISMO motor
+// en vez de un mecanismo nuevo: `glossClinicalNote` ya sustituye por coincidencia literal,
+// display-only y fail-soft.
+//
+// El call site las tenía como fallback de `generatedPlan?._review_disclaimer || t('…')`, o
+// sea que la traducción existía y era RAMA MUERTA: el servidor siempre manda el campo.
+const _DISCLAIMERS = (t) => [
+    t('Este es un plan de contingencia generado matemáticamente debido a indisponibilidad temporal de la IA. Por favor regenera más tarde.'),
+    t('El plan generado por la IA tenía estructura inválida y no pudo ser entregado. Este es un plan de contingencia matemático. Por favor regenera más tarde.'),
+    t('El plan generado por la IA no alcanzaba el mínimo de proteína para tus metas tras varios intentos. Este es un plan de contingencia matemático, aproximado a tus macros. Por favor regenera para una versión más precisa y variada.'),
+    t('El sistema detectó violaciones críticas (alergias o condiciones médicas) en el plan generado por la IA y lo descartó por seguridad. Este es un plan de contingencia matemático. Por favor regenera o revisa tus restricciones declaradas.'),
+    t('Tras varios intentos, este plan no alcanza del todo tu meta de proteína. Es un plan completo y válido (incluye tu lista de compras); te recomendamos regenerarlo para acercarlo más a tu objetivo de proteína.'),
+    t('Este plan no superó completamente la verificación médica automática. Las observaciones encontradas son no-críticas, pero te recomendamos regenerarlo o revisarlo con tu nutricionista.'),
+];
+
+/** Las claves españolas de los disclaimers, para el guard. */
+export const CLAVES_REVIEW_DISCLAIMER = _DISCLAIMERS((s) => s);
+
+/**
+ * `glossReviewDisclaimer(texto, t)` -> string
+ *
+ * Mismo contrato que `glossClinicalNote`: display-only, fail-soft, y si no casa ninguna
+ * variante devuelve el texto tal cual (que es lo correcto para un disclaimer que el backend
+ * componga de forma nueva).
+ */
+export const glossReviewDisclaimer = (texto, t) => {
+    if (typeof texto !== 'string' || !texto.trim()) return texto;
+    if (typeof t !== 'function') return texto;
+    let traducidos;
+    try {
+        traducidos = _DISCLAIMERS(t);
+    } catch {
+        return texto;
+    }
+    // El backend concatena e inserta espacios entre frases de forma no siempre idéntica;
+    // se compara con el espacio en blanco COLAPSADO para que una diferencia de saltos de
+    // línea no deje el glosador inerte. La sustitución devuelve la traducción entera.
+    const norm = (s) => s.replace(/\s+/g, ' ').trim();
+    const objetivo = norm(texto);
+    for (let i = 0; i < CLAVES_REVIEW_DISCLAIMER.length; i += 1) {
+        if (norm(CLAVES_REVIEW_DISCLAIMER[i]) === objetivo) {
+            const tr = traducidos[i];
+            return (typeof tr === 'string' && tr) ? tr : texto;
+        }
+    }
+    return texto;
+};
+
 /** Las claves españolas, para el guard. Mismo orden que arriba. */
 export const CLAVES_NOTA_CLINICA = _FRAGMENTOS((s) => s);
 
