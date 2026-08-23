@@ -369,6 +369,46 @@ export function detectarEnFuente(src) {
             }
         }
 
+        // [P3-I18N-PDF-GATE-CIEGO-HTML · 2026-08-23] El copy que vive dentro de una CADENA
+        // de HTML, no de un JSX.
+        //
+        // Los PDFs de este repo se construyen concatenando HTML (`html2pdf` recibe una
+        // cadena, no JSX), así que su copy vive en template literals. El escáner miraba
+        // atributos, props, tablas, tuplas, toasts y expresiones JSX — ninguna de esas
+        // posiciones cubre «texto suelto entre dos etiquetas dentro de un backtick».
+        //
+        // VERIFICADO por inyección antes de escribir esto: un `<p>Revisa las cantidades
+        // antes de comprar tus alimentos frescos</p>` metido en el generador del PDF pasaba
+        // el gate en VERDE. Las ~500 líneas de copy del PDF ya están envueltas —eso se
+        // midió y era lo que el gap daba por perdido—, pero nada impedía que la siguiente
+        // entrara sin traducir.
+        //
+        // Se mira sólo el texto ENTRE ETIQUETAS (`>...<`). El resto del template literal es
+        // marcado, estilo y expresiones: incluirlo daría un falso positivo por cada
+        // `style="..."` con una palabra que parezca española.
+        if (nodo.type === 'TemplateLiteral') {
+            for (const quasi of nodo.quasis) {
+                const crudo = quasi.value && quasi.value.cooked;
+                if (typeof crudo !== 'string' || crudo.indexOf('<') === -1) continue;
+                // Se exige una ETIQUETA de verdad delante, no un `>` cualquiera. Sin
+                // eso, la prosa de un comentario que contenga `>` y `<` —el bloque
+                // `<style>` del dashboard, sin ir más lejos— entra como copy y el gate
+                // se pone rojo por un texto que ningún usuario lee. Dos falsos
+                // positivos en la primera versión, los dos de la misma forma.
+                // La forma del copy REAL es `<tag>texto</tag>`: abierto por una etiqueta
+                // y CERRADO por una. Sin exigir el cierre, la prosa de un comentario de
+                // CSS dentro de un `<style>{`...`}` entra como copy —dos falsos
+                // positivos en las dos primeras versiones de esta regla, los dos ahí—
+                // y el gate se pone rojo por texto que ningún usuario lee.
+                for (const m of crudo.matchAll(/<[a-zA-Z][^<>]*>([^<>{}]{6,})<\//g)) {
+                    const texto = m[1].replace(/\s+/g, ' ').trim();
+                    if (!texto || texto.length < 6) continue;
+                    anotar({ type: 'StringLiteral', value: texto, loc: nodo.loc },
+                           'html-en-plantilla', true);
+                }
+            }
+        }
+
         // `{'texto'}` / `{cond ? 'a' : 'b'}` / `{x || 'a'}` como HIJO de JSX. El contenedor
         // es un nodo intermedio que el recorrido cruzaba sin mirar su expresión.
         if (nodo.type === 'JSXExpressionContainer' && nodo.expression) {

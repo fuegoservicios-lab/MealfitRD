@@ -118,7 +118,7 @@ import { trackEvent } from '../utils/analytics';
 // con `inventory = getCachedInventory()` ya poblado → cero skeleton + cero
 // fetch dup. Pre-fix Pantry hacía su propio fetch al mount (~300-800ms)
 // pese a que Dashboard ya había hecho refetch para `setLiveInventory`.
-import { getCachedInventory, setCachedInventory, invalidateInventoryCache } from '../utils/pantryCache';
+import { getCachedInventory, setCachedInventory, invalidateInventoryCache, getCachedMasterList } from '../utils/pantryCache';
 // [P1-SWAP-PANTRY-GATE · 2026-07-30] Umbrales + gate de Nevera. La lógica pura
 // vive en su propio módulo para poder testearla EJECUTÁNDOLA (los tests de este
 // archivo son parser-based y no ejecutan nada). Ver utils/pantryGate.js.
@@ -173,7 +173,7 @@ import { useLatestRef } from '../hooks/useLatestRef';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { glossClinicalNote } from '../utils/clinicalNoteGloss';
-import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory } from '../utils/shoppingHelpers';
+import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory, buildGlossIndex } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
@@ -3222,6 +3222,12 @@ const DashboardInner = () => {
         // sí. Mismo patrón que `restockLock`.
         if (pdfLock.current) return;
         pdfLock.current = true;
+        // [P3-I18N-PDF-GLOSS-PLANES-VIEJOS - 2026-08-23] Indice de gloss desde el catalogo,
+        // que ya viaja al cliente con cache de 24 h: cuesta cero peticiones. Es el respaldo
+        // para los planes que nacieron sin `display_name_en` embebido — medido, TODOS los 49
+        // vivos. Vacio si el catalogo aun no esta cacheado: el gloss cae al nombre espanol,
+        // que es exactamente la conducta de antes.
+        const _glossIdx = buildGlossIndex(getCachedMasterList() || []);
         try {
             const loadingToast = toast.loading(t('Generando lista de compras...'), { position: 'top-center' });
 
@@ -3948,7 +3954,10 @@ const DashboardInner = () => {
                         // es-DO. Fallback silencioso al nombre español si el ítem aún no
                         // tiene `display_name_en` poblado.
                         if (typeof display === 'string') {
-                            display = glossShoppingItemName(display, item.item_ref?.display_name_en, _dashLocale);
+                            // [P3-I18N-PDF-GLOSS-PLANES-VIEJOS · 2026-08-23] Con respaldo del
+                            // catálogo: CERO de los 49 planes vivos traen `display_name_en`, así
+                            // que sin esto la lista sale íntegra en español en los cuatro idiomas.
+                            display = glossShoppingItemName(display, item.item_ref?.display_name_en, _dashLocale, _glossIdx);
                         }
 
                         // Color del chip alineado con la durabilidad real del item:

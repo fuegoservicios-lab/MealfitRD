@@ -167,11 +167,47 @@ export const escapeHtml = (value) => {
  * - En cualquier otro caso: "`displayNameEn` (`name`)", p.ej.
  *   "Black beans (Habichuelas negras)".
  */
-export const glossShoppingItemName = (name, displayNameEn, locale) => {
+/**
+ * Índice `nombre español → gloss inglés` construido desde el catálogo.
+ *
+ * [P3-I18N-PDF-GLOSS-PLANES-VIEJOS · 2026-08-23] El gloss leía SÓLO
+ * `item.item_ref.display_name_en`, un campo que el backend embebe en la lista al generarla.
+ *
+ * MEDIDO contra Neon: de los **49 planes vivos con lista, CERO** lo traen. No son «9 planes»
+ * como estimaba el gap: son todos. O sea que hoy, en los cuatro idiomas no-base, la lista de
+ * la compra del PDF sale ÍNTEGRA en español para cualquier usuario — el código del gloss
+ * existe y está inerte en producción, igual que le pasaba a la capa `_display`.
+ *
+ * El catálogo tiene `name_en` al 347/347 y ya viaja al cliente con caché de 24 h, así que el
+ * respaldo no cuesta ni una petición. Se indexa sin acentos y en minúsculas porque el nombre
+ * que trae la lista y el del catálogo son la misma palabra escrita por dos caminos.
+ *
+ * Lo que NO cambia: gana siempre el campo embebido si está. El catálogo es respaldo, no
+ * sustituto — un plan que traiga su propio gloss puede tener un nombre que el catálogo ya no
+ * conozca.
+ */
+export const buildGlossIndex = (masterList) => {
+    const idx = new Map();
+    if (!Array.isArray(masterList)) return idx;
+    for (const m of masterList) {
+        const es = m && typeof m.name === 'string' ? m.name : '';
+        const en = m && typeof m.name_en === 'string' ? m.name_en : '';
+        if (es && en) idx.set(_sinAcentos(es), en.trim());
+    }
+    return idx;
+};
+
+export const glossShoppingItemName = (name, displayNameEn, locale, glossIndex = null) => {
     const spanishName = typeof name === 'string' ? name : (name == null ? '' : String(name));
     if (!locale || locale === 'es-DO') return spanishName;
-    if (typeof displayNameEn !== 'string' || displayNameEn.trim() === '') return spanishName;
-    const englishGloss = displayNameEn.trim();
+    // El campo embebido manda; el catálogo es el respaldo para los planes que nacieron
+    // antes de que existiera (hoy, todos).
+    let _fuente = typeof displayNameEn === 'string' ? displayNameEn.trim() : '';
+    if (!_fuente && glossIndex && typeof glossIndex.get === 'function') {
+        _fuente = glossIndex.get(_sinAcentos(spanishName)) || '';
+    }
+    if (!_fuente) return spanishName;
+    const englishGloss = _fuente;
     if (!spanishName) return englishGloss;
     // [P3-I18N-PDF-GLOSS-TAUTOLOGICO · 2026-08-22] «Cilantro (Cilantro)».
     //
