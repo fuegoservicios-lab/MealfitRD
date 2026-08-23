@@ -22,6 +22,8 @@ import {
     TIER_DISPLAY_NAME, TIER_CREDITS, TIER_PREDECESSOR,
     tierDisplayName, periodLabel, creditsVsPredecessor, includesPredecessor,
 } from '../config/plans';
+import { loadLocale } from '../i18n';
+import { DEFAULT_LOCALE } from '../i18n/locales';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const leer = (rel) => readFileSync(join(__dirname, '..', rel), 'utf-8');
@@ -90,6 +92,22 @@ describe('[P1-PRICING-I18N] la capa visible sí se traduce', () => {
         // página prometiendo saltos que ya no existen.
         expect(creditsVsPredecessor('plus', t)).toContain(String(TIER_CREDITS.plus / TIER_CREDITS.basic));
         expect(creditsVsPredecessor('gratis', t)).toBeNull();
+    });
+
+    // [P3-I18N-LADDER-COMA-DECIMAL-CLAVADA · 2026-08-23] El factor no entero (ultra/plus =
+    // 2,5) salía con coma A MANO en los cinco idiomas — y en es-DO lo correcto es «2.5»
+    // (convención de EE.UU., la dominicana). El separador lo decide el locale activo.
+    it('el separador decimal del múltiplo lo decide el locale, no una coma escrita a mano', async () => {
+        const ratio = TIER_CREDITS.ultra / TIER_CREDITS.plus;
+        expect(Number.isInteger(ratio), 'el caso necesita un múltiplo no entero; si el ladder cambió, elige otro par').toBe(false);
+        await loadLocale('fr-FR');
+        expect(creditsVsPredecessor('ultra', t)).toMatch(/^2,5×/);
+        await loadLocale('en-US');
+        expect(creditsVsPredecessor('ultra', t)).toMatch(/^2\.5×/);
+        await loadLocale(DEFAULT_LOCALE);
+        expect(creditsVsPredecessor('ultra', t), 'es-DO formatea 2.5, no 2,5').toMatch(/^2\.5×/);
+        // Sin `t` (landing es-DO): el punto, no la coma.
+        expect(creditsVsPredecessor('ultra')).toMatch(/^2\.5× más créditos/);
     });
 });
 

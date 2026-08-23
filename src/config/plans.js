@@ -1,3 +1,5 @@
+// [P3-I18N-LADDER-COMA-DECIMAL-CLAVADA] el separador decimal del factor lo decide el locale.
+import { formatNumber } from '../i18n';
 // [P0-ANNUAL-PLANS-MISCONFIGURED · 2026-07-30] SSOT de qué tiers NO ofrecen
 // plan anual.
 //
@@ -129,9 +131,15 @@ export function creditsVsPredecessor(tier, t) {
     if (!prev) return null;
     const ratio = TIER_CREDITS[tier] / TIER_CREDITS[prev];
     if (!Number.isFinite(ratio) || ratio <= 1) return null;
-    const factor = Number.isInteger(ratio) ? String(ratio) : ratio.toFixed(1).replace('.', ',');
-    // [P1-PRICING-I18N] Sin `t` devuelve el español (el landing). El separador decimal
-    // se deja como está: es dato del ladder, no copy.
+    // [P3-I18N-LADDER-COMA-DECIMAL-CLAVADA · 2026-08-23] Era `toFixed(1).replace('.', ',')`:
+    // «2,5×» a mano en los cinco idiomas — y en es-DO lo correcto es «2.5» (convención de
+    // EE.UU., la dominicana: la misma lección que P3-I18N-METRICA-COMA-CLAVADA). Con `t`
+    // (la app) el separador lo decide el locale activo; sin `t` (el landing, es-DO) el
+    // `String(2.5)` de JS ya es el separador correcto.
+    const factor = Number.isInteger(ratio)
+        ? String(ratio)
+        : (typeof t === 'function' ? formatNumber(ratio, { maximumFractionDigits: 1 }) : String(Math.round(ratio * 10) / 10));
+    // [P1-PRICING-I18N] Sin `t` devuelve el español (el landing).
     const plan = tierDisplayName(prev, t);
     // [I18N-EXEMPT: fallback sin t(), solo corre fuera de React — la rama con t() es la que pinta]
     return typeof t === 'function'
