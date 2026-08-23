@@ -45,6 +45,7 @@ import { parse } from '@babel/parser';
 // nunca se envolvió en `t()`. Ver la cabecera de esos dos módulos.
 import { detectarEnFuente, clavesNoLiterales } from './i18n-sin-envolver.mjs';
 import { clasificarAlcance } from './i18n-alcance.mjs';
+import { sinComentarios } from './lib/sin-comentarios.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC = join(__dirname, '..', 'src');
@@ -125,9 +126,12 @@ function unescape(s) {
  *  fuente CRUDA: un `t('Domingo')` citado dentro de un comentario —justo el que
  *  explica esta misma trampa— se reportaba como llamada en ámbito de módulo. Un
  *  guard que obliga a censurar la prosa que lo documenta es un guard que alguien
- *  acaba desactivando. El filtro NO toca la extracción de claves: una clave
- *  mencionada solo en un comentario sigue contando como viva, como hasta ahora
- *  (vaciar comentarios antes de extraer la volvería huérfana y rompería el gate). */
+ *  acaba desactivando. [P3-I18N-CLAVE-MUERTA-QUE-EL-GATE-DECLARA-VIVA · 2026-08-23]
+ *  Esta nota decía que la extracción de claves NO vaciaba comentarios «porque una clave
+ *  mencionada solo en un comentario sigue contando como viva, y vaciarlos la volvería
+ *  huérfana y rompería el gate» — eso era el DEFECTO descrito como propiedad: una clave
+ *  que sólo cita un comentario ESTÁ muerta, y el gate la declaraba viva. Ahora la
+ *  extracción lee `sinComentarios(src)` (scripts/lib). Medido al cerrarlo: 2 claves. */
 function scanAt(src, index) {
     let depth = 0;
     let inStr = null;
@@ -263,22 +267,24 @@ for (const file of files) {
     // no contiene la forma que esperabas.
     if (!/\bt\(|\btn\(|\bi18nKey\(/.test(src)) continue;
     const modOffsets = moduleScopeCallOffsets(src);
+    // [P3-I18N-CLAVE-MUERTA-QUE-EL-GATE-DECLARA-VIVA] las claves se extraen del CÓDIGO, no de la prosa.
+    const codigo = sinComentarios(src);
 
-    for (const m of src.matchAll(T_CALL)) {
+    for (const m of codigo.matchAll(T_CALL)) {
         const key = unescape(m[2]);
         if (!key) continue;
         if (!keys.has(key)) keys.set(key, []);
         if (!keys.get(key).includes(rel)) keys.get(key).push(rel);
         if (isModuleScopeCode(src, m.index, modOffsets)) moduleScopeHits.push({ file: rel, key });
     }
-    for (const m of src.matchAll(KEY_DECL)) {
+    for (const m of codigo.matchAll(KEY_DECL)) {
         const key = unescape(m[2]);
         if (!key) continue;
         if (!keys.has(key)) keys.set(key, []);
         if (!keys.get(key).includes(rel)) keys.get(key).push(rel);
         // sin `moduleScopeHits`: ver el comentario de KEY_DECL
     }
-    for (const m of src.matchAll(TN_CALL)) {
+    for (const m of codigo.matchAll(TN_CALL)) {
         // La clave de un plural es la forma «other» (el 2º literal).
         const other = unescape(m[4]);
         if (!other) continue;
