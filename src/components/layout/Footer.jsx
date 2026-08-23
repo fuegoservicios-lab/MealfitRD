@@ -126,18 +126,18 @@ const Footer = () => {
                                 <path d="M16.6 5.82a4.28 4.28 0 0 1-1.06-2.82V2.5h-3.09v12.9a2.59 2.59 0 1 1-2.59-2.59c.27 0 .53.04.78.12V9.66a5.69 5.69 0 0 0-.78-.05 5.69 5.69 0 1 0 5.7 5.69V9.01a7.34 7.34 0 0 0 4.29 1.38V7.3a4.32 4.32 0 0 1-3.25-1.48z" />
                             </svg>
                         </a>
-                        <a href="https://www.instagram.com/mealfit_rd?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
+                        <a href="https://www.instagram.com/bioboros/" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
                             <Instagram size={20} />
                         </a>
                         <a href="https://www.facebook.com/share/1HkwoX8zHF/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Facebook">
                             <Facebook size={20} />
                         </a>
-                        <a href="https://www.youtube.com/@MealfitRD" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="YouTube">
+                        <a href="https://www.youtube.com/@bioboros" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="YouTube">
                             <Youtube size={20} />
                         </a>
                         {/* [P3-FOOTER-X · 2026-07-01] Glyph oficial de X (Twitter). SVG inline
                             con fill (lucide no trae el logo de X), mismo patrón que TikTok. */}
-                        <a href="https://x.com/MealfitRD" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="X">
+                        <a href="https://x.com/bioboros" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="X">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 width="19"
