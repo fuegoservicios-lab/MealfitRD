@@ -67,6 +67,24 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         expect(base.slice(j)).toContain('backdrop-filter');
     });
 
+    it('hay una re-medicion EN LA COLA tras el ultimo evento del viewport (el asiento)', () => {
+        // [P2-CHAT-KB-ASIENTO · 2026-08-23] iOS emite resize/scroll DURANTE la animacion
+        // del teclado y el ultimo evento puede llegar antes de que la geometria quede
+        // firme; entonces --kb-inset se queda con un fotograma intermedio y nada lo
+        // corrige, porque no hay mas eventos hasta que el teclado se cierre. Eso es lo
+        // que se ve como «a veces se abre mal»: intermitente porque depende de donde
+        // caiga el ultimo evento. El asiento re-mide tras 350 ms de silencio.
+        const src = read('pages/AgentPage.jsx');
+        const i = src.indexOf('let asiento = null;');
+        expect(i, 'falta el asiento: sin el, una medicion rancia se queda para siempre').toBeGreaterThan(0);
+        const bloque = src.slice(i, i + 700);
+        expect(bloque).toMatch(/setTimeout\(\(\) => \{ asiento = null; updateInputPosition\(\); \}, 350\)/);
+        expect(bloque, 'el asiento anterior se cancela: si no, se acumulan timers por evento')
+            .toMatch(/if \(asiento\) clearTimeout\(asiento\)/);
+        // y se limpia al desmontar
+        expect(src).toMatch(/return \(\) => \{\s*if \(asiento\) clearTimeout\(asiento\);/);
+    });
+
     it('BottomTabBar: display none bajo html[data-kb-open]', () => {
         const css = read('components/dashboard/BottomTabBar.module.css');
         expect(css).toMatch(/:global\(html\[data-kb-open\]\) \.tabBar\s*\{\s*display:\s*none/);

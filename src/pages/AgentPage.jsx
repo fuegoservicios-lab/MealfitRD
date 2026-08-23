@@ -649,12 +649,33 @@ const AgentPage = () => {
             }
         };
 
-        vv.addEventListener('resize', updateInputPosition);
-        vv.addEventListener('scroll', updateInputPosition);
+        // [P2-CHAT-KB-ASIENTO · 2026-08-23] Una medición MÁS, cuando el teclado ya paró.
+        //
+        // iOS emite `resize`/`scroll` del visual viewport DURANTE la animación de apertura
+        // (~250 ms), y el último evento puede llegar ANTES de que la geometría quede
+        // firme. Si eso pasa, `--kb-inset` y `data-kb-open` se quedan con el valor de un
+        // fotograma intermedio y NADA vuelve a corregirlos: no hay más eventos hasta que
+        // el usuario cierre el teclado. Ese es el modo de fallo que el dueño describe como
+        // «a veces se abre mal» — intermitente porque depende de dónde caiga el último
+        // evento, no de lo que haga el usuario.
+        //
+        // El asiento es una re-medición en la cola tras 350 ms de silencio. Es idempotente
+        // (si la geometría ya era la buena, no cambia nada) y barata (un timer, no un
+        // sondeo). NO sustituye a los eventos: los complementa.
+        let asiento = null;
+        const alEvento = () => {
+            updateInputPosition();
+            if (asiento) clearTimeout(asiento);
+            asiento = setTimeout(() => { asiento = null; updateInputPosition(); }, 350);
+        };
+
+        vv.addEventListener('resize', alEvento);
+        vv.addEventListener('scroll', alEvento);
         updateInputPosition();
         return () => {
-            vv.removeEventListener('resize', updateInputPosition);
-            vv.removeEventListener('scroll', updateInputPosition);
+            if (asiento) clearTimeout(asiento);
+            vv.removeEventListener('resize', alEvento);
+            vv.removeEventListener('scroll', alEvento);
             // Cambiar de ruta con el teclado abierto no debe dejar la barra escondida.
             document.documentElement.removeAttribute('data-kb-open');
         };
