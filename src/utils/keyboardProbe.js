@@ -15,6 +15,7 @@
  * `import.meta.env.DEV` este módulo NO hace nada: no hay sonda en producción.
  */
 import { medirTecladoDeVentana } from './keyboardViewport';
+import { safeLocalStorageGet } from './safeLocalStorage';
 
 const CLAVE = 'mf_kb_probe_log';
 
@@ -23,7 +24,7 @@ export function iniciarSondaTeclado() {
     if (typeof window === 'undefined' || !window.visualViewport) return undefined;
     let activa = false;
     try {
-        activa = new URLSearchParams(location.search).has('kbprobe') || localStorage.getItem('mfKbProbe') === '1';
+        activa = new URLSearchParams(location.search).has('kbprobe') || safeLocalStorageGet('mfKbProbe') === '1';
     } catch { /* sin storage */ }
     if (!activa) return undefined;
 
