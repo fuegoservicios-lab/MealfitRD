@@ -57,12 +57,13 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
         // segundos para que el caller muestre countdown al usuario.
         if (response.status === 429) {
             const retryAfter = _parseRetryAfter(response);
-            let detail = '';
-            try {
-                const body = await response.json();
-                detail = body?.detail || '';
-            } catch { /* el body puede no ser JSON */ }
-            const err = new Error(detail || 'Demasiadas solicitudes. Intenta de nuevo más tarde.');
+            // [P2-I18N-PLAN-TOASTS-ERROR-MESSAGE · 2026-08-23] El `detail` del servidor es
+            // español: nunca se convierte en `error.message` tal cual (la toast lo pintaba bajo
+            // un título traducido). `mensajeDeError` da el copy por código o el fallback
+            // traducido, y loggea el crudo. Mismo contrato en las 8 ramas de este fichero.
+            let body429 = null;
+            try { body429 = await response.json(); } catch { /* el body puede no ser JSON */ }
+            const err = new Error(mensajeDeError(body429, t('Demasiadas solicitudes. Intenta de nuevo más tarde.'), t));
             err.code = 'rate_limited';
             err.retryAfter = retryAfter;
             throw err;
@@ -84,9 +85,8 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
                     startedAt = parsedDetail.started_at || null;
                 }
             } catch { /* body puede no ser JSON */ }
-            const msg = (parsedDetail && typeof parsedDetail === 'object' && parsedDetail.message)
-                ? parsedDetail.message
-                : (typeof parsedDetail === 'string' ? parsedDetail : 'Ya hay un plan generándose.');
+            // [P2-I18N-PLAN-TOASTS-ERROR-MESSAGE] ver la rama 429.
+            const msg = mensajeDeError({ detail: parsedDetail }, t('Ya hay un plan generándose.'), t);
             const err = new Error(msg);
             err.code = (parsedDetail && parsedDetail.code) || 'pipeline_already_running';
             err.startedAt = startedAt;
@@ -104,12 +104,10 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
         // Propagamos `code='quota_exceeded'` para que el caller muestre el
         // upgrade CTA en el momento de intención (conversión). NO reintentar.
         if (response.status === 402) {
-            let detail = '';
-            try {
-                const body = await response.json();
-                detail = body?.detail || '';
-            } catch { /* el body puede no ser JSON */ }
-            const err = new Error(detail || t('Has alcanzado el límite de créditos de tu plan.'));
+            let body402 = null;
+            try { body402 = await response.json(); } catch { /* el body puede no ser JSON */ }
+            // [P2-I18N-PLAN-TOASTS-ERROR-MESSAGE] ver la rama 429.
+            const err = new Error(mensajeDeError(body402, t('Has alcanzado el límite de créditos de tu plan.'), t));
             err.code = 'quota_exceeded';
             throw err;
         }
@@ -126,12 +124,14 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
             let _detail = null;
             try { _detail = (await response.json())?.detail; } catch { /* body no-JSON */ }
             let _code, _msg;
+            // [P2-I18N-PLAN-TOASTS-ERROR-MESSAGE] ver la rama 429: ni `message` ni el string
+            // del servidor llegan al usuario tal cual.
             if (_detail && typeof _detail === 'object') {
                 _code = _detail.code || _detail.error_code || 'form_invalid';
-                _msg = _detail.message || t('Revisa los datos del formulario.');
+                _msg = mensajeDeError({ detail: _detail }, t('Revisa los datos del formulario.'), t);
             } else if (typeof _detail === 'string') {
                 _code = 'critical_restriction';
-                _msg = _detail;
+                _msg = mensajeDeError({ detail: _detail }, t('Revisa tus restricciones declaradas.'), t);
             } else {
                 _code = 'form_invalid';
                 _msg = t('Revisa los datos del formulario.');
@@ -317,7 +317,8 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 let _detail = null;
                 try { _detail = (await response.clone().json())?.detail; } catch { /* body no-JSON */ }
                 if (_detail && typeof _detail === 'object' && (_detail.message || _detail.code)) {
-                    const eForm = new Error(_detail.message || t('Revisa los datos del formulario.'));
+                    // [P2-I18N-PLAN-TOASTS-ERROR-MESSAGE] ver la rama 429.
+                    const eForm = new Error(mensajeDeError({ detail: _detail }, t('Revisa los datos del formulario.'), t));
                     eForm.code = _detail.code || 'form_invalid';
                     eForm.terminal = true;
                     throw eForm;
@@ -556,7 +557,8 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                     // 503 explícito del backend (LLM no disponible) → propagar para Retry.
                     if (response2.status === 503) {
                         const body = await response2.json().catch(() => ({}));
-                        const e503 = new Error(body?.detail || t('La IA no está disponible.'));
+                        // [P2-I18N-PLAN-TOASTS-ERROR-MESSAGE] ver la rama 429.
+                        const e503 = new Error(mensajeDeError(body, t('La IA no está disponible.'), t));
                         e503.code = 'llm_unavailable';
                         throw e503;
                     }
@@ -568,13 +570,12 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                     if (response2.status === 422) {
                         const body = await response2.json().catch(() => ({}));
                         if (typeof body?.detail === 'string') {
-                            const e422 = new Error(body.detail || t('Revisa tus restricciones declaradas.'));
+                            const e422 = new Error(mensajeDeError(body, t('Revisa tus restricciones declaradas.'), t));
                             e422.code = 'critical_restriction';
                             throw e422;
                         }
                         // 422 de validación (detail dict): propagar como error genérico (no critical).
-                        const eVal = new Error(
-                            (body?.detail && body.detail.message) || t('Revisa los datos del formulario.'));
+                        const eVal = new Error(mensajeDeError(body, t('Revisa los datos del formulario.'), t));
                         throw eVal;
                     }
                     const data = await response2.json();

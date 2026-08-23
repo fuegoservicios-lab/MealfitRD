@@ -143,7 +143,9 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
     const q = norm(query.trim());
     const inInventory = new Set(inventory.map(i => i.master_ingredient_id).filter(Boolean));
     const results = q.length >= 2
-        ? masterList.filter(m => norm(m.name).includes(q)).slice(0, 8)
+        // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] `name_en` como segunda
+        // vía de entrada (cubre 1 idioma de 4); lo seleccionado sigue siendo `m.name`.
+        ? masterList.filter(m => norm(m.name).includes(q) || norm(m.name_en || '').includes(q)).slice(0, 8)
         : [];
 
     const addItem = async (master) => {

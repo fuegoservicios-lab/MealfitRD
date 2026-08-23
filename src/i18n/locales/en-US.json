@@ -983,6 +983,9 @@
   "Guíate de la descripción general del plato.": "Go by the meal's general description.",
   "Halal (sin cerdo ni alcohol)": "Halal (no pork or alcohol)",
   "Has alcanzado el límite de créditos de tu plan.": "You've reached your plan's credit limit.",
+  "Demasiadas solicitudes. Intenta de nuevo más tarde.": "Too many requests. Please try again later.",
+  "Ya hay un plan generándose.": "A plan is already being generated.",
+  "Para garantizar la calidad clínica del plan, selecciona máximo {max} condiciones prioritarias.": "To guarantee the clinical quality of the plan, select at most {max} priority conditions.",
   "Has cancelado la renovación automática. Mantendrás tus beneficios premium hasta el final de tu ciclo de facturación actual. Luego tu plan pasará a ser Gratis.": "You've canceled auto-renewal. You keep your premium benefits until the end of your current billing cycle. After that your plan becomes Free.",
   "Has desbloqueado acceso premium.": "You’ve unlocked premium access.",
   "Has usado los créditos de este mes. Se renuevan al inicio del próximo ciclo.": "You've used this month's credits. They renew at the start of the next cycle.",
@@ -1194,6 +1197,8 @@
   "Mantener presionado para subir rápido": "Hold to go up fast",
   "Mantenimiento": "Maintenance",
   "Maní": "Peanut",
+  "Sésamo": "Sesame",
+  "Lactosa": "Lactose",
   "Mar": "Tue",
   "Marca": "Brand",
   "Marca aplicada a tu lista": "Brand applied to your list",
@@ -1270,6 +1275,8 @@
   "Mientras más te conozca la IA, mejores serán tus planes y respuestas. Esto es": "The more the AI knows you, the better your plans and answers. This is",
   "Mis básicos": "My staples",
   "Mise en place": "Mise en place",
+  "Nota del Nutricionista AI": "AI Nutritionist Note",
+  "Seguridad alimentaria": "Food safety",
   "Mixto (fuerza + cardio)": "Mixed (strength + cardio)",
   "Mié": "Wed",
   "Miércoles": "Wednesday",
@@ -2845,5 +2852,9 @@
   "Registraste {platos}{kcal} como tu {slot} de hoy.": "You logged {platos}{kcal} as today's {slot}.",
   "Bórralo en «{seccion}» para desbloquear.": "Delete it in “{seccion}” to unlock.",
   "Corrígelo en «{seccion}» si no es lo que comiste.": "Fix it in “{seccion}” if that's not what you ate.",
-  "algo": "something"
+  "algo": "something",
+  "el día {n}": "day {n}",
+  "del día {desde} al día {hasta}": "from day {desde} to day {hasta}",
+  "Alimento · {porcion} {g} g": "Food · {porcion} {g} g",
+  "Alimento · por gramos": "Food · by grams"
 }

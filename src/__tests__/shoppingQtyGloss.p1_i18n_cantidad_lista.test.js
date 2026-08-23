@@ -138,3 +138,70 @@ describe('[P1-I18N-CANTIDAD-LISTA] la cantidad de la lista sigue el idioma', () 
         }
     });
 });
+
+describe('[P2-I18N-GENERICO-SE-IMPRIME-EN-ESPANOL] «Genérico» no es una marca', () => {
+    // [P2-I18N-GENERICO-SE-IMPRIME-EN-ESPANOL · 2026-08-23] La regla «lo de dentro del
+    // paréntesis no se toca» existe para las MARCAS («Wala», «La Sanjuanera»), que son
+    // nombres propios. «Genérico» no lo es: es el placeholder que los dos lados (backend
+    // y picker de marcas) escriben cuando NO hay marca, y lo escriben en el DATO. Medido
+    // contra producción: 259 de 1.658 ítems de listas vivas lo llevan. Se traduce al
+    // IMPRIMIR, como el envase y el «c/u» — el dato no se toca.
+    afterAll(async () => { await loadLocale(DEFAULT_LOCALE); });
+
+    it('EL CASO: «Genérico» dentro del paréntesis se traduce', async () => {
+        await loadLocale('fr-FR');
+        const salida = glossShoppingQty('1 paquete (800 gr · Genérico)', t);
+        expect(salida, 'la palabra siguió en español').not.toContain('Genérico');
+        expect(salida).toContain('800 gr');
+    });
+
+    it('una marca REAL del mismo paréntesis sigue intacta', async () => {
+        await loadLocale('fr-FR');
+        const salida = glossShoppingQty('1 paquete (800 gr · La Sanjuanera)', t);
+        expect(salida).toContain('La Sanjuanera');
+    });
+
+    it('en es-DO no cambia nada', async () => {
+        await loadLocale(DEFAULT_LOCALE);
+        expect(glossShoppingQty('1 paquete (800 gr · Genérico)', t)).toBe('1 paquete (800 gr · Genérico)');
+    });
+});
+
+describe('[P2-I18N-CARTON-EN-FRANCES-DEJA-UNA-PREPOSICION-COLGANDO]', () => {
+    // «cartón» → «boîte de» pensaba en «boîte de lait», pero el envase va SOLO y seguido
+    // del paréntesis: el PDF imprimía «1 boîte de (1 Lt · Wala)». Un envase se traduce por
+    // un sustantivo, nunca por un sintagma que espere complemento.
+    afterAll(async () => { await loadLocale(DEFAULT_LOCALE); });
+    it('el envase traducido no termina en preposición', async () => {
+        await loadLocale('fr-FR');
+        const salida = glossShoppingQty('1 cartón (1 Lt · Wala)', t);
+        expect(salida).not.toMatch(/\bde\s*\(/);
+        expect(salida).toContain('(1 Lt · Wala)');
+    });
+});
+
+describe('[P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO] glossUnitWord', () => {
+    // La tabla de envases existía para el PDF; la Nevera y el diario pintaban `item.unit`
+    // crudo con la traducción al lado. Se traduce al PINTAR; el dato no se toca.
+    afterAll(async () => { await loadLocale(DEFAULT_LOCALE); });
+    it('traduce un envase suelto', async () => {
+        await loadLocale('fr-FR');
+        const { glossUnitWord } = await import('../utils/shoppingHelpers');
+        expect(glossUnitWord('funda', t)).not.toBe('funda');
+        expect(glossUnitWord('Funda', t)[0]).toMatch(/[A-Z]/);   // conserva la caja
+    });
+    it('NO traduce las unidades de magnitud ni lo que no conoce', async () => {
+        await loadLocale('fr-FR');
+        const { glossUnitWord } = await import('../utils/shoppingHelpers');
+        expect(glossUnitWord('g', t)).toBe('g');
+        expect(glossUnitWord('kg', t)).toBe('kg');
+        expect(glossUnitWord('xyz', t)).toBe('xyz');
+        expect(glossUnitWord('', t)).toBe('');
+        expect(glossUnitWord(null, t)).toBe(null);
+    });
+    it('en es-DO devuelve la palabra tal cual', async () => {
+        await loadLocale(DEFAULT_LOCALE);
+        const { glossUnitWord } = await import('../utils/shoppingHelpers');
+        expect(glossUnitWord('funda', t)).toBe('funda');
+    });
+});

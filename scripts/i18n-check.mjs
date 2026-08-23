@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from '@babel/parser';
 // [P1-I18N-GATE-CIEGO-SIN-T · 2026-08-21] El NEGATIVO de este script: lo que
 // nunca se envolvió en `t()`. Ver la cabecera de esos dos módulos.
-import { detectarEnFuente } from './i18n-sin-envolver.mjs';
+import { detectarEnFuente, clavesNoLiterales } from './i18n-sin-envolver.mjs';
 import { clasificarAlcance } from './i18n-alcance.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -97,7 +97,11 @@ function walk(dir, out = []) {
 // cadena en la primera posición (o primera y segunda en `tn`). Un template
 // literal o una variable NO es traducible por definición — la clave tiene que
 // ser estática para poder existir en un catálogo — así que quedan fuera a
-// propósito y se reportan aparte como sospechosas.
+// propósito. [P2-I18N-CLAVE-NO-LITERAL-INVISIBLE-PARA-LAS-DOS-MITADES · 2026-08-23]
+// Este comentario decía «se reportan aparte como sospechosas» y NO había ni una línea
+// que lo hiciera: las formas con literales dentro (ternario, template, concat, const
+// pelada) eran invisibles para esta regex Y para el escáner de sin-envolver. Ahora
+// las reporta `clavesNoLiterales` (AST, i18n-sin-envolver.mjs) como fallo duro.
 const T_CALL = /(?<![\w.])t\(\s*(['"])((?:(?!\1)[^\\]|\\.)*)\1/g;
 const TN_CALL = /(?<![\w.])tn\(\s*[^,]+,\s*(['"])((?:(?!\1)[^\\]|\\.)*)\1\s*,\s*(['"])((?:(?!\3)[^\\]|\\.)*)\3/g;
 // [P1-DISPLAY-VOCAB-CERRADO · 2026-08-21] `i18nKey('…')` declara una clave que se
@@ -553,7 +557,27 @@ const enAlcance = new Set(ficherosEnAlcance);
 // La excepción es `SupermarketPage.jsx`: la página del supermercado es superficie
 // SÓLO-ESPAÑOL por decisión de alcance (el landing no se traduce), así que ahí un `es-DO`
 // fijo es correcto y no una omisión. Se nombra el fichero, no se relaja la regla.
-const LOCALE_CLAVADO = /(?:toLocale(?:Date|Time)?String|Intl\.(?:NumberFormat|DateTimeFormat|RelativeTimeFormat|ListFormat|DisplayNames))\(\s*['"][a-z]{2}-[A-Z]{2}['"]/;
+// [P2-I18N-GATE-FORMATO-CIEGO-A-CUATRO-FORMAS · 2026-08-23] La regla sólo cazaba el literal
+// `'xx-XX'`, y MEDIDO hoy sobre `src/` eso da CERO. Las formas que sí había vivas:
+//   · sin argumento — `n.toLocaleString()` formatea con el idioma del NAVEGADOR, no el de la
+//     app (1 viva: ResetPassword, una cifra de filtraciones);
+//   · dos letras — `'es'` (0 hoy, pero es la forma más fácil de escribir);
+//   · `localeCompare` sin locale — ordena con el navegador (7 vivas: Nevera ×4, lista del
+//     PDF ×1, y 2 que NO son para pintar: comparan inventarios serializados).
+// La forma «por variable» (`Intl.NumberFormat(_locale, …)`) NO se prohíbe: es el motor
+// mismo, en `src/i18n/index.js`, y es donde tiene que estar.
+//
+// El `localeCompare` se prohíbe SÓLO en código que pinta. Los dos de `useRegeneratePlan`
+// ordenan para COMPARAR dos snapshots, y ésos deben ser estables y no seguir al idioma:
+// migrarlos a `compareText` sería un error. Se reconocen por la PROPIEDAD (el resultado
+// entra en un `JSON.stringify(`, no en una lista), no por el nombre del fichero.
+const LOCALE_CLAVADO = /(?:toLocale(?:Date|Time)?String|Intl\.(?:NumberFormat|DateTimeFormat|RelativeTimeFormat|ListFormat|DisplayNames))\(\s*['"][a-z]{2}(?:-[A-Z]{2})?['"]/;
+const LOCALE_DEL_NAVEGADOR = /\.toLocale(?:Date|Time)?String\(\s*\)/;
+// Sin locale (navegador) O con locale CLAVADO (`'es'`, `'es-DO'`): las dos esquivan el
+// idioma activo. La segunda es justo lo que P3-I18N-ORDEN-NOMBRES-ES-CLAVADO quitó ayer y
+// mi primera versión de esta regla no veía — lo cazó la mutación M2.
+const ORDEN_DEL_NAVEGADOR = /\blocaleCompare\(\s*[A-Za-z_$][\w$.]*\s*(?:\)|,\s*['"][a-z]{2}(?:-[A-Z]{2})?['"])/;
+const ORDEN_PARA_COMPARAR = /JSON\.stringify\(/;   // no se pinta: debe ser estable
 const FORMATO_EXENTO = new Set([
     // Superficie sólo-español por alcance: el landing no se traduce.
     //
@@ -574,6 +598,11 @@ for (const [rel, src] of contenidos) {
             || limpia.startsWith('{/*')) return;
         if (LOCALE_CLAVADO.test(linea)) {
             formatosClavados.push(`${rel}:${i + 1}: ${limpia.slice(0, 100)}`);
+        } else if (LOCALE_DEL_NAVEGADOR.test(linea)) {
+            formatosClavados.push(`${rel}:${i + 1}: [locale del NAVEGADOR] ${limpia.slice(0, 90)}`);
+        } else if (ORDEN_DEL_NAVEGADOR.test(linea) && !ORDEN_PARA_COMPARAR.test(linea)
+                   && !rel.replace(/\\/g, '/').startsWith('i18n/')) {
+            formatosClavados.push(`${rel}:${i + 1}: [orden del NAVEGADOR] usa compareText — ${limpia.slice(0, 80)}`);
         }
     });
 }
@@ -585,6 +614,28 @@ if (formatosClavados.length) {
     console.error('   Un locale fijo pinta separadores dominicanos en las cuatro');
     console.error('   traducciones, y en pt-BR la coma es DECIMAL.');
     for (const f of formatosClavados) console.error(`     ${f}`);
+    console.error('');
+}
+
+// [P2-I18N-CLAVE-NO-LITERAL-INVISIBLE-PARA-LAS-DOS-MITADES · 2026-08-23] La tercera
+// mirada (ver `clavesNoLiterales` en i18n-sin-envolver.mjs). Fallo DURO y no trinquete:
+// el árbol está a 0 y una clave que no puede vivir en un catálogo no es deuda, es una
+// cadena nueva en español que las otras dos mitades declaran «100,0 %».
+const clavesOpacas = [];
+for (const [rel, src] of contenidos) {
+    if (!enAlcance.has(rel)) continue;
+    for (const h of clavesNoLiterales(src)) {
+        clavesOpacas.push(`${rel}:${h.linea}: [${h.forma}] ${h.texto}`);
+    }
+}
+if (clavesOpacas.length) {
+    hardFail = true;
+    console.error('');
+    console.error('❌ CLAVE DE t() QUE NO PUEDE VIVIR EN UN CATÁLOGO — invisible para el');
+    console.error('   extractor Y para el escáner de español sin envolver. Saca el t() a');
+    console.error("   cada rama (`ok ? t('A') : t('B')`), interpola con `t('… {n}', {n})`,");
+    console.error("   o declara la clave con `i18nKey('…')`.");
+    for (const c of clavesOpacas) console.error(`     ${c}`);
     console.error('');
 }
 

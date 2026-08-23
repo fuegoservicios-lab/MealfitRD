@@ -107,7 +107,9 @@
    (max-width:1200px centrado) y en pantallas anchas flotaba a ~360px del borde.
    Centrado vertical en la fila de 64px, respetando el safe-area superior. */
 .backSpacer {
-    width: 40px;
+    min-width: 40px;
+    display: flex;
+    justify-content: flex-end;
 }
 
 .loginExitBtn {

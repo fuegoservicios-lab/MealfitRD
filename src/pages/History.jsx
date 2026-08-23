@@ -4976,10 +4976,16 @@ const History = () => {
                                     // Si generated=3 y missing=4, los días
                                     // que faltan son 4-7, no 3-6.
                                     let _missingRange = '';
+                                    // [P2-I18N-HIST-RANGO-DIAS-FABRICADO · 2026-08-23] La frase
+                                    // que lo envuelve ya pasaba por t(); el RANGO que se
+                                    // interpolaba dentro se fabricaba en español con un template
+                                    // literal. «Missing del día 4 al día 7»: media frase por idioma.
                                     if (_missingDays === 1) {
-                                        _missingRange = `el día ${_generatedTotal + 1}`;
+                                        _missingRange = t('el día {n}', { n: _generatedTotal + 1 });
                                     } else if (_missingDays > 1) {
-                                        _missingRange = `del día ${_generatedTotal + 1} al día ${_generatedTotal + _missingDays}`;
+                                        _missingRange = t('del día {desde} al día {hasta}', {
+                                            desde: _generatedTotal + 1, hasta: _generatedTotal + _missingDays,
+                                        });
                                     }
 
                                     // Counters embedded del LEFT JOIN

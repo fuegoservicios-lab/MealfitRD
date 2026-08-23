@@ -156,16 +156,26 @@ function _autoLocaleParaLaSuperficieActual() {
     // sesión; la ruta sí» (`observabilityScope.js`). Es la misma distinción.
     //
     // NO se toca `isPaperSurface`: gobierna el TEMA y tiene su propio test de espejo.
-    try {
-        if (typeof window !== 'undefined'
-            && isApexHost(window.location.hostname)
-            && isPaperSurface(window.location.pathname)) {
-            return DEFAULT_LOCALE;
-        }
-    } catch {
-        return DEFAULT_LOCALE;
-    }
+    if (_esMarketingDelApex()) return DEFAULT_LOCALE;
     return detectBrowserLocale();
+}
+
+// [P2-I18N-FRONTERA-MARKETING-CROMO-TRADUCIDO · 2026-08-23] El MISMO corte, extraído, porque
+// ahora lo consultan DOS decisiones y no una. Hasta hoy sólo apagaba la detección: un
+// idioma GUARDADO (el usuario eligió francés en la app y luego visita /funciones en el
+// apex) seguía aplicándose, y como el landing no está traducido, el resultado era
+// cabecera y pie en francés sobre un cuerpo español, con `<html lang>` declarando
+// fr-FR sobre un documento en castellano. En marketing del apex no hay idioma que
+// aplicar: es-DO entero, cromo incluido. Falla cerrado (cualquier excepción ⇒ es
+// marketing ⇒ español), igual que antes.
+function _esMarketingDelApex() {
+    try {
+        return typeof window !== 'undefined'
+            && isApexHost(window.location.hostname)
+            && isPaperSurface(window.location.pathname);
+    } catch {
+        return true;
+    }
 }
 
 export function getStoredLocale() {
@@ -179,6 +189,9 @@ export function getStoredLocale() {
     // el usuario elige idioma, o inicia sesión y llega el `locale` de su perfil, manda
     // eso. Sin este orden, el selector de Configuración sería decorativo para cualquiera
     // cuyo móvil esté en otro idioma.
+    // [P2-I18N-FRONTERA-MARKETING-CROMO-TRADUCIDO · 2026-08-23] Lo guardado gana sobre lo
+    // detectado EN LA APP. En marketing del apex no manda ninguno de los dos.
+    if (_esMarketingDelApex()) return DEFAULT_LOCALE;
     const guardado = safeLocalStorageGet(LOCALE_STORAGE_KEY, null);
     if (isSupportedLocale(guardado)) return guardado;
     return _autoLocaleParaLaSuperficieActual();
@@ -438,6 +451,37 @@ export function formatCurrency(value, code = 'USD') {
     }
 }
 
+/**
+ * [P3-I18N-ORDEN-ALFABETICO-SIGUE-AL-NAVEGADOR · 2026-08-23] Comparador de texto con el
+ * idioma ACTIVO, para ordenar lo que el usuario VE.
+ *
+ * `a.localeCompare(b)` sin locale ordena con el idioma del NAVEGADOR, no el de la app. Con
+ * la app en francés sobre un navegador en español, la Nevera y la lista se ordenaban por
+ * reglas españolas; y al revés, con «Ñame» el orden sí cambia. Son siete llamadas sueltas
+ * medidas en `src/`, y dos de ellas NO son para pintar (comparan inventarios serializados
+ * en `useRegeneratePlan`): ésas deben ser estables y NO seguir al idioma — por eso este
+ * helper no sustituye a `localeCompare` en general, sólo donde el orden se muestra.
+ *
+ * `Intl.Collator` y no `localeCompare(b, _locale)` en cada sitio: el collator se construye
+ * una vez por locale y `localeCompare` con locale lo construye en cada comparación — en
+ * una lista de 300 ítems son 300·log(300) construcciones por render.
+ */
+let _collator = null;
+let _collatorLocale = null;
+export function compareText(a, b) {
+    if (_collatorLocale !== _locale || !_collator) {
+        try {
+            _collator = new Intl.Collator(_locale, { sensitivity: 'base', numeric: true });
+        } catch {
+            _collator = null;
+        }
+        _collatorLocale = _locale;
+    }
+    const sa = String(a ?? '');
+    const sb = String(b ?? '');
+    return _collator ? _collator.compare(sa, sb) : sa.localeCompare(sb);
+}
+
 export function formatNumber(value, options) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '';
@@ -564,7 +608,13 @@ export async function syncLocaleFromProfile(profileLocale) {
     if (!isSupportedLocale(profileLocale)) return false;
     if (profileLocale === _locale) return false;
     const ok = await loadLocale(profileLocale);
-    if (ok) _persistLocal(profileLocale);
+    // [P2-I18N-SYNC-PERSISTE-EL-IDIOMA-SUPERADO · 2026-08-23] `=== true`, no truthy:
+    // `SUPERSEDED` es un string y pasaba el `if (ok)`. Carrera real del arranque: llega el
+    // perfil con fr-FR, el usuario toca «Italiano» antes de que baje el chunk francés, el
+    // francés se descarta en pantalla... y se GUARDABA en el dispositivo, así que el
+    // siguiente arranque revertía la elección que el usuario acababa de hacer. `setLocale`
+    // ya lo hacía bien («sólo se persiste el éxito REAL»); esta era la otra vía.
+    if (ok === true) _persistLocal(profileLocale);
     return ok;
 }
 

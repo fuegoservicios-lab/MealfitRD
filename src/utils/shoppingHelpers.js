@@ -400,6 +400,33 @@ const _separadorDecimal = () => {
     }
 };
 
+/**
+ * [P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO · 2026-08-23] Una unidad de envase
+ * suelta («funda», «paquete», «Ud.»), traducida para PINTAR.
+ *
+ * La tabla de envases ya existía aquí para la lista del PDF; la Nevera y el diario pintaban
+ * `item.unit` / `market_container` crudos, con la traducción escrita al lado. El DATO no se
+ * toca: `unit` es vocabulario cerrado que el backend compara literal (`PLURALS` en
+ * `shopping_calculator.py`), así que se traduce sólo en el punto donde se muestra.
+ *
+ * Devuelve la palabra tal cual si no es un envase conocido (g, ml, kg… no se traducen).
+ */
+export const glossUnitWord = (unit, t) => {
+    if (typeof unit !== 'string' || !unit.trim() || typeof t !== 'function') return unit;
+    const clave = unit.trim().toLowerCase();
+    if (_UNIDADES_NO_TRADUCIBLES.has(clave)) return unit;
+    let envases, abreviaturas;
+    try {
+        envases = _ENVASES_TRADUCIBLES(t);
+        abreviaturas = _ABREVIATURAS_DE_UNIDAD(t);
+    } catch {
+        return unit;
+    }
+    const trad = envases[clave] || abreviaturas[clave];
+    if (!trad || trad === clave) return unit;
+    return unit[0] === unit[0].toUpperCase() ? trad.charAt(0).toUpperCase() + trad.slice(1) : trad;
+};
+
 export const glossShoppingQty = (displayQty, t) => {
     if (typeof displayQty !== 'string' || !displayQty.trim()) return displayQty;
     if (typeof t !== 'function') return displayQty;
@@ -460,6 +487,13 @@ export const glossShoppingQty = (displayQty, t) => {
     // 3. «c/u» va DENTRO del paréntesis pero no es marca ni tamaño: es la aclaración de que
     //    el tamaño es POR envase, y sin ella «9 potes (16 oz)» se lee como el total.
     out = out.replace(/\bc\/u\b/gu, () => t('c/u'));
+
+    // 3b. «Genérico» — la marca que NO es una marca. [P2-I18N-GENERICO-SE-IMPRIME-EN-ESPANOL
+    //     · 2026-08-23] La regla de no tocar el paréntesis existe para los nombres propios
+    //     («Wala», «La Sanjuanera»). «Genérico» es el placeholder que los dos lados escriben
+    //     en el DATO cuando no hay marca: 259 de 1.658 ítems de listas vivas lo llevan, y
+    //     salía en español bajo un encabezado traducido. Se glosa al imprimir, como `c/u`.
+    out = out.replace(/\bGenérico\b/gu, () => t('Genérico'));
 
     // 4. El separador decimal. El backend lo escribe con COMA a mano
     //    (`_etiqueta_metrica` en `shopping_calculator.py`: «1,4 kg»), y su comentario

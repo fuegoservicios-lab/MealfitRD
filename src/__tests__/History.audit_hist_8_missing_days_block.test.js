@@ -107,8 +107,12 @@ describe('[P2-HIST-AUDIT-8] range string singular/plural', () => {
         // "el día N" / "del día N al día M".
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
         const block = src.slice(blockIdx, blockIdx + 34000);
+        // [P2-I18N-HIST-RANGO-DIAS-FABRICADO · 2026-08-23] La interpolación pasa de
+        // `${n}` (template literal, fabricado en español) a `{n}` dentro de t(). La
+        // propiedad —«el día N» en singular, sin el en-dash ambiguo— es la misma; el
+        // regex admite las dos grafías para no clavar la forma.
         expect(block).toMatch(
-            /_missingDays\s*===\s*1[^]*?el\s+d[ií]a\s*\$\{[^}]+\}/
+            /_missingDays\s*===\s*1[^]*?el\s+d[ií]a\s*(?:\$\{[^}]+\}|\{n\})/
         );
     });
 
@@ -118,7 +122,7 @@ describe('[P2-HIST-AUDIT-8] range string singular/plural', () => {
         const blockIdx = src.indexOf('P3-HIST-MISSING-DAYS-REMOVED');
         const block = src.slice(blockIdx, blockIdx + 34000);
         expect(block).toMatch(
-            /_missingDays\s*>\s*1[^]*?del\s+d[ií]a\s*\$\{[^}]+\}\s*al\s+d[ií]a\s*\$\{/
+            /_missingDays\s*>\s*1[^]*?del\s+d[ií]a\s*(?:\$\{[^}]+\}|\{desde\})\s*al\s+d[ií]a\s*(?:\$\{|\{hasta\})/
         );
     });
 });

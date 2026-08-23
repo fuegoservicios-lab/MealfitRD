@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 // que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
-import { formatCurrencyName, formatDate, formatNumber, i18nKey, t, tn, useI18n, useT } from '../i18n';
+import { formatCurrencyName, formatDate, formatNumber, i18nKey, t, tn, useI18n, useT, compareText } from '../i18n';
 import { WORDMARK_TEXT } from '../config/brand';
 import { pdfFileName } from '../utils/pdfFileName';
 // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
@@ -3908,7 +3908,9 @@ const DashboardInner = () => {
                 const sortedKeys = Object.keys(groupObj).sort((a, b) => {
                     if (a.includes('ESTIMADO TOTAL')) return 1;
                     if (b.includes('ESTIMADO TOTAL')) return -1;
-                    return a.localeCompare(b);
+                    // [P3-I18N-ORDEN-ALFABETICO-SIGUE-AL-NAVEGADOR · 2026-08-23] Con el
+                    // idioma de la APP, no el del navegador: esto es lo que el usuario ve.
+                    return compareText(a, b);
                 });
 
                 // [P2-PDF-HYPERDENSE-INNERCOLS · 2026-06-17] En hyper-dense (60+ items)

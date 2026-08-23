@@ -133,6 +133,7 @@ export function creditsVsPredecessor(tier, t) {
     // [P1-PRICING-I18N] Sin `t` devuelve el español (el landing). El separador decimal
     // se deja como está: es dato del ladder, no copy.
     const plan = tierDisplayName(prev, t);
+    // [I18N-EXEMPT: fallback sin t(), solo corre fuera de React — la rama con t() es la que pinta]
     return typeof t === 'function'
         ? t('{factor}× más créditos que {plan}', { factor, plan })
         : `${factor}× más créditos que ${plan}`;
@@ -144,6 +145,7 @@ export function includesPredecessor(tier, t) {
     const prev = TIER_PREDECESSOR[tier];
     if (!prev) return null;
     const plan = tierDisplayName(prev, t);
+    // [I18N-EXEMPT: fallback sin t(), solo corre fuera de React — la rama con t() es la que pinta]
     return typeof t === 'function'
         ? t('Todo lo incluido en {plan}', { plan })
         : `Todo lo incluido en ${plan}`;

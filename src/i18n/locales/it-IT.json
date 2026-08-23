@@ -983,6 +983,9 @@
   "Guíate de la descripción general del plato.": "Segui la descrizione generale del piatto.",
   "Halal (sin cerdo ni alcohol)": "Halal (senza maiale né alcol)",
   "Has alcanzado el límite de créditos de tu plan.": "Hai raggiunto il limite di crediti del tuo piano.",
+  "Demasiadas solicitudes. Intenta de nuevo más tarde.": "Troppe richieste. Riprova più tardi.",
+  "Ya hay un plan generándose.": "C'è già un piano in generazione.",
+  "Para garantizar la calidad clínica del plan, selecciona máximo {max} condiciones prioritarias.": "Per garantire la qualità clinica del piano, seleziona al massimo {max} condizioni prioritarie.",
   "Has cancelado la renovación automática. Mantendrás tus beneficios premium hasta el final de tu ciclo de facturación actual. Luego tu plan pasará a ser Gratis.": "Hai annullato il rinnovo automatico. Manterrai i vantaggi premium fino alla fine del ciclo di fatturazione in corso. Poi il tuo piano diventerà Gratuito.",
   "Has desbloqueado acceso premium.": "Hai sbloccato l’accesso premium.",
   "Has usado los créditos de este mes. Se renuevan al inicio del próximo ciclo.": "Hai usato i crediti di questo mese. Si rinnovano all'inizio del prossimo ciclo.",
@@ -1194,6 +1197,8 @@
   "Mantener presionado para subir rápido": "Tieni premuto per salire in fretta",
   "Mantenimiento": "Mantenimento",
   "Maní": "Arachidi",
+  "Sésamo": "Sesamo",
+  "Lactosa": "Lattosio",
   "Mar": "Mar",
   "Marca": "Marca",
   "Marca aplicada a tu lista": "Marca applicata alla tua lista",
@@ -1270,6 +1275,8 @@
   "Mientras más te conozca la IA, mejores serán tus planes y respuestas. Esto es": "Più l'IA ti conosce, migliori saranno i tuoi piani e le risposte. Questo è",
   "Mis básicos": "I miei alimenti base",
   "Mise en place": "Mise en place",
+  "Nota del Nutricionista AI": "Nota del nutrizionista IA",
+  "Seguridad alimentaria": "Sicurezza alimentare",
   "Mixto (fuerza + cardio)": "Misto (forza + cardio)",
   "Mié": "Mer",
   "Miércoles": "Mercoledì",
@@ -2845,5 +2852,9 @@
   "Registraste {platos}{kcal} como tu {slot} de hoy.": "Hai registrato {platos}{kcal} come {slot} di oggi.",
   "Bórralo en «{seccion}» para desbloquear.": "Eliminalo in «{seccion}» per sbloccare.",
   "Corrígelo en «{seccion}» si no es lo que comiste.": "Correggilo in «{seccion}» se non è quello che hai mangiato.",
-  "algo": "qualcosa"
+  "algo": "qualcosa",
+  "el día {n}": "il giorno {n}",
+  "del día {desde} al día {hasta}": "dal giorno {desde} al giorno {hasta}",
+  "Alimento · {porcion} {g} g": "Alimento · {porcion} {g} g",
+  "Alimento · por gramos": "Alimento · a grammi"
 }

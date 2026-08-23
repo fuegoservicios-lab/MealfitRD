@@ -83,15 +83,29 @@ export function searchFoods(query, foods, dishes, max = 12) {
             }
             if (r < Infinity) r += 0.5; // el nombre propio gana al alias en empate
         }
+        // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] El gloss inglés como
+        // segunda VÍA DE ENTRADA al mismo identificador: «chicken» encuentra la pechuga y lo
+        // que se selecciona sigue siendo `f.name`, canónico español (la frontera). Mismo
+        // +0.5 que el alias: el nombre propio gana en empate.
+        // ⚠️ Cubre UN idioma de los cuatro — `name_en` es un gloss inglés, no un catálogo
+        // multilingüe. Un francés que escriba «poulet» seguirá sin encontrar nada.
+        if (r === Infinity && typeof f.name_en === 'string' && f.name_en) {
+            const re = rankOf(_norm(f.name_en), q);
+            if (re < Infinity) r = re + 0.5;
+        }
         if (r < Infinity) {
             const porcionDefault = (f.portions || []).find((p) => p.default) || null;
             resultados.push({
                 kind: 'food',
                 ref: `food:${f.id}`,
                 label: f.name,
+                // [P2-I18N-FOODSEARCH-SUBTITULO-ALIMENTO · 2026-08-23] Los platos criollos
+                // (arriba) llevaban subtítulo traducido y los alimentos no — en la MISMA
+                // lista. Y era un TERNARIO, que es justo la forma que el escáner de
+                // cadenas sin envolver no inspeccionaba (P2-I18N-ESCANER-CIEGO-AL-TERNARIO).
                 sub: porcionDefault && porcionDefault.unit !== 'g'
-                    ? `Alimento · ${porcionDefault.label} ${Math.round(porcionDefault.grams_per_qty)} g`
-                    : 'Alimento · por gramos',
+                    ? t('Alimento · {porcion} {g} g', { porcion: porcionDefault.label, g: Math.round(porcionDefault.grams_per_qty) })
+                    : t('Alimento · por gramos'),
                 item: f,
                 rank: r,
             });

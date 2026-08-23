@@ -119,12 +119,33 @@ export function paginasDeMarketing() {
 /**
  * @returns {{dentro: string[], fuera: string[]}} rutas relativas a `src/`, con `/`.
  */
-export function clasificarAlcance() {
+// [P2-I18N-ALCANCE-COLAPSA-EN-SILENCIO · 2026-08-23] El alcance nacía de
+// `ENTRADAS.filter(existsSync)`: si `main.jsx` se renombra, la entrada desaparece SIN
+// RUIDO, el grafo se recorre sólo desde `custom-sw.js`, el alcance cae de 217 ficheros a
+// 1 y el gate pasa de ❌ a ✅ — con la cobertura «100,0 %» de un solo fichero. Un gate
+// que se pone verde cuando se le quita el suelo es peor que ninguno.
+//
+// Dos defensas, ambas fail-loud: (1) cada entrada declarada TIENE que existir — una
+// entrada que falta no es «un fichero menos», es el síntoma de un renombre que dejó el
+// SSOT atrás; (2) el alcance resultante tiene que ser la MAYORÍA de `src/` (medido:
+// 217 dentro / 27 fuera — el dashboard es el grueso y el marketing la minoría; un
+// colapso a 1 o a 27 queda a 8× del umbral). La razón de la segunda: la primera sólo
+// ve entradas que FALTAN, no entradas que existen pero ya no importan nada (un
+// `main.jsx` vaciado a un stub).
+export class AlcanceColapsado extends Error {}
+
+export function clasificarAlcance({ entradas = ENTRADAS } = {}) {
     const marketing = paginasDeMarketing();
-    const sinMarketing = alcanzablesDesde(
-        ENTRADAS.map((e) => path.join(SRC, e)).filter(existsSync),
-        { cortarEn: marketing },
-    );
+    const rutasDeEntrada = entradas.map((e) => path.join(SRC, e));
+    const ausentes = rutasDeEntrada.filter((r) => !existsSync(r));
+    if (ausentes.length) {
+        throw new AlcanceColapsado(
+            `[P2-I18N-ALCANCE-COLAPSA-EN-SILENCIO] entrada(s) del grafo inexistente(s): `
+            + ausentes.map((a) => path.relative(SRC, a)).join(', ')
+            + ' — actualiza scripts/entradas.mjs; sin esto el alcance del gate colapsa en silencio.',
+        );
+    }
+    const sinMarketing = alcanzablesDesde(rutasDeEntrada, { cortarEn: marketing });
 
     const rel = (f) => path.relative(SRC, f).split(path.sep).join('/');
     const dentro = [];
@@ -137,6 +158,13 @@ export function clasificarAlcance() {
     }
     dentro.sort();
     fuera.sort();
+    if (dentro.length <= fuera.length) {
+        throw new AlcanceColapsado(
+            `[P2-I18N-ALCANCE-COLAPSA-EN-SILENCIO] alcance colapsado: ${dentro.length} ficheros `
+            + `dentro contra ${fuera.length} fuera. El dashboard es la mayoría de src/; si el `
+            + 'grafo no lo alcanza, una entrada dejó de importar la app (¿main.jsx vaciado?).',
+        );
+    }
     return { dentro, fuera };
 }
 

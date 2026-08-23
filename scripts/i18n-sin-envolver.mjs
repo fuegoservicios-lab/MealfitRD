@@ -161,6 +161,87 @@ function esLlamadaT(nodo) {
         && (nodo.callee.name === 't' || nodo.callee.name === 'tn');
 }
 
+// [P2-I18N-CLAVE-NO-LITERAL-INVISIBLE-PARA-LAS-DOS-MITADES · 2026-08-23] La tercera
+// mirada. Una `t()` cuya clave no sea un literal pegado al paréntesis desaparecía de las
+// DOS mitades del gate: el extractor de claves (regex: sólo ve `t('…')`) no la ve, y este
+// escáner tampoco, porque sus literales ya son argumento de `t()`. Medido antes de
+// escribir esto: `t(ok ? 'A' : 'B')`, `t(`…${n}…`)` y `t(K)` con `const K = '…'` dan
+// claves `[]` y sin-envolver `[]` — cadena NUEVA en español, cobertura «100,0 %» y ✅.
+// `t('a ' + 'b')` es peor: extrae MEDIA clave.
+//
+// Lo que SÍ es legítimo, y por eso no se marca: `t(identificador)` y `t(obj.prop)`, el
+// patrón `i18nKey` (`{ titleKey: i18nKey('Montaje') }` resuelto por `t(sec.titleKey)`).
+// El extractor ya recoge esas claves vía `KEY_DECL`. La única excepción dentro de esa
+// familia: un identificador que EN ESTE MISMO FICHERO se declara como literal pelado
+// (`const K = 'Abre tu nevera'`) — eso es una clave invisible con un nombre delante, y
+// el arreglo es declararla con `i18nKey(...)`.
+//
+// Medido en el árbol al cerrarlo: 0 hallazgos (las 10 no-literales son todas el patrón
+// i18nKey), así que en el gate es FALLO DURO, no trinquete.
+const _TIPOS_DE_CLAVE_OPACA = new Set(['Identifier', 'MemberExpression', 'OptionalMemberExpression']);
+
+/**
+ * Llamadas a `t()`/`tn()` cuya clave no puede vivir en un catálogo tal como está escrita.
+ * @param {string} src
+ * @returns {{linea:number, texto:string, forma:string}[]}
+ */
+export function clavesNoLiterales(src) {
+    let ast;
+    try {
+        ast = parse(src, {
+            sourceType: 'module',
+            errorRecovery: true,
+            plugins: ['jsx', 'typescript', 'classProperties', 'decorators-legacy'],
+        });
+    } catch {
+        return [];
+    }
+    // Identificadores de nivel de módulo declarados como literal pelado.
+    const literalesPelados = new Map();
+    for (const st of ast.program.body) {
+        const decl = st.type === 'ExportNamedDeclaration' ? st.declaration : st;
+        if (!decl || decl.type !== 'VariableDeclaration') continue;
+        for (const d of decl.declarations) {
+            if (d.id && d.id.type === 'Identifier' && d.init && d.init.type === 'StringLiteral') {
+                literalesPelados.set(d.id.name, d.init.value);
+            }
+        }
+    }
+    const hallazgos = [];
+    const visitar = (nodo) => {
+        if (!nodo || typeof nodo.type !== 'string') return;
+        if (esLlamadaT(nodo)) {
+            const indices = nodo.callee.name === 't' ? [0] : [1, 2];
+            for (const i of indices) {
+                const arg = nodo.arguments[i];
+                if (!arg || arg.type === 'StringLiteral') continue;
+                if (arg.type === 'TemplateLiteral' && arg.expressions.length === 0) continue;
+                const linea = arg.loc ? arg.loc.start.line : 0;
+                if (arg.type === 'Identifier' && literalesPelados.has(arg.name)) {
+                    hallazgos.push({ linea, texto: `${arg.name} = '${literalesPelados.get(arg.name).slice(0, 60)}'`, forma: 'identificador-a-literal-pelado' });
+                    continue;
+                }
+                if (_TIPOS_DE_CLAVE_OPACA.has(arg.type)) continue;
+                const forma = arg.type === 'TemplateLiteral' ? 'template-con-interpolacion'
+                    : arg.type === 'ConditionalExpression' ? 'ternario'
+                    : arg.type === 'BinaryExpression' ? 'concatenacion'
+                    : arg.type === 'LogicalExpression' ? 'logica'
+                    : arg.type;
+                const texto = src.slice(arg.start, Math.min(arg.end, arg.start + 80)).replace(/\s+/g, ' ');
+                hallazgos.push({ linea, texto, forma });
+            }
+        }
+        for (const k in nodo) {
+            if (k === 'loc' || k === 'range') continue;
+            const v = nodo[k];
+            if (Array.isArray(v)) v.forEach(visitar);
+            else if (v && typeof v.type === 'string') visitar(v);
+        }
+    };
+    visitar(ast.program);
+    return hallazgos;
+}
+
 function esLlamadaToast(nodo) {
     if (!nodo || nodo.type !== 'CallExpression') return false;
     const c = nodo.callee;
@@ -234,6 +315,24 @@ export function detectarEnFuente(src) {
     let lineaSentencia = 0;
 
     const anotar = (nodo, posicion, fuerte = false) => {
+        // [P2-I18N-ESCANER-CIEGO-AL-TERNARIO-EN-PROP-DE-COPY · 2026-08-23] Un literal
+        // dentro de un ternario o de un `||` está en la MISMA posición de copy que el nodo
+        // que lo contiene: `sub: cond ? 'Alimento · por gramos' : 'Plato criollo'` pinta uno
+        // de los dos, siempre. `textoLiteral` devolvía `null` para la expresión entera y el
+        // escáner reportaba CERO. Medido: `detectarEnFuente` sobre esa línea → `[]`. Se
+        // desdoblan las ramas y cada literal se anota por separado; un `t()` en una rama
+        // sigue saltándose por identidad de nodo, como siempre.
+        if (nodo && nodo.type === 'ConditionalExpression') {
+            anotar(nodo.consequent, posicion, fuerte);
+            anotar(nodo.alternate, posicion, fuerte);
+            return;
+        }
+        if (nodo && nodo.type === 'LogicalExpression' && (nodo.operator === '||' || nodo.operator === '??')) {
+            anotar(nodo.left, posicion, fuerte);
+            anotar(nodo.right, posicion, fuerte);
+            return;
+        }
+        if (nodo && yaTraducidos.has(nodo)) return;
         const texto = textoLiteral(nodo);
         const marca = fuerte ? pareceEspanolEnPosicionFuerte : pareceEspanol;
         if (texto === null || !marca(texto)) return;

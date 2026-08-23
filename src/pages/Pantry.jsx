@@ -14,7 +14,8 @@ import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. El hook es lo que suscribe el
 // componente al cambio de catálogo; las tablas de copy de abajo son FUNCIONES por
 // eso mismo (una constante con `t()` se congelaría en español al importar).
-import { formatNumber, t, useT, useTn } from '../i18n';
+import { compareText, formatNumber, t, useT, useTn } from '../i18n';
+import { glossUnitWord } from '../utils/shoppingHelpers';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
@@ -1811,7 +1812,7 @@ const Pantry = () => {
             if (error?.status !== 404) {
                 console.error("Error deleting:", error);
                 // Revertir en la UI si falla
-                setInventory(prev => [...prev, deletedItem].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
+                setInventory(prev => [...prev, deletedItem].sort((a,b) => compareText(a.ingredient_name, b.ingredient_name)));
                 toast.error(t('Error al eliminar {alimento}', { alimento: deletedItem.ingredient_name }));
                 return;
             }
@@ -1853,7 +1854,7 @@ const Pantry = () => {
                         // Insertar nueva data devuelta por DB
                         setInventory(prev =>
                             [...prev.filter(i => i.id !== oldId), data].sort((a, b) =>
-                                a.ingredient_name.localeCompare(b.ingredient_name)
+                                compareText(a.ingredient_name, b.ingredient_name)
                             )
                         );
                         // Salió del estado "agotado" porque el usuario lo recuperó.
@@ -2041,7 +2042,7 @@ const Pantry = () => {
             toast.success(t('{cantidad} {unidad} de {alimento} en la nevera', {
                 cantidad: safeQty, unidad: finalUnit, alimento: masterItem.name,
             }));
-            setInventory(prev => [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
+            setInventory(prev => [...prev, data].sort((a,b) => compareText(a.ingredient_name, b.ingredient_name)));
             _recordRecentAdd(masterItem, finalUnit);
             setShowAddMenu(false);
             setAddItemSearch('');
@@ -2090,6 +2091,9 @@ const Pantry = () => {
             const matches = masterList.filter(m =>
                 (m.name || '').toLowerCase().includes(q)
                 || (m.aliases && m.aliases.some(a => (a || '').toLowerCase().includes(q)))
+                // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] El gloss inglés como
+                // vía de entrada; lo seleccionado sigue siendo `m.name`. Cubre 1 idioma de 4.
+                || (m.name_en || '').toLowerCase().includes(q)
             );
             if (matches.length === 1) hit = matches[0];
         }
@@ -2144,7 +2148,7 @@ const Pantry = () => {
             }
             if (!data) throw new Error('INSERT sin item en la respuesta.');
             setInventory(prev => [...prev.filter(i => i.id !== data.id), data].sort((a, b) =>
-                a.ingredient_name.localeCompare(b.ingredient_name)
+                compareText(a.ingredient_name, b.ingredient_name)
             ));
             _removeDepleted(entry);
             toast.success(t('{alimento} repuesto ({cantidad} {unidad})', {
@@ -2235,7 +2239,9 @@ const Pantry = () => {
         const q = addItemSearch.toLowerCase();
         return masterList.filter(m => 
             m.name.toLowerCase().includes(q) || 
-            (m.aliases && m.aliases.some(a => a.toLowerCase().includes(q)))
+            (m.aliases && m.aliases.some(a => a.toLowerCase().includes(q))) ||
+            // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4] ver arriba.
+            (m.name_en || '').toLowerCase().includes(q)
         ).slice(0, 8); // Top 8 suggestions
     }, [addItemSearch, masterList]);
 
@@ -2363,7 +2369,9 @@ const Pantry = () => {
         const isDisabled = disabledIngredients.includes(normalizedName);
         // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] Display unit prefiere
         // master_ingredients.market_container (curado) sobre item.unit.
-        const displayUnit = item.master_ingredients?.market_container || item.unit;
+        // [P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO · 2026-08-23] Traducida para
+        // PINTAR; `item.unit` (el dato) sigue siendo el vocabulario cerrado que compara el backend.
+        const displayUnit = glossUnitWord(item.master_ingredients?.market_container || item.unit, t);
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
@@ -2510,7 +2518,9 @@ const Pantry = () => {
     const renderMobileCard = (item) => {
         const normalizedName = item.ingredient_name.toLowerCase().trim();
         const isDisabled = disabledIngredients.includes(normalizedName);
-        const displayUnit = item.master_ingredients?.market_container || item.unit;
+        // [P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO · 2026-08-23] Traducida para
+        // PINTAR; `item.unit` (el dato) sigue siendo el vocabulario cerrado que compara el backend.
+        const displayUnit = glossUnitWord(item.master_ingredients?.market_container || item.unit, t);
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
@@ -3532,7 +3542,7 @@ const Pantry = () => {
                             </h2>
                             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                                 <strong style={{ color: 'var(--text-main)' }}>{qtyEditItem.ingredient_name}</strong>
-                                {' '}{t('· medida:')} <span style={{ textTransform: 'capitalize' }}>{qtyEditItem.unit}</span>
+                                {' '}{t('· medida:')} <span style={{ textTransform: 'capitalize' }}>{glossUnitWord(qtyEditItem.unit, t)}</span>
                             </p>
 
                             {/* Counter grande */}
@@ -3674,7 +3684,7 @@ const Pantry = () => {
                                             if (target === 0) {
                                                 toast.success(t('{alimento} marcado como agotado', { alimento: targetItem.ingredient_name }));
                                             } else {
-                                                toast.success(`${targetItem.ingredient_name}: ${target} ${targetItem.unit}`);
+                                                toast.success(`${targetItem.ingredient_name}: ${target} ${glossUnitWord(targetItem.unit, t)}`);
                                             }
                                         } catch (err) {
                                             console.error('qty edit error', err);

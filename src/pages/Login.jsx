@@ -15,6 +15,7 @@ import PlanShowcase from '../components/auth/PlanShowcase';
 import './Login.css';
 import Wordmark from '../components/common/Wordmark';
 import { useI18n } from '../i18n';
+import LocaleSwitcher from '../components/common/LocaleSwitcher';
 
 // [P1-EMAIL-OTP · 2026-06-21] Login SIN contraseña: un solo flujo correo → código.
 // [P3-LOGIN-EDITORIAL · 2026-06-29] Rediseño editorial oscuro de dos paneles (form +
@@ -392,7 +393,12 @@ const Login = () => {
 
             {/* Formulario (auth real) */}
             <section id="main-content" tabIndex={-1} className="mf-form">
-                <div className="mf-brandmark"><Wordmark /></div>
+                <div className="mf-brandmark mf-brandmark--with-locale">
+                    <Wordmark />
+                    {/* [P2-I18N-SIN-SELECTOR-ANTES-DE-TENER-CUENTA] el visitante sin cuenta elige aquí;
+                        la elección viaja al perfil al crear la cuenta (`localeParaEstampar`). */}
+                    <LocaleSwitcher id="mf-locale-login" />
+                </div>
 
                 <div className="mf-form__inner">
                     <div className="mf-hero-illu" aria-hidden="true"><HeroIllustration /></div>
