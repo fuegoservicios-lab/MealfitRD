@@ -3117,7 +3117,12 @@ const Pantry = () => {
                                 paddingTop: 'clamp(0.85rem, 3vw, 1.4rem)',
                                 zIndex: 101,
                                 boxShadow: '0 -12px 44px rgba(0,0,0,0.22)',
-                                maxHeight: kbInset > 0 ? `${Math.max(300, vvHeight - 10)}px` : `${Math.round(vvHeight * 0.9)}px`,
+                                // [P1-PANTRY-SHEET-NOTCH · 2026-08-22] Con teclado, el alto era el viewport
+                                // visible ENTERO menos 10 px: la hoja subía hasta debajo del reloj (iPhone,
+                                // medido). Se descuenta la barra de estado y un respiro.
+                                maxHeight: kbInset > 0
+                                    ? `calc(${Math.max(300, vvHeight - 10)}px - env(safe-area-inset-top, 0px) - 12px)`
+                                    : `${Math.round(vvHeight * 0.9)}px`,
                                 display: 'flex', flexDirection: 'column',
                             } : {
                                 // Desktop: diálogo centrado, ancho acotado, alto al contenido

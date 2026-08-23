@@ -47,3 +47,12 @@ describe('[P1-PANTRY-CATALOG-EMPTY-CACHE] Pantry.jsx', () => {
         expect(src).toMatch(/t\('Cargando catálogo…'\)/);
     });
 });
+
+describe('[P1-PANTRY-SHEET-NOTCH] la hoja «Añade a tu Nevera» no sube bajo el reloj con el teclado', () => {
+    it('con teclado (kbInset > 0) el maxHeight descuenta env(safe-area-inset-top)', () => {
+        const src = read('pages/Pantry.jsx');
+        const i = src.indexOf('maxHeight: kbInset > 0');
+        expect(i).toBeGreaterThan(0);
+        expect(src.slice(i, i + 200)).toMatch(/calc\(\$\{Math\.max\(300, vvHeight - 10\)\}px - env\(safe-area-inset-top, 0px\)/);
+    });
+});
