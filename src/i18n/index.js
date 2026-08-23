@@ -774,6 +774,24 @@ export function I18nProvider({ children }) {
         return () => { _subscribers.delete(onChange); };
     }, []);
 
+    // [P3-I18N-LOCALE-SIN-SINCRONIA-ENTRE-PESTANAS · 2026-08-23] El idioma era la única
+    // preferencia de localStorage que no se propagaba entre pestañas: el tema, el agua, las
+    // notificaciones y el plan escuchan `storage`; el idioma no. Con dos pestañas abiertas,
+    // elegir «Français» en Configuración dejaba la otra en español hasta recargar — y al
+    // volver a ella, el usuario veía «el selector no funciona». `storage` sólo dispara en
+    // las OTRAS pestañas (la que escribe ya aplicó), y sólo para nuestra clave.
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const onStorage = (e) => {
+            if (!e || e.key !== LOCALE_STORAGE_KEY) return;
+            const next = e.newValue;
+            if (!isSupportedLocale(next) || next === getLocale()) return;
+            loadLocale(next);   // notifica a los suscriptores: repinta igual que el selector
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+    }, []);
+
     const setLocale = useCallback(async (code) => {
         const target = coerceLocale(code);
         const anterior = getLocale();
