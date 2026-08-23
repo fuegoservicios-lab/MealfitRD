@@ -16,7 +16,7 @@
  * `_codigoDe` ya lee `data.code`. Faltaba la entrada en `COPY_POR_CODIGO` y llamar a
  * `mensajeDeError` en el sitio.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { loadLocale, t } from '../i18n';
 import { DEFAULT_LOCALE } from '../i18n/locales';
 import { mensajeDeError } from '../utils/errorCopy';
