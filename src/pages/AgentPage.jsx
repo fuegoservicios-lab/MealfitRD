@@ -699,10 +699,40 @@ const AgentPage = () => {
             asiento = setTimeout(() => { asiento = null; updateInputPosition(true); }, 350);
         };
 
+        // [P1-KB-CIERRE-SIN-ESPERA · 2026-08-23] «Cuando lo cierro es lento.»
+        //
+        // El estado «hay teclado» se decide por GEOMETRÍA (`kb >= 120`), y al cerrarse iOS
+        // recorre la animación entera pasando por altos intermedios: 508 → 600 → 700 → 844.
+        // Hasta el último fotograma `kb` sigue por encima del umbral, así que la barra de
+        // pestañas y el relleno de la caja se restauran AL FINAL — se ve como un retraso.
+        //
+        // El foco lo sabe antes: sin un campo editable enfocado NO hay teclado virtual.
+        // Ojo, es la CONTRAPOSITIVA, y sólo ella: P1-CHAT-FOCO-NO-MUEVE prohíbe lo
+        // contrario —deducir que HAY teclado porque hay foco— porque eso sí es falso
+        // (escritorio estrechado, DevTools, iPad con teclado físico). «Sin foco ⇒ sin
+        // teclado» no tiene contraejemplo.
+        //
+        // Si el foco salta de un campo a otro el teclado NO se va: ahí no se toca nada.
+        // Y si algo raro pasara, el siguiente evento del viewport lo corrige solo, porque
+        // `updateInputPosition` reescribe el atributo con lo que mida.
+        const alPerderElFoco = (e) => {
+            const destino = e.relatedTarget;
+            if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
+                return; // cambia de campo: el teclado sigue
+            }
+            document.documentElement.removeAttribute('data-kb-open');
+            insetAplicadoRef.current = 0;
+            tecladoAbiertoRef.current = false;
+            const contenedor = inputWrapperRef.current?.closest('.agent-container');
+            if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
+        };
+
         vv.addEventListener('resize', alEvento);
         vv.addEventListener('scroll', alEvento);
+        document.addEventListener('focusout', alPerderElFoco);
         updateInputPosition();
         return () => {
+            document.removeEventListener('focusout', alPerderElFoco);
             if (asiento) clearTimeout(asiento);
             vv.removeEventListener('resize', alEvento);
             vv.removeEventListener('scroll', alEvento);

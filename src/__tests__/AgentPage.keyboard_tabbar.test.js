@@ -88,7 +88,11 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         expect(bloque, 'el asiento anterior se cancela: si no, se acumulan timers por evento')
             .toMatch(/if \(asiento\) clearTimeout\(asiento\)/);
         // y se limpia al desmontar
-        expect(src).toMatch(/return \(\) => \{\s*if \(asiento\) clearTimeout\(asiento\);/);
+        // Ancla la PROPIEDAD (el timer se limpia en el cleanup), no el ORDEN: al
+        // entrar el retiro del listener de foco (P1-KB-CIERRE-SIN-ESPERA), el
+        // clearTimeout dejo de ser la PRIMERA linea del return sin dejar de estar.
+        const cierre = src.slice(src.indexOf('return () => {'));
+        expect(cierre.slice(0, 400)).toMatch(/if \(asiento\) clearTimeout\(asiento\);/);
     });
 
     it('BottomTabBar: display none bajo html[data-kb-open]', () => {

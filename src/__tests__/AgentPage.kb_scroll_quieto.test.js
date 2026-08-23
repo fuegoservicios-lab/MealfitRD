@@ -113,3 +113,38 @@ describe('[P1-CHAT-AIRE-INFERIOR] la caja no lame el borde', () => {
         expect(parseFloat(m[1])).toBeGreaterThan(0.8);
     });
 });
+
+describe('[P1-KB-CIERRE-SIN-ESPERA] el cierre no espera a la animacion', () => {
+    const src = read('pages/AgentPage.jsx');
+
+    it('la perdida de foco quita data-kb-open sin esperar a la geometria', () => {
+        expect(src).toMatch(/document\.addEventListener\('focusout', alPerderElFoco\)/);
+        const i = src.indexOf('const alPerderElFoco');
+        expect(i).toBeGreaterThan(0);
+        const bloque = src.slice(i, src.indexOf('\n        };', i));
+        expect(bloque).toMatch(/removeAttribute\('data-kb-open'\)/);
+        expect(bloque).toMatch(/setProperty\('--kb-inset', '0px'\)/);
+    });
+
+    it('cambiar de un campo a otro NO cierra nada: el teclado sigue', () => {
+        const i = src.indexOf('const alPerderElFoco');
+        const bloque = src.slice(i, src.indexOf('\n        };', i));
+        expect(bloque).toMatch(/relatedTarget/);
+        expect(bloque).toMatch(/TEXTAREA/);
+        expect(bloque).toMatch(/isContentEditable/);
+        // el return temprano va ANTES de tocar el atributo, o el teclado parpadea
+        expect(bloque.indexOf('return;')).toBeLessThan(bloque.indexOf("removeAttribute('data-kb-open')"));
+    });
+
+    it('el listener se retira al desmontar', () => {
+        expect(src).toMatch(/removeEventListener\('focusout', alPerderElFoco\)/);
+    });
+
+    it('SOLO la contrapositiva: el foco nunca decide que HAY teclado', () => {
+        // P1-CHAT-FOCO-NO-MUEVE: hay foco sin teclado (escritorio, DevTools, iPad con
+        // teclado fisico). Poner el atributo desde un focusin resucita ese defecto.
+        const codigo = src.split(/\r?\n/).filter((l) => !l.trim().startsWith('//')).join('\n');
+        expect(codigo).not.toMatch(/focusin[\s\S]{0,300}toggleAttribute\('data-kb-open', true\)/);
+        expect(codigo).not.toMatch(/focusin[\s\S]{0,300}setAttribute\('data-kb-open'/);
+    });
+});
