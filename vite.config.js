@@ -298,11 +298,22 @@ export default defineConfig(({ mode }) => {
   define: {
     __APP_RELEASE__: JSON.stringify(APP_RELEASE),
   },
+  // [P2-DEV-LAN · 2026-08-23] El bucle de trabajo en un TELÉFONO real. Emular un móvil
+  // en el escritorio no reproduce el teclado de iOS — y ahí es donde viven los defectos
+  // de esta semana —, así que el servidor de desarrollo tiene que ser alcanzable desde el
+  // iPhone: `npm run dev:lan` escucha en la red local y `MF_DEV_API` decide contra qué
+  // backend habla. Por defecto, el backend local de siempre: nada cambia para quien ya
+  // tenía su entorno montado.
+  //
+  // El proxy es lo que hace esto posible SIN tocar la lista CORS del backend: para el
+  // navegador todo es el mismo origen (el propio servidor de desarrollo), así que no hay
+  // petición cross-origin que permitir. Apuntar `VITE_API_BASE_URL` a producción en su
+  // lugar SÍ la dispararía, y `http://<ip-lan>:5173` no está ni debe estar en esa lista.
   server: {
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3001',
+        target: process.env.MF_DEV_API || 'http://127.0.0.1:3001',
         changeOrigin: true,
         secure: false,
       }

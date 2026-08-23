@@ -180,7 +180,10 @@ const Header = () => {
                     {isPaper && (
                         <div className={styles.editionTag} aria-hidden="true">
                             <span className={styles.editionRule} />
-                            // [I18N-EXEMPT: marca tipografica de la edicion, aria-hidden; no es copy que nadie lea]
+                            {/* [I18N-EXEMPT: marca tipografica de la edicion, aria-hidden; no es copy que nadie lea]
+                                ⚠ Con llaves. En posición de HIJO de JSX, `//` NO es un comentario:
+                                es TEXTO, y React lo pinta. Así entró este marcador a la cabecera
+                                del landing de papel, visible para cualquiera que abriera la ruta. */}
                             <span className={styles.editionLabel}>ES-DO / V1</span>
                         </div>
                     )}

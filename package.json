@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "vite --host",
     "build:sitemap": "node scripts/build-sitemap.mjs",
     "prebuild": "npm run build:sitemap",
     "build": "vite build",
