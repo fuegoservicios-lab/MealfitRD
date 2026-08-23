@@ -69,7 +69,7 @@ import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
 // se usa `useT()`, que además suscribe al cambio de idioma.
-import { formatDate, t, useT } from '../i18n';
+import { t, useT } from '../i18n';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../data/routeMeta';
@@ -2110,36 +2110,25 @@ const AgentPage = () => {
                     promptToSend = `[IMAGE: ${options.overrideImageUrl}]\n${promptToSend}`;
                 }
 
-                // Obtener hora actual local formateada
-                // [P3-I18N-HORA-COACH-12H · 2026-08-22] `hour12: true` ANULA al formateador que sí
-                // lee el locale: forzaba AM/PM a los cinco idiomas, y el francés, el
-                // italiano y el español usan 24 h. `timeStyle: 'short'` deja que cada
-                // idioma ponga su convención — que es para lo que existe `Intl`.
-                const currentTime = formatDate(new Date(), { timeStyle: 'short' });
-                const timeContext = `(Hora actual del usuario: ${currentTime})`;
-
-                // [P1-CHAT-VISION-GEMMA · 2026-07-12] Instrucción POR MODO según
-                // la clasificación del análisis (plato/items/fallo) — el modo lo
-                // decide gemma determinísticamente, no el LLM del chat.
-                let enrichedPrompt = promptToSend;
+                // [P3-I18N-PROMPT-VISION-CLIENTE-ESPANOL · 2026-08-23] El contexto de la foto va
+                // ESTRUCTURADO al servidor, que compone el bloque y lo pone en el SYSTEM prompt.
+                // Hasta hoy este cliente metía cuatro bloques «[Sistema: …] Instrucción: …» en
+                // español DENTRO del turno del usuario: el modelo los leía como si el usuario
+                // hablara español — la señal más fuerte hacia el español, justo la que la
+                // directiva de idioma del servidor intenta vencer. La hora tampoco viaja: el
+                // servidor ya la pone (`build_temporal_context`, con `local_date`/`tz_offset`).
+                // El turno del usuario vuelve a ser SOLO lo suyo (más el `[IMAGE: url]`).
+                let visionPayload = null;
                 if (currentFile && !visionDescription) {
-                    // Analizador caído u ocupado: honestidad > inventar análisis.
-                    const motivo = visionBusy
-                        ? 'el escáner está procesando otra foto en este momento'
-                        : 'el analizador de imágenes no está disponible ahora mismo';
-                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario subió una foto pero ${motivo}, así que NO tienes análisis de la imagen. Discúlpate brevemente, pídele que lo intente de nuevo en un momento o que te describa la comida por texto${userMsg ? ', y responde a su mensaje' : ''}. No pongas el prefijo [Sistema].]\n\n${timeContext}${userMsg ? `\nMensaje del usuario: ${userMsg}` : ''}`;
-                } else if (!userMsg && currentFile && visionKind === 'otro') {
-                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario subió una imagen pero el análisis NO detectó comida en ella. Lo que se vio: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Dile amablemente que no reconociste comida en la foto (menciona brevemente lo que sí se ve) y pídele otra toma del plato o de los alimentos. No pongas el prefijo [Sistema].`;
-                } else if (!userMsg && currentFile && visionKind === 'items') {
-                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario subió una foto de ALIMENTOS SUELTOS o una COMPRA (no un plato servido). Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Lista con viñetas los alimentos detectados (cantidad + nombre en **negritas**) y pregúntale si quiere que los agregues a su Nevera. SOLO cuando el usuario confirme, usa la herramienta modify_pantry_inventory con items_to_add copiando el formato del análisis (ej: '2 unidades de Manzana', '1 lb de Pollo'); si corrige cantidades o quita items, ajusta la lista antes de ejecutar. NO registres esto como comida consumida (no es un plato). No pongas el prefijo [Sistema]. Responde directo y conversacional.`;
-                } else if (!userMsg && currentFile) {
-                    enrichedPrompt = `${promptToSend}\n[Sistema: El usuario acaba de subir una imagen de comida. Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nInstrucción: Actúa proactivamente. Menciona amigablemente lo que ves en la foto. REGLA VISUAL DE FORMATO: Usa SIEMPRE una lista con viñetas para desglosar sus macros y usa **negritas** para resaltarlos. Revisa detalladamente tu 'DIARIO DE HOY' en el system prompt: SI el usuario YA tiene registrada la comida principal de esta hora (ej: si ya cenó), NO le preguntes si esto es su cena, asume que es un snack extra o pregúntale por qué está comiendo algo adicional; si NO tiene nada registrado para esta hora, entonces SÍ pregúntale brevemente si esta foto corresponde a su comida del momento (ej: su cena). Si el usuario confirma que se la comió, registra con log_consumed_meal usando los macros del análisis, pasando meal_type; si dice que fue de OTRO día (ej: 'es el almuerzo de ayer'), pasa también days_ago (1=ayer) para que NO cuente en las macros de hoy. No pongas el prefijo [Sistema]. Sólo responde directo y conversacional.`;
+                    visionPayload = { kind: 'unavailable', reason: visionBusy ? 'busy' : 'down', has_text: !!userMsg };
                 } else if (visionDescription) {
-                    const kindHint = visionKind === 'items' ? 'alimentos sueltos/compra — si el usuario quiere, agrégalos a su Nevera con modify_pantry_inventory tras su confirmación' : 'plato de comida';
-                    enrichedPrompt = `[El usuario subió una imagen (${kindHint}). Análisis de la imagen: "${visionDescription}"]\n\n${timeContext}\nMensaje del usuario: ${promptToSend}`;
-                } else {
-                    enrichedPrompt = `[${timeContext}]\nMensaje del usuario: ${promptToSend}`;
+                    visionPayload = {
+                        kind: visionKind === 'otro' ? 'otro' : (visionKind === 'items' ? 'items' : 'plato'),
+                        description: visionDescription,
+                        has_text: !!userMsg,
+                    };
                 }
+                const enrichedPrompt = promptToSend;
 
                 setStreamingStatus(t('Conectando...'));
                 // [P1-CHAT-PHOTO-UX] El welcome ya se filtró al construir
@@ -2179,6 +2168,7 @@ const AgentPage = () => {
                         session_id: currentSessionId,
                         user_id: session?.user?.id || userProfile?.id || localSessionId,
                         prompt: enrichedPrompt,
+                        vision: visionPayload,
                         current_plan: planData,
                         form_data: formData,
                         local_date: localDateStr,
