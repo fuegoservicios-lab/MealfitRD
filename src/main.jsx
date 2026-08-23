@@ -453,6 +453,9 @@ if (typeof window !== 'undefined') {
 }
 
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
+// [P1-KB-SONDA] Sólo DEV y sólo con ?kbprobe=1: números del teclado en el dispositivo real.
+import { iniciarSondaTeclado } from './utils/keyboardProbe';
+if (import.meta.env.DEV) iniciarSondaTeclado();
 
 // [P2-STRICT-MODE-ENABLE · 2026-05-12] StrictMode re-habilitado tras audit
 // 2026-05-12. Pre-fix estaba comentado por bugs antiguos de double-invoke
