@@ -9,7 +9,7 @@
     "build:sitemap": "node scripts/build-sitemap.mjs",
     "prebuild": "npm run build:sitemap",
     "build": "vite build",
-    "build:native": "vite build --mode native",
+    "build:native": "vite build --mode native && node scripts/build-manifests-i18n.mjs",
     "postbuild": "node scripts/build-manifests-i18n.mjs && node scripts/build-route-meta.mjs && node scripts/precache-guard.mjs && node scripts/precomprimir.mjs",
     "lint": "eslint .",
     "lint:count": "node scripts/lint-count.mjs",
