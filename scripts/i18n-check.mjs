@@ -690,12 +690,46 @@ const glosarioConteo = Object.fromEntries(
     Object.entries(glosarioPorIdioma).map(([code, d]) => [code, d.length])
 );
 
+// [P2-I18N-TRINQUETE-GLOSARIO-SIN-NINGUNA-DE-LAS-DOS-DEFENSAS-DE-SU-GEMELO · 2026-08-23]
+// Su gemelo de 80 líneas más arriba ya tiene las dos defensas, y éste ninguna. MEDIDO:
+// borrar `i18n-glosario.baseline.json` → exit 0; corromperlo → exit 0. Un trinquete que
+// se apaga al borrar su fichero no es un trinquete. Y `--update-baseline` lo subía sin
+// pedir `--allow-ratchet-up`: en-US 3 → N y en silencio. Mismas dos defensas, misma forma.
 let baseGlosario = null;
 if (existsSync(BASELINE_GLOSARIO)) {
-    try { baseGlosario = JSON.parse(readFileSync(BASELINE_GLOSARIO, 'utf8')); } catch { baseGlosario = null; }
+    try {
+        baseGlosario = JSON.parse(readFileSync(BASELINE_GLOSARIO, 'utf8'));
+    } catch (e) {
+        if (!UPDATE_BASELINE) {
+            console.error(`\n❌ El trinquete del glosario no es JSON válido: ${e.message}`);
+            console.error('   Sin él, el gate NO puede detectar una deriva del glosario y saldría verde por omisión.');
+            console.error('   Arréglalo, o regenéralo a conciencia con `node scripts/i18n-check.mjs --update-baseline`.');
+            hardFail = true;
+        }
+        baseGlosario = null;
+    }
+} else if (!UPDATE_BASELINE) {
+    console.error(`\n❌ Falta el trinquete del glosario (${relative(join(__dirname, '..'), BASELINE_GLOSARIO)}).`);
+    console.error('   Sin él, el gate NO puede detectar una deriva y saldría verde por omisión.');
+    console.error('   Si es la primera vez, créalo con `node scripts/i18n-check.mjs --update-baseline`.');
+    hardFail = true;
 }
 
 if (UPDATE_BASELINE) {
+    const subidasGlosario = [];
+    if (baseGlosario) {
+        for (const [code, n] of Object.entries(glosarioConteo)) {
+            const previo = (baseGlosario.porIdioma || {})[code] ?? 0;
+            if (n > previo) subidasGlosario.push(`${code}: ${previo} → ${n}`);
+        }
+    }
+    if (subidasGlosario.length && !ALLOW_RATCHET_UP) {
+        console.error('\n❌ `--update-baseline` SUBIRÍA el trinquete del glosario:');
+        for (const s of subidasGlosario) console.error(`     · ${s}`);
+        console.error('   El trinquete puede BAJAR, nunca subir. Si de verdad quieres subirlo, dilo:');
+        console.error('     node scripts/i18n-check.mjs --update-baseline --allow-ratchet-up');
+        process.exit(1);
+    }
     writeFileSync(BASELINE_GLOSARIO, JSON.stringify({
         _comentario: 'Trinquete de P3-I18N-SIN-GLOSARIO: claves cuya traducción no usa la '
             + 'palabra pactada en `src/i18n/glosario.json`. Puede BAJAR, nunca subir. '
