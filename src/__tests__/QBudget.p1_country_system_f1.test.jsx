@@ -103,19 +103,21 @@ describe('P1-COUNTRY-SYSTEM-F1 · effectiveBudgetCurrency (fix-round 1)', () => 
         expect(effectiveBudgetCurrency('CO', 'COP', false)).toBe('DOP');
     });
 
-    it('moneda de OTRO país beta (mismatch) ⇒ DOP aunque la bandera esté encendida', () => {
-        expect(effectiveBudgetCurrency('ES', 'MXN', true)).toBe('DOP');
-        expect(effectiveBudgetCurrency('MX', 'COP', true)).toBe('DOP');
+    it('[P1-COUNTRY-BUDGET-CURRENCY-DEFAULT] moneda stale de otro país ⇒ default del país actual', () => {
+        expect(effectiveBudgetCurrency('ES', 'MXN', true)).toBe('EUR');
+        expect(effectiveBudgetCurrency('MX', 'COP', true)).toBe('MXN');
     });
 
-    it('país sin moneda beta propia (DO/US/PR) + moneda beta ajena ⇒ DOP', () => {
+    it('[P1-COUNTRY-BUDGET-CURRENCY-DEFAULT] moneda ajena ⇒ default de DO/US/PR', () => {
         expect(effectiveBudgetCurrency('DO', 'EUR', true)).toBe('DOP');
-        expect(effectiveBudgetCurrency('US', 'EUR', true)).toBe('DOP');
+        expect(effectiveBudgetCurrency('US', 'EUR', true)).toBe('USD');
+        expect(effectiveBudgetCurrency('PR', 'COP', true)).toBe('USD');
     });
 
-    it('moneda basura ⇒ DOP', () => {
-        expect(effectiveBudgetCurrency('ES', 'XYZ', true)).toBe('DOP');
-        expect(effectiveBudgetCurrency('ES', undefined, true)).toBe('DOP');
+    it('[P1-COUNTRY-BUDGET-CURRENCY-DEFAULT] moneda basura/ausente ⇒ default del país', () => {
+        expect(effectiveBudgetCurrency('ES', 'XYZ', true)).toBe('EUR');
+        expect(effectiveBudgetCurrency('ES', undefined, true)).toBe('EUR');
+        expect(effectiveBudgetCurrency('CO', '', true)).toBe('COP');
     });
 
     it('país basura/ausente ⇒ coerceCountry cae a DO ⇒ DOP', () => {

@@ -15,7 +15,7 @@ import { Banknote, Infinity as InfinityIcon, Landmark, SlidersHorizontal, Wallet
 import { useT, formatCurrency, currencySymbol as currencySymbolFor } from '../../../i18n';
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Bandera dark del frontend (mismo SSOT que
 // QCountry.jsx/Settings.jsx).
-import { COUNTRY_SYSTEM_UI } from '../../../config/countries';
+import { COUNTRY_SYSTEM_UI, defaultCurrencyForCountry } from '../../../config/countries';
 
 // [P1-BUDGET-INPUT-HARDEN · 2026-07-09] Sanea el monto custom a ENTERO de dígitos (un presupuesto total
 // es un número redondo, sin centavos/exponentes/negativos): descarta todo lo no-dígito, quita ceros a la
@@ -33,10 +33,10 @@ export const QBudget = ({ onAutoAdvance }) => {
     const { formData, updateData } = useAssessment();
     const t = useT();
     const isCustom = formData.budget === 'custom';
-    // [BUDGET-CURRENCY · 2026-05-31] Moneda del monto custom. Default 'DOP'
-    // (peso dominicano, RD$) — el usuario puede cambiar a 'USD' (US$). Se envía
-    // al backend y `build_budget_context` la usa para el símbolo + escala.
-    const budgetCurrency = formData.budgetCurrency || 'DOP';
+    // [P1-COUNTRY-BUDGET-CURRENCY-DEFAULT · 2026-08-23] La ausencia significa «todavía no
+    // eligió moneda», no DOP. Se deriva del país al LEER para cubrir también la preselección IANA
+    // y el click sobre una tarjeta ya marcada (QCountry auto-avanza sin escribir otra clave).
+    const budgetCurrency = formData.budgetCurrency || defaultCurrencyForCountry(formData.country);
     // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Oscuro (COUNTRY_SYSTEM_UI=false, default) ⇒
     // `options` es EXACTAMENTE [DOP, USD] — el toggle de hoy. Ver `currencyOptionsForCountry`
     // (formValidation.js).

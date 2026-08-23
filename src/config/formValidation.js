@@ -2,7 +2,12 @@
 // para `currencyOptionsForCountry`/`effectiveBudgetCurrency` más abajo. Import a nivel
 // de módulo (no local) porque este archivo no tiene ningún otro import — la única
 // excepción se documenta aquí para que no sorprenda en review.
-import { COUNTRY_SYSTEM_UI, coerceCountry } from './countries';
+import {
+    COUNTRIES,
+    COUNTRY_SYSTEM_UI,
+    coerceCountry,
+    defaultCurrencyForCountry,
+} from './countries';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../data/routeMeta';
@@ -191,14 +196,10 @@ export const minBudgetFor = (currency, groceryDuration) => {
     return table[groceryDuration] ?? table.weekly;
 };
 
-// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16, fix-round 1 · review] Moneda del perfil BETA de
-// cada país — espejo minimal de `COUNTRY_PROFILES[cc]['currency']` (backend
-// constants.py), acotado a los 3 pares que habilitan una moneda nueva (ES→EUR,
-// MX→MXN, CO→COP). US/PR ya usan USD (toggle preexistente, no se duplica); DO usa DOP
-// (toggle preexistente). NO vive en config/countries.js (SSOT del spine F0, fuera del
-// alcance de F1-T6) — un drift contra COUNTRY_PROFILES lo detecta
-// test_p1_country_system_f1.py (sección T6:
-// test_beta_currency_by_country_coincide_con_country_profiles).
+// [P1-COUNTRY-SYSTEM-F1 · 2026-08-16; P1-COUNTRY-BUDGET-CURRENCY-DEFAULT · 2026-08-23]
+// Terceras monedas que añade el toggle. Se DERIVAN del SSOT `COUNTRIES`: el mapa previo repetía
+// ES/MX/CO a mano y dejaba fuera la moneda por defecto de US/PR. Es intencional excluir DOP/USD
+// aquí: ambas opciones universales ya existen en el toggle y añadir US/PR duplicaría USD.
 //
 // Vive AQUÍ (no en QBudget.jsx, donde nació) porque QBudget NO es su único
 // consumidor: InteractiveAssessmentFlow.jsx (el gate "Siguiente Paso") y
@@ -206,7 +207,11 @@ export const minBudgetFor = (currency, groceryDuration) => {
 // vigente, y ambos YA importan de este módulo — importar un mapa de moneda desde un
 // componente de wizard hacia un hook/orquestador habría sido la dirección de
 // dependencia equivocada. UNA fuente, tres consumidores.
-export const BETA_CURRENCY_BY_COUNTRY = { ES: 'EUR', MX: 'MXN', CO: 'COP' };
+export const BETA_CURRENCY_BY_COUNTRY = Object.fromEntries(
+    COUNTRIES
+        .filter(({ beta, currency }) => beta && !['DOP', 'USD'].includes(currency))
+        .map(({ code, currency }) => [code, currency]),
+);
 
 /**
  * [P1-COUNTRY-SYSTEM-F1] Qué monedas ofrece el toggle de presupuesto. PURA — sin
@@ -248,9 +253,8 @@ export function currencyOptionsForCountry(rawCountry, countrySystemUI) {
  *
  * Devuelve `budgetCurrency` SOLO cuando (a) es 'DOP'/'USD' —universales, válidas
  * siempre— o (b) el country-system está encendido Y `budgetCurrency` coincide con la
- * moneda beta del país declarado. Cualquier otro caso ⇒ 'DOP' (mismo fail-safe que el
- * resto del sistema). Reusa `currencyOptionsForCountry` — CERO segundo mapa
- * país→moneda.
+ * moneda beta del país declarado. Si está ausente/stale, deriva la moneda local desde
+ * `COUNTRIES`; con el sistema apagado conserva el fallback histórico DOP.
  *
  * `countrySystemUI` es el 3er parámetro, OPCIONAL, default la bandera real del build
  * (`COUNTRY_SYSTEM_UI`) — los call sites de producción llaman con 2 argumentos; el
@@ -285,7 +289,8 @@ export function budgetCurrencySymbol(currency) {
 export function effectiveBudgetCurrency(country, budgetCurrency, countrySystemUI = COUNTRY_SYSTEM_UI) {
     if (budgetCurrency === 'DOP' || budgetCurrency === 'USD') return budgetCurrency;
     const { betaCurrency } = currencyOptionsForCountry(country, countrySystemUI);
-    return betaCurrency && budgetCurrency === betaCurrency ? budgetCurrency : 'DOP';
+    if (betaCurrency && budgetCurrency === betaCurrency) return budgetCurrency;
+    return countrySystemUI ? defaultCurrencyForCountry(country) : 'DOP';
 }
 
 /**

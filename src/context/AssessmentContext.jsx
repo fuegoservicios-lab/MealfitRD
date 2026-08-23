@@ -186,11 +186,11 @@ const AssessmentContext = createContext();
 //   - includeSupplements (bool false): el toggle activado en el dispositivo A jamás
 //     hidrataba en B → chips de selectedSupplements presentes (array SÍ hidrata) con el
 //     toggle apagado, y la regeneración mandaba includeSupplements=false.
-//   - budgetCurrency (default 'DOP' truthy): un presupuesto declarado en USD se re-leía
-//     como DOP en otro dispositivo (~×60 de drift silencioso del piso y la referencia).
+//   - budgetCurrency (históricamente default 'DOP' truthy): un presupuesto declarado en USD se
+//     re-leía como DOP en otro dispositivo (~×60 de drift silencioso del piso y la referencia).
 // Regla general: booleans default-false hidratan solo un true del DB sobre false local;
-// budgetCurrency hidrata cuando lo local es el default 'DOP' y el DB dice otra cosa
-// (el DB refleja la última elección persistida; la edición viva la protege editedFieldsRef).
+// budgetCurrency hidrata cuando está vacío o cuando un formulario legacy conserva aquel default
+// DOP; el DB refleja la última elección persistida y la edición viva la protege editedFieldsRef.
 const _hydrateFieldQualifies = (k, cur, v) => {
     if (k === 'targetWeightAuto' || k === 'includeSupplements') {
         return cur !== true && v === true;
@@ -510,7 +510,10 @@ export const AssessmentProvider = ({ children }) => {
         //     metformina/warfarina (medication_rules). SENSITIVE (hábitos de salud).
         waistCm: '', targetWeight: '', targetWeightAuto: false, goalPace: '',
         habitAlcohol: '', habitSmoking: '', habitCaffeine: '', habitWater: '',
-        sleepHours: '', stressLevel: '', cookingTime: '', budget: '', budgetAmount: '', budgetCurrency: 'DOP', scheduleType: '',
+        // [P1-COUNTRY-BUDGET-CURRENCY-DEFAULT · 2026-08-23] Vacío = sin elección explícita.
+        // QBudget/effectiveBudgetCurrency derivan la moneda del país al LEER; sembrar DOP aquí
+        // convertía un fallback en una elección truthy e impedía la derivación para todos los beta.
+        sleepHours: '', stressLevel: '', cookingTime: '', budget: '', budgetAmount: '', budgetCurrency: '', scheduleType: '',
         // [P1-COUNTRY-SYSTEM-F0] ISO-3166; 'DO' explícito = conducta actual exacta.
         country: 'DO',
         dietType: '', allergies: [], dislikes: [], medicalConditions: [], otherAllergies: '',

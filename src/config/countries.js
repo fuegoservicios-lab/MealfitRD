@@ -1,7 +1,8 @@
 // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] SSOT de países del producto.
 //
 // `code` ISO-3166 alpha-2 y ES EL DATO del motor (viaja en formData.country y
-// health_profile.country); `labelKey` es la clave española que i18n traduce.
+// health_profile.country); `labelKey` es la clave española que i18n traduce;
+// `currency` es la moneda local por defecto del presupuesto.
 // Espejo del backend `constants.COUNTRY_PROFILES` — test de paridad en
 // backend/tests/test_p1_country_system_f0.py: si añades un país aquí sin
 // añadirlo allá (o viceversa), CI rojo.
@@ -14,15 +15,16 @@
 export const DEFAULT_COUNTRY = 'DO';
 
 export const COUNTRIES = [
-    { code: 'DO', labelKey: 'República Dominicana', beta: false },
-    { code: 'ES', labelKey: 'España', beta: true },
-    { code: 'US', labelKey: 'Estados Unidos', beta: true },
-    { code: 'MX', labelKey: 'México', beta: true },
-    { code: 'PR', labelKey: 'Puerto Rico', beta: true },
-    { code: 'CO', labelKey: 'Colombia', beta: true },
+    { code: 'DO', labelKey: 'República Dominicana', currency: 'DOP', beta: false },
+    { code: 'ES', labelKey: 'España', currency: 'EUR', beta: true },
+    { code: 'US', labelKey: 'Estados Unidos', currency: 'USD', beta: true },
+    { code: 'MX', labelKey: 'México', currency: 'MXN', beta: true },
+    { code: 'PR', labelKey: 'Puerto Rico', currency: 'USD', beta: true },
+    { code: 'CO', labelKey: 'Colombia', currency: 'COP', beta: true },
 ];
 
 const _CODES = new Set(COUNTRIES.map((c) => c.code));
+const _COUNTRY_BY_CODE = new Map(COUNTRIES.map((country) => [country.code, country]));
 
 export function coerceCountry(raw) {
     if (typeof raw === 'string') {
@@ -30,6 +32,14 @@ export function coerceCountry(raw) {
         if (_CODES.has(code)) return code;
     }
     return DEFAULT_COUNTRY;
+}
+
+// [P1-COUNTRY-BUDGET-CURRENCY-DEFAULT · 2026-08-23] Derivación en LECTURA:
+// seleccionar/preseleccionar país basta para que el paso siguiente conozca su moneda, incluso
+// si QCountry auto-avanza sobre la tarjeta ya marcada y nunca ejecuta un segundo `updateData`.
+// Comparte las mismas filas que el selector; no existe un segundo mapa país→moneda.
+export function defaultCurrencyForCountry(raw) {
+    return _COUNTRY_BY_CODE.get(coerceCountry(raw))?.currency || 'DOP';
 }
 
 export const COUNTRY_SYSTEM_UI = ['1', 'true'].includes(
