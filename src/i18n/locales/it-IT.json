@@ -2834,5 +2834,7 @@
   "¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, la Nevera, las recetas, tu cuenta…": "Ciao! Sono l'assistente di Bioboros. Chiedimi quello che vuoi sull'app: come funziona, il Frigo, le ricette, il tuo account…",
   "¿Cómo cambio un plato del día?": "Come cambio un piatto del giorno?",
   "No hay Service Worker registrado en este navegador.": "Nessun Service Worker registrato in questo browser.",
-  "El servidor rechazó la suscripción (error {codigo}).": "Il server ha rifiutato l'iscrizione (errore {codigo})."
+  "El servidor rechazó la suscripción (error {codigo}).": "Il server ha rifiutato l'iscrizione (errore {codigo}).",
+  "💊 MEDICAMENTOS + ALIMENTACIÓN: declaraste medicamento(s) con interacción dietética conocida (": "💊 FARMACI + ALIMENTAZIONE: hai dichiarato farmaci con interazione alimentare nota (",
+  "). Este plan da pautas generales; el ajuste fino (dosis, timing, INR/potasio) lo define tu médico o farmacéutico. Consúltalo antes de cambios.": "). Questo piano dà indicazioni generali; la messa a punto (dose, orario, INR/potassio) la definisce il tuo medico o farmacista. Consultalo prima di ogni cambiamento."
 }

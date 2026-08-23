@@ -7556,7 +7556,23 @@ const DashboardInner = () => {
                         }}>
                             {/* [P2-PRO-REVIEW-ICON-CLEANUP · 2026-06-27] El AlertCircle ya es el ícono del banner;
                                 quitamos el emoji ⚕️/🫘 redundante del inicio de la nota (strip de no-letras inicial). */}
-                            {String(planData.requires_professional_review.note || '').replace(/^[^\p{L}]+/u, '')}
+                            {/* [P1-I18N-BANNER-CLINICO-DEL-DASHBOARD-SIN-GLOSAR · 2026-08-23]
+                                `P2-I18N-PDF-NOTA-CLINICA` glosó esta nota en el PDF y dejó
+                                intacta su gemela EN PANTALLA. Este banner —`role="alert"`,
+                                arriba del todo— lo ve TODO usuario con condición declarada,
+                                tenga o no PDF, y su titular (10 líneas más arriba) SÍ pasa
+                                por `t()`: cabecera traducida sobre cuerpo español, que es
+                                justo la forma que el alcance del dueño declara gap. Afecta
+                                a las SIETE ramas clínicas, no sólo a la renal.
+
+                                ORDEN LOAD-BEARING: glosar PRIMERO y recortar el emoji
+                                DESPUÉS. Los fragmentos del glosador empiezan por el emoji
+                                (`🫘 CONDICIÓN RENAL…`, `⚕️ Declaraste condición(es)…`), así
+                                que quitarlo antes deja la coincidencia literal sin casar y
+                                el glosador INERTE — la misma trampa de precedencia que
+                                `P3-I18N-PDF-CAT-RESOLVER`. */}
+                            {glossClinicalNote(String(planData.requires_professional_review.note || ''), t)
+                                .replace(/^[^\p{L}]+/u, '')}
                         </span>
                     </div>
                     {/* [P2-PRO-REVIEW-DISMISS · 2026-06-27] X para ocultar el aviso (persistido por plan). */}

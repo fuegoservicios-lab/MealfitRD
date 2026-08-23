@@ -58,6 +58,20 @@ const _FRAGMENTOS = (t) => [
     t('⚠️ OBJETIVO CALÓRICO MUY BAJO: tu meta calculada cayó por debajo del mínimo clínico seguro y fue elevada a un piso de seguridad. Un déficit tan agresivo puede ser riesgoso (pérdida de masa muscular, déficit de micronutrientes, fatiga). Consulta a un médico o nutricionista antes de seguir un plan tan hipocalórico.'),
     t('🧒 PERFIL DE MENOR DE EDAD: las necesidades nutricionales de niños y adolescentes difieren de las de un adulto (crecimiento, desarrollo) y este plan usa cálculos calibrados para adultos. NO se aplicó déficit calórico por seguridad. Consulta a un pediatra o nutricionista infantil antes de seguir este plan.'),
     t('🤰 EMBARAZO / LACTANCIA: tus necesidades de energía y micronutrientes (folato, hierro, calcio, B12) son mayores y el déficit calórico está contraindicado — este plan usa al menos mantenimiento. Requiere control prenatal: consulta a tu obstetra o nutricionista antes de seguirlo, y evita alimentos de riesgo de listeria (lácteos no pasteurizados, pescado/carne crudos, embutidos).'),
+    // [P1-I18N-NOTA-MEDICAMENTOS-EN-ESPANOL · 2026-08-23] La SÉPTIMA rama, que faltaba.
+    //
+    // Avisa de interacción fármaco-alimento (warfarina/INR, levotiroxina, potasio) y está
+    // viva por defecto (`MEALFIT_MEDICATION_RULES`). No estaba aquí porque el guard que
+    // vigila esta paridad derivaba su universo de una TUPLA DE NOMBRES DE VARIABLE escrita a
+    // mano, y la de esta rama se llama `_med_note`: no salía en la lista, así que el
+    // fragmento nunca se contó como descubierto. Un francés con medicamento declarado leía
+    // el titular en francés y el cuerpo en español; y si además era renal, el párrafo
+    // cambiaba de idioma a mitad de frase.
+    //
+    // Va PARTIDA en dos porque el backend interpola la lista de fármacos en medio, igual que
+    // se hace con la rama de condiciones (fragmentos 1 y 2).
+    t('💊 MEDICAMENTOS + ALIMENTACIÓN: declaraste medicamento(s) con interacción dietética conocida ('),
+    t('). Este plan da pautas generales; el ajuste fino (dosis, timing, INR/potasio) lo define tu médico o farmacéutico. Consúltalo antes de cambios.'),
 ];
 
 /**
