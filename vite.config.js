@@ -117,6 +117,52 @@ const precacheAudiencePlugin = () => ({
  * `apply: 'build'` a propósito: en desarrollo los comentarios se quedan, que es
  * donde alguien los va a leer.
  */
+/**
+ * [P2-DEV-ESPEJO-APEX · 2026-08-23] En desarrollo, las rutas de marketing se comportan
+ * como en producción.
+ *
+ * El landing público NO sale de este repo: lo genera `bioboros-cinematic` (HTML estático,
+ * `python build.py`). Aquí sobreviven las rutas React equivalentes, CONGELADAS en el
+ * diseño anterior. En producción nginx las redirige al apex (P1-LEGAL-UNA-SOLA-COPIA y
+ * P2-RUTAS-HUERFANAS-APP), pero el servidor de desarrollo las servía tal cual: abrir
+ * `localhost:5173/about` enseñaba el diseño viejo y parecía que local iba atrasado.
+ * No iba atrasado — son DOS SITIOS distintos y sólo uno es el público. Al dueño le costó
+ * tres vueltas, que es lo que cuesta siempre un entorno que miente sobre el de verdad.
+ *
+ * La lista es la MISMA de `backend/infra/nginx/mealfit.conf`, y su guard
+ * (`test_p2_dev_espejo_apex.py`) exige que no se separen.
+ *
+ * `apply: 'serve'`: esto NO toca el build. Para EDITAR el landing, sírvelo aparte:
+ *   cd bioboros-cinematic && python -m http.server 8080 --directory bioboros
+ */
+const espejoApexEnDesarrollo = () => ({
+    name: 'espejo-apex-en-desarrollo',
+    apply: 'serve',
+    configureServer(server) {
+        const APEX = 'https://bioboros.com';
+        // pasan tal cual: existen en el apex con el mismo nombre
+        const PASO = new Set([
+            'about', 'acceptable-use', 'ai-policy', 'como-funciona', 'data-protection',
+            'medical', 'motor', 'novedades', 'precios', 'privacy', 'refunds', 'research',
+            'responsible-disclosure', 'supermercado', 'terms',
+        ]);
+        // cambian de nombre: el apex no tiene estas tres direcciones
+        const RENOMBRA = {
+            funciones: '/como-funciona',
+            precision: '/research',
+            cookies: '/privacy#cookies',
+        };
+        server.middlewares.use((req, res, next) => {
+            const ruta = (req.url || '/').split('?')[0];
+            const primero = ruta.split('/')[1] || '';
+            const destino = RENOMBRA[primero] || (PASO.has(primero) ? ruta : null);
+            if (!destino) return next();
+            res.writeHead(301, { Location: APEX + destino });
+            return res.end();
+        });
+    },
+});
+
 const sinComentariosHtml = () => ({
     name: 'sin-comentarios-html',
     apply: 'build',
@@ -150,6 +196,7 @@ export default defineConfig(({ mode }) => {
   return {
   plugins: [
     react(),
+    espejoApexEnDesarrollo(),
     sinComentariosHtml(),
     landingHeadPlugin(authOrigin),
     precacheAudiencePlugin(),
