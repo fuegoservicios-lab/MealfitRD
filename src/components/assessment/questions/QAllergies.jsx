@@ -81,6 +81,23 @@ export const QAllergies = ({ onManualAdvance }) => {
                     { val: "Frutos Secos", label: t('Nueces'), icon: Nut },
                     { val: "Mani", label: t('Maní'), icon: Nut },
                     { val: "Soya", label: t('Soya'), icon: Leaf },
+                    // [P2-I18N-CHIP-SESAMO-Y-LACTOSA-AUSENTES · 2026-08-23] Las dos clases que
+                    // quedaban con motor y sin botón — `P2-ALLERGEN-CHIPS-REACH-ENGINE` aplicado a
+                    // lo que faltaba. Medido contra `clinical_backstop_for_meal` ANTES de añadirlos:
+                    //
+                    // · «Sésamo»: uno de los 14 alérgenos obligatorios de la UE (1169/2011) y el
+                    //   catálogo trae Ajonjolí, Tahini, Hummus y Aceite de sésamo. El chip
+                    //   `Frutos Secos` NO lo cubre (el sésamo es una semilla y el motor lo separa
+                    //   a propósito): `Sesamo` + Tahini BLOQUEA; `Frutos Secos` + Tahini pasa.
+                    //
+                    // · «Lactosa»: clase propia, más ESTRECHA que `Lacteos` a propósito (el
+                    //   intolerante tolera quesos curados; el alérgico a la proteína no). Quien
+                    //   solo tenía «Lácteos» perdía media dieta por una intolerancia.
+                    //
+                    // `val` sin acento como sus vecinos (`Lacteos`, `Mani`): es el identificador
+                    // que consume el motor. Iconos compartidos, mismo motivo que arriba.
+                    { val: "Sesamo", label: t('Sésamo'), icon: Nut },
+                    { val: "Lactosa", label: t('Lactosa'), icon: Milk },
                 ].map(opt => (
                     <ChipOption key={opt.val} val={opt.val} label={opt.label} icon={opt.icon} isSelected={(formData.allergies || []).includes(opt.val)} onToggle={handleToggle} />
                 ))}
