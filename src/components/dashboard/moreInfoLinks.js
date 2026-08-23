@@ -1,3 +1,6 @@
+
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../../data/routeMeta';
 // [P3-MORE-INFO-MENU · 2026-07-03] SSOT de los enlaces del submenú "Más
 // información" (estilo Claude.ai) — consumido por la card del menú de cuenta
 // del sidebar (AccountMenu) y por el menú "más" móvil (DashboardLayout).
@@ -58,7 +61,7 @@ export function moreInfoGroups(traducir) {
   const t = typeof traducir === 'function' ? traducir : (x) => x;
   return [
     [
-      { label: t('Acerca de Bioboros'), path: '/about' },
+      { label: t('Acerca de {app}', { app: BRAND }), path: '/about' },
       { label: t('Novedades'), path: '/novedades' },
       { label: t('Cómo funciona'), path: '/como-funciona' },
       { label: t('Supermercado RD'), path: '/supermercado' },

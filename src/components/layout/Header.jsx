@@ -30,6 +30,8 @@ import { isPaperSurface } from '../../utils/paperSurface';
 import { useT } from '../../i18n';
 import Wordmark from '../common/Wordmark';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../../data/routeMeta';
 // [P3-HEADER-FLOAT-REDESIGN · 2026-06-28] Secciones del landing para la nav segmentada.
 // El `id` debe coincidir con el id de cada <section> del Home (how-it-works, dashboard,
 // benchmarks, pricing) — usados por el scroll suave Y el scrollspy del item activo.
@@ -171,7 +173,7 @@ const Header = () => {
             <div className={styles.container}>
                 {/* [P3-HEADER-LOGO-LINK · 2026-05-31] El logo es Link a "/" (lleva al inicio). */}
                 <div className={styles.brandCluster}>
-                    <Link to="/" className={styles.logo} aria-label={t('Bioboros — Inicio')}>
+                    <Link to="/" className={styles.logo} aria-label={t('{app} — Inicio', { app: BRAND })}>
                         <Wordmark />
                     </Link>
                     {/* [P1-PAPER-THEME · 2026-08-01] Cajetín editorial: regla vertical de

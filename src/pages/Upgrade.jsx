@@ -60,6 +60,8 @@ const PaymentModal = lazy(() => import('../components/dashboard/PaymentModal'));
 // (P1-LEGAL-UNA-SOLA-COPIA). Un href relativo funcionaba en web por el 301 de
 // nginx; en la app nativa (capacitor://) abriría la copia JSX obsoleta.
 import { apexUrl } from '../config/site';
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../data/routeMeta';
 import {
     ANNUAL_DISABLED_TIERS, LAUNCH_OFFER, TIER_CREDITS, TIER_DISPLAY_NAME, tierDisplayName, periodLabel,
     creditsVsPredecessor, includesPredecessor,
@@ -847,7 +849,7 @@ const Upgrade = () => {
                 <a href="mailto:bioboros.support@gmail.com">{t('Soporte')}</a>
                 <br />
                 <span style={{ marginTop: '0.5rem', display: 'inline-block' }}>
-                    {t('© 2026 Bioboros · Hecho en República Dominicana 🇩🇴')}
+                    {t('© 2026 {app} · Hecho en República Dominicana 🇩🇴', { app: BRAND })}
                 </span>
             </footer>
         </div>

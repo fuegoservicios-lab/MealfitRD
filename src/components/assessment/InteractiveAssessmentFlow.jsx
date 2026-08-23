@@ -47,6 +47,8 @@ import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFir
 import { useT } from '../../i18n';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../../data/routeMeta';
 /* [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] ¿El presupuesto personalizado alcanza
    el piso? SSOT de las TRES puertas que pueden dejar atrás el paso 11.
 
@@ -592,7 +594,7 @@ const InteractiveAssessmentFlow = () => {
         // del owner): asterisco + entrada en REQUIRED_FORM_FIELDS. El `fields` de
         // abajo ya gateaba «Siguiente»; el contrato cubre al usuario que REGRESA
         // y salta (canSkip) sin haberla contestado jamás (cuentas pre-P1-PLAN-MODE).
-        title: <>{t('¿Qué quieres que haga Bioboros por ti?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+        title: <>{t('¿Qué quieres que haga {app} por ti?', { app: BRAND })}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
         subtitle: t('Las dos cosas usan la misma IA. La diferencia es si te genera el menú o solo te acompaña a contar.'),
         fields: ['appMode'],
         component: <QAppMode onAutoAdvance={handleAutoAdvance} />

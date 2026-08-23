@@ -71,6 +71,8 @@ import Wordmark from '../components/common/Wordmark';
 // se usa `useT()`, que además suscribe al cambio de idioma.
 import { formatDate, t, useT } from '../i18n';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../data/routeMeta';
 const _captureAgentPageException = (err, tags) => {
     try {
         captureException(err, {
@@ -2835,7 +2837,7 @@ const AgentPage = () => {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
-                            placeholder={micErrorMsg || t("Pregúntale a Bioboros")}
+                            placeholder={micErrorMsg || t("Pregúntale a {app}", { app: BRAND })}
                             onFocus={() => setTimeout(scrollToBottom, 300)}
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se

@@ -9,6 +9,8 @@ import styles from './LogoutConfirmModal.module.css';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useT } from '../../i18n';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../../data/routeMeta';
 const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, isGuest = false }) => {
     const t = useT();
     const [isClosing, setIsClosing] = useState(false);
@@ -73,7 +75,7 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, isGuest = 
                         <>{t('Perderás el plan y el progreso de tu sesión de invitado.')}{' '}
                         <span className={styles.email}>{t('Crea una cuenta gratis')}</span> {t('antes de salir para guardarlo.')}</>
                     ) : (
-                        <>{t('¿Cerrar sesión de Bioboros como')}{' '}
+                        <>{t('¿Cerrar sesión de {app} como', { app: BRAND })}{' '}
                         <span className={styles.email}>{userEmail || t('tu cuenta')}</span>?</>
                     )}
                 </p>

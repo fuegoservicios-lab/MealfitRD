@@ -12,6 +12,8 @@ import { isPaperSurface } from '../../utils/paperSurface';
 import { useT } from '../../i18n';
 import { apexUrl } from '../../config/site';
 
+// [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
+import { BRAND } from '../../data/routeMeta';
 /**
  * [P1-LEGAL-UNA-SOLA-COPIA · 2026-08-19] Los legales viven en el apex, y se sale
  * de la aplicación para leerlos.
@@ -235,7 +237,7 @@ const Footer = () => {
                     el historial de Footer.module.css (regla §4.7). */}
                 {!isPaper && (
                     <div className={styles.bottom}>
-                        {t('© {year} Bioboros. Todos los derechos reservados.', { year: new Date().getFullYear() })}
+                        {t('© {year} {app}. Todos los derechos reservados.', { app: BRAND, year: new Date().getFullYear() })}
                     </div>
                 )}
             </div>
