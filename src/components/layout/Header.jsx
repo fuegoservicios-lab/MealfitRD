@@ -180,10 +180,11 @@ const Header = () => {
                     {isPaper && (
                         <div className={styles.editionTag} aria-hidden="true">
                             <span className={styles.editionRule} />
-                            {/* [I18N-EXEMPT: marca tipografica de la edicion, aria-hidden; no es copy que nadie lea]
-                                ⚠ Con llaves. En posición de HIJO de JSX, `//` NO es un comentario:
-                                es TEXTO, y React lo pinta. Así entró este marcador a la cabecera
-                                del landing de papel, visible para cualquiera que abriera la ruta. */}
+                            {/* ⚠ Con llaves. En posición de HIJO de JSX, `//` NO es un comentario:
+                                es TEXTO, y React lo pinta — así estuvo este marcador visible en la
+                                cabecera del landing de papel. Y el marcador va en la ÚLTIMA línea
+                                del bloque: el escáner solo lo busca 3 líneas por encima del hallazgo.
+                                [I18N-EXEMPT: marca tipografica de la edicion, aria-hidden; no es copy que nadie lea] */}
                             <span className={styles.editionLabel}>ES-DO / V1</span>
                         </div>
                     )}

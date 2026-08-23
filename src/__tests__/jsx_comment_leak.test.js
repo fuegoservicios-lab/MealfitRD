@@ -2,11 +2,12 @@
  * [P2-JSX-COMMENT-LEAK · 2026-08-23] Un `//` en posición de HIJO de JSX no es un
  * comentario: es texto, y React lo pinta.
  *
- * Así llegó a la cabecera del landing de papel, en producción, la línea
- * `// [I18N-EXEMPT: marca tipografica de la edicion, aria-hidden; no es copy que nadie
- * lea]` — un marcador para OTRO guard, convertido en copy visible. Lo vio el dueño en una
- * captura; ningún test podía verlo porque todos los guards de i18n leen el FUENTE, donde
- * la línea parece exactamente lo que su autor creía que era.
+ * Así llegó a la cabecera del landing de papel, en producción, un marcador de exención
+ * de i18n escrito con doble barra: dejó de ser una nota para otro guard y pasó a ser copy
+ * visible. Lo vio el dueño en una captura; ningún test podía verlo porque todos los
+ * guards de i18n leen el FUENTE, donde la línea parece exactamente lo que su autor creía
+ * que era. (Aquí se describe sin citarlo literal: el escáner de exenciones busca el
+ * marcador POR LÍNEA, y una cita partida en dos lo hace saltar sobre este fichero.)
  *
  * En JSX los comentarios entre etiquetas van SIEMPRE entre llaves: `{/* … *\/}`.
  *
