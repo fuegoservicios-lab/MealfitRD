@@ -191,21 +191,57 @@ export const buildGlossIndex = (masterList) => {
     if (!Array.isArray(masterList)) return idx;
     for (const m of masterList) {
         const es = m && typeof m.name === 'string' ? m.name : '';
-        const en = m && typeof m.name_en === 'string' ? m.name_en : '';
-        if (es && en) idx.set(_sinAcentos(es), en.trim());
+        const en = m && typeof m.name_en === 'string' ? m.name_en.trim() : '';
+        const glossEs = m && typeof m.gloss_es === 'string' ? m.gloss_es.trim() : '';
+        if (!es || (!en && !glossEs)) continue;
+        // Compatibilidad: las filas sin gloss_es conservan el valor string que ya
+        // persiste pantryCache v1; solo los regionalismos usan el objeto extendido.
+        idx.set(
+            _sinAcentos(es),
+            glossEs ? { name_en: en, gloss_es: glossEs } : en,
+        );
     }
     return idx;
 };
 
-export const glossShoppingItemName = (name, displayNameEn, locale, glossIndex = null) => {
+const _SPANISH_GLOSS_COUNTRIES = new Set(['ES', 'MX', 'CO', 'PR']);
+
+export const glossShoppingItemName = (
+    name,
+    displayNameEn,
+    locale,
+    glossIndex = null,
+    country = null,
+    displayGlossEs = null,
+) => {
     const spanishName = typeof name === 'string' ? name : (name == null ? '' : String(name));
-    if (!locale || locale === 'es-DO') return spanishName;
+    if (!locale) return spanishName;
     // El campo embebido manda; el catálogo es el respaldo para los planes que nacieron
     // antes de que existiera (hoy, todos).
-    let _fuente = typeof displayNameEn === 'string' ? displayNameEn.trim() : '';
-    if (!_fuente && glossIndex && typeof glossIndex.get === 'function') {
-        _fuente = glossIndex.get(_sinAcentos(spanishName)) || '';
+    const _catalogEntry = glossIndex && typeof glossIndex.get === 'function'
+        ? glossIndex.get(_sinAcentos(spanishName))
+        : null;
+    const _catalogEn = typeof _catalogEntry === 'string'
+        ? _catalogEntry
+        : (typeof _catalogEntry?.name_en === 'string' ? _catalogEntry.name_en : '');
+    const _catalogEs = typeof _catalogEntry?.gloss_es === 'string' ? _catalogEntry.gloss_es : '';
+    const _glossEs = typeof displayGlossEs === 'string' && displayGlossEs.trim()
+        ? displayGlossEs.trim()
+        : _catalogEs.trim();
+    const _country = String(country || '').trim().toUpperCase();
+
+    // [P1-COUNTRY-GLOSS-SOLO-INGLES · 2026-08-23] locale es-DO no implica país DO.
+    // Para los cuatro mercados hispanohablantes beta se conserva el identificador
+    // canónico y se adjunta el término panhispánico; DO queda byte-idéntico.
+    if (locale === 'es-DO') {
+        if (!_SPANISH_GLOSS_COUNTRIES.has(_country) || !_glossEs) return spanishName;
+        if (_sinAcentos(_glossEs) === _sinAcentos(spanishName)) return spanishName;
+        if (!spanishName) return _glossEs;
+        return `${spanishName} (${_glossEs})`;
     }
+
+    let _fuente = typeof displayNameEn === 'string' ? displayNameEn.trim() : '';
+    if (!_fuente) _fuente = _catalogEn.trim();
     if (!_fuente) return spanishName;
     const englishGloss = _fuente;
     if (!spanishName) return englishGloss;

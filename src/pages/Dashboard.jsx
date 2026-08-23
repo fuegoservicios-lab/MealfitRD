@@ -3971,7 +3971,13 @@ const DashboardInner = () => {
                             // [P3-I18N-PDF-GLOSS-PLANES-VIEJOS · 2026-08-23] Con respaldo del
                             // catálogo: CERO de los 49 planes vivos traen `display_name_en`, así
                             // que sin esto la lista sale íntegra en español en los cuatro idiomas.
-                            display = glossShoppingItemName(display, item.item_ref?.display_name_en, _dashLocale, _glossIdx);
+                            display = glossShoppingItemName(
+                                display,
+                                item.item_ref?.display_name_en,
+                                _dashLocale,
+                                _glossIdx,
+                                formData?.country, item.item_ref?.display_gloss_es,
+                            );
                         }
 
                         // Color del chip alineado con la durabilidad real del item:

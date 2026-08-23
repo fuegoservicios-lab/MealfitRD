@@ -156,7 +156,8 @@ export const invalidateMasterListCache = () => {
 // Medido contra producción: 2.742 de 3.605 ítems (76 %) dependen de este respaldo.
 //
 // POR QUÉ NO SE PERSISTE EL CATÁLOGO ENTERO como hace el inventario: medido contra Neon,
-// son 567 KB (54 columnas × 347 filas). El gloss sólo necesita `name` + `name_en`: 17 KB.
+// son 567 KB (54 columnas × 347 filas). El gloss sólo necesita `name` + `name_en` +
+// el `gloss_es` disperso de regionalismos: sigue siendo una fracción del catálogo.
 // `localStorage` tiene cuota y la comparte toda la app, así que se persiste lo que se usa.
 //
 // Se PUBLICA desde `setCachedMasterList` —o sea, desde los cinco sitios que ya traen el
@@ -172,7 +173,12 @@ const _publicarIndiceDelGloss = (rows, ttlMs) => {
         for (const m of rows) {
             const es = m && typeof m.name === 'string' ? m.name : '';
             const en = m && typeof m.name_en === 'string' ? m.name_en.trim() : '';
-            if (es && en) pares.push([_sinAcentos(es), en]);
+            const glossEs = m && typeof m.gloss_es === 'string' ? m.gloss_es.trim() : '';
+            if (!es || (!en && !glossEs)) continue;
+            pares.push([
+                _sinAcentos(es),
+                glossEs ? { name_en: en, gloss_es: glossEs } : en,
+            ]);
         }
         if (!pares.length) return;
         safeLocalStorageSet(GLOSS_INDEX_LS_KEY, JSON.stringify({
@@ -183,7 +189,8 @@ const _publicarIndiceDelGloss = (rows, ttlMs) => {
 };
 
 /**
- * El índice `nombre-sin-acentos -> name_en`, como `Map`. Vacío si no hay nada cacheado o
+ * El índice `nombre-sin-acentos -> name_en | {name_en, gloss_es}`, como `Map`.
+ * La forma string v1 sigue aceptada. Vacío si no hay nada cacheado o
  * si caducó: el PDF sale en español, que es la conducta de antes, nunca un error.
  */
 export const getCachedGlossIndex = () => {
@@ -198,9 +205,12 @@ export const getCachedGlossIndex = () => {
             return idx;
         }
         for (const par of parsed.value) {
-            if (Array.isArray(par) && typeof par[0] === 'string' && typeof par[1] === 'string') {
-                idx.set(par[0], par[1]);
-            }
+            if (!Array.isArray(par) || typeof par[0] !== 'string') continue;
+            const value = par[1];
+            const validV1 = typeof value === 'string';
+            const validV2 = value && typeof value === 'object'
+                && (typeof value.name_en === 'string' || typeof value.gloss_es === 'string');
+            if (validV1 || validV2) idx.set(par[0], value);
         }
     } catch { /* JSON roto — fail-open */ }
     return idx;
