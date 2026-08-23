@@ -21,7 +21,7 @@
  *      «Français llegó a cargarse» son preguntas distintas.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const CATALOGO_FR = { 'Guardar': 'Enregistrer' };
 
@@ -34,7 +34,19 @@ describe('[P2-I18N-OBSERVABILIDAD-CERO]', () => {
     beforeEach(() => {
         vi.resetModules();
         localStorage.clear();
+        // [P1-I18N-ARRANQUE-EN-RAIZ-MATA-LA-AUTODETECCION · 2026-08-23] El caso de abajo
+        // afirma `de: 'es-DO'`, y eso exige que el arranque SEA es-DO. Desde que la
+        // autodetección funciona fuera del apex —y jsdom sirve `localhost/`— sin preferencia
+        // guardada manda `navigator.language`, que en jsdom es `en-US`.
+        // Se fija por LOCATION y no por `navigator`: los getters de `Navigator` en jsdom
+        // llevan brand check, asi que un objeto que delega por prototipo revienta en cuanto
+        // react-dom lee `userAgent`. La portada del apex es la superficie donde la deteccion
+        // esta suprimida por diseno, que es justo la premisa que este fichero necesita.
+        vi.stubGlobal('location', { pathname: '/', hostname: 'bioboros.com', protocol: 'https:',
+                                    href: 'https://bioboros.com/' });
     });
+
+    afterEach(() => vi.unstubAllGlobals());
 
     it('la etiqueta de idioma llega a Sentry al cambiar de idioma', async () => {
         vi.doMock('../i18n/locales/fr-FR.json', () => ({ default: CATALOGO_FR }));
@@ -108,8 +120,23 @@ describe('[P2-I18N-OBSERVABILIDAD-CERO]', () => {
         const { act } = await import('react');
         await act(async () => { getByTestId('cambiar').click(); });
 
+        // [P3-I18N-TEST-OBSERVABILIDAD-INTERMITENTE · 2026-08-23] Espera por CONDICIÓN, no
+        // aserción síncrona tras el `act`.
+        //
+        // `setLocale` es `async` y cruza un `import()` dinámico (`loadLocale` → `loader()`),
+        // y el `onClick` no espera esa cadena: nadie la awaita. Aseverar aquí mismo es una
+        // carrera —verde en máquina ociosa, roja en CI bajo carga— y así llevaba fallando en
+        // el CI del frontend mientras pasaba en local, incluida la suite completa. Su
+        // hermano `I18nProvider.p1_i18n_dashboard.test.jsx` ya llevaba escrita esta misma
+        // lección; este fichero no la heredó.
+        const { waitFor } = await import('@testing-library/react');
+        await waitFor(() => {
+            expect(
+                trackEvent.mock.calls.some((c) => c[0] === 'locale_changed'),
+                'no se emitió `locale_changed`',
+            ).toBe(true);
+        });
         const llamada = trackEvent.mock.calls.find((c) => c[0] === 'locale_changed');
-        expect(llamada, 'no se emitió `locale_changed`').toBeTruthy();
         expect(llamada[1]).toMatchObject({ de: 'es-DO', a: 'fr-FR', resultado: 'ok' });
     });
 
