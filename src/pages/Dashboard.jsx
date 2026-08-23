@@ -8984,7 +8984,11 @@ const DashboardInner = () => {
                                                         const currentlyLiked = !!likedMeals[meal.name];
                                                         toggleMealLike(meal.name, meal.meal);
                                                         if (!currentlyLiked) {
-                                                            toast.success(t('¡Anotado!'), { description: t('Aprenderemos que te gusta: {plato}', { plato: meal.name }), icon: '❤️' });
+                                                            // [P3-I18N-SEAM-NOMBRE-CANONICO-DOS-HERMANOS · 2026-08-23] Mismo criterio que el aviso
+                                                            // de «registrado» (l. ~1115): la tarjeta pinta el plato TRADUCIDO; el toast y el
+                                                            // nombre accesible del botón decían el canónico español. `meal.name` sigue siendo lo
+                                                            // que el motor resuelve (`likedMeals[meal.name]`); sólo cambia lo que se PINTA.
+                                                            toast.success(t('¡Anotado!'), { description: t('Aprenderemos que te gusta: {plato}', { plato: mealDisplayName(meal, _dashLocale) || meal.name }), icon: '❤️' });
                                                         } else {
                                                             toast(t('Like removido'));
                                                         }
@@ -9057,7 +9061,7 @@ const DashboardInner = () => {
                                                             transition: 'all 0.2s'
                                                         }}
                                                         title={t('Me lo comí — lo registra en tu diario y lo descuenta de tu Nevera')}
-                                                        aria-label={t('Registrar que te comiste {plato}', { plato: meal.name })}
+                                                        aria-label={t('Registrar que te comiste {plato}', { plato: mealDisplayName(meal, _dashLocale) || meal.name })}
                                                     >
                                                         {eatMealInFlight === index
                                                             ? <Loader2 size={18} className="animate-spin" color={isDark ? '#6EE7B7' : '#047857'} />
