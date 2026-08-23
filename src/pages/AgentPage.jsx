@@ -64,7 +64,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
-import { medirTecladoDeVentana } from '../utils/keyboardViewport';
+import { medirTecladoDeVentana, insetEstabilizado } from '../utils/keyboardViewport';
 import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
@@ -543,6 +543,11 @@ const AgentPage = () => {
     const [showNavMenu, setShowNavMenu] = useState(false);
     const navMenuRef = useRef(null);
     const inputWrapperRef = useRef(null);
+    // [P1-CHAT-KB-SCROLL-QUIETO · 2026-08-23] Estado de la histéresis del inset: qué se
+    // aplicó y si el teclado estaba abierto. En refs y no en estado de React porque los
+    // lee un handler de visualViewport que no debe provocar renders.
+    const insetAplicadoRef = useRef(null);
+    const tecladoAbiertoRef = useRef(false);
 
     // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
     // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
@@ -570,7 +575,7 @@ const AgentPage = () => {
         if (typeof window === 'undefined' || !window.visualViewport) return undefined;
         const vv = window.visualViewport;
 
-        const updateInputPosition = () => {
+        const updateInputPosition = (forzarMedicion = false) => {
             const wrapper = inputWrapperRef.current;
             if (!wrapper) return;
             // [P1-KB-VIEWPORT-MATH · 2026-08-23] DOS números, no uno. `kb` (alto real del
@@ -624,9 +629,21 @@ const AgentPage = () => {
             // display:none al navegar (P1-AGENT-KEEP-ALIVE): escribir una variable
             // global desde un componente invisible contaminaría el alto de las demás
             // rutas del dashboard.
+            // [P1-CHAT-KB-SCROLL-QUIETO · 2026-08-23] El inset pasa por la histéresis del
+            // SSOT: durante el scroll con teclado abierto iOS panea, `layoutInset` cambia
+            // en cada fotograma y la caja se despegaba del teclado y volvía. Ver
+            // `insetEstabilizado` para el porqué de no eliminar la compensación.
             const contenedor = wrapper.closest('.agent-container');
             if (contenedor) {
-                contenedor.style.setProperty('--kb-inset', abierto ? `${layoutInset}px` : '0px');
+                const objetivo = abierto ? layoutInset : 0;
+                const aplicado = insetEstabilizado(insetAplicadoRef.current, objetivo, {
+                    abierto,
+                    estabaAbierto: tecladoAbiertoRef.current,
+                    forzar: forzarMedicion,
+                });
+                insetAplicadoRef.current = aplicado;
+                tecladoAbiertoRef.current = abierto;
+                contenedor.style.setProperty('--kb-inset', `${aplicado}px`);
             }
             // [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23] Con teclado abierto la barra de pestañas
             // (fixed) la recoloca iOS justo encima del teclado y tapa la caja de escribir,
@@ -668,7 +685,7 @@ const AgentPage = () => {
         const alEvento = () => {
             updateInputPosition();
             if (asiento) clearTimeout(asiento);
-            asiento = setTimeout(() => { asiento = null; updateInputPosition(); }, 350);
+            asiento = setTimeout(() => { asiento = null; updateInputPosition(true); }, 350);
         };
 
         vv.addEventListener('resize', alEvento);
@@ -2781,29 +2798,52 @@ const AgentPage = () => {
                         minWidth: 0,
                         maxWidth: '100%'
                     }}>
-                        <input
-                            type="file"
-                            accept="image/png, image/jpeg, image/jpg, image/webp, image/heic"
-                            ref={fileInputRef}
-                            style={{ display: 'none' }}
-                            onChange={handleFileSelect}
-                        />
+                        {/* [P1-CHAT-PICKER-ANCLADO · 2026-08-23] El input va DENTRO de este
+                            contenedor y superpuesto al clip, no en `display: none`.
+                            Razón: iOS ancla el menú nativo («Fototeca / Tomar foto /
+                            Seleccionar archivo») al rectángulo del input que lo disparó.
+                            Un input sin caja no tiene rectángulo, así que el menú salía
+                            flotando a media pantalla, despegado del control que el
+                            usuario acababa de tocar (captura del dueño, 2026-08-23 5:50).
+                            `opacity: 0` y no `display: none` / `visibility: hidden`: las
+                            dos últimas también borran la caja. `pointer-events: none`
+                            para que el toque siga siendo del botón (el click al input lo
+                            dispara el onClick de abajo), y `aria-hidden` porque quien
+                            anuncia el control es el botón. */}
+                        <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+                            <input
+                                type="file"
+                                accept="image/png, image/jpeg, image/jpg, image/webp, image/heic"
+                                ref={fileInputRef}
+                                aria-hidden="true"
+                                tabIndex={-1}
+                                style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    opacity: 0,
+                                    pointerEvents: 'none',
+                                }}
+                                onChange={handleFileSelect}
+                            />
 
-                        <button
-                            type="button"
-                            aria-label={t('Adjuntar imagen')}
-                            className={`attachment-btn ${isTurnActive ? 'disabled' : ''}`}
-                            disabled={isTurnActive}
-                            onClick={() => {
-                                if (fileInputRef.current) {
-                                    fileInputRef.current.value = '';
-                                    fileInputRef.current.click();
-                                }
-                            }}
-                            title={t('Adjuntar imagen')}
-                        >
-                            <Paperclip size={20} strokeWidth={2} />
-                        </button>
+                            <button
+                                type="button"
+                                aria-label={t('Adjuntar imagen')}
+                                className={`attachment-btn ${isTurnActive ? 'disabled' : ''}`}
+                                disabled={isTurnActive}
+                                onClick={() => {
+                                    if (fileInputRef.current) {
+                                        fileInputRef.current.value = '';
+                                        fileInputRef.current.click();
+                                    }
+                                }}
+                                title={t('Adjuntar imagen')}
+                            >
+                                <Paperclip size={20} strokeWidth={2} />
+                            </button>
+                        </span>
 
                         {/* Convertido de <input type="text"> a <textarea> para
                             que iOS Safari NO active el "Form Assistant" (la barra
@@ -3843,7 +3883,11 @@ const AgentPage = () => {
                            indicador de inicio (~34px). No recalibres esta reserva contra el
                            número de Safari. Con teclado abierto no se suma: ver la regla
                            html[data-kb-open] .input-wrapper de abajo. */
-                        padding: 0.8rem 1.25rem calc(0.8rem + 64px + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
+                        /* [P1-CHAT-AIRE-INFERIOR · 2026-08-23] El aire propio de la caja
+                           pasa de 0.8rem a 1.4rem: los 64px de la reserva son la barra de
+                           pestañas, no aire — la caja quedaba pegada a su borde superior
+                           (captura del dueño, 2026-08-23 5:50). */
+                        padding: 0.8rem 1.25rem calc(1.4rem + 64px + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
                         background: var(--bg-card) !important;
                         backdrop-filter: blur(20px) !important;
                         -webkit-backdrop-filter: blur(20px) !important;
@@ -3860,7 +3904,9 @@ const AgentPage = () => {
                        (blur, borde, sombra, radio): el composer perdía su acabado con el
                        teclado CERRADO, que es el 99% del tiempo. Aqui va SOLO el relleno. */
                     html[data-kb-open] .input-wrapper {
-                        padding-bottom: 0.8rem !important;
+                        /* [P1-CHAT-AIRE-INFERIOR · 2026-08-23] 0.8rem → 1.1rem: con el
+                           teclado abierto la caja quedaba lamiendo su borde superior. */
+                        padding-bottom: 1.1rem !important;
                     }
                     /* --- Welcome screen --- */
                     .welcome-heading {

@@ -110,3 +110,41 @@ export function medirTecladoDeVentana(win = typeof window !== 'undefined' ? wind
     const yaEncogido = Math.max(0, altoDeReferencia(win.innerHeight, win.innerWidth) - (Number(win.innerHeight) || 0));
     return { ...m, layoutInset: Math.max(0, m.layoutInset - yaEncogido) };
 }
+
+/**
+ * [P1-CHAT-KB-SCROLL-QUIETO · 2026-08-23] Cuánto ruido de paneo se ignora antes de
+ * mover la caja de escribir. Por debajo de esto, el inset se queda como estaba.
+ */
+export const KB_INSET_HISTERESIS_PX = 24;
+
+/**
+ * ¿Se aplica este inset nuevo, o se conserva el anterior?
+ *
+ * EL DEFECTO QUE CIERRA: con el teclado abierto, iOS emite `scroll` del visual
+ * viewport mientras el usuario desplaza la conversación, y en cada uno cambia
+ * `offsetTop` (el paneo). Como `layoutInset = kb − paneo`, el alto del contenedor
+ * cambiaba en cada fotograma del scroll y la caja de escribir se despegaba del
+ * teclado y volvía — «cuando scrolleo el teclado no se queda pegado».
+ *
+ * La compensación por paneo es CORRECTA en reposo (el paneo sube el layout viewport
+ * entero, y encoger de menos lo devuelve a su sitio), así que no se elimina: se
+ * ignoran los cambios pequeños durante el gesto. Los grandes —abrir o cerrar el
+ * teclado, girar el teléfono— siempre pasan, igual que cualquier cambio de estado
+ * abierto↔cerrado. El asiento de 350 ms del llamador aplica el valor definitivo
+ * cuando el usuario suelta, así que ignorar aquí nunca deja una medida rancia.
+ *
+ * @param {number|null} anterior inset aplicado ahora mismo (null = primera medición)
+ * @param {number} nuevo inset recién medido
+ * @param {{abierto:boolean, estabaAbierto:boolean, forzar?:boolean}} ctx
+ * @returns {number} el inset que debe aplicarse
+ */
+export function insetEstabilizado(anterior, nuevo, { abierto, estabaAbierto, forzar = false } = {}) {
+    const n = Math.max(0, Math.round(Number(nuevo) || 0));
+    if (forzar || anterior === null || anterior === undefined) return n;
+    // Un cambio de estado del teclado no es ruido: es EL evento.
+    if (Boolean(abierto) !== Boolean(estabaAbierto)) return n;
+    // Con el teclado cerrado no hay nada que estabilizar (el inset es 0).
+    if (!abierto) return n;
+    const a = Math.max(0, Math.round(Number(anterior) || 0));
+    return Math.abs(n - a) >= KB_INSET_HISTERESIS_PX ? n : a;
+}

@@ -78,7 +78,9 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         const i = src.indexOf('let asiento = null;');
         expect(i, 'falta el asiento: sin el, una medicion rancia se queda para siempre').toBeGreaterThan(0);
         const bloque = src.slice(i, i + 700);
-        expect(bloque).toMatch(/setTimeout\(\(\) => \{ asiento = null; updateInputPosition\(\); \}, 350\)/);
+        // [P1-CHAT-KB-SCROLL-QUIETO · 2026-08-23] El asiento pasa `true`: es la medición
+        // DEFINITIVA tras el silencio y tiene que saltarse la histéresis del inset.
+        expect(bloque).toMatch(/setTimeout\(\(\) => \{ asiento = null; updateInputPosition\(true\); \}, 350\)/);
         expect(bloque, 'el asiento anterior se cancela: si no, se acumulan timers por evento')
             .toMatch(/if \(asiento\) clearTimeout\(asiento\)/);
         // y se limpia al desmontar
@@ -105,6 +107,9 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
 
     it('la caja de escribir del chat deja de reservar los 64 px con el teclado abierto', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/html\[data-kb-open\] \.input-wrapper\s*\{[^}]*padding-bottom:\s*0\.8rem !important/);
+        // El valor exacto lo gobierna P1-CHAT-AIRE-INFERIOR (y su test lo acota por
+        // abajo); aquí lo que importa es que bajo `data-kb-open` la caja SUELTE los 64 px.
+        const regla = src.slice(src.indexOf('html[data-kb-open] .input-wrapper {'));
+        expect(regla.slice(0, regla.indexOf('}'))).toMatch(/padding-bottom:\s*[\d.]+rem !important/);
     });
 });
