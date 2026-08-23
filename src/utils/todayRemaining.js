@@ -6,7 +6,7 @@
 // funciones: se resuelven al renderizar, no al importar, así que leen el catálogo activo.
 // Un `t()` evaluado en ámbito de módulo se congelaría en el idioma de arranque — y en
 // es-DO parecería correcto, que es lo que hace esa trampa tan difícil de ver.
-import { formatNumber, t, tn } from '../i18n';
+import { formatNumber, getLocale, t, tn } from '../i18n';
 /**
  * [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
  * diario en cada render, NUNCA persistido en `plan_data` (invariante I6,
@@ -183,12 +183,24 @@ export function sumPlannedRemainingCalories(dayMeals, eatenIndices) {
   return total;
 }
 
-/** Junta nombres al estilo es-DO: "A", "A y B", "A, B y C". */
+/** Junta nombres en una lista legible: "A", "A y B", "A, B y C" — en el idioma activo.
+ *
+ * [P1-I18N-EATEN-CLAIM-FRASE-FABRICADA · 2026-08-23] La conjunción es IDIOMA («and»,
+ * «et», «e»), y esta función la fabricaba clavada en español. `Intl.ListFormat` es el
+ * mismo criterio que el repo ya aplica a calendario y moneda: cuando el dato es convención
+ * del idioma, `Intl` gana a un catálogo que alguien tiene que mantener. El nombre se
+ * conserva (tres llamadores y un test) porque el contrato —una lista legible— no cambió;
+ * lo que cambió es que ya no es sólo es-DO. En es-DO el resultado es byte-idéntico.
+ */
 export function joinNamesEsDo(names) {
   const clean = (Array.isArray(names) ? names : []).filter(Boolean);
   if (clean.length === 0) return '';
   if (clean.length === 1) return clean[0];
-  return `${clean.slice(0, -1).join(', ')} y ${clean[clean.length - 1]}`;
+  try {
+    return new Intl.ListFormat(getLocale(), { style: 'long', type: 'conjunction' }).format(clean);
+  } catch {
+    return `${clean.slice(0, -1).join(', ')} y ${clean[clean.length - 1]}`;
+  }
 }
 
 /**
@@ -236,16 +248,36 @@ export function eatenChipLabel(slotMealType) {
  *  - 'none' — la frase sola, sin CTA.
  */
 export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unlock') {
-  const slotNoun = canonicalSlotKey(slotMealType) || 'comida';
+  // [P1-I18N-EATEN-CLAIM-FRASE-FABRICADA · 2026-08-23] Esta frase se CONCATENABA en
+  // español: era el único motivo por el que un control está bloqueado, y salía en
+  // español en los cinco idiomas. Su hermana `eatenChipLabel`, 26 líneas más arriba, sí se
+  // tradujo el 22-ago — media parte del espejo. Tres cosas van por `t()` ahora, y las tres
+  // son distintas:
+  //   · el SLOT se traduce para PINTAR (misma tabla que el chip); `canonicalSlotKey` sigue
+  //     devolviendo la clave canónica a quien EMPAREJA diario con plan;
+  //   · la SECCIÓN a la que remite («Progreso en Tiempo Real») se nombra por la MISMA
+  //     clave que su cabecera, así que el toast dice lo que pone en la pantalla;
+  //   · el NOMBRE del plato viaja intacto: es identificador, no copy.
+  const _slots = {
+    desayuno: t('desayuno'),
+    almuerzo: t('almuerzo'),
+    cena: t('cena'),
+    merienda: t('merienda'),
+  };
+  const _clave = canonicalSlotKey(slotMealType);
+  const slotNoun = (_clave && _slots[_clave]) || t('comida');
   const names = eatenNamesForSlot(consumedTodayMeals, slotMealType);
   const kcal = Math.round(eatenKcalForSlot(consumedTodayMeals, slotMealType));
-  const namesLabel = names.length > 0 ? `«${joinNamesEsDo(names)}»` : 'algo';
+  const namesLabel = names.length > 0 ? `«${joinNamesEsDo(names)}»` : t('algo');
   const kcalPart = kcal > 0 ? ` (~${kcal} kcal)` : '';
-  const base = `Registraste ${namesLabel}${kcalPart} como tu ${slotNoun} de hoy.`;
+  const base = t('Registraste {platos}{kcal} como tu {slot} de hoy.', {
+    platos: namesLabel, kcal: kcalPart, slot: slotNoun,
+  });
   if (cta === 'none') return base;
+  const seccion = t('Progreso en Tiempo Real');
   const suffix = cta === 'info'
-    ? ' Corrígelo en «Progreso en Tiempo Real» si no es lo que comiste.'
-    : ' Bórralo en «Progreso en Tiempo Real» para desbloquear.';
+    ? ' ' + t('Corrígelo en «{seccion}» si no es lo que comiste.', { seccion })
+    : ' ' + t('Bórralo en «{seccion}» para desbloquear.', { seccion });
   return `${base}${suffix}`;
 }
 
