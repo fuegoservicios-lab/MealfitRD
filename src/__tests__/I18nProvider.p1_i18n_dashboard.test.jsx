@@ -13,7 +13,7 @@
  * valor por defecto que ya trae `t`), y conviene que esté anclada.
  */
 import React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, act, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider, useT, useI18n, loadLocale } from '../i18n';
@@ -43,10 +43,28 @@ function ConSelector() {
     );
 }
 
+// [P1-I18N-ARRANQUE-EN-RAIZ-MATA-LA-AUTODETECCION · 2026-08-23] Estos tests dicen «arranca
+// en el idioma BASE», y eso sólo es cierto si el dispositivo está en español: desde que la
+// autodetección funciona fuera del apex —y jsdom sirve `localhost/`, que NO es el apex— sin
+// preferencia guardada manda `navigator.language`, que en jsdom es `en-US`.
+//
+// Su verde anterior dependía del defecto: `/` estaba en la lista de rutas de marketing, así
+// que la detección se suprimía en TODAS partes y el arranque caía siempre a es-DO. Se fija
+// la premisa en vez de relajar la aserción — lo que este fichero prueba es el Provider, no
+// la detección, que tiene su propio guard.
+beforeEach(() => {
+    // Por LOCATION y no por `navigator`: los getters de `Navigator` en jsdom llevan brand
+    // check y un objeto que delega por prototipo revienta cuando react-dom lee `userAgent`.
+    // La portada del apex es donde la deteccion esta suprimida por diseno.
+    vi.stubGlobal('location', { pathname: '/', hostname: 'bioboros.com', protocol: 'https:',
+                                href: 'https://bioboros.com/' });
+});
+
 afterEach(async () => {
     cleanup();
     await act(async () => { await loadLocale(DEFAULT_LOCALE); });
     try { localStorage.removeItem('mealfit_locale'); } catch { /* jsdom */ }
+    vi.unstubAllGlobals();
 });
 
 describe('[P1-I18N-DASHBOARD] I18nProvider', () => {

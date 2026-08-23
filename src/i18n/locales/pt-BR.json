@@ -1464,7 +1464,7 @@
   "Notificaciones omitidas": "Notificações ignoradas",
   "Notificaciones, {n} sin leer": "Notificações, {n} não lidas",
   "Novedades": "Novidades",
-  "Nueces": "Nozes",
+  "Nueces": "Castanhas e nozes",
   "Nuestro motor aplica reglas clínicas verificadas solo para las condiciones y medicamentos de esta lista. Fuera de ellas no podemos garantizar que el plan sea adecuado para ti, y preferimos decírtelo antes que entregarte algo que parezca calculado y no lo esté.": "Nosso motor aplica regras clínicas verificadas apenas para as condições e medicamentos desta lista. Fora dela não podemos garantir que o plano seja adequado para você, e preferimos te avisar em vez de entregar algo que pareça calculado sem estar.",
   "Nuestro servidor tuvo un problema. Inténtalo de nuevo en un momento.": "Nosso servidor teve um problema. Tente de novo em instantes.",
   "Nueva Contraseña": "Nova Senha",
@@ -2834,5 +2834,7 @@
   "¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, la Nevera, las recetas, tu cuenta…": "Olá! Sou o assistente do Bioboros. Pergunte o que quiser sobre o app: como funciona, a Geladeira, as receitas, sua conta…",
   "¿Cómo cambio un plato del día?": "Como troco um prato do dia?",
   "No hay Service Worker registrado en este navegador.": "Nenhum Service Worker registrado neste navegador.",
-  "El servidor rechazó la suscripción (error {codigo}).": "O servidor recusou a inscrição (erro {codigo})."
+  "El servidor rechazó la suscripción (error {codigo}).": "O servidor recusou a inscrição (erro {codigo}).",
+  "💊 MEDICAMENTOS + ALIMENTACIÓN: declaraste medicamento(s) con interacción dietética conocida (": "💊 MEDICAMENTOS + ALIMENTAÇÃO: você declarou medicamento(s) com interação alimentar conhecida (",
+  "). Este plan da pautas generales; el ajuste fino (dosis, timing, INR/potasio) lo define tu médico o farmacéutico. Consúltalo antes de cambios.": "). Este plano dá orientações gerais; o ajuste fino (dose, horário, INR/potássio) é definido pelo seu médico ou farmacêutico. Consulte antes de fazer mudanças."
 }

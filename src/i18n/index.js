@@ -54,6 +54,9 @@ import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from
 // [P1-AUTO-LOCALE] SSOT de que rutas son marketing. Se reusa en vez de listar aqui
 // una segunda vez las rutas del landing: dos listas del mismo hecho drifean.
 import { isPaperSurface } from '../utils/paperSurface';
+// [P1-I18N-ARRANQUE-EN-RAIZ-MATA-LA-AUTODETECCION · 2026-08-23] El otro medio predicado:
+// `/` sólo es marketing en el APEX. Ver `_autoLocaleParaLaSuperficieActual`.
+import { isApexHost } from '../config/site';
 // [P2-I18N-OBSERVABILIDAD-CERO · 2026-08-21] La FACHADA, no `@sentry/react`. No
 // importa nada —es un módulo sin dependencias, encola hasta que el SDK arranca— así
 // que no mete un byte de Sentry en el entry, que es lo que prohíbe la regla del
@@ -131,8 +134,32 @@ function _autoLocaleParaLaSuperficieActual() {
     if (String(import.meta.env.VITE_AUTO_LOCALE ?? '').toLowerCase() === 'off') {
         return DEFAULT_LOCALE;
     }
+    // [P1-I18N-ARRANQUE-EN-RAIZ-MATA-LA-AUTODETECCION · 2026-08-23] El corte es por HOST
+    // **y** ruta, no por ruta sola.
+    //
+    // `isPaperSurface` clasifica por RUTA y `/` está en su lista, porque en el apex `/` es
+    // la portada. Pero `/` no es la portada en los otros dos sitios donde vive el producto:
+    // en `app.bioboros.com` y en la app nativa es un `<Navigate to="/dashboard">` del
+    // cliente. Y como el idioma se decide UNA sola vez con el pathname de entrada
+    // (`getStoredLocale()` alimenta el `useState` inicial, `initLocale()` corre con deps
+    // `[]`), esa decisión gobierna la sesión entera.
+    //
+    // Quién entra por `/`: la app de iOS SIEMPRE (`capacitor://localhost/`), la PWA
+    // instalada (`start_url`) y quien teclea el dominio. MEDIDO ejecutando el boot real con
+    // el navegador en fr-FR: `/dashboard` -> fr-FR, `/` -> null y `<html lang>` en es-DO.
+    // O sea que un francés recorría splash, login, registro y formulario enteros en español,
+    // sin selector al que llegar (vive en Configuración, y eso exige cuenta).
+    //
+    // La razón de cortar por host ya estaba escrita en el repo, para el replay de Sentry:
+    // «El corte es por HOST y no por ruta a propósito. La superficie papel incluye rutas
+    // como /precios, que existen TAMBIÉN en app.bioboros.com… El host no cambia a mitad de
+    // sesión; la ruta sí» (`observabilityScope.js`). Es la misma distinción.
+    //
+    // NO se toca `isPaperSurface`: gobierna el TEMA y tiene su propio test de espejo.
     try {
-        if (typeof window !== 'undefined' && isPaperSurface(window.location.pathname)) {
+        if (typeof window !== 'undefined'
+            && isApexHost(window.location.hostname)
+            && isPaperSurface(window.location.pathname)) {
             return DEFAULT_LOCALE;
         }
     } catch {

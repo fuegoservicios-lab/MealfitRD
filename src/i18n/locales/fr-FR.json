@@ -1464,7 +1464,7 @@
   "Notificaciones omitidas": "Notifications ignorées",
   "Notificaciones, {n} sin leer": "Notifications, {n} non lues",
   "Novedades": "Nouveautés",
-  "Nueces": "Noix",
+  "Nueces": "Fruits à coque",
   "Nuestro motor aplica reglas clínicas verificadas solo para las condiciones y medicamentos de esta lista. Fuera de ellas no podemos garantizar que el plan sea adecuado para ti, y preferimos decírtelo antes que entregarte algo que parezca calculado y no lo esté.": "Notre moteur applique des règles cliniques vérifiées uniquement pour les pathologies et les médicaments de cette liste. Au-delà, nous ne pouvons pas garantir que le plan vous convienne, et nous préférons vous le dire plutôt que de vous livrer quelque chose qui a l'air calculé sans l'être.",
   "Nuestro servidor tuvo un problema. Inténtalo de nuevo en un momento.": "Notre serveur a rencontré un problème. Réessayez dans un instant.",
   "Nueva Contraseña": "Nouveau mot de passe",
@@ -2834,5 +2834,7 @@
   "¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, la Nevera, las recetas, tu cuenta…": "Bonjour ! Je suis l'assistant Bioboros. Demandez-moi ce que vous voulez sur l'appli : son fonctionnement, le Frigo, les recettes, votre compte…",
   "¿Cómo cambio un plato del día?": "Comment changer un plat du jour ?",
   "No hay Service Worker registrado en este navegador.": "Aucun Service Worker n'est enregistré dans ce navigateur.",
-  "El servidor rechazó la suscripción (error {codigo}).": "Le serveur a refusé l'abonnement (erreur {codigo})."
+  "El servidor rechazó la suscripción (error {codigo}).": "Le serveur a refusé l'abonnement (erreur {codigo}).",
+  "💊 MEDICAMENTOS + ALIMENTACIÓN: declaraste medicamento(s) con interacción dietética conocida (": "💊 MÉDICAMENTS + ALIMENTATION : vous avez déclaré des médicaments avec interaction alimentaire connue (",
+  "). Este plan da pautas generales; el ajuste fino (dosis, timing, INR/potasio) lo define tu médico o farmacéutico. Consúltalo antes de cambios.": "). Ce plan donne des repères généraux ; l'ajustement fin (dose, horaire, INR/potassium) est défini par votre médecin ou pharmacien. Consultez-le avant tout changement."
 }

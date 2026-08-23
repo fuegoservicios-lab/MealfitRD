@@ -2834,5 +2834,7 @@
   "¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, la Nevera, las recetas, tu cuenta…": "Hi! I'm the Bioboros assistant. Ask me anything about the app: how it works, the Fridge, recipes, your account…",
   "¿Cómo cambio un plato del día?": "How do I swap a dish of the day?",
   "No hay Service Worker registrado en este navegador.": "No Service Worker is registered in this browser.",
-  "El servidor rechazó la suscripción (error {codigo}).": "The server rejected the subscription (error {codigo})."
+  "El servidor rechazó la suscripción (error {codigo}).": "The server rejected the subscription (error {codigo}).",
+  "💊 MEDICAMENTOS + ALIMENTACIÓN: declaraste medicamento(s) con interacción dietética conocida (": "💊 MEDICATIONS + DIET: you declared medication(s) with known dietary interactions (",
+  "). Este plan da pautas generales; el ajuste fino (dosis, timing, INR/potasio) lo define tu médico o farmacéutico. Consúltalo antes de cambios.": "). This plan gives general guidance; the fine-tuning (dose, timing, INR/potassium) is set by your doctor or pharmacist. Check with them before making changes."
 }

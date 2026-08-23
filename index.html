@@ -79,8 +79,21 @@
         // `src/utils/paperSurface.js`, anclada por test -- igual que SUPPORTED.
         if (!elegido && !AUTO_LOCALE_OFF) {
           var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about', '/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure'];
-          var enMarketing = PAPER.indexOf(location.pathname) !== -1
-            || location.pathname.indexOf('/novedades/') === 0;
+          // [P1-I18N-ARRANQUE-EN-RAIZ-MATA-LA-AUTODETECCION - 2026-08-23] Marketing es
+          // ruta Y HOST. `/` esta en PAPER porque en el apex es la portada, pero `/` es
+          // TAMBIEN la raiz de app.bioboros.com, el `start_url` de la PWA instalada y la
+          // unica URL con la que arranca la app nativa (`capacitor://localhost/`). Sin la
+          // condicion de host, esos tres nunca preguntaban por el idioma del dispositivo y
+          // `<html lang>` se quedaba en es-DO: el splash, el login y el formulario enteros
+          // en espanol para un frances, sin selector al que llegar.
+          //
+          // Espejo de `_autoLocaleParaLaSuperficieActual` en `src/i18n/index.js`. Los dos
+          // tienen que decidir IGUAL o `<html lang>` y la app discrepan, que es peor que
+          // cualquiera de los dos estados coherentes.
+          var h = String(location.hostname || '').toLowerCase();
+          var enApex = (h === 'bioboros.com' || h === 'www.bioboros.com');
+          var enMarketing = enApex && (PAPER.indexOf(location.pathname) !== -1
+            || location.pathname.indexOf('/novedades/') === 0);
           if (!enMarketing) {
             // `navigator.languages` (lista ORDENADA de preferencias) antes que
             // `navigator.language`: quien tiene el sistema en ingles pero prefiere
