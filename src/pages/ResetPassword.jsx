@@ -6,7 +6,7 @@ import { checkLeakedPassword } from '../utils/checkLeakedPassword';
 import { humanizeAuthError } from '../utils/authErrors';
 import styles from './Auth.module.css';
 import Wordmark from '../components/common/Wordmark';
-import { useI18n } from '../i18n';
+import { formatNumber, useI18n } from '../i18n';
 
 // [P1-RESET-PASSWORD-FIX · 2026-06-18] El flujo "crear nueva contraseña" estaba ROTO:
 // llamaba authClient.auth.updateUser({password}), y el adapter de Neon Auth lo RECHAZA
@@ -83,7 +83,7 @@ const ResetPassword = () => {
         const leak = await checkLeakedPassword(password);
         if (leak.leaked && leak.mode === 'block') {
             setError(
-                t('Esta contraseña aparece en {cantidad} filtraciones públicas conocidas. Por favor elige una más segura.', { cantidad: leak.count.toLocaleString() })
+                t('Esta contraseña aparece en {cantidad} filtraciones públicas conocidas. Por favor elige una más segura.', { cantidad: formatNumber(leak.count) })
             );
             setLoading(false);
             return;

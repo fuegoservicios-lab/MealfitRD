@@ -553,7 +553,27 @@ const enAlcance = new Set(ficherosEnAlcance);
 // La excepción es `SupermarketPage.jsx`: la página del supermercado es superficie
 // SÓLO-ESPAÑOL por decisión de alcance (el landing no se traduce), así que ahí un `es-DO`
 // fijo es correcto y no una omisión. Se nombra el fichero, no se relaja la regla.
-const LOCALE_CLAVADO = /(?:toLocale(?:Date|Time)?String|Intl\.(?:NumberFormat|DateTimeFormat|RelativeTimeFormat|ListFormat|DisplayNames))\(\s*['"][a-z]{2}-[A-Z]{2}['"]/;
+// [P2-I18N-GATE-FORMATO-CIEGO-A-CUATRO-FORMAS · 2026-08-23] La regla sólo cazaba el literal
+// `'xx-XX'`, y MEDIDO hoy sobre `src/` eso da CERO. Las formas que sí había vivas:
+//   · sin argumento — `n.toLocaleString()` formatea con el idioma del NAVEGADOR, no el de la
+//     app (1 viva: ResetPassword, una cifra de filtraciones);
+//   · dos letras — `'es'` (0 hoy, pero es la forma más fácil de escribir);
+//   · `localeCompare` sin locale — ordena con el navegador (7 vivas: Nevera ×4, lista del
+//     PDF ×1, y 2 que NO son para pintar: comparan inventarios serializados).
+// La forma «por variable» (`Intl.NumberFormat(_locale, …)`) NO se prohíbe: es el motor
+// mismo, en `src/i18n/index.js`, y es donde tiene que estar.
+//
+// El `localeCompare` se prohíbe SÓLO en código que pinta. Los dos de `useRegeneratePlan`
+// ordenan para COMPARAR dos snapshots, y ésos deben ser estables y no seguir al idioma:
+// migrarlos a `compareText` sería un error. Se reconocen por la PROPIEDAD (el resultado
+// entra en un `JSON.stringify(`, no en una lista), no por el nombre del fichero.
+const LOCALE_CLAVADO = /(?:toLocale(?:Date|Time)?String|Intl\.(?:NumberFormat|DateTimeFormat|RelativeTimeFormat|ListFormat|DisplayNames))\(\s*['"][a-z]{2}(?:-[A-Z]{2})?['"]/;
+const LOCALE_DEL_NAVEGADOR = /\.toLocale(?:Date|Time)?String\(\s*\)/;
+// Sin locale (navegador) O con locale CLAVADO (`'es'`, `'es-DO'`): las dos esquivan el
+// idioma activo. La segunda es justo lo que P3-I18N-ORDEN-NOMBRES-ES-CLAVADO quitó ayer y
+// mi primera versión de esta regla no veía — lo cazó la mutación M2.
+const ORDEN_DEL_NAVEGADOR = /\blocaleCompare\(\s*[A-Za-z_$][\w$.]*\s*(?:\)|,\s*['"][a-z]{2}(?:-[A-Z]{2})?['"])/;
+const ORDEN_PARA_COMPARAR = /JSON\.stringify\(/;   // no se pinta: debe ser estable
 const FORMATO_EXENTO = new Set([
     // Superficie sólo-español por alcance: el landing no se traduce.
     //
@@ -574,6 +594,11 @@ for (const [rel, src] of contenidos) {
             || limpia.startsWith('{/*')) return;
         if (LOCALE_CLAVADO.test(linea)) {
             formatosClavados.push(`${rel}:${i + 1}: ${limpia.slice(0, 100)}`);
+        } else if (LOCALE_DEL_NAVEGADOR.test(linea)) {
+            formatosClavados.push(`${rel}:${i + 1}: [locale del NAVEGADOR] ${limpia.slice(0, 90)}`);
+        } else if (ORDEN_DEL_NAVEGADOR.test(linea) && !ORDEN_PARA_COMPARAR.test(linea)
+                   && !rel.replace(/\\/g, '/').startsWith('i18n/')) {
+            formatosClavados.push(`${rel}:${i + 1}: [orden del NAVEGADOR] usa compareText — ${limpia.slice(0, 80)}`);
         }
     });
 }

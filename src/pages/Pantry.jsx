@@ -14,7 +14,7 @@ import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. El hook es lo que suscribe el
 // componente al cambio de catálogo; las tablas de copy de abajo son FUNCIONES por
 // eso mismo (una constante con `t()` se congelaría en español al importar).
-import { formatNumber, t, useT, useTn } from '../i18n';
+import { compareText, formatNumber, t, useT, useTn } from '../i18n';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
@@ -1811,7 +1811,7 @@ const Pantry = () => {
             if (error?.status !== 404) {
                 console.error("Error deleting:", error);
                 // Revertir en la UI si falla
-                setInventory(prev => [...prev, deletedItem].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
+                setInventory(prev => [...prev, deletedItem].sort((a,b) => compareText(a.ingredient_name, b.ingredient_name)));
                 toast.error(t('Error al eliminar {alimento}', { alimento: deletedItem.ingredient_name }));
                 return;
             }
@@ -1853,7 +1853,7 @@ const Pantry = () => {
                         // Insertar nueva data devuelta por DB
                         setInventory(prev =>
                             [...prev.filter(i => i.id !== oldId), data].sort((a, b) =>
-                                a.ingredient_name.localeCompare(b.ingredient_name)
+                                compareText(a.ingredient_name, b.ingredient_name)
                             )
                         );
                         // Salió del estado "agotado" porque el usuario lo recuperó.
@@ -2041,7 +2041,7 @@ const Pantry = () => {
             toast.success(t('{cantidad} {unidad} de {alimento} en la nevera', {
                 cantidad: safeQty, unidad: finalUnit, alimento: masterItem.name,
             }));
-            setInventory(prev => [...prev, data].sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name)));
+            setInventory(prev => [...prev, data].sort((a,b) => compareText(a.ingredient_name, b.ingredient_name)));
             _recordRecentAdd(masterItem, finalUnit);
             setShowAddMenu(false);
             setAddItemSearch('');
@@ -2144,7 +2144,7 @@ const Pantry = () => {
             }
             if (!data) throw new Error('INSERT sin item en la respuesta.');
             setInventory(prev => [...prev.filter(i => i.id !== data.id), data].sort((a, b) =>
-                a.ingredient_name.localeCompare(b.ingredient_name)
+                compareText(a.ingredient_name, b.ingredient_name)
             ));
             _removeDepleted(entry);
             toast.success(t('{alimento} repuesto ({cantidad} {unidad})', {

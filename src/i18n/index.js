@@ -438,6 +438,37 @@ export function formatCurrency(value, code = 'USD') {
     }
 }
 
+/**
+ * [P3-I18N-ORDEN-ALFABETICO-SIGUE-AL-NAVEGADOR · 2026-08-23] Comparador de texto con el
+ * idioma ACTIVO, para ordenar lo que el usuario VE.
+ *
+ * `a.localeCompare(b)` sin locale ordena con el idioma del NAVEGADOR, no el de la app. Con
+ * la app en francés sobre un navegador en español, la Nevera y la lista se ordenaban por
+ * reglas españolas; y al revés, con «Ñame» el orden sí cambia. Son siete llamadas sueltas
+ * medidas en `src/`, y dos de ellas NO son para pintar (comparan inventarios serializados
+ * en `useRegeneratePlan`): ésas deben ser estables y NO seguir al idioma — por eso este
+ * helper no sustituye a `localeCompare` en general, sólo donde el orden se muestra.
+ *
+ * `Intl.Collator` y no `localeCompare(b, _locale)` en cada sitio: el collator se construye
+ * una vez por locale y `localeCompare` con locale lo construye en cada comparación — en
+ * una lista de 300 ítems son 300·log(300) construcciones por render.
+ */
+let _collator = null;
+let _collatorLocale = null;
+export function compareText(a, b) {
+    if (_collatorLocale !== _locale || !_collator) {
+        try {
+            _collator = new Intl.Collator(_locale, { sensitivity: 'base', numeric: true });
+        } catch {
+            _collator = null;
+        }
+        _collatorLocale = _locale;
+    }
+    const sa = String(a ?? '');
+    const sb = String(b ?? '');
+    return _collator ? _collator.compare(sa, sb) : sa.localeCompare(sb);
+}
+
 export function formatNumber(value, options) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '';
