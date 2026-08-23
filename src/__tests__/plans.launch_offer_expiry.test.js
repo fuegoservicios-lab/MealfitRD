@@ -19,32 +19,48 @@ import { isLaunchOfferActive, LAUNCH_OFFER } from '../config/plans';
 /** Un instante concreto expresado en hora de RD (UTC−4). */
 const enRD = (iso) => new Date(`${iso}-04:00`);
 
+// [P2-I18N-CI-HERMANOS-ROJO-PERMANENTE · 2026-08-22] El huso se INYECTA también aquí.
+//
+// Estos casos construyen el instante en hora de RD, pero `isLaunchOfferActive` sigue —desde
+// `P3-LAUNCH-OFFER-LOCAL-DAY`— el día LOCAL DEL USUARIO, y sin segundo argumento lo lee del
+// reloj del PROCESO. O sea que «23:59 del último día en RD» sólo daba `true` en una máquina
+// puesta en RD: en un runner en UTC ese instante ya es el día 16 y la oferta está vencida.
+//
+// El CI del repo hermano llevaba en rojo por exactamente esto (medido con `gh run view`, no
+// deducido). La mitad de abajo de este mismo fichero ya inyecta el huso y su comentario dice
+// la lección entera: «un caso cuyo resultado depende de dónde corra no es una defensa, es un
+// intermitente». La mitad de arriba es anterior y nunca la aprendió.
+//
+// No se pone `TZ` global en la config de vitest: eso cambiaría el huso de las 294 suites
+// para arreglar una, y el resto empezaría a mentir en la dirección contraria.
+const RD_OFFSET = 240; // UTC−4, convención `getTimezoneOffset` (POSITIVO = oeste)
+
 describe('[P2-LANDING-COPY-TRUTH] caducidad de la oferta de lanzamiento', () => {
     it('sigue viva bien dentro del plazo', () => {
-        expect(isLaunchOfferActive(enRD('2026-08-14T10:00:00'))).toBe(true);
+        expect(isLaunchOfferActive(enRD('2026-08-14T10:00:00'), RD_OFFSET)).toBe(true);
     });
 
     it('sigue viva la MAÑANA del último día', () => {
-        expect(isLaunchOfferActive(enRD('2026-09-15T09:00:00'))).toBe(true);
+        expect(isLaunchOfferActive(enRD('2026-09-15T09:00:00'), RD_OFFSET)).toBe(true);
     });
 
     it('sigue viva a las 20:01 del día ANTERIOR — el caso que mata a UTC', () => {
         // Justo después de la medianoche UTC del día 15. Una comparación contra
         // `Date.parse('2026-09-15')` daría la oferta por vencida aquí, con el
         // usuario dominicano cenando y la promesa todavía en pie.
-        expect(isLaunchOfferActive(enRD('2026-09-14T20:01:00'))).toBe(true);
+        expect(isLaunchOfferActive(enRD('2026-09-14T20:01:00'), RD_OFFSET)).toBe(true);
     });
 
     it('sigue viva a las 23:59 del último día', () => {
-        expect(isLaunchOfferActive(enRD('2026-09-15T23:59:00'))).toBe(true);
+        expect(isLaunchOfferActive(enRD('2026-09-15T23:59:00'), RD_OFFSET)).toBe(true);
     });
 
     it('ha vencido en cuanto empieza el día siguiente en RD', () => {
-        expect(isLaunchOfferActive(enRD('2026-09-16T00:01:00'))).toBe(false);
+        expect(isLaunchOfferActive(enRD('2026-09-16T00:01:00'), RD_OFFSET)).toBe(false);
     });
 
     it('ha vencido semanas después', () => {
-        expect(isLaunchOfferActive(enRD('2026-10-01T12:00:00'))).toBe(false);
+        expect(isLaunchOfferActive(enRD('2026-10-01T12:00:00'), RD_OFFSET)).toBe(false);
     });
 
     // ── [P3-LAUNCH-OFFER-LOCAL-DAY · 2026-08-22] El día es el DEL USUARIO ──────────────────
@@ -107,7 +123,7 @@ describe('[P2-LANDING-COPY-TRUTH] caducidad de la oferta de lanzamiento', () => 
         const original = LAUNCH_OFFER.active;
         try {
             LAUNCH_OFFER.active = false;
-            expect(isLaunchOfferActive(enRD('2026-08-14T10:00:00'))).toBe(false);
+            expect(isLaunchOfferActive(enRD('2026-08-14T10:00:00'), RD_OFFSET)).toBe(false);
         } finally {
             LAUNCH_OFFER.active = original;
         }
@@ -119,7 +135,7 @@ describe('[P2-LANDING-COPY-TRUTH] caducidad de la oferta de lanzamiento', () => 
         const original = LAUNCH_OFFER.deadlineISO;
         try {
             LAUNCH_OFFER.deadlineISO = 'cuando sea';
-            expect(isLaunchOfferActive(enRD('2026-08-14T10:00:00'))).toBe(false);
+            expect(isLaunchOfferActive(enRD('2026-08-14T10:00:00'), RD_OFFSET)).toBe(false);
         } finally {
             LAUNCH_OFFER.deadlineISO = original;
         }

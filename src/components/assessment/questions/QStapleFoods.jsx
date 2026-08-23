@@ -100,7 +100,20 @@ export const QStapleFoods = ({ onManualAdvance }) => {
     // alfabético que ya trae el catálogo del backend. Ordenar va ANTES de cortar.
     const results = q.length >= 2
         ? masterList
-            .filter(m => norm(m.name).includes(q) && !selectedLower.has(norm(m.name)))
+            // [P2-I18N-CATALOGO-BUSCADOR-SIN-PUENTE · 2026-08-22] También por el gloss
+            // inglés. `name_en` está poblado al 347/347 y difiere del español en 329
+            // filas, así que quien escribía «chicken» o «rice» obtenía CERO resultados
+            // — sin error, simplemente vacío, que se lee como «ese alimento no existe».
+            //
+            // Lo que se SELECCIONA sigue siendo `m.name`, el nombre español canónico:
+            // es el identificador con el que resuelven `pantry_names_match`, el guard de
+            // coherencia y el backstop de alergias. Aquí se ensancha por dónde se BUSCA,
+            // nunca lo que se guarda.
+            //
+            // ⚠️ Esto cubre UN idioma de los cuatro: `name_en` es un gloss inglés, no un
+            // catálogo multilingüe. En fr/it/pt el buscador sigue exigiendo el español.
+            .filter(m => (norm(m.name).includes(q) || norm(m.name_en || '').includes(q))
+                && !selectedLower.has(norm(m.name)))
             .map(m => ({ m, rank: rankOf(m.name, q) }))
             .sort((a, b) => a.rank - b.rank)
             .slice(0, MAX_RESULTS)
