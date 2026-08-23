@@ -13,7 +13,7 @@ import styles from './MobileRecipes.module.css';
 import { useT, formatNumber } from '../../i18n';
 import { mealSlotLabel, mealDifficultyLabel } from '../../utils/displayMeal';
 // [P2-RECIPE-NOTES-NOT-STEPS · 2026-07-24] anotaciones sin número (ver util).
-import { numberRecipeSteps, parseRecipeStep } from '../../utils/recipeSteps';
+import { numberRecipeSteps, parseRecipeStep, glossAnnotationLabel } from '../../utils/recipeSteps';
 // [P1-EATEN-SLOT-COPY · 2026-07-28] Texto del chip "ya registraste tu
 // <slot>" — SSOT compartido con Dashboard.jsx/RecipesView.jsx. El detalle
 // (qué se registró + kcal) llega precomputado en `meal._eatenClaim`
@@ -262,7 +262,8 @@ export function MobileRecipes({
                   <span className={styles.node}>{done ? <Svg d={ICONS.check} size={18} /> : (annotation ? '•' : number)}</span>
                   <div className={styles.stepCard}>
                     {title && <div className={styles.stepTitle}>{title}</div>}
-                    <div className={styles.stepText} lang={langs?.recipe || undefined}>{renderBold(body)}</div>
+                    {/* [P2-I18N-VOCAB-CERRADO-ANOTACIONES-SIN-ROTULO] el rótulo de la anotación se glosa al pintar; el dato queda en español. */}
+                      <div className={styles.stepText} lang={langs?.recipe || undefined}>{renderBold(annotation ? glossAnnotationLabel(body, t) : body)}</div>
                   </div>
                 </div>
               );
