@@ -132,12 +132,12 @@ const Footer = () => {
                         <a href="https://www.facebook.com/share/1HkwoX8zHF/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Facebook">
                             <Facebook size={20} />
                         </a>
-                        <a href="https://youtube.com/@bioboros?si=JZo3gkHnsvN39AiZ" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="YouTube">
+                        <a href="https://www.youtube.com/@bioboros" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="YouTube">
                             <Youtube size={20} />
                         </a>
                         {/* [P3-FOOTER-X · 2026-07-01] Glyph oficial de X (Twitter). SVG inline
                             con fill (lucide no trae el logo de X), mismo patrón que TikTok. */}
-                        <a href="https://x.com/MealfitRD" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="X">
+                        <a href="https://x.com/bioboros" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="X">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 width="19"
