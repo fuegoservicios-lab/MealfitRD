@@ -510,6 +510,21 @@ export function formatPercent(points, options) {
     }
 }
 
+/**
+ * [P3-I18N-3C-CLAVADO · 2026-08-23] Una temperatura en la escala del usuario. `t('3°C · Frío
+ * Max')` salía «3°C · Max Cold» a un público imperial: la escala no es copy, es una unidad, y
+ * la decide el usuario (su `weightUnit`, la señal imperial que el formulario ya tiene) antes
+ * que el idioma (en-US como respaldo cuando no eligió). Celsius con el signo pegado, como
+ * `Intl` lo hace en todos los locales del producto; Fahrenheit redondeado a entero.
+ */
+export function formatTemperature(celsius, { weightUnit } = {}) {
+    const c = Number(celsius);
+    if (!Number.isFinite(c)) return '';
+    const imperial = weightUnit === 'lb' || (!weightUnit && _locale === 'en-US');
+    if (imperial) return `${Math.round(c * 9 / 5 + 32)}°F`;
+    return `${c}°C`;
+}
+
 // ---------------------------------------------------------------------------
 // Carga y cambio de idioma
 // ---------------------------------------------------------------------------
