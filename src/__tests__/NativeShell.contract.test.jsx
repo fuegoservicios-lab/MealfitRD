@@ -10,7 +10,7 @@
  *   B. Parser-based sobre el fuente: cada superficie IMPORTA el gate y lo aplica donde
  *      toca. Un renombre o un «limpiar import sin uso» lo tumba.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { render, screen } from './utils/test-utils';
@@ -37,6 +37,19 @@ const read = (rel) => fs.readFileSync(path.join(SRC, rel), 'utf-8');
 beforeEach(() => {
     platform.nativeHidesCommerce.mockReturnValue(false);
     platform.appleSignInEnabled.mockReturnValue(false);
+    // [P2-I18N-ROJO-AMBIENTE-HACE-INVISIBLE-EL-ROJO-DEL-GATE · 2026-08-23] `PaymentModal`
+    // LANZA a propósito sin `VITE_PAYPAL_CLIENT_ID` (P3-NEW-PAYPAL-FALLBACK: mejor modal roto
+    // que pago contra el merchant equivocado). Este test lo renderiza y dependía del `.env`
+    // del desarrollador: en CI no hay `.env`, así que las dos pruebas de PaymentModal eran
+    // el ÚNICO rojo de `quality` en cada push desde el 21-ago — y con el job rojo por esto,
+    // un rojo del gate de i18n era invisible. Medido con `gh run view --log-failed`:
+    // 298/299 en verde, este fichero el 1. Mismo stub que sus tres hermanos
+    // (`PaymentModal.behavior`, `.credits_truth`, `.custom_id`).
+    vi.stubEnv('VITE_PAYPAL_CLIENT_ID', 'test-client-id');
+});
+
+afterEach(() => {
+    vi.unstubAllEnvs();
 });
 
 describe('[P1-IOS-NATIVE-SHELL] A. render — el comercio desaparece en nativo y sigue en web', () => {
