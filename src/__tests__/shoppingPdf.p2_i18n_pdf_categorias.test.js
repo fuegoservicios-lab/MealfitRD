@@ -65,10 +65,14 @@ describe('glossShoppingQty — la abreviatura de unidad', () => {
         expect(glossShoppingQty('1 Ud. (~2 lbs)', tFalsa).startsWith('1 ')).toBe(true);
     });
 
-    it('NO alcanza una «Ud.» que viva dentro del paréntesis', () => {
-        // Ahí van marcas y tamaños reales del estante: traducirlos falsifica la etiqueta.
+    it('dentro del paréntesis glosa la «Ud.» (es una unidad) pero NO la marca ni el tamaño', () => {
+        // [P3-I18N-UD-DENTRO-DEL-PARENTESIS · 2026-08-23] Este caso decía «NO alcanza una Ud.
+        // dentro del paréntesis» y era justo el defecto: el PDF explicaba «U. = unité» y seguía
+        // imprimiendo «Ud.» en el 11 % de sus líneas. La marca y el tamaño siguen intactos.
         const dentro = '2 paquetes (Selecto 1 Ud. · Wala)';
-        expect(glossShoppingQty(dentro, tFalsa)).toContain('Selecto 1 Ud.');
+        const out = glossShoppingQty(dentro, tFalsa);
+        expect(out).toContain('Selecto 1 «Ud.»');
+        expect(out).toContain('Wala');
     });
 
     it('traduce los cuatro envases que el primer espejo se dejó fuera', () => {

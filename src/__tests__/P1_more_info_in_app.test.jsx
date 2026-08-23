@@ -142,14 +142,15 @@ describe('[P1-MORE-INFO-I18N] las etiquetas del submenú se traducen', () => {
 
     it('las 7 etiquetas pasan por t()', () => {
         for (const clave of [
-            'Acerca de Bioboros', 'Novedades', 'Cómo funciona', 'Supermercado RD',
+            'Acerca de {app}', 'Novedades', 'Cómo funciona', 'Supermercado RD',
             'Términos de servicio', 'Política de privacidad', 'Aviso médico',
         ]) {
             // Sin escapado de metacaracteres a propósito: las 7 claves son palabras
             // llanas. Escaparlas exigía un regex con `${}` DENTRO de la interpolación
             // de un template literal, y eso no compila.
+            // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la clave con {app} lleva sus vars.
             expect(SRC_SSOT, `«${clave}» no pasa por t()`)
-                .toContain(`label: t('${clave}')`);
+                .toMatch(new RegExp(`label: t\\('${clave.replace(/[{}]/g, '\\$&')}'(, \\{ app: BRAND \\})?\\)`));
         }
     });
 

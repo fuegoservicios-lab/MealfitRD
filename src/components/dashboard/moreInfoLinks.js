@@ -58,7 +58,11 @@ export const SUPPORT_EMAIL = 'bioboros.support@gmail.com';
 // señal de «cambiaron el copy y la traducción quedó atrás». Apagar ese aviso con
 // falsos positivos desarma el guard.
 export function moreInfoGroups(traducir) {
-  const t = typeof traducir === 'function' ? traducir : (x) => x;
+  // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] sin `t` (el landing, un test), la clave se pinta en
+  // español CON la marca interpolada: «Acerca de {app}» no es copy para nadie.
+  const t = typeof traducir === 'function'
+    ? traducir
+    : (x, vars) => String(x).replace(/\{(\w+)\}/g, (m, n) => (vars && n in vars ? String(vars[n]) : m));
   return [
     [
       { label: t('Acerca de {app}', { app: BRAND }), path: '/about' },

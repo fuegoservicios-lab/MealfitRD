@@ -765,7 +765,9 @@ if (existsSync(BASELINE_GLOSARIO)) {
         }
         baseGlosario = null;
     }
-} else if (!UPDATE_BASELINE) {
+} else if (!UPDATE_BASELINE && existsSync(GLOSARIO_PATH)) {
+    // Sólo cuando HAY glosario: sin `src/i18n/glosario.json` no hay términos que vigilar y
+    // exigir el trinquete pondría rojo a los arneses de test, que montan un `src/` mínimo.
     console.error(`\n❌ Falta el trinquete del glosario (${relative(join(__dirname, '..'), BASELINE_GLOSARIO)}).`);
     console.error('   Sin él, el gate NO puede detectar una deriva y saldría verde por omisión.');
     console.error('   Si es la primera vez, créalo con `node scripts/i18n-check.mjs --update-baseline`.');
