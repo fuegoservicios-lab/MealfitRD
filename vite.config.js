@@ -1,7 +1,17 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
+
+// [P2-DEV-LAN-HTTPS] Ver el bloque `server` más abajo. Solo con `--host` (servir al
+// teléfono) y solo si los certificados existen; si no, `undefined` = HTTP como siempre.
+function devHttpsConfig() {
+  if (!process.argv.includes('--host')) return undefined
+  const key = new URL('./.dev-certs/key.pem', import.meta.url)
+  const cert = new URL('./.dev-certs/cert.pem', import.meta.url)
+  if (!existsSync(key) || !existsSync(cert)) return undefined
+  return { key: readFileSync(key), cert: readFileSync(cert) }
+}
 // [P1-LANDING-HEAD-PRELOAD · 2026-08-14] Ver el plugin `bioboros-landing-head`
 // más abajo y el porqué extenso en scripts/landingHead.mjs.
 import { landingPreloadTargets, landingHeadSnippet } from './scripts/landingHead.mjs'
@@ -356,8 +366,18 @@ export default defineConfig(({ mode }) => {
   // navegador todo es el mismo origen (el propio servidor de desarrollo), así que no hay
   // petición cross-origin que permitir. Apuntar `VITE_API_BASE_URL` a producción en su
   // lugar SÍ la dispararía, y `http://<ip-lan>:5173` no está ni debe estar en esa lista.
+  //
+  // [P2-DEV-LAN-HTTPS · 2026-08-23] Y tiene que ser HTTPS. Un origen `http://10.0.0.68`
+  // NO es contexto seguro para iOS, y eso rompe tres cosas a la vez, ninguna visible
+  // desde el escritorio: `crypto.randomUUID` no existe (el chat lo usa para abrir la
+  // sesión y el SDK de Neon por dentro), la cookie de sesión first-party nace con
+  // `Secure` y el navegador la descarta (el login con código «termina» y rebota), y la
+  // API absoluta a 127.0.0.1 sería contenido mixto. Con `--host` y los certificados en
+  // `.dev-certs/` (autofirmados, fuera de git; el teléfono pregunta una vez) se sirve
+  // HTTPS. Sin `--host` nada cambia: `http://localhost:5173` sigue siendo lo de siempre.
   server: {
     port: 5173,
+    https: devHttpsConfig(),
     proxy: {
       '/api': {
         target: process.env.MF_DEV_API || 'http://127.0.0.1:3001',
