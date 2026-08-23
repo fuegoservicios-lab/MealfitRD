@@ -72,6 +72,19 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         expect(css).toMatch(/:global\(html\[data-kb-open\]\) \.tabBar\s*\{\s*display:\s*none/);
     });
 
+    it('el FOCO por si solo NO mueve la caja: la reserva cuelga del teclado, no del foco', () => {
+        // [P1-CHAT-FOCO-NO-MUEVE · 2026-08-23] Habia una regla `.input-wrapper:focus-within`
+        // que soltaba los 64 px de reserva al enfocar. Era una suposicion disfrazada de
+        // mecanismo: hay foco SIN teclado (escritorio estrechado, vista movil de las
+        // DevTools, iPad con teclado fisico), y ahi la barra de pestanas NO se esconde
+        // -- solo lo hace con `data-kb-open`. Medido en un banco aislado: al enfocar, el
+        // borde inferior de la caja pasaba de 851 a 915 con la barra en 868, o sea se
+        // metia DEBAJO de ella. Sin la regla: 851 y 851.
+        const src = read('pages/AgentPage.jsx');
+        const reglas = src.split(/\r?\n/).filter((l) => /^\s*\.input-wrapper:focus-within\s*\{/.test(l));
+        expect(reglas, 'la reserva no puede colgar del foco: cuelga de data-kb-open').toEqual([]);
+    });
+
     it('la caja de escribir del chat deja de reservar los 64 px con el teclado abierto', () => {
         const src = read('pages/AgentPage.jsx');
         expect(src).toMatch(/html\[data-kb-open\] \.input-wrapper\s*\{[^}]*padding-bottom:\s*0\.8rem !important/);

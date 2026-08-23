@@ -596,11 +596,20 @@ const AgentPage = () => {
             // evento de visualViewport. Misma clase de fallo que el alto del
             // textarea: inline style imperativo peleando con el que React posee.
             //
-            // El colapso del padding con teclado abierto ya lo cubre CSS sin tocar
-            // el inline: `.input-wrapper:focus-within { padding-bottom: 0.8rem
-            // !important }` en el bloque `@media (max-width: 1024px)` — el teclado
-            // sólo se abre con el foco dentro del wrapper, y ese breakpoint es el
-            // mismo `isMobile` de esta página.
+            // El colapso del padding con teclado abierto lo cubre CSS sin tocar el
+            // inline: `html[data-kb-open] .input-wrapper` en el bloque
+            // `@media (max-width: 1024px)`.
+            //
+            // [P1-CHAT-FOCO-NO-MUEVE · 2026-08-23] Antes ese colapso colgaba de
+            // `:focus-within`, y eso era una SUPOSICIÓN disfrazada de mecanismo: «el
+            // teclado sólo se abre con el foco dentro del wrapper» es cierto al revés
+            // — hay foco SIN teclado (escritorio estrechado por debajo de 1024, la vista
+            // de móvil de las DevTools, un iPad con teclado físico). En esos casos la
+            // caja soltaba sus 64 px de reserva y la barra de pestañas, que sólo se
+            // esconde con teclado DE VERDAD, seguía ahí: medido, el borde inferior de
+            // la caja pasaba de 851 a 915 con la barra en 868, o sea DEBAJO de ella.
+            // Ahora las dos cosas cuelgan de la misma señal y se mueven juntas o no se
+            // mueve ninguna.
             // [P1-CHAT-KEYBOARD-FIT · 2026-08-10] Antes esto desplazaba el wrapper con
             // un transform vertical: subía la caja de escribir por encima
             // del teclado, pero el CONTENEDOR seguía midiendo 100dvh —y `dvh` en iOS
@@ -3838,9 +3847,6 @@ const AgentPage = () => {
                        (blur, borde, sombra, radio): el composer perdía su acabado con el
                        teclado CERRADO, que es el 99% del tiempo. Aqui va SOLO el relleno. */
                     html[data-kb-open] .input-wrapper {
-                        padding-bottom: 0.8rem !important;
-                    }
-                    .input-wrapper:focus-within {
                         padding-bottom: 0.8rem !important;
                     }
                     /* --- Welcome screen --- */
