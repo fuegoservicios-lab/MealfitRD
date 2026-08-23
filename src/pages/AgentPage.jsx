@@ -64,6 +64,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
+import { medirTecladoDeVentana } from '../utils/keyboardViewport';
 import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
@@ -570,10 +571,16 @@ const AgentPage = () => {
         const updateInputPosition = () => {
             const wrapper = inputWrapperRef.current;
             if (!wrapper) return;
-            // offsetBottom > 0 cuando el teclado está abierto (visual viewport
-            // más pequeño que window.innerHeight). vv.offsetTop captura el caso
-            // de scroll dentro del visual viewport (raro pero defensivo).
-            const offsetBottom = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+            // [P1-KB-VIEWPORT-MATH · 2026-08-23] DOS números, no uno. `kb` (alto real del
+            // teclado, independiente del paneo de iOS) responde «¿hay teclado?»; `layoutInset`
+            // (kb - paneo) responde «cuánto encoger este contenedor, que está anclado al
+            // layout viewport». Antes era UN escalar `H - vv.height - vv.offsetTop` haciendo
+            // las dos cosas: correcto como longitud, y 0 como predicado justo cuando iOS
+            // había panéado del todo — o sea «no hay teclado» con el teclado en pantalla.
+            // Y esta ruta FABRICA ese caso: es la única del dashboard que bloquea el scroll
+            // del documento, y sin recorrido iOS no puede hacer otra cosa que panear.
+            // La aritmética y sus casos viven en utils/keyboardViewport.js (+ su test).
+            const { layoutInset, abierto } = medirTecladoDeVentana(window);
             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] Este handler escribe SOLO
             // `transform` — propiedad que React NO declara en el prop `style` del
             // wrapper, así que no hay dos dueños.
@@ -608,19 +615,25 @@ const AgentPage = () => {
             // rutas del dashboard.
             const contenedor = wrapper.closest('.agent-container');
             if (contenedor) {
-                contenedor.style.setProperty('--kb-inset', offsetBottom > 0 ? `${offsetBottom}px` : '0px');
+                contenedor.style.setProperty('--kb-inset', abierto ? `${layoutInset}px` : '0px');
             }
             // [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23] Con teclado abierto la barra de pestañas
             // (fixed) la recoloca iOS justo encima del teclado y tapa la caja de escribir,
             // que reserva sus 64 px por dentro. Señal en <html>: la barra se esconde y la
             // caja suelta la reserva (CSS en BottomTabBar.module.css y en este <style>).
-            document.documentElement.toggleAttribute('data-kb-open', offsetBottom > 0);
+            document.documentElement.toggleAttribute('data-kb-open', abierto);
             // El transform deja de hacer falta y NO puede quedarse: sumaría al
             // encogimiento y levantaría el input dos veces.
             wrapper.style.transform = '';
             // Al abrirse el teclado el área visible se reduce: sin esto, el último
             // mensaje queda fuera de cuadro justo cuando el usuario va a responder.
-            if (offsetBottom > 0) {
+            // [P1-KB-VIEWPORT-MATH] Traer la cola a cuadro al abrirse el teclado, pero NO
+            // si el usuario está leyendo más arriba: arrastrarlo al último mensaje por
+            // haber tocado la caja rompe el contrato de P2-CHAT-SCROLL-RACE
+            // (`userScrolledUpRef`, ver scrollToBottom). `scrollIntoView` y no
+            // `scrollTop`: en sesiones largas la lista está virtualizada y el contenedor
+            // es `overflow: hidden` — escribirle scrollTop no hace nada.
+            if (abierto && !userScrolledUpRef.current) {
                 requestAnimationFrame(() => {
                     try { messagesEndRef.current?.scrollIntoView({ block: 'end' }); } catch { /* nodo desmontado */ }
                 });
@@ -3801,21 +3814,31 @@ const AgentPage = () => {
                            'env(safe-area-inset-bottom)' vale 0 (el scroll de la página
                            está bloqueado, así que la barra del navegador no se repliega) y
                            el relleno quedaba en 40px de nada bajo la caja de escribir.
-                           Ahora ese espacio lo ocupa navegación de verdad. */
+                           Ahora ese espacio lo ocupa navegación de verdad.
+
+                           ⚠ Ese «vale 0» es SOLO de Safari vertical. En la PWA instalada y
+                           en el WebView nativo, con viewport-fit=cover, vale el alto del
+                           indicador de inicio (~34px). No recalibres esta reserva contra el
+                           número de Safari. Con teclado abierto no se suma: ver la regla
+                           html[data-kb-open] .input-wrapper de abajo. */
                         padding: 0.8rem 1.25rem calc(0.8rem + 64px + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
                         background: var(--bg-card) !important;
-                    }
-                    /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23] Con teclado no hay barra de
-                       pestañas (ver BottomTabBar.module.css): la caja suelta la reserva y
-                       queda pegada al teclado, que es donde se escribe. */
-                    html[data-kb-open] .input-wrapper {
-                        padding-bottom: 0.8rem !important;
                         backdrop-filter: blur(20px) !important;
                         -webkit-backdrop-filter: blur(20px) !important;
                         border-top: none !important;
                         box-shadow: 0 -4px 30px rgba(0,0,0,0.06) !important;
                         transition: padding-bottom 0.2s ease-out !important;
                         border-radius: 0 !important;
+                    }
+                    /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23 · corregido el 23] Con teclado no
+                       hay barra de pestañas (ver BottomTabBar.module.css): la caja suelta la
+                       reserva y queda pegada al teclado, que es donde se escribe.
+                       La primera version de esta regla se comio la llave de cierre de
+                       .input-wrapper y se llevo dentro sus seis declaraciones de aspecto
+                       (blur, borde, sombra, radio): el composer perdía su acabado con el
+                       teclado CERRADO, que es el 99% del tiempo. Aqui va SOLO el relleno. */
+                    html[data-kb-open] .input-wrapper {
+                        padding-bottom: 0.8rem !important;
                     }
                     .input-wrapper:focus-within {
                         padding-bottom: 0.8rem !important;

@@ -7,6 +7,7 @@ import LazyMarkdown from '../common/LazyMarkdown';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { SUPPORT_EMAIL } from './moreInfoLinks';
 import { nativeHidesCommerce } from '../../config/platform';
+import { medirTecladoDeVentana } from '../../utils/keyboardViewport';
 import { safeJSONParse } from '../../utils/safeJSONParse';
 import { useT, getLocale } from '../../i18n';
 import styles from './HelpChatWidget.module.css';
@@ -76,8 +77,11 @@ export default function HelpChatWidget({ onClose }) {
         const mobile = () => window.matchMedia('(max-width: 640px)').matches;
         const update = () => {
             if (!mobile()) { setVvBox(null); return; }
-            const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-            setVvBox(kb > 0 ? { top: Math.round(vv.offsetTop), height: Math.round(vv.height) } : null);
+            // [P1-KB-VIEWPORT-MATH · 2026-08-23] El predicado no puede restar el paneo de
+            // iOS (SSOT en utils/keyboardViewport.js). Aquí el panel SÍ sigue al visual
+            // viewport, así que la longitud que usa es vv.height/offsetTop directos.
+            const { abierto } = medirTecladoDeVentana(window);
+            setVvBox(abierto ? { top: Math.round(vv.offsetTop), height: Math.round(vv.height) } : null);
         };
         update();
         vv.addEventListener('resize', update);

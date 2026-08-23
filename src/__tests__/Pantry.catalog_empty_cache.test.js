@@ -49,10 +49,15 @@ describe('[P1-PANTRY-CATALOG-EMPTY-CACHE] Pantry.jsx', () => {
 });
 
 describe('[P1-PANTRY-SHEET-NOTCH] la hoja «Añade a tu Nevera» no sube bajo el reloj con el teclado', () => {
-    it('con teclado (kbInset > 0) el maxHeight descuenta env(safe-area-inset-top)', () => {
+    it('con teclado abierto el maxHeight descuenta env(safe-area-inset-top)', () => {
         const src = read('pages/Pantry.jsx');
-        const i = src.indexOf('maxHeight: kbInset > 0');
+        // [P1-KB-VIEWPORT-MATH · 2026-08-23] Reanclado a la PROPIEDAD: antes clavaba el
+        // predicado `kbInset > 0`, que era justo el defecto (restaba el paneo de iOS).
+        // Lo que protege este guard es que la rama CON teclado descuente el notch.
+        const i = src.indexOf('maxHeight:');
         expect(i).toBeGreaterThan(0);
-        expect(src.slice(i, i + 200)).toMatch(/calc\(\$\{Math\.max\(300, vvHeight - 10\)\}px - env\(safe-area-inset-top, 0px\)/);
+        const bloque = src.slice(i, i + 260);
+        expect(bloque).toMatch(/calc\(\$\{Math\.max\(300, vvHeight - 10\)\}px - env\(safe-area-inset-top, 0px\)/);
+        expect(bloque, 'el predicado no puede volver a ser el inset').not.toMatch(/maxHeight:\s*kbInset\s*>/);
     });
 });

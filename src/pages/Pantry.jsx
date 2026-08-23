@@ -30,6 +30,7 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
 import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus } from '../utils/pantryCache';
+import { medirTecladoDeVentana } from '../utils/keyboardViewport';
 // [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
 import { BrandSelect } from '../components/pantry/BrandSelect';
@@ -717,13 +718,20 @@ const Pantry = () => {
     // siempre visibles, sin saltos. Fallback seguro: sin visualViewport (desktop viejo)
     // → inset 0 y alto basado en innerHeight (idéntico al comportamiento previo).
     const [kbInset, setKbInset] = useState(0);
+    const [kbAbierto, setKbAbierto] = useState(false);
     const [vvHeight, setVvHeight] = useState(() => (typeof window !== 'undefined' ? window.innerHeight : 800));
     useEffect(() => {
-        if (!showAddMenu) { setKbInset(0); return undefined; }
+        if (!showAddMenu) { setKbInset(0); setKbAbierto(false); return undefined; }
         const vv = typeof window !== 'undefined' ? window.visualViewport : null;
         if (!vv) return undefined;
         const update = () => {
-            setKbInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+            // [P1-KB-VIEWPORT-MATH · 2026-08-23] La misma resta vivía aquí: correcta como
+            // LONGITUD (la hoja es fixed contra el layout viewport) e incorrecta como
+            // predicado, que es lo que gobierna el maxHeight de abajo. SSOT en
+            // utils/keyboardViewport.js.
+            const { layoutInset, abierto } = medirTecladoDeVentana(window);
+            setKbInset(abierto ? layoutInset : 0);
+            setKbAbierto(abierto);
             setVvHeight(vv.height);
         };
         update();
@@ -3120,7 +3128,7 @@ const Pantry = () => {
                                 // [P1-PANTRY-SHEET-NOTCH · 2026-08-22] Con teclado, el alto era el viewport
                                 // visible ENTERO menos 10 px: la hoja subía hasta debajo del reloj (iPhone,
                                 // medido). Se descuenta la barra de estado y un respiro.
-                                maxHeight: kbInset > 0
+                                maxHeight: kbAbierto
                                     ? `calc(${Math.max(300, vvHeight - 10)}px - env(safe-area-inset-top, 0px) - 12px)`
                                     : `${Math.round(vvHeight * 0.9)}px`,
                                 display: 'flex', flexDirection: 'column',
