@@ -1,0 +1,7 @@
+/* [P1-I18N-IOS-PERMISOS-SISTEMA-SOLO-ES · 2026-08-23] Cadenas de permiso del SISTEMA.
+   iOS las pinta en un modal que la capa web no puede traducir. El Info.plist conserva
+   el español como fallback. Registrado en project.pbxproj como PBXVariantGroup. */
+
+"NSCameraUsageDescription" = "O Bioboros usa a câmera para escanear suas refeições e registrá-las no seu diário.";
+"NSPhotoLibraryUsageDescription" = "O Bioboros acessa suas fotos para que você possa registrar uma refeição a partir de uma imagem.";
+"NSPhotoLibraryAddUsageDescription" = "O Bioboros salva na sua galeria as fotos de refeições que você tira no app.";

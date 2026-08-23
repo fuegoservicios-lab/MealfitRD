@@ -6,6 +6,18 @@
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>es</string>
+	<!-- [P1-I18N-IOS-PERMISOS-SISTEMA-SOLO-ES · 2026-08-23] Sin esto iOS no mira los
+	     `<lang>.lproj/InfoPlist.strings` aunque existan, y los tres modales de permiso
+	     salían en español a los cinco idiomas. El español sigue en este fichero como
+	     fallback para un dispositivo en un idioma que no ofrecemos. -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>es</string>
+		<string>en</string>
+		<string>pt-BR</string>
+		<string>fr</string>
+		<string>it</string>
+	</array>
 	<key>CFBundleDisplayName</key>
         <string>Bioboros</string>
 	<key>CFBundleExecutable</key>
