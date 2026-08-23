@@ -610,6 +610,11 @@ const AgentPage = () => {
             if (contenedor) {
                 contenedor.style.setProperty('--kb-inset', offsetBottom > 0 ? `${offsetBottom}px` : '0px');
             }
+            // [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23] Con teclado abierto la barra de pestañas
+            // (fixed) la recoloca iOS justo encima del teclado y tapa la caja de escribir,
+            // que reserva sus 64 px por dentro. Señal en <html>: la barra se esconde y la
+            // caja suelta la reserva (CSS en BottomTabBar.module.css y en este <style>).
+            document.documentElement.toggleAttribute('data-kb-open', offsetBottom > 0);
             // El transform deja de hacer falta y NO puede quedarse: sumaría al
             // encogimiento y levantaría el input dos veces.
             wrapper.style.transform = '';
@@ -628,6 +633,8 @@ const AgentPage = () => {
         return () => {
             vv.removeEventListener('resize', updateInputPosition);
             vv.removeEventListener('scroll', updateInputPosition);
+            // Cambiar de ruta con el teclado abierto no debe dejar la barra escondida.
+            document.documentElement.removeAttribute('data-kb-open');
         };
     }, []);
 
@@ -3797,6 +3804,12 @@ const AgentPage = () => {
                            Ahora ese espacio lo ocupa navegación de verdad. */
                         padding: 0.8rem 1.25rem calc(0.8rem + 64px + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
                         background: var(--bg-card) !important;
+                    }
+                    /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23] Con teclado no hay barra de
+                       pestañas (ver BottomTabBar.module.css): la caja suelta la reserva y
+                       queda pegada al teclado, que es donde se escribe. */
+                    html[data-kb-open] .input-wrapper {
+                        padding-bottom: 0.8rem !important;
                         backdrop-filter: blur(20px) !important;
                         -webkit-backdrop-filter: blur(20px) !important;
                         border-top: none !important;

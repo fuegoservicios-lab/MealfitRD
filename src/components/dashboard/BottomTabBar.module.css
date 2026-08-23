@@ -4,6 +4,14 @@
     display: none;
 }
 
+/* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23] Mientras hay teclado (AgentPage estampa
+   `data-kb-open` en <html> desde su handler de visualViewport) la barra no se pinta:
+   iOS recoloca lo `fixed` encima del teclado y tapaba la caja de escribir del chat.
+   Con teclado no se navega, se escribe. Fuera del @media para ganar a la regla móvil. */
+:global(html[data-kb-open]) .tabBar {
+    display: none !important;
+}
+
 @media (max-width: 1024px) {
     .tabBar {
         display: flex;
