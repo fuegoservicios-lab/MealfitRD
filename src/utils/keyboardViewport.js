@@ -102,5 +102,11 @@ export function medirTecladoDeVentana(win = typeof window !== 'undefined' ? wind
     if (!win || !vv) return { kb: 0, layoutInset: 0, abierto: false };
     // La referencia es el alto sin teclado, no el `innerHeight` del instante: si iOS los
     // encoge a la vez, el del instante ya lleva el teclado restado.
-    return medirTeclado({ innerHeight: altoDeReferencia(win.innerHeight, win.innerWidth), vvHeight: vv.height, vvOffsetTop: vv.offsetTop });
+    const m = medirTeclado({ innerHeight: altoDeReferencia(win.innerHeight, win.innerWidth), vvHeight: vv.height, vvOffsetTop: vv.offsetTop });
+    // [P1-KB-ALTO-DE-REFERENCIA] Y el inset descuenta lo que el DOCUMENTO ya encogió por su
+    // cuenta. En la PWA `100dvh` ya vale el alto con teclado: restarle el inset entero
+    // lo encogería DOS veces (844 → 508 → 172 px de chat, la caja a media pantalla).
+    // `layoutInset` es cuánto falta por encoger: el teclado menos lo que iOS ya quitó.
+    const yaEncogido = Math.max(0, altoDeReferencia(win.innerHeight, win.innerWidth) - (Number(win.innerHeight) || 0));
+    return { ...m, layoutInset: Math.max(0, m.layoutInset - yaEncogido) };
 }

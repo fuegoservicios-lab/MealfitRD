@@ -93,7 +93,9 @@ describe('[P1-KB-ALTO-DE-REFERENCIA] la referencia no se mueve con lo que mide',
         const m = medirTecladoDeVentana(win);
         expect(m.kb).toBe(K);
         expect(m.abierto).toBe(true);
-        expect(m.layoutInset).toBe(K);
+        // El documento YA encogió K por su cuenta (100dvh = 508): no queda nada que restar.
+        // Con inset=K el contenedor se encogería dos veces: 508 − 336 = 172 px de chat.
+        expect(m.layoutInset).toBe(0);
         // 3) teclado cerrado: vuelve a cerrado
         win = { innerHeight: H, visualViewport: { height: H, offsetTop: 0 } };
         expect(medirTecladoDeVentana(win).abierto).toBe(false);
