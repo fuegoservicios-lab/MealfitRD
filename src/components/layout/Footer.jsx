@@ -108,7 +108,7 @@ const Footer = () => {
                         {t('Nutrición de precisión potenciada por Inteligencia Artificial. Tu camino hacia una vida más saludable empieza aquí.')}
                     </p>
                     <div className={styles.socialLinks}>
-                        <a href="https://www.tiktok.com/@mealfitrd?_r=1&_t=ZS-93cjeaZR3NI" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="TikTok">
+                        <a href="https://www.tiktok.com/@bioboros" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="TikTok">
                             {/* TikTok glyph oficial — path llena el viewBox 24x24
                                 de manera centrada (logo completo, no solo el "gancho"
                                 abstracto que tenía antes). Usa fill en lugar de stroke
