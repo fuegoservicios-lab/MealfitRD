@@ -461,6 +461,13 @@ export const glossShoppingQty = (displayQty, t) => {
     //    el tamaño es POR envase, y sin ella «9 potes (16 oz)» se lee como el total.
     out = out.replace(/\bc\/u\b/gu, () => t('c/u'));
 
+    // 3b. «Genérico» — la marca que NO es una marca. [P2-I18N-GENERICO-SE-IMPRIME-EN-ESPANOL
+    //     · 2026-08-23] La regla de no tocar el paréntesis existe para los nombres propios
+    //     («Wala», «La Sanjuanera»). «Genérico» es el placeholder que los dos lados escriben
+    //     en el DATO cuando no hay marca: 259 de 1.658 ítems de listas vivas lo llevan, y
+    //     salía en español bajo un encabezado traducido. Se glosa al imprimir, como `c/u`.
+    out = out.replace(/\bGenérico\b/gu, () => t('Genérico'));
+
     // 4. El separador decimal. El backend lo escribe con COMA a mano
     //    (`_etiqueta_metrica` en `shopping_calculator.py`: «1,4 kg»), y su comentario
     //    dice «Coma decimal: la lista se lee en español».
