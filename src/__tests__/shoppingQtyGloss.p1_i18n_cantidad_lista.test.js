@@ -133,7 +133,9 @@ describe('[P1-I18N-CANTIDAD-LISTA] la cantidad de la lista sigue el idioma', () 
 
     it('una cadena que no reconoce vuelve intacta', async () => {
         await loadLocale('fr-FR');
-        for (const entrada of ['Al gusto', '1 zanahoria mediana', 'None']) {
+        // «Al gusto» era el primer ejemplo de esta lista; desde
+        // P3-I18N-SHOPPING-HELPERS-RELLENOS SÍ se reconoce (tenía traducción y nadie la pedía).
+        for (const entrada of ['1 zanahoria mediana', 'None', 'A ojo']) {
             expect(glossShoppingQty(entrada, t)).toBe(entrada);
         }
     });
@@ -203,5 +205,37 @@ describe('[P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO] glossUnitWord',
         await loadLocale(DEFAULT_LOCALE);
         const { glossUnitWord } = await import('../utils/shoppingHelpers');
         expect(glossUnitWord('funda', t)).toBe('funda');
+    });
+});
+
+// [P3-I18N-SHOPPING-HELPERS-RELLENOS · 2026-08-23] Los rellenos que `shoppingHelpers`
+// fabrica en español («Al gusto», «Ingrediente», «Desconocido») tenían traducción en los
+// cuatro catálogos y nadie la pedía. Se quedan en español en el DATO (claves de mapa, viajan
+// al backend) y se glosan al pintar.
+describe('[P3-I18N-SHOPPING-HELPERS-RELLENOS] rellenos al pintar', () => {
+    it('«Al gusto» se glosa en glossShoppingQty (y sus variantes de caja)', async () => {
+        const { glossShoppingQty } = await import('../utils/shoppingHelpers');
+        const t = (k) => ({ 'Al gusto': 'Selon le goût' })[k] || k;
+        expect(glossShoppingQty('Al gusto', t)).toBe('Selon le goût');
+        expect(glossShoppingQty('al gusto ', t)).toBe('Selon le goût');
+        expect(glossShoppingQty('2 lb', t)).toBe('2 lb');
+    });
+
+    it('«Ingrediente» y «Desconocido» se glosan en glossShoppingName; un nombre real no se toca', async () => {
+        const { glossShoppingName } = await import('../utils/shoppingHelpers');
+        const t = (k) => ({ Ingrediente: 'Ingrédient', Desconocido: 'Inconnu' })[k] || k;
+        expect(glossShoppingName('Ingrediente', t)).toBe('Ingrédient');
+        expect(glossShoppingName('desconocido', t)).toBe('Inconnu');
+        expect(glossShoppingName('Pollo', t)).toBe('Pollo');
+        expect(glossShoppingName('Pollo')).toBe('Pollo');
+        expect(glossShoppingName(undefined, t)).toBe(undefined);
+    });
+
+    it('el dato NO cambia: calculateAllPlanIngredients sigue fabricando el español', async () => {
+        const { calculateAllPlanIngredients } = await import('../utils/shoppingHelpers');
+        const plan = { days: [{ meals: [{ name: 'X', ingredients: [{ name: '' }] }] }] };
+        const out = calculateAllPlanIngredients(plan, false, []);
+        const json = JSON.stringify(out);
+        expect(json).toMatch(/Al gusto|Ingrediente|Desconocido/);
     });
 });

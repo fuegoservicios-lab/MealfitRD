@@ -427,9 +427,31 @@ export const glossUnitWord = (unit, t) => {
     return unit[0] === unit[0].toUpperCase() ? trad.charAt(0).toUpperCase() + trad.slice(1) : trad;
 };
 
+// [P3-I18N-SHOPPING-HELPERS-RELLENOS · 2026-08-23] Los tres rellenos que este módulo
+// FABRICA en español cuando el dato no trae cantidad o nombre («Al gusto», «Ingrediente»,
+// «Desconocido»). Se quedan en español EN EL DATO a propósito: son claves del mapa de
+// ingredientes y viajan al backend en `useRegeneratePlan`. Lo que cambia es el pintado:
+// `glossShoppingQty` reconoce «Al gusto» y `glossShoppingName` los dos nombres. Sus
+// traducciones ya existían en los cuatro catálogos, sin nadie que las pidiera.
+const _RELLENOS_DE_NOMBRE = new Set(['ingrediente', 'desconocido']);
+export const glossShoppingName = (name, t) => {
+    if (typeof name !== 'string' || typeof t !== 'function') return name;
+    const k = name.trim().toLowerCase();
+    if (!_RELLENOS_DE_NOMBRE.has(k)) return name;
+    try {
+        return k === 'ingrediente' ? t('Ingrediente') : t('Desconocido');
+    } catch {
+        return name;
+    }
+};
+
 export const glossShoppingQty = (displayQty, t) => {
     if (typeof displayQty !== 'string' || !displayQty.trim()) return displayQty;
     if (typeof t !== 'function') return displayQty;
+    // [P3-I18N-SHOPPING-HELPERS-RELLENOS] el relleno de cantidad, tal cual o con variantes.
+    if (/^al gusto$/i.test(displayQty.trim())) {
+        try { return t('Al gusto'); } catch { return displayQty; }
+    }
 
     let out = displayQty;
     let envases;

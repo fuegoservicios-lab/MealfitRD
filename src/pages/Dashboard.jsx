@@ -173,7 +173,7 @@ import { useLatestRef } from '../hooks/useLatestRef';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { glossClinicalNote } from '../utils/clinicalNoteGloss';
-import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory, buildGlossIndex } from '../utils/shoppingHelpers';
+import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory, buildGlossIndex, glossShoppingName } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
@@ -3534,7 +3534,8 @@ const DashboardInner = () => {
 
                 if (typeof item === 'object' && item !== null) {
                     // Nivel 3: Consumir display_category del backend (Single Source of Truth)
-                    name = item.name || item.display_name || item.item_name || t('Desconocido');
+                    // [P3-I18N-SHOPPING-HELPERS-RELLENOS] «Ingrediente»/«Desconocido» fabricados en el dato se glosan aquí.
+                    name = glossShoppingName(item.name || item.display_name || item.item_name || t('Desconocido'), t);
                     cat = item.display_category || item.category || i18nKey('🛒 OTROS');
                     // [P2-SHOPLIST-BETA-POLISH · 2026-08-18] Los planes YA persistidos traen el
                     // label interno viejo del backend; los nuevos llegan con el pasillo real
