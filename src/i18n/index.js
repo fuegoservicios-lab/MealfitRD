@@ -492,6 +492,24 @@ export function formatNumber(value, options) {
     }
 }
 
+/**
+ * [P3-I18N-PORCENTAJE-PEGADO-AL-NUMERO · 2026-08-23] Un porcentaje YA en puntos (50, no 0.5)
+ * con el signo como lo escribe cada idioma: «50%» en español, inglés, portugués e italiano;
+ * «50 %» en francés (espacio fino irrompible, U+202F, que es lo que `Intl` emite). Siete
+ * `{x}%` pegados a mano en el dashboard pintaban «50%» a un francés. `Intl` recibe la
+ * fracción, por eso se divide; `maximumFractionDigits` por defecto 0 porque los valores del
+ * dashboard ya vienen redondeados.
+ */
+export function formatPercent(points, options) {
+    const n = Number(points);
+    if (!Number.isFinite(n)) return '';
+    try {
+        return new Intl.NumberFormat(_locale, { style: 'percent', maximumFractionDigits: 0, ...(options || {}) }).format(n / 100);
+    } catch {
+        return `${n}%`;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Carga y cambio de idioma
 // ---------------------------------------------------------------------------

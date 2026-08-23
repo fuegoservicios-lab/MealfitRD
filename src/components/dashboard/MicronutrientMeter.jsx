@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useT, useTn } from '../../i18n';
+import { formatPercent, useT, useTn } from '../../i18n';
 import styles from './MicronutrientMeter.module.css';
 
 /* [P1-MICRO-FOCO-PANEL · 2026-06-26] Rediseño "Foco" del panel de micronutrientes.
@@ -88,7 +88,7 @@ function AttentionCard({ e, adviceItem, onAsk }) {
                 <span className={styles.pill}>
                     <ArrowDown />{s.estimado ? t('Estimado') : s.statusWord}
                 </span>
-                <span className={styles.bigPct}>{s.pct}%</span>
+                <span className={styles.bigPct}>{formatPercent(s.pct)}</span>
             </div>
             <div
                 className={styles.bar}
@@ -155,7 +155,7 @@ function ReachedChip({ e, worstDayNum = null }) {
                     per-día flaggeó ESTE micro, el chip lo delata sin abrirlo (simétrico del
                     aviso per-día de techos: promedio verde + banner ámbar parecían contradictorios). */}
                 {worstDayNum != null && <span className={styles.qDay}>{t('⚠ Día {n}', { n: worstDayNum })}</span>}
-                <span className={styles.qPct}>{s.pct}%</span>
+                <span className={styles.qPct}>{formatPercent(s.pct)}</span>
                 <ChevronIcon className={`${styles.qChev} ${open ? styles.qChevOpen : ''}`} />
             </span>
             <AnimatePresence initial={false}>
