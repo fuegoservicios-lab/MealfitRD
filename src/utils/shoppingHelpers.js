@@ -400,6 +400,33 @@ const _separadorDecimal = () => {
     }
 };
 
+/**
+ * [P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO · 2026-08-23] Una unidad de envase
+ * suelta («funda», «paquete», «Ud.»), traducida para PINTAR.
+ *
+ * La tabla de envases ya existía aquí para la lista del PDF; la Nevera y el diario pintaban
+ * `item.unit` / `market_container` crudos, con la traducción escrita al lado. El DATO no se
+ * toca: `unit` es vocabulario cerrado que el backend compara literal (`PLURALS` en
+ * `shopping_calculator.py`), así que se traduce sólo en el punto donde se muestra.
+ *
+ * Devuelve la palabra tal cual si no es un envase conocido (g, ml, kg… no se traducen).
+ */
+export const glossUnitWord = (unit, t) => {
+    if (typeof unit !== 'string' || !unit.trim() || typeof t !== 'function') return unit;
+    const clave = unit.trim().toLowerCase();
+    if (_UNIDADES_NO_TRADUCIBLES.has(clave)) return unit;
+    let envases, abreviaturas;
+    try {
+        envases = _ENVASES_TRADUCIBLES(t);
+        abreviaturas = _ABREVIATURAS_DE_UNIDAD(t);
+    } catch {
+        return unit;
+    }
+    const trad = envases[clave] || abreviaturas[clave];
+    if (!trad || trad === clave) return unit;
+    return unit[0] === unit[0].toUpperCase() ? trad.charAt(0).toUpperCase() + trad.slice(1) : trad;
+};
+
 export const glossShoppingQty = (displayQty, t) => {
     if (typeof displayQty !== 'string' || !displayQty.trim()) return displayQty;
     if (typeof t !== 'function') return displayQty;

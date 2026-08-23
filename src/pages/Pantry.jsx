@@ -15,6 +15,7 @@ import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // componente al cambio de catálogo; las tablas de copy de abajo son FUNCIONES por
 // eso mismo (una constante con `t()` se congelaría en español al importar).
 import { compareText, formatNumber, t, useT, useTn } from '../i18n';
+import { glossUnitWord } from '../utils/shoppingHelpers';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
@@ -2368,7 +2369,9 @@ const Pantry = () => {
         const isDisabled = disabledIngredients.includes(normalizedName);
         // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] Display unit prefiere
         // master_ingredients.market_container (curado) sobre item.unit.
-        const displayUnit = item.master_ingredients?.market_container || item.unit;
+        // [P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO · 2026-08-23] Traducida para
+        // PINTAR; `item.unit` (el dato) sigue siendo el vocabulario cerrado que compara el backend.
+        const displayUnit = glossUnitWord(item.master_ingredients?.market_container || item.unit, t);
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
@@ -2515,7 +2518,9 @@ const Pantry = () => {
     const renderMobileCard = (item) => {
         const normalizedName = item.ingredient_name.toLowerCase().trim();
         const isDisabled = disabledIngredients.includes(normalizedName);
-        const displayUnit = item.master_ingredients?.market_container || item.unit;
+        // [P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO · 2026-08-23] Traducida para
+        // PINTAR; `item.unit` (el dato) sigue siendo el vocabulario cerrado que compara el backend.
+        const displayUnit = glossUnitWord(item.master_ingredients?.market_container || item.unit, t);
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
@@ -3537,7 +3542,7 @@ const Pantry = () => {
                             </h2>
                             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                                 <strong style={{ color: 'var(--text-main)' }}>{qtyEditItem.ingredient_name}</strong>
-                                {' '}{t('· medida:')} <span style={{ textTransform: 'capitalize' }}>{qtyEditItem.unit}</span>
+                                {' '}{t('· medida:')} <span style={{ textTransform: 'capitalize' }}>{glossUnitWord(qtyEditItem.unit, t)}</span>
                             </p>
 
                             {/* Counter grande */}
@@ -3679,7 +3684,7 @@ const Pantry = () => {
                                             if (target === 0) {
                                                 toast.success(t('{alimento} marcado como agotado', { alimento: targetItem.ingredient_name }));
                                             } else {
-                                                toast.success(`${targetItem.ingredient_name}: ${target} ${targetItem.unit}`);
+                                                toast.success(`${targetItem.ingredient_name}: ${target} ${glossUnitWord(targetItem.unit, t)}`);
                                             }
                                         } catch (err) {
                                             console.error('qty edit error', err);

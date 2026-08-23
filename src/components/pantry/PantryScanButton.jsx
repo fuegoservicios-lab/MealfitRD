@@ -51,6 +51,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 // nacer una segunda copia. Lo que sigue viviendo aquí es lo propio de la Nevera.
 import CameraViewfinder from '../common/CameraViewfinder';
 import { useT, useTn } from '../../i18n';
+import { glossUnitWord } from '../../utils/shoppingHelpers';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
 import { mensajeDeError } from '../../utils/errorCopy';
@@ -299,7 +300,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                         )}
                     </span>
                     <span style={{ color: 'var(--text-muted)' }}>
-                        {Math.max(1, Math.round(it.quantity || 1))} {it.catalog_unit || it.unit}
+                        {Math.max(1, Math.round(it.quantity || 1))} {glossUnitWord(it.catalog_unit || it.unit, t)}
                         {' · '}{Math.round((it.confidence || 0) * 100)}%
                     </span>
                 </label>

@@ -179,3 +179,29 @@ describe('[P2-I18N-CARTON-EN-FRANCES-DEJA-UNA-PREPOSICION-COLGANDO]', () => {
         expect(salida).toContain('(1 Lt · Wala)');
     });
 });
+
+describe('[P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO] glossUnitWord', () => {
+    // La tabla de envases existía para el PDF; la Nevera y el diario pintaban `item.unit`
+    // crudo con la traducción al lado. Se traduce al PINTAR; el dato no se toca.
+    afterAll(async () => { await loadLocale(DEFAULT_LOCALE); });
+    it('traduce un envase suelto', async () => {
+        await loadLocale('fr-FR');
+        const { glossUnitWord } = await import('../utils/shoppingHelpers');
+        expect(glossUnitWord('funda', t)).not.toBe('funda');
+        expect(glossUnitWord('Funda', t)[0]).toMatch(/[A-Z]/);   // conserva la caja
+    });
+    it('NO traduce las unidades de magnitud ni lo que no conoce', async () => {
+        await loadLocale('fr-FR');
+        const { glossUnitWord } = await import('../utils/shoppingHelpers');
+        expect(glossUnitWord('g', t)).toBe('g');
+        expect(glossUnitWord('kg', t)).toBe('kg');
+        expect(glossUnitWord('xyz', t)).toBe('xyz');
+        expect(glossUnitWord('', t)).toBe('');
+        expect(glossUnitWord(null, t)).toBe(null);
+    });
+    it('en es-DO devuelve la palabra tal cual', async () => {
+        await loadLocale(DEFAULT_LOCALE);
+        const { glossUnitWord } = await import('../utils/shoppingHelpers');
+        expect(glossUnitWord('funda', t)).toBe('funda');
+    });
+});
