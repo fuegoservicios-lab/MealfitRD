@@ -587,7 +587,7 @@ const AgentPage = () => {
             // Y esta ruta FABRICA ese caso: es la única del dashboard que bloquea el scroll
             // del documento, y sin recorrido iOS no puede hacer otra cosa que panear.
             // La aritmética y sus casos viven en utils/keyboardViewport.js (+ su test).
-            const { layoutInset, abierto } = medirTecladoDeVentana(window);
+            const { layoutInset, abierto, documentoEncoge } = medirTecladoDeVentana(window);
             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] Este handler escribe SOLO
             // `transform` — propiedad que React NO declara en el prop `style` del
             // wrapper, así que no hay dos dueños.
@@ -636,10 +636,15 @@ const AgentPage = () => {
             const contenedor = wrapper.closest('.agent-container');
             if (contenedor) {
                 const objetivo = abierto ? layoutInset : 0;
+                // [P1-KB-RESIZES-CONTENT] Si el NAVEGADOR redimensiona el layout viewport
+                // (`interactive-widget=resizes-content`, o la PWA instalada), el alto ya lo
+                // resuelve `100dvh` con la animacion del sistema: el objetivo es 0 y hay que
+                // aplicarlo YA. Pasarlo por la histeresis solo podria retrasarlo, y ese
+                // retraso es justo lo que el dueno ve al cerrar el teclado.
                 const aplicado = insetEstabilizado(insetAplicadoRef.current, objetivo, {
                     abierto,
                     estabaAbierto: tecladoAbiertoRef.current,
-                    forzar: forzarMedicion,
+                    forzar: forzarMedicion || documentoEncoge,
                 });
                 insetAplicadoRef.current = aplicado;
                 tecladoAbiertoRef.current = abierto;
@@ -685,6 +690,12 @@ const AgentPage = () => {
         const alEvento = () => {
             updateInputPosition();
             if (asiento) clearTimeout(asiento);
+            // [P1-KB-RESIZES-CONTENT · 2026-08-23] El asiento existe para la geometria que
+            // el JS persigue. Cuando el navegador redimensiona el layout por su cuenta no
+            // hay nada que perseguir: el contenedor ya vale lo que debe en el mismo frame,
+            // y una re-medicion 350 ms despues solo puede llegar tarde y mover algo que ya
+            // estaba quieto. Se programa SOLO en el camino antiguo (iOS que panea).
+            if (medirTecladoDeVentana(window).documentoEncoge) return;
             asiento = setTimeout(() => { asiento = null; updateInputPosition(true); }, 350);
         };
 

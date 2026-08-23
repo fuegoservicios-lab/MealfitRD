@@ -22,7 +22,22 @@
        user-scalable=no en browser). Trade-off WCAG aceptado: el texto sigue legible
        y la escala de fuente a nivel del SO (Dynamic Type / Android font size) sigue
        funcionando como vía de accesibilidad real. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <!-- [P1-KB-RESIZES-CONTENT · 2026-08-23] `interactive-widget=resizes-content` es lo que
+       le faltaba al chat en móvil. Sin él, iOS PANEA al abrirse el teclado: el layout
+       viewport no cambia, `100dvh` sigue midiendo la pantalla entera, y la única forma de
+       que la caja de escribir acompañe al teclado es recalcular el alto desde JS con los
+       eventos de `visualViewport` — que llegan DURANTE la animación y después de ella. De
+       ahí el retraso al cerrar y el «a veces se abre mal» que el dueño lleva reportando:
+       un cálculo que persigue una animación siempre va por detrás.
+       Con esta propiedad, el teclado ENCOGE el layout viewport y `100dvh` se ajusta solo,
+       con la misma animación del sistema que usan Gemini y ChatGPT (las referencias que
+       mandó el dueño el 23-ago). El JS deja de estar en el camino crítico: el SSOT
+       `keyboardViewport.js` ya descuenta lo que el documento encogió por su cuenta, así
+       que `--kb-inset` sale 0 y nada se encoge dos veces.
+       Los navegadores que no la entienden la IGNORAN y siguen con el camino de JS: es
+       aditiva, no un cambio de contrato. `user-scalable=no` + `maximum-scale=1` siguen
+       intactos (P1-VIEWPORT-ZOOM-LOCK, decisión del dueño). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
 
   <!-- [P1-I18N-DASHBOARD · 2026-08-15] No-flash language boot. Hermano del boot
        de tema de abajo y por el mismo motivo: el atributo tiene que estar puesto

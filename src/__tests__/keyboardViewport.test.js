@@ -71,13 +71,13 @@ describe('[P1-KB-VIEWPORT-MATH] lo que NO es un teclado', () => {
 
 describe('[P1-KB-VIEWPORT-MATH] lectura del window real', () => {
     it('sin visualViewport (navegador viejo, SSR) degrada a cerrado en vez de romper', () => {
-        expect(medirTecladoDeVentana(null)).toEqual({ kb: 0, layoutInset: 0, abierto: false });
-        expect(medirTecladoDeVentana({ innerHeight: H })).toEqual({ kb: 0, layoutInset: 0, abierto: false });
+        expect(medirTecladoDeVentana(null)).toEqual({ kb: 0, layoutInset: 0, abierto: false, documentoEncoge: false });
+        expect(medirTecladoDeVentana({ innerHeight: H })).toEqual({ kb: 0, layoutInset: 0, abierto: false, documentoEncoge: false });
     });
 
     it('con visualViewport delega en la función pura', () => {
         const win = { innerHeight: H, visualViewport: { height: vvConTeclado, offsetTop: K } };
-        expect(medirTecladoDeVentana(win)).toEqual({ kb: K, layoutInset: 0, abierto: true });
+        expect(medirTecladoDeVentana(win)).toEqual({ kb: K, layoutInset: 0, abierto: true, documentoEncoge: false });
     });
 });
 
@@ -105,7 +105,7 @@ describe('[P1-KB-ALTO-DE-REFERENCIA] la referencia no se mueve con lo que mide',
         const { _reiniciarAltoDeReferencia } = await import('../utils/keyboardViewport');
         _reiniciarAltoDeReferencia();
         const win = { innerHeight: H, visualViewport: { height: vvConTeclado, offsetTop: K } };
-        expect(medirTecladoDeVentana(win)).toEqual({ kb: K, layoutInset: 0, abierto: true });
+        expect(medirTecladoDeVentana(win)).toEqual({ kb: K, layoutInset: 0, abierto: true, documentoEncoge: false });
     });
 
     it('el giro NO se confunde con un teclado: cada ancho tiene su propio máximo', async () => {
@@ -116,7 +116,7 @@ describe('[P1-KB-ALTO-DE-REFERENCIA] la referencia no se mueve con lo que mide',
         expect(medirTecladoDeVentana(win).abierto).toBe(false);
         // giro a horizontal: alto 390 para ancho 844. Un máximo GLOBAL diría kb=454 → «teclado».
         win = { innerWidth: 844, innerHeight: 390, visualViewport: { height: 390, offsetTop: 0 } };
-        expect(medirTecladoDeVentana(win)).toEqual({ kb: 0, layoutInset: 0, abierto: false });
+        expect(medirTecladoDeVentana(win)).toEqual({ kb: 0, layoutInset: 0, abierto: false, documentoEncoge: false });
         // teclado en horizontal (encoge a 200): se detecta contra el 390 de SU ancho
         win = { innerWidth: 844, innerHeight: 200, visualViewport: { height: 200, offsetTop: 0 } };
         expect(medirTecladoDeVentana(win).abierto).toBe(true);

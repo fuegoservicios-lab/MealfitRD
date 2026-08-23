@@ -77,7 +77,11 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         const src = read('pages/AgentPage.jsx');
         const i = src.indexOf('let asiento = null;');
         expect(i, 'falta el asiento: sin el, una medicion rancia se queda para siempre').toBeGreaterThan(0);
-        const bloque = src.slice(i, i + 700);
+        // La ventana acaba donde acaba el bloque del asiento, no a los N chars: un
+        // comentario nuevo dentro (P1-KB-RESIZES-CONTENT) empujaba el setTimeout fuera
+        // y el guard se ponia rojo sin que nada se hubiera roto. Misma leccion que
+        // test_p1_chat_mobile_ready el mismo dia.
+        const bloque = src.slice(i, src.indexOf('\n        };', i));
         // [P1-CHAT-KB-SCROLL-QUIETO · 2026-08-23] El asiento pasa `true`: es la medición
         // DEFINITIVA tras el silencio y tiene que saltarse la histéresis del inset.
         expect(bloque).toMatch(/setTimeout\(\(\) => \{ asiento = null; updateInputPosition\(true\); \}, 350\)/);

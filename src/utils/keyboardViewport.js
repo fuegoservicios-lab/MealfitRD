@@ -99,7 +99,7 @@ export function _reiniciarAltoDeReferencia() {
 /** Lee el `window` real y delega en la función pura. Sin visualViewport → todo a cero. */
 export function medirTecladoDeVentana(win = typeof window !== 'undefined' ? window : null) {
     const vv = win && win.visualViewport;
-    if (!win || !vv) return { kb: 0, layoutInset: 0, abierto: false };
+    if (!win || !vv) return { kb: 0, layoutInset: 0, abierto: false, documentoEncoge: false };
     // La referencia es el alto sin teclado, no el `innerHeight` del instante: si iOS los
     // encoge a la vez, el del instante ya lleva el teclado restado.
     const m = medirTeclado({ innerHeight: altoDeReferencia(win.innerHeight, win.innerWidth), vvHeight: vv.height, vvOffsetTop: vv.offsetTop });
@@ -108,7 +108,17 @@ export function medirTecladoDeVentana(win = typeof window !== 'undefined' ? wind
     // lo encogería DOS veces (844 → 508 → 172 px de chat, la caja a media pantalla).
     // `layoutInset` es cuánto falta por encoger: el teclado menos lo que iOS ya quitó.
     const yaEncogido = Math.max(0, altoDeReferencia(win.innerHeight, win.innerWidth) - (Number(win.innerHeight) || 0));
-    return { ...m, layoutInset: Math.max(0, m.layoutInset - yaEncogido) };
+    // [P1-KB-RESIZES-CONTENT · 2026-08-23] `documentoEncoge` dice si el NAVEGADOR está
+    // redimensionando el layout viewport por su cuenta — lo que hace la PWA instalada, y
+    // lo que hace Safari desde que el meta viewport lleva `interactive-widget=
+    // resizes-content`. Cuando es cierto, el alto ya lo resuelve CSS (`100dvh`) con la
+    // animación del sistema y el JS no debe añadir nada: ni inset, ni re-mediciones
+    // tardías. El llamador lo usa para no dejar su propio retraso encima.
+    return {
+        ...m,
+        layoutInset: Math.max(0, m.layoutInset - yaEncogido),
+        documentoEncoge: yaEncogido > 0,
+    };
 }
 
 /**
