@@ -145,6 +145,7 @@ self.addEventListener('push', (event) => {
     // el nombre de una feature. Este literal es el fallback cuando el push
     // llega sin título, así que es lo que el usuario ve en la pantalla de
     // bloqueo — el sitio con MENOS contexto alrededor para matizarlo.
+    // [I18N-EXEMPT: service worker, t() no existe aqui; fallback declarado en P3-I18N-SW-PUSH-FALLBACK, inalcanzable desde prod]
     const title = data.title || "Tu coach nutricional IA";
     const body = data.body || "Tienes un nuevo mensaje.";
     // Ensure we have a valid absolute URL for the icon

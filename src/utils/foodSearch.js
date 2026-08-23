@@ -89,9 +89,13 @@ export function searchFoods(query, foods, dishes, max = 12) {
                 kind: 'food',
                 ref: `food:${f.id}`,
                 label: f.name,
+                // [P2-I18N-FOODSEARCH-SUBTITULO-ALIMENTO · 2026-08-23] Los platos criollos
+                // (arriba) llevaban subtítulo traducido y los alimentos no — en la MISMA
+                // lista. Y era un TERNARIO, que es justo la forma que el escáner de
+                // cadenas sin envolver no inspeccionaba (P2-I18N-ESCANER-CIEGO-AL-TERNARIO).
                 sub: porcionDefault && porcionDefault.unit !== 'g'
-                    ? `Alimento · ${porcionDefault.label} ${Math.round(porcionDefault.grams_per_qty)} g`
-                    : 'Alimento · por gramos',
+                    ? t('Alimento · {porcion} {g} g', { porcion: porcionDefault.label, g: Math.round(porcionDefault.grams_per_qty) })
+                    : t('Alimento · por gramos'),
                 item: f,
                 rank: r,
             });

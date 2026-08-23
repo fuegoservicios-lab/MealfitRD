@@ -2845,5 +2845,9 @@
   "Registraste {platos}{kcal} como tu {slot} de hoy.": "Você registrou {platos}{kcal} como seu {slot} de hoje.",
   "Bórralo en «{seccion}» para desbloquear.": "Apague em «{seccion}» para desbloquear.",
   "Corrígelo en «{seccion}» si no es lo que comiste.": "Corrija em «{seccion}» se não foi o que você comeu.",
-  "algo": "algo"
+  "algo": "algo",
+  "el día {n}": "o dia {n}",
+  "del día {desde} al día {hasta}": "do dia {desde} ao dia {hasta}",
+  "Alimento · {porcion} {g} g": "Alimento · {porcion} {g} g",
+  "Alimento · por gramos": "Alimento · por gramas"
 }

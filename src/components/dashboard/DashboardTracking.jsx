@@ -128,7 +128,10 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                         setDismissed(true);
                     }}
                 >
-                    Ahora no
+                    {/* [P2-I18N-BOTON-AHORA-NO-SIN-ENVOLVER · 2026-08-23] La traducción
+                        existía en los cuatro catálogos (la usa el otro «Ahora no» de este
+                        mismo fichero, 47 líneas más arriba) y este botón no la pedía. */}
+                    {t('Ahora no')}
                 </button>
             </div>
         </div>

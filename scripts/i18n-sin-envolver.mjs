@@ -234,6 +234,24 @@ export function detectarEnFuente(src) {
     let lineaSentencia = 0;
 
     const anotar = (nodo, posicion, fuerte = false) => {
+        // [P2-I18N-ESCANER-CIEGO-AL-TERNARIO-EN-PROP-DE-COPY · 2026-08-23] Un literal
+        // dentro de un ternario o de un `||` está en la MISMA posición de copy que el nodo
+        // que lo contiene: `sub: cond ? 'Alimento · por gramos' : 'Plato criollo'` pinta uno
+        // de los dos, siempre. `textoLiteral` devolvía `null` para la expresión entera y el
+        // escáner reportaba CERO. Medido: `detectarEnFuente` sobre esa línea → `[]`. Se
+        // desdoblan las ramas y cada literal se anota por separado; un `t()` en una rama
+        // sigue saltándose por identidad de nodo, como siempre.
+        if (nodo && nodo.type === 'ConditionalExpression') {
+            anotar(nodo.consequent, posicion, fuerte);
+            anotar(nodo.alternate, posicion, fuerte);
+            return;
+        }
+        if (nodo && nodo.type === 'LogicalExpression' && (nodo.operator === '||' || nodo.operator === '??')) {
+            anotar(nodo.left, posicion, fuerte);
+            anotar(nodo.right, posicion, fuerte);
+            return;
+        }
+        if (nodo && yaTraducidos.has(nodo)) return;
         const texto = textoLiteral(nodo);
         const marca = fuerte ? pareceEspanolEnPosicionFuerte : pareceEspanol;
         if (texto === null || !marca(texto)) return;

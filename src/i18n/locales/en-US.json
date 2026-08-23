@@ -2845,5 +2845,9 @@
   "Registraste {platos}{kcal} como tu {slot} de hoy.": "You logged {platos}{kcal} as today's {slot}.",
   "Bórralo en «{seccion}» para desbloquear.": "Delete it in “{seccion}” to unlock.",
   "Corrígelo en «{seccion}» si no es lo que comiste.": "Fix it in “{seccion}” if that's not what you ate.",
-  "algo": "something"
+  "algo": "something",
+  "el día {n}": "day {n}",
+  "del día {desde} al día {hasta}": "from day {desde} to day {hasta}",
+  "Alimento · {porcion} {g} g": "Food · {porcion} {g} g",
+  "Alimento · por gramos": "Food · by grams"
 }
