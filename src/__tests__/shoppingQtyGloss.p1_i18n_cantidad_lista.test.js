@@ -58,7 +58,8 @@ describe('[P1-I18N-CANTIDAD-LISTA] la cantidad de la lista sigue el idioma', () 
         await loadLocale('fr-FR');
         const salida = glossShoppingQty('2 fundas (Selecto 1 Lb · Wala c/u)', t);
         // El envase sí; la etiqueta del producto, jamás.
-        expect(salida).toContain('sachets');
+        // [P3-I18N-ENVASES-DISTINTOS-QUE-COLAPSAN] «fundas» es la bolsa («sacs»); «sachets» es «sobres».
+        expect(salida).toContain('sacs');
         expect(salida).toContain('Selecto 1 Lb');
         expect(salida).toContain('Wala');
         expect(salida).not.toMatch(/livre|Livre/);   // «Lb» NO se traduce
@@ -238,4 +239,22 @@ describe('[P3-I18N-SHOPPING-HELPERS-RELLENOS] rellenos al pintar', () => {
         const json = JSON.stringify(out);
         expect(json).toMatch(/Al gusto|Ingrediente|Desconocido/);
     });
+});
+
+// [P3-I18N-ENVASES-DISTINTOS-QUE-COLAPSAN · 2026-08-23] «funda» (la bolsa) y «sobre» (el
+// sachet) eran ambas «sachet» en francés: dos envases distintos de la lista salían con la
+// misma palabra, y el usuario no sabía si comprar una bolsa o un sobrecito. Se distinguen
+// en los cuatro catálogos; este guard mide los pares en los que el español distingue.
+describe('[P3-I18N-ENVASES-DISTINTOS-QUE-COLAPSAN] envases que el español distingue', () => {
+    const PARES = [['funda', 'sobre'], ['fundas', 'sobres'], ['fundita', 'sobrecito'], ['funditas', 'sobrecitos']];
+    for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
+        it(`${loc}: funda≠sobre y fundita≠sobrecito`, async () => {
+            const cat = (await import(`../i18n/locales/${loc}.json`)).default;
+            for (const [a, b] of PARES) {
+                expect(cat[a], `${loc} sin «${a}»`).toBeTruthy();
+                expect(cat[b], `${loc} sin «${b}»`).toBeTruthy();
+                expect(cat[a].toLowerCase(), `${loc}: «${a}» y «${b}» colapsan en «${cat[a]}»`).not.toBe(cat[b].toLowerCase());
+            }
+        });
+    }
 });
