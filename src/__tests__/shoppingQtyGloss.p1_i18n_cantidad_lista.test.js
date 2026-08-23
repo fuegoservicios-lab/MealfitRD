@@ -258,3 +258,20 @@ describe('[P3-I18N-ENVASES-DISTINTOS-QUE-COLAPSAN] envases que el español disti
         });
     }
 });
+
+// [P3-I18N-UD-DENTRO-DEL-PARENTESIS · 2026-08-23] El PDF explicaba «U. = unité» y seguía
+// imprimiendo «Ud.» dentro del paréntesis en el 11 % de sus líneas: el paso 0 sólo glosaba la
+// abreviatura anclada al principio. «Ud.» es una unidad, no una marca.
+describe('[P3-I18N-UD-DENTRO-DEL-PARENTESIS] la abreviatura también dentro del paréntesis', () => {
+    it('«(12 Ud. · Selecto)» → «(12 U. · Selecto)», marca y tamaño intactos', async () => {
+        await loadLocale('fr-FR');
+        const out = glossShoppingQty('1 paquete (12 Ud. · Selecto)', t);
+        expect(out).toMatch(/^1 paquet \(12 U\. · Selecto\)$/);
+        expect(glossShoppingQty('2 Ud. (Wala 1 Ud. c/u)', t)).toBe('2 U. (Wala 1 U. chacun)');
+        expect(glossShoppingQty('3 unidades (2 Uds. c/u)', t)).not.toMatch(/Uds\./);
+    });
+    it('en es-DO no cambia nada', async () => {
+        await loadLocale(DEFAULT_LOCALE);
+        expect(glossShoppingQty('1 paquete (12 Ud. · Selecto)', t)).toBe('1 paquete (12 Ud. · Selecto)');
+    });
+});

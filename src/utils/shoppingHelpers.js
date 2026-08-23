@@ -509,6 +509,16 @@ export const glossShoppingQty = (displayQty, t) => {
     // 3. «c/u» va DENTRO del paréntesis pero no es marca ni tamaño: es la aclaración de que
     //    el tamaño es POR envase, y sin ella «9 potes (16 oz)» se lee como el total.
     out = out.replace(/\bc\/u\b/gu, () => t('c/u'));
+    // [P3-I18N-UD-DENTRO-DEL-PARENTESIS · 2026-08-23] La abreviatura de unidad también
+    // DENTRO del paréntesis: «(12 Ud. · Selecto)». El paso 0 sólo la buscaba anclada al
+    // principio, así que el PDF explicaba «U. = unité» en su leyenda y seguía imprimiendo
+    // «Ud.» en el 11 % de sus líneas. «Ud.» es una unidad, no una marca — la marca y el
+    // tamaño del paréntesis siguen intactos, igual que con `c/u` justo arriba.
+    out = out.replace(/(\d)\s+(Uds?\.)/gu, (todo, cifra, abrev) => {
+        const trad = abreviaturas[abrev.toLowerCase()];
+        if (!trad || trad === abrev) return todo;
+        return `${cifra} ${trad}`;
+    });
 
     // 3b. «Genérico» — la marca que NO es una marca. [P2-I18N-GENERICO-SE-IMPRIME-EN-ESPANOL
     //     · 2026-08-23] La regla de no tocar el paréntesis existe para los nombres propios
