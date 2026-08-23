@@ -48,7 +48,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 // en el texto del ingrediente mostrado (conservador; no toca cubanela/pimienta/paprika).
 import { displayAjiMorron } from '../utils/ingredientDisplay';
 import { isRecipeAnnotation, parseRecipeStep } from '../utils/recipeSteps';
-import { WORDMARK_TEXT, wordmarkHtml } from '../components/common/Wordmark';
+import { WORDMARK_TEXT, wordmarkHtml } from '../config/brand';
 import { pdfFileName } from '../utils/pdfFileName';
 // [P1-EATEN-SLOT-RECIPES · 2026-07-28] SSOT del matcher "ya comiste esto hoy"
 // (utils/todayRemaining.js) — el MISMO módulo que usa Dashboard.jsx

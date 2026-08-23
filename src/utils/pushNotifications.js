@@ -67,7 +67,12 @@ export const subscribeToPushNotifications = async () => {
         }
 
         if (!registration) {
-            throw new Error("No hay Service Worker registrado.");
+            // [P2-I18N-PUSH-ERROR-COPY · 2026-08-22] Codigo, no texto. Este mensaje
+            // llegaba al usuario por `err.message || t('…')` en Settings.jsx, y como
+            // `err.message` siempre es verdad, el `|| t(…)` de al lado era una RAMA
+            // MUERTA: la traduccion existia y no se pintaba jamas. Mismo cierre que
+            // P1-I18N-SERVER-COPY-GANA dio a los otros cuatro canales.
+            { const _e = new Error("sw_missing"); _e.code = "sw_missing"; throw _e; }
         }
         
         let subscription = await registration.pushManager.getSubscription();
@@ -88,7 +93,10 @@ export const subscribeToPushNotifications = async () => {
         });
 
         if (!res.ok) {
-            throw new Error(`Error del servidor (${res.status})`);
+            // [P2-I18N-PUSH-ERROR-COPY · 2026-08-22] Idem. El status viaja aparte para
+            // que el copy pueda interpolarlo en el idioma del usuario.
+            { const _e = new Error("server_error"); _e.code = "server_error";
+              _e.status = res.status; throw _e; }
         }
 
         return { success: true };
@@ -102,7 +110,10 @@ export const subscribeToPushNotifications = async () => {
         
         // Sin código conocido: se pasa el mensaje del NAVEGADOR, que no es copy nuestro
         // (lo compone el motor y suele venir ya en el idioma del sistema).
-        return { success: false, code: null, error: err.message };
+        // El codigo, si el throw lo trae, llega hasta el llamador: sin esto el copy
+        // no se puede resolver por locale y volvemos al mensaje en espanol.
+        return { success: false, code: err?.code || null, status: err?.status,
+                 error: err?.code ? null : err.message };
     }
 };
 

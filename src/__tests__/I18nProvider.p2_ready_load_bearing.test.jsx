@@ -81,6 +81,35 @@ describe('[P2-I18N-READY-LOAD-BEARING] el repintado de arranque', () => {
         ).toBe('number');
     });
 
+    // [P3-I18N-CATALOGVERSION-ANCLA-LA-FORMA · 2026-08-22] Que EXISTA no es que SIRVA.
+    //
+    // El test de arriba comprueba el TIPO. Un contador congelado en 0 es un numero
+    // perfectamente valido y no repinta nada — o sea que el disparador podia morir con los
+    // tres tests en verde, que es exactamente el modo de fallo para el que existe. Misma
+    // leccion que `P1-I18N-GATE-VALOR` dejo en el cotejo de catalogos: medir la forma no es
+    // medir la funcion.
+    it('el contador SUBE cuando entra un catalogo — no basta con que exista', async () => {
+        localStorage.setItem('mealfit_locale', 'fr-FR');
+        const { I18nProvider, useI18n } = await import('../i18n');
+
+        const vistos = [];
+        const Sonda = () => {
+            const ctx = useI18n();
+            vistos.push(Number(ctx.catalogVersion));
+            return <span data-testid="sonda2" />;
+        };
+        render(<I18nProvider><Sonda /></I18nProvider>);
+
+        await waitFor(() => {
+            expect(
+                Math.max(...vistos) > vistos[0],
+                '`catalogVersion` no subio al entrar el catalogo. Congelado en su valor '
+                + 'inicial es un numero valido que no dispara repintado: el guard de tipo '
+                + 'seguiria verde con la funcion muerta.',
+            ).toBe(true);
+        }, { timeout: 2000 });
+    });
+
     it('MUTACIÓN DE CONTROL: sin catálogo, el copy se queda en español', async () => {
         // Si este test pasara con «Enregistrer», el primero no estaría midiendo la
         // carga del catálogo sino un mock que siempre gana.

@@ -355,9 +355,27 @@ function revisarGlosario(catalogosPorCodigo) {
                     + termino.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
                     + String.raw`(?![\w])`,
                 ).test(clave))) continue;
-                const texto = typeof v === 'string' ? v : (v && v.other) || '';
-                if (!texto) continue;
-                if (!sinAcentos(texto).includes(quiere)) desvios.push({ termino, clave: k });
+                // [P3-I18N-GLOSARIO-ALCANCE-RECORTADO · 2026-08-22] LAS DOS formas del
+                // plural, no sólo `other`.
+                //
+                // Un plural es una clave con dos textos y el glosario sólo miraba uno: una
+                // traducción podía usar el término pactado en «2 platos» y otro distinto en
+                // «1 plato», y el desvío no existía para el gate. Es el mismo hueco que
+                // `P1-I18N-GATE-VALOR` cerró en el cotejo de catálogos —medir que la clave
+                // existe no es medir que sirve— aplicado a la mitad de una clave.
+                //
+                // Se exige el término en CADA forma presente, no en su concatenación: unir
+                // los dos textos y buscar una vez deja pasar justo el caso que esto busca.
+                //
+                // Medido antes de escribirlo: con las dos formas salen los MISMOS 16
+                // desvíos. Cero stock oculto — se arregla el mecanismo, no una deuda.
+                const formas = typeof v === 'string'
+                    ? [v]
+                    : [v && v.one, v && v.other].filter((x) => typeof x === 'string' && x);
+                if (!formas.length) continue;
+                if (formas.some((f) => !sinAcentos(f).includes(quiere))) {
+                    desvios.push({ termino, clave: k });
+                }
             }
         }
         porIdioma[code] = desvios;

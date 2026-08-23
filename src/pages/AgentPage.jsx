@@ -2072,7 +2072,11 @@ const AgentPage = () => {
                 }
 
                 // Obtener hora actual local formateada
-                const currentTime = formatDate(new Date(), { hour: '2-digit', minute: '2-digit', hour12: true });
+                // [P3-I18N-HORA-COACH-12H · 2026-08-22] `hour12: true` ANULA al formateador que sí
+                // lee el locale: forzaba AM/PM a los cinco idiomas, y el francés, el
+                // italiano y el español usan 24 h. `timeStyle: 'short'` deja que cada
+                // idioma ponga su convención — que es para lo que existe `Intl`.
+                const currentTime = formatDate(new Date(), { timeStyle: 'short' });
                 const timeContext = `(Hora actual del usuario: ${currentTime})`;
 
                 // [P1-CHAT-VISION-GEMMA · 2026-07-12] Instrucción POR MODO según

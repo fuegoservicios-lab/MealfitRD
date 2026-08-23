@@ -14,7 +14,7 @@ import { firstDayMeals } from "../../utils/normalizePlanDays";
 // [P1-I18N-FORMATOS-CLAVADOS · 2026-08-21] `formatNumber` se suma a los que ya
 // estaban: los `toLocaleString('es-DO')` fijos de las kcal pintaban separadores
 // dominicanos en las cuatro traducciones, y en pt-BR la coma es DECIMAL.
-import { t, tn, useT, useI18n, formatDate, formatNumber } from "../../i18n";
+import { t, tn, useT, useI18n, formatDate, formatNumber, getLocale } from "../../i18n";
 
 /**
  * HistoryDesktopPanel — vista "Historial" de escritorio (Bioboros).
@@ -393,7 +393,10 @@ export default function HistoryDesktopPanel({
   const rest = useMemo(() => {
     let arr = normalized.filter((p) => !p.active && (!q || p.name.toLowerCase().includes(q)));
     if (sort === "kcal") arr = [...arr].sort((a, b) => b.kcal - a.kcal);
-    else if (sort === "name") arr = [...arr].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    // [P3-I18N-ORDEN-NOMBRES-ES-CLAVADO · 2026-08-22] El orden alfabetico sigue al idioma
+    // activo. Clavar "es" ordena la ñ y los digrafos con las reglas del castellano para
+    // un frances o un italiano — y este es el UNICO ordenador de texto de la app.
+    else if (sort === "name") arr = [...arr].sort((a, b) => a.name.localeCompare(b.name, getLocale()));
     else arr = [...arr].sort((a, b) => b.date - a.date);
     return arr;
   }, [normalized, q, sort]);

@@ -1426,6 +1426,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         push_unsupported: t('Push no soportado en este navegador.'),
                         vapid_missing: t('No se configuró la llave VAPID.'),
                         brave_blocks_push: t("Brave bloquea Push por defecto. Ve a brave://settings/privacy y activa 'Usar servicios de Google para mensajería push'."),
+                        sw_missing: t('No hay Service Worker registrado en este navegador.'),
+                        server_error: t('El servidor rechazó la suscripción (error {codigo}).', { codigo: result?.status ?? '?' }),
                     };
                     const errMsg = _copyPush[result?.code]
                         || result?.error

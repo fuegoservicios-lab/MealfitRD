@@ -1,4 +1,4 @@
-import { i18nKey } from '../i18n';
+import { formatNumber, i18nKey } from '../i18n';
 
 // ============================================================
 // [P0-2] Parser robusto de `market_qty` para items del shopping list.
@@ -342,6 +342,28 @@ const _UNIDADES_NO_TRADUCIBLES = new Set(['lb', 'lbs', 'kg', 'g', 'gr', 'ml', 'l
  * Sin `t`, con una entrada que no sea texto, o sin traducción disponible: devuelve la
  * entrada TAL CUAL. Una cantidad en español es una degradación; una vacía es un fallo.
  */
+/**
+ * El separador decimal del idioma activo, preguntado a `Intl`.
+ *
+ * [P3-I18N-METRICA-COMA-CLAVADA · 2026-08-22] Se PREGUNTA en vez de tabularse: una
+ * tabla `locale -> separador` escrita a mano sería la enésima de este repo y drifearía
+ * igual que las tres que `P1-DIET-CANON-SSOT` tuvo que fusionar. `formatNumber` ya
+ * enruta al locale activo, así que formatear `1.1` y quedarse con el carácter de en
+ * medio da la respuesta sin duplicar el estado.
+ *
+ * Devuelve `null` si no puede resolverlo — y entonces la cantidad se deja EXACTAMENTE
+ * como vino. Una cifra con el separador del idioma equivocado se lee; una cifra
+ * corrompida por un reemplazo a ciegas, no.
+ */
+const _separadorDecimal = () => {
+    try {
+        const m = /1(.)1/u.exec(formatNumber(1.1));
+        return m && m[1] !== '1' ? m[1] : null;
+    } catch {
+        return null;
+    }
+};
+
 export const glossShoppingQty = (displayQty, t) => {
     if (typeof displayQty !== 'string' || !displayQty.trim()) return displayQty;
     if (typeof t !== 'function') return displayQty;
@@ -402,6 +424,29 @@ export const glossShoppingQty = (displayQty, t) => {
     // 3. «c/u» va DENTRO del paréntesis pero no es marca ni tamaño: es la aclaración de que
     //    el tamaño es POR envase, y sin ella «9 potes (16 oz)» se lee como el total.
     out = out.replace(/\bc\/u\b/gu, () => t('c/u'));
+
+    // 4. El separador decimal. El backend lo escribe con COMA a mano
+    //    (`_etiqueta_metrica` en `shopping_calculator.py`: «1,4 kg»), y su comentario
+    //    dice «Coma decimal: la lista se lee en español».
+    //
+    //    Medido: `Intl` en **es-DO** devuelve `1.4`, con PUNTO. La República Dominicana
+    //    escribe el decimal como Estados Unidos, no como España — así que la coma
+    //    clavada no era sólo un descuido con los otros cuatro idiomas: estaba mal
+    //    también en el idioma BASE de la app. El comentario del backend confundió
+    //    «español» con «España».
+    //
+    //    Se toca ÚNICAMENTE el separador, nunca la agrupación de millares: reagrupar
+    //    convertiría «1250 g» en «1.250 g», y en una lista de la compra eso se puede
+    //    leer como mil doscientos cincuenta veces más. Lo que este gap dice es
+    //    «separador».
+    //
+    //    Y se glosa al RENDERIZAR, jamás en el dato: `parseMarketQty(ing.display_qty)`
+    //    lee el campo CRUDO en el camino de `/restock`, así que reescribir el número
+    //    aquí no puede desviar ni un gramo de lo que se descuenta de la nevera.
+    const _sep = _separadorDecimal();
+    if (_sep) {
+        out = out.replace(/(\d)[.,](\d)/gu, (_m, a, b) => `${a}${_sep}${b}`);
+    }
 
     return out;
 };

@@ -1,3 +1,10 @@
+// [P3-I18N-CONTADOR-SIN-SEPARADOR · 2026-08-22] El `2[\s.,]?100` de los asserts de
+// abajo NO es laxitud: la meta pasa por `formatNumber`, asi que la cifra se escribe con
+// el separador de millares del idioma activo (en es-DO, `2,100`). Lo que estos tests
+// afirman es «el contador muestra 955 de 2100»; como se agrupan los millares es
+// presentacion, y pertenece a la capa de idioma. Clavar los digitos crudos volveria a
+// poner estos cinco en rojo el dia que alguien toque el formateador — que es justo lo
+// que acaba de pasar.
 // [P1-DAILY-NOT-CYCLE · 2026-07-28] Antes este archivo se llamaba
 // `TrackingProgress.plan_cycle_reset.test.jsx` y ANCLABA el bug: esperaba que
 // una comida registrada antes de `cycle_start_date` desapareciera del card
@@ -98,8 +105,8 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
             expect(screen.getByText('2 comidas registradas hoy')).toBeInTheDocument();
         });
 
-        expect(container).toHaveTextContent(/955\s*\/\s*2100 kcal/);
-        expect(container).not.toHaveTextContent(/200\s*\/\s*2100 kcal/);
+        expect(container).toHaveTextContent(/955\s*\/\s*2[\s.,]?100 kcal/);
+        expect(container).not.toHaveTextContent(/200\s*\/\s*2[\s.,]?100 kcal/);
     });
 
     it('NO arranca en cero cuando la única comida de hoy es anterior a created_at del plan', async () => {
@@ -143,8 +150,8 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
             expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
         });
 
-        expect(container).toHaveTextContent(/955\s*\/\s*2100 kcal/);
-        expect(container).not.toHaveTextContent(/0\s*\/\s*2100 kcal/);
+        expect(container).toHaveTextContent(/955\s*\/\s*2[\s.,]?100 kcal/);
+        expect(container).not.toHaveTextContent(/0\s*\/\s*2[\s.,]?100 kcal/);
     });
 
     it('caso de producción: desayuno a las 17:44 UTC + renovación 57 min después (18:41 UTC), mismo día local — sigue contando 1 comida, 750 kcal', async () => {
@@ -188,7 +195,7 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
         // "750/ 2050 kcal" (falso positivo de matcher, no del componente). La
         // aserción positiva de arriba + `getByText('1 comida registrada hoy')`
         // (exact single-node match) ya prueban que NO quedó en 0.
-        expect(container).toHaveTextContent(/750\s*\/\s*2050 kcal/);
+        expect(container).toHaveTextContent(/750\s*\/\s*2[\s.,]?050 kcal/);
     });
 
     it('la cache key NO varía con cycle_start_date — mismo user + mismo día + plan distinto → misma key', async () => {

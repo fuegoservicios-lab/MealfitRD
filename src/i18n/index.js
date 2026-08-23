@@ -339,6 +339,31 @@ export function formatCurrencyName(code) {
     }
 }
 
+/**
+ * Importe monetario en el idioma activo.
+ *
+ * [P3-I18N-CHECKOUT-MONEDA-CLAVADA · 2026-08-22] El checkout escribía `US$` a mano y pegaba
+ * `.toFixed(2)` detrás, así que la única pantalla donde el usuario decide gastar dinero
+ * salía con el punto decimal anglosajón y el símbolo delante en los cinco idiomas. Un
+ * francés lee `25,00 $US` y un italiano `25,00 USD`; ver `US$25.00` en medio de una
+ * interfaz en su idioma es justo el descuido que hace dudar de un formulario de pago.
+ *
+ * Medido antes de escribirlo: en es-DO `Intl` devuelve `US$25.00` — BYTE-IDÉNTICO a lo que
+ * se pintaba a mano. La moneda sigue siendo USD en los cinco: esto traduce cómo se ESCRIBE
+ * un importe, no en qué se cobra (el `currency_code: 'USD'` que viaja a PayPal no se toca,
+ * y no debe tocarse: el precio es el mismo para todo el mundo).
+ */
+export function formatCurrency(value, code = 'USD') {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '';
+    try {
+        return new Intl.NumberFormat(_locale, { style: 'currency', currency: code }).format(n);
+    } catch {
+        // Degrada al formato de siempre antes que dejar el precio en blanco.
+        return `US$${n.toFixed(2)}`;
+    }
+}
+
 export function formatNumber(value, options) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '';

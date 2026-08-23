@@ -1,3 +1,10 @@
+// [P3-I18N-CONTADOR-SIN-SEPARADOR · 2026-08-22] El `2[\s.,]?100` de los asserts de
+// abajo NO es laxitud: la meta pasa por `formatNumber`, asi que la cifra se escribe con
+// el separador de millares del idioma activo (en es-DO, `2,100`). Lo que estos tests
+// afirman es «el contador muestra 955 de 2100»; como se agrupan los millares es
+// presentacion, y pertenece a la capa de idioma. Clavar los digitos crudos volveria a
+// poner estos cinco en rojo el dia que alguien toque el formateador — que es justo lo
+// que acaba de pasar.
 // [P1-DIARY-EDITABLE · 2026-07-28] Frontend half: la card "Progreso en
 // Tiempo Real" (TrackingProgress.jsx) ya recibía los objetos completos de
 // `consumed.meals` (fetch a `/api/diary/consumed/{userId}`) pero solo
@@ -135,7 +142,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         // texto del subárbol (igual que TrackingProgress.plan_cycle_reset
         // .test.jsx), a diferencia de `getByText` que exige un único nodo.
         await waitFor(() => {
-            expect(container).toHaveTextContent(/650\s*\/\s*2100 kcal/);
+            expect(container).toHaveTextContent(/650\s*\/\s*2[\s.,]?100 kcal/);
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Eliminar Pollo con arroz del diario' }));
@@ -145,8 +152,8 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
             expect(screen.queryByText('Pollo con arroz')).not.toBeInTheDocument();
         });
         expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
-        expect(container).toHaveTextContent(/200\s*\/\s*2100 kcal/);
-        expect(container).not.toHaveTextContent(/650\s*\/\s*2100 kcal/);
+        expect(container).toHaveTextContent(/200\s*\/\s*2[\s.,]?100 kcal/);
+        expect(container).not.toHaveTextContent(/650\s*\/\s*2[\s.,]?100 kcal/);
         expect(toast.success).toHaveBeenCalledTimes(1);
 
         // Contrato de cache (P1-TRACKING-CACHE-CONSUMED): la actualización debe
@@ -190,7 +197,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         // La fila y los totales quedan exactamente como antes del intento.
         expect(screen.getByText('Pollo con arroz')).toBeInTheDocument();
         expect(screen.getByText('2 comidas registradas hoy')).toBeInTheDocument();
-        expect(container).toHaveTextContent(/650\s*\/\s*2100 kcal/);
+        expect(container).toHaveTextContent(/650\s*\/\s*2[\s.,]?100 kcal/);
     });
 
     it('muestra un estado vacío que invita a registrar cuando no hay comidas', async () => {

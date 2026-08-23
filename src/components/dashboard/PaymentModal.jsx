@@ -16,7 +16,7 @@ import { trackEvent } from '../../utils/analytics';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useIsMobile } from '../../hooks/useMediaQuery';
-import { useI18n } from '../../i18n';
+import { formatCurrency, useI18n } from '../../i18n';
 // [P1-CHECKOUT-CREDITS-TRUTH · 2026-08-22] SSOT del ladder: las cifras y los
 // múltiplos se derivan, jamás se copian (ver `getPlanFeatures`).
 import { TIER_CREDITS, creditsVsPredecessor, includesPredecessor } from '../../config/plans';
@@ -595,7 +595,7 @@ const PaymentModal = ({
                                 marginBottom: '0.4rem',
                             }}>
                                 <span>{isAnnual ? t('Suscripción Anual') : t('Suscripción Mensual')}</span>
-                                <span>US${originalPrice.toFixed(2)}</span>
+                                <span>{formatCurrency(originalPrice)}</span>
                             </div>
 
                             {/* Discount line */}
@@ -610,7 +610,7 @@ const PaymentModal = ({
                                     }}
                                 >
                                     <span>{t('Descuento ({porcentaje}%)', { porcentaje: discountPercent })}</span>
-                                    <span>-US${discountAmount.toFixed(2)}</span>
+                                    <span>-{formatCurrency(discountAmount)}</span>
                                 </motion.div>
                             )}
 
@@ -621,7 +621,7 @@ const PaymentModal = ({
                                 marginBottom: '0.85rem',
                             }}>
                                 <span>{t('Impuesto estimado')}</span>
-                                <span>US$0.00</span>
+                                <span>{formatCurrency(0)}</span>
                             </div>
 
                             {/* Total */}
@@ -640,7 +640,7 @@ const PaymentModal = ({
                                     fontFamily: "'Outfit', sans-serif",
                                     fontSize: '1.15rem', fontWeight: 800, color: '#fff',
                                 }}>
-                                    US${discountPercent > 0 ? finalPrice : originalPrice.toFixed(2)}
+                                    {formatCurrency(discountPercent > 0 ? finalPrice : originalPrice)}
                                 </span>
                             </div>
 

@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 // tablas son FUNCIONES, nunca constantes: una constante con `t()` se evalúa al
 // importar —antes de que el catálogo cargue— y se congela en español para siempre.
 import { formatCurrencyName, formatDate, formatNumber, i18nKey, t, tn, useI18n, useT } from '../i18n';
-import { WORDMARK_TEXT } from '../components/common/Wordmark';
+import { WORDMARK_TEXT } from '../config/brand';
 import { pdfFileName } from '../utils/pdfFileName';
 // [P1-DASH-BUDGET-CURRENCY · 2026-08-21] `COUNTRY_SYSTEM_UI` se suma a este import ya existente.
 // Sin el símbolo, `currencyOptionsForCountry(pais, COUNTRY_SYSTEM_UI)` NO habría fallado:

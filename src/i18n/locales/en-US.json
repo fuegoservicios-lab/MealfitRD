@@ -2833,5 +2833,7 @@
   "Violaciones": "Violations",
   "¡Hola! Soy el asistente de Bioboros. Pregúntame lo que quieras sobre la app: cómo funciona, la Nevera, las recetas, tu cuenta…": "Hi! I'm the Bioboros assistant. Ask me anything about the app: how it works, the Fridge, recipes, your account…",
   "¿Cómo cambio un plato del día?": "How do I swap a dish of the day?",
-  "Elegir de la galería": "Choose from gallery"
+  "Elegir de la galería": "Choose from gallery",
+  "No hay Service Worker registrado en este navegador.": "No Service Worker is registered in this browser.",
+  "El servidor rechazó la suscripción (error {codigo}).": "The server rejected the subscription (error {codigo})."
 }

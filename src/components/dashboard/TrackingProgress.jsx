@@ -18,7 +18,7 @@ import { isDarkActive } from '../../utils/theme';
 import ScanMealModal from './ScanMealModal';
 // [P1-MANUAL-FOOD-LOG · 2026-08-11] El componedor manual: registrar sin foto.
 import LogMealModal from './LogMealModal';
-import { useT, useTn } from '../../i18n';
+import { formatNumber, useT, useTn } from '../../i18n';
 import styles from './TrackingProgress.module.css';
 
 // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Cache local del card
@@ -779,13 +779,13 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                             color: consumedTextColor
                         }}
                     >
-                        {consumed}
+                        {formatNumber(consumed)}
                     </span>
                     <span
                         className={styles.barGoal}
                         style={{ fontSize: large ? '0.9rem' : '0.8rem' }}
                     >
-                        / {goal} {unit}
+                        / {formatNumber(goal)} {unit}
                     </span>
                 </div>
             </div>
