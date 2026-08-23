@@ -51,7 +51,17 @@
         // que significa «nada guardado» — `getStoredLocale()` (src/i18n/index.js) si
         // respeta 'es-DO'. Que es-DO no reescriba el atributo ya lo decide la guarda
         // de mas abajo (`elegido !== 'es-DO'`), asi que aqui no hay efecto colateral.
-        var elegido = SUPPORTED.indexOf(stored) !== -1 ? stored : null;
+        // [P2-I18N-FRONTERA-MARKETING-CROMO-TRADUCIDO · 2026-08-23] El corte por host+ruta
+        // se calcula ANTES de mirar lo guardado, porque en marketing del apex tampoco
+        // manda lo guardado: el landing no esta traducido, y aplicar un fr-FR guardado
+        // ponia cabecera y pie en frances sobre un cuerpo espanol, con `<html lang>`
+        // mintiendo. Espejo exacto de `_esMarketingDelApex` en `src/i18n/index.js`.
+        var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about', '/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure'];
+        var h = String(location.hostname || '').toLowerCase();
+        var enApex = (h === 'bioboros.com' || h === 'www.bioboros.com');
+        var enMarketing = enApex && (PAPER.indexOf(location.pathname) !== -1
+          || location.pathname.indexOf('/novedades/') === 0);
+        var elegido = (!enMarketing && SUPPORTED.indexOf(stored) !== -1) ? stored : null;
 
         // [P2-I18N-AUTOLOCALE-SIN-KNOB · 2026-08-21] Interruptor de la autodeteccion.
         //
@@ -78,7 +88,6 @@
         // detectar ahi lo dejaria a medias, que es peor. La lista es copia literal de
         // `src/utils/paperSurface.js`, anclada por test -- igual que SUPPORTED.
         if (!elegido && !AUTO_LOCALE_OFF) {
-          var PAPER = ['/', '/precios', '/como-funciona', '/funciones', '/precision', '/motor', '/research', '/novedades', '/supermercado', '/about', '/privacy', '/terms', '/cookies', '/medical', '/data-protection', '/ai-policy', '/refunds', '/acceptable-use', '/responsible-disclosure'];
           // [P1-I18N-ARRANQUE-EN-RAIZ-MATA-LA-AUTODETECCION - 2026-08-23] Marketing es
           // ruta Y HOST. `/` esta en PAPER porque en el apex es la portada, pero `/` es
           // TAMBIEN la raiz de app.bioboros.com, el `start_url` de la PWA instalada y la
@@ -90,10 +99,6 @@
           // Espejo de `_autoLocaleParaLaSuperficieActual` en `src/i18n/index.js`. Los dos
           // tienen que decidir IGUAL o `<html lang>` y la app discrepan, que es peor que
           // cualquiera de los dos estados coherentes.
-          var h = String(location.hostname || '').toLowerCase();
-          var enApex = (h === 'bioboros.com' || h === 'www.bioboros.com');
-          var enMarketing = enApex && (PAPER.indexOf(location.pathname) !== -1
-            || location.pathname.indexOf('/novedades/') === 0);
           if (!enMarketing) {
             // `navigator.languages` (lista ORDENADA de preferencias) antes que
             // `navigator.language`: quien tiene el sistema en ingles pero prefiere

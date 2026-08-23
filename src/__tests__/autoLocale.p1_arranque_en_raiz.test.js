@@ -147,13 +147,69 @@ describe('[P1-I18N-ARRANQUE-EN-RAIZ-MATA-LA-AUTODETECCION]', () => {
         expect(_bootConHost('www.bioboros.com', '/precios', ['pt-BR'])).toBeNull();
     });
 
-    it('lo GUARDADO sigue ganando sobre lo detectado, en todas las superficies', async () => {
-        conEntorno({ pathname: '/', hostname: 'bioboros.com', idioma: 'fr-FR' });
+    it('lo GUARDADO sigue ganando sobre lo detectado EN LA APP', async () => {
+        conEntorno({ pathname: '/dashboard', hostname: 'app.bioboros.com', idioma: 'fr-FR' });
         localStorage.setItem('mealfit_locale', 'it-IT');
         const { getStoredLocale } = await import('../i18n');
         expect(
             getStoredLocale(),
             'la deteccion es el SUELO, no el techo: en cuanto el usuario elige, manda su eleccion',
         ).toBe('it-IT');
+    });
+
+    // ----------------------------------------------------------------------------------
+    // [P2-I18N-FRONTERA-MARKETING-CROMO-TRADUCIDO · 2026-08-23] En marketing del apex NO
+    // manda ni lo detectado ni lo GUARDADO. Este caso decía antes «lo guardado gana en
+    // todas las superficies» y describía la conducta de entonces, no una decisión: con un
+    // fr-FR guardado, /funciones salía con cabecera y pie en francés sobre un cuerpo
+    // español y `<html lang="fr-FR">` sobre un documento en castellano.
+    // ----------------------------------------------------------------------------------
+    it('en marketing del apex, lo GUARDADO tampoco manda: es-DO entero, cromo incluido', async () => {
+        conEntorno({ pathname: '/funciones', hostname: 'bioboros.com', idioma: 'fr-FR' });
+        localStorage.setItem('mealfit_locale', 'fr-FR');
+        const { getStoredLocale } = await import('../i18n');
+        const { DEFAULT_LOCALE } = await import('../i18n/locales');
+        expect(getStoredLocale()).toBe(DEFAULT_LOCALE);
+    });
+
+    it('la misma ruta en el host de la APP sí respeta lo guardado (control: es el host, no la ruta)', async () => {
+        conEntorno({ pathname: '/precios', hostname: 'app.bioboros.com', idioma: 'en-US' });
+        localStorage.setItem('mealfit_locale', 'fr-FR');
+        const { getStoredLocale } = await import('../i18n');
+        expect(getStoredLocale()).toBe('fr-FR');
+    });
+
+    const _bootConGuardado = (hostname, pathname, guardado) => {
+        const html = readFileSync(join(__dirname, '..', '..', 'index.html'), 'utf-8');
+        let cuerpo = html.slice(
+            html.indexOf('var SUPPORTED'),
+            html.indexOf('} catch', html.indexOf('var SUPPORTED')),
+        );
+        cuerpo = cuerpo.replaceAll('%VITE_AUTO_LOCALE%', 'on');
+        const raiz = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
+        const correr = new Function(
+            'localStorage', 'navigator', 'location', 'document', 'window',
+            `${cuerpo}
+;return { elegido: typeof elegido === 'undefined' ? null : elegido, lang: document.documentElement.attrs.lang || null };`,
+        );
+        return correr(
+            { getItem: () => guardado },
+            { languages: ['es-DO'], language: 'es-DO' },
+            { pathname, hostname },
+            { documentElement: raiz },
+            {},
+        );
+    };
+
+    it('BOOT: en marketing del apex un fr-FR guardado NO toca `<html lang>`', () => {
+        const r = _bootConGuardado('bioboros.com', '/funciones', 'fr-FR');
+        expect(r.elegido).toBeNull();
+        expect(r.lang, '<html lang> declararía francés sobre un documento en castellano').toBeNull();
+    });
+
+    it('BOOT: en la app el mismo fr-FR guardado sí fija `<html lang>` (control)', () => {
+        const r = _bootConGuardado('app.bioboros.com', '/dashboard', 'fr-FR');
+        expect(r.elegido).toBe('fr-FR');
+        expect(r.lang).toBe('fr-FR');
     });
 });

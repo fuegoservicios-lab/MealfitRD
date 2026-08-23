@@ -156,16 +156,26 @@ function _autoLocaleParaLaSuperficieActual() {
     // sesión; la ruta sí» (`observabilityScope.js`). Es la misma distinción.
     //
     // NO se toca `isPaperSurface`: gobierna el TEMA y tiene su propio test de espejo.
-    try {
-        if (typeof window !== 'undefined'
-            && isApexHost(window.location.hostname)
-            && isPaperSurface(window.location.pathname)) {
-            return DEFAULT_LOCALE;
-        }
-    } catch {
-        return DEFAULT_LOCALE;
-    }
+    if (_esMarketingDelApex()) return DEFAULT_LOCALE;
     return detectBrowserLocale();
+}
+
+// [P2-I18N-FRONTERA-MARKETING-CROMO-TRADUCIDO · 2026-08-23] El MISMO corte, extraído, porque
+// ahora lo consultan DOS decisiones y no una. Hasta hoy sólo apagaba la detección: un
+// idioma GUARDADO (el usuario eligió francés en la app y luego visita /funciones en el
+// apex) seguía aplicándose, y como el landing no está traducido, el resultado era
+// cabecera y pie en francés sobre un cuerpo español, con `<html lang>` declarando
+// fr-FR sobre un documento en castellano. En marketing del apex no hay idioma que
+// aplicar: es-DO entero, cromo incluido. Falla cerrado (cualquier excepción ⇒ es
+// marketing ⇒ español), igual que antes.
+function _esMarketingDelApex() {
+    try {
+        return typeof window !== 'undefined'
+            && isApexHost(window.location.hostname)
+            && isPaperSurface(window.location.pathname);
+    } catch {
+        return true;
+    }
 }
 
 export function getStoredLocale() {
@@ -179,6 +189,9 @@ export function getStoredLocale() {
     // el usuario elige idioma, o inicia sesión y llega el `locale` de su perfil, manda
     // eso. Sin este orden, el selector de Configuración sería decorativo para cualquiera
     // cuyo móvil esté en otro idioma.
+    // [P2-I18N-FRONTERA-MARKETING-CROMO-TRADUCIDO · 2026-08-23] Lo guardado gana sobre lo
+    // detectado EN LA APP. En marketing del apex no manda ninguno de los dos.
+    if (_esMarketingDelApex()) return DEFAULT_LOCALE;
     const guardado = safeLocalStorageGet(LOCALE_STORAGE_KEY, null);
     if (isSupportedLocale(guardado)) return guardado;
     return _autoLocaleParaLaSuperficieActual();
