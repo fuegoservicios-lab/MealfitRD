@@ -1,5 +1,11 @@
 {
   "_doc": [
+    "[P2-I18N-SEXTO-IDIOMA-ESPEJOS-CONGELADOS · 2026-08-23] `sin_pacto`: lista de idiomas en",
+    "los que un termino NO se exige, A SABIENDAS (la `nota` dice por que). Existe porque el",
+    "chequeo SALTA cualquier idioma sin entrada (`if (!esperada) continue`), asi que un olvido",
+    "y una decision se veian igual: 0 desvios, gate verde. Ahora un idioma que falte sin",
+    "estar aqui declarado es rojo en test_p2_i18n_espejos_sin_ancla.py.",
+    "",
     "[P3-I18N-SIN-GLOSARIO · 2026-08-21] Los sustantivos que el usuario aprende como",
     "NOMBRE de algo: una pantalla, un objeto, un estado. No son palabras cualesquiera —",
     "si «Nevera» sale unas veces como «fridge» y otras como «refrigerator», el usuario no",
@@ -45,6 +51,7 @@
   },
   "Plato": {
     "nota": "SIN PACTO PARA en-US, y no es un olvido. MEDIDO 2026-08-22: el ingles usa TRES palabras para lo que el espanol llama «plato», y las tres son correctas en su sitio — «meal» (la comida de una franja del plan: «Swap Meal»), «plate» (el plato FISICO que se fotografia: «Frame the plate and capture», 9 cadenas del escaner) y «dish» (el plato compuesto como termino culinario: «a food or a dish», «composite dish»). Un termino con tres sentidos no se puede exigir por subcadena; exigir cualquiera de los tres convertiria en desvio dos usos correctos. Misma decision que con «Comida» y «Diario», pero SOLO para el ingles: el portugues (prato 49/49), el frances (plat 38/49) y el italiano (piatto 49/49) si son consistentes, asi que ahi el pacto se mantiene y sigue vigilando. [ampliado 2026-08-22] El FRANCES tiene el mismo triple sentido: «plat» para la comida del plan (38) y «assiette» para el plato fisico del escaner (11) — «Cadrez l'assiette et capturez». Tambien sale del pacto. Quedan portugues e italiano, que si son consistentes. Lo que si se arreglo aparte fue la incoherencia DENTRO del flujo de swap: el boton decia «Swap Meal» y sus errores «We couldn't swap the dish» — siete cadenas alineadas.",
+    "sin_pacto": ["en-US", "fr-FR"],
     "pt-BR": "prato", "it-IT": "piatto"
   },
   "Lista de compras": {
