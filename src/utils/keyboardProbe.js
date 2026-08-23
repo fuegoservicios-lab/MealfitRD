@@ -20,11 +20,23 @@ import { safeLocalStorageGet } from './safeLocalStorage';
 const CLAVE = 'mf_kb_probe_log';
 
 export function iniciarSondaTeclado() {
-    if (!import.meta.env.DEV) return undefined;
+    // [P1-KB-SONDA-EN-PRODUCCION · 2026-08-23] La sonda pasa a funcionar TAMBIEN en
+    // produccion, y solo con `?kbprobe=1` EXPLICITO en la URL. Razon: el teclado de iOS
+    // no se reproduce desde un escritorio, y llevo cuatro arreglos sobre el mismo
+    // sintoma («al cerrar va lento») decididos por hipotesis. Sin numeros del
+    // dispositivo, el quinto seria otra hipotesis.
+    //
+    // En produccion NO basta `localStorage`: eso dejaria la sonda encendida para quien
+    // se la encontrara puesta. Solo el parametro, que hay que teclear a proposito y
+    // desaparece al navegar. Cero coste para todos los demas: sin el, este modulo
+    // retorna antes de crear nada.
     if (typeof window === 'undefined' || !window.visualViewport) return undefined;
     let activa = false;
     try {
-        activa = new URLSearchParams(location.search).has('kbprobe') || safeLocalStorageGet('mfKbProbe') === '1';
+        const pedida = new URLSearchParams(location.search).has('kbprobe');
+        activa = import.meta.env.DEV
+            ? (pedida || safeLocalStorageGet('mfKbProbe') === '1')
+            : pedida;
     } catch { /* sin storage */ }
     if (!activa) return undefined;
 
@@ -48,8 +60,19 @@ export function iniciarSondaTeclado() {
     const pintar = (evento) => {
         const vv = window.visualViewport;
         const m = medirTecladoDeVentana(window);
+        // [P1-KB-SONDA-EN-PRODUCCION · 2026-08-23] `cont` es el alto REAL que el navegador
+        // le está dando al contenedor del chat, y `caja` el borde inferior de la caja de
+        // escribir. Son los dos números que faltaban: si al cerrar el teclado `H` ya volvió
+        // a su valor y `cont` sigue con el alto reducido, quien llega tarde es `100dvh`
+        // (Safari resolviéndolo al final de la animación) y no nuestro JS. Sin esa
+        // distinción, cualquier arreglo del retraso es una apuesta.
+        const _cont = document.querySelector('.agent-container');
+        const _caja = document.querySelector('.input-wrapper');
+        const alto = _cont ? Math.round(_cont.getBoundingClientRect().height) : -1;
+        const fondo = _caja ? Math.round(_caja.getBoundingClientRect().bottom) : -1;
         const fila = `${evento.padEnd(7)} H=${window.innerHeight} vv=${Math.round(vv.height)} S=${Math.round(vv.offsetTop)} ` +
-            `→ kb=${m.kb} inset=${m.layoutInset} ${m.abierto ? 'ABIERTO' : 'cerrado'} kbOpen=${document.documentElement.hasAttribute('data-kb-open') ? 1 : 0}`;
+            `→ kb=${m.kb} inset=${m.layoutInset} cont=${alto} caja=${fondo} ` +
+            `${m.abierto ? 'ABIERTO' : 'cerrado'} kbOpen=${document.documentElement.hasAttribute('data-kb-open') ? 1 : 0}`;
         log.push(fila);
         if (log.length > 40) log.shift();
         caja.textContent = `[${modo}] sonda teclado — últimos eventos\n` + log.slice(-6).join('\n');
