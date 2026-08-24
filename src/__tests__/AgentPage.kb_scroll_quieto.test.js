@@ -77,7 +77,9 @@ describe('[P1-CHAT-PICKER-ANCLADO] el menú de la foto sale del clip', () => {
         const src = read('pages/AgentPage.jsx');
         const i = src.indexOf('type="file"');
         expect(i).toBeGreaterThan(0);
-        const bloque = src.slice(i, i + 700);
+        // Ventana hasta el CIERRE del input, no a los N chars: es la cuarta vez hoy
+        // que un comentario nuevo desborda un tope fijo y pone rojo un guard sano.
+        const bloque = src.slice(i, src.indexOf('/>', i));
         expect(bloque, 'sin rectángulo, iOS ancla el menú donde puede')
             .not.toMatch(/display:\s*'none'/);
         expect(bloque).toMatch(/position:\s*'absolute'/);
@@ -89,7 +91,9 @@ describe('[P1-CHAT-PICKER-ANCLADO] el menú de la foto sale del clip', () => {
     it('el input no es alcanzable por teclado ni por lector de pantalla (lo anuncia el botón)', () => {
         const src = read('pages/AgentPage.jsx');
         const i = src.indexOf('type="file"');
-        const bloque = src.slice(i, i + 700);
+        // Ventana hasta el CIERRE del input, no a los N chars: es la cuarta vez hoy
+        // que un comentario nuevo desborda un tope fijo y pone rojo un guard sano.
+        const bloque = src.slice(i, src.indexOf('/>', i));
         expect(bloque).toMatch(/aria-hidden="true"/);
         expect(bloque).toMatch(/tabIndex=\{-1\}/);
     });

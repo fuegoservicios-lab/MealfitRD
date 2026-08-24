@@ -2854,7 +2854,13 @@ const AgentPage = () => {
                         <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
                             <input
                                 type="file"
-                                accept="image/png, image/jpeg, image/jpg, image/webp, image/heic"
+                                // [P1-CHAT-ADJUNTAR-MAS · 2026-08-23] "image/*" y no la lista de
+                                // extensiones: con la lista, el menu de iOS ofrece
+                                // igualmente «Explorar» y deja elegir un fichero que luego
+                                // rechazamos. El comodin alinea lo que el menu ofrece con
+                                // lo que el chat acepta de verdad, y de paso hace que iOS
+                                // priorice camara y fototeca.
+                                accept="image/*"
                                 ref={fileInputRef}
                                 aria-hidden="true"
                                 tabIndex={-1}
@@ -2882,7 +2888,12 @@ const AgentPage = () => {
                                 }}
                                 title={t('Adjuntar imagen')}
                             >
-                                <Paperclip size={20} strokeWidth={2} />
+                                {/* [P1-CHAT-ADJUNTAR-MAS · 2026-08-23] `+` y no el clip: el
+                                    clip dice «adjuntar un fichero» —vocabulario de correo—
+                                    y lo que abre es cámara/fototeca. El `+` es el gesto que
+                                    ya usan ChatGPT y Gemini para lo mismo y no promete un
+                                    tipo concreto de contenido. */}
+                                <Plus size={22} strokeWidth={2.2} />
                             </button>
                         </span>
 
