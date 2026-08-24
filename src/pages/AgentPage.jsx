@@ -722,15 +722,23 @@ const AgentPage = () => {
             // que reserva sus 64 px por dentro. Señal en <html>: la barra se esconde y la
             // caja suelta la reserva (CSS en BottomTabBar.module.css y en este <style>).
             root.toggleAttribute('data-kb-open', abierto);
-            // Al abrirse el teclado el área visible se reduce: sin esto, el último
-            // mensaje queda fuera de cuadro justo cuando el usuario va a responder.
-            // [P1-KB-VIEWPORT-MATH] Traer la cola a cuadro al abrirse el teclado, pero NO
-            // si el usuario está leyendo más arriba: arrastrarlo al último mensaje por
-            // haber tocado la caja rompe el contrato de P2-CHAT-SCROLL-RACE
-            // (`userScrolledUpRef`, ver scrollToBottom). `scrollIntoView` y no
-            // `scrollTop`: en sesiones largas la lista está virtualizada y el contenedor
-            // es `overflow: hidden` — escribirle scrollTop no hace nada.
-            if (abierto && !userScrolledUpRef.current) scrollToBottomRef.current?.(false, 'auto');
+            // [P1-KB-NO-SCROLL-DE-PAGINA · 2026-08-24] Al abrir el teclado NO se usa
+            // la API que lleva un elemento a la vista: en iOS puede desplazar también el visual viewport
+            // completo después de aplicar el lift y volver a meter el compositor bajo
+            // el Form Assistant. Si hay conversación real, solo se mueve el scroller
+            // INTERNO; una bienvenida única no necesita movimiento alguno.
+            if (abierto && !userScrolledUpRef.current) {
+                const actuales = messagesRef.current || [];
+                const soloBienvenida = actuales.length === 1 && actuales[0]?.isWelcome;
+                if (!soloBienvenida) {
+                    if (actuales.length > VIRTUALIZE_THRESHOLD) {
+                        virtualizedListRef.current?.scrollToBottom({ behavior: 'auto' });
+                    } else {
+                        const lista = messagesContainerRef.current;
+                        if (lista) lista.scrollTop = lista.scrollHeight;
+                    }
+                }
+            }
         };
 
         // [P2-CHAT-KB-ASIENTO · 2026-08-23] Una medición MÁS, cuando el teclado ya paró.
@@ -4053,7 +4061,7 @@ const AgentPage = () => {
                                     gap: '2rem',
                                     paddingBottom: '0.5rem'
                                 }}
-                                className={`msg-log${messages.length === 1 && messages[0]?.isWelcome ? ' msg-log-welcome' : ''}`}
+                                className="msg-log"
                             >
                                 {isLoadingHistory ? (
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
@@ -4292,13 +4300,6 @@ const AgentPage = () => {
                        (Sin acentos graves en este comentario: vive dentro de un template
                        literal de JS y un backtick aquí cierra el literal y rompe el build.) */
                     .msg-log { margin-top: auto !important; }
-                    /* [P1-CHAT-WELCOME-STATIC-GAP · 2026-08-24] La bienvenida vive más
-                       arriba mediante espacio de layout ESTÁTICO. No usa transform, no
-                       escucha el teclado y no participa en su animación: preserva sin
-                       cambios el mecanismo del compositor confirmado por el dueño. */
-                    .msg-log-welcome {
-                        margin-bottom: 6.25rem !important;
-                    }
                     /* --- User bubble ---
                        [P1-CHAT-MOBILE-CONTRAST · 2026-08-10] El defecto que reportó el
                        dueño: su propio mensaje se leía CASI INVISIBLE en el teléfono.
@@ -4347,21 +4348,6 @@ const AgentPage = () => {
                         border-radius: 0 !important;
                         padding: 0.9rem 0 0.6rem 0.9rem !important;
                         font-size: 0.93rem !important;
-                    }
-                    /* La bienvenida es contexto del día, no una respuesta cualquiera:
-                       una superficie tenue la separa sin convertirla en una burbuja pesada. */
-                    .msg-bubble-welcome {
-                        background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(56,189,248,0.035)) !important;
-                        color: var(--text-main) !important;
-                        border-left-color: var(--primary) !important;
-                        border-radius: 0 1.1rem 1.1rem 0 !important;
-                        padding: 1rem 1rem 0.65rem 1rem !important;
-                        box-shadow: inset 0 0 0 1px rgba(129,140,248,0.08) !important;
-                    }
-                    html[data-theme="dark"] .msg-bubble-welcome {
-                        background: linear-gradient(135deg, rgba(99,102,241,0.13), rgba(56,189,248,0.045)) !important;
-                        color: var(--text-main) !important;
-                        box-shadow: inset 0 0 0 1px rgba(129,140,248,0.12) !important;
                     }
                     /* El filete indigo del bot compone a ~1,2:1 sobre el fondo oscuro:
                        invisible. '--primary' en oscuro (#818CF8) da 6,9:1 y cumple el 3:1

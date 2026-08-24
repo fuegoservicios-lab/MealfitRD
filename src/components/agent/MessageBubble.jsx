@@ -211,7 +211,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     // sutil, NO MessageActions (thumbs/regenerate no aplican).
     const isErrorBubble = msg.role === 'model' && msg._isErrorBubble === true;
     return (
-        <div className={`message-row${msg.isWelcome ? ' message-row-welcome' : ''}`} style={{
+        <div style={{
             display: 'flex',
             gap: '0.75rem',
             flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
@@ -225,9 +225,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
             <div
                 {...(isErrorBubble ? { role: 'alert' } : {})}
                 {...(msg.role === 'model' && msg.isStreaming ? { 'aria-busy': true } : {})}
-                className={msg.role === 'user'
-                    ? 'msg-bubble-user'
-                    : `msg-bubble-bot${msg.isWelcome ? ' msg-bubble-welcome' : ''}`}
+                className={msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot'}
                 style={{
                     flex: msg.role === 'user' ? '0 1 auto' : 1,
                     maxWidth: msg.role === 'user' ? '80%' : '100%',

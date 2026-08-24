@@ -161,10 +161,18 @@ describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS',
         expect(src).not.toMatch(/pwaTecladoAsentadoRef/);
     });
 
-    it('la bienvenida sube con espacio estático sin intervenir en el teclado', () => {
+    it('abrir el teclado no desplaza la página ni hace scroll para una bienvenida', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/msg-log-welcome/);
-        expect(src).toMatch(/\.msg-log-welcome\s*\{[^}]*margin-bottom:\s*6\.25rem/s);
+        const i = src.indexOf('[P1-KB-NO-SCROLL-DE-PAGINA');
+        expect(i).toBeGreaterThan(0);
+        const fin = src.indexOf('// [P2-CHAT-KB-ASIENTO', i);
+        expect(fin).toBeGreaterThan(i);
+        const bloque = src.slice(i, fin);
+        expect(bloque).toMatch(/soloBienvenida/);
+        expect(bloque).toMatch(/lista\.scrollTop = lista\.scrollHeight/);
+        expect(bloque).not.toMatch(/messagesEndRef\.current\?\.scrollIntoView/);
+        expect(bloque).not.toMatch(/scrollToBottomRef\.current/);
+        expect(src).not.toMatch(/msg-log-welcome/);
         expect(src).not.toMatch(/pwa-welcome-lift/);
         expect(src).not.toMatch(/posicion\.welcomeLift/);
     });
