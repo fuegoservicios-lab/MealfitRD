@@ -3817,6 +3817,21 @@ const AgentPage = () => {
 
                 /* ====== MOBILE REDESIGN ====== */
                 @media (max-width: 1024px) {
+                    /* [P1-KB-HUECO-SIN-PINTAR · 2026-08-23] EL glitch del cierre, visto en la
+                       captura del dueño de un fotograma intermedio (8:51): mientras el teclado
+                       baja, el contenedor del chat todavía no ha crecido y bajo la barra de
+                       pestañas asoma una franja MÁS OSCURA. No era un salto de posición: era
+                       el `body`, que usa `--bg-page` (#0B1120) mientras el chat usa `--bg-card`
+                       (#111827). Cualquier píxel que el chat no cubra durante la animación
+                       delata ese cambio de tono, y eso es lo que se ve como parpadeo.
+                       Mientras el chat esté en pantalla, el fondo de la página ES el suyo: da
+                       igual quién llegue primero, porque debajo hay el mismo color.
+                       `:has()` acota la regla a esta ruta (mismo patrón que Login.css) — sin
+                       él, el resto del dashboard cambiaría de fondo. */
+                    html:has(.agent-container),
+                    body:has(.agent-container) {
+                        background-color: var(--bg-card) !important;
+                    }
                     .agent-container {
                         border-radius: 0 !important;
                         border: none !important;
