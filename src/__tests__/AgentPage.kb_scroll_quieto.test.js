@@ -97,6 +97,34 @@ describe('[P1-CHAT-PICKER-ANCLADO] el menú de la foto sale del clip', () => {
         expect(bloque).toMatch(/aria-hidden="true"/);
         expect(bloque).toMatch(/tabIndex=\{-1\}/);
     });
+
+    it('con teclado abierto congela el alto antes de abrir el menú nativo', () => {
+        const src = read('pages/AgentPage.jsx');
+        const i = src.indexOf('const openAttachmentPicker');
+        const bloque = src.slice(i, src.indexOf('\n    };', i));
+        expect(bloque).toMatch(/armAttachmentPickerAnchor\(\)/);
+        expect(bloque.indexOf('armAttachmentPickerAnchor()'))
+            .toBeLessThan(bloque.indexOf('fileInputRef.current.click()'));
+        expect(src).toMatch(/--attachment-anchor-height/);
+        expect(src).toMatch(/var\(--attachment-anchor-height, calc\(/);
+    });
+
+    it('el + no roba el foco antes de congelar y conserva la activación de usuario', () => {
+        const src = read('pages/AgentPage.jsx');
+        expect(src).toMatch(/onPointerDown=\{preserveAttachmentPickerAnchor\}/);
+        const i = src.indexOf('const preserveAttachmentPickerAnchor');
+        const bloque = src.slice(i, src.indexOf('\n    };', i));
+        expect(bloque).toMatch(/document\.activeElement === chatInputRef\.current/);
+        expect(bloque).toMatch(/event\.preventDefault\(\)/);
+    });
+
+    it('libera la geometría al seleccionar, cancelar o volver a la página', () => {
+        const src = read('pages/AgentPage.jsx');
+        expect(src).toMatch(/const handleFileSelect = \(e\) => \{\s*releaseAttachmentPickerAnchor\(\)/);
+        expect(src).toMatch(/onCancel=\{releaseAttachmentPickerAnchor\}/);
+        expect(src).toMatch(/window\.addEventListener\('focus', releaseOnFocus\)/);
+        expect(src).toMatch(/document\.addEventListener\('visibilitychange', releaseOnVisible\)/);
+    });
 });
 
 describe('[P1-CHAT-AIRE-INFERIOR] la caja no lame el borde', () => {

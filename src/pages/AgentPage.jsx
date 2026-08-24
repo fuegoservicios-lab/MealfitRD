@@ -528,6 +528,13 @@ const AgentPage = () => {
     // lee un handler de visualViewport que no debe provocar renders.
     const insetAplicadoRef = useRef(null);
     const tecladoAbiertoRef = useRef(false);
+    // [P1-CHAT-PICKER-ANCLA-ESTABLE · 2026-08-24] Mientras iOS presenta su menú
+    // nativo de fuentes, el teclado desaparece y el visual viewport vuelve a crecer.
+    // Si el chat sigue esa geometría, el compositor baja pero el menú conserva el
+    // rectángulo desde el que se abrió: el `+` y su menú terminan muy separados.
+    // La altura congelada vive en el contenedor local (AgentPage es keep-alive).
+    const attachmentPickerAnchorLockRef = useRef(null);
+    const refreshKeyboardViewportRef = useRef(null);
     // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
     // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
     const cerrandoRef = useRef(false);
@@ -596,10 +603,14 @@ const AgentPage = () => {
         const resetViewportState = () => {
             root?.removeAttribute('data-kb-open');
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
-            if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
+            if (contenedor) {
+                contenedor.style.setProperty('--kb-inset', '0px');
+                contenedor.style.removeProperty('--attachment-anchor-height');
+            }
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
             cerrandoRef.current = false;
+            attachmentPickerAnchorLockRef.current = null;
         };
 
         // AgentPage queda montado con display:none entre rutas. Sus listeners y atributos
@@ -617,6 +628,19 @@ const AgentPage = () => {
         const updateInputPosition = (forzarMedicion = false) => {
             const wrapper = inputWrapperRef.current;
             if (!wrapper) return;
+            const contenedor = wrapper.closest('.agent-container');
+            // El selector nativo se dibuja fuera del DOM. Mientras está abierto no
+            // debe perseguir los resize/scroll con los que iOS retira el teclado:
+            // congelar el alto mantiene el `+` bajo el menú que nació de él.
+            const pickerAnchor = attachmentPickerAnchorLockRef.current;
+            if (pickerAnchor) {
+                if (contenedor) {
+                    contenedor.style.setProperty('--attachment-anchor-height', `${pickerAnchor.height}px`);
+                }
+                root?.toggleAttribute('data-kb-open', true);
+                wrapper.style.transform = '';
+                return;
+            }
             // [P1-KB-VIEWPORT-MATH · 2026-08-23] DOS números, no uno. `kb` (alto real del
             // teclado, independiente del paneo de iOS) responde «¿hay teclado?»; `layoutInset`
             // (kb - paneo) responde «cuánto encoger este contenedor, que está anclado al
@@ -689,7 +713,6 @@ const AgentPage = () => {
             // SSOT: durante el scroll con teclado abierto iOS panea, `layoutInset` cambia
             // en cada fotograma y la caja se despegaba del teclado y volvía. Ver
             // `insetEstabilizado` para el porqué de no eliminar la compensación.
-            const contenedor = wrapper.closest('.agent-container');
             if (contenedor) {
                 const objetivo = abierto ? layoutInset : 0;
                 // [P1-KB-RESIZES-CONTENT] Si el NAVEGADOR redimensiona el layout viewport
@@ -767,6 +790,9 @@ const AgentPage = () => {
         // Y si algo raro pasara, el siguiente evento del viewport lo corrige solo, porque
         // `updateInputPosition` reescribe el atributo con lo que mida.
         const alPerderElFoco = (e) => {
+            // El menú de archivos es modal y saca el foco del textarea. Eso NO es
+            // todavía una orden para mover el compositor: el menú sigue anclado a él.
+            if (attachmentPickerAnchorLockRef.current) return;
             const destino = e.relatedTarget;
             if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
                 return; // cambia de campo: el teclado sigue
@@ -782,12 +808,16 @@ const AgentPage = () => {
         vv.addEventListener('resize', alEvento);
         vv.addEventListener('scroll', alEvento);
         document.addEventListener('focusout', alPerderElFoco);
+        refreshKeyboardViewportRef.current = updateInputPosition;
         updateInputPosition();
         return () => {
             document.removeEventListener('focusout', alPerderElFoco);
             if (asiento) clearTimeout(asiento);
             vv.removeEventListener('resize', alEvento);
             vv.removeEventListener('scroll', alEvento);
+            if (refreshKeyboardViewportRef.current === updateInputPosition) {
+                refreshKeyboardViewportRef.current = null;
+            }
             // Cambiar de ruta con el teclado abierto no debe dejar la barra escondida.
             resetViewportState();
         };
@@ -1228,6 +1258,53 @@ const AgentPage = () => {
     // donde tap del botón send NO debe abrir keyboard).
     const chatInputRef = useRef(null);
 
+    const releaseAttachmentPickerAnchor = useCallback(() => {
+        if (!attachmentPickerAnchorLockRef.current) return;
+        attachmentPickerAnchorLockRef.current = null;
+        const contenedor = inputWrapperRef.current?.closest('.agent-container');
+        contenedor?.style.removeProperty('--attachment-anchor-height');
+        const refresh = () => refreshKeyboardViewportRef.current?.(true);
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(refresh);
+        else setTimeout(refresh, 0);
+    }, []);
+
+    const armAttachmentPickerAnchor = useCallback(() => {
+        const medido = medirTecladoDeVentana(window);
+        if (!tecladoAbiertoRef.current && !medido.abierto) return;
+        const contenedor = inputWrapperRef.current?.closest('.agent-container');
+        const height = contenedor?.getBoundingClientRect().height || 0;
+        if (!contenedor || height <= 0) return;
+        const stableHeight = Math.round(height);
+        attachmentPickerAnchorLockRef.current = { height: stableHeight };
+        contenedor.style.setProperty('--attachment-anchor-height', `${stableHeight}px`);
+        document.documentElement.toggleAttribute('data-kb-open', true);
+    }, []);
+
+    const preserveAttachmentPickerAnchor = useCallback((event) => {
+        // Evita que el botón robe el foco ANTES de que openAttachmentPicker alcance
+        // a congelar la geometría. El click sigue ocurriendo y conserva su activación
+        // de usuario, requisito de Safari para abrir un input de archivos.
+        if (tecladoAbiertoRef.current && document.activeElement === chatInputRef.current) {
+            event.preventDefault();
+        }
+    }, []);
+
+    useEffect(() => {
+        // `change` cubre selección y `cancel` cubre el cierre explícito. Estos dos
+        // fallbacks liberan el ancla al volver de Fototeca/Cámara aunque una versión
+        // concreta de WebKit no emita `cancel` para el primer menú de fuentes.
+        const releaseOnFocus = () => releaseAttachmentPickerAnchor();
+        const releaseOnVisible = () => {
+            if (document.visibilityState === 'visible') releaseAttachmentPickerAnchor();
+        };
+        window.addEventListener('focus', releaseOnFocus);
+        document.addEventListener('visibilitychange', releaseOnVisible);
+        return () => {
+            window.removeEventListener('focus', releaseOnFocus);
+            document.removeEventListener('visibilitychange', releaseOnVisible);
+        };
+    }, [releaseAttachmentPickerAnchor]);
+
     // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El alto del textarea es FUNCIÓN
     // del estado, no efecto colateral del evento `onInput`.
     //
@@ -1420,6 +1497,7 @@ const AgentPage = () => {
     }, [isLoading]);
 
     const handleFileSelect = (e) => {
+        releaseAttachmentPickerAnchor();
         addFiles(e.target.files);
     };
 
@@ -1437,11 +1515,14 @@ const AgentPage = () => {
                 triggerMobileHaptic('error');
                 toast.error(t('No pudimos abrir tus fotos. Revisa los permisos e inténtalo de nuevo.'));
             }
+        } finally {
+            releaseAttachmentPickerAnchor();
         }
     };
 
     const openAttachmentPicker = () => {
         if (isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) return;
+        armAttachmentPickerAnchor();
         if (isNativeApp()) {
             setShowAttachmentSource(true);
             return;
@@ -1449,10 +1530,13 @@ const AgentPage = () => {
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
             fileInputRef.current.click();
+        } else {
+            releaseAttachmentPickerAnchor();
         }
     };
 
     const clearSelectedFile = (options) => {
+        releaseAttachmentPickerAnchor();
         clearAttachments(options);
         attachmentUploadCacheRef.current.clear();
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -3086,6 +3170,7 @@ const AgentPage = () => {
                                     pointerEvents: 'none',
                                 }}
                                 onChange={handleFileSelect}
+                                onCancel={releaseAttachmentPickerAnchor}
                             />
 
                             <button
@@ -3094,6 +3179,7 @@ const AgentPage = () => {
                                 aria-label={t('Adjuntar imagen')}
                                 className={`attachment-btn ${(isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) ? 'disabled' : ''}`}
                                 disabled={isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT}
+                                onPointerDown={preserveAttachmentPickerAnchor}
                                 onClick={openAttachmentPicker}
                                 title={t('Adjuntar imagen')}
                             >
@@ -3539,7 +3625,7 @@ const AgentPage = () => {
                     // navegar (P1-AGENT-KEEP-ALIVE): una variable global escrita desde un
                     // componente invisible contaminaría el alto de las demás rutas.
                     height: isMobile
-                        ? 'calc(var(--app-height, 100dvh) - var(--kb-inset, 0px))'
+                        ? 'var(--attachment-anchor-height, calc(var(--app-height, 100dvh) - var(--kb-inset, 0px)))'
                         : 'var(--app-height, calc(100dvh - 7.25rem))',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] ver useEffect arriba
                     // [P1-KB-BAJADA-FLUIDA · 2026-08-23] El alto cambiaba de golpe: con el
                     // cerrojo de cierre eso pasa a ocurrir en el `blur` —o sea, JUSTO cuando
@@ -4065,7 +4151,10 @@ const AgentPage = () => {
 
             <AttachmentSourceSheet
                 open={showAttachmentSource}
-                onClose={() => setShowAttachmentSource(false)}
+                onClose={() => {
+                    setShowAttachmentSource(false);
+                    releaseAttachmentPickerAnchor();
+                }}
                 onGallery={() => runNativeImagePicker('gallery')}
                 onCamera={() => runNativeImagePicker('camera')}
                 triggerRef={attachmentTriggerRef}
