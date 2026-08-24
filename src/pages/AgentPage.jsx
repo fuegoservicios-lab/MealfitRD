@@ -4298,6 +4298,11 @@ const AgentPage = () => {
                     .message-row-welcome {
                         transform: translateY(-1.5rem);
                     }
+                    /* Con el teclado visible necesita un poco más de aire sobre el
+                       compositor: 48 px totales, sin animación ni cambio de layout. */
+                    html[data-kb-open] .message-row-welcome {
+                        transform: translateY(-3rem);
+                    }
                     /* --- User bubble ---
                        [P1-CHAT-MOBILE-CONTRAST · 2026-08-10] El defecto que reportó el
                        dueño: su propio mensaje se leía CASI INVISIBLE en el teléfono.
