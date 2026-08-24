@@ -227,3 +227,17 @@ describe('[P1-KB-CERROJO-DE-CIERRE] el evento rezagado no vuelve a encoger el ch
         expect(bloque).toMatch(/setTimeout\(/);
     });
 });
+
+describe('[P1-KB-BAJADA-FLUIDA] el chat acompaña al teclado en vez de saltar', () => {
+    it('el contenedor anima su alto con la curva y duración del teclado de iOS', () => {
+        const src = read('pages/AgentPage.jsx');
+        expect(src).toMatch(/transition: isMobile \? 'height 0\.25s cubic-bezier\(0\.32, 0\.72, 0, 1\)' : undefined/);
+    });
+
+    it('solo en móvil: en escritorio el alto no se mueve y animarlo solo retrasaría', () => {
+        const src = read('pages/AgentPage.jsx');
+        const i = src.indexOf("transition: isMobile ? 'height");
+        expect(i).toBeGreaterThan(0);
+        expect(src.slice(i, src.indexOf('\n', i))).toContain(': undefined');
+    });
+});

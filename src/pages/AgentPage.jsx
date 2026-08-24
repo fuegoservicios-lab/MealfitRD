@@ -3246,6 +3246,15 @@ const AgentPage = () => {
                     height: isMobile
                         ? 'calc(var(--app-height, 100dvh) - var(--kb-inset, 0px))'
                         : 'var(--app-height, calc(100dvh - 7.25rem))',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] ver useEffect arriba
+                    // [P1-KB-BAJADA-FLUIDA · 2026-08-23] El alto cambiaba de golpe: con el
+                    // cerrojo de cierre eso pasa a ocurrir en el `blur` —o sea, JUSTO cuando
+                    // iOS empieza a bajar el teclado— así que un salto seco se ve como un
+                    // parpadeo por delante de la animación del sistema. Con la curva y la
+                    // duración del teclado de iOS (~0,25 s, `cubic-bezier(.32,.72,0,1)`) el
+                    // chat baja ACOMPAÑANDO al teclado en vez de adelantarse.
+                    // Sólo en móvil: en escritorio el alto no se mueve y una transición ahí
+                    // sólo podría retrasar un cambio de layout legítimo.
+                    transition: isMobile ? 'height 0.25s cubic-bezier(0.32, 0.72, 0, 1)' : undefined,
                     background: 'var(--bg-card)',
                     borderRadius: isMobile ? '0' : '1.5rem',
                     boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
