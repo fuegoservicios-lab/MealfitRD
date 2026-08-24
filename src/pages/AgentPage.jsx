@@ -4299,9 +4299,9 @@ const AgentPage = () => {
                         transform: translateY(-1.5rem);
                     }
                     /* Con el teclado visible necesita un poco más de aire sobre el
-                       compositor: 48 px totales, sin animación ni cambio de layout. */
+                       compositor: 64 px totales, sin animación ni cambio de layout. */
                     html[data-kb-open] .message-row-welcome {
-                        transform: translateY(-3rem);
+                        transform: translateY(-4rem);
                     }
                     /* --- User bubble ---
                        [P1-CHAT-MOBILE-CONTRAST · 2026-08-10] El defecto que reportó el
