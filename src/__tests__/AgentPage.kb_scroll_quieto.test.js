@@ -260,3 +260,19 @@ describe('[P1-KB-HUECO-SIN-PINTAR] el fondo no delata el hueco durante el cierre
         expect(media, 'la regla debe vivir dentro del @media movil').toBeGreaterThan(0);
     });
 });
+
+describe('[P2-CSS-EN-TEMPLATE-SIN-BACKTICKS] el CSS embebido no puede llevar backticks', () => {
+    it('AgentPage parsea: un backtick en un comentario CSS cierra el template literal', () => {
+        // Segunda vez que muerde. El CSS de esta pagina vive dentro de <style>{`...`}</style>,
+        // o sea un template literal de JS: UN backtick en la prosa de un comentario CSS lo
+        // cierra ahi mismo y el fichero deja de compilar. eslint lo caza, pero solo despues
+        // de escribirlo; esto lo nombra para que la proxima vez se lea el porque.
+        const src = read('pages/AgentPage.jsx');
+        const i = src.indexOf('<style>{`');
+        expect(i, 'no encontre el bloque <style> embebido').toBeGreaterThan(0);
+        const fin = src.indexOf('`}</style>', i);
+        expect(fin).toBeGreaterThan(i);
+        const css = src.slice(i + '<style>{`'.length, fin);
+        expect(css.includes('`'), 'hay un backtick dentro del CSS embebido').toBe(false);
+    });
+});
