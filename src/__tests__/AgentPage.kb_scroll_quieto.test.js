@@ -152,14 +152,10 @@ describe('[P1-CHAT-AIRE-INFERIOR] la caja no lame el borde', () => {
 });
 
 describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS', () => {
-    const src = read('pages/AgentPage.jsx');
-
-    it('usa el accesorio PWA como destino y conserva el inset medido como fallback', () => {
-        expect(src).toMatch(/insetObjetivoTeclado\(window, \{ abierto, layoutInset \}\)/);
-    });
-
-    it('standalone no recorre insets parciales antes de llegar a 60', () => {
-        expect(src).not.toMatch(/layoutInset \+ accesorioPwa/);
+    it('suma el accesorio PWA al inset medido, sin sustituirlo', () => {
+        const src = read('pages/AgentPage.jsx');
+        expect(src).toMatch(/insetAccesorioTecladoIosPwa\(window, \{ abierto, documentoEncoge \}\)/);
+        expect(src).toMatch(/const objetivo = abierto \? layoutInset \+ accesorioPwa : 0/);
     });
 });
 
@@ -279,13 +275,11 @@ describe('[P1-KB-BAJADA-FLUIDA] el chat acompaña al teclado en vez de saltar', 
         expect(src).toMatch(/transition: isMobile \? 'height 0\.25s cubic-bezier\(0\.32, 0\.72, 0, 1\)' : undefined/);
     });
 
-    it('la PWA deja la apertura al sistema, pero conserva la transición de cierre', () => {
+    it('solo en móvil: en escritorio el alto no se mueve y animarlo solo retrasaría', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toContain('html[data-ios-pwa][data-kb-open] .agent-container');
-        expect(src).toMatch(/html\[data-ios-pwa\]\[data-kb-open\] \.agent-container,\s*html\[data-ios-pwa\]\[data-kb-open\] \.agent-container \.input-wrapper \{\s*transition: none !important;/);
-
-        const tabbar = read('components/dashboard/BottomTabBar.module.css');
-        expect(tabbar).toMatch(/:global\(html\[data-ios-pwa\]\[data-kb-open\]\) \.tabBar \{\s*transition: none !important;/);
+        const i = src.indexOf("transition: isMobile ? 'height");
+        expect(i).toBeGreaterThan(0);
+        expect(src.slice(i, src.indexOf('\n', i))).toContain(': undefined');
     });
 });
 

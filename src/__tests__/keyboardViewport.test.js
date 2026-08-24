@@ -16,8 +16,6 @@ import {
     medirTeclado,
     medirTecladoDeVentana,
     insetAccesorioTecladoIosPwa,
-    insetObjetivoTeclado,
-    esPwaIosInstalada,
     IOS_PWA_KEYBOARD_ACCESSORY_PX,
     KB_UMBRAL_PX,
 } from '../utils/keyboardViewport';
@@ -137,46 +135,22 @@ describe('[P1-KB-ALTO-DE-REFERENCIA] la referencia no se mueve con lo que mide',
 describe('[P1-KB-PWA-FORM-ASSISTANT] reserva la barra que iOS superpone', () => {
     const pwaIos = { navigator: { standalone: true } };
 
-    it('reconoce exclusivamente la PWA instalada de iOS', () => {
-        expect(esPwaIosInstalada(pwaIos)).toBe(true);
-        expect(esPwaIosInstalada({ navigator: { standalone: false } })).toBe(false);
-        expect(esPwaIosInstalada(null)).toBe(false);
-    });
-
-    it('la PWA iOS usa 60 px estables desde el primer frame abierto', () => {
-        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: true }))
+    it('la PWA iOS suma 60 px solo con teclado y documento ya encogido', () => {
+        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: true, documentoEncoge: true }))
             .toBe(IOS_PWA_KEYBOARD_ACCESSORY_PX);
         expect(IOS_PWA_KEYBOARD_ACCESSORY_PX).toBe(60);
     });
 
     it('con teclado cerrado no deja hueco residual', () => {
-        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: false })).toBe(0);
+        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: false, documentoEncoge: true })).toBe(0);
     });
 
     it('Safari normal no cambia: navigator.standalone no está activo', () => {
         const safari = { navigator: { standalone: false } };
-        expect(insetAccesorioTecladoIosPwa(safari, { abierto: true })).toBe(0);
+        expect(insetAccesorioTecladoIosPwa(safari, { abierto: true, documentoEncoge: true })).toBe(0);
     });
 
-    it('no cambia de 60 aunque la apertura aún esté en un frame previo al resize', () => {
-        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: true, documentoEncoge: false }))
-            .toBe(IOS_PWA_KEYBOARD_ACCESSORY_PX);
-        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: true, documentoEncoge: true }))
-            .toBe(IOS_PWA_KEYBOARD_ACCESSORY_PX);
-    });
-
-    it('la secuencia completa de apertura no rebota por los insets parciales', () => {
-        const framesLayout = [120, 220, 300, 180, 0];
-        expect(framesLayout.map((layoutInset) => insetObjetivoTeclado(pwaIos, {
-            abierto: true,
-            layoutInset,
-        }))).toEqual([60, 60, 60, 60, 60]);
-    });
-
-    it('Safari mantiene su inset medido y ambos caminos vuelven a cero al cerrar', () => {
-        const safari = { navigator: { standalone: false } };
-        expect(insetObjetivoTeclado(safari, { abierto: true, layoutInset: 236 })).toBe(236);
-        expect(insetObjetivoTeclado(safari, { abierto: false, layoutInset: 236 })).toBe(0);
-        expect(insetObjetivoTeclado(pwaIos, { abierto: false, layoutInset: 236 })).toBe(0);
+    it('si el documento no encogió, el layoutInset existente sigue siendo el único dueño', () => {
+        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: true, documentoEncoge: false })).toBe(0);
     });
 });

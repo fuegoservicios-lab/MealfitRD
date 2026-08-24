@@ -22,14 +22,6 @@
     pointer-events: none !important;
 }
 
-/* [P1-KB-PWA-MOVIMIENTO-NATIVO · 2026-08-24] En la PWA el viewport fixed ya se
-   desplaza con la animación nativa. Una segunda transición hacía que la barra subiera
-   con el teclado y luego intentara escapar tarde. AgentPage mantiene este atributo
-   sólo mientras su ruta está activa. */
-:global(html[data-ios-pwa][data-kb-open]) .tabBar {
-    transition: none !important;
-}
-
 @media (max-width: 1024px) {
     .tabBar {
         display: flex;

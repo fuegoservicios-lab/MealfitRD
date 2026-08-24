@@ -52,37 +52,14 @@ export const KB_UMBRAL_PX = 120;
  */
 export const IOS_PWA_KEYBOARD_ACCESSORY_PX = 60;
 
-/** `navigator.standalone` es una señal propia de la PWA instalada de iOS. */
-export function esPwaIosInstalada(win) {
-    return win?.navigator?.standalone === true;
-}
-
 /**
- * Destino estable EXCLUSIVO de la PWA iOS mientras el teclado está abierto.
- *
- * No espera a `documentoEncoge`: durante la animación iOS entrega primero uno o
- * varios frames donde `innerHeight` todavía no encogió y después cambia de modelo.
- * Si en esos frames se aplica `layoutInset`, el chat recorre 120…300 px antes de
- * volver a 60 px y la apertura rebota. En standalone sabemos de antemano que el
- * viewport terminará redimensionándose; el único espacio que CSS no resuelve es
- * esta barra superpuesta, por lo que 60 es el destino desde el primer evento.
- *
- * `navigator.standalone` es deliberado: no se usa display-mode, que también sería
- * true en Android y aplicaría un inset a un accesorio inexistente.
+ * Reserva adicional EXCLUSIVA del PWA iOS cuando el documento ya descontó el
+ * teclado principal. `navigator.standalone` es deliberado: no se usa display-mode,
+ * que también sería true en Android y aplicaría un inset a un accesorio inexistente.
  */
-export function insetAccesorioTecladoIosPwa(win, { abierto = false } = {}) {
-    return esPwaIosInstalada(win) && abierto ? IOS_PWA_KEYBOARD_ACCESSORY_PX : 0;
-}
-
-/**
- * Inset que debe escribir el chat. En Safari conserva la geometría medida; en la
- * PWA iOS sustituye los valores transitorios por el único hueco que el viewport
- * nativo no descuenta. Pura para poder reproducir una apertura frame por frame.
- */
-export function insetObjetivoTeclado(win, { abierto = false, layoutInset = 0 } = {}) {
-    if (!abierto) return 0;
-    const accesorioPwa = insetAccesorioTecladoIosPwa(win, { abierto });
-    return accesorioPwa || Math.max(0, Math.round(Number(layoutInset) || 0));
+export function insetAccesorioTecladoIosPwa(win, { abierto = false, documentoEncoge = false } = {}) {
+    const standaloneIos = win?.navigator?.standalone === true;
+    return standaloneIos && abierto && documentoEncoge ? IOS_PWA_KEYBOARD_ACCESSORY_PX : 0;
 }
 
 /**
