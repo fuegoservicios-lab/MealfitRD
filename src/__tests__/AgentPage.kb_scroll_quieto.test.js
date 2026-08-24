@@ -276,3 +276,23 @@ describe('[P2-CSS-EN-TEMPLATE-SIN-BACKTICKS] el CSS embebido no puede llevar bac
         expect(css.includes('`'), 'hay un backtick dentro del CSS embebido').toBe(false);
     });
 });
+
+describe('[P1-KB-SIN-DESENFOQUE] nada que Safari tenga que recomponer mientras se mueve', () => {
+    it('la caja de escribir movil no lleva backdrop-filter', () => {
+        // Su fondo es opaco (--bg-card): el desenfoque no pintaba un solo pixel visible y
+        // en cambio obligaba a recomponer una capa en cada fotograma del cierre. Eso en iOS
+        // se ve como la caja a medio pintar (captura del dueno, 8:51).
+        const src = read('pages/AgentPage.jsx');
+        const i = src.indexOf('html[data-kb-open] .input-wrapper {');
+        const base = src.slice(src.lastIndexOf('.input-wrapper {', i), i);
+        expect(base).not.toMatch(/backdrop-filter:\s*blur/);
+    });
+
+    it('la barra de pestanas tampoco: fondo solido', () => {
+        const css = read('components/dashboard/BottomTabBar.module.css');
+        expect(css).not.toMatch(/backdrop-filter/);
+        // y sin alfa: lo que se transparentaba era el fondo de pagina, que ya es del mismo
+        // color, asi que el efecto no se distinguia ni con la barra quieta.
+        expect(css).not.toMatch(/background:\s*rgba\([^)]*0\.9\d\)/);
+    });
+});

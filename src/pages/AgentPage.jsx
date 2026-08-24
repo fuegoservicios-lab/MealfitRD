@@ -3985,8 +3985,15 @@ const AgentPage = () => {
                            (captura del dueño, 2026-08-23 5:50). */
                         padding: 0.8rem 1.25rem calc(1.4rem + 64px + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
                         background: var(--bg-card) !important;
-                        backdrop-filter: blur(20px) !important;
-                        -webkit-backdrop-filter: blur(20px) !important;
+                        /* [P1-KB-SIN-DESENFOQUE · 2026-08-23] EL glitch del cierre. Habia
+                           un blur(20px) de fondo AQUI, y el fondo de esta caja es OPACO
+                           (--bg-card): no habia nada translucido que desenfocar, asi que el
+                           desenfoque no aportaba un solo pixel visible. Lo que si hacia era
+                           obligar a Safari a recomponer una capa de desenfoque en CADA
+                           fotograma mientras el contenedor cambia de alto, y eso en iOS se ve
+                           como la caja a medio pintar y translucida — que es exactamente lo
+                           que el dueno fotografio a mitad del cierre (8:51). En reposo no
+                           cambia NADA; lo que desaparece es la clase entera de artefactos. */
                         border-top: none !important;
                         box-shadow: 0 -4px 30px rgba(0,0,0,0.06) !important;
                         /* [P1-KB-SIN-GLITCH · 2026-08-23] Era 0.2s ease-out: una curva y

@@ -57,14 +57,21 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         const i = src.indexOf('html[data-kb-open] .input-wrapper {');
         expect(i).toBeGreaterThan(0);
         const regla = src.slice(i, src.indexOf('}', i));
-        // Bajo data-kb-open va SOLO el relleno; blur/borde/sombra/radio pertenecen a
+        // Bajo data-kb-open va SOLO el relleno; borde/sombra/radio pertenecen a
         // la regla base o el composer los pierde el 99% del tiempo.
-        for (const prop of ['backdrop-filter', 'border-top', 'box-shadow', 'border-radius']) {
+        // [P1-KB-SIN-DESENFOQUE · 2026-08-23] `backdrop-filter` sale de la lista porque YA
+        // NO EXISTE: era un desenfoque sobre un fondo OPACO (o sea, invisible) que Safari
+        // recomponía en cada fotograma del cierre — la fuente de los artefactos que el
+        // dueño fotografió. Lo que este guard protege no cambia.
+        for (const prop of ['border-top', 'box-shadow', 'border-radius']) {
             expect(regla, `${prop} no puede vivir bajo data-kb-open`).not.toContain(prop);
         }
         const base = src.slice(0, i);
         const j = base.lastIndexOf('.input-wrapper {');
-        expect(base.slice(j)).toContain('backdrop-filter');
+        // Testigo de que la regla base sigue ENTERA (una vez, la regla de data-kb-open se
+        // comió su llave de cierre y se llevó dentro sus declaraciones de aspecto). Cualquier
+        // declaración propia de la base sirve; era el desenfoque y ahora es la sombra.
+        expect(base.slice(j)).toContain('box-shadow');
     });
 
     it('hay una re-medicion EN LA COLA tras el ultimo evento del viewport (el asiento)', () => {

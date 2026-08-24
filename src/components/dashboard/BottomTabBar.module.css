@@ -32,9 +32,13 @@
         left: 0;
         right: 0;
         z-index: 100;
-        background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(24px) saturate(180%);
-        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        /* [P1-KB-SIN-DESENFOQUE · 2026-08-23] Fondo SOLIDO y sin blur. La barra se
+           desliza al abrirse/cerrarse el teclado, y una capa de desenfoque que Safari
+           recompone en cada fotograma de ese movimiento es la fuente conocida de los
+           artefactos que se ven en iOS. Con 0.92 de alfa lo que se transparentaba era
+           el fondo de la pagina, que ahora es del mismo color (P1-KB-HUECO-SIN-PINTAR):
+           o sea que el efecto ya no se distinguia ni parado. */
+        background: #FFFFFF;
         border-top: 1px solid rgba(226, 232, 240, 0.6);
         padding-bottom: env(safe-area-inset-bottom, 0px);
         /* [P1-KB-SIN-GLITCH] La misma curva y duracion que el contenedor del chat y
@@ -144,7 +148,7 @@
     /* [APPEARANCE-THEME · 2026-05-28] Tab bar oscura: superficie slate
        translúcida + activo en indigo aclarado. */
     :global(html[data-theme="dark"]) .tabBar {
-        background: rgba(11, 17, 32, 0.92);
+        background: #0B1120;  /* [P1-KB-SIN-DESENFOQUE] solido: ver la nota de la regla clara */
         border-top: 1px solid var(--border);
         box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.45);
     }
