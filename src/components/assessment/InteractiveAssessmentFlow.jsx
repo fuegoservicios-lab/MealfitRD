@@ -44,6 +44,7 @@ import { toast } from 'sonner';
 // y el mapping se construye en runtime → reordenar/insertar steps no rompe
 // la navegación a campo faltante.
 import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor, effectiveBudgetCurrency } from '../../config/formValidation';
+import { pisoSinProcedencia } from '../../config/countries';
 import { useT } from '../../i18n';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 
@@ -85,11 +86,21 @@ import { BRAND } from '../../data/routeMeta';
 // en QBudget — si no, este gate podría aceptar "≥75" pensando en EUR mientras el
 // backend, con el knob ya apagado, compara ese mismo monto contra el piso DOP (~4000+)
 // y rechaza con 422.
-const isCustomBudgetValid = (fd) => fd?.budget !== 'custom'
-    || Number(fd.budgetAmount) >= Math.max(
+const isCustomBudgetValid = (fd) => {
+    if (fd?.budget !== 'custom') return true;
+    const moneda = effectiveBudgetCurrency(fd?.country, fd?.budgetCurrency);
+    // [P1-COUNTRY-BUDGET-FLOOR-FX · 2026-08-23] Si el piso de esa moneda es una conversion
+    // FX de la cesta dominicana y no una cesta real del pais, ORIENTA pero no BLOQUEA: un
+    // colombiano con 200.000 COP/semana —cifra realista— no podia pasar de este paso contra
+    // un piso de 350.000 que no sale de ningun dato colombiano. El hint sigue mostrandose.
+    // Espejo del backend, que degrada el mismo 422 a aviso: si este gate siguiera duro, el
+    // arreglo de alla seria inalcanzable porque el usuario ni llegaria a enviar el formulario.
+    if (pisoSinProcedencia(moneda)) return true;
+    return Number(fd.budgetAmount) >= Math.max(
         Number(fd._budgetFloorMin) || 0,
-        minBudgetFor(effectiveBudgetCurrency(fd?.country, fd?.budgetCurrency), fd.groceryDuration),
+        minBudgetFor(moneda, fd.groceryDuration),
     );
+};
 
 const InteractiveAssessmentFlow = () => {
     const { currentStep, setCurrentStep, nextStep, formData, updateData, maxReachedStep, setMaxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]

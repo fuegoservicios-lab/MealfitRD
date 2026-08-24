@@ -15,12 +15,12 @@
 export const DEFAULT_COUNTRY = 'DO';
 
 export const COUNTRIES = [
-    { code: 'DO', labelKey: 'República Dominicana', currency: 'DOP', beta: false },
-    { code: 'ES', labelKey: 'España', currency: 'EUR', beta: true },
-    { code: 'US', labelKey: 'Estados Unidos', currency: 'USD', beta: true },
-    { code: 'MX', labelKey: 'México', currency: 'MXN', beta: true },
-    { code: 'PR', labelKey: 'Puerto Rico', currency: 'USD', beta: true },
-    { code: 'CO', labelKey: 'Colombia', currency: 'COP', beta: true },
+    { code: 'DO', labelKey: 'República Dominicana', currency: 'DOP', beta: false, hasNativePrices: true },
+    { code: 'ES', labelKey: 'España', currency: 'EUR', beta: true, hasNativePrices: false },
+    { code: 'US', labelKey: 'Estados Unidos', currency: 'USD', beta: true, hasNativePrices: false },
+    { code: 'MX', labelKey: 'México', currency: 'MXN', beta: true, hasNativePrices: false },
+    { code: 'PR', labelKey: 'Puerto Rico', currency: 'USD', beta: true, hasNativePrices: false },
+    { code: 'CO', labelKey: 'Colombia', currency: 'COP', beta: true, hasNativePrices: false },
 ];
 
 const _CODES = new Set(COUNTRIES.map((c) => c.code));
@@ -40,6 +40,25 @@ export function coerceCountry(raw) {
 // Comparte las mismas filas que el selector; no existe un segundo mapa país→moneda.
 export function defaultCurrencyForCountry(raw) {
     return _COUNTRY_BY_CODE.get(coerceCountry(raw))?.currency || 'DOP';
+}
+
+// [P1-COUNTRY-BUDGET-FLOOR-FX · 2026-08-23] ¿El piso de presupuesto de esta moneda es un
+// numero SIN procedencia (una conversion FX de la cesta dominicana) en vez de una cesta real?
+// Espejo EXACTO de `_piso_sin_procedencia` en backend/nutrition_calculator.py, y con el mismo
+// porque: un colombiano que declara 200.000 COP/semana no podia pasar del paso del
+// presupuesto, contra un piso de 350.000 COP que no sale de ninguna cesta colombiana.
+// Un numero sin procedencia puede orientar; no puede impedir una compra.
+//
+// La condicion es `hasNativePrices` de la tabla, no una lista a mano: el dia que Espana tenga
+// precios curados su piso vuelve a bloquear SOLO. DOP y USD quedan fuera a proposito (ver la
+// nota del helper del backend: USD arrastra el mismo defecto, pero ensancharle la puerta es
+// una decision de producto aparte, no un efecto lateral de arreglar el de Colombia).
+export function pisoSinProcedencia(currency) {
+    const cur = String(currency || '').toUpperCase();
+    if (cur === 'DOP' || cur === 'USD') return false;
+    const filas = COUNTRIES.filter((c) => c.currency === cur);
+    if (!filas.length) return false;
+    return !filas.some((c) => c.hasNativePrices);
 }
 
 export const COUNTRY_SYSTEM_UI = ['1', 'true'].includes(
