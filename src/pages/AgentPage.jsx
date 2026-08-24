@@ -528,6 +528,9 @@ const AgentPage = () => {
     // lee un handler de visualViewport que no debe provocar renders.
     const insetAplicadoRef = useRef(null);
     const tecladoAbiertoRef = useRef(false);
+    // Un toque iniciado dentro del compositor no puede activar el cierre por blur
+    // antes de que termine el click: movería el botón bajo el dedo y Safari lo cancela.
+    const composerPointerDownRef = useRef(false);
     // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
     // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
     const cerrandoRef = useRef(false);
@@ -776,6 +779,14 @@ const AgentPage = () => {
         // `updateInputPosition` reescribe el atributo con lo que mida.
         const alPerderElFoco = (e) => {
             const destino = e.relatedTarget;
+            // [P0-CHAT-COMPOSER-TAP · 2026-08-24] En iOS, pointerdown sobre +/Enviar
+            // puede desenfocar el textarea antes del click. Si restauramos aquí el
+            // transform, el compositor baja 100 px entre pointerdown y pointerup y el
+            // navegador cancela el click. El viewport confirmará después si el teclado
+            // realmente se cerró; durante el gesto la posición debe permanecer quieta.
+            if (composerPointerDownRef.current || (destino && inputWrapperRef.current?.contains(destino))) {
+                return;
+            }
             if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
                 return; // cambia de campo: el teclado sigue
             }
@@ -2998,7 +3009,15 @@ const AgentPage = () => {
     };
 
     const renderInputArea = (isCentered = false) => (
-        <div className="input-wrapper" ref={inputWrapperRef} style={{
+        <div
+            className="input-wrapper"
+            ref={inputWrapperRef}
+            onPointerDownCapture={() => { composerPointerDownRef.current = true; }}
+            onPointerUpCapture={() => {
+                setTimeout(() => { composerPointerDownRef.current = false; }, 0);
+            }}
+            onPointerCancelCapture={() => { composerPointerDownRef.current = false; }}
+            style={{
             // [P3-AGENT-INPUT-CENTER · 2026-05-19] Lift del input desktop
             // para que no toque el borde inferior del card.
             // Pre-fix: `bottom: 0` pegaba el wrapper al fondo del scroll
@@ -3036,7 +3055,8 @@ const AgentPage = () => {
             // visualViewport handler sea suave en lugar de saltar abrupto.
             transition: 'transform 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
             willChange: 'transform',
-        }}>
+            }}
+        >
             {!isOnline && (
                 <div className="chat-offline-status" role="status" aria-live="polite">
                     {t('Sin conexión · borrador guardado')}

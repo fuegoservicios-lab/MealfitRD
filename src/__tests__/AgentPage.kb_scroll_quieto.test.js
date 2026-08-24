@@ -196,6 +196,17 @@ describe('[P1-KB-CIERRE-SIN-ESPERA] el cierre no espera a la animacion', () => {
         expect(bloque.indexOf('return;')).toBeLessThan(bloque.indexOf("removeAttribute('data-kb-open')"));
     });
 
+    it('un toque en + o Enviar no mueve el compositor antes del click', () => {
+        const i = src.indexOf('const alPerderElFoco');
+        const bloque = src.slice(i, src.indexOf('\n        };', i));
+        expect(bloque).toMatch(/composerPointerDownRef\.current/);
+        expect(bloque).toMatch(/inputWrapperRef\.current\?\.contains\(destino\)/);
+        expect(bloque.indexOf('composerPointerDownRef.current')).toBeLessThan(bloque.indexOf("removeAttribute('data-kb-open')"));
+        expect(src).toMatch(/onPointerDownCapture=\{\(\) => \{ composerPointerDownRef\.current = true; \}\}/);
+        expect(src).toMatch(/onPointerUpCapture=/);
+        expect(src).toMatch(/onPointerCancelCapture=/);
+    });
+
     it('el listener se retira al desmontar', () => {
         expect(src).toMatch(/removeEventListener\('focusout', alPerderElFoco\)/);
     });
