@@ -64,7 +64,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
-import { medirTecladoDeVentana, insetEstabilizado, insetAccesorioTecladoIosPwa } from '../utils/keyboardViewport';
+import { medirTecladoDeVentana, insetEstabilizado, resolverInsetTecladoEstable } from '../utils/keyboardViewport';
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
@@ -528,6 +528,9 @@ const AgentPage = () => {
     // lee un handler de visualViewport que no debe provocar renders.
     const insetAplicadoRef = useRef(null);
     const tecladoAbiertoRef = useRef(false);
+    // En standalone, una vez que el compositor alcanza la barra auxiliar de iOS,
+    // ningún frame tardío puede volver a despegarlo hasta que el teclado cierre.
+    const pwaTecladoAsentadoRef = useRef(false);
     // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
     // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
     const cerrandoRef = useRef(false);
@@ -599,6 +602,7 @@ const AgentPage = () => {
             if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
+            pwaTecladoAsentadoRef.current = false;
             cerrandoRef.current = false;
         };
 
@@ -691,12 +695,18 @@ const AgentPage = () => {
             // en cada fotograma y la caja se despegaba del teclado y volvía. Ver
             // `insetEstabilizado` para el porqué de no eliminar la compensación.
             if (contenedor) {
-                // [P1-KB-PWA-FORM-ASSISTANT · 2026-08-24] En la PWA iOS `100dvh`
-                // descuenta el teclado principal pero NO la barra anterior/siguiente/✓,
-                // que queda superpuesta y tapa el `+` y el textarea. Safari normal no
-                // necesita esta reserva y sigue exactamente con su layoutInset actual.
-                const accesorioPwa = insetAccesorioTecladoIosPwa(window, { abierto, documentoEncoge });
-                const objetivo = abierto ? layoutInset + accesorioPwa : 0;
+                // [P1-KB-PWA-ANCLA-ESTABLE · 2026-08-24] En la PWA no se persiguen los
+                // insets parciales de la apertura: se espera el resize nativo, se llega
+                // una sola vez a 60 px y se enclava. Safari conserva layoutInset tal cual.
+                const resuelto = resolverInsetTecladoEstable(window, {
+                    abierto,
+                    documentoEncoge,
+                    layoutInset,
+                    pwaAsentada: pwaTecladoAsentadoRef.current,
+                    forzar: forzarMedicion,
+                });
+                pwaTecladoAsentadoRef.current = resuelto.pwaAsentada;
+                const objetivo = resuelto.objetivo;
                 // [P1-KB-RESIZES-CONTENT] Si el NAVEGADOR redimensiona el layout viewport
                 // (`interactive-widget=resizes-content`, o la PWA instalada), el alto ya lo
                 // resuelve `100dvh` con la animacion del sistema: el objetivo es 0 y hay que
@@ -777,6 +787,7 @@ const AgentPage = () => {
                 return; // cambia de campo: el teclado sigue
             }
             cerrandoRef.current = true;
+            pwaTecladoAsentadoRef.current = false;
             root?.removeAttribute('data-kb-open');
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;

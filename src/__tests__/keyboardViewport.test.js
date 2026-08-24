@@ -16,6 +16,7 @@ import {
     medirTeclado,
     medirTecladoDeVentana,
     insetAccesorioTecladoIosPwa,
+    resolverInsetTecladoEstable,
     IOS_PWA_KEYBOARD_ACCESSORY_PX,
     KB_UMBRAL_PX,
 } from '../utils/keyboardViewport';
@@ -152,5 +153,64 @@ describe('[P1-KB-PWA-FORM-ASSISTANT] reserva la barra que iOS superpone', () => 
 
     it('si el documento no encogió, el layoutInset existente sigue siendo el único dueño', () => {
         expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: true, documentoEncoge: false })).toBe(0);
+    });
+});
+
+describe('[P1-KB-PWA-ANCLA-ESTABLE] una apertura tiene un solo destino', () => {
+    const pwaIos = { navigator: { standalone: true } };
+    const safari = { navigator: { standalone: false } };
+
+    const correrFrame = (estado, cambios) => resolverInsetTecladoEstable(pwaIos, {
+        abierto: true,
+        pwaAsentada: estado.pwaAsentada,
+        ...cambios,
+    });
+
+    it('ignora medidas parciales, llega una vez a 60 y queda enclavado', () => {
+        let estado = { pwaAsentada: false };
+        const objetivos = [];
+
+        estado = correrFrame(estado, { layoutInset: 140, documentoEncoge: false });
+        objetivos.push(estado.objetivo);
+        estado = correrFrame(estado, { layoutInset: 220, documentoEncoge: false });
+        objetivos.push(estado.objetivo);
+        estado = correrFrame(estado, { layoutInset: 170, documentoEncoge: true });
+        objetivos.push(estado.objetivo);
+        // Frame tardío ruidoso: antes podía volver a separar el compositor.
+        estado = correrFrame(estado, { layoutInset: 145, documentoEncoge: false });
+        objetivos.push(estado.objetivo);
+        estado = correrFrame(estado, { layoutInset: 0, documentoEncoge: true });
+        objetivos.push(estado.objetivo);
+
+        expect(objetivos).toEqual([0, 0, 60, 60, 60]);
+        expect(estado.pwaAsentada).toBe(true);
+    });
+
+    it('el asiento final fija 60 si iOS omitió el frame de resize', () => {
+        expect(resolverInsetTecladoEstable(pwaIos, {
+            abierto: true,
+            layoutInset: 180,
+            documentoEncoge: false,
+            pwaAsentada: false,
+            forzar: true,
+        })).toEqual({ objetivo: 60, pwaAsentada: true });
+    });
+
+    it('cerrar limpia el ancla y no deja hueco residual', () => {
+        expect(resolverInsetTecladoEstable(pwaIos, {
+            abierto: false,
+            layoutInset: 180,
+            documentoEncoge: true,
+            pwaAsentada: true,
+        })).toEqual({ objetivo: 0, pwaAsentada: false });
+    });
+
+    it('Safari conserva cada layoutInset sin aplicar la lógica standalone', () => {
+        expect(resolverInsetTecladoEstable(safari, {
+            abierto: true,
+            layoutInset: 187,
+            documentoEncoge: true,
+            pwaAsentada: true,
+        })).toEqual({ objetivo: 187, pwaAsentada: false });
     });
 });

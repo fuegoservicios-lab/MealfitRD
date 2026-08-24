@@ -63,6 +63,48 @@ export function insetAccesorioTecladoIosPwa(win, { abierto = false, documentoEnc
 }
 
 /**
+ * [P1-KB-PWA-ANCLA-ESTABLE · 2026-08-24] Resuelve el inset de UNA apertura.
+ *
+ * iOS standalone no cambia de modelo en un solo frame. Durante la subida puede emitir:
+ *
+ *   layoutInset=140, documentoEncoge=false
+ *   layoutInset=170, documentoEncoge=true
+ *   layoutInset=0,   documentoEncoge=true
+ *
+ * Sumar cada medida a la barra auxiliar hacía recorrer 140 → 230 → 60 px. Se veía
+ * elástico y, si el último evento llegaba con geometría ruidosa, el compositor quedaba
+ * separado del teclado. En la PWA se espera el primer frame donde el documento ya se
+ * está encogiendo, se aplica UNA vez la reserva conocida de 60 px y se enclava hasta el
+ * cierre. `forzar` es el asiento final: cubre el caso raro donde iOS no emite ese frame.
+ *
+ * Safari/Android/escritorio no entran en este camino y conservan `layoutInset` intacto.
+ *
+ * @returns {{objetivo:number, pwaAsentada:boolean}}
+ */
+export function resolverInsetTecladoEstable(win, {
+    abierto = false,
+    documentoEncoge = false,
+    layoutInset = 0,
+    pwaAsentada = false,
+    forzar = false,
+} = {}) {
+    const standaloneIos = win?.navigator?.standalone === true;
+    if (!abierto) return { objetivo: 0, pwaAsentada: false };
+    if (!standaloneIos) {
+        return {
+            objetivo: Math.max(0, Math.round(Number(layoutInset) || 0)),
+            pwaAsentada: false,
+        };
+    }
+
+    const asentada = Boolean(pwaAsentada || documentoEncoge || forzar);
+    return {
+        objetivo: asentada ? IOS_PWA_KEYBOARD_ACCESSORY_PX : 0,
+        pwaAsentada: asentada,
+    };
+}
+
+/**
  * @param {{innerHeight:number, vvHeight:number, vvOffsetTop:number}} m
  * @returns {{kb:number, layoutInset:number, abierto:boolean}}
  *   kb           alto real del teclado (independiente del paneo) → úsalo como PREDICADO
