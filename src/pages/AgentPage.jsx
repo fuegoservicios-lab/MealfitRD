@@ -531,6 +531,10 @@ const AgentPage = () => {
     // Un toque iniciado dentro del compositor no puede activar el cierre por blur
     // antes de que termine el click: movería el botón bajo el dedo y Safari lo cancela.
     const composerPointerDownRef = useRef(false);
+    // En los shells instalados de iOS el cambio de foco puede cancelar el click aunque pointerdown ya
+    // haya llegado. Guarda la acción ejecutada en el gesto inicial para no repetirla si
+    // WebKit sí termina emitiendo click en algún dispositivo/versión.
+    const appComposerGestureRef = useRef({ action: null, expiresAt: 0 });
     // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
     // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
     const cerrandoRef = useRef(false);
@@ -3050,6 +3054,61 @@ const AgentPage = () => {
         }
     };
 
+    // [P0-CHAT-IOS-APP-BOTONES-CON-TECLADO · 2026-08-24] En Safari normal el click
+    // posterior a pointerdown llega correctamente. En Capacitor o la PWA instalada, al tocar + o
+    // Enviar con el teclado abierto, el blur/reajuste del visual viewport puede mover el
+    // compositor antes de que WebKit sintetice click y el gesto se pierde. Ejecutamos
+    // únicamente en ese caso desde pointerdown (la fase que sí llega) y consumimos el
+    // click posterior si WebKit lo conserva. Mouse, teclado y Safari web siguen usando
+    // el click normal.
+    const isAppKeyboardPointer = (event) => {
+        if (typeof window === 'undefined') return false;
+        const installedShell = isNativeApp()
+            || window.navigator?.standalone === true
+            || window.matchMedia?.('(display-mode: standalone)')?.matches === true;
+        const keyboardOpen = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
+        const touchPointer = !event.pointerType || event.pointerType === 'touch';
+        return installedShell && keyboardOpen && touchPointer;
+    };
+
+    const markAppComposerGesture = (action) => {
+        appComposerGestureRef.current = { action, expiresAt: Date.now() + 1200 };
+    };
+
+    const consumeAppComposerClick = (action) => {
+        const pending = appComposerGestureRef.current;
+        if (pending.action !== action || Date.now() > pending.expiresAt) return false;
+        appComposerGestureRef.current = { action: null, expiresAt: 0 };
+        return true;
+    };
+
+    const handleAttachmentPointerDown = (event) => {
+        prepareAttachmentPickerGesture();
+        if (!isAppKeyboardPointer(event)) return;
+        event.preventDefault();
+        markAppComposerGesture('attachment');
+        void openAttachmentPicker();
+    };
+
+    const handleAttachmentClick = () => {
+        if (consumeAppComposerClick('attachment')) return;
+        void openAttachmentPicker();
+    };
+
+    const handleSendPointerDown = (event) => {
+        if (!isAppKeyboardPointer(event)) return;
+        // Conserva el foco del textarea durante el gesto: iOS no tiene que reubicar el
+        // botón antes de que handleSend capture el texto actual.
+        event.preventDefault();
+        markAppComposerGesture('send');
+        void handleSend();
+    };
+
+    const handleSendClick = () => {
+        if (consumeAppComposerClick('send')) return;
+        void handleSend();
+    };
+
     const renderInputArea = (isCentered = false) => (
         <div
             className="input-wrapper"
@@ -3240,8 +3299,8 @@ const AgentPage = () => {
                                 aria-label={t('Adjuntar imagen')}
                                 className={`attachment-btn ${(isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) ? 'disabled' : ''}`}
                                 disabled={isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT}
-                                onPointerDown={prepareAttachmentPickerGesture}
-                                onClick={() => { void openAttachmentPicker(); }}
+                                onPointerDown={handleAttachmentPointerDown}
+                                onClick={handleAttachmentClick}
                                 title={t('Adjuntar imagen')}
                             >
                                 {/* [P1-CHAT-ADJUNTAR-MAS · 2026-08-23] `+` y no el clip: el
@@ -3344,7 +3403,8 @@ const AgentPage = () => {
                                         type="button"
                                         aria-label={t('Enviar')}
                                         className="touch-scale"
-                                        onClick={handleSend}
+                                        onPointerDown={handleSendPointerDown}
+                                        onClick={handleSendClick}
                                         disabled={isTurnActive || attachmentsHaveErrors}
                                         style={{
                                             background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',

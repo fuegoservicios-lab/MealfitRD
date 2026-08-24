@@ -114,7 +114,7 @@ describe('[P1-CHAT-PICKER-ANCLADO] el menú de la foto sale del clip', () => {
 
     it('inicia el cierre en pointerdown y exige 120 ms de viewport estable', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/onPointerDown=\{prepareAttachmentPickerGesture\}/);
+        expect(src).toMatch(/onPointerDown=\{handleAttachmentPointerDown\}/);
         const i = src.indexOf('const waitForAttachmentKeyboardClose');
         const bloque = src.slice(i, src.indexOf('\n    };', i));
         expect(bloque).toMatch(/addEventListener\('resize', check\)/);
@@ -171,6 +171,41 @@ describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS',
 
         const bubble = read('components/agent/MessageBubble.jsx');
         expect(bubble).toMatch(/className=\{msg\.isWelcome \? 'message-row-welcome' : undefined\}/);
+    });
+});
+
+describe('[P0-CHAT-IOS-APP-BOTONES-CON-TECLADO] el primer toque siempre ejecuta', () => {
+    const src = read('pages/AgentPage.jsx');
+
+    it('se limita a la PWA táctil con teclado realmente abierto', () => {
+        const i = src.indexOf('const isAppKeyboardPointer');
+        const bloque = src.slice(i, src.indexOf('\n    };', i));
+        expect(bloque).toMatch(/isNativeApp\(\)/);
+        expect(bloque).toMatch(/navigator\?\.standalone === true/);
+        expect(bloque).toMatch(/display-mode: standalone/);
+        expect(bloque).toMatch(/tecladoAbiertoRef\.current \|\| medirTecladoDeVentana\(window\)\.abierto/);
+        expect(bloque).toMatch(/event\.pointerType === 'touch'/);
+    });
+
+    it('abre adjuntos desde pointerdown y no vuelve a abrirlos desde click', () => {
+        expect(src).toMatch(/onPointerDown=\{handleAttachmentPointerDown\}/);
+        expect(src).toMatch(/onClick=\{handleAttachmentClick\}/);
+        const i = src.indexOf('const handleAttachmentPointerDown');
+        const bloque = src.slice(i, src.indexOf('\n    };', i));
+        expect(bloque).toMatch(/prepareAttachmentPickerGesture\(\)/);
+        expect(bloque).toMatch(/event\.preventDefault\(\)/);
+        expect(bloque).toMatch(/void openAttachmentPicker\(\)/);
+        expect(src).toMatch(/consumeAppComposerClick\('attachment'\)/);
+    });
+
+    it('envía desde pointerdown y consume el click posterior sin duplicar', () => {
+        expect(src).toMatch(/onPointerDown=\{handleSendPointerDown\}/);
+        expect(src).toMatch(/onClick=\{handleSendClick\}/);
+        const i = src.indexOf('const handleSendPointerDown');
+        const bloque = src.slice(i, src.indexOf('\n    };', i));
+        expect(bloque).toMatch(/event\.preventDefault\(\)/);
+        expect(bloque).toMatch(/void handleSend\(\)/);
+        expect(src).toMatch(/consumeAppComposerClick\('send'\)/);
     });
 });
 
