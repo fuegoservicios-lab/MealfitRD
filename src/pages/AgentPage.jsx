@@ -1898,6 +1898,7 @@ const AgentPage = () => {
                         }
 
                         return {
+                            id: m.id || undefined,
                             role: m.role,
                             content: content || '',
                             isImage,
@@ -2298,9 +2299,15 @@ const AgentPage = () => {
         // envío (no después del análisis/stream como hacía el shift tardío):
         // el usuario escribió — el welcome ya cumplió. El filter también evita
         // mutar con .shift() el mismo array que ya es state.
+        // Regenerar puede cruzar un await (preparación de adjuntos) antes de
+        // reconstruir la rama. Leer el ref autoritativo evita usar un snapshot
+        // anterior y terminar anexando la respuesta nueva debajo de la vieja.
+        const sourceMessages = Array.isArray(options.sourceMessages)
+            ? options.sourceMessages
+            : messagesRef.current;
         const newMessages = (options.truncateIndex !== undefined
-            ? messages.slice(0, options.truncateIndex)
-            : [...messages]
+            ? sourceMessages.slice(0, options.truncateIndex)
+            : [...sourceMessages]
         ).filter(m => !m.isWelcome);
 
         const originalUserMessageIndex = newMessages.length;
@@ -2498,6 +2505,8 @@ const AgentPage = () => {
                             content_type: item.file?.type || item.content_type,
                         })),
                         client_message_id: clientMessageId,
+                        regenerate_message_id: options.regenerateMessageId || undefined,
+                        regenerate_response_content: options.regenerateResponseContent || undefined,
                         current_plan: planData,
                         form_data: formData,
                         local_date: localDateStr,
@@ -2981,12 +2990,23 @@ const AgentPage = () => {
 
         if (lastUserMsgIdx !== -1) {
             const lastUserMsg = messagesRef.current[lastUserMsgIdx];
+            const sourceMessages = messagesRef.current;
+            // Retirar la rama seleccionada en el mismo gesto. Además de evitar
+            // el clon visual mientras llega el primer token, este snapshot se
+            // pasa explícitamente a handleSend para que ningún render intermedio
+            // pueda reintroducir la respuesta anterior.
+            const regenerationBase = sourceMessages.slice(0, modelMsgIndex);
+            messagesRef.current = regenerationBase;
+            setMessages(regenerationBase);
             handleSend(lastUserMsg.content, {
                 truncateIndex: lastUserMsgIdx,
+                sourceMessages,
                 overrideAttachments: lastUserMsg.attachments || (lastUserMsg.imageUrl
                     ? [{ id: `legacy-${lastUserMsgIdx}`, url: lastUserMsg.imageUrl }]
                     : []),
                 clientMessageId: lastUserMsg.clientMessageId,
+                regenerateMessageId: targetMsg?.id,
+                regenerateResponseContent: targetMsg?.content,
             });
         }
     });
