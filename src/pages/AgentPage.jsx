@@ -722,23 +722,15 @@ const AgentPage = () => {
             // que reserva sus 64 px por dentro. Señal en <html>: la barra se esconde y la
             // caja suelta la reserva (CSS en BottomTabBar.module.css y en este <style>).
             root.toggleAttribute('data-kb-open', abierto);
-            // [P1-KB-NO-SCROLL-DE-PAGINA · 2026-08-24] Al abrir el teclado NO se usa
-            // la API que lleva un elemento a la vista: en iOS puede desplazar también el visual viewport
-            // completo después de aplicar el lift y volver a meter el compositor bajo
-            // el Form Assistant. Si hay conversación real, solo se mueve el scroller
-            // INTERNO; una bienvenida única no necesita movimiento alguno.
-            if (abierto && !userScrolledUpRef.current) {
-                const actuales = messagesRef.current || [];
-                const soloBienvenida = actuales.length === 1 && actuales[0]?.isWelcome;
-                if (!soloBienvenida) {
-                    if (actuales.length > VIRTUALIZE_THRESHOLD) {
-                        virtualizedListRef.current?.scrollToBottom({ behavior: 'auto' });
-                    } else {
-                        const lista = messagesContainerRef.current;
-                        if (lista) lista.scrollTop = lista.scrollHeight;
-                    }
-                }
-            }
+            // Al abrirse el teclado el área visible se reduce: sin esto, el último
+            // mensaje queda fuera de cuadro justo cuando el usuario va a responder.
+            // [P1-KB-VIEWPORT-MATH] Traer la cola a cuadro al abrirse el teclado, pero NO
+            // si el usuario está leyendo más arriba: arrastrarlo al último mensaje por
+            // haber tocado la caja rompe el contrato de P2-CHAT-SCROLL-RACE
+            // (`userScrolledUpRef`, ver scrollToBottom). `scrollIntoView` y no
+            // `scrollTop`: en sesiones largas la lista está virtualizada y el contenedor
+            // es `overflow: hidden` — escribirle scrollTop no hace nada.
+            if (abierto && !userScrolledUpRef.current) scrollToBottomRef.current?.(false, 'auto');
         };
 
         // [P2-CHAT-KB-ASIENTO · 2026-08-23] Una medición MÁS, cuando el teclado ya paró.

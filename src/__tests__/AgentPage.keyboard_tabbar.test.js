@@ -45,17 +45,11 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         const src = read('pages/AgentPage.jsx');
         // Contrato P2-CHAT-SCROLL-RACE: userScrolledUpRef manda sobre el autoscroll.
         expect(src).toMatch(/if \(abierto && !userScrolledUpRef\.current\)/);
-        // [P1-KB-NO-SCROLL-DE-PAGINA · 2026-08-24] El teclado no debe invocar el
-        // controlador común: su sentinel usa la API de llevar elementos a la vista y
-        // Safari puede desplazar el viewport completo, anulando el lift del composer.
-        // Solo se permite mover el scroller interno; la bienvenida no se mueve.
+        // El controlador comun enruta al sentinel simple o a la API imperativa de
+        // Virtuoso; escribir scrollTop en el padre oculto no sirve.
         const i = src.indexOf('if (abierto && !userScrolledUpRef.current)');
-        const fin = src.indexOf('// [P2-CHAT-KB-ASIENTO', i);
-        const bloque = src.slice(i, fin);
-        expect(bloque).toMatch(/soloBienvenida/);
-        expect(bloque).toMatch(/lista\.scrollTop = lista\.scrollHeight/);
-        expect(bloque).toMatch(/virtualizedListRef\.current\?\.scrollToBottom/);
-        expect(bloque).not.toMatch(/scrollToBottomRef\.current/);
+        expect(src.slice(i, i + 400)).toMatch(/scrollToBottomRef\.current/);
+        expect(src).toMatch(/virtualizedListRef\.current\?\.scrollToBottom/);
     });
 
     it('la caja conserva su acabado con el teclado CERRADO (la regla base no se parte)', () => {
