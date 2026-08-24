@@ -56,3 +56,21 @@ describe('[P2-MOBILE-AUDIT-LOGIN-WIZARD] enlaces legales del login con zona tác
         expect(rule).toMatch(/padding:\s*0\.\d+(rem|em)\s+0/);
     });
 });
+
+describe('[P1-LOGIN-CTA-LIMPIO] el botón de correo no tiene canto blanco', () => {
+    it('elimina la apariencia nativa, el borde, el degradado y la sombra', () => {
+        const css = read('pages/Login.css');
+        const baseStart = css.indexOf('.mf-btn {');
+        const base = css.slice(baseStart, css.indexOf('}', baseStart));
+        expect(base).toMatch(/-webkit-appearance:\s*none/);
+        expect(base).toMatch(/appearance:\s*none/);
+
+        const start = css.indexOf('.mf-btn--primary {');
+        const rule = css.slice(start, css.indexOf('}', start));
+        expect(rule).toMatch(/background:\s*#[0-9A-F]{6}/i);
+        expect(rule).toMatch(/background-image:\s*none/);
+        expect(rule).toMatch(/border:\s*0/);
+        expect(rule).toMatch(/box-shadow:\s*none/);
+        expect(rule).not.toMatch(/linear-gradient/);
+    });
+});

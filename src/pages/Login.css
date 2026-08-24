@@ -147,6 +147,8 @@
 
 /* ── Botones ──────────────────────────────────────────────────────────────── */
 .mf-btn {
+  -webkit-appearance: none;
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -175,14 +177,22 @@
 
 .mf-btn--primary {
   color: #fff;
-  /* degradado vertical limpio y uniforme (sin reflejo blanco ni costado más claro) */
-  background: linear-gradient(180deg, #8E97F8 0%, var(--mf-primary-dark) 100%);
-  box-shadow: 0 6px 16px -8px rgba(79, 70, 229, 0.5);
+  /* [P1-LOGIN-CTA-LIMPIO · 2026-08-24] Superficie sólida y sin bisel nativo.
+     En Safari iOS el borde transparente + degradado + sombra se componían como
+     una línea clara en el canto inferior. Este CTA no necesita relieve: color
+     índigo uniforme, borde cero y ninguna sombra. */
+  background: #5B55E7;
+  background-image: none;
+  border: 0;
+  box-shadow: none;
 }
 .mf-btn--primary:hover:not(:disabled) {
-  /* sin movimiento en hover (a pedido) — solo feedback sutil de color/sombra */
-  background: linear-gradient(180deg, #99A1FA 0%, #574FE6 100%);
-  box-shadow: 0 10px 22px -10px rgba(79, 70, 229, 0.6);
+  background: #655FED;
+  box-shadow: none;
+}
+.mf-btn--primary:active:not(:disabled) {
+  background: #514BCF;
+  box-shadow: none;
 }
 
 .mf-btn--ghost {
