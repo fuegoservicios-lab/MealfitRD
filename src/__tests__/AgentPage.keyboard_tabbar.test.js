@@ -95,9 +95,27 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         expect(cierre.slice(0, 400)).toMatch(/if \(asiento\) clearTimeout\(asiento\);/);
     });
 
-    it('BottomTabBar: display none bajo html[data-kb-open]', () => {
+    it('BottomTabBar: fuera de pantalla y no tocable bajo html[data-kb-open]', () => {
+        // [P1-KB-SIN-GLITCH · 2026-08-23] Era "display: none", y ESO era el glitch:
+        // esa propiedad no se anima, asi que la barra aparecia de golpe mientras el chat se
+        // animaba. Lo que el guard protege no cambia —con teclado no se navega— y ahora
+        // ademas exige que no sea TOCABLE: invisible pero pulsable seria peor.
         const css = read('components/dashboard/BottomTabBar.module.css');
-        expect(css).toMatch(/:global\(html\[data-kb-open\]\) \.tabBar\s*\{\s*display:\s*none/);
+        const i = css.indexOf(':global(html[data-kb-open]) .tabBar {');
+        expect(i).toBeGreaterThan(0);
+        const regla = css.slice(i, css.indexOf('}', i));
+        expect(regla).toMatch(/transform:\s*translateY\(1[01]\d%\)/);
+        expect(regla).toMatch(/pointer-events:\s*none/);
+    });
+
+    it('las TRES piezas del cierre comparten curva y duracion', () => {
+        // El glitch era desincronizacion: contenedor 0.25s, relleno 0.2s ease-out, barra
+        // sin animar. Tres tiempos distintos en la misma escena se ven como un tiron.
+        const CURVA = '0.25s cubic-bezier(0.32, 0.72, 0, 1)';
+        const jsx = read('pages/AgentPage.jsx');
+        const css = read('components/dashboard/BottomTabBar.module.css');
+        expect(jsx.split(CURVA).length - 1, 'contenedor + relleno de la caja').toBe(2);
+        expect(css).toContain(CURVA);
     });
 
     it('el FOCO por si solo NO mueve la caja: la reserva cuelga del teclado, no del foco', () => {

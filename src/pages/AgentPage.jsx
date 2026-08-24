@@ -3974,7 +3974,12 @@ const AgentPage = () => {
                         -webkit-backdrop-filter: blur(20px) !important;
                         border-top: none !important;
                         box-shadow: 0 -4px 30px rgba(0,0,0,0.06) !important;
-                        transition: padding-bottom 0.2s ease-out !important;
+                        /* [P1-KB-SIN-GLITCH · 2026-08-23] Era 0.2s ease-out: una curva y
+                           una duracion DISTINTAS de las del contenedor del chat y de las de la
+                           barra de pestanas. Tres piezas de la misma escena con tres tiempos es
+                           exactamente lo que se ve como glitch al bajar. Ahora las tres usan la
+                           curva y la duracion del teclado de iOS. */
+                        transition: padding-bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
                         border-radius: 0 !important;
                     }
                     /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23 · corregido el 23] Con teclado no

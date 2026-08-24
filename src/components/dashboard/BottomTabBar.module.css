@@ -9,7 +9,17 @@
    iOS recoloca lo `fixed` encima del teclado y tapaba la caja de escribir del chat.
    Con teclado no se navega, se escribe. Fuera del @media para ganar a la regla móvil. */
 :global(html[data-kb-open]) .tabBar {
-    display: none !important;
+    /* [P1-KB-SIN-GLITCH · 2026-08-23] Era `display: none`, y ese es el glitch: `display`
+       no se puede animar, así que la barra DESAPARECÍA y REAPARECÍA de golpe mientras el
+       contenedor del chat se animaba 0,25 s. Tres piezas moviéndose en momentos distintos
+       se ven como un parpadeo, no como un cierre.
+       Ahora se desliza hacia abajo con la MISMA curva y duración que el chat y el
+       teclado de iOS. `position: fixed` (regla móvil de abajo) => sale del flujo, así
+       que deslizarla en vez de ocultarla no reserva ni un píxel. `pointer-events: none`
+       mientras está fuera: invisible pero tocable sería peor que visible. */
+    transform: translateY(110%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 @media (max-width: 1024px) {
@@ -27,6 +37,9 @@
         -webkit-backdrop-filter: blur(24px) saturate(180%);
         border-top: 1px solid rgba(226, 232, 240, 0.6);
         padding-bottom: env(safe-area-inset-bottom, 0px);
+        /* [P1-KB-SIN-GLITCH] La misma curva y duracion que el contenedor del chat y
+           que el teclado de iOS: las tres piezas se mueven a la vez o se ve un tiron. */
+        transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.18s ease;
         box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.06);
     }
 
