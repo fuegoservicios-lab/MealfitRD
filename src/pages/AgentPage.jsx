@@ -4141,7 +4141,9 @@ const AgentPage = () => {
                                             : (streamingStatus || loadingPhrases[loadingPhraseIdx] || t('Pensando...'))}</span>
                                     </div>
                                 )}
-                                <div ref={messagesEndRef} />
+                                {/* El sentinel no es un mensaje: cancela el gap de 2rem que
+                                    Flex añadiría después del último turno real. */}
+                                <div ref={messagesEndRef} className="messages-end-sentinel" />
                             </div>
                             )
                         )}
@@ -4312,6 +4314,14 @@ const AgentPage = () => {
                        (Sin acentos graves en este comentario: vive dentro de un template
                        literal de JS y un backtick aquí cierra el literal y rompe el build.) */
                     .msg-log { margin-top: auto !important; }
+                    /* [P1-CHAT-HEADER-GAP · 2026-08-24] El gap de 2rem del log también
+                       se aplicaba entre el último mensaje y el sentinel invisible. Ese
+                       hueco desperdiciado abajo empujaba el primer turno bajo el header
+                       al anclar la conversación al final. Se cancela solo para el sentinel;
+                       la separación entre mensajes permanece intacta. */
+                    .messages-end-sentinel {
+                        margin-top: -2rem;
+                    }
                     /* [P2-CHAT-WELCOME-UP · 2026-08-24] Solo la bienvenida se eleva
                        visualmente 24 px. El transform no ocupa espacio de layout y no
                        toca el compositor, el scroll ni las mediciones del teclado. */

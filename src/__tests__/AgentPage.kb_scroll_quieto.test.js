@@ -174,6 +174,15 @@ describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS',
     });
 });
 
+describe('[P1-CHAT-HEADER-GAP] el primer turno no invade el encabezado', () => {
+    it('el sentinel de scroll no consume el gap reservado entre mensajes', () => {
+        const src = read('pages/AgentPage.jsx');
+        expect(src).toMatch(/ref=\{messagesEndRef\} className="messages-end-sentinel"/);
+        expect(src).toMatch(/\.messages-end-sentinel\s*\{[^}]*margin-top:\s*-2rem/s);
+        expect(src).toMatch(/gap:\s*'2rem'/);
+    });
+});
+
 describe('[P1-KB-CIERRE-SIN-ESPERA] el cierre no espera a la animacion', () => {
     const src = read('pages/AgentPage.jsx');
 
