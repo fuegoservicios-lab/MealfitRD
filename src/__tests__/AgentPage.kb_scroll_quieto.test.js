@@ -151,6 +151,14 @@ describe('[P1-CHAT-AIRE-INFERIOR] la caja no lame el borde', () => {
     });
 });
 
+describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS', () => {
+    it('suma el accesorio PWA al inset medido, sin sustituirlo', () => {
+        const src = read('pages/AgentPage.jsx');
+        expect(src).toMatch(/insetAccesorioTecladoIosPwa\(window, \{ abierto, documentoEncoge \}\)/);
+        expect(src).toMatch(/const objetivo = abierto \? layoutInset \+ accesorioPwa : 0/);
+    });
+});
+
 describe('[P1-KB-CIERRE-SIN-ESPERA] el cierre no espera a la animacion', () => {
     const src = read('pages/AgentPage.jsx');
 

@@ -64,7 +64,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
-import { medirTecladoDeVentana, insetEstabilizado } from '../utils/keyboardViewport';
+import { medirTecladoDeVentana, insetEstabilizado, insetAccesorioTecladoIosPwa } from '../utils/keyboardViewport';
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
@@ -691,7 +691,12 @@ const AgentPage = () => {
             // en cada fotograma y la caja se despegaba del teclado y volvía. Ver
             // `insetEstabilizado` para el porqué de no eliminar la compensación.
             if (contenedor) {
-                const objetivo = abierto ? layoutInset : 0;
+                // [P1-KB-PWA-FORM-ASSISTANT · 2026-08-24] En la PWA iOS `100dvh`
+                // descuenta el teclado principal pero NO la barra anterior/siguiente/✓,
+                // que queda superpuesta y tapa el `+` y el textarea. Safari normal no
+                // necesita esta reserva y sigue exactamente con su layoutInset actual.
+                const accesorioPwa = insetAccesorioTecladoIosPwa(window, { abierto, documentoEncoge });
+                const objetivo = abierto ? layoutInset + accesorioPwa : 0;
                 // [P1-KB-RESIZES-CONTENT] Si el NAVEGADOR redimensiona el layout viewport
                 // (`interactive-widget=resizes-content`, o la PWA instalada), el alto ya lo
                 // resuelve `100dvh` con la animacion del sistema: el objetivo es 0 y hay que

@@ -12,7 +12,13 @@
  * visualViewport.height = H - K  (panear mueve el visual viewport, no lo redimensiona)
  */
 import { describe, it, expect } from 'vitest';
-import { medirTeclado, medirTecladoDeVentana, KB_UMBRAL_PX } from '../utils/keyboardViewport';
+import {
+    medirTeclado,
+    medirTecladoDeVentana,
+    insetAccesorioTecladoIosPwa,
+    IOS_PWA_KEYBOARD_ACCESSORY_PX,
+    KB_UMBRAL_PX,
+} from '../utils/keyboardViewport';
 
 const H = 800;
 const K = 336; // teclado del iPhone en vertical, con la barra predictiva
@@ -123,5 +129,28 @@ describe('[P1-KB-ALTO-DE-REFERENCIA] la referencia no se mueve con lo que mide',
         // vuelta a vertical: la referencia de 390 de ancho sigue siendo 844
         win = { innerWidth: 390, innerHeight: 508, visualViewport: { height: 508, offsetTop: 0 } };
         expect(medirTecladoDeVentana(win).kb).toBe(336);
+    });
+});
+
+describe('[P1-KB-PWA-FORM-ASSISTANT] reserva la barra que iOS superpone', () => {
+    const pwaIos = { navigator: { standalone: true } };
+
+    it('la PWA iOS suma 60 px solo con teclado y documento ya encogido', () => {
+        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: true, documentoEncoge: true }))
+            .toBe(IOS_PWA_KEYBOARD_ACCESSORY_PX);
+        expect(IOS_PWA_KEYBOARD_ACCESSORY_PX).toBe(60);
+    });
+
+    it('con teclado cerrado no deja hueco residual', () => {
+        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: false, documentoEncoge: true })).toBe(0);
+    });
+
+    it('Safari normal no cambia: navigator.standalone no está activo', () => {
+        const safari = { navigator: { standalone: false } };
+        expect(insetAccesorioTecladoIosPwa(safari, { abierto: true, documentoEncoge: true })).toBe(0);
+    });
+
+    it('si el documento no encogió, el layoutInset existente sigue siendo el único dueño', () => {
+        expect(insetAccesorioTecladoIosPwa(pwaIos, { abierto: true, documentoEncoge: false })).toBe(0);
     });
 });

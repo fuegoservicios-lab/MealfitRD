@@ -41,6 +41,28 @@
 export const KB_UMBRAL_PX = 120;
 
 /**
+ * [P1-KB-PWA-FORM-ASSISTANT · 2026-08-24] Alto que iOS deja SUPERPUESTO al
+ * visual viewport en la PWA instalada: la barra con anterior/siguiente/✓.
+ *
+ * En Safari normal el visual viewport ya representa toda la zona no cubierta. En
+ * `navigator.standalone`, en cambio, `100dvh` se encoge hasta el teclado principal
+ * pero esta barra queda dentro de esos píxeles y tapa el compositor. La captura del
+ * iPhone 13 Pro mide ~110 px renderizados / 1.895 de escala = 58 CSS px; 60 incluye
+ * el borde del accesorio sin dejar la caja pegada a él.
+ */
+export const IOS_PWA_KEYBOARD_ACCESSORY_PX = 60;
+
+/**
+ * Reserva adicional EXCLUSIVA del PWA iOS cuando el documento ya descontó el
+ * teclado principal. `navigator.standalone` es deliberado: no se usa display-mode,
+ * que también sería true en Android y aplicaría un inset a un accesorio inexistente.
+ */
+export function insetAccesorioTecladoIosPwa(win, { abierto = false, documentoEncoge = false } = {}) {
+    const standaloneIos = win?.navigator?.standalone === true;
+    return standaloneIos && abierto && documentoEncoge ? IOS_PWA_KEYBOARD_ACCESSORY_PX : 0;
+}
+
+/**
  * @param {{innerHeight:number, vvHeight:number, vvOffsetTop:number}} m
  * @returns {{kb:number, layoutInset:number, abierto:boolean}}
  *   kb           alto real del teclado (independiente del paneo) → úsalo como PREDICADO
