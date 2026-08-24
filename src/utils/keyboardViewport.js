@@ -61,6 +61,7 @@ export const IOS_PWA_KEYBOARD_ACCESSORY_PX = 60;
  * 1.895 de escala = ~95 CSS px. 100 deja 5 px de aire y es un destino único.
  */
 export const IOS_PWA_COMPOSER_LIFT_PX = 100;
+export const IOS_PWA_WELCOME_EXTRA_GAP_PX = 16;
 
 /**
  * Reserva adicional EXCLUSIVA del PWA iOS cuando el documento ya descontó el
@@ -114,19 +115,24 @@ export function resolverInsetTecladoEstable(win, {
  * no recibe transform. Los destinos son mutuamente excluyentes para no sumar dos
  * compensaciones.
  *
- * @returns {{containerInset:number, composerLift:number}}
+ * @returns {{containerInset:number, composerLift:number, welcomeLift:number}}
  */
 export function resolverPosicionTeclado(win, {
     abierto = false,
     layoutInset = 0,
 } = {}) {
-    if (!abierto) return { containerInset: 0, composerLift: 0 };
+    if (!abierto) return { containerInset: 0, composerLift: 0, welcomeLift: 0 };
     if (win?.navigator?.standalone === true) {
-        return { containerInset: 0, composerLift: IOS_PWA_COMPOSER_LIFT_PX };
+        return {
+            containerInset: 0,
+            composerLift: IOS_PWA_COMPOSER_LIFT_PX,
+            welcomeLift: IOS_PWA_COMPOSER_LIFT_PX + IOS_PWA_WELCOME_EXTRA_GAP_PX,
+        };
     }
     return {
         containerInset: Math.max(0, Math.round(Number(layoutInset) || 0)),
         composerLift: 0,
+        welcomeLift: 0,
     };
 }
 

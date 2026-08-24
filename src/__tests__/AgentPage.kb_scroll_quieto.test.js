@@ -160,6 +160,14 @@ describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS',
         expect(src).not.toMatch(/layoutInset \+ accesorioPwa/);
         expect(src).not.toMatch(/pwaTecladoAsentadoRef/);
     });
+
+    it('la bienvenida acompaña al compositor con aire extra y limpia el lift al cerrar', () => {
+        const src = read('pages/AgentPage.jsx');
+        expect(src).toMatch(/setProperty\('--pwa-welcome-lift', `\$\{posicion\.welcomeLift\}px`\)/);
+        expect(src).toMatch(/msg-log-welcome/);
+        expect(src).toMatch(/var\(--pwa-welcome-lift, 0px\)/);
+        expect(src.match(/setProperty\('--pwa-welcome-lift', '0px'\)/g)?.length).toBeGreaterThanOrEqual(2);
+    });
 });
 
 describe('[P1-KB-CIERRE-SIN-ESPERA] el cierre no espera a la animacion', () => {

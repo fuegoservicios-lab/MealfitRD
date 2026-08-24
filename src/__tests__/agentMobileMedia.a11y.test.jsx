@@ -17,6 +17,29 @@ import { AttachmentSourceSheet } from '../components/agent/AttachmentSourceSheet
 import { MemoizedMessageBubble } from '../components/agent/MessageBubble';
 
 describe('[P2-CHAT-MOBILE-MEDIA] visor y hoja nativa accesibles', () => {
+    it('la bienvenida predeterminada no ofrece regenerar, las respuestas reales sí', () => {
+        const { rerender } = render(
+            <MemoizedMessageBubble
+                msg={{ role: 'model', content: 'Bienvenida', isWelcome: true }}
+                index={0}
+                currentSessionId="session"
+                onRegenerate={vi.fn()}
+            />,
+        );
+        expect(screen.queryByRole('button', { name: 'Regenerar respuesta' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Copiar' })).toBeInTheDocument();
+
+        rerender(
+            <MemoizedMessageBubble
+                msg={{ role: 'model', content: 'Respuesta real' }}
+                index={1}
+                currentSessionId="session"
+                onRegenerate={vi.fn()}
+            />,
+        );
+        expect(screen.getByRole('button', { name: 'Regenerar respuesta' })).toBeInTheDocument();
+    });
+
     it('navega las imágenes, cierra con Escape y devuelve el foco al disparador', () => {
         render(
             <MemoizedMessageBubble

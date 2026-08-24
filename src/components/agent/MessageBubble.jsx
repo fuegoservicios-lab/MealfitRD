@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import './MessageBubble.css';
 
-const MessageActions = ({ content, sessionId, onRegenerate }) => {
+const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = true }) => {
     const t = useT();
     const [copied, setCopied] = useState(false);
     const [feedback, setFeedback] = useState(null);
@@ -93,15 +93,17 @@ const MessageActions = ({ content, sessionId, onRegenerate }) => {
             >
                 <ThumbsDown size={18} strokeWidth={2} fill={feedback === 'down' ? 'currentColor' : 'none'} />
             </button>
-            <button 
-                onClick={onRegenerate} 
-                style={actionBtnStyle()}
-                onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
-                title={t('Regenerar respuesta')}
-                aria-label={t('Regenerar respuesta')}
-            >
-                <RefreshCw size={18} strokeWidth={2} />
-            </button>
+            {showRegenerate && (
+                <button
+                    onClick={onRegenerate}
+                    style={actionBtnStyle()}
+                    onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                    title={t('Regenerar respuesta')}
+                    aria-label={t('Regenerar respuesta')}
+                >
+                    <RefreshCw size={18} strokeWidth={2} />
+                </button>
+            )}
             <button 
                 onClick={handleCopy} 
                 style={actionBtnStyle(copied)}
@@ -209,7 +211,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     // sutil, NO MessageActions (thumbs/regenerate no aplican).
     const isErrorBubble = msg.role === 'model' && msg._isErrorBubble === true;
     return (
-        <div style={{
+        <div className={`message-row${msg.isWelcome ? ' message-row-welcome' : ''}`} style={{
             display: 'flex',
             gap: '0.75rem',
             flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
@@ -223,7 +225,9 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
             <div
                 {...(isErrorBubble ? { role: 'alert' } : {})}
                 {...(msg.role === 'model' && msg.isStreaming ? { 'aria-busy': true } : {})}
-                className={msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot'}
+                className={msg.role === 'user'
+                    ? 'msg-bubble-user'
+                    : `msg-bubble-bot${msg.isWelcome ? ' msg-bubble-welcome' : ''}`}
                 style={{
                     flex: msg.role === 'user' ? '0 1 auto' : 1,
                     maxWidth: msg.role === 'user' ? '80%' : '100%',
@@ -293,6 +297,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         content={msg.content}
                         sessionId={currentSessionId}
                         onRegenerate={() => onRegenerate(index)}
+                        showRegenerate={!msg.isWelcome}
                     />
                 )}
             </div>

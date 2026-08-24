@@ -596,7 +596,10 @@ const AgentPage = () => {
         const resetViewportState = () => {
             root?.removeAttribute('data-kb-open');
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
-            if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
+            if (contenedor) {
+                contenedor.style.setProperty('--kb-inset', '0px');
+                contenedor.style.setProperty('--pwa-welcome-lift', '0px');
+            }
             if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
@@ -713,6 +716,7 @@ const AgentPage = () => {
                 insetAplicadoRef.current = aplicado;
                 tecladoAbiertoRef.current = abierto;
                 contenedor.style.setProperty('--kb-inset', `${aplicado}px`);
+                contenedor.style.setProperty('--pwa-welcome-lift', `${posicion.welcomeLift}px`);
                 wrapper.style.transform = posicion.composerLift > 0
                     ? `translateY(-${posicion.composerLift}px)`
                     : '';
@@ -784,7 +788,10 @@ const AgentPage = () => {
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
-            if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
+            if (contenedor) {
+                contenedor.style.setProperty('--kb-inset', '0px');
+                contenedor.style.setProperty('--pwa-welcome-lift', '0px');
+            }
             if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
         };
 
@@ -4053,7 +4060,7 @@ const AgentPage = () => {
                                     gap: '2rem',
                                     paddingBottom: '0.5rem'
                                 }}
-                                className="msg-log"
+                                className={`msg-log${messages.length === 1 && messages[0]?.isWelcome ? ' msg-log-welcome' : ''}`}
                             >
                                 {isLoadingHistory ? (
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: 'var(--text-muted)', gap: '0.5rem' }}>
@@ -4292,6 +4299,15 @@ const AgentPage = () => {
                        (Sin acentos graves en este comentario: vive dentro de un template
                        literal de JS y un backtick aquí cierra el literal y rompe el build.) */
                     .msg-log { margin-top: auto !important; }
+                    /* [P1-KB-PWA-WELCOME-LIFT · 2026-08-24] El compositor se eleva con
+                       transform en la PWA, fuera del flujo. La bienvenida única debe
+                       acompañarlo para conservar la separación, con 16px extra de aire.
+                       Safari recibe 0px en esta variable y conserva su geometría actual. */
+                    .msg-log-welcome {
+                        transform: translateY(calc(0px - var(--pwa-welcome-lift, 0px)));
+                        transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+                        will-change: transform;
+                    }
                     /* --- User bubble ---
                        [P1-CHAT-MOBILE-CONTRAST · 2026-08-10] El defecto que reportó el
                        dueño: su propio mensaje se leía CASI INVISIBLE en el teléfono.
@@ -4340,6 +4356,21 @@ const AgentPage = () => {
                         border-radius: 0 !important;
                         padding: 0.9rem 0 0.6rem 0.9rem !important;
                         font-size: 0.93rem !important;
+                    }
+                    /* La bienvenida es contexto del día, no una respuesta cualquiera:
+                       una superficie tenue la separa sin convertirla en una burbuja pesada. */
+                    .msg-bubble-welcome {
+                        background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(56,189,248,0.035)) !important;
+                        color: var(--text-main) !important;
+                        border-left-color: var(--primary) !important;
+                        border-radius: 0 1.1rem 1.1rem 0 !important;
+                        padding: 1rem 1rem 0.65rem 1rem !important;
+                        box-shadow: inset 0 0 0 1px rgba(129,140,248,0.08) !important;
+                    }
+                    html[data-theme="dark"] .msg-bubble-welcome {
+                        background: linear-gradient(135deg, rgba(99,102,241,0.13), rgba(56,189,248,0.045)) !important;
+                        color: var(--text-main) !important;
+                        box-shadow: inset 0 0 0 1px rgba(129,140,248,0.12) !important;
                     }
                     /* El filete indigo del bot compone a ~1,2:1 sobre el fondo oscuro:
                        invisible. '--primary' en oscuro (#818CF8) da 6,9:1 y cumple el 3:1
