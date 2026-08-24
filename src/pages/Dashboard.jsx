@@ -501,7 +501,11 @@ const getQDegradedReasonMap = () => ({
     // genérico. `clinical_layer_incomplete` es severity HIGH y SOLO para perfiles con condición/alergia real
     // → es justo el subgrupo at-risk el que veía el copy menos accionable.
     clinical_layer_incomplete: t('No pudimos aplicar por completo la capa de seguridad clínica de tu perfil (condición/alergia). El plan es ORIENTATIVO: revísalo con tu profesional de salud antes de seguirlo y, si puedes, regenéralo.'),
-    composite_dish_unresolved: t('Algunos platos compuestos (ej. sancocho, mangú) no se pudieron desglosar en ingredientes con precisión, así que sus macros y su lista de compras son aproximados. Usa Cambiar Plato si necesitas más exactitud.'),
+    // [P3-COUNTRY-COPY-CRIOLLO-CIEGO · 2026-08-23] Los dos ejemplos («ej. sancocho, mangú»)
+    // salían sin condición de país: a un español el aviso le ilustraba su problema con dos
+    // platos que no ha comido nunca. El aviso funciona sin ellos — lo accionable es «usa
+    // Cambiar Plato», no el nombre del guiso.
+    composite_dish_unresolved: t('Algunos platos compuestos no se pudieron desglosar en ingredientes con precisión, así que sus macros y su lista de compras son aproximados. Usa Cambiar Plato si necesitas más exactitud.'),
     // [P1-MARKER-UNRESOLVED-HONESTY · 2026-06-23] (audit inteligencia P1-6) El corrector de
     // coherencia de slots (self_critique + surgical regen) no pudo resolver algún día tras los
     // reintentos → puede haber comidas repetidas (almuerzo↔cena) o un slot incoherente. Antes se
@@ -783,7 +787,12 @@ function _cookingStagesDay() {
 function _cookingStagesTail() {
     return [
         t('Ajustando las porciones…'),
-        t('Afinando sabores criollos…'),
+        // [P3-COUNTRY-COPY-CRIOLLO-CIEGO · 2026-08-23] Era «Afinando sabores criollos…»,
+        // sin ninguna condición de país: una de ocho frases de relleno que un usuario de
+        // España, México o EE. UU. leía mientras esperaba SU plan. La frase neutra dice
+        // exactamente lo mismo y vale para los seis países — parametrizarla por país
+        // sería sostener una tabla de gentilicios para un texto decorativo.
+        t('Afinando los sabores…'),
         t('Revisando la lista de compras…'),
         t('Cuidando tus macros…'),
         t('Un plato bueno toma su tiempo…'),

@@ -16,6 +16,10 @@ import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // eso mismo (una constante con `t()` se congelaría en español al importar).
 import { compareText, formatNumber, t, useT, useTn, formatTemperature } from '../i18n';
 import { glossUnitWord } from '../utils/shoppingHelpers';
+// [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] SSOT del sistema de unidades por país. La
+// proyección es de DISPLAY: `item.quantity`/`item.unit` (el dato que el backend deduce) no se
+// tocan en ninguna de las superficies de abajo.
+import { projectMeasureForCountry, unitOptionsForCountry } from '../config/unitSystem';
 // [P1-NEON-DB-MIGRATION · 2026-06-12] el SDK anterior eliminado de Pantry: los
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
@@ -334,10 +338,11 @@ const getZoneDefinitions = () => {
 // [P4-PANTRY-UNITS-HOIST] Unidades de envase/medida (estáticas) a module-scope —
 // definirlas en el render las re-alocaba en cada keystroke de búsqueda.
 // [P3-PANTRY-MARKET-CONTAINER · 2026-05-19] 'cartón' alinea con master_ingredients.market_container.
-const COMMON_PURCHASE_UNITS = [
-    'unidad', 'libra', 'kg', 'botella', 'paquete',
-    'lata', 'caja', 'cartón', 'bolsa', 'galón', 'sobre',
-];
+// [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] La lista se fue a `config/unitSystem.js`.
+// Estaba escrita DOS veces —aquí y como `UNIT_OPTIONS` en QPantryBuilder— y las dos ya
+// habían drifteado: 'libra' contra 'lb', 'bolsa' contra 'funda', ésta con 'kg' y sin 'g' y la
+// otra al revés. Ahora la ORDENA el sistema de unidades del país, que es lo que faltaba: el
+// selector de un español empezaba por 'unidad', 'libra' y ni siquiera ofrecía 'ml'.
 
 // [P3-PANTRY-ADD-RESPONSIVE · 2026-07-07] Chips staple del estado vacío del modal
 // "Añade a tu Nevera". [P3-PANTRY-RECENT-ADDS · 2026-07-07] 1-toque: si la palabra
@@ -2371,7 +2376,14 @@ const Pantry = () => {
         // master_ingredients.market_container (curado) sobre item.unit.
         // [P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO · 2026-08-23] Traducida para
         // PINTAR; `item.unit` (el dato) sigue siendo el vocabulario cerrado que compara el backend.
-        const displayUnit = glossUnitWord(item.master_ingredients?.market_container || item.unit, t);
+        // [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] Y antes de traducirla, se proyecta al
+        // sistema de unidades del país: la lista de la compra ya decía «2 kg» y esta misma fila
+        // —nacida de esa lista por /restock— decía «4,5 lbs». La CANTIDAD viaja junto a la unidad
+        // porque separarlas produce la peor de las tres pantallas posibles: el número de las
+        // libras bajo el rótulo de los kilos.
+        const _medida = projectMeasureForCountry(
+            item.quantity, item.master_ingredients?.market_container || item.unit, formData?.country);
+        const displayUnit = glossUnitWord(_medida.unit, t);
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
@@ -2451,7 +2463,7 @@ const Pantry = () => {
                         title={t('Tocar para ajustar a cantidad exacta')}
                         aria-label={t('Ajustar cantidad de {alimento}', { alimento: item.ingredient_name })}
                     >
-                        {fmtQty(item.quantity)}
+                        {fmtQty(_medida.qty)}
                     </button>
                     <button
                         type="button"
@@ -2520,7 +2532,14 @@ const Pantry = () => {
         const isDisabled = disabledIngredients.includes(normalizedName);
         // [P2-I18N-UNIDADES-DE-ENVASE-CRUDAS-EN-NEVERA-Y-DIARIO · 2026-08-23] Traducida para
         // PINTAR; `item.unit` (el dato) sigue siendo el vocabulario cerrado que compara el backend.
-        const displayUnit = glossUnitWord(item.master_ingredients?.market_container || item.unit, t);
+        // [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] Y antes de traducirla, se proyecta al
+        // sistema de unidades del país: la lista de la compra ya decía «2 kg» y esta misma fila
+        // —nacida de esa lista por /restock— decía «4,5 lbs». La CANTIDAD viaja junto a la unidad
+        // porque separarlas produce la peor de las tres pantallas posibles: el número de las
+        // libras bajo el rótulo de los kilos.
+        const _medida = projectMeasureForCountry(
+            item.quantity, item.master_ingredients?.market_container || item.unit, formData?.country);
+        const displayUnit = glossUnitWord(_medida.unit, t);
         const cat = zoneColor(getZoneForCategory(item.master_ingredients?.category));
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
@@ -2606,7 +2625,7 @@ const Pantry = () => {
                             title={t('Tocar para ajustar a cantidad exacta')}
                             aria-label={t('Ajustar cantidad de {alimento}', { alimento: item.ingredient_name })}
                         >
-                            {fmtQty(item.quantity)}
+                            {fmtQty(_medida.qty)}
                         </button>
                         <button
                             type="button"
@@ -3342,7 +3361,7 @@ const Pantry = () => {
                                                                     {Array.from(new Set([
                                                                         item.market_container || item.default_unit || 'unidad',
                                                                         item.default_unit || 'unidad',
-                                                                        ...COMMON_PURCHASE_UNITS,
+                                                                        ...unitOptionsForCountry(formData?.country),
                                                                     ])).map(unit => {
                                                                         const isActive = pickerUnit === unit;
                                                                         return (
@@ -3364,7 +3383,10 @@ const Pantry = () => {
                                                                                     transition: 'all 0.15s',
                                                                                 }}
                                                                             >
-                                                                                {unit}
+                                                                                {/* [P2-NEVERA-UNIT-SYSTEM-POR-PAIS] El VALOR sigue
+                                                                                    siendo el dato («funda», «libra»): lo compara el
+                                                                                    backend literal. Sólo se traduce la etiqueta. */}
+                                                                                {glossUnitWord(unit, t)}
                                                                             </button>
                                                                         );
                                                                     })}
@@ -3543,6 +3565,18 @@ const Pantry = () => {
                             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                                 <strong style={{ color: 'var(--text-main)' }}>{qtyEditItem.ingredient_name}</strong>
                                 {' '}{t('· medida:')} <span style={{ textTransform: 'capitalize' }}>{glossUnitWord(qtyEditItem.unit, t)}</span>
+                                {/* [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] Este editor sigue en la unidad
+                                    GUARDADA a propósito: es la que el backend deduce, y convertir de ida y vuelta
+                                    en cada apertura le metería redondeo al dato (el commit ya redondea a entero).
+                                    Pero la FILA de la que vienes ya está proyectada, así que sin esta línea el
+                                    usuario lee «2 kg», toca, y se encuentra un 4,5 sin explicación. Los símbolos
+                                    no se traducen: no hay clave nueva que huerfanar. */}
+                                {(() => {
+                                    const _eq = projectMeasureForCountry(qtyEditItem.quantity, qtyEditItem.unit, formData?.country);
+                                    return _eq.converted
+                                        ? <span> (≈ {fmtQty(_eq.qty)} {_eq.unit})</span>
+                                        : null;
+                                })()}
                             </p>
 
                             {/* Counter grande */}

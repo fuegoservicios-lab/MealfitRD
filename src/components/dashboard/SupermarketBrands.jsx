@@ -6,6 +6,7 @@ import { APEX_ORIGIN } from '../../config/site';
 import { api, fetchWithAuth } from '../../config/api';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { formatNumber, useT, useTn } from '../../i18n';
+import { useAssessment } from '../../context/AssessmentContext';
 
 /* [P1-SUPERMARKET-MATCH · 2026-07-02] "Marcas del súper" — conexión v1 entre la
    lista de compras y la base Supermercado RD (supermarket_products en Neon).
@@ -169,6 +170,24 @@ const stableSortedVariants = (variants, targetG, chosenId) => {
 };
 
 const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPending }) => {
+    // [P2-BETA-MATCH-SIN-COUNTRY · 2026-08-23] El CUARTO call site de
+    // `/api/supermarket/match`. `P1-BETA-PRICE-LEAKS` nombró tres PANTALLAS y parcheó
+    // tres CALL SITES — este quedó fuera y mandaba `{ names }` a secas. El helper del
+    // servidor decide con `pricing_mode_for_country(canonicalize_country(country))` y
+    // su fail-safe ante país AUSENTE es DEVOLVER LOS PRECIOS, así que la omisión no
+    // degrada: filtra pesos dominicanos a un usuario de país beta.
+    //
+    // Hoy lo tapaba que el panel se oculte cuando `planData._pricing_mode ===
+    // 'beta_no_prices'`. Eso convierte una defensa en profundidad en UNA sola puerta,
+    // y esa puerta depende de una clave del plan que ya se demostró NO durable (un
+    // plan beta vivo perdió su `_pricing_mode` en un recálculo).
+    //
+    // El componente no recibe `formData` por props: se trae del contexto, igual que
+    // `Pantry.jsx`. El `|| {}` NO es adorno: `AssessmentContext` se crea sin valor por
+    // defecto, así que desestructurar sobre `undefined` lanza TypeError y este panel se
+    // renderiza suelto en sus tests unitarios. Un panel de compras que revienta es peor
+    // que uno que pregunta sin país — el servidor ya tiene su propio fail-safe.
+    const { formData } = useAssessment() || {};
     const t = useT();
     const tn = useTn();
     const [open, setOpen] = useState(false);
@@ -394,7 +413,10 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
             const res = await fetch(api('/api/supermarket/match'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ names }),
+                // [P2-BETA-MATCH-SIN-COUNTRY · 2026-08-23] el país viaja: sin él el
+                // servidor devuelve precios en RD$ por fail-safe. Ver el bloque del
+                // tope del componente.
+                body: JSON.stringify({ names, country: formData?.country }),
                 signal: AbortSignal.timeout(12000),
             });
             if (!res.ok) throw new Error(`Error ${res.status}`, { cause: res.status });
@@ -476,7 +498,9 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
         inFlightRef.current = false;
         // [P0-BRANDS-RETRY-STORM] Deps SIN `matches` ni `loading`: son justo las
         // dos que cerraban el ciclo. `names` sí, porque la petición las envía.
-    }, [names, t]);
+        // [P2-BETA-MATCH-SIN-COUNTRY] `formData?.country` también: viaja en el body.
+        // Es un escalar, así que no puede reabrir el ciclo que cerró P0-BRANDS-RETRY-STORM.
+    }, [names, t, formData?.country]);
 
     const persistPref = useCallback(async (foodKey, productId, variant = null) => {
         setPrefs((prev) => {

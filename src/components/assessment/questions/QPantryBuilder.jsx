@@ -24,6 +24,9 @@ import {
     getCachedInventory, setCachedInventory, invalidateInventoryCache,
 } from '../../../utils/pantryCache';
 import { useT } from '../../../i18n';
+// [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] SSOT del sistema de unidades por país.
+import { unitOptionsForCountry } from '../../../config/unitSystem';
+import { glossUnitWord } from '../../../utils/shoppingHelpers';
 
 // Helper de transporte (mismo contrato que Pantry.jsx::_apiJson — duplicado a
 // propósito: importar desde pages/Pantry.jsx metería las 3200 líneas de la página
@@ -49,7 +52,12 @@ const _daysFor = (groceryDuration) => {
 // [P1-PANTRY-SCAN-V0 · 2026-07-11] Envases/unidades elegibles por fila (feedback
 // owner: "no quiero una lata, quiero un paquete de habichuelas"). El PATCH
 // /inventory/items/{id}/unit mergea server-side si ya existe nombre+unidad.
-const UNIT_OPTIONS = ['unidad', 'lb', 'g', 'paquete', 'lata', 'botella', 'funda', 'taza'];
+//
+// [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] `UNIT_OPTIONS` era una constante a mano y
+// la Nevera tenía la SUYA (`COMMON_PURCHASE_UNITS`, Pantry.jsx): dos listas de lo mismo, ya
+// drifteadas ('lb' aquí contra 'libra' allá, 'funda' contra 'bolsa', ésta con 'g' y sin 'kg').
+// Ahora las dos salen de `config/unitSystem.js`, ordenadas por el sistema de unidades del
+// país — a un español el selector no le ofrecía ni 'kg' ni 'ml'.
 
 export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
     const { formData } = useAssessment();
@@ -518,8 +526,10 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
                                 {[...new Set([item.unit || 'unidad',
                                     item.master_ingredients?.market_container,
                                     item.master_ingredients?.default_unit,
-                                    ...UNIT_OPTIONS].filter(Boolean))].map(u => (
-                                    <option key={u} value={u}>{u}</option>
+                                    ...unitOptionsForCountry(formData?.country)].filter(Boolean))].map(u => (
+                                    // El `value` es el DATO (vocabulario cerrado del backend);
+                                    // sólo la etiqueta se traduce.
+                                    <option key={u} value={u}>{glossUnitWord(u, t)}</option>
                                 ))}
                             </select>
                             <button type="button" aria-label={t('Agregar 1 de {alimento}', { alimento: item.ingredient_name })}

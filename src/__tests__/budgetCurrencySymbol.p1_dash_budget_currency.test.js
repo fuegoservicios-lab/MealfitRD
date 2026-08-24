@@ -32,6 +32,12 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { budgetCurrencySymbol, currencyOptionsForCountry } from '../config/formValidation';
+// [P3-COUNTRY-SIMBOLO-MONEDA-DUPLICADO · 2026-08-23] El resolvedor que usa QBudget HOY. No es
+// `budgetCurrencySymbol`: `P3-I18N-MONEDA-COMPUESTA-A-MANO-EN-EL-PRESUPUESTO` (2026-08-23) le
+// quitó a QBudget su expresión de tres ramas y la sustituyó por `Intl`, que sigue al idioma
+// activo. Para comparar las dos superficies hay que traer los DOS resolvedores; con uno solo
+// no se compara nada, que es exactamente lo que hacía el caso de abajo antes de este cambio.
+import { currencySymbol as symbolQBudget } from '../i18n';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DASHBOARD = resolve(__dirname, '../pages/Dashboard.jsx');
@@ -99,15 +105,58 @@ describe('QBudget y el Dashboard no pueden volver a divergir', () => {
         }
     });
 
-    it('el símbolo del Dashboard y el de QBudget coinciden para toda moneda ofrecida', () => {
-        // La propiedad que de verdad importa: para cada moneda que el toggle puede ofrecer, el
-        // símbolo es UNO. Se recorren los países con moneda beta a través del SSOT de opciones.
+    /* [P3-COUNTRY-SIMBOLO-MONEDA-DUPLICADO · 2026-08-23] AQUÍ HABÍA UNA TAUTOLOGÍA.
+       El caso se titulaba «el símbolo del Dashboard y el de QBudget coinciden» y afirmaba
+       `expect(budgetCurrencySymbol(v)).toBe(budgetCurrencySymbol(v))`: comparaba el SSOT
+       consigo mismo. Pasaba en verde con QBudget resolviendo el símbolo por su cuenta —que es
+       lo que hacía— y habría seguido pasando con las dos superficies divergiendo en todo.
+       Un guard que certifica un cierre que no ocurrió es peor que no tenerlo: ocupa su sitio.
+
+       Lo que se compara ahora son los DOS resolvedores VIVOS, cada uno traído de su módulo. */
+    it('los dos resolvedores vivos dan el MISMO símbolo en el idioma base', () => {
+        // es-DO es el idioma base del producto (`DEFAULT_LOCALE`) y el de la suite. Si las dos
+        // superficies discrepan aquí, un usuario ve dos rótulos distintos para su propia moneda
+        // en la misma sesión — que es el defecto que P1-DASH-BUDGET-CURRENCY cerró.
         for (const cc of ['DO', 'ES', 'MX', 'CO', 'US']) {
             const { options } = currencyOptionsForCountry(cc, true);
             for (const { value } of options) {
-                expect(budgetCurrencySymbol(value)).toBe(budgetCurrencySymbol(value));
                 expect(budgetCurrencySymbol(value)).toBeTruthy();
+                expect(symbolQBudget(value)).toBe(budgetCurrencySymbol(value));
             }
         }
+    });
+
+    it('ninguno rotula con «RD$» una moneda que no es el peso dominicano', () => {
+        // La forma exacta del bug original: «Mínimo RD$245 para 30 días» sobre un monto que el
+        // backend había calculado en EUROS. Es la propiedad, independiente de qué función la
+        // resuelva y de cuántas haya.
+        for (const cc of ['ES', 'MX', 'CO', 'US']) {
+            const { options } = currencyOptionsForCountry(cc, true);
+            for (const { value } of options) {
+                if (value === 'DOP') continue;
+                expect(budgetCurrencySymbol(value)).not.toBe('RD$');
+                expect(symbolQBudget(value)).not.toBe('RD$');
+            }
+        }
+    });
+
+    it('QBudget resuelve el símbolo con UN helper importado, nunca con una expresión propia', () => {
+        // El gap medido decía que QBudget conservaba `${effectiveCurrency} ` —el código ISO con
+        // un espacio final que el SSOT no tiene—. Ese trozo ya no existe: se lo llevó
+        // P3-I18N-MONEDA-COMPUESTA-A-MANO-EN-EL-PRESUPUESTO el mismo día. Lo que este caso
+        // impide es que vuelva CUALQUIER expresión propia, no la grafía de aquélla.
+        //
+        // Y SE MIRA LA ASIGNACIÓN, NO EL IMPORT. Comprobar que el import sigue ahí no prueba
+        // nada: reintroduje la expresión de tres ramas dejando el import intacto (queda
+        // huérfano, y JavaScript no protesta) y este caso pasaba en VERDE. Un import es lo que
+        // el fichero PUEDE usar; la asignación es lo que USA.
+        const s = readFileSync(QBUDGET, 'utf8');
+        const asignacion = s.match(/\n\s*const\s+currencySymbol\s*=\s*([^;\n]+);/);
+        expect(asignacion).toBeTruthy();
+        const expr = asignacion[1].trim();
+        // Una sola llamada a un identificador, y nada más: sin ternarios, sin concatenación.
+        expect(expr).toMatch(/^[A-Za-z_$][\w$]*\([^()]*\)$/);
+        const helper = expr.slice(0, expr.indexOf('('));
+        expect(s).toMatch(new RegExp(`import\\s*\\{[^}]*\\b${helper}\\b[^}]*\\}\\s*from`));
     });
 });
