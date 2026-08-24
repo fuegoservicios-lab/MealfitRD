@@ -1130,6 +1130,8 @@ const AgentPage = () => {
     const [streamingStatus, setStreamingStatus] = useState(null);
     const [abortController, setAbortController] = useState(null);
     const abortControllerRef = useRef(null);
+    // [P3-AUDIT-2] Feedback no bloqueante: los rechazos del nuevo pipeline
+    // múltiple conservan `toast.error` y nunca vuelven al alert nativo.
     const handleAttachmentReject = useCallback((code) => {
         const copy = {
             IMAGE_COUNT_LIMIT: t('Puedes adjuntar hasta {count} imágenes por mensaje.', { count: CHAT_IMAGE_MAX_COUNT }),
