@@ -1647,7 +1647,19 @@ const AgentPage = () => {
             if (msgs.length > VIRTUALIZE_THRESHOLD) {
                 virtualizedListRef.current?.scrollToBottom({ behavior });
             } else {
-                messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+                // [P0-CHAT-IOS-COLA-VISIBLE · 2026-08-24] En el WebView de iOS,
+                // scrollIntoView puede elegir el viewport/documento exterior cuando el
+                // teclado está abierto. El resultado visual era engañoso: aparecía el
+                // mensaje del usuario, pero el loader o la burbuja de error quedaban
+                // recortados debajo del compositor. En sesiones no virtualizadas el
+                // dueño real del scroll es este contenedor, así que se desplaza de forma
+                // explícita y no se le permite a WebKit escoger otro ancestro.
+                const container = messagesContainerRef.current;
+                if (container) {
+                    container.scrollTo({ top: container.scrollHeight, behavior });
+                } else {
+                    messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+                }
             }
             if (force) {
                 userScrolledUpRef.current = false;
@@ -2041,9 +2053,29 @@ const AgentPage = () => {
         }
     };
 
+    // Estado de recuperación declarado antes de los efectos de anclaje: el indicador
+    // forma parte de la misma cola visual que el loader de un turno normal.
+    const [recoveringTurn, setRecoveringTurn] = useState(false);
+    const _recoveryRef = useRef({ active: false, attempts: 0, timer: null });
+
     useEffect(() => {
-        scrollToBottom();
+        const last = messages[messages.length - 1];
+        // Un error es el resultado accionable del turno y nunca debe quedar oculto por
+        // una medición de scroll intermedia producida por el teclado.
+        const mustRevealTail = Boolean(
+            last?._isErrorBubble
+            || ((isLoading || recoveringTurn) && last?.role === 'user')
+        );
+        scrollToBottom(mustRevealTail, mustRevealTail ? 'auto' : null);
     }, [messages]);
+
+    useEffect(() => {
+        // El loader no vive dentro de messages; esperar al siguiente chunk para
+        // desplazar la cola lo dejaba completamente fuera del viewport durante toda la
+        // espera inicial. Al encender cualquiera de estos estados, el envío explícito
+        // del usuario gana sobre un scroll espurio generado por el reajuste del teclado.
+        if (isLoading || recoveringTurn) scrollToBottom(true, 'auto');
+    }, [isLoading, recoveringTurn]);
 
     // Cargar sesiones al abrir la pagina (para todos los usuarios)
     useEffect(() => {
@@ -2088,9 +2120,6 @@ const AgentPage = () => {
     // espíritu que el spinner del swap que sobrevive refresh (P1-SWAP-REGEN-
     // RESUME). El sondeo es CONSERVADOR: solo rehidrata del server cuando este
     // va igual o adelante del estado local (no pierde la burbuja huérfana).
-    const [recoveringTurn, setRecoveringTurn] = useState(false);
-    const _recoveryRef = useRef({ active: false, attempts: 0, timer: null });
-
     useEffect(() => () => {
         const st = _recoveryRef.current;
         if (st.timer) { clearTimeout(st.timer); st.timer = null; }
@@ -4514,6 +4543,19 @@ const AgentPage = () => {
                        (aquí distingue quién habla). */
                     html[data-theme="dark"] .msg-bubble-bot {
                         border-left-color: var(--primary) !important;
+                    }
+                    /* El error no es una respuesta normal con un borde rosa añadido
+                       encima del filete índigo. Es una tarjeta compacta propia: cuatro
+                       bordes coherentes, contraste de error y ancho contenido. Así el
+                       borde inferior también deja claro cuándo termina la tarjeta. */
+                    .msg-bubble-error {
+                        background: var(--danger-bg) !important;
+                        color: var(--danger-text) !important;
+                        border: 1px solid color-mix(in srgb, var(--danger-text) 42%, transparent) !important;
+                        border-left-width: 3px !important;
+                        border-radius: 0.85rem !important;
+                        padding: 0.9rem 1rem !important;
+                        max-width: 100% !important;
                     }
                     /* --- Bot avatar --- */
                     .bot-avatar-mobile {

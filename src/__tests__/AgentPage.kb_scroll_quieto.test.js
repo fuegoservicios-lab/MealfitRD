@@ -209,6 +209,30 @@ describe('[P0-CHAT-IOS-APP-BOTONES-CON-TECLADO] el primer toque siempre ejecuta'
     });
 });
 
+describe('[P0-CHAT-IOS-COLA-VISIBLE] carga y errores quedan sobre el compositor', () => {
+    const src = read('pages/AgentPage.jsx');
+
+    it('las sesiones cortas desplazan su propio scroller, no el documento exterior', () => {
+        const i = src.indexOf('const scrollToBottom =');
+        const bloque = src.slice(i, src.indexOf('\n    };', i));
+        expect(bloque).toMatch(/messagesContainerRef\.current/);
+        expect(bloque).toMatch(/container\.scrollTo\(\{ top: container\.scrollHeight, behavior \}\)/);
+        expect(bloque).toMatch(/virtualizedListRef\.current\?\.scrollToBottom/);
+    });
+
+    it('el loader y un error nuevo fuerzan la cola visible', () => {
+        expect(src).toMatch(/if \(isLoading \|\| recoveringTurn\) scrollToBottom\(true, 'auto'\)/);
+        expect(src).toMatch(/last\?\._isErrorBubble[\s\S]*\(\(isLoading \|\| recoveringTurn\) && last\?\.role === 'user'\)/);
+        expect(src).toMatch(/scrollToBottom\(mustRevealTail, mustRevealTail \? 'auto' : null\)/);
+    });
+
+    it('la tarjeta de error tiene variante visual propia y no mezcla bordes', () => {
+        const bubble = read('components/agent/MessageBubble.jsx');
+        expect(bubble).toMatch(/msg-bubble-error/);
+        expect(src).toMatch(/\.msg-bubble-error\s*\{[^}]*border:\s*1px solid[^}]*border-left-width:\s*3px[^}]*border-radius:\s*0\.85rem/s);
+    });
+});
+
 describe('[P1-CHAT-KB-DOCUMENT-LOCK] Safari no separa el chat del teclado', () => {
     const src = read('pages/AgentPage.jsx');
 

@@ -225,7 +225,9 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
             <div
                 {...(isErrorBubble ? { role: 'alert' } : {})}
                 {...(msg.role === 'model' && msg.isStreaming ? { 'aria-busy': true } : {})}
-                className={msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot'}
+                className={msg.role === 'user'
+                    ? 'msg-bubble-user'
+                    : `msg-bubble-bot${isErrorBubble ? ' msg-bubble-error' : ''}`}
                 style={{
                     flex: msg.role === 'user' ? '0 1 auto' : 1,
                     maxWidth: msg.role === 'user' ? '80%' : '100%',
