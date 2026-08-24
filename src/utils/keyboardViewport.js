@@ -53,6 +53,16 @@ export const KB_UMBRAL_PX = 120;
 export const IOS_PWA_KEYBOARD_ACCESSORY_PX = 60;
 
 /**
+ * [P1-KB-PWA-COMPOSER-LIFT · 2026-08-24] Destino del compositor en la PWA.
+ *
+ * La barra auxiliar mide ~60 CSS px, pero mover solamente esos 60 deja la caja
+ * empezando detrás de ella: también hay que recuperar la parte del compositor que
+ * iOS colocó bajo el límite del teclado. En la captura real: ~180 px renderizados /
+ * 1.895 de escala = ~95 CSS px. 100 deja 5 px de aire y es un destino único.
+ */
+export const IOS_PWA_COMPOSER_LIFT_PX = 100;
+
+/**
  * Reserva adicional EXCLUSIVA del PWA iOS cuando el documento ya descontó el
  * teclado principal. `navigator.standalone` es deliberado: no se usa display-mode,
  * que también sería true en Android y aplicaría un inset a un accesorio inexistente.
@@ -93,6 +103,31 @@ export function resolverInsetTecladoEstable(win, {
     if (!abierto) return 0;
     if (standaloneIos) return IOS_PWA_KEYBOARD_ACCESSORY_PX;
     return Math.max(0, Math.round(Number(layoutInset) || 0));
+}
+
+/**
+ * Decide qué superficie es dueña de la corrección del teclado.
+ *
+ * La PWA ya encoge `100dvh`; volver a encoger el contenedor no recolocó el
+ * compositor frente al Form Assistant de iOS. Por eso ahí el contenedor queda en
+ * cero y se eleva directamente la caja. Safari conserva el inset del viewport y
+ * no recibe transform. Los destinos son mutuamente excluyentes para no sumar dos
+ * compensaciones.
+ *
+ * @returns {{containerInset:number, composerLift:number}}
+ */
+export function resolverPosicionTeclado(win, {
+    abierto = false,
+    layoutInset = 0,
+} = {}) {
+    if (!abierto) return { containerInset: 0, composerLift: 0 };
+    if (win?.navigator?.standalone === true) {
+        return { containerInset: 0, composerLift: IOS_PWA_COMPOSER_LIFT_PX };
+    }
+    return {
+        containerInset: Math.max(0, Math.round(Number(layoutInset) || 0)),
+        composerLift: 0,
+    };
 }
 
 /**

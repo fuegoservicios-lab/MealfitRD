@@ -17,6 +17,8 @@ import {
     medirTecladoDeVentana,
     insetAccesorioTecladoIosPwa,
     resolverInsetTecladoEstable,
+    resolverPosicionTeclado,
+    IOS_PWA_COMPOSER_LIFT_PX,
     IOS_PWA_KEYBOARD_ACCESSORY_PX,
     KB_UMBRAL_PX,
 } from '../utils/keyboardViewport';
@@ -191,5 +193,26 @@ describe('[P1-KB-PWA-ANCLA-ESTABLE] una apertura tiene un solo destino', () => {
             layoutInset: 187,
             documentoEncoge: true,
         })).toBe(187);
+    });
+});
+
+describe('[P1-KB-PWA-COMPOSER-LIFT] el Form Assistant no tapa el compositor', () => {
+    const pwaIos = { navigator: { standalone: true } };
+    const safari = { navigator: { standalone: false } };
+
+    it('la PWA mueve directamente el compositor sin encoger dos veces el contenedor', () => {
+        expect(IOS_PWA_COMPOSER_LIFT_PX).toBe(100);
+        expect(resolverPosicionTeclado(pwaIos, { abierto: true, layoutInset: 187 }))
+            .toEqual({ containerInset: 0, composerLift: 100 });
+    });
+
+    it('Safari conserva el layoutInset y no recibe el lift exclusivo de la PWA', () => {
+        expect(resolverPosicionTeclado(safari, { abierto: true, layoutInset: 187 }))
+            .toEqual({ containerInset: 187, composerLift: 0 });
+    });
+
+    it('al cerrar limpia ambas correcciones', () => {
+        expect(resolverPosicionTeclado(pwaIos, { abierto: false, layoutInset: 187 }))
+            .toEqual({ containerInset: 0, composerLift: 0 });
     });
 });

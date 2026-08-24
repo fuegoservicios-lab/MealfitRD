@@ -63,7 +63,7 @@ describe('[P1-CHAT-KB-SCROLL-QUIETO] la caja no se mueve con el ruido del paneo'
 
     it('AgentPage aplica la histéresis y el asiento la fuerza', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/insetEstabilizado\(insetAplicadoRef\.current, objetivo/);
+        expect(src).toMatch(/insetEstabilizado\(insetAplicadoRef\.current, posicion\.containerInset/);
         expect(src, 'el asiento debe forzar: si no, la última medida buena podría quedar ignorada')
             .toMatch(/asiento = null; updateInputPosition\(true\)/);
         // el valor aplicado es el que se escribe: escribir `layoutInset` a pelo
@@ -154,8 +154,9 @@ describe('[P1-CHAT-AIRE-INFERIOR] la caja no lame el borde', () => {
 describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS', () => {
     it('resuelve una sola posición fija desde el primer evento abierto', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/resolverInsetTecladoEstable\(window, \{/);
-        expect(src).toMatch(/const objetivo = resolverInsetTecladoEstable/);
+        expect(src).toMatch(/resolverPosicionTeclado\(window, \{/);
+        expect(src).toMatch(/translateY\(-\$\{posicion\.composerLift\}px\)/);
+        expect(src).toMatch(/posicion\.containerInset/);
         expect(src).not.toMatch(/layoutInset \+ accesorioPwa/);
         expect(src).not.toMatch(/pwaTecladoAsentadoRef/);
     });

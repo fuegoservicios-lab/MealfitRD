@@ -64,7 +64,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
-import { medirTecladoDeVentana, insetEstabilizado, resolverInsetTecladoEstable } from '../utils/keyboardViewport';
+import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado } from '../utils/keyboardViewport';
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
@@ -597,6 +597,7 @@ const AgentPage = () => {
             root?.removeAttribute('data-kb-open');
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
             if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
+            if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
             cerrandoRef.current = false;
@@ -691,11 +692,11 @@ const AgentPage = () => {
             // en cada fotograma y la caja se despegaba del teclado y volvía. Ver
             // `insetEstabilizado` para el porqué de no eliminar la compensación.
             if (contenedor) {
-                // [P1-KB-PWA-ANCLA-ESTABLE · 2026-08-24] En la PWA no se persiguen los
-                // insets parciales ni se espera un resize que iOS puede omitir: desde que
-                // hay teclado el único destino es 60 px. La transición CSS existente hace
-                // la subida fluida; repetir el mismo valor deja el compositor inmóvil.
-                const objetivo = resolverInsetTecladoEstable(window, {
+                // [P1-KB-PWA-COMPOSER-LIFT · 2026-08-24] En la PWA `100dvh` ya
+                // descontó el teclado principal, pero el Form Assistant queda encima del
+                // compositor. El resolvedor da un solo dueño: PWA mueve directamente la
+                // caja; Safari encoge el contenedor con su layoutInset. Nunca ambos.
+                const posicion = resolverPosicionTeclado(window, {
                     abierto,
                     layoutInset,
                 });
@@ -704,7 +705,7 @@ const AgentPage = () => {
                 // resuelve `100dvh` con la animacion del sistema: el objetivo es 0 y hay que
                 // aplicarlo YA. Pasarlo por la histeresis solo podria retrasarlo, y ese
                 // retraso es justo lo que el dueno ve al cerrar el teclado.
-                const aplicado = insetEstabilizado(insetAplicadoRef.current, objetivo, {
+                const aplicado = insetEstabilizado(insetAplicadoRef.current, posicion.containerInset, {
                     abierto,
                     estabaAbierto: tecladoAbiertoRef.current,
                     forzar: forzarMedicion || documentoEncoge,
@@ -712,15 +713,15 @@ const AgentPage = () => {
                 insetAplicadoRef.current = aplicado;
                 tecladoAbiertoRef.current = abierto;
                 contenedor.style.setProperty('--kb-inset', `${aplicado}px`);
+                wrapper.style.transform = posicion.composerLift > 0
+                    ? `translateY(-${posicion.composerLift}px)`
+                    : '';
             }
             // [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23] Con teclado abierto la barra de pestañas
             // (fixed) la recoloca iOS justo encima del teclado y tapa la caja de escribir,
             // que reserva sus 64 px por dentro. Señal en <html>: la barra se esconde y la
             // caja suelta la reserva (CSS en BottomTabBar.module.css y en este <style>).
             root.toggleAttribute('data-kb-open', abierto);
-            // El transform deja de hacer falta y NO puede quedarse: sumaría al
-            // encogimiento y levantaría el input dos veces.
-            wrapper.style.transform = '';
             // Al abrirse el teclado el área visible se reduce: sin esto, el último
             // mensaje queda fuera de cuadro justo cuando el usuario va a responder.
             // [P1-KB-VIEWPORT-MATH] Traer la cola a cuadro al abrirse el teclado, pero NO
@@ -784,6 +785,7 @@ const AgentPage = () => {
             tecladoAbiertoRef.current = false;
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
             if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
+            if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
         };
 
         vv.addEventListener('resize', alEvento);
