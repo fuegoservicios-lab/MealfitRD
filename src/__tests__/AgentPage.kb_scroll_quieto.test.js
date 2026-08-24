@@ -161,12 +161,12 @@ describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS',
         expect(src).not.toMatch(/pwaTecladoAsentadoRef/);
     });
 
-    it('la bienvenida acompaña al compositor con aire extra y limpia el lift al cerrar', () => {
+    it('la bienvenida sube con espacio estático sin intervenir en el teclado', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/setProperty\('--pwa-welcome-lift', `\$\{posicion\.welcomeLift\}px`\)/);
         expect(src).toMatch(/msg-log-welcome/);
-        expect(src).toMatch(/var\(--pwa-welcome-lift, 0px\)/);
-        expect(src.match(/setProperty\('--pwa-welcome-lift', '0px'\)/g)?.length).toBeGreaterThanOrEqual(2);
+        expect(src).toMatch(/\.msg-log-welcome\s*\{[^}]*margin-bottom:\s*6\.25rem/s);
+        expect(src).not.toMatch(/pwa-welcome-lift/);
+        expect(src).not.toMatch(/posicion\.welcomeLift/);
     });
 });
 
