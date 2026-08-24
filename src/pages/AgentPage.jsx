@@ -528,13 +528,6 @@ const AgentPage = () => {
     // lee un handler de visualViewport que no debe provocar renders.
     const insetAplicadoRef = useRef(null);
     const tecladoAbiertoRef = useRef(false);
-    // [P1-CHAT-PICKER-ANCLA-FINAL · 2026-08-24] iOS calcula la posición de su menú
-    // nativo EN EL INSTANTE del click del input. Si el teclado aún ocupa pantalla,
-    // memoriza la posición alta del `+`; luego retira el teclado, el compositor baja y
-    // ambos quedan separados. El cerrojo prepara primero la geometría final sin teclado
-    // y evita que eventos rezagados vuelvan a encogerla mientras el menú está abierto.
-    const attachmentPickerLayoutLockRef = useRef(false);
-    const refreshKeyboardViewportRef = useRef(null);
     // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
     // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
     const cerrandoRef = useRef(false);
@@ -603,14 +596,10 @@ const AgentPage = () => {
         const resetViewportState = () => {
             root?.removeAttribute('data-kb-open');
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
-            if (contenedor) {
-                contenedor.style.setProperty('--kb-inset', '0px');
-                contenedor.style.removeProperty('transition-duration');
-            }
+            if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
             cerrandoRef.current = false;
-            attachmentPickerLayoutLockRef.current = false;
         };
 
         // AgentPage queda montado con display:none entre rutas. Sus listeners y atributos
@@ -629,22 +618,6 @@ const AgentPage = () => {
             const wrapper = inputWrapperRef.current;
             if (!wrapper) return;
             const contenedor = wrapper.closest('.agent-container');
-            // Mientras el selector nativo está abierto mantenemos la geometría FINAL,
-            // no la geometría pequeña del teclado. Esto permite que el resto de la UI
-            // (incluida la barra inferior) ocupe la pantalla y evita el gran hueco que
-            // producía congelar todo el contenedor a la altura antigua.
-            if (attachmentPickerLayoutLockRef.current) {
-                if (contenedor) {
-                    contenedor.style.setProperty('transition-duration', '0s');
-                    contenedor.style.setProperty('--kb-inset', '0px');
-                }
-                insetAplicadoRef.current = 0;
-                tecladoAbiertoRef.current = false;
-                cerrandoRef.current = true;
-                root?.removeAttribute('data-kb-open');
-                wrapper.style.transform = '';
-                return;
-            }
             // [P1-KB-VIEWPORT-MATH · 2026-08-23] DOS números, no uno. `kb` (alto real del
             // teclado, independiente del paneo de iOS) responde «¿hay teclado?»; `layoutInset`
             // (kb - paneo) responde «cuánto encoger este contenedor, que está anclado al
@@ -794,9 +767,6 @@ const AgentPage = () => {
         // Y si algo raro pasara, el siguiente evento del viewport lo corrige solo, porque
         // `updateInputPosition` reescribe el atributo con lo que mida.
         const alPerderElFoco = (e) => {
-            // El menú de archivos ya preparó la geometría cerrada antes del blur.
-            // Sus eventos de foco no deben volver a ejecutar una segunda transición.
-            if (attachmentPickerLayoutLockRef.current) return;
             const destino = e.relatedTarget;
             if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
                 return; // cambia de campo: el teclado sigue
@@ -812,16 +782,12 @@ const AgentPage = () => {
         vv.addEventListener('resize', alEvento);
         vv.addEventListener('scroll', alEvento);
         document.addEventListener('focusout', alPerderElFoco);
-        refreshKeyboardViewportRef.current = updateInputPosition;
         updateInputPosition();
         return () => {
             document.removeEventListener('focusout', alPerderElFoco);
             if (asiento) clearTimeout(asiento);
             vv.removeEventListener('resize', alEvento);
             vv.removeEventListener('scroll', alEvento);
-            if (refreshKeyboardViewportRef.current === updateInputPosition) {
-                refreshKeyboardViewportRef.current = null;
-            }
             // Cambiar de ruta con el teclado abierto no debe dejar la barra escondida.
             resetViewportState();
         };
@@ -1256,68 +1222,64 @@ const AgentPage = () => {
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const attachmentTriggerRef = useRef(null);
+    const attachmentPickerOpeningRef = useRef(false);
+    const attachmentPickerHadKeyboardRef = useRef(false);
     const [showAttachmentSource, setShowAttachmentSource] = useState(false);
     // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
     // donde tap del botón send NO debe abrir keyboard).
     const chatInputRef = useRef(null);
 
-    const releaseAttachmentPickerAnchor = useCallback(() => {
-        if (!attachmentPickerLayoutLockRef.current) return;
-        attachmentPickerLayoutLockRef.current = false;
-        const contenedor = inputWrapperRef.current?.closest('.agent-container');
-        contenedor?.style.removeProperty('transition-duration');
-        const refresh = () => refreshKeyboardViewportRef.current?.(true);
-        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(refresh);
-        else setTimeout(refresh, 0);
+    // [P1-CHAT-PICKER-DESPUES-DEL-TECLADO · 2026-08-24] En iOS no basta con mover
+    // el DOM antes de abrir el input: el menú nativo usa el visual viewport REAL del
+    // instante. Iniciamos el cierre en pointerdown y esperamos a que el viewport lleve
+    // 120 ms sin eventos y ya no mida teclado. WebKit conserva la activación transitoria
+    // varios segundos, muy por encima del cierre normal (~250-500 ms).
+    const prepareAttachmentPickerGesture = useCallback(() => {
+        const abierto = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
+        attachmentPickerHadKeyboardRef.current = abierto;
+        if (abierto) chatInputRef.current?.blur();
     }, []);
 
-    const armAttachmentPickerAnchor = useCallback(() => {
-        const medido = medirTecladoDeVentana(window);
-        if (!tecladoAbiertoRef.current && !medido.abierto) return;
-        const contenedor = inputWrapperRef.current?.closest('.agent-container');
-        if (!contenedor) return;
-
-        attachmentPickerLayoutLockRef.current = true;
-        // La transición de altura habitual es correcta al cerrar el teclado a mano,
-        // pero aquí Safari necesita el rectángulo FINAL antes de `.click()`. Se desactiva
-        // sólo para este cálculo y se restaura al cerrar/seleccionar/cancelar.
-        contenedor.style.setProperty('transition-duration', '0s');
-        contenedor.style.setProperty('--kb-inset', '0px');
-        document.documentElement.removeAttribute('data-kb-open');
-        insetAplicadoRef.current = 0;
-        tecladoAbiertoRef.current = false;
-        cerrandoRef.current = true;
-        chatInputRef.current?.blur();
-        // Fuerza layout mientras todavía conservamos la activación de usuario. El menú
-        // nativo que abre la línea siguiente toma así el `+` ya colocado al fondo.
-        fileInputRef.current?.getBoundingClientRect();
-    }, []);
-
-    const preserveAttachmentPickerAnchor = useCallback((event) => {
-        // Evita que el botón robe el foco ANTES de que openAttachmentPicker alcance
-        // a congelar la geometría. El click sigue ocurriendo y conserva su activación
-        // de usuario, requisito de Safari para abrir un input de archivos.
-        if (tecladoAbiertoRef.current && document.activeElement === chatInputRef.current) {
-            event.preventDefault();
+    const waitForAttachmentKeyboardClose = useCallback((shouldWait) => {
+        if (!shouldWait || typeof window === 'undefined' || !window.visualViewport) {
+            return Promise.resolve();
         }
-    }, []);
 
-    useEffect(() => {
-        // `change` cubre selección y `cancel` cubre el cierre explícito. Estos dos
-        // fallbacks liberan el ancla al volver de Fototeca/Cámara aunque una versión
-        // concreta de WebKit no emita `cancel` para el primer menú de fuentes.
-        const releaseOnFocus = () => releaseAttachmentPickerAnchor();
-        const releaseOnVisible = () => {
-            if (document.visibilityState === 'visible') releaseAttachmentPickerAnchor();
-        };
-        window.addEventListener('focus', releaseOnFocus);
-        document.addEventListener('visibilitychange', releaseOnVisible);
-        return () => {
-            window.removeEventListener('focus', releaseOnFocus);
-            document.removeEventListener('visibilitychange', releaseOnVisible);
-        };
-    }, [releaseAttachmentPickerAnchor]);
+        const vv = window.visualViewport;
+        return new Promise((resolve) => {
+            let finished = false;
+            let quietTimer = null;
+            let hardTimer = null;
+
+            const cleanup = () => {
+                vv.removeEventListener('resize', check);
+                vv.removeEventListener('scroll', check);
+                if (quietTimer) clearTimeout(quietTimer);
+                if (hardTimer) clearTimeout(hardTimer);
+            };
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+                cleanup();
+                // Dos frames garantizan que sticky + barra inferior ya usen el viewport
+                // cerrado antes de que WebKit calcule dónde dibujar su menú.
+                requestAnimationFrame(() => requestAnimationFrame(resolve));
+            };
+            const check = () => {
+                if (finished) return;
+                if (quietTimer) clearTimeout(quietTimer);
+                if (medirTecladoDeVentana(window).abierto) return;
+                quietTimer = setTimeout(finish, 120);
+            };
+
+            vv.addEventListener('resize', check);
+            vv.addEventListener('scroll', check);
+            hardTimer = setTimeout(finish, 1500);
+            chatInputRef.current?.blur();
+            check();
+        });
+    }, []);
 
     // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El alto del textarea es FUNCIÓN
     // del estado, no efecto colateral del evento `onInput`.
@@ -1511,7 +1473,6 @@ const AgentPage = () => {
     }, [isLoading]);
 
     const handleFileSelect = (e) => {
-        releaseAttachmentPickerAnchor();
         addFiles(e.target.files);
     };
 
@@ -1529,28 +1490,44 @@ const AgentPage = () => {
                 triggerMobileHaptic('error');
                 toast.error(t('No pudimos abrir tus fotos. Revisa los permisos e inténtalo de nuevo.'));
             }
-        } finally {
-            releaseAttachmentPickerAnchor();
         }
     };
 
-    const openAttachmentPicker = () => {
+    const openAttachmentPicker = async () => {
         if (isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) return;
-        armAttachmentPickerAnchor();
+        if (attachmentPickerOpeningRef.current) return;
         if (isNativeApp()) {
+            attachmentPickerHadKeyboardRef.current = false;
             setShowAttachmentSource(true);
             return;
         }
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-            fileInputRef.current.click();
-        } else {
-            releaseAttachmentPickerAnchor();
+
+        const fileInput = fileInputRef.current;
+        if (!fileInput) return;
+        const shouldWait = attachmentPickerHadKeyboardRef.current
+            || tecladoAbiertoRef.current
+            || medirTecladoDeVentana(window).abierto;
+        attachmentPickerHadKeyboardRef.current = false;
+        attachmentPickerOpeningRef.current = true;
+        try {
+            await waitForAttachmentKeyboardClose(shouldWait);
+            fileInput.value = '';
+            if (typeof fileInput.showPicker === 'function') {
+                try {
+                    fileInput.showPicker();
+                    return;
+                } catch (_pickerError) {
+                    // Safari anterior / política particular: el click conserva el
+                    // fallback histórico dentro de la misma activación transitoria.
+                }
+            }
+            fileInput.click();
+        } finally {
+            attachmentPickerOpeningRef.current = false;
         }
     };
 
     const clearSelectedFile = (options) => {
-        releaseAttachmentPickerAnchor();
         clearAttachments(options);
         attachmentUploadCacheRef.current.clear();
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -3184,7 +3161,6 @@ const AgentPage = () => {
                                     pointerEvents: 'none',
                                 }}
                                 onChange={handleFileSelect}
-                                onCancel={releaseAttachmentPickerAnchor}
                             />
 
                             <button
@@ -3193,8 +3169,8 @@ const AgentPage = () => {
                                 aria-label={t('Adjuntar imagen')}
                                 className={`attachment-btn ${(isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) ? 'disabled' : ''}`}
                                 disabled={isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT}
-                                onPointerDown={preserveAttachmentPickerAnchor}
-                                onClick={openAttachmentPicker}
+                                onPointerDown={prepareAttachmentPickerGesture}
+                                onClick={() => { void openAttachmentPicker(); }}
                                 title={t('Adjuntar imagen')}
                             >
                                 {/* [P1-CHAT-ADJUNTAR-MAS · 2026-08-23] `+` y no el clip: el
@@ -4167,7 +4143,6 @@ const AgentPage = () => {
                 open={showAttachmentSource}
                 onClose={() => {
                     setShowAttachmentSource(false);
-                    releaseAttachmentPickerAnchor();
                 }}
                 onGallery={() => runNativeImagePicker('gallery')}
                 onCamera={() => runNativeImagePicker('camera')}

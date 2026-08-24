@@ -98,46 +98,37 @@ describe('[P1-CHAT-PICKER-ANCLADO] el menú de la foto sale del clip', () => {
         expect(bloque).toMatch(/tabIndex=\{-1\}/);
     });
 
-    it('con teclado abierto prepara la geometría final antes de abrir el menú nativo', () => {
+    it('con teclado abierto espera al viewport real antes de abrir el menú nativo', () => {
         const src = read('pages/AgentPage.jsx');
         const i = src.indexOf('const openAttachmentPicker');
         const bloque = src.slice(i, src.indexOf('\n    };', i));
-        expect(bloque).toMatch(/armAttachmentPickerAnchor\(\)/);
-        expect(bloque.indexOf('armAttachmentPickerAnchor()'))
-            .toBeLessThan(bloque.indexOf('fileInputRef.current.click()'));
-
-        const armStart = src.indexOf('const armAttachmentPickerAnchor');
-        const arm = src.slice(armStart, src.indexOf('\n    };', armStart));
-        expect(arm).toMatch(/setProperty\('transition-duration', '0s'\)/);
-        expect(arm).toMatch(/setProperty\('--kb-inset', '0px'\)/);
-        expect(arm).toMatch(/removeAttribute\('data-kb-open'\)/);
-        expect(arm).toMatch(/chatInputRef\.current\?\.blur\(\)/);
-        expect(arm).toMatch(/fileInputRef\.current\?\.getBoundingClientRect\(\)/);
+        expect(bloque).toMatch(/await waitForAttachmentKeyboardClose\(shouldWait\)/);
+        expect(bloque.indexOf('await waitForAttachmentKeyboardClose(shouldWait)'))
+            .toBeLessThan(bloque.indexOf('fileInput.showPicker()'));
+        expect(bloque).toMatch(/fileInput\.showPicker\(\)/);
+        expect(bloque).toMatch(/fileInput\.click\(\)/);
         expect(src).not.toMatch(/--attachment-anchor-height/);
-        expect(src).toMatch(/removeProperty\('transition-duration'\)/);
-
-        const lockStart = src.indexOf('if (attachmentPickerLayoutLockRef.current)');
-        const lockEnd = src.indexOf("wrapper.style.transform = '';", lockStart);
-        const lock = src.slice(lockStart, lockEnd);
-        expect(lock).toMatch(/setProperty\('--kb-inset', '0px'\)/);
-        expect(lock).toMatch(/removeAttribute\('data-kb-open'\)/);
+        expect(src).not.toMatch(/attachmentPickerLayoutLockRef/);
+        expect(src).not.toMatch(/setProperty\('transition-duration', '0s'\)/);
     });
 
-    it('el + no roba el foco antes de preparar el ancla y conserva la activación de usuario', () => {
+    it('inicia el cierre en pointerdown y exige 120 ms de viewport estable', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/onPointerDown=\{preserveAttachmentPickerAnchor\}/);
-        const i = src.indexOf('const preserveAttachmentPickerAnchor');
+        expect(src).toMatch(/onPointerDown=\{prepareAttachmentPickerGesture\}/);
+        const i = src.indexOf('const waitForAttachmentKeyboardClose');
         const bloque = src.slice(i, src.indexOf('\n    };', i));
-        expect(bloque).toMatch(/document\.activeElement === chatInputRef\.current/);
-        expect(bloque).toMatch(/event\.preventDefault\(\)/);
+        expect(bloque).toMatch(/addEventListener\('resize', check\)/);
+        expect(bloque).toMatch(/addEventListener\('scroll', check\)/);
+        expect(bloque).toMatch(/setTimeout\(finish, 120\)/);
+        expect(bloque).toMatch(/setTimeout\(finish, 1500\)/);
+        expect(bloque).toMatch(/requestAnimationFrame\(\(\) => requestAnimationFrame\(resolve\)\)/);
     });
 
-    it('libera la geometría al seleccionar, cancelar o volver a la página', () => {
+    it('evita aperturas dobles mientras espera el cierre', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/const handleFileSelect = \(e\) => \{\s*releaseAttachmentPickerAnchor\(\)/);
-        expect(src).toMatch(/onCancel=\{releaseAttachmentPickerAnchor\}/);
-        expect(src).toMatch(/window\.addEventListener\('focus', releaseOnFocus\)/);
-        expect(src).toMatch(/document\.addEventListener\('visibilitychange', releaseOnVisible\)/);
+        expect(src).toMatch(/if \(attachmentPickerOpeningRef\.current\) return/);
+        expect(src).toMatch(/attachmentPickerOpeningRef\.current = true/);
+        expect(src).toMatch(/finally \{\s*attachmentPickerOpeningRef\.current = false/);
     });
 });
 
