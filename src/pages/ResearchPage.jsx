@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 // Comparte el design system minimalista-científico de "Cómo funciona" y "Funciones".
 import styles from './HowItWorksPage.module.css';
+import { apexUrl } from '../config/site';
 // [P1-LANDING-CLINICAL-FACTS · 2026-08-08] cifras medidas del SSOT — jamás a mano.
 import { CLINICAL, CLINICAL_DELIVERY_PCT } from '../data/benchmark';
 
@@ -339,9 +340,16 @@ const ResearchPage = () => {
                 <Reveal className={styles.disclaimer}>
                     <Info size={20} strokeWidth={2.25} className={styles.disclaimerIcon} />
                     <div className={styles.disclaimerText}>
+                    {/* [P1-LEGAL-JSX-COPIA-PAIS · 2026-08-23] `<a href>` y no `<Link to>`:
+                        React Router resuelve el <Link> en el CLIENTE, así que nunca dispara
+                        el 301 de nginx que manda los legales al apex — y la copia JSX quedó
+                        obsoleta (decía que España/México/Colombia eran expansión FUTURA cinco
+                        días después de venderse allí). Con `<a>` sí sale al apex, que es la
+                        única copia. `apexUrl` devuelve ruta interna en dev, así que ahí sigue
+                        navegando dentro de la app sin bucles. */}
                         <strong>Vigente desde el 30 de junio de 2026.</strong> Para el detalle completo de tus
-                        derechos, lee la <Link to="/data-protection">Política de Protección de Datos</Link> y la{' '}
-                        <Link to="/privacy">Política de Privacidad</Link>. ¿Preguntas sobre cómo investigamos?
+                        derechos, lee la <a href={apexUrl('/data-protection')}>Política de Protección de Datos</a> y la{' '}
+                        <a href={apexUrl('/privacy')}>Política de Privacidad</a>. ¿Preguntas sobre cómo investigamos?
                         Escríbenos a <strong>bioboros.support@gmail.com</strong>.
                     </div>
                 </Reveal>
@@ -351,7 +359,7 @@ const ResearchPage = () => {
                     <p className={styles.finalText}>Cada análisis busca un mejor plan para ti, cuidando tu privacidad y tus datos de salud.</p>
                     <div className={styles.ctaRow}>
                         <Link to="/assessment" className={styles.ctaPrimary}>Crear mi Plan <ChevronRight size={19} strokeWidth={2.5} /></Link>
-                        <Link to="/data-protection" className={styles.ctaGhost}>Protección de Datos <ArrowRight size={18} strokeWidth={2.25} /></Link>
+                        <a href={apexUrl('/data-protection')} className={styles.ctaGhost}>Protección de Datos <ArrowRight size={18} strokeWidth={2.25} /></a>
                     </div>
                 </Reveal>
             </div>

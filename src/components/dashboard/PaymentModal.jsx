@@ -81,7 +81,13 @@ const PaymentModal = ({
     // [P1-BILLING-ORPHAN-RECOVERY · 2026-08-22] Id del usuario que paga. Viaja a
     // PayPal como `custom_id` para que un cobro cuyo `/verify` no llegó siga
     // siendo atribuible desde el webhook (ver `handleCreateSubscription`).
-    userId = null
+    userId = null,
+    // [P1-COUNTRY-CHECKOUT-BETA-MUDO · 2026-08-23] El régimen de precios del plan, el MISMO
+    // dato que el Dashboard usa para ocultar sus tres paneles (`_pricing_mode`). Llega como
+    // prop y no se deriva aquí de `health_profile.country`: ese campo es identidad CULINARIA,
+    // no ubicación, y el comentario de COUNTRY_PROFILES lo dice — inferir de él dónde vive
+    // alguien es justo el error que este gap señala.
+    pricingMode = null
 }) => {
     // [P2-I18N-PAYPAL-LOCALE · 2026-08-21] Hace falta `locale` ademas de `t` para
     // decirle al SDK de PayPal en que idioma hablar.
@@ -396,7 +402,7 @@ const PaymentModal = ({
                                             </div>
                                             <div>
                                                 <h4 style={{ color: '#fff', fontSize: '0.95rem', margin: '0 0 0.35rem 0', fontFamily: "'Outfit', sans-serif" }}>{t("Paga con tu tarjeta local")}</h4>
-                                                <p style={{ color: '#aaa', fontSize: '0.8rem', margin: 0, lineHeight: 1.4 }}>{t("Procesamos todas las tarjetas de débito o crédito de")} <b>{t("República Dominicana")}</b>{t(". El pago es seguro vía PayPal.")} <span style={{ color: '#fff' }}>{t("No necesitas abrir ni tener una cuenta de PayPal.")}</span></p>
+                                                <p style={{ color: '#aaa', fontSize: '0.8rem', margin: 0, lineHeight: 1.4 }}>{t("PayPal procesa tarjetas de débito y crédito internacionales.")} <span style={{ color: '#fff' }}>{t("No necesitas abrir ni tener una cuenta de PayPal.")}</span></p>
                                             </div>
                                         </div>
                                         <PayPalScriptProvider options={initialOptions}>
@@ -557,6 +563,29 @@ const PaymentModal = ({
                                 {getPlanDisplay(t)[tier] || planName}
                             </h2>
 
+                            {/* [P1-COUNTRY-CHECKOUT-BETA-MUDO · 2026-08-23] El checkout no decía
+                                «beta» ni una vez, y al usuario beta el propio sistema le entrega
+                                MENOS: el Dashboard le oculta tres paneles porque su país aún no
+                                tiene precios de súper. Cobrar sin decirlo es la parte que sí es
+                                nuestra; cuánto cobrar es decisión del dueño y no se toca aquí.
+                                El copy se reutiliza tal cual del aviso del Dashboard y del PDF
+                                (P2-DASH-BETA-NOTICE) — ya está traducido a los cinco idiomas, así
+                                que no nace ninguna clave huérfana. */}
+                            {pricingMode === 'beta_no_prices' && (
+                                <div style={{
+                                    display: 'flex', gap: '0.6rem', alignItems: 'flex-start',
+                                    background: 'rgba(234, 179, 8, 0.10)',
+                                    border: '1px solid rgba(234, 179, 8, 0.35)',
+                                    borderRadius: '0.75rem', padding: '0.75rem 0.9rem',
+                                    marginBottom: '1.25rem',
+                                }}>
+                                    <AlertCircle size={16} style={{ color: '#EAB308', flexShrink: 0, marginTop: '0.1rem' }} />
+                                    <p style={{ color: '#D6D3D1', fontSize: '0.8rem', margin: 0, lineHeight: 1.45 }}>
+                                        {t('Tu país está en beta — pronto añadiremos los precios nativos de tu súper a esta lista.')}
+                                    </p>
+                                </div>
+                            )}
+
                             <p style={{
                                 fontSize: '0.78rem', fontWeight: 600,
                                 color: '#888', textTransform: 'uppercase',
@@ -669,6 +698,7 @@ PaymentModal.propTypes = {
     onSuccess: PropTypes.func.isRequired,
     price: PropTypes.string,
     planName: PropTypes.string,
+    pricingMode: PropTypes.string,
     tier: PropTypes.string,
     isAnnual: PropTypes.bool,
     userId: PropTypes.string

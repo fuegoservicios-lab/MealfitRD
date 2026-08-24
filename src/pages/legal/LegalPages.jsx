@@ -415,7 +415,7 @@ export const DataProtection = () => (
 
         <h3>1. Marco Legal Aplicable</h3>
         <p>Bioboros opera desde República Dominicana y trata sus datos conforme a la <strong>Ley No. 172-13 sobre Protección Integral de los Datos Personales</strong>, así como, en lo pertinente, la Ley No. 358-05 de Protección al Consumidor y la Ley No. 126-02 sobre Comercio Electrónico, Documentos y Firmas Digitales.</p>
-        <p>A medida que ampliemos el servicio a otros países de Latinoamérica, respetaremos adicionalmente la normativa local de protección de datos que resulte aplicable a los residentes de cada jurisdicción (por ejemplo, la LFPDPPP en México, la Ley 1581 en Colombia, la LGPD en Brasil o la Ley 25.326 en Argentina), reconociéndole en cada caso los derechos equivalentes a los descritos aquí.</p>
+        <p>Bioboros está disponible también en <strong>España, Estados Unidos, México, Puerto Rico y Colombia</strong>. Si usted reside en una de esas jurisdicciones, le reconocemos además los derechos que le otorga su normativa local, y ésta prevalece sobre la dominicana en lo que le resulte más favorable: el <strong>RGPD</strong> (Reglamento (UE) 2016/679) y la Ley Orgánica 3/2018 en España, la <strong>CCPA/CPRA</strong> en California, la <strong>LFPDPPP</strong> en México y la <strong>Ley 1581 de 2012</strong> en Colombia. El texto íntegro y vigente de esta política vive en bioboros.com; esta página es una copia de cortesía.</p>
 
         <h3>2. Responsable del Tratamiento</h3>
         <p>El responsable es <strong>Bioboros</strong>, plataforma operada desde República Dominicana. Punto de contacto para cualquier asunto de datos personales: <strong>bioboros.support@gmail.com</strong>.</p>

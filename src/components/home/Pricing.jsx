@@ -365,6 +365,7 @@ const Pricing = () => {
                         tier={selectedPlan?.tier || "basic"}
                         isAnnual={selectedPlan?.isAnnual || false}
                         userId={session?.user?.id}
+                        pricingMode={planData?._pricing_mode || null}
                     />
                 </Suspense>
             )}
