@@ -211,7 +211,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     // sutil, NO MessageActions (thumbs/regenerate no aplican).
     const isErrorBubble = msg.role === 'model' && msg._isErrorBubble === true;
     return (
-        <div style={{
+        <div className={msg.isWelcome ? 'message-row-welcome' : undefined} style={{
             display: 'flex',
             gap: '0.75rem',
             flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',

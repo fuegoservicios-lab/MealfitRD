@@ -4292,6 +4292,12 @@ const AgentPage = () => {
                        (Sin acentos graves en este comentario: vive dentro de un template
                        literal de JS y un backtick aquí cierra el literal y rompe el build.) */
                     .msg-log { margin-top: auto !important; }
+                    /* [P2-CHAT-WELCOME-UP · 2026-08-24] Solo la bienvenida se eleva
+                       visualmente 24 px. El transform no ocupa espacio de layout y no
+                       toca el compositor, el scroll ni las mediciones del teclado. */
+                    .message-row-welcome {
+                        transform: translateY(-1.5rem);
+                    }
                     /* --- User bubble ---
                        [P1-CHAT-MOBILE-CONTRAST · 2026-08-10] El defecto que reportó el
                        dueño: su propio mensaje se leía CASI INVISIBLE en el teléfono.

@@ -166,6 +166,10 @@ describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS',
         expect(src).not.toMatch(/msg-log-welcome/);
         expect(src).not.toMatch(/pwa-welcome-lift/);
         expect(src).not.toMatch(/posicion\.welcomeLift/);
+        expect(src).toMatch(/\.message-row-welcome\s*\{[^}]*transform:\s*translateY\(-1\.5rem\)/s);
+
+        const bubble = read('components/agent/MessageBubble.jsx');
+        expect(bubble).toMatch(/className=\{msg\.isWelcome \? 'message-row-welcome' : undefined\}/);
     });
 });
 
