@@ -98,18 +98,32 @@ describe('[P1-CHAT-PICKER-ANCLADO] el menú de la foto sale del clip', () => {
         expect(bloque).toMatch(/tabIndex=\{-1\}/);
     });
 
-    it('con teclado abierto congela el alto antes de abrir el menú nativo', () => {
+    it('con teclado abierto prepara la geometría final antes de abrir el menú nativo', () => {
         const src = read('pages/AgentPage.jsx');
         const i = src.indexOf('const openAttachmentPicker');
         const bloque = src.slice(i, src.indexOf('\n    };', i));
         expect(bloque).toMatch(/armAttachmentPickerAnchor\(\)/);
         expect(bloque.indexOf('armAttachmentPickerAnchor()'))
             .toBeLessThan(bloque.indexOf('fileInputRef.current.click()'));
-        expect(src).toMatch(/--attachment-anchor-height/);
-        expect(src).toMatch(/var\(--attachment-anchor-height, calc\(/);
+
+        const armStart = src.indexOf('const armAttachmentPickerAnchor');
+        const arm = src.slice(armStart, src.indexOf('\n    };', armStart));
+        expect(arm).toMatch(/setProperty\('transition-duration', '0s'\)/);
+        expect(arm).toMatch(/setProperty\('--kb-inset', '0px'\)/);
+        expect(arm).toMatch(/removeAttribute\('data-kb-open'\)/);
+        expect(arm).toMatch(/chatInputRef\.current\?\.blur\(\)/);
+        expect(arm).toMatch(/fileInputRef\.current\?\.getBoundingClientRect\(\)/);
+        expect(src).not.toMatch(/--attachment-anchor-height/);
+        expect(src).toMatch(/removeProperty\('transition-duration'\)/);
+
+        const lockStart = src.indexOf('if (attachmentPickerLayoutLockRef.current)');
+        const lockEnd = src.indexOf("wrapper.style.transform = '';", lockStart);
+        const lock = src.slice(lockStart, lockEnd);
+        expect(lock).toMatch(/setProperty\('--kb-inset', '0px'\)/);
+        expect(lock).toMatch(/removeAttribute\('data-kb-open'\)/);
     });
 
-    it('el + no roba el foco antes de congelar y conserva la activación de usuario', () => {
+    it('el + no roba el foco antes de preparar el ancla y conserva la activación de usuario', () => {
         const src = read('pages/AgentPage.jsx');
         expect(src).toMatch(/onPointerDown=\{preserveAttachmentPickerAnchor\}/);
         const i = src.indexOf('const preserveAttachmentPickerAnchor');

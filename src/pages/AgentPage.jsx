@@ -528,12 +528,12 @@ const AgentPage = () => {
     // lee un handler de visualViewport que no debe provocar renders.
     const insetAplicadoRef = useRef(null);
     const tecladoAbiertoRef = useRef(false);
-    // [P1-CHAT-PICKER-ANCLA-ESTABLE · 2026-08-24] Mientras iOS presenta su menú
-    // nativo de fuentes, el teclado desaparece y el visual viewport vuelve a crecer.
-    // Si el chat sigue esa geometría, el compositor baja pero el menú conserva el
-    // rectángulo desde el que se abrió: el `+` y su menú terminan muy separados.
-    // La altura congelada vive en el contenedor local (AgentPage es keep-alive).
-    const attachmentPickerAnchorLockRef = useRef(null);
+    // [P1-CHAT-PICKER-ANCLA-FINAL · 2026-08-24] iOS calcula la posición de su menú
+    // nativo EN EL INSTANTE del click del input. Si el teclado aún ocupa pantalla,
+    // memoriza la posición alta del `+`; luego retira el teclado, el compositor baja y
+    // ambos quedan separados. El cerrojo prepara primero la geometría final sin teclado
+    // y evita que eventos rezagados vuelvan a encogerla mientras el menú está abierto.
+    const attachmentPickerLayoutLockRef = useRef(false);
     const refreshKeyboardViewportRef = useRef(null);
     // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
     // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
@@ -605,12 +605,12 @@ const AgentPage = () => {
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
             if (contenedor) {
                 contenedor.style.setProperty('--kb-inset', '0px');
-                contenedor.style.removeProperty('--attachment-anchor-height');
+                contenedor.style.removeProperty('transition-duration');
             }
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
             cerrandoRef.current = false;
-            attachmentPickerAnchorLockRef.current = null;
+            attachmentPickerLayoutLockRef.current = false;
         };
 
         // AgentPage queda montado con display:none entre rutas. Sus listeners y atributos
@@ -629,15 +629,19 @@ const AgentPage = () => {
             const wrapper = inputWrapperRef.current;
             if (!wrapper) return;
             const contenedor = wrapper.closest('.agent-container');
-            // El selector nativo se dibuja fuera del DOM. Mientras está abierto no
-            // debe perseguir los resize/scroll con los que iOS retira el teclado:
-            // congelar el alto mantiene el `+` bajo el menú que nació de él.
-            const pickerAnchor = attachmentPickerAnchorLockRef.current;
-            if (pickerAnchor) {
+            // Mientras el selector nativo está abierto mantenemos la geometría FINAL,
+            // no la geometría pequeña del teclado. Esto permite que el resto de la UI
+            // (incluida la barra inferior) ocupe la pantalla y evita el gran hueco que
+            // producía congelar todo el contenedor a la altura antigua.
+            if (attachmentPickerLayoutLockRef.current) {
                 if (contenedor) {
-                    contenedor.style.setProperty('--attachment-anchor-height', `${pickerAnchor.height}px`);
+                    contenedor.style.setProperty('transition-duration', '0s');
+                    contenedor.style.setProperty('--kb-inset', '0px');
                 }
-                root?.toggleAttribute('data-kb-open', true);
+                insetAplicadoRef.current = 0;
+                tecladoAbiertoRef.current = false;
+                cerrandoRef.current = true;
+                root?.removeAttribute('data-kb-open');
                 wrapper.style.transform = '';
                 return;
             }
@@ -790,9 +794,9 @@ const AgentPage = () => {
         // Y si algo raro pasara, el siguiente evento del viewport lo corrige solo, porque
         // `updateInputPosition` reescribe el atributo con lo que mida.
         const alPerderElFoco = (e) => {
-            // El menú de archivos es modal y saca el foco del textarea. Eso NO es
-            // todavía una orden para mover el compositor: el menú sigue anclado a él.
-            if (attachmentPickerAnchorLockRef.current) return;
+            // El menú de archivos ya preparó la geometría cerrada antes del blur.
+            // Sus eventos de foco no deben volver a ejecutar una segunda transición.
+            if (attachmentPickerLayoutLockRef.current) return;
             const destino = e.relatedTarget;
             if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
                 return; // cambia de campo: el teclado sigue
@@ -1259,10 +1263,10 @@ const AgentPage = () => {
     const chatInputRef = useRef(null);
 
     const releaseAttachmentPickerAnchor = useCallback(() => {
-        if (!attachmentPickerAnchorLockRef.current) return;
-        attachmentPickerAnchorLockRef.current = null;
+        if (!attachmentPickerLayoutLockRef.current) return;
+        attachmentPickerLayoutLockRef.current = false;
         const contenedor = inputWrapperRef.current?.closest('.agent-container');
-        contenedor?.style.removeProperty('--attachment-anchor-height');
+        contenedor?.style.removeProperty('transition-duration');
         const refresh = () => refreshKeyboardViewportRef.current?.(true);
         if (typeof requestAnimationFrame === 'function') requestAnimationFrame(refresh);
         else setTimeout(refresh, 0);
@@ -1272,12 +1276,22 @@ const AgentPage = () => {
         const medido = medirTecladoDeVentana(window);
         if (!tecladoAbiertoRef.current && !medido.abierto) return;
         const contenedor = inputWrapperRef.current?.closest('.agent-container');
-        const height = contenedor?.getBoundingClientRect().height || 0;
-        if (!contenedor || height <= 0) return;
-        const stableHeight = Math.round(height);
-        attachmentPickerAnchorLockRef.current = { height: stableHeight };
-        contenedor.style.setProperty('--attachment-anchor-height', `${stableHeight}px`);
-        document.documentElement.toggleAttribute('data-kb-open', true);
+        if (!contenedor) return;
+
+        attachmentPickerLayoutLockRef.current = true;
+        // La transición de altura habitual es correcta al cerrar el teclado a mano,
+        // pero aquí Safari necesita el rectángulo FINAL antes de `.click()`. Se desactiva
+        // sólo para este cálculo y se restaura al cerrar/seleccionar/cancelar.
+        contenedor.style.setProperty('transition-duration', '0s');
+        contenedor.style.setProperty('--kb-inset', '0px');
+        document.documentElement.removeAttribute('data-kb-open');
+        insetAplicadoRef.current = 0;
+        tecladoAbiertoRef.current = false;
+        cerrandoRef.current = true;
+        chatInputRef.current?.blur();
+        // Fuerza layout mientras todavía conservamos la activación de usuario. El menú
+        // nativo que abre la línea siguiente toma así el `+` ya colocado al fondo.
+        fileInputRef.current?.getBoundingClientRect();
     }, []);
 
     const preserveAttachmentPickerAnchor = useCallback((event) => {
@@ -3625,7 +3639,7 @@ const AgentPage = () => {
                     // navegar (P1-AGENT-KEEP-ALIVE): una variable global escrita desde un
                     // componente invisible contaminaría el alto de las demás rutas.
                     height: isMobile
-                        ? 'var(--attachment-anchor-height, calc(var(--app-height, 100dvh) - var(--kb-inset, 0px)))'
+                        ? 'calc(var(--app-height, 100dvh) - var(--kb-inset, 0px))'
                         : 'var(--app-height, calc(100dvh - 7.25rem))',  // [P3-AGENT-DESKTOP-CLIP · 2026-05-19] ver useEffect arriba
                     // [P1-KB-BAJADA-FLUIDA · 2026-08-23] El alto cambiaba de golpe: con el
                     // cerrojo de cierre eso pasa a ocurrir en el `blur` —o sea, JUSTO cuando
