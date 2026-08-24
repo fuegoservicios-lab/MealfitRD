@@ -4347,7 +4347,14 @@ const AgentPage = () => {
                     .messages-container {
                         padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
                         padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
-                        padding-top: calc(4.5rem + max(env(safe-area-inset-top), 24px)) !important;
+                        /* [P1-CHAT-HEADER-CLEARANCE · 2026-08-24] El header es absoluto.
+                           Antes su altura vivía como padding dentro del scroller: al anclar
+                           una conversación larga abajo, ese padding se desplazaba y la
+                           primera burbuja podía quedar a 8 px de la línea del encabezado.
+                           Ahora el viewport desplazable empieza físicamente debajo del
+                           header y conserva 1.25rem de aire que nunca se puede scrollear. */
+                        margin-top: calc(4.5rem + max(env(safe-area-inset-top), 24px)) !important;
+                        padding-top: 1.25rem !important;
                         padding-bottom: 0.5rem !important;
                         background: var(--bg-card) !important;
                         -ms-overflow-style: none;

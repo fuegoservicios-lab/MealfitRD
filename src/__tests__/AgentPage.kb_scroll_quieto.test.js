@@ -202,6 +202,15 @@ describe('[P1-CHAT-HEADER-GAP] el primer turno no invade el encabezado', () => {
         expect(src).toMatch(/\.messages-end-sentinel\s*\{[^}]*margin-top:\s*-2rem/s);
         expect(src).toMatch(/gap:\s*'2rem'/);
     });
+
+    it('el scroller empieza debajo del header y conserva aire no desplazable', () => {
+        const src = read('pages/AgentPage.jsx');
+        const i = src.indexOf('/* --- Messages area --- */');
+        const regla = src.slice(src.indexOf('.messages-container {', i), src.indexOf('}', src.indexOf('.messages-container {', i)));
+        expect(regla).toMatch(/margin-top:\s*calc\(4\.5rem \+ max\(env\(safe-area-inset-top\), 24px\)\)/);
+        expect(regla).toMatch(/padding-top:\s*1\.25rem/);
+        expect(regla).not.toMatch(/padding-top:\s*calc\(4\.5rem/);
+    });
 });
 
 describe('[P1-KB-CIERRE-SIN-ESPERA] el cierre no espera a la animacion', () => {
