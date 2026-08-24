@@ -64,7 +64,12 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
-import { medirTecladoDeVentana, insetEstabilizado, insetAccesorioTecladoIosPwa } from '../utils/keyboardViewport';
+import {
+    medirTecladoDeVentana,
+    insetEstabilizado,
+    insetObjetivoTeclado,
+    esPwaIosInstalada,
+} from '../utils/keyboardViewport';
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
@@ -536,6 +541,9 @@ const AgentPage = () => {
     // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
     // 1024px es el breakpoint deliberado de esta página (colapso del sidebar).
     const isMobile = useMediaQuery('(max-width: 1024px)');
+    // En la PWA iOS el viewport ya acompaña la animación nativa del teclado. Esta
+    // señal evita superponerle interpolaciones CSS que llegan desfasadas.
+    const esPwaIosActiva = typeof window !== 'undefined' && esPwaIosInstalada(window);
 
     useEffect(() => {
         const markOnline = () => setIsOnline(true);
@@ -595,6 +603,7 @@ const AgentPage = () => {
         const root = typeof document !== 'undefined' ? document.documentElement : null;
         const resetViewportState = () => {
             root?.removeAttribute('data-kb-open');
+            root?.removeAttribute('data-ios-pwa');
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
             if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
             insetAplicadoRef.current = 0;
@@ -613,6 +622,7 @@ const AgentPage = () => {
             return undefined;
         }
         const vv = window.visualViewport;
+        root?.toggleAttribute('data-ios-pwa', esPwaIosInstalada(window));
 
         const updateInputPosition = (forzarMedicion = false) => {
             const wrapper = inputWrapperRef.current;
@@ -695,8 +705,10 @@ const AgentPage = () => {
                 // descuenta el teclado principal pero NO la barra anterior/siguiente/✓,
                 // que queda superpuesta y tapa el `+` y el textarea. Safari normal no
                 // necesita esta reserva y sigue exactamente con su layoutInset actual.
-                const accesorioPwa = insetAccesorioTecladoIosPwa(window, { abierto, documentoEncoge });
-                const objetivo = abierto ? layoutInset + accesorioPwa : 0;
+                // Standalone usa UN destino estable. No se suma al layoutInset porque
+                // este último contiene los frames parciales previos al resize nativo y
+                // causaba el recorrido 120…300→60 que se percibía como un rebote.
+                const objetivo = insetObjetivoTeclado(window, { abierto, layoutInset });
                 // [P1-KB-RESIZES-CONTENT] Si el NAVEGADOR redimensiona el layout viewport
                 // (`interactive-widget=resizes-content`, o la PWA instalada), el alto ya lo
                 // resuelve `100dvh` con la animacion del sistema: el objetivo es 0 y hay que
@@ -3599,6 +3611,7 @@ const AgentPage = () => {
                 }
             `}</style>
             <div className="agent-container"
+                data-ios-pwa={esPwaIosActiva ? '' : undefined}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
@@ -4400,6 +4413,14 @@ const AgentPage = () => {
                            curva y la duracion del teclado de iOS. */
                         transition: padding-bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
                         border-radius: 0 !important;
+                    }
+                    /* [P1-KB-PWA-MOVIMIENTO-NATIVO · 2026-08-24] En standalone iOS ya
+                       anima 100dvh con el teclado. Interpolar además el alto del chat y
+                       el padding del compositor crea una segunda animación desfasada.
+                       La PWA cambia de geometría de forma atómica y sigue al sistema. */
+                    html[data-ios-pwa][data-kb-open] .agent-container,
+                    html[data-ios-pwa][data-kb-open] .agent-container .input-wrapper {
+                        transition: none !important;
                     }
                     .jump-to-latest {
                         position: absolute;
