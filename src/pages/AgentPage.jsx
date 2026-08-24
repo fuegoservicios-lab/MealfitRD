@@ -548,6 +548,9 @@ const AgentPage = () => {
     // lee un handler de visualViewport que no debe provocar renders.
     const insetAplicadoRef = useRef(null);
     const tecladoAbiertoRef = useRef(false);
+    // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
+    // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
+    const cerrandoRef = useRef(false);
 
     // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
     // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
@@ -587,7 +590,24 @@ const AgentPage = () => {
             // Y esta ruta FABRICA ese caso: es la única del dashboard que bloquea el scroll
             // del documento, y sin recorrido iOS no puede hacer otra cosa que panear.
             // La aritmética y sus casos viven en utils/keyboardViewport.js (+ su test).
-            const { layoutInset, abierto, documentoEncoge } = medirTecladoDeVentana(window);
+            const { layoutInset, abierto: abiertoMedido, documentoEncoge } = medirTecladoDeVentana(window);
+            // [P1-KB-CERROJO-DE-CIERRE · 2026-08-23] MEDIDO con la sonda en el iPhone del
+            // dueño (8:11). Al cerrar, la secuencia real es:
+            //     blur    kb=337  cont=366   ← suelta el campo
+            //     scroll  kb=337  cont=699   ← el blur ya restauró el contenedor
+            //     resize  kb=0    cont=362   ← ¡ESTE lo vuelve a encoger!
+            //     scroll  kb=0    cont=699   ← y sólo aquí queda bien
+            // El evento que llega DURANTE la animación trae la geometría vieja (kb=337, el
+            // teclado todavía en pantalla), así que `abierto` sigue siendo cierto y el
+            // contenedor se encoge otra vez. Ese ida y vuelta ES el retraso que se ve.
+            //
+            // El cerrojo: desde el `blur` y hasta que la geometría confirme el cierre, el
+            // teclado se considera cerrado pase lo que pase. No es «ignorar medidas»: es
+            // que el foco ya respondió a la pregunta y la geometría todavía está llegando.
+            // Se libera sola cuando `kb` baja del umbral, así que un teclado que NO se
+            // cierre (cambio de campo) no queda atrapado en el estado equivocado.
+            if (cerrandoRef.current && !abiertoMedido) cerrandoRef.current = false;
+            const abierto = cerrandoRef.current ? false : abiertoMedido;
             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] Este handler escribe SOLO
             // `transform` — propiedad que React NO declara en el prop `style` del
             // wrapper, así que no hay dos dueños.
@@ -695,7 +715,6 @@ const AgentPage = () => {
             // hay nada que perseguir: el contenedor ya vale lo que debe en el mismo frame,
             // y una re-medicion 350 ms despues solo puede llegar tarde y mover algo que ya
             // estaba quieto. Se programa SOLO en el camino antiguo (iOS que panea).
-            if (medirTecladoDeVentana(window).documentoEncoge) return;
             asiento = setTimeout(() => { asiento = null; updateInputPosition(true); }, 350);
         };
 
@@ -720,6 +739,7 @@ const AgentPage = () => {
             if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
                 return; // cambia de campo: el teclado sigue
             }
+            cerrandoRef.current = true;
             document.documentElement.removeAttribute('data-kb-open');
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;

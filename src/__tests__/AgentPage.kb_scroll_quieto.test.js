@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { insetEstabilizado, KB_INSET_HISTERESIS_PX } from '../utils/keyboardViewport';
+import { insetEstabilizado, KB_INSET_HISTERESIS_PX, medirTeclado } from '../utils/keyboardViewport';
 
 const read = (rel) => fs.readFileSync(path.resolve(__dirname, '..', rel), 'utf-8');
 
@@ -150,5 +150,80 @@ describe('[P1-KB-CIERRE-SIN-ESPERA] el cierre no espera a la animacion', () => {
         const codigo = src.split(/\r?\n/).filter((l) => !l.trim().startsWith('//')).join('\n');
         expect(codigo).not.toMatch(/focusin[\s\S]{0,300}toggleAttribute\('data-kb-open', true\)/);
         expect(codigo).not.toMatch(/focusin[\s\S]{0,300}setAttribute\('data-kb-open'/);
+    });
+});
+
+describe('[P1-KB-CERROJO-DE-CIERRE] el evento rezagado no vuelve a encoger el chat', () => {
+    const src = read('pages/AgentPage.jsx');
+
+    // La secuencia es la MEDIDA en el iPhone del dueño con la sonda (8:11), no inventada:
+    // H no cambia nunca (Safari ignora interactive-widget: iOS panea), y tras el blur llega
+    // un evento con la geometría vieja que encogía el contenedor otra vez.
+    const H = 699;
+    const EVENTOS = [
+        { ev: 'scroll', vv: 362, S: 2 },
+        { ev: 'scroll', vv: 362, S: 4 },
+        { ev: 'blur', vv: 362, S: 4 },
+        { ev: 'scroll', vv: 362, S: 0 },   // <- el rezagado
+        { ev: 'resize', vv: 699, S: 0 },
+        { ev: 'scroll', vv: 699, S: 0 },
+    ];
+
+    const reproducir = (conCerrojo) => {
+        const altos = [];
+        let cerrando = false;
+        for (const { ev, vv, S } of EVENTOS) {
+            if (ev === 'blur') {
+                if (conCerrojo) cerrando = true;
+                altos.push(H);
+                continue;
+            }
+            const m = medirTeclado({ innerHeight: H, vvHeight: vv, vvOffsetTop: S });
+            if (cerrando && !m.abierto) cerrando = false;
+            const abierto = cerrando ? false : m.abierto;
+            altos.push(H - (abierto ? m.layoutInset : 0));
+        }
+        return altos;
+    };
+
+    it('EL DEFECTO: sin cerrojo el contenedor hace 699 -> 362 -> 699 tras soltar el campo', () => {
+        const altos = reproducir(false);
+        // índices 2,3,4 = blur, scroll rezagado, resize
+        expect(altos[2]).toBe(H);
+        expect(altos[3], 'el evento rezagado vuelve a encoger: eso ES el retraso').toBeLessThan(H);
+        expect(altos[4]).toBe(H);
+    });
+
+    it('con cerrojo, desde el blur ya no vuelve a encoger', () => {
+        const altos = reproducir(true);
+        expect(altos.slice(2)).toEqual([H, H, H, H]);
+    });
+
+    it('el cerrojo se libera solo cuando la geometría confirma: no atrapa el estado', () => {
+        // Si el teclado NO se cierra (cambio de campo), el cerrojo no puede dejar el chat
+        // creyendo que no hay teclado para siempre.
+        let cerrando = true;
+        const conTeclado = medirTeclado({ innerHeight: H, vvHeight: 362, vvOffsetTop: 0 });
+        if (cerrando && !conTeclado.abierto) cerrando = false;
+        expect(cerrando, 'con teclado en pantalla el cerrojo sigue armado').toBe(true);
+        const sinTeclado = medirTeclado({ innerHeight: H, vvHeight: H, vvOffsetTop: 0 });
+        if (cerrando && !sinTeclado.abierto) cerrando = false;
+        expect(cerrando, 'al confirmarse el cierre el cerrojo se suelta').toBe(false);
+    });
+
+    it('el codigo cablea el cerrojo: blur lo arma y la medicion lo consulta', () => {
+        expect(src).toMatch(/cerrandoRef\.current = true;/);
+        expect(src).toMatch(/if \(cerrandoRef\.current && !abiertoMedido\) cerrandoRef\.current = false;/);
+        expect(src).toMatch(/const abierto = cerrandoRef\.current \? false : abiertoMedido;/);
+    });
+
+    it('el asiento vuelve a programarse SIEMPRE', () => {
+        // Se habia condicionado a `documentoEncoge`, y como Safari ignora
+        // interactive-widget (H nunca cambia, medido), eso dejaba el camino real sin
+        // ninguna re-medicion final.
+        const i = src.indexOf('let asiento = null;');
+        const bloque = src.slice(i, src.indexOf('\n        };', i));
+        expect(bloque).not.toMatch(/documentoEncoge\) return/);
+        expect(bloque).toMatch(/setTimeout\(/);
     });
 });
