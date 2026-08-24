@@ -12,11 +12,22 @@ export const SidebarRecientes = ({
     currentSessionId,
     setCurrentSessionId,
     handleDeleteChat,
-    isLoading
+    isLoading,
+    isMobile,
+    sidebarRef,
 }) => {
     const t = useT();
     return (
-        <div className="agent-sidebar" style={{
+        <div
+            ref={sidebarRef}
+            id="agent-history-drawer"
+            className="agent-sidebar"
+            role={isMobile && showSidebar ? 'dialog' : undefined}
+            aria-modal={isMobile && showSidebar ? 'true' : undefined}
+            aria-label={isMobile && showSidebar ? t('Historial de chats') : undefined}
+            aria-hidden={!showSidebar}
+            inert={!showSidebar ? '' : undefined}
+            style={{
             width: showSidebar ? '320px' : '0px',
             maxWidth: showSidebar ? '85vw' : '0px',
             borderRight: showSidebar ? '1px solid var(--border)' : 'none',
@@ -26,7 +37,8 @@ export const SidebarRecientes = ({
             display: 'flex',
             flexDirection: 'column',
             flexShrink: 0
-        }}>
+            }}
+        >
             {/* [P3-SIDEBAR-LOADBAR-FULL · 2026-06-19] Keyframe del shimmer de la barra de carga (full-width). */}
             <style>{'@keyframes sbLoadShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}'}</style>
             <div className="sidebar-header-padding" style={{ padding: '1.25rem 1rem', display: 'flex', gap: '0.5rem' }}>
@@ -165,6 +177,7 @@ export const SidebarRecientes = ({
                                                     setShowSidebar(false);
                                                 }
                                             }}
+                                            aria-current={currentSessionId === s.id ? 'true' : undefined}
                                             style={{
                                                 // [SIDEBAR-RECIENTES-DARK · 2026-06-16] Estado
                                                 // seleccionado theme-aware (antes #eef2ff/#4F46E5
@@ -258,14 +271,16 @@ export const SidebarRecientes = ({
                                                 // theme-aware (antes #fee2e2 / #fef2f2 rojos claros
                                                 // → outline pálido raro en oscuro).
                                                 position: 'absolute',
-                                                right: '0.4rem',
+                                                right: '0.2rem',
                                                 top: '50%',
                                                 transform: 'translateY(-50%)',
                                                 background: 'var(--bg-card)',
                                                 color: '#ef4444',
                                                 border: '1px solid color-mix(in srgb, #ef4444 30%, transparent)',
                                                 borderRadius: '0.4rem',
-                                                padding: '0.35rem',
+                                                width: '44px',
+                                                height: '44px',
+                                                padding: 0,
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',

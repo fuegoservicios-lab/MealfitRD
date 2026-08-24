@@ -39,6 +39,7 @@ import {
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat del Agente para limpiar en
 // logout/user-switch (SSOT en módulo liviano — no arrastra AgentPage al bundle).
 import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY, CHAT_CURRENT_SESSION_KEY } from '../utils/chatCacheKeys';
+import { clearAllChatDrafts } from '../utils/chatDraftStore';
 import { isApexHost } from '../config/site';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
 //
@@ -263,6 +264,10 @@ const _clearUserScopedCaches = () => {
     safeLocalStorageRemove(CHAT_MESSAGES_CACHE_KEY);
     safeLocalStorageRemove(CHAT_SESSIONS_CACHE_KEY);
     safeLocalStorageRemove(CHAT_CURRENT_SESSION_KEY);
+    // Los borradores con fotos viven en IndexedDB (los blobs no caben de forma
+    // segura en localStorage). También son PII nutricional y deben salir en el
+    // mismo teardown de logout/user-switch que las caches del chat.
+    void clearAllChatDrafts().catch(() => {});
     // [P2-QUOTA-CACHE-XUSER · 2026-06-01] `window.__cachedQuota` / `__lastQuotaCheckTime`
     // son globals NO user-scoped que cachean el planCount del backend (TTL 120s en
     // Dashboard, 5s en useRegeneratePlan/Settings) para evitar fetch en cada click del

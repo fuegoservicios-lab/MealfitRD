@@ -249,11 +249,11 @@ describe('[P1-KB-HUECO-SIN-PINTAR] el fondo no delata el hueco durante el cierre
         // El body usa --bg-page (#0B1120) y el chat --bg-card (#111827): cualquier pixel
         // que el chat no cubra durante la animacion cambia de tono, y ESO es el parpadeo
         // que el dueno fotografio (8:51, fotograma intermedio del cierre).
-        expect(src).toMatch(/html:has\(\.agent-container\),\s*\n\s*body:has\(\.agent-container\) \{\s*\n\s*background-color: var\(--bg-card\) !important;/);
+        expect(src).toMatch(/html:has\(\.agent-route-active\),\s*\n\s*body:has\(\.agent-route-active\) \{\s*\n\s*background-color: var\(--bg-card\) !important;/);
     });
 
     it('la regla va ACOTADA con :has, no global: el resto del dashboard no cambia', () => {
-        const i = src.indexOf('html:has(.agent-container)');
+        const i = src.indexOf('html:has(.agent-route-active)');
         expect(i).toBeGreaterThan(0);
         // dentro del bloque movil (donde vive el resto de reglas de esta pagina)
         const media = src.lastIndexOf('@media (max-width: 1024px) {', i);

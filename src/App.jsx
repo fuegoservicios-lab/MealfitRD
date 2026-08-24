@@ -289,7 +289,12 @@ const DashboardAnimatedLayout = () => {
       {/* AgentPage residente — visible cuando isAgent, oculto cuando no.
           NO se desmonta al navegar a otras dashboard routes. */}
       {hasVisitedAgent && (
-        <div style={{ display: isAgent ? 'block' : 'none', height: isAgent ? 'auto' : 0, overflow: isAgent ? 'visible' : 'hidden', width: '100%', maxWidth: '100%', minWidth: 0 }}>
+        <div
+          className={isAgent ? 'agent-route-active' : undefined}
+          aria-hidden={isAgent ? undefined : true}
+          inert={isAgent ? undefined : true}
+          style={{ display: isAgent ? 'block' : 'none', height: isAgent ? 'auto' : 0, overflow: isAgent ? 'visible' : 'hidden', width: '100%', maxWidth: '100%', minWidth: 0 }}
+        >
           {/* [P1-7] Un crash del chat NO debe tumbar el dashboard shell. */}
           <RouteErrorBoundary routeName="dashboard/agent">
             <Suspense fallback={isAgent ? <PageLoader /> : null}>

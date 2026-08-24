@@ -22,10 +22,9 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         const src = read('pages/AgentPage.jsx');
         const i = src.indexOf("setProperty('--kb-inset'");
         expect(i).toBeGreaterThan(0);
-        const bloque = src.slice(i - 900, i + 900);
         // [P1-KB-VIEWPORT-MATH · 2026-08-23] El predicado es `abierto` (kb sin restar el
         // paneo), no el inset. Anclar a `offsetBottom > 0` era anclar el defecto.
-        expect(bloque).toMatch(/toggleAttribute\('data-kb-open', abierto\)/);
+        expect(src).toMatch(/toggleAttribute\('data-kb-open', abierto\)/);
         expect(src).toMatch(/removeAttribute\('data-kb-open'\)/);
     });
 
@@ -46,10 +45,11 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         const src = read('pages/AgentPage.jsx');
         // Contrato P2-CHAT-SCROLL-RACE: userScrolledUpRef manda sobre el autoscroll.
         expect(src).toMatch(/if \(abierto && !userScrolledUpRef\.current\)/);
-        // scrollIntoView y no scrollTop: con la lista virtualizada el contenedor es
-        // overflow:hidden y escribirle scrollTop no hace nada.
+        // El controlador comun enruta al sentinel simple o a la API imperativa de
+        // Virtuoso; escribir scrollTop en el padre oculto no sirve.
         const i = src.indexOf('if (abierto && !userScrolledUpRef.current)');
-        expect(src.slice(i, i + 400)).toMatch(/scrollIntoView/);
+        expect(src.slice(i, i + 400)).toMatch(/scrollToBottomRef\.current/);
+        expect(src).toMatch(/virtualizedListRef\.current\?\.scrollToBottom/);
     });
 
     it('la caja conserva su acabado con el teclado CERRADO (la regla base no se parte)', () => {
@@ -98,7 +98,7 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
         // Ancla la PROPIEDAD (el timer se limpia en el cleanup), no el ORDEN: al
         // entrar el retiro del listener de foco (P1-KB-CIERRE-SIN-ESPERA), el
         // clearTimeout dejo de ser la PRIMERA linea del return sin dejar de estar.
-        const cierre = src.slice(src.indexOf('return () => {'));
+        const cierre = src.slice(src.indexOf('return () => {', i));
         expect(cierre.slice(0, 400)).toMatch(/if \(asiento\) clearTimeout\(asiento\);/);
     });
 

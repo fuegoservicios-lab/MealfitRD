@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
 import { isTrackingMode, navItemsFor } from '../config/dashboardNav';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
 // [P3-LAZY-MARKDOWN · 2026-05-12] import de `react-markdown` eliminado:
@@ -65,6 +65,18 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
 import { medirTecladoDeVentana, insetEstabilizado } from '../utils/keyboardViewport';
+import { useChatAttachments } from '../hooks/useChatAttachments';
+import { useStableCallback } from '../hooks/useStableCallback';
+import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
+import { isNativeApp } from '../config/platform';
+import {
+    chooseNativeChatImages,
+    isNativePickerCancellation,
+    takeNativeChatPhoto,
+} from '../utils/nativeChatImagePicker';
+import { AttachmentSourceSheet } from '../components/agent/AttachmentSourceSheet';
+import { deleteChatDraft, loadChatDraft, saveChatDraft } from '../utils/chatDraftStore';
+import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
@@ -143,6 +155,16 @@ const _emitChatPerfTelemetry = ({ ttfbMs, streamTotalMs, chunkCount, isCallMode,
 // queda congelado en español para siempre (y en es-DO se ve bien, así que nadie
 // lo nota). Se llama en cada `_buildAgentErrorMessage`.
 const _agentErrorCopy = () => ({
+    413: {
+        icon: '📦',
+        text: t('El mensaje o sus imágenes superan el límite. Acórtalo o quita una foto antes de enviarlo.'),
+        retryable: false,
+    },
+    415: {
+        icon: '🖼️',
+        text: t('Una imagen no tiene un formato compatible. Quítala y elige otra foto.'),
+        retryable: false,
+    },
     504: {
         icon: '⏱',
         text: t('El asistente tardó más de la cuenta en responder. Puedes reintentar ahora.'),
@@ -163,16 +185,6 @@ const _agentErrorCopy = () => ({
         text: t('Llegaste al límite mensual de tu plan. Actualiza para seguir conversando.'),
         retryable: false,
     },
-    // [P2-AGENT-413-NO-RETRY · 2026-05-30] El backend rechaza prompts > cap
-    // (8192 chars, P0-CHAT-PROMPT-MAXLEN) con HTTP 413. Sin esta entrada caía
-    // al genérico `retryable: true` → el botón "Reintentar" reenviaba el mismo
-    // mensaje demasiado largo → loop 413 permanente, y el usuario nunca sabía
-    // que su mensaje excedía el límite. `retryable: false` + copy claro.
-    413: {
-        icon: '✂',
-        text: t('Tu mensaje es demasiado largo. Acórtalo y vuelve a enviarlo.'),
-        retryable: false,
-    },
     401: {
         icon: '🔐',
         text: t('Tu sesión expiró. Vuelve a iniciar sesión para continuar.'),
@@ -190,7 +202,17 @@ const _agentErrorCopy = () => ({
     },
 });
 
-const _buildAgentErrorMessage = ({ status, retryPrompt, retryImageUrl, isAgentError }) => {
+const _buildAgentErrorMessage = ({
+    status,
+    retryPrompt,
+    retryImageUrl,
+    retryAttachments,
+    retryWithCurrentAttachments = false,
+    retryTruncateIndex,
+    clientMessageId,
+    isAgentError,
+    userMessage,
+}) => {
     let entry = _agentErrorCopy()[status];
     if (!entry) {
         // 500/502/otros — copy genérico retryable. Server problem.
@@ -206,7 +228,10 @@ const _buildAgentErrorMessage = ({ status, retryPrompt, retryImageUrl, isAgentEr
         chat_error_status: String(status),
         chat_error_kind: isAgentError ? 'agent_stream' : 'http',
     });
-    const canRetry = entry.retryable && Boolean(retryPrompt || retryImageUrl);
+    if (userMessage) entry = { ...entry, text: userMessage };
+    const canRetry = entry.retryable && Boolean(
+        retryPrompt || retryImageUrl || retryAttachments?.length || retryWithCurrentAttachments
+    );
     return {
         role: 'model',
         content: `${entry.icon} ${entry.text}`,
@@ -215,9 +240,25 @@ const _buildAgentErrorMessage = ({ status, retryPrompt, retryImageUrl, isAgentEr
         retryable: canRetry,
         retryPrompt: canRetry ? retryPrompt : null,
         retryImageUrl: canRetry ? retryImageUrl : null,
+        retryAttachments: canRetry ? retryAttachments : null,
+        retryWithCurrentAttachments: canRetry && retryWithCurrentAttachments,
+        retryTruncateIndex: canRetry ? retryTruncateIndex : undefined,
+        clientMessageId: canRetry ? clientMessageId : undefined,
         _isErrorBubble: true,
     };
 };
+
+const _durableRetryAttachments = (items) => (items || []).map((item) => ({
+    id: item.attachment_id || item.id,
+    attachment_id: item.attachment_id,
+    url: item.url || item.image_url,
+    image_url: item.image_url,
+    description: item.description,
+    kind: item.kind,
+    content_type: item.content_type || item.file?.type,
+    name: item.name || item.file?.name || item.sourceFile?.name,
+    status: 'ready',
+})).filter((item) => item.url || item.attachment_id);
 
 // [P2-FETCH-RETRY-ADAPTIVE · 2026-05-19] Política de reintento por tipo
 // de error para `fetchSessionMessages`. Pre-fix: hardcoded `retryCount < 2`
@@ -461,71 +502,6 @@ export const generateIntelligentWelcome = (userProfile, formData, planData) => {
     return `${timeGreeting}${firstName}! ${goalContext}${mealContext}`.trim().replace(/\s+/g, ' ');
 };
 
-// [P1-CHAT-PHOTO-UX · 2026-07-12] Miniatura dataURL (~30KB @360px) para la
-// burbuja del mensaje: los blob: URLs mueren en cada reload y su lifecycle
-// (revoke) ya produjo 2 bugs; el dataURL vive dentro del objeto-mensaje y
-// sobrevive el cache localStorage del chat.
-const fileToThumbDataUrl = (file, maxSide = 360, quality = 0.72) => new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-        try {
-            const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(img.width * scale);
-            canvas.height = Math.round(img.height * scale);
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', quality));
-        } catch (e) { reject(e); } finally { URL.revokeObjectURL(url); }
-    };
-    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-});
-
-const compressImageFile = (file, maxWidth = 1200, quality = 0.8) => {
-    return new Promise((resolve) => {
-        const objectUrl = URL.createObjectURL(file);
-        const img = new Image();
-        img.src = objectUrl;
-        img.onload = () => {
-            URL.revokeObjectURL(objectUrl);
-            let width = img.width;
-            let height = img.height;
-
-            if (width > maxWidth) {
-                height = Math.round((height * maxWidth) / width);
-                width = maxWidth;
-            }
-
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            canvas.toBlob(
-                (blob) => {
-                    if (!blob) {
-                        resolve(file); // fallback
-                        return;
-                    }
-                    const newFile = new File([blob], file.name, {
-                        type: 'image/jpeg',
-                        lastModified: Date.now(),
-                    });
-                    resolve(newFile);
-                },
-                'image/jpeg',
-                quality
-            );
-        };
-        img.onerror = () => {
-            URL.revokeObjectURL(objectUrl);
-            resolve(file); // fallback
-        };
-    });
-};
-
 const AgentPage = () => {
     // [P1-I18N-DASHBOARD · 2026-08-15] El hook (y no el `t` de módulo importado
     // arriba) es lo que suscribe a este componente al cambio de idioma.
@@ -539,10 +515,14 @@ const AgentPage = () => {
     // [P1-SETTINGS-DIALOG · 2026-08-10] Ubicación de fondo para abrir la
     // configuración como ventana sin desmontar la conversación.
     const location = useLocation();
+    const isAgentRouteActive = location.pathname.startsWith('/dashboard/agent');
     const [titlePollCount, setTitlePollCount] = useState(0);
     const [showNavMenu, setShowNavMenu] = useState(false);
+    const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine !== false);
     const navMenuRef = useRef(null);
+    const navMenuTriggerRef = useRef(null);
     const inputWrapperRef = useRef(null);
+    const scrollToBottomRef = useRef(null);
     // [P1-CHAT-KB-SCROLL-QUIETO · 2026-08-23] Estado de la histéresis del inset: qué se
     // aplicó y si el teclado estaba abierto. En refs y no en estado de React porque los
     // lee un handler de visualViewport que no debe provocar renders.
@@ -557,6 +537,17 @@ const AgentPage = () => {
     // 1024px es el breakpoint deliberado de esta página (colapso del sidebar).
     const isMobile = useMediaQuery('(max-width: 1024px)');
 
+    useEffect(() => {
+        const markOnline = () => setIsOnline(true);
+        const markOffline = () => setIsOnline(false);
+        window.addEventListener('online', markOnline);
+        window.addEventListener('offline', markOffline);
+        return () => {
+            window.removeEventListener('online', markOnline);
+            window.removeEventListener('offline', markOffline);
+        };
+    }, []);
+
     // Close nav menu on outside click
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -568,6 +559,32 @@ const AgentPage = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showNavMenu]);
 
+    useEffect(() => {
+        if (!showNavMenu) return undefined;
+        const items = () => Array.from(navMenuRef.current?.querySelectorAll('[role="menuitem"]') || []);
+        const frame = requestAnimationFrame(() => items()[0]?.focus());
+        const handleMenuKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setShowNavMenu(false);
+                navMenuTriggerRef.current?.focus();
+                return;
+            }
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+            const options = items();
+            if (!options.length) return;
+            event.preventDefault();
+            const current = Math.max(0, options.indexOf(document.activeElement));
+            const direction = event.key === 'ArrowDown' ? 1 : -1;
+            options[(current + direction + options.length) % options.length].focus();
+        };
+        document.addEventListener('keydown', handleMenuKeyDown);
+        return () => {
+            cancelAnimationFrame(frame);
+            document.removeEventListener('keydown', handleMenuKeyDown);
+        };
+    }, [showNavMenu]);
+
     // [MOBILE-KEYBOARD-LIFT] Eleva el input wrapper sobre el teclado iOS.
     // Sin esto, el `position: sticky` no responde al keyboard porque iOS Safari
     // mueve el "visual viewport" (donde el usuario VE) pero no el "layout
@@ -575,7 +592,26 @@ const AgentPage = () => {
     // y aplicar transform: translateY(-offset) al wrapper, replicando el
     // patrón de Gemini/ChatGPT/Claude en mobile.
     useEffect(() => {
-        if (typeof window === 'undefined' || !window.visualViewport) return undefined;
+        const root = typeof document !== 'undefined' ? document.documentElement : null;
+        const resetViewportState = () => {
+            root?.removeAttribute('data-kb-open');
+            const contenedor = inputWrapperRef.current?.closest('.agent-container');
+            if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
+            insetAplicadoRef.current = 0;
+            tecladoAbiertoRef.current = false;
+            cerrandoRef.current = false;
+        };
+
+        // AgentPage queda montado con display:none entre rutas. Sus listeners y atributos
+        // globales, en cambio, seguirian activos si no los acotamos a la ruta visible.
+        if (!isAgentRouteActive) {
+            resetViewportState();
+            return undefined;
+        }
+        if (typeof window === 'undefined' || !window.visualViewport) {
+            resetViewportState();
+            return undefined;
+        }
         const vv = window.visualViewport;
 
         const updateInputPosition = (forzarMedicion = false) => {
@@ -674,7 +710,7 @@ const AgentPage = () => {
             // (fixed) la recoloca iOS justo encima del teclado y tapa la caja de escribir,
             // que reserva sus 64 px por dentro. Señal en <html>: la barra se esconde y la
             // caja suelta la reserva (CSS en BottomTabBar.module.css y en este <style>).
-            document.documentElement.toggleAttribute('data-kb-open', abierto);
+            root.toggleAttribute('data-kb-open', abierto);
             // El transform deja de hacer falta y NO puede quedarse: sumaría al
             // encogimiento y levantaría el input dos veces.
             wrapper.style.transform = '';
@@ -686,11 +722,7 @@ const AgentPage = () => {
             // (`userScrolledUpRef`, ver scrollToBottom). `scrollIntoView` y no
             // `scrollTop`: en sesiones largas la lista está virtualizada y el contenedor
             // es `overflow: hidden` — escribirle scrollTop no hace nada.
-            if (abierto && !userScrolledUpRef.current) {
-                requestAnimationFrame(() => {
-                    try { messagesEndRef.current?.scrollIntoView({ block: 'end' }); } catch { /* nodo desmontado */ }
-                });
-            }
+            if (abierto && !userScrolledUpRef.current) scrollToBottomRef.current?.(false, 'auto');
         };
 
         // [P2-CHAT-KB-ASIENTO · 2026-08-23] Una medición MÁS, cuando el teclado ya paró.
@@ -740,7 +772,7 @@ const AgentPage = () => {
                 return; // cambia de campo: el teclado sigue
             }
             cerrandoRef.current = true;
-            document.documentElement.removeAttribute('data-kb-open');
+            root?.removeAttribute('data-kb-open');
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
@@ -757,9 +789,9 @@ const AgentPage = () => {
             vv.removeEventListener('resize', alEvento);
             vv.removeEventListener('scroll', alEvento);
             // Cambiar de ruta con el teclado abierto no debe dejar la barra escondida.
-            document.documentElement.removeAttribute('data-kb-open');
+            resetViewportState();
         };
-    }, []);
+    }, [isAgentRouteActive]);
 
     const [localSessionId, setLocalSessionId] = useState(() => {
         // [P1-AGENT-LAZY-INIT-PRIVATE-MODE · 2026-05-24] safeLocalStorageGet
@@ -911,6 +943,41 @@ const AgentPage = () => {
     });
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
+    const sidebarRef = useRef(null);
+    const sidebarTriggerRef = useRef(null);
+
+    useEffect(() => {
+        if (!isMobile || !showSidebar) return undefined;
+        const drawer = sidebarRef.current;
+        const returnFocus = sidebarTriggerRef.current;
+        const focusableSelector = 'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        const focusFrame = requestAnimationFrame(() => drawer?.querySelector(focusableSelector)?.focus());
+        const handleDrawerKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setShowSidebar(false);
+                return;
+            }
+            if (event.key !== 'Tab' || !drawer) return;
+            const focusable = Array.from(drawer.querySelectorAll(focusableSelector));
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener('keydown', handleDrawerKeyDown);
+        return () => {
+            cancelAnimationFrame(focusFrame);
+            document.removeEventListener('keydown', handleDrawerKeyDown);
+            returnFocus?.focus?.();
+        };
+    }, [isMobile, showSidebar]);
 
     // [P1-AGENT-CACHE-SIDEBAR · 2026-05-20] Persistir chatSessions al change.
     // Misma estrategia que el cache de messages (P1-AGENT-CACHE-MESSAGES).
@@ -1030,7 +1097,7 @@ const AgentPage = () => {
             hasHydratedWelcome.current = true;
             setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }]);
         }
-    }, [planData, formData, userProfile]);
+    }, [planData, formData, userProfile, messages]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -1063,15 +1130,97 @@ const AgentPage = () => {
     const [streamingStatus, setStreamingStatus] = useState(null);
     const [abortController, setAbortController] = useState(null);
     const abortControllerRef = useRef(null);
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
-    // [P3-CHAT-OBJECTURL-LEAK · 2026-06-01] Ref espejo de previewUrl para que el
-    // teardown de unmount (effect deps []) pueda revocar el blob staged sin
-    // capturarlo en stale-closure. clearSelectedFile cubre cancel/swap; este ref
-    // cubre el camino imagen-staged-pero-no-enviada → navegar fuera (unmount SPA).
-    const previewUrlRef = useRef(null);
+    const handleAttachmentReject = useCallback((code) => {
+        const copy = {
+            IMAGE_COUNT_LIMIT: t('Puedes adjuntar hasta {count} imágenes por mensaje.', { count: CHAT_IMAGE_MAX_COUNT }),
+            IMAGE_TYPE_INVALID: t('Formato no soportado. Por favor sube una imagen válida.'),
+            IMAGE_TOO_LARGE: t('Una de las fotos pesa demasiado. El máximo es 15 MB por imagen.'),
+            IMAGE_TOTAL_TOO_LARGE: t('Las fotos juntas pesan demasiado. Reduce la selección e inténtalo de nuevo.'),
+        }[code] || t('No pudimos preparar una de las imágenes.');
+        triggerMobileHaptic('error');
+        toast.error(copy);
+    }, [t]);
+    const {
+        attachments,
+        addFiles,
+        restorePreparedFiles,
+        removeAttachment,
+        clearAttachments,
+        waitUntilSettled,
+        hasPreparing: attachmentsPreparing,
+        hasErrors: attachmentsHaveErrors,
+    } = useChatAttachments({ onReject: handleAttachmentReject, concurrency: 2 });
+    const attachmentUploadCacheRef = useRef(new Map());
+    const [draftReadySession, setDraftReadySession] = useState(null);
+    const draftSnapshotRef = useRef(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        setDraftReadySession(null);
+        setInput('');
+        clearAttachments();
+        attachmentUploadCacheRef.current.clear();
+        loadChatDraft(currentSessionId)
+            .then((draft) => {
+                if (cancelled) return;
+                if (draft && Date.now() - Number(draft.updatedAt || 0) < 30 * 24 * 3600 * 1000) {
+                    setInput(draft.text || '');
+                    restorePreparedFiles(draft.files || []);
+                }
+                setDraftReadySession(currentSessionId);
+            })
+            .catch((error) => {
+                if (!cancelled) {
+                    _captureAgentPageException(error, { action: 'load_chat_draft' });
+                    setDraftReadySession(currentSessionId);
+                }
+            });
+        return () => { cancelled = true; };
+    }, [currentSessionId, clearAttachments, restorePreparedFiles]);
+
+    useEffect(() => {
+        draftSnapshotRef.current = {
+            sessionId: currentSessionId,
+            ready: draftReadySession === currentSessionId,
+            text: input,
+            files: attachments.filter((item) => item.status === 'ready').map((item) => item.file),
+        };
+    }, [currentSessionId, draftReadySession, input, attachments]);
+
+    useEffect(() => {
+        if (draftReadySession !== currentSessionId) return undefined;
+        const timer = setTimeout(() => {
+            saveChatDraft(currentSessionId, {
+                text: input,
+                files: attachments.filter((item) => item.status === 'ready').map((item) => item.file),
+            }).catch((error) => _captureAgentPageException(error, { action: 'save_chat_draft' }));
+        }, 350);
+        return () => clearTimeout(timer);
+    }, [currentSessionId, draftReadySession, input, attachments]);
+
+    useEffect(() => {
+        const sessionAtEffect = currentSessionId;
+        return () => {
+            const snapshot = draftSnapshotRef.current;
+            if (snapshot?.ready && snapshot.sessionId === sessionAtEffect) {
+                saveChatDraft(sessionAtEffect, snapshot).catch(() => {});
+            }
+        };
+    }, [currentSessionId]);
+
+    useEffect(() => {
+        const persistWhenBackgrounded = () => {
+            if (document.visibilityState !== 'hidden') return;
+            const snapshot = draftSnapshotRef.current;
+            if (snapshot?.ready) saveChatDraft(snapshot.sessionId, snapshot).catch(() => {});
+        };
+        document.addEventListener('visibilitychange', persistWhenBackgrounded);
+        return () => document.removeEventListener('visibilitychange', persistWhenBackgrounded);
+    }, []);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    const attachmentTriggerRef = useRef(null);
+    const [showAttachmentSource, setShowAttachmentSource] = useState(false);
     // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
     // donde tap del botón send NO debe abrir keyboard).
@@ -1095,7 +1244,7 @@ const AgentPage = () => {
     //
     // La firma incluye lo que cambia el ANCHO disponible (isMobile, sidebar,
     // preview de imagen): el mismo texto ocupa distintas líneas según el ancho.
-    useAutosizeTextarea(chatInputRef, `${input}|${isMobile}|${showSidebar}|${previewUrl ? 1 : 0}`);
+    useAutosizeTextarea(chatInputRef, `${input}|${isMobile}|${showSidebar}|${attachments.length}`);
 
     // [P3-AGENT-PREFILL · 2026-06-15] Consumir una pregunta pre-cargada desde
     // otra parte del dashboard (p.ej. tocar un micronutriente en
@@ -1148,6 +1297,8 @@ const AgentPage = () => {
     // Tooltip-anchor: P2-CHAT-SCROLL-RACE.
     const messagesContainerRef = useRef(null);
     const userScrolledUpRef = useRef(false);
+    const virtualizedListRef = useRef(null);
+    const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
     // Setters/refs del dictado eliminados junto con toggleDictation (dead code
     // post P1-DEADCODE-TTS). Los valores siguen leyéndose en la UI (placeholder
@@ -1180,10 +1331,6 @@ const AgentPage = () => {
     const isLoadingRef = useRef(isLoading);
     useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
 
-    // [P3-CHAT-OBJECTURL-LEAK · 2026-06-01] Mantener previewUrlRef fresco para el
-    // teardown de unmount de abajo.
-    useEffect(() => { previewUrlRef.current = previewUrl; }, [previewUrl]);
-
     // --- NATIVE TTS AUDIO ENGINE (ELEVENLABS) ---
     const ttsQueue = useRef([]);
     const isPlayingAudio = useRef(false);
@@ -1203,13 +1350,6 @@ const AgentPage = () => {
         try { abortControllerRef.current?.abort(); } catch (_e) { /* noop */ }
         try { recognitionRef.current?.stop(); } catch (_e) { /* noop */ }
         try { audioPlayerRef.current?.pause(); } catch (_e) { /* noop */ }
-        // [P3-CHAT-OBJECTURL-LEAK · 2026-06-01] Revocar el blob de preview staged si
-        // el user navega fuera con una imagen adjunta sin enviar (guard blob: evita
-        // revocar URLs de servidor).
-        try {
-            const _pv = previewUrlRef.current;
-            if (_pv && _pv.startsWith('blob:')) URL.revokeObjectURL(_pv);
-        } catch (_e) { /* noop */ }
     }, []);
 
     const processTTSQueue = async () => {
@@ -1277,73 +1417,62 @@ const AgentPage = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoading]);
 
-    const processSelectedFile = async (file) => {
-        if (!file.type.startsWith('image/')) {
-            // [P3-AUDIT-2 · 2026-05-15] `alert()` nativo reemplazado por
-            // `toast.error` (sonner). El resto de la app usa sonner
-            // consistentemente; `alert()` bloquea el thread y rompe la UX
-            // mobile (modal-blocking dialog que no respeta el theme dark).
-            toast.error(t('Formato no soportado. Por favor sube una imagen válida.'));
+    const handleFileSelect = (e) => {
+        addFiles(e.target.files);
+    };
+
+    const runNativeImagePicker = async (source) => {
+        const remaining = Math.max(1, CHAT_IMAGE_MAX_COUNT - attachments.length);
+        setShowAttachmentSource(false);
+        try {
+            const files = source === 'camera'
+                ? await takeNativeChatPhoto()
+                : await chooseNativeChatImages(remaining);
+            if (files?.length) addFiles(files);
+        } catch (error) {
+            if (!isNativePickerCancellation(error)) {
+                _captureAgentPageException(error, { action: `native_${source}_picker` });
+                triggerMobileHaptic('error');
+                toast.error(t('No pudimos abrir tus fotos. Revisa los permisos e inténtalo de nuevo.'));
+            }
+        }
+    };
+
+    const openAttachmentPicker = () => {
+        if (isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) return;
+        if (isNativeApp()) {
+            setShowAttachmentSource(true);
             return;
         }
-
-        // Generar preview local INMEDIATAMENTE para anular percepción de lag
-        setPreviewUrl(prev => {
-            if (prev) URL.revokeObjectURL(prev);
-            return URL.createObjectURL(file);
-        });
-
-        // Guardar original temporalmente
-        setSelectedFile(file);
-
-        try {
-            // Comprimir imagen asincrónicamente
-            const compressedFile = await compressImageFile(file);
-            setSelectedFile(compressedFile);
-        } catch (err) {
-            console.error("No se pudo comprimir la imagen:", err);
-            // Si falla, el archivo original ya quedó configurado como fallback
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+            fileInputRef.current.click();
         }
     };
 
-    const handleFileSelect = (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            processSelectedFile(file);
-        }
-    };
-
-    const clearSelectedFile = ({ revoke = true } = {}) => {
-        // [P3-CHAT-OBJECTURL-LEAK · 2026-05-31] Revocar el blob URL del preview
-        // al limpiarlo (cancel / "Quitar imagen") para liberar memoria. En el
-        // send path se pasa {revoke:false}: el blob sigue mostrándose en el
-        // mensaje recién enviado hasta que la URL del servidor lo reemplaza, y
-        // ahí se revoca explícitamente (ver handleSend). Sin esto, cada imagen
-        // enviada/cancelada orfanaba un object URL hasta el page-unload.
-        setPreviewUrl(prev => {
-            if (revoke && prev) {
-                try { URL.revokeObjectURL(prev); } catch { /* noop */ }
-            }
-            return null;
-        });
-        setSelectedFile(null);
+    const clearSelectedFile = (options) => {
+        clearAttachments(options);
+        attachmentUploadCacheRef.current.clear();
         if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const removeSelectedAttachment = (id) => {
+        triggerMobileHaptic('light');
+        attachmentUploadCacheRef.current.delete(id);
+        removeAttachment(id);
     };
 
     const handlePaste = (e) => {
         const items = e.clipboardData?.items;
         if (!items) return;
 
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            if (item.type.startsWith('image/')) {
-                e.preventDefault();
-                const file = item.getAsFile();
-                if (file) {
-                    processSelectedFile(file);
-                }
-                break;
-            }
+        const imageFiles = Array.from(items)
+            .filter((item) => item.type.startsWith('image/'))
+            .map((item) => item.getAsFile())
+            .filter(Boolean);
+        if (imageFiles.length) {
+            e.preventDefault();
+            addFiles(imageFiles);
         }
     };
 
@@ -1365,10 +1494,7 @@ const AgentPage = () => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file) {
-            processSelectedFile(file);
-        }
+        addFiles(e.dataTransfer.files);
     };
 
     // [P2-CHAT-SCROLL-RACE · 2026-05-19] Auto-scroll respeta el intent
@@ -1387,16 +1513,26 @@ const AgentPage = () => {
     // 'auto' (instantáneo) mientras el último mensaje stremea; 'smooth' solo en
     // el update final/no-streaming. Sin reflow read en código de app.
     const scrollRafRef = useRef(null);
-    const scrollToBottom = (force = false) => {
+    const scrollToBottom = (force = false, behaviorOverride = null) => {
         if (userScrolledUpRef.current && !force) return;
         if (scrollRafRef.current) return; // ya hay un scroll agendado este frame
         scrollRafRef.current = requestAnimationFrame(() => {
             scrollRafRef.current = null;
             const msgs = messagesRef.current;
             const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
-            messagesEndRef.current?.scrollIntoView({ behavior: last?.isStreaming ? 'auto' : 'smooth' });
+            const behavior = behaviorOverride || (last?.isStreaming ? 'auto' : 'smooth');
+            if (msgs.length > VIRTUALIZE_THRESHOLD) {
+                virtualizedListRef.current?.scrollToBottom({ behavior });
+            } else {
+                messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+            }
+            if (force) {
+                userScrolledUpRef.current = false;
+                setShowJumpToLatest(false);
+            }
         });
     };
+    scrollToBottomRef.current = scrollToBottom;
 
     // [P2-CHAT-SCROLL-RACE · 2026-05-19] Listener montado en el container
     // scrollable. Umbral 120px desde el bottom: cubre el overshoot natural
@@ -1409,11 +1545,19 @@ const AgentPage = () => {
         if (!el) return;
         try {
             const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-            userScrolledUpRef.current = distanceFromBottom > 120;
+            const scrolledUp = distanceFromBottom > 120;
+            userScrolledUpRef.current = scrolledUp;
+            setShowJumpToLatest(scrolledUp);
         } catch (_e) {
             // Defensivo contra browsers raros que devuelvan NaN o lancen
             // en getters. NO afecta el flow del chat.
         }
+    }, []);
+
+    const handleVirtualizedAtBottomChange = useCallback((atBottom) => {
+        const scrolledUp = !atBottom;
+        userScrolledUpRef.current = scrolledUp;
+        setShowJumpToLatest(scrolledUp);
     }, []);
 
     const fetchChatSessions = useCallback(async () => {
@@ -1575,7 +1719,10 @@ const AgentPage = () => {
                 if (data.messages && data.messages.length > 0) {
                     // Filtrar los mensajes de sistema/bienvenida: detectar por flag o por patrones conocidos
                     const filteredMessages = data.messages.filter(m => {
-                        if (!m.content) return false;
+                        const hasStructuredAttachments = Array.isArray(m.attachments)
+                            ? m.attachments.length > 0
+                            : (typeof m.attachments === 'string' && m.attachments !== '[]');
+                        if (!m.content && !hasStructuredAttachments) return false;
                         // Filtrar mensajes de bienvenida viejos y nuevos por patrones estables (no time-dependent)
                         if (m.content === '¡Hola! Soy tu agente conversacional de nutrición IA. ¿En qué te puedo ayudar con tu plan alimenticio de hoy?') return false;
                         if (m.role === 'model' && m.content.includes('Son las ') && (m.content.includes('de tu súper)') || m.content.includes('especialista para guiarte') || m.content.includes('enfocados en tu meta'))) return false;
@@ -1593,17 +1740,23 @@ const AgentPage = () => {
                     let _userOrdinal = 0;
 
                     const _mappedMsgs = filteredMessages.map(m => {
-                        let content = m.content;
-                        let isImage = false;
-                        let imageUrl = null;
+                        let content = String(m.content || '');
+                        let messageAttachments = Array.isArray(m.attachments)
+                            ? m.attachments.map((item) => ({
+                                ...item,
+                                id: item.attachment_id || item.id,
+                                url: item.url || item.image_url,
+                            })).filter((item) => item.url)
+                            : [];
 
-                        // Extract [IMAGE: url]
-                        const imgMatch = content.match(/\[IMAGE:\s*(.+?)\]/);
-                        if (imgMatch) {
-                            isImage = true;
-                            imageUrl = imgMatch[1];
-                            content = content.replace(/\[IMAGE:\s*.+?\]\n?/, '');
+                        // Compatibilidad con mensajes anteriores a attachments JSONB.
+                        const legacyUrls = Array.from(content.matchAll(/\[IMAGE:\s*(.+?)\]/g), (match) => match[1]);
+                        if (!messageAttachments.length && legacyUrls.length) {
+                            messageAttachments = legacyUrls.map((url, index) => ({ id: `legacy-${index}`, url }));
                         }
+                        content = content.replace(/\[IMAGE:\s*.+?\]\n?/g, '');
+                        let isImage = messageAttachments.length > 0;
+                        let imageUrl = messageAttachments[0]?.url || null;
 
                         // [P2-CHAT-HISTORY-CLEAN] Limpiar el andamiaje interno del
                         // prompt enriquecido. El historial persiste el prompt
@@ -1638,8 +1791,10 @@ const AgentPage = () => {
                         if (m.role === 'user') {
                             const _ord = _userOrdinal++;
                             if (isImage && !imageUrl && _canMergeThumbs) {
-                                const _localImg = _localUsers[_ord]?.imageUrl;
+                                const _localAttachments = _localUsers[_ord]?.attachments;
+                                const _localImg = _localAttachments?.[0]?.url || _localUsers[_ord]?.imageUrl;
                                 if (_localImg && !String(_localImg).startsWith('blob:')) {
+                                    messageAttachments = _localAttachments || [{ id: `local-${_ord}`, url: _localImg }];
                                     imageUrl = _localImg;
                                 }
                             }
@@ -1649,7 +1804,9 @@ const AgentPage = () => {
                             role: m.role,
                             content: content || '',
                             isImage,
-                            imageUrl: imageUrl
+                            imageUrl,
+                            attachments: messageAttachments,
+                            clientMessageId: m.client_message_id || undefined,
                         };
                     }).filter(Boolean);
                     // [P1-CHAT-STOP-POWER v3 · 2026-07-12] Reconstruir la burbuja
@@ -1733,6 +1890,7 @@ const AgentPage = () => {
 
             if (response.ok) {
                 setChatSessions(prev => prev.filter(s => s.id !== sessionIdToDelete));
+                deleteChatDraft(sessionIdToDelete).catch(() => {});
 
                 // Si borramos el chat actual activo, redirigimos a un chat nuevo.
                 // [P1-AGENT-SESSION-DAY · 2026-08-14] Sin escribir la clave a
@@ -1938,28 +2096,52 @@ const AgentPage = () => {
         setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }]);
         setInput('');
         clearSelectedFile();
+        attachmentUploadCacheRef.current.clear();
         fetchChatSessions();
         if (window.innerWidth <= 768) {
             setShowSidebar(false);
         }
     };
 
-
-    useEffect(() => {
-        handleSendRef.current = handleSend;
-    }, [input, selectedFile, previewUrl, messages, currentSessionId, isLoading, isListening]); // ensure dependencies for fresh closure
-
     const handleSend = async (overrideInput = null, options = {}) => {
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate(40); // Haptic feedback on send
-        }
+        triggerMobileHaptic('medium');
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
+        if (!isOnline) {
+            triggerMobileHaptic('warning');
+            toast.error(t('Estás sin conexión. Tu borrador está guardado y podrás enviarlo al volver.'));
+            return;
+        }
 
         // [P1-CHAT-TURN-ACTIVE · 2026-08-10] El guard mira el turno, no el «pensando»:
         // con `isLoading` quedaba abierto desde el primer token y se podían solapar
         // dos streams sobre la misma burbuja. Y lee el REF, no el state: dos toques
         // en el mismo frame de React ven ambos el valor viejo.
-        if ((!textToSend.trim() && !selectedFile && !options.overrideImageUrl) || isTurnActiveRef.current) return;
+        const overrideAttachments = Array.isArray(options.overrideAttachments)
+            ? options.overrideAttachments
+            : (options.overrideImageUrl ? [{ id: `legacy-${Date.now()}`, url: options.overrideImageUrl, status: 'ready' }] : []);
+        if ((!textToSend.trim() && attachments.length === 0 && overrideAttachments.length === 0) || isTurnActiveRef.current) return;
+
+        // El lock nace antes de esperar la preparación: dos taps mientras un HEIC se
+        // decodifica no pueden abrir dos turnos con snapshots distintos.
+        _setTurnActive(true);
+        const clientMessageId = options.clientMessageId || crypto.randomUUID();
+        let currentAttachments = overrideAttachments;
+        if (!currentAttachments.length) {
+            try {
+                currentAttachments = await waitUntilSettled();
+            } catch (error) {
+                _setTurnActive(false);
+                handleAttachmentReject(error?.code || 'IMAGE_PREP_FAILED');
+                return;
+            }
+        }
+        // El usuario puede detener/cambiar de chat mientras una foto termina de
+        // prepararse. La preparación puede acabar, pero ese turno ya no tiene permiso
+        // para crear una burbuja ni abrir una petición con la sesión anterior.
+        if (!isTurnActiveRef.current || (!textToSend.trim() && currentAttachments.length === 0)) {
+            _setTurnActive(false);
+            return;
+        }
 
         if (isListening) {
             recognitionRef.current?.stop();
@@ -1983,9 +2165,6 @@ const AgentPage = () => {
         }
 
         const userMsg = textToSend.trim();
-        const currentFile = selectedFile;
-        const currentPreview = previewUrl;
-
         // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Capturar si el textarea tenía
         // focus ANTES del setInput. Si sí (keyboard send con Enter), tras
         // limpiar input restauramos focus — typing flow continuo. Si NO
@@ -1999,13 +2178,7 @@ const AgentPage = () => {
         );
 
         setInput('');
-        // [P3-CHAT-OBJECTURL-LEAK · 2026-05-31] revoke:false — el blob de
-        // `currentPreview` sigue vivo en el mensaje recién enviado; se revoca
-        // tras el swap a la URL del servidor (más abajo).
-        clearSelectedFile({ revoke: false });
         setIsLoading(true);
-        // [P1-CHAT-TURN-ACTIVE] Se enciende aquí y solo se apaga en el `finally`.
-        _setTurnActive(true);
 
         // [P2-CHAT-SCROLL-RACE · 2026-05-19] Reset del guard: el user
         // acaba de mandar un mensaje, es señal afirmativa de que quiere
@@ -2033,44 +2206,33 @@ const AgentPage = () => {
             : [...messages]
         ).filter(m => !m.isWelcome);
 
-        // Agregar mensaje visual si hay imagen. Fallback de blob: la burbuja
-        // JAMÁS debe quedar sin imageUrl teniendo archivo (burbuja fantasma).
-        const bubbleBlobUrl = currentFile
-            ? (currentPreview || URL.createObjectURL(currentFile))
-            : null;
-        if (currentFile) {
-            newMessages.push({ role: 'user', content: userMsg || '', isImage: true, imageUrl: bubbleBlobUrl });
-        } else if (options.overrideImageUrl) {
-            newMessages.push({ role: 'user', content: userMsg || '', isImage: true, imageUrl: options.overrideImageUrl });
+        const originalUserMessageIndex = newMessages.length;
+        const bubbleAttachments = currentAttachments.map((item) => ({
+            id: item.attachment_id || item.id,
+            url: item.url || item.image_url || item.thumbDataUrl || item.previewUrl,
+            name: item.name || item.file?.name || item.sourceFile?.name,
+            status: item.status || 'ready',
+        })).filter((item) => item.url);
+        if (bubbleAttachments.length) {
+            newMessages.push({
+                role: 'user',
+                content: userMsg || '',
+                isImage: true,
+                imageUrl: bubbleAttachments[0]?.url || null,
+                attachments: bubbleAttachments,
+                clientMessageId,
+            });
         } else {
-            newMessages.push({ role: 'user', content: userMsg });
+            newMessages.push({ role: 'user', content: userMsg, clientMessageId });
         }
 
         setMessages(newMessages);
-
-        // [P1-CHAT-PHOTO-UX] La burbuja migra a miniatura dataURL apenas está
-        // lista (~100ms): inmune al lifecycle de blobs (revokes/reloads — ya
-        // causó P2-CHAT-IMG-SWAP-RERENDER y P3-CHAT-OBJECTURL-LEAK) y viaja
-        // con el mensaje al cache localStorage, así la foto sigue visible tras
-        // un refresh aunque no haya object storage.
-        if (currentFile && bubbleBlobUrl) {
-            fileToThumbDataUrl(currentFile).then((thumb) => {
-                setMessages(prev => prev.map(m => (
-                    m.role === 'user' && m.isImage && m.imageUrl === bubbleBlobUrl
-                        ? { ...m, imageUrl: thumb }
-                        : m
-                )));
-                // Revoke diferido: deja que el <img> re-renderice al dataURL.
-                setTimeout(() => {
-                    try { URL.revokeObjectURL(bubbleBlobUrl); } catch { /* noop */ }
-                }, 1500);
-            }).catch(() => { /* la burbuja conserva el blob como fallback */ });
-        }
 
         // [P1-CHAT-ERROR-DIFF · 2026-05-19] Declarados arriba del try para que
         // el catch outer (network error) pueda referenciarlos al construir el
         // mensaje retryable.
         let uploadedImageUrl = null;
+        let uploadedAttachments = overrideAttachments;
 
         try {
             // [P1-CHAT-STOP-POWER · 2026-07-12] El AbortController nace ANTES
@@ -2080,112 +2242,96 @@ const AgentPage = () => {
             setAbortController(controller);
             abortControllerRef.current = controller;
 
-            let visionDescription = null;
-            // [P1-CHAT-VISION-GEMMA · 2026-07-12] Clasificación de la foto que
-            // devuelve el análisis: 'plato' (registrar macros) | 'items'
-            // (compra → ofrecer meterla a la Nevera) | 'otro'. `visionFailed`/
-            // `visionBusy` separan "analizador caído/ocupado" de un análisis
-            // real — antes la description de error ("Error analizando imagen.")
-            // se inyectaba al agente como si fuera un análisis legítimo.
-            let visionKind = null;
-            let visionFailed = false;
-            let visionBusy = false;
-
-            // Manejar subida de imagen si existe
-            if (currentFile) {
-                // gemma local tarda 30-90s: sin señal el usuario mira la nada.
-                // El render especial-casea este texto (literal, no frases
-                // rotativas de "genética" que confunden durante una foto).
-                setStreamingStatus(t('Analizando tu foto… puede tardar un minuto'));
-                const formData = new FormData();
-                formData.append('file', currentFile);
-                formData.append('user_id', session?.user?.id || userProfile?.id || localSessionId);
-                formData.append('session_id', currentSessionId);
+            const localAttachments = currentAttachments.filter((item) => item.file instanceof Blob);
+            if (localAttachments.length) {
+                setStreamingStatus(t('Analizando tus fotos… puede tardar un minuto'));
                 const currentTzOffset = new Date().getTimezoneOffset();
-                formData.append('tz_offset_mins', currentTzOffset.toString());
-
-                const uploadRes = await fetchWithAuth('/api/diary/upload', {
-                    method: 'POST',
-                    body: formData,
-                    // [P1-CHAT-STOP-POWER] Detener cancela también esta fase.
-                    signal: controller.signal
-                });
-
-                // [P1-CHAT-PHOTO-ERRORS · 2026-08-10] Antes se leía el cuerpo SIN mirar
-                // el status. El backend responde 413 (foto demasiado grande), 415 (no es
-                // una imagen) y 429 (límite de escaneos) con `{detail: ...}`, así que
-                // `uploadData.success` salía `undefined`, el flujo lo tomaba por «el
-                // analizador no está disponible» y AUN ASÍ mandaba el turno al chat:
-                // copy equivocado —culpando al sistema de algo que el usuario puede
-                // arreglar— y un turno de LLM quemado en cada intento fallido.
-                if (!uploadRes.ok) {
-                    const _err = await uploadRes.json().catch(() => ({}));
-                    const _motivo = {
-                        413: t('La foto pesa demasiado. Prueba con una más liviana.'),
-                        415: t('Ese archivo no es una imagen que podamos leer. Usa JPG, PNG o HEIC.'),
-                        429: t('Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.'),
-                    }[uploadRes.status];
-                    console.error('[P1-CHAT-PHOTO-ERRORS] upload falló', uploadRes.status, _err);
-                    setMessages(prev => [...prev, _buildAgentErrorMessage({
-                        status: uploadRes.status,
-                        detail: _motivo || _err?.detail,
+                const uploadOne = async (item) => {
+                    const cached = attachmentUploadCacheRef.current.get(item.id);
+                    if (cached) return cached;
+                    const uploadForm = new FormData();
+                    uploadForm.append('file', item.file);
+                    uploadForm.append('user_id', session?.user?.id || userProfile?.id || localSessionId);
+                    uploadForm.append('session_id', currentSessionId);
+                    uploadForm.append('purpose', 'chat');
+                    uploadForm.append('tz_offset_mins', currentTzOffset.toString());
+                    const response = await fetchWithAuth('/api/diary/upload', {
+                        method: 'POST', body: uploadForm, signal: controller.signal,
+                    });
+                    if (!response.ok) {
+                        const error = new Error('IMAGE_UPLOAD_FAILED');
+                        error.status = response.status;
+                        error.userMessage = {
+                            413: t('Una de las fotos pesa demasiado. Prueba con una más liviana.'),
+                            415: t('Una de las fotos no se pudo leer. Usa JPG, PNG o HEIC.'),
+                            429: t('Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.'),
+                        }[response.status];
+                        throw error;
+                    }
+                    const data = await response.json();
+                    const uploaded = {
+                        ...item,
+                        attachment_id: data.attachment_id || item.id,
+                        url: data.image_url || item.thumbDataUrl,
+                        image_url: data.image_url || '',
+                        description: data.analysis_failed ? null : data.description,
+                        kind: data.photo_kind || 'plato',
+                        analysis_failed: Boolean(data.analysis_failed),
+                        busy: Boolean(data.busy),
+                    };
+                    attachmentUploadCacheRef.current.set(item.id, uploaded);
+                    return uploaded;
+                };
+                try {
+                    const uploadedById = new Map(
+                        (await mapWithConcurrency(localAttachments, 2, uploadOne)).map((item) => [item.id, item]),
+                    );
+                    uploadedAttachments = currentAttachments.map((item) => uploadedById.get(item.id) || item);
+                } catch (uploadError) {
+                    if (uploadError?.name === 'AbortError') throw uploadError;
+                    controller.abort();
+                    setMessages((prev) => [...prev, _buildAgentErrorMessage({
+                        status: uploadError?.status || 0,
+                        userMessage: uploadError?.userMessage,
                         retryPrompt: userMsg,
+                        retryAttachments: [],
+                        retryWithCurrentAttachments: true,
+                        retryTruncateIndex: originalUserMessageIndex,
+                        clientMessageId,
                     })]);
-                    return;   // el `finally` cierra el turno; NO se gasta el stream
-                }
-                const uploadData = await uploadRes.json();
-
-                visionFailed = Boolean(uploadData.analysis_failed);
-                visionBusy = Boolean(uploadData.busy);
-                if (uploadData.success && uploadData.description && !visionFailed) {
-                    visionDescription = uploadData.description;
-                    visionKind = uploadData.photo_kind || 'plato';
-                    uploadedImageUrl = uploadData.image_url;
+                    return; // conserva el rail de adjuntos para reintentar sin volver a elegir
                 }
 
-                // Update temporary local preview URL to actual server URL
-                setMessages(prev => {
-                    const updated = [...prev];
-                    let lastUserMsgIdx = -1;
-                    for (let i = updated.length - 1; i >= 0; i--) {
-                        if (updated[i].role === 'user') {
-                            lastUserMsgIdx = i;
-                            break;
-                        }
-                    }
-                    if (lastUserMsgIdx !== -1 && updated[lastUserMsgIdx].isImage) {
-                        // [P2-CHAT-IMG-SWAP-RERENDER · 2026-06-01] Objeto NUEVO (no
-                        // mutación in-place): conserva la misma ref si mutamos en sitio
-                        // → React.memo de MessageBubble hace skip → el <img> sigue
-                        // apuntando al blob que revocamos abajo (imagen rota). El spread
-                        // rompe la igualdad referencial y el comparator (que ahora compara
-                        // imageUrl) re-renderiza la burbuja a la URL del servidor ANTES
-                        // del revoke.
-                        updated[lastUserMsgIdx] = {
-                            ...updated[lastUserMsgIdx],
-                            imageUrl: uploadedImageUrl || updated[lastUserMsgIdx].imageUrl,
-                        };
-                    }
-                    return updated;
-                });
-
-                // [P3-CHAT-OBJECTURL-LEAK · 2026-05-31] El blob de preview ya
-                // fue reemplazado por la URL del servidor en el mensaje →
-                // revocarlo para liberar memoria. Solo si hubo swap real (si el
-                // upload no devolvió URL, el blob sigue en uso como fallback).
-                if (uploadedImageUrl && typeof currentPreview === 'string' && currentPreview.startsWith('blob:')) {
-                    try { URL.revokeObjectURL(currentPreview); } catch { /* noop */ }
-                }
+                uploadedImageUrl = uploadedAttachments.find((item) => item.image_url)?.image_url || null;
+                setMessages((prev) => prev.map((message, index) => {
+                    if (index !== prev.length - 1 || message.role !== 'user' || !message.isImage) return message;
+                    const remote = uploadedAttachments.map((item) => ({
+                        id: item.attachment_id || item.id,
+                        url: item.url || item.thumbDataUrl,
+                        name: item.file?.name || item.sourceFile?.name,
+                        description: item.description,
+                        kind: item.kind,
+                        image_url: item.image_url,
+                    })).filter((item) => item.url);
+                    return { ...message, attachments: remote, imageUrl: remote[0]?.url || message.imageUrl };
+                }));
+                clearSelectedFile();
+                attachmentUploadCacheRef.current.clear();
             }
 
             // Interactuar por el chat normal SIEMPRE (incluso si solo hay imagen)
-            if (userMsg || currentFile || options.overrideImageUrl) {
+            if (userMsg || currentAttachments.length) {
                 // Incorporate image URL into promptToSend so it's persisted in DB
                 let promptToSend = userMsg || "";
-                if (currentFile && uploadedImageUrl) {
-                    promptToSend = `[IMAGE: ${uploadedImageUrl}]\n${promptToSend}`;
-                } else if (options.overrideImageUrl) {
-                    promptToSend = `[IMAGE: ${options.overrideImageUrl}]\n${promptToSend}`;
+                // Los adjuntos nuevos viven en la columna estructurada y renuevan su URL
+                // al leer historial. No persistimos su firma temporal dentro del texto;
+                // [IMAGE:] queda únicamente como compatibilidad para uploads legacy.
+                const durableUrls = uploadedAttachments
+                    .filter((item) => !item.attachment_id)
+                    .map((item) => item.image_url || item.url)
+                    .filter((url) => typeof url === 'string' && !url.startsWith('data:') && !url.startsWith('blob:'));
+                if (durableUrls.length) {
+                    promptToSend = `${durableUrls.map((url) => `[IMAGE: ${url}]`).join('\n')}\n${promptToSend}`;
                 }
 
                 // [P3-I18N-PROMPT-VISION-CLIENTE-ESPANOL · 2026-08-23] El contexto de la foto va
@@ -2196,16 +2342,17 @@ const AgentPage = () => {
                 // directiva de idioma del servidor intenta vencer. La hora tampoco viaja: el
                 // servidor ya la pone (`build_temporal_context`, con `local_date`/`tz_offset`).
                 // El turno del usuario vuelve a ser SOLO lo suyo (más el `[IMAGE: url]`).
-                let visionPayload = null;
-                if (currentFile && !visionDescription) {
-                    visionPayload = { kind: 'unavailable', reason: visionBusy ? 'busy' : 'down', has_text: !!userMsg };
-                } else if (visionDescription) {
-                    visionPayload = {
-                        kind: visionKind === 'otro' ? 'otro' : (visionKind === 'items' ? 'items' : 'plato'),
-                        description: visionDescription,
-                        has_text: !!userMsg,
-                    };
-                }
+                const visionItems = uploadedAttachments.map((item) => ({
+                    attachment_id: item.attachment_id || item.id,
+                    kind: item.description
+                        ? (item.kind === 'otro' ? 'otro' : (item.kind === 'items' ? 'items' : 'plato'))
+                        : 'unavailable',
+                    description: item.description || undefined,
+                    reason: item.reason || (item.busy ? 'busy' : (item.description ? undefined : 'down')),
+                }));
+                const visionPayload = visionItems.length
+                    ? { kind: 'multi', items: visionItems, has_text: !!userMsg }
+                    : null;
                 const enrichedPrompt = promptToSend;
 
                 setStreamingStatus(t('Conectando...'));
@@ -2247,6 +2394,13 @@ const AgentPage = () => {
                         user_id: session?.user?.id || userProfile?.id || localSessionId,
                         prompt: enrichedPrompt,
                         vision: visionPayload,
+                        attachments: uploadedAttachments.filter((item) => item.attachment_id).map((item, index) => ({
+                            attachment_id: item.attachment_id,
+                            position: index,
+                            name: item.name || item.file?.name || item.sourceFile?.name,
+                            content_type: item.file?.type || item.content_type,
+                        })),
+                        client_message_id: clientMessageId,
                         current_plan: planData,
                         form_data: formData,
                         local_date: localDateStr,
@@ -2560,9 +2714,11 @@ const AgentPage = () => {
                                         setStreamingStatus(null);
                                         setMessages(prev => [...prev, _buildAgentErrorMessage({
                                             status: 500,
-                                            detail: dataObj.message,
                                             retryPrompt: userMsg,
                                             retryImageUrl: uploadedImageUrl,
+                                            retryAttachments: _durableRetryAttachments(uploadedAttachments),
+                                            retryTruncateIndex: originalUserMessageIndex,
+                                            clientMessageId,
                                             isAgentError: true,
                                         })]);
                                     }
@@ -2579,13 +2735,13 @@ const AgentPage = () => {
                     // específico — el usuario debe saber si el problema es
                     // transitorio (reintentar pronto) o necesita esperar más
                     // (saturación). Quota/auth NO son retryables.
-                    let errData = {};
-                    try { errData = await response.json(); } catch (e) { /* ignore */ }
                     setMessages(prev => [...prev, _buildAgentErrorMessage({
                         status: response.status,
-                        detail: errData?.detail,
                         retryPrompt: userMsg,
                         retryImageUrl: uploadedImageUrl,
+                        retryAttachments: _durableRetryAttachments(uploadedAttachments),
+                        retryTruncateIndex: originalUserMessageIndex,
+                        clientMessageId,
                     })]);
                 }
             }
@@ -2600,9 +2756,11 @@ const AgentPage = () => {
             // copy "Sin conexión" + botón Reintentar.
             setMessages(prev => [...prev, _buildAgentErrorMessage({
                 status: 0,
-                detail: error?.message,
                 retryPrompt: userMsg,
                 retryImageUrl: uploadedImageUrl,
+                retryAttachments: _durableRetryAttachments(uploadedAttachments),
+                retryTruncateIndex: originalUserMessageIndex,
+                clientMessageId,
             })]);
         } finally {
             setIsLoading(false);
@@ -2614,6 +2772,10 @@ const AgentPage = () => {
             setAbortController(null);
         }
     };
+
+    useEffect(() => {
+        handleSendRef.current = handleSend;
+    }); // cada commit conserva la clausura más reciente sin una lista manual incompleta
 
     const handleStopGeneration = () => {
         if (abortController) {
@@ -2635,6 +2797,11 @@ const AgentPage = () => {
                 if (!last || !last.isStreaming) return prev;
                 return [...prev.slice(0, -1), { ...last, isStreaming: false }];
             });
+        }
+        if (isTurnActiveRef.current) {
+            _setTurnActive(false);
+            setIsLoading(false);
+            setStreamingStatus(null);
         }
         // [P1-CHAT-STOP-POWER · 2026-07-12] El stop también cancela la
         // recuperación de un turno huérfano ("Recuperando tu respuesta…"):
@@ -2666,7 +2833,27 @@ const AgentPage = () => {
         });
     };
 
-    const handleRegenerate = (modelMsgIndex) => {
+    const retryErrorMessage = useStableCallback((message) => {
+        if (!message?.retryable) return;
+        const useCurrentAttachments = Boolean(message.retryWithCurrentAttachments);
+        if (
+            !message.retryPrompt
+            && !message.retryImageUrl
+            && !message.retryAttachments?.length
+            && !useCurrentAttachments
+        ) return;
+        handleSend(message.retryPrompt || '', {
+            ...(useCurrentAttachments ? {} : {
+                overrideAttachments: message.retryAttachments || (message.retryImageUrl
+                    ? [{ id: 'legacy-retry', url: message.retryImageUrl, status: 'ready' }]
+                    : []),
+            }),
+            truncateIndex: message.retryTruncateIndex,
+            clientMessageId: message.clientMessageId,
+        });
+    });
+
+    const handleRegenerate = useStableCallback((modelMsgIndex) => {
         if (isTurnActiveRef.current) return;   // [P1-CHAT-TURN-ACTIVE] regenerar durante un turno abria un 2o stream
 
         const targetMsg = messagesRef.current[modelMsgIndex];
@@ -2699,10 +2886,13 @@ const AgentPage = () => {
             const lastUserMsg = messagesRef.current[lastUserMsgIdx];
             handleSend(lastUserMsg.content, {
                 truncateIndex: lastUserMsgIdx,
-                overrideImageUrl: lastUserMsg.imageUrl
+                overrideAttachments: lastUserMsg.attachments || (lastUserMsg.imageUrl
+                    ? [{ id: `legacy-${lastUserMsgIdx}`, url: lastUserMsg.imageUrl }]
+                    : []),
+                clientMessageId: lastUserMsg.clientMessageId,
             });
         }
-    };
+    });
 
     const handleKeyDown = (e) => {
         // [P1-CHAT-MOBILE-ENTER · 2026-08-10] En un teclado táctil NO existe
@@ -2761,6 +2951,11 @@ const AgentPage = () => {
             transition: 'transform 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
             willChange: 'transform',
         }}>
+            {!isOnline && (
+                <div className="chat-offline-status" role="status" aria-live="polite">
+                    {t('Sin conexión · borrador guardado')}
+                </div>
+            )}
             <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>
 
                 {isSpeaking && (
@@ -2805,49 +3000,44 @@ const AgentPage = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     background: isCentered ? 'var(--bg-muted)' : 'var(--bg-muted)',
-                    borderRadius: isCentered ? '2rem' : (previewUrl ? '1rem' : '2rem'),
-                    padding: isCentered ? '0.5rem 0.5rem 0.5rem 1rem' : (previewUrl ? '0.5rem' : '0.5rem 0.5rem 0.5rem 1rem'),
+                    borderRadius: isCentered ? '2rem' : (attachments.length ? '1rem' : '2rem'),
+                    padding: isCentered ? '0.5rem 0.5rem 0.5rem 1rem' : (attachments.length ? '0.5rem' : '0.5rem 0.5rem 0.5rem 1rem'),
                     boxShadow: 'none',
                     border: isCentered ? '1px solid var(--border)' : '1px solid var(--border)',
                     transition: 'all 0.2s ease',
                     minWidth: 0,
                     maxWidth: '100%'
                 }}>
-                    {/* Image Preview Area - Integrated inside the input container */}
-                    {previewUrl && (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            marginLeft: '3rem',
-                            marginBottom: '0.5rem',
-                            marginRight: '0.5rem'
-                        }}>
-                            <div style={{
-                                display: 'inline-block',
-                                position: 'relative',
-                                padding: '4px',
-                                background: 'var(--bg-card)',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border)',
-                                animation: 'fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-                            }}>
-                                <img src={previewUrl} alt="Preview" style={{ width: '48px', height: '48px', borderRadius: '6px', opacity: isLoading ? 0.5 : 1, objectFit: 'cover' }} />
-                                <button
-                                    type="button"
-                                    aria-label={t('Quitar imagen')}
-                                    onClick={() => clearSelectedFile()}
-                                    disabled={isTurnActive}
-                                    style={{
-                                        position: 'absolute', top: '-6px', right: '-6px',
-                                        background: '#ef4444', color: 'white', border: 'none',
-                                        borderRadius: '50%', width: '18px', height: '18px',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                    }}
-                                >
-                                    <X size={10} />
-                                </button>
-                            </div>
+                    {attachments.length > 0 && (
+                        <div
+                            className="attachment-rail"
+                            role="list"
+                            aria-label={t('Imágenes adjuntas')}
+                            aria-busy={attachmentsPreparing}
+                        >
+                            {attachments.map((item, index) => (
+                                <div className={`attachment-preview ${item.status}`} role="listitem" key={item.id}>
+                                    {item.status === 'ready' ? (
+                                        <img
+                                            src={item.thumbDataUrl || item.previewUrl}
+                                            alt={t('Imagen adjunta {number}', { number: index + 1 })}
+                                        />
+                                    ) : (
+                                        <div className="attachment-placeholder" aria-hidden="true"><ImageIcon size={22} /></div>
+                                    )}
+                                    {item.status === 'preparing' && <Loader2 className="attachment-spinner spin-fast" size={18} />}
+                                    {item.status === 'error' && <span className="attachment-error" aria-label={t('Error preparando imagen')}>!</span>}
+                                    <button
+                                        type="button"
+                                        aria-label={t('Quitar imagen {number}', { number: index + 1 })}
+                                        onClick={() => removeSelectedAttachment(item.id)}
+                                        disabled={isTurnActive}
+                                        className="attachment-remove"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     )}
 
@@ -2881,6 +3071,7 @@ const AgentPage = () => {
                                 // lo que el chat acepta de verdad, y de paso hace que iOS
                                 // priorice camara y fototeca.
                                 accept="image/*"
+                                multiple
                                 ref={fileInputRef}
                                 aria-hidden="true"
                                 tabIndex={-1}
@@ -2896,16 +3087,12 @@ const AgentPage = () => {
                             />
 
                             <button
+                                ref={attachmentTriggerRef}
                                 type="button"
                                 aria-label={t('Adjuntar imagen')}
-                                className={`attachment-btn ${isTurnActive ? 'disabled' : ''}`}
-                                disabled={isTurnActive}
-                                onClick={() => {
-                                    if (fileInputRef.current) {
-                                        fileInputRef.current.value = '';
-                                        fileInputRef.current.click();
-                                    }
-                                }}
+                                className={`attachment-btn ${(isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) ? 'disabled' : ''}`}
+                                disabled={isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT}
+                                onClick={openAttachmentPicker}
                                 title={t('Adjuntar imagen')}
                             >
                                 {/* [P1-CHAT-ADJUNTAR-MAS · 2026-08-23] `+` y no el clip: el
@@ -2982,8 +3169,8 @@ const AgentPage = () => {
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '50%',
-                                    width: '40px',
-                                    height: '40px',
+                                    width: '44px',
+                                    height: '44px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -3003,20 +3190,20 @@ const AgentPage = () => {
                                         {/* FUNCIONALIDAD DE VOZ (LLAMADA/MIC) DESACTIVADA TEMPORALMENTE */}
                                     </>
                                 )}
-                                {(input.trim() || selectedFile) && (
+                                {(input.trim() || attachments.length > 0) && (
                                     <button
                                         type="button"
                                         aria-label={t('Enviar')}
                                         className="touch-scale"
                                         onClick={handleSend}
-                                        disabled={isTurnActive}
+                                        disabled={isTurnActive || attachmentsHaveErrors}
                                         style={{
                                             background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
                                             color: 'white',
                                             border: 'none',
                                             borderRadius: '50%',
-                                            width: '40px',
-                                            height: '40px',
+                                            width: '44px',
+                                            height: '44px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
@@ -3072,26 +3259,48 @@ const AgentPage = () => {
     }, []);
 
     // --- Swipe gestures for mobile sidebar ---
-    const touchStartRef = useRef(null);
-    const touchEndRef = useRef(null);
+    const touchGestureRef = useRef(null);
 
-    const handleTouchStart = (e) => {
-        touchEndRef.current = null;
-        touchStartRef.current = e.targetTouches[0].clientX;
+    const handleTouchStart = (event) => {
+        if (!isMobile || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        const drawerWidth = Math.min(320, window.innerWidth * 0.85);
+        const eligible = showSidebar ? touch.clientX <= drawerWidth + 12 : touch.clientX <= 24;
+        touchGestureRef.current = eligible ? {
+            startX: touch.clientX,
+            startY: touch.clientY,
+            lastX: touch.clientX,
+            lastY: touch.clientY,
+            axis: null,
+        } : null;
     };
 
-    const handleTouchMove = (e) => {
-        touchEndRef.current = e.targetTouches[0].clientX;
+    const handleTouchMove = (event) => {
+        const gesture = touchGestureRef.current;
+        if (!gesture || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        gesture.lastX = touch.clientX;
+        gesture.lastY = touch.clientY;
+        const deltaX = Math.abs(gesture.lastX - gesture.startX);
+        const deltaY = Math.abs(gesture.lastY - gesture.startY);
+        if (!gesture.axis && Math.max(deltaX, deltaY) >= 10) {
+            gesture.axis = deltaX > deltaY * 1.25 ? 'x' : 'y';
+        }
     };
 
     const handleTouchEnd = () => {
-        if (!touchStartRef.current || !touchEndRef.current) return;
-        const distance = touchStartRef.current - touchEndRef.current;
-        if (distance < -60 && !showSidebar) {
-            setShowSidebar(true);
-        } else if (distance > 60 && showSidebar) {
-            setShowSidebar(false);
-        }
+        const gesture = touchGestureRef.current;
+        touchGestureRef.current = null;
+        if (!gesture || gesture.axis !== 'x') return;
+        const deltaX = gesture.lastX - gesture.startX;
+        const deltaY = Math.abs(gesture.lastY - gesture.startY);
+        if (Math.abs(deltaX) < 64 || Math.abs(deltaX) < deltaY * 1.5) return;
+        if (deltaX > 0 && !showSidebar) setShowSidebar(true);
+        if (deltaX < 0 && showSidebar) setShowSidebar(false);
+    };
+
+    const handleTouchCancel = () => {
+        touchGestureRef.current = null;
     };
 
     // [P2-AGENT-GROUPED-SESSIONS-MEMO · 2026-06-01] useMemo([chatSessions]). Antes
@@ -3199,8 +3408,8 @@ const AgentPage = () => {
                     color: var(--text-muted);
                     border: none;
                     border-radius: 50%;
-                    width: 40px;
-                    height: 40px;
+                    width: 44px;
+                    height: 44px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -3209,6 +3418,18 @@ const AgentPage = () => {
                     flex-shrink: 0;
                     outline: none;
                     -webkit-tap-highlight-color: transparent;
+                }
+                .chat-offline-status {
+                    width: fit-content;
+                    max-width: 100%;
+                    margin: 0 auto 0.45rem;
+                    padding: 0.3rem 0.7rem;
+                    border-radius: 999px;
+                    background: color-mix(in srgb, #f59e0b 14%, var(--bg-card));
+                    color: var(--text-main);
+                    font-size: 0.78rem;
+                    font-weight: 650;
+                    text-align: center;
                 }
                 .attachment-btn:not(.disabled):hover {
                     color: #3b82f6;
@@ -3222,11 +3443,83 @@ const AgentPage = () => {
                     opacity: 0.5;
                     cursor: default;
                 }
+                .attachment-rail {
+                    display: flex;
+                    gap: 0.65rem;
+                    overflow-x: auto;
+                    overscroll-behavior-x: contain;
+                    scrollbar-width: none;
+                    padding: 0.35rem 0.4rem 0.55rem 3rem;
+                    scroll-snap-type: x proximity;
+                }
+                .attachment-rail::-webkit-scrollbar { display: none; }
+                .attachment-preview {
+                    position: relative;
+                    flex: 0 0 64px;
+                    width: 64px;
+                    height: 64px;
+                    padding: 3px;
+                    border-radius: 12px;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    scroll-snap-align: start;
+                }
+                .attachment-preview > img {
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                    border-radius: 9px;
+                    object-fit: cover;
+                }
+                .attachment-placeholder {
+                    width: 100%;
+                    height: 100%;
+                    display: grid;
+                    place-items: center;
+                    border-radius: 9px;
+                    background: var(--bg-muted);
+                    color: var(--text-muted);
+                }
+                .attachment-preview.preparing > img { opacity: 0.55; }
+                .attachment-spinner,
+                .attachment-error {
+                    position: absolute;
+                    inset: 0;
+                    margin: auto;
+                    color: white;
+                    filter: drop-shadow(0 1px 3px rgba(0,0,0,.65));
+                }
+                .attachment-error {
+                    width: 24px;
+                    height: 24px;
+                    display: grid;
+                    place-items: center;
+                    border-radius: 999px;
+                    background: #dc2626;
+                    font-weight: 800;
+                    filter: none;
+                }
+                .attachment-remove {
+                    position: absolute;
+                    top: -14px;
+                    right: -14px;
+                    width: 44px;
+                    height: 44px;
+                    display: grid;
+                    place-items: center;
+                    border: 3px solid var(--bg-muted);
+                    border-radius: 999px;
+                    background: #dc2626;
+                    color: white;
+                    cursor: pointer;
+                    -webkit-tap-highlight-color: transparent;
+                }
             `}</style>
             <div className="agent-container"
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -3305,10 +3598,12 @@ const AgentPage = () => {
                     </div>
                 )}
                 {/* Overlay para móvil */}
-                {showSidebar && (
-                    <div
+                {showSidebar && isMobile && (
+                    <button
+                        type="button"
                         className="sidebar-overlay"
                         onClick={() => setShowSidebar(false)}
+                        aria-label={t('Cerrar historial de chats')}
                     />
                 )}
 
@@ -3324,6 +3619,8 @@ const AgentPage = () => {
                     setCurrentSessionId={setCurrentSessionId}
                     handleDeleteChat={handleDeleteChat}
                     isLoading={isTurnActive}
+                    isMobile={isMobile}
+                    sidebarRef={sidebarRef}
                 />
 
                 {/* Chat Area container */}
@@ -3342,7 +3639,7 @@ const AgentPage = () => {
                         padding: '0.75rem 1.25rem',
                         paddingTop: isMobile ? 'calc(0.75rem + max(env(safe-area-inset-top), 24px))' : '0.75rem',
                         background: messages.length === 0 ? 'var(--bg-card)' : 'var(--bg-card)',
-                        backdropFilter: messages.length === 0 ? 'none' : 'blur(8px)',
+                        backdropFilter: 'none',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -3354,6 +3651,7 @@ const AgentPage = () => {
                     }}>
                         {/* Left: Menu */}
                         <button
+                            ref={sidebarTriggerRef}
                             onClick={() => setShowSidebar(!showSidebar)}
                             style={{
                                 background: 'transparent',
@@ -3377,6 +3675,8 @@ const AgentPage = () => {
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                             aria-label={t('Ver historial de chats')}
+                            aria-controls="agent-history-drawer"
+                            aria-expanded={showSidebar}
                         >
                             <History size={24} strokeWidth={1.5} />
                         </button>
@@ -3407,6 +3707,7 @@ const AgentPage = () => {
                         {/* Right: 3-dot nav menu (mobile) */}
                         <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
                             <button
+                                ref={navMenuTriggerRef}
                                 onClick={() => setShowNavMenu(!showNavMenu)}
                                 style={{
                                     background: 'transparent',
@@ -3429,7 +3730,7 @@ const AgentPage = () => {
                                 <Menu size={24} strokeWidth={2} />
                             </button>
                             {showNavMenu && (
-                                <div className="nav-dropdown" style={{
+                                <div className="nav-dropdown" role="menu" aria-label={t('Navegación')} style={{
                                     position: 'absolute',
                                     top: '100%',
                                     right: 0,
@@ -3446,6 +3747,7 @@ const AgentPage = () => {
                                 }}>
                                     {menuItemsDelAgente(enModoContador).map((item) => (
                                         <button
+                                            role="menuitem"
                                             key={item.path}
                                             onClick={() => {
                                                 navigate(item.path, item.asDialog ? { state: { backgroundLocation: location } } : undefined);
@@ -3563,7 +3865,7 @@ const AgentPage = () => {
                                         <button
                                             key={idx}
                                             className="suggestion-pill"
-                                            onClick={() => setInput(suggestion.text)}
+                                            onClick={() => idx === 0 ? openAttachmentPicker() : setInput(suggestion.text)}
                                             style={{
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -3637,20 +3939,16 @@ const AgentPage = () => {
                                         </div>
                                     }>
                                         <VirtualizedMessageList
+                                            ref={virtualizedListRef}
                                             messages={messages}
                                             currentSessionId={currentSessionId}
                                             onRegenerate={handleRegenerate}
-                                            onErrorRetry={(msg) => {
-                                                // [P1-CHAT-ERROR-DIFF · 2026-05-19]
-                                                // El virtualizer pasa el msg al
-                                                // handler — re-emit del prompt.
-                                                if (!msg?.retryPrompt && !msg?.retryImageUrl) return;
-                                                handleSend(msg.retryPrompt || '', { overrideImageUrl: msg.retryImageUrl || undefined });
-                                            }}
+                                            onErrorRetry={retryErrorMessage}
                                             isLoading={isLoading}
                                             streamingStatus={streamingStatus}
                                             loadingPhrases={loadingPhrases}
                                             loadingPhraseIdx={loadingPhraseIdx}
+                                            onAtBottomChange={handleVirtualizedAtBottomChange}
                                         />
                                     </Suspense>
                                 </div>
@@ -3682,15 +3980,7 @@ const AgentPage = () => {
                                             index={i}
                                             currentSessionId={currentSessionId}
                                             onRegenerate={handleRegenerate}
-                                            onErrorRetry={() => {
-                                                // [P1-CHAT-ERROR-DIFF · 2026-05-19]
-                                                // Re-emite el prompt original
-                                                // como si el user lo enviara de
-                                                // nuevo. handleSend re-construye
-                                                // enriquecedor + setea Conectando.
-                                                if (!msg.retryPrompt && !msg.retryImageUrl) return;
-                                                handleSend(msg.retryPrompt || '', { overrideImageUrl: msg.retryImageUrl || undefined });
-                                            }}
+                                            onErrorRetry={retryErrorMessage}
                                         />
                                     ))
                                 )}
@@ -3741,9 +4031,7 @@ const AgentPage = () => {
                                                (el análisis tarda hasta un minuto). Es el único
                                                `streamingStatus` que se PINTA; los demás solo se usan como
                                                señal de «hay algo en curso». */
-                                            : (streamingStatus && streamingStatus === t('Analizando tu foto… puede tardar un minuto')
-                                                ? streamingStatus
-                                                : (streamingStatus ? loadingPhrases[loadingPhraseIdx] : t('Pensando...')))}</span>
+                                            : (streamingStatus || loadingPhrases[loadingPhraseIdx] || t('Pensando...'))}</span>
                                     </div>
                                 )}
                                 <div ref={messagesEndRef} />
@@ -3751,6 +4039,18 @@ const AgentPage = () => {
                             )
                         )}
                     </div>
+
+                    {showJumpToLatest && messages.length > 0 && (
+                        <button
+                            type="button"
+                            className="jump-to-latest"
+                            aria-label={t('Ir al mensaje más reciente')}
+                            title={t('Ir al mensaje más reciente')}
+                            onClick={() => scrollToBottom(true, 'smooth')}
+                        >
+                            <ArrowDown size={20} strokeWidth={2.4} />
+                        </button>
+                    )}
 
                     {/* Area condicional para input */}
                     {/* Input Area (Pinned to bottom if messages exist) */}
@@ -3760,6 +4060,14 @@ const AgentPage = () => {
 
                 </div> {/* End of Chat Area Container */}
             </div>
+
+            <AttachmentSourceSheet
+                open={showAttachmentSource}
+                onClose={() => setShowAttachmentSource(false)}
+                onGallery={() => runNativeImagePicker('gallery')}
+                onCamera={() => runNativeImagePicker('camera')}
+                triggerRef={attachmentTriggerRef}
+            />
 
             <style>{`
                 .markdown-chat { font-size: 0.95rem; line-height: 1.6; max-width: 100%; overflow-wrap: break-word; word-break: break-word; }
@@ -3828,8 +4136,8 @@ const AgentPage = () => {
                        igual quién llegue primero, porque debajo hay el mismo color.
                        :has() acota la regla a esta ruta (mismo patrón que Login.css) — sin
                        él, el resto del dashboard cambiaría de fondo. */
-                    html:has(.agent-container),
-                    body:has(.agent-container) {
+                    html:has(.agent-route-active),
+                    body:has(.agent-route-active) {
                         background-color: var(--bg-card) !important;
                     }
                     .agent-container {
@@ -3845,10 +4153,12 @@ const AgentPage = () => {
                     /* --- Header glassmorphism --- */
                     .mobile-chat-header {
                         background: var(--bg-card) !important;
-                        backdrop-filter: blur(20px) saturate(180%) !important;
-                        -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+                        backdrop-filter: none !important;
+                        -webkit-backdrop-filter: none !important;
                         border-bottom: 1px solid var(--border) !important;
                         padding: 0.75rem 1.25rem !important;
+                        padding-left: max(1.25rem, env(safe-area-inset-left, 0px)) !important;
+                        padding-right: max(1.25rem, env(safe-area-inset-right, 0px)) !important;
                         padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
                         position: absolute !important;
                         top: 0 !important;
@@ -3867,8 +4177,8 @@ const AgentPage = () => {
                     }
                     /* --- Messages area --- */
                     .messages-container {
-                        padding-left: 1rem !important;
-                        padding-right: 1rem !important;
+                        padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
+                        padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
                         padding-top: calc(4.5rem + max(env(safe-area-inset-top), 24px)) !important;
                         padding-bottom: 0.5rem !important;
                         background: var(--bg-card) !important;
@@ -3984,6 +4294,8 @@ const AgentPage = () => {
                            pestañas, no aire — la caja quedaba pegada a su borde superior
                            (captura del dueño, 2026-08-23 5:50). */
                         padding: 0.8rem 1.25rem calc(1.4rem + 64px + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
+                        padding-left: max(1.25rem, env(safe-area-inset-left, 0px)) !important;
+                        padding-right: max(1.25rem, env(safe-area-inset-right, 0px)) !important;
                         background: var(--bg-card) !important;
                         /* [P1-KB-SIN-DESENFOQUE · 2026-08-23] EL glitch del cierre. Habia
                            un blur(20px) de fondo AQUI, y el fondo de esta caja es OPACO
@@ -4003,6 +4315,26 @@ const AgentPage = () => {
                            curva y la duracion del teclado de iOS. */
                         transition: padding-bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
                         border-radius: 0 !important;
+                    }
+                    .jump-to-latest {
+                        position: absolute;
+                        right: max(1rem, env(safe-area-inset-right, 0px));
+                        bottom: calc(6.8rem + 64px + env(safe-area-inset-bottom, 0px));
+                        z-index: 18;
+                        width: 44px;
+                        height: 44px;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        border-radius: 999px;
+                        border: 1px solid var(--border);
+                        background: var(--bg-card);
+                        color: var(--text-main);
+                        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+                        cursor: pointer;
+                    }
+                    html[data-kb-open] .jump-to-latest {
+                        bottom: 6.25rem;
                     }
                     /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23 · corregido el 23] Con teclado no
                        hay barra de pestañas (ver BottomTabBar.module.css): la caja suelta la
@@ -4089,6 +4421,8 @@ const AgentPage = () => {
                         z-index: 25;
                         backdrop-filter: blur(3px);
                         -webkit-backdrop-filter: blur(3px);
+                        border: 0;
+                        padding: 0;
                     }
                 }
                 @media (min-width: 1025px) {

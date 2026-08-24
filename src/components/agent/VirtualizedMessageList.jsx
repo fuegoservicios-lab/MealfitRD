@@ -41,6 +41,7 @@ import React from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { Loader2 } from 'lucide-react';
 import { MemoizedMessageBubble } from './MessageBubble';
+import BotAvatar from './BotAvatar';
 // [P2-AGENT-VIRTUOSO-LAZY · 2026-05-31] El threshold vive en su propio módulo
 // liviano para que AgentPage lo lea sin importar este archivo (y con él
 // react-virtuoso). Re-exportado aquí para back-compat de cualquier importador.
@@ -61,7 +62,7 @@ const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry 
     </div>
 );
 
-export const VirtualizedMessageList = ({
+export const VirtualizedMessageList = React.forwardRef(({
     messages,
     currentSessionId,
     onRegenerate,
@@ -70,8 +71,33 @@ export const VirtualizedMessageList = ({
     streamingStatus,
     loadingPhrases,
     loadingPhraseIdx,
-}) => {
+    onAtBottomChange,
+}, ref) => {
     const t = useT();
+    const virtuosoRef = React.useRef(null);
+    const atBottomRef = React.useRef(true);
+
+    React.useImperativeHandle(ref, () => ({
+        isAtBottom: () => atBottomRef.current,
+        scrollToBottom: ({ behavior = 'auto' } = {}) => {
+            if (!messages.length) return;
+            virtuosoRef.current?.scrollToIndex({
+                index: messages.length - 1,
+                align: 'end',
+                behavior,
+            });
+        },
+        scrollToIndex: (index, options = {}) => {
+            if (!messages.length) return;
+            const safeIndex = Math.max(0, Math.min(Number(index) || 0, messages.length - 1));
+            virtuosoRef.current?.scrollToIndex({ index: safeIndex, align: 'center', ...options });
+        },
+    }), [messages.length]);
+
+    const handleAtBottomChange = React.useCallback((atBottom) => {
+        atBottomRef.current = Boolean(atBottom);
+        onAtBottomChange?.(Boolean(atBottom));
+    }, [onAtBottomChange]);
     const Footer = React.useCallback(() => {
         if (!isLoading) return null;
         return (
@@ -86,12 +112,7 @@ export const VirtualizedMessageList = ({
                 fontWeight: 500,
                 animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
             }}>
-                <div className="bot-avatar-mobile" style={{
-                    width: 30, height: 30, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'white', flexShrink: 0, fontSize: '1.1rem'
-                }}>🤖</div>
+                <BotAvatar size={34} thinking style={{ flexShrink: 0 }} />
                 <span style={{
                     background: 'linear-gradient(90deg, #475569 0%, #94a3b8 50%, #475569 100%)',
                     backgroundSize: '200% auto',
@@ -100,9 +121,7 @@ export const VirtualizedMessageList = ({
                     WebkitTextFillColor: 'transparent',
                     animation: 'shimmer 2s linear infinite',
                 }}>
-                    {streamingStatus
-                        ? (loadingPhrases?.[loadingPhraseIdx] ?? t('Procesando...'))
-                        : t('Pensando...')}
+                    {streamingStatus || (loadingPhrases?.[loadingPhraseIdx] ?? t('Pensando...'))}
                 </span>
             </div>
         );
@@ -114,14 +133,13 @@ export const VirtualizedMessageList = ({
             index={index}
             currentSessionId={currentSessionId}
             onRegenerate={onRegenerate}
-            // El path simple cierra sobre `msg` del .map; acá lo hacemos
-            // explícito porque itemContent es estable cross-render.
-            onErrorRetry={() => onErrorRetry && onErrorRetry(msg)}
+            onErrorRetry={onErrorRetry}
         />
     ), [currentSessionId, onRegenerate, onErrorRetry]);
 
     return (
         <Virtuoso
+            ref={virtuosoRef}
             data={messages}
             itemContent={itemContent}
             // Si el user está cerca del bottom, auto-scroll a nuevos
@@ -129,6 +147,8 @@ export const VirtualizedMessageList = ({
             followOutput="auto"
             // Scroll inicial al último mensaje (lo más reciente).
             initialTopMostItemIndex={messages.length > 0 ? messages.length - 1 : 0}
+            atBottomThreshold={120}
+            atBottomStateChange={handleAtBottomChange}
             components={{ Footer }}
             style={{
                 height: '100%',
@@ -141,6 +161,8 @@ export const VirtualizedMessageList = ({
             aria-label={t('Lista virtualizada de mensajes')}
         />
     );
-};
+});
+
+VirtualizedMessageList.displayName = 'VirtualizedMessageList';
 
 export default VirtualizedMessageList;
