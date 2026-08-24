@@ -174,6 +174,27 @@ describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS',
     });
 });
 
+describe('[P1-CHAT-KB-DOCUMENT-LOCK] Safari no separa el chat del teclado', () => {
+    const src = read('pages/AgentPage.jsx');
+
+    it('bloquea solo el documento web mientras la geometría confirma teclado abierto', () => {
+        expect(src).toMatch(/const bloquearDocumento = abierto && window\.navigator\?\.standalone !== true/);
+        expect(src).toMatch(/toggleAttribute\('data-kb-scroll-lock', bloquearDocumento\)/);
+        expect(src).toMatch(/window\.scrollTo\(0, 0\)/);
+    });
+
+    it('el blur y el cleanup liberan el bloqueo', () => {
+        expect(src.match(/removeAttribute\('data-kb-scroll-lock'\)/g)?.length).toBeGreaterThanOrEqual(2);
+        expect(src).toMatch(/removeEventListener\('scroll', mantenerDocumentoAnclado\)/);
+    });
+
+    it('fija el body exterior pero conserva el scroller de mensajes', () => {
+        expect(src).toMatch(/html\[data-kb-scroll-lock\] body\s*\{[^}]*position:\s*fixed/s);
+        expect(src).toMatch(/\.messages-container\s*\{[^}]*overscroll-behavior-y:\s*contain/s);
+        expect(src).toMatch(/-webkit-overflow-scrolling:\s*touch/);
+    });
+});
+
 describe('[P1-CHAT-HEADER-GAP] el primer turno no invade el encabezado', () => {
     it('el sentinel de scroll no consume el gap reservado entre mensajes', () => {
         const src = read('pages/AgentPage.jsx');

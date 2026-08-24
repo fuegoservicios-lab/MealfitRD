@@ -598,6 +598,7 @@ const AgentPage = () => {
         const root = typeof document !== 'undefined' ? document.documentElement : null;
         const resetViewportState = () => {
             root?.removeAttribute('data-kb-open');
+            root?.removeAttribute('data-kb-scroll-lock');
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
             if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
             if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
@@ -725,6 +726,19 @@ const AgentPage = () => {
             // que reserva sus 64 px por dentro. Señal en <html>: la barra se esconde y la
             // caja suelta la reserva (CSS en BottomTabBar.module.css y en este <style>).
             root.toggleAttribute('data-kb-open', abierto);
+            // [P1-CHAT-KB-DOCUMENT-LOCK · 2026-08-24] Safari web conserva un
+            // segundo plano de scroll (el documento) aunque el chat ya tenga su
+            // propio scroller. Al arrastrar desde un borde de la conversación,
+            // el gesto encadena al body y separa toda la app del teclado: aparece
+            // una franja con la barra URL entre ambos. En la PWA no se aplica:
+            // allí iOS redimensiona el documento y el compositor ya usa su lift
+            // dedicado. En Safari normal fijamos el documento y dejamos que solo
+            // .messages-container gestione el desplazamiento vertical.
+            const bloquearDocumento = abierto && window.navigator?.standalone !== true;
+            root.toggleAttribute('data-kb-scroll-lock', bloquearDocumento);
+            if (bloquearDocumento && (window.scrollX !== 0 || window.scrollY !== 0)) {
+                window.scrollTo(0, 0);
+            }
             // Al abrirse el teclado el área visible se reduce: sin esto, el último
             // mensaje queda fuera de cuadro justo cuando el usuario va a responder.
             // [P1-KB-VIEWPORT-MATH] Traer la cola a cuadro al abrirse el teclado, pero NO
@@ -792,6 +806,7 @@ const AgentPage = () => {
             }
             cerrandoRef.current = true;
             root?.removeAttribute('data-kb-open');
+            root?.removeAttribute('data-kb-scroll-lock');
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
@@ -801,6 +816,12 @@ const AgentPage = () => {
 
         vv.addEventListener('resize', alEvento);
         vv.addEventListener('scroll', alEvento);
+        const mantenerDocumentoAnclado = () => {
+            if (!root?.hasAttribute('data-kb-scroll-lock')) return;
+            if (window.scrollX === 0 && window.scrollY === 0) return;
+            window.scrollTo(0, 0);
+        };
+        window.addEventListener('scroll', mantenerDocumentoAnclado, { passive: true });
         document.addEventListener('focusout', alPerderElFoco);
         updateInputPosition();
         return () => {
@@ -808,6 +829,7 @@ const AgentPage = () => {
             if (asiento) clearTimeout(asiento);
             vv.removeEventListener('resize', alEvento);
             vv.removeEventListener('scroll', alEvento);
+            window.removeEventListener('scroll', mantenerDocumentoAnclado);
             // Cambiar de ruta con el teclado abierto no debe dejar la barra escondida.
             resetViewportState();
         };
@@ -4271,6 +4293,21 @@ const AgentPage = () => {
                     body:has(.agent-route-active) {
                         background-color: var(--bg-card) !important;
                     }
+                    /* [P1-CHAT-KB-DOCUMENT-LOCK · 2026-08-24] El historial conserva
+                       su scroll propio; lo que se inmoviliza es el documento exterior.
+                       Sin position fixed, overflow hidden no basta en Safari iOS: el
+                       navegador todavía permite encadenar el gesto al layout viewport. */
+                    html[data-kb-scroll-lock],
+                    html[data-kb-scroll-lock] body {
+                        height: 100% !important;
+                        overflow: hidden !important;
+                        overscroll-behavior: none !important;
+                    }
+                    html[data-kb-scroll-lock] body {
+                        position: fixed !important;
+                        inset: 0 !important;
+                        width: 100% !important;
+                    }
                     .agent-container {
                         border-radius: 0 !important;
                         border: none !important;
@@ -4315,6 +4352,8 @@ const AgentPage = () => {
                         background: var(--bg-card) !important;
                         -ms-overflow-style: none;
                         scrollbar-width: none;
+                        overscroll-behavior-y: contain;
+                        -webkit-overflow-scrolling: touch;
                     }
                     .messages-container::-webkit-scrollbar { display: none; }
                     /* [P1-CHAT-MOBILE-FIT · 2026-08-10] Los mensajes se apilan desde ABAJO,
