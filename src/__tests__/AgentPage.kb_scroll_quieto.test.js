@@ -152,18 +152,12 @@ describe('[P1-CHAT-AIRE-INFERIOR] la caja no lame el borde', () => {
 });
 
 describe('[P1-KB-PWA-FORM-ASSISTANT] el compositor queda sobre la barra de iOS', () => {
-    it('resuelve una sola posición y conserva el ancla entre eventos', () => {
+    it('resuelve una sola posición fija desde el primer evento abierto', () => {
         const src = read('pages/AgentPage.jsx');
         expect(src).toMatch(/resolverInsetTecladoEstable\(window, \{/);
-        expect(src).toMatch(/pwaAsentada: pwaTecladoAsentadoRef\.current/);
-        expect(src).toMatch(/pwaTecladoAsentadoRef\.current = resuelto\.pwaAsentada/);
-        expect(src).toMatch(/const objetivo = resuelto\.objetivo/);
+        expect(src).toMatch(/const objetivo = resolverInsetTecladoEstable/);
         expect(src).not.toMatch(/layoutInset \+ accesorioPwa/);
-    });
-
-    it('el blur y el reset liberan el ancla para la siguiente apertura', () => {
-        const src = read('pages/AgentPage.jsx');
-        expect(src.match(/pwaTecladoAsentadoRef\.current = false/g)).toHaveLength(2);
+        expect(src).not.toMatch(/pwaTecladoAsentadoRef/);
     });
 });
 

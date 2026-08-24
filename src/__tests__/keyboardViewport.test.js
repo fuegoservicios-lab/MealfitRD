@@ -160,49 +160,29 @@ describe('[P1-KB-PWA-ANCLA-ESTABLE] una apertura tiene un solo destino', () => {
     const pwaIos = { navigator: { standalone: true } };
     const safari = { navigator: { standalone: false } };
 
-    const correrFrame = (estado, cambios) => resolverInsetTecladoEstable(pwaIos, {
+    const correrFrame = (cambios) => resolverInsetTecladoEstable(pwaIos, {
         abierto: true,
-        pwaAsentada: estado.pwaAsentada,
         ...cambios,
     });
 
-    it('ignora medidas parciales, llega una vez a 60 y queda enclavado', () => {
-        let estado = { pwaAsentada: false };
-        const objetivos = [];
+    it('desde el primer frame abierto ignora medidas parciales y mantiene 60', () => {
+        const objetivos = [
+            correrFrame({ layoutInset: 140, documentoEncoge: false }),
+            correrFrame({ layoutInset: 220, documentoEncoge: false }),
+            correrFrame({ layoutInset: 170, documentoEncoge: true }),
+            correrFrame({ layoutInset: 145, documentoEncoge: false }),
+            correrFrame({ layoutInset: 0, documentoEncoge: true }),
+        ];
 
-        estado = correrFrame(estado, { layoutInset: 140, documentoEncoge: false });
-        objetivos.push(estado.objetivo);
-        estado = correrFrame(estado, { layoutInset: 220, documentoEncoge: false });
-        objetivos.push(estado.objetivo);
-        estado = correrFrame(estado, { layoutInset: 170, documentoEncoge: true });
-        objetivos.push(estado.objetivo);
-        // Frame tardío ruidoso: antes podía volver a separar el compositor.
-        estado = correrFrame(estado, { layoutInset: 145, documentoEncoge: false });
-        objetivos.push(estado.objetivo);
-        estado = correrFrame(estado, { layoutInset: 0, documentoEncoge: true });
-        objetivos.push(estado.objetivo);
-
-        expect(objetivos).toEqual([0, 0, 60, 60, 60]);
-        expect(estado.pwaAsentada).toBe(true);
+        expect(objetivos).toEqual([60, 60, 60, 60, 60]);
     });
 
-    it('el asiento final fija 60 si iOS omitió el frame de resize', () => {
-        expect(resolverInsetTecladoEstable(pwaIos, {
-            abierto: true,
-            layoutInset: 180,
-            documentoEncoge: false,
-            pwaAsentada: false,
-            forzar: true,
-        })).toEqual({ objetivo: 60, pwaAsentada: true });
-    });
-
-    it('cerrar limpia el ancla y no deja hueco residual', () => {
+    it('cerrar devuelve cero y no deja hueco residual', () => {
         expect(resolverInsetTecladoEstable(pwaIos, {
             abierto: false,
             layoutInset: 180,
             documentoEncoge: true,
-            pwaAsentada: true,
-        })).toEqual({ objetivo: 0, pwaAsentada: false });
+        })).toBe(0);
     });
 
     it('Safari conserva cada layoutInset sin aplicar la lógica standalone', () => {
@@ -210,7 +190,6 @@ describe('[P1-KB-PWA-ANCLA-ESTABLE] una apertura tiene un solo destino', () => {
             abierto: true,
             layoutInset: 187,
             documentoEncoge: true,
-            pwaAsentada: true,
-        })).toEqual({ objetivo: 187, pwaAsentada: false });
+        })).toBe(187);
     });
 });

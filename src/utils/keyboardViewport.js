@@ -73,35 +73,26 @@ export function insetAccesorioTecladoIosPwa(win, { abierto = false, documentoEnc
  *
  * Sumar cada medida a la barra auxiliar hacía recorrer 140 → 230 → 60 px. Se veía
  * elástico y, si el último evento llegaba con geometría ruidosa, el compositor quedaba
- * separado del teclado. En la PWA se espera el primer frame donde el documento ya se
- * está encogiendo, se aplica UNA vez la reserva conocida de 60 px y se enclava hasta el
- * cierre. `forzar` es el asiento final: cubre el caso raro donde iOS no emite ese frame.
+ * separado del teclado. La captura real del 24 mostró además el caso inverso: iOS no
+ * confirmó `documentoEncoge`, el destino quedó enclavado en 0 y la barra tapó el input.
+ *
+ * La señal estable no es un frame concreto sino el modo de ventana: en
+ * `navigator.standalone`, una vez que `abierto` cruza el umbral, el único destino válido
+ * es la reserva conocida de 60 px. CSS conserva su transición de 0 → 60; los siguientes
+ * eventos reescriben 60 y por tanto no producen movimiento adicional.
  *
  * Safari/Android/escritorio no entran en este camino y conservan `layoutInset` intacto.
  *
- * @returns {{objetivo:number, pwaAsentada:boolean}}
+ * @returns {number}
  */
 export function resolverInsetTecladoEstable(win, {
     abierto = false,
-    documentoEncoge = false,
     layoutInset = 0,
-    pwaAsentada = false,
-    forzar = false,
 } = {}) {
     const standaloneIos = win?.navigator?.standalone === true;
-    if (!abierto) return { objetivo: 0, pwaAsentada: false };
-    if (!standaloneIos) {
-        return {
-            objetivo: Math.max(0, Math.round(Number(layoutInset) || 0)),
-            pwaAsentada: false,
-        };
-    }
-
-    const asentada = Boolean(pwaAsentada || documentoEncoge || forzar);
-    return {
-        objetivo: asentada ? IOS_PWA_KEYBOARD_ACCESSORY_PX : 0,
-        pwaAsentada: asentada,
-    };
+    if (!abierto) return 0;
+    if (standaloneIos) return IOS_PWA_KEYBOARD_ACCESSORY_PX;
+    return Math.max(0, Math.round(Number(layoutInset) || 0));
 }
 
 /**
