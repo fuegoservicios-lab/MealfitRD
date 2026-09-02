@@ -10,21 +10,19 @@
  * ya se había arreglado cacheando UNA key (P2-SCAN-BTN-STABLE) y los banners
  * se quedaron fuera de la receta.
  *
- * Fix: se cachea el payload entero del status (4º dataset de pantryCache,
- * TTL 10 min) y el estado inicial hidrata de ahí; el fetch diferido
+ * Fix: se cachea el payload entero del status (4º dataset de pantryCache) y
+ * el estado inicial hidrata de ahí, incluso stale; el fetch diferido
  * reconcilia. La key suelta del scan queda como fallback de transición.
  *
- * La invalidación va AMARRADA a la del inventario: el status deriva de él
- * (is_below = conteo bajo el umbral), y un status cacheado sobreviviendo a un
- * inventario invalidado dejaría el banner afirmando un conteo que ya no
- * existe.
+ * Invalidar el inventario no abre un hueco: conserva el snapshot hasta que el
+ * servidor y la lista visible confirman el nuevo estado.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import {
     getCachedPantryStatus, setCachedPantryStatus,
-    invalidateInventoryCache, _resetPantryCacheForTests,
+    invalidateInventoryCache, reconcilePantryStatus, _resetPantryCacheForTests,
 } from '../utils/pantryCache';
 
 const STATUS = { is_below: true, meaningful_count: 0, recommended_target: 20, photo_scan_enabled: true };
@@ -44,12 +42,12 @@ describe('[P1-PANTRY-STATUS-PERSIST] el status de la nevera se cachea', () => {
         expect(JSON.parse(crudo).value).toEqual(STATUS);
     });
 
-    it('caducado no se sirve y se barre del disco', () => {
+    it('un aviso caducado sigue en el primer paint mientras se revalida', () => {
         localStorage.setItem('mealfit_pantry_status_cache_v1', JSON.stringify({
             value: STATUS, expiresAt: Date.now() - 1000,
         }));
-        expect(getCachedPantryStatus()).toBeUndefined();
-        expect(localStorage.getItem('mealfit_pantry_status_cache_v1')).toBeNull();
+        expect(getCachedPantryStatus()).toEqual(STATUS);
+        expect(localStorage.getItem('mealfit_pantry_status_cache_v1')).toBeTruthy();
     });
 
     it('payloads que no son objeto se ignoran (fail-open)', () => {
@@ -58,12 +56,20 @@ describe('[P1-PANTRY-STATUS-PERSIST] el status de la nevera se cachea', () => {
         expect(getCachedPantryStatus()).toBeUndefined();
     });
 
-    it('invalidar el INVENTARIO arrastra el status: deriva de él', () => {
-        // Sin este amarre, borras la nevera y el banner sigue diciendo el
-        // conteo viejo hasta que el TTL lo recoja.
+    it('invalidar el inventario conserva el aviso hasta la revalidación', () => {
         setCachedPantryStatus(STATUS);
         invalidateInventoryCache();
-        expect(getCachedPantryStatus()).toBeUndefined();
+        expect(getCachedPantryStatus()).toEqual(STATUS);
+    });
+
+    it('una respuesta fail-soft no oculta el aviso si la lista sigue vacía', () => {
+        const failSoft = { is_below: false, meaningful_count: 0, min_required: 3 };
+        expect(reconcilePantryStatus(STATUS, failSoft, 0)).toEqual(STATUS);
+    });
+
+    it('retira el aviso cuando servidor y lista confirman que alcanzó el mínimo', () => {
+        const resolved = { is_below: false, meaningful_count: 3, min_required: 3 };
+        expect(reconcilePantryStatus(STATUS, resolved, 3)).toEqual(resolved);
     });
 });
 
@@ -82,6 +88,6 @@ describe('[P1-PANTRY-STATUS-PERSIST] Pantry hidrata y persiste', () => {
     it('el fetch diferido persiste el payload para el próximo primer paint', () => {
         const i = SRC.indexOf("fetchWithAuth('/api/plans/pantry-status')");
         expect(i).toBeGreaterThan(-1);
-        expect(SRC.slice(i, i + 700)).toMatch(/setCachedPantryStatus\(data\)/);
+        expect(SRC.slice(i, i + 1000)).toMatch(/setCachedPantryStatus\(reconciled\)/);
     });
 });

@@ -29,6 +29,7 @@ import Dashboard from '../pages/Dashboard';
 import * as router from 'react-router-dom';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { fetchWithAuth, getPlanChunkStatus } from '../config/api';
+import { syncPausedChunkStatusCache } from '../utils/chunkStatusCache';
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
@@ -184,6 +185,23 @@ describe('[P2-CHUNK-OVERDUE-SIGNAL] recuperación de días atrasados desde el Da
         // aviso de arriba» remitía a la nada.
         expect(await screen.findByText(/Tu próximo bloque está pausado/i)).toBeInTheDocument();
         expect(screen.getByText(/Tu nevera está vacía/i)).toBeInTheDocument();
+    });
+
+    it('el banner pausado está en el primer render tras refrescar, antes de que responda /chunk-status', () => {
+        syncPausedChunkStatusCache('plan-rolling', {
+            pending_user_action_count: 1,
+            in_flight_count: 0,
+            paused_chunks: [{ reason_code: 'unknown_reason' }],
+        });
+        // La petición queda pendiente a propósito: si el render dependiera de
+        // ella, el aviso no existiría durante este assert síncrono.
+        vi.mocked(getPlanChunkStatus).mockReturnValue(new Promise(() => {}));
+
+        const { unmount } = render(<Dashboard />, { customContext: { ..._baseContext, planData: _planRolling() } });
+
+        expect(screen.getByText(/Tu próximo bloque está pausado/i)).toBeInTheDocument();
+        expect(screen.getByText(/El sistema espera tu acción para continuar/i)).toBeInTheDocument();
+        unmount();
     });
 
     // [Ronda extra] El gate del banner exigía además `in_flight_count === 0`,

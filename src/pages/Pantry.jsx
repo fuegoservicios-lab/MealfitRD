@@ -34,7 +34,7 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
-import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus } from '../utils/pantryCache';
+import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus, reconcilePantryStatus } from '../utils/pantryCache';
 import { medirTecladoDeVentana } from '../utils/keyboardViewport';
 // [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
@@ -462,6 +462,20 @@ const Pantry = () => {
     const [pantryStatus, setPantryStatus] = useState(() => {
         const cached = getCachedPantryStatus();
         if (cached) return cached;
+        // Inventario vacío ya cacheado = hecho conocido en el primer render.
+        // No hace falta esperar al endpoint para saber que cero está por debajo
+        // de cualquier mínimo positivo. El fetch inmediato completa luego los
+        // valores configurables y el flag del escáner.
+        const cachedInventory = getCachedInventory();
+        if (Array.isArray(cachedInventory) && cachedInventory.length === 0) {
+            return {
+                is_below: true,
+                meaningful_count: 0,
+                min_required: 1,
+                recommended_target: 20,
+                photo_scan_enabled: safeLocalStorageGet('mealfit_scan_btn', null) === '1',
+            };
+        }
         const v = safeLocalStorageGet('mealfit_scan_btn', null);
         return v === '1' ? { photo_scan_enabled: true } : null;
     });
@@ -492,11 +506,14 @@ const Pantry = () => {
                 if (resp?.ok) {
                     const data = await resp.json();
                     if (!cancelled) {
-                        setPantryStatus(data);
-                        // [P2-SCAN-BTN-STABLE] persistir para el próximo primer paint.
-                        // [P1-PANTRY-STATUS-PERSIST · 2026-08-14] ahora el payload
-                        // entero — el banner de nevera baja también es primer paint.
-                        setCachedPantryStatus(data);
+                        setPantryStatus((previous) => {
+                            const reconciled = reconcilePantryStatus(previous, data, inventory.length);
+                            // [P2-SCAN-BTN-STABLE] persistir para el próximo primer paint.
+                            // [P1-PANTRY-STATUS-PERSIST · 2026-08-14] ahora el payload
+                            // entero — el banner de nevera baja también es primer paint.
+                            setCachedPantryStatus(reconciled);
+                            return reconciled;
+                        });
                         safeLocalStorageSet('mealfit_scan_btn', data?.photo_scan_enabled ? '1' : '0');
                     }
                 }

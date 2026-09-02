@@ -71,3 +71,14 @@ describe('[P1-NOTEBOOK-MARGIN-EMPTY] el margen rojo no atraviesa el estado vací
         expect(DASH).toMatch(/dayHasMealCards\s*=[^;]*_isSupplementEntry/);
     });
 });
+
+describe('[P1-PAUSED-BANNER-NOTEBOOK] el aviso convive con el margen cuando sí hay platos', () => {
+    it('el banner tiene una clase propia y se desplaza solo en escritorio', () => {
+        expect(DASH).toMatch(/role="status"\s+className="chunk-paused-banner"/);
+
+        const desktop = DASH.match(/@media \(min-width:\s*769px\)\s*\{\s*\.chunk-paused-banner\s*\{([^}]*)\}/);
+        expect(desktop, 'falta el ajuste exclusivo de escritorio para el aviso pausado').toBeTruthy();
+        expect(desktop[1]).toMatch(/margin-left:\s*4rem/);
+        expect(desktop[1]).toMatch(/margin-right:\s*2rem/);
+    });
+});

@@ -112,10 +112,10 @@ export const setCachedInventory = (rows, ttlMs = _INVENTORY_TTL_MS) => {
 export const invalidateInventoryCache = () => {
     _inventoryEntry = null;
     _safeLsRemove(_INVENTORY_LS_KEY);
-    // [P1-PANTRY-STATUS-PERSIST · 2026-08-14] El status DERIVA del inventario
-    // (is_below = conteo bajo el umbral): un inventario invalidado con status
-    // cacheado dejaría el banner afirmando un conteo que ya no existe.
-    invalidatePantryStatusCache();
+    // El status se conserva como snapshot stale hasta que /pantry-status lo
+    // revalide. Borrarlo aquí abría un hueco visual al navegar/refrescar justo
+    // después de una invalidación. Las mutaciones siguen disparando el fetch;
+    // el snapshot no decide el estado final, solo evita un frame sin aviso.
 };
 
 export const getCachedMasterList = () => {
@@ -319,11 +319,8 @@ const _STATUS_LS_KEY = 'mealfit_pantry_status_cache_v1';
 
 export const getCachedPantryStatus = () => {
     if (_statusEntry) {
-        if (typeof _statusEntry.expiresAt === 'number' && Date.now() > _statusEntry.expiresAt) {
-            _statusEntry = null;
-            _safeLsRemove(_STATUS_LS_KEY);
-            return undefined;
-        }
+        // Stale-while-revalidate: el vencimiento decide cuándo consultar la
+        // red, no si el primer paint debe olvidar un aviso ya confirmado.
         return _statusEntry.value;
     }
     try {
@@ -332,16 +329,35 @@ export const getCachedPantryStatus = () => {
             const parsed = JSON.parse(raw);
             const v = parsed && parsed.value;
             if (v && typeof v === 'object' && !Array.isArray(v)) {
-                if (typeof parsed.expiresAt === 'number' && Date.now() > parsed.expiresAt) {
-                    _safeLsRemove(_STATUS_LS_KEY);
-                    return undefined;
-                }
                 _statusEntry = parsed;
                 return v;
             }
         }
     } catch { /* parse/quota — fail-open */ }
     return undefined;
+};
+
+export const reconcilePantryStatus = (previous, incoming, inventoryCount) => {
+    if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return previous;
+    if (incoming.is_below === true) return incoming;
+
+    // El endpoint es fail-soft y ante un error interno devuelve HTTP 200 con
+    // is_below=false. Si la propia lista visible sigue por debajo del mínimo,
+    // esa respuesta no puede retirar un aviso confirmado: hacerlo produce el
+    // ciclo amarillo→vacío→amarillo en cada reintento de red.
+    if (previous?.is_below === true) {
+        const visibleCount = Number(inventoryCount);
+        const minRequired = Number(incoming.min_required ?? previous.min_required);
+        if (Number.isFinite(visibleCount)
+            && Number.isFinite(minRequired)
+            && visibleCount < minRequired) {
+            return {
+                ...previous,
+                photo_scan_enabled: incoming.photo_scan_enabled ?? previous.photo_scan_enabled,
+            };
+        }
+    }
+    return incoming;
 };
 
 export const setCachedPantryStatus = (status, ttlMs = _INVENTORY_TTL_MS) => {
