@@ -2406,7 +2406,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     // plan" sin idea de cuánto duraría → ansiedad + intentos de cancelar
     // prematuros.
     //
-    // Calibración real (logs prod 2026-06-17, era DeepSeek V4): el pipeline
+    // Calibración real (logs prod 2026-06-17, con el proveedor LLM anterior): el pipeline
     // completo tarda ~3-5 min (skeleton ~22s + day_gen paralelo ~30s +
     // self-critique ~2min + reviewer + assembly). MUCHO más rápido que los
     // 12-13 min de la era Gemini (free-tier que saturaba pool).

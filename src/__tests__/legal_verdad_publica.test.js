@@ -60,7 +60,7 @@ const REFUTADAS = [
     // (P1-IOS-NATIVE-SHELL). Las mismas frases se retiraron del apex ese día.
     {
         frase: 'actualmente el proveedor es',
-        porque: 'nombra UN proveedor de IA y hay dos (DeepSeek + OpenAI); omitir al que recibe las fotos es omitir a un destinatario',
+        porque: 'nombra UN proveedor de IA y hay dos (Z.ai + OpenAI); omitir al que recibe las fotos es omitir a un destinatario',
     },
     {
         frase: 'actualmente el proveedor de inferencia es',
