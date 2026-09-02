@@ -951,6 +951,8 @@
   "Generado: {fecha}": "Generated: {fecha}",
   "General": "General",
   "Generando": "Generating",
+  "En uso": "In use",
+  "Sustituirá a tu plan en uso cuando esté listo.": "It will replace your plan in use once it is ready.",
   "Generando PDF de alta calidad...": "Generating high-quality PDF...",
   "Generando Plan…": "Generating Plan…",
   "Generando la semana nuevamente...": "Generating the week again...",

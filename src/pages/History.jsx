@@ -1973,13 +1973,28 @@ const History = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [_planUrl, plans, loading, selectedPlan, _quitarPlanDeUrl]);
 
-    const activePlanId = useMemo(() => {
+    // [P1-ARQ25-F1-CLOSE · 2026-09-02] Con un plan generándose (placeholder de la cola, sin
+    // días) el HERO es ese plan («Generando») y el que el panel sirve mientras tanto baja a la
+    // lista con la etiqueta «En uso». Antes el hero decía «PLAN ACTIVO» sobre el anterior y el
+    // nuevo era una fila más: el dueño lo leyó como que no había nada generándose.
+    const generatingPlanId = useMemo(() => {
+        const g = plans.find((p) => {
+            const status = typeof p.generation_status === 'string' ? p.generation_status : p.plan_data?.generation_status;
+            const days = typeof p.days_generated === 'number' ? p.days_generated
+                : (Array.isArray(p.plan_data?.days) ? p.plan_data.days.length : 0);
+            return status === 'generating' && days === 0;
+        });
+        return g ? g.id : null;
+    }, [plans]);
+    const usablePlanId = useMemo(() => {
         if (!currentPlanId) return null;
         const cp = plans.find((p) => p.id === currentPlanId);
         if (!cp) return null;
         const info = getStatusInfo(cp);
         return (info.daysGenerated > 0 && info.bucket !== 'failed') ? currentPlanId : null;
     }, [currentPlanId, plans]);
+    const activePlanId = generatingPlanId || usablePlanId;
+    const inUsePlanId = generatingPlanId ? usablePlanId : null;
 
     return (
         <>
@@ -1998,6 +2013,7 @@ const History = () => {
                     plans={plans}
                     total={plans.length}
                     activePlanId={activePlanId}
+                    inUsePlanId={inUsePlanId}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     onOpen={openPlanModal}
@@ -2018,6 +2034,7 @@ const History = () => {
                     plans={plans}
                     total={plans.length}
                     activePlanId={activePlanId}
+                    inUsePlanId={inUsePlanId}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     onOpen={openPlanModal}

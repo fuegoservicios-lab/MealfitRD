@@ -48,3 +48,27 @@ describe('P1-ARQ25-F1-CLOSE · controles ocultos', () => {
         expect(mobile).toContain('{!editing && !plan.generating && (');
     });
 });
+
+describe('P1-ARQ25-F1-CLOSE · el hero es el plan que se genera; el anterior queda «En uso»', () => {
+    const history = fs.readFileSync(path.resolve(_dir, '../pages/History.jsx'), 'utf8');
+    it('History.jsx elige el placeholder como activo y baja el vigente a inUsePlanId', () => {
+        expect(history).toContain('const activePlanId = generatingPlanId || usablePlanId;');
+        expect(history).toContain('const inUsePlanId = generatingPlanId ? usablePlanId : null;');
+        expect(history.match(/inUsePlanId=\{inUsePlanId\}/g)).toHaveLength(2);
+    });
+    it.each([['escritorio', desktop], ['móvil', mobile]])('%s: etiqueta «En uso» y hero/badge «Generando»', (_n, src) => {
+        expect(src).toContain('inUse: !!inUsePlanId && raw.id === inUsePlanId,');
+        expect(src).toContain('data-testid="history-inuse-badge"');
+        expect(src).toContain('{t("En uso")}');
+    });
+    it('escritorio: el hero generando no ofrece «Ver plan» ni lápiz y explica que sustituirá al plan en uso', () => {
+        expect(desktop).toContain('{plan.generating ? t("Generando") : (paused ? t("Plan en pausa") : t("Plan activo"))}');
+        expect(desktop).toContain('{!plan.generating && <PencilButton onEdit={onEdit} size={15} />}');
+        expect(desktop).toContain('{!plan.generating && (<button type="button" className="mf-cta-solid"');
+        expect(desktop).toContain('t("Sustituirá a tu plan en uso cuando esté listo.")');
+    });
+    it('móvil: activeBadge distingue generando', () => {
+        expect(mobile).toContain('const activeBadge = (paused = false, generating = false) => (');
+        expect(mobile).toContain('activeBadge(paused, plan.generating)');
+    });
+});

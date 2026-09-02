@@ -57,7 +57,7 @@ const parseGrams = (v) => { const n = parseInt(String(v ?? ""), 10); return Numb
 // [P1-PLAN-DISPLAY-I18N · fase 1c] `locale` opcional: mismo contrato que la
 // gemela de escritorio (`HistoryDesktopPanel::normalizePlan`) — fallback a
 // `raw.plan_display_names[locale]` antes del `name` canónico español.
-function normalizePlan(raw, activePlanId, locale) {
+function normalizePlan(raw, activePlanId, locale, inUsePlanId = null) {
   const rawMeals = Array.isArray(raw.preview_meals)
     ? raw.preview_meals
     : firstDayMeals(raw.plan_data);
@@ -75,6 +75,7 @@ function normalizePlan(raw, activePlanId, locale) {
     generating: raw.generation_status === 'generating'
       && Number(typeof raw.days_generated === 'number' ? raw.days_generated
         : (Array.isArray(raw.plan_data?.days) ? raw.plan_data.days.length : 0)) === 0,
+    inUse: !!inUsePlanId && raw.id === inUsePlanId,
     kcal: typeof raw.calories === "number" ? raw.calories : (parseInt(raw.calories, 10) || 0),
     macros: { p: parseGrams(raw.macros?.protein), c: parseGrams(raw.macros?.carbs), g: parseGrams(raw.macros?.fats) },
     meals,
@@ -159,7 +160,8 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
         <span style={emblem}>{plan.generating ? <Loader2 size={22} strokeWidth={2.25} className="spin-animation" aria-hidden="true" /> : <CalendarDays size={22} strokeWidth={2.25} />}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {plan.active && <div style={{ marginBottom: 5 }}>{activeBadge(paused)}</div>}
+          {plan.active && <div style={{ marginBottom: 5 }}>{activeBadge(paused, plan.generating)}</div>}
+          {plan.inUse && <div style={{ marginBottom: 5 }}><span data-testid="history-inuse-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--secondary)", background: "color-mix(in srgb, var(--secondary) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--secondary) 34%, transparent)", whiteSpace: "nowrap" }}>{t("En uso")}</span></div>}
           {editing ? (
             <NameEditor tempName={tempName} setTempName={setTempName} onSave={onEditSave} onCancel={onEditCancel} />
           ) : (
@@ -197,6 +199,7 @@ export default function HistoryMobilePanel({
   total = 0,
   activePlanId = null,
   paused = false,
+  inUsePlanId = null,
   searchQuery = "",
   setSearchQuery = () => {},
   onOpen = () => {},
@@ -214,8 +217,8 @@ export default function HistoryMobilePanel({
   const { locale } = useI18n();
   const q = searchQuery.trim().toLowerCase();
   const normalized = useMemo(
-    () => plans.map((p) => normalizePlan(p, activePlanId, locale)),
-    [plans, activePlanId, locale]
+    () => plans.map((p) => normalizePlan(p, activePlanId, locale, inUsePlanId)),
+    [plans, activePlanId, locale, inUsePlanId]
   );
   const active = normalized.find((p) => p.active);
   const rest = useMemo(() => normalized.filter((p) => !p.active && (!q || p.name.toLowerCase().includes(q))).sort((a, b) => b.date - a.date), [normalized, q]);
@@ -298,14 +301,14 @@ const emblem = { flex: "none", width: 44, height: 44, borderRadius: 12, display:
    poder decir «En pausa» (ambar, sin vida) cuando el modo contador esta activo.
    Misma correccion que el hero de escritorio — la insignia derivaba «activo» de
    la mera existencia del plan, que la pausa conserva a proposito. */
-const activeBadge = (paused = false) => (
+const activeBadge = (paused = false, generating = false) => (
   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".58rem", fontWeight: 800, letterSpacing: ".07em",
     textTransform: "uppercase",
     color: paused ? "#FBBF24" : "var(--secondary)",
     background: paused ? "color-mix(in srgb, #FBBF24 14%, transparent)" : "color-mix(in srgb, var(--secondary) 16%, transparent)",
     border: `1px solid ${paused ? "color-mix(in srgb, #FBBF24 34%, transparent)" : "color-mix(in srgb, var(--secondary) 36%, transparent)"}`,
     padding: "3px 9px", borderRadius: 99 }}>
-    <i style={{ width: 5, height: 5, borderRadius: "50%", background: paused ? "#FBBF24" : "var(--secondary)" }} /> {paused ? t("En pausa") : t("Activo")}
+    <i style={{ width: 5, height: 5, borderRadius: "50%", background: paused ? "#FBBF24" : "var(--secondary)" }} /> {generating ? t("Generando") : (paused ? t("En pausa") : t("Activo"))}
   </span>
 );
 const cardIconBtn = { flex: "none", width: 30, height: 30, borderRadius: 9, display: "grid", placeItems: "center", cursor: "pointer",

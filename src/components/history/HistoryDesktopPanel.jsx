@@ -110,7 +110,7 @@ const parseGrams = (v) => { const n = parseInt(String(v ?? ""), 10); return Numb
 // `_display` completo — esa key nunca llega al listado (solo al modal, que abre
 // `plan_data` completo vía `History.jsx`). Fallback silencioso si falta la
 // traducción o `locale` es es-DO (el backend nunca la escribe para ese caso).
-function normalizePlan(raw, activePlanId, locale) {
+function normalizePlan(raw, activePlanId, locale, inUsePlanId = null) {
   const rawMeals = Array.isArray(raw.preview_meals)
     ? raw.preview_meals
     : firstDayMeals(raw.plan_data);
@@ -128,6 +128,7 @@ function normalizePlan(raw, activePlanId, locale) {
     generating: raw.generation_status === 'generating'
       && Number(typeof raw.days_generated === 'number' ? raw.days_generated
         : (Array.isArray(raw.plan_data?.days) ? raw.plan_data.days.length : 0)) === 0,
+    inUse: !!inUsePlanId && raw.id === inUsePlanId,
     kcal: typeof raw.calories === "number" ? raw.calories : (parseInt(raw.calories, 10) || 0),
     macros: { p: parseGrams(raw.macros?.protein), c: parseGrams(raw.macros?.carbs), g: parseGrams(raw.macros?.fats) },
     meals,
@@ -281,7 +282,7 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
       background: "linear-gradient(135deg, color-mix(in srgb, var(--secondary) 14%, transparent), transparent 55%), var(--bg-page)" }}>
       <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: "linear-gradient(var(--secondary), color-mix(in srgb, var(--secondary) 40%, transparent))" }} />
       <div style={{ display: "flex", alignItems: "flex-start", gap: 15 }}>
-        <span style={emblem(50)}><CalendarDays size={25} strokeWidth={2.25} /></span>
+        <span style={emblem(50)}>{plan.generating ? <Loader2 size={25} strokeWidth={2.25} className="spin-animation" aria-hidden="true" /> : <CalendarDays size={25} strokeWidth={2.25} />}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: ".62rem", fontWeight: 800,
             letterSpacing: ".07em", textTransform: "uppercase",
@@ -293,7 +294,7 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
             <i style={{ width: 6, height: 6, borderRadius: "50%",
               background: paused ? "#FBBF24" : "var(--secondary)",
               boxShadow: paused ? "none" : "0 0 8px var(--secondary)" }} />
-            {paused ? t("Plan en pausa") : t("Plan activo")}
+            {plan.generating ? t("Generando") : (paused ? t("Plan en pausa") : t("Plan activo"))}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "9px 0 3px", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: 800, letterSpacing: "-.015em", color: "var(--text-main)" }}>
             {editing ? (
@@ -301,11 +302,12 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
             ) : (
               <>
                 <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
-                <PencilButton onEdit={onEdit} size={15} />
+                {!plan.generating && <PencilButton onEdit={onEdit} size={15} />}
               </>
             )}
           </div>
           <div style={metaRow}><Icon name="clock" size={13} /> {fmtDate(plan.date)} · {fmtTime(plan.date)}</div>
+          {plan.generating && <div style={{ ...metaRow, marginTop: 6 }}>{t("Sustituirá a tu plan en uso cuando esté listo.")}</div>}
           <RecipeChips meals={plan.meals} max={4} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
@@ -313,7 +315,7 @@ function PlanHero({ plan, paused = false, onOpen, onEdit, editing, tempName, set
           {/* [P1-CTA-HOVER-PARITY · 2026-08-13] La clase aporta LO ÚNICO que un
               estilo inline no puede declarar: las sombras de :hover/:active.
               El resto del botón sigue viniendo de btn("primary"). */}
-          <button type="button" className="mf-cta-solid" onClick={(e) => { e.stopPropagation(); onOpen(); }} style={btn("primary")}><Icon name="chev" size={16} /> {t("Ver plan")}</button>
+          {!plan.generating && (<button type="button" className="mf-cta-solid" onClick={(e) => { e.stopPropagation(); onOpen(); }} style={btn("primary")}><Icon name="chev" size={16} /> {t("Ver plan")}</button>)}
         </div>
       </div>
       {(plan.macros.p || plan.macros.c || plan.macros.g) ? (
@@ -348,6 +350,7 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
               {plan.generating
                 ? <span data-testid="history-generating-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".68rem", fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 12%, transparent)", whiteSpace: "nowrap" }}><Loader2 size={11} className="spin-animation" aria-hidden="true" />{t("Generando")}</span>
                 : <PencilButton onEdit={onEdit} size={14} />}
+              {plan.inUse && <span data-testid="history-inuse-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--secondary)", background: "color-mix(in srgb, var(--secondary) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--secondary) 34%, transparent)", whiteSpace: "nowrap" }}>{t("En uso")}</span>}
               <span style={{ fontSize: ".74rem", color: "var(--text-light)", whiteSpace: "nowrap" }}>· {fmtTime(plan.date)}</span>
             </>
           )}
@@ -373,6 +376,7 @@ export default function HistoryDesktopPanel({
   total = 0,
   activePlanId = null,
   paused = false,
+  inUsePlanId = null,
   searchQuery = "",
   setSearchQuery = () => {},
   onOpen = () => {},
@@ -392,8 +396,8 @@ export default function HistoryDesktopPanel({
   const q = searchQuery.trim().toLowerCase();
 
   const normalized = useMemo(
-    () => plans.map((p) => normalizePlan(p, activePlanId, locale)),
-    [plans, activePlanId, locale]
+    () => plans.map((p) => normalizePlan(p, activePlanId, locale, inUsePlanId)),
+    [plans, activePlanId, locale, inUsePlanId]
   );
   const active = normalized.find((p) => p.active);
 
