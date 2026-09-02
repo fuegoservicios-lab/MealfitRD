@@ -34,6 +34,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
             return;
         }
         setSending(true);
+        let _saved = null;
         try {
             const res = await fetchWithAuth('/api/plans/renewal-checkin', {
                 method: 'POST',
@@ -47,6 +48,10 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 }),
             });
             if (res.ok) {
+                // [P1-CHECKIN-QUEUE-PARITY · 2026-09-02] El peso guardado vuelve al caller para que
+                // el formulario local (lo que se ENVÍA al generar) use el mismo valor que el perfil.
+                // Antes el modal guardaba 135 y el plan salía con el peso viejo del wizard.
+                _saved = { weight: w, unit };
                 const body = await res.json();
                 if (body && body.engine_active) {
                     toast.success(t('Progreso registrado'), {
@@ -78,7 +83,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 duration: 5000,
             });
         }
-        onDone();
+        onDone(_saved);
     };
 
     const scaleRow = (value, setValue, lowLabel, highLabel) => (
@@ -113,14 +118,14 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 border: '1px solid #223050', padding: '26px 24px', color: '#e8edf6',
                 boxShadow: '0 18px 60px rgba(0,0,0,0.45)',
             }}>
-                <h2 style={{ margin: 0, fontSize: 20 }}>{t('Antes de tu nuevo ciclo')}</h2>
+                <h2 style={{ margin: 0, fontSize: 20 }}>{t('Un minuto antes de tu nuevo plan')}</h2>
                 {/* [P1-CHECKIN-COHERENCE · 2026-07-26] El copy anterior afirmaba "no es la fórmula
                     genérica — es TU metabolismo medido". Con 0 o 1 registro eso es FALSO: el motor
                     evolutivo necesita 2 registros separados 14+ días y hasta entonces las calorías
                     salen de la fórmula estándar. Ahora dice lo que sí es cierto hoy: tu peso entra
                     en el cálculo, y la calibración por progreso llega cuando haya con qué medirla. */}
                 <p style={{ margin: '8px 0 18px', fontSize: 13, color: '#9aa6bc', lineHeight: 1.5 }}>
-                    {t('30 segundos: tu peso de hoy se usa para calcular las calorías de este plan. Cuando tengas dos registros separados por 2+ semanas, el sistema además ajusta las calorías con tu progreso real.')}
+                    {t('Tu peso de hoy fija las calorías de este plan. Con dos pesos separados al menos dos semanas, también ajustaremos las calorías según tu progreso real. Lo demás es opcional.')}
                 </p>
 
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
@@ -140,12 +145,12 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 />
 
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    {t('¿Cuánta hambre pasaste este ciclo?')}
+                    {t('¿Cuánta hambre pasaste este ciclo?')} <span style={{ fontWeight: 400, color: '#8b95a8' }}>{t('(opcional)')}</span>
                 </label>
                 <div style={{ marginBottom: 16 }}>{scaleRow(hunger, setHunger, t('Nada'), t('Mucha'))}</div>
 
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    {t('¿Cómo estuvo tu energía?')}
+                    {t('¿Cómo estuvo tu energía?')} <span style={{ fontWeight: 400, color: '#8b95a8' }}>{t('(opcional)')}</span>
                 </label>
                 <div style={{ marginBottom: 16 }}>{scaleRow(energy, setEnergy, t('Baja'), t('Alta'))}</div>
 
@@ -168,11 +173,11 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                         fontSize: 15, fontWeight: 800, cursor: sending ? 'wait' : 'pointer',
                     }}
                 >
-                    {sending ? t('Guardando…') : t('Continuar con mi plan')}
+                    {sending ? t('Guardando…') : t('Guardar y generar mi plan')}
                 </button>
                 <button
                     type="button"
-                    onClick={onDone}
+                    onClick={() => onDone(null)}
                     disabled={sending}
                     style={{
                         width: '100%', padding: '11px 0', marginTop: 10, borderRadius: 12,
@@ -180,7 +185,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                         color: '#8b95a8', fontSize: 13, cursor: 'pointer',
                     }}
                 >
-                    {t('Omitir esta vez')}
+                    {t('Generar sin guardar')}
                 </button>
             </div>
         </div>

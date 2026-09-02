@@ -1982,7 +1982,16 @@ const Plan = () => {
                 /* [P1-CHECKIN-COHERENCE · 2026-07-26] La unidad viaja junto al valor. Sin esto el
                    modal etiquetaba y enviaba 'lb' siempre, aunque el perfil estuviera en kg. */
                 defaultUnit={formData?.weightUnit}
-                onDone={() => setCheckinPending(false)}
+                onDone={(saved) => {
+                    // [P1-CHECKIN-QUEUE-PARITY · 2026-09-02] Lo guardado en el perfil entra al
+                    // formulario ANTES de generar: el plan inmediato y el próximo modal usan el
+                    // peso real, no el del wizard de la primera vez.
+                    if (saved && Number.isFinite(saved.weight)) {
+                        updateData('weight', saved.weight);
+                        if (saved.unit) updateData('weightUnit', saved.unit);
+                    }
+                    setCheckinPending(false);
+                }}
             />
         );
     }
