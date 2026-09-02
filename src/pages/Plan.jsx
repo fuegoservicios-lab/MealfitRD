@@ -257,6 +257,61 @@ export const cancelGeneration = () => {
 // Exportada para tests de regresión (P0-1): verificar que cuando SSE y el
 // endpoint síncrono fallan, la función rechaza con `code='offline_unavailable'`
 // en lugar de retornar un plan hardcoded con alérgenos comunes.
+// [P1-ARQ25-F1-CLOSE · 2026-09-02] Reanudar un run de la cola por su ESTADO, no por el stream.
+// Vivo (kill test 1, 11:14 UTC): SIGKILL al backend a mitad del LLM cortó el tail de eventos;
+// el catch de abajo trataba la caída como "SSE roto" → intentaba el endpoint síncrono (que en
+// la cola es OTRO plan, I19) → "Sin conexión con la IA" → el usuario de vuelta al formulario,
+// con el run vivo y el zombie rescue a punto de terminarlo. Un run existe en DB: se consulta
+// `GET /generation-runs/{id}?include_plan=true` hasta PLAN_READY (H5: exige días reales),
+// FAILED (código del run) o CANCELLED. Una red caída (reinicio) no es un fallo: se sigue.
+const QUEUE_RESUME_POLL_MS = 10_000;
+const QUEUE_RESUME_MAX_MS = 45 * 60 * 1000; // rescate zombie (10 min) + 5 min de espera + generación
+
+export async function resumeQueueRunUntilReady(runId, { signal, onProgress } = {}) {
+    const started = Date.now();
+    let announced = false;
+    const cancelled = () => signal?.aborted && signal.reason === 'UserCancelled';
+    while (Date.now() - started < QUEUE_RESUME_MAX_MS) {
+        if (cancelled()) throw new Error('UserCancelled');
+        let snap = null;
+        try {
+            const r = await fetchWithRetry(`/api/plans/generation-runs/${encodeURIComponent(runId)}?include_plan=true`, {
+                method: 'GET', signal,
+            }, 1);
+            if (r.status === 404) {
+                const e = new Error(t('El run ya no existe.'));
+                e.code = 'run_not_found';
+                throw e;
+            }
+            if (r.ok) snap = await r.json();
+        } catch (e) {
+            if (e?.code === 'run_not_found' || cancelled()) throw e;
+            // red caída (reinicio del servidor, 5xx transitorio): seguir esperando
+        }
+        if (snap) {
+            if (snap.status === 'CANCELLED' || snap.cancel_requested) throw new Error('UserCancelled');
+            if (snap.status === 'FAILED') {
+                const e = new Error(snap.error_message || t('La generación falló.'));
+                e.code = snap.error_code || 'pipeline_error';
+                throw e;
+            }
+            if (snap.availability === 'PLAN_READY' && snap.plan && Array.isArray(snap.plan.days) && snap.plan.days.length) {
+                clearIdempotencyKey();
+                if (onProgress) onProgress({ event: 'complete' });
+                return snap.plan;
+            }
+            if (!announced && onProgress) {
+                announced = true;
+                onProgress({ event: 'phase', data: { phase: 'recovering', run_id: runId, status: snap.status } });
+            }
+        }
+        await new Promise((res) => setTimeout(res, QUEUE_RESUME_POLL_MS));
+    }
+    const e = new Error(t('La generación sigue en curso; vuelve al panel para ver su estado.'));
+    e.code = 'events_timeout';
+    throw e;
+}
+
 export const generateAIPlanStream = async (formData, onProgress) => {
     if (globalGenerationPromise) {
         console.warn("⚠️ Reutilizando promesa de generación en curso (React StrictMode)...");
@@ -288,6 +343,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
         // → el catch propaga code='sse_idle' → el caller reconcilia vía pending-status.
         // Declarado aquí (no dentro del try) para que catch/finally puedan limpiarlo.
         let idleTimer = null;
+        let queueRunId = null; // [ARQ25-F1] run de la cola en vuelo (para reanudar por estado)
         const armIdleWatchdog = () => {
             if (idleTimer) clearTimeout(idleTimer);
             idleTimer = setTimeout(() => {
@@ -319,6 +375,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 } else if (runResp.ok) {
                     const run = await runResp.json();
                     if (run?.run_id) {
+                        queueRunId = run.run_id;
                         if (onProgress) onProgress({ event: 'phase', data: { phase: 'queued', run_id: run.run_id } });
                         response = await fetchWithRetry(`/api/plans/generation-runs/${encodeURIComponent(run.run_id)}/events`, {
                             method: 'GET',
@@ -491,6 +548,12 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 localAbortController.signal.reason === 'IdleWatchdog'
             ) {
                 console.warn("⏱️ SSE inactivo — abortando reader colgado (watchdog de inactividad).");
+                if (queueRunId) {
+                    // [P1-ARQ25-F1-CLOSE] run de la cola: el silencio del tail no es el fin del run.
+                    const resumeCtl = new AbortController();
+                    globalAbortController = resumeCtl;
+                    return await resumeQueueRunUntilReady(queueRunId, { signal: resumeCtl.signal, onProgress });
+                }
                 const idleErr = new Error("El stream se quedó en silencio.");
                 idleErr.code = 'sse_idle';
                 throw idleErr;
@@ -551,6 +614,15 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 // NO intentar el endpoint síncrono; propagar para que el caller muestre la guía correcta.
                 console.warn("🛑 Rechazo crítico de restricción declarada — propagando (no reintentar).");
                 throw error;
+            } else if (queueRunId && error.code !== 'quota_exceeded' && error.code !== 'rate_limited') {
+                // [P1-ARQ25-F1-CLOSE] El tail del run se cayó (reinicio del backend, red, events_timeout):
+                // el run sigue vivo en DB. Se reanuda por su estado. JAMÁS el endpoint síncrono:
+                // en la cola eso es OTRO plan (I19) y el "Sin conexión con la IA" mandaba al usuario
+                // al formulario con la generación a medio rescatar.
+                console.warn(`🔁 [ARQ25-F1] tail del run ${queueRunId} caído (${error.code || error.message}) — reanudando por estado del run.`);
+                const resumeCtl = new AbortController();
+                globalAbortController = resumeCtl;
+                return await resumeQueueRunUntilReady(queueRunId, { signal: resumeCtl.signal, onProgress });
             } else if (error.code === 'llm_unavailable') {
                 // El backend YA decidió que la IA no está disponible (504 de Gemini,
                 // circuit breaker abierto, etc.). El endpoint síncrono devolverá el
