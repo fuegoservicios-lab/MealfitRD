@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 // handlers reales, y los SVGs ACTUALES (calendario lucide + emojis de comida),
 // NO los glyphs propios del prototipo. El detalle lo abre el modal REAL
 // (History.jsx vía onOpen); aquí solo está la LISTA. Solo se monta en móvil.
-import { CalendarDays, Flame, Search, Pencil, Trash2, Clock, X, Check } from "lucide-react";
+import { CalendarDays, Flame, Search, Pencil, Trash2, Clock, X, Check, Loader2 } from "lucide-react";
 // [P1-CLINICAL-MEAL-COUNT · 2026-06-27] Emoji por SLOT (no por índice) — planes de 3/5/6 comidas.
 import { mealEmojiFor } from "../../utils/mealEmoji";
 // [P1-2 · 2026-07-09] SSOT del coalescing days||meals||perfectDay (reemplaza la copia inline).
@@ -70,6 +70,11 @@ function normalizePlan(raw, activePlanId, locale) {
     name: (locale && raw.plan_display_names?.[locale]) || raw.name || t("Plan Generado"),
     date: new Date(raw.created_at),
     active: !!activePlanId && raw.id === activePlanId,
+    // [P1-ARQ25-F1-CLOSE · 2026-09-02] Placeholder de la cola: `generating` y todavía sin días.
+    // Se pinta con spinner y etiqueta «Generando», sin renombrar ni borrar mientras corre.
+    generating: raw.generation_status === 'generating'
+      && Number(typeof raw.days_generated === 'number' ? raw.days_generated
+        : (Array.isArray(raw.plan_data?.days) ? raw.plan_data.days.length : 0)) === 0,
     kcal: typeof raw.calories === "number" ? raw.calories : (parseInt(raw.calories, 10) || 0),
     macros: { p: parseGrams(raw.macros?.protein), c: parseGrams(raw.macros?.carbs), g: parseGrams(raw.macros?.fats) },
     meals,
@@ -152,7 +157,7 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
           : "var(--bg-card)" }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <span style={emblem}><CalendarDays size={22} strokeWidth={2.25} /></span>
+        <span style={emblem}>{plan.generating ? <Loader2 size={22} strokeWidth={2.25} className="spin-animation" aria-hidden="true" /> : <CalendarDays size={22} strokeWidth={2.25} />}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           {plan.active && <div style={{ marginBottom: 5 }}>{activeBadge(paused)}</div>}
           {editing ? (
@@ -160,14 +165,16 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-.01em", color: "var(--text-main)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
-              <button type="button" title={t("Renombrar")} onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} /></button>
+              {plan.generating
+                ? <span data-testid="history-generating-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".68rem", fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 12%, transparent)", whiteSpace: "nowrap" }}><Loader2 size={11} className="spin-animation" aria-hidden="true" />{t("Generando")}</span>
+                : <button type="button" title={t("Renombrar")} onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} /></button>}
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".75rem", color: "var(--text-light)", marginTop: 3 }}>
             <Clock size={12} style={{ flexShrink: 0 }} /> <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmtDate(plan.date)} · {fmtTime(plan.date)}</span>
           </div>
         </div>
-        {!editing && (
+        {!editing && !plan.generating && (
           <button type="button" title={t("Eliminar")} onClick={(e) => { e.stopPropagation(); onDelete && onDelete(); }} style={cardIconBtn}><Trash2 size={16} /></button>
         )}
       </div>

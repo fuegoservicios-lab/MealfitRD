@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 // [P3-HIST-DESKTOP-ICONS · 2026-06-24] El owner prefiere los íconos reales del
 // Historial: emojis de comida en los chips + el calendario lucide. No usar los
 // glyphs propios (sol/pez/taza/luna) para las comidas.
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Loader2 } from "lucide-react";
 // [P1-CLINICAL-MEAL-COUNT · 2026-06-27] Emoji por SLOT (no por índice) — planes de 3/5/6 comidas.
 import { mealEmojiFor } from "../../utils/mealEmoji";
 // [P1-2 · 2026-07-09] SSOT del coalescing days||meals||perfectDay (reemplaza la copia inline).
@@ -123,6 +123,11 @@ function normalizePlan(raw, activePlanId, locale) {
     name: (locale && raw.plan_display_names?.[locale]) || raw.name || t("Plan Generado"),
     date: new Date(raw.created_at),
     active: !!activePlanId && raw.id === activePlanId,
+    // [P1-ARQ25-F1-CLOSE · 2026-09-02] Placeholder de la cola: `generating` y todavía sin días.
+    // Se pinta con spinner y etiqueta «Generando», sin renombrar ni borrar mientras corre.
+    generating: raw.generation_status === 'generating'
+      && Number(typeof raw.days_generated === 'number' ? raw.days_generated
+        : (Array.isArray(raw.plan_data?.days) ? raw.plan_data.days.length : 0)) === 0,
     kcal: typeof raw.calories === "number" ? raw.calories : (parseInt(raw.calories, 10) || 0),
     macros: { p: parseGrams(raw.macros?.protein), c: parseGrams(raw.macros?.carbs), g: parseGrams(raw.macros?.fats) },
     meals,
@@ -332,7 +337,7 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
         border: `1px solid ${h ? "color-mix(in srgb, var(--primary) 45%, var(--border))" : "var(--border)"}`,
         background: h ? "color-mix(in srgb, var(--primary) 5%, transparent)" : "var(--bg-page)",
         transform: h ? "translateY(-1px)" : "none", transition: ".15s" }}>
-      <span style={emblem(44)}><CalendarDays size={22} strokeWidth={2.25} /></span>
+      <span style={emblem(44)}>{plan.generating ? <Loader2 size={22} strokeWidth={2.25} className="spin-animation" aria-hidden="true" /> : <CalendarDays size={22} strokeWidth={2.25} />}</span>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           {editing ? (
@@ -340,7 +345,9 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
           ) : (
             <>
               <span style={{ fontFamily: "var(--font-heading)", fontSize: "1rem", fontWeight: 800, letterSpacing: "-.01em", color: "var(--text-main)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
-              <PencilButton onEdit={onEdit} size={14} />
+              {plan.generating
+                ? <span data-testid="history-generating-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".68rem", fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 12%, transparent)", whiteSpace: "nowrap" }}><Loader2 size={11} className="spin-animation" aria-hidden="true" />{t("Generando")}</span>
+                : <PencilButton onEdit={onEdit} size={14} />}
               <span style={{ fontSize: ".74rem", color: "var(--text-light)", whiteSpace: "nowrap" }}>· {fmtTime(plan.date)}</span>
             </>
           )}
@@ -351,8 +358,8 @@ function PlanRow({ plan, onOpen, onEdit, onDelete, editing, tempName, setTempNam
         {(plan.macros.p || plan.macros.c || plan.macros.g) ? <MacroBar macros={plan.macros} /> : <span />}
         {plan.kcal > 0 && <span style={{ ...kcalBig, gap: 4 }}><b style={{ fontSize: "1.1rem", color: "#FB923C" }}>{formatNumber(plan.kcal)}</b><span>{t("kcal")}</span></span>}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <IconButton name="pencil" title={t("Renombrar")} onClick={() => onEdit && onEdit()} />
-          <IconButton name="trash" danger title={t("Eliminar")} onClick={() => onDelete && onDelete()} />
+          {!plan.generating && <IconButton name="pencil" title={t("Renombrar")} onClick={() => onEdit && onEdit()} />}
+          {!plan.generating && <IconButton name="trash" danger title={t("Eliminar")} onClick={() => onDelete && onDelete()} />}
           <span style={{ color: "var(--text-light)", display: "grid" }}><Icon name="chev" size={18} /></span>
         </div>
       </div>
