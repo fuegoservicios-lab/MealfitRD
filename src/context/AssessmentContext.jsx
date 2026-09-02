@@ -2264,10 +2264,28 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     safeLocalStorageSet('mealfit_plan', adopted);
                     return adopted;
                 }
+                // [P1-ARQ25-F1-LIFECYCLE · 2026-09-02] `meal_plans.revision` (I12) viaja en
+                // `/plans-data/latest`. Si el servidor va POR DELANTE del estado local, se
+                // adopta el plan entero sin lista blanca: toda escritura de plan_data sube la
+                // revisión (trigger), así que "revisión mayor" ES "hay algo que no tenemos".
+                // Sigue la regla de este merge: adoptar si viene, NUNCA borrar si falta
+                // (`{...prev, ...newPlanData}` conserva lo local que el servidor no envía).
+                // Sin revisión en alguno de los dos lados (plan legacy, SSE viejo) no aplica
+                // y cae al merge por lista blanca de siempre.
+                const srvRev = Number(plan?.revision ?? newPlanData.revision);
+                const locRev = Number(prev.revision);
+                if (Number.isFinite(srvRev) && Number.isFinite(locRev) && srvRev > locRev) {
+                    const adoptedRev = { ...prev, ...newPlanData, id: prev.id ?? plan?.id, revision: srvRev };
+                    safeLocalStorageSet('mealfit_plan', adoptedRev);
+                    _tracePlanWrite(`adopt-rev-${src}`, plan?.id);
+                    return adoptedRev;
+                }
                 // Mezclar: preservar campos locales (grocery_start_date, is_restocked, etc.)
                 // pero actualizar los días con el valor más reciente del servidor
                 const merged = {
                     ...prev,
+                    // [P1-ARQ25-F1-LIFECYCLE] sellar la revisión vista para que el próximo tick compare.
+                    ...(Number.isFinite(srvRev) ? { revision: srvRev } : {}),
                     days: newPlanData.days,
                     generation_status: incomingStatus,
                     total_days_requested: newPlanData.total_days_requested ?? prev.total_days_requested,

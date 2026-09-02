@@ -9,6 +9,7 @@ import { useAssessment } from '../context/AssessmentContext';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
 // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Gate único de comercio (config/platform.js).
 import { nativeHidesCommerce } from '../config/platform';
+import { initialViaQueueEnabled, idempotencyKeyFor, clearIdempotencyKey } from '../config/generation';
 import Wordmark from '../components/common/Wordmark';
 import { peekPendingStatusWithRetry } from '../utils/pendingStatusRetry';
 import RenewalCheckinModal from '../components/plan/RenewalCheckinModal';
@@ -298,13 +299,44 @@ export const generateAIPlanStream = async (formData, onProgress) => {
         };
 
         try {
-            // Intentar endpoint SSE streaming
-            const response = await fetchWithRetry(STREAM_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-                signal: globalAbortController.signal
-            }, 1); // Solo 1 intento para SSE, fallback si falla
+            // [P1-ARQ25-F1-LIFECYCLE · 2026-09-02] Bloque 1 vía cola (roadmap 2.5, Fase 1):
+            // con el flag encendido y usuario autenticado, primero se crea el run durable
+            // (`POST /generation-runs`, idempotente) y el "stream" pasa a ser el tail de
+            // `GET .../{run_id}/events`. Mismo parser de eventos de abajo: el backend emite
+            // los mismos `phase`/`day_*`/`complete`/`error`. Si el backend tiene su knob
+            // apagado (404) se cae al SSE legacy en el mismo intento.
+            let response = null;
+            if (initialViaQueueEnabled() && formData?.user_id && formData.user_id !== 'guest') {
+                const runResp = await fetchWithRetry('/api/plans/generation-runs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...formData, idempotency_key: idempotencyKeyFor(formData) }),
+                    signal: globalAbortController.signal
+                }, 1);
+                if (runResp.status === 404) {
+                    console.warn('⚠️ [ARQ25-F1] cola apagada en el backend → SSE legacy.');
+                } else if (runResp.ok) {
+                    const run = await runResp.json();
+                    if (run?.run_id) {
+                        if (onProgress) onProgress({ event: 'phase', data: { phase: 'queued', run_id: run.run_id } });
+                        response = await fetchWithRetry(`/api/plans/generation-runs/${encodeURIComponent(run.run_id)}/events`, {
+                            method: 'GET',
+                            signal: globalAbortController.signal
+                        }, 1);
+                    }
+                } else {
+                    response = runResp; // 4xx del formulario: lo trata el bloque de abajo
+                }
+            }
+            if (!response) {
+                // Intentar endpoint SSE streaming (camino legacy)
+                response = await fetchWithRetry(STREAM_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData),
+                    signal: globalAbortController.signal
+                }, 1); // Solo 1 intento para SSE, fallback si falla
+            }
 
             clearTimeout(timeoutId);
 
@@ -364,6 +396,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
 
                         if (eventType === 'complete') {
                             finalResult = eventData.data;
+                            clearIdempotencyKey(); // [ARQ25-F1] el run terminó: la próxima generación es otra
                             if (onProgress) onProgress({ event: 'complete' });
                             continue;
                         }
