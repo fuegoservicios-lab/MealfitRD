@@ -1024,10 +1024,10 @@ const DashboardInner = () => {
     // [P3-NOTIF-CENTER · 2026-06-16] SSOT del payload de notificación del banner
     // "plan no óptimo" (título + motivo, mismo copy que el banner). Compartido
     // entre el descarte (X) y el backfill. null si el plan no está degradado.
+    // [P1-QUALITY-MINOR-SILENT · 2026-09-02] Solo la severidad ALTA llega al usuario: un residuo
+    // `minor` sobre un plan aprobado (vivo: 197970fa, calidad 98,9/100) salía en amarillo como
+    // si fuera un error. El flag sigue en plan_data para la telemetría.
     const buildQualityNotification = useCallback(() => {
-        // [P1-QUALITY-MINOR-SILENT · 2026-09-02] Un residuo `minor` sobre un plan aprobado
-        // (vivo: 197970fa, calidad 98,9/100) salía en amarillo como si fuera un error. Solo
-        // la severidad alta llega al usuario; el flag sigue en plan_data para la telemetría.
         if (!planData?._quality_degraded || planData?._quality_degraded_severity !== 'high') return null;
         const _attempts = planData?._quality_degraded_attempts || 3;
         const _reason = planData?._quality_degraded_reason;

@@ -23,7 +23,7 @@
 //    decir, casi siempre. La reversión del spec ("los días futuros se ven
 //    siempre") alcanza también al banner; sin esto la instrucción apuntaría a
 //    un aviso invisible.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { render, screen, waitFor, fireEvent } from './utils/test-utils';
 import Dashboard from '../pages/Dashboard';
 import * as router from 'react-router-dom';
@@ -61,6 +61,11 @@ const _MEALS = [
 ];
 
 const _todayIso = () => new Date().toISOString();
+// [P1-TEST-CLOCK-PIN · 2026-09-02] Las fixtures llevan fechas fijas de agosto ('2026-08-02'..'04',
+// overdue_since '2026-08-04') y `_todayIso` leía el reloj REAL: el test caducó solo el 2026-09-02.
+// Se fija SOLO `Date` (los timers siguen reales: waitFor/polling no se congelan).
+beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-08-05T12:00:00-04:00')); });
+afterAll(() => { vi.useRealTimers(); });
 // `userProfile` sale del AssessmentContext y el handler del CTA (igual que el
 // `triggerShift` automático y el botón [P2-δ]) hace early-return sin `id` — sin
 // esto el click sería un no-op y el test pasaría/fallaría por la razón
