@@ -1424,7 +1424,7 @@ const DashboardInner = () => {
         const _br = planData?.budget_reconciliation;
         if (!_br || !_br.status || _br.status === 'sin_limite' || !_br.reference_rd) return null;
         const _fmt = (v) => `RD$${formatNumber(Math.round(v || 0))}`;
-        const _est = _br.basis && _br.basis !== 'custom' ? t(' (referencia estimada)') : '';
+        const _est = _br.basis && _br.basis !== 'custom' ? t(' (estimado según tus metas)') : '';
         const title = _br.status === 'dentro'
             ? t('Presupuesto: dentro de tu referencia')
             : _br.status === 'cerca'
@@ -3085,7 +3085,15 @@ const DashboardInner = () => {
                     const c = it?.estimated_cost_rd ?? it?.estimated_cost;
                     return s + (it?.is_perishable === true && typeof c === 'number' && c > 0 ? c : 0);
                 }, 0);
-            const deltaCycleRd = deltaTripRd + _fullPerishRd * Math.max(0, _mult - 1);
+            // [P1-PDF-LIST-POLISH · 2026-09-02] Semanas 2..N = el número del BACKEND
+            // (cycle_total_rd − trip_total_rd, el MISMO que budget_reconciliation). Antes el
+            // frontend re-derivaba perecederos × (semanas−1) y salía OTRO ciclo (8.951 vs
+            // 12.768 del backend en el vivo). Sin resumen (planes legacy) cae a la derivación local.
+            const _futureFreshRd = (typeof _bs?.cycle_total_rd === 'number' && typeof _bs?.trip_total_rd === 'number'
+                && _bs.trip_total_rd > 0 && _bs.cycle_total_rd >= _bs.trip_total_rd)
+                ? _bs.cycle_total_rd - _bs.trip_total_rd
+                : _fullPerishRd * Math.max(0, _mult - 1);
+            const deltaCycleRd = deltaTripRd + _futureFreshRd;
             return {
                 itemsRemoved,
                 isAdjusted: !!currentDelta._isAdjusted || itemsRemoved > 0,
@@ -3705,11 +3713,17 @@ const DashboardInner = () => {
             const _shopTotalCostFinal = (!_deltaAware && _backendCostSummary && typeof _backendCostSummary.trip_total_rd === 'number' && _backendCostSummary.trip_total_rd > 0)
                 ? _backendCostSummary.trip_total_rd : _shopTotalCost;
             let _fullCycleCostFinal;
+            // [P1-PDF-LIST-POLISH · 2026-09-02] Semanas 2..N = cycle_total_rd − trip_total_rd del
+            // BACKEND (paridad con budget_reconciliation); la derivación local perecederos FULL ×
+            // (semanas−1) queda SOLO como fallback sin resumen. Misma regla que el banner.
+            const _fullPerishableRd = (typeof _backendCostSummary?.perishable_rd === 'number' && _backendCostSummary.perishable_rd > 0)
+                ? _backendCostSummary.perishable_rd : _perishableCost;
+            const _futureFreshRdPdf = (typeof _backendCostSummary?.cycle_total_rd === 'number' && typeof _backendCostSummary?.trip_total_rd === 'number'
+                && _backendCostSummary.trip_total_rd > 0 && _backendCostSummary.cycle_total_rd >= _backendCostSummary.trip_total_rd)
+                ? _backendCostSummary.cycle_total_rd - _backendCostSummary.trip_total_rd
+                : _fullPerishableRd * Math.max(0, _cycleCostMultiplier - 1);
             if (_deltaAware) {
-                const _fullPerishableRd = (typeof _backendCostSummary?.perishable_rd === 'number' && _backendCostSummary.perishable_rd > 0)
-                    ? _backendCostSummary.perishable_rd : _perishableCost;
-                _fullCycleCostFinal = _stableCost + _perishableCost
-                    + _fullPerishableRd * Math.max(0, _cycleCostMultiplier - 1);
+                _fullCycleCostFinal = _stableCost + _perishableCost + _futureFreshRdPdf;
             } else {
                 _fullCycleCostFinal = (_backendCostSummary && typeof _backendCostSummary.cycle_total_rd === 'number' && _backendCostSummary.cycle_total_rd > 0)
                     ? _backendCostSummary.cycle_total_rd : _fullCycleCost;
@@ -3795,7 +3809,7 @@ const DashboardInner = () => {
                         <h1 style="margin: 0 0 8px 0; color: #111827; font-size: 20px; font-weight: 800; letter-spacing: -0.025em;">${escapeHtml(t('Lista de Compras'))}</h1>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <span style="background-color: #ecfdf5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #10b98140;">${escapeHtml(t('Ciclo: {duracion}', { duracion: durationText }))}</span>
-                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">${escapeHtml(t('Generado: {fecha}', { fecha: formatDate(new Date()) }))}</span>
+                            <span style="background-color: #f3f4f6; color: #4b5563; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">${escapeHtml(t('Generado: {fecha}', { fecha: formatDate(new Date(), { day: 'numeric', month: 'short', year: 'numeric' }) }))}</span>
                             <!-- [P2-SHOPPING-TOTALS · 2026-05-16] Total chip. -->
                             <span style="background-color: #eff6ff; color: #1e40af; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; border: 1px solid #3b82f640;">${escapeHtml(t('Total: {items}', { items: _fmtItems(totalItems) }))}</span>
                         </div>
@@ -3804,28 +3818,6 @@ const DashboardInner = () => {
                 </div>
 
                 
-                <!-- Disclaimer de Cantidades -->
-                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #3b82f6; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; align-items: flex-start; gap: 8px;">
-                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #3b82f6; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p style="margin: 0; font-size: ${isUltraDense ? '9px' : '10px'}; color: #334155; line-height: 1.25;">
-                        <!-- [P3-DISCLAIMER-CONDENSE · 2026-05-17] Texto condensado
-                             ~40% para evitar overflow a 2da página en planes de
-                             tamaño normal. Preserva keywords ancla de tests:
-                             '~', 'conversión aproximada', 'realismo de
-                             almacenamiento' (P3-SHOPPING-DISCLAIMER-EXPAND),
-                             'Estables (aceite, vinagre, miel, especias)' +
-                             '1 botella o sobre rinde' (P3-STABLES-NO-SCALE-UX). -->
-                        ${t('<strong>Smart Engine:</strong> cantidades exactas según empaques del mercado local — ajústalas a tu inventario. <strong>{ud}</strong> = unidad · <strong>~</strong> = conversión aproximada (<em>2 {cabezas} ≈ 2.2 lbs</em>).', { ud: _leyendaUd, cabezas: _leyendaCabezas })}
-                        ${isUltraDense ? '' : `
-                        <span style="display: block; margin-top: 2px; color: #475569;">
-                            ${t('Algunas varían por <strong>realismo de almacenamiento</strong> (hierbas, lácteos, cítricos). <strong>Estables (aceite, vinagre, miel, especias):</strong> misma cantidad en ciclos de 7/15/30 días.')}
-                        </span>
-                        `}
-                    </p>
-                </div>
-
                 ${_isBetaPricing ? `
                 <!-- [P1-COUNTRY-SYSTEM-F1 T7 · redisenado P2-SHOPLIST-BETA-POLISH · 2026-08-18]
                      Aviso beta minimalista: UNA línea, nombra el país cuando el formData lo
@@ -4116,13 +4108,13 @@ const DashboardInner = () => {
 
             if (Object.keys(perishables).length > 0) {
                 htmlContent += `
-                <!-- Prioridad Alta -->
-                <div style="background-color: #fef2f2; border: 1px solid #fca5a5; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; flex-direction: column; gap: 4px;">
+                <!-- Prioridad Alta · [P1-PDF-LIST-POLISH · 2026-09-02] ámbar (aviso), no rojo (error) -->
+                <div style="background-color: #fffbeb; border: 1px solid #fcd34d; padding: ${disclaimerPadding}; border-radius: 6px; margin-bottom: ${disclaimerMargin}; display: flex; flex-direction: column; gap: 4px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span style="font-size: ${sectionLabelFont}; font-weight: 800; color: #991b1b; letter-spacing: 0.05em;">${perishableLabel}<span style="font-weight: 600; color: #b91c1c; margin-left: 6px;">· ${escapeHtml(_fmtItems(perishableItemCount))}</span></span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span style="font-size: ${sectionLabelFont}; font-weight: 800; color: #92400e; letter-spacing: 0.05em;">${perishableLabel}<span style="font-weight: 600; color: #b45309; margin-left: 6px;">· ${escapeHtml(_fmtItems(perishableItemCount))}</span></span>
                     </div>
-                    <div style="font-size: ${sectionDescFont}; color: #b91c1c; padding-left: 18px; line-height: 1.2;">
+                    <div style="font-size: ${sectionDescFont}; color: #b45309; padding-left: 18px; line-height: 1.2;">
                         ${perishableDesc}
                     </div>
                 </div>
@@ -4166,7 +4158,7 @@ const DashboardInner = () => {
                         <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${formatNumber(Math.round(_shopTotalCostFinal))}</span>
                     </div>
                     ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
-                        <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 ${escapeHtml(t('Costo real del ciclo de {duracion}', { duracion: durationText }))}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">${escapeHtml(t('Despensa 1× + perecederos de {duracion} (recompra cada 7 días)', { duracion: durationText }))}</div></div>
+                        <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 ${escapeHtml(t('Costo real del ciclo de {duracion}', { duracion: durationText }))}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">${escapeHtml(_deltaAware ? t('Incluye ≈{monto} para recomprar en las semanas siguientes los frescos que hoy ya tienes en la Nevera', { monto: 'RD$' + formatNumber(Math.round(_futureFreshRdPdf)) }) : t('Despensa 1× + perecederos de {duracion} (recompra cada 7 días)', { duracion: durationText }))}</div></div>
                         <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${formatNumber(Math.round(_fullCycleCostFinal))}</span>
                     </div>` : ''}
                     ${(() => {
@@ -4187,7 +4179,7 @@ const DashboardInner = () => {
                         // [P2-AUDIT-V6-BATCH · 2026-07-03] (P2-I) tiers categóricos → RD$Y es piso×banda
                         // (número no declarado por el usuario) → etiquetado "referencia estimada" (paridad app).
                         const _ref = formatNumber(Math.round(_br.reference_rd))
-                            + (_br.basis && _br.basis !== 'custom' ? t(' (referencia estimada)') : '');
+                            + (_br.basis && _br.basis !== 'custom' ? t(' (estimado según tus metas)') : '');
                         // [P2-AUDIT-V5-BATCH GAP-06] Caveat de cobertura parcial (solo números backend → sin XSS).
                         const _pp = _br.partial_pricing
                             ? `<span style="font-weight:600; color:#92400e;">${t(' · estimado parcial ({cobertura}% con precio)', { cobertura: Math.round((_br.price_coverage || 0) * 100) })}</span>`
@@ -4208,6 +4200,27 @@ const DashboardInner = () => {
                     })()}
                 </div>` : ''}
                 ${clinicalNoteHTML}
+                <!-- Disclaimer de Cantidades · [P1-PDF-LIST-POLISH · 2026-09-02] al pie: leyenda, no cabecera -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #3b82f6; padding: ${disclaimerPadding}; border-radius: 6px; margin-top: 12px; display: flex; align-items: flex-start; gap: 8px;">
+                    <svg style="flex-shrink: 0; width: 14px; height: 14px; color: #3b82f6; margin-top: 1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p style="margin: 0; font-size: ${isUltraDense ? '9px' : '10px'}; color: #334155; line-height: 1.25;">
+                        <!-- [P3-DISCLAIMER-CONDENSE · 2026-05-17] Texto condensado
+                             ~40% para evitar overflow a 2da página en planes de
+                             tamaño normal. Preserva keywords ancla de tests:
+                             '~', 'conversión aproximada', 'realismo de
+                             almacenamiento' (P3-SHOPPING-DISCLAIMER-EXPAND),
+                             'Estables (aceite, vinagre, miel, especias)' +
+                             '1 botella o sobre rinde' (P3-STABLES-NO-SCALE-UX). -->
+                        ${t('<strong>Smart Engine:</strong> cantidades exactas según empaques del mercado local — ajústalas a tu inventario. <strong>{ud}</strong> = unidad · <strong>~</strong> = conversión aproximada (<em>2 {cabezas} ≈ 2.2 lbs</em>).', { ud: _leyendaUd, cabezas: _leyendaCabezas })}
+                        ${isUltraDense ? '' : `
+                        <span style="display: block; margin-top: 2px; color: #475569;">
+                            ${t('Algunas varían por <strong>realismo de almacenamiento</strong> (hierbas, lácteos, cítricos). <strong>Estables (aceite, vinagre, miel, especias):</strong> misma cantidad en ciclos de 7/15/30 días.')}
+                        </span>
+                        `}
+                    </p>
+                </div>
                 <!-- Footer -->
                 <!-- [PDF-FOOTER-CONTRAST · 2026-06-22] El footer se veía casi invisible
                      (grises muy claros #6b7280/#9ca3af sobre papel blanco). Se oscurecen
@@ -7041,7 +7054,7 @@ const DashboardInner = () => {
                             // el RD$Y es piso×banda — un número que el usuario NUNCA declaró. Etiquetarlo
                             // "referencia estimada" evita que se lea como un techo que él puso. Custom = su monto.
                             const _refIsEstimated = _br.basis && _br.basis !== 'custom';
-                            const _refLabel = `${_fmtRD(_br.reference_rd)}${_refIsEstimated ? t(' (referencia estimada)') : ''}`;
+                            const _refLabel = `${_fmtRD(_br.reference_rd)}${_refIsEstimated ? t(' (estimado según tus metas)') : ''}`;
                             const _headline = _statusEff === 'dentro'
                                 ? t('Dentro de tu presupuesto: {gasto} de {referencia} por ciclo', { gasto: _fmtRD(_estCycleRd), referencia: _refLabel })
                                 : _statusEff === 'cerca'

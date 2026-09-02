@@ -361,7 +361,7 @@ export const glossShoppingCategory = (categoria, t) => {
 // traduce lo que se lee como idioma, no lo que identifica un producto en el mundo.
 // ============================================================
 
-// Vocabulario CERRADO de envases, espejo de `PLURALS` en `backend/shopping_calculator.py`.
+// Vocabulario CERRADO de envases, espejo de `UNIT_PLURALS` en `backend/shopping_calculator.py`.
 // Singular y plural van separados: el plural español no siempre lo es en el idioma destino.
 const _ENVASES_TRADUCIBLES = (t) => ({
     paquete: t('paquete'), paquetes: t('paquetes'),
@@ -377,6 +377,10 @@ const _ENVASES_TRADUCIBLES = (t) => ({
     envase: t('envase'), envases: t('envases'),
     cabeza: t('cabeza'), cabezas: t('cabezas'),
     mazo: t('mazo'), mazos: t('mazos'),
+    // [P1-PDF-LIST-POLISH · 2026-09-02] envases medidos en master_ingredients que faltaban en UNIT_PLURALS
+    manojo: t('manojo'), manojos: t('manojos'),
+    libra: t('libra'), libras: t('libras'),
+    litro: t('litro'), litros: t('litros'),
     hoja: t('hoja'), hojas: t('hojas'),
     rebanada: t('rebanada'), rebanadas: t('rebanadas'),
     barrita: t('barrita'), barritas: t('barritas'),
