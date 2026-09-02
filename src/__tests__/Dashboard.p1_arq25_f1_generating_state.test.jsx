@@ -23,11 +23,18 @@ const layout = fs.readFileSync(path.resolve(_dir, '../components/assessment/Inte
 const GATE = "planData?.generation_status === 'generating'";
 
 describe('P1-ARQ25-F1-CLOSE · placeholder visible como generando', () => {
-    it('el panel deriva _isPlaceholderGenerating = generating && sin días, después del gate de plan_mode', () => {
+    it('el flag se declara DENTRO de DashboardInner (donde se usa) y antes de su primer uso', () => {
+        // Regresión real: declararlo en el wrapper `Dashboard` tiró el panel al error boundary.
+        const inner = dash.indexOf('const DashboardInner = () => {');
+        const wrapper = dash.indexOf('const Dashboard = () => {');
         const decl = dash.indexOf('const _isPlaceholderGenerating = ' + GATE);
-        const gate = dash.indexOf('return <Navigate to="/assessment" replace />;');
-        expect(decl).toBeGreaterThan(gate);
+        const firstUse = dash.indexOf('{_isPlaceholderGenerating && (');
+        expect(inner).toBeGreaterThan(-1);
+        expect(decl).toBeGreaterThan(inner);
+        expect(decl).toBeLessThan(wrapper);
+        expect(decl).toBeLessThan(firstUse);
         expect(dash.slice(decl, decl + 220)).toContain('planData.days.length > 0');
+        expect(dash.match(/const _isPlaceholderGenerating = /g)).toHaveLength(1);
     });
 
     it('banner con spinner y aria-live antes de RestockNudge', () => {

@@ -881,6 +881,11 @@ const DashboardInner = () => {
         // el tope de give-up — anotación mínima más abajo, ver render de isPlanCorrupted.
         planPollGaveUp,
     } = useAssessment();
+    // [P1-ARQ25-F1-CLOSE · 2026-09-02] Placeholder de la cola: `generating` y todavía sin días.
+    // Vive AQUÍ (DashboardInner), donde se usa: declararla en el wrapper `Dashboard` tiró el
+    // panel entero al error boundary («Algo salió mal en esta sección») por ReferenceError.
+    const _isPlaceholderGenerating = planData?.generation_status === 'generating'
+        && !(Array.isArray(planData?.days) && planData.days.length > 0);
 
     const { regeneratePlan } = useRegeneratePlan();
 
@@ -10170,9 +10175,6 @@ const Dashboard = () => {
     if (!planData) {
         return <Navigate to="/assessment" replace />;
     }
-    // [P1-ARQ25-F1-CLOSE] placeholder de la cola: `generating` y todavía sin días.
-    const _isPlaceholderGenerating = planData?.generation_status === 'generating'
-        && !(Array.isArray(planData?.days) && planData.days.length > 0);
 
     return <DashboardInner />;
 };
