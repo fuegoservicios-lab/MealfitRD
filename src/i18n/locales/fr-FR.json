@@ -606,6 +606,7 @@
   "Diseñando tu plan": "Conception de votre plan",
   "El primer bloque de días está en el horno. Aparecerá aquí solo; no tienes que hacer nada.": "Le premier bloc de jours est au four. Il apparaîtra ici tout seul ; rien à faire.",
   "Tu plan se está generando en segundo plano": "Votre plan est en cours de génération en arrière-plan",
+  "Mientras tanto ves tu plan anterior.": "En attendant, vous voyez votre plan précédent.",
   "Suele tardar entre 3 y 6 minutos. Si el servidor se reinicia, se retoma solo; no hace falta volver al formulario. Se actualizará aquí en cuanto esté listo.": "Cela prend en général 3 à 6 minutes. Si le serveur redémarre, la génération reprend toute seule ; inutile de revenir au formulaire. La page se mettra à jour dès qu'il sera prêt.",
   "Ya tienes un plan generándose": "Vous avez déjà un plan en cours de génération",
   "Si vuelves a enviar el formulario se cancela el que está en marcha. Espéralo en tu panel.": "Si vous renvoyez le formulaire, celui en cours est annulé. Attendez-le sur votre tableau de bord.",

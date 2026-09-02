@@ -848,6 +848,7 @@ const DashboardInner = () => {
     // 1. Obtenemos estado y funciones del Contexto Global
     const {
         planData,
+        serverGeneratingPlanId,
         likedMeals,
         toggleMealLike,
         regenerateSingleMeal, // Ahora esta función es ASYNC (llama a la IA)
@@ -884,8 +885,12 @@ const DashboardInner = () => {
     // [P1-ARQ25-F1-CLOSE · 2026-09-02] Placeholder de la cola: `generating` y todavía sin días.
     // Vive AQUÍ (DashboardInner), donde se usa: declararla en el wrapper `Dashboard` tiró el
     // panel entero al error boundary («Algo salió mal en esta sección») por ReferenceError.
-    const _isPlaceholderGenerating = planData?.generation_status === 'generating'
+    const _localPlaceholder = planData?.generation_status === 'generating'
         && !(Array.isArray(planData?.days) && planData.days.length > 0);
+    // El servidor tiene OTRO plan generándose (regeneraste y volviste al panel): el poll no
+    // sustituye tu plan con días por el placeholder, así que se avisa sin cambiar la vista.
+    const _serverGeneratingOther = !!serverGeneratingPlanId && serverGeneratingPlanId !== planData?.id;
+    const _isPlaceholderGenerating = _localPlaceholder || _serverGeneratingOther;
 
     const { regeneratePlan } = useRegeneratePlan();
 
@@ -7502,6 +7507,7 @@ const DashboardInner = () => {
                         <span style={{ fontWeight: 700 }}>{t('Tu plan se está generando en segundo plano')}</span>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>
                             {t('Suele tardar entre 3 y 6 minutos. Si el servidor se reinicia, se retoma solo; no hace falta volver al formulario. Se actualizará aquí en cuanto esté listo.')}
+                            {_serverGeneratingOther ? ` ${t('Mientras tanto ves tu plan anterior.')}` : ''}
                         </span>
                     </div>
                 </div>

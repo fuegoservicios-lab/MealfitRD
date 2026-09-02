@@ -606,6 +606,7 @@
   "Diseñando tu plan": "Designing your plan",
   "El primer bloque de días está en el horno. Aparecerá aquí solo; no tienes que hacer nada.": "The first block of days is in the oven. It will show up here on its own; nothing to do.",
   "Tu plan se está generando en segundo plano": "Your plan is being generated in the background",
+  "Mientras tanto ves tu plan anterior.": "In the meantime you are seeing your previous plan.",
   "Suele tardar entre 3 y 6 minutos. Si el servidor se reinicia, se retoma solo; no hace falta volver al formulario. Se actualizará aquí en cuanto esté listo.": "It usually takes 3 to 6 minutes. If the server restarts it resumes on its own; no need to go back to the form. It will update here as soon as it is ready.",
   "Ya tienes un plan generándose": "You already have a plan being generated",
   "Si vuelves a enviar el formulario se cancela el que está en marcha. Espéralo en tu panel.": "If you submit the form again, the one in progress gets cancelled. Wait for it on your dashboard.",

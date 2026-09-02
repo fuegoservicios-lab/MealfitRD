@@ -417,6 +417,12 @@ export const AssessmentProvider = ({ children }) => {
     // no existiera plan (reporte del owner: login en el teléfono con cuenta que SÍ
     // tiene plan → formulario). El Dashboard ahora muestra "Reintentar" en ese caso.
     const [planSyncFailed, setPlanSyncFailed] = useState(false);
+    // [P1-ARQ25-F1-CLOSE · 2026-09-02] Id del plan que el SERVIDOR tiene generándose (placeholder
+    // de la cola, sin días) cuando el estado local muestra otro plan. El poll ignora los
+    // `generating` a propósito (no sustituye un plan con días por un placeholder), pero el
+    // Dashboard necesita saberlo para decir «tu plan nuevo se está generando». Vivo: tras
+    // regenerar y volver al panel, el cliente veía el plan anterior sin ninguna señal.
+    const [serverGeneratingPlanId, setServerGeneratingPlanId] = useState(null);
 
     // Estado del Perfil Real (Base de Datos)
     const [userProfile, setUserProfile] = useState(null);
@@ -2191,6 +2197,11 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             if (!newPlanData) return false;
 
             const incomingStatus = newPlanData.generation_status;
+            // [P1-ARQ25-F1-CLOSE] placeholder de la cola en el servidor: se anota (no se adopta).
+            const _incomingHasDays = Array.isArray(newPlanData.days) && newPlanData.days.length > 0;
+            setServerGeneratingPlanId(
+                (incomingStatus === 'generating' && !_incomingHasDays && plan?.id) ? plan.id : null,
+            );
             // Solo reaccionar si el plan tiene semanas siendo generadas o acaba de
             // completarse (paridad con el handler del canal Realtime original).
             if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return false;
@@ -4412,6 +4423,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Ojo con el nombre de arriba:
             // `refreshProfileAndPlan` refresca SOLO el perfil. Esta es la que trae el plan.
             hydrateLatestPlan,
+            // [P1-ARQ25-F1-CLOSE] plan que el servidor tiene generándose (placeholder) y que el
+            // estado local aún no muestra — el Dashboard pinta el banner «se está generando».
+            serverGeneratingPlanId,
             // [P1-PLAN-POLL-BOUNDED · 2026-07-29] El poll acotado se rindió tras el tope de
             // give-up (~30min activo sin progreso) — Dashboard usa esto para una anotación
             // mínima, NUNCA para bloquear nada (el plan sigue usable, solo dejó de
@@ -4428,7 +4442,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
-        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restoreSessionData,
+        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restoreSessionData, serverGeneratingPlanId,
         setRecalcLock, withRecalcLock,
     ]);
 

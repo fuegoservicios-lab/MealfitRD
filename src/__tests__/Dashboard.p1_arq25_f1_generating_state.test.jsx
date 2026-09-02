@@ -24,10 +24,13 @@ const GATE = "planData?.generation_status === 'generating'";
 
 describe('P1-ARQ25-F1-CLOSE · placeholder visible como generando', () => {
     it('el flag se declara DENTRO de DashboardInner (donde se usa) y antes de su primer uso', () => {
+        const ctx = fs.readFileSync(path.resolve(_dir, '../context/AssessmentContext.jsx'), 'utf8');
+        expect(ctx).toContain("(incomingStatus === 'generating' && !_incomingHasDays && plan?.id) ? plan.id : null");
+        expect(ctx).toContain('serverGeneratingPlanId,');
         // Regresión real: declararlo en el wrapper `Dashboard` tiró el panel al error boundary.
         const inner = dash.indexOf('const DashboardInner = () => {');
         const wrapper = dash.indexOf('const Dashboard = () => {');
-        const decl = dash.indexOf('const _isPlaceholderGenerating = ' + GATE);
+        const decl = dash.indexOf('const _localPlaceholder = ' + GATE);
         const firstUse = dash.indexOf('{_isPlaceholderGenerating && (');
         expect(inner).toBeGreaterThan(-1);
         expect(decl).toBeGreaterThan(inner);
@@ -35,6 +38,9 @@ describe('P1-ARQ25-F1-CLOSE · placeholder visible como generando', () => {
         expect(decl).toBeLessThan(firstUse);
         expect(dash.slice(decl, decl + 220)).toContain('planData.days.length > 0');
         expect(dash.match(/const _isPlaceholderGenerating = /g)).toHaveLength(1);
+        // regenerar y volver al panel: el servidor tiene OTRO plan generándose
+        expect(dash).toContain('serverGeneratingPlanId !== planData?.id');
+        expect(dash).toContain("t('Mientras tanto ves tu plan anterior.')");
     });
 
     it('banner con spinner y aria-live antes de RestockNudge', () => {
