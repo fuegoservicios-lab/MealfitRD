@@ -6922,7 +6922,13 @@ const DashboardInner = () => {
                                 >
                                     {/* Dot pulsante emerald — semántica "ready to act" */}
                                     <span className="restock-cta-dot" aria-hidden="true" />
-                                    <span>{t('Ya compré la lista')}</span>
+                                    {/* [P2-RESTOCK-COPY-COVERAGE · 2026-09-02] El copy sigue al estado de la
+                                        Nevera: si ya cubre parte de la lista (plan renovado con la Nevera
+                                        llena), lo que se marca es lo que FALTA, no «la lista». Con 0
+                                        pendientes el botón ya no se renderiza (hasPendingShoppingItems). */}
+                                    <span>{(shoppingDeltaMeta?.itemsRemoved || 0) > 0
+                                        ? t('Ya compré lo que faltaba ({n})', { n: shoppingDeltaMeta?.deltaCount || 0 })
+                                        : t('Ya compré la lista')}</span>
                                 </button>
                             )}
 
@@ -7481,6 +7487,9 @@ const DashboardInner = () => {
                 hasPendingItems={hasPendingShoppingItems && !isPlanExpired && !planFinished && !isPlanCorrupted}
                 pendingItemsSettled={computedHasPendingShoppingItems !== null}
                 restocked={!!planData?.is_restocked || sessionRestocked}
+                // [P2-RESTOCK-COPY-COVERAGE · 2026-09-02] cobertura real de la Nevera → copy del banner
+                coveredCount={shoppingDeltaMeta?.itemsRemoved || 0}
+                pendingCount={shoppingDeltaMeta?.deltaCount || 0}
                 daysSinceGroceryStart={daysSinceCreation}
                 onConfirmRestock={() => handleRestock()}
                 onSilentRestock={() => handleRestock({ silent: true })}

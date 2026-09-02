@@ -37,8 +37,15 @@ export default function RestockNudge({
     daysSinceGroceryStart,
     onConfirmRestock,
     onSilentRestock,
+    // [P2-RESTOCK-COPY-COVERAGE · 2026-09-02] Cobertura real de la Nevera sobre la lista
+    // (ítems ya cubiertos / pendientes). Con cobertura parcial el banner deja de decir
+    // «vacía» — el Dashboard mostraba «36 ítems ya en tu Nevera» y, debajo, «Tu Nevera
+    // está vacía para este plan» (plan renovado: is_restocked se resetea a propósito).
+    coveredCount = 0,
+    pendingCount = 0,
 }) {
     const t = useT();
+    const partialCoverage = coveredCount > 0 && pendingCount > 0;
     const nowMs = Date.now();
     const k = planNudgeKey(planData);
     // [P1-DAILY-NOT-CYCLE · 2026-07-28] `userId` viaja en `ctx` para que
@@ -343,10 +350,14 @@ export default function RestockNudge({
                         </span>
                         <div className="restock-nudge-txt">
                             <span className="restock-nudge-title">
-                                {t('Tu Nevera está vacía para este plan')}
+                                {partialCoverage
+                                    ? t('Tu Nevera ya cubre {cubiertos} de {total} ítems de este plan', { cubiertos: coveredCount, total: coveredCount + pendingCount })
+                                    : t('Tu Nevera está vacía para este plan')}
                             </span>
                             <span className="restock-nudge-desc">
-                                {t('¿Ya hiciste las compras? Llénala con un toque para que tu plan use lo que tienes.')}
+                                {partialCoverage
+                                    ? t('¿Ya compraste lo que falta ({n})? Márcalo con un toque para que tu plan use lo que tienes.', { n: pendingCount })
+                                    : t('¿Ya hiciste las compras? Llénala con un toque para que tu plan use lo que tienes.')}
                             </span>
                         </div>
                         <button
@@ -355,7 +366,7 @@ export default function RestockNudge({
                             className="restock-nudge-cta"
                         >
                             <Check size={15} strokeWidth={2.5} />
-                            {t('Sí, ya compré')}
+                            {partialCoverage ? t('Sí, ya los compré') : t('Sí, ya compré')}
                         </button>
                         <button
                             type="button"
