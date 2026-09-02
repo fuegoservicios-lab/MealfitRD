@@ -3665,7 +3665,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                                     if (rd.success && rd.plan_data) {
                                         // [P1-PLANDATA-ID-HYDRATE-2] tercer callsite de la misma clase
                                         setPlanData(prev => conservarPlanId(rd.plan_data, prev));
-                                        safeLocalStorageSet('mealfit_plan', rd.plan_data);
+                                        // [P1-PLANDATA-ID-RECALC · 2026-09-02] la copia local también con id
+                                        safeLocalStorageSet('mealfit_plan', conservarPlanId(rd.plan_data, planData));
                                         // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir `_coherence_warnings` post-swap-recalc.
                                         emitCoherenceToast(toast, rd._coherence_warnings);
                                         return true;

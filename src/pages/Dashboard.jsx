@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 // duración/presupuesto (position:fixed dentro del árbol se rompería si un ancestro framer-motion
 // conserva un transform — el portal lo hace inmune a eso).
 import { createPortal } from 'react-dom';
-import { useAssessment } from '../context/AssessmentContext';
+import { useAssessment, conservarPlanId } from '../context/AssessmentContext';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { requestNotificationPermission, subscribeToPushNotifications, isPushSupported } from '../utils/pushNotifications';
@@ -2679,8 +2679,13 @@ const DashboardInner = () => {
                     if (!r.ok) return;
                     const result = await r.json().catch(() => null);
                     if (result?.success && result.plan_data) {
-                        setPlanData(result.plan_data);
-                        safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
+                        // [P1-PLANDATA-ID-RECALC · 2026-09-02] El recalc devuelve plan_data SIN `id`
+                        // y se persistía crudo: en la siguiente carga el backstop de adopción tomaba
+                        // el plan por «de invitado» (24 × 409 en un día) y `/chunk-status` iba a
+                        // `/plans/undefined`. Misma clase que P1-PLANDATA-ID-HYDRATE-2.
+                        const _conId = conservarPlanId(result.plan_data, planData);
+                        setPlanData(_conId);
+                        safeLocalStorageSet('mealfit_plan', JSON.stringify(_conId));
                     }
                 });
             } catch { /* fail-open: la lista persistida sigue siendo válida */ }
@@ -6664,8 +6669,9 @@ const DashboardInner = () => {
                                                                     // en iOS Private Mode / quota un throw de localStorage no debe
                                                                     // descartar el recalc del backend. Helpers safe absorben el throw.
                                                                     if (result.plan_data.is_restocked == null && safeLocalStorageGet(rk, null)) result.plan_data.is_restocked = true;
-                                                                    setPlanData(result.plan_data);
-                                                                    safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
+                                                                    const _conId = conservarPlanId(result.plan_data, planData); // [P1-PLANDATA-ID-RECALC]
+                                                                    setPlanData(_conId);
+                                                                    safeLocalStorageSet('mealfit_plan', JSON.stringify(_conId));
                                                                     toast.success(t('Lista actualizada'), { id: recalcToast });
                                                                     // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] el panel
                                                                     // "Para completar tu Nevera" fue eliminado (decisión del
@@ -7350,8 +7356,9 @@ const DashboardInner = () => {
                                             }
                                             if (result?.success && result.plan_data) {
                                                 // Reconcilia con el costeo autoritativo (marca + costo exacto).
-                                                setPlanData(result.plan_data);
-                                                safeLocalStorageSet('mealfit_plan', JSON.stringify(result.plan_data));
+                                                const _conId = conservarPlanId(result.plan_data, planData); // [P1-PLANDATA-ID-RECALC]
+                                                setPlanData(_conId);
+                                                safeLocalStorageSet('mealfit_plan', JSON.stringify(_conId));
                                             }
                                             // Fallo: dejamos el update optimista (marca visible); la pref
                                             // quedó guardada y el próximo recalc/recarga aplica el costo exacto.
