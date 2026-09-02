@@ -31,7 +31,8 @@ export default function CoachQuotaMeter({ quota, variant = 'pill', onlyWhenLow =
     const q = coachQuotaState(quota);
     if (!q) return null;
     if (onlyWhenLow && q.state === 'healthy') return null;
-    const fecha = quota.resets_at ? formatDate(quota.resets_at, { day: 'numeric', month: 'short' }) : '';
+    // La ventana del contador es UTC (día 1 a las 00:00Z): sin `timeZone: 'UTC'`, en RD salía «30 sept».
+    const fecha = quota.resets_at ? formatDate(quota.resets_at, { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '';
     const renueva = fecha ? t('Se renueva el {fecha}', { fecha }) : '';
     const aria = t('{remaining} de {limit} mensajes del coach este mes', { remaining: q.remaining, limit: q.limit })
         + (renueva ? `. ${renueva}` : '');

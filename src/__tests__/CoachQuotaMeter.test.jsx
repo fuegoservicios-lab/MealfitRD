@@ -29,6 +29,9 @@ describe('CoachQuotaMeter', () => {
         expect(el.textContent).toContain('Mensajes');
         expect(el.textContent).toContain('59');
         expect(el.textContent).toMatch(/Se renueva el/);
+        // la ventana es UTC: 2026-10-01T00:00Z es el día 1, no el 30 en husos negativos
+        expect(el.textContent).toMatch(/1/);
+        expect(el.textContent).not.toMatch(/30/);
     });
     it('la linea sobre el cuadro de texto solo aparece cuando queda poco o nada', () => {
         const { container: sano } = render(<CoachQuotaMeter quota={q(1, 60)} variant="caption" onlyWhenLow />);
@@ -48,5 +51,7 @@ describe('CoachQuotaMeter', () => {
         expect(src).toContain('{isMobile && <CoachQuotaMeter quota={coachQuota} variant="caption" onlyWhenLow />}');
         expect(src).toContain("response.headers.get('X-Coach-Quota-Resets-At')");
         expect(src).toContain('userMessage: _quotaMessage');
+        expect(src).toContain("month: 'long', timeZone: 'UTC'");
+        expect(src).toContain("border: '1px solid var(--border)',");
     });
 });

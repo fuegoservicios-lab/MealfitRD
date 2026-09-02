@@ -2888,7 +2888,7 @@ const AgentPage = () => {
                     if (response.status === 402) {
                         const _limit = response.headers.get('X-Coach-Quota-Limit');
                         const _resets = response.headers.get('X-Coach-Quota-Resets-At');
-                        const _fecha = _resets ? formatDate(_resets, { day: 'numeric', month: 'long' }) : '';
+                        const _fecha = _resets ? formatDate(_resets, { day: 'numeric', month: 'long', timeZone: 'UTC' }) : '';
                         if (_limit && _fecha) {
                             _quotaMessage = t('Llegaste a tus {limit} mensajes del coach de este mes. Se renueva el {fecha}.', { limit: _limit, fecha: _fecha })
                                 + (nativeHidesCommerce() ? '' : ' ' + t('Mejora tu plan para seguir conversando.'));
@@ -3983,9 +3983,13 @@ const AgentPage = () => {
                                     backdropFilter: 'blur(20px)',
                                     WebkitBackdropFilter: 'blur(20px)',
                                     borderRadius: '1rem',
-                                    boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04)',
+                                    // [P2-NAV-MENU-EDGE · 2026-09-02] En oscuro el menú se fundía con la
+                                    // cabecera: mismo --bg-card y un anillo negro al 4 % sobre negro. Borde
+                                    // real + sombra del tema (la oscura es más densa) + anillo claro tenue.
+                                    border: '1px solid var(--border)',
+                                    boxShadow: 'var(--shadow-xl), 0 0 0 1px rgba(148, 163, 184, 0.12)',
                                     padding: '0.5rem',
-                                    minWidth: '200px',
+                                    minWidth: '220px',
                                     zIndex: 100,
                                     animation: 'fadeSlideDown 0.2s ease'
                                 }}>
