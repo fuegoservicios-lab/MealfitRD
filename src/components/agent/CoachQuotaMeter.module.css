@@ -1,0 +1,22 @@
+/* [P1-COACH-QUOTA-METER · 2026-09-02] Píldora compacta para la cabecera del chat. */
+.meter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1;
+    white-space: nowrap;
+    --q-accent: #22D3EE;
+}
+.meter svg { color: var(--q-accent); }
+.count { font-variant-numeric: tabular-nums; color: var(--text-main); }
+.count b { color: var(--q-accent); font-weight: 700; }
+.label { letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.6rem; font-weight: 700; }
+.low { --q-accent: #FB923C; border-color: rgba(251, 146, 60, 0.45); }
+.depleted { --q-accent: #F43F5E; border-color: rgba(244, 63, 94, 0.5); }
+.compact { padding: 0.25rem 0.5rem; }

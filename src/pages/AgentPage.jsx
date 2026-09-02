@@ -81,7 +81,9 @@ import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
 // se usa `useT()`, que además suscribe al cambio de idioma.
-import { t, useT } from '../i18n';
+import { t, useT, formatDate } from '../i18n';
+import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
+import { nativeHidesCommerce } from '../config/platform';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../data/routeMeta';
@@ -507,6 +509,16 @@ const AgentPage = () => {
     // arriba) es lo que suscribe a este componente al cambio de idioma.
     const t = useT();
     const { session, planData, formData, updateData, saveGeneratedPlan, userProfile, checkPlanLimit, restoreSessionData } = useAssessment();
+    // [P1-COACH-QUOTA-METER · 2026-09-02] Cuota mensual del coach, visible en la cabecera.
+    // Se lee al entrar y tras cada respuesta (cuando `isLoading` vuelve a false).
+    const [coachQuota, setCoachQuota] = useState(null);
+    const refreshCoachQuota = useCallback(async () => {
+        if (!session?.user?.id) { setCoachQuota(null); return; }
+        try {
+            const r = await fetchWithAuth('/api/chat/quota');
+            if (r.ok) setCoachQuota(await r.json());
+        } catch { /* best-effort: el medidor es informativo */ }
+    }, [session?.user?.id]);
     // [P1-AGENT-MENU-SSOT · 2026-08-14] El modo, en el scope del COMPONENTE. El
     // saludo tiene su propio cálculo porque es una función pura fuera de React;
     // el menú se pinta aquí dentro y necesita el suyo. Mismo SSOT, dos ámbitos.
@@ -1146,6 +1158,9 @@ const AgentPage = () => {
     }, [planData, formData, userProfile, messages]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    useEffect(() => {
+        if (!isLoading) refreshCoachQuota(); // [P1-COACH-QUOTA-METER] al montar y tras cada respuesta
+    }, [isLoading, refreshCoachQuota]);
 
     // [P1-CHAT-TURN-ACTIVE · 2026-08-10] `isLoading` NO significa «hay un turno en
     // vuelo»: significa «se está pensando». Deja de ser cierto en el PRIMER token
@@ -2867,6 +2882,19 @@ const AgentPage = () => {
                     // específico — el usuario debe saber si el problema es
                     // transitorio (reintentar pronto) o necesita esperar más
                     // (saturación). Quota/auth NO son retryables.
+                    // [P1-COACH-QUOTA-METER · 2026-09-02] 402 = cuota del coach: decir cuántos
+                    // eran y cuándo se renueva (cabeceras del backend), no solo «actualiza».
+                    let _quotaMessage;
+                    if (response.status === 402) {
+                        const _limit = response.headers.get('X-Coach-Quota-Limit');
+                        const _resets = response.headers.get('X-Coach-Quota-Resets-At');
+                        const _fecha = _resets ? formatDate(_resets, { day: 'numeric', month: 'long' }) : '';
+                        if (_limit && _fecha) {
+                            _quotaMessage = t('Llegaste a tus {limit} mensajes del coach de este mes. Se renueva el {fecha}.', { limit: _limit, fecha: _fecha })
+                                + (nativeHidesCommerce() ? '' : ' ' + t('Mejora tu plan para seguir conversando.'));
+                            setCoachQuota((q) => ({ ...(q || {}), limit: Number(_limit), used: Number(_limit), remaining: 0, resets_at: _resets }));
+                        }
+                    }
                     setMessages(prev => [...prev, _buildAgentErrorMessage({
                         status: response.status,
                         retryPrompt: userMsg,
@@ -2874,6 +2902,7 @@ const AgentPage = () => {
                         retryAttachments: _durableRetryAttachments(uploadedAttachments),
                         retryTruncateIndex: originalUserMessageIndex,
                         clientMessageId,
+                        userMessage: _quotaMessage,
                     })]);
                 }
             }
@@ -3914,6 +3943,9 @@ const AgentPage = () => {
                         </span>
 
                         {/* Right: 3-dot nav menu (mobile) */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {/* [P1-COACH-QUOTA-METER] cuota mensual del coach */}
+                        <CoachQuotaMeter quota={coachQuota} compact={isMobile} />
                         <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
                             <button
                                 ref={navMenuTriggerRef}
@@ -3990,6 +4022,7 @@ const AgentPage = () => {
                                     ))}
                                 </div>
                             )}
+                        </div>
                         </div>
 
                     </div>
