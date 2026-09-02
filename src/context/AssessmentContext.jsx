@@ -340,6 +340,8 @@ const FORM_SAVE_MAX_WAIT_MS = 1500;
 // Deliberadamente FUERA: `_day_regen_inflight` / `_meal_regen_inflight`, que son
 // marcadores de operación en curso y pertenecen a su merge concreto; adoptarlos
 // desde un poll pisaría el estado local de una operación viva.
+// [P1-ARQ25-F1-CLOSE · 2026-09-02] Lista blanca SOLO para planes sin `revision` (legacy).
+// Con revisión, `hydrateLatestPlan` adopta entero (mayor) o no toca nada (igual).
 export const CAMPOS_DERIVADOS_DEL_SERVIDOR = Object.freeze([
     'micronutrient_report',
     'micronutrient_supplement_advice',
@@ -2280,8 +2282,18 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     _tracePlanWrite(`adopt-rev-${src}`, plan?.id);
                     return adoptedRev;
                 }
-                // Mezclar: preservar campos locales (grocery_start_date, is_restocked, etc.)
-                // pero actualizar los días con el valor más reciente del servidor
+                // [P1-ARQ25-F1-CLOSE · 2026-09-02] Misma revisión = el servidor no tiene nada
+                // que no tengamos: toda escritura de plan_data sube `revision` (trigger I12), así
+                // que días, micros, listas y `_display` son idénticos por construcción. Devolver
+                // `prev` evita el churn del merge por lista blanca en cada tick de 25 s y deja
+                // esa lista SOLO para planes legacy sin revisión (SSE viejo, historial antiguo).
+                if (Number.isFinite(srvRev) && Number.isFinite(locRev) && srvRev === locRev
+                    && incomingStatus === prev.generation_status) {
+                    _tracePlanWrite(`same-rev-${src}`, plan?.id);
+                    return prev;
+                }
+                // Mezclar (SOLO planes sin revisión): preservar campos locales (grocery_start_date,
+                // is_restocked, etc.) pero actualizar los días con el valor más reciente del servidor
                 const merged = {
                     ...prev,
                     // [P1-ARQ25-F1-LIFECYCLE] sellar la revisión vista para que el próximo tick compare.
