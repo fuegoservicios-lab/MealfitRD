@@ -38,7 +38,8 @@ describe('P1-ARQ25-F1 · Plan.jsx crea el run durable y tailea sus eventos', () 
     it('sólo va por la cola con el flag y usuario autenticado; el POST lleva idempotency_key', () => {
         const i = src.indexOf("if (initialViaQueueEnabled() && formData?.user_id && formData.user_id !== 'guest')");
         expect(i).toBeGreaterThan(0);
-        const bloque = src.slice(i, i + 1600);
+        // [P1-QUEUE-5XX-NO-LEGACY] la ventana crece: entre el POST y el tail viven ahora los reintentos ante 5xx
+        const bloque = src.slice(i, i + 3400);
         expect(bloque).toContain("fetchWithRetry('/api/plans/generation-runs'");
         expect(bloque).toContain('idempotency_key: idempotencyKeyFor(formData)');
         expect(bloque).toMatch(/generation-runs\/\$\{encodeURIComponent\(run\.run_id\)\}\/events/);
@@ -96,5 +97,32 @@ describe('P1-ARQ25-F1 · config/generation', () => {
         expect(mod.initialViaQueueEnabled()).toBe(
             String(import.meta.env.VITE_INITIAL_VIA_QUEUE ?? '').toLowerCase() === 'true'
         );
+    });
+});
+
+
+// [P1-QUEUE-5XX-NO-LEGACY · 2026-09-02] Un 5xx de la cola (reinicio) no puede caer al legado.
+describe('P1-QUEUE-5XX-NO-LEGACY', () => {
+    const src = read('../pages/Plan.jsx');
+    it('reintenta la creación del run con esperas crecientes y lanza queue_unavailable si sigue caído', () => {
+        expect(src).toContain('const QUEUE_CREATE_RETRY_MS = [4_000, 8_000, 12_000];');
+        expect(src).toContain('for (const _espera of QUEUE_CREATE_RETRY_MS)');
+        expect(src).toContain("eQ.code = 'queue_unavailable';");
+        // el legado queda SOLO para el 404 «cola apagada»: el 5xx ya lanzó antes de llegar ahí
+        const i = src.indexOf("eQ.code = 'queue_unavailable';");
+        const j = src.indexOf("if (runResp.status === 404) {");
+        expect(i).toBeGreaterThan(-1);
+        expect(j).toBeGreaterThan(i);
+    });
+    it('si el tail del run no responde ok, reanuda por estado del run en vez del legado', () => {
+        const i = src.indexOf('/events`, {');
+        const win = src.slice(i, i + 900);
+        expect(win).toContain('if (!response.ok) {');
+        expect(win).toContain('return await resumeQueueRunUntilReady(run.run_id');
+    });
+    it('el catch no manda queue_unavailable al fallback síncrono y el caller lo muestra reintentable', () => {
+        expect(src).toContain("} else if (error.code === 'queue_unavailable') {");
+        expect(src).toContain("if (error.code === 'queue_unavailable') {");
+        expect(src).toContain("toast.error(t('El servidor se está actualizando')");
     });
 });

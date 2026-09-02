@@ -265,6 +265,8 @@ export const cancelGeneration = () => {
 // `GET /generation-runs/{id}?include_plan=true` hasta PLAN_READY (H5: exige días reales),
 // FAILED (código del run) o CANCELLED. Una red caída (reinicio) no es un fallo: se sigue.
 const QUEUE_RESUME_POLL_MS = 10_000;
+// [P1-QUEUE-5XX-NO-LEGACY] esperas entre reintentos de `POST /generation-runs` ante 5xx (reinicio ~10-15 s)
+const QUEUE_CREATE_RETRY_MS = [4_000, 8_000, 12_000];
 const QUEUE_RESUME_MAX_MS = 45 * 60 * 1000; // rescate zombie (10 min) + 5 min de espera + generación
 
 export async function resumeQueueRunUntilReady(runId, { signal, onProgress } = {}) {
@@ -363,13 +365,33 @@ export const generateAIPlanStream = async (formData, onProgress) => {
             // apagado (404) se cae al SSE legacy en el mismo intento.
             let response = null;
             if (initialViaQueueEnabled() && formData?.user_id && formData.user_id !== 'guest') {
-                const runResp = await fetchWithRetry('/api/plans/generation-runs', {
+                // [P1-QUEUE-5XX-NO-LEGACY · 2026-09-02] Un 5xx aquí es casi siempre el backend
+                // reiniciándose (deploy con drain: ~10-15 s). Antes el 502 caía por el camino
+                // «no es event-stream» al endpoint SÍNCRONO legado (`/analyze`): un plan entero
+                // fuera de la cola, sin drain, sin run — medido en prod 18:26→18:35 UTC. Ahora se
+                // reintenta la creación del run con espera creciente; si sigue caído, error
+                // reintentable. El legado queda SOLO para el 404 «cola apagada».
+                const _crearRun = () => fetchWithRetry('/api/plans/generation-runs', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     // `formData` ya viene filtrado por stripInternalFlags (P1-8); se añade la clave sin re-spread.
                     body: JSON.stringify(Object.assign({}, formData, { idempotency_key: idempotencyKeyFor(formData) })),
                     signal: globalAbortController.signal
                 }, 1);
+                let runResp = await _crearRun();
+                for (const _espera of QUEUE_CREATE_RETRY_MS) {
+                    if (runResp.ok || (runResp.status >= 400 && runResp.status < 500)) break;
+                    if (globalAbortController.signal.aborted) break;
+                    console.warn(`🔁 [ARQ25-F1] la cola respondió ${runResp.status} (¿reinicio?) — reintento en ${_espera / 1000}s`);
+                    if (onProgress) onProgress({ event: 'phase', data: { phase: 'queue_retry', retry_in_ms: _espera } });
+                    await new Promise((res) => setTimeout(res, _espera));
+                    runResp = await _crearRun();
+                }
+                if (!runResp.ok && !(runResp.status >= 400 && runResp.status < 500)) {
+                    const eQ = new Error(t('El servidor se está actualizando. Espera unos segundos y vuelve a intentarlo.'));
+                    eQ.code = 'queue_unavailable';
+                    throw eQ;
+                }
                 if (runResp.status === 404) {
                     console.warn('⚠️ [ARQ25-F1] cola apagada en el backend → SSE legacy.');
                 } else if (runResp.ok) {
@@ -381,6 +403,13 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                             method: 'GET',
                             signal: globalAbortController.signal
                         }, 1);
+                        if (!response.ok) {
+                            // [P1-QUEUE-5XX-NO-LEGACY] el run ya existe: su estado manda, nunca el legado.
+                            console.warn(`🔁 [ARQ25-F1] tail del run ${run.run_id} respondió ${response.status} — reanudando por estado del run.`);
+                            const resumeCtl = new AbortController();
+                            globalAbortController = resumeCtl;
+                            return await resumeQueueRunUntilReady(run.run_id, { signal: resumeCtl.signal, onProgress });
+                        }
                     }
                 } else {
                     response = runResp; // 4xx del formulario: lo trata el bloque de abajo
@@ -636,6 +665,9 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 // seguro recibiríamos otro 429. Propagamos al caller para que
                 // muestre countdown.
                 console.warn(`⏳ Rate limited — propagando para countdown UX (retry_after=${error.retryAfter}s).`);
+                throw error;
+            } else if (error.code === 'queue_unavailable') {
+                // [P1-QUEUE-5XX-NO-LEGACY] reintentable por el usuario; el legado NO es alternativa.
                 throw error;
             } else if (error.code === 'quota_exceeded') {
                 // [P1-QUOTA-402-UX · 2026-05-30] Cap mensual de créditos
@@ -1542,6 +1574,20 @@ const Plan = () => {
                             toast.error(t("Ajusta tu presupuesto o tus metas"), {
                                 description: error.message || t("Tu presupuesto no alcanza para tus metas. Súbelo o reduce los días, las personas o tu meta calórica."),
                                 duration: 12000,
+                            });
+                        });
+                        navigate('/assessment', { replace: true });
+                        return;
+                    }
+                    if (error.code === 'queue_unavailable') {
+                        // [P1-QUEUE-5XX-NO-LEGACY · 2026-09-02] La cola no respondió tras los
+                        // reintentos (reinicio largo o caída). No se generó nada: limpiar el flag y
+                        // volver al formulario con un aviso reintentable.
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
+                        import('sonner').then(({ toast }) => {
+                            toast.error(t('El servidor se está actualizando'), {
+                                description: error.message || t('Espera unos segundos y vuelve a intentarlo.'),
+                                duration: 8000,
                             });
                         });
                         navigate('/assessment', { replace: true });
