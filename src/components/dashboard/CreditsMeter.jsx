@@ -84,7 +84,11 @@ export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitR
     const gradId = `creditsGauge_${state}`;
     const dashOffset = CIRC * (1 - fraction);
 
-    const label = isGuest ? t('Prueba') : t('Créditos');
+    // [P3-CREDITS-LAST-ONE · 2026-09-02] Último crédito: el color NO cambia (ámbar = «aún
+    // puedes»; el rojo queda para el 0 real, o pierde significado). La urgencia va en una
+    // señal secundaria: etiqueta «Último crédito» + latido más vivo del bloom (CSS).
+    const isLastCredit = state === 'low' && remaining === 1;
+    const label = isGuest ? t('Prueba') : (isLastCredit ? t('Último crédito') : t('Créditos'));
     const ariaLabel = isGuest
         ? (remaining > 0
             ? t('Prueba gratis: {remaining} de {limit} generaciones', { remaining, limit })
@@ -95,7 +99,7 @@ export default function CreditsMeter({ remainingCredits, userPlanLimit, isLimitR
 
     return (
         <div
-            className={`${styles.badge} ${styles[state]}`}
+            className={`${styles.badge} ${styles[state]}${isLastCredit ? ` ${styles.lastCredit}` : ''}`}
             style={{ '--meter-glow': GLOW[state], '--meter-icon': ICON[state] }}
             role="img"
             aria-label={ariaLabel}

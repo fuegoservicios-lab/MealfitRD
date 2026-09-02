@@ -142,6 +142,16 @@
     filter: drop-shadow(0 0 5px var(--meter-glow));
 }
 
+/* [P3-CREDITS-LAST-ONE · 2026-09-02] Último crédito: mismo ámbar, latido más vivo y
+   rápido del bloom y del rayo. Sin movimiento (reduced-motion) queda solo la etiqueta. */
+.lastCredit .gauge::before {
+    animation: meterPulse 1.6s ease-in-out infinite;
+    opacity: 0.75;
+}
+.lastCredit .core {
+    animation: meterPulse 1.6s ease-in-out infinite;
+}
+
 @keyframes meterPulse {
     0%, 100% { opacity: 0.42; transform: scale(0.94); }
     50%      { opacity: 0.68; transform: scale(1.04); }
@@ -243,6 +253,7 @@
 /* ---- accesibilidad: sin movimiento ---- */
 @media (prefers-reduced-motion: reduce) {
     .gauge::before { animation: none; }
+    .lastCredit .core { animation: none; }
     /* Sin movimiento: ocultar el haz orbitante (un arco estático se vería raro). */
     .badge::after { animation: none; opacity: 0; }
 }
