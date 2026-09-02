@@ -604,6 +604,12 @@
   "Digestión": "Digestion",
   "Diseña tu plan libremente, con lo que mejor encaje en tus metas. No mira tu Nevera.": "Conçoit votre plan librement, avec ce qui colle le mieux à vos objectifs. Ne regarde pas votre frigo.",
   "Diseñando tu plan": "Conception de votre plan",
+  "El primer bloque de días está en el horno. Aparecerá aquí solo; no tienes que hacer nada.": "Le premier bloc de jours est au four. Il apparaîtra ici tout seul ; rien à faire.",
+  "Tu plan se está generando en segundo plano": "Votre plan est en cours de génération en arrière-plan",
+  "Suele tardar entre 3 y 6 minutos. Si el servidor se reinicia, se retoma solo; no hace falta volver al formulario. Se actualizará aquí en cuanto esté listo.": "Cela prend en général 3 à 6 minutes. Si le serveur redémarre, la génération reprend toute seule ; inutile de revenir au formulaire. La page se mettra à jour dès qu'il sera prêt.",
+  "Ya tienes un plan generándose": "Vous avez déjà un plan en cours de génération",
+  "Si vuelves a enviar el formulario se cancela el que está en marcha. Espéralo en tu panel.": "Si vous renvoyez le formulaire, celui en cours est annulé. Attendez-le sur votre tableau de bord.",
+  "Ver mi panel": "Voir mon tableau de bord",
   "Disminuir cantidad": "Diminuer la quantité",
   "Disminuir {alimento}": "Diminuer {alimento}",
   "Disponible en {n} días (sábado)": {

@@ -11,7 +11,13 @@ import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 import { useT } from '../../i18n';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
-    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile } = useAssessment();
+    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, planData } = useAssessment();
+    // [P1-ARQ25-F1-CLOSE · 2026-09-02] Si ya hay un plan generándose (placeholder de la cola sin
+    // días), el asistente lo dice arriba y manda al panel: reenviar el formulario cancelaría
+    // la generación en marcha. Vivo: tras un reinicio del backend el cliente aterrizó aquí sin
+    // ninguna pista de que su plan seguía vivo.
+    const _planGenerandose = planData?.generation_status === 'generating'
+        && !(Array.isArray(planData?.days) && planData.days.length > 0);
     const navigate = useNavigate();
     const t = useT();
     const progress = (currentStep / (totalSteps - 1)) * 100;
@@ -215,6 +221,34 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         </motion.div>
                     </AnimatePresence>
 
+                    {_planGenerandose && (
+                        <div
+                            role="status"
+                            data-testid="wizard-generating-notice"
+                            style={{
+                                display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem',
+                                padding: '0.85rem 1rem', marginBottom: '1rem', borderRadius: '0.85rem',
+                                border: '1px solid rgba(99, 102, 241, 0.35)', background: 'rgba(99, 102, 241, 0.08)',
+                            }}
+                        >
+                            <div style={{ flex: '1 1 16rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                <span style={{ fontWeight: 700 }}>{t('Ya tienes un plan generándose')}</span>
+                                <span style={{ fontSize: '0.85rem', opacity: 0.85 }}>
+                                    {t('Si vuelves a enviar el formulario se cancela el que está en marcha. Espéralo en tu panel.')}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/dashboard')}
+                                style={{
+                                    padding: '0.55rem 0.95rem', borderRadius: '0.7rem', fontWeight: 700,
+                                    border: '1px solid rgba(99, 102, 241, 0.6)', background: 'transparent', color: 'inherit', cursor: 'pointer',
+                                }}
+                            >
+                                {t('Ver mi panel')}
+                            </button>
+                        </div>
+                    )}
                     <div className={styles.stepContainer}>
                         {children}
                     </div>

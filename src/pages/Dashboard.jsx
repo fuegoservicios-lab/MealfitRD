@@ -7478,6 +7478,29 @@ const DashboardInner = () => {
                 esto, el prompt #2 se auto-abría con el guess cacheado y se cerraba solo
                 en cuanto el dato real resolvía ("aparece y desaparece") — y de paso
                 quemaba el auto-open de una sola vez por sesión sobre un fantasma. */}
+            {/* [P1-ARQ25-F1-CLOSE · 2026-09-02] Señal visible de «tu plan se está generando»
+                mientras el placeholder de la cola no tiene días. Sin esto el panel parecía
+                un plan vacío y el cliente podía confundirlo con un error. */}
+            {_isPlaceholderGenerating && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    data-testid="generating-plan-banner"
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '0.85rem',
+                        padding: '0.9rem 1.1rem', marginBottom: '1rem', borderRadius: '0.9rem',
+                        border: '1px solid rgba(99, 102, 241, 0.35)', background: 'rgba(99, 102, 241, 0.08)',
+                    }}
+                >
+                    <Loader2 size={22} className="spin-animation" aria-hidden="true" style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                        <span style={{ fontWeight: 700 }}>{t('Tu plan se está generando en segundo plano')}</span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>
+                            {t('Suele tardar entre 3 y 6 minutos. Si el servidor se reinicia, se retoma solo; no hace falta volver al formulario. Se actualizará aquí en cuanto esté listo.')}
+                        </span>
+                    </div>
+                </div>
+            )}
             <RestockNudge
                 planData={planData}
                 // [P1-DAILY-NOT-CYCLE · 2026-07-28] Mismo fallback que WaterTracker
@@ -8520,6 +8543,21 @@ const DashboardInner = () => {
                                 // sustituye por la suma de los dos: un chunk `processing`
                                 // con `execute_after` futuro cae fuera de AMBOS contadores
                                 // y el día desaparecería de la pantalla.
+                                // [P1-ARQ25-F1-CLOSE · 2026-09-02] Placeholder de la cola (plan `generating`
+                                // sin días): el bloque 1 está en el horno. Antes caía en «Estos días aún no
+                                // toca prepararlos… el próximo llega el miércoles» (el chunk inicial contaba
+                                // como programado) y el cliente no veía ninguna señal de carga → volvía al
+                                // formulario y cancelaba su propia generación.
+                                if (_isPlaceholderGenerating) {
+                                    return (
+                                        <EmptyState
+                                            live
+                                            icon={ChefHat}
+                                            title={t('Diseñando tu plan')}
+                                            description={t('El primer bloque de días está en el horno. Aparecerá aquí solo; no tienes que hacer nada.')}
+                                        />
+                                    );
+                                }
                                 const _corriendoAhora = Number(chunkStatusInfo?.running_now_count || 0) > 0;
                                 const _programados = Number(chunkStatusInfo?.scheduled_count || 0) > 0;
                                 if (_corriendoAhora) {
@@ -10132,6 +10170,9 @@ const Dashboard = () => {
     if (!planData) {
         return <Navigate to="/assessment" replace />;
     }
+    // [P1-ARQ25-F1-CLOSE] placeholder de la cola: `generating` y todavía sin días.
+    const _isPlaceholderGenerating = planData?.generation_status === 'generating'
+        && !(Array.isArray(planData?.days) && planData.days.length > 0);
 
     return <DashboardInner />;
 };
