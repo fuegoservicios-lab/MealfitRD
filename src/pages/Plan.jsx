@@ -31,7 +31,7 @@ import { t, useT, useTn, useI18n } from '../i18n';
 import { mensajeDeError } from '../utils/errorCopy';
 // [P1-I18N-SERVER-COPY-GANA-SIGUE-ABIERTO · 2026-08-23] El `_review_disclaimer` del backend
 // viene siempre en español; se glosa al imprimir, igual que la nota clínica.
-import { glossReviewDisclaimer } from '../utils/clinicalNoteGloss';
+import { glossReviewIssue, glossReviewDisclaimer } from '../utils/clinicalNoteGloss';
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
@@ -1400,12 +1400,19 @@ const Plan = () => {
                                 duration: 12000,
                             });
                         } else if (generatedPlan?._review_failed_but_delivered) {
-                            const _issues = Array.isArray(generatedPlan?._review_issues)
-                                ? generatedPlan._review_issues.slice(0, 2).map(String).join(' · ')
-                                : '';
-                            toast.warning(t("Plan generado con observaciones"), {
-                                description: _issues
-                                    || generatedPlan?._review_disclaimer
+                            // [P2-REVIEW-ISSUES-CLARO · 2026-09-02] Un solo aviso, corto: la primera
+                            // observación (ya humanizada por el backend, glosada aquí) y cuántas más hay.
+                            // El mismo título que el banner del Dashboard, para que se lea como el
+                            // mismo hecho y no como dos problemas distintos.
+                            const _list = Array.isArray(generatedPlan?._review_issues)
+                                ? generatedPlan._review_issues.map(String).filter(Boolean)
+                                : [];
+                            const _first = _list[0] ? glossReviewIssue(_list[0], t) : '';
+                            const _more = _list.length > 1 ? ' ' + t('(+{n} más en el Dashboard)', { n: _list.length - 1 }) : '';
+                            try { sessionStorage.setItem('mealfit_plan_ready_toast_at', String(Date.now())); } catch { /* noop */ }
+                            toast.warning(t('Tu plan está listo, con un detalle por revisar'), {
+                                description: (_first + _more)
+                                    || glossReviewDisclaimer(generatedPlan?._review_disclaimer, t)
                                     || t("Observaciones no-críticas. Puedes regenerarlo si prefieres."),
                                 duration: 10000,
                             });

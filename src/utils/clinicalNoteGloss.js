@@ -206,3 +206,54 @@ export const glossClinicalNote = (note, t) => {
 
     return out;
 };
+
+
+// [P2-REVIEW-ISSUES-CLARO · 2026-09-02] Las observaciones ENTREGADAS (`_review_issues`) ya
+// llegan humanizadas por el backend (P2-REVIEW-ISSUES-HUMANIZE), en español y con el prefijo
+// «Día N, slot: » cuando hablan de un plato concreto. Mismo motor que los disclaimers: se
+// sustituye la frase conocida por su traducción y el prefijo se compone con claves propias.
+const _REVIEW_ISSUE_COPIES = (t) => [
+    t('el plato es más de otro momento del día. Si no te convence, cámbialo con «Cambiar Plato».'),
+    t('Algunas cantidades de la lista de compras pueden variar respecto a las recetas — revísalas antes de comprar.'),
+    t('Algunos platos se parecen a los de tus planes recientes — usa «Cambiar Plato» si quieres más variedad.'),
+    t('Un día repite la misma proteína en más de una comida — puedes cambiar uno de esos platos.'),
+    t('Un día repite la misma fruta en más de una comida — puedes cambiar uno de esos platos.'),
+    t('Hay preparaciones parecidas repetidas — usa «Cambiar Plato» si quieres más variedad.'),
+    t('Un mismo plato se repite en varios días — usa «Cambiar Plato» si quieres más variedad.'),
+    t('Algún plato no siguió al 100% la estructura planificada.'),
+    t('Algún día queda por debajo de tu meta de proteína — puedes cambiar un plato por uno con más proteína.'),
+    t('Un día supera el techo de proteína indicado para tu condición — cambia un plato por uno más ligero.'),
+    t('Algún día pasa el sodio recomendado — revisa embutidos, quesos curados y sal añadida.'),
+    t('El huevo se repite más de la cuenta — puedes cambiar uno de esos platos.'),
+    t('Las calorías de algún día se alejan un poco de tu meta.'),
+    t('La lista de compras salió vacía — recalcúlala desde el Dashboard.'),
+    t('Un plato llegó incompleto — puedes regenerarlo.'),
+];
+export const CLAVES_REVIEW_ISSUE = _REVIEW_ISSUE_COPIES((s) => s);
+// t() literal por rama: el extractor de i18n no puede seguir una clave dinámica.
+const _slotLabel = (slot, t) => (slot === 'desayuno' ? t('Desayuno')
+    : slot === 'almuerzo' ? t('Almuerzo')
+    : slot === 'merienda' ? t('Merienda')
+    : slot === 'cena' ? t('Cena') : slot);
+
+/** `glossReviewIssue(texto, t)` -> string. Display-only, fail-soft; desconocido ⇒ tal cual. */
+export const glossReviewIssue = (texto, t) => {
+    if (typeof texto !== 'string' || !texto.trim() || typeof t !== 'function') return texto;
+    try {
+        let out = texto;
+        const claves = CLAVES_REVIEW_ISSUE;
+        const traducidos = _REVIEW_ISSUE_COPIES(t);
+        for (let i = 0; i < claves.length; i += 1) {
+            if (claves[i] && out.includes(claves[i])) out = out.replace(claves[i], traducidos[i]);
+        }
+        const m = out.match(/^Día (\d+), (desayuno|almuerzo|merienda|cena): /i);
+        if (m) {
+            const _sl = _slotLabel(m[2].toLowerCase(), t);
+            const slot = _sl.charAt(0).toLowerCase() + _sl.slice(1); // «Día 2, almuerzo», no «Almuerzo»
+            out = t('{dia}, {slot}: ', { dia: t('Día {n}', { n: m[1] }), slot }) + out.slice(m[0].length);
+        }
+        return out;
+    } catch {
+        return texto;
+    }
+};

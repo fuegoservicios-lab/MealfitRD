@@ -96,6 +96,16 @@ async function fetchGuestPlan(sid) {
     } catch { return null; }
 }
 
+
+// [P2-REVIEW-ISSUES-CLARO · 2026-09-02] Si la pantalla del plan acaba de avisar (con
+// observaciones), este «Tu plan está listo» sería el segundo aviso del mismo hecho.
+const _planToastJustShown = () => {
+    try {
+        const at = Number(sessionStorage.getItem('mealfit_plan_ready_toast_at') || 0);
+        return at > 0 && (Date.now() - at) < 60_000;
+    } catch { return false; }
+};
+
 export default function PendingPipelineRecovery() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -217,7 +227,7 @@ export default function PendingPipelineRecovery() {
                             }
                             try {
                                 const { toast } = await import('sonner');
-                                toast.success(t('Tu plan está listo 🎉'), {
+                                if (!_planToastJustShown()) toast.success(t('Tu plan está listo 🎉'), {
                                     description: t('Te llevamos al dashboard.'),
                                     duration: 3500,
                                 });
@@ -298,7 +308,7 @@ export default function PendingPipelineRecovery() {
                     // Toast informativo + redirect.
                     try {
                         const { toast } = await import('sonner');
-                        toast.success(t('Tu plan está listo 🎉'), {
+                        if (!_planToastJustShown()) toast.success(t('Tu plan está listo 🎉'), {
                             description: t('Te llevamos al dashboard.'),
                             duration: 3500,
                         });
@@ -354,17 +364,10 @@ export default function PendingPipelineRecovery() {
                     // termine. Cuando estemos en /plan, el navigate es no-op
                     // y solo seguimos polling.
                 } else {
-                    // Ya estamos en /plan — solo toast informativo dedupeado.
-                    if (!generatingToastShownRef.current) {
-                        generatingToastShownRef.current = true;
-                        try {
-                            const { toast } = await import('sonner');
-                            toast.info(t('Tu plan se está generando'), {
-                                description: t('Te avisamos cuando esté listo.'),
-                                duration: 5000,
-                            });
-                        } catch { /* sonner no disponible — silencioso */ }
-                    }
+                    // [P2-REVIEW-ISSUES-CLARO · 2026-09-02] Ya estamos en /plan: la propia pantalla
+                    // muestra «Diseñando tu plan»; el toast «se está generando» era redundante y
+                    // llegaba a solaparse con el de «listo» (captura del dueño: tres avisos a la vez).
+                    generatingToastShownRef.current = true;
                 }
                 // Continúa polling — el cleanup se hará al recibir 'complete' o 'failed'.
             } else {
