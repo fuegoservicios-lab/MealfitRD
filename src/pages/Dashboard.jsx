@@ -170,6 +170,12 @@ import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
 // bajo el mismo gate sin cota — ver hooks/usePlanPollLoop.js.
 import { usePlanPollLoop } from '../hooks/usePlanPollLoop';
 import { useLatestRef } from '../hooks/useLatestRef';
+import {
+    getCachedPausedChunkStatus,
+    isPausedChunkStatus,
+    reconcilePausedChunkStatus,
+    syncPausedChunkStatusCache,
+} from '../utils/chunkStatusCache';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { glossClinicalNote } from '../utils/clinicalNoteGloss';
@@ -1588,7 +1594,54 @@ const DashboardInner = () => {
     // useEffect que ya refresca el plan cada 30s en estado 'partial'.
     // Shape: { in_flight_count, pending_user_action_count, failed_count,
     //          completed_count, paused_chunks: [{reason_code, ...}] } | null.
-    const [chunkStatusInfo, setChunkStatusInfo] = useState(null);
+    // [P1-PAUSED-BANNER-NO-FLASH · 2026-08-26] El estado empezaba SIEMPRE en
+    // null y el banner desaparecía entre el primer paint y la respuesta de
+    // /chunk-status. Conservamos únicamente el último snapshot PAUSADO, keyed
+    // por plan, y lo revalidamos con el fetch normal. La envoltura incluye el
+    // planId para no mostrar ni un frame del aviso de un plan anterior cuando
+    // cambia el plan activo. Si planData llega después del primer montaje, la
+    // lectura de cache ocurre durante ese mismo render (no en un effect).
+    const _initialChunkStatusSnapshot = useMemo(() => ({
+        planId: planData?.id || null,
+        status: getCachedPausedChunkStatus(planData?.id),
+    // Solo necesitamos capturar el snapshot del primer montaje.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), []);
+    const [chunkStatusSnapshot, setChunkStatusSnapshot] = useState(_initialChunkStatusSnapshot);
+    const chunkStatusSnapshotRef = useRef(_initialChunkStatusSnapshot);
+    const chunkStatusCleanReadsRef = useRef({ planId: _initialChunkStatusSnapshot.planId, count: 0 });
+    // Algunas escrituras legacy reemplazan por unos renders `planData` con el
+    // JSONB del plan (que no incluye el id de la fila). Perder el id aquí hacía
+    // que el banner dejara de leer tanto el snapshot como su cache hasta que la
+    // siguiente hidratación lo reinyectaba: exactamente el parpadeo tardío tras
+    // refrescar. El último id válido es estable durante la vida de este
+    // DashboardInner; un plan realmente nuevo sí trae otro id y lo reemplaza.
+    const activeChunkPlanIdRef = useRef(planData?.id || _initialChunkStatusSnapshot.planId || null);
+    if (planData?.id) activeChunkPlanIdRef.current = planData.id;
+    const _activeChunkPlanId = planData?.id || activeChunkPlanIdRef.current;
+    const _activeGeneratedDays = Array.isArray(planData?.days) ? planData.days.length : 0;
+    const chunkStatusInfo = chunkStatusSnapshot.planId === _activeChunkPlanId
+        ? chunkStatusSnapshot.status
+        : getCachedPausedChunkStatus(_activeChunkPlanId);
+    const setChunkStatusInfo = useCallback((status) => {
+        const previous = chunkStatusSnapshotRef.current.planId === _activeChunkPlanId
+            ? chunkStatusSnapshotRef.current.status
+            : getCachedPausedChunkStatus(_activeChunkPlanId);
+        if (chunkStatusCleanReadsRef.current.planId !== _activeChunkPlanId) {
+            chunkStatusCleanReadsRef.current = { planId: _activeChunkPlanId, count: 0 };
+        }
+        const reconciled = reconcilePausedChunkStatus(
+            previous,
+            status,
+            chunkStatusCleanReadsRef.current.count,
+            { generatedDays: _activeGeneratedDays },
+        );
+        chunkStatusCleanReadsRef.current.count = reconciled.cleanReads;
+        const nextSnapshot = { planId: _activeChunkPlanId, status: reconciled.status };
+        chunkStatusSnapshotRef.current = nextSnapshot;
+        setChunkStatusSnapshot(nextSnapshot);
+        syncPausedChunkStatusCache(_activeChunkPlanId, reconciled.status);
+    }, [_activeChunkPlanId, _activeGeneratedDays]);
     // Estado para el modal de razón de cambio de plato
     const [swapModal, setSwapModal] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
     const [swapDislikeConfirm, setSwapDislikeConfirm] = useState(null); // { dayIndex, mealIndex, mealType, mealName }
@@ -2272,6 +2325,11 @@ const DashboardInner = () => {
             || status === 'generating_next'
             || status === 'rolling'
             || status === 'complete_partial'
+            // [P1-PAUSED-BANNER-STICKY · 2026-08-26] `complete` leído desde
+            // planData no basta para borrar una pausa ya confirmada: puede ser
+            // un snapshot intermedio mientras el worker reintenta. Consultamos
+            // /chunk-status una vez más y solo su payload terminal la retira.
+            || (status === 'complete' && isPausedChunkStatus(chunkStatusInfo))
         );
 
         // [P1-DASHBOARD-POLLING-ABORT · 2026-05-23] AbortController scoped
@@ -2300,7 +2358,8 @@ const DashboardInner = () => {
                 .catch(() => { /* best-effort (incluye AbortError): el chip cae al fallback plan_data-only */ });
         } else if (chunkStatusInfo !== null && status === 'complete') {
             // Plan completado: limpiar el snapshot stale para que el
-            // render no muestre paused chunks viejos.
+            // render no muestre estados no-pausados viejos. Una pausa recordada
+            // entra al fetch de arriba y necesita confirmación del endpoint.
             setChunkStatusInfo(null);
         }
 
@@ -2344,7 +2403,7 @@ const DashboardInner = () => {
             try { controller.abort(); } catch { /* noop */ }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [planData?.generation_status, refreshProfileAndPlan]);
+    }, [planData?.generation_status, planData?.id, refreshProfileAndPlan, setChunkStatusInfo]);
 
     // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Aquí vivió un `handleRetryUpcomingDays`
     // que `UpcomingDayTabs` usaba como CTA del estado `atrasado`. Se retiró: el
@@ -2399,7 +2458,7 @@ const DashboardInner = () => {
             generationStatus: latest?.generation_status ?? null,
             chunkStatus,
         };
-    }, [refreshProfileAndPlan]);
+    }, [refreshProfileAndPlan, setChunkStatusInfo]);
 
     // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] El contador de la línea de abajo
     // subió de 3 a 4 al entrar 'complete_partial' en `_isActiveForChunkPoll`.
@@ -5030,6 +5089,18 @@ const DashboardInner = () => {
                    apaga también la gemela oscura (esa regla no toca display). */
                 .meals-container--sin-filas::before {
                     display: none;
+                }
+                /* [P1-PAUSED-BANNER-NOTEBOOK · 2026-08-26] En escritorio el aviso
+                   de pausa no puede ocupar el carril del margen rojo: ambos son
+                   señales fuertes y, al superponerse, la caja ámbar parece cortar
+                   las rayas del cuaderno. Se alinea con la columna de texto de las
+                   comidas y conserva aire a la derecha. El móvil queda fuera de
+                   esta regla porque allí el cuaderno ya pierde lomo y margen rojo. */
+                @media (min-width: 769px) {
+                    .chunk-paused-banner {
+                        margin-left: 4rem;
+                        margin-right: 2rem;
+                    }
                 }
                 /* [P1-MEAL-CARD-ROWS · 2026-08-09] DOS FILAS, no dos columnas.
                    Era «grid-template-columns: 1fr auto»: texto contra un bloque de
@@ -8110,7 +8181,7 @@ const DashboardInner = () => {
                                esto. Se arregla aquí en el mismo paso porque es el mismo defecto
                                y lo encontré barriendo: dejarlo sabiendo que está sería peor que
                                no haber mirado. */
-                            <div role="status" style={{
+                            <div role="status" className="chunk-paused-banner" style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 gap: '12px', padding: '12px 16px', marginBottom: '16px',
                                 background: 'var(--warning-bg)',
