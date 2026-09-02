@@ -237,9 +237,12 @@ export default function HistoryMobilePanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "12px 16px calc(80px + env(safe-area-inset-bottom, 0px))", fontFamily: "var(--font-body)", color: "var(--text-main)" }}>
-      {/* pastilla de conteo (centrada) */}
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <span style={countPill}><CalendarDays size={13} /> {tn(total, "{n} plan nutricional", "{n} planes nutricionales", { n: total })}</span>
+      {/* [P3-HISTORY-COUNT-CORNER · 2026-09-02] Conteo como etiqueta a la izquierda, con la
+          tipografía del divisor «HOY · 19»: centrado y en píldora parecía un botón/filtro y
+          rompía el eje de la columna (captura del dueño). Es metadato, no una acción. */}
+      <div style={countLabelRow} data-testid="history-count-label">
+        <CalendarDays size={13} style={{ color: "var(--text-light)", flexShrink: 0 }} aria-hidden="true" />
+        <span style={bucketLabel}>{tn(total, "{n} plan nutricional", "{n} planes nutricionales", { n: total })}</span>
       </div>
 
       {/* búsqueda */}
@@ -315,6 +318,7 @@ const cardIconBtn = { flex: "none", width: 30, height: 30, borderRadius: 9, disp
   appearance: "none", color: "var(--text-light)", background: "transparent", border: "1px solid transparent" };
 const miniBtn = { flex: "none", width: 32, height: 32, borderRadius: 9, display: "grid", placeItems: "center", cursor: "pointer", appearance: "none",
   color: "var(--text-light)", background: "var(--bg-muted)", border: "1px solid var(--border)" };
+const countLabelRow = { display: "flex", alignItems: "center", gap: 8, padding: "2px 2px 0" };
 const countPill = { display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", fontFamily: "var(--font-heading)", fontSize: ".74rem", fontWeight: 700,
   color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 13%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 28%, transparent)", padding: "5px 12px", borderRadius: 99 };
 const searchWrap = { display: "flex", alignItems: "center", gap: 9, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "11px 14px", color: "var(--text-light)" };

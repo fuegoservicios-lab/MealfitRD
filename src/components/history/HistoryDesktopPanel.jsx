@@ -433,8 +433,8 @@ export default function HistoryDesktopPanel({
       {/* [P3-HISTORY-NO-TITLE · 2026-07-12] "Mi Bitácora" eliminado a pedido del
           owner (sin sinónimo de reemplazo) — la pastilla de conteo ancla el header. */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", fontFamily: "var(--font-heading)", fontSize: ".74rem", fontWeight: 700,
-          color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 13%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 28%, transparent)", padding: "5px 12px", borderRadius: 99 }}>
+        {/* [P3-HISTORY-COUNT-CORNER · 2026-09-02] etiqueta discreta, no píldora de acento (paridad con móvil) */}
+        <span data-testid="history-count-label" style={{ display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", fontFamily: "var(--font-heading)", fontSize: ".72rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-light)" }}>
           <Icon name="cal" size={13} /> {tn(total, "{n} plan nutricional", "{n} planes nutricionales", { n: total })}
         </span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 9, background: "var(--bg-page)", border: "1px solid var(--border)", borderRadius: 13, padding: "9px 14px", minWidth: 240, color: "var(--text-light)" }}>
