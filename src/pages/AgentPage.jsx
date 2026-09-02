@@ -3277,6 +3277,7 @@ const AgentPage = () => {
                         </div>
                     )}
 
+                    {isMobile && <CoachQuotaMeter quota={coachQuota} variant="caption" onlyWhenLow />}
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -3944,8 +3945,10 @@ const AgentPage = () => {
 
                         {/* Right: 3-dot nav menu (mobile) */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {/* [P1-COACH-QUOTA-METER] cuota mensual del coach */}
-                        <CoachQuotaMeter quota={coachQuota} compact={isMobile} />
+                        {/* [P1-COACH-QUOTA-METER] cuota mensual del coach — píldora solo en escritorio;
+                            en móvil vive en el menú ☰ y como línea sobre el cuadro de texto
+                            cuando queda poco o nada (P2-COACH-QUOTA-MOBILE). */}
+                        {!isMobile && <CoachQuotaMeter quota={coachQuota} />}
                         <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
                             <button
                                 ref={navMenuTriggerRef}
@@ -3986,6 +3989,7 @@ const AgentPage = () => {
                                     zIndex: 100,
                                     animation: 'fadeSlideDown 0.2s ease'
                                 }}>
+                                    {isMobile && <CoachQuotaMeter quota={coachQuota} variant="row" />}
                                     {menuItemsDelAgente(enModoContador).map((item) => (
                                         <button
                                             role="menuitem"

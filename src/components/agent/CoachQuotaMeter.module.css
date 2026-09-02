@@ -1,5 +1,22 @@
-/* [P1-COACH-QUOTA-METER · 2026-09-02] Píldora compacta para la cabecera del chat. */
+/* [P1-COACH-QUOTA-METER · 2026-09-02 · P2-COACH-QUOTA-MOBILE] Tres presentaciones
+   de la cuota mensual del coach: píldora (escritorio), fila del menú (móvil) y
+   línea sobre el cuadro de texto (móvil, solo cuando queda poco o nada). */
 .meter {
+    --q-accent: #22D3EE;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1;
+    white-space: nowrap;
+}
+.meter svg { color: var(--q-accent); flex: none; }
+.count { font-variant-numeric: tabular-nums; color: var(--text-main); }
+.count b { color: var(--q-accent); font-weight: 700; }
+.label { letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.6rem; font-weight: 700; }
+.low { --q-accent: #FB923C; }
+.depleted { --q-accent: #F43F5E; }
+
+/* píldora de cabecera (escritorio) */
+.pill {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -7,16 +24,35 @@
     border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--bg-card);
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    line-height: 1;
-    white-space: nowrap;
-    --q-accent: #22D3EE;
 }
-.meter svg { color: var(--q-accent); }
-.count { font-variant-numeric: tabular-nums; color: var(--text-main); }
-.count b { color: var(--q-accent); font-weight: 700; }
-.label { letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.6rem; font-weight: 700; }
-.low { --q-accent: #FB923C; border-color: rgba(251, 146, 60, 0.45); }
-.depleted { --q-accent: #F43F5E; border-color: rgba(244, 63, 94, 0.5); }
-.compact { padding: 0.25rem 0.5rem; }
+.pill.low { border-color: rgba(251, 146, 60, 0.45); }
+.pill.depleted { border-color: rgba(244, 63, 94, 0.5); }
+
+/* fila del menú ☰ (móvil): misma métrica que los ítems del menú, sin ser botón */
+.row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem 0.75rem;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border);
+    white-space: normal;
+}
+.rowText { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.row .count { font-size: 0.95rem; }
+.renews { font-size: 0.7rem; color: var(--text-muted); }
+
+/* línea sobre el cuadro de texto (móvil), solo cuando importa */
+.caption {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0 0 0.4rem;
+    padding: 0;
+    font-size: 0.72rem;
+}
+.caption.low { color: #FB923C; }
+.caption.low .count, .caption.low b { color: #FB923C; }
+.caption.depleted { color: #F43F5E; }
+.caption.depleted b { color: #F43F5E; }
