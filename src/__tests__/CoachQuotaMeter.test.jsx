@@ -30,8 +30,8 @@ describe('CoachQuotaMeter', () => {
         expect(el.textContent).toContain('59');
         expect(el.textContent).toMatch(/Se renueva el/);
         // la ventana es UTC: 2026-10-01T00:00Z es el día 1, no el 30 en husos negativos
-        expect(el.textContent).toMatch(/1/);
-        expect(el.textContent).not.toMatch(/30/);
+        expect(el.textContent).toMatch(/ 1 /);
+        expect(el.textContent).not.toMatch(/ 30 /);
     });
     it('la linea sobre el cuadro de texto solo aparece cuando queda poco o nada', () => {
         const { container: sano } = render(<CoachQuotaMeter quota={q(1, 60)} variant="caption" onlyWhenLow />);
