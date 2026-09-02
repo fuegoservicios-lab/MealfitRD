@@ -72,3 +72,20 @@ describe('P1-ARQ25-F1-CLOSE · el hero es el plan que se genera; el anterior que
         expect(mobile).toContain('activeBadge(paused, plan.generating)');
     });
 });
+
+describe('P1-ARQ25-F1-CLOSE · el detalle del placeholder es una pantalla de carga', () => {
+    const history = fs.readFileSync(path.resolve(_dir, '../pages/History.jsx'), 'utf8');
+    it('cuerpo de carga con spinner y sin macros; el body normal queda en la otra rama del ternario', () => {
+        const flag = history.indexOf('const _selectedIsPlaceholder = !!selectedPlan && !!generatingPlanId && selectedPlan.id === generatingPlanId;');
+        const gen = history.indexOf('data-testid="history-modal-generating"');
+        expect(flag).toBeGreaterThan(-1);
+        expect(gen).toBeGreaterThan(flag);
+        const win = history.slice(gen, gen + 1200);
+        expect(win).toContain("t('Diseñando tu plan')");
+        expect(win).toContain('className="spin-animation"');
+        expect(history.slice(gen - 200, gen)).toContain('{_selectedIsPlaceholder ? (');
+    });
+    it('sin «Reactivar este Plan» para el placeholder', () => {
+        expect(history).toContain('const _hideRestore = (!!currentPlanId && selectedPlan?.id === currentPlanId) || _selectedIsPlaceholder;');
+    });
+});

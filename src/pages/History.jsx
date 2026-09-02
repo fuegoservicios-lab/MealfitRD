@@ -11,7 +11,7 @@ import { isTrackingMode } from '../config/dashboardNav';
 // [P1-HIST-PAUSED-SURFACES · 2026-08-14] Wrapper obligatorio del repo: iOS Safari
 // en modo privado lanza SecurityError con localStorage crudo.
 import { safeLocalStorageRemove } from '../utils/safeLocalStorage';
-import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
+import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, Loader2, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1995,6 +1995,9 @@ const History = () => {
     }, [currentPlanId, plans]);
     const activePlanId = generatingPlanId || usablePlanId;
     const inUsePlanId = generatingPlanId ? usablePlanId : null;
+    // [P1-ARQ25-F1-CLOSE] el detalle de un placeholder no tiene macros ni menú que enseñar:
+    // se pinta como carga (spinner + copy) y sin «Reactivar» (no hay nada que reactivar).
+    const _selectedIsPlaceholder = !!selectedPlan && !!generatingPlanId && selectedPlan.id === generatingPlanId;
 
     return (
         <>
@@ -2093,6 +2096,17 @@ const History = () => {
                             </div>
 
                             {/* Body */}
+                            {_selectedIsPlaceholder ? (
+                                <div className={styles.modalBody} data-testid="history-modal-generating">
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '0.75rem', padding: '2.2rem 1rem' }}>
+                                        <Loader2 size={44} strokeWidth={2} className="spin-animation" aria-hidden="true" style={{ color: 'var(--primary)' }} />
+                                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 800 }}>{t('Diseñando tu plan')}</div>
+                                        <div style={{ maxWidth: '30rem', fontSize: '0.9rem', color: 'var(--text-light)', lineHeight: 1.45 }}>
+                                            {t('Suele tardar entre 3 y 6 minutos. Si el servidor se reinicia, se retoma solo; no hace falta volver al formulario. Se actualizará aquí en cuanto esté listo.')}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
                             <div className={styles.modalBody}>
 
                                 {/* [P2-HIST-2 · 2026-05-09] Banner action_required.
@@ -5231,6 +5245,7 @@ const History = () => {
                                 )}
                                 {/* /P2-HIST-AUDIT-2 tab Menú wrapper */}
                             </div>
+                            )}
 
                             {/* Footer */}
                             {/* [P3-HIST-ACTIVE-NO-REACTIVATE · 2026-05-18 ·
@@ -5263,7 +5278,7 @@ const History = () => {
                                 // actual (el que ya estás usando). Los planes anteriores
                                 // SÍ lo muestran para que puedas reactivarlos cuando
                                 // quieras — aunque su ventana de fechas solape hoy.
-                                const _hideRestore = !!currentPlanId && selectedPlan?.id === currentPlanId;
+                                const _hideRestore = (!!currentPlanId && selectedPlan?.id === currentPlanId) || _selectedIsPlaceholder;
                                 if (_hideRestore) {
                                     // Footer vacío — la X del header cierra.
                                     return null;
