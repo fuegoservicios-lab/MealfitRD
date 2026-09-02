@@ -310,7 +310,8 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 const runResp = await fetchWithRetry('/api/plans/generation-runs', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...formData, idempotency_key: idempotencyKeyFor(formData) }),
+                    // `formData` ya viene filtrado por stripInternalFlags (P1-8); se añade la clave sin re-spread.
+                    body: JSON.stringify(Object.assign({}, formData, { idempotency_key: idempotencyKeyFor(formData) })),
                     signal: globalAbortController.signal
                 }, 1);
                 if (runResp.status === 404) {
