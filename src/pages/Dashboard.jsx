@@ -510,7 +510,7 @@ const getQDegradedReasonMap = () => ({
     // coherencia de slots (self_critique + surgical regen) no pudo resolver algún día tras los
     // reintentos → puede haber comidas repetidas (almuerzo↔cena) o un slot incoherente. Antes se
     // entregaba como plan plenamente verificado SIN aviso.
-    slot_coherence_unresolved: t('Algunos días pueden tener comidas repetidas o poco variadas: el ajuste automático no terminó. Usa Cambiar Plato para variar el día que no te cuadre.'),
+    slot_coherence_unresolved: t('En algún día hay un plato que no encaja del todo con su momento (por ejemplo, un almuerzo puesto de desayuno). Si te choca, cámbialo con Cambiar Plato.'),
     // [P3-MICRO-WORSTDAY-COPY · 2026-07-04] Los dos motivos del soft-reject del panel de micros
     // (P2-PANEL-SOFT-REJECT) caían al genérico "Calidad por debajo del óptimo" — el owner vio el
     // banner y no supo que era el SODIO del peor día (pregunta real 2026-07-04). Copy específico
@@ -587,8 +587,8 @@ export function resolveQualityDegradedHeadline(reason, attempts) {
         };
     }
     return {
-        title: t('Plan listo, con un aviso'),
-        body: t('Revisa el motivo aquí abajo y usa Cambiar Plato si quieres ajustar ese día.'),
+        title: t('Tu plan está listo, con un detalle por revisar'),
+        body: t('Abajo te contamos qué pasó. Si un día no te convence, cámbialo con Cambiar Plato.'),
         exhausted: false,
     };
 }
@@ -1025,10 +1025,12 @@ const DashboardInner = () => {
     // "plan no óptimo" (título + motivo, mismo copy que el banner). Compartido
     // entre el descarte (X) y el backfill. null si el plan no está degradado.
     const buildQualityNotification = useCallback(() => {
-        if (!planData?._quality_degraded) return null;
+        // [P1-QUALITY-MINOR-SILENT · 2026-09-02] Un residuo `minor` sobre un plan aprobado
+        // (vivo: 197970fa, calidad 98,9/100) salía en amarillo como si fuera un error. Solo
+        // la severidad alta llega al usuario; el flag sigue en plan_data para la telemetría.
+        if (!planData?._quality_degraded || planData?._quality_degraded_severity !== 'high') return null;
         const _attempts = planData?._quality_degraded_attempts || 3;
         const _reason = planData?._quality_degraded_reason;
-        const _sev = planData?._quality_degraded_severity === 'high' ? t('Importante') : t('Menor');
         // [P3-BANNER-REASON-COPY · 2026-07-10] prefix-match para low_band_macro:<macros>.
         const _reasonLabel = _reason ? resolveQualityDegradedLabel(_reason) : null;
         // [P2-DEGRADED-HEADLINE-TRUTH · 2026-07-31] Mismo SSOT que el banner: la
@@ -1036,14 +1038,14 @@ const DashboardInner = () => {
         // había APROBADO y el degradado venía de una auditoría posterior.
         const _head = resolveQualityDegradedHeadline(_reason, _attempts);
         const _reasonText = _reasonLabel
-            ? t('Motivo ({severidad}): {motivo}', { severidad: _sev, motivo: _reasonLabel })
+            ? t('Qué pasó: {motivo}', { motivo: _reasonLabel })
             : _head.body;
         return {
             id: _planMicroSig ? `quality_${_planMicroSig}` : undefined,
             kind: 'quality',
             title: _head.exhausted
                 ? tn(_attempts, 'Plan no óptimo ({n} intento)', 'Plan no óptimo ({n} intentos)', { n: _attempts })
-                : t('Plan listo, con un aviso'),
+                : t('Tu plan está listo, con un detalle por revisar'),
             message: _reasonText,
             severity: 'warning',
             // Payload estructurado para la vista expandida.
@@ -7746,7 +7748,7 @@ const DashboardInner = () => {
                     </button>
                 </div>
             )}
-            {planData?._quality_degraded && !qDegradedHidden && (
+            {planData?._quality_degraded && planData?._quality_degraded_severity === 'high' && !qDegradedHidden && (
                 <motion.div
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -7804,8 +7806,7 @@ const DashboardInner = () => {
                                     // [P3-NOTIF-CENTER · 2026-06-16] Mapa elevado a módulo (Q_DEGRADED_REASON_MAP).
                                     // [P3-BANNER-REASON-COPY · 2026-07-10] prefix-match para low_band_macro:<macros>.
                                     const _label = resolveQualityDegradedLabel(planData._quality_degraded_reason);
-                                    const _sev = planData?._quality_degraded_severity === 'high' ? t('Importante') : t('Menor');
-                                    return <>{t('Motivo ({severidad}): {motivo}', { severidad: _sev, motivo: _label })}</>;
+                                                                return <>{t('Qué pasó: {motivo}', { motivo: _label })}</>;
                                 })()}
                             </span>
                         )}

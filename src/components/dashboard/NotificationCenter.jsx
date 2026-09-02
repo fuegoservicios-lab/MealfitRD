@@ -159,7 +159,7 @@ function QualityDetail({ data, onAction }) {
         <>
             {data?.reasonLabel && (
                 <p className={styles.exReason}>
-                    <strong>{t('Motivo ({severidad}):', { severidad: data.severityLabel })}</strong> {data.reasonLabel}
+                    <strong>{t('Qué pasó:')}</strong> {data.reasonLabel}
                 </p>
             )}
             {data?.guidance && <p className={styles.exGuidance}>{data.guidance}</p>}
