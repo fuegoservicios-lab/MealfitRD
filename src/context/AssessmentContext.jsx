@@ -423,6 +423,9 @@ export const AssessmentProvider = ({ children }) => {
     // Dashboard necesita saberlo para decir «tu plan nuevo se está generando». Vivo: tras
     // regenerar y volver al panel, el cliente veía el plan anterior sin ninguna señal.
     const [serverGeneratingPlanId, setServerGeneratingPlanId] = useState(null);
+    // Espejo síncrono del estado de arriba: `hydrateLatestPlan` lo lee en el mismo tick en
+    // que llega el plan terminado, antes de que React haya re-renderizado.
+    const serverGeneratingPlanIdRef = useRef(null);
 
     // Estado del Perfil Real (Base de Datos)
     const [userProfile, setUserProfile] = useState(null);
@@ -2199,9 +2202,15 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const incomingStatus = newPlanData.generation_status;
             // [P1-ARQ25-F1-CLOSE] placeholder de la cola en el servidor: se anota (no se adopta).
             const _incomingHasDays = Array.isArray(newPlanData.days) && newPlanData.days.length > 0;
-            setServerGeneratingPlanId(
-                (incomingStatus === 'generating' && !_incomingHasDays && plan?.id) ? plan.id : null,
-            );
+            // [P1-ARQ25-F1-CLOSE · 2026-09-02] El plan que el servidor nos dijo que estaba
+            // generándose YA trae días: se adopta aunque el id local sea otro (el veto de abajo
+            // protege contra respuestas viejas, no contra el plan que estábamos esperando).
+            // Vivo: regenerar, volver al panel y quedarse con el plan anterior hasta recargar.
+            const _wasGeneratingId = serverGeneratingPlanIdRef.current;
+            const _adoptGenerated = _incomingHasDays && !!_wasGeneratingId && plan?.id === _wasGeneratingId;
+            const _nextGeneratingId = (incomingStatus === 'generating' && !_incomingHasDays && plan?.id) ? plan.id : null;
+            serverGeneratingPlanIdRef.current = _nextGeneratingId;
+            setServerGeneratingPlanId(_nextGeneratingId);
             // Solo reaccionar si el plan tiene semanas siendo generadas o acaba de
             // completarse (paridad con el handler del canal Realtime original).
             if (incomingStatus !== 'partial' && incomingStatus !== 'complete') return false;
@@ -2272,7 +2281,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     // incompleto" de forma PERMANENTE (solo un reload lo sacaba), que es
                     // justo el síntoma reportado. Adoptamos el plan del servidor entero.
                     const prevHasDays = Array.isArray(prev.days) && prev.days.length > 0;
-                    if (prevHasDays) { _tracePlanWrite(`veto-${src}`, plan.id); return prev; }
+                    if (prevHasDays && !_adoptGenerated) { _tracePlanWrite(`veto-${src}`, plan.id); return prev; }
+                    if (_adoptGenerated) _tracePlanWrite(`adopt-generated-${src}`, plan.id);
                     const adopted = { ...newPlanData, id: plan.id ?? newPlanData.id };
                     safeLocalStorageSet('mealfit_plan', adopted);
                     return adopted;

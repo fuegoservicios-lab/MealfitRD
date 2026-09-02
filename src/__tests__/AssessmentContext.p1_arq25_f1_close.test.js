@@ -44,3 +44,23 @@ describe('P1-ARQ25-F1-CLOSE · hydrateLatestPlan por revisión', () => {
         expect(bloque).toContain('{ ...prev, ...newPlanData, id: prev.id ?? plan?.id, revision: srvRev }');
     });
 });
+
+describe('P1-ARQ25-F1-CLOSE · el plan que el servidor tenía generándose se adopta al terminar', () => {
+    it('el veto de id distinto cede cuando el plan entrante es el que se anunció como generándose', () => {
+        const calc = src.indexOf('const _adoptGenerated = _incomingHasDays && !!_wasGeneratingId && plan?.id === _wasGeneratingId;');
+        const ref = src.indexOf('const _wasGeneratingId = serverGeneratingPlanIdRef.current;');
+        const set = src.indexOf('serverGeneratingPlanIdRef.current = _nextGeneratingId;');
+        const veto = src.indexOf('if (prevHasDays && !_adoptGenerated) { _tracePlanWrite(`veto-${src}`, plan.id); return prev; }');
+        expect(ref).toBeGreaterThan(-1);
+        expect(calc).toBeGreaterThan(ref);
+        expect(set).toBeGreaterThan(calc);
+        expect(veto).toBeGreaterThan(set);
+        expect(src.slice(veto, veto + 300)).toContain('adopt-generated-${src}');
+    });
+    it('el ref se lee ANTES de sobrescribirlo con el placeholder actual (mismo tick)', () => {
+        const read = src.indexOf('const _wasGeneratingId = serverGeneratingPlanIdRef.current;');
+        const write = src.indexOf('serverGeneratingPlanIdRef.current = _nextGeneratingId;');
+        expect(read).toBeLessThan(write);
+        expect(src).toContain('const serverGeneratingPlanIdRef = useRef(null);');
+    });
+});
