@@ -40,15 +40,16 @@ const MAIN = _read('main.jsx');
 
 describe('[P1-DASHBOARD-PLAN-SELFHEAL] la comprobación vive en el destino', () => {
     it('el dashboard consulta pending-status al montar', () => {
+        // [P1-PAUSED-BANNER-NO-FLASH] el bloque de estado del banner pausado vive entre el marker y el efecto: ventana 6000
         const i = DASH.indexOf('P1-DASHBOARD-PLAN-SELFHEAL');
         expect(i).toBeGreaterThan(-1);
-        const body = DASH.slice(i, i + 2600);
+        const body = DASH.slice(i, i + 6000);
         expect(body).toMatch(/fetchWithAuth\('\/api\/plans\/pending-status'\)/);
     });
 
     it('adopta con expectPlanId (no el camino conservador)', () => {
         const i = DASH.indexOf('P1-DASHBOARD-PLAN-SELFHEAL');
-        const body = DASH.slice(i, i + 2600);
+        const body = DASH.slice(i, i + 6000);
         expect(body).toMatch(/expectPlanId:\s*st\.plan_id_final/);
         expect(body).toMatch(/src:\s*'dashboard-selfheal'/);
     });
@@ -57,7 +58,7 @@ describe('[P1-DASHBOARD-PLAN-SELFHEAL] la comprobación vive en el destino', () 
         // El corazón del diseño: si se ackea primero y la adopción falla, el KV se pierde y el
         // usuario se queda sin plan hasta refrescar — que es exactamente el bug reportado.
         const i = DASH.indexOf('P1-DASHBOARD-PLAN-SELFHEAL');
-        const body = DASH.slice(i, i + 2600);
+        const body = DASH.slice(i, i + 6000);
         const iHydrate = body.indexOf('hydrateLatestPlan');
         const iAck = body.indexOf('pending-status/ack');
         expect(iHydrate).toBeGreaterThan(-1);
@@ -66,13 +67,13 @@ describe('[P1-DASHBOARD-PLAN-SELFHEAL] la comprobación vive en el destino', () 
 
     it('no hace nada si el plan local YA es el del backend', () => {
         const i = DASH.indexOf('P1-DASHBOARD-PLAN-SELFHEAL');
-        const body = DASH.slice(i, i + 2600);
+        const body = DASH.slice(i, i + 6000);
         expect(body).toMatch(/planData\?\.id === st\.plan_id_final|planData\.id === st\.plan_id_final/);
     });
 
     it('no compara por fecha — rompería restaurar del Historial', () => {
         const i = DASH.indexOf('P1-DASHBOARD-PLAN-SELFHEAL');
-        const body = DASH.slice(i, i + 2600);
+        const body = DASH.slice(i, i + 6000);
         expect(body).not.toMatch(/created_at/);
     });
 });

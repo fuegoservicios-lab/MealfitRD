@@ -134,7 +134,8 @@ describe('[P1-PLAN-HYDRATE-ON-COMPLETE] SSOT de hidratación', () => {
         // …pero con la salida para el caso "no hay días que proteger".
         expect(body).toMatch(/const prevHasDays = Array\.isArray\(prev\.days\) && prev\.days\.length > 0/);
         // [P1-PLANWRITE-TRACE · 2026-07-25] El veto ahora deja rastro medible antes de salir.
-        expect(body).toMatch(/if \(prevHasDays\) \{ _tracePlanWrite\(`veto-\$\{src\}`, plan\.id\); return prev; \}/);
+        // [P1-ARQ25-F1-CLOSE] el veto cede cuando el plan entrante es el que se anuncio como generandose
+        expect(body).toMatch(/if \(prevHasDays && !_adoptGenerated\) \{ _tracePlanWrite\(`veto-\$\{src\}`, plan\.id\); return prev; \}/);
     });
 });
 
