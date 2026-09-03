@@ -2,7 +2,18 @@
 // (peso actual + señales del ciclo) antes de generar el nuevo ciclo. Alimenta
 // weight_history → el motor "metabolismo evolutivo" del backend calibra las
 // calorías del próximo plan con el progreso REAL (≥2 registros, ≥14 días).
-// Nunca bloquea: "Omitir" y cualquier error de red continúan a la generación.
+// Nunca bloquea: cualquier error de red continúa a la generación.
+//
+// [P2-CHECKIN-NO-FABRICATED-ANSWERS · 2026-09-03] Solo se guarda lo que el usuario RESPONDE.
+//   · La adherencia venía precargada al 80 % y viajaba siempre. No era un valor por defecto,
+//     era una respuesta inventada — y el backend la usa como COMPUERTA: por debajo del piso no
+//     ajusta las calorías por el cambio de peso («el peso no mide tu metabolismo si no seguiste
+//     el plan»). Con el 80 % de fábrica, quien renovaba sin pensar pasaba la compuerta y el
+//     sistema atribuía su peso a un plan que quizá no siguió. Ahora arranca «sin responder».
+//   · Un solo botón («Generar mi plan»): guarda lo respondido; si no se tocó nada, no escribe
+//     ningún check-in — que era exactamente lo que hacía «Generar sin guardar».
+//   · El peso viene del perfil y NO se guarda hasta que el usuario lo edita o lo confirma con un
+//     toque: registrar «135 lb hoy» porque estaba en pantalla también sería inventarlo.
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -18,19 +29,37 @@ const SCALE = [1, 2, 3, 4, 5];
 const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone }) => {
     const t = useT();
     const unit = String(defaultUnit || 'lb').toLowerCase() === 'kg' ? 'kg' : 'lb';
-    const [weight, setWeight] = useState(defaultWeight ? String(defaultWeight) : '');
+    const initialWeight = defaultWeight ? String(defaultWeight) : '';
+    const [weight, setWeight] = useState(initialWeight);
+    const [weightConfirmed, setWeightConfirmed] = useState(false);
     const [hunger, setHunger] = useState(null);
     const [energy, setEnergy] = useState(null);
-    const [adherence, setAdherence] = useState(80);
+    const [adherence, setAdherence] = useState(null);
     const [sending, setSending] = useState(false);
 
+    // El peso cuenta como respondido si se editó (distinto del perfil) o si se confirmó.
+    const weightEdited = String(weight).trim() !== '' && String(weight).trim() !== initialWeight;
+    const weightAnswered = weightEdited || weightConfirmed;
+    const signalsAnswered = hunger !== null || energy !== null || adherence !== null;
+    const anythingAnswered = weightAnswered || signalsAnswered;
+
     const submit = async () => {
+        // Nada respondido ⇒ nada que guardar: a generar, sin escribir un check-in.
+        if (!anythingAnswered) {
+            onDone(null);
+            return;
+        }
+        // Señales sin peso confirmado: el check-in es un registro de peso; confirmarlo es un toque.
+        if (!weightAnswered) {
+            toast.info(t('Confirma tu peso para guardar el check-in.'));
+            return;
+        }
         const w = parseFloat(String(weight).replace(',', '.'));
         // Rango por unidad: 900 kg / 2000 lb es el techo duro del backend, pero un valor
         // fuera de lo plausible casi siempre es un dedazo (o la unidad equivocada).
         const max = unit === 'kg' ? 900 : 2000;
         if (!Number.isFinite(w) || w <= 0 || w > max) {
-            toast.info(t('Ingresa un peso válido en {unidad} (o pulsa Omitir).', { unidad: unit }));
+            toast.info(t('Ingresa un peso válido en {unidad}.', { unidad: unit }));
             return;
         }
         setSending(true);
@@ -61,62 +90,59 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 } else {
                     toast.success(t('Peso registrado'), {
                         description: t('Tu plan se calculará con {peso} {unidad}. Con 2 registros separados 14+ días, el sistema empezará a calibrar las calorías por tu progreso.', { peso: w, unidad: unit }),
-                        duration: 5500,
+                        duration: 5000,
                     });
                 }
             } else {
-                // [P1-CHECKIN-COHERENCE · 2026-07-26] Antes esto era un `if (res.ok)` SIN else: un
-                // 403 o un 500 no mostraba nada y el usuario seguía creyendo que su peso se había
-                // guardado. Desde fuera, "omití" y "falló" eran indistinguibles — y de hecho un
-                // weight_history vacío no permitía saber cuál de las dos había pasado.
+                _saved = null;
                 toast.warning(t('No se pudo guardar tu peso'), {
                     description: t('El plan se genera igual, con los datos que ya tenías.'),
-                    duration: 5000,
+                    duration: 4000,
                 });
-                console.error('renewal-checkin HTTP', res.status);
             }
-        } catch (e) {
-            // Best-effort: el check-in jamás bloquea la generación, pero SÍ se avisa.
-            console.error('renewal-checkin failed:', e);
+        } catch {
+            _saved = null;
             toast.warning(t('No se pudo guardar tu peso'), {
                 description: t('El plan se genera igual, con los datos que ya tenías.'),
-                duration: 5000,
+                duration: 4000,
             });
         }
+        setSending(false);
         onDone(_saved);
     };
 
     const scaleRow = (value, setValue, lowLabel, highLabel) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, color: '#8b95a8', width: 52 }}>{lowLabel}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: '#8b95a8', width: 44 }}>{lowLabel}</span>
             {SCALE.map((n) => (
                 <button
                     key={n}
                     type="button"
-                    onClick={() => setValue(n)}
+                    onClick={() => setValue(value === n ? null : n)}
+                    aria-pressed={value === n}
                     style={{
-                        width: 36, height: 36, borderRadius: 10, cursor: 'pointer',
-                        border: value === n ? '2px solid #34d399' : '1px solid #2c3a52',
-                        background: value === n ? 'rgba(52,211,153,0.15)' : '#141c2e',
-                        color: value === n ? '#34d399' : '#c7d0e0', fontWeight: 700,
+                        width: 36, height: 36, borderRadius: 10, border: '1px solid',
+                        borderColor: value === n ? '#34d399' : '#2c3a52',
+                        background: value === n ? 'rgba(52,211,153,0.16)' : 'transparent',
+                        color: value === n ? '#34d399' : '#c7d0e0', fontWeight: 700, cursor: 'pointer',
                     }}
                 >
                     {n}
                 </button>
             ))}
-            <span style={{ fontSize: 11, color: '#8b95a8', width: 52, textAlign: 'right' }}>{highLabel}</span>
+            <span style={{ fontSize: 11, color: '#8b95a8', width: 44, textAlign: 'right' }}>{highLabel}</span>
         </div>
     );
 
     return (
         <div style={{
-            minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'linear-gradient(160deg, #0b1120 0%, #111a2e 100%)', padding: 16,
+            position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', background: 'rgba(4,8,20,0.78)', padding: 16,
         }}>
             <div style={{
-                width: '100%', maxWidth: 430, background: '#0f1729', borderRadius: 18,
-                border: '1px solid #223050', padding: '26px 24px', color: '#e8edf6',
-                boxShadow: '0 18px 60px rgba(0,0,0,0.45)',
+                width: '100%', maxWidth: 430, background: '#0f1626', border: '1px solid #232e45',
+                borderRadius: 20, padding: '22px 22px 18px', color: '#e8edf6',
+                boxShadow: '0 30px 80px rgba(0,0,0,0.55)',
             }}>
                 <h2 style={{ margin: 0, fontSize: 20 }}>{t('Un minuto antes de tu nuevo plan')}</h2>
                 {/* [P1-CHECKIN-COHERENCE · 2026-07-26] El copy anterior afirmaba "no es la fórmula
@@ -131,18 +157,43 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                     {t('Peso actual ({unidad})', { unidad: unit })}
                 </label>
-                <input
-                    type="number"
-                    inputMode="decimal"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    placeholder={unit === 'kg' ? t('Ej. 56') : t('Ej. 123')}
-                    style={{
-                        width: '100%', padding: '12px 14px', borderRadius: 12, fontSize: 16,
-                        background: '#141c2e', border: '1px solid #2c3a52', color: '#e8edf6',
-                        marginBottom: 18, boxSizing: 'border-box',
-                    }}
-                />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', marginBottom: 6 }}>
+                    <input
+                        type="number"
+                        inputMode="decimal"
+                        value={weight}
+                        onChange={(e) => setWeight(e.target.value)}
+                        placeholder={unit === 'kg' ? t('Ej. 56') : t('Ej. 123')}
+                        style={{
+                            flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 12, fontSize: 16,
+                            background: '#141c2e', border: '1px solid #2c3a52', color: '#e8edf6',
+                            boxSizing: 'border-box',
+                        }}
+                    />
+                    {/* Confirmar con un toque: el peso del perfil no se guarda hasta que el usuario
+                        lo edita o lo confirma. Con el peso editado el chip sobra. */}
+                    {!weightEdited && initialWeight && (
+                        <button
+                            type="button"
+                            onClick={() => setWeightConfirmed((v) => !v)}
+                            aria-pressed={weightConfirmed}
+                            style={{
+                                flex: 'none', padding: '0 14px', borderRadius: 12, border: '1px solid',
+                                borderColor: weightConfirmed ? '#34d399' : '#2c3a52',
+                                background: weightConfirmed ? 'rgba(52,211,153,0.16)' : 'transparent',
+                                color: weightConfirmed ? '#34d399' : '#c7d0e0', fontSize: 13, fontWeight: 700,
+                                cursor: 'pointer', whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {weightConfirmed ? t('Confirmado') : t('Confirmar')}
+                        </button>
+                    )}
+                </div>
+                <p style={{ margin: '0 0 16px', fontSize: 11.5, color: '#8b95a8', lineHeight: 1.4 }}>
+                    {weightAnswered
+                        ? t('Se guardará como tu peso de hoy.')
+                        : t('Edítalo o confírmalo para que cuente como tu peso de hoy.')}
+                </p>
 
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                     {t('¿Cuánta hambre pasaste este ciclo?')} <span style={{ fontWeight: 400, color: '#8b95a8' }}>{t('(opcional)')}</span>
@@ -155,12 +206,19 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 <div style={{ marginBottom: 16 }}>{scaleRow(energy, setEnergy, t('Baja'), t('Alta'))}</div>
 
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    {t('¿Cuánto del plan seguiste?')} <span style={{ color: '#34d399' }}>{formatPercent(adherence)}</span>
+                    {t('¿Cuánto del plan seguiste?')}{' '}
+                    <span style={{ fontWeight: 400, color: '#8b95a8' }}>{t('(opcional)')}</span>{' '}
+                    <span style={{ color: adherence === null ? '#8b95a8' : '#34d399', fontWeight: adherence === null ? 400 : 600 }}>
+                        {adherence === null ? t('Sin responder') : formatPercent(adherence)}
+                    </span>
                 </label>
                 <input
-                    type="range" min="0" max="100" step="10" value={adherence}
+                    type="range" min="0" max="100" step="10"
+                    value={adherence === null ? 50 : adherence}
                     onChange={(e) => setAdherence(parseInt(e.target.value, 10))}
-                    style={{ width: '100%', marginBottom: 22, accentColor: '#34d399' }}
+                    aria-label={t('¿Cuánto del plan seguiste?')}
+                    aria-valuetext={adherence === null ? t('Sin responder') : formatPercent(adherence)}
+                    style={{ width: '100%', marginBottom: 22, accentColor: adherence === null ? '#4b5870' : '#34d399' }}
                 />
 
                 <button
@@ -173,20 +231,11 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                         fontSize: 15, fontWeight: 800, cursor: sending ? 'wait' : 'pointer',
                     }}
                 >
-                    {sending ? t('Guardando…') : t('Guardar y generar mi plan')}
+                    {sending ? t('Guardando…') : t('Generar mi plan')}
                 </button>
-                <button
-                    type="button"
-                    onClick={() => onDone(null)}
-                    disabled={sending}
-                    style={{
-                        width: '100%', padding: '11px 0', marginTop: 10, borderRadius: 12,
-                        border: '1px solid #2c3a52', background: 'transparent',
-                        color: '#8b95a8', fontSize: 13, cursor: 'pointer',
-                    }}
-                >
-                    {t('Generar sin guardar')}
-                </button>
+                <p style={{ margin: '10px 0 0', fontSize: 12, color: '#8b95a8', textAlign: 'center', lineHeight: 1.4 }}>
+                    {t('Solo guardamos lo que respondas.')}
+                </p>
             </div>
         </div>
     );
