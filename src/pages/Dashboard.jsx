@@ -4997,8 +4997,9 @@ const DashboardInner = () => {
                     align-items: stretch;
                     flex-wrap: wrap;
                     gap: 1.5rem;
-                    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%);
-                    backdrop-filter: blur(12px);
+                    /* [P3-DASH-SCROLL-NO-BLUR · 2026-09-03] sin desenfoque de fondo: en scrolls
+                       rápidos Chrome lo pintaba un frame tarde (ver el test). Gradiente 0.92→0.82. */
+                    background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.82) 100%);
                     padding: 2rem;
                     border-radius: 2rem;
                     border: 1px solid rgba(255,255,255,0.6);
@@ -5021,7 +5022,6 @@ const DashboardInner = () => {
                 }
                 .macros-card {
                     background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.8) 100%);
-                    backdrop-filter: blur(20px);
                     border-radius: 1.75rem;
                     border: 1px solid rgba(226, 232, 240, 0.8);
                     box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.05), inset 0 2px 4px rgba(255, 255, 255, 0.8);
