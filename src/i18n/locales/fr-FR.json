@@ -2970,5 +2970,7 @@
   "Registrar lo que comí": "Noter ce que j’ai mangé",
   "Cambiar un plato": "Changer un plat",
   "Ver más": "Voir plus",
-  "Acciones rápidas": "Actions rapides"
+  "Acciones rápidas": "Actions rapides",
+  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.": "⚠ La réponse du coach n’est pas arrivée : elle a été interrompue côté serveur. Tu peux réessayer.",
+  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).": "⚠ La réponse du coach n’est pas arrivée : elle a été interrompue côté serveur. Renvoie ton message (ou la photo)."
 }

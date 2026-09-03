@@ -2191,7 +2191,11 @@ const AgentPage = () => {
             const cur = _recoveryRef.current;
             if (!cur.active) return;
             cur.attempts += 1;
-            if (cur.attempts > 30) {
+            // Cierre del episodio con burbuja de error reintentable. Dos motivos:
+            // 'exhausted' (30 sondeos sin respuesta) y, [P1-CHAT-ORPHAN-TURN-TRUTH ·
+            // 2026-09-03], 'dead' (el servidor dice `turn_active: false`: el turno murió
+            // —p. ej. timeout del modelo— y no hay nada que esperar).
+            const _abandon = (motivo) => {
                 cur.active = false;
                 cur.doneSig = cur.sig; // episodio agotado — no relanzar este huérfano
                 // [P1-CHAT-STOP-POWER v2] Persistir el agotamiento: sin esto un
@@ -2202,18 +2206,26 @@ const AgentPage = () => {
                     const lastPrev = prev[prev.length - 1];
                     if (!lastPrev || lastPrev.role !== 'user') return prev;
                     const canRetry = Boolean((lastPrev.content || '').trim()) && !lastPrev.isImage;
+                    const copy = motivo === 'dead'
+                        ? (canRetry
+                            ? t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.')
+                            : t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).'))
+                        : (canRetry
+                            ? t('⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.')
+                            : t('⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'));
                     return [...prev, {
                         role: 'model',
-                        content: canRetry
-                            ? t('⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.')
-                            : t('⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'),
-                        errorType: 'refresh_orphan',
+                        content: copy,
+                        errorType: motivo === 'dead' ? 'dead_turn' : 'refresh_orphan',
                         retryable: canRetry,
                         retryPrompt: canRetry ? lastPrev.content : null,
                         retryImageUrl: null,
                         _isErrorBubble: true,
                     }];
                 });
+            };
+            if (cur.attempts > 30) {
+                _abandon('exhausted');
                 return;
             }
             try {
@@ -2237,6 +2249,13 @@ const AgentPage = () => {
                         cur.doneSig = cur.sig; // respuesta encontrada — episodio cerrado
                         setRecoveringTurn(false);
                         fetchSessionMessages(currentSessionId);
+                        return;
+                    }
+                    // [P1-CHAT-ORPHAN-TURN-TRUTH] Sin respuesta Y el servidor afirma que no hay
+                    // turno vivo para esta sesión: no hay nada que esperar. (Backend viejo sin
+                    // el campo ⇒ undefined ⇒ conducta previa: seguir sondeando.)
+                    if (data && data.turn_active === false) {
+                        _abandon('dead');
                         return;
                     }
                 }

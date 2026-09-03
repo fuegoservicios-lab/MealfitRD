@@ -2970,5 +2970,7 @@
   "Registrar lo que comí": "Log what I ate",
   "Cambiar un plato": "Swap a dish",
   "Ver más": "Show more",
-  "Acciones rápidas": "Quick actions"
+  "Acciones rápidas": "Quick actions",
+  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. You can retry.",
+  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. Send your message (or the photo) again."
 }
