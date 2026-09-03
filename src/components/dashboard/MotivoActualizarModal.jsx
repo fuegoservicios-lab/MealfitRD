@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence, useDragControls } from "framer-motion";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { motion, AnimatePresence, useMotionValue, animate } from "framer-motion";
 import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 // [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -647,17 +647,56 @@ export default function MotivoActualizarModal({
   // sensible al tema (accentTokens): oscuro = valores originales, claro = acento
   // oscurecido legible sobre tinte pálido.
   const isDark = useIsDark();
-  // [P2-SWAP-SHEET-SCROLL · 2026-09-03] En móvil la hoja llevaba `drag="y"` en el MISMO
-  // elemento que hacía scroll: framer-motion captura el gesto vertical (touch-action) y el
-  // usuario no podía bajar hasta «No me gusta este plato». Ahora el arrastre-para-cerrar
-  // arranca SOLO desde el tirador (dragControls) y el contenido scrollea en un hijo propio.
-  const dragControls = useDragControls();
+  // [P2-SWAP-SHEET-SCROLL · 2026-09-03] En móvil la hoja llevaba `drag="y"` de framer en el
+  // MISMO elemento que hacía scroll: framer capturaba el gesto vertical y el usuario no podía
+  // bajar hasta «No me gusta este plato». Y limitar el arrastre al tirador tampoco sirvió:
+  // «por inercia uno quiere salir deslizando el menú hacia abajo». Gesto propio con eventos
+  // touch (siguen llegando aunque el navegador scrollee, a diferencia de los pointer):
+  //   · el contenido scrollea nativo en `.mfa-scroll` (pan-y);
+  //   · si el contenido está ARRIBA del todo y el dedo baja, la hoja sigue al dedo 1:1 (motion
+  //     value, sin re-render) y al soltar cierra por distancia (>110 px) o velocidad, o vuelve
+  //     con muelle;
+  //   · si el dedo sube, o el contenido no está arriba, el gesto es del scroll.
+  const sheetY = useMotionValue(0);
+  const scrollRef = useRef(null);
+  const gestureRef = useRef({ y0: null, active: false, lastY: 0, lastT: 0, vy: 0 });
   const busy = pickingId != null;
   const handleClose = useCallback(() => {
     if (pickingId == null) onClose();
   }, [pickingId, onClose]);
 
   const { containerRef } = useModalAccessibility({ isOpen: open, onClose: handleClose, disableClose: busy });
+  const onSheetTouchStart = (e) => {
+    if (busy) return;
+    const t = e.touches[0];
+    gestureRef.current = { y0: t.clientY, active: false, lastY: t.clientY, lastT: e.timeStamp, vy: 0 };
+  };
+  const onSheetTouchMove = (e) => {
+    const g = gestureRef.current;
+    if (busy || g.y0 == null) return;
+    const t = e.touches[0];
+    const dy = t.clientY - g.y0;
+    if (!g.active) {
+      const atTop = !scrollRef.current || scrollRef.current.scrollTop <= 0;
+      if (dy > 8 && atTop) g.active = true;          // hacia abajo desde arriba: la hoja sigue al dedo
+      else if (dy < -8 || !atTop) { g.y0 = null; return; } // el gesto es del scroll
+      else return;
+    }
+    const dt = Math.max(1, e.timeStamp - g.lastT);
+    g.vy = (t.clientY - g.lastY) / dt;
+    g.lastY = t.clientY;
+    g.lastT = e.timeStamp;
+    sheetY.set(Math.max(0, dy - 8));
+  };
+  const onSheetTouchEnd = () => {
+    const g = gestureRef.current;
+    const wasActive = g.active;
+    gestureRef.current = { y0: null, active: false, lastY: 0, lastT: 0, vy: 0 };
+    if (!wasActive) return;
+    const y = sheetY.get();
+    if ((y > 110 || g.vy > 0.6) && !busy) handleClose();
+    else animate(sheetY, 0, { type: "spring", damping: 30, stiffness: 320 });
+  };
 
   // [P3-MOTIVO-MODAL-HIDE-NOTIF · 2026-06-24] En móvil, ocultar el launcher
   // flotante de notificaciones mientras el modal está abierto.
@@ -705,15 +744,12 @@ export default function MotivoActualizarModal({
             animate={sheet ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
             exit={sheet ? { y: "100%" } : { opacity: 0, scale: 0.96, y: 12 }}
             transition={sheet ? { type: "spring", damping: 30, stiffness: 320 } : { duration: 0.2 }}
-            drag={sheet ? "y" : false}
-            dragListener={false}
-            dragControls={dragControls}
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.6 }}
-            onDragEnd={(e, info) => {
-              if (sheet && info.offset.y > 110 && !busy) handleClose();
-            }}
+            onTouchStart={sheet ? onSheetTouchStart : undefined}
+            onTouchMove={sheet ? onSheetTouchMove : undefined}
+            onTouchEnd={sheet ? onSheetTouchEnd : undefined}
+            onTouchCancel={sheet ? onSheetTouchEnd : undefined}
             style={{
+              ...(sheet ? { y: sheetY } : {}),
               position: "relative",
               zIndex: 1,
               width: "100%",
@@ -727,7 +763,7 @@ export default function MotivoActualizarModal({
               borderTopWidth: sheet ? "1px" : "1px",
               borderRadius: sheet ? "24px 24px 0 0" : 24,
               boxShadow: sheet ? "0 -16px 50px -16px rgba(0,0,0,.6)" : "0 30px 70px -24px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.02)",
-              padding: sheet ? "8px 18px calc(18px + env(safe-area-inset-bottom, 0px))" : 22,
+              padding: sheet ? "8px 0 calc(18px + env(safe-area-inset-bottom, 0px))" : 22,
               fontFamily: "var(--font-body)",
               color: "var(--text-main)",
               pointerEvents: busy ? "none" : "auto",
@@ -735,19 +771,18 @@ export default function MotivoActualizarModal({
           >
             {/* drag handle (solo móvil) */}
             {sheet && (
-              <div
-                onPointerDown={(e) => dragControls.start(e)}
-                aria-hidden="true"
-                style={{ display: "flex", justifyContent: "center", padding: "6px 0 12px", touchAction: "none", cursor: "grab", flex: "none" }}
-              >
+              <div aria-hidden="true" style={{ display: "flex", justifyContent: "center", padding: "6px 0 12px", flex: "none" }}>
                 <span style={{ width: 40, height: 4, borderRadius: 99, background: "var(--border)" }} />
               </div>
             )}
-            {/* [P2-SWAP-SHEET-SCROLL] el contenido scrollea aquí (pan-y), no en la hoja arrastrable */}
+            {/* [P2-SWAP-SHEET-SCROLL] el contenido scrollea aquí (pan-y); la hoja solo sigue al dedo
+                cuando este scroll está arriba del todo. Sin barra visible: chocaba con el chip del cupo. */}
             <div
+              ref={scrollRef}
               className="mfa-scroll"
-              style={sheet ? { minHeight: 0, flex: "1 1 auto", overflowY: "auto", touchAction: "pan-y", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" } : undefined}
+              style={sheet ? { minHeight: 0, flex: "1 1 auto", overflowY: "auto", touchAction: "pan-y", overscrollBehavior: "none", WebkitOverflowScrolling: "touch", padding: "0 18px", scrollbarWidth: "none" } : undefined}
             >
+              {sheet && <style>{".mfa-scroll::-webkit-scrollbar{display:none}"}</style>}
 
             {/* cabecera: título + cupo del mes */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
