@@ -47,7 +47,7 @@ import BotAvatar from './BotAvatar';
 // react-virtuoso). Re-exportado aquí para back-compat de cualquier importador.
 import { VIRTUALIZE_THRESHOLD } from './virtualizeThreshold';
 import { useT, formatDate } from '../../i18n';
-import { daySeparatorLabel } from '../../utils/chatTimeline';
+import { daySeparatorLabel, previousDatedMessage } from '../../utils/chatTimeline';
 
 export { VIRTUALIZE_THRESHOLD };
 
@@ -136,7 +136,7 @@ export const VirtualizedMessageList = React.forwardRef(({
             currentSessionId={currentSessionId}
             onRegenerate={onRegenerate}
             onErrorRetry={onErrorRetry}
-            daySeparator={daySeparatorLabel(msg, messages[index - 1], { t, formatDate })}
+            daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, index), { t, formatDate })}
         />
     ), [currentSessionId, onRegenerate, onErrorRetry, messages, t]);
 

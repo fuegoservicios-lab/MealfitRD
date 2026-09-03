@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { daySeparatorLabel, timeLabel, messageDate } from '../utils/chatTimeline';
+import { daySeparatorLabel, timeLabel, messageDate, previousDatedMessage } from '../utils/chatTimeline';
 
 const read = (p) => readFileSync(resolve(process.cwd(), p), 'utf8').split(String.fromCharCode(13)).join('');
 const AGENT = read('src/pages/AgentPage.jsx');
@@ -30,6 +30,15 @@ describe('chatTimeline (puro)', () => {
         expect(daySeparatorLabel(hoy, { created_at: new Date(2026, 8, 3, 8, 0).toISOString() }, { t, formatDate, now })).toBeNull();
         expect(daySeparatorLabel(hoy, ayer, { t, formatDate, now })).toBe('Hoy');
     });
+    it('una burbuja local sin fecha en medio no provoca un segundo «Hoy»', () => {
+        const a = { created_at: new Date(2026, 8, 3, 9, 0).toISOString() };
+        const stop = { role: 'model', content: '⏹ Detenido', _isErrorBubble: true };
+        const b = { created_at: new Date(2026, 8, 3, 12, 0).toISOString() };
+        const msgs = [a, stop, b];
+        expect(previousDatedMessage(msgs, 2)).toBe(a);
+        expect(daySeparatorLabel(b, previousDatedMessage(msgs, 2), { t, formatDate, now })).toBeNull();
+        expect(daySeparatorLabel(b, msgs[1], { t, formatDate, now })).toBe('Hoy');   // el bug de antes
+    });
     it('sin fecha no hay separador ni hora; el saludo usa welcomeAt', () => {
         expect(daySeparatorLabel({ content: 'x' }, null, { t, formatDate, now })).toBeNull();
         expect(timeLabel({ content: 'x' }, formatDate)).toBe('');
@@ -46,8 +55,8 @@ describe('hilo: fecha en los mensajes y separadores en los dos renders', () => {
         expect(AGENT).toContain("{ role: 'model', content: fullText, created_at: new Date().toISOString() }");
     });
     it('render simple y virtualizado calculan el separador con la misma función', () => {
-        expect(AGENT).toContain('daySeparator={daySeparatorLabel(msg, messages[i - 1], { t, formatDate })}');
-        expect(VIRT).toContain('daySeparator={daySeparatorLabel(msg, messages[index - 1], { t, formatDate })}');
+        expect(AGENT).toContain('daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, i), { t, formatDate })}');
+        expect(VIRT).toContain('daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, index), { t, formatDate })}');
         expect(VIRT).toContain('[currentSessionId, onRegenerate, onErrorRetry, messages, t]');
     });
     it('la burbuja pinta el separador; la hora solo vive como tooltip (el dueño la vio innecesaria)', () => {

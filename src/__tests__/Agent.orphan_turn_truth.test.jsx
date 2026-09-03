@@ -26,8 +26,16 @@ describe('recuperación de un turno huérfano', () => {
         expect(SRC).toContain("_abandon('exhausted');");
         expect(SRC).toContain('cur.attempts > 30');
         expect(SRC).toContain('retryPrompt: canRetry ? lastPrev.content : null');
-        expect(SRC).toContain("errorType: motivo === 'dead' ? 'dead_turn' : 'refresh_orphan'");
+        expect(SRC).toContain("errorType: 'dead_turn',");
         expect(SRC).toContain("t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.')");
+    });
+    it('el motivo del cierre se persiste y la rehidratación pinta la burbuja correcta (no siempre «Detenido»)', () => {
+        expect(SRC).toContain("(sid) => `mealfit_orphan_reason_${sid}`");
+        expect(SRC).toContain("safeLocalStorageSet(_orphanReasonKey(currentSessionId), motivo);");
+        expect(SRC).toContain("safeLocalStorageSet(_orphanReasonKey(currentSessionId), 'stopped');");
+        expect(SRC).toContain("safeLocalStorageGet(_orphanReasonKey(sessionId), null) || 'stopped',");
+        expect(SRC).toContain('const _orphanBubble = useCallback((reason, lastUser) => {');
+        expect((SRC.match(/_orphanBubble\(/g) || []).length).toBeGreaterThanOrEqual(3);   // fábrica + 2 usos
     });
     it('catálogos: las dos claves nuevas en los 4 idiomas', () => {
         for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {

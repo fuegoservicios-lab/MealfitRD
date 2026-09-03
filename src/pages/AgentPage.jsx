@@ -79,7 +79,7 @@ import { deleteChatDraft, loadChatDraft, saveChatDraft } from '../utils/chatDraf
 // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Hoja de confirmación antes de borrar un chat.
 import Modal from '../components/common/Modal';
 // [P2-CHAT-TIMELINE · 2026-09-03] separadores de día + hora por mensaje.
-import { daySeparatorLabel } from '../utils/chatTimeline';
+import { daySeparatorLabel, previousDatedMessage } from '../utils/chatTimeline';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
@@ -1845,6 +1845,51 @@ const AgentPage = () => {
         (sid) => `mealfit_orphan_dismissed_${sid}`,
         []
     );
+    // [P1-CHAT-ORPHAN-TURN-TRUTH · secuela 2026-09-03] Por qué se cerró el episodio del
+    // huérfano: 'stopped' (botón Stop), 'dead' (el servidor dijo que el turno murió) o
+    // 'exhausted' (30 sondeos). Sin esto, al recargar o re-sincronizar el historial toda
+    // burbuja de cierre renacía como «⏹ Detenido» aunque nadie hubiera detenido nada, y la
+    // de «no llegó la respuesta» desaparecía (el dueño: «el error desapareció al rato»).
+    const _orphanReasonKey = useCallback(
+        (sid) => `mealfit_orphan_reason_${sid}`,
+        []
+    );
+    const _orphanBubble = useCallback((reason, lastUser) => {
+        const canRetry = Boolean((lastUser?.content || '').trim()) && !lastUser?.isImage;
+        if (reason === 'dead') {
+            return {
+                role: 'model',
+                content: canRetry
+                    ? t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.')
+                    : t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).'),
+                errorType: 'dead_turn',
+                retryable: canRetry,
+                retryPrompt: canRetry ? lastUser.content : null,
+                retryImageUrl: null,
+                _isErrorBubble: true,
+            };
+        }
+        if (reason === 'exhausted') {
+            return {
+                role: 'model',
+                content: canRetry
+                    ? t('⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.')
+                    : t('⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'),
+                errorType: 'refresh_orphan',
+                retryable: canRetry,
+                retryPrompt: canRetry ? lastUser.content : null,
+                retryImageUrl: null,
+                _isErrorBubble: true,
+            };
+        }
+        return {
+            role: 'model',
+            content: t('⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
+            _stoppedByUser: true,
+            _isErrorBubble: true,
+            retryable: false,
+        };
+    }, [t]);
 
     const fetchSessionMessages = useCallback(async (sessionId, retryCount = 0) => {
         // [P1-AGENT-LOADING-SKIP-IF-FRESH · 2026-05-20] Solo mostrar
@@ -1983,13 +2028,12 @@ const AgentPage = () => {
                         _lastMapped && _lastMapped.role === 'user'
                         && safeLocalStorageGet(_orphanDismissKey(sessionId), null) === _orphanSig(_mappedMsgs)
                     ) {
-                        _mappedMsgs.push({
-                            role: 'model',
-                            content: t('⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
-                            _stoppedByUser: true,
-                            _isErrorBubble: true,
-                            retryable: false,
-                        });
+                        // la burbuja de cierre sobrevive a recargas y re-sincronizaciones, y dice el
+                        // motivo real (Stop / turno muerto / sondeo agotado)
+                        _mappedMsgs.push(_orphanBubble(
+                            safeLocalStorageGet(_orphanReasonKey(sessionId), null) || 'stopped',
+                            _lastMapped,
+                        ));
                     }
                     setMessages(_mappedMsgs);
                 } else {
@@ -2201,27 +2245,12 @@ const AgentPage = () => {
                 // [P1-CHAT-STOP-POWER v2] Persistir el agotamiento: sin esto un
                 // refresh re-sondeaba 26s más por el mismo huérfano.
                 safeLocalStorageSet(_orphanDismissKey(currentSessionId), cur.sig);
+                safeLocalStorageSet(_orphanReasonKey(currentSessionId), motivo);
                 setRecoveringTurn(false);
                 setMessages(prev => {
                     const lastPrev = prev[prev.length - 1];
                     if (!lastPrev || lastPrev.role !== 'user') return prev;
-                    const canRetry = Boolean((lastPrev.content || '').trim()) && !lastPrev.isImage;
-                    const copy = motivo === 'dead'
-                        ? (canRetry
-                            ? t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.')
-                            : t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).'))
-                        : (canRetry
-                            ? t('⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.')
-                            : t('⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'));
-                    return [...prev, {
-                        role: 'model',
-                        content: copy,
-                        errorType: motivo === 'dead' ? 'dead_turn' : 'refresh_orphan',
-                        retryable: canRetry,
-                        retryPrompt: canRetry ? lastPrev.content : null,
-                        retryImageUrl: null,
-                        _isErrorBubble: true,
-                    }];
+                    return [...prev, _orphanBubble(motivo, lastPrev)];
                 });
             };
             if (cur.attempts > 30) {
@@ -3035,6 +3064,7 @@ const AgentPage = () => {
         const _sig = _orphanSig(messagesRef.current);
         _st.doneSig = _sig;
         safeLocalStorageSet(_orphanDismissKey(currentSessionId), _sig);
+        safeLocalStorageSet(_orphanReasonKey(currentSessionId), 'stopped');
         // [P1-CHAT-STOP-POWER v2] Feedback visible del stop (pedido del owner).
         setMessages(prev => {
             const lastPrev = prev[prev.length - 1];
@@ -4417,7 +4447,7 @@ const AgentPage = () => {
                                             currentSessionId={currentSessionId}
                                             onRegenerate={handleRegenerate}
                                             onErrorRetry={retryErrorMessage}
-                                            daySeparator={daySeparatorLabel(msg, messages[i - 1], { t, formatDate })}
+                                            daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, i), { t, formatDate })}
                                         />
                                     ))
                                 )}

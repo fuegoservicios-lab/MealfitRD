@@ -35,6 +35,18 @@ export function daySeparatorLabel(msg, prevMsg, { t, formatDate, now = new Date(
         : { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+/**
+ * Último mensaje ANTERIOR a `index` que tenga fecha. Las burbujas locales de error («⏹ Detenido»,
+ * «la respuesta no llegó») no llevan fecha: si se tomara el inmediato anterior, el mensaje
+ * siguiente volvería a pintar «Hoy» (visto el 2026-09-03: dos «HOY» en el mismo hilo).
+ */
+export function previousDatedMessage(messages, index) {
+    for (let i = index - 1; i >= 0; i -= 1) {
+        if (messageDate(messages[i])) return messages[i];
+    }
+    return null;
+}
+
 /** «14:32» en el locale activo, o '' si el mensaje no trae fecha. */
 export function timeLabel(msg, formatDate) {
     const d = messageDate(msg);
