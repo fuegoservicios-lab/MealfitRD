@@ -34,16 +34,20 @@ describe('hoja de motivos: scroll nativo y deslizar-para-cerrar desde cualquier 
         const fn = MODAL.slice(i, MODAL.indexOf('const onSheetTouchEnd', i));
         expect(fn).toContain('const atTop = !el || el.scrollTop <= 0;');
         expect(fn).toContain('const atBottom = !el || el.scrollTop + el.clientHeight >= el.scrollHeight - 1;');
-        expect(fn).toContain('if (dy > 8 && atTop) { g.active = true; g.mode = "down"; }');
+        expect(fn).toContain('if (dy0 > 8 && atTop) { g.active = true; g.mode = "down"; }');
         // [v3] con el contenido en su tope inferior (o sin scroll) tirar hacia arriba estira con
         // resistencia: la hoja corta del día completo responde igual que la larga
-        expect(fn).toContain('else if (dy < -8 && atBottom) { g.active = true; g.mode = "up"; }');
-        expect(fn).toContain('else if (Math.abs(dy) > 8) { g.y0 = null; return; }');
+        expect(fn).toContain('else if (dy0 < -8 && atBottom) { g.active = true; g.mode = "up"; }');
+        // [v4] el gesto que empezó como scroll toma el relevo al llegar arriba, sin levantar el dedo
+        expect(fn).toContain('else if (Math.abs(dy0) > 8) { g.ceded = true;');
+        expect(fn).toContain('if (atTop && t.clientY - g.lastY > 0) { g.y0 = t.clientY; g.off = 0; g.ceded = false; g.active = true; g.mode = "down"; }');
         expect(fn).toContain('sheetY.set(-Math.min(32, pull * 0.25));');
-        expect(fn).toContain('sheetY.set(Math.max(0, dy - 8));');
+        expect(fn).toContain('sheetY.set(Math.max(0, dy - g.off));');
         const j = MODAL.indexOf('const onSheetTouchEnd = () => {');
-        const end = MODAL.slice(j, j + 700);
-        expect(end).toContain('if (mode === "down" && (y > 110 || g.vy > 0.6) && !busy) handleClose();');
+        const end = MODAL.slice(j, j + 800);
+        // [v4] cierra con poco: 70 px, flick de 0,35 px/ms o distancia + inercia proyectada
+        expect(end).toContain('const shouldClose = y > 70 || g.vy > 0.35 || y + g.vy * 150 > 100;');
+        expect(end).toContain('if (mode === "down" && shouldClose && !busy) handleClose();');
         expect(end).toContain('else animate(sheetY, 0, { type: "spring", damping: 30, stiffness: 320 });');
     });
     it('el contenido scrollea en un hijo con pan-y, con el padding lateral y sin barra visible', () => {

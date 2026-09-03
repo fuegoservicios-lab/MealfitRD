@@ -664,7 +664,11 @@ export default function MotivoActualizarModal({
   // arriba no movía NADA — «cuesta más». Ahora, con el contenido en su tope inferior (o sin
   // scroll), tirar hacia arriba estira la hoja con resistencia (tope 32 px) y vuelve con
   // muelle: las dos hojas responden igual en ambos sentidos.
-  const gestureRef = useRef({ y0: null, active: false, mode: null, lastY: 0, lastT: 0, vy: 0 });
+  // [v4] «todavía tengo que darle un poco fuerte para salir»: umbrales más suaves (70 px, o un
+  // flick de 0,35 px/ms, o distancia + inercia proyectada > 100 px) y RELEVO: si el gesto
+  // empezó como scroll y la lista llega arriba del todo con el dedo aún bajando, la hoja toma
+  // el relevo en el mismo movimiento, sin levantar el dedo.
+  const gestureRef = useRef({ y0: null, active: false, mode: null, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 });
   const busy = pickingId != null;
   const handleClose = useCallback(() => {
     if (pickingId == null) onClose();
@@ -674,41 +678,50 @@ export default function MotivoActualizarModal({
   const onSheetTouchStart = (e) => {
     if (busy) return;
     const t = e.touches[0];
-    gestureRef.current = { y0: t.clientY, active: false, mode: null, lastY: t.clientY, lastT: e.timeStamp, vy: 0 };
+    gestureRef.current = { y0: t.clientY, active: false, mode: null, ceded: false, off: 8, lastY: t.clientY, lastT: e.timeStamp, vy: 0 };
   };
   const onSheetTouchMove = (e) => {
     const g = gestureRef.current;
     if (busy || g.y0 == null) return;
     const t = e.touches[0];
-    const dy = t.clientY - g.y0;
+    const el = scrollRef.current;
+    const atTop = !el || el.scrollTop <= 0;
     if (!g.active) {
-      const el = scrollRef.current;
-      const atTop = !el || el.scrollTop <= 0;
       const atBottom = !el || el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-      if (dy > 8 && atTop) { g.active = true; g.mode = "down"; }        // la hoja sigue al dedo
-      else if (dy < -8 && atBottom) { g.active = true; g.mode = "up"; }  // estira con resistencia
-      else if (Math.abs(dy) > 8) { g.y0 = null; return; }                // el gesto es del scroll
-      else return;
+      if (g.ceded) {
+        // el scroll llevaba el gesto; si la lista ya está arriba y el dedo sigue bajando, relevo
+        if (atTop && t.clientY - g.lastY > 0) { g.y0 = t.clientY; g.off = 0; g.ceded = false; g.active = true; g.mode = "down"; }
+        else { g.lastY = t.clientY; g.lastT = e.timeStamp; return; }
+      } else {
+        const dy0 = t.clientY - g.y0;
+        if (dy0 > 8 && atTop) { g.active = true; g.mode = "down"; }        // la hoja sigue al dedo
+        else if (dy0 < -8 && atBottom) { g.active = true; g.mode = "up"; }  // estira con resistencia
+        else if (Math.abs(dy0) > 8) { g.ceded = true; g.lastY = t.clientY; g.lastT = e.timeStamp; return; } // el gesto es del scroll
+        else return;
+      }
     }
+    const dy = t.clientY - g.y0;
     const dt = Math.max(1, e.timeStamp - g.lastT);
     g.vy = (t.clientY - g.lastY) / dt;
     g.lastY = t.clientY;
     g.lastT = e.timeStamp;
     if (g.mode === "up") {
-      const pull = Math.max(0, -dy - 8);
+      const pull = Math.max(0, -dy - g.off);
       sheetY.set(-Math.min(32, pull * 0.25));
       return;
     }
-    sheetY.set(Math.max(0, dy - 8));
+    sheetY.set(Math.max(0, dy - g.off));
   };
   const onSheetTouchEnd = () => {
     const g = gestureRef.current;
     const wasActive = g.active;
     const mode = g.mode;
-    gestureRef.current = { y0: null, active: false, mode: null, lastY: 0, lastT: 0, vy: 0 };
+    gestureRef.current = { y0: null, active: false, mode: null, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 };
     if (!wasActive) return;
     const y = sheetY.get();
-    if (mode === "down" && (y > 110 || g.vy > 0.6) && !busy) handleClose();
+    // cierra con poco: 70 px, o un flick corto, o lo recorrido más la inercia proyectada (150 ms)
+    const shouldClose = y > 70 || g.vy > 0.35 || y + g.vy * 150 > 100;
+    if (mode === "down" && shouldClose && !busy) handleClose();
     else animate(sheetY, 0, { type: "spring", damping: 30, stiffness: 320 });
   };
 
