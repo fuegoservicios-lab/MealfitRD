@@ -3584,13 +3584,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 .plan-goal-limit-cta {
                                     flex: none; display: inline-flex; align-items: center; gap: 0.4rem;
                                     padding: 0.7rem 1.05rem; border-radius: 0.8rem; border: none;
-                                    background: var(--primary); color: #FFFFFF; font-weight: 700; font-size: 0.92rem;
+                                    background: var(--primary-dark); color: #FFFFFF; font-weight: 700; font-size: 0.92rem;
                                     cursor: pointer; font-family: inherit;
                                     transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s ease, transform 0.12s ease;
                                 }
+                                /* En oscuro el primario (indigo 400) es pastel y pelea con el rojo del bloque:
+                                   indigo 700, tinta profunda, y el brillo lo pone el hover. */
+                                html[data-theme="dark"] .plan-goal-limit-cta { background: #4338CA; }
                                 .plan-goal-limit-cta:hover {
                                     box-shadow: 0 14px 30px -8px color-mix(in srgb, var(--primary) 55%, transparent), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);
-                                    filter: brightness(1.06);
+                                    filter: brightness(1.12);
                                 }
                                 .plan-goal-limit-cta:active { transform: translateY(1px); filter: brightness(0.96); }
                                 .plan-goal-limit-cta:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
