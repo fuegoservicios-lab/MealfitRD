@@ -18,17 +18,20 @@ const formatDate = (d, o) => new Intl.DateTimeFormat('es-DO', o).format(d);
 const now = new Date(2026, 8, 3, 15, 0, 0); // 3 sep 2026 15:00 local
 
 describe('chatTimeline (puro)', () => {
-    it('Hoy / Ayer / fecha, y nada si es el mismo día que el anterior', () => {
+    it('solo marca los cambios de día: el arranque del hilo no lleva etiqueta', () => {
         const hoy = { created_at: new Date(2026, 8, 3, 9, 5).toISOString() };
         const ayer = { created_at: new Date(2026, 8, 2, 22, 0).toISOString() };
         const agosto = { created_at: new Date(2026, 7, 24, 8, 0).toISOString() };
         const anno = { created_at: new Date(2025, 11, 31, 8, 0).toISOString() };
-        expect(daySeparatorLabel(hoy, null, { t, formatDate, now })).toBe('Hoy');
-        expect(daySeparatorLabel(ayer, null, { t, formatDate, now })).toBe('Ayer');
-        expect(daySeparatorLabel(agosto, null, { t, formatDate, now })).toMatch(/24 de agosto/);
-        expect(daySeparatorLabel(anno, null, { t, formatDate, now })).toMatch(/2025/);
-        expect(daySeparatorLabel(hoy, { created_at: new Date(2026, 8, 3, 8, 0).toISOString() }, { t, formatDate, now })).toBeNull();
+        // primer mensaje del hilo: nada (un hilo de un día no muestra «Hoy»)
+        expect(daySeparatorLabel(hoy, null, { t, formatDate, now })).toBeNull();
+        expect(daySeparatorLabel(agosto, null, { t, formatDate, now })).toBeNull();
+        // cambios de día dentro del hilo
         expect(daySeparatorLabel(hoy, ayer, { t, formatDate, now })).toBe('Hoy');
+        expect(daySeparatorLabel(ayer, agosto, { t, formatDate, now })).toBe('Ayer');
+        expect(daySeparatorLabel(agosto, anno, { t, formatDate, now })).toMatch(/24 de agosto/);
+        expect(daySeparatorLabel(anno, { created_at: new Date(2025, 11, 30).toISOString() }, { t, formatDate, now })).toMatch(/2025/);
+        expect(daySeparatorLabel(hoy, { created_at: new Date(2026, 8, 3, 8, 0).toISOString() }, { t, formatDate, now })).toBeNull();
     });
     it('una burbuja local sin fecha en medio no provoca un segundo «Hoy»', () => {
         const a = { created_at: new Date(2026, 8, 3, 9, 0).toISOString() };
@@ -37,7 +40,7 @@ describe('chatTimeline (puro)', () => {
         const msgs = [a, stop, b];
         expect(previousDatedMessage(msgs, 2)).toBe(a);
         expect(daySeparatorLabel(b, previousDatedMessage(msgs, 2), { t, formatDate, now })).toBeNull();
-        expect(daySeparatorLabel(b, msgs[1], { t, formatDate, now })).toBe('Hoy');   // el bug de antes
+        expect(daySeparatorLabel(b, a, { t, formatDate, now })).toBeNull();   // mismo día: sin etiqueta
     });
     it('sin fecha no hay separador ni hora; el saludo usa welcomeAt', () => {
         expect(daySeparatorLabel({ content: 'x' }, null, { t, formatDate, now })).toBeNull();

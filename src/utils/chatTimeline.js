@@ -16,14 +16,17 @@ function dayKey(d) {
 }
 
 /**
- * Etiqueta del separador de día que va ENCIMA de `msg`, o `null` si no toca (mismo día que el
- * mensaje anterior, o sin fecha). «Hoy» / «Ayer» / «lunes, 24 de agosto» / «24 de agosto de 2025».
+ * Etiqueta del separador de día que va ENCIMA de `msg`, o `null` si no toca. Solo marca los
+ * CAMBIOS de día dentro del hilo: «Hoy» / «Ayer» / «lunes, 24 de agosto» / «24 de agosto de 2025».
+ * El primer mensaje del hilo no lleva etiqueta: un hilo de un solo día no muestra ninguna (el
+ * dueño, 2026-09-03: «ya dice Hoy en el historial de chats, ¿para qué más?»).
  */
 export function daySeparatorLabel(msg, prevMsg, { t, formatDate, now = new Date() } = {}) {
     const d = messageDate(msg);
     if (!d) return null;
     const p = prevMsg ? messageDate(prevMsg) : null;
-    if (p && dayKey(p) === dayKey(d)) return null;
+    if (!p) return null;                        // arranque del hilo: sin etiqueta
+    if (dayKey(p) === dayKey(d)) return null;   // mismo día que el anterior
     const key = dayKey(d);
     if (key === dayKey(now)) return t('Hoy');
     const yesterday = new Date(now);
