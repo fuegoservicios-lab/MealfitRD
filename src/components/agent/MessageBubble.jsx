@@ -53,30 +53,17 @@ const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = tru
         }
     };
 
-    const actionBtnStyle = (active = false) => ({
-        background: active ? 'rgba(129, 140, 248, 0.12)' : 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        color: active ? 'var(--primary)' : 'var(--text-muted)',
-        padding: '0.4rem',
-        borderRadius: '0.4rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minWidth: 44,
-        minHeight: 44,
-        transition: 'all 0.15s ease'
-    });
-
-    const handleMouseEnter = (e) => { e.currentTarget.style.background = 'var(--bg-muted)'; };
-    const handleMouseLeave = (e) => { e.currentTarget.style.background = 'transparent'; };
+    // [P2-MSG-ACTIONS-COMPACT · 2026-09-03] Los cuatro iconos iban en botones de 44×44 con
+    // 0,6rem de hueco: ~54px de paso entre iconos de 18px, un aire enorme en escritorio y
+    // la fila lejos del texto. Tamaño y hueco pasan a CSS (MessageBubble.css): 32px con 2px
+    // de hueco donde hay puntero fino, 42px donde el puntero es el dedo (`pointer: coarse`).
+    const actionBtnClass = (active = false) => `msg-action-btn${active ? ' is-active' : ''}`;
 
     return (
-        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', marginBottom: '0.5rem', marginLeft: '-0.4rem' }}>
+        <div className="msg-actions">
             <button 
                 onClick={() => handleFeedback('up')} 
-                style={actionBtnStyle(feedback === 'up')}
-                onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                className={actionBtnClass(feedback === 'up')}
                 title={t('Buena respuesta')}
                 aria-label={t('Buena respuesta')}
                 aria-pressed={feedback === 'up'}
@@ -85,8 +72,7 @@ const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = tru
             </button>
             <button 
                 onClick={() => handleFeedback('down')} 
-                style={actionBtnStyle(feedback === 'down')}
-                onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                className={actionBtnClass(feedback === 'down')}
                 title={t('Mala respuesta')}
                 aria-label={t('Mala respuesta')}
                 aria-pressed={feedback === 'down'}
@@ -96,8 +82,7 @@ const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = tru
             {showRegenerate && (
                 <button
                     onClick={onRegenerate}
-                    style={actionBtnStyle()}
-                    onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                    className={actionBtnClass()}
                     title={t('Regenerar respuesta')}
                     aria-label={t('Regenerar respuesta')}
                 >
@@ -106,8 +91,7 @@ const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = tru
             )}
             <button 
                 onClick={handleCopy} 
-                style={actionBtnStyle(copied)}
-                onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+                className={actionBtnClass(copied)}
                 title={t('Copiar')}
                 aria-label={t('Copiar')}
             >

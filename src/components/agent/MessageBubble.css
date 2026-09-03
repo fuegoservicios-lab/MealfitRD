@@ -119,3 +119,35 @@
         width: min(280px, 76vw);
     }
 }
+
+/* [P2-MSG-ACTIONS-COMPACT · 2026-09-03] Fila de acciones bajo cada respuesta del coach
+   (valorar / regenerar / copiar). Compacta con puntero fino; táctil con el dedo. */
+.msg-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin: 0.55rem 0 0.35rem -0.3rem;
+}
+.msg-action-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 0.45rem;
+    background: transparent;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+.msg-action-btn svg { width: 16px; height: 16px; }
+.msg-action-btn:hover { background: var(--bg-muted); color: var(--text-main); }
+.msg-action-btn.is-active { color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.msg-action-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (pointer: coarse) {
+    .msg-actions { gap: 2px; margin-left: -0.45rem; }
+    .msg-action-btn { width: 42px; height: 42px; }
+    .msg-action-btn svg { width: 18px; height: 18px; }
+}
