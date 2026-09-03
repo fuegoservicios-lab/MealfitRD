@@ -807,26 +807,52 @@ function _cookingStagesTail() {
         t('Ya casi está…'),
     ];
 }
-function MealCookingOverlay({ mode = 'single', seed = 0 }) {
+function MealCookingOverlay({ mode = 'single', seed = 0, startedAt = null }) {
     const t = useT();
     const stages = mode === 'day' ? _cookingStagesDay() : _cookingStagesSingle();
     const tailStages = _cookingStagesTail();
-    const [tick, setTick] = useState(0);
+    // [P2-COOKING-OVERLAY-CONTINUITY · 2026-09-03] `startedAt` es el reloj de la card padre y
+    // sobrevive a los remounts de este componente: la card lleva `key={meal.name}`, así que
+    // cuando llega el plato nuevo (antes del persist + recálculo, con el overlay aún activo)
+    // React la reemplaza y el overlay se vuelve a montar — el fade-in arrancaba de opacity 0,
+    // la etapa volvía a la primera y la ola/barra saltaban de fase: «desaparece unos ms».
+    // De ese reloj salen la etapa inicial, la fase de las animaciones (animation-delay
+    // negativo) y si hay que animar la entrada. Se fija UNA vez por montaje (inicializador
+    // perezoso de useState): cambiar `animation-delay` en caliente reiniciaría las animaciones.
+    const [_mount] = useState(() => {
+        const _elapsed = startedAt ? Math.max(0, Date.now() - startedAt) : 0;
+        return { elapsed: _elapsed, entering: _elapsed < 350 };
+    });
+    const [tick, setTick] = useState(() => Math.floor(_mount.elapsed / 4000));
     useEffect(() => {
-        const id = setInterval(() => setTick((t) => t + 1), 4000);
-        return () => clearInterval(id);
-    }, []);
+        // el primer cambio de etapa se alinea al reloj compartido; después, cada 4 s
+        const _rest = 4000 - (_mount.elapsed % 4000);
+        let _id = null;
+        const _first = setTimeout(() => {
+            setTick((t) => t + 1);
+            _id = setInterval(() => setTick((t) => t + 1), 4000);
+        }, _rest);
+        return () => { clearTimeout(_first); if (_id) clearInterval(_id); };
+    }, [_mount.elapsed]);
     // Marcha única (offset 0/1 por seed para que las cards del modo día no se vean clonadas,
     // clamp en la última etapa) → luego cola de paciencia (8s por frase, offset por seed).
     const _mainIdx = Math.min((Math.abs(seed) % 2) + tick, stages.length - 1);
     const _inMain = tick < stages.length + 1;
     const _tailIdx = Math.abs(seed + Math.floor(Math.max(0, tick - stages.length) / 2)) % tailStages.length;
     const label = _inMain ? stages[_mainIdx] : tailStages[_tailIdx];
+    // el texto solo anima al ENTRAR o al cambiar de etapa; en un remount con la misma etapa
+    // se queda quieto (antes reaparecía desde opacity 0 cada vez)
+    const [_firstLabel] = useState(label);
+    const _textAnim = _mount.entering || label !== _firstLabel;
     return (
-        <div className="meal-cooking-overlay" role="status" aria-live="polite" aria-label={t('Actualizando plato con IA')}>
+        <div
+            className={'meal-cooking-overlay' + (_mount.entering ? ' is-entering' : '')}
+            style={{ '--cook-elapsed': `-${_mount.elapsed}ms` }}
+            role="status" aria-live="polite" aria-label={t('Actualizando plato con IA')}
+        >
             <div className="meal-cooking-chip">
                 <ChefHat size={18} className="cook-icon" aria-hidden="true" />
-                <span key={label} className="meal-cooking-text">{label}</span>
+                <span key={label} className={'meal-cooking-text' + (_textAnim ? ' is-new' : '')}>{label}</span>
             </div>
         </div>
     );
@@ -1581,6 +1607,17 @@ const DashboardInner = () => {
 
     // Estado local para saber qué tarjeta se está regenerando (loading spinner específico)
     const [regeneratingId, setRegeneratingId] = useState(null);
+    // [P2-COOKING-OVERLAY-CONTINUITY · 2026-09-03] Reloj de arranque del overlay «cocinando»
+    // por card (índice dentro del día visible). Vive fuera de la card porque la card se
+    // REMONTA a mitad del swap (key={meal.name}; el plato nuevo llega antes del persist) y
+    // el overlay necesita seguir en su etapa y su fase, sin repetir el fade-in.
+    const _cookingStartRef = useRef({});
+    const _cookingStartedAt = (index, on) => {
+        const m = _cookingStartRef.current;
+        if (!on) { if (m[index]) delete m[index]; return null; }
+        if (!m[index]) m[index] = Date.now();
+        return m[index];
+    };
     // Background Chunking: controlar visibilidad del banner de generación
     const [showChunkBanner, setShowChunkBanner] = useState(
         () => planData?.generation_status === 'partial'
@@ -5258,10 +5295,14 @@ const DashboardInner = () => {
                     backdrop-filter: blur(3px);
                     -webkit-backdrop-filter: blur(3px);
                     overflow: hidden;
-                    animation: cookFadeIn 0.25s ease-out;
                     /* [v2] track de la barra de progreso (el segmento de color vive en ::after) */
                     border-bottom: 3px solid rgba(255, 255, 255, 0.07);
                 }
+                /* [P2-COOKING-OVERLAY-CONTINUITY] el fade-in solo al ENTRAR de verdad; en un
+                   remount a mitad del swap (la card cambia de key al llegar el plato nuevo) el
+                   overlay aparece ya opaco y sus animaciones arrancan en la fase donde iban
+                   (--cook-elapsed = -ms transcurridos, fijado por el reloj de la card). */
+                .meal-cooking-overlay.is-entering { animation: cookFadeIn 0.25s ease-out; }
                 /* [P2-DAYREGEN-LOADING-POLISH v2 · 2026-07-12] Ola + barra COORDINADAS
                    (feedback owner: "la primera ola es lenta y la otra rápida, se siente
                    lagueada"): un solo ritmo compartido (2.2s, mismo easing, misma fase) y
@@ -5277,6 +5318,7 @@ const DashboardInner = () => {
                         transparent 62%);
                     transform: translateX(-70%);
                     animation: cookSweep 2.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+                    animation-delay: var(--cook-elapsed, 0ms);
                     will-change: transform;
                     pointer-events: none;
                 }
@@ -5289,6 +5331,7 @@ const DashboardInner = () => {
                     background: linear-gradient(90deg, transparent 0%, #8B5CF6 30%, #22D3EE 55%, transparent 100%);
                     transform: translateX(-100%);
                     animation: cookBarSlide 2.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+                    animation-delay: var(--cook-elapsed, 0ms);
                     will-change: transform;
                     pointer-events: none;
                 }
@@ -5310,12 +5353,14 @@ const DashboardInner = () => {
                     border: 1px solid rgba(139, 92, 246, 0.55);
                     box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.55);
                     animation: cookPulse 2.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+                    animation-delay: var(--cook-elapsed, 0ms);
                     max-width: 92%;
                 }
                 .meal-cooking-chip .cook-icon {
                     color: #A78BFA;
                     flex-shrink: 0;
                     animation: cookBob 1.8s ease-in-out infinite;
+                    animation-delay: var(--cook-elapsed, 0ms);
                 }
                 .meal-cooking-text {
                     font-size: 0.85rem;
@@ -5324,8 +5369,8 @@ const DashboardInner = () => {
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
-                    animation: cookTextIn 0.4s ease-out;
                 }
+                .meal-cooking-text.is-new { animation: cookTextIn 0.4s ease-out; }
                 @keyframes cookPulse {
                     0%, 100% { box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.55); border-color: rgba(139, 92, 246, 0.55); }
                     50% { box-shadow: 0 8px 30px -6px rgba(34, 211, 238, 0.45); border-color: rgba(34, 211, 238, 0.6); }
@@ -5337,7 +5382,8 @@ const DashboardInner = () => {
                 }
                 @keyframes cookFadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes cookTextIn {
-                    from { opacity: 0; transform: translateY(4px); }
+                    /* desde 0.35, no desde 0: al cambiar de etapa el chip nunca se ve vacío */
+                    from { opacity: 0.35; transform: translateY(4px); }
                     to { opacity: 1; transform: none; }
                 }
                 @media (prefers-reduced-motion: reduce) {
@@ -8784,10 +8830,14 @@ const DashboardInner = () => {
                                             (seed=index desfasa las etapas para que no se vean clonadas). */}
                                         {/* [P2-DAYREGEN-OVERLAY-SCOPE] el overlay del día solo en SU tab —
                                             se veía también en lunes/martes durante el regen del domingo. */}
-                                        {(regeneratingId === index || (isDayUpdating
-                                            && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))) && (
-                                            <MealCookingOverlay mode={isDayUpdating ? 'day' : 'single'} seed={index} />
-                                        )}
+                                        {(() => {
+                                            const _cooking = regeneratingId === index || (isDayUpdating
+                                                && (dayRegenIndex == null || dayRegenIndex === activeDayIndex));
+                                            const _startedAt = _cookingStartedAt(index, _cooking);
+                                            return _cooking ? (
+                                                <MealCookingOverlay mode={isDayUpdating ? 'day' : 'single'} seed={index} startedAt={_startedAt} />
+                                            ) : null;
+                                        })()}
 
                                         {/* Meal Info */}
                                         <div className="meal-main">
