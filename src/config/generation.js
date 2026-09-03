@@ -21,7 +21,7 @@ const IDEM_KEY = 'mealfit_run_idempotency';
 export function idempotencyKeyFor(formData) {
     let fp = '';
     try {
-        const { idempotency_key, session_id, tzOffset, ...rest } = formData || {};
+        const { idempotency_key: _ik, session_id: _sid, tzOffset: _tz, ...rest } = formData || {};  // volátiles fuera de la huella
         fp = JSON.stringify(rest, Object.keys(rest).sort());
     } catch { fp = String(Date.now()); }
     try {

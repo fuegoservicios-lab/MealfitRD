@@ -319,8 +319,6 @@ const cardIconBtn = { flex: "none", width: 30, height: 30, borderRadius: 9, disp
 const miniBtn = { flex: "none", width: 32, height: 32, borderRadius: 9, display: "grid", placeItems: "center", cursor: "pointer", appearance: "none",
   color: "var(--text-light)", background: "var(--bg-muted)", border: "1px solid var(--border)" };
 const countLabelRow = { display: "flex", alignItems: "center", gap: 8, padding: "2px 2px 0" };
-const countPill = { display: "inline-flex", alignItems: "center", gap: 7, whiteSpace: "nowrap", fontFamily: "var(--font-heading)", fontSize: ".74rem", fontWeight: 700,
-  color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 13%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 28%, transparent)", padding: "5px 12px", borderRadius: 99 };
 const searchWrap = { display: "flex", alignItems: "center", gap: 9, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "11px 14px", color: "var(--text-light)" };
 const searchInput = { appearance: "none", border: 0, background: "transparent", font: "inherit", fontSize: ".88rem", color: "var(--text-main)", width: "100%", outline: "none" };
 const bucketLabel = { fontFamily: "var(--font-heading)", fontSize: ".72rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--text-light)" };

@@ -1057,7 +1057,7 @@ const DashboardInner = () => {
             // Payload estructurado para la vista expandida.
             data: {
                 attempts: _attempts,
-                severityLabel: _sev,
+                severityLabel: planData?._quality_degraded_severity || null,  // [P2-LOADING-ETA-HONEST · lint] `_sev` no existía (no-undef)
                 reasonLabel: _reasonLabel,
                 guidance: _head.exhausted
                     ? t('Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.')

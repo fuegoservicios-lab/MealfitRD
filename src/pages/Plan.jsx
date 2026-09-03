@@ -812,7 +812,7 @@ const Plan = () => {
         // generar; bloquear nueva generación si ya no quedan.
         isGuest, consumeGuestCredit, remainingCredits,
         // [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Ver los dos call sites de `ack` abajo.
-        hydrateLatestPlan } = useAssessment();
+        hydrateLatestPlan, updateData } = useAssessment();  // [P1-CHECKIN-QUEUE-PARITY] updateData faltaba en el destructuring (eslint no-undef)
     const t = useT();
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     // [P2-LINT-ZERO · 2026-07-09] setTempPlan nunca se llamaba (setter muerto)
@@ -2529,43 +2529,49 @@ function getLoadingTips() {
 }
 
 // --- PANTALLA DE CARGA PREMIUM CON PROGRESO REAL ---
+// [P2-LOADING-ETA-HONEST · 2026-09-03] Rediseño de la pantalla «Diseñando tu plan».
+//   · El copy «estimado 3-6 minutos» era un literal. Medido sobre los 34 bloques 1 completados
+//     por la cola desde el flip: mediana 583 s (~10 min), p90 925 s (~15 min), máx 31 min. El
+//     tiempo lo pone ahora el backend (`GET /api/plans/generation-eta`, p50/p90 de 14 días) y el
+//     copy es adaptativo: antes de la mediana, entre mediana y p90, y pasado el p90 (honesto:
+//     «está tardando más de lo habitual», no «ya casi»). Sin cifra del servidor cae a un rango
+//     prudente sin prometer.
+//   · Visual: anillo de progreso REAL (fases SSE), órbita con los 3 días que se encienden al
+//     completarse, icono de fase con crossfade y un stepper de 6 fases (Perfil → Estructura →
+//     Platos → Coherencia → Compras → Revisión). Todo CSS/framer ya presente; sin librerías.
+//     `prefers-reduced-motion` apaga órbita, pulso y giro.
+//   · Se conservan: cronómetro continuo cross-reentrada (P2-LOADING-ETA-57), progreso por eventos
+//     con timer de respaldo, tips rotativos, «puedes salir» y cancelar de un clic.
+const LOADING_PHASE_GROUPS = [
+    { key: 'perfil', phases: [null, 'analyzing'], maxPct: 24 },
+    { key: 'estructura', phases: ['skeleton'], maxPct: 34 },
+    { key: 'platos', phases: ['day_1', 'day_2', 'day_3', 'parallel_generation'], maxPct: 78 },
+    { key: 'coherencia', phases: ['adversarial_judging', 'critique'], maxPct: 84 },
+    { key: 'compras', phases: ['assembly'], maxPct: 92 },
+    { key: 'revision', phases: ['review'], maxPct: 100 },
+];
+
+function getLoadingPhaseLabels() {
+    return {
+        perfil: t('Perfil'),
+        estructura: t('Estructura'),
+        platos: t('Platos'),
+        coherencia: t('Coherencia'),
+        compras: t('Compras'),
+        revision: t('Revisión'),
+    };
+}
+
 const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) => {
     const t = useT();
     const [progress, setProgress] = useState(0);
     const displayProgress = status === 'ready' ? 100 : progress;
     const [tipIndex, setTipIndex] = useState(0);
 
-    // [P3-LOADING-TIME-ESTIMATE · 2026-05-16] Contador de tiempo transcurrido
-    // + copy dinámico de estimado. Pre-fix: usuario veía solo "Diseñando tu
-    // plan" sin idea de cuánto duraría → ansiedad + intentos de cancelar
-    // prematuros.
-    //
-    // Calibración real (logs prod 2026-06-17, con el proveedor LLM anterior): el pipeline
-    // completo tarda ~3-5 min (skeleton ~22s + day_gen paralelo ~30s +
-    // self-critique ~2min + reviewer + assembly). MUCHO más rápido que los
-    // 12-13 min de la era Gemini (free-tier que saturaba pool).
-    // [P2-LOADING-ETA-57 · 2026-07-06 · 9-10 min 2026-07-09 · REBAJADO a 3-6 min 2026-08-18]
-    // Rango honesto = 3-6 min, pedido del owner al ver que 9-10 quedó impreciso. El 9-10 fue
-    // TAMBIÉN pedido suyo (2026-07-09, renovaciones medían 7.5-8.4 min con 2-3 intentos del
-    // reviewer); desde entonces el pipeline se aceleró (P1-FLASH-PRIMARY, P1-SWAP-LUNA, bypass
-    // determinista del reviewer sin restricciones clínicas) y las 3 renovaciones monitoreadas
-    // en vivo el 2026-08-18 (DO/ES/US) entregaron la semana 1 en ~3-3.5 min de punta a punta.
-    // El techo 6 cubre el caso con retries del reviewer clínico. Copy adapta:
-    //   - <30s:   "Esto suele tomar entre 3 y 6 minutos."
-    //   - 30s-6m: "Transcurrido X:XX · estimado 3-6 minutos"
-    //   - 6-9m:   "Transcurrido X:XX · ya casi terminamos, espera un poco más"
-    //   - >9m:    "Transcurrido X:XX · gracias por tu paciencia · cerca del final"
-    // El start time se fija UNA VEZ al mount — incluso si el componente
-    // re-renderea por cambios de status/streamPhase, el contador es continuo
-    // desde el primer mount.
-    // [P2-LOADING-ETA-57] Continuidad cross-reentrada: si hay un pipeline
-    // pendiente (flag mealfit_plan_in_progress con started_at), el contador
-    // arranca desde ESE inicio real — al cerrar la pestaña y volver (modo
-    // recovery), "Transcurrido" ya no miente reiniciándose en 0:00.
-    // [P2-LINT-ZERO · 2026-07-09] useState lazy-init (antes useRef con IIFE
-    // invocada inline: el localStorage.getItem + JSON.parse corrían en CADA
-    // re-render del LoadingScreen — cada tick del contador — y el resultado
-    // se descartaba). El initializer lazy corre exactamente una vez.
+    // [P3-LOADING-TIME-ESTIMATE · 2026-05-16 → P2-LOADING-ETA-HONEST · 2026-09-03] El
+    // cronómetro arranca UNA vez al montar; si hay un pipeline pendiente (flag
+    // mealfit_plan_in_progress con started_at) arranca desde ese inicio real, así al cerrar la
+    // pestaña y volver «Transcurrido» no miente reiniciándose en 0:00 (P2-LOADING-ETA-57).
     const [startTime] = useState(() => {
         try {
             const f = JSON.parse(safeLocalStorageGet('mealfit_plan_in_progress', null) || 'null');
@@ -2575,51 +2581,24 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
         return Date.now();
     });
     const [elapsedSec, setElapsedSec] = useState(0);
-    // [P3-CANCEL-FORCE-NAVIGATE · 2026-05-16] Hook local del navigate para
-    // forzar el redirect al /assessment ANTES de que el SSE catch propague el
-    // UserCancelled. Sin esto, si el reader está bloqueado en `await
-    // reader.read()` o el catch no detecta el cancel correctamente, el
-    // LoadingScreen se queda renderizado infinitamente. Garantizamos el
-    // redirect desde el handler del botón sin depender del catch.
+    // p50/p90 REALES del bloque 1 (segundos), o null ⇒ rango prudente. Una sola lectura por montaje.
+    const [eta, setEta] = useState(null);
+    // [P3-CANCEL-FORCE-NAVIGATE · 2026-05-16] navigate local para forzar el redirect al
+    // /assessment ANTES de que el SSE catch propague el UserCancelled.
     const navigateCancel = useNavigate();
 
-    // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01 · P1-I18N-SWAP-SMOOTH · 2026-08-15]
-    // Las tablas de copy se construyen una vez por IDIOMA, no en cada render — el
-    // ahorro que perseguía el hoist original se conserva, porque el idioma cambia
-    // como mucho un puñado de veces en la vida de la app.
-    //
-    // `locale` en las deps NO es defensivo: es el ÚNICO sitio de todo el dashboard
-    // donde un `useMemo` con deps vacías capturaba texto traducido. Mientras existió
-    // la frontera de remontaje daba igual (el componente entero se rehacía); al
-    // retirarla, sin esta dep la pantalla de carga se quedaría en el idioma que
-    // hubiera al montar. Es el caso raro pero real de cambiar de idioma con un plan
-    // generándose.
+    // [P5-SPEED-LOADINGSCREEN-HOIST · 2026-06-01 · P1-I18N-SWAP-SMOOTH · 2026-08-15] Las tablas
+    // de copy se construyen una vez por IDIOMA. `locale` en las deps es real aunque el linter no
+    // la vea (ver P1-CI-GATE-PASSABLE): `getLoadingSteps()`/`getLoadingTips()` resuelven el idioma
+    // por dentro. `void locale` la nombra sin mentir; un eslint-disable bailearía el componente.
     const { locale } = useI18n();
-    // [P1-CI-GATE-PASSABLE] El `void locale` NO es decorativo y NO es un disable.
-    //
-    // `getLoadingSteps()`/`getLoadingTips()` resuelven el idioma por dentro (el `t` de
-    // modulo), asi que eslint no ve a `locale` en el cuerpo y la declara «unnecessary
-    // dependency» — al reves de la verdad que explica el parrafo de arriba. Nombrarla
-    // aqui la hace visible para el linter Y para quien lea, sin mentir: la dependencia
-    // es real, solo era invisible sintacticamente.
-    //
-    // Se hace asi y no con `eslint-disable-next-line` A PROPOSITO: las reglas nuevas de
-    // `eslint-plugin-react-hooks@7` vienen del React Compiler y un disable BAILEA AL
-    // COMPONENTE ENTERO. Medido: poner el disable aqui hizo desaparecer el
-    // `set-state-in-effect` de `LoadingScreen` — el techo de lint bajaba de 168 a 162,
-    // pero uno de esos 6 no estaba arreglado sino ESCONDIDO.
     const steps = useMemo(() => { void locale; return getLoadingSteps(); }, [locale]);
     const tips = useMemo(() => { void locale; return getLoadingTips(); }, [locale]);
+    const phaseLabels = useMemo(() => { void locale; return getLoadingPhaseLabels(); }, [locale]);
 
-    // Progreso basado en eventos SSE reales
+    // Progreso basado en eventos SSE reales (P1-B: adversarial_judging y critique incluidos).
     useEffect(() => {
         if (status === 'ready') return;
-
-        // Mapear fases SSE a porcentaje mínimo de progreso
-        // P1-B: añadidas `adversarial_judging` y `critique` — el orquestador
-        // las emite entre `parallel_generation` (35%) y `assembly` (82%) y sin
-        // ellas la barra parecía congelada por la duración combinada de ambos
-        // nodos (típicamente 30–90 s).
         const phaseMinProgress = {
             'analyzing': 12,
             'skeleton': 25,
@@ -2632,12 +2611,9 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
             'assembly': 82,
             'review': 93,
         };
-
         if (streamPhase && phaseMinProgress[streamPhase]) {
             setProgress(prev => Math.max(prev, phaseMinProgress[streamPhase]));
         }
-
-        // Cuando un día se completa, incrementar el progreso según qué día sea
         if (daysCompleted.length > 0) {
             const dayProgress = { 1: 50, 2: 65, 3: 78 };
             const maxDayProgress = Math.max(...daysCompleted.map(d => dayProgress[d] || 0));
@@ -2645,27 +2621,18 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
         }
     }, [streamPhase, daysCompleted, status]);
 
+    // Timer de respaldo: avanza despacio si el SSE calla (nunca pasa de 99).
     useEffect(() => {
         if (status === 'ready') return;
-
-        // Timer de respaldo: incrementa lentamente si SSE no envía eventos
         const timer = setInterval(() => {
             setProgress((old) => {
                 if (old >= 99) return 99;
-
                 let diff;
-                if (old < 20) {
-                    diff = Math.random() * 1.5 + 0.5;
-                } else if (old < 50) {
-                    diff = Math.random() * 0.8 + 0.2;
-                } else if (old < 80) {
-                    diff = Math.random() * 0.5 + 0.1;
-                } else if (old < 95) {
-                    diff = Math.random() * 0.3 + 0.05;
-                } else {
-                    diff = Math.random() * 0.1 + 0.02;
-                }
-
+                if (old < 20) diff = Math.random() * 1.5 + 0.5;
+                else if (old < 50) diff = Math.random() * 0.8 + 0.2;
+                else if (old < 80) diff = Math.random() * 0.5 + 0.1;
+                else if (old < 95) diff = Math.random() * 0.3 + 0.05;
+                else diff = Math.random() * 0.1 + 0.02;
                 return Math.min(old + diff, 99);
             });
         }, 800);
@@ -2679,18 +2646,27 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
         return () => clearInterval(tipTimer);
     }, [tips.length]);
 
-    // [P3-LOADING-TIME-ESTIMATE · 2026-05-16] Timer 1s para elapsed counter.
-    // Pausa al alcanzar `status === 'ready'` (el plan terminó).
     useEffect(() => {
         if (status === 'ready') return undefined;
-        const t = setInterval(() => {
+        const tick = setInterval(() => {
             setElapsedSec(Math.floor((Date.now() - startTime) / 1000));
         }, 1000);
-        return () => clearInterval(t);
+        return () => clearInterval(tick);
     }, [status, startTime]);
 
-    // Helper local: 125 → "2:05". Soporta horas si elapsed > 1h (edge case
-    // de planes muy lentos por retries o Pro escalation).
+    // [P2-LOADING-ETA-HONEST] p50/p90 reales del bloque 1. Falla en silencio ⇒ rango prudente.
+    useEffect(() => {
+        let alive = true;
+        fetchWithAuth('/api/plans/generation-eta')
+            .then((r) => (r && r.ok ? r.json() : null))
+            .then((j) => {
+                if (alive && j && Number.isFinite(j.p50_s) && Number.isFinite(j.p90_s) && j.p50_s > 0) setEta(j);
+            })
+            .catch(() => { /* rango prudente */ });
+        return () => { alive = false; };
+    }, []);
+
+    // 125 → "2:05"; soporta horas si un plan muy lento pasa de 1 h.
     const formatElapsed = (sec) => {
         const totalSec = Math.max(0, sec);
         const h = Math.floor(totalSec / 3600);
@@ -2701,61 +2677,62 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
         return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
     };
 
-    // Copy adaptativo: ofrece estimate inicial, luego switchea a elapsed
-    // tracking, y reconoce explícitamente cuando se pasa del rango típico
-    // para evitar que el usuario asuma "se colgó".
+    // Copy de tiempo HONESTO y adaptativo. Nunca una cifra fija.
+    const etaMin = eta ? {
+        p50: Math.max(1, Math.round(eta.p50_s / 60)),
+        p90: Math.max(Math.round(eta.p50_s / 60) + 1, Math.ceil(eta.p90_s / 60)),
+    } : null;
+    const pastP90 = !!etaMin && elapsedSec >= etaMin.p90 * 60;
     const timeMessage = (() => {
-        const transcurrido = formatElapsed(elapsedSec);
-        if (elapsedSec < 30) {
-            return t('Esto suele tomar entre 3 y 6 minutos.');
+        if (!etaMin) {
+            return t('Suele tardar entre 5 y 15 minutos según tu perfil y las revisiones del plan.');
         }
-        if (elapsedSec < 6 * 60) {
-            return t('Transcurrido {tiempo} · estimado 3-6 minutos', { tiempo: transcurrido });
+        if (elapsedSec < etaMin.p50 * 60) {
+            return t('Normalmente tarda unos {p50} minutos; 9 de cada 10 planes están listos antes de {p90}.', { p50: etaMin.p50, p90: etaMin.p90 });
         }
-        if (elapsedSec < 9 * 60) {
-            return t('Transcurrido {tiempo} · ya casi terminamos, espera un poco más', { tiempo: transcurrido });
+        if (!pastP90) {
+            return t('Ya pasamos la marca habitual; casi todos los planes terminan antes de {p90} minutos.', { p90: etaMin.p90 });
         }
-        return t('Transcurrido {tiempo} · gracias por tu paciencia · cerca del final', { tiempo: transcurrido });
+        return t('Está tardando más de lo habitual. Seguimos trabajando en tu plan; puedes salir y te avisamos.');
     })();
 
-    // Determinar qué pasos ya se completaron (basado en progreso + días completados)
+    // Paso activo (basado en progreso + días completados) → fase → grupo del stepper.
     const activeStepIndex = steps.findIndex(s => {
-        // Si el step tiene dayCheck, verificar si ese día ya se completó
-        if (s.dayCheck && daysCompleted.includes(s.dayCheck)) return false; // ya completado
+        if (s.dayCheck && daysCompleted.includes(s.dayCheck)) return false;
         return displayProgress < s.pct;
     });
     const currentStep = activeStepIndex === -1 ? steps.length - 1 : Math.max(0, activeStepIndex - 1);
+    const currentPhase = steps[currentStep]?.phase ?? null;
+    const StepIcon = steps[currentStep]?.icon || Activity;
+    const activeGroup = status === 'ready'
+        ? LOADING_PHASE_GROUPS.length
+        : (() => {
+            const byPhase = LOADING_PHASE_GROUPS.findIndex(g => g.phases.includes(currentPhase));
+            if (byPhase !== -1) return byPhase;
+            const byPct = LOADING_PHASE_GROUPS.findIndex(g => displayProgress < g.maxPct);
+            return byPct === -1 ? LOADING_PHASE_GROUPS.length - 1 : byPct;
+        })();
+    const ringDeg = Math.max(4, Math.min(360, Math.round(displayProgress * 3.6)));
 
     return (
         <div className="mf-loading-bg" style={{
             minHeight: '100dvh',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             padding: '3rem 1.5rem',
-            // [P3-LOADING-PALETTE-ALIGN · 2026-05-16] El fondo se define en el bloque
-            // <style> de abajo (clase .mf-loading-bg) — NO inline — para que pueda
-            // variar por tema sin que la especificidad del estilo inline lo gane.
-            //   · Claro (legacy premium): radial slate #1E293B→#0F172A, intacto.
-            // [LOADING-DARK-BG · 2026-05-31] En oscuro adopta el MISMO fondo ambiental
-            // que el Dashboard y el Formulario (P3-DARK-BG-STRIPES): rayas 45° 1px@4%
-            // cada 52px + glows indigo/púrpura sobre #0B1120 → consistencia visual del
-            // modo oscuro en todo el producto. El texto blanco sigue legible porque
-            // ambos temas del loading son oscuros.
+            // [P3-LOADING-PALETTE-ALIGN · 2026-05-16] El fondo vive en la clase .mf-loading-bg
+            // (claro: radial slate; oscuro: glows indigo/púrpura sobre #0B1120, LOADING-DARK-BG).
             position: 'relative', overflow: 'hidden',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+            fontFamily: 'var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif)',
+            '--mf-ring-a': '#818CF8',
+            '--mf-ring-b': '#FB7185',
         }}>
-            {/* [P3-LOADING-PREMIUM-REDESIGN · 2026-05-15] Minimalist premium loading:
-                Solo un pulse sutil + fade-in. Sin orbs, sin shimmer, sin 2 rings.
-                Acorde a la identidad Bioboros (rojo + azul + blanco). */}
             <style>{`
-                @keyframes mfPulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
-                @keyframes mfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                @keyframes mfPulse { 0%, 100% { opacity: 0.45; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+                @keyframes mfOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                @keyframes mfGlow { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.7; } }
                 .mf-pulse { animation: mfPulse 2.4s ease-in-out infinite; }
-                .mf-spin { animation: mfSpin 1.6s linear infinite; }
-                /* [LOADING-DARK-BG · 2026-05-31 · sin-rayas 2026-06-22] Fondo del loading.
-                   Claro: radial slate premium (#1E293B→#0F172A). Oscuro: glows indigo/
-                   púrpura sobre #0B1120. Se QUITARON las rayas diagonales blancas
-                   (repeating-linear-gradient, P3-DARK-BG-STRIPES) por pedido del owner —
-                   igual que en el formulario; quedan solo los glows ambientales. */
+                .mf-orbit-track { animation: mfOrbit 16s linear infinite; }
+                .mf-orbit-glow { animation: mfGlow 3.2s ease-in-out infinite; }
                 .mf-loading-bg { background: radial-gradient(ellipse at center, #1E293B 0%, #0F172A 70%); }
                 html[data-theme="dark"] .mf-loading-bg {
                     background-color: #0B1120;
@@ -2767,11 +2744,33 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     background-size: cover, cover, cover, cover;
                     background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
                 }
+                .mf-sat {
+                    position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; margin: -5px;
+                    border-radius: 50%; background: rgba(255,255,255,0.14);
+                    border: 1px solid rgba(255,255,255,0.32);
+                    transition: background 0.45s ease, box-shadow 0.45s ease, border-color 0.45s ease;
+                }
+                .mf-sat.is-done { background: var(--mf-ring-b); border-color: var(--mf-ring-b); box-shadow: 0 0 0 4px rgba(251,113,133,0.18); }
+                .mf-steps { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 0; margin: 0 auto 1.75rem; max-width: 380px; }
+                .mf-step {
+                    display: inline-flex; align-items: center; gap: 6px;
+                    font-size: 0.72rem; letter-spacing: 0.02em; font-weight: 500;
+                    color: rgba(255,255,255,0.38); padding: 4px 10px; border-radius: 999px;
+                    border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03);
+                    transition: color 0.4s ease, border-color 0.4s ease, background 0.4s ease;
+                }
+                .mf-step--active { color: #F8FAFC; border-color: rgba(129,140,248,0.55); background: rgba(129,140,248,0.14); }
+                .mf-step--done { color: rgba(255,255,255,0.72); }
+                .mf-step-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.12); flex-shrink: 0; }
+                .mf-step--active .mf-step-dot { background: var(--mf-ring-a); animation: mfPulse 1.6s ease-in-out infinite; }
+                .mf-step--done .mf-step-dot { background: transparent; color: var(--mf-ring-b); }
+                .mf-tip-card { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); border-radius: 14px; padding: 0.7rem 1rem; }
+                @media (prefers-reduced-motion: reduce) {
+                    .mf-orbit-track, .mf-pulse, .mf-orbit-glow, .mf-step--active .mf-step-dot { animation: none !important; }
+                }
             `}</style>
 
-            {/* [P3-PLAN-LOADING-LOGO · 2026-06-29] Logo Bioboros pequeño y centrado
-                arriba (sin la barra completa). El loading es oscuro en ambos temas, así
-                que los colores van fijos (light/indigo/coral). Solo decorativo. */}
+            {/* [P3-PLAN-LOADING-LOGO · 2026-06-29 · P2-WORDMARK-BIOBOROS · 2026-07-31] Wordmark centrado. */}
             <div style={{
                 position: 'absolute',
                 top: 'max(1.75rem, env(safe-area-inset-top))',
@@ -2779,16 +2778,6 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 display: 'flex', justifyContent: 'center',
                 zIndex: 3, pointerEvents: 'none',
             }}>
-                {/* [P2-WORDMARK-BIOBOROS · 2026-07-31] Delegado a `<Wordmark/>`.
-                    Aquí sobrevivía el ÚLTIMO wordmark escrito a mano: "Bioboros" + una
-                    "R" indigo con puntito + una "D" rosa. Venía de "MealfitRD", donde
-                    "RD" era el país y separarlo significaba algo; sobre "Bioboros" era
-                    un sufijo sin referente y, además, el bicolor que el owner ya había
-                    descartado dos veces (ver el comentario de Wordmark.jsx). El rebrand
-                    automático no lo alcanzó porque los tres fragmentos están en líneas
-                    separadas — exactamente el mismo motivo por el que se le escapó
-                    `Logo.jsx`. La tipografía del contenedor se conserva; la tinta la
-                    pone el wordmark. */}
                 <span style={{
                     fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
                     fontWeight: 800, fontSize: '1.3rem',
@@ -2802,85 +2791,140 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
-                style={{ width: '100%', maxWidth: '380px', textAlign: 'center', position: 'relative', zIndex: 2 }}
+                style={{ width: '100%', maxWidth: '420px', textAlign: 'center', position: 'relative', zIndex: 2 }}
             >
-                {/* === DOT INDICATOR MINIMALIST === */}
-                {/* [P3-LOADING-PREMIUM-REDESIGN] Reemplaza el spinner doble-ring +
-                    iconos rotando por UN solo punto con pulse sutil + un ring
-                    delgado girando. Premium = menos. */}
-                <div style={{
-                    width: 64, height: 64, margin: '0 auto 2.5rem',
-                    position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                    <div className="mf-spin" style={{
+                {/* === ANILLO DE PROGRESO REAL + ÓRBITA DE DÍAS + ICONO DE FASE === */}
+                <div
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(displayProgress)}
+                    aria-label={t('Progreso')}
+                    style={{ width: 176, height: 176, margin: '0 auto 1.75rem', position: 'relative' }}
+                >
+                    <div className="mf-orbit-glow" style={{
+                        position: 'absolute', inset: -18, borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(129,140,248,0.22) 0%, rgba(251,113,133,0.10) 45%, transparent 70%)',
+                        filter: 'blur(6px)',
+                    }} />
+                    <div className="mf-orbit-track" style={{
                         position: 'absolute', inset: 0, borderRadius: '50%',
-                        border: '1.5px solid rgba(255,255,255,0.06)',
-                        borderTopColor: 'rgba(255,255,255,0.55)',
+                        border: '1px dashed rgba(255,255,255,0.10)',
+                    }}>
+                        {[1, 2, 3].map((d, i) => (
+                            <span
+                                key={d}
+                                className={`mf-sat ${daysCompleted.includes(d) ? 'is-done' : ''}`}
+                                style={{ transform: `rotate(${i * 120 - 90}deg) translate(88px) rotate(${-(i * 120 - 90)}deg)` }}
+                                aria-hidden="true"
+                            />
+                        ))}
+                    </div>
+                    <div style={{
+                        position: 'absolute', inset: 18, borderRadius: '50%',
+                        background: `conic-gradient(from -90deg, var(--mf-ring-a) 0deg, var(--mf-ring-b) ${ringDeg}deg, rgba(255,255,255,0.08) ${ringDeg}deg 360deg)`,
+                        WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px))',
+                        mask: 'radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px))',
+                        transition: 'background 0.6s ease',
                     }} />
-                    <div className="mf-pulse" style={{
-                        width: 8, height: 8, borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.85)',
-                    }} />
+                    <div style={{
+                        position: 'absolute', inset: 30, borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={currentStep}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 1.12 }}
+                                transition={{ duration: 0.35 }}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F8FAFC' }}
+                            >
+                                <StepIcon size={34} strokeWidth={1.6} />
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
+                    <div style={{
+                        position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)',
+                        fontVariantNumeric: 'tabular-nums', fontSize: '0.74rem', fontWeight: 600,
+                        color: 'rgba(255,255,255,0.6)', letterSpacing: '0.04em',
+                        background: 'rgba(11,17,32,0.7)', padding: '2px 8px', borderRadius: 999,
+                    }}>
+                        {Math.round(displayProgress)}%
+                    </div>
                 </div>
 
-                {/* === TITLE === */}
+                {/* === TÍTULO + FASE === */}
                 <h2 style={{
-                    fontSize: '1.75rem', fontWeight: 600, marginBottom: '0.5rem',
-                    color: '#ffffff',
-                    letterSpacing: '-0.02em',
-                    lineHeight: 1.2,
+                    fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
+                    fontSize: '1.85rem', fontWeight: 700, marginBottom: '0.45rem',
+                    color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1.15,
                 }}>
                     {t('Diseñando tu plan')}
                 </h2>
-                <p style={{
-                    color: 'rgba(255,255,255,0.45)',
-                    fontSize: '0.95rem', marginBottom: '2rem',
-                    fontWeight: 400, letterSpacing: '0.005em',
-                }}>
-                    {steps[currentStep]?.text || t('Procesando...')}
-                </p>
-
-                {/* [P3-LOADING-TIME-ESTIMATE · 2026-05-16] Time estimate
-                    + elapsed counter. Copy evoluciona según elapsedSec:
-                    <30s estimate puro, 30s-5min tracking, 5-10min warning
-                    suave, >10min mensaje de paciencia. Mostrado en una
-                    fila monoespaciada sutil — informativo sin gritar.
-                    Sin esto el usuario no sabe cuánto va a esperar y
-                    asume que está colgado tras 1-2 min. */}
-                <div
-                    aria-live="polite"
-                    style={{
-                        color: 'rgba(255,255,255,0.62)',
-                        fontSize: '0.82rem', marginBottom: '0.75rem',
-                        fontWeight: 500, letterSpacing: '0.01em',
-                        fontVariantNumeric: 'tabular-nums',
-                        textAlign: 'center', maxWidth: '320px',
-                        margin: '0 auto 0.75rem',
-                    }}
-                >
-                    {timeMessage}
+                <div style={{ minHeight: 24, marginBottom: '1.25rem' }}>
+                    <AnimatePresence mode="wait">
+                        <motion.p
+                            key={currentStep}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.3 }}
+                            style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.95rem', fontWeight: 400, margin: 0 }}
+                        >
+                            {steps[currentStep]?.text || t('Procesando...')}
+                        </motion.p>
+                    </AnimatePresence>
                 </div>
 
-                {/* [P3-PLAN-FLOW-MINIMALIST · 2026-05-15] Mensaje informativo
-                    sobre el comportamiento deep-search (P1-DEEP-SEARCH-PIPELINE).
-                    Comunica al usuario que puede cerrar la app y volver — el
-                    plan se generará en background y aparecerá listo. Sin esto,
-                    el usuario asume que necesita esperar 8-10 min mirando la
-                    pantalla. */}
+                {/* === STEPPER DE FASES === */}
+                <ol className="mf-steps" aria-label={t('Progreso')}>
+                    {LOADING_PHASE_GROUPS.map((g, i) => {
+                        const state = i < activeGroup ? 'done' : (i === activeGroup ? 'active' : 'todo');
+                        return (
+                            <li key={g.key} className={`mf-step mf-step--${state}`} aria-current={state === 'active' ? 'step' : undefined}>
+                                <span className="mf-step-dot" aria-hidden="true">
+                                    {state === 'done' ? <CheckCircle size={12} strokeWidth={2.5} /> : null}
+                                </span>
+                                <span>{phaseLabels[g.key]}</span>
+                            </li>
+                        );
+                    })}
+                </ol>
+
+                {/* === TIEMPO: cronómetro + copy honesto === */}
+                <div aria-live="polite" style={{ margin: '0 auto 1.25rem', maxWidth: 360 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 10 }}>
+                        <span style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+                            {t('Transcurrido')}
+                        </span>
+                        <span style={{
+                            fontFamily: 'var(--font-mono, ui-monospace, monospace)', fontVariantNumeric: 'tabular-nums',
+                            fontSize: '1.4rem', fontWeight: 600, color: '#F8FAFC', letterSpacing: '0.02em',
+                        }}>
+                            {formatElapsed(elapsedSec)}
+                        </span>
+                    </div>
+                    <p style={{
+                        color: pastP90 ? 'rgba(252,211,77,0.92)' : 'rgba(255,255,255,0.6)',
+                        fontSize: '0.85rem', lineHeight: 1.55, margin: '0.45rem auto 0', maxWidth: 340,
+                    }}>
+                        {timeMessage}
+                    </p>
+                </div>
+
+                {/* [P3-PLAN-FLOW-MINIMALIST · 2026-05-15] El plan se genera en background: puede salir. */}
                 <p style={{
-                    color: 'rgba(255,255,255,0.55)',
-                    fontSize: '0.85rem', marginBottom: '3rem',
-                    fontWeight: 400, letterSpacing: '0.005em',
-                    lineHeight: 1.55, maxWidth: '320px', margin: '0 auto 3rem',
+                    color: 'rgba(255,255,255,0.5)',
+                    fontSize: '0.85rem', fontWeight: 400, letterSpacing: '0.005em',
+                    lineHeight: 1.55, maxWidth: '340px', margin: '0 auto 2rem',
                 }}>
                     {t('Puedes salir si quieres. Te avisamos cuando tu plan esté listo.')}
                 </p>
 
-                {/* === TIP — sutil, sin emoji === */}
-                <div style={{
-                    minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    marginBottom: '0.5rem',
-                }}>
+                {/* === TIP === */}
+                <div className="mf-tip-card" style={{ maxWidth: 340, margin: '0 auto', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <AnimatePresence mode="wait">
                         <motion.p
                             key={tipIndex}
@@ -2889,9 +2933,8 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.6 }}
                             style={{
-                                color: 'rgba(255,255,255,0.32)', fontSize: '0.78rem',
-                                fontWeight: 400, lineHeight: '1.5',
-                                textAlign: 'center', maxWidth: '320px',
+                                color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem',
+                                fontWeight: 400, lineHeight: '1.5', textAlign: 'center', margin: 0,
                             }}
                         >
                             {tips[tipIndex].replace(/^💡\s*/, '')}
@@ -2899,26 +2942,16 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     </AnimatePresence>
                 </div>
 
-                {/* === CANCEL BUTTON (single-click action) === */}
-                {/* [P3-CANCEL-ONE-CLICK · 2026-05-16] Antes había un modal
-                 * inline confirm "¿Cancelar la generación? Perderás el
-                 * progreso actual." con botones Continuar/Sí cancelar.
-                 * UX feedback: doble paso era fricción innecesaria — el
-                 * botón cancelar está deliberadamente DISCRETO (texto-only,
-                 * opacity 35%) y el user ya hizo el commit mental al
-                 * clickearlo. Eliminado el modal: click directo dispara
-                 * onCancel() + navigate. */}
+                {/* [P3-CANCEL-ONE-CLICK · 2026-05-16] Cancelar de un clic, discreto. */}
                 {onCancel && status !== 'ready' && status !== 'preview' && (
-                    <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'center' }}>
+                    <div style={{ marginTop: '2.25rem', display: 'flex', justifyContent: 'center' }}>
                         <motion.button
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.15 }}
                             onClick={() => {
-                                // [P3-CANCEL-FORCE-NAVIGATE] onCancel() aborta SSE + POST
-                                // cancel backend + clear flag LS; navigate fuerza el redirect
-                                // sin esperar al catch del SSE reader (que puede tardar si
-                                // está bloqueado en reader.read()).
+                                // [P3-CANCEL-FORCE-NAVIGATE] onCancel() aborta SSE + POST cancel + limpia
+                                // el flag; navigate fuerza el redirect sin esperar al catch del reader.
                                 onCancel();
                                 navigateCancel('/assessment', { replace: true });
                             }}
