@@ -2712,71 +2712,50 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
             const byPct = LOADING_PHASE_GROUPS.findIndex(g => displayProgress < g.maxPct);
             return byPct === -1 ? LOADING_PHASE_GROUPS.length - 1 : byPct;
         })();
-    // [P2-LOADING-RING-SVG · 2026-09-03] Anillo SVG con arco degradado, cabeza luminosa que
-    // recorre el progreso REAL, cometa de actividad y halo giratorio; los 3 días como insignias
-    // fijas alrededor (activa = pulso, completada = degradado con check).
-    const RING_R = 78;
+    // [P2-LOADING-ONE-STROKE · 2026-09-03] Un solo trazo. El anillo anterior (halo, cometa, núcleo,
+    // insignias, píldoras) era vistoso a fuerza de capas: el dueño lo llamó «tosco, genérico, hecho
+    // por IA» y en móvil la insignia del día 1 chocaba con el wordmark. Ahora la pieza es UNA: un
+    // círculo fino con el progreso real dibujado como un trazo blanco de cabo luminoso, tres marcas
+    // de día integradas en el propio arco (se encienden al completarse), y el porcentaje como
+    // protagonista tipográfico. Fases como puntos, no píldoras. Padding superior con safe-area para
+    // que el héroe nunca toque el wordmark.
+    const RING_R = 92;
     const RING_C = 2 * Math.PI * RING_R;
-    const ringP = Math.max(0.01, Math.min(1, displayProgress / 100));
+    const ringP = Math.max(0.004, Math.min(1, displayProgress / 100));
     const ringOffset = RING_C * (1 - ringP);
     const headAngle = -Math.PI / 2 + ringP * 2 * Math.PI;
-    const headX = 88 + RING_R * Math.cos(headAngle);
-    const headY = 88 + RING_R * Math.sin(headAngle);
+    const headX = 100 + RING_R * Math.cos(headAngle);
+    const headY = 100 + RING_R * Math.sin(headAngle);
     const inDayPhase = ['day_1', 'day_2', 'day_3', 'parallel_generation'].includes(currentPhase);
     const activeDay = status === 'ready' ? null : (inDayPhase ? Math.min(3, daysCompleted.length + 1) : null);
-    const DAY_ANGLES = [-90, 30, 150];
+    const dayTicks = [1, 2, 3].map((d) => {
+        const ang = -Math.PI / 2 + (d / 3) * 2 * Math.PI;
+        const state = daysCompleted.includes(d) ? 'done' : (d === activeDay ? 'active' : 'todo');
+        return { d, state, x1: 100 + 85 * Math.cos(ang), y1: 100 + 85 * Math.sin(ang), x2: 100 + 99 * Math.cos(ang), y2: 100 + 99 * Math.sin(ang) };
+    });
+    const activeGroupLabel = phaseLabels[(LOADING_PHASE_GROUPS[Math.min(activeGroup, LOADING_PHASE_GROUPS.length - 1)] || {}).key] || '';
+    const heroPhase = inDayPhase && activeDay
+        ? `${activeGroupLabel} · ${t('Día {n}', { n: activeDay })}`
+        : activeGroupLabel;
 
     return (
         <div className="mf-loading-bg" style={{
             minHeight: '100dvh',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '3rem 1.5rem',
+            // [P2-LOADING-ONE-STROKE] el wordmark es absoluto arriba: el contenido reserva su alto
+            // (+ safe-area) para que en móvil el héroe nunca lo toque.
+            padding: 'calc(env(safe-area-inset-top, 0px) + 5.5rem) 1.5rem 3rem',
             // [P3-LOADING-PALETTE-ALIGN · 2026-05-16] El fondo vive en la clase .mf-loading-bg
             // (claro: radial slate; oscuro: glows indigo/púrpura sobre #0B1120, LOADING-DARK-BG).
             position: 'relative', overflow: 'hidden',
             fontFamily: 'var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif)',
-            '--mf-ring-a': '#818CF8',
-            '--mf-ring-b': '#FB7185',
+            '--mf-hero': 'clamp(184px, 54vw, 236px)',
         }}>
             <style>{`
                 @keyframes mfPulse { 0%, 100% { opacity: 0.45; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
                 @keyframes mfOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                @keyframes mfFade { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.85; } }
-                @keyframes mfBreath { 0%, 100% { transform: scale(1); opacity: 0.45; } 50% { transform: scale(1.07); opacity: 1; } }
-                @keyframes mfDayPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(129,140,248,0.45); } 50% { box-shadow: 0 0 0 7px rgba(129,140,248,0); } }
+                @keyframes mfFade { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
                 .mf-pulse { animation: mfPulse 2.4s ease-in-out infinite; }
-                .mf-ringwrap { position: relative; width: 224px; height: 224px; margin: 0 auto 1.5rem; }
-                .mf-halo {
-                    position: absolute; inset: 14px; border-radius: 50%; opacity: 0.75; filter: blur(22px);
-                    background: conic-gradient(from 0deg, rgba(129,140,248,0) 0deg, rgba(129,140,248,0.45) 70deg, rgba(251,113,133,0.35) 140deg, rgba(129,140,248,0) 210deg);
-                    animation: mfOrbit 11s linear infinite;
-                }
-                .mf-ring-svg { position: absolute; inset: 24px; width: 176px; height: 176px; overflow: visible; }
-                .mf-arc { transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1); filter: drop-shadow(0 0 6px rgba(129,140,248,0.45)); }
-                .mf-head, .mf-head-glow { transition: cx 0.9s cubic-bezier(0.4, 0, 0.2, 1), cy 0.9s cubic-bezier(0.4, 0, 0.2, 1); }
-                .mf-head-glow { animation: mfFade 1.8s ease-in-out infinite; }
-                .mf-comet-spin { transform-box: view-box; transform-origin: 88px 88px; animation: mfOrbit 6s linear infinite; }
-                .mf-core {
-                    position: absolute; inset: 58px; border-radius: 50%; color: #F8FAFC;
-                    display: flex; align-items: center; justify-content: center;
-                    background: radial-gradient(circle, rgba(129,140,248,0.22) 0%, rgba(17,24,39,0.55) 62%, transparent 74%);
-                    border: 1px solid rgba(255,255,255,0.06);
-                }
-                .mf-core::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.06); animation: mfBreath 3s ease-in-out infinite; }
-                .mf-day {
-                    position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
-                    display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700;
-                    font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.45);
-                    background: rgba(11,17,32,0.88); border: 1px solid rgba(255,255,255,0.12);
-                    transition: color 0.45s ease, background 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
-                }
-                .mf-day--active { color: #F8FAFC; border-color: rgba(129,140,248,0.85); animation: mfDayPulse 1.6s ease-out infinite; }
-                .mf-day--done { color: #FFFFFF; border-color: transparent; background: linear-gradient(135deg, #818CF8, #FB7185); box-shadow: 0 6px 16px -6px rgba(251,113,133,0.55); }
-                .mf-pct {
-                    position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
-                    font-variant-numeric: tabular-nums; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em;
-                    color: rgba(255,255,255,0.65); background: rgba(11,17,32,0.7); padding: 2px 9px; border-radius: 999px;
-                }
                 .mf-loading-bg { background: radial-gradient(ellipse at center, #1E293B 0%, #0F172A 70%); }
                 html[data-theme="dark"] .mf-loading-bg {
                     background-color: #0B1120;
@@ -2788,23 +2767,30 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     background-size: cover, cover, cover, cover;
                     background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
                 }
-                .mf-steps { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 0; margin: 0 auto 1.75rem; max-width: 380px; }
-                .mf-step {
-                    display: inline-flex; align-items: center; gap: 6px;
-                    font-size: 0.72rem; letter-spacing: 0.02em; font-weight: 500;
-                    color: rgba(255,255,255,0.38); padding: 4px 10px; border-radius: 999px;
-                    border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03);
-                    transition: color 0.4s ease, border-color 0.4s ease, background 0.4s ease;
-                }
-                .mf-step--active { color: #F8FAFC; border-color: rgba(129,140,248,0.55); background: rgba(129,140,248,0.14); }
-                .mf-step--done { color: rgba(255,255,255,0.72); }
-                .mf-step-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.12); flex-shrink: 0; }
-                .mf-step--active .mf-step-dot { background: var(--mf-ring-a); animation: mfPulse 1.6s ease-in-out infinite; }
-                .mf-step--done .mf-step-dot { background: transparent; color: var(--mf-ring-b); }
-                .mf-tip-card { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); border-radius: 14px; padding: 0.7rem 1rem; }
+                /* ── héroe: un solo trazo ── */
+                .mf-hero { position: relative; width: var(--mf-hero); height: var(--mf-hero); margin: 0 auto 1.6rem; }
+                .mf-ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+                .mf-track { fill: none; stroke: rgba(255,255,255,0.10); stroke-width: 1.5; }
+                .mf-sweep { fill: none; stroke: url(#mfSweep); stroke-width: 1.5; opacity: 0.55; transform-box: view-box; transform-origin: 100px 100px; animation: mfOrbit 9s linear infinite; }
+                .mf-arc { fill: none; stroke: #FFFFFF; stroke-width: 2; stroke-linecap: round; transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1); filter: drop-shadow(0 0 5px rgba(255,255,255,0.35)); }
+                .mf-head { fill: #FB7185; filter: drop-shadow(0 0 7px rgba(251,113,133,0.9)); transition: cx 0.9s cubic-bezier(0.4, 0, 0.2, 1), cy 0.9s cubic-bezier(0.4, 0, 0.2, 1); }
+                .mf-head-glow { fill: #FB7185; opacity: 0.35; transition: cx 0.9s cubic-bezier(0.4, 0, 0.2, 1), cy 0.9s cubic-bezier(0.4, 0, 0.2, 1); animation: mfFade 1.8s ease-in-out infinite; }
+                .mf-tick { stroke: rgba(255,255,255,0.22); stroke-width: 1.5; stroke-linecap: round; transition: stroke 0.45s ease; }
+                .mf-tick.is-active { stroke: #FFFFFF; animation: mfFade 1.4s ease-in-out infinite; }
+                .mf-tick.is-done { stroke: #FB7185; }
+                .mf-hero-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem; }
+                .mf-num { font-family: var(--font-heading, "Outfit", sans-serif); font-weight: 300; font-size: calc(var(--mf-hero) * 0.32); line-height: 1; letter-spacing: -0.035em; color: #FFFFFF; font-variant-numeric: tabular-nums; }
+                .mf-num-unit { font-size: 0.34em; font-weight: 400; color: rgba(255,255,255,0.5); margin-left: 3px; vertical-align: top; letter-spacing: 0; }
+                .mf-hero-phase { font-size: 0.66rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
+                /* ── fases como puntos ── */
+                .mf-dots { list-style: none; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 0; margin: 0 auto 1.8rem; }
+                .mf-dot { position: relative; width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.18); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease; }
+                .mf-dot--active { width: 24px; background: #FFFFFF; }
+                .mf-dot--done { background: rgba(251,113,133,0.9); }
+                .mf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
                 @media (prefers-reduced-motion: reduce) {
-                    .mf-halo, .mf-comet-spin, .mf-head-glow, .mf-core::after, .mf-day--active, .mf-pulse, .mf-step--active .mf-step-dot { animation: none !important; }
-                    .mf-arc, .mf-head, .mf-head-glow { transition: none; }
+                    .mf-sweep, .mf-head-glow, .mf-tick.is-active, .mf-pulse { animation: none !important; }
+                    .mf-arc, .mf-head, .mf-head-glow, .mf-dot { transition: none; }
                 }
             `}</style>
 
@@ -2829,108 +2815,78 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
-                style={{ width: '100%', maxWidth: '420px', textAlign: 'center', position: 'relative', zIndex: 2 }}
+                style={{ width: '100%', maxWidth: '400px', textAlign: 'center', position: 'relative', zIndex: 2 }}
             >
-                {/* === ANILLO SVG DE PROGRESO REAL + INSIGNIAS DE DÍAS + ICONO DE FASE === */}
+                {/* === HÉROE: un solo trazo con el progreso real y las marcas de día === */}
                 <div
-                    className="mf-ringwrap"
+                    className="mf-hero"
                     role="progressbar"
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.round(displayProgress)}
                     aria-label={t('Progreso')}
                 >
-                    <div className="mf-halo" aria-hidden="true" />
-                    <svg className="mf-ring-svg" viewBox="0 0 176 176" aria-hidden="true">
+                    <svg className="mf-ring-svg" viewBox="0 0 200 200" aria-hidden="true">
                         <defs>
-                            <linearGradient id="mfRingGrad" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stopColor="#818CF8" />
-                                <stop offset="100%" stopColor="#FB7185" />
+                            <linearGradient id="mfSweep" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+                                <stop offset="55%" stopColor="rgba(255,255,255,0.35)" />
+                                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
                             </linearGradient>
-                            <filter id="mfGlow" x="-50%" y="-50%" width="200%" height="200%">
-                                <feGaussianBlur stdDeviation="3.5" />
-                            </filter>
                         </defs>
-                        <circle cx="88" cy="88" r={RING_R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
-                        <g className="mf-comet-spin">
-                            <circle cx={88 + RING_R} cy="88" r="2.5" fill="#FFFFFF" opacity="0.55" />
-                        </g>
+                        <circle className="mf-track" cx="100" cy="100" r={RING_R} />
+                        <circle className="mf-sweep" cx="100" cy="100" r={RING_R} />
                         <circle
                             className="mf-arc"
-                            cx="88" cy="88" r={RING_R} fill="none"
-                            stroke="url(#mfRingGrad)" strokeWidth="8" strokeLinecap="round"
+                            cx="100" cy="100" r={RING_R}
                             strokeDasharray={RING_C} strokeDashoffset={ringOffset}
-                            transform="rotate(-90 88 88)"
+                            transform="rotate(-90 100 100)"
                         />
-                        <circle className="mf-head-glow" cx={headX} cy={headY} r="8" fill="#FB7185" filter="url(#mfGlow)" />
-                        <circle className="mf-head" cx={headX} cy={headY} r="4" fill="#FFFFFF" />
+                        {dayTicks.map((k) => (
+                            <line key={k.d} className={`mf-tick ${k.state === 'done' ? 'is-done' : ''} ${k.state === 'active' ? 'is-active' : ''}`} x1={k.x1} y1={k.y1} x2={k.x2} y2={k.y2} />
+                        ))}
+                        <circle className="mf-head-glow" cx={headX} cy={headY} r="7" />
+                        <circle className="mf-head" cx={headX} cy={headY} r="3" />
                     </svg>
-                    <div className="mf-core">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={currentStep}
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 1.12 }}
-                                transition={{ duration: 0.35 }}
-                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                                <StepIcon size={34} strokeWidth={1.6} />
-                            </motion.div>
-                        </AnimatePresence>
+                    <div className="mf-hero-num" aria-hidden="true">
+                        <div>
+                            <span className="mf-num">{Math.round(displayProgress)}</span>
+                            <span className="mf-num mf-num-unit">%</span>
+                        </div>
+                        <div className="mf-hero-phase">{heroPhase}</div>
                     </div>
-                    {[1, 2, 3].map((d, i) => {
-                        const a = (DAY_ANGLES[i] * Math.PI) / 180;
-                        const x = 112 + 100 * Math.cos(a);
-                        const y = 112 + 100 * Math.sin(a);
-                        const state = daysCompleted.includes(d) ? 'done' : (d === activeDay ? 'active' : 'todo');
-                        return (
-                            <span
-                                key={d}
-                                className={`mf-day mf-day--${state}`}
-                                style={{ left: x, top: y }}
-                                aria-hidden="true"
-                            >
-                                {state === 'done' ? <CheckCircle size={13} strokeWidth={2.6} /> : d}
-                            </span>
-                        );
-                    })}
-                    <div className="mf-pct">{Math.round(displayProgress)}%</div>
                 </div>
 
-                {/* === TÍTULO + FASE === */}
+                {/* === TÍTULO + PASO === */}
                 <h2 style={{
                     fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                    fontSize: '1.85rem', fontWeight: 700, marginBottom: '0.45rem',
-                    color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1.15,
+                    fontSize: '1.4rem', fontWeight: 600, margin: '0 0 0.35rem',
+                    color: '#ffffff', letterSpacing: '-0.015em', lineHeight: 1.2,
                 }}>
                     {t('Diseñando tu plan')}
                 </h2>
-                <div style={{ minHeight: 24, marginBottom: '1.25rem' }}>
+                <div style={{ minHeight: 22, marginBottom: '1.1rem' }}>
                     <AnimatePresence mode="wait">
                         <motion.p
                             key={currentStep}
-                            initial={{ opacity: 0, y: 4 }}
+                            initial={{ opacity: 0, y: 3 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.3 }}
-                            style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.95rem', fontWeight: 400, margin: 0 }}
+                            exit={{ opacity: 0, y: -3 }}
+                            transition={{ duration: 0.25 }}
+                            style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', fontWeight: 400, margin: 0 }}
                         >
                             {steps[currentStep]?.text || t('Procesando...')}
                         </motion.p>
                     </AnimatePresence>
                 </div>
 
-                {/* === STEPPER DE FASES === */}
-                <ol className="mf-steps" aria-label={t('Progreso')}>
+                {/* === FASES COMO PUNTOS (la activa se alarga; las hechas, en acento) === */}
+                <ol className="mf-dots" aria-label={t('Progreso')}>
                     {LOADING_PHASE_GROUPS.map((g, i) => {
                         const state = i < activeGroup ? 'done' : (i === activeGroup ? 'active' : 'todo');
                         return (
-                            <li key={g.key} className={`mf-step mf-step--${state}`} aria-current={state === 'active' ? 'step' : undefined}>
-                                <span className="mf-step-dot" aria-hidden="true">
-                                    {state === 'done' ? <CheckCircle size={12} strokeWidth={2.5} /> : null}
-                                </span>
-                                <span>{phaseLabels[g.key]}</span>
+                            <li key={g.key} className={`mf-dot mf-dot--${state}`} aria-current={state === 'active' ? 'step' : undefined} title={phaseLabels[g.key]}>
+                                <span className="mf-sr">{phaseLabels[g.key]}</span>
                             </li>
                         );
                     })}
@@ -2967,7 +2923,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 </p>
 
                 {/* === TIP === */}
-                <div className="mf-tip-card" style={{ maxWidth: 340, margin: '0 auto', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ maxWidth: 340, margin: '0 auto', minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <AnimatePresence mode="wait">
                         <motion.p
                             key={tipIndex}
@@ -2976,7 +2932,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                             exit={{ opacity: 0, y: -4 }}
                             transition={{ duration: 0.25 }}
                             style={{
-                                color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem',
+                                color: 'rgba(255,255,255,0.38)', fontSize: '0.8rem', fontStyle: 'italic',
                                 fontWeight: 400, lineHeight: '1.5', textAlign: 'center', margin: 0,
                             }}
                         >

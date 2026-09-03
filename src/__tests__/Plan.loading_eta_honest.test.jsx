@@ -38,9 +38,12 @@ describe('LoadingScreen: visual', () => {
     it('anillo de progreso real, órbita de días y stepper de fases', () => {
         expect(SRC).toContain('role="progressbar"');
         expect(SRC).toContain('strokeDasharray={RING_C} strokeDashoffset={ringOffset}');   // arco = progreso real
-        expect(SRC).toContain('className="mf-comet-spin"');                                  // actividad aunque el % no avance
-        expect(SRC).toContain("className={`mf-day mf-day--${state}`}");                     // días: todo / active / done
+        expect(SRC).toContain('className="mf-sweep"');                                       // luz que recorre el trazo aunque el % no avance
+        expect(SRC).toContain("className={`mf-tick ${k.state === 'done' ? 'is-done' : ''} ${k.state === 'active' ? 'is-active' : ''}`}");   // días integrados en el arco
         expect(SRC).toContain("const state = daysCompleted.includes(d) ? 'done' : (d === activeDay ? 'active' : 'todo');");
+        expect(SRC).toContain('className="mf-num"');                                          // el porcentaje es el protagonista
+        expect(SRC).toContain("padding: 'calc(env(safe-area-inset-top, 0px) + 5.5rem) 1.5rem 3rem'");   // no choca con el wordmark en móvil
+        expect(SRC).toContain("className={`mf-dot mf-dot--${state}`}");                     // fases como puntos, no píldoras
         expect(SRC).toContain("{ key: 'perfil', phases: [null, 'analyzing']");
         expect(SRC).toContain("{ key: 'revision', phases: ['review']");
         expect(SRC).toContain("aria-current={state === 'active' ? 'step' : undefined}");
