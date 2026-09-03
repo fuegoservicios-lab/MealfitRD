@@ -129,7 +129,6 @@
 .optionCard:hover {
     border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
     background: color-mix(in srgb, var(--primary) 5%, var(--bg-page));
-    transform: translateY(-1px);
     box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--primary) 50%, transparent);
 }
 
@@ -442,10 +441,10 @@
     font-weight: 800;
     cursor: pointer;
     box-shadow: 0 6px 16px -4px rgba(5, 150, 105, 0.5);
-    transition: transform 0.12s ease;
+    transition: box-shadow 0.18s ease, filter 0.18s ease;
 }
 
-.saveBtn:hover:not(:disabled) { transform: translateY(-1px); }
+.saveBtn:hover:not(:disabled) { box-shadow: 0 10px 24px -6px rgba(5, 150, 105, 0.6); filter: brightness(1.05); }
 .saveBtn:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .retakeBtn {

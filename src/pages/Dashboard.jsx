@@ -5629,7 +5629,6 @@ const DashboardInner = () => {
                 .restock-modal-confirm:hover:not(:disabled) {
                     background: #1E293B; /* slate-800 — sutilmente más claro */
                     box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.3);
-                    transform: translateY(-1px); /* [P3-RESTOCK-MODAL-POLISH] lift de familia */
                 }
                 .restock-modal-confirm:hover:not(:disabled) .restock-modal-arrow {
                     transform: translateX(4px);
@@ -6076,10 +6075,8 @@ const DashboardInner = () => {
                     94% { left: 110%; }
                 }
 
-                /* Hover lift universal + shadow color-matched */
-                .plan-tier-badge:hover {
-                    transform: translateY(-1.5px);
-                }
+                /* [P2-HOVER-NO-MOTION · 2026-09-03] sin lift al hover; la sombra
+                   color-matched por tier (abajo) es el feedback */
                 .plan-tier-badge--free:hover {
                     box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
                 }

@@ -4065,10 +4065,10 @@ const AgentPage = () => {
                         <button
                             type="button"
                             onClick={confirmDeleteChat}
+                            className="ui-btn-danger"
                             style={{
                                 flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
-                                background: 'var(--danger)', border: 'none',
-                                color: '#FFFFFF', fontWeight: 700, fontSize: '0.95rem', fontFamily: 'inherit',
+                                fontWeight: 700, fontSize: '0.95rem', fontFamily: 'inherit',
                                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
                             }}
                         >

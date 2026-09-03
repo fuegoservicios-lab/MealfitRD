@@ -34,7 +34,9 @@ describe('confirmación antes de borrar', () => {
         expect(block).toContain('{chatToDelete.title}');
         expect(block).toContain("t('Se borrará de tus recientes y no se puede recuperar.')");
         expect(block).toContain('onClick={confirmDeleteChat}');
-        expect(block).toContain("background: 'var(--danger)', border: 'none',");
+        // [P2-HOVER-NO-MOTION · 2026-09-03] relleno sólido por clase SSOT (--danger-fill), no --danger inline
+        expect(block).toContain('className="ui-btn-danger"');
+        expect(block).not.toContain("background: 'var(--danger)'");
     });
 });
 

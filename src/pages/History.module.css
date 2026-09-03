@@ -115,7 +115,6 @@
 }
 
 .emptyCta:hover {
-    transform: translateY(-2px);
     box-shadow: 0 14px 28px -6px rgba(15, 23, 42, 0.35);
 }
 
@@ -540,7 +539,7 @@
 
 @media (hover: hover) {
     .editButton:hover, .cancelButton:hover {
-        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
     }
 }
 
@@ -1218,7 +1217,6 @@
 }
 
 .actionBannerCtaButton:hover {
-    transform: translateY(-1px);
     box-shadow: 0 4px 10px -2px rgba(220, 38, 38, 0.4);
 }
 
@@ -1427,7 +1425,6 @@
 .menuItem:hover {
     background: linear-gradient(135deg, white 0%, #F8FAFC 100%);
     border-color: #E2E8F0;
-    transform: translateY(-2px);
     box-shadow: 0 4px 12px -2px rgba(0,0,0,0.05);
 }
 
@@ -1509,7 +1506,6 @@
 }
 
 .modalActionBtn:hover {
-    transform: translateY(-1px);
     box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.35);
 }
 
@@ -1654,7 +1650,7 @@
 
 .confirmAcceptBtn:hover {
     filter: brightness(1.09);
-    transform: translateY(-1px);
+    box-shadow: 0 16px 30px -10px color-mix(in srgb, var(--tone-btn-b) 70%, transparent);
 }
 .confirmAcceptBtn:active { transform: scale(0.98); }
 

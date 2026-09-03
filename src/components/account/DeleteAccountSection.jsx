@@ -48,14 +48,14 @@ const DZ_STYLES = `
 .mf-dz-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
     padding: 0.85rem 1.6rem; border: none; border-radius: 13px; cursor: pointer;
-    background: #dc2626; color: #fff; font-weight: 700; font-size: 0.92rem; font-family: inherit;
-    transition: background 0.18s ease, transform 0.16s ease, box-shadow 0.16s ease;
+    background: var(--danger-fill); color: #fff; font-weight: 700; font-size: 0.92rem; font-family: inherit;
+    transition: box-shadow 0.16s ease, filter 0.16s ease;
 }
+/* [P2-HOVER-NO-MOTION · 2026-09-03] misma receta que .ui-btn-danger: sombra + brillo, sin lift */
 .mf-dz-btn:hover:not(:disabled) {
-    background: #ef4444; transform: translateY(-1px);
-    box-shadow: 0 10px 26px -8px color-mix(in srgb, #ef4444 60%, transparent);
+    box-shadow: var(--cta-shadow-danger-hover); filter: brightness(1.06);
 }
-.mf-dz-btn:active:not(:disabled) { transform: translateY(0); }
+.mf-dz-btn:active:not(:disabled) { box-shadow: var(--cta-shadow-danger-active); filter: none; }
 .mf-dz-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 .mf-dz-spin { animation: mf-dz-spin 0.8s linear infinite; }
 @keyframes mf-dz-spin { to { transform: rotate(360deg); } }
@@ -77,7 +77,7 @@ const DZ_STYLES = `
 .mf-dz-actions { display: flex; gap: 0.7rem; margin-top: 1.5rem; }
 .mf-dz-actions .mf-dz-btn { flex: 1; }
 .mf-dz-ghost { background: var(--bg-muted); color: var(--text-main); }
-.mf-dz-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--text-main) 9%, var(--bg-muted)); transform: none; box-shadow: none; }
+.mf-dz-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--text-main) 9%, var(--bg-muted)); transform: none; box-shadow: none; filter: none; }
 `;
 
 export default function DeleteAccountSection() {

@@ -350,6 +350,9 @@
   --danger-bg: #FEF2F2;
   --danger-text: #B91C1C;
   --danger-border: #FCA5A5;
+  /* [P2-HOVER-NO-MOTION · 2026-09-03] Relleno SÓLIDO de peligro (rojo 600): --danger es tinta
+     (rojo 400 en oscuro) y de relleno se veía lavado. Texto blanco encima: 4,8:1. */
+  --danger-fill: #DC2626;
   --warning: #F59E0B;
   --warning-bg: #FFFBEB;
   --warning-text: #78350F;
@@ -602,6 +605,7 @@ html[data-theme="dark"] {
   --danger-bg: #2A1517;
   --danger-text: #FCA5A5;      /* Red 300 */
   --danger-border: rgba(248, 113, 113, 0.32);  /* borde rojo sutil sobre oscuro */
+  --danger-fill: #DC2626;      /* relleno sólido; el rojo 400 de --danger es tinta, no fondo */
   --warning: #FBBF24;          /* Amber 400 */
   --warning-bg: #2A2009;       /* ámbar profundo — fondo de banner sutil sobre oscuro */
   --warning-text: #FCD34D;     /* Amber 300 — legible sobre oscuro (era #78350F invisible) */
@@ -741,6 +745,7 @@ html[data-theme="paper"] {
   --danger-bg: #F4F4F2;
   --danger-text: #0B0B0B;
   --danger-border: #0B0B0B;
+  --danger-fill: #0B0B0B;
   --warning: #0B0B0B;
   --warning-bg: #F4F4F2;
   --warning-text: #0B0B0B;
@@ -1892,8 +1897,28 @@ button.ui-close:hover:not(:disabled) {
     color: var(--text-main, #0F172A) !important;
     box-shadow: none !important;
     filter: none !important;
-    transform: scale(1.06);
+    /* [P2-HOVER-NO-MOTION · 2026-09-03] sin scale: ningún botón se mueve al hover */
 }
+
+/* [P2-HOVER-NO-MOTION · 2026-09-03] Botón sólido de peligro (SSOT). Relleno --danger-fill,
+   texto blanco, y el feedback del hover es SOMBRA + brillo — nunca desplazamiento ni escala
+   (pedido del dueño, generalizado a todos los botones de la app; antecedente
+   P1-GUEST-MODE-BTN 2026-06-15). Sombra en reposo NO (P3-NEVERA-DANGER: solo al tocar). */
+.ui-btn-danger {
+    background: var(--danger-fill);
+    color: #FFFFFF;
+    border: none;
+    transition: box-shadow 0.18s ease, filter 0.18s ease;
+}
+.ui-btn-danger:hover:not(:disabled) {
+    box-shadow: var(--cta-shadow-danger-hover);
+    filter: brightness(1.06);
+}
+.ui-btn-danger:active:not(:disabled) {
+    box-shadow: var(--cta-shadow-danger-active);
+    filter: none;
+}
+.ui-btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
 button.ui-close:active:not(:disabled) {
     background: color-mix(in srgb, var(--text-main, #0F172A) 14%, transparent) !important;
     transform: scale(0.98);

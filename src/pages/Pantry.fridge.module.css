@@ -327,10 +327,10 @@
     gap: 0.45rem;
     cursor: pointer;
     box-shadow: 0 12px 26px -10px color-mix(in srgb, var(--danger) 60%, transparent);
-    transition: filter 0.18s ease, transform 0.18s ease;
+    transition: filter 0.18s ease, box-shadow 0.18s ease;
 }
-.confirmDanger:hover:not(:disabled) { filter: brightness(1.09); transform: translateY(-1px); }
-.confirmDanger:active:not(:disabled) { transform: scale(0.98); }
+.confirmDanger:hover:not(:disabled) { filter: brightness(1.09); box-shadow: var(--cta-shadow-danger-hover); }
+.confirmDanger:active:not(:disabled) { filter: none; box-shadow: var(--cta-shadow-danger-active); }
 .confirmDanger:disabled { cursor: wait; opacity: 0.75; }
 .confirmGhost:focus-visible,
 .confirmDanger:focus-visible {

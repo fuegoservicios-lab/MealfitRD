@@ -891,7 +891,6 @@
 
 .avatarOption:hover {
     opacity: 1;
-    transform: translateY(-1px);
 }
 
 .avatarOptionOn {
@@ -1253,7 +1252,6 @@
 }
 
 .themeOption:hover {
-    transform: translateY(-1.5px);
     box-shadow: 0 8px 24px -8px rgba(15, 23, 42, 0.1);
     border-color: #C7D2FE;
 }

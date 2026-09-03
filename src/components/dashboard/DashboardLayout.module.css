@@ -235,7 +235,6 @@
 .navItem:hover {
     color: #0F172A;
     background: rgba(241, 245, 249, 0.8);
-    transform: translateX(4px);
 }
 
 /* Active State Design */
@@ -250,7 +249,6 @@
 .navItemActive:hover {
     background: linear-gradient(90deg, #E0E7FF 0%, transparent 100%);
     color: var(--primary);
-    transform: translateX(4px);
 }
 
 .navItemActive::before {

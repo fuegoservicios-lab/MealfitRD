@@ -87,7 +87,7 @@
 }
 
 .handle:hover {
-    transform: translateY(-50%) translateX(-5px);
+    transform: translateY(-50%); /* solo el centrado; sin desplazamiento al hover */
     color: #e0e7ff;
     box-shadow:
         -10px 0 30px -12px rgba(34, 211, 238, 0.7),
@@ -677,7 +677,6 @@
 .cardRestore:hover {
     color: #5eead4;
     background: rgba(45, 212, 191, 0.16);
-    transform: scale(1.08);
 }
 .cardRestore:focus-visible {
     outline: 2px solid var(--tone);
@@ -702,7 +701,6 @@
 .cardX:hover {
     color: #fda4af;
     background: rgba(251, 113, 133, 0.16);
-    transform: scale(1.08);
 }
 
 /* [P3-NOTIF-CENTER · 2026-06-16] Anillo de foco visible para teclado (WCAG 2.1).
@@ -895,7 +893,6 @@
     }
 
     /* En móvil el tirador ya no se centra con translateY → hover/open solo X. */
-    .handle:hover,
     .handleOpen {
         transform: translateX(-4px);
     }
