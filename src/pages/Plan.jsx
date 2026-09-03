@@ -2642,7 +2642,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
     useEffect(() => {
         const tipTimer = setInterval(() => {
             setTipIndex((old) => (old + 1) % tips.length);
-        }, 4500);
+        }, 6500);
         return () => clearInterval(tipTimer);
     }, [tips.length]);
 
@@ -2971,10 +2971,10 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     <AnimatePresence mode="wait">
                         <motion.p
                             key={tipIndex}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.6 }}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.25 }}
                             style={{
                                 color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem',
                                 fontWeight: 400, lineHeight: '1.5', textAlign: 'center', margin: 0,
