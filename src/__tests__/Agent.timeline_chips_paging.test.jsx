@@ -50,15 +50,14 @@ describe('hilo: fecha en los mensajes y separadores en los dos renders', () => {
         expect(VIRT).toContain('daySeparator={daySeparatorLabel(msg, messages[index - 1], { t, formatDate })}');
         expect(VIRT).toContain('[currentSessionId, onRegenerate, onErrorRetry, messages, t]');
     });
-    it('la burbuja pinta separador y hora, y el memo los tiene en cuenta', () => {
+    it('la burbuja pinta el separador; la hora solo vive como tooltip (el dueño la vio innecesaria)', () => {
         expect(BUBBLE).toContain('<div className="msg-day-sep" role="separator" aria-label={daySeparator}>');
-        expect(BUBBLE).toContain('<span className="msg-time msg-time-user">{_hora}</span>');
-        expect(BUBBLE).toContain('timeLabel={_hora}');
-        expect(BUBBLE).toContain('{hora && <span className="msg-time">{hora}</span>}');
+        expect(BUBBLE).toContain('title={_hora || undefined}');
+        expect(BUBBLE).not.toContain('msg-time');
+        expect(CSS).not.toContain('.msg-time');
         expect(BUBBLE).toContain('prevProps.daySeparator === nextProps.daySeparator &&');
         expect(BUBBLE).toContain('prevProps.msg.created_at === nextProps.msg.created_at &&');
         expect(CSS).toContain('.msg-day-sep span {');
-        expect(CSS).toContain('.msg-time-user {');
     });
 });
 

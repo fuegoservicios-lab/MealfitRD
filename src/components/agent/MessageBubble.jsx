@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import './MessageBubble.css';
 
-const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = true, timeLabel: hora = '' }) => {
+const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = true }) => {
     const t = useT();
     const [copied, setCopied] = useState(false);
     const [feedback, setFeedback] = useState(null);
@@ -98,7 +98,6 @@ const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = tru
             >
                 {copied ? <Check size={18} strokeWidth={2.5} /> : <Copy size={18} strokeWidth={2} />}
             </button>
-            {hora && <span className="msg-time">{hora}</span>}
         </div>
     );
 };
@@ -196,8 +195,9 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     // mientras el aria-live container-level sigue pendiente), borde rojo
     // sutil, NO MessageActions (thumbs/regenerate no aplican).
     const isErrorBubble = msg.role === 'model' && msg._isErrorBubble === true;
-    // [P2-CHAT-TIMELINE · 2026-09-03] hora del mensaje (vacía si no trae fecha) y, si el día
-    // cambió respecto al mensaje anterior, un separador encima de la fila.
+    // [P2-CHAT-TIMELINE · 2026-09-03] Si el día cambió respecto al mensaje anterior, un
+    // separador encima de la fila. La hora NO se pinta: el dueño la vio innecesaria en el
+    // hilo; queda solo como tooltip de la burbuja (escritorio) para quien la busque.
     const _hora = timeLabel(msg, formatDate);
     return (
         <>
@@ -221,6 +221,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                 {...(isErrorBubble ? { role: 'alert' } : {})}
                 {...(msg.role === 'model' && msg.isStreaming ? { 'aria-busy': true } : {})}
                 className={msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot'}
+                title={_hora || undefined}
                 style={{
                     flex: msg.role === 'user' ? '0 1 auto' : 1,
                     maxWidth: msg.role === 'user' ? '80%' : '100%',
@@ -278,9 +279,6 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     </div>
                 )}
 
-                {msg.role === 'user' && _hora && (
-                    <span className="msg-time msg-time-user">{_hora}</span>
-                )}
                 {/* [P1-CHAT-ERROR-DIFF · 2026-05-19] Botón retry solo si
                     msg.retryable; el copy del bubble ya comunica el por qué */}
                 {isErrorBubble && msg.retryable && typeof onErrorRetry === 'function' && (
@@ -294,7 +292,6 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         sessionId={currentSessionId}
                         onRegenerate={() => onRegenerate(index)}
                         showRegenerate={!msg.isWelcome}
-                        timeLabel={_hora}
                     />
                 )}
             </div>
