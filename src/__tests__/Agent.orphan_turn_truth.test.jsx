@@ -34,8 +34,8 @@ describe('recuperación de un turno huérfano', () => {
         expect(SRC).toContain("safeLocalStorageSet(_orphanReasonKey(currentSessionId), motivo);");
         expect(SRC).toContain("safeLocalStorageSet(_orphanReasonKey(currentSessionId), 'stopped');");
         expect(SRC).toContain("safeLocalStorageGet(_orphanReasonKey(sessionId), null) || 'stopped',");
-        expect(SRC).toContain('const _orphanBubble = useCallback((reason, lastUser) => {');
-        expect((SRC.match(/_orphanBubble\(/g) || []).length).toBeGreaterThanOrEqual(3);   // fábrica + 2 usos
+        expect(SRC).toContain('const _orphanBubble = useCallback((reason, lastPrev) => {');
+        expect((SRC.match(/_orphanBubble\(/g) || []).length).toBe(2);   // rehidratación + _abandon
     });
     it('catálogos: las dos claves nuevas en los 4 idiomas', () => {
         for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {

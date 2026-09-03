@@ -1854,8 +1854,8 @@ const AgentPage = () => {
         (sid) => `mealfit_orphan_reason_${sid}`,
         []
     );
-    const _orphanBubble = useCallback((reason, lastUser) => {
-        const canRetry = Boolean((lastUser?.content || '').trim()) && !lastUser?.isImage;
+    const _orphanBubble = useCallback((reason, lastPrev) => {
+        const canRetry = Boolean((lastPrev.content || '').trim()) && !lastPrev.isImage;
         if (reason === 'dead') {
             return {
                 role: 'model',
@@ -1864,7 +1864,7 @@ const AgentPage = () => {
                     : t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).'),
                 errorType: 'dead_turn',
                 retryable: canRetry,
-                retryPrompt: canRetry ? lastUser.content : null,
+                retryPrompt: canRetry ? lastPrev.content : null,
                 retryImageUrl: null,
                 _isErrorBubble: true,
             };
@@ -1877,7 +1877,7 @@ const AgentPage = () => {
                     : t('⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'),
                 errorType: 'refresh_orphan',
                 retryable: canRetry,
-                retryPrompt: canRetry ? lastUser.content : null,
+                retryPrompt: canRetry ? lastPrev.content : null,
                 retryImageUrl: null,
                 _isErrorBubble: true,
             };
