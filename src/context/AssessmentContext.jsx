@@ -2788,7 +2788,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // solo era cierto en el modo pantry — este toast también sale con
         // reason='variety'.
         const _dayLoadingId = toast.loading(t('Actualizando tu día…'), { duration: 20000,
-            description: t('Tarda de 3 a 5 minutos. Puedes salir — seguimos cocinando.'),
+            // [P2-DAY-REGEN-ETA-COPY · 2026-09-03] «3 a 5 minutos» era pesimista: 6 corridas medidas hoy
+            // (RETARGET→BAND-SCORE) dieron 2,1–2,9 min, p50 2,5. Cifra medida, no estimada.
+            description: t('Suele tardar unos 3 minutos. Puedes salir — seguimos cocinando.'),
         });
         // [P1-DAY-REGEN-RESUME · 2026-07-10] Marker persistente del regen in-flight: si el
         // usuario refresca/cierra, el BACKEND sigue generando (el POST corre server-side hasta

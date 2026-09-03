@@ -2035,7 +2035,6 @@
   "TU MARCA": "YOUR BRAND",
   "Tabaco / vape": "Tobacco / vape",
   "Tamaño del hogar": "Household size",
-  "Tarda de 3 a 5 minutos. Puedes salir — seguimos cocinando.": "It takes 3 to 5 minutes. You can leave — we keep cooking.",
   "Tarde": "Afternoon",
   "Tarjeta": "Card",
   "Te avisaremos si olvidas registrar una comida.": "We'll remind you if you forget to log a meal.",
@@ -2973,5 +2972,6 @@
   "Acciones rápidas": "Quick actions",
   "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. You can retry.",
   "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. Send your message (or the photo) again.",
-  "El día sigue cocinándose en el servidor. Aparecerá solo en unos minutos.": "Your day is still cooking on the server. It will show up on its own in a few minutes."
+  "El día sigue cocinándose en el servidor. Aparecerá solo en unos minutos.": "Your day is still cooking on the server. It will show up on its own in a few minutes.",
+  "Suele tardar unos 3 minutos. Puedes salir — seguimos cocinando.": "It usually takes about 3 minutes. You can leave — we keep cooking."
 }

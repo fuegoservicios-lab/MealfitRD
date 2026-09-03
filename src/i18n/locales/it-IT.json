@@ -2035,7 +2035,6 @@
   "TU MARCA": "LA TUA MARCA",
   "Tabaco / vape": "Tabacco / vape",
   "Tamaño del hogar": "Persone in casa",
-  "Tarda de 3 a 5 minutos. Puedes salir — seguimos cocinando.": "Ci vogliono 3-5 minuti. Puoi uscire — continuiamo a cucinare.",
   "Tarde": "Pomeriggio",
   "Tarjeta": "Carta",
   "Te avisaremos si olvidas registrar una comida.": "Ti avviseremo se dimentichi di registrare un pasto.",
@@ -2973,5 +2972,6 @@
   "Acciones rápidas": "Azioni rapide",
   "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.": "⚠ La risposta del coach non è arrivata: si è interrotta sul server. Puoi riprovare.",
   "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).": "⚠ La risposta del coach non è arrivata: si è interrotta sul server. Invia di nuovo il messaggio (o la foto).",
-  "El día sigue cocinándose en el servidor. Aparecerá solo en unos minutos.": "La giornata è ancora in preparazione sul server. Comparirà da sola tra qualche minuto."
+  "El día sigue cocinándose en el servidor. Aparecerá solo en unos minutos.": "La giornata è ancora in preparazione sul server. Comparirà da sola tra qualche minuto.",
+  "Suele tardar unos 3 minutos. Puedes salir — seguimos cocinando.": "Di solito ci vogliono circa 3 minuti. Puoi uscire: continuiamo a cucinare."
 }

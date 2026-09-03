@@ -25,6 +25,15 @@ describe('actualizar día: tope del cliente', () => {
         expect(SRC).toContain("if (!_timedOut) safeLocalStorageRemove('mealfit_day_regen_inflight');");
         expect(SRC).toContain('return { ok: false, pending: true };');
     });
+    it('el aviso de carga dice la cifra medida (unos 3 min), no «3 a 5»', () => {
+        expect(SRC).toContain("t('Suele tardar unos 3 minutos. Puedes salir — seguimos cocinando.')");
+        expect(SRC).not.toContain('Tarda de 3 a 5 minutos');
+        for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
+            const cat = JSON.parse(read(`src/i18n/locales/${loc}.json`));
+            expect(cat['Suele tardar unos 3 minutos. Puedes salir — seguimos cocinando.'], loc).toBeTruthy();
+            expect(cat['Tarda de 3 a 5 minutos. Puedes salir — seguimos cocinando.'], loc).toBeUndefined();
+        }
+    });
     it('catálogos: la clave nueva en los 4 idiomas', () => {
         for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
             const cat = JSON.parse(read(`src/i18n/locales/${loc}.json`));
