@@ -2542,6 +2542,9 @@ function getLoadingTips() {
 //     `prefers-reduced-motion` apaga órbita, pulso y giro.
 //   · Se conservan: cronómetro continuo cross-reentrada (P2-LOADING-ETA-57), progreso por eventos
 //     con timer de respaldo, tips rotativos, «puedes salir» y cancelar de un clic.
+// [P2-LOADING-NO-FREEZE-99 · 2026-09-03] Techo del progreso mientras el backend no confirma el final.
+const PROGRESS_CEIL = 98;
+
 const LOADING_PHASE_GROUPS = [
     { key: 'perfil', phases: [null, 'analyzing'], maxPct: 24 },
     { key: 'estructura', phases: ['skeleton'], maxPct: 34 },
@@ -2621,19 +2624,25 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
         }
     }, [streamPhase, daysCompleted, status]);
 
-    // Timer de respaldo: avanza despacio si el SSE calla (nunca pasa de 99).
+    // Timer de respaldo: avanza despacio si el SSE calla.
+    // [P2-LOADING-NO-FREEZE-99 · 2026-09-03] Antes sumaba pasos fijos y tocaba 99 en ~1 min de
+    // revisión; una revisión con autocrítica y correcciones dura 4-7 min, así que el número se
+    // quedaba CLAVADO en 99 (el dueño: «se quedó detenido en 99»). Ahora el avance es proporcional
+    // a lo que falta hasta un techo de 98 —siempre se mueve, cada vez más despacio— y 99/100 solo
+    // los pone el final real. La barrera de 98 es visible a propósito: «no hemos terminado».
     useEffect(() => {
         if (status === 'ready') return;
         const timer = setInterval(() => {
             setProgress((old) => {
-                if (old >= 99) return 99;
-                let diff;
-                if (old < 20) diff = Math.random() * 1.5 + 0.5;
-                else if (old < 50) diff = Math.random() * 0.8 + 0.2;
-                else if (old < 80) diff = Math.random() * 0.5 + 0.1;
-                else if (old < 95) diff = Math.random() * 0.3 + 0.05;
-                else diff = Math.random() * 0.1 + 0.02;
-                return Math.min(old + diff, 99);
+                if (old >= PROGRESS_CEIL) return old;
+                const dist = PROGRESS_CEIL - old;
+                let k;
+                if (old < 20) k = 0.02;
+                else if (old < 50) k = 0.011;
+                else if (old < 80) k = 0.008;
+                else k = 0.006;
+                const diff = Math.max(0.012, dist * k) * (0.7 + Math.random() * 0.6);
+                return Math.min(old + diff, PROGRESS_CEIL);
             });
         }, 800);
         return () => clearInterval(timer);
@@ -2785,12 +2794,20 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 /* ── fases como puntos ── */
                 .mf-dots { list-style: none; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 0; margin: 0 auto 1.8rem; }
                 .mf-dot { position: relative; width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.18); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease; }
-                .mf-dot--active { width: 24px; background: #FFFFFF; }
+                .mf-dot--active { width: 24px; background: #FFFFFF; overflow: hidden; }
+                /* [P2-LOADING-NO-FREEZE-99] la fase activa se ve VIVA: un brillo recorre la píldora */
+                .mf-dot--active::after {
+                    content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 60%;
+                    background: linear-gradient(90deg, rgba(129,140,248,0) 0%, rgba(129,140,248,0.95) 50%, rgba(129,140,248,0) 100%);
+                    animation: mfDotSweep 1.6s ease-in-out infinite;
+                }
+                @keyframes mfDotSweep { from { left: -60%; } to { left: 100%; } }
                 .mf-dot--done { background: rgba(251,113,133,0.9); }
                 .mf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
                 @media (prefers-reduced-motion: reduce) {
                     .mf-sweep, .mf-head-glow, .mf-tick.is-active, .mf-pulse { animation: none !important; }
                     .mf-arc, .mf-head, .mf-head-glow, .mf-dot { transition: none; }
+                    .mf-dot--active::after { animation: none; display: none; }
                 }
             `}</style>
 

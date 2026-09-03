@@ -48,6 +48,14 @@ describe('LoadingScreen: visual', () => {
         expect(SRC).toContain("{ key: 'revision', phases: ['review']");
         expect(SRC).toContain("aria-current={state === 'active' ? 'step' : undefined}");
     });
+    it('el respaldo no se clava en 99: techo 98 asintótico, y la fase activa respira', () => {
+        expect(SRC).toContain('const PROGRESS_CEIL = 98;');
+        expect(SRC).toContain('if (old >= PROGRESS_CEIL) return old;');
+        expect(SRC).toContain('const dist = PROGRESS_CEIL - old;');
+        expect(SRC).not.toContain('if (old >= 99) return 99;');
+        expect(SRC).toContain('.mf-dot--active::after {');
+        expect(SRC).toContain('@keyframes mfDotSweep');
+    });
     it('respeta prefers-reduced-motion y conserva cancelar de un clic', () => {
         expect(SRC).toContain('@media (prefers-reduced-motion: reduce)');
         expect(SRC).toContain("navigateCancel('/assessment', { replace: true });");
