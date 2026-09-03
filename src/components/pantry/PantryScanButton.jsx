@@ -309,7 +309,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                 <button type="button" onClick={confirmScanItems}
                     style={{
                         flex: 1, padding: '0.6rem 1rem', borderRadius: '99px', border: 'none',
-                        background: 'var(--primary)', color: '#fff', fontWeight: 700, cursor: 'pointer',
+                        background: 'var(--primary-fill)', color: '#fff', fontWeight: 700, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
                     }}>
                     <Plus size={15} /> {t('Agregar {n} a mi Nevera', { n: scanResults.filter(i => i.selected).length })}

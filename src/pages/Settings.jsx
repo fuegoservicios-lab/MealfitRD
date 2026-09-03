@@ -1925,7 +1925,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         background: var(--primary-dark); color: #FFFFFF; font-weight: 700; font-size: 0.92rem; cursor: pointer; font-family: inherit;
                         transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s ease, transform 0.12s ease;
                     }
-                    html[data-theme="dark"] .sub-cta { background: #4338CA; }
+                    html[data-theme="dark"] .sub-cta { background: var(--primary-fill); }
                     .sub-cta:hover { box-shadow: 0 14px 30px -8px color-mix(in srgb, var(--primary) 55%, transparent), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3); filter: brightness(1.12); }
                     .sub-cta:active { transform: translateY(1px); filter: brightness(0.96); }
                     .sub-cta:focus-visible, .sub-cancel:focus-visible, .sub-tier:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -3684,7 +3684,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     style={{
                                         flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.45rem',
                                         padding: '0.5rem 1rem', borderRadius: '0.65rem', border: 'none',
-                                        background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem',
+                                        background: 'var(--primary-fill)', color: '#fff', fontWeight: 600, fontSize: '0.85rem',
                                         cursor: isExportingData ? 'wait' : 'pointer', opacity: isExportingData ? 0.7 : 1,
                                     }}
                                 >
@@ -3827,7 +3827,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 }
                                 /* En oscuro el primario (indigo 400) es pastel y pelea con el rojo del bloque:
                                    indigo 700, tinta profunda, y el brillo lo pone el hover. */
-                                html[data-theme="dark"] .plan-goal-limit-cta { background: #4338CA; }
+                                html[data-theme="dark"] .plan-goal-limit-cta { background: var(--primary-fill); }
                                 .plan-goal-limit-cta:hover {
                                     box-shadow: 0 14px 30px -8px color-mix(in srgb, var(--primary) 55%, transparent), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);
                                     filter: brightness(1.12);

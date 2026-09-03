@@ -10208,7 +10208,7 @@ const Dashboard = () => {
                     style={{
                         marginTop: '0.25rem', padding: '0.6rem 1.4rem', borderRadius: '10px',
                         border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem',
-                        background: 'var(--primary)', color: '#fff'
+                        background: 'var(--primary-fill)', color: '#fff'
                     }}
                 >
                     {t('Reintentar')}

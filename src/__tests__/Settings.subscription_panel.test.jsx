@@ -41,7 +41,7 @@ describe('Suscripción y Pagos: card del plan actual', () => {
         expect(PANEL).not.toContain('_settingsDark');
         expect(PANEL).not.toContain('#DCFCE7');
         expect(PANEL).toContain('background: var(--bg-card);');
-        expect(PANEL).toContain('html[data-theme="dark"] .sub-cta { background: #4338CA; }');
+        expect(PANEL).toContain('html[data-theme="dark"] .sub-cta { background: var(--primary-fill); }');   // índigo 700 vía token (P2-PRIMARY-FILL-INK)
     });
 });
 

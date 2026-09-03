@@ -311,7 +311,7 @@ export default function CameraViewfinder({
                                     className="mfvf-focusable"
                                     style={{
                                         padding: '0.6rem 1.1rem', borderRadius: '99px', border: 'none',
-                                        background: 'var(--primary)', color: '#fff', fontWeight: 700,
+                                        background: 'var(--primary-fill)', color: '#fff', fontWeight: 700,
                                         cursor: 'pointer',
                                     }}>
                                     {t('Subir una foto en su lugar')}

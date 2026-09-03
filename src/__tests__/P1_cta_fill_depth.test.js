@@ -49,10 +49,14 @@ describe('[P1-CTA-FILL-DEPTH] el relleno del CTA no deslumbra', () => {
         const oscuro = ds.slice(ds.indexOf('html[data-theme="dark"]'));
         expect(claro, 'falta --cta-fill en el tema claro').toMatch(/--cta-fill:/);
         expect(oscuro, 'falta --cta-fill en el tema oscuro').toMatch(/--cta-fill:/);
-        // En oscuro se rebaja contra el panel; sin eso vuelve la mancha.
+        // En oscuro NO puede ser la tinta cruda (--primary / --primary-light son
+        // claros a propósito). [P2-PRIMARY-FILL-INK · 2026-09-03] La receta ya no es
+        // obligatoria (la mezcla con el panel apagaba el color): vale un índigo
+        // profundo literal; el contraste resultante lo mide test_p1_primary_fill_depth.py.
         const mOsc = oscuro.match(/--cta-fill:\s*([^;]+);/);
-        expect(mOsc[1], 'el relleno oscuro debe rebajarse contra --bg-card')
-            .toMatch(/color-mix\(in srgb,\s*var\(--primary\w*\)[^)]*var\(--bg-card\)\)/);
+        expect(mOsc[1], 'el relleno oscuro no puede ser la tinta cruda')
+            .not.toMatch(/var\(--primary(-light)?\)\s*[,)]/);
+        expect(mOsc[1]).not.toMatch(/--primary-light/);
     });
 
     it.each(CTA_CSS)('%s %s se rellena con el token', (archivo, clase) => {

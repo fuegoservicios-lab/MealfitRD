@@ -39,7 +39,7 @@ const NotFound = () => {
                     style={{
                         padding: '0.6rem 1.2rem',
                         borderRadius: '0.6rem',
-                        background: 'var(--primary)',
+                        background: 'var(--primary-fill)',
                         color: '#fff',
                         fontWeight: 600,
                         textDecoration: 'none',
