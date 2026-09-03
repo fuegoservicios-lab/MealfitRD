@@ -348,7 +348,6 @@
   "Cambiado por: {plato}": "Trocado por: {plato}",
   "Cambiar Plato": "Trocar Prato",
   "Cambiar a {plan}": "Mudar para {plan}",
-  "Cambiar avatar (toca para alternar)": "Mudar avatar (toque para alternar)",
   "Cambiar con IA": "Trocar com IA",
   "Cambiar plato. {motivo}": "Trocar prato. {motivo}",
   "Cambiar un plato sin regenerar el plan completo": "Trocar um prato sem regenerar o plano inteiro",
@@ -2082,7 +2081,6 @@
   "Toca el motivo que mejor describe lo que buscas hoy.": "Toque no motivo que melhor descreve o que você busca hoje.",
   "Toca el motivo que mejor describe lo que buscas hoy. Te quedan": "Toque no motivo que melhor descreve o que você busca hoje. Restam",
   "Toca el motivo que mejor describe lo que buscas hoy. Tienes": "Toque no motivo que melhor descreve o que você busca hoje. Você tem",
-  "Toca para cambiar tu avatar": "Toque para trocar seu avatar",
   "Toca un chip para añadirlo al instante, o escribe cualquier alimento arriba.": "Toque em um chip para adicionar na hora, ou escreva qualquer alimento acima.",
   "Toca una variante para marcarla como tu preferida": "Toque em uma variante para marcá-la como preferida",
   "Tocar para ajustar a cantidad exacta": "Tocar para ajustar a quantidade exata",
@@ -2961,5 +2959,9 @@
   "Precio de lanzamiento hasta el {fecha}": "Preço de lançamento até {fecha}",
   "{n} créditos al mes": "{n} créditos por mês",
   "Tu plan, tu Nevera y tu historial quedan guardados en tu cuenta.": "Seu plano, sua Geladeira e seu histórico ficam salvos na sua conta.",
-  "Sesión de invitado": "Sessão de convidado"
+  "Sesión de invitado": "Sessão de convidado",
+  "Quitar avatar": "Remover avatar",
+  "Elegir avatar": "Escolher avatar",
+  "Usar mi inicial": "Usar minha inicial",
+  "Avatar {n}": "Avatar {n}"
 }

@@ -824,6 +824,89 @@
        innecesario en un avatar puramente decorativo (no clickeable). */
 }
 
+/* [P2-AVATAR-PICKER-REMOVE · 2026-09-03] Vista + «×» para quitar + fila de opciones. */
+.avatarPick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.avatarStage {
+    position: relative;
+    display: inline-flex;
+}
+
+.avatarRemove {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    cursor: pointer;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.avatarRemove:hover {
+    color: var(--danger);
+    border-color: var(--danger-border);
+    background: var(--danger-bg);
+}
+
+.avatarRemove:focus-visible,
+.avatarOption:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.avatarOptions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    max-width: 330px;
+}
+
+.avatarOption {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    padding: 0;
+    border: 2px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    opacity: 0.8;
+    transition: opacity 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.avatarOption:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.avatarOptionOn {
+    opacity: 1;
+    box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--primary);
+}
+
+.avatarOptionInitial {
+    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%);
+    color: #FFFFFF;
+    font-weight: 800;
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
 .emailContainer {
     display: flex;
     align-items: center;

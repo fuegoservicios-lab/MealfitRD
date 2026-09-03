@@ -994,17 +994,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // --- ESTADOS DE EVALUACIÓN ---
     const [showEvaluateModal, setShowEvaluateModal] = useState(false);
 
-    // [P3-AVATAR-CYCLE · 2026-06-20] Avatar del perfil: id del avatar minimalista
-    // elegido (o null = inicial). Cada clic CICLA directo al siguiente, sin panel:
-    // inicial → avatar0 → … → avatarN → inicial. Persistido en localStorage.
+    // [P3-AVATAR-CYCLE · 2026-06-20 → P2-AVATAR-PICKER-REMOVE · 2026-09-03] Avatar del
+    // perfil: id del avatar minimalista elegido (o null = inicial), persistido en
+    // localStorage. Antes un solo botón CICLABA por los 12 estados (volver uno atrás
+    // costaba once toques y «quitar el avatar» era dar la vuelta entera); ahora se
+    // elige directo en una fila de opciones y una «×» vuelve a la inicial.
     const [avatarId, setAvatarId] = useState(getAvatarId);
-    const _AVATAR_CYCLE = [null, ...MINIMAL_AVATARS.map((a) => a.id)];
-    const cycleAvatar = () => {
-        setAvatarId((prev) => {
-            const next = _AVATAR_CYCLE[(_AVATAR_CYCLE.indexOf(prev) + 1) % _AVATAR_CYCLE.length];
-            persistAvatar(next); // escribe localStorage + emite evento → el sidebar se actualiza en vivo
-            return next;
-        });
+    const chooseAvatar = (next) => {
+        setAvatarId(next);
+        persistAvatar(next); // escribe localStorage + emite evento → el sidebar se actualiza en vivo
     };
 
     // --- NAVEGACIÓN DE SECCIONES ---
@@ -2464,36 +2462,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
                         <div className={styles.profileFlex}>
                             
-                            {/* [P3-AVATAR-CYCLE · 2026-06-20] Avatar clicable → CICLA al siguiente
-                                avatar minimalista directo (sin panel). Si hay uno elegido lo
-                                renderiza; si no, la inicial sobre el gradiente de siempre. */}
-                            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                <button
-                                    type="button"
-                                    onClick={cycleAvatar}
-                                    title={t('Toca para cambiar tu avatar')}
-                                    aria-label={t('Cambiar avatar (toca para alternar)')}
-                                    style={{ position: 'relative', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', borderRadius: '50%', lineHeight: 0 }}
-                                >
+                            {/* [P2-AVATAR-PICKER-REMOVE · 2026-09-03] El avatar grande es solo la
+                                vista: si hay uno elegido lleva una «×» para volver a la inicial.
+                                Debajo, la fila de opciones (inicial + los 11 minimalistas) elige
+                                directo. Las dos caras del avatar grande siguen compartiendo caja
+                                (`styles.avatar`, P1-AVATAR-SIZE-JUMP). */}
+                            <div className={styles.avatarPick}>
+                                <div className={styles.avatarStage}>
                                     {avatarId ? (
-                                        // [P1-AVATAR-SIZE-JUMP · 2026-08-10] El avatar CRECÍA
-                                        // al primer cambio, y solo en el teléfono.
-                                        //
-                                        // Las dos ramas de este ternario son el mismo avatar
-                                        // en la misma posición, pero cada una traía su caja
-                                        // por su cuenta: la de las iniciales (`styles.avatar`)
-                                        // es responsive —88px, 68 a ≤768 y 56 a ≤480— y el SVG
-                                        // llevaba `size={88}` clavado. En un iPhone el primer
-                                        // clic saltaba de 56 a 88: +32px de golpe. En
-                                        // escritorio los dos valían 88 y por eso allí no se
-                                        // notaba nada.
-                                        //
-                                        // Ahora el SVG usa LA MISMA clase, así que la caja
-                                        // sale de un solo sitio y las dos ramas no pueden
-                                        // volver a discrepar. El `width`/`height` del CSS gana
-                                        // sobre los atributos del <svg>, de modo que no se le
-                                        // pasa `size`: dejarlo escrito volvería a sugerir que
-                                        // el tamaño se decide aquí.
                                         <MinimalAvatar
                                             id={avatarId}
                                             className={styles.avatar}
@@ -2504,20 +2480,44 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             {userName ? userName.charAt(0).toUpperCase() : 'U'}
                                         </div>
                                     )}
-                                    <span
-                                        aria-hidden="true"
-                                        style={{
-                                            position: 'absolute', right: 2, bottom: 2,
-                                            width: 28, height: 28, borderRadius: '50%',
-                                            display: 'grid', placeItems: 'center',
-                                            color: '#fff', background: 'var(--primary, #4F46E5)',
-                                            border: '3px solid var(--bg-card, #14161f)',
-                                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                                        }}
+                                    {avatarId && (
+                                        <button
+                                            type="button"
+                                            className={styles.avatarRemove}
+                                            onClick={() => chooseAvatar(null)}
+                                            title={t('Quitar avatar')}
+                                            aria-label={t('Quitar avatar')}
+                                        >
+                                            <X size={14} strokeWidth={2.5} aria-hidden="true" />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className={styles.avatarOptions} role="radiogroup" aria-label={t('Elegir avatar')}>
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={!avatarId}
+                                        aria-label={t('Usar mi inicial')}
+                                        title={t('Usar mi inicial')}
+                                        className={`${styles.avatarOption} ${styles.avatarOptionInitial} ${!avatarId ? styles.avatarOptionOn : ''}`}
+                                        onClick={() => chooseAvatar(null)}
                                     >
-                                        <RefreshCw size={13} />
-                                    </span>
-                                </button>
+                                        {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                                    </button>
+                                    {MINIMAL_AVATARS.map((a, i) => (
+                                        <button
+                                            key={a.id}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={avatarId === a.id}
+                                            aria-label={t('Avatar {n}', { n: i + 1 })}
+                                            className={`${styles.avatarOption} ${avatarId === a.id ? styles.avatarOptionOn : ''}`}
+                                            onClick={() => chooseAvatar(a.id)}
+                                        >
+                                            <MinimalAvatar id={a.id} size={34} />
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>

@@ -348,7 +348,6 @@
   "Cambiado por: {plato}": "Swapped for: {plato}",
   "Cambiar Plato": "Swap Meal",
   "Cambiar a {plan}": "Switch to {plan}",
-  "Cambiar avatar (toca para alternar)": "Change avatar (tap to cycle)",
   "Cambiar con IA": "Swap with AI",
   "Cambiar plato. {motivo}": "Swap meal. {motivo}",
   "Cambiar un plato sin regenerar el plan completo": "Swap a meal without regenerating the whole plan",
@@ -2082,7 +2081,6 @@
   "Toca el motivo que mejor describe lo que buscas hoy.": "Tap the reason that best describes what you're after today.",
   "Toca el motivo que mejor describe lo que buscas hoy. Te quedan": "Tap the reason that best describes what you're after today. You have",
   "Toca el motivo que mejor describe lo que buscas hoy. Tienes": "Tap the reason that best describes what you're after today. You have",
-  "Toca para cambiar tu avatar": "Tap to change your avatar",
   "Toca un chip para añadirlo al instante, o escribe cualquier alimento arriba.": "Tap a chip to add it instantly, or type any food above.",
   "Toca una variante para marcarla como tu preferida": "Tap a variant to set it as your favorite",
   "Tocar para ajustar a cantidad exacta": "Tap to set the exact amount",
@@ -2961,5 +2959,9 @@
   "Precio de lanzamiento hasta el {fecha}": "Launch price until {fecha}",
   "{n} créditos al mes": "{n} credits per month",
   "Tu plan, tu Nevera y tu historial quedan guardados en tu cuenta.": "Your plan, your Fridge and your history stay saved in your account.",
-  "Sesión de invitado": "Guest session"
+  "Sesión de invitado": "Guest session",
+  "Quitar avatar": "Remove avatar",
+  "Elegir avatar": "Choose avatar",
+  "Usar mi inicial": "Use my initial",
+  "Avatar {n}": "Avatar {n}"
 }
