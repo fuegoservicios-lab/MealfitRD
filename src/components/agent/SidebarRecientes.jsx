@@ -261,23 +261,26 @@ export const SidebarRecientes = ({
                                             </span>
                                         </button>
                                         
+                                        {/* [P2-CHAT-DELETE-CONFIRM · 2026-09-03] La papelera era un botón
+                                            de 44px con borde rojo en CADA fila y pegado al borde: en el
+                                            teléfono, donde siempre está visible (P1-CHAT-DELETE-TOUCH),
+                                            pesaba más que el título. Ahora es un icono fantasma con la
+                                            MISMA área táctil de 44px; solo se tiñe de peligro al pasar o
+                                            pulsar. Y ya no borra: pide confirmación (pasa el título). */}
                                         <button
-                                            className="chat-actions-hover"
+                                            className="chat-actions-hover chat-delete-btn"
                                             title={t('Eliminar chat')}
                                             aria-label={t('Eliminar chat')}
-                                            onClick={(e) => handleDeleteChat(s.id, e)}
+                                            onClick={(e) => handleDeleteChat(s.id, e, originalTitle)}
                                             style={{
-                                                // [SIDEBAR-RECIENTES-DARK · 2026-06-16] Borde/hover
-                                                // theme-aware (antes #fee2e2 / #fef2f2 rojos claros
-                                                // → outline pálido raro en oscuro).
                                                 position: 'absolute',
-                                                right: '0.2rem',
+                                                right: '0.45rem',
                                                 top: '50%',
                                                 transform: 'translateY(-50%)',
-                                                background: 'var(--bg-card)',
-                                                color: '#ef4444',
-                                                border: '1px solid color-mix(in srgb, #ef4444 30%, transparent)',
-                                                borderRadius: '0.4rem',
+                                                background: 'transparent',
+                                                color: 'var(--text-light)',
+                                                border: 'none',
+                                                borderRadius: '0.6rem',
                                                 width: '44px',
                                                 height: '44px',
                                                 padding: 0,
@@ -285,13 +288,10 @@ export const SidebarRecientes = ({
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
                                                 cursor: 'pointer',
-                                                transition: 'all 0.15s ease',
-                                                boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                                                transition: 'color 0.15s ease, background 0.15s ease',
                                             }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, #ef4444 15%, transparent)'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
                                         >
-                                            <Trash2 size={15} strokeWidth={2} />
+                                            <Trash2 size={17} strokeWidth={1.9} />
                                         </button>
 
                                     </div>

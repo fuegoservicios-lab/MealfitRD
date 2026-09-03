@@ -76,6 +76,8 @@ import {
 } from '../utils/nativeChatImagePicker';
 import { AttachmentSourceSheet } from '../components/agent/AttachmentSourceSheet';
 import { deleteChatDraft, loadChatDraft, saveChatDraft } from '../utils/chatDraftStore';
+// [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Hoja de confirmación antes de borrar un chat.
+import Modal from '../components/common/Modal';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
@@ -2020,8 +2022,21 @@ const AgentPage = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setMessages, setIsLoadingHistory, _setWelcomeIfAbsent]);
 
-    const handleDeleteChat = async (sessionIdToDelete, e) => {
+    // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Borrar un chat era UN toque sin vuelta atrás, y en el
+    // teléfono la papelera vive a 1 cm del título en cada fila. Ahora el toque abre una hoja de
+    // confirmación con el título del chat; solo «Eliminar» ejecuta el DELETE.
+    const [chatToDelete, setChatToDelete] = useState(null);
+    const handleDeleteChat = (sessionIdToDelete, e, title = '') => {
         if (e) e.stopPropagation();
+        setChatToDelete({ id: sessionIdToDelete, title: title || '' });
+    };
+    const confirmDeleteChat = async () => {
+        const target = chatToDelete;
+        setChatToDelete(null);
+        if (target?.id) await deleteChatConfirmed(target.id);
+    };
+
+    const deleteChatConfirmed = async (sessionIdToDelete) => {
         try {
             const response = await fetchWithAuth(`/api/chat/session/${sessionIdToDelete}`, {
                 method: 'DELETE'
@@ -3632,6 +3647,13 @@ const AgentPage = () => {
                     visibility: visible;
                     pointer-events: auto;
                 }
+                /* [P2-CHAT-DELETE-CONFIRM · 2026-09-03] La papelera solo se tiñe al pasar o pulsar. */
+                .chat-delete-btn:hover,
+                .chat-delete-btn:active,
+                .chat-delete-btn:focus-visible {
+                    color: var(--danger) !important;
+                    background: var(--danger-bg) !important;
+                }
                 /* Donde no hay puntero fino (teléfono, tablet) la acción es visible
                    siempre: es la única forma de alcanzarla. */
                 @media (hover: none) {
@@ -3861,6 +3883,68 @@ const AgentPage = () => {
                     isMobile={isMobile}
                     sidebarRef={sidebarRef}
                 />
+
+                {/* [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Confirmación de borrado (hoja inferior en móvil). */}
+                <Modal
+                    isOpen={!!chatToDelete}
+                    onClose={() => setChatToDelete(null)}
+                    titleId="delete-chat-title"
+                    maxWidth="400px"
+                    isBottomSheetOnMobile={true}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '0.9rem' }}>
+                        <div style={{
+                            width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
+                            display: 'grid', placeItems: 'center',
+                            background: 'var(--danger-bg)', color: 'var(--danger)',
+                            border: '1px solid var(--danger-border)',
+                        }}>
+                            <Trash2 size={20} strokeWidth={2.2} />
+                        </div>
+                        <h3 id="delete-chat-title" style={{ margin: 0, fontSize: '1.12rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.25 }}>
+                            {t('¿Eliminar esta conversación?')}
+                        </h3>
+                    </div>
+                    {chatToDelete?.title && (
+                        <div style={{
+                            padding: '0.6rem 0.85rem', borderRadius: '0.7rem', marginBottom: '0.75rem',
+                            background: 'var(--bg-muted)', border: '1px solid var(--border)',
+                            fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-main)',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                            {chatToDelete.title}
+                        </div>
+                    )}
+                    <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>
+                        {t('Se borrará de tus recientes y no se puede recuperar.')}
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.6rem' }}>
+                        <button
+                            type="button"
+                            onClick={() => setChatToDelete(null)}
+                            style={{
+                                flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
+                                background: 'transparent', border: '1px solid var(--border)',
+                                color: 'var(--text-main)', fontWeight: 600, fontSize: '0.95rem', fontFamily: 'inherit',
+                            }}
+                        >
+                            {t('Cancelar')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={confirmDeleteChat}
+                            style={{
+                                flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
+                                background: 'var(--danger)', border: 'none',
+                                color: '#FFFFFF', fontWeight: 700, fontSize: '0.95rem', fontFamily: 'inherit',
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                            }}
+                        >
+                            <Trash2 size={16} strokeWidth={2.2} aria-hidden="true" />
+                            {t('Eliminar')}
+                        </button>
+                    </div>
+                </Modal>
 
                 {/* Chat Area container */}
                 <div style={{

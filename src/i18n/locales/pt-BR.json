@@ -2963,5 +2963,7 @@
   "Quitar avatar": "Remover avatar",
   "Elegir avatar": "Escolher avatar",
   "Usar mi inicial": "Usar minha inicial",
-  "Avatar {n}": "Avatar {n}"
+  "Avatar {n}": "Avatar {n}",
+  "¿Eliminar esta conversación?": "Excluir esta conversa?",
+  "Se borrará de tus recientes y no se puede recuperar.": "Ela será removida dos seus recentes e não pode ser recuperada."
 }

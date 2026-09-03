@@ -2963,5 +2963,7 @@
   "Quitar avatar": "Remove avatar",
   "Elegir avatar": "Choose avatar",
   "Usar mi inicial": "Use my initial",
-  "Avatar {n}": "Avatar {n}"
+  "Avatar {n}": "Avatar {n}",
+  "¿Eliminar esta conversación?": "Delete this conversation?",
+  "Se borrará de tus recientes y no se puede recuperar.": "It will be removed from your recent chats and can’t be recovered."
 }
