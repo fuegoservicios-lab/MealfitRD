@@ -2442,7 +2442,6 @@
   "sí": "sim",
   "te pasaste {cantidad} {unidad}": "você passou {cantidad} {unidad}",
   "todos los alimentos": "todos os alimentos",
-  "tu cuenta": "sua conta",
   "un ingrediente": "um ingrediente",
   "un plato a la vez.": "um prato de cada vez.",
   "verde sólido": "verde sólido",
@@ -2610,7 +2609,6 @@
   "¿Bloquear estos platos?": "Bloquear estes pratos?",
   "¿Buscando algo ligero antes de dormir o tu cena completa?": "Procurando algo leve antes de dormir ou o jantar completo?",
   "¿Cada cuántos días vas al supermercado?": "De quantos em quantos dias você vai ao supermercado?",
-  "¿Cerrar sesión de {app} como": "Sair da {app} como",
   "¿Confirmas que quieres\ncerrar sesión?": "Confirma que quer\nsair da conta?",
   "¿Cuál es tu nivel de actividad física?": "Qual é seu nível de atividade física?",
   "¿Cuál es tu nivel de estrés diario?": "Qual é seu nível de estresse diário?",
@@ -2961,5 +2959,7 @@
   "No se renueva": "Não renova",
   "Otros planes": "Outros planos",
   "Precio de lanzamiento hasta el {fecha}": "Preço de lançamento até {fecha}",
-  "{n} créditos al mes": "{n} créditos por mês"
+  "{n} créditos al mes": "{n} créditos por mês",
+  "Tu plan, tu Nevera y tu historial quedan guardados en tu cuenta.": "Seu plano, sua Geladeira e seu histórico ficam salvos na sua conta.",
+  "Sesión de invitado": "Sessão de convidado"
 }

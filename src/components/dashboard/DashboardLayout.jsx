@@ -419,6 +419,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 onConfirm={handleLogoutConfirm}
                 onCancel={() => setShowLogoutModal(false)}
                 userEmail={session?.user?.email}
+                userName={accountName}
                 isGuest={isGuest}
             />
 

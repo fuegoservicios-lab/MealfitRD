@@ -2442,7 +2442,6 @@
   "sí": "is",
   "te pasaste {cantidad} {unidad}": "{cantidad} {unidad} over",
   "todos los alimentos": "all foods",
-  "tu cuenta": "your account",
   "un ingrediente": "an ingredient",
   "un plato a la vez.": "one plate at a time.",
   "verde sólido": "in solid green",
@@ -2610,7 +2609,6 @@
   "¿Bloquear estos platos?": "Block these meals?",
   "¿Buscando algo ligero antes de dormir o tu cena completa?": "Looking for something light before bed, or your full dinner?",
   "¿Cada cuántos días vas al supermercado?": "How often do you go grocery shopping?",
-  "¿Cerrar sesión de {app} como": "Sign out of {app} as",
   "¿Confirmas que quieres\ncerrar sesión?": "Are you sure you want\nto sign out?",
   "¿Cuál es tu nivel de actividad física?": "What's your physical activity level?",
   "¿Cuál es tu nivel de estrés diario?": "What's your daily stress level?",
@@ -2961,5 +2959,7 @@
   "No se renueva": "Not renewing",
   "Otros planes": "Other plans",
   "Precio de lanzamiento hasta el {fecha}": "Launch price until {fecha}",
-  "{n} créditos al mes": "{n} credits per month"
+  "{n} créditos al mes": "{n} credits per month",
+  "Tu plan, tu Nevera y tu historial quedan guardados en tu cuenta.": "Your plan, your Fridge and your history stay saved in your account.",
+  "Sesión de invitado": "Guest session"
 }

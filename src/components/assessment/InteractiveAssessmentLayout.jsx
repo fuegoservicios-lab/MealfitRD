@@ -263,6 +263,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                 isOpen={confirmarSalida}
                 isGuest={isGuest}
                 userEmail={userProfile?.email}
+                userName={userProfile?.full_name}
                 onConfirm={handleBackToLogin}
                 onCancel={() => setConfirmarSalida(false)}
             />

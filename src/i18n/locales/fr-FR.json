@@ -2442,7 +2442,6 @@
   "sí": "oui",
   "te pasaste {cantidad} {unidad}": "vous avez dépassé de {cantidad} {unidad}",
   "todos los alimentos": "tous les aliments",
-  "tu cuenta": "votre compte",
   "un ingrediente": "un ingrédient",
   "un plato a la vez.": "une assiette à la fois.",
   "verde sólido": "vert plein",
@@ -2610,7 +2609,6 @@
   "¿Bloquear estos platos?": "Bloquer ces plats ?",
   "¿Buscando algo ligero antes de dormir o tu cena completa?": "Tu cherches quelque chose de léger avant de dormir ou ton dîner complet ?",
   "¿Cada cuántos días vas al supermercado?": "Tous les combien de jours allez-vous au supermarché ?",
-  "¿Cerrar sesión de {app} como": "Se déconnecter de {app} en tant que",
   "¿Confirmas que quieres\ncerrar sesión?": "Voulez-vous vraiment\nvous déconnecter ?",
   "¿Cuál es tu nivel de actividad física?": "Quel est votre niveau d'activité physique ?",
   "¿Cuál es tu nivel de estrés diario?": "Quel est votre niveau de stress quotidien ?",
@@ -2961,5 +2959,7 @@
   "No se renueva": "Non renouvelé",
   "Otros planes": "Autres formules",
   "Precio de lanzamiento hasta el {fecha}": "Prix de lancement jusqu’au {fecha}",
-  "{n} créditos al mes": "{n} crédits par mois"
+  "{n} créditos al mes": "{n} crédits par mois",
+  "Tu plan, tu Nevera y tu historial quedan guardados en tu cuenta.": "Ton plan, ton Frigo et ton historique restent enregistrés dans ton compte.",
+  "Sesión de invitado": "Session invité"
 }
