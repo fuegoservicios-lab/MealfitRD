@@ -6178,6 +6178,31 @@ const DashboardInner = () => {
                     background: var(--bg-card);
                     border: 1px solid var(--border);
                 }
+                /* [P2-MOBILE-HERO-FLAT · 2026-09-03] En móvil el hero era una TARJETA
+                   (borde + radio + 16px de padding) que contenía otras tarjetas (créditos,
+                   ventana, acciones, aviso de la Nevera): tres niveles de marco sobre 390px
+                   dejaban ~326px útiles y la pantalla se sentía estrecha. A ≤480px el hero
+                   pasa a ser sección a sangre (sin marco ni padding lateral): sus hijos
+                   miden lo mismo que las tarjetas de abajo y desaparece la tarjeta-dentro-
+                   de-tarjeta. Va DESPUÉS del override oscuro y con ambos selectores para
+                   ganarle en cascada; el escritorio no cambia. */
+                @media (max-width: 480px) {
+                    .dashboard-header,
+                    html[data-theme="dark"] .dashboard-header {
+                        background: transparent;
+                        border: none;
+                        box-shadow: none;
+                        backdrop-filter: none;
+                        -webkit-backdrop-filter: none;
+                        border-radius: 0;
+                        padding: 0.25rem 0 0.5rem;
+                        margin-bottom: 1rem;
+                        gap: 0.85rem;
+                    }
+                    .actions-group {
+                        gap: 0.6rem;
+                    }
+                }
                 html[data-theme="dark"] .macros-card {
                     background: var(--bg-card);
                     border: 1px solid var(--border);

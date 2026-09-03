@@ -335,7 +335,17 @@
 @media (max-width: 560px) {
   .grid2 { grid-template-columns: 1fr; }
   .lim2 { grid-template-columns: 1fr; }
-  .stat { min-width: 100%; }
+  /* [P2-MOBILE-HERO-FLAT · 2026-09-03] Antes cada contador ocupaba una fila entera
+     (tres tarjetas apiladas para tres números): 3 en una fila, número encima de la
+     etiqueta, que a 390px cabe con holgura (~105px por celda). */
+  .stats { gap: 7px; }
+  .stat {
+    min-width: 0; flex: 1 1 0; flex-direction: column; align-items: flex-start;
+    gap: 3px; padding: 10px 11px;
+  }
+  .stat .num { font-size: 1.32rem; }
+  .stat .lbl { font-size: .66rem; }
+  .stat .lbl b { font-size: .72rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
