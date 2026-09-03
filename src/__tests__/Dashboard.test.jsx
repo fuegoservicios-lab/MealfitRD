@@ -40,7 +40,7 @@ describe('Dashboard Plan Update & Navigation', () => {
         window.scrollTo = vi.fn();
     });
 
-    it('should disable update button and show "Límite" when planLimit is reached', () => {
+    it('should disable update button and show "Sin créditos" when planLimit is reached', () => {
         render(<Dashboard />, {
             customContext: {
                 planCount: 5,
@@ -48,7 +48,7 @@ describe('Dashboard Plan Update & Navigation', () => {
             }
         });
 
-        const btn = screen.getByText('Límite');
+        const btn = screen.getByText('Sin créditos');
         expect(btn).toBeInTheDocument();
         const parentBtn = btn.closest('button');
         // El botón ya NO usa el atributo nativo `disabled`; expresa el estado

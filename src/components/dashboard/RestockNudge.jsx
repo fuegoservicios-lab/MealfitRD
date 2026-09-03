@@ -271,6 +271,18 @@ export default function RestockNudge({
                     justify-content: center;
                     gap: 0.4rem;
                     white-space: nowrap;
+                    /* [P2-NO-CREDITS-CTA · 2026-09-02] Mismo lenguaje de hover que los demás CTAs
+                       del Dashboard (sombra del color del botón + anillo interior + brillo). Era
+                       el único botón sin hover; el dueño pidió uniformidad. */
+                    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .restock-nudge-cta:hover:not(:disabled) {
+                    box-shadow: 0 14px 30px -8px rgba(16, 185, 129, 0.45), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);
+                    filter: brightness(1.08);
+                }
+                .restock-nudge-cta:active:not(:disabled) {
+                    box-shadow: 0 4px 12px -6px rgba(16, 185, 129, 0.3), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);
+                    filter: brightness(0.96);
                 }
                 /* [P3-RESTOCK-CTA-DARK · 2026-07-07] En modo oscuro el emerald-500 pleno
                    (#10B981) queda demasiado brilloso sobre la tarjeta oscura. Bajamos a

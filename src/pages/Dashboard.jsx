@@ -1848,7 +1848,21 @@ const DashboardInner = () => {
     // se mantiene fresh por mutaciones explícitas). Solo si el cache local
     // de quota expiró Y el context no tiene valor confiable, hace fetch
     // bloqueante. Resultado: 99% de los clicks son síncronos, modal abre
-    // instantáneo.
+    // instantáneo.
+    // [P2-NO-CREDITS-CTA · 2026-09-02] Un solo aviso de créditos, minimalista y accionable: la
+    // cuota es por mes calendario (get_monthly_api_usage cuenta desde el día 1), así que la
+    // renovación es el día 1 del mes siguiente en UTC — el mismo cálculo que la cuota del coach.
+    const _noCreditsToast = () => {
+        const _now = new Date();
+        const _reset = new Date(Date.UTC(_now.getUTCFullYear(), _now.getUTCMonth() + 1, 1));
+        const _fecha = formatDate(_reset, { day: 'numeric', month: 'long', timeZone: 'UTC' });
+        toast.error(t('Sin créditos este mes'), {
+            description: t('Se renuevan el {fecha}.', { fecha: _fecha }),
+            duration: 7000,
+            ...(nativeHidesCommerce() ? {} : { action: { label: t('Mejorar plan'), onClick: () => navigate('/dashboard/upgrade') } }),
+        });
+    };
+
     const validateCreditsAsync = async () => {
         try {
             // Fast path: context tiene planCount fresco (cargado al login).
@@ -1868,7 +1882,7 @@ const DashboardInner = () => {
             );
 
             if (freshPlanCount >= userPlanLimit) {
-                toast.error(t('Sin créditos'), { description: t('No tienes créditos de regeneración disponibles.') });
+                _noCreditsToast();
                 return false;
             }
             return true;
@@ -5450,12 +5464,14 @@ const DashboardInner = () => {
                     font-size: 0.95rem;
                     cursor: pointer;
                 }
-                .new-plan-btn:hover:not(:disabled) {
+                /* [P2-NO-CREDITS-CTA · 2026-09-02] aria-disabled también apaga el hover: el botón
+                   sigue clicable para avisar, pero un estado apagado no brilla. */
+                .new-plan-btn:hover:not(:disabled):not([aria-disabled="true"]) {
                     border-color: var(--hover-border, var(--border)) !important;
                     box-shadow: var(--hover-shadow, 0 15px 30px -5px rgba(0,0,0,0.15)) !important;
                     filter: brightness(1.1);
                 }
-                .new-plan-btn:active:not(:disabled) {
+                .new-plan-btn:active:not(:disabled):not([aria-disabled="true"]) {
                     box-shadow: var(--active-shadow, 0 5px 15px -5px rgba(0,0,0,0.1)) !important;
                     filter: brightness(0.95);
                 }
@@ -6860,6 +6876,15 @@ const DashboardInner = () => {
                                             // [P5-LOADING-DISABLE] Si el día ya se está actualizando, ignorar
                                             // el click (botón en estado "Actualizando…", evita 2ª llamada).
                                             if (isDayUpdating) return;
+                                            // [P2-NO-CREDITS-CTA · 2026-09-02] Créditos ANTES que Nevera: al límite
+                                            // el botón decía «Límite» pero la rama de Nevera vacía ganaba y
+                                            // navegaba a /pantry, o abría el modal y lo cerraba al comprobar la
+                                            // cuota. Ahora: un aviso corto con la fecha de renovación y «Mejorar
+                                            // plan» (oculto en nativo), sin navegar ni abrir nada.
+                                            if (isLimitReached) {
+                                                _noCreditsToast();
+                                                return;
+                                            }
                                             if (planFinished) {
                                                 navigate('/assessment');
                                                 return;
@@ -6912,12 +6937,16 @@ const DashboardInner = () => {
                                             // [2026-05-29] Mismo efecto de hover que el botón PDF:
                                             // anillo interno nítido (antes era rgba 0.1, casi
                                             // invisible). Ring blanco visible sobre el gradiente.
-                                            '--hover-shadow': planFinished
+                                            '--hover-shadow': isLimitReached
+                                                ? 'none'
+                                                : planFinished
                                                 ? '0 20px 40px -5px rgba(239, 68, 68, 0.5), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
                                                 : isPantryTooEmpty
                                                     ? '0 20px 40px -5px rgba(37, 99, 235, 0.45), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
                                                     : '0 14px 30px -8px rgba(79, 70, 229, 0.4), inset 0 0 0 1.5px rgba(255,255,255,0.3)',
-                                            '--active-shadow': planFinished
+                                            '--active-shadow': isLimitReached
+                                                ? 'none'
+                                                : planFinished
                                                 ? '0 5px 15px -5px rgba(239, 68, 68, 0.2), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
                                                 : isPantryTooEmpty
                                                     ? '0 5px 15px -5px rgba(37, 99, 235, 0.25), inset 0 0 0 1.5px rgba(255,255,255,0.45)'
@@ -6957,7 +6986,7 @@ const DashboardInner = () => {
                                             {(isDayUpdating && (dayRegenIndex == null || dayRegenIndex === activeDayIndex))
                                                 ? t('Actualizando…')
                                                 : isLimitReached
-                                                    ? t('Límite')
+                                                    ? t('Sin créditos')
                                                     : planFinished
                                                         ? t('Reiniciar plan')
                                                         : isPantryTooEmpty
