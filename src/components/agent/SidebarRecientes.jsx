@@ -15,6 +15,10 @@ export const SidebarRecientes = ({
     isLoading,
     isMobile,
     sidebarRef,
+    // [P2-CHAT-SESSIONS-PAGING · 2026-09-03]
+    hasMoreSessions = false,
+    isLoadingMoreSessions = false,
+    onLoadMoreSessions = null,
 }) => {
     const t = useT();
     return (
@@ -300,6 +304,22 @@ export const SidebarRecientes = ({
                             </div>
                         </div>
                     ))
+                )}
+                {hasMoreSessions && typeof onLoadMoreSessions === 'function' && (
+                    <button
+                        type="button"
+                        onClick={onLoadMoreSessions}
+                        disabled={isLoadingMoreSessions}
+                        style={{
+                            margin: '0.75rem auto 1rem', padding: '0.55rem 1rem', borderRadius: '999px',
+                            border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)',
+                            fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: 600,
+                            cursor: isLoadingMoreSessions ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                        }}
+                    >
+                        {isLoadingMoreSessions ? <Loader2 className="spin-fast" size={14} /> : null}
+                        {isLoadingMoreSessions ? t('Cargando…') : t('Ver más')}
+                    </button>
                 )}
             </div>
         </div>

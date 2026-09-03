@@ -10,12 +10,13 @@ import BotAvatar from './BotAvatar';
 import LazyMarkdown from '../common/LazyMarkdown';
 import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
-import { useT } from '../../i18n';
+import { useT, formatDate } from '../../i18n';
+import { timeLabel } from '../../utils/chatTimeline';
 import { toast } from 'sonner';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
 import './MessageBubble.css';
 
-const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = true }) => {
+const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = true, timeLabel: hora = '' }) => {
     const t = useT();
     const [copied, setCopied] = useState(false);
     const [feedback, setFeedback] = useState(null);
@@ -97,6 +98,7 @@ const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = tru
             >
                 {copied ? <Check size={18} strokeWidth={2.5} /> : <Copy size={18} strokeWidth={2} />}
             </button>
+            {hora && <span className="msg-time">{hora}</span>}
         </div>
     );
 };
@@ -138,7 +140,7 @@ const ErrorRetryButton = ({ onClick }) => {
     );
 };
 
-export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId, onRegenerate, onErrorRetry }) => {
+export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null }) => {
     const t = useT();
     const [viewerIndex, setViewerIndex] = useState(null);
     const [brokenImages, setBrokenImages] = useState(() => new Set());
@@ -194,7 +196,16 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     // mientras el aria-live container-level sigue pendiente), borde rojo
     // sutil, NO MessageActions (thumbs/regenerate no aplican).
     const isErrorBubble = msg.role === 'model' && msg._isErrorBubble === true;
+    // [P2-CHAT-TIMELINE · 2026-09-03] hora del mensaje (vacía si no trae fecha) y, si el día
+    // cambió respecto al mensaje anterior, un separador encima de la fila.
+    const _hora = timeLabel(msg, formatDate);
     return (
+        <>
+        {daySeparator && (
+            <div className="msg-day-sep" role="separator" aria-label={daySeparator}>
+                <span>{daySeparator}</span>
+            </div>
+        )}
         <div className={msg.isWelcome ? 'message-row-welcome' : undefined} style={{
             display: 'flex',
             gap: '0.75rem',
@@ -267,6 +278,9 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     </div>
                 )}
 
+                {msg.role === 'user' && _hora && (
+                    <span className="msg-time msg-time-user">{_hora}</span>
+                )}
                 {/* [P1-CHAT-ERROR-DIFF · 2026-05-19] Botón retry solo si
                     msg.retryable; el copy del bubble ya comunica el por qué */}
                 {isErrorBubble && msg.retryable && typeof onErrorRetry === 'function' && (
@@ -280,6 +294,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         sessionId={currentSessionId}
                         onRegenerate={() => onRegenerate(index)}
                         showRegenerate={!msg.isWelcome}
+                        timeLabel={_hora}
                     />
                 )}
             </div>
@@ -315,6 +330,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                 document.body,
             )}
         </div>
+    </>
     );
 }, (prevProps, nextProps) => {
     // Only re-render if the message content, streaming status, or session changes
@@ -330,6 +346,8 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
         prevProps.msg.imageUrl === nextProps.msg.imageUrl &&
         prevProps.msg.attachments === nextProps.msg.attachments &&
         prevProps.msg.isImage === nextProps.msg.isImage &&
+        prevProps.daySeparator === nextProps.daySeparator &&
+        prevProps.msg.created_at === nextProps.msg.created_at &&
         prevProps.currentSessionId === nextProps.currentSessionId
     );
 });

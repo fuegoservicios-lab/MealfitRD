@@ -151,3 +151,34 @@
     .msg-action-btn { width: 42px; height: 42px; }
     .msg-action-btn svg { width: 18px; height: 18px; }
 }
+
+/* [P2-CHAT-TIMELINE · 2026-09-03] Separador de día y hora por mensaje. */
+.msg-day-sep {
+    display: flex;
+    justify-content: center;
+    margin: 0.25rem 0 1.25rem;
+}
+.msg-day-sep span {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+}
+.msg-time {
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-light, var(--text-muted));
+    margin-left: 0.45rem;
+    user-select: none;
+}
+.msg-time-user {
+    display: block;
+    text-align: right;
+    margin: 0.3rem 0 -0.15rem;
+    opacity: 0.8;
+}

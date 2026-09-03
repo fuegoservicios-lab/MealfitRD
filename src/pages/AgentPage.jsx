@@ -78,6 +78,8 @@ import { AttachmentSourceSheet } from '../components/agent/AttachmentSourceSheet
 import { deleteChatDraft, loadChatDraft, saveChatDraft } from '../utils/chatDraftStore';
 // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Hoja de confirmación antes de borrar un chat.
 import Modal from '../components/common/Modal';
+// [P2-CHAT-TIMELINE · 2026-09-03] separadores de día + hora por mensaje.
+import { daySeparatorLabel } from '../utils/chatTimeline';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
@@ -1700,13 +1702,19 @@ const AgentPage = () => {
         setShowJumpToLatest(scrolledUp);
     }, []);
 
-    const fetchChatSessions = useCallback(async () => {
+    // [P2-CHAT-SESSIONS-PAGING · 2026-09-03] Recientes se cortaba en 60 y los chats más viejos
+    // dejaban de existir sin aviso. El backend acepta `offset` y devuelve `has_more`; la lista
+    // pide la siguiente página con «Ver más» y la anexa sin duplicar.
+    const [hasMoreSessions, setHasMoreSessions] = useState(false);
+    const [isLoadingMoreSessions, setIsLoadingMoreSessions] = useState(false);
+    const fetchChatSessions = useCallback(async (offset = 0) => {
         try {
             const userId = session?.user?.id || userProfile?.id || localSessionId;
             if (!userId) return;
 
             const isGuest = !session?.user?.id && !userProfile?.id;
             let url = `/api/chat/sessions/${userId}`;
+            if (!isGuest && offset > 0) url += `?offset=${offset}`;
 
             if (isGuest) {
                 // Para invitados, enviamos la lista de IDs guardada en localStorage.
@@ -1729,10 +1737,13 @@ const AgentPage = () => {
             const response = await fetchWithAuth(url);
             if (response.ok) {
                 const data = await response.json();
+                setHasMoreSessions(!isGuest && data.has_more === true);
                 setChatSessions(prev => {
                     const newSessions = data.sessions || [];
+                    // página siguiente: se anexa a lo que ya había, sin duplicar
+                    const base = offset > 0 ? prev.filter(s => !newSessions.some(n => n.id === s.id)) : [];
                     const generating = prev.filter(s => s.title === 'Generando título...');
-                    const merged = [...newSessions];
+                    const merged = offset > 0 ? [...base, ...newSessions] : [...newSessions];
 
                     generating.forEach(gen => {
                         const existingIdx = merged.findIndex(s => s.id === gen.id);
@@ -1760,6 +1771,15 @@ const AgentPage = () => {
         // callback ya no cambia al cambiar de sesión, evitando el re-GET de toda la
         // lista en el effect de mount y la recreación del interval del title-poll.
     }, [session?.user?.id, userProfile?.id, localSessionId]);
+    const loadMoreSessions = useCallback(async () => {
+        if (isLoadingMoreSessions) return;
+        setIsLoadingMoreSessions(true);
+        try {
+            await fetchChatSessions(chatSessions.length);
+        } finally {
+            setIsLoadingMoreSessions(false);
+        }
+    }, [fetchChatSessions, chatSessions.length, isLoadingMoreSessions]);
 
     // [P1-AGENT-WELCOME-STABLE · 2026-05-20 · refined: regenerar c/30min]
     // Helper que setea/refresca el welcome screen sin causar el bug
@@ -1948,6 +1968,7 @@ const AgentPage = () => {
                             imageUrl,
                             attachments: messageAttachments,
                             clientMessageId: m.client_message_id || undefined,
+                            created_at: m.created_at || undefined,   // [P2-CHAT-TIMELINE]
                         };
                     }).filter(Boolean);
                     // [P1-CHAT-STOP-POWER v3 · 2026-07-12] Reconstruir la burbuja
@@ -2383,7 +2404,7 @@ const AgentPage = () => {
                 clientMessageId,
             });
         } else {
-            newMessages.push({ role: 'user', content: userMsg, clientMessageId });
+            newMessages.push({ role: 'user', content: userMsg, clientMessageId, created_at: new Date().toISOString() });
         }
 
         setMessages(newMessages);
@@ -2684,7 +2705,7 @@ const AgentPage = () => {
                                             isMessageCreated = true;
                                             setIsLoading(false);
                                             setStreamingStatus(null);
-                                            setMessages(prev => [...prev, { role: 'model', content: displayContent, isStreaming: true }]);
+                                            setMessages(prev => [...prev, { role: 'model', content: displayContent, isStreaming: true, created_at: new Date().toISOString() }]);
                                         } else {
                                             setMessages(prev => {
                                                 const updated = [...prev];
@@ -2755,7 +2776,7 @@ const AgentPage = () => {
 
                                         if (!isMessageCreated) {
                                             isMessageCreated = true;
-                                            setMessages(prev => [...prev, { role: 'model', content: fullText }]);
+                                            setMessages(prev => [...prev, { role: 'model', content: fullText, created_at: new Date().toISOString() }]);
                                         } else {
                                             setMessages(prev => {
                                                 const updated = [...prev];
@@ -3647,6 +3668,39 @@ const AgentPage = () => {
                     visibility: visible;
                     pointer-events: auto;
                 }
+                /* [P2-CHAT-QUICK-CHIPS · 2026-09-03] Acciones rápidas sobre la caja. */
+                .chat-quick-chips {
+                    display: flex;
+                    gap: 0.45rem;
+                    padding: 0.35rem 1rem 0.5rem;
+                    overflow-x: auto;
+                    scrollbar-width: none;
+                    -webkit-overflow-scrolling: touch;
+                    flex: none;
+                }
+                .chat-quick-chips::-webkit-scrollbar { display: none; }
+                .chat-quick-chip {
+                    flex: none;
+                    padding: 0.5rem 0.85rem;
+                    border-radius: 999px;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    color: var(--text-main);
+                    font-family: inherit;
+                    font-size: 0.82rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+                }
+                .chat-quick-chip:hover,
+                .chat-quick-chip:focus-visible {
+                    border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+                    background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
+                    color: var(--primary);
+                    outline: none;
+                }
+                .chat-quick-chip:active { transform: translateY(1px); }
                 /* [P2-CHAT-DELETE-CONFIRM · 2026-09-03] La papelera solo se tiñe al pasar o pulsar. */
                 .chat-delete-btn:hover,
                 .chat-delete-btn:active,
@@ -3882,6 +3936,9 @@ const AgentPage = () => {
                     isLoading={isTurnActive}
                     isMobile={isMobile}
                     sidebarRef={sidebarRef}
+                    hasMoreSessions={hasMoreSessions}
+                    isLoadingMoreSessions={isLoadingMoreSessions}
+                    onLoadMoreSessions={loadMoreSessions}
                 />
 
                 {/* [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Confirmación de borrado (hoja inferior en móvil). */}
@@ -4315,6 +4372,7 @@ const AgentPage = () => {
                                             currentSessionId={currentSessionId}
                                             onRegenerate={handleRegenerate}
                                             onErrorRetry={retryErrorMessage}
+                                            daySeparator={daySeparatorLabel(msg, messages[i - 1], { t, formatDate })}
                                         />
                                     ))
                                 )}
@@ -4388,6 +4446,23 @@ const AgentPage = () => {
                         </button>
                     )}
 
+                    {/* [P2-CHAT-QUICK-CHIPS · 2026-09-03] Con el hilo recién empezado (≤4 mensajes)
+                        el vacío sobre la caja no aporta nada; tres acciones de un toque que
+                        mandan directo al coach y desaparecen cuando la charla crece o se escribe. */}
+                    {messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
+                        <div className="chat-quick-chips" role="group" aria-label={t('Acciones rápidas')}>
+                            {[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')].map((texto) => (
+                                <button
+                                    key={texto}
+                                    type="button"
+                                    className="chat-quick-chip"
+                                    onClick={() => handleSend(texto)}
+                                >
+                                    {texto}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     {/* Area condicional para input */}
                     {/* Input Area (Pinned to bottom if messages exist) */}
                     {messages.length > 0 && renderInputArea(false)}

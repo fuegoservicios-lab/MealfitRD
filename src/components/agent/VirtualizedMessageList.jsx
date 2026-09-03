@@ -46,11 +46,12 @@ import BotAvatar from './BotAvatar';
 // liviano para que AgentPage lo lea sin importar este archivo (y con él
 // react-virtuoso). Re-exportado aquí para back-compat de cualquier importador.
 import { VIRTUALIZE_THRESHOLD } from './virtualizeThreshold';
-import { useT } from '../../i18n';
+import { useT, formatDate } from '../../i18n';
+import { daySeparatorLabel } from '../../utils/chatTimeline';
 
 export { VIRTUALIZE_THRESHOLD };
 
-const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry }) => (
+const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null }) => (
     <div style={{ paddingBottom: '2rem' }}>
         <MemoizedMessageBubble
             msg={msg}
@@ -58,6 +59,7 @@ const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry 
             currentSessionId={currentSessionId}
             onRegenerate={onRegenerate}
             onErrorRetry={onErrorRetry}
+            daySeparator={daySeparator}
         />
     </div>
 );
@@ -134,8 +136,9 @@ export const VirtualizedMessageList = React.forwardRef(({
             currentSessionId={currentSessionId}
             onRegenerate={onRegenerate}
             onErrorRetry={onErrorRetry}
+            daySeparator={daySeparatorLabel(msg, messages[index - 1], { t, formatDate })}
         />
-    ), [currentSessionId, onRegenerate, onErrorRetry]);
+    ), [currentSessionId, onRegenerate, onErrorRetry, messages, t]);
 
     return (
         <Virtuoso
