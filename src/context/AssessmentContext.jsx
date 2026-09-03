@@ -2845,6 +2845,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             });
             const data = resp.ok ? await resp.json() : null;
             if (!resp.ok) {
+                // [P3-NO-CREDITS-402-SWAP · 2026-09-03] 402 = paywall: el Dashboard muestra el aviso de
+                // créditos (fecha de renovación + «Mejorar plan»); aquí no hay navegación.
+                if (resp.status === 402) return { ok: false, status: 402 };
                 toast.error(t('No se pudo actualizar el día'), { description: t('Inténtalo de nuevo en un momento.') });
                 return { ok: false };
             }

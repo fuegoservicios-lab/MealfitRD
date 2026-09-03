@@ -1350,9 +1350,14 @@ const DashboardInner = () => {
         } catch (error) {
             console.error('Error al regenerar:', error);
             toast.dismiss(toastId);
-            toast.error(t('No se pudo conectar con la IA'), { description: t('Se usó una receta alternativa local.') });
             setPantryConsent(null);
             pantryConsentContext.current = null;
+            // [P3-NO-CREDITS-402-SWAP · 2026-09-03] Si el 402 del paywall se cuela en mitad de un
+            // cambio (la pre-validación del botón es cache de 120 s), el aviso es el de créditos —
+            // fecha de renovación y «Mejorar plan» — no «no se pudo conectar con la IA». Y la
+            // descripción genérica ya no promete «una receta alternativa local» que no existe.
+            if (error?.status === 402) { _noCreditsToast(); return; }
+            toast.error(t('No se pudo conectar con la IA'), { description: t('Inténtalo de nuevo.') });
         } finally {
             setRegeneratingId(null);
             swapInFlightLock.current = false;
@@ -10005,7 +10010,8 @@ const DashboardInner = () => {
                             // [P1-DASH-WEEK-NAV] `writableIdx`, no `activeDayIndex`: el derivado
                             // cae a 0 y regeneraria el dia equivocado.
                             if (writableIdx === null) return;
-                            await regenerateDay(writableIdx, optionId);
+                            const _rd = await regenerateDay(writableIdx, optionId);
+                            if (_rd?.status === 402) _noCreditsToast(); // [P3-NO-CREDITS-402-SWAP]
                         } finally {
                             setIsDayUpdating(false);
                             dayUpdateLock.current = false;
@@ -10099,7 +10105,8 @@ const DashboardInner = () => {
                             // [P1-DASH-WEEK-NAV] `writableIdx`, no `activeDayIndex`: el derivado
                             // cae a 0 y regeneraria el dia equivocado.
                             if (writableIdx === null) return;
-                            await regenerateDay(writableIdx, optionId);
+                            const _rd = await regenerateDay(writableIdx, optionId);
+                            if (_rd?.status === 402) _noCreditsToast(); // [P3-NO-CREDITS-402-SWAP]
                         } else {
                             await handleNewPlan(optionId, null, 'dashboard_refresh');
                         }
