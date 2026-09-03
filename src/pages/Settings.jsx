@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { nativeHidesCommerce } from '../config/platform';
+import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, periodLabel, tierDisplayName } from '../config/plans';
 import {
     User, Shield, ChevronRight, ArrowLeft,
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, GlassWater, Cog, Fingerprint,
@@ -240,10 +241,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // Dashboard, P2-NO-CREDITS-CTA) y el CTA «Mejorar plan» en primario, oculto en nativo (Apple
     // 3.1.1: sin comercio en la app). Rojo SOLO en 0 (P3-CREDITS-LAST-ONE). Se usa en la card de
     // escritorio y, vía `ctaSlot`, en la pantalla inmersiva móvil.
-    const renderPlanLimitBlock = () => {
+    // [P2-SUBSCRIPTION-PANEL · 2026-09-03] Día 1 del mes siguiente (UTC, como cuenta el backend).
+    // Lo usan el bloque «sin créditos» de Plan & Objetivo y el panel de Suscripción: una sola
+    // aritmética, o un día los dos dirían fechas distintas.
+    const creditsRenewalLabel = () => {
         const _now = new Date();
         const _reset = new Date(Date.UTC(_now.getUTCFullYear(), _now.getUTCMonth() + 1, 1));
-        const _fecha = formatDate(_reset, { day: 'numeric', month: 'long', timeZone: 'UTC' });
+        return formatDate(_reset, { day: 'numeric', month: 'long', timeZone: 'UTC' });
+    };
+    const renderPlanLimitBlock = () => {
+        const _fecha = creditsRenewalLabel();
         return (
             <div className="plan-goal-limit" role="status">
                 <div className="plan-goal-limit-text">
@@ -1841,6 +1848,236 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // (no es suscriptor PayPal) → queda fuera del allowlist.
     const _PAID_TIERS = ['basic', 'plus', 'ultra'];
     const isPaidSubscriber = _PAID_TIERS.includes(userProfile?.plan_tier);
+
+    // [P2-SUBSCRIPTION-PANEL · 2026-09-03] Suscripción y Pagos era una card con un párrafo y un
+    // botón; los estados de pago iban en 3 bloques de colores hardcodeados con ternarios de tema.
+    // Ahora: (1) una card del plan actual con pastilla de estado y DOS hechos que el usuario
+    // realmente pregunta —créditos disponibles con barra (rojo SOLO en 0, ámbar en el último,
+    // P3-CREDITS-LAST-ONE) y la fecha que toca (se renuevan / próximo cobro / acceso hasta)— y
+    // (2) la escalera de planes desde el SSOT `config/plans.js` (precios, créditos, oferta de
+    // lanzamiento), con «Tu plan» marcado y las filas superiores abriendo el checkout directo
+    // (`/dashboard/upgrade?checkout=<tier>`). Todo con tokens del tema: cero `_settingsDark`.
+    // Esta sección ya no existe en nativo (Apple 3.1.1), así que aquí no hay gate de comercio.
+    const renderSubscriptionSection = () => {
+        const _rawTier = userProfile?.plan_tier;
+        const _tier = (_PAID_TIERS.includes(_rawTier) || _rawTier === 'admin') ? _rawTier : 'gratis';
+        const _isAdmin = _tier === 'admin';
+        const _cancelled = isPaidSubscriber && userProfile?.subscription_status === 'CANCELLED';
+        const _tierName = _isAdmin ? t('Administrador') : tierDisplayName(_tier, t);
+        const _pill = _isAdmin ? ['free', t('Administrador')]
+            : _cancelled ? ['ending', t('No se renueva')]
+            : isPaidSubscriber ? ['active', t('Activo')]
+            : ['free', t('Gratis')];
+        const _total = typeof userPlanLimit === 'number' ? userPlanLimit : (TIER_CREDITS[_tier] ?? null);
+        const _used = typeof planCount === 'number' ? planCount : 0;
+        const _left = typeof _total === 'number' ? Math.max(0, _total - _used) : null;
+        const _barState = _left === 0 ? 'is-out' : (_left === 1 ? 'is-low' : '');
+        const _barPct = (typeof _total === 'number' && _total > 0) ? Math.round((Math.min(_left, _total) / _total) * 100) : 0;
+        const _endRaw = userProfile?.subscription_end_date ? new Date(userProfile.subscription_end_date) : null;
+        const _endLabel = _endRaw && !Number.isNaN(_endRaw.getTime()) ? formatDate(_endRaw, { day: 'numeric', month: 'long' }) : null;
+        const _dateFact = _cancelled && _endLabel ? [t('Acceso hasta'), _endLabel]
+            : isPaidSubscriber && !_cancelled && _endLabel ? [t('Próximo cobro'), _endLabel]
+            : [t('Se renuevan'), creditsRenewalLabel()];
+        const _canUpgrade = !_isAdmin && _tier !== 'ultra';
+        const _showLadder = _canUpgrade;
+        const _offer = isLaunchOfferActive();
+        const _offerDate = _offer ? formatDate(new Date(`${LAUNCH_OFFER.deadlineISO}T00:00:00Z`), { day: 'numeric', month: 'long', timeZone: 'UTC' }) : null;
+        const _goCheckout = (tier) => navigate(`/dashboard/upgrade?checkout=${tier}&billing=monthly`);
+        return (
+            <section className={styles.section} id="subscription">
+                <style>{`
+                    .sub-hero {
+                        position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 1.1rem;
+                        padding: 1.35rem 1.4rem 1.4rem; border-radius: 1.1rem;
+                        border: 1px solid var(--border); background: var(--bg-card);
+                    }
+                    .sub-hero::before {
+                        content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 3px;
+                        background: linear-gradient(90deg, var(--primary), var(--accent));
+                    }
+                    .sub-hero-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+                    .sub-eyebrow { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; color: var(--text-muted); }
+                    .sub-name { margin-top: 0.2rem; font-family: var(--font-heading); font-size: 1.65rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; color: var(--text-main); }
+                    .sub-pill {
+                        flex: none; display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.15rem;
+                        padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.76rem; font-weight: 700; white-space: nowrap;
+                        border: 1px solid var(--border); color: var(--text-muted); background: var(--bg-muted);
+                    }
+                    .sub-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+                    .sub-pill--active { color: #22C55E; background: color-mix(in srgb, #22C55E 12%, transparent); border-color: color-mix(in srgb, #22C55E 32%, transparent); }
+                    .sub-pill--ending { color: #F59E0B; background: color-mix(in srgb, #F59E0B 12%, transparent); border-color: color-mix(in srgb, #F59E0B 32%, transparent); }
+                    .sub-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+                    .sub-fact-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+                    .sub-fact-value { margin-top: 0.25rem; font-family: var(--font-heading); font-size: 1.2rem; font-weight: 700; color: var(--text-main); font-variant-numeric: tabular-nums; }
+                    .sub-fact-of { font-family: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-left: 0.15rem; }
+                    .sub-bar { margin-top: 0.55rem; height: 5px; border-radius: 999px; background: var(--bg-muted); overflow: hidden; }
+                    .sub-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+                    .sub-bar > span.is-low { background: #F59E0B; }
+                    .sub-bar > span.is-out { background: var(--accent); }
+                    .sub-note {
+                        display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.8rem 0.95rem; border-radius: 0.8rem;
+                        font-size: 0.84rem; line-height: 1.5; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border);
+                    }
+                    .sub-note svg { flex: none; margin-top: 2px; color: var(--primary); }
+                    .sub-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+                    .sub-cta {
+                        display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.72rem 1.1rem; border-radius: 0.8rem; border: none;
+                        background: var(--primary-dark); color: #FFFFFF; font-weight: 700; font-size: 0.92rem; cursor: pointer; font-family: inherit;
+                        transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s ease, transform 0.12s ease;
+                    }
+                    html[data-theme="dark"] .sub-cta { background: #4338CA; }
+                    .sub-cta:hover { box-shadow: 0 14px 30px -8px color-mix(in srgb, var(--primary) 55%, transparent), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3); filter: brightness(1.12); }
+                    .sub-cta:active { transform: translateY(1px); filter: brightness(0.96); }
+                    .sub-cta:focus-visible, .sub-cancel:focus-visible, .sub-tier:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                    .sub-cancel {
+                        display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.7rem 1rem; border-radius: 0.8rem;
+                        border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;
+                        cursor: pointer; font-family: inherit; transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+                    }
+                    .sub-cancel:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+                    .sub-cancel:disabled { cursor: wait; opacity: 0.65; }
+                    .sub-hint { font-size: 0.8rem; line-height: 1.5; color: var(--text-muted); margin: -0.35rem 0 0; }
+                    .sub-ladder { margin-top: 1.4rem; }
+                    .sub-ladder-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.65rem; }
+                    .sub-ladder-head h3 { margin: 0; font-family: var(--font-heading); font-size: 1rem; font-weight: 700; color: var(--text-main); }
+                    .sub-ladder-offer { font-size: 0.78rem; font-weight: 600; color: var(--primary); }
+                    .sub-tier {
+                        width: 100%; display: grid; grid-template-columns: 1.1fr 1fr auto auto; align-items: center; gap: 1rem;
+                        padding: 0.9rem 1.05rem; border-radius: 0.9rem; border: 1px solid var(--border); background: var(--bg-card);
+                        text-align: left; font-family: inherit; color: var(--text-main);
+                        transition: border-color 0.2s ease, background 0.2s ease, transform 0.12s ease;
+                    }
+                    .sub-tier + .sub-tier { margin-top: 0.5rem; }
+                    button.sub-tier { cursor: pointer; }
+                    button.sub-tier:hover { border-color: color-mix(in srgb, var(--primary) 55%, transparent); background: color-mix(in srgb, var(--primary) 6%, var(--bg-card)); }
+                    button.sub-tier:active { transform: translateY(1px); }
+                    .sub-tier.is-current { border-color: color-mix(in srgb, var(--primary) 45%, transparent); background: color-mix(in srgb, var(--primary) 8%, var(--bg-card)); }
+                    .sub-tier.is-below { opacity: 0.55; }
+                    .sub-tier-name { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-heading); font-weight: 700; font-size: 1rem; }
+                    .sub-tier-tag { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 999px; color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); }
+                    .sub-tier-credits { font-size: 0.85rem; color: var(--text-muted); }
+                    .sub-tier-price { font-family: var(--font-heading); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+                    .sub-tier-price s { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-right: 0.4rem; }
+                    .sub-tier-price small { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-left: 0.1rem; }
+                    .sub-tier-go { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; font-weight: 700; color: var(--primary); white-space: nowrap; }
+                    .sub-tier-go svg { transition: transform 0.18s ease; }
+                    button.sub-tier:hover .sub-tier-go svg { transform: translateX(3px); }
+                    @media (max-width: 560px) {
+                        .sub-hero { padding: 1.2rem 1.1rem 1.25rem; }
+                        .sub-hero-head { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+                        .sub-facts { gap: 1rem; }
+                        .sub-fact-value { font-size: 1.05rem; }
+                        .sub-actions .sub-cta, .sub-actions .sub-cancel { width: 100%; justify-content: center; }
+                        .sub-tier { grid-template-columns: 1fr auto; gap: 0.35rem 0.75rem; }
+                        .sub-tier-credits { grid-column: 1; white-space: nowrap; font-size: 0.8rem; }
+                        .sub-tier-price { font-size: 0.98rem; }
+                        .sub-tier-price { grid-column: 2; grid-row: 1; }
+                        .sub-tier-go { grid-column: 2; grid-row: 2; justify-self: end; }
+                    }
+                `}</style>
+                <h2 className={styles.sectionTitle} style={{ marginBottom: '1rem' }}>
+                    {t('Suscripción y Pagos')}
+                </h2>
+
+                <div className="sub-hero">
+                    <div className="sub-hero-head">
+                        <div>
+                            <div className="sub-eyebrow">{t('Plan Actual')}</div>
+                            <div className="sub-name">{_tierName}</div>
+                        </div>
+                        <span className={`sub-pill sub-pill--${_pill[0]}`}>
+                            <span className="sub-pill-dot" aria-hidden="true" />
+                            {_pill[1]}
+                        </span>
+                    </div>
+
+                    <div className="sub-facts">
+                        <div className="sub-fact">
+                            <div className="sub-fact-label">{t('Créditos disponibles')}</div>
+                            {_isAdmin || _left === null ? (
+                                <div className="sub-fact-value">{t('Créditos ilimitados')}</div>
+                            ) : (
+                                <>
+                                    <div className="sub-fact-value">
+                                        {formatNumber(_left)}
+                                        <span className="sub-fact-of">{t('de {total}', { total: formatNumber(_total) })}</span>
+                                    </div>
+                                    <div className="sub-bar" aria-hidden="true"><span className={_barState} style={{ width: `${_barPct}%` }} /></div>
+                                </>
+                            )}
+                        </div>
+                        <div className="sub-fact">
+                            <div className="sub-fact-label">{_dateFact[0]}</div>
+                            <div className="sub-fact-value">{_dateFact[1]}</div>
+                        </div>
+                    </div>
+
+                    {_cancelled && (
+                        <div className="sub-note">
+                            <AlertCircle size={17} />
+                            <div>{t('Has cancelado la renovación automática. Mantendrás tus beneficios premium hasta el final de tu ciclo de facturación actual. Luego tu plan pasará a ser Gratis.')}</div>
+                        </div>
+                    )}
+
+                    {(_canUpgrade || (isPaidSubscriber && !_cancelled)) && (
+                        <div className="sub-actions">
+                            {_canUpgrade && (
+                                <button type="button" className="sub-cta" onClick={() => navigate('/dashboard/upgrade')}>
+                                    <Zap size={16} aria-hidden="true" />
+                                    {t('Mejorar mi plan')}
+                                </button>
+                            )}
+                            {isPaidSubscriber && !_cancelled && (
+                                <button type="button" className="sub-cancel" onClick={handleCancelSubscription} disabled={isCancelling}>
+                                    {isCancelling ? t('Cancelando...') : t('Cancelar Suscripción')}
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    {isPaidSubscriber && !_cancelled && (
+                        <p className="sub-hint">{t('Al cancelar, la no-renovación será inmediata, pero mantendrás acceso hasta que termine tu periodo pagado actual.')}</p>
+                    )}
+                </div>
+
+                {_showLadder && (
+                    <div className="sub-ladder">
+                        <div className="sub-ladder-head">
+                            <h3>{t('Otros planes')}</h3>
+                            {_offer && <span className="sub-ladder-offer">{t('Precio de lanzamiento hasta el {fecha}', { fecha: _offerDate })}</span>}
+                        </div>
+                        {_PAID_TIERS.map((tier) => {
+                            const isCurrent = tier === _tier;
+                            const isBelow = (TIER_RANK[tier] || 0) < (TIER_RANK[_tier] || 0);
+                            const selectable = !isCurrent && !isBelow;
+                            const Row = selectable ? 'button' : 'div';
+                            return (
+                                <Row
+                                    key={tier}
+                                    type={selectable ? 'button' : undefined}
+                                    className={`sub-tier${isCurrent ? ' is-current' : ''}${isBelow ? ' is-below' : ''}`}
+                                    onClick={selectable ? () => _goCheckout(tier) : undefined}
+                                >
+                                    <div className="sub-tier-name">
+                                        {tierDisplayName(tier, t)}
+                                        {isCurrent && <span className="sub-tier-tag">{t('Tu plan')}</span>}
+                                    </div>
+                                    <div className="sub-tier-credits">{t('{n} créditos al mes', { n: formatNumber(TIER_CREDITS[tier]) })}</div>
+                                    <div className="sub-tier-price">
+                                        {_offer && <s>US${LAUNCH_OFFER.futureMonthly[tier]}</s>}
+                                        US${PRICING[tier].monthly.price}<small>{periodLabel('/mes', t)}</small>
+                                    </div>
+                                    {selectable ? (
+                                        <span className="sub-tier-go">{t('Elegir')}<ArrowRight size={15} strokeWidth={2.25} aria-hidden="true" /></span>
+                                    ) : <span />}
+                                </Row>
+                            );
+                        })}
+                    </div>
+                )}
+                {/* [P2-PRIVACY-SETTINGS v4 · 2026-07-04] Zona de peligro "Eliminar cuenta" vive en Privacidad → "Tus datos". */}
+            </section>
+        );
+    };
 
     // [P3-PROFILE-PLAN-CARD-REDESIGN · 2026-05-20] Mapping es-DO + icon +
     // accent color por meta. El enum backend (`mainGoal` en formValidation.js)
@@ -3775,178 +4012,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         </section>
                     )}
 
-                    {/* SECCIÓN 4: SUSCRIPCIÓN */}
-                    {activeSection === 'subscription' && (
-                    <section className={styles.section} id="subscription">
-                        <h2 className={styles.sectionTitle} style={{ marginBottom: '1rem' }}>
-                            {t('Suscripción y Pagos')}
-                        </h2>
-                        
-                        <div style={{
-                            background: 'var(--bg-muted)',
-                            border: '1px solid var(--border)',
-                            padding: '1.5rem',
-                            borderRadius: '1rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '1rem'
-                        }}>
-                            <div className={styles.planHeader}>
-                                <div style={{ width: '100%' }}>
-                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        {t('Plan Actual')}
-                                    </div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        {/* [P1-I18N-DASHBOARD · 2026-08-15] «Max» y «Plus» NO pasan por el
-                                            catálogo: son nombres propios de producto, idénticos en los cinco
-                                            idiomas. Los otros tres son adjetivos españoles y sí se traducen. */}
-                                        {userProfile?.plan_tier === 'ultra' ? 'Max' :
-                                         userProfile?.plan_tier === 'plus' ? 'Plus' :
-                                         userProfile?.plan_tier === 'basic' ? t('Básico') :
-                                         userProfile?.plan_tier === 'admin' ? t('Administrador') : t('Plan Gratis')}
-                                        
-                                        {isPaidSubscriber && (
-                                            <span style={{
-                                                fontSize: '0.75rem',
-                                                padding: '0.2rem 0.5rem',
-                                                /* [P3-SUBSCRIPTION-DARK · 2026-05-30] Pastilla con tinte
-                                                   translúcido en oscuro (antes #DCFCE7/#F1F5F9 claros). */
-                                                background: userProfile?.subscription_status === 'CANCELLED'
-                                                    ? (_settingsDark ? 'rgba(148, 163, 184, 0.18)' : '#F1F5F9')
-                                                    : (_settingsDark ? 'rgba(34, 197, 94, 0.16)' : '#DCFCE7'),
-                                                color: userProfile?.subscription_status === 'CANCELLED'
-                                                    ? (_settingsDark ? '#CBD5E1' : '#475569')
-                                                    : (_settingsDark ? '#4ADE80' : '#166534'),
-                                                borderRadius: '1rem',
-                                                fontWeight: 600
-                                            }}>
-                                                {userProfile?.subscription_status === 'CANCELLED' ? t('Activo (Cancelada)') : t('Activo')}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                
-                                {isPaidSubscriber && userProfile?.subscription_status !== 'CANCELLED' && (
-                                    <div className={styles.planAction}>
-                                        <button 
-                                            onClick={handleCancelSubscription}
-                                            disabled={isCancelling}
-                                            style={{
-                                                /* [P3-SUBSCRIPTION-DARK · 2026-05-30] Rojo translúcido
-                                                   + texto/borde rojo-400 en oscuro (antes #FEF2F2 rosa
-                                                   claro → botón brillante y de bajo contraste). */
-                                                background: _settingsDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2',
-                                                color: _settingsDark ? '#F87171' : '#DC2626',
-                                                border: _settingsDark ? '1px solid rgba(248, 113, 113, 0.35)' : '1px solid #FECACA',
-                                                padding: '0.6rem 1.25rem',
-                                                borderRadius: '0.75rem',
-                                                fontWeight: 600,
-                                                cursor: isCancelling ? 'wait' : 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem',
-                                                transition: 'none',
-                                                boxShadow: _settingsDark ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.05)',
-                                                opacity: isCancelling ? 0.7 : 1
-                                            }}
-                                            onMouseOver={(e) => {
-                                                if(!isCancelling) { e.currentTarget.style.background = _settingsDark ? 'rgba(239, 68, 68, 0.22)' : '#FEE2E2'; e.currentTarget.style.boxShadow = _settingsDark ? '0 4px 14px rgba(0, 0, 0, 0.35)' : '0 6px 16px rgba(220, 38, 38, 0.18)'; }
-                                            }}
-                                            onMouseOut={(e) => {
-                                                if(!isCancelling) { e.currentTarget.style.background = _settingsDark ? 'rgba(239, 68, 68, 0.14)' : '#FEF2F2'; e.currentTarget.style.boxShadow = _settingsDark ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.05)'; }
-                                            }}
-                                        >
-                                            {isCancelling ? t('Cancelando...') : t('Cancelar Suscripción')}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                            
-                            {isPaidSubscriber && userProfile?.subscription_status === 'CANCELLED' && (
-                                <div style={{
-                                    display: 'flex',
-                                    gap: '0.75rem',
-                                    /* [P3-SUBSCRIPTION-DARK · 2026-05-30] Azul translúcido
-                                       en oscuro (antes #EFF6FF claro → bloque brillante). */
-                                    background: _settingsDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF6FF',
-                                    padding: '1rem',
-                                    borderRadius: '0.75rem',
-                                    border: _settingsDark ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid #BFDBFE',
-                                    color: _settingsDark ? '#93C5FD' : '#1E3A8A',
-                                    fontSize: '0.85rem',
-                                    marginTop: '0.5rem'
-                                }}>
-                                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                                    <div>
-                                        {t('Has cancelado la renovación automática. Mantendrás tus beneficios premium hasta el final de tu ciclo de facturación actual. Luego tu plan pasará a ser Gratis.')}
-                                    </div>
-                                </div>
-                            )}
-
-                            {isPaidSubscriber && userProfile?.subscription_status !== 'CANCELLED' && (
-                                <div style={{
-                                    display: 'flex',
-                                    gap: '0.75rem',
-                                    /* [P3-SUBSCRIPTION-DARK · 2026-05-30] Ámbar translúcido
-                                       en oscuro (antes #FFFBEB crema → bloque brillante). */
-                                    background: _settingsDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
-                                    padding: '1rem',
-                                    borderRadius: '0.75rem',
-                                    border: _settingsDark ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid #FEF3C7',
-                                    color: _settingsDark ? '#FCD34D' : '#B45309',
-                                    fontSize: '0.85rem',
-                                    marginTop: '0.5rem'
-                                }}>
-                                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                                    <div>
-                                        {t('Al cancelar, la no-renovación será inmediata, pero mantendrás acceso hasta que termine tu periodo pagado actual.')}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {!isPaidSubscriber && userProfile?.plan_tier !== 'admin' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                                        {t('Estás en el')} <strong>{t('Plan Gratis')}</strong>. {t('No tienes ninguna suscripción activa que cancelar. Mejora tu plan para desbloquear más planes al mes, memoria a largo plazo y funciones premium.')}
-                                    </div>
-                                    <button
-                                        onClick={() => navigate('/dashboard/upgrade')}
-                                        style={{
-                                            alignSelf: 'flex-start',
-                                            background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
-                                            color: '#FFFFFF',
-                                            border: 'none',
-                                            padding: '0.6rem 1.25rem',
-                                            borderRadius: '0.75rem',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem',
-                                            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
-                                            // [2026-05-29] Mismo hover que los demás botones:
-                                            // anillo interno nítido + brillo.
-                                            transition: 'box-shadow 0.15s ease, filter 0.15s ease',
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(79, 70, 229, 0.25), inset 0 0 0 1.5px rgba(255,255,255,0.45)';
-                                            e.currentTarget.style.filter = 'brightness(1.08)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(79, 70, 229, 0.25)';
-                                            e.currentTarget.style.filter = 'none';
-                                        }}
-                                    >
-                                        <Zap size={16} /> {t('Mejorar mi plan')}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                        {/* [P2-PRIVACY-SETTINGS v4 · 2026-07-04] Zona de peligro
-                            "Eliminar cuenta" MOVIDA a Privacidad → "Tus datos"
-                            (estaba duplicada: fila en Privacidad + card aquí). */}
-                    </section>
-                    )}
+                    {/* SECCIÓN 4: SUSCRIPCIÓN — [P2-SUBSCRIPTION-PANEL · 2026-09-03] */}
+                    {activeSection === 'subscription' && renderSubscriptionSection()}
 
                     {/* Sección "Memoria IA" eliminada: su contenido fue fusionado
                         dentro de Preferencias como sub-sección "Lo que el agente recuerda". */}
