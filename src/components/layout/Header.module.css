@@ -731,8 +731,9 @@
     background: var(--bg-muted);
     border-color: var(--border-light);
 }
+/* [P2-PRIMARY-FILL-INK · 2026-09-03] relleno índigo profundo en oscuro → tinta blanca */
 :global(html[data-theme="dark"]) .accountAvatar {
-    color: #0B1120;
+    color: #FFFFFF;
 }
 :global(html[data-theme="dark"]) .accountChevron {
     color: var(--text-muted);

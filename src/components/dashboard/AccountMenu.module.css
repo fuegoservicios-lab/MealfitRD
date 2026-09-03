@@ -77,9 +77,16 @@
   background: var(--primary-dark);
 }
 .verChevron { width: 13px; height: 13px; }
-/* En oscuro el primary es claro → texto oscuro para contraste (idéntico al DS) */
-:global(html[data-theme='dark']) .verBtn { color: #0b1120; }
-:global(html[data-theme='dark']) .verBtn:hover { background: var(--primary-light); }
+/* [P2-PRIMARY-FILL-INK · 2026-09-03] El relleno oscuro ya es índigo 700 (era la
+   tinta clara): el texto vuelve a ser blanco y el hover aclara el MISMO relleno en
+   vez de saltar al índigo pastel (texto oscuro sobre relleno oscuro = ilegible;
+   salto a pastel = «se ve raro»). */
+:global(html[data-theme='dark']) .verBtn { color: #fff; }
+:global(html[data-theme='dark']) .verBtn:hover {
+  background: var(--primary-fill);
+  filter: brightness(1.14);
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--primary) 55%, transparent);
+}
 
 /* — Lista de acciones — */
 /* [P3-ACCOUNT-MENU-COMPACT · 2026-07-04] Filas ligeras (~36px, antes ~52px):

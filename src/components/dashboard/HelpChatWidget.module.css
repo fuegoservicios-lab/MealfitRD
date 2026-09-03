@@ -110,7 +110,8 @@
   border-bottom-right-radius: 5px;
   white-space: pre-wrap;
 }
-:global(html[data-theme='dark']) .bubbleUser { color: #0b1120; }
+/* [P2-PRIMARY-FILL-INK · 2026-09-03] el relleno oscuro ya es índigo profundo: tinta blanca */
+:global(html[data-theme='dark']) .bubbleUser { color: #fff; }
 .bubbleError { border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); }
 
 /* Markdown dentro de burbujas del bot: sin márgenes extremos */
@@ -190,9 +191,9 @@
   cursor: pointer;
   transition: background 0.14s, opacity 0.14s;
 }
-:global(html[data-theme='dark']) .sendBtn { color: #0b1120; }
+:global(html[data-theme='dark']) .sendBtn { color: #fff; }
 .sendBtn:hover:not(:disabled) { background: var(--primary-dark); }
-:global(html[data-theme='dark']) .sendBtn:hover:not(:disabled) { background: var(--primary-light); }
+:global(html[data-theme='dark']) .sendBtn:hover:not(:disabled) { background: var(--primary-fill); filter: brightness(1.14); }
 .sendBtn:disabled { opacity: 0.45; cursor: default; }
 
 /* — Pie: escalación por correo — */
