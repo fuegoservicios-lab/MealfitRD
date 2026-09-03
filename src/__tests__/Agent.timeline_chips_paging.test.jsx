@@ -63,7 +63,10 @@ describe('hilo: fecha en los mensajes y separadores en los dos renders', () => {
 
 describe('acciones rápidas con el hilo corto', () => {
     it('tres chips que mandan directo, solo con ≤4 mensajes, sin turno activo y caja vacía', () => {
-        expect(AGENT).toContain('{messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (');
+        expect(AGENT).toContain('{!isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (');
+        // dentro del wrapper sticky de la caja (fuera, la caja los tapaba en escritorio)
+        expect(AGENT.indexOf('className="chat-quick-chips"')).toBeGreaterThan(AGENT.indexOf('const renderInputArea = (isCentered = false) => ('));
+        expect(AGENT.indexOf('className="chat-quick-chips"')).toBeLessThan(AGENT.indexOf("<div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>"));
         expect(AGENT).toContain("[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')]");
         expect(AGENT).toContain('onClick={() => handleSend(texto)}');
         expect(AGENT).toContain('.chat-quick-chip {');

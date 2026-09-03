@@ -3228,6 +3228,24 @@ const AgentPage = () => {
                     {t('Sin conexión · borrador guardado')}
                 </div>
             )}
+            {/* [P2-CHAT-QUICK-CHIPS · 2026-09-03] Con el hilo recién empezado (≤4 mensajes), tres
+                acciones de un toque que mandan directo al coach. Viven DENTRO del wrapper de la
+                caja (sticky en escritorio, fijo en móvil): fuera de él quedaban en el flujo del
+                scroller y la caja pegajosa las tapaba en PC. */}
+            {!isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
+                <div className="chat-quick-chips" role="group" aria-label={t('Acciones rápidas')}>
+                    {[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')].map((texto) => (
+                        <button
+                            key={texto}
+                            type="button"
+                            className="chat-quick-chip"
+                            onClick={() => handleSend(texto)}
+                        >
+                            {texto}
+                        </button>
+                    ))}
+                </div>
+            )}
             <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>
 
                 {isSpeaking && (
@@ -3672,7 +3690,9 @@ const AgentPage = () => {
                 .chat-quick-chips {
                     display: flex;
                     gap: 0.45rem;
-                    padding: 0.35rem 1rem 0.5rem;
+                    max-width: 800px;
+                    margin: 0 auto 0.65rem;
+                    padding: 0 0 0.15rem;
                     overflow-x: auto;
                     scrollbar-width: none;
                     -webkit-overflow-scrolling: touch;
@@ -4446,23 +4466,6 @@ const AgentPage = () => {
                         </button>
                     )}
 
-                    {/* [P2-CHAT-QUICK-CHIPS · 2026-09-03] Con el hilo recién empezado (≤4 mensajes)
-                        el vacío sobre la caja no aporta nada; tres acciones de un toque que
-                        mandan directo al coach y desaparecen cuando la charla crece o se escribe. */}
-                    {messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
-                        <div className="chat-quick-chips" role="group" aria-label={t('Acciones rápidas')}>
-                            {[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')].map((texto) => (
-                                <button
-                                    key={texto}
-                                    type="button"
-                                    className="chat-quick-chip"
-                                    onClick={() => handleSend(texto)}
-                                >
-                                    {texto}
-                                </button>
-                            ))}
-                        </div>
-                    )}
                     {/* Area condicional para input */}
                     {/* Input Area (Pinned to bottom if messages exist) */}
                     {messages.length > 0 && renderInputArea(false)}
