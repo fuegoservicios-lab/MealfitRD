@@ -32,13 +32,18 @@ describe('hoja de motivos: scroll nativo y deslizar-para-cerrar desde cualquier 
         const i = MODAL.indexOf('const onSheetTouchMove = (e) => {');
         expect(i).toBeGreaterThan(0);
         const fn = MODAL.slice(i, MODAL.indexOf('const onSheetTouchEnd', i));
-        expect(fn).toContain('const atTop = !scrollRef.current || scrollRef.current.scrollTop <= 0;');
-        expect(fn).toContain('if (dy > 8 && atTop) g.active = true;');
-        expect(fn).toContain('else if (dy < -8 || !atTop) { g.y0 = null; return; }');
+        expect(fn).toContain('const atTop = !el || el.scrollTop <= 0;');
+        expect(fn).toContain('const atBottom = !el || el.scrollTop + el.clientHeight >= el.scrollHeight - 1;');
+        expect(fn).toContain('if (dy > 8 && atTop) { g.active = true; g.mode = "down"; }');
+        // [v3] con el contenido en su tope inferior (o sin scroll) tirar hacia arriba estira con
+        // resistencia: la hoja corta del día completo responde igual que la larga
+        expect(fn).toContain('else if (dy < -8 && atBottom) { g.active = true; g.mode = "up"; }');
+        expect(fn).toContain('else if (Math.abs(dy) > 8) { g.y0 = null; return; }');
+        expect(fn).toContain('sheetY.set(-Math.min(32, pull * 0.25));');
         expect(fn).toContain('sheetY.set(Math.max(0, dy - 8));');
         const j = MODAL.indexOf('const onSheetTouchEnd = () => {');
-        const end = MODAL.slice(j, j + 600);
-        expect(end).toContain('if ((y > 110 || g.vy > 0.6) && !busy) handleClose();');
+        const end = MODAL.slice(j, j + 700);
+        expect(end).toContain('if (mode === "down" && (y > 110 || g.vy > 0.6) && !busy) handleClose();');
         expect(end).toContain('else animate(sheetY, 0, { type: "spring", damping: 30, stiffness: 320 });');
     });
     it('el contenido scrollea en un hijo con pan-y, con el padding lateral y sin barra visible', () => {
