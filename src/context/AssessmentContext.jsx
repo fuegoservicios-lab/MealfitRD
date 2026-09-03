@@ -125,6 +125,8 @@ import { coerceCountry, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI } from '../config/cou
 import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi, getPlanChunkStatus } from '../config/api';
+// [P1-DAY-REGEN-CLIENT-TIMEOUT · 2026-09-03] Tope del cliente para «actualizar día» (4-5 swaps en serie).
+const DAY_REGEN_TIMEOUT_MS = 6 * 60 * 1000;
 // [P1-3 · 2026-07-09] clear() del estado de servidor de TanStack Query en el
 // teardown SSOT — fix estructural de la clase de fuga PII cross-user.
 import { clearUserQueryCache } from '../queryClient';
@@ -2809,9 +2811,17 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         } catch (_) { /* no-op */ }
         setDayRegenInFlight(true);
         setDayRegenIndex(dayIndex);  // [P2-DAYREGEN-OVERLAY-SCOPE]
+        // [P1-DAY-REGEN-CLIENT-TIMEOUT · 2026-09-03] El día completo son 4-5 swaps EN SERIE con
+        // guardrail de sodio y reintentos: 2-3 min normales (el propio toast promete «3 a 5»).
+        // Con el timeout por defecto de 60 s, el cliente abortaba (nginx: 499) mientras el
+        // servidor seguía y persistía el día; el catch mostraba «Revisa tu conexión». 6 min
+        // de tope, y si aun así vence, NO es un fallo de red: el marker se conserva para que
+        // el resume/hidratación adopte el día cuando aterrice.
+        let _timedOut = false;
         try {
             const resp = await fetchWithAuth(`/api/plans/${planId}/regenerate-day`, {
                 method: 'POST',
+                timeout: DAY_REGEN_TIMEOUT_MS,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: userId,
@@ -2987,6 +2997,11 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             } catch (_) { /* no-op */ }
             return { ok: true };
         } catch (_e) {
+            if (_e?.code === 'request_timeout') {
+                _timedOut = true;
+                toast.info(t('El día sigue cocinándose en el servidor. Aparecerá solo en unos minutos.'), { id: 'swap-result', duration: 6000 });
+                return { ok: false, pending: true };
+            }
             toast.error(t('No se pudo actualizar el día'), { description: t('Revisa tu conexión e inténtalo de nuevo.') });
             return { ok: false };
         } finally {
@@ -2994,7 +3009,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // [P1-DAY-REGEN-RESUME] Ruta sin-refresh: el request terminó en esta sesión →
             // limpiar marker + flag. (Con refresh, este finally nunca corre y el marker
             // sobrevive para que el effect de resume retome el overlay + poll.)
-            safeLocalStorageRemove('mealfit_day_regen_inflight');
+            // [P1-DAY-REGEN-CLIENT-TIMEOUT] Si venció el tope del cliente el servidor sigue:
+            // el marker se queda (el resume tras refresh y la hidratación lo recogen).
+            if (!_timedOut) safeLocalStorageRemove('mealfit_day_regen_inflight');
             setDayRegenInFlight(false);
             setDayRegenIndex(null);  // [P2-DAYREGEN-OVERLAY-SCOPE]
         }

@@ -2972,5 +2972,6 @@
   "Ver más": "Show more",
   "Acciones rápidas": "Quick actions",
   "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. You can retry.",
-  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. Send your message (or the photo) again."
+  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. Send your message (or the photo) again.",
+  "El día sigue cocinándose en el servidor. Aparecerá solo en unos minutos.": "Your day is still cooking on the server. It will show up on its own in a few minutes."
 }
