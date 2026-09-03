@@ -4078,6 +4078,7 @@ const DashboardInner = () => {
                         // que el usuario no puede accionar. Ahora el chip refuerza la
                         // misma señal que la sección donde aparece.
                         const conf = (item.item_ref && item.item_ref.confidence_score) ? item.item_ref.confidence_score : 1.0;
+                        // [THEME-GUARDED · PDF: el papel del PDF es claro a propósito, no sigue el tema]
                         const tagBg = isPerishable ? '#fff7ed' : '#ecfdf5';
                         const tagColor = isPerishable ? '#ea580c' : '#059669';
                         const tagBorder = isPerishable ? '#ea580c30' : '#10b98130';
@@ -8238,7 +8239,7 @@ const DashboardInner = () => {
                         && planData?.generation_status !== 'partial'
                         && planData?.generation_status !== 'generating_next'
                         && (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '10px 14px', background: '#F0FDF4', borderRadius: '10px', marginBottom: '16px', color: '#15803D', fontSize: '0.85rem', border: '1px solid #BBF7D0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '10px 14px', background: 'var(--success-bg)', borderRadius: '10px', marginBottom: '16px', color: 'var(--success-text)', fontSize: '0.85rem', border: '1px solid var(--success-border)' }}>
                             <span>{t('¿Quieres adelantar la próxima actualización?')}</span>
                             <button
                                 onClick={async () => {
@@ -8267,8 +8268,8 @@ const DashboardInner = () => {
                                 }}
                                 style={{
                                     padding: '6px 12px',
-                                    background: '#15803D',
-                                    color: 'white',
+                                    background: 'var(--success)',
+                                    color: '#FFFFFF',
                                     border: 'none',
                                     borderRadius: '8px',
                                     fontWeight: 600,
@@ -8287,13 +8288,13 @@ const DashboardInner = () => {
                         El indicador es informativo — no bloquea ni afecta la nav. */}
                     {planData?._user_forced_simplified_weeks && Object.keys(planData._user_forced_simplified_weeks).length > 0 && (
                         <div style={{
-                            background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-                            border: '1px solid #F59E0B',
+                            background: 'var(--warning-bg)',
+                            border: '1px solid var(--warning-border)',
                             borderRadius: '12px',
                             padding: '10px 14px',
                             marginBottom: '12px',
                             fontSize: '0.85rem',
-                            color: '#92400E',
+                            color: 'var(--warning-text)',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
@@ -8489,8 +8490,8 @@ const DashboardInner = () => {
                                                                 fontWeight: 700,
                                                                 padding: '1px 6px',
                                                                 borderRadius: '6px',
-                                                                background: isActive ? 'rgba(255,255,255,0.25)' : '#FEF3C7',
-                                                                color: isActive ? 'white' : '#92400E',
+                                                                background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--warning-bg)',
+                                                                color: isActive ? 'white' : 'var(--warning-text)',
                                                                 letterSpacing: '0.02em',
                                                             }}>
                                                                 {isEmergencyRepeat ? t('REPETIDO') : t('RESPALDO')}
@@ -9288,7 +9289,7 @@ const DashboardInner = () => {
                                 {t('Suplementos del Día')}
                                 <span style={{
                                     marginLeft: 'auto', fontSize: '0.75rem', fontWeight: 600,
-                                    background: '#EDE9FE', color: '#7C3AED',
+                                    background: 'color-mix(in srgb, var(--primary) 16%, transparent)', color: 'var(--primary)',
                                     padding: '0.2rem 0.6rem', borderRadius: '9999px'
                                 }}>
                                     {currentDaySupplements.length}
@@ -9309,7 +9310,7 @@ const DashboardInner = () => {
                                             </span>
                                             <span style={{
                                                 fontSize: '0.7rem', fontWeight: 700,
-                                                background: '#F5F3FF', color: '#7C3AED',
+                                                background: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)',
                                                 padding: '0.15rem 0.5rem', borderRadius: '6px'
                                             }}>
                                                 {supp.timing}
@@ -9754,15 +9755,15 @@ const DashboardInner = () => {
                                             <div style={{
                                                 position: 'absolute', inset: '15px',
                                                 borderRadius: '50%',
-                                                background: 'linear-gradient(135deg, #ECFDF5, #D1FAE5)',
+                                                background: 'var(--success-bg)',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85), 0 4px 12px -2px rgba(16,185,129,0.35)'
+                                                boxShadow: '0 4px 12px -2px rgba(16,185,129,0.35)'
                                             }}>
                                                 <motion.div
                                                     animate={{ scale: [1, 1.12, 1] }}
                                                     transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                                                 >
-                                                    <ShoppingCart size={24} color="#059669" strokeWidth={2.5} />
+                                                    <ShoppingCart size={24} color="var(--success)" strokeWidth={2.5} />
                                                 </motion.div>
                                             </div>
                                         </div>
@@ -10033,14 +10034,14 @@ const DashboardInner = () => {
                     swapDislikeConfirm && (
                         <div style={{ margin: '0 0 1.15rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                             <p style={{ margin: '0 0 0.75rem 0' }}>
-                                {t('Este plato quedará')} <strong style={{ color: '#EF4444' }}>{t('bloqueado permanentemente')}</strong> {t('y la IA no volverá a sugerirlo en futuros planes:')}
+                                {t('Este plato quedará')} <strong style={{ color: 'var(--danger)' }}>{t('bloqueado permanentemente')}</strong> {t('y la IA no volverá a sugerirlo en futuros planes:')}
                             </p>
                             <div style={{
-                                background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '0.75rem',
+                                background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '0.75rem',
                                 padding: '0.6rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
                             }}>
-                                <ThumbsDown size={14} color="#EF4444" />
-                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#991B1B' }}>
+                                <ThumbsDown size={14} color="var(--danger)" />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--danger-text)' }}>
                                     {swapDislikeConfirm.mealName}
                                 </span>
                             </div>

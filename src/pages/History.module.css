@@ -2640,7 +2640,7 @@
     width: 64px;
     height: 1.5rem;
     border-radius: 99px;
-    background: linear-gradient(90deg, #FED7AA 0%, #FFEDD5 50%, #FED7AA 100%);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--warning) 28%, var(--bg-muted)) 0%, color-mix(in srgb, var(--warning) 12%, var(--bg-muted)) 50%, color-mix(in srgb, var(--warning) 28%, var(--bg-muted)) 100%);
     background-size: 200% 100%;
     animation: menuSkeletonShimmer 1.4s ease-in-out infinite;
     flex-shrink: 0;

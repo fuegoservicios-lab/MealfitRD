@@ -185,11 +185,11 @@
     width: 3rem;
     height: 3rem;
     border-radius: 0.75rem;
-    background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+    background: var(--warning-bg);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #B45309;
+    color: var(--warning);
     flex-shrink: 0;
 }
 
@@ -1208,8 +1208,8 @@
     .userContextIcon {
         width: 2rem;
         height: 2rem;
-        background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
-        color: #B45309;
+        background: var(--warning-bg);
+        color: var(--warning);
         border: none;
         border-radius: 0.55rem;
         box-shadow: none;

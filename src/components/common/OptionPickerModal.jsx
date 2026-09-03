@@ -54,7 +54,7 @@ const OptionPickerModal = ({
             {/* Header */}
             {headerIcon ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <div style={{ background: headerIcon.bg || '#DCFCE7', color: headerIcon.color || '#16A34A', padding: '0.75rem', borderRadius: '50%' }}>
+                    <div style={{ background: headerIcon.bg || 'var(--success-bg)', color: headerIcon.color || 'var(--success)', padding: '0.75rem', borderRadius: '50%' }}>
                         {headerIcon.icon}
                     </div>
                     <h3 id="option-picker-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>

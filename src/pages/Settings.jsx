@@ -2220,8 +2220,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                         <div style={{
-                            background: '#FEF3C7',
-                            color: '#B45309',
+                            background: 'var(--warning-bg)',
+                            color: 'var(--warning)',
                             width: '42px',
                             height: '42px',
                             borderRadius: '50%',
@@ -2540,22 +2540,22 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             width: '100%',
                                             padding: '0.875rem 1.25rem',
                                             borderRadius: '0.75rem',
-                                            border: nameError ? '2px solid #FCA5A5' : '2px solid transparent',
+                                            border: nameError ? '2px solid var(--danger-border)' : '2px solid transparent',
                                             outline: 'none',
                                             fontSize: '1rem',
                                             transition: 'all 0.3s ease',
-                                            background: nameError ? '#FEF2F2' : 'var(--bg-muted)',
-                                            color: nameError ? '#7F1D1D' : 'var(--text-main)',
+                                            background: nameError ? 'var(--danger-bg)' : 'var(--bg-muted)',
+                                            color: nameError ? 'var(--danger-text)' : 'var(--text-main)',
                                             fontWeight: 500
                                         }}
                                         onFocus={(e) => {
                                             e.target.style.background = 'var(--bg-card)';
-                                            e.target.style.borderColor = nameError ? '#EF4444' : '#3B82F6';
+                                            e.target.style.borderColor = nameError ? 'var(--danger)' : 'var(--primary)';
                                             e.target.style.boxShadow = nameError ? '0 0 0 4px rgba(239, 68, 68, 0.1)' : '0 0 0 4px rgba(59, 130, 246, 0.1)';
                                         }}
                                         onBlur={(e) => {
-                                            e.target.style.background = nameError ? '#FEF2F2' : 'var(--bg-muted)';
-                                            e.target.style.borderColor = nameError ? '#FCA5A5' : 'transparent';
+                                            e.target.style.background = nameError ? 'var(--danger-bg)' : 'var(--bg-muted)';
+                                            e.target.style.borderColor = nameError ? 'var(--danger-border)' : 'transparent';
                                             e.target.style.boxShadow = 'none';
                                         }}
                                     />
@@ -2747,10 +2747,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 <div style={{
                                     marginTop: '0.25rem',
                                     padding: '0.85rem 1rem',
-                                    background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+                                    background: 'var(--warning-bg)',
                                     borderRadius: '0.75rem',
-                                    border: '1px solid #F59E0B',
-                                    color: '#78350F',
+                                    border: '1px solid var(--warning-border)',
+                                    color: 'var(--warning-text)',
                                     fontSize: '0.85rem',
                                     lineHeight: 1.5,
                                     display: 'flex',
@@ -3101,12 +3101,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     style={{
                                         display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
                                         marginTop: '0.65rem', padding: '0.6rem 0.85rem',
-                                        background: '#FFF1F2', border: '1px solid #FECDD3',
+                                        background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
                                         borderRadius: '0.65rem',
-                                        fontSize: '0.78rem', color: '#9F1239', lineHeight: 1.4,
+                                        fontSize: '0.78rem', color: 'var(--danger-text)', lineHeight: 1.4,
                                     }}
                                 >
-                                    <AlertTriangle size={13} style={{ marginTop: '2px', flexShrink: 0, color: '#E11D48' }} />
+                                    <AlertTriangle size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--danger)' }} />
                                     <span>
                                         {pushSubscribeError.includes('Brave') || pushSubscribeError.includes('push service')
                                             ? <>{t('Notificaciones bloqueadas por Brave. Habilita la mensajería push en')} <strong>brave://settings/privacy</strong>.</>
@@ -3484,7 +3484,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                         justifyContent: 'center',
                                                         transition: 'none',
                                                     }}
-                                                    onMouseOver={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                                                    onMouseOver={(e) => e.currentTarget.style.background = 'var(--danger-bg)'}
                                                     onMouseOut={(e) => e.currentTarget.style.background = 'none'}
                                                     title={t('Olvidar Dato')}
                                                 >

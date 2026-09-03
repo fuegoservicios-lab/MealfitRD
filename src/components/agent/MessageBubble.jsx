@@ -240,7 +240,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     background: msg.role === 'user' ? 'var(--bg-muted)' : (isErrorBubble ? 'var(--danger-bg)' : 'var(--bg-card)'),
                     padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.9rem 1.1rem' : '1rem 0'),
                     borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : (isErrorBubble ? '0.85rem' : '0'),
-                    border: msg.role === 'user' ? '1px solid var(--border)' : (isErrorBubble ? '1px solid #fecaca' : 'none'),
+                    border: msg.role === 'user' ? '1px solid var(--border)' : (isErrorBubble ? '1px solid var(--danger-border)' : 'none'),
                     boxShadow: 'none'
                 }}
             >

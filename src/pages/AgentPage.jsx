@@ -4517,6 +4517,7 @@ const AgentPage = () => {
                        uno con !important y dejar que el otro lo herede del tema es fabricar
                        una combinación que nadie eligió. Por eso el color viaja ahora en la
                        misma regla, y el tema oscuro lleva su propia pareja completa. */
+                    /* [THEME-GUARDED · pareja oscura más abajo en este mismo <style>] */
                     .msg-bubble-user {
                         background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%) !important;
                         color: #1E1B4B !important;
