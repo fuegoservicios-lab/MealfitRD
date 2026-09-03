@@ -684,7 +684,7 @@ export default function MotivoActualizarModal({
   // cuando la lista sí puede scrollear, el gesto es suyo.
   useEffect(() => {
     const el = containerRef.current;
-    if (!open || !sheet || !el) return undefined;
+    if (!open || !isMobile || !el) return undefined; // isMobile: `sheet` se declara más abajo (TDZ)
     const block = (e) => {
       const g = gestureRef.current;
       if (g.y0 == null || !e.cancelable) return;
@@ -700,7 +700,7 @@ export default function MotivoActualizarModal({
     };
     el.addEventListener("touchmove", block, { passive: false });
     return () => el.removeEventListener("touchmove", block);
-  }, [open, sheet, containerRef]);
+  }, [open, isMobile, containerRef]);
   const onSheetTouchStart = (e) => {
     if (busy) return;
     const t = e.touches[0];

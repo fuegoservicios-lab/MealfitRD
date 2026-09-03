@@ -54,7 +54,9 @@ describe('hoja de motivos: scroll nativo y deslizar-para-cerrar desde cualquier 
         const i = MODAL.indexOf('el.addEventListener("touchmove", block, { passive: false });');
         expect(i).toBeGreaterThan(0);
         const fx = MODAL.slice(MODAL.lastIndexOf('useEffect(() => {', i), i);
-        expect(fx).toContain('if (!open || !sheet || !el) return undefined;');
+        // `sheet` se declara DESPUÉS del efecto: usarla en las deps era una TDZ (lint la cazó)
+        expect(fx).toContain('if (!open || !isMobile || !el) return undefined;');
+        expect(MODAL).toContain('}, [open, isMobile, containerRef]);');
         expect(fx).toContain('if (g.y0 == null || !e.cancelable) return;');
         expect(fx).toContain('if (!sc || !sc.contains(e.target)) { e.preventDefault(); return; }');
         expect(fx).toContain('const scrollable = sc.scrollHeight > sc.clientHeight + 1;');
