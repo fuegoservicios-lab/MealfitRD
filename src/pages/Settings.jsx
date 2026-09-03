@@ -1942,7 +1942,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     .sub-ladder-head h3 { margin: 0; font-family: var(--font-heading); font-size: 1rem; font-weight: 700; color: var(--text-main); }
                     .sub-ladder-offer { font-size: 0.78rem; font-weight: 600; color: var(--primary); }
                     .sub-tier {
-                        width: 100%; display: grid; grid-template-columns: 1.1fr 1fr auto auto; align-items: center; gap: 1rem;
+                        width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 1rem;
                         padding: 0.9rem 1.05rem; border-radius: 0.9rem; border: 1px solid var(--border); background: var(--bg-card);
                         text-align: left; font-family: inherit; color: var(--text-main);
                         transition: border-color 0.2s ease, background 0.2s ease, transform 0.12s ease;
@@ -1955,7 +1955,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     .sub-tier.is-below { opacity: 0.55; }
                     .sub-tier-name { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-heading); font-weight: 700; font-size: 1rem; }
                     .sub-tier-tag { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 999px; color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); }
-                    .sub-tier-credits { font-size: 0.85rem; color: var(--text-muted); }
+                    .sub-tier-credits { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
                     .sub-tier-price { font-family: var(--font-heading); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
                     .sub-tier-price s { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-right: 0.4rem; }
                     .sub-tier-price small { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-left: 0.1rem; }
