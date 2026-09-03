@@ -87,13 +87,14 @@ describe('Settings Plan Regeneration', () => {
 
         // Verify regeneratePlan was called.
         // El handler 'renovar' (Settings.jsx) llama regeneratePlan con
-        // { reason: 'variety', isPlanExpired: false, entry_point: 'settings_renovar' }.
+        // { reason: 'renewal.v1', isPlanExpired: false, entry_point: 'settings_renovar' }.
+        // [P1-ARQ25-F3-HORIZON · 2026-09-02] motivo neutral versionado: renovar hereda la política, no pide «variedad».
         // Asertamos con objectContaining sobre ese contrato estable (por si el handler
         // añade props extra en el futuro, el test no se rompe por un match exacto).
         await waitFor(() => {
             expect(mockRegeneratePlan).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    reason: 'variety',
+                    reason: 'renewal.v1',
                     isPlanExpired: false,
                     entry_point: 'settings_renovar',
                 })

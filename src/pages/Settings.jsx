@@ -2065,7 +2065,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         if (choiceId === 'renovar') {
                             if (isNavigatingRef.current) return;
                             setIsNavigatingOption('renovar');
-                            await regeneratePlan({ reason: 'variety', isPlanExpired: false, entry_point: 'settings_renovar' });
+                            // [P1-ARQ25-F3-HORIZON · 2026-09-02] motivo neutral versionado: renovar hereda la política, no pide «variedad».
+                            await regeneratePlan({ reason: 'renewal.v1', isPlanExpired: false, entry_point: 'settings_renovar' });
                             setIsNavigatingOption(null);
                             setShowEvaluateModal(false);
                         } else if (choiceId === 'cero') {
