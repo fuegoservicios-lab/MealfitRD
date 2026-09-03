@@ -98,3 +98,17 @@ describe('RenewalCheckinModal', () => {
         expect(src).toContain("updateData('weightUnit', saved.unit);");
     });
 });
+
+describe('RenewalCheckinModal: hover y foco uniformes', () => {
+    it('el CTA comparte el lenguaje de hover del Dashboard y los botones de escala responden al mouse y al foco', () => {
+        const src = read('src/components/plan/RenewalCheckinModal.jsx');
+        expect(src).toContain('.rc-cta:hover:not(:disabled) {');
+        expect(src).toContain('box-shadow: 0 14px 30px -8px rgba(16, 185, 129, 0.45), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);');
+        expect(src).toContain('.rc-cta:active:not(:disabled) {');
+        expect(src).toContain('.rc-scale:hover:not(:disabled), .rc-confirm:hover:not(:disabled) {');
+        expect(src).toContain('.rc-scale:focus-visible, .rc-confirm:focus-visible, .rc-cta:focus-visible { outline: 2px solid #34d399;');
+        expect(src).toContain('.rc-input:focus { outline: none; border-color: #34d399;');
+        expect(src).toContain('@media (pointer: coarse) { .rc-scale { width: 40px !important; height: 40px !important; } }');
+        expect(src).toContain('@media (prefers-reduced-motion: reduce)');
+    });
+});

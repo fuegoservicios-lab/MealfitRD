@@ -118,14 +118,10 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 <button
                     key={n}
                     type="button"
+                    className={`rc-scale ${value === n ? 'is-on' : ''}`}
                     onClick={() => setValue(value === n ? null : n)}
                     aria-pressed={value === n}
-                    style={{
-                        width: 36, height: 36, borderRadius: 10, border: '1px solid',
-                        borderColor: value === n ? '#34d399' : '#2c3a52',
-                        background: value === n ? 'rgba(52,211,153,0.16)' : 'transparent',
-                        color: value === n ? '#34d399' : '#c7d0e0', fontWeight: 700, cursor: 'pointer',
-                    }}
+                    style={{ width: 36, height: 36, borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}
                 >
                     {n}
                 </button>
@@ -139,7 +135,49 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
             position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center',
             justifyContent: 'center', background: 'rgba(4,8,20,0.78)', padding: 16,
         }}>
-            <div style={{
+            {/* [P2-CHECKIN-HOVER-POLISH · 2026-09-03] Mismo lenguaje de hover que los CTAs del
+                Dashboard (sombra del color del botón + anillo interior + brillo; P2-NO-CREDITS-CTA),
+                estados hover/active/focus-visible en los botones de escala y el chip Confirmar,
+                foco esmeralda en el campo de peso, entrada suave de la tarjeta y targets de 40 px en
+                táctil. `prefers-reduced-motion` apaga animación y transiciones. */}
+            <style>{`
+                @keyframes rcIn { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+                .rc-card { animation: rcIn 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
+                .rc-input { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+                .rc-input:hover { border-color: #3a4a66; }
+                .rc-input:focus { outline: none; border-color: #34d399; box-shadow: 0 0 0 3px rgba(52,211,153,0.18); }
+                .rc-scale, .rc-confirm {
+                    border: 1px solid #2c3a52; background: transparent; color: #c7d0e0;
+                    transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+                }
+                .rc-scale:hover:not(:disabled), .rc-confirm:hover:not(:disabled) {
+                    border-color: rgba(52,211,153,0.55); background: rgba(52,211,153,0.08); color: #e8fff5;
+                    box-shadow: 0 6px 16px -8px rgba(52,211,153,0.35);
+                }
+                .rc-scale:active:not(:disabled), .rc-confirm:active:not(:disabled) { transform: scale(0.96); }
+                .rc-scale.is-on, .rc-confirm.is-on {
+                    border-color: #34d399; background: rgba(52,211,153,0.16); color: #34d399;
+                    box-shadow: inset 0 0 0 1px rgba(52,211,153,0.35);
+                }
+                .rc-scale:focus-visible, .rc-confirm:focus-visible, .rc-cta:focus-visible { outline: 2px solid #34d399; outline-offset: 2px; }
+                .rc-cta { transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s ease, transform 0.12s ease; }
+                .rc-cta:hover:not(:disabled) {
+                    box-shadow: 0 14px 30px -8px rgba(16, 185, 129, 0.45), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);
+                    filter: brightness(1.06);
+                }
+                .rc-cta:active:not(:disabled) {
+                    box-shadow: 0 4px 12px -6px rgba(16, 185, 129, 0.3), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);
+                    filter: brightness(0.96); transform: translateY(1px);
+                }
+                .rc-range { cursor: pointer; transition: filter 0.2s ease; }
+                .rc-range:hover { filter: brightness(1.15); }
+                @media (pointer: coarse) { .rc-scale { width: 40px !important; height: 40px !important; } }
+                @media (prefers-reduced-motion: reduce) {
+                    .rc-card { animation: none; }
+                    .rc-input, .rc-scale, .rc-confirm, .rc-cta, .rc-range { transition: none; }
+                }
+            `}</style>
+            <div className="rc-card" style={{
                 width: '100%', maxWidth: 430, background: '#0f1626', border: '1px solid #232e45',
                 borderRadius: 20, padding: '22px 22px 18px', color: '#e8edf6',
                 boxShadow: '0 30px 80px rgba(0,0,0,0.55)',
@@ -159,6 +197,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                 </label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', marginBottom: 6 }}>
                     <input
+                        className="rc-input"
                         type="number"
                         inputMode="decimal"
                         value={weight}
@@ -175,13 +214,11 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                     {!weightEdited && initialWeight && (
                         <button
                             type="button"
+                            className={`rc-confirm ${weightConfirmed ? 'is-on' : ''}`}
                             onClick={() => setWeightConfirmed((v) => !v)}
                             aria-pressed={weightConfirmed}
                             style={{
-                                flex: 'none', padding: '0 14px', borderRadius: 12, border: '1px solid',
-                                borderColor: weightConfirmed ? '#34d399' : '#2c3a52',
-                                background: weightConfirmed ? 'rgba(52,211,153,0.16)' : 'transparent',
-                                color: weightConfirmed ? '#34d399' : '#c7d0e0', fontSize: 13, fontWeight: 700,
+                                flex: 'none', padding: '0 14px', borderRadius: 12, fontSize: 13, fontWeight: 700,
                                 cursor: 'pointer', whiteSpace: 'nowrap',
                             }}
                         >
@@ -213,6 +250,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
                     </span>
                 </label>
                 <input
+                    className="rc-range"
                     type="range" min="0" max="100" step="10"
                     value={adherence === null ? 50 : adherence}
                     onChange={(e) => setAdherence(parseInt(e.target.value, 10))}
@@ -223,6 +261,7 @@ const RenewalCheckinModal = ({ defaultWeight = '', defaultUnit = 'lb', onDone })
 
                 <button
                     type="button"
+                    className="rc-cta"
                     onClick={submit}
                     disabled={sending}
                     style={{
