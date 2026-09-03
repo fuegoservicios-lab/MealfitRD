@@ -50,6 +50,18 @@ describe('hoja de motivos: scroll nativo y deslizar-para-cerrar desde cualquier 
         expect(end).toContain('if (mode === "down" && shouldClose && !busy) handleClose();');
         expect(end).toContain('else animate(sheetY, 0, { type: "spring", damping: 30, stiffness: 320 });');
     });
+    it('[v5] la página de fondo no se mueve: listener nativo no pasivo que cancela el pan cuando la lista no puede seguir', () => {
+        const i = MODAL.indexOf('el.addEventListener("touchmove", block, { passive: false });');
+        expect(i).toBeGreaterThan(0);
+        const fx = MODAL.slice(MODAL.lastIndexOf('useEffect(() => {', i), i);
+        expect(fx).toContain('if (!open || !sheet || !el) return undefined;');
+        expect(fx).toContain('if (g.y0 == null || !e.cancelable) return;');
+        expect(fx).toContain('if (!sc || !sc.contains(e.target)) { e.preventDefault(); return; }');
+        expect(fx).toContain('const scrollable = sc.scrollHeight > sc.clientHeight + 1;');
+        expect(fx).toContain('if (!scrollable) { e.preventDefault(); return; }');
+        expect(fx).toContain('if ((dir > 0 && atTop) || (dir < 0 && atBottom)) e.preventDefault();');
+        expect(MODAL).toContain('return () => el.removeEventListener("touchmove", block);');
+    });
     it('el contenido scrollea en un hijo con pan-y, con el padding lateral y sin barra visible', () => {
         const i = MODAL.indexOf('onTouchStart={sheet ? onSheetTouchStart : undefined}');
         const j = MODAL.indexOf('{/* drag handle', i);

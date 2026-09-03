@@ -675,6 +675,32 @@ export default function MotivoActualizarModal({
   }, [pickingId, onClose]);
 
   const { containerRef } = useModalAccessibility({ isOpen: open, onClose: handleClose, disableClose: busy });
+  // [v5] «en actualizar platos del día completo, cuando scrolleo dentro del menú también se
+  // scrollea afuera». Esa hoja casi no desborda: sin scroll propio que capture el gesto, el
+  // pan pasa a la página (el `overflow: hidden` del body no frena el touch en iOS y
+  // `overscroll-behavior` solo actúa en elementos que SÍ scrollean). Listener nativo NO
+  // pasivo (React registra touchmove pasivo): se cancela el pan cuando la lista no puede
+  // seguir en esa dirección — no hay lista, o está en su tope — y así la página no se mueve;
+  // cuando la lista sí puede scrollear, el gesto es suyo.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!open || !sheet || !el) return undefined;
+    const block = (e) => {
+      const g = gestureRef.current;
+      if (g.y0 == null || !e.cancelable) return;
+      const sc = scrollRef.current;
+      const t = e.touches[0];
+      if (!sc || !sc.contains(e.target)) { e.preventDefault(); return; }
+      const scrollable = sc.scrollHeight > sc.clientHeight + 1;
+      if (!scrollable) { e.preventDefault(); return; }
+      const dir = t.clientY - g.y0;
+      const atTop = sc.scrollTop <= 0;
+      const atBottom = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1;
+      if ((dir > 0 && atTop) || (dir < 0 && atBottom)) e.preventDefault();
+    };
+    el.addEventListener("touchmove", block, { passive: false });
+    return () => el.removeEventListener("touchmove", block);
+  }, [open, sheet, containerRef]);
   const onSheetTouchStart = (e) => {
     if (busy) return;
     const t = e.touches[0];
