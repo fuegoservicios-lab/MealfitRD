@@ -1903,6 +1903,12 @@ button.ui-close:focus-visible {
     outline-offset: 2px;
 }
 button.ui-close > svg { width: 20px; height: 20px; flex: none; }
+/* Variante compacta para avisos en línea (presupuesto, calidad, Nevera, iOS): 32 px de caja e
+   icono de 16; en táctil la caja vuelve a 40 para que siga siendo fácil de tocar. Mismo botón,
+   dos tamaños — no dos botones. */
+button.ui-close.ui-close--sm { --ui-close-size: 32px; border-radius: 10px !important; }
+button.ui-close.ui-close--sm > svg { width: 16px; height: 16px; }
+@media (pointer: coarse) { button.ui-close.ui-close--sm { --ui-close-size: 40px; } }
 @media (pointer: coarse) {
     button.ui-close { --ui-close-size: 44px; }
 }

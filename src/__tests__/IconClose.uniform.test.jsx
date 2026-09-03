@@ -38,15 +38,22 @@ describe('ui-close: cierre uniforme', () => {
     for (const f of SITIOS) {
         it(`${f}: cada X de cierre lleva ui-close y el icono uniforme`, () => {
             const src = read(f);
-            const marks = src.match(/ui-close/g) || [];
+            const marks = src.match(/ui-close(?!--)/g) || [];
             expect(marks.length).toBeGreaterThan(0);
             // cada botón ui-close pinta el icono normalizado
             const iconos = src.match(/<X size=\{20\} strokeWidth=\{2\.25\} aria-hidden="true" \/>/g) || [];
             expect(iconos.length).toBeGreaterThanOrEqual(marks.length);
         });
     }
+    it('los avisos compactos usan la variante pequeña (mismo botón, dos tamaños)', () => {
+        const css = read('src/index.css');
+        expect(css).toContain('button.ui-close.ui-close--sm { --ui-close-size: 32px;');
+        const n = ['src/pages/Dashboard.jsx', 'src/components/dashboard/RestockNudge.jsx', 'src/components/IOSInstallPrompt.jsx']
+            .reduce((acc, f) => acc + (read(f).match(/ui-close--sm/g) || []).length, 0);
+        expect(n).toBe(6);
+    });
     it('Dashboard: los 5 avisos descartables usan el mismo cierre', () => {
         const src = read('src/pages/Dashboard.jsx');
-        expect((src.match(/ui-close/g) || []).length).toBe(5);
+        expect((src.match(/ui-close(?!--)/g) || []).length).toBe(5);
     });
 });

@@ -7197,7 +7197,7 @@ const DashboardInner = () => {
                                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: _palette.fg, flex: 1, minWidth: 0 }}>{_headline}</span>
                                         {/* [P3-BUDGET-BANNER-DISMISS · 2026-07-04] X → archiva en
                                             notificaciones (mismo patrón del banner de coherencia). */}
-                                        <button className="ui-close"
+                                        <button className="ui-close ui-close--sm"
                                             type="button"
                                             onClick={dismissBudgetBanner}
                                             aria-label={t('Ocultar este aviso (se guarda en notificaciones)')}
@@ -7757,7 +7757,7 @@ const DashboardInner = () => {
                         </span>
                     </div>
                     {/* [P2-PRO-REVIEW-DISMISS · 2026-06-27] X para ocultar el aviso (persistido por plan). */}
-                    <button className="ui-close"
+                    <button className="ui-close ui-close--sm"
                         type="button"
                         onClick={dismissProReview}
                         aria-label={t('Ocultar aviso de revisión profesional')}
@@ -7983,7 +7983,7 @@ const DashboardInner = () => {
                         )}
                     </div>
                     {/* [P3-QDEGRADED-DISMISS · 2026-06-15] Cerrar (recordado por plan). */}
-                    <button className="ui-close"
+                    <button className="ui-close ui-close--sm"
                         type="button"
                         onClick={dismissQDegraded}
                         aria-label={t('Ocultar este aviso')}
@@ -8037,7 +8037,7 @@ const DashboardInner = () => {
                     </div>
                     {/* [P1-COHERENCE-BANNER-NOTIF · 2026-06-16] Cerrar → archiva el
                         aviso en el centro de notificaciones y lo abre. */}
-                    <button className="ui-close"
+                    <button className="ui-close ui-close--sm"
                         type="button"
                         onClick={dismissCoherence}
                         aria-label={t('Ocultar y enviar a notificaciones')}

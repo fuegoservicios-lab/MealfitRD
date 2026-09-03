@@ -385,7 +385,7 @@ export default function RestockNudge({
                             onClick={hideBanner}
                             aria-label={t('Descartar aviso')}
                             title={t('Descartar')}
-                            className="restock-nudge-x ui-close"
+                            className="restock-nudge-x ui-close ui-close--sm"
                         >
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>

@@ -76,7 +76,7 @@ const IOSInstallPrompt = () => {
             </div>
             {/* [P2-A11Y-LOGGING · 2026-05-13] aria-label requerido: icon-only button (X)
                 sin texto visible necesita label para lectores de pantalla. */}
-            <button className="ui-close" onClick={dismissPrompt} aria-label={t('Cerrar aviso de instalación')} style={{ margin: '-4px -2px -4px 0', alignSelf: 'flex-start' }}>
+            <button className="ui-close ui-close--sm" onClick={dismissPrompt} aria-label={t('Cerrar aviso de instalación')} style={{ margin: '-4px -2px -4px 0', alignSelf: 'flex-start' }}>
                 <X size={20} strokeWidth={2.25} aria-hidden="true" />
             </button>
             <style>{`
