@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { useModalAccessibility } from "../../hooks/useModalAccessibility";
 // [P2-14 · 2026-07-09] Hook SSOT de media queries (antes copia local del mismo hook).
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -647,6 +647,11 @@ export default function MotivoActualizarModal({
   // sensible al tema (accentTokens): oscuro = valores originales, claro = acento
   // oscurecido legible sobre tinte pálido.
   const isDark = useIsDark();
+  // [P2-SWAP-SHEET-SCROLL · 2026-09-03] En móvil la hoja llevaba `drag="y"` en el MISMO
+  // elemento que hacía scroll: framer-motion captura el gesto vertical (touch-action) y el
+  // usuario no podía bajar hasta «No me gusta este plato». Ahora el arrastre-para-cerrar
+  // arranca SOLO desde el tirador (dragControls) y el contenido scrollea en un hijo propio.
+  const dragControls = useDragControls();
   const busy = pickingId != null;
   const handleClose = useCallback(() => {
     if (pickingId == null) onClose();
@@ -701,6 +706,8 @@ export default function MotivoActualizarModal({
             exit={sheet ? { y: "100%" } : { opacity: 0, scale: 0.96, y: 12 }}
             transition={sheet ? { type: "spring", damping: 30, stiffness: 320 } : { duration: 0.2 }}
             drag={sheet ? "y" : false}
+            dragListener={false}
+            dragControls={dragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.6 }}
             onDragEnd={(e, info) => {
@@ -711,8 +718,10 @@ export default function MotivoActualizarModal({
               zIndex: 1,
               width: "100%",
               maxWidth: sheet ? "none" : 404,
-              maxHeight: sheet ? "92dvh" : "92dvh",
-              overflowY: "auto",
+              maxHeight: "92dvh",
+              overflowY: sheet ? "hidden" : "auto",
+              display: sheet ? "flex" : undefined,
+              flexDirection: sheet ? "column" : undefined,
               background: "var(--bg-card)",
               border: "1px solid var(--border)",
               borderTopWidth: sheet ? "1px" : "1px",
@@ -726,10 +735,19 @@ export default function MotivoActualizarModal({
           >
             {/* drag handle (solo móvil) */}
             {sheet && (
-              <div style={{ display: "flex", justifyContent: "center", padding: "6px 0 12px" }}>
+              <div
+                onPointerDown={(e) => dragControls.start(e)}
+                aria-hidden="true"
+                style={{ display: "flex", justifyContent: "center", padding: "6px 0 12px", touchAction: "none", cursor: "grab", flex: "none" }}
+              >
                 <span style={{ width: 40, height: 4, borderRadius: 99, background: "var(--border)" }} />
               </div>
             )}
+            {/* [P2-SWAP-SHEET-SCROLL] el contenido scrollea aquí (pan-y), no en la hoja arrastrable */}
+            <div
+              className="mfa-scroll"
+              style={sheet ? { minHeight: 0, flex: "1 1 auto", overflowY: "auto", touchAction: "pan-y", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" } : undefined}
+            >
 
             {/* cabecera: título + cupo del mes */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
@@ -866,6 +884,7 @@ export default function MotivoActualizarModal({
                 <DislikeRow label={dislike.label} desc={dislike.desc} faded={busy && pickingId !== "dislike"} loading={pickingId === "dislike"} onPick={onPick} isDark={isDark} />
               </>
             )}
+            </div>
           </motion.div>
         </div>
       )}

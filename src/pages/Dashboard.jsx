@@ -5513,10 +5513,17 @@ const DashboardInner = () => {
                 }
                 /* [P2-NO-CREDITS-CTA · 2026-09-02] aria-disabled también apaga el hover: el botón
                    sigue clicable para avisar, pero un estado apagado no brilla. */
-                .new-plan-btn:hover:not(:disabled):not([aria-disabled="true"]) {
-                    border-color: var(--hover-border, var(--border)) !important;
-                    box-shadow: var(--hover-shadow, 0 15px 30px -5px rgba(0,0,0,0.15)) !important;
-                    filter: brightness(1.1);
+                /* [P2-SWAP-BTN-TOUCH · 2026-09-03] hover solo con puntero fino (en táctil se
+                   quedaba pegado tras el tap); el feedback táctil es :active */
+                @media (hover: hover) {
+                    .new-plan-btn:hover:not(:disabled):not([aria-disabled="true"]) {
+                        border-color: var(--hover-border, var(--border)) !important;
+                        box-shadow: var(--hover-shadow, 0 15px 30px -5px rgba(0,0,0,0.15)) !important;
+                        filter: brightness(1.1);
+                    }
+                }
+                @media (pointer: coarse) {
+                    .new-plan-btn { min-height: 48px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
                 }
                 .new-plan-btn:active:not(:disabled):not([aria-disabled="true"]) {
                     box-shadow: var(--active-shadow, 0 5px 15px -5px rgba(0,0,0,0.1)) !important;
@@ -9312,24 +9319,34 @@ const DashboardInner = () => {
                                acción de cada comida (receta / Cambiar Plato / like). */
                             /* Anillo OSCURO en modo claro (sobre botones
                                claros el blanco no se veía / quedaba raro). */
-                            .meal-act-btn:hover:not(:disabled) {
-                                /* [MEAL-BTN-HOVER-NO-WHITE · 2026-06-01] Los
-                                   fondos pastel (#EFF6FF/#FFF7ED/#FDF2F8) ya son
-                                   casi blancos; brightness(1.04) los lavaba a
-                                   blanco en hover. Ahora DEEPENAMOS (brillo<1) +
-                                   saturamos → el color se intensifica en vez de
-                                   blanquearse. Solo afecta el modo claro (la regla
-                                   dark de abajo conserva su propio hover). */
-                                filter: brightness(0.96) saturate(1.28);
-                                box-shadow: inset 0 0 0 1.5px rgba(15, 23, 42, 0.35) !important;
-                            }
-                            /* Anillo blanco en modo oscuro. */
-                            html[data-theme="dark"] .meal-act-btn:hover:not(:disabled) {
-                                filter: brightness(1.08);
-                                box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45) !important;
+                            /* [P2-SWAP-BTN-TOUCH · 2026-09-03] Hover SOLO con puntero fino: en
+                               táctil el :hover se queda pegado tras el tap (el botón parecía
+                               «encendido» sin responder). El feedback táctil es :active. */
+                            .meal-act-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+                            @media (hover: hover) {
+                                /* [MEAL-BTN-HOVER-NO-WHITE · 2026-06-01] en claro DEEPENAMOS
+                                   (brillo<1) + saturamos: los pastel no se lavan a blanco. */
+                                .meal-act-btn:hover:not(:disabled) {
+                                    filter: brightness(0.96) saturate(1.28);
+                                    box-shadow: inset 0 0 0 1.5px rgba(15, 23, 42, 0.35) !important;
+                                }
+                                /* Anillo blanco en modo oscuro. */
+                                html[data-theme="dark"] .meal-act-btn:hover:not(:disabled) {
+                                    filter: brightness(1.08);
+                                    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45) !important;
+                                }
                             }
                             .meal-act-btn:active:not(:disabled) {
-                                filter: brightness(0.96);
+                                filter: brightness(0.9);
+                                transition-duration: 0.05s;
+                            }
+                            @media (pointer: coarse) {
+                                /* objetivo táctil de 44px (HIG) para los tres botones de cada
+                                   comida; los 38×38 inline se pisan con !important */
+                                .meal-actions-row .meal-act-btn {
+                                    height: 44px !important;
+                                    min-width: 44px;
+                                }
                             }
                         `}</style>
 
