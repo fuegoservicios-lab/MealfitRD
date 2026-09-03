@@ -70,6 +70,8 @@ describe('acciones rápidas con el hilo corto', () => {
         expect(AGENT).toContain("[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')]");
         expect(AGENT).toContain('onClick={() => handleSend(texto)}');
         expect(AGENT).toContain('.chat-quick-chip {');
+        // el hilo nunca desplaza en horizontal (barra gruesa al pie del hilo en Windows)
+        expect(AGENT).toContain('.messages-container { overflow-x: hidden !important; }');
     });
 });
 

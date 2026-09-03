@@ -3686,6 +3686,11 @@ const AgentPage = () => {
                     visibility: visible;
                     pointer-events: auto;
                 }
+                /* [P2-CHAT-TIMELINE · 2026-09-03] El hilo NUNCA desplaza en horizontal: con
+                   `overflow-y: auto` en línea, overflow-x computa a `auto` y cualquier desborde
+                   de un píxel pinta una barra horizontal gruesa al pie del hilo (Windows). Las
+                   tablas y bloques de código del markdown ya tienen su propio scroll interno. */
+                .messages-container { overflow-x: hidden !important; }
                 /* [P2-CHAT-QUICK-CHIPS · 2026-09-03] Acciones rápidas sobre la caja. */
                 .chat-quick-chips {
                     display: flex;
