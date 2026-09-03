@@ -353,11 +353,11 @@ const Header = () => {
                             </span>
                             <button
                                 type="button"
-                                className={styles.navMobileClose}
+                                className={`${styles.navMobileClose} ui-close`}
                                 onClick={() => setIsMenuOpen(false)}
                                 aria-label={t('Cerrar menú')}
                             >
-                                <X size={26} />
+                                <X size={20} strokeWidth={2.25} aria-hidden="true" />
                             </button>
                         </div>
                         {/* [P3-HEADER-MOBILE-HAMBURGER · 2026-06-29] Opciones del nav de

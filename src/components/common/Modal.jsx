@@ -185,24 +185,15 @@ const Modal = ({ isOpen, onClose, titleId, children, maxWidth = '460px', disable
                         )}
 
                         <motion.button
+                            className="ui-close"
                             onClick={handleCloseAttempt}
                             animate={isCloseShaking ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
                             transition={{ duration: 0.35 }}
                             aria-label={t('Cerrar ventana modal')}
                             aria-disabled={disableClose}
-                            style={{
-                                position: 'absolute', top: isMobile ? '1.25rem' : '1rem', right: isMobile ? '1.25rem' : '1rem',
-                                background: isMobile ? 'var(--bg-muted)' : 'none', border: 'none',
-                                color: disableClose ? 'var(--text-light)' : 'var(--text-muted)',
-                                cursor: disableClose ? 'not-allowed' : 'pointer',
-                                opacity: disableClose ? 0.5 : 1,
-                                display: 'flex', padding: '0.25rem',
-                                borderRadius: '0.5rem', transition: 'background 0.2s, color 0.2s, opacity 0.2s'
-                            }}
-                            onMouseOver={(e) => { if (!disableClose) e.currentTarget.style.background = 'var(--bg-muted)'; }}
-                            onMouseOut={(e) => { if (!disableClose) e.currentTarget.style.background = isMobile ? 'var(--bg-muted)' : 'none'; }}
+                            style={{ position: 'absolute', top: isMobile ? '1.25rem' : '1rem', right: isMobile ? '1.25rem' : '1rem', opacity: disableClose ? 0.5 : 1 }}
                         >
-                            <X size={isMobile ? 18 : 20} />
+                            <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </motion.button>
 
                         {children}

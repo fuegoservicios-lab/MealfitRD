@@ -287,24 +287,14 @@ const PaymentModal = ({
                 }}
             >
                 {/* Close */}
-                <button
+                <button className="ui-close"
                     onClick={onClose}
                     aria-label={t("Cerrar ventana modal")}
-                    style={{
-                        // [P3-PAYMENT-MODAL-SAFE-AREA · 2026-06-01] +env(safe-area-inset-top): la X
+                    style={{ // [P3-PAYMENT-MODAL-SAFE-AREA · 2026-06-01] +env(safe-area-inset-top): la X
                         // no debe quedar bajo la barra de estado / notch en iOS. env()=0 sin notch.
-                        position: 'fixed', top: 'calc(1.5rem + env(safe-area-inset-top, 0px))', right: '1.5rem', zIndex: 10000,
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '50%', width: 40, height: 40,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', color: '#ccc',
-                        transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#ccc'; }}
+                        position: 'fixed', top: 'calc(1.5rem + env(safe-area-inset-top, 0px))', right: '1.5rem', zIndex: 10000 }}
                 >
-                    <X size={20} aria-hidden="true" />
+                    <X size={20} strokeWidth={2.25} aria-hidden="true" />
                 </button>
 
                 {/* Modal Container */}

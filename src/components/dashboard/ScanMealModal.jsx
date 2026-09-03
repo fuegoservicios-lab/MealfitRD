@@ -453,12 +453,12 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                         {t('Escanear comida')}
                     </h2>
                     <button
-                        className={styles.closeBtn}
+                        className={`${styles.closeBtn} ui-close`}
                         onClick={onClose}
                         disabled={isBusy}
                         aria-label={t('Cerrar')}
                     >
-                        <X size={20} />
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 </div>
 

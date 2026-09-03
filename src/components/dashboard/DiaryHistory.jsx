@@ -311,10 +311,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         )}
                     </div>
                     <button
-                        ref={cierreRef} type="button" className={styles.closeBtn}
+                        ref={cierreRef} type="button" className={`${styles.closeBtn} ui-close`}
                         onClick={onClose} aria-label={t('Cerrar')}
                     >
-                        <X size={17} />
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 </header>
 

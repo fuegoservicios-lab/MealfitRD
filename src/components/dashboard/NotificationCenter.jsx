@@ -523,11 +523,11 @@ export default function NotificationCenter({ hidden = false }) {
                                 {count > 0 && <span className={styles.headDivider} aria-hidden="true" />}
                                 <button
                                     type="button"
-                                    className={styles.closeBtn}
+                                    className={`${styles.closeBtn} ui-close`}
                                     onClick={closeDrawer}
                                     aria-label={t('Cerrar notificaciones')}
                                 >
-                                    <X size={18} strokeWidth={2.4} />
+                                    <X size={20} strokeWidth={2.25} aria-hidden="true" />
                                 </button>
                             </div>
                         </header>

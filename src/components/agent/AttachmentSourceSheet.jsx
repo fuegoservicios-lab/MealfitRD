@@ -53,7 +53,7 @@ export function AttachmentSourceSheet({ open, onClose, onGallery, onCamera, trig
             >
                 <div className="attachment-source-heading">
                     <h2 id="attachment-source-title">{t('Añadir imagen')}</h2>
-                    <button type="button" onClick={onClose} aria-label={t('Cerrar')}><X size={22} /></button>
+                    <button className="ui-close" type="button" onClick={onClose} aria-label={t('Cerrar')}><X size={20} strokeWidth={2.25} aria-hidden="true" /></button>
                 </div>
                 <button ref={firstActionRef} type="button" className="attachment-source-action" onClick={onGallery}>
                     <Images size={24} />

@@ -2090,8 +2090,8 @@ const History = () => {
                                         })}
                                     </span>
                                 </div>
-                                <button onClick={_closeDetailModal} className={styles.closeButton}>
-                                    <X size={24} color="#64748B" />
+                                <button onClick={_closeDetailModal} className={`${styles.closeButton} ui-close`}>
+                                    <X size={20} strokeWidth={2.25} aria-hidden="true" />
                                 </button>
                             </div>
 

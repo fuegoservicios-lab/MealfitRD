@@ -7197,27 +7197,14 @@ const DashboardInner = () => {
                                         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: _palette.fg, flex: 1, minWidth: 0 }}>{_headline}</span>
                                         {/* [P3-BUDGET-BANNER-DISMISS · 2026-07-04] X → archiva en
                                             notificaciones (mismo patrón del banner de coherencia). */}
-                                        <button
+                                        <button className="ui-close"
                                             type="button"
                                             onClick={dismissBudgetBanner}
                                             aria-label={t('Ocultar este aviso (se guarda en notificaciones)')}
                                             title={t('Ocultar (se guarda en notificaciones)')}
-                                            style={{
-                                                flexShrink: 0,
-                                                display: 'grid',
-                                                placeItems: 'center',
-                                                width: 24,
-                                                height: 24,
-                                                marginTop: '-2px',
-                                                border: 'none',
-                                                borderRadius: '0.5rem',
-                                                background: 'transparent',
-                                                color: _palette.fg,
-                                                opacity: 0.7,
-                                                cursor: 'pointer'
-                                            }}
+                                            style={{ placeItems: 'center', marginTop: '-2px' }}
                                         >
-                                            <X size={15} strokeWidth={2.5} />
+                                            <X size={20} strokeWidth={2.25} aria-hidden="true" />
                                         </button>
                                     </div>
                                     {/* [P2-AUDIT-V5-BATCH GAP-06] Caveat de cobertura parcial de precios:
@@ -7770,18 +7757,14 @@ const DashboardInner = () => {
                         </span>
                     </div>
                     {/* [P2-PRO-REVIEW-DISMISS · 2026-06-27] X para ocultar el aviso (persistido por plan). */}
-                    <button
+                    <button className="ui-close"
                         type="button"
                         onClick={dismissProReview}
                         aria-label={t('Ocultar aviso de revisión profesional')}
                         title={t('Ocultar')}
-                        style={{
-                            flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer',
-                            padding: '4px', margin: '-2px -4px 0 0', borderRadius: '8px',
-                            color: 'var(--text-muted)', lineHeight: 0
-                        }}
+                        style={{ margin: '-2px -4px 0 0' }}
                     >
-                        <X size={18} strokeWidth={2.4} aria-hidden="true" />
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 </motion.div>
             )}
@@ -8000,27 +7983,14 @@ const DashboardInner = () => {
                         )}
                     </div>
                     {/* [P3-QDEGRADED-DISMISS · 2026-06-15] Cerrar (recordado por plan). */}
-                    <button
+                    <button className="ui-close"
                         type="button"
                         onClick={dismissQDegraded}
                         aria-label={t('Ocultar este aviso')}
                         title={t('Ocultar')}
-                        style={{
-                            flexShrink: 0,
-                            display: 'grid',
-                            placeItems: 'center',
-                            width: 24,
-                            height: 24,
-                            marginTop: '-1px',
-                            border: 'none',
-                            borderRadius: '0.5rem',
-                            background: 'transparent',
-                            color: isDark ? '#FCD34D' : '#B45309',
-                            opacity: 0.7,
-                            cursor: 'pointer'
-                        }}
+                        style={{ placeItems: 'center', marginTop: '-1px' }}
                     >
-                        <X size={15} strokeWidth={2.5} />
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 </motion.div>
             )}
@@ -8067,27 +8037,14 @@ const DashboardInner = () => {
                     </div>
                     {/* [P1-COHERENCE-BANNER-NOTIF · 2026-06-16] Cerrar → archiva el
                         aviso en el centro de notificaciones y lo abre. */}
-                    <button
+                    <button className="ui-close"
                         type="button"
                         onClick={dismissCoherence}
                         aria-label={t('Ocultar y enviar a notificaciones')}
                         title={t('Ocultar (se guarda en notificaciones)')}
-                        style={{
-                            flexShrink: 0,
-                            display: 'grid',
-                            placeItems: 'center',
-                            width: 26,
-                            height: 26,
-                            marginTop: '-1px',
-                            border: 'none',
-                            borderRadius: '0.5rem',
-                            background: 'transparent',
-                            color: isDark ? '#FCD34D' : '#B45309',
-                            opacity: 0.75,
-                            cursor: 'pointer'
-                        }}
+                        style={{ placeItems: 'center', marginTop: '-1px' }}
                     >
-                        <X size={16} strokeWidth={2.5} />
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 </motion.div>
             )}
@@ -9416,21 +9373,16 @@ const DashboardInner = () => {
                             </div>
                             {t('Razonamiento')}
                             {planData?.insights?.length > 0 && (
-                                <button
+                                <button className="ui-close"
                                     type="button"
                                     onClick={dismissReasoning}
                                     aria-label={t('Ocultar el razonamiento (se guarda en Notificaciones)')}
                                     title={t('Ocultar — se guarda en Notificaciones')}
-                                    style={{
-                                        marginLeft: 'auto', width: '32px', height: '32px', flex: 'none',
-                                        display: 'grid', placeItems: 'center', borderRadius: '10px',
-                                        border: '1px solid var(--border)', background: 'transparent',
-                                        color: 'var(--text-light)', cursor: 'pointer', transition: 'background .16s, color .16s'
-                                    }}
+                                    style={{ marginLeft: 'auto', flex: 'none', placeItems: 'center' }}
                                     onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-muted)'; e.currentTarget.style.color = 'var(--text-main)'; }}
                                     onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-light)'; }}
                                 >
-                                    <X size={17} strokeWidth={2.4} />
+                                    <X size={20} strokeWidth={2.25} aria-hidden="true" />
                                 </button>
                             )}
                         </h3>

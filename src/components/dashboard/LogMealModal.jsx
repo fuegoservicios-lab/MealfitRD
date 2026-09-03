@@ -200,8 +200,8 @@ const LogMealModal = ({ onClose }) => {
             <div ref={containerRef} className={styles.panel} role="dialog" aria-modal="true" aria-label={t('Registrar comida')} tabIndex={-1}>
                 <div className={styles.head}>
                     <h2 className={styles.title}>{t('Registrar comida')}</h2>
-                    <button type="button" className={styles.close} onClick={onClose} aria-label={t('Cerrar')}>
-                        <X size={18} strokeWidth={2.5} />
+                    <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 </div>
 

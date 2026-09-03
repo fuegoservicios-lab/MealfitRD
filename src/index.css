@@ -1858,3 +1858,54 @@ html[data-theme="dark"] .mf-chip-select { color-scheme: dark; }
   color: var(--text-muted, #9CA3AF) !important;
   border-color: var(--border, rgba(148, 163, 184, 0.28)) !important;
 }
+
+/* [P2-ICON-CLOSE-UNIFORM · 2026-09-02] Un solo botón de cierre («X») para toda la app.
+   Había 34 «X» en 24 archivos, cada una estilizada a mano: tamaños 13-26 px, radios y hovers
+   distintos, alguna con sombra de CTA. Regla del sistema: la «X» es una acción terciaria de
+   salida — responde con un tinte de fondo suave y un leve aumento, NUNCA con la sombra de
+   elevación de los botones de acción (competiría con el CTA principal del mismo panel).
+   Los `!important` son deliberados: es una clase de sistema que debe ganar a los estilos
+   por módulo/tema (`:global(html[data-theme=…]) .closeBtn:hover` tiene más especificidad). */
+button.ui-close {
+    --ui-close-size: 40px;
+    width: var(--ui-close-size) !important;
+    height: var(--ui-close-size) !important;
+    min-width: var(--ui-close-size) !important;
+    min-height: var(--ui-close-size) !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto;
+    border: none !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    color: var(--text-muted, #64748B) !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease !important;
+    -webkit-tap-highlight-color: transparent;
+}
+button.ui-close:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--text-main, #0F172A) 8%, transparent) !important;
+    color: var(--text-main, #0F172A) !important;
+    box-shadow: none !important;
+    filter: none !important;
+    transform: scale(1.06);
+}
+button.ui-close:active:not(:disabled) {
+    background: color-mix(in srgb, var(--text-main, #0F172A) 14%, transparent) !important;
+    transform: scale(0.98);
+}
+button.ui-close[aria-disabled="true"] { cursor: not-allowed; opacity: 0.5; transform: none; }
+button.ui-close:focus-visible {
+    outline: 2px solid var(--primary, #4F46E5) !important;
+    outline-offset: 2px;
+}
+button.ui-close > svg { width: 20px; height: 20px; flex: none; }
+@media (pointer: coarse) {
+    button.ui-close { --ui-close-size: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    button.ui-close, button.ui-close:hover:not(:disabled), button.ui-close:active:not(:disabled) { transform: none; transition: none !important; }
+}

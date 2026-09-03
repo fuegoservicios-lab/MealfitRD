@@ -712,8 +712,8 @@ const SupermarketPage = () => {
                         <button type="submit" className={styles.btnPrimary} disabled={unlocking}>
                             {unlocking ? 'Verificando…' : 'Entrar'}
                         </button>
-                        <button type="button" className={styles.btnGhost} onClick={() => setShowUnlock(false)} aria-label="Cerrar">
-                            <X size={15} strokeWidth={2.25} />
+                        <button type="button" className={`${styles.btnGhost} ui-close`} onClick={() => setShowUnlock(false)} aria-label="Cerrar">
+                            <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>
                         {/* [P2-SUPERMARKET-TOKEN-SPLIT · 2026-08-14] El rechazo se dice
                             AQUI y ahora. Antes el token se guardaba sin preguntar y el
@@ -839,8 +839,8 @@ const SupermarketPage = () => {
                         }
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <button type="button" className={styles.modalClose} onClick={() => setModal(null)} aria-label="Cerrar">
-                            <X size={18} strokeWidth={2.25} />
+                        <button type="button" className={`${styles.modalClose} ui-close`} onClick={() => setModal(null)} aria-label="Cerrar">
+                            <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>
 
                         {modal.mode === 'create' && (

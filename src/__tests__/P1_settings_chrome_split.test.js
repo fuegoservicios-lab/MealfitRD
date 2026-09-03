@@ -228,7 +228,8 @@ describe('[P1-SETTINGS-CHROME-SPLIT] la fila de chrome', () => {
 
         // El botón tiene que ir DENTRO del envoltorio, no antes.
         const iRow = JSX.indexOf('className={styles.headerRow}');
-        const iBtn = JSX.indexOf('className={styles.exitSettingsBtn}');
+        // [P2-ICON-CLOSE-UNIFORM] el botón lleva ahora `${styles.exitSettingsBtn} ui-close` (template)
+        const iBtn = JSX.indexOf('${styles.exitSettingsBtn}');
         const iHead = JSX.indexOf('${styles.pageHeader}');
         expect(iRow).toBeGreaterThan(0);
         expect(iBtn, 'el botón de salida quedó fuera de la fila de chrome').toBeGreaterThan(iRow);

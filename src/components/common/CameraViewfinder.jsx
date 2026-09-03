@@ -260,13 +260,8 @@ export default function CameraViewfinder({
                         {title}
                     </h2>
                     <button type="button" onClick={onClose} aria-label={t('Cerrar')}
-                        className="mfvf-focusable"
-                        style={{
-                            background: 'none', border: 'none', color: 'rgba(255,255,255,0.85)',
-                            cursor: 'pointer', padding: '0.3rem', borderRadius: '0.5rem',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                        <X size={22} />
+                        className="mfvf-focusable ui-close">
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 </div>
 

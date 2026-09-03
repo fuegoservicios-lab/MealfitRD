@@ -178,8 +178,8 @@ export default function HelpChatWidget({ onClose }) {
                         <span className={styles.headerTitle}>{t('Obtener ayuda')}</span>
                         <span className={styles.headerSub}>{t('Asistente de {app}', { app: BRAND })}</span>
                     </div>
-                    <button type="button" className={styles.closeBtn} onClick={onClose} aria-label={t('Cerrar ayuda')}>
-                        <X size={17} strokeWidth={2.4} />
+                    <button type="button" className={`${styles.closeBtn} ui-close`} onClick={onClose} aria-label={t('Cerrar ayuda')}>
+                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 </header>
 

@@ -1929,11 +1929,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     ningún sitio — el dashboard nunca se fue. */}
                 <button
                     type="button"
-                    className={styles.exitSettingsBtn}
+                    className={`${styles.exitSettingsBtn} ui-close`}
                     onClick={requestExit}
                     aria-label={inDialog ? t('Cerrar configuración') : t('Volver')}
                 >
-                    {inDialog ? <X size={20} strokeWidth={2.5} /> : <ArrowLeft size={20} strokeWidth={2.5} />}
+                    {inDialog ? <X size={20} strokeWidth={2.25} aria-hidden="true" /> : <ArrowLeft size={20} strokeWidth={2.5} />}
                     <span>{inDialog ? t('Cerrar') : t('Volver')}</span>
                 </button>
 
