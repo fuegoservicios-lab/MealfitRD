@@ -37,8 +37,10 @@ describe('LoadingScreen: tiempo honesto', () => {
 describe('LoadingScreen: visual', () => {
     it('anillo de progreso real, órbita de días y stepper de fases', () => {
         expect(SRC).toContain('role="progressbar"');
-        expect(SRC).toContain('conic-gradient(from -90deg, var(--mf-ring-a) 0deg, var(--mf-ring-b) ${ringDeg}deg');
-        expect(SRC).toContain("className={`mf-sat ${daysCompleted.includes(d) ? 'is-done' : ''}`}");
+        expect(SRC).toContain('strokeDasharray={RING_C} strokeDashoffset={ringOffset}');   // arco = progreso real
+        expect(SRC).toContain('className="mf-comet-spin"');                                  // actividad aunque el % no avance
+        expect(SRC).toContain("className={`mf-day mf-day--${state}`}");                     // días: todo / active / done
+        expect(SRC).toContain("const state = daysCompleted.includes(d) ? 'done' : (d === activeDay ? 'active' : 'todo');");
         expect(SRC).toContain("{ key: 'perfil', phases: [null, 'analyzing']");
         expect(SRC).toContain("{ key: 'revision', phases: ['review']");
         expect(SRC).toContain("aria-current={state === 'active' ? 'step' : undefined}");

@@ -2712,7 +2712,19 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
             const byPct = LOADING_PHASE_GROUPS.findIndex(g => displayProgress < g.maxPct);
             return byPct === -1 ? LOADING_PHASE_GROUPS.length - 1 : byPct;
         })();
-    const ringDeg = Math.max(4, Math.min(360, Math.round(displayProgress * 3.6)));
+    // [P2-LOADING-RING-SVG · 2026-09-03] Anillo SVG con arco degradado, cabeza luminosa que
+    // recorre el progreso REAL, cometa de actividad y halo giratorio; los 3 días como insignias
+    // fijas alrededor (activa = pulso, completada = degradado con check).
+    const RING_R = 78;
+    const RING_C = 2 * Math.PI * RING_R;
+    const ringP = Math.max(0.01, Math.min(1, displayProgress / 100));
+    const ringOffset = RING_C * (1 - ringP);
+    const headAngle = -Math.PI / 2 + ringP * 2 * Math.PI;
+    const headX = 88 + RING_R * Math.cos(headAngle);
+    const headY = 88 + RING_R * Math.sin(headAngle);
+    const inDayPhase = ['day_1', 'day_2', 'day_3', 'parallel_generation'].includes(currentPhase);
+    const activeDay = status === 'ready' ? null : (inDayPhase ? Math.min(3, daysCompleted.length + 1) : null);
+    const DAY_ANGLES = [-90, 30, 150];
 
     return (
         <div className="mf-loading-bg" style={{
@@ -2729,10 +2741,42 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
             <style>{`
                 @keyframes mfPulse { 0%, 100% { opacity: 0.45; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
                 @keyframes mfOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                @keyframes mfGlow { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.7; } }
+                @keyframes mfFade { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.85; } }
+                @keyframes mfBreath { 0%, 100% { transform: scale(1); opacity: 0.45; } 50% { transform: scale(1.07); opacity: 1; } }
+                @keyframes mfDayPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(129,140,248,0.45); } 50% { box-shadow: 0 0 0 7px rgba(129,140,248,0); } }
                 .mf-pulse { animation: mfPulse 2.4s ease-in-out infinite; }
-                .mf-orbit-track { animation: mfOrbit 16s linear infinite; }
-                .mf-orbit-glow { animation: mfGlow 3.2s ease-in-out infinite; }
+                .mf-ringwrap { position: relative; width: 224px; height: 224px; margin: 0 auto 1.5rem; }
+                .mf-halo {
+                    position: absolute; inset: 14px; border-radius: 50%; opacity: 0.75; filter: blur(22px);
+                    background: conic-gradient(from 0deg, rgba(129,140,248,0) 0deg, rgba(129,140,248,0.45) 70deg, rgba(251,113,133,0.35) 140deg, rgba(129,140,248,0) 210deg);
+                    animation: mfOrbit 11s linear infinite;
+                }
+                .mf-ring-svg { position: absolute; inset: 24px; width: 176px; height: 176px; overflow: visible; }
+                .mf-arc { transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1); filter: drop-shadow(0 0 6px rgba(129,140,248,0.45)); }
+                .mf-head, .mf-head-glow { transition: cx 0.9s cubic-bezier(0.4, 0, 0.2, 1), cy 0.9s cubic-bezier(0.4, 0, 0.2, 1); }
+                .mf-head-glow { animation: mfFade 1.8s ease-in-out infinite; }
+                .mf-comet-spin { transform-box: view-box; transform-origin: 88px 88px; animation: mfOrbit 6s linear infinite; }
+                .mf-core {
+                    position: absolute; inset: 58px; border-radius: 50%; color: #F8FAFC;
+                    display: flex; align-items: center; justify-content: center;
+                    background: radial-gradient(circle, rgba(129,140,248,0.22) 0%, rgba(17,24,39,0.55) 62%, transparent 74%);
+                    border: 1px solid rgba(255,255,255,0.06);
+                }
+                .mf-core::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.06); animation: mfBreath 3s ease-in-out infinite; }
+                .mf-day {
+                    position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700;
+                    font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.45);
+                    background: rgba(11,17,32,0.88); border: 1px solid rgba(255,255,255,0.12);
+                    transition: color 0.45s ease, background 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
+                }
+                .mf-day--active { color: #F8FAFC; border-color: rgba(129,140,248,0.85); animation: mfDayPulse 1.6s ease-out infinite; }
+                .mf-day--done { color: #FFFFFF; border-color: transparent; background: linear-gradient(135deg, #818CF8, #FB7185); box-shadow: 0 6px 16px -6px rgba(251,113,133,0.55); }
+                .mf-pct {
+                    position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+                    font-variant-numeric: tabular-nums; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em;
+                    color: rgba(255,255,255,0.65); background: rgba(11,17,32,0.7); padding: 2px 9px; border-radius: 999px;
+                }
                 .mf-loading-bg { background: radial-gradient(ellipse at center, #1E293B 0%, #0F172A 70%); }
                 html[data-theme="dark"] .mf-loading-bg {
                     background-color: #0B1120;
@@ -2744,13 +2788,6 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                     background-size: cover, cover, cover, cover;
                     background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
                 }
-                .mf-sat {
-                    position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; margin: -5px;
-                    border-radius: 50%; background: rgba(255,255,255,0.14);
-                    border: 1px solid rgba(255,255,255,0.32);
-                    transition: background 0.45s ease, box-shadow 0.45s ease, border-color 0.45s ease;
-                }
-                .mf-sat.is-done { background: var(--mf-ring-b); border-color: var(--mf-ring-b); box-shadow: 0 0 0 4px rgba(251,113,133,0.18); }
                 .mf-steps { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 0; margin: 0 auto 1.75rem; max-width: 380px; }
                 .mf-step {
                     display: inline-flex; align-items: center; gap: 6px;
@@ -2766,7 +2803,8 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 .mf-step--done .mf-step-dot { background: transparent; color: var(--mf-ring-b); }
                 .mf-tip-card { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); border-radius: 14px; padding: 0.7rem 1rem; }
                 @media (prefers-reduced-motion: reduce) {
-                    .mf-orbit-track, .mf-pulse, .mf-orbit-glow, .mf-step--active .mf-step-dot { animation: none !important; }
+                    .mf-halo, .mf-comet-spin, .mf-head-glow, .mf-core::after, .mf-day--active, .mf-pulse, .mf-step--active .mf-step-dot { animation: none !important; }
+                    .mf-arc, .mf-head, .mf-head-glow { transition: none; }
                 }
             `}</style>
 
@@ -2793,45 +2831,41 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
                 style={{ width: '100%', maxWidth: '420px', textAlign: 'center', position: 'relative', zIndex: 2 }}
             >
-                {/* === ANILLO DE PROGRESO REAL + ÓRBITA DE DÍAS + ICONO DE FASE === */}
+                {/* === ANILLO SVG DE PROGRESO REAL + INSIGNIAS DE DÍAS + ICONO DE FASE === */}
                 <div
+                    className="mf-ringwrap"
                     role="progressbar"
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.round(displayProgress)}
                     aria-label={t('Progreso')}
-                    style={{ width: 176, height: 176, margin: '0 auto 1.75rem', position: 'relative' }}
                 >
-                    <div className="mf-orbit-glow" style={{
-                        position: 'absolute', inset: -18, borderRadius: '50%',
-                        background: 'radial-gradient(circle, rgba(129,140,248,0.22) 0%, rgba(251,113,133,0.10) 45%, transparent 70%)',
-                        filter: 'blur(6px)',
-                    }} />
-                    <div className="mf-orbit-track" style={{
-                        position: 'absolute', inset: 0, borderRadius: '50%',
-                        border: '1px dashed rgba(255,255,255,0.10)',
-                    }}>
-                        {[1, 2, 3].map((d, i) => (
-                            <span
-                                key={d}
-                                className={`mf-sat ${daysCompleted.includes(d) ? 'is-done' : ''}`}
-                                style={{ transform: `rotate(${i * 120 - 90}deg) translate(88px) rotate(${-(i * 120 - 90)}deg)` }}
-                                aria-hidden="true"
-                            />
-                        ))}
-                    </div>
-                    <div style={{
-                        position: 'absolute', inset: 18, borderRadius: '50%',
-                        background: `conic-gradient(from -90deg, var(--mf-ring-a) 0deg, var(--mf-ring-b) ${ringDeg}deg, rgba(255,255,255,0.08) ${ringDeg}deg 360deg)`,
-                        WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px))',
-                        mask: 'radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px))',
-                        transition: 'background 0.6s ease',
-                    }} />
-                    <div style={{
-                        position: 'absolute', inset: 30, borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
+                    <div className="mf-halo" aria-hidden="true" />
+                    <svg className="mf-ring-svg" viewBox="0 0 176 176" aria-hidden="true">
+                        <defs>
+                            <linearGradient id="mfRingGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stopColor="#818CF8" />
+                                <stop offset="100%" stopColor="#FB7185" />
+                            </linearGradient>
+                            <filter id="mfGlow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="3.5" />
+                            </filter>
+                        </defs>
+                        <circle cx="88" cy="88" r={RING_R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                        <g className="mf-comet-spin">
+                            <circle cx={88 + RING_R} cy="88" r="2.5" fill="#FFFFFF" opacity="0.55" />
+                        </g>
+                        <circle
+                            className="mf-arc"
+                            cx="88" cy="88" r={RING_R} fill="none"
+                            stroke="url(#mfRingGrad)" strokeWidth="8" strokeLinecap="round"
+                            strokeDasharray={RING_C} strokeDashoffset={ringOffset}
+                            transform="rotate(-90 88 88)"
+                        />
+                        <circle className="mf-head-glow" cx={headX} cy={headY} r="8" fill="#FB7185" filter="url(#mfGlow)" />
+                        <circle className="mf-head" cx={headX} cy={headY} r="4" fill="#FFFFFF" />
+                    </svg>
+                    <div className="mf-core">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={currentStep}
@@ -2839,20 +2873,29 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 1.12 }}
                                 transition={{ duration: 0.35 }}
-                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F8FAFC' }}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             >
                                 <StepIcon size={34} strokeWidth={1.6} />
                             </motion.div>
                         </AnimatePresence>
                     </div>
-                    <div style={{
-                        position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)',
-                        fontVariantNumeric: 'tabular-nums', fontSize: '0.74rem', fontWeight: 600,
-                        color: 'rgba(255,255,255,0.6)', letterSpacing: '0.04em',
-                        background: 'rgba(11,17,32,0.7)', padding: '2px 8px', borderRadius: 999,
-                    }}>
-                        {Math.round(displayProgress)}%
-                    </div>
+                    {[1, 2, 3].map((d, i) => {
+                        const a = (DAY_ANGLES[i] * Math.PI) / 180;
+                        const x = 112 + 100 * Math.cos(a);
+                        const y = 112 + 100 * Math.sin(a);
+                        const state = daysCompleted.includes(d) ? 'done' : (d === activeDay ? 'active' : 'todo');
+                        return (
+                            <span
+                                key={d}
+                                className={`mf-day mf-day--${state}`}
+                                style={{ left: x, top: y }}
+                                aria-hidden="true"
+                            >
+                                {state === 'done' ? <CheckCircle size={13} strokeWidth={2.6} /> : d}
+                            </span>
+                        );
+                    })}
+                    <div className="mf-pct">{Math.round(displayProgress)}%</div>
                 </div>
 
                 {/* === TÍTULO + FASE === */}
