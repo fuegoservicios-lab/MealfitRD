@@ -13,7 +13,7 @@
 // [P1-I18N-REANUDAR-TOASTS · 2026-08-22] Los cuatro toasts salían en español en los cinco
 // idiomas, y la traducción de tres de ellos YA estaba escrita en los cuatro catálogos.
 // Escapaban al detector de español sin envolver por FORMA, no por descuido:
-// `toast.loading('Reanudando…')` no pasa el filtro léxico (sin acento, sin palabra
+// `toast.loading('Reanudando…', { duration: 20000 })` no pasa el filtro léxico (sin acento, sin palabra
 // funcional) y `toast.success(cond ? 'a' : 'b')` es un ternario, que el escáner no mira.
 //
 // Duele más de lo que parece por DÓNDE está: es el único camino de vuelta desde la pausa
@@ -37,7 +37,7 @@ import { mensajeDeError } from './errorCopy';
 import { safeLocalStorageSet } from './safeLocalStorage';
 
 export const reanudarPlanes = async () => {
-    const tId = toast.loading(t('Reanudando…'), { position: 'top-center' });
+    const tId = toast.loading(t('Reanudando…'), { duration: 20000, position: 'top-center' });
     try {
         const r = await fetchWithAuth('/api/profile/plan-mode', {
             method: 'PUT',

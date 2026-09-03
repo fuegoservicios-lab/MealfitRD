@@ -1454,7 +1454,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 const permissionGranted = await requestNotificationPermission();
                 if (!permissionGranted) {
                     const msg = await getNotificationBlockedMessage();
-                    toast.error(msg, { duration: 7000 });
+                    toast.error(msg, { duration: 6000 });
                     setIsPushLoading(false);
                     return;
                 }
@@ -2341,7 +2341,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             if (isNavigatingRef.current || isResetting) return;
                             isNavigatingRef.current = true;
                             setIsResetting(true);
-                            const toastId = toast.loading(t('Borrando preferencias...'), { description: t('Preparando tu cuenta para un nuevo inicio.') });
+                            const toastId = toast.loading(t('Borrando preferencias...'), { duration: 20000, description: t('Preparando tu cuenta para un nuevo inicio.') });
                             try {
                                 const _planIdToDelete = planData?.id;
                                 if (_planIdToDelete) {
@@ -3064,7 +3064,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             {isPushBlocked && (
                                 <div
                                     role="alert"
-                                    onClick={async () => { const msg = await getNotificationBlockedMessage(); toast.error(msg, { duration: 7000 }); }}
+                                    onClick={async () => { const msg = await getNotificationBlockedMessage(); toast.error(msg, { duration: 6000 }); }}
                                     /* [P1-WARN-BANNER-TOKENS · 2026-08-11] Este aviso llevaba el ámbar
                                        CLARO clavado a mano (`#FFF7ED` de fondo, `#FED7AA` de borde,
                                        `#92400E` de texto) sin ninguna noción de tema, así que en

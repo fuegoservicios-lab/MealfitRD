@@ -2785,7 +2785,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // resume respalda). Se cae "con lo que tienes en tu Nevera", que además
         // solo era cierto en el modo pantry — este toast también sale con
         // reason='variety'.
-        const _dayLoadingId = toast.loading(t('Actualizando tu día…'), {
+        const _dayLoadingId = toast.loading(t('Actualizando tu día…'), { duration: 20000,
             description: t('Tarda de 3 a 5 minutos. Puedes salir — seguimos cocinando.'),
         });
         // [P1-DAY-REGEN-RESUME · 2026-07-10] Marker persistente del regen in-flight: si el
@@ -2841,7 +2841,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 if (data.error_code === 'pantry_insufficient_for_goal') {
                     toast.error(t('Faltan ingredientes en tu Nevera'), {
                         description: mensajeDeError(data, t('Tu Nevera no alcanza para cubrir tu objetivo del día. Agrega más ítems (sobre todo proteína).'), t),
-                        duration: 8000,
+                        duration: 6000, id: 'swap-result',
                         action: { label: t('Mi Nevera'), onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
                     });
                 } else if (data.error_code === 'ai_exhausted_retries') {
@@ -2851,7 +2851,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     // 2026-07-10 con la Nevera recién restockeada). Copy honesto + Reintentar.
                     toast.error(t('El chef no encontró alternativas esta vez'), {
                         description: mensajeDeError(data, t('No se descontó tu crédito. Vuelve a intentarlo en un momento.'), t),
-                        duration: 8000,
+                        duration: 6000, id: 'swap-result',
                         action: { label: t('Reintentar'), onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
                     });
                 } else {
@@ -2898,7 +2898,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // del toast de slots_kept, que comunica falta de inventario, no caída del proveedor).
                 _emitirDesenlace = () => toast.warning(t('La IA se interrumpió'), {
                     description: mensajeDeError(data, t('Algunos platos no se actualizaron. Reintenta para completar el día (no se descontó tu crédito).'), t),
-                    duration: 9000,
+                    duration: 6000, id: 'swap-result',
                     action: { label: t('Reintentar'), onClick: () => { try { regenerateDay(dayIndex, reason); } catch (_) { /* no-op */ } } },
                 });
             } else if (data?.day_quality_warning) {
@@ -2907,7 +2907,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // descartaba y mostraba "¡Día actualizado!" verde sobre un día sub-objetivo.
                 _emitirDesenlace = () => toast.warning(t('Día actualizado, pero por debajo de tu objetivo'), {
                     description: data.day_quality_warning,
-                    duration: 9000,
+                    duration: 6000, id: 'swap-result',
                     action: { label: t('Mi Nevera'), onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
                 });
             } else if (kept.length > 0) {
@@ -3438,7 +3438,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     // objetivo para este plato → avisar y llevar a la Nevera para agregar ítems.
                     toast.error(t('Faltan ingredientes en tu Nevera'), {
                         description: errMsg,
-                        duration: 8000,
+                        duration: 6000, id: 'swap-result',
                         action: {
                             label: t('Mi Nevera'),
                             onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } },
@@ -3496,7 +3496,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             if (newMealData.swap_quality_warning) {
                 toast.warning(t('Plato cambiado, pero menos preciso'), {
                     description: newMealData.swap_quality_warning,
-                    duration: 8000,
+                    duration: 6000, id: 'swap-result',
                 });
             }
 
@@ -4248,7 +4248,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
 
             if (subscriptionId) {
                 // Validación Segura B2B con nuestro Backend
-                toast.loading(t('Verificando tu pago. Por favor espera...'), { id: 'payment-verify' });
+                toast.loading(t('Verificando tu pago. Por favor espera...'), { duration: 20000, id: 'payment-verify' });
                 const response = await fetchWithAuth('/api/subscription/verify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

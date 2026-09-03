@@ -1907,7 +1907,7 @@ const Pantry = () => {
         if (isDeletingAll) return;
         setIsDeletingAll(true);
         setShowDeleteConfirm(false);
-        const loadingToast = toast.loading(t('Borrando todos los alimentos...'));
+        const loadingToast = toast.loading(t('Borrando todos los alimentos...'), { duration: 20000 });
         try {
             // [P1-NEON-DB-MIGRATION · 2026-06-12] DELETE /api/inventory/items
             // (sin id = vaciar nevera completa) → {deleted_count}. El backend

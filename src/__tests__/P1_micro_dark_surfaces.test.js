@@ -34,8 +34,14 @@ const INDEX = readFileSync(join(SRC, 'index.css'), 'utf8');
 /** Valor de un token DENTRO del bloque del tema oscuro. Se lee del sistema en vez de
  *  copiarlo aquí: una constante copiada a mano puede mentir cuando el original cambia. */
 function tokenOscuro(nombre) {
-    const i = INDEX.search(/\[data-theme=["']dark["']\]/);
-    const trozo = INDEX.slice(i, i + 4000);
+    // la REGLA del tema (con su llave), no la primera mención: hay comentarios que citan
+    // `html[data-theme="dark"]` cientos de líneas antes del bloque
+    const i = INDEX.search(/html\[data-theme=["']dark["']\]\s*\{/);
+    // el bloque entero del tema (hasta su cierre), no una ventana fija: una ventana de
+    // 4000 caracteres se desbordó el 2026-09-03 con dos comentarios nuevos y juró que el
+    // token había desaparecido
+    const fin = INDEX.indexOf('\n}', i);
+    const trozo = INDEX.slice(i, fin === -1 ? i + 12000 : fin);
     const m = new RegExp(`${nombre}:\\s*(#[0-9A-Fa-f]{6})`).exec(trozo);
     return m ? m[1] : null;
 }

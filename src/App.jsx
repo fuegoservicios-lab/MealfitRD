@@ -485,6 +485,12 @@ function App() {
           position="top-center"
           theme={appToastTheme}
           closeButton
+          // [P2-TOAST-POLICY · 2026-09-03] Política única: 4 s por defecto (éxito 3 s, error 6 s
+          // en los sitios que lo piden; NUNCA 8 o 10), como mucho DOS avisos visibles (el resto
+          // espera su turno) y los repetibles se reemplazan por `id` en vez de apilarse.
+          // Test: Toast.policy.test.js.
+          duration={4000}
+          visibleToasts={2}
           offset={{ top: 'calc(env(safe-area-inset-top, 0px) + 24px)' }}
           mobileOffset={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
         />

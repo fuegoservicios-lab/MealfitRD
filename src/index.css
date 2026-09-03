@@ -531,10 +531,8 @@ html[data-theme="dark"] {
      modo oscuro— sobre un panel de L* 8,3, y el blanco encima se quedaba en
      2,98:1 (AA pide 4,5). Al 75% cae a L* 49,6 y el blanco sube a 4,54:1,
      conservando +41 sobre el panel: sigue siendo el botón principal. */
-  /* [P2-PRIMARY-FILL-INK · 2026-09-03] La mezcla al 75% con el panel (L* 49,6)
-     seguía leyéndose «muy claro» —y además desaturaba: un índigo grisáceo—.
-     Ahora es índigo 700 sólido: blanco encima 7,9:1 (AA/AAA), L* 34,6, +26
-     sobre el panel. Mismo valor que el dueño aprobó en «Mejorar plan». */
+  /* [P2-PRIMARY-FILL-INK · 2026-09-03] Índigo 700 sólido (blanco 7,9:1, L* 34,6, +26 sobre el
+     panel): la mezcla al 75% con el panel se leía «muy claro» y desaturaba. */
   --primary-fill: #4338CA;
   /* [P1-CTA-FILL-DEPTH · 2026-08-14] Los índigos del tema oscuro son claros
      por diseño (sirven de tinta sobre fondo oscuro), así que como relleno hay
@@ -542,8 +540,7 @@ html[data-theme="dark"] {
      de L* 68,2 a 44,8 —deja de ser lo más luminoso de la pantalla— y el texto
      blanco sube de 2,43:1 a 5,42:1. Sigue destacando +36 sobre el panel: es un
      CTA, no un susurro. */
-  /* [P2-PRIMARY-FILL-INK · 2026-09-03] Índigo 600→700 sólidos (L* 40,7→34,6,
-     blanco 6,3:1 y 7,9:1): la mezcla con el panel apagaba el color. */
+  /* [P2-PRIMARY-FILL-INK] índigo 600→700 sólidos (blanco 6,3:1 y 7,9:1). */
   --cta-fill: linear-gradient(120deg, #4F46E5, #4338CA);
 
   --secondary: #34D399;        /* Emerald 400 */

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../i18n', () => ({
+    formatDate: () => '',
     useT: () => (key, values = {}) => Object.entries(values).reduce(
         (text, [name, value]) => text.replace(`{${name}}`, String(value)),
         key,

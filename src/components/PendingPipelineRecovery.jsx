@@ -269,7 +269,7 @@ export default function PendingPipelineRecovery() {
                         const { toast } = await import('sonner');
                         toast.error(t('Sin conexión con el servidor'), {
                             description: t('No pudimos verificar tu plan. Vuelve a intentar.'),
-                            duration: 8000,
+                            duration: 6000,
                         });
                     } catch { /* noop */ }
                     // Solo navegar si estamos en /plan (donde el user

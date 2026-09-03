@@ -501,7 +501,7 @@ const Recipes = () => {
             ingredients: _d.ingredients,
             recipe: _d.recipe,
         };
-        const toastId = toast.loading(t('Generando PDF de alta calidad...'));
+        const toastId = toast.loading(t('Generando PDF de alta calidad...'), { duration: 20000 });
         try {
             // [P1-PDF-ONE-PAGE · 2026-07-12] Espera a que las fuentes de la
             // página estén listas antes de medir (una fuente que carga tarde

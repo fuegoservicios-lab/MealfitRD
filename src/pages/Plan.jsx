@@ -812,7 +812,7 @@ const Plan = () => {
         // generar; bloquear nueva generación si ya no quedan.
         isGuest, consumeGuestCredit, remainingCredits,
         // [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Ver los dos call sites de `ack` abajo.
-        hydrateLatestPlan, updateData } = useAssessment();  // [P1-CHECKIN-QUEUE-PARITY] updateData faltaba en el destructuring (eslint no-undef)
+        updateData, hydrateLatestPlan } = useAssessment();  // [P1-CHECKIN-QUEUE-PARITY] updateData faltaba en el destructuring (eslint no-undef)
     const t = useT();
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     // [P2-LINT-ZERO · 2026-07-09] setTempPlan nunca se llamaba (setter muerto)
@@ -1178,7 +1178,7 @@ const Plan = () => {
                     import('sonner').then(({ toast }) => {
                         toast.info(t('Crea tu cuenta para generar más planes'), {
                             description: t('Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito (15/mes).'),
-                            duration: 9000,
+                            duration: 6000, id: 'plan-ready',
                         });
                     });
                     navigate('/dashboard', { replace: true });
@@ -1397,7 +1397,7 @@ const Plan = () => {
                                 // Se glosa al imprimir, igual que la nota clínica.
                                 description: glossReviewDisclaimer(generatedPlan?._review_disclaimer, t)
                                     || t("El plan se ajustó para cumplir tus condiciones médicas. Considera regenerarlo o revisarlo con tu nutricionista."),
-                                duration: 12000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         } else if (generatedPlan?._review_failed_but_delivered) {
                             // [P2-REVIEW-ISSUES-CLARO · 2026-09-02] Un solo aviso, corto: la primera
@@ -1414,7 +1414,7 @@ const Plan = () => {
                                 description: (_first + _more)
                                     || glossReviewDisclaimer(generatedPlan?._review_disclaimer, t)
                                     || t("Observaciones no-críticas. Puedes regenerarlo si prefieres."),
-                                duration: 10000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         } else if (
                             generatedPlan?._pantry_degraded_summary?.degraded
@@ -1422,7 +1422,7 @@ const Plan = () => {
                         ) {
                             toast.info(t("Algunos ingredientes faltan en tu nevera"), {
                                 description: t("Revisa la lista de compras antes de cocinar — algunos meals usan alternativas."),
-                                duration: 8000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         } else if (generatedPlan?._partial_repair) {
                             // [P1-PARTIAL-REPAIR-SURFACE · 2026-07-29] `_repair_stats.real_days` de
@@ -1438,7 +1438,7 @@ const Plan = () => {
                                     || (Number.isFinite(_rstats.real_days) && Number.isFinite(_rstats.requested_days)
                                         ? t('{reales} de {pedidos} días fueron generados por IA; el resto se completó con un menú matemático. Puedes regenerar si prefieres un plan 100% personalizado.', { reales: _rstats.real_days, pedidos: _rstats.requested_days })
                                         : t("Algunos días de tu plan se completaron con un menú matemático porque la IA no entregó todos los días esperados.")),
-                                duration: 12000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         }
                     }).catch(() => { /* toast best-effort */ });
@@ -1520,7 +1520,7 @@ const Plan = () => {
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Revisa tus restricciones"), {
                                 description: error.message || t("No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo."),
-                                duration: 10000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         });
                         navigate('/assessment', { replace: true });
@@ -1567,7 +1567,7 @@ const Plan = () => {
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Demasiadas condiciones médicas"), {
                                 description: error.message || t("Selecciona máximo 3 condiciones prioritarias para continuar."),
-                                duration: 10000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         });
                         return;
@@ -1580,7 +1580,7 @@ const Plan = () => {
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Ajusta tu presupuesto o tus metas"), {
                                 description: error.message || t("Tu presupuesto no alcanza para tus metas. Súbelo o reduce los días, las personas o tu meta calórica."),
-                                duration: 12000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         });
                         navigate('/assessment', { replace: true });
@@ -1594,7 +1594,7 @@ const Plan = () => {
                         import('sonner').then(({ toast }) => {
                             toast.error(t('El servidor se está actualizando'), {
                                 description: error.message || t('Espera unos segundos y vuelve a intentarlo.'),
-                                duration: 8000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         });
                         navigate('/assessment', { replace: true });
@@ -1610,7 +1610,7 @@ const Plan = () => {
                         import('sonner').then(({ toast }) => {
                             toast.error(t("La IA está saturada"), {
                                 description: error.message || t("Intenta de nuevo en 1-2 minutos."),
-                                duration: 8000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         });
                         navigate('/assessment', { replace: true });
@@ -1639,7 +1639,7 @@ const Plan = () => {
                                     label: t("Mejorar plan"),
                                     onClick: () => navigate('/dashboard/upgrade'),
                                 },
-                                duration: 10000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         });
                         if (!nativeHidesCommerce()) navigate('/dashboard/upgrade', { replace: true });
@@ -1741,7 +1741,7 @@ const Plan = () => {
                         import('sonner').then(({ toast }) => {
                             toast.error(t("Sin conexión con la IA"), {
                                 description: error.message || t("Verifica tu conexión y reintenta."),
-                                duration: 8000,
+                                duration: 6000, id: 'plan-ready',
                             });
                         });
                         navigate('/assessment', { replace: true });

@@ -1244,7 +1244,7 @@ const DashboardInner = () => {
                             despues: result.sodio_despues_mg,
                             nota: underCeilingCopy,
                         }),
-                    duration: 8000,
+                    duration: 6000, id: 'plan-status',
                 });
             } else if (result?.code === 'ceiling_not_sodium') {
                 // [P1-FIX-SODIUM-DAY-HONEST · 2026-08-02] `micro_worst_day_ceiling` no es
@@ -1253,7 +1253,7 @@ const DashboardInner = () => {
                 // potasio). No es un error — es información honesta: este botón no aplica
                 // aquí. El plan quedó intacto (el backend no tocó nada), así que NO
                 // refrescamos; el banner se queda tal cual.
-                toast(mensajeDeError(result, t('El aviso de este día no es por sodio.'), t), { duration: 7000 });
+                toast(mensajeDeError(result, t('El aviso de este día no es por sodio.'), t), { duration: 6000, id: 'plan-status' });
             } else if (result?.code === 'no_day_over_ceiling') {
                 // Honesto: puede que el panel ya estuviera stale (el usuario resolvió el día a
                 // mano). Refrescamos igual — si el banner seguía vivo por caché local, desaparece.
@@ -1264,7 +1264,7 @@ const DashboardInner = () => {
                 // el banner queda, el plan está intacto.
                 toast.error(t('El chef IA no pudo arreglar este día'), {
                     description: mensajeDeError(result, t('Inténtalo de nuevo en un momento.'), t),
-                    duration: 8000,
+                    duration: 6000, id: 'plan-status',
                 });
             }
         } catch (_e) {
@@ -1287,7 +1287,7 @@ const DashboardInner = () => {
         if (swapInFlightLock.current) return;
         swapInFlightLock.current = true;
         setRegeneratingId(mealIndex);
-        const toastId = toast.loading(loadingTitle, { description: t('Buscando una alternativa deliciosa...') });
+        const toastId = toast.loading(loadingTitle, { duration: 20000, description: t('Buscando una alternativa deliciosa...') });
         try {
             const result = await regenerateSingleMeal(
                 dayIndex, mealIndex, mealType, mealName,
@@ -1858,7 +1858,7 @@ const DashboardInner = () => {
         const _fecha = formatDate(_reset, { day: 'numeric', month: 'long', timeZone: 'UTC' });
         toast.error(t('Sin créditos este mes'), {
             description: t('Se renuevan el {fecha}.', { fecha: _fecha }),
-            duration: 7000,
+            duration: 6000, id: 'plan-status',
             ...(nativeHidesCommerce() ? {} : { action: { label: t('Mejorar plan'), onClick: () => navigate('/dashboard/upgrade') } }),
         });
     };
@@ -2399,13 +2399,13 @@ const DashboardInner = () => {
             setShowChunkBanner(false);
             toast.warning(t('Tu plan está listo (con respaldo) ⚠️'), {
                 description: t('Algunos días se completaron con comidas de tu perfil favorito porque la IA tuvo dificultades. Puedes regenerarlos cuando quieras.'),
-                duration: 8000,
+                duration: 6000, id: 'plan-status',
             });
         } else if (status === 'failed' && showChunkBanner) {
             setShowChunkBanner(false);
             toast.error(t('Hubo un problema generando las próximas semanas'), {
                 description: t('Tus días actuales están intactos. Intenta generar un nuevo plan pronto.'),
-                duration: 10000,
+                duration: 6000, id: 'plan-status',
             });
         }
 
@@ -3347,7 +3347,7 @@ const DashboardInner = () => {
             ? buildGlossIndex(_masterEnMemoria)
             : getCachedGlossIndex();
         try {
-            const loadingToast = toast.loading(t('Generando lista de compras...'), { position: 'top-center' });
+            const loadingToast = toast.loading(t('Generando lista de compras...'), { duration: 20000, position: 'top-center' });
 
             // Obtener duración actual desde el formulario para cambiar la cantidad en el PDF sobre la marcha
             const duration = formData?.groceryDuration || 'weekly';
@@ -3505,7 +3505,7 @@ const DashboardInner = () => {
                 toast.error(
                     t('Tu plan no tiene lista de compras todavía. Esto suele pasar cuando la generación quedó incompleta. Genera un plan nuevo desde el formulario.'),
                     {
-                        duration: 8000,
+                        duration: 6000, id: 'plan-status',
                         position: 'top-center',
                         icon: '⚠️',
                         style: { fontSize: '0.95rem', maxWidth: '480px', padding: '14px 18px', borderRadius: '12px', fontWeight: 500, lineHeight: 1.45 },
@@ -3614,7 +3614,7 @@ const DashboardInner = () => {
                     toast.error(
                         t('Tu plan no tiene lista de compras todavía. Esto suele pasar cuando la generación quedó incompleta. Genera un plan nuevo desde el formulario.'),
                         {
-                            duration: 8000,
+                            duration: 6000, id: 'plan-status',
                             position: 'top-center',
                             icon: '⚠️',
                             style: {
@@ -6661,12 +6661,12 @@ const DashboardInner = () => {
                                                     }
                                                     // [P3-DURATION-DROPDOWN-CLOSE-IMMEDIATE · 2026-05-17]
                                                     // Cerrar el dropdown INMEDIATAMENTE tras seleccionar, no esperar
-                                                    // a que termine el recalc (~1-3s). El toast.loading('Calculando...')
+                                                    // a que termine el recalc (~1-3s). El toast.loading('Calculando...', { duration: 20000 })
                                                     // ya da feedback visible del trabajo en background.
                                                     setShowDespensaDropdown(false);
                                                     if (userProfile?.id && planData) {
                                                         setIsRecalculating(true);
-                                                        const recalcToast = toast.loading(t('Calculando lista...'), { position: 'top-center' });
+                                                        const recalcToast = toast.loading(t('Calculando lista...'), { duration: 20000, position: 'top-center' });
                                                         try {
                                                             // [P0-B2] withRecalcLock garantiza release del lock en
                                                             // finally — antes el lock dependía de calls explícitos en
@@ -8269,7 +8269,7 @@ const DashboardInner = () => {
                             <button
                                 onClick={async () => {
                                     if (!userProfile?.id) return;
-                                    const tId = toast.loading(t('Refrescando próximos días…'), { position: 'top-center' });
+                                    const tId = toast.loading(t('Refrescando próximos días…'), { duration: 20000, position: 'top-center' });
                                     try {
                                         const res = await fetchWithAuth(`${API_BASE}/api/plans/shift-plan`, {
                                             method: 'POST',

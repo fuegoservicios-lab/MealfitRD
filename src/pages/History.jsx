@@ -1110,7 +1110,7 @@ const History = () => {
         const planRow = confirmRestore;
         setConfirmRestore(null);
         _closeDetailModal();
-        const toastId = toast.loading(t('Restaurando plan...'));
+        const toastId = toast.loading(t('Restaurando plan...'), { duration: 20000 });
 
         try {
             // [P2-HIST-RESTORE-ROW-UID · 2026-07-12] restorePlanFromHistory NO lanza en sus
@@ -1156,7 +1156,7 @@ const History = () => {
     const handleDeleteConfirm = async () => {
         const plan = confirmDelete;
         setConfirmDelete(null);
-        const toastId = toast.loading(t('Eliminando plan...'));
+        const toastId = toast.loading(t('Eliminando plan...'), { duration: 20000 });
 
         try {
             // [P0-HIST-3 · 2026-05-09] Endpoint atómico backend. Antes
