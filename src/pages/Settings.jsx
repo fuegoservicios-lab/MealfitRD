@@ -233,6 +233,39 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const isNavigatingRef = useRef(false);
     // --- ESTADOS LOCALES ---
     const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
+    // [P2-PLAN-LIMIT-BLOCK · 2026-09-03] El estado «sin créditos» era un botón apagado que decía
+    // «Límite de plan alcanzado» y, debajo, un enlace subrayado «Actualiza tu suscripción para
+    // continuar» — dos piezas grises que parecían un error. Ahora es UN bloque: qué pasa (sin
+    // créditos este mes), cuándo se resuelve solo (se renuevan el día 1, mismo cálculo que el
+    // Dashboard, P2-NO-CREDITS-CTA) y el CTA «Mejorar plan» en primario, oculto en nativo (Apple
+    // 3.1.1: sin comercio en la app). Rojo SOLO en 0 (P3-CREDITS-LAST-ONE). Se usa en la card de
+    // escritorio y, vía `ctaSlot`, en la pantalla inmersiva móvil.
+    const renderPlanLimitBlock = () => {
+        const _now = new Date();
+        const _reset = new Date(Date.UTC(_now.getUTCFullYear(), _now.getUTCMonth() + 1, 1));
+        const _fecha = formatDate(_reset, { day: 'numeric', month: 'long', timeZone: 'UTC' });
+        return (
+            <div className="plan-goal-limit" role="status">
+                <div className="plan-goal-limit-text">
+                    <div className="plan-goal-limit-title">
+                        <span className="plan-goal-limit-dot" aria-hidden="true" />
+                        {t('Sin créditos este mes')}
+                    </div>
+                    <div className="plan-goal-limit-sub">{t('Se renuevan el {fecha}.', { fecha: _fecha })}</div>
+                </div>
+                {!nativeHidesCommerce() && (
+                    <button
+                        type="button"
+                        className="plan-goal-limit-cta"
+                        onClick={() => navigateToSection('subscription')}
+                    >
+                        {t('Mejorar plan')}
+                        <ArrowRight size={17} strokeWidth={2.25} aria-hidden="true" />
+                    </button>
+                )}
+            </div>
+        );
+    };
     
     // Estado para las notificaciones (Avisos de comidas)
     // [P1-FRONTEND-LEGACY-LOCALSTORAGE-CRITICAL · 2026-05-23] safeLocalStorageGet
@@ -3532,6 +3565,39 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     color: #94A3B8;
                                     cursor: not-allowed;
                                 }
+                                /* [P2-PLAN-LIMIT-BLOCK · 2026-09-03] estado «sin créditos» */
+                                .plan-goal-limit {
+                                    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+                                    padding: 0.95rem 1.1rem; border-radius: 0.95rem;
+                                    border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+                                    background: color-mix(in srgb, var(--accent) 9%, var(--bg-card));
+                                }
+                                .plan-goal-limit-title {
+                                    display: flex; align-items: center; gap: 0.55rem;
+                                    font-family: var(--font-heading); font-weight: 700; font-size: 0.98rem; color: var(--text-main);
+                                }
+                                .plan-goal-limit-dot {
+                                    flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+                                    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+                                }
+                                .plan-goal-limit-sub { margin-top: 0.2rem; font-size: 0.85rem; color: var(--text-muted); }
+                                .plan-goal-limit-cta {
+                                    flex: none; display: inline-flex; align-items: center; gap: 0.4rem;
+                                    padding: 0.7rem 1.05rem; border-radius: 0.8rem; border: none;
+                                    background: var(--primary); color: #FFFFFF; font-weight: 700; font-size: 0.92rem;
+                                    cursor: pointer; font-family: inherit;
+                                    transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s ease, transform 0.12s ease;
+                                }
+                                .plan-goal-limit-cta:hover {
+                                    box-shadow: 0 14px 30px -8px color-mix(in srgb, var(--primary) 55%, transparent), inset 0 0 0 1.5px rgba(255, 255, 255, 0.3);
+                                    filter: brightness(1.06);
+                                }
+                                .plan-goal-limit-cta:active { transform: translateY(1px); filter: brightness(0.96); }
+                                .plan-goal-limit-cta:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+                                @media (max-width: 480px) {
+                                    .plan-goal-limit { flex-direction: column; align-items: stretch; }
+                                    .plan-goal-limit-cta { justify-content: center; }
+                                }
                                 .plan-goal-arrow {
                                     transition: transform 0.18s ease;
                                 }
@@ -3643,20 +3709,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         if (!planData) { setCurrentStep(1); navigate('/assessment'); return; }
                                         if (!isLimitReached) setShowEvaluateModal(true);
                                     }}
-                                    evaluateDisabled={planData ? isLimitReached : false}
-                                    evaluateLabel={!planData ? t('Actualizar mis datos') : (isLimitReached ? t('Límite de plan alcanzado') : t('Evaluar de nuevo'))}
+                                    evaluateDisabled={false}
+                                    evaluateLabel={!planData ? t('Actualizar mis datos') : t('Evaluar de nuevo')}
+                                    ctaSlot={planData && isLimitReached ? renderPlanLimitBlock() : null}
                                 />
-                                {isLimitReached && (
-                                    <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
-                                        <a
-                                            href="#subscription"
-                                            style={{ color: 'var(--primary)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
-                                            onClick={(e) => { e.preventDefault(); navigateToSection('subscription'); }}
-                                        >
-                                            {t('Actualiza tu suscripción para continuar')}
-                                        </a>
-                                    </div>
-                                )}
                             </div>
 
                             {/* DESKTOP (>768px): card existente, intacta. */}
@@ -3698,47 +3754,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 {/* CTA — [P1-SETTINGS-TRACKING-COHERENCE] sin plan, el botón
                                     actualiza tus datos (no hay plan que renovar ni crédito que
                                     gastar: el límite de planes no aplica aquí). */}
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (!planData) { setCurrentStep(1); navigate('/assessment'); return; }
-                                        if (!isLimitReached) setShowEvaluateModal(true);
-                                    }}
-                                    disabled={planData ? isLimitReached : false}
-                                    className="plan-goal-cta"
-                                >
-                                    {!planData ? t('Actualizar mis datos') : (isLimitReached ? t('Límite de plan alcanzado') : t('Evaluar de Nuevo'))}
-                                    <ArrowRight size={19} strokeWidth={2.25} className="plan-goal-arrow" />
-                                </button>
-
-                                {isLimitReached && (
-                                    <div style={{ textAlign: 'center', marginTop: '-0.5rem' }}>
-                                        <a
-                                            href="#subscription"
-                                            style={{
-                                                color: '#4F46E5',
-                                                fontSize: '0.9rem',
-                                                fontWeight: 500,
-                                                textDecoration: 'underline',
-                                                cursor: 'pointer',
-                                            }}
-                                            onClick={(e) => {
-                                                // [P3-SETTINGS-UPSELL-DEADLINK · 2026-06-01] El
-                                                // elemento id="subscription" solo se renderiza bajo
-                                                // activeSection==='subscription', mutuamente excluyente
-                                                // con la sección 'plan' donde vive este link → el
-                                                // querySelector devolvía null y el preventDefault
-                                                // mataba la navegación por hash = no-op total justo en
-                                                // el momento de conversión a pago. navigateToSection
-                                                // monta la sección de suscripción (setActiveSection +
-                                                // replaceState), patrón ya usado por el sidebar.
-                                                e.preventDefault();
-                                                navigateToSection('subscription');
-                                            }}
-                                        >
-                                            {t('Actualiza tu suscripción para continuar')}
-                                        </a>
-                                    </div>
+                                {planData && isLimitReached ? renderPlanLimitBlock() : (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!planData) { setCurrentStep(1); navigate('/assessment'); return; }
+                                            setShowEvaluateModal(true);
+                                        }}
+                                        className="plan-goal-cta"
+                                    >
+                                        {!planData ? t('Actualizar mis datos') : t('Evaluar de Nuevo')}
+                                        <ArrowRight size={19} strokeWidth={2.25} className="plan-goal-arrow" />
+                                    </button>
                                 )}
                             </div>
                             </div>

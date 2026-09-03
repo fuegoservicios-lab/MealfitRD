@@ -34,6 +34,8 @@ export default function PlanObjetivo({
     backButton = true,
     evaluateDisabled = false,
     evaluateLabel = tModulo('Evaluar de nuevo'),
+    // [P2-PLAN-LIMIT-BLOCK · 2026-09-03] Contenido que SUSTITUYE al botón (estado «sin créditos»).
+    ctaSlot = null,
 }) {
     const t = useT();
     const MACRO_META = getMacroMeta(t);
@@ -114,20 +116,23 @@ export default function PlanObjetivo({
 
             <div className={styles.spacer} />
 
-            <button
-                type="button"
-                className={styles.cta}
-                onClick={onEvaluate}
-                disabled={evaluateDisabled}
-            >
-                {evaluateLabel}
-                {!evaluateDisabled && <ArrowRight size={19} strokeWidth={2.25} className={styles.ctaArrow} />}
-            </button>
+            {ctaSlot || (
+                <button
+                    type="button"
+                    className={styles.cta}
+                    onClick={onEvaluate}
+                    disabled={evaluateDisabled}
+                >
+                    {evaluateLabel}
+                    {!evaluateDisabled && <ArrowRight size={19} strokeWidth={2.25} className={styles.ctaArrow} />}
+                </button>
+            )}
         </div>
     );
 }
 
 PlanObjetivo.propTypes = {
+    ctaSlot: PropTypes.node,
     goal: PropTypes.string.isRequired,
     kcal: PropTypes.number,
     macros: PropTypes.shape({
