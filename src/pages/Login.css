@@ -734,3 +734,8 @@
   justify-content: space-between;
   gap: 0.75rem;
 }
+
+/* [P2-LOCALE-POPUP-LEGIBLE · 2026-09-04] El login es oscuro fijo: el popup nativo del selector
+   de idioma (Windows/Chrome) debe renderizarse en esquema oscuro, o sale blanco con el texto
+   de la píldora encima. `color-scheme` a nivel de ELEMENTO es lo que Chrome consulta. */
+#mf-locale-login { color-scheme: dark; }

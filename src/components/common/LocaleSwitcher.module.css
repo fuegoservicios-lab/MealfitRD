@@ -26,6 +26,18 @@
 }
 
 .select:hover { color: var(--mf-text, #0f172a); border-color: var(--mf-text-muted, #64748b); }
+
+/* [P2-LOCALE-POPUP-LEGIBLE · 2026-09-04] En escritorio el desplegable NATIVO heredaba el color
+   apagado de la píldora sobre el popup blanco del sistema: cuatro idiomas invisibles (captura
+   del dueño en Windows). Las opciones llevan su propia superficie y su propio texto, tomados de
+   los tokens del contexto (login: --mf-*; app: --bg-card/--text-main), así que el popup se lee
+   en claro y en oscuro. En móvil el SO pone su rueda y esto no aplica. */
+.select option {
+    color: var(--mf-text, var(--text-main, #0f172a));
+    background: var(--mf-bg-card, var(--mf-bg, var(--bg-card, #ffffff)));
+    font-weight: 500;
+    padding: 0.35rem 0.5rem;
+}
 .select:focus-visible { outline: 2px solid var(--mf-primary, #10b981); outline-offset: 2px; }
 .select:disabled { opacity: 0.6; cursor: progress; }
 
