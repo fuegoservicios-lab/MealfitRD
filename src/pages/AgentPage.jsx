@@ -1674,7 +1674,10 @@ const AgentPage = () => {
         const row = el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`);
         if (!row) return;
         anchor.scrolled = true;
-        const top = row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12;
+        // v3: el contenedor lleva padding-top bajo la cabecera fija (~4.5rem): el ancla debe quedar
+        // DEBAJO de ese padding, no en el borde del contenedor (así se escondía bajo la cabecera).
+        const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
+        const top = row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - padTop - 12;
         try { el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); } catch { el.scrollTop = Math.max(0, top); }
     }, []);
     const layoutSentAnchor = useCallback(() => {
@@ -1690,7 +1693,8 @@ const AgentPage = () => {
             if (!cls?.contains('anchor-spacer') && !cls?.contains('messages-end-sentinel')) below += sib.offsetHeight || 0;
             sib = sib.nextElementSibling;
         }
-        const spacer = Math.max(0, el.clientHeight - row.offsetHeight - below - 24);
+        const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
+        const spacer = Math.max(0, el.clientHeight - padTop - row.offsetHeight - below - 24);
         const pending = Math.abs(anchorSpacerRef.current - spacer) > 2;
         if (pending) {
             anchorSpacerRef.current = spacer;

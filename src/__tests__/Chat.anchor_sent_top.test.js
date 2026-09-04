@@ -27,10 +27,12 @@ describe('anclar el mensaje enviado arriba', () => {
         const i = SRC.indexOf('const layoutSentAnchor = useCallback(() => {');
         const body = SRC.slice(i, i + 1400);
         expect(body).toContain('el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`)');
-        expect(body).toContain('const spacer = Math.max(0, el.clientHeight - row.offsetHeight - below - 24);');
+        expect(body).toContain('const spacer = Math.max(0, el.clientHeight - padTop - row.offsetHeight - below - 24);');
         expect(body).toContain('const pending = Math.abs(anchorSpacerRef.current - spacer) > 2;');
         const j = SRC.indexOf('const scrollToSentAnchor = useCallback(() => {');
-        expect(SRC.slice(j, j + 800)).toContain("el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })");
+        expect(SRC.slice(j, j + 1100)).toContain("el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })");
+        // el ancla queda bajo el padding-top (cabecera fija), no bajo la cabecera
+        expect(SRC.slice(j, j + 1100)).toContain('+ el.scrollTop - padTop - 12;');
         expect(SRC).toContain('<div className="anchor-spacer" aria-hidden="true" style={{ height: anchorSpacerPx, flex: \'none\' }} />');
         // el ancla se suelta al cambiar de conversación
         expect(SRC).toMatch(/sentAnchorRef\.current = null;\s*anchorSpacerRef\.current = 0;\s*setAnchorSpacerPx\(0\);\s*\}, \[currentSessionId\]\);/);
