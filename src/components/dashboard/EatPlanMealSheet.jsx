@@ -29,36 +29,39 @@ export default function EatPlanMealSheet({ mealName, timing, coverage, now = new
         <div className={styles.backdrop} role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div ref={containerRef} className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="eat-sheet-title" tabIndex={-1}>
                 <button type="button" className={`ui-close ${styles.close}`} onClick={onClose} aria-label={t('Cerrar')}><X size={18} /></button>
+                <p className={styles.eyebrow}>{t('Me lo comí')}</p>
                 <h2 id="eat-sheet-title" className={styles.title}>{t('¿Registrar {plato}?', { plato: mealName })}</h2>
 
-                {timing && (
-                    <p className={styles.line}>
-                        <Clock size={16} aria-hidden="true" />
-                        <span>{t('Son las {hora} y esto es {slot}.', { hora: fmtHour(now), slot: slotLabel })}</span>
-                    </p>
-                )}
-                {coverage && (
-                    <p className={styles.line}>
-                        <Refrigerator size={16} aria-hidden="true" />
-                        <span>{t('Tu Nevera tiene {n} de {total} ingredientes de este plato.', { n: coverage.present, total: coverage.total })}</span>
-                    </p>
-                )}
+                <div className={styles.facts}>
+                    {timing && (
+                        <p className={styles.fact}>
+                            <span className={styles.factIcon}><Clock size={17} aria-hidden="true" /></span>
+                            <span>{t('Son las {hora} y esto es {slot}.', { hora: fmtHour(now), slot: slotLabel })}</span>
+                        </p>
+                    )}
+                    {coverage && (
+                        <p className={styles.fact}>
+                            <span className={styles.factIcon}><Refrigerator size={17} aria-hidden="true" /></span>
+                            <span>{t('Tu Nevera tiene {n} de {total} ingredientes de este plato.', { n: coverage.present, total: coverage.total })}</span>
+                        </p>
+                    )}
+                </div>
 
                 <div className={styles.actions}>
-                    <button type="button" className={`ui-btn-primary ${styles.btn}`} disabled={busy || !!pending} onClick={run('now', () => onConfirm({ daysAgo: 0 }))}>
+                    <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy || !!pending} onClick={run('now', () => onConfirm({ daysAgo: 0 }))}>
                         {coverage && !timing ? t('Lo cociné igual, regístralo') : t('Lo comí ahora')}
                     </button>
                     {timing && (
-                        <button type="button" className={`ui-btn-ghost ${styles.btn}`} disabled={busy || !!pending} onClick={run('yesterday', () => onConfirm({ daysAgo: 1 }))}>
+                        <button type="button" className={`${styles.btn} ${styles.ghost}`} disabled={busy || !!pending} onClick={run('yesterday', () => onConfirm({ daysAgo: 1 }))}>
                             {t('Fue ayer')}
                         </button>
                     )}
                     {coverage && (
                         <>
-                            <button type="button" className={`ui-btn-ghost ${styles.btn}`} disabled={busy || !!pending} onClick={run('other', onAteOther)}>
+                            <button type="button" className={`${styles.btn} ${styles.ghost}`} disabled={busy || !!pending} onClick={run('other', onAteOther)}>
                                 {t('Comí otra cosa')}
                             </button>
-                            <button type="button" className={`ui-btn-ghost ${styles.btn}`} disabled={busy || !!pending} onClick={run('notyet', onNotYet)}>
+                            <button type="button" className={`${styles.btn} ${styles.quiet}`} disabled={busy || !!pending} onClick={run('notyet', onNotYet)}>
                                 {t('Todavía no lo comí')}
                             </button>
                         </>
