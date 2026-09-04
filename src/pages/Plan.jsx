@@ -2922,7 +2922,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                             {formatElapsed(elapsedSec)}
                         </span>
                     </div>
-                    <p style={{
+                    <p aria-live="polite" style={{
                         color: pastP90 ? 'rgba(252,211,77,0.92)' : 'rgba(255,255,255,0.6)',
                         fontSize: '0.85rem', lineHeight: 1.55, margin: '0.45rem auto 0', maxWidth: 340,
                     }}>
