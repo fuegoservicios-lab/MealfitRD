@@ -15,6 +15,11 @@ import {
 import { QPantryBuilder } from './questions/QPantryBuilder';
 // [P1-STAPLE-FOODS · 2026-08-02] Import directo (mismo patrón que QPantryBuilder arriba).
 import { QStapleFoods } from './questions/QStapleFoods';
+// [P1-ARQ25-F4-FORM · 2026-09-03] Formulario progresivo (Fase 4) + embudo del wizard.
+import { QMealOrganization } from './questions/QMealOrganization';
+import { QShoppingHabits } from './questions/QShoppingHabits';
+import { PLAN_POLICY_FORM_UI } from '../../config/planPolicy';
+import { trackWizard, flushWizardTelemetry } from '../../utils/wizardTelemetry';
 // [P1-PLAN-MODE · 2026-08-11] El paso 0 (¿plan o contador?) y el cierre del modo
 // seguimiento. El formulario se bifurca por `formData.appMode`: 10 pasos en
 // seguimiento, los 21+1 de siempre en plan.
@@ -306,6 +311,11 @@ const InteractiveAssessmentFlow = () => {
         // [P0-B3] Sin setTimeout artificial: navegamos directo; `Plan.jsx`
         // muestra su propio LoadingScreen mientras corre la generación SSE real.
         setIsSubmitting(true);
+        trackWizard('wizard_submit', {
+            index: currentStep, app_mode: formData.appMode || null, plan_source: formData.planSource || null,
+            policy_form: PLAN_POLICY_FORM_UI, form_version: PLAN_POLICY_FORM_UI ? 'v2' : 'v1',
+        });
+        flushWizardTelemetry();
         try {
             navigate('/plan');
         } catch (error) {
@@ -445,6 +455,14 @@ const InteractiveAssessmentFlow = () => {
             fields: ['groceryDuration'],
             component: <QHousehold onManualAdvance={nextStep} />
         },
+        // [P1-ARQ25-F4-FORM · 2026-09-03] Preguntas 4-6 del formulario progresivo (§6.7): opcionales,
+        // condicionales al ciclo (frescos solo si compras cada 15/30 días). Detrás del knob.
+        ...(PLAN_POLICY_FORM_UI ? [{
+            title: t('Tu compra y tu cocina (Opcional)'),
+            subtitle: t('Reposiciones de frescos, congelador y cocinar por tandas: así la lista y el plan se ajustan a tu ritmo real.'),
+            hasInternalNext: true,
+            component: <QShoppingHabits onManualAdvance={nextStep} />
+        }] : []),
         {
             title: <>{t('Tu presupuesto para compras')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
             subtitle: t('Ajustaremos los ingredientes para no afectar tu bolsillo.'),
@@ -494,6 +512,15 @@ const InteractiveAssessmentFlow = () => {
             fields: ['dislikes'],
             component: <QDislikes onManualAdvance={nextStep} />
         },
+        // [P1-ARQ25-F4-FORM · 2026-09-03] Pregunta 1 del formulario progresivo (§6.7): el perfil global
+        // de recurrencia. Obligatoria SOLO en el wizard (frontend-only en el test de paridad): el
+        // backend defaultea a `balanced` para clientes viejos.
+        ...(PLAN_POLICY_FORM_UI ? [{
+            title: <>{t('¿Cómo prefieres organizar tus comidas durante la semana?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Con esto el plan sabe si repetir es un acierto o un defecto.'),
+            fields: ['mealOrganization'],
+            component: <QMealOrganization onAutoAdvance={handleAutoAdvance} />
+        }] : []),
         {
             // [P1-STAPLE-FOODS · 2026-08-02] "Mis básicos" — OPCIONAL/skippeable (mismo patrón que
             // QSupplements): NO en REQUIRED_FORM_FIELDS, SIN asterisco rojo, el NextButton interno
@@ -673,6 +700,32 @@ const InteractiveAssessmentFlow = () => {
     // tarjeta del paso 0 deshabilitada (no podía ni ver el porqué).
     const _isTracking = formData.appMode === 'tracking' && !isGuest;
     const steps = _isTracking ? _trackingSteps : [_appModeStep, ...planOnlySteps];
+    // [P1-ARQ25-F4-FORM · 2026-09-03] Embudo del wizard (línea base del gate de la Fase 4): un
+    // `step_view` por paso visto, `wizard_start`/`wizard_restore` una vez por montaje, flush al
+    // ocultar la pestaña. Best-effort y con opt-out: nunca condiciona el wizard.
+    const _wizardStartedRef = useRef(false);
+    useEffect(() => {
+        const step = steps[currentStep];
+        const field = (step?.fields || [])[0] || null;
+        const meta = {
+            step_id: field || `step_${currentStep}`, field, index: currentStep, total: steps.length,
+            app_mode: formData.appMode || null, plan_source: formData.planSource || null,
+            policy_form: PLAN_POLICY_FORM_UI, form_version: PLAN_POLICY_FORM_UI ? 'v2' : 'v1',
+        };
+        if (!_wizardStartedRef.current) {
+            _wizardStartedRef.current = true;
+            trackWizard(currentStep > 0 ? 'wizard_restore' : 'wizard_start', meta);
+        }
+        trackWizard('step_view', meta);
+    }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        const onHide = () => flushWizardTelemetry({ beacon: true });
+        window.addEventListener('pagehide', onHide);
+        return () => {
+            window.removeEventListener('pagehide', onHide);
+            flushWizardTelemetry({ beacon: true });
+        };
+    }, []);
 
     // [P1-GUEST-STALE-SANEO · 2026-08-12] Valores residuales de una sesión
     // autenticada previa que el modo invitado no puede ejercer: se LIMPIAN, no
@@ -880,7 +933,13 @@ const InteractiveAssessmentFlow = () => {
                 
                 {(canSkip || stepFieldsFilled) && stepExtraValid && !isAutoAdvancing && (
                     <div style={{
-                        marginTop: '2rem',
+                        /* [P2-WIZARD-NAV-GAP-UNIFORM · 2026-09-04] Con `hasInternalNext` el
+                           «Siguiente» lo pinta la pregunta (NextButton, marginTop 2rem) y este
+                           bloque solo trae «Saltar…»: sus 2rem se SUMABAN al botón de arriba y la
+                           pareja quedaba a 32 px, contra los 12 px (gap 0.75rem) de los pasos
+                           normales. La distancia entre los dos botones es la misma en todos los
+                           pasos; los 2rem son la separación contenido → botones, no botón → botón. */
+                        marginTop: currentStepConfig.hasInternalNext ? '0.75rem' : '2rem',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '0.75rem',

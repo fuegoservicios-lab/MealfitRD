@@ -1360,9 +1360,29 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
   outline: none;
 }
 
-.mealfit-modal-content:focus-visible {
-  outline: 3px solid rgba(79, 70, 229, 0.65);
-  outline-offset: 2px;
+/* [P2-IOS-FOCUS-RING-ROOTS · 2026-09-04] Captura del dueño en iPhone: un anillo azul rodeaba el
+ * menú del botón ☰ y el diálogo de cerrar sesión. Es el anillo de foco por defecto de Safari:
+ * `useModalAccessibility` enfoca el contenedor raíz por código al abrir (lectores de pantalla +
+ * trap del Tab) y WebKit pinta el anillo también cuando el foco lo pone un script tras un toque;
+ * Chrome lo oculta. La regla de arriba solo cubría `.mealfit-modal-content` (Modal.jsx): los
+ * demás raíces (`role="dialog|alertdialog|menu"` + `tabIndex={-1}`) no tenían nada.
+ * Regla única para TODOS los raíces enfocables: sin contorno en `:focus`; el anillo de teclado
+ * solo con puntero fino (escritorio), donde `:focus-visible` sí distingue teclado de clic.
+ * Los controles de dentro conservan su propio `:focus-visible`. */
+[role="dialog"][tabindex="-1"]:focus,
+[role="alertdialog"][tabindex="-1"]:focus,
+[role="menu"][tabindex="-1"]:focus {
+  outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [role="dialog"][tabindex="-1"]:focus-visible,
+  [role="alertdialog"][tabindex="-1"]:focus-visible,
+  [role="menu"][tabindex="-1"]:focus-visible,
+  .mealfit-modal-content:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, 0.65);
+    outline-offset: 2px;
+  }
 }
 
 /* [P3-MAIN-FOCUS-RING · 2026-07-12] El target del skip-link (<main

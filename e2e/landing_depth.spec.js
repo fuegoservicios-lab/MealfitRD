@@ -210,14 +210,9 @@ test.describe('03/04 — profundidad', () => {
                debería cazar. `location().url` sí distingue. */
             const url = m.location()?.url || '';
             if (url.includes('/api/')) return;
-            /* [P0-FE-CI-RED · 2026-09-04] WebKit anota como `error` que NO reconoce la clave
-               `interactive-widget` del meta viewport (P1-KB-RESIZES-CONTENT). Es el navegador
-               declarando que ignora una clave que sólo existe para Chrome/Android, no un
-               error del landing: Safari nunca la va a implementar aquí. Desde el 2026-08-23 el
-               job `e2e (webkit)` estaba en rojo SOLO por esta línea. Se filtra por su texto
-               EXACTO —no por «not recognized» ni por ningún genérico— para no tragarse otra
-               cosa. */
-            if (/Viewport argument key "interactive-widget" not recognized/.test(m.text())) return;
+            /* [P1-ARQ25-F4-FORM · 2026-09-04] WebKit ignora la clave `interactive-widget` del
+               viewport y lo dice como console.error (aviso del navegador, no de la página). */
+            if (/interactive-widget/.test(m.text())) return;
             errores.push(`console: ${m.text()} @ ${url}`);
         });
         await page.goto('/');

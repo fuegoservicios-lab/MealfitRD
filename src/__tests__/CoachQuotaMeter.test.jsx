@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter.jsx';
-import { coachQuotaState } from '../components/agent/coachQuotaState.js';
+import { coachQuotaState } from '../utils/coachQuota';
 
 const q = (used, limit) => ({ used, limit, remaining: limit - used, resets_at: '2026-10-01T00:00:00+00:00' });
 

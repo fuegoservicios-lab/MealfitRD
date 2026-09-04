@@ -79,6 +79,9 @@ import SupermarketBrands from '../components/dashboard/SupermarketBrands';
 // [P2-AUDIT-V7-BATCH · 2026-07-04] (P2-8) lista por pasillo on-screen (antes solo PDF).
 // [P3-AGENT-PREFILL · 2026-06-15] Tocar un micronutriente → pregunta al coach IA.
 import { requestAgentPrefill } from '../utils/agentPrefill';
+// [P1-ARQ25-F4-FORM · 2026-09-03] Pantalla «solicitaste / aplicamos / por qué» (Fase 4).
+import PlanPolicyPanel from '../components/dashboard/PlanPolicyPanel';
+import { PLAN_POLICY_FORM_UI } from '../config/planPolicy';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 // [P3-MOTIVO-MODAL-REDESIGN · 2026-06-24] Selector de motivo rediseñado para
@@ -5063,6 +5066,14 @@ const DashboardInner = () => {
                     justify-content: center;
                     padding: 2.5rem 2rem 1.5rem 4rem;
                 }
+                /* [P2-POLICY-NOTE-IN-MARGIN · 2026-09-04] La nota de la política se alinea con la
+                   columna de texto del cuaderno (la línea roja va en left: 2.5rem; el texto, en 4rem)
+                   y queda por encima del ::before del margen. */
+                .menu-policy-note {
+                    position: relative;
+                    z-index: 1;
+                    margin: 1.25rem 1.5rem 0 4rem;
+                }
                 .menu-section-title {
                     font-size: 1.25rem;
                     font-weight: 700;
@@ -5933,6 +5944,9 @@ const DashboardInner = () => {
                     }
                     .menu-section-header {
                         padding: 1.25rem 1rem 0.5rem 1.75rem;
+                    }
+                    .menu-policy-note {
+                        margin: 1rem 0.75rem 0 1.75rem;
                     }
                     .option-buttons {
                         padding: 0.5rem 1.5rem 1.25rem 1.75rem;
@@ -8153,6 +8167,18 @@ const DashboardInner = () => {
 
                 {/* Left Column: MEALS TIMELINE */}
                 <div className={`meals-container${dayHasMealCards ? '' : ' meals-container--sin-filas'}`} style={{ flex: 2, alignSelf: 'start' }}>
+                    {/* [P2-POLICY-NOTE-IN-MARGIN · 2026-09-04] El panel vive DENTRO del cuaderno, así
+                        que respeta su geometría: arranca a la derecha de la línea roja del margen
+                        (como una nota pegada en la página), no encima de ella. */}
+                    {PLAN_POLICY_FORM_UI && planData?._plan_policy && (
+                        <div className="menu-policy-note">
+                            <PlanPolicyPanel
+                                policy={planData._plan_policy}
+                                fidelity={planData._fidelity_report}
+                                onEdit={() => navigate('/assessment')}
+                            />
+                        </div>
+                    )}
                     <div className="menu-section-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <h2 className="menu-section-title">

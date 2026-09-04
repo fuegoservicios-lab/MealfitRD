@@ -542,6 +542,10 @@ export const AssessmentProvider = ({ children }) => {
         // vía PUT /api/user/preferences/staple-foods (Ajustes); el backend además la hidrata
         // server-side para swap/regen-day (`_enrich_clinical_from_profile`).
         stapleFoods: [],
+        // [P1-ARQ25-F4-FORM · 2026-09-03] Formulario progresivo (Fase 4): intención de recurrencia y
+        // de compra. Vacío = sin respuesta (el backend defaultea y lo DECLARA en la política); nunca
+        // se siembra un valor (lección P1-COUNTRY-SYSTEM-F0).
+        mealOrganization: '', stapleAnchors: [], freshTopup: '', freezerMode: '', batchCooking: '',
         // [P1-MEDICATION-RULES · 2026-06-18] Medicamentos actuales (chips, OPCIONAL — array vacío = sin
         // medicamentos, sin sentinel "Ninguno"). Alimenta el motor de interacciones fármaco-alimento
         // (backend medication_rules.py): warfarina↔vit K, metformina↔B12, IECA/ARA-II↔potasio,

@@ -512,11 +512,19 @@
      deja de serlo (html/body overflow hidden, solo mientras el login está montado, vía
      :has). Si el contenido NO cabe (iPhone SE), el scroll ocurre dentro del login. Los
      glows pierden sus desplazamientos negativos: con overflow auto generarían recorrido. */
+  /* [P2-LOGIN-MOBILE-BG-UNIFORM · 2026-09-04] Captura del dueño (iPhone): la franja bajo el
+     último texto del login se veía de OTRO tono. El login mide `100dvh` y pinta su propio
+     fondo; todo lo que quede fuera de esa caja (la zona que Safari descubre al plegar su
+     barra, el rebote, el safe-area inferior) es el <body>, que llevaba `--bg-page` del
+     dashboard (otro azul). El lienzo del documento se pinta del MISMO valor que `--mf-bg`
+     mientras el login está montado; el literal se repite porque el token vive dentro de
+     `.mf-login` y html/body no lo ven (test: Login.mobile_bg_uniform). */
   html:has(.mf-login),
   body:has(.mf-login) {
     height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
+    background: #080C16;
   }
   .mf-login {
     grid-template-columns: 1fr;
@@ -533,7 +541,14 @@
      horizontal dentro del login (medido). */
   .mf-glow { position: fixed; }
   .mf-glow--a { left: -160px; top: -120px; }
-  .mf-glow--b { right: -140px; bottom: -160px; }
+  /* [P2-LOGIN-MOBILE-BG-UNIFORM · 2026-09-04 · sonda en el iPhone del dueño] En la app instalada
+     (standalone, iOS 26) el viewport de layout mide 797 px en una pantalla de 844: los 47 px del
+     pie NO son documento; WebKit los pinta con el COLOR de fondo del <body> («extended
+     background»: solo color, sin imágenes). En Safari la zona análoga es la barra plegada, que
+     va con el theme-color. Ambas son planas, así que el borde inferior del login tiene que ser
+     plano también: este glow (verde, `bottom: -160px`, blur 90) teñía justo esa franja y la
+     costura seguía viéndose con html/body y theme-color ya iguales. Fuera en móvil. */
+  .mf-glow--b { display: none; }
   .mf-showcase { display: none; }
 
   .mf-form {
@@ -733,4 +748,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+/* [P2-LOCALE-POPUP-LEGIBLE · 2026-09-04] El login es oscuro fijo: el popup nativo del selector
+   de idioma (Windows/Chrome) debe renderizarse en esquema oscuro, o sale blanco con el texto
+   de la píldora encima. `color-scheme` a nivel de ELEMENTO es lo que Chrome consulta. */
+#mf-locale-login { color-scheme: dark; }
+
+/* [P2-LOCALE-LISTBOX-DESKTOP · 2026-09-04] El listbox propio del selector se viste con los tokens
+   del contexto; el login no tenía superficie de tarjeta ni texto apagado con prefijo --mf-, y sin
+   ellos el menú caía a los del dashboard (blanco sobre el login oscuro). Declarados en el scope
+   del brandmark, donde vive el control. */
+.mf-brandmark--with-locale {
+  --mf-bg-card: #0F1626;
+  --mf-text-muted: var(--mf-text-dim);
 }

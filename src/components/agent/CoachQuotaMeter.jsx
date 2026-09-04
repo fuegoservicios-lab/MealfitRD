@@ -1,7 +1,9 @@
 import { MessageSquare } from 'lucide-react';
 import { useT, formatDate } from '../../i18n';
 import styles from './CoachQuotaMeter.module.css';
-import { coachQuotaState } from './coachQuotaState';
+// [P1-ARQ25-F4-FORM · 2026-09-04] `coachQuotaState` vive en utils: la regla react-refresh
+// (Fast Refresh) no quiere no-componentes exportados junto al componente.
+import { coachQuotaState } from '../../utils/coachQuota';
 
 /* [P1-COACH-QUOTA-METER · 2026-09-02] Medidor de la cuota MENSUAL del coach.
    El backend ya separaba el chat de los planes (verify_coach_quota) pero ninguna
@@ -17,6 +19,7 @@ import { coachQuotaState } from './coachQuotaState';
      quería perder.
    - `caption` (móvil): línea discreta sobre el cuadro de texto, SOLO cuando
      queda poco (ámbar) o nada (rojo) si `onlyWhenLow`. */
+
 export default function CoachQuotaMeter({ quota, variant = 'pill', onlyWhenLow = false }) {
     const t = useT();
     const q = coachQuotaState(quota);

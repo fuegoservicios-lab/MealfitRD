@@ -42,6 +42,8 @@ describe('P0-12 — findFirstIncompleteField con el contrato nuevo (household fi
         gender: 'male', age: 30, height: 175, weight: 75, weightUnit: 'kg',
         activityLevel: 'moderate', scheduleType: '9to5', sleepHours: 8,
         stressLevel: 'low', cookingTime: 'medium', budget: 'medium',
+        // [P1-ARQ25-F4-FORM] el perfil de recurrencia es obligatorio en el wizard (Fase 4)
+        mealOrganization: 'balanced',
         householdSize: 1, groceryDuration: 'biweekly',
         dietType: 'balanced', allergies: ['Ninguna'], dislikes: ['Ninguno'],
         medicalConditions: ['Ninguna'], mainGoal: 'lose', struggles: ['Ninguno'],
