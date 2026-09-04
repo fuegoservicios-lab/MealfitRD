@@ -32,6 +32,14 @@ describe('cambiar plato: tope del cliente', () => {
         expect(SRC).toContain("if (!_swapTimedOut) safeLocalStorageRemove('mealfit_meal_regen_inflight');");
     });
 
+    it('con cuenta, un fallo del swap conserva el plato actual y avisa; el plato inventado queda solo para invitados', () => {
+        const i = SRC.indexOf('const localFallback = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);');
+        const antes = SRC.slice(i - 700, i);
+        expect(antes).toContain('if (_swapResumable) {');
+        expect(antes).toContain("toast.error(t('No se pudo cambiar el plato'), { description: t('Revisa tu conexión e inténtalo de nuevo.') });");
+        expect(antes).toContain('return null;');
+    });
+
     it('el aviso existe en los 4 catálogos', () => {
         for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
             const cat = JSON.parse(read(`src/i18n/locales/${loc}.json`));

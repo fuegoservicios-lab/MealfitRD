@@ -3807,6 +3807,14 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 });
                 return null;
             }
+            // [P1-SWAP-CLIENT-TIMEOUT v2 · 2026-09-04] Con cuenta y plan en el servidor, un fallo del swap
+            // NO se disfraza con un plato inventado en el cliente (el dueño lo vio: «apareció un plato
+            // distinto y luego el original»). Se conserva el plato actual y se avisa. El fallback local
+            // queda SOLO para invitados, cuyo plan vive únicamente en este navegador.
+            if (_swapResumable) {
+                toast.error(t('No se pudo cambiar el plato'), { description: t('Revisa tu conexión e inténtalo de nuevo.') });
+                return null;
+            }
             const localFallback = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);
 
             const updatedPlan = { ...planData };
