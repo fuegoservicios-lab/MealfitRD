@@ -364,7 +364,7 @@ const TrackingProgress = ({ planData, userId }) => {
 
         const ok = await confirmToast(
             t('¿Eliminar "{nombre}" del diario? Esta acción no se puede deshacer.', { nombre: meal.meal_name }),
-            { confirmLabel: t('Eliminar'), cancelLabel: t('Cancelar') }
+            { confirmLabel: t('Eliminar'), cancelLabel: t('Cancelar'), danger: true }
         );
         if (!ok) return;
 

@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet }
 // [P1-TOASTER-MISSING · 2026-05-30] sonner <Toaster/> — sin él la app NO
 // renderiza ningún toast (sonner no auto-monta). Ver el render abajo.
 import { Toaster } from 'sonner';
+// [P2-CONFIRM-DIALOG-PLACEMENT · 2026-09-04] host único de las confirmaciones de `confirmToast`
+import ConfirmDialogHost from './components/common/ConfirmDialogHost';
 import Layout from './components/layout/Layout';
 // [P3-ROUTE-TITLE · 2026-06-29] Título de pestaña por ruta (minimalista + coherente).
 import RouteTitle from './components/layout/RouteTitle';
@@ -480,6 +482,9 @@ function App() {
             ya resuelta ahí dentro), así que el aviso debe seguir a la APP: si el usuario
             eligió oscuro, esa pregunta ya está contestada y el toast no tiene por qué
             contestarla otra vez por su cuenta. */}
+        {/* [P2-CONFIRM-DIALOG-PLACEMENT · 2026-09-04] Las confirmaciones (borrar del diario, pausar
+            planes, olvidar un hecho) se dibujan aquí como diálogo: centrado en PC, hoja en móvil. */}
+        <ConfirmDialogHost />
         <Toaster
           richColors
           position="top-center"
