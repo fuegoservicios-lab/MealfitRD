@@ -1714,6 +1714,23 @@ const AgentPage = () => {
     useLayoutEffect(() => {
         scrollToSentAnchor();
     }, [anchorSpacerPx, scrollToSentAnchor]);
+    // [P2-CHAT-RELOAD-BOTTOM v2] «Pegado al fondo»: un ResizeObserver sobre el hilo. Cuando el
+    // contenido crece (imágenes, markdown diferido, respuesta que llega) y el usuario NO ha subido a
+    // leer, el fondo se mantiene sin timers ni saltos; con un mensaje recién enviado anclado arriba
+    // manda el ancla. Se activa al cargar el historial y se desactiva al subir (>120 px).
+    const stickToBottomRef = useRef(false);
+    useEffect(() => {
+        const el = messagesContainerRef.current;
+        const list = messagesEndRef.current?.parentElement;
+        if (!el || !list || typeof ResizeObserver === 'undefined') return undefined;
+        const ro = new ResizeObserver(() => {
+            if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;
+            const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+            if (dist > 2) { try { el.scrollTop = el.scrollHeight; } catch { /* no-op */ } }
+        });
+        ro.observe(list);
+        return () => ro.disconnect();
+    }, [currentSessionId]);
     const scrollToBottom = (force = false, behaviorOverride = null) => {
         if (userScrolledUpRef.current && !force) return;
         if (scrollRafRef.current) return; // ya hay un scroll agendado este frame
@@ -1749,6 +1766,8 @@ const AgentPage = () => {
             const scrolledUp = distanceFromBottom > 120;
             userScrolledUpRef.current = scrolledUp;
             setShowJumpToLatest(scrolledUp);
+            if (scrolledUp) stickToBottomRef.current = false;  // [P2-CHAT-RELOAD-BOTTOM v2]
+            else if (distanceFromBottom <= 2) stickToBottomRef.current = true;
         } catch (_e) {
             // Defensivo contra browsers raros que devuelvan NaN o lancen
             // en getters. NO afecta el flow del chat.
@@ -2141,17 +2160,17 @@ const AgentPage = () => {
             const _MAX_RETRIES_GLOBAL = 3;
             if (retryCount >= _MAX_RETRIES_GLOBAL || (response && response.ok)) {
                 setIsLoadingHistory(false);
-                // [P2-CHAT-RELOAD-BOTTOM · 2026-09-04] Tras cargar el historial, al FONDO de verdad: el
-                // scrollIntoView del centinela se queda corto porque imágenes y markdown terminan de
-                // medir después (el dueño lo vio con la barra clásica: «no se scrollea completo»).
-                // Tres pasadas forzadas; si hay un mensaje recién enviado anclado, se respeta.
-                [0, 250, 900].forEach((ms) => setTimeout(() => {
-                    if (sentAnchorRef.current) return;
+                // [P2-CHAT-RELOAD-BOTTOM v2 · 2026-09-04] Historial cargado: pegar al fondo UNA vez y dejar
+                // que el observador de altura (abajo, stickToBottom) lo mantenga mientras imágenes y
+                // markdown terminan de medir. Los tres timers de la v1 se veían como «el scroll se
+                // mueve solo cada unos segundos».
+                stickToBottomRef.current = true;
+                userScrolledUpRef.current = false;
+                setShowJumpToLatest(false);
+                requestAnimationFrame(() => {
                     const el = messagesContainerRef.current;
-                    if (el) { try { el.scrollTop = el.scrollHeight; } catch { /* no-op */ } }
-                    userScrolledUpRef.current = false;
-                    setShowJumpToLatest(false);
-                }, ms));
+                    if (el && !sentAnchorRef.current) { try { el.scrollTop = el.scrollHeight; } catch { /* no-op */ } }
+                });
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

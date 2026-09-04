@@ -17,8 +17,10 @@ describe('scrollbar clásica del chat', () => {
         expect(SRC).toContain('@supports not selector(::-webkit-scrollbar) {');
         expect(SRC).toContain("scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);");
         // al recargar, al fondo de verdad
-        expect(SRC).toContain('[0, 250, 900].forEach((ms) => setTimeout(() => {');
-        expect(SRC).toContain('if (el) { try { el.scrollTop = el.scrollHeight; } catch { /* no-op */ } }');
+        expect(SRC).toContain('stickToBottomRef.current = true;');
+        expect(SRC).toContain('const ro = new ResizeObserver(() => {');
+        expect(SRC).toContain('if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;');
+        expect(SRC).not.toContain('[0, 250, 900].forEach');
         expect(SRC).not.toContain('.messages-container::-webkit-scrollbar {\n                    width: 6px;');
     });
 });
