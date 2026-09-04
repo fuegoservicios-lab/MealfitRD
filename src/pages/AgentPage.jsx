@@ -3281,6 +3281,21 @@ const AgentPage = () => {
                 acciones de un toque que mandan directo al coach. Viven DENTRO del wrapper de la
                 caja (sticky en escritorio, fijo en móvil): fuera de él quedaban en el flujo del
                 scroller y la caja pegajosa las tapaba en PC. */}
+            {/* [P2-CHAT-JUMP-TO-LATEST-DESKTOP · 2026-09-04] El botón vivía fuera del cuadro y su estilo
+                solo existía en el bloque móvil (≤1024 px): en PC se pintaba como un <button> sin estilo
+                estirado a todo el ancho («una barra rara con un punto»). Anclado al cuadro de escribir,
+                un solo estilo sirve en PC, móvil y con el teclado abierto. */}
+            {!isCentered && showJumpToLatest && messages.length > 0 && (
+                <button
+                    type="button"
+                    className="jump-to-latest"
+                    aria-label={t('Ir al mensaje más reciente')}
+                    title={t('Ir al mensaje más reciente')}
+                    onClick={() => scrollToBottom(true, 'smooth')}
+                >
+                    <ArrowDown size={18} strokeWidth={2.4} aria-hidden="true" />
+                </button>
+            )}
             {!isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
                 <div className="chat-quick-chips" role="group" aria-label={t('Acciones rápidas')}>
                     {[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')].map((texto) => (
@@ -3714,6 +3729,31 @@ const AgentPage = () => {
     return (
         <>
             <style>{`
+                /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP · 2026-09-04] «Ir al último mensaje»: píldora
+                   flotante anclada al cuadro de escribir (position: absolute respecto al
+                   .input-wrapper, que es sticky en PC y relative en móvil). Un solo estilo. */
+                .jump-to-latest {
+                    position: absolute;
+                    top: -3.1rem;
+                    right: 1.25rem;
+                    z-index: 18;
+                    width: 40px;
+                    height: 40px;
+                    padding: 0;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 999px;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    color: var(--text-main);
+                    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+                    cursor: pointer;
+                    transition: box-shadow 0.15s ease, filter 0.15s ease;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .jump-to-latest:hover { box-shadow: 0 10px 28px rgba(15, 23, 42, 0.26); filter: brightness(1.04); }
+                .jump-to-latest:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.55); outline-offset: 2px; }
                 /* [P1-CHAT-DELETE-TOUCH · 2026-08-10] La papelera de cada conversación
                    se revelaba SOLO con :hover, y en un teléfono no hay hover: desde el
                    móvil no se podía borrar NINGUNA conversación. Con el tope de 40
@@ -4542,18 +4582,6 @@ const AgentPage = () => {
                         )}
                     </div>
 
-                    {showJumpToLatest && messages.length > 0 && (
-                        <button
-                            type="button"
-                            className="jump-to-latest"
-                            aria-label={t('Ir al mensaje más reciente')}
-                            title={t('Ir al mensaje más reciente')}
-                            onClick={() => scrollToBottom(true, 'smooth')}
-                        >
-                            <ArrowDown size={20} strokeWidth={2.4} />
-                        </button>
-                    )}
-
                     {/* Area condicional para input */}
                     {/* Input Area (Pinned to bottom if messages exist) */}
                     {messages.length > 0 && renderInputArea(false)}
@@ -4864,26 +4892,8 @@ const AgentPage = () => {
                         transition: padding-bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
                         border-radius: 0 !important;
                     }
-                    .jump-to-latest {
-                        position: absolute;
-                        right: max(1rem, env(safe-area-inset-right, 0px));
-                        bottom: calc(6.8rem + 64px + env(safe-area-inset-bottom, 0px));
-                        z-index: 18;
-                        width: 44px;
-                        height: 44px;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        border-radius: 999px;
-                        border: 1px solid var(--border);
-                        background: var(--bg-card);
-                        color: var(--text-main);
-                        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
-                        cursor: pointer;
-                    }
-                    html[data-kb-open] .jump-to-latest {
-                        bottom: 6.25rem;
-                    }
+                    /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP] el botón vive dentro del .input-wrapper: sin
+                       reglas de bottom contra la barra de pestañas ni el teclado. */
                     /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23 · corregido el 23] Con teclado no
                        hay barra de pestañas (ver BottomTabBar.module.css): la caja suelta la
                        reserva y queda pegada al teclado, que es donde se escribe.
