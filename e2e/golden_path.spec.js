@@ -47,6 +47,11 @@ test.describe('Golden path smoke', () => {
          ruta. Filtrar por texto se tragaría también un 500 de un recurso propio. */
       const url = msg.location?.()?.url || '';
       if (url.includes('/api/')) return;
+      /* [P1-ARQ25-F4-FORM · 2026-09-04] WebKit no conoce la clave `interactive-widget` del
+         viewport (P1-KB-RESIZES-CONTENT) y lo anota como console.error: es el navegador
+         avisando de una clave que ignora, no un error de la página. Filtro por ESE texto
+         exacto y nada más; el resto del filtro sigue siendo por URL. */
+      if (/interactive-widget/.test(msg.text())) return;
       consoleErrors.push(`console.error: ${msg.text()}`);
     });
 

@@ -210,6 +210,9 @@ test.describe('03/04 — profundidad', () => {
                debería cazar. `location().url` sí distingue. */
             const url = m.location()?.url || '';
             if (url.includes('/api/')) return;
+            /* [P1-ARQ25-F4-FORM · 2026-09-04] WebKit ignora la clave `interactive-widget` del
+               viewport y lo dice como console.error (aviso del navegador, no de la página). */
+            if (/interactive-widget/.test(m.text())) return;
             errores.push(`console: ${m.text()} @ ${url}`);
         });
         await page.goto('/');
