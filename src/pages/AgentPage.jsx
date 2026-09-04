@@ -1663,6 +1663,11 @@ const AgentPage = () => {
     // 'auto' (instantáneo) mientras el último mensaje stremea; 'smooth' solo en
     // el update final/no-streaming. Sin reflow read en código de app.
     const scrollRafRef = useRef(null);
+    // [P2-CHAT-RELOAD-BOTTOM v3 · 2026-09-04] Al refrescar, el hilo debe APARECER ya abajo, no
+    // llegar abajo animándose («cada vez que refresco se mueve»): durante los 2 s posteriores a
+    // cargar el historial, cualquier scroll automático es instantáneo.
+    const historyLoadedAtRef = useRef(0);
+    const _justLoaded = () => Date.now() - historyLoadedAtRef.current < 2000;
     // [P2-CHAT-ANCHOR-SENT-TOP · 2026-09-04] Al enviar, la conversación sube y el mensaje recién
     // enviado queda ARRIBA del hilo; la respuesta crece debajo (como ChatGPT/Claude/Gemini). Un
     // espaciador al final del hilo reserva el sitio para que el ancla pueda llegar arriba, y se
@@ -1740,7 +1745,7 @@ const AgentPage = () => {
             const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
             // [P2-CHAT-ANCHOR-SENT-TOP v5] 'instant' y no 'auto': el contenedor lleva scroll-behavior:
             // smooth y 'auto' hereda la animación → cada chunk temblaba. 'instant' la anula.
-            const behavior = behaviorOverride || (last?.isStreaming ? 'instant' : 'smooth');
+            const behavior = behaviorOverride || ((last?.isStreaming || _justLoaded()) ? 'instant' : 'smooth');
             if (msgs.length > VIRTUALIZE_THRESHOLD) {
                 virtualizedListRef.current?.scrollToBottom({ behavior });
             } else {
@@ -2169,6 +2174,7 @@ const AgentPage = () => {
                 stickToBottomRef.current = true;
                 userScrolledUpRef.current = false;
                 setShowJumpToLatest(false);
+                historyLoadedAtRef.current = Date.now();  // [P2-CHAT-RELOAD-BOTTOM v3]
                 requestAnimationFrame(() => {
                     const el = messagesContainerRef.current;
                     if (el && !sentAnchorRef.current) { try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; } }

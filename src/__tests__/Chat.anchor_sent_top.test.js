@@ -26,17 +26,17 @@ describe('anclar el mensaje enviado arriba', () => {
     });
     it('el layout del ancla lleva el mensaje arriba y calcula el espaciador con lo que hay debajo', () => {
         const i = SRC.indexOf('const layoutSentAnchor = useCallback(() => {');
-        const body = SRC.slice(i, i + 1400);
+        const body = SRC.slice(i, i + 2200);
         expect(body).toContain('el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`)');
         expect(body).toContain('let spacer = Math.max(0, Math.round(rowTop + el.clientHeight - contentWithoutSpacer));');
         expect(body).toContain('if (anchor.scrolled && spacer > anchorSpacerRef.current) spacer = anchorSpacerRef.current;');
         expect(body).toContain('const pending = Math.abs(anchorSpacerRef.current - spacer) > 6;');
         // sin animación en los ajustes automáticos (el contenedor tiene scroll-behavior: smooth)
-        expect(SRC).toContain("const behavior = behaviorOverride || (last?.isStreaming ? 'instant' : 'smooth');");
+        expect(SRC).toContain("const behavior = behaviorOverride || ((last?.isStreaming || _justLoaded()) ? 'instant' : 'smooth');");
         const j = SRC.indexOf('const scrollToSentAnchor = useCallback(() => {');
-        expect(SRC.slice(j, j + 1100)).toContain("el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })");
+        expect(SRC.slice(j, j + 1400)).toContain("el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })");
         // el ancla queda bajo el padding-top (cabecera fija), no bajo la cabecera
-        expect(SRC.slice(j, j + 1100)).toContain('+ el.scrollTop - padTop - 12;');
+        expect(SRC.slice(j, j + 1400)).toContain('+ el.scrollTop - padTop - 12;');
         expect(SRC).toContain('<div className="anchor-spacer" aria-hidden="true" style={{ height: anchorSpacerPx, flex: \'none\' }} />');
         // el ancla se suelta al cambiar de conversación
         expect(SRC).toMatch(/sentAnchorRef\.current = null;\s*anchorSpacerRef\.current = 0;\s*setAnchorSpacerPx\(0\);\s*\}, \[currentSessionId\]\);/);

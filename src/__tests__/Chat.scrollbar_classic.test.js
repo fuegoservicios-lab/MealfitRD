@@ -18,6 +18,9 @@ describe('scrollbar clásica del chat', () => {
         expect(SRC).toContain("scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);");
         // al recargar, al fondo de verdad
         expect(SRC).toContain('stickToBottomRef.current = true;');
+        // al refrescar, nada se anima: ventana de 2 s con scroll instantáneo
+        expect(SRC).toContain('historyLoadedAtRef.current = Date.now();');
+        expect(SRC).toContain("((last?.isStreaming || _justLoaded()) ? 'instant' : 'smooth')");
         expect(SRC).toContain('const ro = new ResizeObserver(() => {');
         expect(SRC).toContain('if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;');
         expect(SRC).not.toContain('[0, 250, 900].forEach');
