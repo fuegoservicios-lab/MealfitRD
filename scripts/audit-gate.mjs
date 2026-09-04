@@ -75,37 +75,99 @@ if (_caducadas.length > 0) {
   process.exit(1);
 }
 
-let report;
-try {
-  // npm audit sale con code != 0 cuando hay vulns; el JSON viene en stdout igual.
-  // Comando ESTÁTICO sin interpolación de input → sin superficie de inyección
-  // (execSync se usa a propósito: `npm` es `npm.cmd` en Windows y execFile sin
-  // shell no lo resolvería en runs locales).
-  const out = execSync('npm audit --omit=dev --json', {
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  report = JSON.parse(out);
-} catch (e) {
-  if (!e.stdout) {
-    console.error('[audit-gate] npm audit no produjo JSON:', e.message);
-    process.exit(2);
-  }
-  report = JSON.parse(e.stdout);
+// [P1-AUDIT-GATE-REINTENTO · 2026-09-04] El registro de npm YA NO tiene red de
+// seguridad: `npm audit` pide primero el endpoint bulk (`advisories/bulk`) y, si
+// esa llamada falla, cae al endpoint quick (`audits/quick`)… que npm retiró
+// («This endpoint is being retired», HTTP 400). Antes un tropiezo del bulk lo
+// rescataba el quick; ahora un tropiezo del bulk es un 400 seguro. Medido en el
+// run 485 de este repo: 6m54s colgado en el bulk, 400 en el quick y el gate en
+// rojo con el MISMO árbol que había pasado en los runs 483 y 484 (3m16s y 4m41s:
+// el registro estuvo degradado la hora entera; en régimen normal tarda segundos).
+//
+// Por eso el gate reintenta la auditoría ENTERA hasta `INTENTOS` veces, y SOLO
+// cuando lo que vuelve no es un veredicto (error del registro / red / JSON
+// ilegible). Un veredicto CON vulnerabilidades no se reintenta jamás: es
+// determinista, y reintentarlo sería buscar un pase por agotamiento. Agotados
+// los intentos, el gate sigue FAIL-CLOSED (exit 2): reintentar no es abrir la
+// puerta, es llamar más de una vez antes de decidir que nadie contesta.
+//
+// `AUDIT_GATE_PAUSAS_MS` existe para que el test funcional
+// (src/__tests__/audit_gate_reintento.test.js) recorra el bucle sin esperar
+// minuto y medio; en CI y en local no se define y valen las pausas de abajo.
+const INTENTOS = 3;
+const PAUSAS_MS = (process.env.AUDIT_GATE_PAUSAS_MS || '30000,60000')
+  .split(',')
+  .map((n) => Math.max(0, Number(n) || 0));
+
+function dormir(ms) {
+  // Espera SÍNCRONA (el script entero lo es): Atomics.wait está permitido en el
+  // hilo principal de Node y no depende de `sleep`, que no existe en Windows.
+  if (ms > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-// [P1-CI-FAIL-CLOSED · 2026-07-12] FAIL-CLOSED ante un audit inválido. Si el
-// endpoint de `npm audit` cae, npm emite `{ error: {...} }` en stdout (o un objeto
-// sin `vulnerabilities`); parsearlo dejaba `report.vulnerabilities` undefined →
-// `Object.entries({})` → 0 offenders → el gate imprimía ✓ y salía 0 (fail-OPEN: un
-// gate de seguridad que se abre justo cuando NO pudo auditar). Un audit que no
-// produce el mapa de vulnerabilidades NO es un pase — es un fallo del gate.
-if (!report || typeof report !== 'object' || report.error || !report.vulnerabilities) {
+function correrNpmAudit() {
+  let out;
+  try {
+    // npm audit sale con code != 0 cuando hay vulns; el JSON viene en stdout igual.
+    // Comando ESTÁTICO sin interpolación de input → sin superficie de inyección
+    // (execSync se usa a propósito: `npm` es `npm.cmd` en Windows y execFile sin
+    // shell no lo resolvería en runs locales).
+    out = execSync('npm audit --omit=dev --json', {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (e) {
+    if (!e.stdout) {
+      // Ni siquiera arrancó (npm ausente, proceso matado): no es un tropiezo
+      // del registro y reintentarlo no cambia nada.
+      console.error('[audit-gate] npm audit no produjo JSON:', e.message);
+      process.exit(2);
+    }
+    out = e.stdout;
+  }
+  try {
+    return JSON.parse(out);
+  } catch (e) {
+    // Antes esto reventaba con un SyntaxError sin capturar (exit 1 con traza):
+    // fail-closed por accidente. Ahora es un «sin veredicto» explícito.
+    return { _sinVeredicto: 'stdout no es JSON: ' + e.message };
+  }
+}
+
+// [P1-CI-FAIL-CLOSED · 2026-07-12] Un audit VÁLIDO trae el mapa `vulnerabilities`
+// (aunque esté vacío). Si el endpoint cae, npm emite `{ error: {...} }` en stdout
+// (o un objeto sin `vulnerabilities`); tratarlo como «0 vulns» era fail-OPEN.
+function esVeredicto(r) {
+  return !!r && typeof r === 'object' && !r.error && !r._sinVeredicto && !!r.vulnerabilities;
+}
+
+let report;
+for (let intento = 1; intento <= INTENTOS; intento++) {
+  report = correrNpmAudit();
+  if (esVeredicto(report)) break;
+  const motivo = report && report._sinVeredicto
+    ? report._sinVeredicto
+    : JSON.stringify((report && report.error) || report).slice(0, 200);
+  if (intento < INTENTOS) {
+    const pausa = PAUSAS_MS[intento - 1] ?? PAUSAS_MS[PAUSAS_MS.length - 1] ?? 0;
+    console.error(
+      `[audit-gate] intento ${intento}/${INTENTOS} sin veredicto (${motivo}); ` +
+      `reintento en ${Math.round(pausa / 1000)}s`
+    );
+    dormir(pausa);
+  }
+}
+
+// FAIL-CLOSED ante un audit inválido. Un audit que no produce el mapa de
+// vulnerabilidades NO es un pase — es un fallo del gate: falla en vez de pasar
+// en silencio.
+if (!esVeredicto(report)) {
   console.error(
     '[audit-gate] ❌ npm audit no devolvió un reporte de vulnerabilidades válido ' +
-    '(endpoint caído / red / formato inesperado). FAIL-CLOSED: el gate NO puede ' +
-    'garantizar ausencia de vulns → falla en vez de pasar en silencio.' +
-    (report && report.error ? ' error=' + JSON.stringify(report.error).slice(0, 200) : '')
+    `en ${INTENTOS} intentos (endpoint caído / red / formato inesperado). FAIL-CLOSED: ` +
+    'el gate NO puede garantizar ausencia de vulns → falla en vez de pasar en silencio.' +
+    (report && report.error ? ' error=' + JSON.stringify(report.error).slice(0, 200) : '') +
+    (report && report._sinVeredicto ? ' motivo=' + String(report._sinVeredicto).slice(0, 200) : '')
   );
   process.exit(2);
 }
