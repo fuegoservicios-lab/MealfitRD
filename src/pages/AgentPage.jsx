@@ -1694,16 +1694,16 @@ const AgentPage = () => {
         if (!anchor || !el) return null;
         const row = el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`);
         if (!row) return null;
-        let below = 0;
-        let sib = row.nextElementSibling;
-        while (sib) {
-            const cls = sib.classList;
-            if (!cls?.contains('anchor-spacer') && !cls?.contains('messages-end-sentinel')) below += sib.offsetHeight || 0;
-            sib = sib.nextElementSibling;
-        }
+        // v5: por GEOMETRÍA del scroll, no sumando alturas de burbujas (márgenes, gaps y separadores
+        // de día dejaban un hueco sobrante abajo). Queremos que, con el ancla arriba, el final del
+        // contenido coincida con el final de la ventana: S = topAncla + clientHeight − contenidoSinS.
         const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
-        const spacer = Math.max(0, el.clientHeight - padTop - row.offsetHeight - below - 24);
-        const pending = Math.abs(anchorSpacerRef.current - spacer) > 2;
+        const rowTop = row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - padTop - 12;
+        const contentWithoutSpacer = el.scrollHeight - anchorSpacerRef.current;
+        let spacer = Math.max(0, Math.round(rowTop + el.clientHeight - contentWithoutSpacer));
+        // mientras llega la respuesta el espaciador solo ENCOGE (crecer de vuelta = temblor)
+        if (anchor.scrolled && spacer > anchorSpacerRef.current) spacer = anchorSpacerRef.current;
+        const pending = Math.abs(anchorSpacerRef.current - spacer) > 6;
         if (pending) {
             anchorSpacerRef.current = spacer;
             setAnchorSpacerPx(spacer);
@@ -1726,7 +1726,7 @@ const AgentPage = () => {
         const ro = new ResizeObserver(() => {
             if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;
             const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-            if (dist > 2) { try { el.scrollTop = el.scrollHeight; } catch { /* no-op */ } }
+            if (dist > 2) { try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; } }
         });
         ro.observe(list);
         return () => ro.disconnect();
@@ -1738,7 +1738,9 @@ const AgentPage = () => {
             scrollRafRef.current = null;
             const msgs = messagesRef.current;
             const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
-            const behavior = behaviorOverride || (last?.isStreaming ? 'auto' : 'smooth');
+            // [P2-CHAT-ANCHOR-SENT-TOP v5] 'instant' y no 'auto': el contenedor lleva scroll-behavior:
+            // smooth y 'auto' hereda la animación → cada chunk temblaba. 'instant' la anula.
+            const behavior = behaviorOverride || (last?.isStreaming ? 'instant' : 'smooth');
             if (msgs.length > VIRTUALIZE_THRESHOLD) {
                 virtualizedListRef.current?.scrollToBottom({ behavior });
             } else {
@@ -2169,7 +2171,7 @@ const AgentPage = () => {
                 setShowJumpToLatest(false);
                 requestAnimationFrame(() => {
                     const el = messagesContainerRef.current;
-                    if (el && !sentAnchorRef.current) { try { el.scrollTop = el.scrollHeight; } catch { /* no-op */ } }
+                    if (el && !sentAnchorRef.current) { try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; } }
                 });
             }
         }

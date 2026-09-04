@@ -28,8 +28,11 @@ describe('anclar el mensaje enviado arriba', () => {
         const i = SRC.indexOf('const layoutSentAnchor = useCallback(() => {');
         const body = SRC.slice(i, i + 1400);
         expect(body).toContain('el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`)');
-        expect(body).toContain('const spacer = Math.max(0, el.clientHeight - padTop - row.offsetHeight - below - 24);');
-        expect(body).toContain('const pending = Math.abs(anchorSpacerRef.current - spacer) > 2;');
+        expect(body).toContain('let spacer = Math.max(0, Math.round(rowTop + el.clientHeight - contentWithoutSpacer));');
+        expect(body).toContain('if (anchor.scrolled && spacer > anchorSpacerRef.current) spacer = anchorSpacerRef.current;');
+        expect(body).toContain('const pending = Math.abs(anchorSpacerRef.current - spacer) > 6;');
+        // sin animación en los ajustes automáticos (el contenedor tiene scroll-behavior: smooth)
+        expect(SRC).toContain("const behavior = behaviorOverride || (last?.isStreaming ? 'instant' : 'smooth');");
         const j = SRC.indexOf('const scrollToSentAnchor = useCallback(() => {');
         expect(SRC.slice(j, j + 1100)).toContain("el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })");
         // el ancla queda bajo el padding-top (cabecera fija), no bajo la cabecera
