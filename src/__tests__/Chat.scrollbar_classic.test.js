@@ -13,7 +13,12 @@ describe('scrollbar clásica del chat', () => {
         expect(SRC).toContain('::-webkit-scrollbar-button:vertical:decrement');
         expect(SRC).toContain('::-webkit-scrollbar-button:vertical:increment');
         expect(SRC).toMatch(/scrollbar-button \{\s*display: block;\s*height: 14px;/);
+        // Chromium: sin scrollbar-color/width en el elemento (desactivarían las flechas); Firefox lo recibe bajo @supports
+        expect(SRC).toContain('@supports not selector(::-webkit-scrollbar) {');
         expect(SRC).toContain("scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);");
+        // al recargar, al fondo de verdad
+        expect(SRC).toContain('[0, 250, 900].forEach((ms) => setTimeout(() => {');
+        expect(SRC).toContain('if (el) { try { el.scrollTop = el.scrollHeight; } catch { /* no-op */ } }');
         expect(SRC).not.toContain('.messages-container::-webkit-scrollbar {\n                    width: 6px;');
     });
 });

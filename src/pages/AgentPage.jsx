@@ -2141,6 +2141,17 @@ const AgentPage = () => {
             const _MAX_RETRIES_GLOBAL = 3;
             if (retryCount >= _MAX_RETRIES_GLOBAL || (response && response.ok)) {
                 setIsLoadingHistory(false);
+                // [P2-CHAT-RELOAD-BOTTOM · 2026-09-04] Tras cargar el historial, al FONDO de verdad: el
+                // scrollIntoView del centinela se queda corto porque imágenes y markdown terminan de
+                // medir después (el dueño lo vio con la barra clásica: «no se scrollea completo»).
+                // Tres pasadas forzadas; si hay un mensaje recién enviado anclado, se respeta.
+                [0, 250, 900].forEach((ms) => setTimeout(() => {
+                    if (sentAnchorRef.current) return;
+                    const el = messagesContainerRef.current;
+                    if (el) { try { el.scrollTop = el.scrollHeight; } catch { /* no-op */ } }
+                    userScrolledUpRef.current = false;
+                    setShowJumpToLatest(false);
+                }, ms));
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4735,9 +4746,14 @@ const AgentPage = () => {
                    veía y no se sabía dónde hacer clic). Los selectores llevan html delante para
                    ganar al atenuado global del tema oscuro de index.css (misma especificidad, esta
                    hoja carga después). En móvil sigue oculta (bloque de abajo). */
-                html .sidebar-scrollable, html .messages-container {
-                    scrollbar-width: auto;
-                    scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);
+                /* Solo Firefox (no tiene ::-webkit-scrollbar). En Chromium, scrollbar-width y
+                   scrollbar-color sobre el MISMO elemento desactivan todas las pseudo-clases
+                   ::-webkit-scrollbar-* (Chrome 121+): por eso las flechas no salían. */
+                @supports not selector(::-webkit-scrollbar) {
+                    html .sidebar-scrollable, html .messages-container {
+                        scrollbar-width: auto;
+                        scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);
+                    }
                 }
                 html .sidebar-scrollable::-webkit-scrollbar, html .messages-container::-webkit-scrollbar {
                     width: 12px;
