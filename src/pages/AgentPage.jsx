@@ -1668,6 +1668,29 @@ const AgentPage = () => {
     // cargar el historial, cualquier scroll automático es instantáneo.
     const historyLoadedAtRef = useRef(0);
     const _justLoaded = () => Date.now() - historyLoadedAtRef.current < 2000;
+    // [P2-CHAT-RELOAD-BOTTOM v4 · 2026-09-04] «Asentar y revelar»: tras cargar el historial, el
+    // hilo queda invisible (visibility: hidden conserva el layout) mientras markdown e imágenes
+    // terminan de medir; cada cambio de altura lo vuelve a pegar al fondo sin animación y
+    // reinicia un temporizador de 150 ms. Cuando la altura lleva 150 ms quieta (o a los 900 ms
+    // como tope) se revela ya colocado abajo: cero desplazamiento visible al refrescar.
+    const [threadSettling, setThreadSettling] = useState(false);
+    const settleTimerRef = useRef(null);
+    const settleCapRef = useRef(null);
+    const _pinBottomInstant = () => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; }
+    };
+    const _revealThread = useCallback(() => {
+        if (settleTimerRef.current) { clearTimeout(settleTimerRef.current); settleTimerRef.current = null; }
+        if (settleCapRef.current) { clearTimeout(settleCapRef.current); settleCapRef.current = null; }
+        _pinBottomInstant();
+        setThreadSettling(false);
+    }, []);
+    const _armSettle = useCallback(() => {
+        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+        settleTimerRef.current = setTimeout(_revealThread, 150);
+    }, [_revealThread]);
     // [P2-CHAT-ANCHOR-SENT-TOP · 2026-09-04] Al enviar, la conversación sube y el mensaje recién
     // enviado queda ARRIBA del hilo; la respuesta crece debajo (como ChatGPT/Claude/Gemini). Un
     // espaciador al final del hilo reserva el sitio para que el ancla pueda llegar arriba, y se
@@ -1729,13 +1752,14 @@ const AgentPage = () => {
         const list = messagesEndRef.current?.parentElement;
         if (!el || !list || typeof ResizeObserver === 'undefined') return undefined;
         const ro = new ResizeObserver(() => {
+            if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }  // [v4] asentando
             if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;
             const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
             if (dist > 2) { try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; } }
         });
         ro.observe(list);
         return () => ro.disconnect();
-    }, [currentSessionId]);
+    }, [currentSessionId, _armSettle]);
     const scrollToBottom = (force = false, behaviorOverride = null) => {
         if (userScrolledUpRef.current && !force) return;
         if (scrollRafRef.current) return; // ya hay un scroll agendado este frame
@@ -2175,9 +2199,13 @@ const AgentPage = () => {
                 userScrolledUpRef.current = false;
                 setShowJumpToLatest(false);
                 historyLoadedAtRef.current = Date.now();  // [P2-CHAT-RELOAD-BOTTOM v3]
+                // [P2-CHAT-RELOAD-BOTTOM v4] asentar y revelar
+                setThreadSettling(true);
+                _armSettle();
+                if (settleCapRef.current) clearTimeout(settleCapRef.current);
+                settleCapRef.current = setTimeout(_revealThread, 900);
                 requestAnimationFrame(() => {
-                    const el = messagesContainerRef.current;
-                    if (el && !sentAnchorRef.current) { try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; } }
+                    if (!sentAnchorRef.current) _pinBottomInstant();
                 });
             }
         }
@@ -4499,7 +4527,8 @@ const AgentPage = () => {
                             justifyContent: 'flex-start',
                             alignItems: messages.length === 0 ? 'flex-start' : 'center',
                             background: messages.length === 0 ? 'var(--bg-card)' : 'var(--bg-card)',
-                            scrollBehavior: 'smooth'
+                            scrollBehavior: 'smooth',
+                            visibility: threadSettling ? 'hidden' : 'visible'  // [P2-CHAT-RELOAD-BOTTOM v4]
                         }}
                     >
                         {messages.length === 0 && !isLoadingHistory ? (

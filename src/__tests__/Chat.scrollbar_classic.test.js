@@ -20,6 +20,11 @@ describe('scrollbar clásica del chat', () => {
         expect(SRC).toContain('stickToBottomRef.current = true;');
         // al refrescar, nada se anima: ventana de 2 s con scroll instantáneo
         expect(SRC).toContain('historyLoadedAtRef.current = Date.now();');
+        // asentar y revelar: invisible hasta que la altura se estabiliza, luego ya abajo
+        expect(SRC).toContain("visibility: threadSettling ? 'hidden' : 'visible'");
+        expect(SRC).toContain('settleTimerRef.current = setTimeout(_revealThread, 150);');
+        expect(SRC).toContain('settleCapRef.current = setTimeout(_revealThread, 900);');
+        expect(SRC).toContain('if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }');
         expect(SRC).toContain("((last?.isStreaming || _justLoaded()) ? 'instant' : 'smooth')");
         expect(SRC).toContain('const ro = new ResizeObserver(() => {');
         expect(SRC).toContain('if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;');
