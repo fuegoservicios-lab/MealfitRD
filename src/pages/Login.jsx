@@ -131,6 +131,7 @@ const Login = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { activateGuestMode, session } = useAssessment();
+    const [diagTaps, setDiagTaps] = useState(0); // [DIAG-LOGIN-BAND · TEMPORAL]
     const [guestLoading, setGuestLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -388,7 +389,7 @@ const Login = () => {
         <div className="mf-login" data-side="left" data-anim="on">
             <div className="mf-glow mf-glow--a" aria-hidden="true" />
             <div className="mf-glow mf-glow--b" aria-hidden="true" />
-            {isLoginDiag && <LoginDiag />}
+            {(isLoginDiag || diagTaps >= 5) && <LoginDiag />}
 
             {/* Preview del plan (decorativo, oculto en móvil) */}
             <aside className="mf-showcase" aria-hidden="true">
@@ -398,7 +399,9 @@ const Login = () => {
             {/* Formulario (auth real) */}
             <section id="main-content" tabIndex={-1} className="mf-form">
                 <div className="mf-brandmark mf-brandmark--with-locale">
-                    <Wordmark />
+                    {/* [DIAG-LOGIN-BAND · TEMPORAL] en la app instalada no se puede escribir `#diag`:
+                        5 toques en el logo montan la sonda. */}
+                    <span onClick={() => setDiagTaps((n) => n + 1)}><Wordmark /></span>
                     {/* [P2-I18N-SIN-SELECTOR-ANTES-DE-TENER-CUENTA] el visitante sin cuenta elige aquí;
                         la elección viaja al perfil al crear la cuenta (`localeParaEstampar`). */}
                     <LocaleSwitcher id="mf-locale-login" />

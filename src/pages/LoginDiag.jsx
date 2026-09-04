@@ -29,6 +29,8 @@ export default function LoginDiag() {
                 `form ${round(fr?.top)}..${round(fr?.bottom)} (h ${round(fr?.height)})`,
                 `safe-bottom ${sab}  standalone ${String(window.navigator.standalone)} / ${window.matchMedia('(display-mode: standalone)').matches}`,
                 `ua …${navigator.userAgent.slice(-70)}`,
+                `bundle ${(document.querySelector('script[type="module"]')?.getAttribute('src') || '?').split('/').pop()}`,
+                `sw ${navigator.serviceWorker?.controller ? 'controlado' : 'sin SW'}`,
             ].join(String.fromCharCode(10)));
         };
         read();
