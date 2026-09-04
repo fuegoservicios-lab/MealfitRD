@@ -696,7 +696,10 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
     const fillWidth = perc <= 0 ? 0 : Math.max(_percCapped, _FILL_VISUAL_MIN);
 
     // Paleta rojo (Tailwind red-300/600) sobre meta excedida.
-    const OVER_GRADIENT = 'linear-gradient(90deg, #FCA5A5 0%, #DC2626 100%)';
+    // [P3-OVER-BAR-SOLID-RED · 2026-09-04] Era un degradado rosa pálido → rojo: sobre el fondo oscuro el
+    // arranque se leía como una barra BLANCA (captura del dueño). Exceder la meta es un estado, no un
+    // gradiente: rojo sólido de la familia --danger-fill, de punta a punta.
+    const OVER_GRADIENT = '#DC2626';
     const OVER_COLOR = '#DC2626';
     const effectiveGradient = isOver ? OVER_GRADIENT : gradient;
     const effectiveGlowColor = isOver ? OVER_COLOR : color;
