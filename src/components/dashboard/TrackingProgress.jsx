@@ -160,6 +160,8 @@ const TrackingProgress = ({ planData, userId }) => {
     // escritura. Misma clase que P2-HIST-MODALS-A11Y (onClose memoizado con useCallback).
     const handleScanClose = useCallback(() => setScanOpen(false), []);
     const handleLogClose = useCallback(() => setLogOpen(false), []);
+    // [P1-DIARY-FREETEXT-ESTIMATE] «Foto» desde el componedor: cierra el composedor y abre el escáner
+    const handleLogToScan = useCallback(() => { setLogOpen(false); setScanOpen(true); }, []);
 
     // [P1-DIARY-EDITABLE · 2026-07-28] Estado de la lista de comidas de hoy.
     // `mealsExpanded` levanta el cap de `_MEALS_VISIBLE_CAP` filas visibles.
@@ -637,7 +639,7 @@ const TrackingProgress = ({ planData, userId }) => {
                         modal hace fetch del catálogo al montar: montarlo cerrado sería
                         pagar ese fetch en cada visita al dashboard. */}
                     {logOpen && (
-                        <LogMealModal onClose={handleLogClose} />
+                        <LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />
                     )}
                     <ScanMealModal
                         isOpen={scanOpen}
@@ -696,9 +698,10 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
     const fillWidth = perc <= 0 ? 0 : Math.max(_percCapped, _FILL_VISUAL_MIN);
 
     // Paleta rojo (Tailwind red-300/600) sobre meta excedida.
-    const OVER_GRADIENT = 'linear-gradient(90deg, #FCA5A5 0%, #DC2626 100%)';
+    // [P3-OVER-BAR-SOLID-RED · 2026-09-04] Era un degradado rosa pálido → rojo: sobre el fondo oscuro el
+    // arranque se leía como una barra BLANCA (captura del dueño). Exceder la meta es un estado, no un
+    // gradiente: rojo sólido de la familia --danger-fill, de punta a punta.
     const OVER_COLOR = '#DC2626';
-    const effectiveGradient = isOver ? OVER_GRADIENT : gradient;
     const effectiveGlowColor = isOver ? OVER_COLOR : color;
     const consumedTextColor = isOver
         ? OVER_COLOR
@@ -798,17 +801,22 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                     // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Ring rojo sutil
                     // alrededor del track cuando over — refuerza el signaling
                     // sin sobrecargar la card con un border permanente.
-                    borderColor: isOver ? 'rgba(220, 38, 38, 0.35)' : undefined,
+                    borderColor: isOver ? '#F87171' : undefined,
+                    boxShadow: isOver ? '0 0 0 1px rgba(248, 113, 113, 0.35)' : undefined,
                 }}
             >
+                {/* [P3-OVER-BAR-RED-DEFINED · 2026-09-04] Cuatro variantes en un día (degradado rosa→rojo,
+                    rojo sólido, tramo rojo tras una marca, píldora roja): el dueño eligió la barra roja
+                    completa con el contorno de la pista bien marcado. Es su decisión de diseño. */}
                 <div
                     className={styles.fill}
                     style={{
                         width: `${fillWidth}%`,
-                        background: effectiveGradient,
-                        boxShadow: isOver
-                            ? `0 0 14px rgba(220, 38, 38, 0.45)`
-                            : (isComplete ? `0 0 12px ${effectiveGlowColor}66` : 'none')
+                        // [P3-OVER-BAR-RED-DEFINED · 2026-09-04] decisión del dueño tras 3 variantes: barra
+                        // ROJA completa cuando se excede, y el contorno de la pista más marcado para que
+                        // la barra roja quede definida (antes el borde apenas se veía sobre el fondo oscuro).
+                        background: isOver ? OVER_COLOR : gradient,
+                        boxShadow: isOver ? '0 0 12px rgba(220, 38, 38, 0.45)' : (isComplete ? `0 0 12px ${color}66` : 'none'),
                     }}
                 />
                 {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro

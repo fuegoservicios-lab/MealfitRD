@@ -74,4 +74,19 @@ describe('[P1-PAUSED-BANNER-NO-FLASH] snapshot pausado por plan', () => {
         expect(reconcilePausedChunkStatus(PAUSED, complete, 0, { generatedDays: 6 }))
             .toEqual({ status: complete, cleanReads: 0 });
     });
+    it('[P1-PAUSED-BANNER-RESOLVED] retira el aviso en un plan parcial cuando el bloque pausado ya existe y no hay pausa viva', () => {
+        // el dueño marcó «Ya compré», el bloque 2 (offset 3, 3 días) se generó (plan con 7 días),
+        // la cola sigue con bloques futuros (in_flight > 0) y el plan sigue `partial`
+        const partialResolved = {
+            status: 'partial',
+            pending_user_action_count: 0,
+            paused_chunks: [],
+            in_flight_count: 5,
+        };
+        expect(reconcilePausedChunkStatus(PAUSED, partialResolved, 0, { generatedDays: 7 }))
+            .toEqual({ status: partialResolved, cleanReads: 0 });
+        // pero con solo 3 días (el bloque pausado aún no existe) el aviso se conserva
+        expect(reconcilePausedChunkStatus(PAUSED, partialResolved, 0, { generatedDays: 3 }))
+            .toEqual({ status: PAUSED, cleanReads: 0 });
+    });
 });

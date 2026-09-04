@@ -1,8 +1,9 @@
 // [P1-EAT-PLAN-MEAL-TRUTH · 2026-09-04] La pregunta de un toque antes de «Me lo comí» cuando algo no
 // cuadra: la hora (almuerzo a las 9:04) o la Nevera (0 de 6 ingredientes). No es una advertencia:
-// cada respuesta es información que hoy se perdía. «Fue ayer» registra con fecha de ayer; «Comí otra
-// cosa» abre el registro manual y deja el plato del plan como no seguido (adherencia real, que
-// alimenta al coach y al bloque siguiente); «Todavía no» cancela y lleva a la lista.
+// cada respuesta es información que hoy se perdía. «Lo comí ahora» registra; «Comí otra cosa» abre
+// el registro manual y deja el plato del plan como no seguido (adherencia real, que alimenta al
+// coach y al bloque siguiente); «Todavía no» cancela. No hay «fue ayer»: el botón vive solo en la
+// pestaña de hoy y un plan recién creado ni siquiera tiene ayer (observación del dueño).
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Clock, Refrigerator, X } from 'lucide-react';
@@ -29,40 +30,40 @@ export default function EatPlanMealSheet({ mealName, timing, coverage, now = new
         <div className={styles.backdrop} role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div ref={containerRef} className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="eat-sheet-title" tabIndex={-1}>
                 <button type="button" className={`ui-close ${styles.close}`} onClick={onClose} aria-label={t('Cerrar')}><X size={18} /></button>
+                <p className={styles.eyebrow}>{t('Me lo comí')}</p>
                 <h2 id="eat-sheet-title" className={styles.title}>{t('¿Registrar {plato}?', { plato: mealName })}</h2>
 
-                {timing && (
-                    <p className={styles.line}>
-                        <Clock size={16} aria-hidden="true" />
-                        <span>{t('Son las {hora} y esto es {slot}.', { hora: fmtHour(now), slot: slotLabel })}</span>
-                    </p>
-                )}
-                {coverage && (
-                    <p className={styles.line}>
-                        <Refrigerator size={16} aria-hidden="true" />
-                        <span>{t('Tu Nevera tiene {n} de {total} ingredientes de este plato.', { n: coverage.present, total: coverage.total })}</span>
-                    </p>
-                )}
-
-                <div className={styles.actions}>
-                    <button type="button" className={`ui-btn-primary ${styles.btn}`} disabled={busy || !!pending} onClick={run('now', () => onConfirm({ daysAgo: 0 }))}>
-                        {coverage && !timing ? t('Lo cociné igual, regístralo') : t('Lo comí ahora')}
-                    </button>
+                <div className={styles.facts}>
                     {timing && (
-                        <button type="button" className={`ui-btn-ghost ${styles.btn}`} disabled={busy || !!pending} onClick={run('yesterday', () => onConfirm({ daysAgo: 1 }))}>
-                            {t('Fue ayer')}
-                        </button>
+                        <p className={styles.fact}>
+                            <span className={styles.factIcon}><Clock size={17} aria-hidden="true" /></span>
+                            <span>{t('Son las {hora} y esto es {slot}.', { hora: fmtHour(now), slot: slotLabel })}</span>
+                        </p>
                     )}
                     {coverage && (
-                        <>
-                            <button type="button" className={`ui-btn-ghost ${styles.btn}`} disabled={busy || !!pending} onClick={run('other', onAteOther)}>
-                                {t('Comí otra cosa')}
-                            </button>
-                            <button type="button" className={`ui-btn-ghost ${styles.btn}`} disabled={busy || !!pending} onClick={run('notyet', onNotYet)}>
-                                {t('Todavía no lo comí')}
-                            </button>
-                        </>
+                        <p className={styles.fact}>
+                            <span className={styles.factIcon}><Refrigerator size={17} aria-hidden="true" /></span>
+                            <span>{t('Tu Nevera tiene {n} de {total} ingredientes de este plato.', { n: coverage.present, total: coverage.total })}</span>
+                        </p>
                     )}
+                </div>
+
+                <div className={styles.actions}>
+                    <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy || !!pending} onClick={run('now', () => onConfirm({ daysAgo: 0 }))}>
+                        {coverage && !timing ? t('Lo cociné igual, regístralo') : t('Lo comí ahora')}
+                    </button>
+                    {/* [P1-EAT-PLAN-MEAL-TRUTH · v2] Sin «Fue ayer»: el botón solo existe en la pestaña de HOY,
+                        así que el plato es el de hoy — registrarlo «ayer» sería mentirle al diario (y un plan
+                        recién creado ni siquiera tiene ayer, como notó el dueño). Las respuestas honestas
+                        son «lo comí ahora» o «todavía no». */}
+                    {coverage && (
+                        <button type="button" className={`${styles.btn} ${styles.ghost}`} disabled={busy || !!pending} onClick={run('other', onAteOther)}>
+                            {t('Comí otra cosa')}
+                        </button>
+                    )}
+                    <button type="button" className={`${styles.btn} ${styles.quiet}`} disabled={busy || !!pending} onClick={run('notyet', onNotYet)}>
+                        {t('Todavía no lo comí')}
+                    </button>
                 </div>
                 <p className={styles.hint}>
                     {coverage

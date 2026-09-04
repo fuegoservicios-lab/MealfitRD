@@ -47,11 +47,21 @@ export function reconcilePausedChunkStatus(previous, incoming, _cleanReads = 0, 
         // cuando, además, los días del bloque pausado ya están materializados en
         // el plan. Así una lectura entre reintentos no provoca visible→oculto→
         // visible, pero una resolución real sí termina quitando el aviso.
+        const noPause = Number(incoming.pending_user_action_count || 0) === 0;
+        const covered = pausedChunksAreCovered(previous, context.generatedDays);
+        // [P1-PAUSED-BANNER-RESOLVED · 2026-09-04] La pausa también se retira cuando el bloque
+        // que estaba pausado YA está materializado en el plan y el servidor no reporta ninguna
+        // pausa viva — aunque el plan siga `partial` con bloques futuros en cola. Antes solo la
+        // retiraba `status=complete`: el dueño marcó «Ya compré», el bloque 2 se generó, y «Tu
+        // primera compra está pendiente» iba a quedarse en pantalla hasta el último bloque del
+        // mes. La prueba de los reintentos sigue intacta: entre ciclos de recovery los días del
+        // bloque pausado NO existen todavía (covered=false), así que el aviso no parpadea.
+        const resolved = noPause && covered;
         const terminal = incoming.status === 'complete'
             && Number(incoming.in_flight_count || 0) === 0
-            && Number(incoming.pending_user_action_count || 0) === 0
-            && pausedChunksAreCovered(previous, context.generatedDays);
-        if (!terminal) return { status: previous, cleanReads: 0 };
+            && noPause
+            && covered;
+        if (!terminal && !resolved) return { status: previous, cleanReads: 0 };
     }
 
     return { status: incoming, cleanReads: 0 };

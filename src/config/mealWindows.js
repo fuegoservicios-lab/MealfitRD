@@ -50,5 +50,8 @@ export function pantryCoverageIssue(preview) {
     if (total <= 0) return null;
     const present = Array.isArray(preview.present) ? preview.present.length : Number(preview.present) || 0;
     const coverage = typeof preview.coverage === 'number' ? preview.coverage : present / total;
+    // [v2] o falta el ingrediente PRINCIPAL (la primera línea que no es condimento): 7 de 11 presentes
+    // pueden ser sal, ajo y aceite mientras falta el calamar — eso tampoco explica el plato.
+    if (preview.main_missing === true) return { present, total, mainMissing: true };
     return coverage < PANTRY_COVERAGE_MIN ? { present, total } : null;
 }

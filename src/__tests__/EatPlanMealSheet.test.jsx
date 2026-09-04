@@ -34,31 +34,42 @@ describe('cobertura de la Nevera', () => {
         expect(pantryCoverageIssue({ total: 6, present: ['a', 'b'], coverage: 2 / 6 })).toEqual({ present: 2, total: 6 });
         expect(pantryCoverageIssue({ total: 6, present: ['a', 'b', 'c'], coverage: 0.5 })).toBeNull();
         expect(pantryCoverageIssue({ total: 0, present: [] })).toBeNull();
+        // cobertura alta pero sin el principal (calamar): también pregunta
+        expect(pantryCoverageIssue({ total: 11, present: new Array(7).fill('x'), coverage: 7 / 11, main_missing: true })).toEqual({ present: 7, total: 11, mainMissing: true });
         expect(pantryCoverageIssue(null)).toBeNull();
     });
 });
 
 describe('EatPlanMealSheet', () => {
-    it('con hora rara ofrece «ahora» y «fue ayer»; con Nevera vacía ofrece «otra cosa» y «todavía no»', async () => {
+    it('con hora rara y Nevera vacía ofrece «ahora», «otra cosa» y «todavía no» — nunca «fue ayer»', async () => {
         const { default: Sheet } = await import('../components/dashboard/EatPlanMealSheet');
         const onConfirm = vi.fn(); const onAteOther = vi.fn(); const onNotYet = vi.fn();
         render(<Sheet mealName="Tortitas de calamar" timing={{ slot: 'almuerzo', start: 11 }} coverage={{ present: 0, total: 6 }} now={at(9, 4)}
             onConfirm={onConfirm} onAteOther={onAteOther} onNotYet={onNotYet} onClose={() => {}} />);
         expect(screen.getByRole('dialog').textContent).toContain('Son las 09:04 y esto es un almuerzo.');
         expect(screen.getByRole('dialog').textContent).toContain('Tu Nevera tiene 0 de 6 ingredientes');
+        // el plato es el de HOY (el botón solo vive en esa pestaña): «ayer» sería mentirle al diario
+        expect(screen.queryByText('Fue ayer')).toBeNull();
         // cada acción bloquea los botones mientras corre (pending): esperar a que suelte
-        await act(async () => { fireEvent.click(screen.getByText('Fue ayer')); });
-        expect(onConfirm).toHaveBeenCalledWith({ daysAgo: 1 });
+        await act(async () => { fireEvent.click(screen.getByText('Lo comí ahora')); });
+        expect(onConfirm).toHaveBeenCalledWith({ daysAgo: 0 });
         await act(async () => { fireEvent.click(screen.getByText('Comí otra cosa')); });
         expect(onAteOther).toHaveBeenCalled();
         await act(async () => { fireEvent.click(screen.getByText('Todavía no lo comí')); });
         expect(onNotYet).toHaveBeenCalled();
     });
-    it('solo con Nevera vacía, el botón principal dice «lo cociné igual» y no ofrece «fue ayer»', async () => {
+    it('solo con hora rara: «lo comí ahora» y «todavía no», sin «otra cosa»', async () => {
+        const { default: Sheet } = await import('../components/dashboard/EatPlanMealSheet');
+        render(<Sheet mealName="X" timing={{ slot: 'cena', start: 17 }} coverage={null} now={at(10, 27)} onConfirm={() => {}} onAteOther={() => {}} onNotYet={() => {}} onClose={() => {}} />);
+        expect(screen.getByText('Lo comí ahora')).toBeTruthy();
+        expect(screen.getByText('Todavía no lo comí')).toBeTruthy();
+        expect(screen.queryByText('Comí otra cosa')).toBeNull();
+    });
+    it('solo con Nevera vacía, el botón principal dice «lo cociné igual»', async () => {
         const { default: Sheet } = await import('../components/dashboard/EatPlanMealSheet');
         render(<Sheet mealName="X" timing={null} coverage={{ present: 1, total: 5 }} onConfirm={() => {}} onAteOther={() => {}} onNotYet={() => {}} onClose={() => {}} />);
         expect(screen.getByText('Lo cociné igual, regístralo')).toBeTruthy();
-        expect(screen.queryByText('Fue ayer')).toBeNull();
+        expect(screen.getByText('Comí otra cosa')).toBeTruthy();
     });
 });
 
@@ -72,7 +83,9 @@ describe('Dashboard: cableado', () => {
         expect(DASH).toContain('days_ago: daysAgo,');
         expect(DASH).toContain("fetchWithAuth('/api/diary/plan-meal-deviation'");
         expect(DASH).toContain("if (reason === 'ate_other') {");
-        expect(DASH).toContain('{logMealOpen && <LogMealModal onClose={() => setLogMealOpen(false)} />}');
+        expect(DASH).toContain('{logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }} />}');
+        // el componedor abre en el slot del plato que no comiste, no en «Extra»
+        expect(DASH).toContain("setLogMealOpen({ mealType: String(sheet.meal?.meal || '').toLowerCase() });");
         // sin vista previa (red caída) se registra como siempre: el catch deja coverage=null
         expect(DASH).toContain('coverage = null; // sin vista previa no se pregunta');
     });

@@ -90,6 +90,7 @@ import OptionPickerModal from '../components/common/OptionPickerModal';
 import MotivoActualizarModal from '../components/dashboard/MotivoActualizarModal';
 import EatPlanMealSheet from '../components/dashboard/EatPlanMealSheet';
 import LogMealModal from '../components/dashboard/LogMealModal';
+import ScanMealModal from '../components/dashboard/ScanMealModal';
 import { mealTimingIssue, pantryCoverageIssue } from '../config/mealWindows';
 // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Pestañas fantasma de los días del plan
 // que aún no existen (absorbe el skeleton que vivía inline en la fila de días).
@@ -1144,6 +1145,8 @@ const DashboardInner = () => {
     // cancela. Si todo cuadra, un toque y listo, como siempre.
     const [eatSheet, setEatSheet] = useState(null);
     const [logMealOpen, setLogMealOpen] = useState(false);
+    // [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] «Foto» desde el componedor en modo plan
+    const [scanMealOpen, setScanMealOpen] = useState(false);
     const handleEatPlanMeal = async (meal, index) => {
         if (isGuest) { toast(t('Crea tu cuenta para registrar lo que comes')); return; }
         if (!planData?.id || eatMealInFlight !== null) return;
@@ -1184,7 +1187,7 @@ const DashboardInner = () => {
             });
         } catch (_) { /* señal best-effort */ }
         if (reason === 'ate_other') {
-            setLogMealOpen(true);
+            setLogMealOpen({ mealType: String(sheet.meal?.meal || '').toLowerCase() });
         } else {
             toast(t('Sin registrar. Vuelve cuando lo comas.'));
         }
@@ -1239,15 +1242,21 @@ const DashboardInner = () => {
                 // mostrar —lo usó para dibujar la tarjeta— así que lo reusa y cae al
                 // canónico sólo si falta.
                 const _platoVisible = mealDisplayName(meal, _dashLocale) || result.meal_name;
+                // [P1-PANTRY-PACKAGE-GRAMS · 2026-09-04] lo que NO pudimos descontar deja de ser
+                // invisible: el aviso decía «descontamos 3» con 10 restas fallidas por unidad incompatible.
+                const fallidos = Array.isArray(result.failed_to_deduct) ? result.failed_to_deduct.length : 0;
+                const _base = ausentes.length > 0
+                    ? t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
+                        n: descontados,
+                        faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
+                    })
+                    : (descontados > 0
+                        ? tn(descontados, 'Descontamos {n} ingrediente de tu Nevera.', 'Descontamos {n} ingredientes de tu Nevera.', { n: descontados })
+                        : t('Sumado a tu diario de hoy.'));
                 toast.success(t('{plato} registrado', { plato: _platoVisible }), {
-                    description: ausentes.length > 0
-                        ? t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
-                            n: descontados,
-                            faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
-                        })
-                        : (descontados > 0
-                            ? tn(descontados, 'Descontamos {n} ingrediente de tu Nevera.', 'Descontamos {n} ingredientes de tu Nevera.', { n: descontados })
-                            : t('Sumado a tu diario de hoy.')),
+                    description: fallidos > 0
+                        ? `${_base} ${t('No pudimos descontar {n}: su unidad en la Nevera no coincide con la receta.', { n: fallidos })}`
+                        : _base,
                 });
             }
             // TrackingProgress escucha `refresh-inventory` → refetch del diario →
@@ -4736,6 +4745,9 @@ const DashboardInner = () => {
                             name: ing.name,
                             quantity: mqNum,
                             unit: ing.market_unit || ing.unit || 'unidad',
+                            // [P1-PANTRY-PACKAGE-GRAMS · 2026-09-04] cuánto pesa el envase que la lista
+                            // eligió: el backend guarda la fila en gramos y cualquier receta la descuenta
+                            ...(Number(ing.package_grams) > 0 ? { package_grams: Number(ing.package_grams) } : {}),
                             // [P2-NEVERA-BRANDS · 2026-07-06] producto que la lista usó
                             // (default o preferencia) → el backend resuelve la marca y
                             // la Nevera la enseña junto al ítem comprado.
@@ -4777,7 +4789,16 @@ const DashboardInner = () => {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                if (!silent) toast.success(t('¡Ingredientes ingresados a tu Nevera Virtual!'), { icon: '📦' });
+                // [P2-RESTOCK-DEDUP-RESPECTS-INVENTORY · 2026-09-04] si el servidor no sumó nada (todo
+                // seguía registrado en el ciclo y presente en la Nevera), decirlo: «¡ingresados!» con la
+                // Nevera intacta era el «no pasa nada» que reportó el dueño.
+                if (!silent) {
+                    if (data.added === 0) {
+                        toast.info(t('Ya tenías registrados estos ingredientes esta semana; no se sumaron otra vez.'), { icon: '📦' });
+                    } else {
+                        toast.success(t('¡Ingredientes ingresados a tu Nevera Virtual!'), { icon: '📦' });
+                    }
+                }
                 setSessionRestocked(true);
 
                 // ✅ Marcar planData como restocked para que el PDF delta suprima residuos
@@ -8315,7 +8336,7 @@ const DashboardInner = () => {
                             // [P1-FIRST-PURCHASE-PAUSE · 2026-08-16] Pausa una-vez-por-plan: lista
                             // entregada y ninguna compra marcada jamás. El copy pide el paso que
                             // falta (la compra) y promete la reanudación sola (recovery a las 12h).
-                            awaiting_first_purchase: { title: t('Tu primera compra está pendiente'), body: t('Te dimos la lista de compras y aún no marcaste nada como comprado. Márcalo en la Nevera — o espera, y seguiremos solos con la mejor información disponible.'), cta: t('Ir a la Nevera'), url: '/dashboard/pantry' },
+                            awaiting_first_purchase: { title: t('Tu primera compra está pendiente'), body: t('Te dimos la lista de compras del plan y aún no marcaste nada como comprado. El siguiente bloque de días espera esa compra: márcala en la Nevera, o espera y seguiremos solos con la mejor información disponible.'), cta: t('Ir a la Nevera'), url: '/dashboard/pantry' },
                             stale_snapshot: { title: t('Validando tu inventario'), body: t('Estamos refrescando tu nevera. El plan continuará en breve.'), cta: null, url: null },
                             stale_snapshot_live_unreachable: { title: t('Actualiza tu nevera para continuar'), body: t('No pudimos validar tu inventario en vivo. Abre la nevera para refrescar.'), cta: t('Abrir nevera'), url: '/dashboard/pantry' },
                             learning_zero_logs: { title: t('Registra tus comidas para continuar'), body: t('Necesitamos saber qué comiste para generar el siguiente bloque.'), cta: t('Ir al diario'), url: '/dashboard' },
@@ -9980,7 +10001,8 @@ const DashboardInner = () => {
                     onClose={() => setEatSheet(null)}
                 />
             )}
-            {logMealOpen && <LogMealModal onClose={() => setLogMealOpen(false)} />}
+            {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }} />}
+            {scanMealOpen && <ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)} userId={session?.user?.id || userProfile?.id || 'guest'} />}
 
             {/* ═══════════ MODAL (rediseño): ¿Por qué quieres cambiar? — un plato (PC + móvil) ═══════════ */}
             <MotivoActualizarModal

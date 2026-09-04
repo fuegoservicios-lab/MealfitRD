@@ -576,3 +576,76 @@
 :global(html[data-theme="dark"]) .ghostBtn { border-color: rgba(148, 163, 184, 0.25); }
 
 :global(html[data-theme="dark"]) .plate { border-top-color: rgba(148, 163, 184, 0.15); }
+
+/* [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] foto desde el componedor + estimación de macros */
+.headActions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.scanBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color, #E2E8F0);
+    background: transparent;
+    color: var(--text-primary, #334155);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.scanBtn:hover {
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.14);
+    filter: brightness(1.03);
+}
+
+.scanBtn:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, 0.5);
+    outline-offset: 2px;
+}
+
+.customNote {
+    display: block;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--text-muted, #64748B);
+}
+
+.estimateBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    border: 1px solid var(--primary-fill, #4F46E5);
+    background: transparent;
+    color: var(--primary-fill, #4F46E5);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.45rem 0.8rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.estimateBtn:hover:not(:disabled) {
+    box-shadow: 0 1px 6px rgba(79, 70, 229, 0.25);
+    filter: brightness(1.03);
+}
+
+.estimateBtn:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.estimateBtn:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, 0.5);
+    outline-offset: 2px;
+}
