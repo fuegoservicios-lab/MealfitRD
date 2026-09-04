@@ -1,8 +1,9 @@
 // [P1-EAT-PLAN-MEAL-TRUTH · 2026-09-04] La pregunta de un toque antes de «Me lo comí» cuando algo no
 // cuadra: la hora (almuerzo a las 9:04) o la Nevera (0 de 6 ingredientes). No es una advertencia:
-// cada respuesta es información que hoy se perdía. «Fue ayer» registra con fecha de ayer; «Comí otra
-// cosa» abre el registro manual y deja el plato del plan como no seguido (adherencia real, que
-// alimenta al coach y al bloque siguiente); «Todavía no» cancela y lleva a la lista.
+// cada respuesta es información que hoy se perdía. «Lo comí ahora» registra; «Comí otra cosa» abre
+// el registro manual y deja el plato del plan como no seguido (adherencia real, que alimenta al
+// coach y al bloque siguiente); «Todavía no» cancela. No hay «fue ayer»: el botón vive solo en la
+// pestaña de hoy y un plan recién creado ni siquiera tiene ayer (observación del dueño).
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Clock, Refrigerator, X } from 'lucide-react';
@@ -51,21 +52,18 @@ export default function EatPlanMealSheet({ mealName, timing, coverage, now = new
                     <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy || !!pending} onClick={run('now', () => onConfirm({ daysAgo: 0 }))}>
                         {coverage && !timing ? t('Lo cociné igual, regístralo') : t('Lo comí ahora')}
                     </button>
-                    {timing && (
-                        <button type="button" className={`${styles.btn} ${styles.ghost}`} disabled={busy || !!pending} onClick={run('yesterday', () => onConfirm({ daysAgo: 1 }))}>
-                            {t('Fue ayer')}
+                    {/* [P1-EAT-PLAN-MEAL-TRUTH · v2] Sin «Fue ayer»: el botón solo existe en la pestaña de HOY,
+                        así que el plato es el de hoy — registrarlo «ayer» sería mentirle al diario (y un plan
+                        recién creado ni siquiera tiene ayer, como notó el dueño). Las respuestas honestas
+                        son «lo comí ahora» o «todavía no». */}
+                    {coverage && (
+                        <button type="button" className={`${styles.btn} ${styles.ghost}`} disabled={busy || !!pending} onClick={run('other', onAteOther)}>
+                            {t('Comí otra cosa')}
                         </button>
                     )}
-                    {coverage && (
-                        <>
-                            <button type="button" className={`${styles.btn} ${styles.ghost}`} disabled={busy || !!pending} onClick={run('other', onAteOther)}>
-                                {t('Comí otra cosa')}
-                            </button>
-                            <button type="button" className={`${styles.btn} ${styles.quiet}`} disabled={busy || !!pending} onClick={run('notyet', onNotYet)}>
-                                {t('Todavía no lo comí')}
-                            </button>
-                        </>
-                    )}
+                    <button type="button" className={`${styles.btn} ${styles.quiet}`} disabled={busy || !!pending} onClick={run('notyet', onNotYet)}>
+                        {t('Todavía no lo comí')}
+                    </button>
                 </div>
                 <p className={styles.hint}>
                     {coverage
