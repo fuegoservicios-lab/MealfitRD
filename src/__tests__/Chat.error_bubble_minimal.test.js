@@ -18,8 +18,8 @@ describe('burbuja de error minimalista', () => {
         const i = mb.indexOf('const ErrorRetryButton = ');
         const btn = mb.slice(i, mb.indexOf('export const MemoizedMessageBubble', i));
         expect(btn).toContain("background: 'transparent',");
-        expect(btn).toContain('border: 0,');
-        expect(btn).toContain("textDecoration: 'underline',");
+        expect(btn).toContain('borderRadius: 999,');
+        expect(btn).toContain("border: '1px solid var(--border)',");
         expect(btn).not.toContain('#fca5a5');
         expect(btn).not.toContain('minHeight: 44');
     });

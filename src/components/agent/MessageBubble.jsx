@@ -8,7 +8,7 @@ import BotAvatar from './BotAvatar';
 // porque react-markdown + remark deps (~60KB gzip) solo se descargan tras
 // el primer render de markdown.
 import LazyMarkdown from '../common/LazyMarkdown';
-import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import { useT, formatDate } from '../../i18n';
 import { timeLabel } from '../../utils/chatTimeline';
@@ -122,19 +122,21 @@ const ErrorRetryButton = ({ onClick }) => {
             alignItems: 'center',
             gap: '0.35rem',
             background: 'transparent',
-            border: 0,
+            border: '1px solid var(--border)',
+            borderRadius: 999,
             color: 'var(--text-main)',
-            padding: '0.25rem 0',
-            minHeight: 32,
-            fontSize: '0.875rem',
+            padding: '0.3rem 0.75rem',
+            minHeight: 30,
+            fontSize: '0.8rem',
             fontWeight: 600,
+            lineHeight: 1,
             cursor: 'pointer',
-            textDecoration: 'underline',
-            textUnderlineOffset: '3px',
-            textDecorationColor: 'var(--border)',
+            transition: 'background 0.15s ease, border-color 0.15s ease',
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-muted)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
     >
-        <RefreshCw size={14} strokeWidth={2.2} aria-hidden="true" />
+        <RefreshCw size={13} strokeWidth={2.2} aria-hidden="true" />
         {t('Reintentar')}
     </button>
     );
@@ -278,8 +280,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                 {/* [P2-CHAT-ERROR-MINIMAL v2] el error es UNA línea: icono · texto · Reintentar (el markdown
                     partía el texto en un párrafo propio y el botón caía a una tercera línea). */}
                 {isErrorBubble && (
-                    <div className="chat-error-line" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem 0.75rem', fontSize: '0.9rem' }}>
-                        <AlertTriangle size={15} strokeWidth={2.2} aria-hidden="true" style={{ color: 'var(--danger-text)', flexShrink: 0 }} />
+                    <div className="chat-error-line" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem 0.9rem', fontSize: '0.9rem', minHeight: 32 }}>
                         <span>{msg.content}</span>
                         {msg.retryable && typeof onErrorRetry === 'function' && (
                             <ErrorRetryButton onClick={() => onErrorRetry(msg)} />
