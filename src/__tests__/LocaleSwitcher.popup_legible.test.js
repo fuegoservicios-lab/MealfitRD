@@ -51,15 +51,21 @@ describe('selector de idioma: nítido y legible en escritorio', () => {
         expect(css).toContain('@media (prefers-reduced-motion: reduce)');
     });
 
-    it('[P2-LOCALE-MENU-RIGHTWARD] el menú crece hacia la derecha desde la píldora y solo se corre si no cabe', () => {
-        // tercera captura del dueño: alineado al borde derecho de la píldora, el menú caía
-        // sobre la tarjeta del login; ahora nace en el borde izquierdo y crece hacia el margen
+    it('[P2-LOCALE-MENU-RIGHTWARD] en el formulario el menú crece hacia la derecha (clamp al viewport); en el login cuelga del borde derecho', () => {
+        // tercera captura del dueño (header del FORMULARIO): alineado al borde derecho de la
+        // píldora, el menú caía sobre la tarjeta; ahí nace en el borde izquierdo y crece hacia el
+        // margen. El login se queda como estaba (menuAlign="end", el default): decisión del dueño.
         expect(block(css, '.menu {')).toContain('left: 0;');
         expect(block(css, '.menu {')).not.toContain('right: 0;');
+        expect(block(css, '.menuEnd {')).toContain('right: 0;');
+        expect(jsx).toContain("menuAlign = 'end' }) {");
+        expect(jsx).toContain("if (!open || menuAlign !== 'start') return undefined;");
         expect(jsx).toContain('const maxLeft = window.innerWidth - margin - w;');
         expect(jsx).toContain('const left = Math.max(b.right - w, Math.min(b.left, maxLeft));');
-        expect(jsx).toContain('style={{ left: menuShift }}');
+        expect(jsx).toContain("style={menuAlign === 'start' ? { left: menuShift } : undefined}");
         expect(jsx).toContain("window.addEventListener('resize', place);");
+        expect(read('src/pages/Login.jsx')).toContain('<LocaleSwitcher id="mf-locale-login" />');
+        expect(read('src/components/assessment/InteractiveAssessmentLayout.jsx')).toContain('<LocaleSwitcher id="mf-locale-wizard" menuAlign="start" />');
     });
 
     it('el login (oscuro fijo) pide el esquema oscuro al control y le da superficie de tarjeta propia', () => {

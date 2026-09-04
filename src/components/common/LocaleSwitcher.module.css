@@ -90,6 +90,12 @@
     animation: lsMenuIn 0.14s ease-out;
     transform-origin: top left;
 }
+/* menuAlign="end" (login): colgado del borde derecho de la píldora, como el dueño lo quiso */
+.menuEnd {
+    left: auto;
+    right: 0;
+    transform-origin: top right;
+}
 .item {
     display: flex;
     align-items: center;

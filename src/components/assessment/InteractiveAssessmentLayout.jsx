@@ -166,7 +166,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         cuenta y, hasta hoy, sin forma de corregir la autodetección. Sigue
                         siendo el `:last-child` del grid → `justify-self: end`. */}
                     <div className={styles.backSpacer}>
-                        <LocaleSwitcher id="mf-locale-wizard" />
+                        <LocaleSwitcher id="mf-locale-wizard" menuAlign="start" />
                     </div>
                 </div>
                 

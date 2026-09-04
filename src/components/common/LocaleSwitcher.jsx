@@ -38,7 +38,10 @@ const Check = () => (
     </svg>
 );
 
-export default function LocaleSwitcher({ className = '', id = 'mf-locale-switcher' }) {
+// `menuAlign`: 'end' (default) = el menú cuelga alineado al borde derecho de la píldora (login,
+// donde el dueño lo quiso así); 'start' = nace en el borde izquierdo y crece hacia la derecha,
+// para el header del formulario, donde alineado al borde derecho caía sobre la tarjeta.
+export default function LocaleSwitcher({ className = '', id = 'mf-locale-switcher', menuAlign = 'end' }) {
     const { locale, setLocale, t } = useI18n();
     const [pendiente, setPendiente] = useState(null);
     const coarse = useMediaQuery('(pointer: coarse)');
@@ -81,7 +84,7 @@ export default function LocaleSwitcher({ className = '', id = 'mf-locale-switche
     }, [open]);
 
     useLayoutEffect(() => {
-        if (!open) return undefined;
+        if (!open || menuAlign !== 'start') return undefined;
         const place = () => {
             const btn = btnRef.current;
             const menu = menuRef.current;
@@ -96,7 +99,7 @@ export default function LocaleSwitcher({ className = '', id = 'mf-locale-switche
         place();
         window.addEventListener('resize', place);
         return () => window.removeEventListener('resize', place);
-    }, [open]);
+    }, [open, menuAlign]);
 
     if (coarse) {
         return (
@@ -161,8 +164,8 @@ export default function LocaleSwitcher({ className = '', id = 'mf-locale-switche
                     role="listbox"
                     id={listId}
                     ref={menuRef}
-                    className={styles.menu}
-                    style={{ left: menuShift }}
+                    className={`${styles.menu}${menuAlign === 'end' ? ` ${styles.menuEnd}` : ''}`}
+                    style={menuAlign === 'start' ? { left: menuShift } : undefined}
                     aria-labelledby={id}
                     aria-activedescendant={`${id}-opt-${(LOCALES[hi] || current).code}`}
                 >
