@@ -4497,7 +4497,10 @@ const AgentPage = () => {
                             // padding DENTRO del scroller y tapaba el botón de subir de la barra clásica (el
                             // scroller empezaba detrás de la cabecera). Ahora, como ya hacía el móvil
                             // (P1-CHAT-HEADER-CLEARANCE), el viewport desplazable empieza DEBAJO de la cabecera.
-                            marginTop: 'calc(4.5rem + max(env(safe-area-inset-top), 24px))',
+                            // [P2-CHAT-SCROLLBAR-TWINS · 2026-09-04] 4.5rem de cabecera + 12px = 84px: el mismo alto
+                            // que el bloque «Nuevo chat» del panel de recientes (1.25rem + 2.75rem + 1.25rem), para que
+                            // las dos barras de scroll arranquen a la misma altura.
+                            marginTop: 'calc(4.5rem + max(env(safe-area-inset-top), 12px))',
                             padding: messages.length === 0 ? '1.25rem 1.5rem 0 1.5rem' : '1.25rem 2rem 0.5rem 2rem',
                             overflowY: messages.length > VIRTUALIZE_THRESHOLD ? 'hidden' : 'auto',
                             minHeight: 0,
