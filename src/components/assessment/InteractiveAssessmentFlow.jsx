@@ -933,7 +933,13 @@ const InteractiveAssessmentFlow = () => {
                 
                 {(canSkip || stepFieldsFilled) && stepExtraValid && !isAutoAdvancing && (
                     <div style={{
-                        marginTop: '2rem',
+                        /* [P2-WIZARD-NAV-GAP-UNIFORM · 2026-09-04] Con `hasInternalNext` el
+                           «Siguiente» lo pinta la pregunta (NextButton, marginTop 2rem) y este
+                           bloque solo trae «Saltar…»: sus 2rem se SUMABAN al botón de arriba y la
+                           pareja quedaba a 32 px, contra los 12 px (gap 0.75rem) de los pasos
+                           normales. La distancia entre los dos botones es la misma en todos los
+                           pasos; los 2rem son la separación contenido → botones, no botón → botón. */
+                        marginTop: currentStepConfig.hasInternalNext ? '0.75rem' : '2rem',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '0.75rem',
