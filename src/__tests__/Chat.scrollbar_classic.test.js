@@ -17,17 +17,14 @@ describe('scrollbar clásica del chat', () => {
         expect(SRC).toContain('@supports not selector(::-webkit-scrollbar) {');
         expect(SRC).toContain("scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);");
         // al recargar, al fondo de verdad
-        expect(SRC).toContain('stickToBottomRef.current = true;');
         // al refrescar, nada se anima: ventana de 2 s con scroll instantáneo
-        expect(SRC).toContain('historyLoadedAtRef.current = Date.now();');
         // asentar y revelar: invisible hasta que la altura se estabiliza, luego ya abajo
         expect(SRC).toContain("visibility: threadSettling ? 'hidden' : 'visible'");
         expect(SRC).toContain('settleTimerRef.current = setTimeout(_revealThread, 150);');
         expect(SRC).toContain('settleCapRef.current = setTimeout(_revealThread, 900);');
         expect(SRC).toContain('if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }');
-        expect(SRC).toContain("((last?.isStreaming || _justLoaded()) ? 'instant' : 'smooth')");
+        expect(SRC).toContain("_setMode('bottom');\n                setShowJumpToLatest(false);\n                _beginSettle();");
         expect(SRC).toContain('const ro = new ResizeObserver(() => {');
-        expect(SRC).toContain('if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;');
         expect(SRC).not.toContain('[0, 250, 900].forEach');
         // el scroller empieza debajo de la cabecera absoluta: el botón de subir queda a la vista
         expect(SRC).toContain("marginTop: 'calc(4.5rem + max(env(safe-area-inset-top), 24px))',");

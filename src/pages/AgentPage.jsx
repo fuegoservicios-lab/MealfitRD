@@ -1663,153 +1663,182 @@ const AgentPage = () => {
     // 'auto' (instantáneo) mientras el último mensaje stremea; 'smooth' solo en
     // el update final/no-streaming. Sin reflow read en código de app.
     const scrollRafRef = useRef(null);
-    // [P2-CHAT-RELOAD-BOTTOM v3 · 2026-09-04] Al refrescar, el hilo debe APARECER ya abajo, no
-    // llegar abajo animándose («cada vez que refresco se mueve»): durante los 2 s posteriores a
-    // cargar el historial, cualquier scroll automático es instantáneo.
-    const historyLoadedAtRef = useRef(0);
-    const _justLoaded = () => Date.now() - historyLoadedAtRef.current < 2000;
-    // [P2-CHAT-RELOAD-BOTTOM v4 · 2026-09-04] «Asentar y revelar»: tras cargar el historial, el
-    // hilo queda invisible (visibility: hidden conserva el layout) mientras markdown e imágenes
-    // terminan de medir; cada cambio de altura lo vuelve a pegar al fondo sin animación y
-    // reinicia un temporizador de 150 ms. Cuando la altura lleva 150 ms quieta (o a los 900 ms
-    // como tope) se revela ya colocado abajo: cero desplazamiento visible al refrescar.
+    // ===== [P2-CHAT-SCROLL-MODES · 2026-09-04] Un solo modelo de scroll, calcado de ChatGPT =====
+    // mode: 'bottom'   → pegado al fondo: cualquier crecimiento (respuesta, imágenes, markdown) lo
+    //                    mantiene abajo, SIN animar.
+    //       'anchored' → el mensaje recién enviado queda arriba y la respuesta crece debajo; el
+    //                    espaciador del final reserva justo el sitio (por geometría) y solo encoge.
+    //                    Si la respuesta supera la ventana, se la persigue hasta el final mientras
+    //                    llega; en cuanto el usuario sube por encima del ancla, pasa a 'free'.
+    //       'free'     → el usuario está leyendo arriba: no se toca nada; aparece la píldora.
+    // Transiciones: cargar historial → bottom (asentar y revelar) · enviar → anchored · subir → free ·
+    // volver al fondo o pulsar la píldora → bottom. Todo pin automático usa behavior 'instant'
+    // (el contenedor tiene scroll-behavior: smooth y 'auto' heredaba la animación: temblor).
+    const scrollModeRef = useRef('bottom');
+    const sentAnchorRef = useRef(null); // { clientMessageId, placed, rowTop }
+    const spacerRef = useRef(null);     // <div className="anchor-spacer">: altura directa en el DOM (mismo frame, sin estado)
+    const spacerPxRef = useRef(0);
+    const lastScrollTopRef = useRef(0);
     const [threadSettling, setThreadSettling] = useState(false);
     const settleTimerRef = useRef(null);
     const settleCapRef = useRef(null);
-    const _pinBottomInstant = () => {
+    const _setSpacer = useCallback((px) => {
+        spacerPxRef.current = px;
+        if (spacerRef.current) spacerRef.current.style.height = `${px}px`;
+    }, []);
+    const _setMode = useCallback((mode) => {
+        scrollModeRef.current = mode;
+        userScrolledUpRef.current = mode === 'free';
+    }, []);
+    const _pinBottomInstant = useCallback(() => {
         const el = messagesContainerRef.current;
         if (!el) return;
         try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; }
-    };
+    }, []);
+    // «Asentar y revelar» (carga del historial): invisible mientras la altura cambia; se revela ya abajo.
     const _revealThread = useCallback(() => {
         if (settleTimerRef.current) { clearTimeout(settleTimerRef.current); settleTimerRef.current = null; }
         if (settleCapRef.current) { clearTimeout(settleCapRef.current); settleCapRef.current = null; }
         _pinBottomInstant();
         setThreadSettling(false);
-    }, []);
+    }, [_pinBottomInstant]);
     const _armSettle = useCallback(() => {
         if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
         settleTimerRef.current = setTimeout(_revealThread, 150);
     }, [_revealThread]);
-    // [P2-CHAT-ANCHOR-SENT-TOP · 2026-09-04] Al enviar, la conversación sube y el mensaje recién
-    // enviado queda ARRIBA del hilo; la respuesta crece debajo (como ChatGPT/Claude/Gemini). Un
-    // espaciador al final del hilo reserva el sitio para que el ancla pueda llegar arriba, y se
-    // encoge a medida que la respuesta ocupa ese espacio — así el fondo real nunca queda a más
-    // de unos px y la píldora «ir al último mensaje» no aparece mientras se lee la respuesta.
-    const sentAnchorRef = useRef(null); // { clientMessageId, scrolled }
-    const [anchorSpacerPx, setAnchorSpacerPx] = useState(0);
-    const anchorSpacerRef = useRef(0); // último espaciador PEDIDO (el estado llega un render después)
-    // Lleva el mensaje anclado al borde superior. Idempotente: solo la primera vez por ancla.
-    // v2: se llama DESPUÉS de que el espaciador esté pintado (useLayoutEffect abajo) — antes se
-    // scrolleaba en el mismo tick que se pedía el espaciador, el contenedor aún no tenía sitio
-    // y el scroll se quedaba a medias (el dueño lo vio: «sigue sin coger para arriba»).
-    const scrollToSentAnchor = useCallback(() => {
-        const anchor = sentAnchorRef.current;
+    const _beginSettle = useCallback(() => {
+        setThreadSettling(true);
+        _armSettle();
+        if (settleCapRef.current) clearTimeout(settleCapRef.current);
+        settleCapRef.current = setTimeout(_revealThread, 900);
+    }, [_armSettle, _revealThread]);
+    // Geometría del ancla: espaciador = topAncla + clientHeight − contenidoSinEspaciador (así el final
+    // del contenido coincide con el final de la ventana: cero scroll sobrante). La primera vez lleva el
+    // mensaje arriba (único scroll animado del sistema).
+    const _layoutAnchor = useCallback(() => {
         const el = messagesContainerRef.current;
-        if (!anchor || anchor.scrolled || !el) return;
+        const anchor = sentAnchorRef.current;
+        if (!el || !anchor) return;
         const row = el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`);
         if (!row) return;
-        anchor.scrolled = true;
-        // v3: el contenedor lleva padding-top bajo la cabecera fija (~4.5rem): el ancla debe quedar
-        // DEBAJO de ese padding, no en el borde del contenedor (así se escondía bajo la cabecera).
         const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
-        const top = row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - padTop - 12;
-        try { el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); } catch { el.scrollTop = Math.max(0, top); }
-    }, []);
-    const layoutSentAnchor = useCallback(() => {
-        const anchor = sentAnchorRef.current;
-        const el = messagesContainerRef.current;
-        if (!anchor || !el) return null;
-        const row = el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`);
-        if (!row) return null;
-        // v5: por GEOMETRÍA del scroll, no sumando alturas de burbujas (márgenes, gaps y separadores
-        // de día dejaban un hueco sobrante abajo). Queremos que, con el ancla arriba, el final del
-        // contenido coincida con el final de la ventana: S = topAncla + clientHeight − contenidoSinS.
-        const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
-        const rowTop = row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - padTop - 12;
-        const contentWithoutSpacer = el.scrollHeight - anchorSpacerRef.current;
+        const rowTop = Math.max(0, Math.round(row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - padTop - 12));
+        const contentWithoutSpacer = el.scrollHeight - spacerPxRef.current;
         let spacer = Math.max(0, Math.round(rowTop + el.clientHeight - contentWithoutSpacer));
-        // mientras llega la respuesta el espaciador solo ENCOGE (crecer de vuelta = temblor)
-        if (anchor.scrolled && spacer > anchorSpacerRef.current) spacer = anchorSpacerRef.current;
-        const pending = Math.abs(anchorSpacerRef.current - spacer) > 6;
-        if (pending) {
-            anchorSpacerRef.current = spacer;
-            setAnchorSpacerPx(spacer);
+        if (anchor.placed && spacer > spacerPxRef.current) spacer = spacerPxRef.current; // solo encoge
+        if (Math.abs(spacer - spacerPxRef.current) > 2) _setSpacer(spacer);
+        if (!anchor.placed) {
+            anchor.placed = true;
+            anchor.rowTop = rowTop;
+            lastScrollTopRef.current = el.scrollTop;
+            try { el.scrollTo({ top: rowTop, behavior: 'smooth' }); } catch { el.scrollTop = rowTop; }
+        } else if (spacerPxRef.current === 0) {
+            // la respuesta ya pasa de la ventana: perseguirla hasta el final mientras llega
+            const last = messagesRef.current?.[messagesRef.current.length - 1];
+            if (last?.isStreaming) _pinBottomInstant();
         }
-        return { spacer, pending };
-    }, []);
-    // el espaciador ya está en el DOM: ahora sí el ancla puede llegar arriba
+    }, [_setSpacer, _pinBottomInstant]);
+    // Tras cada cambio de mensajes, en el MISMO frame (sin estado intermedio: sin temblor).
     useLayoutEffect(() => {
-        scrollToSentAnchor();
-    }, [anchorSpacerPx, scrollToSentAnchor]);
-    // [P2-CHAT-RELOAD-BOTTOM v2] «Pegado al fondo»: un ResizeObserver sobre el hilo. Cuando el
-    // contenido crece (imágenes, markdown diferido, respuesta que llega) y el usuario NO ha subido a
-    // leer, el fondo se mantiene sin timers ni saltos; con un mensaje recién enviado anclado arriba
-    // manda el ancla. Se activa al cargar el historial y se desactiva al subir (>120 px).
-    const stickToBottomRef = useRef(false);
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        const mode = scrollModeRef.current;
+        if (mode === 'anchored') {
+            if (messages.length > VIRTUALIZE_THRESHOLD) {
+                const a = sentAnchorRef.current;
+                if (a && !a.placed) {
+                    a.placed = true;
+                    const idx = messages.findIndex((m) => m?.clientMessageId === a.clientMessageId);
+                    if (idx >= 0) requestAnimationFrame(() => virtualizedListRef.current?.scrollToIndex(idx, { align: 'start', behavior: 'smooth' }));
+                }
+                return;
+            }
+            _layoutAnchor();
+        } else if (mode === 'bottom') {
+            if (messages.length > VIRTUALIZE_THRESHOLD) virtualizedListRef.current?.scrollToBottom({ behavior: 'auto' });
+            else _pinBottomInstant();
+        }
+    }, [messages, _layoutAnchor, _pinBottomInstant]);
+    // Crecimiento de altura SIN cambio de mensajes (imágenes, markdown diferido): mismo criterio.
     useEffect(() => {
         const el = messagesContainerRef.current;
         const list = messagesEndRef.current?.parentElement;
         if (!el || !list || typeof ResizeObserver === 'undefined') return undefined;
         const ro = new ResizeObserver(() => {
-            if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }  // [v4] asentando
-            if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;
-            const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-            if (dist > 2) { try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; } }
+            if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }
+            const mode = scrollModeRef.current;
+            if (mode === 'bottom') {
+                if (el.scrollHeight - el.scrollTop - el.clientHeight > 2) _pinBottomInstant();
+            } else if (mode === 'anchored') {
+                _layoutAnchor();
+            }
         });
         ro.observe(list);
         return () => ro.disconnect();
-    }, [currentSessionId, _armSettle]);
+    }, [currentSessionId, _armSettle, _pinBottomInstant, _layoutAnchor]);
+    // Cambiar de conversación: todo a cero.
+    useEffect(() => {
+        sentAnchorRef.current = null;
+        _setSpacer(0);
+        _setMode('bottom');
+    }, [currentSessionId, _setSpacer, _setMode]);
     const scrollToBottom = (force = false, behaviorOverride = null) => {
         if (userScrolledUpRef.current && !force) return;
+        if (scrollModeRef.current === 'anchored' && !force) return; // anclado: manda el ancla
         if (scrollRafRef.current) return; // ya hay un scroll agendado este frame
         scrollRafRef.current = requestAnimationFrame(() => {
             scrollRafRef.current = null;
             const msgs = messagesRef.current;
-            const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
-            // [P2-CHAT-ANCHOR-SENT-TOP v5] 'instant' y no 'auto': el contenedor lleva scroll-behavior:
-            // smooth y 'auto' hereda la animación → cada chunk temblaba. 'instant' la anula.
-            const behavior = behaviorOverride || ((last?.isStreaming || _justLoaded()) ? 'instant' : 'smooth');
-            if (msgs.length > VIRTUALIZE_THRESHOLD) {
-                virtualizedListRef.current?.scrollToBottom({ behavior });
-            } else {
-                messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
-            }
+            const behavior = behaviorOverride || 'instant';
             if (force) {
-                userScrolledUpRef.current = false;
+                sentAnchorRef.current = null;
+                _setSpacer(0);
+                _setMode('bottom');
                 setShowJumpToLatest(false);
+            }
+            if (msgs.length > VIRTUALIZE_THRESHOLD) {
+                virtualizedListRef.current?.scrollToBottom({ behavior: behavior === 'instant' ? 'auto' : behavior });
+            } else {
+                const el = messagesContainerRef.current;
+                if (el) { try { el.scrollTo({ top: el.scrollHeight, behavior }); } catch { el.scrollTop = el.scrollHeight; } }
             }
         });
     };
     scrollToBottomRef.current = scrollToBottom;
 
-    // [P2-CHAT-SCROLL-RACE · 2026-05-19] Listener montado en el container
-    // scrollable. Umbral 120px desde el bottom: cubre el overshoot natural
-    // por scroll momentum en mobile + zona neutral donde un microscroll
-    // accidental no marca "scrolled up". Cálculo: si distanceFromBottom
-    // > 120, el user está claramente leyendo historial; <= 120 cuenta
-    // como "engaged con el fondo" (auto-scroll seguro).
     const handleMessagesScroll = useCallback(() => {
         const el = messagesContainerRef.current;
         if (!el) return;
         try {
             const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-            const scrolledUp = distanceFromBottom > 120;
-            userScrolledUpRef.current = scrolledUp;
-            setShowJumpToLatest(scrolledUp);
-            if (scrolledUp) stickToBottomRef.current = false;  // [P2-CHAT-RELOAD-BOTTOM v2]
-            else if (distanceFromBottom <= 2) stickToBottomRef.current = true;
+            const goingUp = el.scrollTop < lastScrollTopRef.current - 1;
+            lastScrollTopRef.current = el.scrollTop;
+            const mode = scrollModeRef.current;
+            if (mode === 'anchored') {
+                const a = sentAnchorRef.current;
+                if (a?.placed && goingUp && el.scrollTop < (a.rowTop ?? 0) - 8) {
+                    // subió por encima del ancla: libre; el espaciador sobra y queda bajo la ventana (sin salto)
+                    _setMode('free');
+                    sentAnchorRef.current = null;
+                    _setSpacer(0);
+                }
+            } else if (mode === 'bottom') {
+                if (distanceFromBottom > 120) _setMode('free');
+            } else if (distanceFromBottom <= 4) {
+                _setMode('bottom');
+            }
+            const m = scrollModeRef.current;
+            setShowJumpToLatest(m === 'free' || (m === 'anchored' && distanceFromBottom > 120));
         } catch (_e) {
-            // Defensivo contra browsers raros que devuelvan NaN o lancen
-            // en getters. NO afecta el flow del chat.
+            // best-effort
         }
-    }, []);
+    }, [_setMode, _setSpacer]);
 
     const handleVirtualizedAtBottomChange = useCallback((atBottom) => {
-        const scrolledUp = !atBottom;
-        userScrolledUpRef.current = scrolledUp;
-        setShowJumpToLatest(scrolledUp);
-    }, []);
+        if (atBottom) _setMode('bottom');
+        else if (scrollModeRef.current !== 'anchored') _setMode('free');
+        setShowJumpToLatest(!atBottom);
+    }, [_setMode]);
 
     // [P2-CHAT-SESSIONS-PAGING · 2026-09-03] Recientes se cortaba en 60 y los chats más viejos
     // dejaban de existir sin aviso. El backend acepta `offset` y devuelve `has_more`; la lista
@@ -2191,22 +2220,13 @@ const AgentPage = () => {
             const _MAX_RETRIES_GLOBAL = 3;
             if (retryCount >= _MAX_RETRIES_GLOBAL || (response && response.ok)) {
                 setIsLoadingHistory(false);
-                // [P2-CHAT-RELOAD-BOTTOM v2 · 2026-09-04] Historial cargado: pegar al fondo UNA vez y dejar
-                // que el observador de altura (abajo, stickToBottom) lo mantenga mientras imágenes y
-                // markdown terminan de medir. Los tres timers de la v1 se veían como «el scroll se
-                // mueve solo cada unos segundos».
-                stickToBottomRef.current = true;
-                userScrolledUpRef.current = false;
+                // [P2-CHAT-SCROLL-MODES] historial cargado → modo 'bottom' + asentar y revelar
+                sentAnchorRef.current = null;
+                _setSpacer(0);
+                _setMode('bottom');
                 setShowJumpToLatest(false);
-                historyLoadedAtRef.current = Date.now();  // [P2-CHAT-RELOAD-BOTTOM v3]
-                // [P2-CHAT-RELOAD-BOTTOM v4] asentar y revelar
-                setThreadSettling(true);
-                _armSettle();
-                if (settleCapRef.current) clearTimeout(settleCapRef.current);
-                settleCapRef.current = setTimeout(_revealThread, 900);
-                requestAnimationFrame(() => {
-                    if (!sentAnchorRef.current) _pinBottomInstant();
-                });
+                _beginSettle();
+                requestAnimationFrame(() => _pinBottomInstant());
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2261,50 +2281,7 @@ const AgentPage = () => {
         }
     };
 
-    useEffect(() => {
-        // [P2-CHAT-ANCHOR-SENT-TOP] con un mensaje recién enviado anclado arriba no seguimos el fondo.
-        const anchor = sentAnchorRef.current;
-        // [P2-CHAT-ANCHOR-SENT-TOP v4] Al TERMINAR la respuesta, el espacio reservado se libera: el
-        // límite del scroll vuelve a ser el de siempre (el dueño: «sobra scroll»). El anclaje al
-        // enviar no cambia; solo deja de existir cuando ya no hay nada que anclar.
-        const lastMsg = messages[messages.length - 1];
-        if (anchor && anchor.scrolled && lastMsg && lastMsg.role === 'model' && !lastMsg.isStreaming) {
-            sentAnchorRef.current = null;
-            anchorSpacerRef.current = 0;
-            setAnchorSpacerPx(0);
-            stickToBottomRef.current = false;  // no perseguir: el usuario decide desde aquí
-            return;
-        }
-        if (anchor) {
-            if (messages.length <= VIRTUALIZE_THRESHOLD) {
-                const r = layoutSentAnchor();
-                if (r) {
-                    if (!anchor.scrolled && !r.pending) scrollToSentAnchor();
-                    // v2: una respuesta más alta que la ventana se PERSIGUE hasta el final mientras
-                    // llega (el espaciador ya es 0), salvo que el usuario haya subido a leer.
-                    const last = messages[messages.length - 1];
-                    if (anchor.scrolled && r.spacer === 0 && last?.isStreaming && !userScrolledUpRef.current) scrollToBottom();
-                    return;
-                }
-            } else if (!anchor.scrolled) {
-                anchor.scrolled = true;
-                const idx = messages.findIndex((m) => m?.clientMessageId === anchor.clientMessageId);
-                if (idx >= 0) {
-                    requestAnimationFrame(() => virtualizedListRef.current?.scrollToIndex(idx, { align: 'start', behavior: 'smooth' }));
-                    return;
-                }
-            } else {
-                return;
-            }
-        }
-        scrollToBottom();
-    }, [messages, layoutSentAnchor, scrollToSentAnchor]);
-    // el ancla y su espaciador pertenecen a UNA conversación: al cambiar de sesión se sueltan
-    useEffect(() => {
-        sentAnchorRef.current = null;
-        anchorSpacerRef.current = 0;
-        setAnchorSpacerPx(0);
-    }, [currentSessionId]);
+    // [P2-CHAT-SCROLL-MODES] el autoscroll por cambio de mensajes vive en el useLayoutEffect de arriba.
 
     // Cargar sesiones al abrir la pagina (para todos los usuarios)
     useEffect(() => {
@@ -2619,7 +2596,8 @@ const AgentPage = () => {
             });
         } else {
             newMessages.push({ role: 'user', content: userMsg, clientMessageId, created_at: new Date().toISOString() });
-            sentAnchorRef.current = { clientMessageId, scrolled: false };  // [P2-CHAT-ANCHOR-SENT-TOP]
+            sentAnchorRef.current = { clientMessageId, placed: false };  // [P2-CHAT-SCROLL-MODES] → anclado
+            _setMode('anchored');
         }
 
         setMessages(newMessages);
@@ -4755,7 +4733,7 @@ const AgentPage = () => {
                                 )}
                                 {/* El sentinel no es un mensaje: cancela el gap de 2rem que
                                     Flex añadiría después del último turno real. */}
-                                <div className="anchor-spacer" aria-hidden="true" style={{ height: anchorSpacerPx, flex: 'none' }} />
+                                <div ref={spacerRef} className="anchor-spacer" aria-hidden="true" style={{ height: 0, flex: 'none' }} />
                                 <div ref={messagesEndRef} className="messages-end-sentinel" />
                             </div>
                             )
