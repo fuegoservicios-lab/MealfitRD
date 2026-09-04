@@ -1357,6 +1357,7 @@
   "Me gusta": "Mi piace",
   "Me gusta cocinar": "Mi piace cucinare",
   "Me gusta, pero quiero algo diferente": "Mi piace, ma voglio qualcosa di diverso",
+  "Me lo comí": "L’ho mangiato",
   "Me lo comí — lo registra en tu diario y lo descuenta de tu Nevera": "L'ho mangiato — lo registra nel diario e lo scala dal tuo Frigo",
   "Meals con fatiga (presencia frecuente reciente) que volvieron a aparecer.": "Pasti affaticati (presenza frequente recente) ricomparsi.",
   "Meals del chunk": "Meals del chunk",
@@ -1513,6 +1514,7 @@
   "No pudimos conectarnos con la IA. Por favor, verifica tu conexión y reintenta.": "Non siamo riusciti a connetterci all'IA. Verifica la connessione e riprova.",
   "No pudimos copiar la respuesta.": "Non è stato possibile copiare la risposta.",
   "No pudimos cuadrar los próximos días con los ingredientes de tu nevera. Actualízala para continuar ahora — o espera, y los generaremos con la mejor información disponible.": "Non siamo riusciti a far quadrare i prossimi giorni con gli ingredienti del tuo frigo. Aggiornala per continuare ora — oppure aspetta, e li genereremo con le informazioni migliori disponibili.",
+  "No pudimos descontar {n}: su unidad en la Nevera no coincide con la receta.": "Non siamo riusciti a scalare {n}: la loro unità nel Frigo non corrisponde alla ricetta.",
   "No pudimos eliminar la conversación. Inténtalo de nuevo.": "Non siamo riusciti a eliminare la conversazione. Riprova.",
   "No pudimos eliminar la conversación. Revisa tu conexión.": "Non siamo riusciti a eliminare la conversazione. Controlla la connessione.",
   "No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo.": "Non siamo riusciti a generare un piano che rispetti le restrizioni dichiarate. Modificale e riprova.",
@@ -2225,6 +2227,7 @@
   "Tarjeta": "Carta",
   "Te avisaremos si olvidas registrar una comida.": "Ti avviseremo se dimentichi di registrare un pasto.",
   "Te daremos recetas reales que se ajusten a tu agenda.": "Ti daremo ricette vere adatte ai tuoi impegni.",
+  "Te dimos la lista de compras del plan y aún no marcaste nada como comprado. El siguiente bloque de días espera esa compra: márcala en la Nevera, o espera y seguiremos solos con la mejor información disponible.": "Ti abbiamo dato la lista della spesa del piano e non hai ancora segnato nulla come comprato. Il prossimo blocco di giorni aspetta quell’acquisto: segnalo nel Frigo, oppure aspetta e proseguiremo da soli con la migliore informazione disponibile.",
   "Te dirá exactamente cómo mejorar cada micronutriente de tu plan.": "Ti dirà esattamente come migliorare ogni micronutriente del tuo piano.",
   "Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.": "Ti diamo la versione migliore disponibile. Usa “Cambia piatto” per sostituire singoli pasti, oppure rigenera l'intero piano se vuoi riprovare.",
   "Te entregamos la mejor versión. Usa Cambiar Plato para reemplazar comidas o regenera el plan completo.": "Ti diamo la versione migliore. Usa Cambia piatto per sostituire i pasti o rigenera l'intero piano.",
@@ -3054,6 +3057,5 @@
   "🤰 EMBARAZO / LACTANCIA: tus necesidades de energía y micronutrientes (folato, hierro, calcio, B12) son mayores y el déficit calórico está contraindicado — este plan usa al menos mantenimiento. Requiere control prenatal: consulta a tu obstetra o nutricionista antes de seguirlo, y evita alimentos de riesgo de listeria (lácteos no pasteurizados, pescado/carne crudos, embutidos).": "🤰 GRAVIDANZA / ALLATTAMENTO: i tuoi fabbisogni di energia e micronutrienti (folato, ferro, calcio, B12) sono maggiori e il deficit calorico è controindicato — questo piano usa almeno il mantenimento. Richiede controlli prenatali: consulta il tuo ostetrico o nutrizionista prima di seguirlo ed evita alimenti a rischio di listeria (latticini non pastorizzati, pesce/carne crudi, salumi).",
   "🧒 PERFIL DE MENOR DE EDAD: las necesidades nutricionales de niños y adolescentes difieren de las de un adulto (crecimiento, desarrollo) y este plan usa cálculos calibrados para adultos. NO se aplicó déficit calórico por seguridad. Consulta a un pediatra o nutricionista infantil antes de seguir este plan.": "🧒 PROFILO DI MINORENNE: i fabbisogni nutrizionali di bambini e adolescenti differiscono da quelli di un adulto (crescita, sviluppo) e questo piano usa calcoli calibrati per adulti. NON è stato applicato alcun deficit calorico, per sicurezza. Consulta un pediatra o un nutrizionista pediatrico prima di seguire questo piano.",
   "🫘 CONDICIÓN RENAL DETECTADA — IMPORTANTE: la nutrición en enfermedad renal depende de tu estadio (G1–G5) y de si estás en diálisis, y DEBE ser supervisada por tu nefrólogo o nutricionista renal.": "🫘 CONDIZIONE RENALE RILEVATA — IMPORTANTE: la nutrizione nella malattia renale dipende dal tuo stadio (G1–G5) e dal fatto che tu sia o meno in dialisi, e DEVE essere supervisionata dal tuo nefrologo o nutrizionista renale.",
-  "🫘 Condición renal — requiere supervisión de tu nefrólogo": "🫘 Condizione renale — richiede la supervisione del tuo nefrologo",
-  "Te dimos la lista de compras del plan y aún no marcaste nada como comprado. El siguiente bloque de días espera esa compra: márcala en la Nevera, o espera y seguiremos solos con la mejor información disponible.": "Ti abbiamo dato la lista della spesa del piano e non hai ancora segnato nulla come comprato. Il prossimo blocco di giorni aspetta quell’acquisto: segnalo nel Frigo, oppure aspetta e proseguiremo da soli con la migliore informazione disponibile."
+  "🫘 Condición renal — requiere supervisión de tu nefrólogo": "🫘 Condizione renale — richiede la supervisione del tuo nefrologo"
 }

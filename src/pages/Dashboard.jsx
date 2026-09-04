@@ -1239,15 +1239,21 @@ const DashboardInner = () => {
                 // mostrar —lo usó para dibujar la tarjeta— así que lo reusa y cae al
                 // canónico sólo si falta.
                 const _platoVisible = mealDisplayName(meal, _dashLocale) || result.meal_name;
+                // [P1-PANTRY-PACKAGE-GRAMS · 2026-09-04] lo que NO pudimos descontar deja de ser
+                // invisible: el aviso decía «descontamos 3» con 10 restas fallidas por unidad incompatible.
+                const fallidos = Array.isArray(result.failed_to_deduct) ? result.failed_to_deduct.length : 0;
+                const _base = ausentes.length > 0
+                    ? t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
+                        n: descontados,
+                        faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
+                    })
+                    : (descontados > 0
+                        ? tn(descontados, 'Descontamos {n} ingrediente de tu Nevera.', 'Descontamos {n} ingredientes de tu Nevera.', { n: descontados })
+                        : t('Sumado a tu diario de hoy.'));
                 toast.success(t('{plato} registrado', { plato: _platoVisible }), {
-                    description: ausentes.length > 0
-                        ? t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
-                            n: descontados,
-                            faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
-                        })
-                        : (descontados > 0
-                            ? tn(descontados, 'Descontamos {n} ingrediente de tu Nevera.', 'Descontamos {n} ingredientes de tu Nevera.', { n: descontados })
-                            : t('Sumado a tu diario de hoy.')),
+                    description: fallidos > 0
+                        ? `${_base} ${t('No pudimos descontar {n}: su unidad en la Nevera no coincide con la receta.', { n: fallidos })}`
+                        : _base,
                 });
             }
             // TrackingProgress escucha `refresh-inventory` → refetch del diario →
@@ -4736,6 +4742,9 @@ const DashboardInner = () => {
                             name: ing.name,
                             quantity: mqNum,
                             unit: ing.market_unit || ing.unit || 'unidad',
+                            // [P1-PANTRY-PACKAGE-GRAMS · 2026-09-04] cuánto pesa el envase que la lista
+                            // eligió: el backend guarda la fila en gramos y cualquier receta la descuenta
+                            ...(Number(ing.package_grams) > 0 ? { package_grams: Number(ing.package_grams) } : {}),
                             // [P2-NEVERA-BRANDS · 2026-07-06] producto que la lista usó
                             // (default o preferencia) → el backend resuelve la marca y
                             // la Nevera la enseña junto al ítem comprado.

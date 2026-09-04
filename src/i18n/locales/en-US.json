@@ -1357,6 +1357,7 @@
   "Me gusta": "I like it",
   "Me gusta cocinar": "I like to cook",
   "Me gusta, pero quiero algo diferente": "I like it, but I want something different",
+  "Me lo comí": "I ate it",
   "Me lo comí — lo registra en tu diario y lo descuenta de tu Nevera": "I ate it — logs it in your diary and deducts it from your Fridge",
   "Meals con fatiga (presencia frecuente reciente) que volvieron a aparecer.": "Fatigued meals (frequent recent presence) that showed up again.",
   "Meals del chunk": "Chunk meals",
@@ -1513,6 +1514,7 @@
   "No pudimos conectarnos con la IA. Por favor, verifica tu conexión y reintenta.": "We couldn't connect to the AI. Please check your connection and try again.",
   "No pudimos copiar la respuesta.": "We couldn’t copy the response.",
   "No pudimos cuadrar los próximos días con los ingredientes de tu nevera. Actualízala para continuar ahora — o espera, y los generaremos con la mejor información disponible.": "We couldn't match the next few days with the ingredients in your fridge. Update it to continue now — or wait, and we'll generate them with the best info available.",
+  "No pudimos descontar {n}: su unidad en la Nevera no coincide con la receta.": "We couldn’t deduct {n}: their unit in the Fridge doesn’t match the recipe.",
   "No pudimos eliminar la conversación. Inténtalo de nuevo.": "We couldn't delete the conversation. Try again.",
   "No pudimos eliminar la conversación. Revisa tu conexión.": "We couldn't delete the conversation. Check your connection.",
   "No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo.": "We couldn't generate a plan that respects the restrictions you declared. Adjust them and try again.",
@@ -2225,6 +2227,7 @@
   "Tarjeta": "Card",
   "Te avisaremos si olvidas registrar una comida.": "We'll remind you if you forget to log a meal.",
   "Te daremos recetas reales que se ajusten a tu agenda.": "We'll give you real recipes that fit your schedule.",
+  "Te dimos la lista de compras del plan y aún no marcaste nada como comprado. El siguiente bloque de días espera esa compra: márcala en la Nevera, o espera y seguiremos solos con la mejor información disponible.": "We gave you the plan’s shopping list and you haven’t marked anything as bought yet. The next block of days is waiting for that purchase: mark it in the Fridge, or wait and we’ll carry on alone with the best information available.",
   "Te dirá exactamente cómo mejorar cada micronutriente de tu plan.": "It'll tell you exactly how to improve every micronutrient in your plan.",
   "Te entregamos la mejor versión disponible. Usa “Cambiar Plato” para reemplazar comidas puntuales, o regenera el plan completo si quieres reintentarlo.": "We're giving you the best version available. Use “Swap Meal” to replace individual meals, or regenerate the whole plan if you want to try again.",
   "Te entregamos la mejor versión. Usa Cambiar Plato para reemplazar comidas o regenera el plan completo.": "We're giving you the best version. Use Swap Meal to replace meals or regenerate the whole plan.",
@@ -3054,6 +3057,5 @@
   "🤰 EMBARAZO / LACTANCIA: tus necesidades de energía y micronutrientes (folato, hierro, calcio, B12) son mayores y el déficit calórico está contraindicado — este plan usa al menos mantenimiento. Requiere control prenatal: consulta a tu obstetra o nutricionista antes de seguirlo, y evita alimentos de riesgo de listeria (lácteos no pasteurizados, pescado/carne crudos, embutidos).": "🤰 PREGNANCY / BREASTFEEDING: your energy and micronutrient needs (folate, iron, calcium, B12) are higher and a calorie deficit is contraindicated — this plan uses at least maintenance. It requires prenatal care: consult your obstetrician or dietitian before following it, and avoid foods with listeria risk (unpasteurised dairy, raw fish/meat, cold cuts).",
   "🧒 PERFIL DE MENOR DE EDAD: las necesidades nutricionales de niños y adolescentes difieren de las de un adulto (crecimiento, desarrollo) y este plan usa cálculos calibrados para adultos. NO se aplicó déficit calórico por seguridad. Consulta a un pediatra o nutricionista infantil antes de seguir este plan.": "🧒 MINOR PROFILE: the nutritional needs of children and teenagers differ from those of an adult (growth, development) and this plan uses calculations calibrated for adults. No calorie deficit was applied, for safety. Consult a paediatrician or paediatric dietitian before following this plan.",
   "🫘 CONDICIÓN RENAL DETECTADA — IMPORTANTE: la nutrición en enfermedad renal depende de tu estadio (G1–G5) y de si estás en diálisis, y DEBE ser supervisada por tu nefrólogo o nutricionista renal.": "🫘 KIDNEY CONDITION DETECTED — IMPORTANT: nutrition in kidney disease depends on your stage (G1–G5) and on whether you are on dialysis, and MUST be supervised by your nephrologist or renal dietitian.",
-  "🫘 Condición renal — requiere supervisión de tu nefrólogo": "🫘 Kidney condition — requires supervision by your nephrologist",
-  "Te dimos la lista de compras del plan y aún no marcaste nada como comprado. El siguiente bloque de días espera esa compra: márcala en la Nevera, o espera y seguiremos solos con la mejor información disponible.": "We gave you the plan’s shopping list and you haven’t marked anything as bought yet. The next block of days is waiting for that purchase: mark it in the Fridge, or wait and we’ll carry on alone with the best information available."
+  "🫘 Condición renal — requiere supervisión de tu nefrólogo": "🫘 Kidney condition — requires supervision by your nephrologist"
 }
