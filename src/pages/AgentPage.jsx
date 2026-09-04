@@ -3785,11 +3785,12 @@ const AgentPage = () => {
                    .input-wrapper, que es sticky en PC y relative en móvil). Un solo estilo. */
                 .jump-to-latest {
                     position: absolute;
-                    top: -3.1rem;
-                    right: 1.25rem;
+                    top: -3rem;
+                    left: 50%;
+                    transform: translateX(-50%);  /* v2: centrada, como Claude/ChatGPT */
                     z-index: 18;
-                    width: 40px;
-                    height: 40px;
+                    width: 36px;
+                    height: 36px;
                     padding: 0;
                     display: inline-flex;
                     align-items: center;

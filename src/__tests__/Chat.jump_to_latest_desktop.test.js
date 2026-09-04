@@ -17,8 +17,10 @@ describe('ir al último mensaje', () => {
         expect(rule).toBeLessThan(media);
         const block = SRC.slice(rule, SRC.indexOf('}', rule));
         expect(block).toContain('position: absolute;');
-        expect(block).toContain('top: -3.1rem;');
-        expect(block).toMatch(/width:\s*40px;[\s\S]*height:\s*40px;/);
+        expect(block).toContain('top: -3rem;');
+        expect(block).toContain('left: 50%;');
+        expect(block).toContain('transform: translateX(-50%);');
+        expect(block).toMatch(/width:\s*36px;[\s\S]*height:\s*36px;/);
         expect(block).toContain('border-radius: 999px;');
         // sin la regla móvil vieja anclada a la barra de pestañas / teclado
         expect(SRC).not.toContain('html[data-kb-open] .jump-to-latest');
