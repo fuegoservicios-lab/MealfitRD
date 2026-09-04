@@ -3847,24 +3847,31 @@ const AgentPage = () => {
                    se comía la esquina («se ve demasiado grande, muy feo»). Ahora: miniatura con marco y
                    sombra suave, y un chip de cierre pequeño (22 px, oscuro, rojo solo al pasar) con el
                    área táctil de 44 px puesta en un pseudo-elemento invisible. */
+                /* [P2-CHAT-ATTACHMENT-THUMB v2] tamaño «como ChatGPT» (el dueño lo pidió con captura):
+                   128 px en escritorio, 104 px en móvil, sin marco interior, esquinas de 16 px y el
+                   chip de cierre DENTRO de la esquina. */
                 .attachment-preview {
                     position: relative;
-                    flex: 0 0 64px;
-                    width: 64px;
-                    height: 64px;
-                    padding: 3px;
-                    margin-top: 6px;
-                    border-radius: 12px;
+                    flex: 0 0 128px;
+                    width: 128px;
+                    height: 128px;
+                    padding: 0;
+                    margin-top: 4px;
+                    border-radius: 16px;
                     border: 1px solid var(--border);
                     background: var(--bg-card);
-                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+                    overflow: hidden;
                     scroll-snap-align: start;
+                }
+                @media (max-width: 480px) {
+                    .attachment-preview { flex-basis: 104px; width: 104px; height: 104px; border-radius: 14px; }
                 }
                 .attachment-preview > img {
                     width: 100%;
                     height: 100%;
                     display: block;
-                    border-radius: 9px;
+                    border-radius: inherit;
                     object-fit: cover;
                 }
                 .attachment-placeholder {
@@ -3897,16 +3904,17 @@ const AgentPage = () => {
                 }
                 .attachment-remove {
                     position: absolute;
-                    top: -7px;
-                    right: -7px;
-                    width: 22px;
-                    height: 22px;
+                    top: 6px;
+                    right: 6px;
+                    width: 24px;
+                    height: 24px;
                     padding: 0;
                     display: grid;
                     place-items: center;
-                    border: 2px solid var(--bg-card);
+                    border: 0;
                     border-radius: 999px;
-                    background: rgba(15, 23, 42, 0.92);
+                    background: rgba(15, 23, 42, 0.78);
+                    backdrop-filter: blur(4px);
                     color: white;
                     cursor: pointer;
                     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
@@ -3917,7 +3925,7 @@ const AgentPage = () => {
                 .attachment-remove::after {
                     content: '';
                     position: absolute;
-                    inset: -11px;
+                    inset: -10px;
                     border-radius: 999px;
                 }
                 .attachment-remove:hover:not(:disabled),
