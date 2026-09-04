@@ -24,7 +24,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import { X, Search, Plus, Trash2, Loader2, Refrigerator } from 'lucide-react';
+import { X, Search, Plus, Trash2, Loader2, Refrigerator, Camera, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -57,7 +57,7 @@ const _getDayOptions = (t) => [
 
 // [P1-EAT-PLAN-MEAL-TRUTH · v3] `initialMealType`: al llegar desde «Comí otra cosa» del plato del plan,
 // el componedor abre en el slot de ese plato (almuerzo), no en «Extra»: la sustitución es del almuerzo.
-const LogMealModal = ({ onClose, initialMealType = null }) => {
+const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
     const t = useT();
     const [foods, setFoods] = useState(() => getCachedMasterList() || []);
     const [dishes, setDishes] = useState(() => getCachedDishes() || []);
@@ -75,6 +75,8 @@ const LogMealModal = ({ onClose, initialMealType = null }) => {
     const [frequent, setFrequent] = useState([]);
     const [saving, setSaving] = useState(false);
     const [customDraft, setCustomDraft] = useState(null);
+    // [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] «Escríbelo y estimamos las macros»
+    const [estimating, setEstimating] = useState(false);
     const inputRef = useRef(null);
 
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
@@ -200,15 +202,60 @@ const LogMealModal = ({ onClose, initialMealType = null }) => {
         }
     };
 
+    // [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] Lo que el catálogo no conoce ya se podía añadir,
+    // pero SOLO tecleando las cuatro macros: nadie sabe cuánta proteína tiene «un mangú con huevo
+    // frito». El backend las estima con el modelo flash y vuelven como BORRADOR editable, marcado
+    // como estimado; el registro sigue por la vía `custom` de siempre (sin resta de Nevera).
+    const estimarMacros = async () => {
+        if (!customDraft || estimating) return;
+        setEstimating(true);
+        try {
+            const res = await fetchWithAuth('/api/diary/consumed/estimate-macros', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: customDraft.name, meal_type: mealType }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.operation_failed || !data?.macros) {
+                throw new Error(data?.error_message || t('No pudimos estimar las macros ahora; escríbelas tú o inténtalo de nuevo.'));
+            }
+            const m = data.macros;
+            setCustomDraft((p) => (p ? {
+                ...p,
+                name: String(data.name || p.name).trim() || p.name,
+                macros: {
+                    kcal: clampMacro('calories', m.kcal),
+                    protein: clampMacro('protein', m.protein),
+                    carbs: clampMacro('carbs', m.carbs),
+                    fats: clampMacro('healthy_fats', m.fats),
+                },
+                estimated: true,
+                portionNote: String(data.portion_note || '').trim(),
+            } : p));
+        } catch (e) {
+            toast.error(e?.message || t('No pudimos estimar las macros ahora; escríbelas tú o inténtalo de nuevo.'));
+        } finally {
+            setEstimating(false);
+        }
+    };
+
     const cuerpo = (
         <div className={styles.overlay}>
             <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
             <div ref={containerRef} className={styles.panel} role="dialog" aria-modal="true" aria-label={t('Registrar comida')} tabIndex={-1}>
                 <div className={styles.head}>
                     <h2 className={styles.title}>{t('Registrar comida')}</h2>
-                    <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
-                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
-                    </button>
+                    <div className={styles.headActions}>
+                        {typeof onScan === 'function' && (
+                            <button type="button" className={styles.scanBtn} onClick={onScan} aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
+                                <Camera size={16} strokeWidth={2.25} aria-hidden="true" />
+                                <span>{t('Foto')}</span>
+                            </button>
+                        )}
+                        <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
+                            <X size={20} strokeWidth={2.25} aria-hidden="true" />
+                        </button>
+                    </div>
                 </div>
 
                 <div className={styles.selectors}>
@@ -269,6 +316,13 @@ const LogMealModal = ({ onClose, initialMealType = null }) => {
                 {customDraft && (
                     <div className={styles.customBox}>
                         <span className={styles.customName}>{customDraft.name}</span>
+                        {customDraft.estimated && (
+                            <span className={styles.customNote} role="status">
+                                {customDraft.portionNote
+                                    ? t('Estimación aproximada ({porcion}); ajústala si sabes más.', { porcion: customDraft.portionNote })
+                                    : t('Estimación aproximada; ajústala si sabes más.')}
+                            </span>
+                        )}
                         <div className={styles.customGrid}>
                             <MacroInput classes={_MACRO_CLASSES} label={t('Calorías')} unit="kcal" value={customDraft.macros.kcal}
                                 onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, kcal: clampMacro('calories', v) } }))} />
@@ -280,6 +334,12 @@ const LogMealModal = ({ onClose, initialMealType = null }) => {
                                 onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, fats: clampMacro('healthy_fats', v) } }))} />
                         </div>
                         <div className={styles.customActions}>
+                            <button type="button" className={styles.estimateBtn} disabled={estimating} onClick={estimarMacros}>
+                                {estimating
+                                    ? <Loader2 size={14} className={styles.spin} aria-hidden="true" />
+                                    : <Sparkles size={14} aria-hidden="true" />}
+                                {estimating ? t('Estimando…') : t('Estimar macros por mí')}
+                            </button>
                             <button type="button" className={styles.ghostBtn} onClick={() => setCustomDraft(null)}>{t('Cancelar')}</button>
                             <button
                                 type="button"
@@ -288,6 +348,7 @@ const LogMealModal = ({ onClose, initialMealType = null }) => {
                                     setLines((prev) => [...prev, {
                                         id: `custom-${prev.length}`, ref: 'custom',
                                         name: customDraft.name, macros: customDraft.macros,
+                                        estimated: !!customDraft.estimated,
                                     }]);
                                     setCustomDraft(null);
                                     setQuery('');
@@ -335,7 +396,7 @@ const LogMealModal = ({ onClose, initialMealType = null }) => {
                                 return (
                                     <div key={l.id} className={styles.line}>
                                         <span className={styles.lineName}>{l.name}</span>
-                                        <span className={styles.lineMeta}>{Math.round(l.macros.kcal)} kcal</span>
+                                        <span className={styles.lineMeta}>{Math.round(l.macros.kcal)} kcal{l.estimated ? ` · ${t('estimado')}` : ''}</span>
                                         <button type="button" className={styles.lineDel} aria-label={t('Quitar {nombre}', { nombre: l.name })}
                                             onClick={() => setLines((prev) => prev.filter((x) => x.id !== l.id))}>
                                             <Trash2 size={15} />
@@ -419,6 +480,7 @@ const LogMealModal = ({ onClose, initialMealType = null }) => {
 };
 
 LogMealModal.propTypes = {
+    onScan: PropTypes.func,
     initialMealType: PropTypes.string,
     onClose: PropTypes.func.isRequired,
 };

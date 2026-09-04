@@ -90,6 +90,7 @@ import OptionPickerModal from '../components/common/OptionPickerModal';
 import MotivoActualizarModal from '../components/dashboard/MotivoActualizarModal';
 import EatPlanMealSheet from '../components/dashboard/EatPlanMealSheet';
 import LogMealModal from '../components/dashboard/LogMealModal';
+import ScanMealModal from '../components/dashboard/ScanMealModal';
 import { mealTimingIssue, pantryCoverageIssue } from '../config/mealWindows';
 // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Pestañas fantasma de los días del plan
 // que aún no existen (absorbe el skeleton que vivía inline en la fila de días).
@@ -1144,6 +1145,8 @@ const DashboardInner = () => {
     // cancela. Si todo cuadra, un toque y listo, como siempre.
     const [eatSheet, setEatSheet] = useState(null);
     const [logMealOpen, setLogMealOpen] = useState(false);
+    // [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] «Foto» desde el componedor en modo plan
+    const [scanMealOpen, setScanMealOpen] = useState(false);
     const handleEatPlanMeal = async (meal, index) => {
         if (isGuest) { toast(t('Crea tu cuenta para registrar lo que comes')); return; }
         if (!planData?.id || eatMealInFlight !== null) return;
@@ -9998,7 +10001,8 @@ const DashboardInner = () => {
                     onClose={() => setEatSheet(null)}
                 />
             )}
-            {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} />}
+            {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }} />}
+            {scanMealOpen && <ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)} userId={session?.user?.id || userProfile?.id || 'guest'} />}
 
             {/* ═══════════ MODAL (rediseño): ¿Por qué quieres cambiar? — un plato (PC + móvil) ═══════════ */}
             <MotivoActualizarModal

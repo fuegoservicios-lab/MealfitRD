@@ -160,6 +160,8 @@ const TrackingProgress = ({ planData, userId }) => {
     // escritura. Misma clase que P2-HIST-MODALS-A11Y (onClose memoizado con useCallback).
     const handleScanClose = useCallback(() => setScanOpen(false), []);
     const handleLogClose = useCallback(() => setLogOpen(false), []);
+    // [P1-DIARY-FREETEXT-ESTIMATE] «Foto» desde el componedor: cierra el composedor y abre el escáner
+    const handleLogToScan = useCallback(() => { setLogOpen(false); setScanOpen(true); }, []);
 
     // [P1-DIARY-EDITABLE · 2026-07-28] Estado de la lista de comidas de hoy.
     // `mealsExpanded` levanta el cap de `_MEALS_VISIBLE_CAP` filas visibles.
@@ -637,7 +639,7 @@ const TrackingProgress = ({ planData, userId }) => {
                         modal hace fetch del catálogo al montar: montarlo cerrado sería
                         pagar ese fetch en cada visita al dashboard. */}
                     {logOpen && (
-                        <LogMealModal onClose={handleLogClose} />
+                        <LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />
                     )}
                     <ScanMealModal
                         isOpen={scanOpen}
