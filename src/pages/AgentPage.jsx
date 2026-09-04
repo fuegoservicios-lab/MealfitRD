@@ -3391,8 +3391,13 @@ const AgentPage = () => {
             borderBottomRightRadius: isMobile ? '0' : '1.5rem',
             borderTop: isCentered ? 'none' : '1px solid var(--border)',
             boxShadow: isCentered ? '0 -2px 20px rgba(0,0,0,0.04)' : 'none',
-            position: isCentered ? 'absolute' : 'sticky',
-            bottom: isCentered ? 0 : (isMobile ? 0 : '1.25rem'),
+            // [P2-CHAT-SCROLLBAR-CLASSIC v4 · 2026-09-04] En PC el wrapper era sticky a 1.25rem del borde:
+            // el sticky lo subía 20 px sobre el final del scroller y tapaba el botón de BAJAR de la
+            // barra clásica (14 px). El aire se da ahora como margen; el scroller termina encima del
+            // cuadro y la barra queda entera. En móvil sigue sticky a 0 (teclado, P1-CHAT-KEYBOARD-TABBAR).
+            position: isCentered ? 'absolute' : (isMobile ? 'sticky' : 'relative'),
+            bottom: isCentered ? 0 : (isMobile ? 0 : 'auto'),
+            marginBottom: (!isCentered && !isMobile) ? '1.25rem' : 0,
             left: 0,
             right: 0,
             width: '100%',

@@ -24,6 +24,9 @@ describe('scrollbar clásica del chat', () => {
         // el scroller empieza debajo de la cabecera absoluta: el botón de subir queda a la vista
         expect(SRC).toContain("marginTop: 'calc(4.5rem + max(env(safe-area-inset-top), 24px))',");
         expect(SRC).toContain("padding: messages.length === 0 ? '1.25rem 1.5rem 0 1.5rem' : '1.25rem 2rem 0.5rem 2rem',");
+        // y el cuadro de escribir no se superpone al final del scroller en PC (botón de bajar visible)
+        expect(SRC).toContain("position: isCentered ? 'absolute' : (isMobile ? 'sticky' : 'relative'),");
+        expect(SRC).toContain("marginBottom: (!isCentered && !isMobile) ? '1.25rem' : 0,");
         expect(SRC).not.toContain('.messages-container::-webkit-scrollbar {\n                    width: 6px;');
     });
 });
