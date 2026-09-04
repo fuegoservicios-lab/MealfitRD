@@ -512,11 +512,19 @@
      deja de serlo (html/body overflow hidden, solo mientras el login está montado, vía
      :has). Si el contenido NO cabe (iPhone SE), el scroll ocurre dentro del login. Los
      glows pierden sus desplazamientos negativos: con overflow auto generarían recorrido. */
+  /* [P2-LOGIN-MOBILE-BG-UNIFORM · 2026-09-04] Captura del dueño (iPhone): la franja bajo el
+     último texto del login se veía de OTRO tono. El login mide `100dvh` y pinta su propio
+     fondo; todo lo que quede fuera de esa caja (la zona que Safari descubre al plegar su
+     barra, el rebote, el safe-area inferior) es el <body>, que llevaba `--bg-page` del
+     dashboard (otro azul). El lienzo del documento se pinta del MISMO valor que `--mf-bg`
+     mientras el login está montado; el literal se repite porque el token vive dentro de
+     `.mf-login` y html/body no lo ven (test: Login.mobile_bg_uniform). */
   html:has(.mf-login),
   body:has(.mf-login) {
     height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
+    background: #080C16;
   }
   .mf-login {
     grid-template-columns: 1fr;
