@@ -122,7 +122,7 @@ jobs:
       # [P2-LIVE-1 · 2026-05-12 → G31 · 2026-08-23] El lint de CI nació como job
       # aparte no-bloqueante en el ci.yml de la RAÍZ (245 errores de baseline).
       # Hoy la baseline está limpia y el lint es BLOQUEANTE vía el tope de avisos.
-      - run: npx eslint . --max-warnings 66
+      - run: npx eslint . --max-warnings 60
       # [P2-LINT-RATCHET-POR-REGLA] El techo global es FUNGIBLE: arreglar un aviso
       # de estilo libera hueco para que entre uno de hooks, y el numero total no
       # se entera. Este gate pone techo POR REGLA, y una regla no declarada tiene

@@ -24,7 +24,7 @@
 // Uso: npm run lint:count
 import { ESLint } from 'eslint';
 
-const CEILING = 66; // sincronizado a mano con ci.yml; el desajuste se avisa abajo
+const CEILING = 60; // sincronizado a mano con ci.yml; el desajuste se avisa abajo
 
 /**
  * [P2-LINT-RATCHET-POR-REGLA · 2026-08-18] Un techo global tiene un agujero:
@@ -61,7 +61,12 @@ const TECHOS_POR_REGLA = {
     'no-restricted-syntax': 0,
     // Ficheros que exportan algo que no es un componente junto al componente.
     // Rompe el refresco en caliente del desarrollo; no afecta a producción.
-    'react-refresh/only-export-components': 26,
+    // [P0-FE-CI-RED · 2026-09-04] 26→20. El job `quality` llevaba en rojo desde que
+    // P1-COACH-QUOTA-METER (09-02) exportó un helper junto al componente (27) y otro
+    // fichero lo siguió (28 > 26). Se arregló el CÓDIGO, no el techo: helpers a ficheros
+    // propios (coachQuotaState.js, micronutrientHelpers.js, avatarCatalog.jsx) y un
+    // `export` sin consumidor fuera (captureVideoFrame). Trinquete: 20 es el conteo real.
+    'react-refresh/only-export-components': 20,
     // ⚠ EL BLOQUE QUE NO SE TOCA A CIEGAS. Cada uno pide leer el efecto: añadir
     // la dependencia que falta puede ser justo lo que provoque el bucle infinito
     // que el autor evitó omitiéndola. Se arreglan de uno en uno y con la pantalla

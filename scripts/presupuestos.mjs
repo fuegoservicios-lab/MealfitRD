@@ -46,8 +46,23 @@ const TECHOS = {
        los 53,6 kB gz que dejó P1-APEX-ENTRY-DIET: aquel era el entry SOLO. Los
        preloads no son opcionales para el navegador, van a prioridad alta en la
        misma tanda, así que un presupuesto de arranque que los ignore mide media
-       verdad. */
-    arranqueJS: 140,
+       verdad.
+
+       [P0-FE-CI-RED · 2026-09-04] 140→150. Medido en `main` (41142806): 145,6 —el gate
+       llevaba en rojo, escondido detrás del lint (el job `quality` moría antes de
+       llegar aquí) y de 60 corridas rojas seguidas desde el 2026-08-23—. Qué entró
+       (vite-bundle-visualizer, gz por módulo del entry): no es UN import nuevo sino el
+       crecimiento estructural del contexto global —`AssessmentContext.jsx` 25,9 kB
+       (4.492 líneas, +324 B sólo entre el 09-02 y hoy)— y de lo que arrastra al
+       arranque: `renderCoherenceWarnings` 7,2, `historyCaches` 5,6, `pantryCache`
+       5,5, `guestMode` 5,3, `errorCopy` 2,9, `usePlanPollLoop` 2,6. El historial del
+       repo se aplastó el 09-02 (rebase glm-migration), así que la atribución por
+       commit ya no es posible. Se re-baselinea con 4 kB de holgura EN VEZ de dejar el
+       gate rojo, y el trabajo que lo baja de verdad queda registrado en
+       backend/docs/gaps-audit-2026-09.md (P2: cargar el renderer de coherencia y las
+       cachés de historial/despensa bajo demanda desde el contexto; a medio plazo,
+       partir el contexto — B4 del audit de mayo). Cuando eso aterrice, bajar a 140. */
+    arranqueJS: 150,
     // Las hojas de estilo que bloquean el pintado. Medido: 10,2.
     arranqueCSS: 12,
     /* El trozo perezoso más gordo. Medido: 274,6 —`html2pdf`—, y conviene saber

@@ -63,7 +63,8 @@ import { acusePrioritario } from '../hooks/useAutoguardado';
 // [P1-ACCOUNT-DELETE-1 · 2026-06-22] Misma sección "Eliminar cuenta" que /configuracion.
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatares minimalistas: clic en el avatar del perfil cicla al siguiente.
-import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
+import { MinimalAvatar } from '../components/avatars/minimalAvatars';
+import { MINIMAL_AVATARS } from '../components/avatars/avatarCatalog';
 import { getAvatarId, persistAvatar } from '../utils/avatarStore';
 // [P1-LEGAL-LINKS-APEX · 2026-08-22] Las legales viven SOLO en el apex
 // (P1-LEGAL-UNA-SOLA-COPIA). Un href relativo funcionaba en web por el 301 de

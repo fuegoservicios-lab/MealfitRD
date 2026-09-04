@@ -8,7 +8,7 @@ subiendo hasta que deja de molestar; entonces ya no protege, solo cuesta.
 
 | Gate | Comando | Qué cae si falta |
 |---|---|---|
-| Lint, techo global | `npx eslint . --max-warnings 158` | Deriva silenciosa: de 148 a 180 en un mes sin que nadie lo viera. |
+| Lint, techo global | `npx eslint . --max-warnings 60` (2026-09-04; era 158→66) | Deriva silenciosa: de 148 a 180 en un mes sin que nadie lo viera. |
 | Lint, **techo por regla** | `npm run lint:count -- --gate` | El techo global es fungible: arreglar un aviso de estilo libera hueco para uno de hooks. |
 | Tipos | `npm run typecheck` | — |
 | Código muerto | `node scripts/huerfanos.mjs --gate` | `ChatWidget.jsx` vivió 829 líneas sostenido por sus propios tests. |

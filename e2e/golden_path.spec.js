@@ -47,6 +47,10 @@ test.describe('Golden path smoke', () => {
          ruta. Filtrar por texto se tragaría también un 500 de un recurso propio. */
       const url = msg.location?.()?.url || '';
       if (url.includes('/api/')) return;
+      /* [P0-FE-CI-RED · 2026-09-04] Mismo filtro EXACTO que `landing_depth.spec.js`: WebKit
+         registra como error que ignora `interactive-widget` del meta viewport. Ruido del
+         motor, no de la página. */
+      if (/Viewport argument key "interactive-widget" not recognized/.test(msg.text())) return;
       consoleErrors.push(`console.error: ${msg.text()}`);
     });
 

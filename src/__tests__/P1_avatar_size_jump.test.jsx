@@ -16,7 +16,8 @@ import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import fs from 'node:fs';
 import path from 'node:path';
-import { MinimalAvatar, MINIMAL_AVATARS } from '../components/avatars/minimalAvatars';
+import { MinimalAvatar } from '../components/avatars/minimalAvatars';
+import { MINIMAL_AVATARS } from '../components/avatars/avatarCatalog';
 
 const SETTINGS = fs.readFileSync(
     path.resolve(__dirname, '..', 'pages', 'Settings.jsx'),

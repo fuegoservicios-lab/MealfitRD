@@ -40,7 +40,7 @@ import { useT } from '../../i18n';
 // Captura el frame actual del <video> a un <canvas> en sus dimensiones REALES
 // (video.videoWidth/videoHeight — nunca el tamaño CSS del elemento). Produce el
 // `file` que el caller manda a su endpoint y el `previewUrl` del freeze-frame.
-export const captureVideoFrame = (video, fileName = 'captura.jpg') => new Promise((resolve, reject) => {
+const captureVideoFrame = (video, fileName = 'captura.jpg') => new Promise((resolve, reject) => {
     try {
         const w = video.videoWidth;
         const h = video.videoHeight;

@@ -24,7 +24,7 @@ import { useAssessment } from '../../context/AssessmentContext';
 import { requestAgentPrefill } from '../../utils/agentPrefill';
 // classify = SSOT del cálculo de las mini-barras (mismo que el panel de micros).
 // restoreMicrosPanel = "desocultar" el panel desde aquí (P3-MICROS-RESTORE).
-import { classify, restoreMicrosPanel } from './MicronutrientPanel';
+import { classify, restoreMicrosPanel } from './micronutrientHelpers';
 // [P1-REASONING-DISMISS · 2026-06-26] "Volver a mostrar" el panel de Razonamiento.
 import { restoreInsightsPanel } from '../../utils/insightsPanel';
 import { useT } from '../../i18n';
