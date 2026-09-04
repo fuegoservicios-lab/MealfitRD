@@ -799,20 +799,22 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                     // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Ring rojo sutil
                     // alrededor del track cuando over — refuerza el signaling
                     // sin sobrecargar la card con un border permanente.
-                    borderColor: isOver ? 'rgba(220, 38, 38, 0.45)' : undefined,
+                    borderColor: isOver ? '#F87171' : undefined,
+                    boxShadow: isOver ? '0 0 0 1px rgba(248, 113, 113, 0.35)' : undefined,
                 }}
             >
-                {/* [P3-OVER-BAR-CALM · 2026-09-04] Exceder la meta no tiñe la barra ni la parte en dos: la
-                    barra sigue llena y en el color de su macro (la meta está cumplida); el exceso lo dicen
-                    el número en rojo y el porcentaje, que pasa a una píldora roja al final de la barra.
-                    Dos intentos anteriores el mismo día (barra roja entera; tramo rojo tras una marca)
-                    los rechazó el dueño: uno asustaba, el otro ensuciaba. */}
+                {/* [P3-OVER-BAR-RED-DEFINED · 2026-09-04] Cuatro variantes en un día (degradado rosa→rojo,
+                    rojo sólido, tramo rojo tras una marca, píldora roja): el dueño eligió la barra roja
+                    completa con el contorno de la pista bien marcado. Es su decisión de diseño. */}
                 <div
                     className={styles.fill}
                     style={{
                         width: `${fillWidth}%`,
-                        background: gradient,
-                        boxShadow: isComplete && !isOver ? `0 0 12px ${color}66` : 'none',
+                        // [P3-OVER-BAR-RED-DEFINED · 2026-09-04] decisión del dueño tras 3 variantes: barra
+                        // ROJA completa cuando se excede, y el contorno de la pista más marcado para que
+                        // la barra roja quede definida (antes el borde apenas se veía sobre el fondo oscuro).
+                        background: isOver ? OVER_COLOR : gradient,
+                        boxShadow: isOver ? '0 0 12px rgba(220, 38, 38, 0.45)' : (isComplete ? `0 0 12px ${color}66` : 'none'),
                     }}
                 />
                 {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro
@@ -833,7 +835,7 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                     user rechazó visualmente — battery style consistente. */}
                 {!isEmpty && (
                     <span
-                        className={`${styles.fillPerc}${isOver ? ` ${styles.fillPercOver}` : ''}`}
+                        className={styles.fillPerc}
                         style={{ left: `${fillWidth}%` }}
                     >
                         {formatPercent(perc)}

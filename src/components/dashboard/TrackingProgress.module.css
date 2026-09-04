@@ -822,17 +822,3 @@
 :global(html[data-theme="dark"]) .mealsShowMore {
     color: #A5B4FC;
 }
-
-/* [P3-OVER-BAR-CALM · 2026-09-04] El porcentaje de exceso va en una píldora roja al final de la barra;
-   la barra conserva el color de su macro. */
-.fillPercOver {
-    background: #DC2626;
-    color: #ffffff;
-    border-radius: 99px;
-    padding: 0 0.55rem;
-    height: calc(100% - 4px);
-    top: 2px;
-    margin-left: -2px;
-    text-shadow: none;
-    box-shadow: 0 0 10px rgba(220, 38, 38, 0.45);
-}
