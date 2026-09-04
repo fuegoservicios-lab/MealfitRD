@@ -20,4 +20,18 @@ describe('login en móvil: el lienzo del documento es del mismo color que el log
         expect(block).toContain(`background: ${token[1]};`);
         expect(block).toContain('overflow: hidden;');
     });
+
+    it('el theme-color de las rutas de auth ES --mf-bg (iOS pinta con él la franja tras la barra plegada)', () => {
+        // segunda captura del dueño: con html/body ya pintados seguía la banda al pie. No era el
+        // documento: es el color que Safari toma del <meta name="theme-color"> (#020617 ≠ #080C16).
+        const token = CSS.match(/^\s*--mf-bg:\s*(#[0-9A-Fa-f]{6});/m)[1];
+        const hook = readFileSync(resolve(process.cwd(), 'src/components/common/useThemeColor.js'), 'utf8');
+        const i = hook.indexOf("if (path === '/login' || path === '/register') {");
+        expect(i).toBeGreaterThan(0);
+        const branch = hook.slice(i, hook.indexOf('} else if', i));
+        expect(branch).toContain(`color = '${token}';`);
+        expect(branch).not.toContain('#020617');
+        // restablecer contraseña vive en Auth.module.css (authContainer slate-950): conserva el suyo
+        expect(hook).toContain("} else if (path === '/reset-password') {\n                color = '#020617';");
+    });
 });

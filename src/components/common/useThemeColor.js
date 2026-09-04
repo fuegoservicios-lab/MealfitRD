@@ -24,8 +24,16 @@ const useThemeColor = () => {
             const dark = isDarkActive();
 
             let color;
-            if (path === '/login' || path === '/register' || path === '/reset-password') {
-                color = '#020617'; // Auth pages: ya oscuras en ambos temas
+            if (path === '/login' || path === '/register') {
+                // [P2-LOGIN-MOBILE-BG-UNIFORM · 2026-09-04] Login (y /register, que redirige a él):
+                // ya oscuro en ambos temas. El valor ES `--mf-bg` de Login.css (#080C16), no
+                // slate-950: en iOS Safari el theme-color pinta la barra de estado Y la franja tras
+                // la barra inferior plegada, y con un tono distinto al del login se veía una banda
+                // al pie (captura del dueño; pintar html/body no bastó porque esa franja no es el
+                // documento). Test ata ambos valores.
+                color = '#080C16';
+            } else if (path === '/reset-password') {
+                color = '#020617'; // Auth.module.css: authContainer (slate-950), ya oscuro en ambos temas
             } else if (isPaperActive()) {
                 // [P1-PAPER-THEME · 2026-08-01 · fix1] Pregunta por el TEMA activo
                 // (`data-theme` en el DOM), NO por si la ruta es "elegible" para
