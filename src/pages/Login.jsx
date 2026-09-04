@@ -12,6 +12,9 @@ import { logoutFirstPartySession, verifyEmailOtpFirstParty } from '../utils/firs
 import { humanizeAuthError } from '../utils/authErrors';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import PlanShowcase from '../components/auth/PlanShowcase';
+import LoginDiag from './LoginDiag';
+// [DIAG-LOGIN-BAND · TEMPORAL] sonda visual para la franja al pie en iPhone; solo con `#diag`.
+const isLoginDiag = typeof window !== 'undefined' && window.location.hash === '#diag';
 import './Login.css';
 import Wordmark from '../components/common/Wordmark';
 import { useI18n } from '../i18n';
@@ -385,6 +388,7 @@ const Login = () => {
         <div className="mf-login" data-side="left" data-anim="on">
             <div className="mf-glow mf-glow--a" aria-hidden="true" />
             <div className="mf-glow mf-glow--b" aria-hidden="true" />
+            {isLoginDiag && <LoginDiag />}
 
             {/* Preview del plan (decorativo, oculto en móvil) */}
             <aside className="mf-showcase" aria-hidden="true">
