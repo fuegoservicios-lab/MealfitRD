@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] SSOT del alto del textarea.
 import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autosizeTextarea';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -1662,12 +1662,27 @@ const AgentPage = () => {
     // de unos px y la píldora «ir al último mensaje» no aparece mientras se lee la respuesta.
     const sentAnchorRef = useRef(null); // { clientMessageId, scrolled }
     const [anchorSpacerPx, setAnchorSpacerPx] = useState(0);
+    const anchorSpacerRef = useRef(0); // último espaciador PEDIDO (el estado llega un render después)
+    // Lleva el mensaje anclado al borde superior. Idempotente: solo la primera vez por ancla.
+    // v2: se llama DESPUÉS de que el espaciador esté pintado (useLayoutEffect abajo) — antes se
+    // scrolleaba en el mismo tick que se pedía el espaciador, el contenedor aún no tenía sitio
+    // y el scroll se quedaba a medias (el dueño lo vio: «sigue sin coger para arriba»).
+    const scrollToSentAnchor = useCallback(() => {
+        const anchor = sentAnchorRef.current;
+        const el = messagesContainerRef.current;
+        if (!anchor || anchor.scrolled || !el) return;
+        const row = el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`);
+        if (!row) return;
+        anchor.scrolled = true;
+        const top = row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12;
+        try { el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); } catch { el.scrollTop = Math.max(0, top); }
+    }, []);
     const layoutSentAnchor = useCallback(() => {
         const anchor = sentAnchorRef.current;
         const el = messagesContainerRef.current;
-        if (!anchor || !el) return false;
+        if (!anchor || !el) return null;
         const row = el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`);
-        if (!row) return false;
+        if (!row) return null;
         let below = 0;
         let sib = row.nextElementSibling;
         while (sib) {
@@ -1676,14 +1691,17 @@ const AgentPage = () => {
             sib = sib.nextElementSibling;
         }
         const spacer = Math.max(0, el.clientHeight - row.offsetHeight - below - 24);
-        setAnchorSpacerPx((prev) => (Math.abs(prev - spacer) > 2 ? spacer : prev));
-        if (!anchor.scrolled) {
-            anchor.scrolled = true;
-            const top = row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12;
-            try { el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); } catch { el.scrollTop = Math.max(0, top); }
+        const pending = Math.abs(anchorSpacerRef.current - spacer) > 2;
+        if (pending) {
+            anchorSpacerRef.current = spacer;
+            setAnchorSpacerPx(spacer);
         }
-        return true;
+        return { spacer, pending };
     }, []);
+    // el espaciador ya está en el DOM: ahora sí el ancla puede llegar arriba
+    useLayoutEffect(() => {
+        scrollToSentAnchor();
+    }, [anchorSpacerPx, scrollToSentAnchor]);
     const scrollToBottom = (force = false, behaviorOverride = null) => {
         if (userScrolledUpRef.current && !force) return;
         if (scrollRafRef.current) return; // ya hay un scroll agendado este frame
@@ -2170,7 +2188,15 @@ const AgentPage = () => {
         const anchor = sentAnchorRef.current;
         if (anchor) {
             if (messages.length <= VIRTUALIZE_THRESHOLD) {
-                if (layoutSentAnchor()) return;
+                const r = layoutSentAnchor();
+                if (r) {
+                    if (!anchor.scrolled && !r.pending) scrollToSentAnchor();
+                    // v2: una respuesta más alta que la ventana se PERSIGUE hasta el final mientras
+                    // llega (el espaciador ya es 0), salvo que el usuario haya subido a leer.
+                    const last = messages[messages.length - 1];
+                    if (anchor.scrolled && r.spacer === 0 && last?.isStreaming && !userScrolledUpRef.current) scrollToBottom();
+                    return;
+                }
             } else if (!anchor.scrolled) {
                 anchor.scrolled = true;
                 const idx = messages.findIndex((m) => m?.clientMessageId === anchor.clientMessageId);
@@ -2183,10 +2209,11 @@ const AgentPage = () => {
             }
         }
         scrollToBottom();
-    }, [messages, layoutSentAnchor]);
+    }, [messages, layoutSentAnchor, scrollToSentAnchor]);
     // el ancla y su espaciador pertenecen a UNA conversación: al cambiar de sesión se sueltan
     useEffect(() => {
         sentAnchorRef.current = null;
+        anchorSpacerRef.current = 0;
         setAnchorSpacerPx(0);
     }, [currentSessionId]);
 
