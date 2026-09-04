@@ -950,9 +950,18 @@ const InteractiveAssessmentFlow = () => {
                             gradiente (indigo→esmeralda) que renderizan los steps
                             con hasInternalNext — dos looks para la misma acción.
                             Ahora ambos paths usan el mismo componente. */}
+                        {/* [P2-WIZARD-NEXT-REQUIRES-FIELDS · 2026-09-04] Este bloque aparece con
+                            `canSkip` (usuario que ya completó el formulario o que vuelve atrás)
+                            AUNQUE el paso esté vacío, y `nextStep` no valida nada: «Siguiente
+                            Paso» dejaba pasar una pregunta obligatoria sin responder (captura del
+                            dueño: paso 18, mealOrganization, marcado con *). Los pasos con
+                            hasInternalNext ya deshabilitan su propio NextButton; aquí faltaba la
+                            misma puerta. Todo paso con `fields` es obligatorio (los «(Opcional)»
+                            no declaran fields). */}
                         {!currentStepConfig.hasInternalNext && (
                             <NextButton
                                 onClick={nextStep}
+                                disabled={Array.isArray(currentStepConfig.fields) && currentStepConfig.fields.length > 0 && !stepFieldsFilled}
                                 label={t('Siguiente Paso')}
                                 style={{ marginTop: 0 }}
                             />
