@@ -18,7 +18,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { fetchWithAuth } from '../../../config/api';
-import { Search, X } from 'lucide-react';
+import { Search, X, SlidersHorizontal } from 'lucide-react';
+// [P1-ARQ25-F4-FORM · 2026-09-03] «Mis básicos» es también el EDITOR DE ANCLAS (roadmap §6.7):
+// por básico, franja(s), frecuencia semanal y misma/variada preparación → `stapleAnchors`.
+// Los nombres siguen en `stapleFoods` (SSOT del motor y de la Nevera); aquí solo se enriquecen.
+import { ChipOption } from './_shared';
+import { PLAN_POLICY_FORM_UI, ANCHOR_SLOTS, ANCHOR_FREQUENCIES, PREPARATION_MODES, anchorDefaults, frequencyIdFor, slotLabel, frequencyLabel, preparationLabel } from '../../../config/planPolicy';
 import { NextButton } from './NextButton';
 import { getCachedMasterList, setCachedMasterList } from '../../../utils/pantryCache';
 import { useT, useTn } from '../../../i18n';
@@ -64,6 +69,19 @@ export const QStapleFoods = ({ onManualAdvance }) => {
 
     const staples = formData.stapleFoods || [];
     const atMax = staples.length >= STAPLE_FOODS_MAX;
+    const anchors = Array.isArray(formData.stapleAnchors) ? formData.stapleAnchors : [];
+    const [editing, setEditing] = useState(null);
+    const anchorFor = (name) => anchors.find((a) => a && a.name === name) || anchorDefaults(name);
+    const setAnchor = (name, patch) => {
+        const next = anchors.filter((a) => a && a.name !== name).concat([{ ...anchorFor(name), ...patch }]);
+        updateData('stapleAnchors', next);
+    };
+    const pillStyle = (on) => ({
+        padding: '0.4rem 0.75rem', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+        fontFamily: 'inherit', border: on ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+        background: on ? 'color-mix(in srgb, var(--primary) 16%, transparent)' : 'var(--bg-card)',
+        color: on ? 'var(--primary)' : 'var(--text-main)',
+    });
 
     useEffect(() => {
         if ((getCachedMasterList() || []).length > 0) { setLoading(false); return undefined; }
@@ -155,6 +173,58 @@ export const QStapleFoods = ({ onManualAdvance }) => {
 
     const removeStaple = (name) => {
         updateData('stapleFoods', staples.filter(s => s !== name));
+        if (anchors.some((a) => a && a.name === name)) updateData('stapleAnchors', anchors.filter((a) => a && a.name !== name));
+        if (editing === name) setEditing(null);
+    };
+    const anchorEditor = (name) => {
+        const a = anchorFor(name);
+        const freqId = frequencyIdFor(a.min_per_7d, a.max_per_7d);
+        return (
+            <div role="group" aria-label={t('Ajustar {alimento}', { alimento: name })} style={{
+                display: 'flex', flexDirection: 'column', gap: '0.8rem', padding: '0.9rem 1rem',
+                borderRadius: '0.9rem', border: '1px solid var(--border)', background: 'var(--bg-card)',
+            }}>
+                <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{t('Ajustar {alimento}', { alimento: name })}</strong>
+                <div>
+                    <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('¿En qué comidas?')}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                        {ANCHOR_SLOTS.map((slot) => (
+                            <ChipOption key={slot} val={slot} label={slotLabel(t, slot)} isSelected={(a.slots || []).includes(slot)}
+                                onToggle={() => {
+                                    const cur = a.slots || [];
+                                    setAnchor(name, { slots: cur.includes(slot) ? cur.filter((x) => x !== slot) : [...cur, slot] });
+                                }} />
+                        ))}
+                    </div>
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Sin marcar ninguna vale en cualquier comida.')}</p>
+                </div>
+                <div role="radiogroup" aria-label={t('¿Cuántas veces por semana?')}>
+                    <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('¿Cuántas veces por semana?')}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                        {ANCHOR_FREQUENCIES.map((f) => (
+                            <button key={f.id} type="button" role="radio" aria-checked={freqId === f.id} style={pillStyle(freqId === f.id)}
+                                onClick={() => setAnchor(name, { min_per_7d: f.min, max_per_7d: f.max })}>
+                                {frequencyLabel(t, f.id)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div role="radiogroup" aria-label={t('¿Cómo lo preparamos?')}>
+                    <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('¿Cómo lo preparamos?')}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                        {PREPARATION_MODES.map((mode) => (
+                            <button key={mode} type="button" role="radio" aria-checked={a.preparation_mode === mode} style={pillStyle(a.preparation_mode === mode)}
+                                onClick={() => setAnchor(name, { preparation_mode: mode })}>
+                                {preparationLabel(t, mode)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <button type="button" onClick={() => setEditing(null)} style={{ ...pillStyle(true), alignSelf: 'flex-start' }}>
+                    {t('Listo')}
+                </button>
+            </div>
+        );
     };
 
     return (
@@ -234,6 +304,16 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                         }}>
                             {name}
                             {/* El nombre viene del catálogo (SSOT del motor): se interpola, no se traduce. */}
+                            {PLAN_POLICY_FORM_UI && (
+                                <button type="button" aria-label={t('Ajustar {alimento}', { alimento: name })} aria-pressed={editing === name}
+                                    onClick={() => setEditing(editing === name ? null : name)}
+                                    style={{
+                                        display: 'inline-flex', background: 'none', border: 'none',
+                                        cursor: 'pointer', color: editing === name ? 'var(--primary)' : 'var(--text-muted)', padding: 2,
+                                    }}>
+                                    <SlidersHorizontal size={14} />
+                                </button>
+                            )}
                             <button type="button" aria-label={t('Quitar {alimento} de tus básicos', { alimento: name })}
                                 onClick={() => removeStaple(name)}
                                 style={{
@@ -246,6 +326,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                     ))}
                 </div>
             )}
+            {PLAN_POLICY_FORM_UI && editing && staples.includes(editing) && anchorEditor(editing)}
 
             {collapsedGroups.length > 0 && (
                 <div role="status" style={{

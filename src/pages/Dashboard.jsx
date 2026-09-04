@@ -79,6 +79,9 @@ import SupermarketBrands from '../components/dashboard/SupermarketBrands';
 // [P2-AUDIT-V7-BATCH · 2026-07-04] (P2-8) lista por pasillo on-screen (antes solo PDF).
 // [P3-AGENT-PREFILL · 2026-06-15] Tocar un micronutriente → pregunta al coach IA.
 import { requestAgentPrefill } from '../utils/agentPrefill';
+// [P1-ARQ25-F4-FORM · 2026-09-03] Pantalla «solicitaste / aplicamos / por qué» (Fase 4).
+import PlanPolicyPanel from '../components/dashboard/PlanPolicyPanel';
+import { PLAN_POLICY_FORM_UI } from '../config/planPolicy';
 import Modal from '../components/common/Modal';
 import OptionPickerModal from '../components/common/OptionPickerModal';
 // [P3-MOTIVO-MODAL-REDESIGN · 2026-06-24] Selector de motivo rediseñado para
@@ -8153,6 +8156,13 @@ const DashboardInner = () => {
 
                 {/* Left Column: MEALS TIMELINE */}
                 <div className={`meals-container${dayHasMealCards ? '' : ' meals-container--sin-filas'}`} style={{ flex: 2, alignSelf: 'start' }}>
+                    {PLAN_POLICY_FORM_UI && planData?._plan_policy && (
+                        <PlanPolicyPanel
+                            policy={planData._plan_policy}
+                            fidelity={planData._fidelity_report}
+                            onEdit={() => navigate('/assessment')}
+                        />
+                    )}
                     <div className="menu-section-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <h2 className="menu-section-title">

@@ -11,6 +11,7 @@ import {
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../data/routeMeta';
+import { PLAN_POLICY_FORM_UI } from './planPolicy';
 // [P1-B6] Validación cliente-side del formData del wizard de assessment.
 //
 // Este módulo es la fuente de verdad ÚNICA en el frontend para los campos
@@ -137,6 +138,9 @@ export const REQUIRED_FORM_FIELDS = [
     // Va PRIMERO: findFirstIncompleteField navega en este orden y su paso es
     // el primero de la rama del plan.
     'planSource',
+    // [P1-ARQ25-F4-FORM · 2026-09-03] Perfil global de recurrencia: obligatorio en el wizard cuando
+    // el formulario progresivo está encendido (frontend-only en la paridad: el backend defaultea).
+    ...(PLAN_POLICY_FORM_UI ? ['mealOrganization'] : []),
     'gender', 'age', 'height', 'weight', 'weightUnit', 'activityLevel',
     'scheduleType', 'sleepHours', 'stressLevel', 'cookingTime', 'budget',
     'householdSize', 'groceryDuration',
@@ -341,6 +345,7 @@ export const buildFieldToStepIndex = (steps) => {
 export const FIELD_LABELS = {
     appMode: 'Qué hace Bioboros por ti (plan o contador)',
     planSource: 'Cómo arma tu plan la IA',
+    mealOrganization: 'Cómo organizas tus comidas (rutina, equilibrio o exploración)',
     gender: 'Sexo biológico',
     age: 'Edad',
     height: 'Altura',
@@ -387,6 +392,7 @@ export const FIELD_LABELS = {
 export const getFieldLabels = (t) => ({
     appMode: t('Qué hace {app} por ti (plan o contador)', { app: BRAND }),
     planSource: t('Cómo arma tu plan la IA'),
+    mealOrganization: t('Cómo organizas tus comidas (rutina, equilibrio o exploración)'),
     gender: t('Sexo biológico'),
     age: t('Edad'),
     height: t('Altura'),
