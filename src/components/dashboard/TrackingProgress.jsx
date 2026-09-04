@@ -701,12 +701,6 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
     // gradiente: rojo sólido de la familia --danger-fill, de punta a punta.
     const OVER_COLOR = '#DC2626';
     const effectiveGlowColor = isOver ? OVER_COLOR : color;
-    // [P3-OVER-BAR-OVERFLOW] la pista abarca la meta más un margen; el exceso ocupa su tamaño real
-    // (con un mínimo visible) a la derecha de la marca de la meta.
-    const _overScale = isOver ? Math.max(115, perc + 5) : 100;
-    const _goalLeft = isOver ? (100 / _overScale) * 100 : 100;
-    const _overWidth = isOver ? Math.max(4, ((perc - 100) / _overScale) * 100) : 0;
-    const _overEnd = isOver ? Math.min(100, _goalLeft + _overWidth) : fillWidth;
     const consumedTextColor = isOver
         ? OVER_COLOR
         // [APPEARANCE-THEME · 2026-05-29] En oscuro, el "0" vacío en text-light
@@ -805,31 +799,22 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                     // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Ring rojo sutil
                     // alrededor del track cuando over — refuerza el signaling
                     // sin sobrecargar la card con un border permanente.
-                    borderColor: isOver ? 'rgba(220, 38, 38, 0.35)' : undefined,
+                    borderColor: isOver ? 'rgba(220, 38, 38, 0.45)' : undefined,
                 }}
             >
-                {/* [P3-OVER-BAR-OVERFLOW · 2026-09-04] Exceder la meta ya no pinta TODA la barra de rojo
-                    (cuatro bloques rojos por un 3 % de más asustaban sin informar). La pista representa
-                    algo más que la meta: la barra propia del macro llega hasta la marca de la meta, y lo
-                    que sobra se dibuja como un tramo rojo DESPUÉS de esa marca, con su tamaño real. */}
+                {/* [P3-OVER-BAR-CALM · 2026-09-04] Exceder la meta no tiñe la barra ni la parte en dos: la
+                    barra sigue llena y en el color de su macro (la meta está cumplida); el exceso lo dicen
+                    el número en rojo y el porcentaje, que pasa a una píldora roja al final de la barra.
+                    Dos intentos anteriores el mismo día (barra roja entera; tramo rojo tras una marca)
+                    los rechazó el dueño: uno asustaba, el otro ensuciaba. */}
                 <div
                     className={styles.fill}
                     style={{
-                        width: `${isOver ? _goalLeft : fillWidth}%`,
+                        width: `${fillWidth}%`,
                         background: gradient,
                         boxShadow: isComplete && !isOver ? `0 0 12px ${color}66` : 'none',
-                        borderRadius: isOver ? '999px 0 0 999px' : undefined,
                     }}
                 />
-                {isOver && (
-                    <>
-                        <div
-                            className={styles.overfill}
-                            style={{ left: `${_goalLeft}%`, width: `${_overWidth}%` }}
-                        />
-                        <div className={styles.goalTick} style={{ left: `${_goalLeft}%` }} aria-hidden="true" />
-                    </>
-                )}
                 {/* [P3-TRACKING-BAR-INLINE-PERC · 2026-05-20] % blanco dentro
                     del fill (estilo carga de batería). Aplicado universalmente
                     (desktop + mobile) tras P3-TRACKING-PERC-DESKTOP.
@@ -848,8 +833,8 @@ const ProgressBar = ({ label, consumed, goal, unit, perc, icon: Icon, darkIcon: 
                     user rechazó visualmente — battery style consistente. */}
                 {!isEmpty && (
                     <span
-                        className={styles.fillPerc}
-                        style={{ left: `${_overEnd}%` }}
+                        className={`${styles.fillPerc}${isOver ? ` ${styles.fillPercOver}` : ''}`}
+                        style={{ left: `${fillWidth}%` }}
                     >
                         {formatPercent(perc)}
                     </span>
