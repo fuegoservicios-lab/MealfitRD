@@ -27,7 +27,7 @@ describe('recuperación de un turno huérfano', () => {
         expect(SRC).toContain('cur.attempts > 30');
         expect(SRC).toContain('retryPrompt: canRetry ? lastPrev.content : null');
         expect(SRC).toContain("errorType: 'dead_turn',");
-        expect(SRC).toContain("t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.')");
+        expect(SRC).toContain("t('No llegó la respuesta del coach.')");
     });
     it('el motivo del cierre se persiste y la rehidratación pinta la burbuja correcta (no siempre «Detenido»)', () => {
         expect(SRC).toContain("(sid) => `mealfit_orphan_reason_${sid}`");
@@ -40,8 +40,8 @@ describe('recuperación de un turno huérfano', () => {
     it('catálogos: las dos claves nuevas en los 4 idiomas', () => {
         for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
             const cat = JSON.parse(read(`src/i18n/locales/${loc}.json`));
-            expect(cat['⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.'], loc).toBeTruthy();
-            expect(cat['⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).'], loc).toBeTruthy();
+            expect(cat['No llegó la respuesta del coach.'], loc).toBeTruthy();
+            expect(cat['No llegó la respuesta del coach. Vuelve a enviar tu mensaje (o la foto).'], loc).toBeTruthy();
         }
     });
 });

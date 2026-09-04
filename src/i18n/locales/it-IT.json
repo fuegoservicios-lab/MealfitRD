@@ -3039,15 +3039,10 @@
   "— mientras más completes, más precisa la calibración.": "— più compili, più precisa è la calibrazione.",
   "— primero alimentos: {alimentos}": "— prima gli alimenti: {alimentos}",
   "≈ {importe} / {dias} días (referencia estimada)": "≈ {importe} / {dias} giorni (riferimento stimato)",
-  "⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.": "⏹ Interrotto. Quando vuoi, invia di nuovo il messaggio.",
   "⚕️ Consulta a tu profesional de salud": "⚕️ Consulta il tuo medico",
   "⚕️ Declaraste condición(es) de salud (": "⚕️ Hai dichiarato una o più condizioni di salute (",
   "⚠ Compra Urgente Requerida": "⚠ Spesa urgente necessaria",
   "⚠ Día {n}": "⚠ Giorno {n}",
-  "⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.": "⚠ La pagina si è ricaricata prima che arrivasse la risposta. Puoi riprovare.",
-  "⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).": "⚠ La pagina si è ricaricata prima che arrivasse la risposta. Invia di nuovo il messaggio (o la foto).",
-  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.": "⚠ La risposta del coach non è arrivata: si è interrotta sul server. Puoi riprovare.",
-  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).": "⚠ La risposta del coach non è arrivata: si è interrotta sul server. Invia di nuovo il messaggio (o la foto).",
   "⚠ {arriba} de {total} {dias} {verbo} del techo (peor: Día {peor}) — el promedio está bien, pero revisa los enlatados/queso/embutidos de esos días.": "⚠ {arriba} di {total} {dias} {verbo} il limite (peggiore: Giorno {peor}) — la media va bene, ma controlla scatolame/formaggi/salumi di quei giorni.",
   "⚠️ El mínimo para {dias} días es {importe}.": "⚠️ Il minimo per {dias} giorni è {importe}.",
   "⚠️ OBJETIVO CALÓRICO MUY BAJO: tu meta calculada cayó por debajo del mínimo clínico seguro y fue elevada a un piso de seguridad. Un déficit tan agresivo puede ser riesgoso (pérdida de masa muscular, déficit de micronutrientes, fatiga). Consulta a un médico o nutricionista antes de seguir un plan tan hipocalórico.": "⚠️ OBIETTIVO CALORICO MOLTO BASSO: il tuo obiettivo calcolato è sceso sotto il minimo clinico sicuro ed è stato portato a una soglia di sicurezza. Un deficit così aggressivo può essere rischioso (perdita di massa muscolare, carenze di micronutrienti, affaticamento). Consulta un medico o un nutrizionista prima di seguire un piano così ipocalorico.",
@@ -3066,5 +3061,10 @@
   "🧒 PERFIL DE MENOR DE EDAD: las necesidades nutricionales de niños y adolescentes difieren de las de un adulto (crecimiento, desarrollo) y este plan usa cálculos calibrados para adultos. NO se aplicó déficit calórico por seguridad. Consulta a un pediatra o nutricionista infantil antes de seguir este plan.": "🧒 PROFILO DI MINORENNE: i fabbisogni nutrizionali di bambini e adolescenti differiscono da quelli di un adulto (crescita, sviluppo) e questo piano usa calcoli calibrati per adulti. NON è stato applicato alcun deficit calorico, per sicurezza. Consulta un pediatra o un nutrizionista pediatrico prima di seguire questo piano.",
   "🫘 CONDICIÓN RENAL DETECTADA — IMPORTANTE: la nutrición en enfermedad renal depende de tu estadio (G1–G5) y de si estás en diálisis, y DEBE ser supervisada por tu nefrólogo o nutricionista renal.": "🫘 CONDIZIONE RENALE RILEVATA — IMPORTANTE: la nutrizione nella malattia renale dipende dal tuo stadio (G1–G5) e dal fatto che tu sia o meno in dialisi, e DEVE essere supervisionata dal tuo nefrologo o nutrizionista renale.",
   "🫘 Condición renal — requiere supervisión de tu nefrólogo": "🫘 Condizione renale — richiede la supervisione del tuo nefrologo",
-  "El plato sigue cocinándose en el servidor. Aparecerá solo en un momento.": "Il piatto è ancora in preparazione sul server. Comparirà da solo tra un momento."
+  "El plato sigue cocinándose en el servidor. Aparecerá solo en un momento.": "Il piatto è ancora in preparazione sul server. Comparirà da solo tra un momento.",
+  "No llegó la respuesta del coach.": "La risposta del coach non è arrivata.",
+  "No llegó la respuesta del coach. Vuelve a enviar tu mensaje (o la foto).": "La risposta del coach non è arrivata. Invia di nuovo il messaggio (o la foto).",
+  "La página se recargó antes de que llegara la respuesta.": "La pagina si è ricaricata prima che arrivasse la risposta.",
+  "La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).": "La pagina si è ricaricata prima che arrivasse la risposta. Invia di nuovo il messaggio (o la foto).",
+  "Detenido. Cuando quieras, vuelve a enviar tu mensaje.": "Fermato. Quando vuoi, invia di nuovo il messaggio."
 }

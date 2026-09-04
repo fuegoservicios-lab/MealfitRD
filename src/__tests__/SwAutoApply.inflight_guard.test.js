@@ -17,6 +17,7 @@ describe('auto-aplicación del service worker', () => {
         expect(body).toContain("safeLocalStorageGet('mealfit_plan_in_progress', null)");
         expect(body).toContain("['mealfit_meal_regen_inflight', 6 * 60 * 1000]");
         expect(body).toContain("['mealfit_day_regen_inflight', 9 * 60 * 1000]");
+        expect(body).toContain("['mealfit_chat_turn_inflight', 3 * 60 * 1000]");
         expect(body).toContain('if (startedOp && Date.now() - startedOp < maxAgeMs) return false;');
         // las tres guardas van ANTES del `return true`
         expect(body.indexOf('mealfit_day_regen_inflight')).toBeLessThan(body.indexOf('return true;'));

@@ -1188,6 +1188,14 @@ const AgentPage = () => {
     const _setTurnActive = useCallback((v) => {
         isTurnActiveRef.current = v;
         setIsTurnActive(v);
+        // [P2-SW-APPLY-RESPECTS-INFLIGHT v2 · 2026-09-04] un turno del coach en curso también es
+        // «operación en vuelo»: la auto-aplicación de la versión nueva recargó la página a mitad
+        // de una respuesta (20:45 UTC, SSE abortado por el cliente sin chunks) y el usuario vio
+        // «la respuesta no llegó». El marker vive mientras el stream esté abierto.
+        try {
+            if (v) safeLocalStorageSet('mealfit_chat_turn_inflight', { startedAt: Date.now() });
+            else safeLocalStorageRemove('mealfit_chat_turn_inflight');
+        } catch (_) { /* no-op */ }
     }, []);
     // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] El guard del refetch usa el
     // isLoadingRef pre-existente (declarado más abajo junto a los refs del
@@ -1911,8 +1919,8 @@ const AgentPage = () => {
             return {
                 role: 'model',
                 content: canRetry
-                    ? t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.')
-                    : t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).'),
+                    ? t('No llegó la respuesta del coach.')
+                    : t('No llegó la respuesta del coach. Vuelve a enviar tu mensaje (o la foto).'),
                 errorType: 'dead_turn',
                 retryable: canRetry,
                 retryPrompt: canRetry ? lastPrev.content : null,
@@ -1924,8 +1932,8 @@ const AgentPage = () => {
             return {
                 role: 'model',
                 content: canRetry
-                    ? t('⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.')
-                    : t('⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'),
+                    ? t('La página se recargó antes de que llegara la respuesta.')
+                    : t('La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'),
                 errorType: 'refresh_orphan',
                 retryable: canRetry,
                 retryPrompt: canRetry ? lastPrev.content : null,
@@ -1935,7 +1943,7 @@ const AgentPage = () => {
         }
         return {
             role: 'model',
-            content: t('⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
+            content: t('Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
             _stoppedByUser: true,
             _isErrorBubble: true,
             retryable: false,
@@ -3153,7 +3161,7 @@ const AgentPage = () => {
             if (lastPrev && lastPrev._stoppedByUser) return prev; // sin duplicar
             return [...prev, {
                 role: 'model',
-                content: t('⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
+                content: t('Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
                 _stoppedByUser: true,
                 _isErrorBubble: true,
                 retryable: false,

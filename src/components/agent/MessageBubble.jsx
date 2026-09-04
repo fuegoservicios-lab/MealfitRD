@@ -8,7 +8,7 @@ import BotAvatar from './BotAvatar';
 // porque react-markdown + remark deps (~60KB gzip) solo se descargan tras
 // el primer render de markdown.
 import LazyMarkdown from '../common/LazyMarkdown';
-import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import { useT, formatDate } from '../../i18n';
 import { timeLabel } from '../../utils/chatTimeline';
@@ -114,26 +114,27 @@ const ErrorRetryButton = ({ onClick }) => {
         type="button"
         onClick={onClick}
         aria-label={t('Reintentar el último mensaje')}
+        // [P2-CHAT-ERROR-MINIMAL · 2026-09-04] Antes: caja roja con borde y botón bordeado de 44 px
+        // («muy feo, hazlo más minimalista»). Ahora: una línea discreta y «Reintentar» como enlace.
         style={{
-            marginTop: '0.75rem',
+            marginTop: '0.35rem',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.4rem',
-            background: 'var(--bg-card)',
-            border: '1px solid #fca5a5',
-            color: 'var(--danger-text)',
-            padding: '0.45rem 0.9rem',
-            minHeight: 44,
-            borderRadius: '0.5rem',
+            gap: '0.35rem',
+            background: 'transparent',
+            border: 0,
+            color: 'var(--text-main)',
+            padding: '0.25rem 0',
+            minHeight: 32,
             fontSize: '0.875rem',
-            fontWeight: 500,
+            fontWeight: 600,
             cursor: 'pointer',
-            transition: 'background 0.15s ease, border-color 0.15s ease',
+            textDecoration: 'underline',
+            textUnderlineOffset: '3px',
+            textDecorationColor: 'var(--border)',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--danger-bg)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; }}
     >
-        <RefreshCw size={15} strokeWidth={2.2} />
+        <RefreshCw size={14} strokeWidth={2.2} aria-hidden="true" />
         {t('Reintentar')}
     </button>
     );
@@ -227,16 +228,17 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     maxWidth: msg.role === 'user' ? '80%' : '100%',
                     minWidth: 0,
                     width: msg.role === 'user' ? 'fit-content' : 'auto',
-                    color: msg.role === 'user' ? 'var(--text-main)' : (isErrorBubble ? 'var(--danger-text)' : 'var(--text-main)'),
+                    color: msg.role === 'user' ? 'var(--text-main)' : (isErrorBubble ? 'var(--text-muted)' : 'var(--text-main)'),
                     fontSize: '0.95rem',
                     lineHeight: 1.6,
                     whiteSpace: 'pre-wrap',
                     overflowWrap: 'break-word',
                     wordBreak: 'break-word',
-                    background: msg.role === 'user' ? 'var(--bg-muted)' : (isErrorBubble ? 'var(--danger-bg)' : 'var(--bg-card)'),
-                    padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.9rem 1.1rem' : '1rem 0'),
-                    borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : (isErrorBubble ? '0.85rem' : '0'),
-                    border: msg.role === 'user' ? '1px solid var(--border)' : (isErrorBubble ? '1px solid var(--danger-border)' : 'none'),
+                    // [P2-CHAT-ERROR-MINIMAL] el error ya no es una caja roja: texto apagado con un icono, sin fondo ni borde
+                    background: msg.role === 'user' ? 'var(--bg-muted)' : 'var(--bg-card)',
+                    padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.6rem 0' : '1rem 0'),
+                    borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0',
+                    border: msg.role === 'user' ? '1px solid var(--border)' : 'none',
                     boxShadow: 'none'
                 }}
             >
@@ -273,8 +275,12 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         })}
                     </div>
                 )}
+                {isErrorBubble && (
+                    <AlertTriangle size={14} strokeWidth={2.2} aria-hidden="true"
+                        style={{ color: 'var(--danger-text)', verticalAlign: '-2px', marginRight: '0.4rem', flexShrink: 0 }} />
+                )}
                 {msg.content && msg.content !== '📷 Imagen enviada' && (
-                    <div className="markdown-chat">
+                    <div className="markdown-chat" style={isErrorBubble ? { display: 'inline' } : undefined}>
                         <LazyMarkdown>{msg.content}</LazyMarkdown>
                     </div>
                 )}

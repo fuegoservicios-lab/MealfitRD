@@ -3039,15 +3039,10 @@
   "— mientras más completes, más precisa la calibración.": "— the more you fill in, the more precise the calibration.",
   "— primero alimentos: {alimentos}": "— foods first: {alimentos}",
   "≈ {importe} / {dias} días (referencia estimada)": "≈ {importe} / {dias} days (estimated reference)",
-  "⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.": "⏹ Stopped. Send your message again whenever you want.",
   "⚕️ Consulta a tu profesional de salud": "⚕️ Check with your healthcare provider",
   "⚕️ Declaraste condición(es) de salud (": "⚕️ You declared health condition(s) (",
   "⚠ Compra Urgente Requerida": "⚠ Urgent Shopping Needed",
   "⚠ Día {n}": "⚠ Day {n}",
-  "⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.": "⚠ The page reloaded before the response arrived. You can try again.",
-  "⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).": "⚠ The page reloaded before the response arrived. Send your message (or the photo) again.",
-  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. You can retry.",
-  "⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).": "⚠ The coach’s reply didn’t arrive: it was interrupted on the server. Send your message (or the photo) again.",
   "⚠ {arriba} de {total} {dias} {verbo} del techo (peor: Día {peor}) — el promedio está bien, pero revisa los enlatados/queso/embutidos de esos días.": "⚠ {arriba} of {total} {dias} {verbo} over the ceiling (worst: Day {peor}) — the average is fine, but check the canned goods/cheese/cold cuts on those days.",
   "⚠️ El mínimo para {dias} días es {importe}.": "⚠️ The minimum for {dias} days is {importe}.",
   "⚠️ OBJETIVO CALÓRICO MUY BAJO: tu meta calculada cayó por debajo del mínimo clínico seguro y fue elevada a un piso de seguridad. Un déficit tan agresivo puede ser riesgoso (pérdida de masa muscular, déficit de micronutrientes, fatiga). Consulta a un médico o nutricionista antes de seguir un plan tan hipocalórico.": "⚠️ VERY LOW CALORIE TARGET: your calculated goal fell below the safe clinical minimum and was raised to a safety floor. Such an aggressive deficit can be risky (loss of muscle mass, micronutrient deficiency, fatigue). Consult a doctor or dietitian before following such a low-calorie plan.",
@@ -3066,5 +3061,10 @@
   "🧒 PERFIL DE MENOR DE EDAD: las necesidades nutricionales de niños y adolescentes difieren de las de un adulto (crecimiento, desarrollo) y este plan usa cálculos calibrados para adultos. NO se aplicó déficit calórico por seguridad. Consulta a un pediatra o nutricionista infantil antes de seguir este plan.": "🧒 MINOR PROFILE: the nutritional needs of children and teenagers differ from those of an adult (growth, development) and this plan uses calculations calibrated for adults. No calorie deficit was applied, for safety. Consult a paediatrician or paediatric dietitian before following this plan.",
   "🫘 CONDICIÓN RENAL DETECTADA — IMPORTANTE: la nutrición en enfermedad renal depende de tu estadio (G1–G5) y de si estás en diálisis, y DEBE ser supervisada por tu nefrólogo o nutricionista renal.": "🫘 KIDNEY CONDITION DETECTED — IMPORTANT: nutrition in kidney disease depends on your stage (G1–G5) and on whether you are on dialysis, and MUST be supervised by your nephrologist or renal dietitian.",
   "🫘 Condición renal — requiere supervisión de tu nefrólogo": "🫘 Kidney condition — requires supervision by your nephrologist",
-  "El plato sigue cocinándose en el servidor. Aparecerá solo en un momento.": "The dish is still cooking on the server. It will show up on its own in a moment."
+  "El plato sigue cocinándose en el servidor. Aparecerá solo en un momento.": "The dish is still cooking on the server. It will show up on its own in a moment.",
+  "No llegó la respuesta del coach.": "The coach’s reply didn’t arrive.",
+  "No llegó la respuesta del coach. Vuelve a enviar tu mensaje (o la foto).": "The coach’s reply didn’t arrive. Send your message (or the photo) again.",
+  "La página se recargó antes de que llegara la respuesta.": "The page reloaded before the reply arrived.",
+  "La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).": "The page reloaded before the reply arrived. Send your message (or the photo) again.",
+  "Detenido. Cuando quieras, vuelve a enviar tu mensaje.": "Stopped. Whenever you like, send your message again."
 }
