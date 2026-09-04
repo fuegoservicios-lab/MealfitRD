@@ -14,6 +14,7 @@ describe('anclar el mensaje enviado arriba', () => {
         const i = SRC.indexOf('useEffect(() => {\n        // [P2-CHAT-ANCHOR-SENT-TOP]');
         expect(i).toBeGreaterThan(0);
         const eff = SRC.slice(i, i + 2400);
+        expect(eff).toContain("if (anchor && anchor.scrolled && lastMsg && lastMsg.role === 'model' && !lastMsg.isStreaming) {");
         expect(eff).toContain('const r = layoutSentAnchor();');
         expect(eff).toContain('if (!anchor.scrolled && !r.pending) scrollToSentAnchor();');
         expect(eff).toContain("if (anchor.scrolled && r.spacer === 0 && last?.isStreaming && !userScrolledUpRef.current) scrollToBottom();");

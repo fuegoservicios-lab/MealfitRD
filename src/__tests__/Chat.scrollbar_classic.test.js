@@ -21,6 +21,9 @@ describe('scrollbar clásica del chat', () => {
         expect(SRC).toContain('const ro = new ResizeObserver(() => {');
         expect(SRC).toContain('if (!stickToBottomRef.current || userScrolledUpRef.current || sentAnchorRef.current) return;');
         expect(SRC).not.toContain('[0, 250, 900].forEach');
+        // el scroller empieza debajo de la cabecera absoluta: el botón de subir queda a la vista
+        expect(SRC).toContain("marginTop: 'calc(4.5rem + max(env(safe-area-inset-top), 24px))',");
+        expect(SRC).toContain("padding: messages.length === 0 ? '1.25rem 1.5rem 0 1.5rem' : '1.25rem 2rem 0.5rem 2rem',");
         expect(SRC).not.toContain('.messages-container::-webkit-scrollbar {\n                    width: 6px;');
     });
 });

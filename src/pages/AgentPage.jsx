@@ -2228,6 +2228,17 @@ const AgentPage = () => {
     useEffect(() => {
         // [P2-CHAT-ANCHOR-SENT-TOP] con un mensaje recién enviado anclado arriba no seguimos el fondo.
         const anchor = sentAnchorRef.current;
+        // [P2-CHAT-ANCHOR-SENT-TOP v4] Al TERMINAR la respuesta, el espacio reservado se libera: el
+        // límite del scroll vuelve a ser el de siempre (el dueño: «sobra scroll»). El anclaje al
+        // enviar no cambia; solo deja de existir cuando ya no hay nada que anclar.
+        const lastMsg = messages[messages.length - 1];
+        if (anchor && anchor.scrolled && lastMsg && lastMsg.role === 'model' && !lastMsg.isStreaming) {
+            sentAnchorRef.current = null;
+            anchorSpacerRef.current = 0;
+            setAnchorSpacerPx(0);
+            stickToBottomRef.current = false;  // no perseguir: el usuario decide desde aquí
+            return;
+        }
         if (anchor) {
             if (messages.length <= VIRTUALIZE_THRESHOLD) {
                 const r = layoutSentAnchor();
@@ -4460,7 +4471,12 @@ const AgentPage = () => {
                         onScroll={handleMessagesScroll}
                         style={{
                             flex: 1,
-                            padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem',
+                            // [P2-CHAT-SCROLLBAR-CLASSIC v3 · 2026-09-04] La cabecera es absoluta: su alto iba como
+                            // padding DENTRO del scroller y tapaba el botón de subir de la barra clásica (el
+                            // scroller empezaba detrás de la cabecera). Ahora, como ya hacía el móvil
+                            // (P1-CHAT-HEADER-CLEARANCE), el viewport desplazable empieza DEBAJO de la cabecera.
+                            marginTop: 'calc(4.5rem + max(env(safe-area-inset-top), 24px))',
+                            padding: messages.length === 0 ? '1.25rem 1.5rem 0 1.5rem' : '1.25rem 2rem 0.5rem 2rem',
                             overflowY: messages.length > VIRTUALIZE_THRESHOLD ? 'hidden' : 'auto',
                             minHeight: 0,
                             minWidth: 0,
