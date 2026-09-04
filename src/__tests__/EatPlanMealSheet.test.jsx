@@ -83,7 +83,9 @@ describe('Dashboard: cableado', () => {
         expect(DASH).toContain('days_ago: daysAgo,');
         expect(DASH).toContain("fetchWithAuth('/api/diary/plan-meal-deviation'");
         expect(DASH).toContain("if (reason === 'ate_other') {");
-        expect(DASH).toContain('{logMealOpen && <LogMealModal onClose={() => setLogMealOpen(false)} />}');
+        expect(DASH).toContain('{logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} />}');
+        // el componedor abre en el slot del plato que no comiste, no en «Extra»
+        expect(DASH).toContain("setLogMealOpen({ mealType: String(sheet.meal?.meal || '').toLowerCase() });");
         // sin vista previa (red caída) se registra como siempre: el catch deja coverage=null
         expect(DASH).toContain('coverage = null; // sin vista previa no se pregunta');
     });

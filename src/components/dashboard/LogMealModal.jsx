@@ -55,14 +55,20 @@ const _getDayOptions = (t) => [
     { value: 2, label: t('Antier') },
 ];
 
-const LogMealModal = ({ onClose }) => {
+// [P1-EAT-PLAN-MEAL-TRUTH · v3] `initialMealType`: al llegar desde «Comí otra cosa» del plato del plan,
+// el componedor abre en el slot de ese plato (almuerzo), no en «Extra»: la sustitución es del almuerzo.
+const LogMealModal = ({ onClose, initialMealType = null }) => {
     const t = useT();
     const [foods, setFoods] = useState(() => getCachedMasterList() || []);
     const [dishes, setDishes] = useState(() => getCachedDishes() || []);
     const [loadFailed, setLoadFailed] = useState(false);
     const [query, setQuery] = useState('');
     const [lines, setLines] = useState([]);
-    const [mealType, setMealType] = useState(() => getMealTypeExtra(t).value);
+    const [mealType, setMealType] = useState(() => {
+        const wanted = String(initialMealType || '').trim().toLowerCase();
+        const known = getMealTypes(t).map((o) => o.value);
+        return wanted && known.includes(wanted) ? wanted : getMealTypeExtra(t).value;
+    });
     const [daysAgo, setDaysAgo] = useState(0);
     const [mealName, setMealName] = useState('');
     const [deductPantry, setDeductPantry] = useState(false);
@@ -413,6 +419,7 @@ const LogMealModal = ({ onClose }) => {
 };
 
 LogMealModal.propTypes = {
+    initialMealType: PropTypes.string,
     onClose: PropTypes.func.isRequired,
 };
 

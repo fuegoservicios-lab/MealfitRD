@@ -1184,7 +1184,7 @@ const DashboardInner = () => {
             });
         } catch (_) { /* señal best-effort */ }
         if (reason === 'ate_other') {
-            setLogMealOpen(true);
+            setLogMealOpen({ mealType: String(sheet.meal?.meal || '').toLowerCase() });
         } else {
             toast(t('Sin registrar. Vuelve cuando lo comas.'));
         }
@@ -9998,7 +9998,7 @@ const DashboardInner = () => {
                     onClose={() => setEatSheet(null)}
                 />
             )}
-            {logMealOpen && <LogMealModal onClose={() => setLogMealOpen(false)} />}
+            {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} />}
 
             {/* ═══════════ MODAL (rediseño): ¿Por qué quieres cambiar? — un plato (PC + móvil) ═══════════ */}
             <MotivoActualizarModal
