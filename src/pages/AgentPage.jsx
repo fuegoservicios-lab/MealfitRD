@@ -3373,7 +3373,7 @@ const AgentPage = () => {
                                         disabled={isTurnActive}
                                         className="attachment-remove"
                                     >
-                                        <X size={14} />
+                                        <X size={12} strokeWidth={2.75} aria-hidden="true" />
                                     </button>
                                 </div>
                             ))}
@@ -3843,15 +3843,21 @@ const AgentPage = () => {
                     scroll-snap-type: x proximity;
                 }
                 .attachment-rail::-webkit-scrollbar { display: none; }
+                /* [P2-CHAT-ATTACHMENT-THUMB · 2026-09-04] La miniatura llevaba una X roja de 44 px que
+                   se comía la esquina («se ve demasiado grande, muy feo»). Ahora: miniatura con marco y
+                   sombra suave, y un chip de cierre pequeño (22 px, oscuro, rojo solo al pasar) con el
+                   área táctil de 44 px puesta en un pseudo-elemento invisible. */
                 .attachment-preview {
                     position: relative;
                     flex: 0 0 64px;
                     width: 64px;
                     height: 64px;
                     padding: 3px;
+                    margin-top: 6px;
                     border-radius: 12px;
                     border: 1px solid var(--border);
                     background: var(--bg-card);
+                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
                     scroll-snap-align: start;
                 }
                 .attachment-preview > img {
@@ -3891,19 +3897,38 @@ const AgentPage = () => {
                 }
                 .attachment-remove {
                     position: absolute;
-                    top: -14px;
-                    right: -14px;
-                    width: 44px;
-                    height: 44px;
+                    top: -7px;
+                    right: -7px;
+                    width: 22px;
+                    height: 22px;
+                    padding: 0;
                     display: grid;
                     place-items: center;
-                    border: 3px solid var(--bg-muted);
+                    border: 2px solid var(--bg-card);
                     border-radius: 999px;
-                    background: #dc2626;
+                    background: rgba(15, 23, 42, 0.92);
                     color: white;
                     cursor: pointer;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+                    transition: background 0.15s ease, transform 0.15s ease;
                     -webkit-tap-highlight-color: transparent;
                 }
+                /* área táctil de 44 px sin agrandar el chip */
+                .attachment-remove::after {
+                    content: '';
+                    position: absolute;
+                    inset: -11px;
+                    border-radius: 999px;
+                }
+                .attachment-remove:hover:not(:disabled),
+                .attachment-remove:focus-visible {
+                    background: var(--danger-fill, #dc2626);
+                }
+                .attachment-remove:focus-visible {
+                    outline: 2px solid rgba(79, 70, 229, 0.65);
+                    outline-offset: 2px;
+                }
+                .attachment-remove:disabled { opacity: 0.5; cursor: default; }
             `}</style>
             <div className="agent-container"
                 onTouchStart={handleTouchStart}
