@@ -23,7 +23,7 @@ describe('scrollbar clásica del chat', () => {
         expect(SRC).toContain('settleTimerRef.current = setTimeout(_revealThread, 150);');
         expect(SRC).toContain('settleCapRef.current = setTimeout(_revealThread, 900);');
         expect(SRC).toContain('if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }');
-        expect(SRC).toContain("_setMode('bottom');\n                setShowJumpToLatest(false);\n                _beginSettle();");
+        expect(SRC).toContain('if (!(messagesRef.current?.length > 0)) _beginSettle();');
         expect(SRC).toContain('const ro = new ResizeObserver(() => {');
         expect(SRC).not.toContain('[0, 250, 900].forEach');
         // el scroller empieza debajo de la cabecera absoluta: el botón de subir queda a la vista

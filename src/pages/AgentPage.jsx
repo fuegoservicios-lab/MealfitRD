@@ -2225,7 +2225,10 @@ const AgentPage = () => {
                 _setSpacer(0);
                 _setMode('bottom');
                 setShowJumpToLatest(false);
-                _beginSettle();
+                // Ocultar SOLO si aún no había nada en pantalla: el historial se carga dos veces al
+                // refrescar (sesión provisional → sesión real) y la segunda vez el hilo ya se veía;
+                // esconderlo otra vez era el parpadeo («desaparece unos milisegundos dos veces»).
+                if (!(messagesRef.current?.length > 0)) _beginSettle();
                 requestAnimationFrame(() => _pinBottomInstant());
             }
         }
