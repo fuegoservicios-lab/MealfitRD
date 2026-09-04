@@ -88,6 +88,9 @@ import OptionPickerModal from '../components/common/OptionPickerModal';
 // "actualizar día completo" (plan vigente). El "Nuevo Ciclo" (plan vencido)
 // sigue usando OptionPickerModal (tiene la opción extra "similar").
 import MotivoActualizarModal from '../components/dashboard/MotivoActualizarModal';
+import EatPlanMealSheet from '../components/dashboard/EatPlanMealSheet';
+import LogMealModal from '../components/dashboard/LogMealModal';
+import { mealTimingIssue, pantryCoverageIssue } from '../config/mealWindows';
 // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Pestañas fantasma de los días del plan
 // que aún no existen (absorbe el skeleton que vivía inline en la fila de días).
 import PlanWeekNav from '../components/dashboard/PlanWeekNav';
@@ -1133,8 +1136,60 @@ const DashboardInner = () => {
     // pestaña de HOY: en un día archivado esas coordenadas no apuntan a
     // `plan_data.days`.
     const [eatMealInFlight, setEatMealInFlight] = useState(null);
+    // [P1-EAT-PLAN-MEAL-TRUTH · 2026-09-04] Antes de registrar, contrastar lo que el usuario
+    // declara con lo que la app ya sabe: la hora (un almuerzo a las 9:04) y la Nevera (0 de 6
+    // ingredientes). Si algo no cuadra, UNA pregunta (hoja) en vez de tragarse el registro:
+    // «fue ayer» registra con fecha de ayer; «comí otra cosa» abre el registro manual y deja el
+    // plato como desvío (adherencia real para el coach y el bloque siguiente); «todavía no»
+    // cancela. Si todo cuadra, un toque y listo, como siempre.
+    const [eatSheet, setEatSheet] = useState(null);
+    const [logMealOpen, setLogMealOpen] = useState(false);
     const handleEatPlanMeal = async (meal, index) => {
         if (isGuest) { toast(t('Crea tu cuenta para registrar lo que comes')); return; }
+        if (!planData?.id || eatMealInFlight !== null) return;
+        const timing = mealTimingIssue(meal?.meal);
+        let coverage = null;
+        setEatMealInFlight(index);
+        try {
+            const resp = await fetchWithAuth('/api/diary/consumed-from-plan/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan_id: planData.id, day_index: activeDayIndex, meal_index: index }),
+            });
+            const preview = resp.ok ? await resp.json().catch(() => null) : null;
+            coverage = pantryCoverageIssue(preview);
+        } catch (_) {
+            coverage = null; // sin vista previa no se pregunta: registrar sigue funcionando
+        } finally {
+            setEatMealInFlight(null);
+        }
+        if (timing || coverage) {
+            setEatSheet({ meal, index, timing, coverage });
+            return;
+        }
+        await confirmEatPlanMeal(meal, index);
+    };
+    const handleEatDeviation = async (reason) => {
+        const sheet = eatSheet;
+        setEatSheet(null);
+        if (!sheet || !planData?.id) return;
+        try {
+            await fetchWithAuth('/api/diary/plan-meal-deviation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    plan_id: planData.id, day_index: activeDayIndex, meal_index: sheet.index,
+                    reason, local_hour: new Date().getHours(),
+                }),
+            });
+        } catch (_) { /* señal best-effort */ }
+        if (reason === 'ate_other') {
+            setLogMealOpen(true);
+        } else {
+            toast(t('Sin registrar. Vuelve cuando lo comas.'));
+        }
+    };
+    const confirmEatPlanMeal = async (meal, index, { daysAgo = 0 } = {}) => {
         if (!planData?.id || eatMealInFlight !== null) return;
         setEatMealInFlight(index);
         try {
@@ -1145,6 +1200,7 @@ const DashboardInner = () => {
                     plan_id: planData.id,
                     day_index: activeDayIndex,
                     meal_index: index,
+                    days_ago: daysAgo,
                 }),
             });
             let result = null;
@@ -1893,7 +1949,8 @@ const DashboardInner = () => {
     // se mantiene fresh por mutaciones explícitas). Solo si el cache local
     // de quota expiró Y el context no tiene valor confiable, hace fetch
     // bloqueante. Resultado: 99% de los clicks son síncronos, modal abre
-    // instantáneo.
+    // instantáneo.
+
     // [P2-NO-CREDITS-CTA · 2026-09-02] Un solo aviso de créditos, minimalista y accionable: la
     // cuota es por mes calendario (get_monthly_api_usage cuenta desde el día 1), así que la
     // renovación es el día 1 del mes siguiente en UTC — el mismo cálculo que la cuota del coach.
@@ -9909,6 +9966,21 @@ const DashboardInner = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* [P1-EAT-PLAN-MEAL-TRUTH] hoja de «¿cuándo? / ¿qué pasó?» + componedor manual para «comí otra cosa» */}
+            {eatSheet && (
+                <EatPlanMealSheet
+                    mealName={mealDisplayName(eatSheet.meal, _dashLocale) || eatSheet.meal?.name || ''}
+                    timing={eatSheet.timing}
+                    coverage={eatSheet.coverage}
+                    busy={eatMealInFlight !== null}
+                    onConfirm={async ({ daysAgo }) => { const sh = eatSheet; setEatSheet(null); if (sh) await confirmEatPlanMeal(sh.meal, sh.index, { daysAgo }); }}
+                    onAteOther={() => handleEatDeviation('ate_other')}
+                    onNotYet={() => handleEatDeviation('not_yet')}
+                    onClose={() => setEatSheet(null)}
+                />
+            )}
+            {logMealOpen && <LogMealModal onClose={() => setLogMealOpen(false)} />}
 
             {/* ═══════════ MODAL (rediseño): ¿Por qué quieres cambiar? — un plato (PC + móvil) ═══════════ */}
             <MotivoActualizarModal

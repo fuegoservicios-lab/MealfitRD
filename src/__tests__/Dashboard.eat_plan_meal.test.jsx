@@ -120,8 +120,10 @@ function _eatButtonFor(dishName) {
 }
 
 function _postBody(fetchMock) {
+    // [P1-EAT-PLAN-MEAL-TRUTH] antes del registro va la vista previa (/preview): el cuerpo que
+    // importa es el del registro real
     const call = fetchMock.mock.calls.find(
-        ([url]) => typeof url === 'string' && url.includes('/api/diary/consumed-from-plan'));
+        ([url]) => typeof url === 'string' && url.includes('/api/diary/consumed-from-plan') && !url.includes('/preview'));
     expect(call, 'no se hizo POST a /api/diary/consumed-from-plan').toBeTruthy();
     return JSON.parse(call[1].body);
 }
@@ -145,8 +147,10 @@ describe('P1-EAT-PLAN-MEAL — "Me lo comí" registra el plato del plan y descue
         await waitFor(() => expect(toast.success).toHaveBeenCalled());
         const body = _postBody(vi.mocked(fetchWithAuth));
 
-        // El contrato: coordenadas y nada más.
-        expect(Object.keys(body).sort()).toEqual(['day_index', 'meal_index', 'plan_id']);
+        // El contrato: coordenadas y nada más. [P1-EAT-PLAN-MEAL-TRUTH] `days_ago` es un backdate
+        // (0 = hoy, 1 = «fue ayer»), no contenido: el servidor sigue sacando todo del plan.
+        expect(Object.keys(body).sort()).toEqual(['day_index', 'days_ago', 'meal_index', 'plan_id']);
+        expect(body.days_ago).toBe(0);
         expect(body.plan_id).toBe(_PLAN_ID);
         // Si el cliente pudiera declarar esto, descontaría de la Nevera a placer.
         expect(body).not.toHaveProperty('ingredients');
@@ -163,7 +167,13 @@ describe('P1-EAT-PLAN-MEAL — "Me lo comí" registra el plato del plan y descue
         // equivocado y descontaría los ingredientes equivocados.
         fireEvent.click(_eatButtonFor('Pescado a la plancha'));
 
-        await waitFor(() => expect(toast.success).toHaveBeenCalled());
+        // [P1-EAT-PLAN-MEAL-TRUTH] es la CENA: si el test corre antes de las 17 h locales, la hoja
+        // «¿cuándo?» aparece y hay que confirmar «Lo comí ahora»; después de las 17 h registra directo.
+        await waitFor(() => {
+            const ahora = screen.queryByText('Lo comí ahora');
+            if (ahora) fireEvent.click(ahora);
+            expect(toast.success).toHaveBeenCalled();
+        });
         const body = _postBody(vi.mocked(fetchWithAuth));
         expect(body.meal_index).toBe(2);
         expect(body.day_index).toBe(0);
