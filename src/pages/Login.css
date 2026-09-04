@@ -541,7 +541,14 @@
      horizontal dentro del login (medido). */
   .mf-glow { position: fixed; }
   .mf-glow--a { left: -160px; top: -120px; }
-  .mf-glow--b { right: -140px; bottom: -160px; }
+  /* [P2-LOGIN-MOBILE-BG-UNIFORM · 2026-09-04 · sonda en el iPhone del dueño] En la app instalada
+     (standalone, iOS 26) el viewport de layout mide 797 px en una pantalla de 844: los 47 px del
+     pie NO son documento; WebKit los pinta con el COLOR de fondo del <body> («extended
+     background»: solo color, sin imágenes). En Safari la zona análoga es la barra plegada, que
+     va con el theme-color. Ambas son planas, así que el borde inferior del login tiene que ser
+     plano también: este glow (verde, `bottom: -160px`, blur 90) teñía justo esa franja y la
+     costura seguía viéndose con html/body y theme-color ya iguales. Fuera en móvil. */
+  .mf-glow--b { display: none; }
   .mf-showcase { display: none; }
 
   .mf-form {

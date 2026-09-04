@@ -21,6 +21,15 @@ describe('login en móvil: el lienzo del documento es del mismo color que el log
         expect(block).toContain('overflow: hidden;');
     });
 
+    it('en móvil el borde inferior del login es PLANO: sin el glow verde del pie', () => {
+        // sonda en el iPhone del dueño (app instalada, iOS 26): viewport de layout 797 px en una
+        // pantalla de 844; los 47 px del pie los pinta WebKit con el COLOR del body (solo color).
+        // Con html/body y theme-color ya iguales, la costura seguía: el glow teñía el borde.
+        const i = CSS.indexOf('@media (max-width: 880px) {');
+        expect(i).toBeGreaterThan(0);
+        expect(CSS.slice(i)).toContain('.mf-glow--b { display: none; }');
+    });
+
     it('el theme-color de las rutas de auth ES --mf-bg (iOS pinta con él la franja tras la barra plegada)', () => {
         // segunda captura del dueño: con html/body ya pintados seguía la banda al pie. No era el
         // documento: es el color que Safari toma del <meta name="theme-color"> (#020617 ≠ #080C16).
