@@ -34,6 +34,8 @@ describe('cobertura de la Nevera', () => {
         expect(pantryCoverageIssue({ total: 6, present: ['a', 'b'], coverage: 2 / 6 })).toEqual({ present: 2, total: 6 });
         expect(pantryCoverageIssue({ total: 6, present: ['a', 'b', 'c'], coverage: 0.5 })).toBeNull();
         expect(pantryCoverageIssue({ total: 0, present: [] })).toBeNull();
+        // cobertura alta pero sin el principal (calamar): también pregunta
+        expect(pantryCoverageIssue({ total: 11, present: new Array(7).fill('x'), coverage: 7 / 11, main_missing: true })).toEqual({ present: 7, total: 11, mainMissing: true });
         expect(pantryCoverageIssue(null)).toBeNull();
     });
 });
