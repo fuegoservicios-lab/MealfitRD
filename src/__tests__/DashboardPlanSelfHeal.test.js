@@ -83,14 +83,14 @@ describe('[P1-SW-AUTO-APPLY-SAFE] el arreglo tiene que llegar al navegador', () 
     it('se auto-aplica cuando es seguro, sin esperar al toast', () => {
         const i = MAIN.indexOf('P1-SW-AUTO-APPLY-SAFE');
         expect(i).toBeGreaterThan(-1);
-        const body = MAIN.slice(i, i + 2200);
+        const body = MAIN.slice(i, i + 3000);  // [P2-SW-APPLY-RESPECTS-INFLIGHT] la guarda creció
         expect(body).toMatch(/updateSW\(true\)/);
         expect(body).toMatch(/visibilityState !== 'hidden'/);
     });
 
     it('NO se aplica con una generación en vuelo', () => {
         const i = MAIN.indexOf('P1-SW-AUTO-APPLY-SAFE');
-        const body = MAIN.slice(i, i + 2200);
+        const body = MAIN.slice(i, i + 3000);  // [P2-SW-APPLY-RESPECTS-INFLIGHT] la guarda creció
         expect(body).toMatch(/mealfit_plan_in_progress/);
     });
 
@@ -112,7 +112,7 @@ describe('[P1-SW-AUTO-APPLY-SAFE] el arreglo tiene que llegar al navegador', () 
 
     it('limpia su listener al aplicar (sin fugas)', () => {
         const i = MAIN.indexOf('P1-SW-AUTO-APPLY-SAFE');
-        const body = MAIN.slice(i, i + 2600);
+        const body = MAIN.slice(i, i + 3400);  // [P2-SW-APPLY-RESPECTS-INFLIGHT] la guarda creció
         expect(body).toMatch(/removeEventListener\('visibilitychange'/);
     });
 });
