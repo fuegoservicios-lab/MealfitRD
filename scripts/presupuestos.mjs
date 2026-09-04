@@ -47,7 +47,14 @@ const TECHOS = {
        preloads no son opcionales para el navegador, van a prioridad alta en la
        misma tanda, así que un presupuesto de arranque que los ignore mide media
        verdad. */
-    arranqueJS: 140,
+    /* [P2-ARRANQUE-148 · 2026-09-04] 140 → 148. Medido hoy: 146,3 (entry 63,7 + preloads). Lo que
+       ENTRÓ en el camino crítico después de fijar el 140 (fecha de creación de cada módulo del
+       entry, por git): el motor i18n de 5 idiomas (08-15), el gate nativo con `@capacitor/core`
+       (08-21, ~8 kB sin comprimir), la sesión first-party de iOS (08-21) y el manejo del teclado
+       (08-23). Son arranque a propósito —deciden idioma, plataforma y sesión antes de pintar—, no
+       grasa: el techo viejo medía un producto sin app nativa ni idiomas. Margen corto otra vez
+       (1,7 kB): el siguiente que quiera entrar tiene que escribir aquí qué se gana. */
+    arranqueJS: 148,
     // Las hojas de estilo que bloquean el pintado. Medido: 10,2.
     arranqueCSS: 12,
     /* El trozo perezoso más gordo. Medido: 274,6 —`html2pdf`—, y conviene saber
