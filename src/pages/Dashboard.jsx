@@ -4786,7 +4786,16 @@ const DashboardInner = () => {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                if (!silent) toast.success(t('¡Ingredientes ingresados a tu Nevera Virtual!'), { icon: '📦' });
+                // [P2-RESTOCK-DEDUP-RESPECTS-INVENTORY · 2026-09-04] si el servidor no sumó nada (todo
+                // seguía registrado en el ciclo y presente en la Nevera), decirlo: «¡ingresados!» con la
+                // Nevera intacta era el «no pasa nada» que reportó el dueño.
+                if (!silent) {
+                    if (data.added === 0) {
+                        toast.info(t('Ya tenías registrados estos ingredientes esta semana; no se sumaron otra vez.'), { icon: '📦' });
+                    } else {
+                        toast.success(t('¡Ingredientes ingresados a tu Nevera Virtual!'), { icon: '📦' });
+                    }
+                }
                 setSessionRestocked(true);
 
                 // ✅ Marcar planData como restocked para que el PDF delta suprima residuos

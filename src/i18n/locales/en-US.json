@@ -2549,6 +2549,7 @@
     "one": "You're already ~{exceso} estimated kcal over today's goal, and you still have {n} meal left from your plan (~{kcal} kcal).",
     "other": "You're already ~{exceso} estimated kcal over today's goal, and you still have {n} meals left from your plan (~{kcal} kcal)."
   },
+  "Ya tenías registrados estos ingredientes esta semana; no se sumaron otra vez.": "You had already logged these ingredients this week; they weren’t added again.",
   "Ya tienes todo respondido: generarlo usa 1 crédito de tu mes.": "You've answered everything: generating it uses 1 credit this month.",
   "Ya tienes todos estos ingredientes en tu Nevera.": "You already have all these ingredients in your Fridge.",
   "Ya tienes un plan generándose": "You already have a plan being generated",

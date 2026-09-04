@@ -2549,6 +2549,7 @@
     "one": "Você já passou da meta de hoje em ~{exceso} kcal estimadas, e ainda falta {n} refeição do plano (~{kcal} kcal).",
     "other": "Você já passou da meta de hoje em ~{exceso} kcal estimadas, e ainda faltam {n} refeições do plano (~{kcal} kcal)."
   },
+  "Ya tenías registrados estos ingredientes esta semana; no se sumaron otra vez.": "Você já tinha registrado esses ingredientes esta semana; não foram somados de novo.",
   "Ya tienes todo respondido: generarlo usa 1 crédito de tu mes.": "Você já respondeu tudo: gerar usa 1 crédito do seu mês.",
   "Ya tienes todos estos ingredientes en tu Nevera.": "Você já tem todos esses ingredientes na sua Geladeira.",
   "Ya tienes un plan generándose": "Você já tem um plano sendo gerado",
