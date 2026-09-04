@@ -1655,6 +1655,35 @@ const AgentPage = () => {
     // 'auto' (instantáneo) mientras el último mensaje stremea; 'smooth' solo en
     // el update final/no-streaming. Sin reflow read en código de app.
     const scrollRafRef = useRef(null);
+    // [P2-CHAT-ANCHOR-SENT-TOP · 2026-09-04] Al enviar, la conversación sube y el mensaje recién
+    // enviado queda ARRIBA del hilo; la respuesta crece debajo (como ChatGPT/Claude/Gemini). Un
+    // espaciador al final del hilo reserva el sitio para que el ancla pueda llegar arriba, y se
+    // encoge a medida que la respuesta ocupa ese espacio — así el fondo real nunca queda a más
+    // de unos px y la píldora «ir al último mensaje» no aparece mientras se lee la respuesta.
+    const sentAnchorRef = useRef(null); // { clientMessageId, scrolled }
+    const [anchorSpacerPx, setAnchorSpacerPx] = useState(0);
+    const layoutSentAnchor = useCallback(() => {
+        const anchor = sentAnchorRef.current;
+        const el = messagesContainerRef.current;
+        if (!anchor || !el) return false;
+        const row = el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`);
+        if (!row) return false;
+        let below = 0;
+        let sib = row.nextElementSibling;
+        while (sib) {
+            const cls = sib.classList;
+            if (!cls?.contains('anchor-spacer') && !cls?.contains('messages-end-sentinel')) below += sib.offsetHeight || 0;
+            sib = sib.nextElementSibling;
+        }
+        const spacer = Math.max(0, el.clientHeight - row.offsetHeight - below - 24);
+        setAnchorSpacerPx((prev) => (Math.abs(prev - spacer) > 2 ? spacer : prev));
+        if (!anchor.scrolled) {
+            anchor.scrolled = true;
+            const top = row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12;
+            try { el.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); } catch { el.scrollTop = Math.max(0, top); }
+        }
+        return true;
+    }, []);
     const scrollToBottom = (force = false, behaviorOverride = null) => {
         if (userScrolledUpRef.current && !force) return;
         if (scrollRafRef.current) return; // ya hay un scroll agendado este frame
@@ -2137,8 +2166,29 @@ const AgentPage = () => {
     };
 
     useEffect(() => {
+        // [P2-CHAT-ANCHOR-SENT-TOP] con un mensaje recién enviado anclado arriba no seguimos el fondo.
+        const anchor = sentAnchorRef.current;
+        if (anchor) {
+            if (messages.length <= VIRTUALIZE_THRESHOLD) {
+                if (layoutSentAnchor()) return;
+            } else if (!anchor.scrolled) {
+                anchor.scrolled = true;
+                const idx = messages.findIndex((m) => m?.clientMessageId === anchor.clientMessageId);
+                if (idx >= 0) {
+                    requestAnimationFrame(() => virtualizedListRef.current?.scrollToIndex(idx, { align: 'start', behavior: 'smooth' }));
+                    return;
+                }
+            } else {
+                return;
+            }
+        }
         scrollToBottom();
-    }, [messages]);
+    }, [messages, layoutSentAnchor]);
+    // el ancla y su espaciador pertenecen a UNA conversación: al cambiar de sesión se sueltan
+    useEffect(() => {
+        sentAnchorRef.current = null;
+        setAnchorSpacerPx(0);
+    }, [currentSessionId]);
 
     // Cargar sesiones al abrir la pagina (para todos los usuarios)
     useEffect(() => {
@@ -2453,6 +2503,7 @@ const AgentPage = () => {
             });
         } else {
             newMessages.push({ role: 'user', content: userMsg, clientMessageId, created_at: new Date().toISOString() });
+            sentAnchorRef.current = { clientMessageId, scrolled: false };  // [P2-CHAT-ANCHOR-SENT-TOP]
         }
 
         setMessages(newMessages);
@@ -3483,7 +3534,7 @@ const AgentPage = () => {
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
                             placeholder={micErrorMsg || t("Pregúntale a {app}", { app: BRAND })}
-                            onFocus={() => setTimeout(scrollToBottom, 300)}
+                            onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se
                             // dispara al teclear, así que no veía los cambios
@@ -4576,6 +4627,7 @@ const AgentPage = () => {
                                 )}
                                 {/* El sentinel no es un mensaje: cancela el gap de 2rem que
                                     Flex añadiría después del último turno real. */}
+                                <div className="anchor-spacer" aria-hidden="true" style={{ height: anchorSpacerPx, flex: 'none' }} />
                                 <div ref={messagesEndRef} className="messages-end-sentinel" />
                             </div>
                             )

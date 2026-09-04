@@ -206,7 +206,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                 <span>{daySeparator}</span>
             </div>
         )}
-        <div className={msg.isWelcome ? 'message-row-welcome' : undefined} style={{
+        <div className={msg.isWelcome ? 'message-row-welcome' : undefined} data-client-message-id={msg.clientMessageId || undefined} style={{
             display: 'flex',
             gap: '0.75rem',
             flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
