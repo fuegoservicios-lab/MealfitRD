@@ -20,7 +20,7 @@
 // dueño); el listbox sigue los tokens, se abre nítido y se maneja con teclado (flechas,
 // Enter, Escape, Home/End). Las etiquetas van en su PROPIO idioma (`native`), porque quien
 // busca su idioma en una lista no sabe leer la que tiene delante.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { LOCALES } from '../../i18n/locales';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -47,6 +47,12 @@ export default function LocaleSwitcher({ className = '', id = 'mf-locale-switche
     const [hi, setHi] = useState(currentIdx);
     const rootRef = useRef(null);
     const btnRef = useRef(null);
+    const menuRef = useRef(null);
+    // [P2-LOCALE-MENU-RIGHTWARD · 2026-09-04] El menú nace alineado al borde IZQUIERDO de la
+    // píldora y crece hacia la derecha (hacia el margen de la página), no hacia la izquierda
+    // sobre la tarjeta del login. Si no cabe en el viewport, se corre a la izquierda solo lo
+    // justo (clamp), y nunca más allá de quedar alineado al borde derecho de la píldora.
+    const [menuShift, setMenuShift] = useState(0);
     const listId = `${id}-listbox`;
 
     const cambiar = async (code) => {
@@ -72,6 +78,24 @@ export default function LocaleSwitcher({ className = '', id = 'mf-locale-switche
             document.removeEventListener('mousedown', onDoc);
             document.removeEventListener('keydown', onKey);
         };
+    }, [open]);
+
+    useLayoutEffect(() => {
+        if (!open) return undefined;
+        const place = () => {
+            const btn = btnRef.current;
+            const menu = menuRef.current;
+            if (!btn || !menu) return;
+            const b = btn.getBoundingClientRect();
+            const w = menu.getBoundingClientRect().width;
+            const margin = 12;
+            const maxLeft = window.innerWidth - margin - w;
+            const left = Math.max(b.right - w, Math.min(b.left, maxLeft));
+            setMenuShift(Math.round(left - b.left));
+        };
+        place();
+        window.addEventListener('resize', place);
+        return () => window.removeEventListener('resize', place);
     }, [open]);
 
     if (coarse) {
@@ -136,7 +160,9 @@ export default function LocaleSwitcher({ className = '', id = 'mf-locale-switche
                 <ul
                     role="listbox"
                     id={listId}
+                    ref={menuRef}
                     className={styles.menu}
+                    style={{ left: menuShift }}
                     aria-labelledby={id}
                     aria-activedescendant={`${id}-opt-${(LOCALES[hi] || current).code}`}
                 >

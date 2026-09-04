@@ -51,6 +51,17 @@ describe('selector de idioma: nítido y legible en escritorio', () => {
         expect(css).toContain('@media (prefers-reduced-motion: reduce)');
     });
 
+    it('[P2-LOCALE-MENU-RIGHTWARD] el menú crece hacia la derecha desde la píldora y solo se corre si no cabe', () => {
+        // tercera captura del dueño: alineado al borde derecho de la píldora, el menú caía
+        // sobre la tarjeta del login; ahora nace en el borde izquierdo y crece hacia el margen
+        expect(block(css, '.menu {')).toContain('left: 0;');
+        expect(block(css, '.menu {')).not.toContain('right: 0;');
+        expect(jsx).toContain('const maxLeft = window.innerWidth - margin - w;');
+        expect(jsx).toContain('const left = Math.max(b.right - w, Math.min(b.left, maxLeft));');
+        expect(jsx).toContain('style={{ left: menuShift }}');
+        expect(jsx).toContain("window.addEventListener('resize', place);");
+    });
+
     it('el login (oscuro fijo) pide el esquema oscuro al control y le da superficie de tarjeta propia', () => {
         const login = read('src/pages/Login.css');
         expect(login).toContain('#mf-locale-login { color-scheme: dark; }');
