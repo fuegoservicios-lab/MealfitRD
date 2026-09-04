@@ -127,6 +127,11 @@ import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi, getPlanChunkStatus } from '../config/api';
 // [P1-DAY-REGEN-CLIENT-TIMEOUT · 2026-09-03] Tope del cliente para «actualizar día» (4-5 swaps en serie).
 const DAY_REGEN_TIMEOUT_MS = 6 * 60 * 1000;
+// [P1-SWAP-CLIENT-TIMEOUT · 2026-09-04] Tope del cliente para «cambiar plato». Medido en prod: 71 s
+// (LLM ~20 s + motor de macros sobre TODO el plan ~33 s + listas ~15 s); con los 60 s por defecto
+// el cliente cortaba (nginx 499), pintaba una alternativa LOCAL genérica y el servidor guardaba el
+// plato real 11 s después. 3 min cubre el p99 con margen; si aun así vence, el servidor sigue.
+const SWAP_TIMEOUT_MS = 3 * 60 * 1000;
 // [P1-3 · 2026-07-09] clear() del estado de servidor de TanStack Query en el
 // teardown SSOT — fix estructural de la clase de fuga PII cross-user.
 import { clearUserQueryCache } from '../queryClient';
@@ -3346,6 +3351,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // persist. Solo autenticados (guest = plan localStorage-only, sin persist server).
         const _swapPlanId = planData?.id || planData?.plan_id || null;
         const _swapResumable = !!(userId && userId !== 'guest' && _swapPlanId);
+        let _swapTimedOut = false;  // [P1-SWAP-CLIENT-TIMEOUT] (ámbito de la función: lo leen catch y finally)
         if (_swapResumable) {
             try {
                 safeLocalStorageSet('mealfit_meal_regen_inflight', {
@@ -3371,6 +3377,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const sessionId = safeLocalStorageGet('mealfit_user_id', 'guest_session');
             const response = await fetchWithAuth(API_SWAP_URL, {
                 method: 'POST',
+                timeout: SWAP_TIMEOUT_MS,  // [P1-SWAP-CLIENT-TIMEOUT]
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: userId || "guest",
@@ -3744,6 +3751,14 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             return newMealData.name;
 
         } catch (error) {
+            // [P1-SWAP-CLIENT-TIMEOUT · 2026-09-04] Venció el tope del cliente pero el servidor sigue
+            // (P1-SWAP-REGEN-RESUME persiste server-side): NO pintar la alternativa local genérica ni
+            // culpar a la red. El marker in-flight se queda para que el resume/poll recoja el plato real.
+            if (error?.code === 'request_timeout') {
+                _swapTimedOut = true;
+                toast.info(t('El plato sigue cocinándose en el servidor. Aparecerá solo en un momento.'), { id: 'swap-result', duration: 6000 });
+                return null;
+            }
             // [P2-SWAP-422-UX-COPY · 2026-05-22] Si el backend rechazó por
             // strict-pantry sin inventario, NO degradar a fallback local
             // (que produciría un plato genérico ignorando la razón del user).
@@ -3823,7 +3838,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // [P1-SWAP-REGEN-RESUME] Ruta sin-refresh: el request terminó en esta sesión →
             // limpiar marker + estado. (Con refresh, este finally nunca corre y el marker
             // sobrevive para que el effect de resume retome el spinner + poll.)
-            safeLocalStorageRemove('mealfit_meal_regen_inflight');
+            // [P1-SWAP-CLIENT-TIMEOUT] con timeout el marker sobrevive: el resume/poll aplica el plato persistido.
+            if (!_swapTimedOut) safeLocalStorageRemove('mealfit_meal_regen_inflight');
             setMealRegenInFlight(null);
         }
     };
