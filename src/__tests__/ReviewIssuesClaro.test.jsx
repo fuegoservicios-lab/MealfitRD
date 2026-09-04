@@ -1,11 +1,17 @@
 // [P2-REVIEW-ISSUES-CLARO · 2026-09-02] Las observaciones del plan se leen cortas, con el plato
 // señalado, en el idioma del usuario, y en UN solo aviso.
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { glossReviewIssue, CLAVES_REVIEW_ISSUE } from '../utils/clinicalNoteGloss.js';
 
 const read = (p) => readFileSync(resolve(process.cwd(), p), 'utf8');
+// [P0-FE-CI-RED · 2026-09-04] El backend es un repo HERMANO y el runner del frontend solo clona
+// este repo: la paridad con graph_orchestrator.py se comprueba donde el hermano existe (la
+// máquina del dueño) y se SALTA con razón donde no, en vez de tumbar `npm test` entero —
+// el mismo contrato que el backend aplica a sus tests cross-repo (P0-CI-VERDICT).
+const BACKEND_GO = resolve(process.cwd(), '../backend/graph_orchestrator.py');
+const conBackendHermano = existsSync(BACKEND_GO);
 const es = (s, vars) => (vars ? s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k])) : s);
 
 describe('glossReviewIssue', () => {
@@ -28,7 +34,7 @@ describe('glossReviewIssue', () => {
         expect(glossReviewIssue('ALGO NUEVO: detalle.', es)).toBe('ALGO NUEVO: detalle.');
         expect(glossReviewIssue('x', null)).toBe('x');
     });
-    it('todas las copies del backend están en la lista de glosa', () => {
+    it.skipIf(!conBackendHermano)('todas las copies del backend están en la lista de glosa (repo hermano)', () => {
         const go = read('../backend/graph_orchestrator.py');
         const missing = CLAVES_REVIEW_ISSUE.filter((c) => !go.includes(c));
         expect(missing).toEqual([]);
