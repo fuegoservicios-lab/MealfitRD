@@ -4728,23 +4728,56 @@ const AgentPage = () => {
                     100% { transform: rotate(0deg); }
                 }
 
-                /* --- Custom Scrollbar (Sidebar & PC Chat) --- */
-                .sidebar-scrollable, .messages-container {
-                    scrollbar-width: thin;
-                    scrollbar-color: rgba(203, 213, 225, 0.4) transparent;
+                /* --- Scrollbar clásica (Sidebar & PC Chat) ---
+                   [P2-CHAT-SCROLLBAR-CLASSIC · 2026-09-04] El dueño pidió una barra «como la de
+                   siempre»: pista visible, pulgar redondeado siempre visible y las flechitas de
+                   subir/bajar en los extremos (el pulgar fino de 6 px sobre fondo transparente no se
+                   veía y no se sabía dónde hacer clic). Los selectores llevan html delante para
+                   ganar al atenuado global del tema oscuro de index.css (misma especificidad, esta
+                   hoja carga después). En móvil sigue oculta (bloque de abajo). */
+                html .sidebar-scrollable, html .messages-container {
+                    scrollbar-width: auto;
+                    scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);
                 }
-                .sidebar-scrollable::-webkit-scrollbar, .messages-container::-webkit-scrollbar {
-                    width: 6px;
+                html .sidebar-scrollable::-webkit-scrollbar, html .messages-container::-webkit-scrollbar {
+                    width: 12px;
                 }
-                .sidebar-scrollable::-webkit-scrollbar-track, .messages-container::-webkit-scrollbar-track {
-                    background: transparent;
+                html .sidebar-scrollable::-webkit-scrollbar-track, html .messages-container::-webkit-scrollbar-track {
+                    background: rgba(148, 163, 184, 0.10);
+                    border-left: 1px solid rgba(148, 163, 184, 0.14);
                 }
-                .sidebar-scrollable::-webkit-scrollbar-thumb, .messages-container::-webkit-scrollbar-thumb {
-                    background-color: rgba(203, 213, 225, 0.4);
-                    border-radius: 10px;
+                html .sidebar-scrollable::-webkit-scrollbar-thumb, html .messages-container::-webkit-scrollbar-thumb {
+                    background-color: rgba(148, 163, 184, 0.62);
+                    border-radius: 8px;
+                    border: 2px solid transparent;
+                    background-clip: padding-box;
+                    min-height: 40px;
                 }
-                .sidebar-scrollable:hover::-webkit-scrollbar-thumb, .messages-container:hover::-webkit-scrollbar-thumb {
-                    background-color: rgba(148, 163, 184, 0.6);
+                html .sidebar-scrollable::-webkit-scrollbar-thumb:hover, html .messages-container::-webkit-scrollbar-thumb:hover {
+                    background-color: rgba(203, 213, 225, 0.85);
+                }
+                /* flechitas: un botón en cada extremo, con el triángulo pintado en SVG */
+                html .sidebar-scrollable::-webkit-scrollbar-button, html .messages-container::-webkit-scrollbar-button {
+                    display: block;
+                    height: 14px;
+                    width: 12px;
+                    background-color: rgba(148, 163, 184, 0.10);
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    background-size: 8px 8px;
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:decrement, html .messages-container::-webkit-scrollbar-button:vertical:decrement {
+                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path d='M4 1.5 L7.5 6.5 L0.5 6.5 Z' fill='rgb(148,163,184)'/></svg>");
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:increment, html .messages-container::-webkit-scrollbar-button:vertical:increment {
+                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path d='M0.5 1.5 L7.5 1.5 L4 6.5 Z' fill='rgb(148,163,184)'/></svg>");
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:hover, html .messages-container::-webkit-scrollbar-button:hover {
+                    background-color: rgba(148, 163, 184, 0.22);
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:start:increment, html .messages-container::-webkit-scrollbar-button:vertical:start:increment,
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:end:decrement, html .messages-container::-webkit-scrollbar-button:vertical:end:decrement {
+                    display: none;
                 }
 
                 /* ====== MOBILE REDESIGN ====== */
