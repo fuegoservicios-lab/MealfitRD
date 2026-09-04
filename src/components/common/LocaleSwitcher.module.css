@@ -1,45 +1,121 @@
 /* [P2-I18N-SIN-SELECTOR-ANTES-DE-TENER-CUENTA · 2026-08-23] El selector para quien aún no
-   tiene cuenta. Un <select> nativo vestido con los tokens del sistema: pequeño, sin
-   marco pesado, para vivir en la esquina del login y del header del formulario. */
+   tiene cuenta. Vestido con los tokens del contexto (login: --mf-*; app: --bg-card/--text-main),
+   pequeño, sin marco pesado, para vivir en la esquina del login y del header del formulario.
+   [P2-LOCALE-LISTBOX-DESKTOP · 2026-09-04] Dos controles: <select> nativo en táctil (.select) y
+   listbox propio con puntero fino (.pill + .menu). Hover sin movimiento (P2-HOVER-NO-MOTION). */
 .switcher {
+    position: relative;
     display: inline-flex;
     align-items: center;
 }
 
+/* ── píldora (botón del listbox) y <select> nativo: misma silueta ─────────────────────── */
+.pill,
 .select {
     appearance: none;
     -webkit-appearance: none;
     font: inherit;
     font-size: 0.8125rem;
     font-weight: 600;
-    color: var(--mf-text-muted, #64748b);
+    line-height: 1;
+    color: var(--mf-text, var(--text-main, inherit));
     background: transparent;
-    border: 1px solid var(--mf-border, rgba(100, 116, 139, 0.25));
+    border: 1px solid var(--mf-border, var(--border, rgba(100, 116, 139, 0.25)));
     border-radius: 999px;
-    padding: 0.3rem 1.6rem 0.3rem 0.75rem;
     cursor: pointer;
+    min-height: 32px;
+    transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.8rem 0.3rem 0.85rem;
+}
+.select {
+    padding: 0.3rem 1.6rem 0.3rem 0.75rem;
     /* chevron propio: el nativo no sigue al tema */
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%2394a3b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
     background-repeat: no-repeat;
     background-position: right 0.65rem center;
-    min-height: 32px;
 }
+/* el texto NUNCA cambia de color al hover (antes caía a un fallback oscuro y desaparecía sobre
+   el login oscuro); el feedback es un tinte de fondo sobre el color actual */
+.pill:hover:not(:disabled),
+.select:hover:not(:disabled) {
+    background-color: color-mix(in srgb, currentColor 9%, transparent);
+    border-color: color-mix(in srgb, currentColor 35%, transparent);
+}
+.pill:focus-visible,
+.select:focus-visible {
+    outline: 2px solid var(--mf-primary, var(--primary, #10b981));
+    outline-offset: 2px;
+}
+.pill[aria-expanded="true"] {
+    border-color: var(--mf-primary, var(--primary, #10b981));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mf-primary, var(--primary, #10b981)) 22%, transparent);
+}
+.pill:disabled,
+.select:disabled { opacity: 0.6; cursor: progress; }
+.pillLabel { white-space: nowrap; }
+.chev { flex: none; opacity: 0.75; transition: transform 0.16s ease; }
+.pill[aria-expanded="true"] .chev { transform: rotate(180deg); }
 
-.select:hover { color: var(--mf-text, #0f172a); border-color: var(--mf-text-muted, #64748b); }
-
-/* [P2-LOCALE-POPUP-LEGIBLE · 2026-09-04] En escritorio el desplegable NATIVO heredaba el color
-   apagado de la píldora sobre el popup blanco del sistema: cuatro idiomas invisibles (captura
-   del dueño en Windows). Las opciones llevan su propia superficie y su propio texto, tomados de
-   los tokens del contexto (login: --mf-*; app: --bg-card/--text-main), así que el popup se lee
-   en claro y en oscuro. En móvil el SO pone su rueda y esto no aplica. */
+/* [P2-LOCALE-POPUP-LEGIBLE · 2026-09-04] Opciones del <select> nativo (táctil y navegadores que
+   sí las visten): superficie y texto propios, para no heredar el color de la píldora. */
 .select option {
     color: var(--mf-text, var(--text-main, #0f172a));
     background: var(--mf-bg-card, var(--mf-bg, var(--bg-card, #ffffff)));
     font-weight: 500;
     padding: 0.35rem 0.5rem;
 }
-.select:focus-visible { outline: 2px solid var(--mf-primary, #10b981); outline-offset: 2px; }
-.select:disabled { opacity: 0.6; cursor: progress; }
+
+/* ── listbox propio (puntero fino) ─────────────────────────────────────────────────────── */
+.menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 60;
+    min-width: 11.5rem;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    border-radius: 12px;
+    background: var(--mf-bg-card, var(--bg-card, #ffffff));
+    color: var(--mf-text, var(--text-main, #0f172a));
+    border: 1px solid var(--mf-border, var(--border, rgba(100, 116, 139, 0.25)));
+    box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.55), 0 2px 6px -2px rgba(0, 0, 0, 0.25);
+    animation: lsMenuIn 0.14s ease-out;
+    transform-origin: top right;
+}
+.item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.9rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    user-select: none;
+    color: inherit;
+}
+.itemHi {
+    background: color-mix(in srgb, var(--mf-primary, var(--primary, #6366f1)) 16%, transparent);
+}
+.itemOn { font-weight: 700; }
+.check { flex: none; color: var(--mf-primary, var(--primary, #6366f1)); }
+
+@keyframes lsMenuIn {
+    from { opacity: 0; transform: translateY(-3px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .menu { animation: none; }
+    .chev { transition: none; }
+}
 
 /* Misma receta que `Hero.module.css .srOnly`: el rótulo existe para el lector de pantalla. */
 .srOnly {

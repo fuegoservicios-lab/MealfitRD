@@ -739,3 +739,12 @@
    de idioma (Windows/Chrome) debe renderizarse en esquema oscuro, o sale blanco con el texto
    de la píldora encima. `color-scheme` a nivel de ELEMENTO es lo que Chrome consulta. */
 #mf-locale-login { color-scheme: dark; }
+
+/* [P2-LOCALE-LISTBOX-DESKTOP · 2026-09-04] El listbox propio del selector se viste con los tokens
+   del contexto; el login no tenía superficie de tarjeta ni texto apagado con prefijo --mf-, y sin
+   ellos el menú caía a los del dashboard (blanco sobre el login oscuro). Declarados en el scope
+   del brandmark, donde vive el control. */
+.mf-brandmark--with-locale {
+  --mf-bg-card: #0F1626;
+  --mf-text-muted: var(--mf-text-dim);
+}
