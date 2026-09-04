@@ -48,9 +48,14 @@ describe('wizard: preguntas §6.7 detrás del knob', () => {
         expect(FLOW).toContain("trackWizard('wizard_submit', {");
         expect(FLOW).toContain("window.addEventListener('pagehide', onHide);");
     });
-    it('el Dashboard monta el panel solo con política y knob', () => {
+    it('el Dashboard monta el panel solo con política y knob, alineado con la columna del cuaderno', () => {
         expect(DASH).toContain('{PLAN_POLICY_FORM_UI && planData?._plan_policy && (');
         expect(DASH).toContain('fidelity={planData._fidelity_report}');
+        // [P2-POLICY-NOTE-IN-MARGIN] dentro del cuaderno, a la derecha de la línea roja (left: 2.5rem;
+        // texto en 4rem), no encima de ella; en móvil la línea va en 0.5rem y el texto en 1.75rem
+        expect(DASH).toContain('<div className="menu-policy-note">');
+        expect(DASH).toContain('.menu-policy-note {\n                    position: relative;\n                    z-index: 1;\n                    margin: 1.25rem 1.5rem 0 4rem;');
+        expect(DASH).toContain('.menu-policy-note {\n                        margin: 1rem 0.75rem 0 1.75rem;');
     });
 });
 
