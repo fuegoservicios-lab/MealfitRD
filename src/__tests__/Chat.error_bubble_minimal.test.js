@@ -13,7 +13,8 @@ describe('burbuja de error minimalista', () => {
         expect(mb).toContain("(isErrorBubble ? 'var(--text-muted)' : 'var(--text-main)')");
         expect(mb).not.toContain("isErrorBubble ? 'var(--danger-bg)'");
         expect(mb).not.toContain("isErrorBubble ? '1px solid var(--danger-border)'");
-        expect(mb).toContain("{isErrorBubble && (\n                    <AlertTriangle size={14}");
+        expect(mb).toContain('className="chat-error-line"');
+        expect(mb).toContain("{!isErrorBubble && msg.content && msg.content !== '📷 Imagen enviada' && (");
         const i = mb.indexOf('const ErrorRetryButton = ');
         const btn = mb.slice(i, mb.indexOf('export const MemoizedMessageBubble', i));
         expect(btn).toContain("background: 'transparent',");

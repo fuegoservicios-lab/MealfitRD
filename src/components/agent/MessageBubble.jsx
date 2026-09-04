@@ -117,7 +117,7 @@ const ErrorRetryButton = ({ onClick }) => {
         // [P2-CHAT-ERROR-MINIMAL · 2026-09-04] Antes: caja roja con borde y botón bordeado de 44 px
         // («muy feo, hazlo más minimalista»). Ahora: una línea discreta y «Reintentar» como enlace.
         style={{
-            marginTop: '0.35rem',
+            marginTop: 0,
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.35rem',
@@ -275,20 +275,21 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         })}
                     </div>
                 )}
+                {/* [P2-CHAT-ERROR-MINIMAL v2] el error es UNA línea: icono · texto · Reintentar (el markdown
+                    partía el texto en un párrafo propio y el botón caía a una tercera línea). */}
                 {isErrorBubble && (
-                    <AlertTriangle size={14} strokeWidth={2.2} aria-hidden="true"
-                        style={{ color: 'var(--danger-text)', verticalAlign: '-2px', marginRight: '0.4rem', flexShrink: 0 }} />
-                )}
-                {msg.content && msg.content !== '📷 Imagen enviada' && (
-                    <div className="markdown-chat" style={isErrorBubble ? { display: 'inline' } : undefined}>
-                        <LazyMarkdown>{msg.content}</LazyMarkdown>
+                    <div className="chat-error-line" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem 0.75rem', fontSize: '0.9rem' }}>
+                        <AlertTriangle size={15} strokeWidth={2.2} aria-hidden="true" style={{ color: 'var(--danger-text)', flexShrink: 0 }} />
+                        <span>{msg.content}</span>
+                        {msg.retryable && typeof onErrorRetry === 'function' && (
+                            <ErrorRetryButton onClick={() => onErrorRetry(msg)} />
+                        )}
                     </div>
                 )}
-
-                {/* [P1-CHAT-ERROR-DIFF · 2026-05-19] Botón retry solo si
-                    msg.retryable; el copy del bubble ya comunica el por qué */}
-                {isErrorBubble && msg.retryable && typeof onErrorRetry === 'function' && (
-                    <ErrorRetryButton onClick={() => onErrorRetry(msg)} />
+                {!isErrorBubble && msg.content && msg.content !== '📷 Imagen enviada' && (
+                    <div className="markdown-chat">
+                        <LazyMarkdown>{msg.content}</LazyMarkdown>
+                    </div>
                 )}
 
                 {/* Action bar for model messages — oculto en errores */}
