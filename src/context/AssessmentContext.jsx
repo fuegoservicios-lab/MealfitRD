@@ -2394,6 +2394,13 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     // mostrar una anotación mínima — el usuario no debe quedarse con una pantalla muda que
     // parece seguir "trabajando" cuando el poll ya se detuvo.
     const [planPollGaveUp, setPlanPollGaveUp] = useState(false);
+    // [P2-PLAN-POLL-DORMANT-SLEEP · 2026-09-04] «Revisar ahora» reinicia el loop de verdad (resetKey
+    // distinto) en vez de solo hidratar una vez con el loop ya muerto.
+    const [pollRestartNonce, setPollRestartNonce] = useState(0);
+    const restartPlanPoll = useCallback(() => {
+        setPlanPollGaveUp(false);
+        setPollRestartNonce((n) => n + 1);
+    }, []);
 
     const localGenerationStatus = planData?.generation_status;
     const isGeneratingForPoll = (
@@ -2439,7 +2446,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         enabled: !!session?.user?.id && isGeneratingForPoll,
         // Re-armar al cambiar de plan (paridad con la dep `planData?.id` del effect
         // pre-fix): un plan nuevo empieza su propio reloj de backoff/give-up desde cero.
-        resetKey: planData?.id,
+        resetKey: `${planData?.id ?? ''}#${pollRestartNonce}`,
         tick: _pollTick,
         onGiveUpChange: setPlanPollGaveUp,
     });
@@ -4492,6 +4499,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // mínima, NUNCA para bloquear nada (el plan sigue usable, solo dejó de
             // refrescarse solo).
             planPollGaveUp,
+            restartPlanPoll,
             restoreSessionData,
             setRecalcLock,
             withRecalcLock,
@@ -4503,7 +4511,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
-        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restoreSessionData, serverGeneratingPlanId,
+        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restartPlanPoll, restoreSessionData, serverGeneratingPlanId,
         setRecalcLock, withRecalcLock,
     ]);
 

@@ -919,6 +919,7 @@ const DashboardInner = () => {
         hydrateLatestPlan,
         // [P1-PLAN-POLL-BOUNDED · 2026-07-29] El poll de AssessmentContext se rindió tras
         // el tope de give-up — anotación mínima más abajo, ver render de isPlanCorrupted.
+        restartPlanPoll,
         planPollGaveUp,
     } = useAssessment();
     // [P1-ARQ25-F1-CLOSE · 2026-09-02] Placeholder de la cola: `generating` y todavía sin días.
@@ -7727,7 +7728,7 @@ const DashboardInner = () => {
                     </span>
                     <button
                         type="button"
-                        onClick={() => { hydrateLatestPlan?.({ force: true, src: 'give-up-retry' }); }}
+                        onClick={() => { hydrateLatestPlan?.({ force: true, src: 'give-up-retry' }); restartPlanPoll?.(); }}
                         style={{
                             background: 'none',
                             border: 'none',

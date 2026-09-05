@@ -77,6 +77,14 @@ export const PLAN_POLL_GIVEUP_MS = _num(
     _env.VITE_PLAN_POLL_GIVEUP_MS, 30 * 60 * 1000, { min: 5 * 60 * 1000, max: 120 * 60 * 1000 },
 );
 
+// [P2-PLAN-POLL-DORMANT-SLEEP · 2026-09-04] Latido del plan DORMIDO (siguiente bloque programado
+// para más adelante): no es rendirse, es dormir. Un tick largo de respaldo; el despertar real es
+// volver a la pestaña (visibilitychange).
+export const PLAN_POLL_DORMANT_MS = _num(
+    _env.VITE_PLAN_POLL_DORMANT_MS, 15 * 60 * 1000, { min: 60 * 1000, max: 60 * 60 * 1000 },
+);
+
+
 /**
  * Discriminador puro: ¿hay motivo para pollear a cadencia rápida AHORA MISMO?
  *
