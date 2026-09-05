@@ -3472,7 +3472,11 @@ const AgentPage = () => {
                     <ArrowDown size={18} strokeWidth={2.4} aria-hidden="true" />
                 </button>
             )}
-            {!isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
+            {/* [P2-CHAT-CHIPS-MOBILE-ONLY · 2026-09-05] Solo en móvil. Los tres atajos existen porque escribir
+                en un teléfono cuesta; en PC el usuario ya tiene el teclado delante y las tres frases ocupan una
+                fila entera sobre la caja sin ahorrarle nada. `isMobile` es el mismo corte de 1024 px que decide
+                si la caja va pegajosa o fija, así que el atajo aparece exactamente donde la caja es «de móvil». */}
+            {isMobile && !isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
                 <div className="chat-quick-chips" role="group" aria-label={t('Acciones rápidas')}>
                     {[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')].map((texto) => (
                         <button

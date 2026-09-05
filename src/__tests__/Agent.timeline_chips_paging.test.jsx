@@ -75,7 +75,10 @@ describe('hilo: fecha en los mensajes y separadores en los dos renders', () => {
 
 describe('acciones rápidas con el hilo corto', () => {
     it('tres chips que mandan directo, solo con ≤4 mensajes, sin turno activo y caja vacía', () => {
-        expect(AGENT).toContain('{!isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (');
+        // [P2-CHAT-CHIPS-MOBILE-ONLY · 2026-09-05] La guarda gana `isMobile &&` por delante: en PC los tres
+        // atajos ocupaban una fila entera sobre la caja sin ahorrar nada (el teclado ya está delante). Las
+        // cinco condiciones que este test vigila —hilo corto, sin turno activo, caja vacía— siguen intactas.
+        expect(AGENT).toContain('{isMobile && !isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (');
         // dentro del wrapper sticky de la caja (fuera, la caja los tapaba en escritorio)
         expect(AGENT.indexOf('className="chat-quick-chips"')).toBeGreaterThan(AGENT.indexOf('const renderInputArea = (isCentered = false) => ('));
         expect(AGENT.indexOf('className="chat-quick-chips"')).toBeLessThan(AGENT.indexOf("<div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>"));
