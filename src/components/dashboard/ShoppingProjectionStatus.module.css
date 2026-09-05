@@ -1,0 +1,50 @@
+/* [P1-ARQ25-F5-UI-STATES · 2026-09-05] Una línea discreta bajo las acciones de la lista de compras. */
+.line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.55rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: var(--text-muted);
+}
+
+.dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.55;
+}
+
+.ok {
+    color: var(--text-muted);
+}
+
+.ok .dot {
+    background: #10b981;
+    opacity: 1;
+}
+
+.muted .dot {
+    animation: projection-pulse 1.6s ease-in-out infinite;
+}
+
+.warn {
+    color: var(--text-muted);
+}
+
+.warn .dot {
+    background: #f59e0b;
+    opacity: 1;
+}
+
+@keyframes projection-pulse {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .muted .dot { animation: none; }
+}

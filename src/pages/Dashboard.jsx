@@ -73,6 +73,7 @@ import MicronutrientMeter from '../components/dashboard/MicronutrientMeter';
 // comprar (banner + prompt + auto-fill + recordatorio). Cierra el olvido de tocar
 // "Ya compré la lista". Lógica de decisión en utils/restockNudge.js.
 import RestockNudge from '../components/dashboard/RestockNudge';
+import ShoppingProjectionStatus from '../components/dashboard/ShoppingProjectionStatus';  // [P1-ARQ25-F5-UI-STATES]
 // [P1-SUPERMARKET-MATCH · 2026-07-02] Panel "Marcas del súper": conecta la lista
 // de compras con supermarket_products (marcas/presentaciones/precios reales).
 import SupermarketBrands from '../components/dashboard/SupermarketBrands';
@@ -7269,6 +7270,13 @@ const DashboardInner = () => {
                             DEBAJO de los botones. Solo ícono + texto verde (SIN pastilla: ni fondo
                             ni borde — la pastilla se confundía con un botón). Una línea. Izquierda
                             en PC / centrado en móvil. Solo con plan válido; la deducción es by-design. */}
+                        {/* [P1-ARQ25-F5-UI-STATES · 2026-09-05] Estado de la proyección de compras (Fase 5):
+                            una línea discreta; `none` no pinta nada. Se refresca cuando cambia la lista. */}
+                        <ShoppingProjectionStatus
+                            planId={planData?.id}
+                            refreshKey={(planData?.aggregated_shopping_list_weekly || []).length}
+                            enabled={!isGuest && !isPlanCorrupted && !isPlanExpired && !planFinished}
+                        />
                         {shoppingDeltaMeta?.itemsRemoved > 0 && !isPlanExpired && !planFinished && !isPlanCorrupted && (
                             /* [2026-07-06] Polish visual (pedido del owner): de texto desnudo a
                                mini-banner de éxito — MISMA paleta esmeralda que el banner de
