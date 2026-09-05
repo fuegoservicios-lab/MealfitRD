@@ -138,6 +138,11 @@ describe('[P2-SHOPPING-1] Pluralización + count', () => {
         expect(out.title.toLowerCase()).toContain('una revisión');
         expect(out.count).toBe(1);
     });
+    it('[P2-COHERENCE-HISTORY-DEDUPE] 3 entries IDÉNTICAS (la misma alerta redetectada en cada recálculo) → "una revisión"', () => {
+        const out = buildHistoricalCoherenceToast([_actionable(1), _actionable(2), _actionable(3)]);
+        expect(out.count).toBe(1);
+        expect(out.title.toLowerCase()).toContain('una revisión');
+    });
     it('3 entries accionables → "3 revisiones"', () => {
         const out = buildHistoricalCoherenceToast([
             _actionable(1),
