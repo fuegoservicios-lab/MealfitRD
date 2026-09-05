@@ -6,15 +6,33 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { fetchWithAuth } from '../../config/api';
 import { projectionLine } from '../../utils/projectionLine';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../../utils/safeLocalStorage';
 import styles from './ShoppingProjectionStatus.module.css';
 
 const POLL_MS = 30_000;
 const POLL_MAX = 20;
 
+// [P2-PROJECTION-LINE-NO-FLICKER · 2026-09-05] Al refrescar, la línea nacía vacía (snap=null) hasta que volvía
+// el fetch y REAPARECÍA unos milisegundos después: un salto de layout en cada recarga. Último snapshot por plan
+// en localStorage (stale-while-revalidate): se pinta al instante y el fetch lo actualiza. Un fallo transitorio
+// del fetch tampoco la borra; solo `none` (el plan ya no tiene proyección) la quita y limpia la caché.
+const _cacheKey = (planId) => `mealfit_projection_snap:${planId}`;
+const _readCache = (planId) => {
+    if (!planId) return null;
+    try {
+        const raw = safeLocalStorageGet(_cacheKey(planId), null);
+        const j = raw ? JSON.parse(raw) : null;
+        return j && typeof j === 'object' && j.status ? j : null;
+    } catch { return null; }
+};
+
 export default function ShoppingProjectionStatus({ planId, refreshKey, enabled = true }) {
     const [snap, setSnap] = useState(null);
     const pollsRef = useRef(0);
     const active = Boolean(enabled && planId);
+    // lo que se pinta: el snapshot vivo de ESTE plan o, mientras llega, el último conocido en caché
+    // (derivado en render, sin setState en efecto: el techo de `react-hooks/set-state-in-effect` está al límite)
+    const shown = (snap && snap.__planId === planId) ? snap : _readCache(planId);
 
     useEffect(() => {
         if (!active) return undefined;
@@ -30,22 +48,25 @@ export default function ShoppingProjectionStatus({ planId, refreshKey, enabled =
                 .then((r) => (r && r.ok ? r.json() : null))
                 .then((j) => {
                     if (!alive) return;
-                    setSnap(j && typeof j === 'object' ? j : null);
-                    if (j && j.status === 'pending' && pollsRef.current < POLL_MAX) {
+                    if (!j || typeof j !== 'object') return;   // respuesta rara: conservar lo último conocido
+                    setSnap({ ...j, __planId: planId });
+                    if (j.status === 'none') safeLocalStorageRemove(_cacheKey(planId));
+                    else safeLocalStorageSet(_cacheKey(planId), j);
+                    if (j.status === 'pending' && pollsRef.current < POLL_MAX) {
                         pollsRef.current += 1;
                         timer = setTimeout(load, POLL_MS);
                     }
                 })
-                .catch(() => { if (alive) setSnap(null); });
+                .catch(() => { /* fallo transitorio: la línea conserva el último estado conocido */ });
         };
         load();
         return () => { alive = false; if (timer) clearTimeout(timer); };
     }, [active, planId, refreshKey]);
 
-    const line = active ? projectionLine(snap) : null;
+    const line = active ? projectionLine(shown) : null;
     if (!line) return null;
     return (
-        <p className={`${styles.line} ${styles[line.tone] || ''}`} data-projection-status={snap?.status} aria-live="polite">
+        <p className={`${styles.line} ${styles[line.tone] || ''}`} data-projection-status={shown?.status} aria-live="polite">
             <span className={styles.dot} aria-hidden="true" />
             {line.text}
         </p>

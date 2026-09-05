@@ -57,6 +57,34 @@ describe('<ShoppingProjectionStatus />', () => {
         expect(fetchWithAuth).toHaveBeenCalledTimes(1);
     });
 
+    // [P2-PROJECTION-LINE-NO-FLICKER · 2026-09-05] al refrescar, la línea NO desaparece mientras llega el fetch:
+    // arranca con el último snapshot del plan en caché y el fetch la actualiza; un fallo del fetch tampoco la borra.
+    it('al montar pinta el último estado en caché de forma síncrona y el fetch lo actualiza', async () => {
+        localStorage.setItem('mealfit_projection_snap:p3', JSON.stringify({ ...ready, status: 'stale' }));
+        let resolveFetch;
+        fetchWithAuth.mockReturnValue(new Promise((res) => { resolveFetch = res; }));
+        render(<ShoppingProjectionStatus planId="p3" />);
+        // síncrono: antes de que el fetch resuelva
+        expect(document.querySelector('[data-projection-status="stale"]')).toBeTruthy();
+        expect(screen.getByText(/desactualizada/)).toBeTruthy();
+        resolveFetch({ ok: true, json: async () => ready });
+        await waitFor(() => expect(document.querySelector('[data-projection-status="ready"]')).toBeTruthy());
+        expect(JSON.parse(localStorage.getItem('mealfit_projection_snap:p3')).status).toBe('ready');
+        localStorage.removeItem('mealfit_projection_snap:p3');
+    });
+
+    it('un fallo del fetch conserva la línea; `none` la quita y limpia la caché', async () => {
+        localStorage.setItem('mealfit_projection_snap:p4', JSON.stringify(ready));
+        fetchWithAuth.mockRejectedValue(new Error('red'));
+        const { rerender } = render(<ShoppingProjectionStatus planId="p4" refreshKey={1} />);
+        await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledTimes(1));
+        expect(document.querySelector('[data-projection-status="ready"]')).toBeTruthy();
+        fetchWithAuth.mockResolvedValue({ ok: true, json: async () => ({ status: 'none', revision: 1 }) });
+        rerender(<ShoppingProjectionStatus planId="p4" refreshKey={2} />);
+        await waitFor(() => expect(document.querySelector('[data-projection-status]')).toBeNull());
+        expect(localStorage.getItem('mealfit_projection_snap:p4')).toBeNull();
+    });
+
     it('con `pending` vuelve a sondear a los 30 s', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         fetchWithAuth.mockResolvedValue({ ok: true, json: async () => ({ status: 'pending', revision: 2 }) });
