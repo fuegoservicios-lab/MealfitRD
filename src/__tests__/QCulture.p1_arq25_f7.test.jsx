@@ -77,8 +77,12 @@ describe('wizard: el paso va detrás del país y no siembra nada', () => {
     });
     it('el panel «solicitaste / aplicamos» resume la mezcla y distingue la sugerida', () => {
         expect(PANEL).toContain('cultureWeightsSummary(t, effective.culture_weights)');
-        expect(PANEL).toContain("t('Cocina: {resumen} (la de tu país de compra)', { resumen: cultureText })");
-        expect(PANEL).toContain("t('Cocina: {resumen}', { resumen: cultureText })");
+        // [P2-POLICY-PANEL-UI · 2026-09-05] La etiqueta salió del literal: la fila ya la pone con su propio
+        // <b>«Estilo de cocina:»</b> y el texto decía «Cocina: Cocina estadounidense cotidiana» — la palabra
+        // dos veces seguidas. Lo que este test vigila es que la fila distinga la cocina SUGERIDA (la del país
+        // de compra) de la elegida, y ese sufijo sigue intacto.
+        expect(PANEL).toContain("t('Estilo de cocina:')");
+        expect(PANEL).toContain("t('{resumen} (la de tu país de compra)', { resumen: cultureText })");
     });
 });
 

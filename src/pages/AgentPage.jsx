@@ -2547,6 +2547,16 @@ const AgentPage = () => {
         );
 
         setInput('');
+        // [P1-CHAT-COMPOSER-CLEAR · 2026-09-05] …y las fotos con él. `clearAttachments` solo se llamaba al
+        // CAMBIAR de sesión, así que tras enviar la miniatura se quedaba clavada en el compositor: la foto
+        // aparecía a la vez en la conversación y en la caja de escribir, con el botón en «detener», y eso se
+        // lee como que la app se colgó (captura del dueño, 2026-09-05). El envío ya se llevó su copia en
+        // `currentAttachments`, que es una constante local: vaciar el estado no le quita nada.
+        //
+        // `revoke: false` es LOAD-BEARING: la burbuja recién pintada apunta a `previewUrl`, que es un
+        // `blob:` de este mismo item. Revocarlo aquí dejaría la foto rota EN LA CONVERSACIÓN hasta que el
+        // servidor devolviese su URL. El revoke de verdad lo hace el cambio de sesión.
+        clearAttachments({ revoke: false });
         setIsLoading(true);
 
         // [P2-CHAT-SCROLL-RACE · 2026-05-19] Reset del guard: el user
@@ -2693,6 +2703,19 @@ const AgentPage = () => {
                     return { ...message, attachments: remote, imageUrl: remote[0]?.url || message.imageUrl };
                 }));
                 clearSelectedFile();
+                // [P1-CHAT-COMPOSER-CLEAR · 2026-09-05] Este `clearSelectedFile` era, HASTA HOY, el ÚNICO
+                // vaciado del compositor en el envío, y corre aquí: después de subir la imagen y de que el
+                // servidor devuelva sus URL. Con una foto eso son ~7 s de análisis (medido en producción),
+                // y durante todos ellos la miniatura seguía en la caja de escribir junto al botón «detener».
+                // Ahora el vaciado ocurre al pulsar enviar; esto queda por el caché de subida y el input de
+                // fichero, y para revocar los `blob:` — que hasta esta línea sostenían la burbuja y por eso
+                // no se podían revocar antes.
+                currentAttachments.forEach((item) => {
+                    const _blob = item?.previewUrl;
+                    if (typeof _blob === 'string' && _blob.startsWith('blob:')) {
+                        try { URL.revokeObjectURL(_blob); } catch { /* el navegador ya lo soltó */ }
+                    }
+                });
                 attachmentUploadCacheRef.current.clear();
             }
 
