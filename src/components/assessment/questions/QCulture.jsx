@@ -18,6 +18,20 @@ import {
     cultureForCountry, cultureHints, cultureLabel, intensityLabel, normalizeCultureProfiles,
 } from '../../../config/cultures';
 
+// Las banderas de `CountryFlags` llenan el 100 % de su contenedor (están pensadas para el iconChip de
+// 52 px de RadioCard, que sí las acota); `ChipOption` les pasa `size={18}` como a un icono lucide y lo
+// ignoran, así que en el chip salían a pantalla completa. Envoltorio circular de tamaño fijo, con
+// identidad estable por cocina (creado una vez en módulo, no en cada render).
+const makeChipFlag = (Flag) => {
+    const ChipFlag = ({ size = 18 }) => (
+        <span aria-hidden="true" style={{ width: size, height: size, flex: '0 0 auto', display: 'inline-flex', borderRadius: '50%', overflow: 'hidden' }}>
+            <Flag />
+        </span>
+    );
+    return ChipFlag;
+};
+const CHIP_FLAGS = Object.fromEntries(CULTURES.map((c) => [c.id, makeChipFlag(COUNTRY_FLAGS[c.marketDefault] || Globe2)]));
+
 const pillStyle = (on) => ({
     padding: '0.4rem 0.75rem', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
     fontFamily: 'inherit', border: on ? '1.5px solid var(--primary)' : '1px solid var(--border)',
@@ -93,7 +107,7 @@ export const QCulture = ({ onManualAdvance }) => {
                                 key={c.id}
                                 val={c.id}
                                 label={t(c.labelKey)}
-                                icon={COUNTRY_FLAGS[c.marketDefault] || Globe2}
+                                icon={CHIP_FLAGS[c.id]}
                                 isSelected={on}
                                 disabled={!on && full}
                                 onToggle={toggleSecondary}
