@@ -8,7 +8,7 @@ subiendo hasta que deja de molestar; entonces ya no protege, solo cuesta.
 
 | Gate | Comando | Qué cae si falta |
 |---|---|---|
-| Lint, techo global | `npx eslint . --max-warnings 158` | Deriva silenciosa: de 148 a 180 en un mes sin que nadie lo viera. |
+| Lint, techo global | `npx eslint . --max-warnings 60` (2026-09-04; era 158→66) | Deriva silenciosa: de 148 a 180 en un mes sin que nadie lo viera. |
 | Lint, **techo por regla** | `npm run lint:count -- --gate` | El techo global es fungible: arreglar un aviso de estilo libera hueco para uno de hooks. |
 | Tipos | `npm run typecheck` | — |
 | Código muerto | `node scripts/huerfanos.mjs --gate` | `ChatWidget.jsx` vivió 829 líneas sostenido por sus propios tests. |
@@ -16,7 +16,7 @@ subiendo hasta que deja de molestar; entonces ya no protege, solo cuesta.
 | i18n **estricto** | `npm run i18n:check:strict` | La clave ES el texto español: editar un copy huérfana su traducción en 4 idiomas **en silencio**. |
 | Tope del bundle del agente | `npm run check:bundle-size` | — |
 | **Presupuestos de arranque** | `npm run check:presupuestos` | El peso del arranque empeora sin que nadie lo decida. |
-| Vulnerabilidades | `node scripts/audit-gate.mjs` | Con excepciones **caducables**: una excepción vencida pone el gate en rojo. |
+| Vulnerabilidades | `node scripts/audit-gate.mjs` | Con excepciones **caducables**: una excepción vencida pone el gate en rojo. Si el registro no contesta reintenta hasta 3 veces (el endpoint quick de respaldo está retirado, así que un tropiezo del bulk ya no lo rescata nadie) y sigue **fail-closed**; un veredicto con vulnerabilidades nunca se reintenta. |
 | Contrato de entorno | `node scripts/env-gate.mjs` | Todo lo `VITE_` acaba **dentro del bundle**, en texto plano. |
 | **E2E en 3 motores** | `npx playwright test --project=<motor>` | WebKit es Safari y todo iOS, y no hay forma de probarlo a mano desde Windows. |
 

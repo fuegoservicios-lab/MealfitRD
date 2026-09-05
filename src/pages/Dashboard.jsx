@@ -66,7 +66,7 @@ import DashboardTracking from '../components/dashboard/DashboardTracking';
 // [P1-MICRO-FOCO-PANEL · 2026-06-26] El render visible del panel de gaps lo absorbe
 // MicronutrientMeter (diseño Foco); aquí solo importamos los helpers SSOT que sigue
 // usando el backfill de la notificación de micros (archivado de descartes legacy).
-import { buildMicrosNotification, microsContentSig } from '../components/dashboard/MicronutrientPanel';
+import { buildMicrosNotification, microsContentSig } from '../components/dashboard/micronutrientHelpers';
 // [P1-FOOD-DB-EXTENDED-MICROS · 2026-06-25] Medidor con TODOS los micros (no solo gaps).
 import MicronutrientMeter from '../components/dashboard/MicronutrientMeter';
 // [P3-RESTOCK-NUDGE · 2026-06-23] Nudge para que el usuario llene la Nevera tras

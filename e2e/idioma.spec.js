@@ -148,6 +148,13 @@ for (const locale of IDIOMAS) {
         }
 
         test(`la entrada de sesión pasa axe en ${locale}`, async ({ page }) => {
+            // [P2-E2E-AXE-REDUCED-MOTION · 2026-09-05] El escaparate del login (PlanShowcase) rota
+            // escenas con fundidos de 0,55 s; axe mide el contraste en el instante que le toca y a
+            // mitad de fundido el CTA decorativo (`.mf-demo-cta`, aria-hidden) sale a 2,07:1 —
+            // 1 fallo + 3 «flaky» en un mismo run, sin cambio alguno en el login. El escaparate
+            // respeta prefers-reduced-motion (se queda en la escena «plan», estática): con la
+            // preferencia emulada, axe ve colores finales, no mezclas de una animación.
+            await page.emulateMedia({ reducedMotion: 'reduce' });
             await page.goto('/login');
             await expect(page.locator('#root')).toBeVisible({ timeout: 10_000 });
             const r = await new AxeBuilder({ page })
