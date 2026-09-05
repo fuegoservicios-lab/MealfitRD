@@ -107,7 +107,7 @@ const Footer = () => {
                         <Wordmark />
                     </h3>
                     <p className={styles.desc}>
-                        {t('Nutrición de precisión potenciada por Inteligencia Artificial. Tu camino hacia una vida más saludable empieza aquí.')}
+                        {t('Nutrición de vanguardia potenciada por Inteligencia Artificial. Tu camino hacia una vida más saludable empieza aquí.')}
                     </p>
                     <div className={styles.socialLinks}>
                         <a href="https://www.tiktok.com/@bioboros" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="TikTok">

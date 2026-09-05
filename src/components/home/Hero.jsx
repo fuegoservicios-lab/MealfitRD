@@ -144,7 +144,18 @@ const Hero = () => {
                 (Se describe y no se cita: el guard escanea el fichero entero,
                 comentarios incluidos.) */}
             <div className={styles.cartridge}>
-                <span className={styles.cartridgeCell}>NUTRICIÓN DE PRECISIÓN</span>
+                {/* [P2-HERO-VANGUARDIA · 2026-09-05] Decía «DE PRECISIÓN». El
+                    cambio es de registro, no de sentido: «precisión» es la
+                    categoría técnica y sigue nombrándose en /about y en el pie;
+                    aquí, en la primera línea de la página, manda el gancho.
+
+                    Y CUESTA UN CARÁCTER, que en esta fila no es gratis: el
+                    bloque móvil de Hero.module.css lleva la aritmética del
+                    ancho, y `test_p2_hero_vanguardia.py` parsea ESTOS dos
+                    literales (el `styles.cartridgeCell` de aquí abajo es su
+                    ancla) contra el corte del apilado. Si alargas cualquiera
+                    de los dos sin subir el corte, ese test cae. */}
+                <span className={styles.cartridgeCell}>NUTRICIÓN DE VANGUARDIA</span>
                 {/* El 17 sale de systemFacts.js, nunca a mano. Y se queda en
                     TINTA, no en acento: a 11 px un rojo se lee como error de
                     registro de imprenta, no como señal. Ser cifra SSOT habilita

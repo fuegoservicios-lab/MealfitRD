@@ -407,7 +407,19 @@
        html/body llevan `overflow-x: clip`: el texto simplemente desaparecía por
        el borde. Números de hoy, con emulación real de dispositivo: 180,4px
        (qué-es) + 195,3px (dónde). Si tocas cualquiera de los dos literales,
-       vuelve a medir — o el e2e de 320px te lo dirá por ti. */
+       vuelve a medir — o el e2e de 320px te lo dirá por ti.
+
+       [P2-HERO-VANGUARDIA · 2026-09-05] Se tocó: «de precisión» → «de
+       vanguardia», UN carácter más. Las dos medidas de arriba calibran el
+       paso real de esta fuente a 11px con 0,08em — (180,4−28)/22 = 6,93 y
+       (195,3−28)/24 = 6,97 px por carácter, con 28px de padding —, así que
+       el carácter extra cuesta ~6,9px: la celda 1 pasa de 180,4 a ~187,3px
+       y la pareja de 375,7 a ~382,6px.
+
+       DERIVADO, NO RE-MEDIDO con motor de render — que es exactamente lo
+       que la nota de arriba reprocha. Se acepta porque el cambio es de un
+       carácter sobre una calibración que dos medidas independientes
+       confirman a 0,04px; el siguiente que toque el literal, que mida. */
     .cartridgeCell {
         font-size: 11px;
         letter-spacing: 0.08em;
@@ -419,7 +431,7 @@
     }
 }
 
-/* [P1-MOBILE-FIT · 2026-08-09] Bajo 400px el cajetín APILA: una columna, dos
+/* [P1-MOBILE-FIT · 2026-08-09] Bajo 410px el cajetín APILA: una columna, dos
    filas. Cada fila pide ≤195,3px, así que cabe con ≥124px de holgura en el
    ancho de contrato (320px — donde renderiza un iPhone con Display Zoom).
 
@@ -429,15 +441,26 @@
    ~54px y deja 321,7px — SIGUE sin caber a 320 por 1,7px, y encima deja el
    cajetín incómodo. Casi-cabe no es cabe.
 
-   POR QUÉ 400 Y NO 376. El corte exacto donde deja de caber es 376px, pero ahí
+   POR QUÉ 410 Y NO 383. El corte exacto donde deja de caber es 383px, pero ahí
    la holgura sería de 0,3px: a merced de cómo renderice la fuente cada
-   dispositivo. A 400px la fila única solo sobrevive donde le sobran ≥24px.
+   dispositivo. A 410px la fila única solo sobrevive donde le sobran ≥27px.
+
+   [P2-HERO-VANGUARDIA · 2026-09-05] Eran 400 y 376 cuando la celda 1 pedía
+   180,4px. «De vanguardia» le añade ~6,9px (la pareja pasa a ~382,6px), así
+   que el corte real sube a 383 y el umbral con él — si no, el cushion de
+   24px que este bloque declara habría caído a 17,4px sin que nadie lo dijera.
+
+   SE PAGA AQUÍ Y NO EN EL TRACKING, a sabiendas. Apretar 0,08em → 0,06em
+   ahorra los mismos ~10px, pero cambia la primera línea de texto del sitio
+   en móvil en TODOS los anchos; subir el corte solo afecta a la banda
+   400-409px, donde no aterriza ningún teléfono común (360, 375, 390, 393,
+   412, 414, 428, 430). El coste es que esos anchos ven el cajetín a 52px.
 
    La hairline gira de `border-left` a `border-top` (si no, queda una regla
    vertical suelta a la izquierda de la fila 2) y el `text-align: right` de la
    fila se revierte (si no, la fila 2 queda desalineada de la 1). El alto del
    cajetín pasa de 40px a 52px, que es todo lo que cuesta. */
-@media (max-width: 399px) {
+@media (max-width: 409px) {
     .cartridge {
         grid-template-columns: 1fr;
         height: auto;
