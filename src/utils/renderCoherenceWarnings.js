@@ -352,11 +352,13 @@ export const buildHistoricalCoherenceToast = (history, opts = {}) => {
         return true;
     });
     const severity = 'warning';
-    const title = distinct.length === 1
-        ? t('Tu lista de compras tuvo una revisión automática reciente')
-        : t('Tu lista de compras tuvo {n} revisiones automáticas recientes', { n: distinct.length });
-    const description = t('Algunas cantidades pueden necesitar ajuste manual. Verifica los items antes de comprar.');
-    return { severity, title, description, count: distinct.length };
+    // [P2-SHOPPING-COPY-QUIET · 2026-09-04] «Tuvo N revisiones automáticas» contaba detecciones; lo útil
+    // es QUÉ pasa: cuántas cantidades pueden no cuadrar (la última alerta vigente) y qué hacer.
+    const latest = distinct[distinct.length - 1];
+    const n = Number(latest && latest.divergence_count) > 0 ? Number(latest.divergence_count) : distinct.length;
+    const title = t('Revisa las cantidades de tu lista de compras');
+    const description = t('El control automático encontró {n} cantidad(es) que pueden no cuadrar con las recetas. Ajústalas antes de comprar.', { n });
+    return { severity, title, description, count: distinct.length, divergences: n };
 };
 
 // [P3-HISTORICAL-TOAST-DISMISS · 2026-05-14] Persistencia del dismiss

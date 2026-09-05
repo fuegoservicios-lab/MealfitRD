@@ -3932,7 +3932,7 @@ const DashboardInner = () => {
             }
             // Solo mostramos el segundo número cuando aporta info (ciclo > 1 semana y
             // de hecho cuesta más que la compra de esta semana).
-            const _showCycleCost = duration !== 'weekly' && _fullCycleCostFinal > _shopTotalCostFinal + 1;
+            // [P2-SHOPPING-COPY-QUIET] `_showCycleCost` se decide más abajo, tras `totalItems`.
 
             // [P1-PDF-3] Decisión centralizada de densidad y paginación.
             // El helper devuelve `isHyperDense` (≥60 items) y `multiPage` (≥80
@@ -3940,6 +3940,10 @@ const DashboardInner = () => {
             // `isDense`/`isUltraDense`. La función pura permite tests unitarios
             // de la decisión sin renderizar HTML real.
             const totalItems = Object.values(consData).length;
+            // [P2-SHOPPING-COPY-QUIET · 2026-09-04] El «costo real del ciclo» solo aporta cuando la lista
+            // tiene sustancia y el ciclo se separa de veras de la compra de hoy; con 1 ítem de RD$375 y
+            // un «ciclo» de RD$1,607 el dueño leyó un error de suma. Umbral: >2 ítems y >15 % de diferencia.
+            const _showCycleCost = duration !== 'weekly' && totalItems > 2 && _fullCycleCostFinal > _shopTotalCostFinal * 1.15;
             const layout = computePdfLayoutDensity(totalItems);
             const { isDense, isUltraDense, isHyperDense, multiPage, columnCount, showInventoryNotes } = layout;
 
@@ -4360,11 +4364,12 @@ const DashboardInner = () => {
                         <div style="font-size: 12px; font-weight: 800; color: #065f46;">💵 ${_showCycleCost ? t('Esta compra <span style="font-weight: 600; color: #059669;">(frescos de 1 semana + despensa)</span>') : t('Total estimado del mercado')}</div>
                         <span style="font-size: 19px; font-weight: 800; color: #047857; white-space: nowrap;">RD$${formatNumber(Math.round(_shopTotalCostFinal))}</span>
                     </div>
-                    ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
-                        <div style="font-size: 11.5px; font-weight: 800; color: #065f46;">🛒 ${escapeHtml(t('Costo real del ciclo de {duracion}', { duracion: durationText }))}<div style="font-size: 9px; font-weight: 500; color: #059669; margin-top: 1px; letter-spacing: normal;">${escapeHtml(_deltaAware ? t('Incluye ≈{monto} para recomprar en las semanas siguientes los frescos que hoy ya tienes en la Nevera', { monto: 'RD$' + formatNumber(Math.round(_futureFreshRdPdf)) }) : t('Despensa 1× + perecederos de {duracion} (recompra cada 7 días)', { duracion: durationText }))}</div></div>
-                        <span style="font-size: 18px; font-weight: 800; color: #065f46; white-space: nowrap;">RD$${formatNumber(Math.round(_fullCycleCostFinal))}</span>
+                    ${_showCycleCost ? `<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 7px; padding-top: 7px; border-top: 1px dashed #10b98155;">
+                        <div style="font-size: 11px; font-weight: 600; color: #047857;">${escapeHtml(t('Estimado del ciclo de {duracion}', { duracion: durationText }))} <span style="font-weight: 500; color: #059669;">· ${escapeHtml(_deltaAware ? t('Incluye ≈{monto} de recompras de frescos', { monto: `RD$${formatNumber(Math.round(_futureFreshRdPdf))}` }) : t('Despensa 1× + frescos cada 7 días'))}</span></div>
+                        <span style="font-size: 13px; font-weight: 700; color: #065f46; white-space: nowrap;">RD$${formatNumber(Math.round(_fullCycleCostFinal))}</span>
                     </div>` : ''}
-                    ${(() => {
+                    ${!_showCycleCost ? '' : (() => {
+                        // [P2-SHOPPING-COPY-QUIET] la línea del presupuesto compara el CICLO: sin línea de ciclo, sin presupuesto.
                         // [P1-BUDGET-RECONCILE · 2026-07-02] Estado honesto del presupuesto en el PDF:
                         // compara el costo real del ciclo contra el presupuesto del formulario
                         // (custom → monto; tiers → banda del piso de metas). Solo números + enum
