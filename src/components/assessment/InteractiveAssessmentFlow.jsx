@@ -32,6 +32,10 @@ import { hasOutOfScopeMedical } from './questions/QMedical';
 // COUNTRY_SYSTEM_UI (import directo, mismo patrón que QPantryBuilder/QStapleFoods).
 import { QCountry } from './questions/QCountry';
 import { COUNTRY_SYSTEM_UI } from '../../config/countries';
+// [P1-ARQ25-F7-CULTURE · 2026-09-05] Cocinas que te representan: la cocina va SEPARADA del país
+// de compra (I16). Va justo después de QCountry porque su sugerencia visible es la cocina de ese país.
+import { QCulture } from './questions/QCulture';
+import { CULTURE_PROFILES_UI } from '../../config/cultures';
 // [FORM-CTA-UNIFY · 2026-07-02] Icono del botón "Saltar" (antes glyph ⏭ de texto,
 // que renderiza distinto por plataforma; lucide es consistente con el resto).
 import { ChevronsRight } from 'lucide-react';
@@ -441,6 +445,15 @@ const InteractiveAssessmentFlow = () => {
             subtitle: t('Adapta tus platos, medidas y — donde ya está listo — los precios del súper.'),
             fields: ['country'],
             component: <QCountry onAutoAdvance={handleAutoAdvance} />
+        }] : []),
+        // [P1-ARQ25-F7-CULTURE · 2026-09-05] Opcional y sin default sembrado: sin respuesta el backend
+        // usa la cocina del país de compra y la declara en la política («sugerida»). Una principal +
+        // hasta dos secundarias con intensidad; el país sigue mandando en precios y catálogo.
+        ...(COUNTRY_SYSTEM_UI && CULTURE_PROFILES_UI ? [{
+            title: <>{t('Cocinas que te representan')}</>,
+            subtitle: t('Tu cocina principal guía los platos; tu país de compra, los precios y el catálogo. Puedes sumar hasta dos cocinas más.'),
+            hasInternalNext: true,
+            component: <QCulture onManualAdvance={nextStep} />
         }] : []),
         {
             // [BUDGET-ORDER · 2026-05-31] "Frecuencia de tus compras" va ANTES que

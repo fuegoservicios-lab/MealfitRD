@@ -551,6 +551,9 @@ export const AssessmentProvider = ({ children }) => {
         // de compra. Vacío = sin respuesta (el backend defaultea y lo DECLARA en la política); nunca
         // se siembra un valor (lección P1-COUNTRY-SYSTEM-F0).
         mealOrganization: '', stapleAnchors: [], freshTopup: '', freezerMode: '', batchCooking: '',
+        // [P1-ARQ25-F7-CULTURE · 2026-09-05] Cocinas que te representan: null = sin elección (el backend usa
+        // la cocina del país de compra y la declara sugerida). Forma: {main, secondary: [{profile_id, intensity}]}.
+        cultureProfiles: null,
         // [P1-MEDICATION-RULES · 2026-06-18] Medicamentos actuales (chips, OPCIONAL — array vacío = sin
         // medicamentos, sin sentinel "Ninguno"). Alimenta el motor de interacciones fármaco-alimento
         // (backend medication_rules.py): warfarina↔vit K, metformina↔B12, IECA/ARA-II↔potasio,

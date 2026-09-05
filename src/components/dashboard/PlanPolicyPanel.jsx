@@ -3,7 +3,9 @@
 // `_fidelity_report.mode` (Fase 3) para decir con honestidad si el motor OBEDECIÓ la política
 // (`enforce`) o solo la registró (`shadow`). Nunca inventa: si no hay política, no se pinta.
 import { useState } from 'react';
-import { Compass, ChevronDown, ChevronUp, AlertTriangle, ShoppingBasket, Snowflake, CookingPot, Leaf } from 'lucide-react';
+import { Compass, ChevronDown, ChevronUp, AlertTriangle, ShoppingBasket, Snowflake, CookingPot, Leaf, Utensils } from 'lucide-react';
+// [P1-ARQ25-F7-CULTURE · 2026-09-05] «Cocina: dominicana 70 % · española 30 %» desde culture_weights.
+import { cultureWeightsSummary, cultureForCountry } from '../../config/cultures';
 import { useT } from '../../i18n';
 import {
     modeLabel, slotLabel, freezerLabel, batchLabel, frequencyLabel, frequencyIdFor, preparationLabel,
@@ -60,6 +62,9 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
     const blocking = relaxations.filter(relaxationIsBlocking);
     const soft = relaxations.filter((r) => !relaxationIsBlocking(r));
     const count = relaxations.length;
+    const cultureText = cultureWeightsSummary(t, effective.culture_weights);
+    const cultureIsMarketDefault = Array.isArray(effective.culture_weights) && effective.culture_weights.length === 1
+        && effective.culture_weights[0]?.profile_id === cultureForCountry(effective.market_country);
 
     return (
         <section className={styles.card} aria-labelledby="plan-policy-title">
@@ -72,6 +77,7 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                     <span className={styles.summary}>
                         {modeLabel(t, mode)} · {t('Compra cada {n} días', { n: shop.main_cycle_days ?? 7 })}
                         {shop.fresh_topup_days ? ` · ${t('Frescos cada {n} días', { n: shop.fresh_topup_days })}` : ''}
+                        {cultureText ? ` · ${cultureText}` : ''}
                     </span>
                 </span>
                 {count > 0 && (
@@ -106,6 +112,11 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                         <li><Leaf size={15} aria-hidden="true" /> {shop.fresh_topup_days ? t('Reposición de frescos cada {n} días', { n: shop.fresh_topup_days }) : t('Sin reposiciones entre compras')}</li>
                         <li><Snowflake size={15} aria-hidden="true" /> {freezerLabel(t, shop.freezer_mode)}</li>
                         <li><CookingPot size={15} aria-hidden="true" /> {batchLabel(t, shop.batch_cooking)}</li>
+                        {cultureText && (
+                            <li><Utensils size={15} aria-hidden="true" /> {cultureIsMarketDefault
+                                ? t('Cocina: {resumen} (la de tu país de compra)', { resumen: cultureText })
+                                : t('Cocina: {resumen}', { resumen: cultureText })}</li>
+                        )}
                     </ul>
                     {anchorIds.length > 0 ? (
                         <>
