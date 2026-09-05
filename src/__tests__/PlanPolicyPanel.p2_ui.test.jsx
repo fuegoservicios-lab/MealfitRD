@@ -43,9 +43,36 @@ describe('PlanPolicyPanel · UI', () => {
         expect(container.textContent.includes('Cocina: Cocina')).toBe(false);
     });
 
-    it('«Cambiar mis preferencias» es un botón con estilo de acción, no un enlace subrayado', () => {
+    it('el panel habla al usuario, no de su «política»', () => {
+        // [P2-POLICY-PANEL-COPY · 2026-09-05] título, hechos y motivos en la lengua del usuario.
+        const { container } = render(<PlanPolicyPanel policy={POLICY} fidelity={{ mode: 'enforce' }} onEdit={() => {}} />);
+        expect(screen.getByText('Tu plan, a tu medida')).toBeTruthy();
+        expect(container.textContent).toContain('Organizado para comprar cada 15 días');
+        expect(container.textContent).not.toMatch(/pol[ií]tica/i);
+        fireEvent.click(screen.getByRole('button', { expanded: false }));
+        for (const frag of ['Compra principal:', 'cada 15 días', 'Sin compras adicionales',
+            'Sin congelar alimentos', 'Cocinas cada día', 'Estilo de cocina:']) {
+            expect(container.textContent).toContain(frag);
+        }
+        expect(screen.getByText('Ajustar mi plan')).toBeTruthy();
+    });
+
+    it('cada motivo lleva titular y explicación', () => {
+        const policy = { ...POLICY, relaxations: [{ reason_code: 'budget_advisory_no_prices', field: 'budget.mode', action: 'applied' }] };
+        const { container } = render(<PlanPolicyPanel policy={policy} fidelity={{ mode: 'enforce' }} onEdit={() => {}} />);
+        fireEvent.click(screen.getByRole('button', { expanded: false }));
+        expect(container.textContent).toContain('Así adaptamos tu plan');
+        expect(container.textContent).toContain('Presupuesto aproximado');
+        expect(container.textContent).toContain('Aún no contamos con precios de tu país');
+        const css = read('src/components/dashboard/PlanPolicyPanel.module.css');
+        expect(css).toMatch(/\.reasonTitle\s*\{[^}]*font-weight/);
+        expect(css).toMatch(/\.reasonDetail\s*\{/);
+    });
+
+    it('«Ajustar mi plan» es un botón con estilo de acción, no un enlace subrayado', () => {
         const src = read('src/components/dashboard/PlanPolicyPanel.jsx');
         expect(src).toContain('className={styles.editCta}');
+        expect(src).toContain("t('Ajustar mi plan')");
         expect(src).not.toContain('className={styles.editLink}');
         const css = read('src/components/dashboard/PlanPolicyPanel.module.css');
         expect(css).toMatch(/\.editCta\s*\{[^}]*border:/);

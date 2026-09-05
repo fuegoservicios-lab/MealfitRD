@@ -58,6 +58,21 @@ export const batchLabel = (t, mode) => ({
     never: t('Cocino al día'), sometimes: t('A veces cocino de más'), often: t('Cocino por tandas'),
 })[mode] || mode;
 
+/* [P2-POLICY-PANEL-COPY · 2026-09-05] Las etiquetas de arriba son las del FORMULARIO (primera persona: el usuario
+   eligiendo). En el panel del plan quien habla es la app describiendo lo que hizo, así que el registro cambia a
+   segunda persona y frase completa. Dos juegos de copy para dos contextos, no uno reutilizado a medias. */
+export const freezerFact = (t, mode) => ({
+    none: t('Sin congelar alimentos'), limited: t('Congelas algunos alimentos'), full: t('Congelas sin problema'),
+})[mode] || freezerLabel(t, mode);
+
+export const batchFact = (t, mode) => ({
+    never: t('Cocinas cada día'), sometimes: t('A veces cocinas de más'), often: t('Cocinas por tandas'),
+})[mode] || batchLabel(t, mode);
+
+export const topupFact = (t, days) => (days
+    ? t('Compras frescos cada {n} días', { n: days })
+    : t('Sin compras adicionales'));
+
 export const frequencyLabel = (t, id) => ({
     some: t('2-3 veces por semana'), most: t('4-5 veces por semana'), daily: t('Todos los días'),
 })[id] || id;
@@ -85,6 +100,30 @@ const _num = (v) => {
 };
 
 /** Copy de cada relajación (espejo traducible de `_REASON_COPY` del backend). */
+/* [P2-POLICY-PANEL-COPY · 2026-09-05] Cada motivo se presenta con TITULAR (qué pasó, en positivo) y explicación
+   debajo. Antes era un párrafo suelto en una viñeta ámbar: el usuario tenía que leerlo entero para saber si le
+   afectaba. Sin titular propio se cae al genérico. */
+export const relaxationTitle = (t, r) => {
+    switch (r?.reason_code) {
+        case 'budget_advisory_no_prices':
+            return t('Presupuesto aproximado');
+        case 'budget_below_floor':
+            return t('Presupuesto por debajo del mínimo');
+        case 'pantry_proteins_after_first_week':
+            return t('Organizamos tus alimentos para todo el ciclo');
+        case 'anchor_conflicts_allergy':
+        case 'anchor_conflicts_diet':
+        case 'anchor_not_in_market':
+            return t('Un alimento habitual no se pudo usar');
+        case 'anchors_capped':
+            return t('Guardamos tus primeros alimentos habituales');
+        case 'recurrence_clamped':
+            return t('Ajustamos la frecuencia pedida');
+        default:
+            return t('Un ajuste en tu plan');
+    }
+};
+
 export const relaxationCopy = (t, r) => {
     const ev = r?.evidence || {};
     switch (r?.reason_code) {
@@ -95,13 +134,13 @@ export const relaxationCopy = (t, r) => {
         case 'anchor_not_in_market':
             return t('«{requested}» no está en el catálogo de tu país; no lo usamos como básico.', { requested: r.requested });
         case 'budget_advisory_no_prices':
-            return t('En tu país aún no hay precios: el presupuesto es orientativo, no un límite.');
+            return t('Aún no contamos con precios de tu país. Usamos tu presupuesto como referencia, pero no podemos garantizar que el costo final se mantenga dentro de él.');
         case 'budget_below_floor':
             return t('Tu presupuesto ({amount}) está por debajo del mínimo para un plan que cumpla tus metas ({floor}). Súbelo o ajusta las metas.', { amount: _num(ev.amount_dop), floor: _num(ev.floor_dop) });
         case 'cycle_shortened_no_freezer_no_topup':
             return t('Sin congelador ni reposición de frescos, el ciclo de compra pasa a 7 días.');
         case 'pantry_proteins_after_first_week':
-            return t('Sin congelador ni reposición de frescos: la proteína fresca es para la primera semana; después huevos, enlatados, legumbres y queso curado.');
+            return t('Como no congelas ni haces compras adicionales, priorizamos las carnes y los pescados frescos al inicio. Después, incluimos huevos, enlatados, legumbres y quesos curados.');
         case 'recurrence_clamped':
             return t('La frecuencia pedida se ajustó al rango posible (0–7 por semana).');
         case 'anchors_capped':

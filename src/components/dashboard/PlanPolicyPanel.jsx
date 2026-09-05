@@ -8,8 +8,8 @@ import { Compass, ChevronDown, ChevronUp, AlertTriangle, ShoppingBasket, Snowfla
 import { cultureWeightsSummary, cultureForCountry } from '../../config/cultures';
 import { useT } from '../../i18n';
 import {
-    modeLabel, slotLabel, freezerLabel, batchLabel, frequencyLabel, frequencyIdFor, preparationLabel,
-    relaxationCopy, relaxationIsBlocking,
+    slotLabel, freezerFact, batchFact, topupFact, frequencyLabel, frequencyIdFor,
+    relaxationCopy, relaxationTitle, relaxationIsBlocking,
 } from '../../config/planPolicy';
 import styles from './PlanPolicyPanel.module.css';
 
@@ -22,7 +22,9 @@ const _anchorsById = (policy) => {
 const AnchorLine = ({ t, requested, applied }) => {
     const a = applied || requested;
     const freq = frequencyIdFor(a.min_per_7d, a.max_per_7d);
-    const freqText = freq ? frequencyLabel(t, freq) : t('{min}-{max} veces por semana', { min: a.min_per_7d, max: a.max_per_7d });
+    // [P2-POLICY-PANEL-COPY · 2026-09-05] «2-7 veces por semana · Cualquier comida · Preparación variada» era una
+    // ficha técnica. Se lee como una frase: «De 2 a 7 veces por semana · En distintas comidas y preparaciones».
+    const freqText = freq ? frequencyLabel(t, freq) : t('De {min} a {max} veces por semana', { min: a.min_per_7d, max: a.max_per_7d });
     const slots = (a.slots || []).map((s) => slotLabel(t, s)).join(' · ');
     const changed = requested && applied && (
         requested.min_per_7d !== applied.min_per_7d || requested.max_per_7d !== applied.max_per_7d
@@ -32,7 +34,11 @@ const AnchorLine = ({ t, requested, applied }) => {
         <li className={styles.anchor}>
             <span className={styles.anchorName}>{a.name}</span>
             <span className={styles.anchorMeta}>
-                {slots || t('Cualquier comida')} · {freqText} · {preparationLabel(t, a.preparation_mode)}
+                {freqText} · {slots
+                    ? t('En {slots}', { slots })
+                    : (a.preparation_mode === 'same_preparation'
+                        ? t('En distintas comidas, siempre igual')
+                        : t('En distintas comidas y preparaciones'))}
             </span>
             {changed && (
                 <span className={styles.anchorDelta}>
@@ -71,14 +77,15 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
             <button type="button" className={styles.header} onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-controls="plan-policy-body">
                 <span className={styles.icon}><Compass size={18} aria-hidden="true" /></span>
                 <span className={styles.titleWrap}>
+                    {/* [P2-POLICY-PANEL-COPY · 2026-09-05] «Tu plan sigue tu política» / «Rutina · Compra cada 15
+                        días» hablaba el idioma del motor (política, modo de recurrencia). El usuario reconoce su
+                        plan, no su política: título en su lengua y subtítulo con lo que de verdad organiza su
+                        semana. La cocina vive en su fila (repetirla arriba la mostraba dos veces). */}
                     <span id="plan-policy-title" className={styles.title}>
-                        {enforced ? t('Tu plan sigue tu política') : t('Lo que pediste para tu plan')}
+                        {enforced ? t('Tu plan, a tu medida') : t('Lo que pediste para tu plan')}
                     </span>
                     <span className={styles.summary}>
-                        {/* [P2-POLICY-PANEL-UI · 2026-09-05] La cocina vive en la FILA de abajo (con su icono);
-                            repetirla aquí la mostraba dos veces en el mismo bloque. */}
-                        {modeLabel(t, mode)} · {t('Compra cada {n} días', { n: shop.main_cycle_days ?? 7 })}
-                        {shop.fresh_topup_days ? ` · ${t('Frescos cada {n} días', { n: shop.fresh_topup_days })}` : ''}
+                        {t('Organizado para comprar cada {n} días', { n: shop.main_cycle_days ?? 7 })}
                     </span>
                 </span>
                 {count > 0 && (
@@ -109,22 +116,24 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
             {open && (
                 <div id="plan-policy-body" className={styles.body}>
                     <ul className={styles.facts}>
-                        <li><ShoppingBasket size={15} aria-hidden="true" /> {t('Compra principal cada {n} días', { n: shop.main_cycle_days ?? 7 })}</li>
-                        <li><Leaf size={15} aria-hidden="true" /> {shop.fresh_topup_days ? t('Reposición de frescos cada {n} días', { n: shop.fresh_topup_days }) : t('Sin reposiciones entre compras')}</li>
-                        <li><Snowflake size={15} aria-hidden="true" /> {freezerLabel(t, shop.freezer_mode)}</li>
-                        <li><CookingPot size={15} aria-hidden="true" /> {batchLabel(t, shop.batch_cooking)}</li>
+                        <li><ShoppingBasket size={15} aria-hidden="true" />
+                            <span><b>{t('Compra principal:')}</b> {t('cada {n} días', { n: shop.main_cycle_days ?? 7 })}</span></li>
+                        <li><Leaf size={15} aria-hidden="true" /> <span>{topupFact(t, shop.fresh_topup_days)}</span></li>
+                        <li><Snowflake size={15} aria-hidden="true" /> <span>{freezerFact(t, shop.freezer_mode)}</span></li>
+                        <li><CookingPot size={15} aria-hidden="true" /> <span>{batchFact(t, shop.batch_cooking)}</span></li>
                         {/* [P2-POLICY-PANEL-UI · 2026-09-05 · r2] Sin la etiqueta «Cocina:»: los nombres de perfil YA
                             empiezan por «Cocina …» («Cocina estadounidense cotidiana»), así que la fila leía «Cocina:
                             Cocina estadounidense cotidiana». El icono de cubiertos da el contexto. */}
                         {cultureText && (
-                            <li><Utensils size={15} aria-hidden="true" /> {cultureIsMarketDefault
-                                ? t('{resumen} (la de tu país de compra)', { resumen: cultureText })
-                                : cultureText}</li>
+                            <li><Utensils size={15} aria-hidden="true" />
+                                <span><b>{t('Estilo de cocina:')}</b> {cultureIsMarketDefault
+                                    ? t('{resumen} (la de tu país de compra)', { resumen: cultureText })
+                                    : cultureText}</span></li>
                         )}
                     </ul>
                     {anchorIds.length > 0 ? (
                         <>
-                            <h4 className={styles.subhead}>{t('Tus básicos')}</h4>
+                            <h4 className={styles.subhead}>{t('Tus alimentos habituales')}</h4>
                             <ul className={styles.anchors}>
                                 {anchorIds.map((id) => (
                                     <AnchorLine key={id} t={t} requested={reqAnchors.get(id)} applied={appAnchors.get(id)} />
@@ -132,13 +141,18 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                             </ul>
                         </>
                     ) : (
-                        <p className={styles.muted}>{t('No marcaste básicos: el plan varía libremente dentro de tu perfil.')}</p>
+                        <p className={styles.muted}>{t('No marcaste alimentos habituales: el plan varía libremente dentro de tu perfil.')}</p>
                     )}
                     {soft.length > 0 && (
                         <>
-                            <h4 className={styles.subhead}>{t('Por qué cambiamos algo')}</h4>
+                            <h4 className={styles.subhead}>{t('Así adaptamos tu plan')}</h4>
                             <ul className={styles.reasons}>
-                                {soft.map((r, i) => <li key={i}>{relaxationCopy(t, r)}</li>)}
+                                {soft.map((r, i) => (
+                                    <li key={i}>
+                                        <span className={styles.reasonTitle}>{relaxationTitle(t, r)}</span>
+                                        <span className={styles.reasonDetail}>{relaxationCopy(t, r)}</span>
+                                    </li>
+                                ))}
                             </ul>
                         </>
                     )}
@@ -150,7 +164,7 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                     {onEdit && (
                         <button type="button" className={styles.editCta} onClick={() => onEdit('mealOrganization')}>
                             <SlidersHorizontal size={15} aria-hidden="true" />
-                            {t('Cambiar mis preferencias')}
+                            {t('Ajustar mi plan')}
                         </button>
                     )}
                 </div>

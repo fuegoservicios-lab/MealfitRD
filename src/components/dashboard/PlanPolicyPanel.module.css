@@ -86,7 +86,11 @@
 .anchorName { font-weight: 700; color: var(--text-main); font-size: 0.9rem; }
 .anchorMeta { color: var(--text-muted); font-size: 0.8rem; }
 .anchorDelta { color: var(--warning-text); font-size: 0.8rem; font-weight: 600; }
-.reasons li { padding: 0.45rem 0.7rem; border-radius: 0.65rem; background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning-text); font-size: 0.84rem; line-height: 1.4; }
+/* [P2-POLICY-PANEL-COPY · 2026-09-05] Motivo = titular + explicación, no un párrafo suelto. */
+.reasons li { display: flex; flex-direction: column; gap: 2px; padding: 0.55rem 0.75rem; border-radius: 0.65rem; background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning-text); font-size: 0.84rem; line-height: 1.4; }
+.reasonTitle { font-weight: 800; color: var(--text-main); font-size: 0.86rem; }
+.reasonDetail { color: var(--text-muted); font-size: 0.84rem; line-height: 1.45; }
+.facts li b { font-weight: 800; color: var(--text-main); }
 .muted { margin: 0; color: var(--text-muted); font-size: 0.84rem; line-height: 1.45; }
 .editLink {
     align-self: flex-start;

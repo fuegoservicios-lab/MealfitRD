@@ -84,11 +84,12 @@ describe('PlanPolicyPanel', () => {
         const { container } = render(<PlanPolicyPanel policy={{ requested: {}, effective: {} }} />);
         expect(container.firstChild).toBeNull();
     });
-    it('en shadow dice «lo que pediste»; en enforce, «sigue tu política»', () => {
+    it('en shadow dice «lo que pediste»; en enforce, «tu plan, a tu medida»', () => {
+        // [P2-POLICY-PANEL-COPY · 2026-09-05] el título de enforce dejó de hablar de «política».
         const { rerender } = render(<PlanPolicyPanel policy={policy} fidelity={{ mode: 'shadow' }} />);
         expect(screen.getByText('Lo que pediste para tu plan')).toBeTruthy();
         rerender(<PlanPolicyPanel policy={policy} fidelity={{ mode: 'enforce' }} />);
-        expect(screen.getByText('Tu plan sigue tu política')).toBeTruthy();
+        expect(screen.getByText('Tu plan, a tu medida')).toBeTruthy();
     });
     it('la relajación waiting_user es un aviso con CTA; el detalle muestra solicitado vs aplicado y los motivos', () => {
         const onEdit = vi.fn();
