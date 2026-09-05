@@ -24,7 +24,7 @@
 //
 //   4. El botón sólo existe en la pestaña de HOY: en un día archivado las
 //      coordenadas no apuntan a `plan_data.days`.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, waitFor, within, fireEvent } from './utils/test-utils';
 import Dashboard from '../pages/Dashboard';
 import * as router from 'react-router-dom';
@@ -130,12 +130,22 @@ function _postBody(fetchMock) {
 
 describe('P1-EAT-PLAN-MEAL — "Me lo comí" registra el plato del plan y descuenta la Nevera', () => {
     beforeEach(() => {
+        // [P1-EAT-PLAN-MEAL-TRUTH · 2026-09-05] El botón ya contrasta la HORA LOCAL con la ventana
+        // del slot (config/mealWindows.js): un desayuno antes de las 05:00 abre la hoja «¿cuándo?»
+        // en vez de registrar, y estos tests hacían clic en un desayuno a la hora que fuera. Con
+        // el runner entre medianoche y las 05:00 (UTC en Actions) los 6 caían: ni una llamada al
+        // registro. Se fija SOLO `Date` (los timers siguen reales para waitFor/findBy) al mediodía
+        // de HOY, dentro de las cuatro ventanas y con la misma fecha que `_todayIso()`.
+        const mediodia = new Date(); mediodia.setHours(12, 0, 0, 0);
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(mediodia);
         vi.clearAllMocks();
         vi.mocked(router.useNavigate).mockReturnValue(vi.fn());
         vi.mocked(useRegeneratePlan).mockReturnValue({ regeneratePlan: vi.fn() });
         vi.mocked(fetchWithAuth).mockImplementation(_routeFetch());
         window.scrollTo = vi.fn();
     });
+    afterEach(() => { vi.useRealTimers(); });
 
     it('manda SOLO coordenadas — nunca ingredientes ni macros', async () => {
         render(<Dashboard />, { customContext: { ..._baseContext, planData: _plan() } });
