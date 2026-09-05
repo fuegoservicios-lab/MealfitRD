@@ -39,6 +39,8 @@ describe('PlanPolicyPanel · UI', () => {
         fireEvent.click(screen.getByRole('button', { expanded: false }));
         const veces = container.textContent.match(/cocina estadounidense/gi) || [];
         expect(veces).toHaveLength(1);
+        // …y la fila no repite la palabra «Cocina» como etiqueta: «Cocina: Cocina estadounidense…»
+        expect(container.textContent.includes('Cocina: Cocina')).toBe(false);
     });
 
     it('«Cambiar mis preferencias» es un botón con estilo de acción, no un enlace subrayado', () => {

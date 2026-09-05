@@ -113,10 +113,13 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                         <li><Leaf size={15} aria-hidden="true" /> {shop.fresh_topup_days ? t('Reposición de frescos cada {n} días', { n: shop.fresh_topup_days }) : t('Sin reposiciones entre compras')}</li>
                         <li><Snowflake size={15} aria-hidden="true" /> {freezerLabel(t, shop.freezer_mode)}</li>
                         <li><CookingPot size={15} aria-hidden="true" /> {batchLabel(t, shop.batch_cooking)}</li>
+                        {/* [P2-POLICY-PANEL-UI · 2026-09-05 · r2] Sin la etiqueta «Cocina:»: los nombres de perfil YA
+                            empiezan por «Cocina …» («Cocina estadounidense cotidiana»), así que la fila leía «Cocina:
+                            Cocina estadounidense cotidiana». El icono de cubiertos da el contexto. */}
                         {cultureText && (
                             <li><Utensils size={15} aria-hidden="true" /> {cultureIsMarketDefault
-                                ? t('Cocina: {resumen} (la de tu país de compra)', { resumen: cultureText })
-                                : t('Cocina: {resumen}', { resumen: cultureText })}</li>
+                                ? t('{resumen} (la de tu país de compra)', { resumen: cultureText })
+                                : cultureText}</li>
                         )}
                     </ul>
                     {anchorIds.length > 0 ? (
