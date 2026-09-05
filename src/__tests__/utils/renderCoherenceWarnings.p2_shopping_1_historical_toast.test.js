@@ -135,8 +135,13 @@ describe('[P2-SHOPPING-1] Severity (siempre warning para lo accionable)', () => 
 describe('[P2-SHOPPING-1] Pluralización + count', () => {
     it('1 entry → "una revisión"', () => {
         const out = buildHistoricalCoherenceToast([_actionable(1)]);
-        expect(out.title.toLowerCase()).toContain('una revisión');
+        expect(out.title).toContain('Revisa las cantidades');
         expect(out.count).toBe(1);
+    });
+    it('[P2-COHERENCE-HISTORY-DEDUPE] 3 entries IDÉNTICAS (la misma alerta redetectada en cada recálculo) → "una revisión"', () => {
+        const out = buildHistoricalCoherenceToast([_actionable(1), _actionable(2), _actionable(3)]);
+        expect(out.count).toBe(1);
+        expect(out.title).toContain('Revisa las cantidades');
     });
     it('3 entries accionables → "3 revisiones"', () => {
         const out = buildHistoricalCoherenceToast([
@@ -144,7 +149,7 @@ describe('[P2-SHOPPING-1] Pluralización + count', () => {
             { ts: _isoMinusHours(2), action_taken: 'degrade', block_set: true },
             _actionable(3, { hypotheses: { pantry_overdeduct: 1 } }),
         ]);
-        expect(out.title).toContain('3 revisiones');
+        expect(out.title).toContain('Revisa las cantidades');
         expect(out.count).toBe(3);
     });
 });

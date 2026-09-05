@@ -1703,6 +1703,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         const ok = await confirmToast(t("¿Seguro que deseas olvidar esta información?"), {
             confirmLabel: t('Olvidar'),
             cancelLabel: t('Cancelar'),
+            danger: true,
         });
         if (!ok) return;
 

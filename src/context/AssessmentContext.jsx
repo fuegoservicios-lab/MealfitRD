@@ -127,6 +127,11 @@ import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi, getPlanChunkStatus } from '../config/api';
 // [P1-DAY-REGEN-CLIENT-TIMEOUT · 2026-09-03] Tope del cliente para «actualizar día» (4-5 swaps en serie).
 const DAY_REGEN_TIMEOUT_MS = 6 * 60 * 1000;
+// [P1-SWAP-CLIENT-TIMEOUT · 2026-09-04] Tope del cliente para «cambiar plato». Medido en prod: 71 s
+// (LLM ~20 s + motor de macros sobre TODO el plan ~33 s + listas ~15 s); con los 60 s por defecto
+// el cliente cortaba (nginx 499), pintaba una alternativa LOCAL genérica y el servidor guardaba el
+// plato real 11 s después. 3 min cubre el p99 con margen; si aun así vence, el servidor sigue.
+const SWAP_TIMEOUT_MS = 3 * 60 * 1000;
 // [P1-3 · 2026-07-09] clear() del estado de servidor de TanStack Query en el
 // teardown SSOT — fix estructural de la clase de fuga PII cross-user.
 import { clearUserQueryCache } from '../queryClient';
@@ -2389,6 +2394,13 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     // mostrar una anotación mínima — el usuario no debe quedarse con una pantalla muda que
     // parece seguir "trabajando" cuando el poll ya se detuvo.
     const [planPollGaveUp, setPlanPollGaveUp] = useState(false);
+    // [P2-PLAN-POLL-DORMANT-SLEEP · 2026-09-04] «Revisar ahora» reinicia el loop de verdad (resetKey
+    // distinto) en vez de solo hidratar una vez con el loop ya muerto.
+    const [pollRestartNonce, setPollRestartNonce] = useState(0);
+    const restartPlanPoll = useCallback(() => {
+        setPlanPollGaveUp(false);
+        setPollRestartNonce((n) => n + 1);
+    }, []);
 
     const localGenerationStatus = planData?.generation_status;
     const isGeneratingForPoll = (
@@ -2434,7 +2446,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         enabled: !!session?.user?.id && isGeneratingForPoll,
         // Re-armar al cambiar de plan (paridad con la dep `planData?.id` del effect
         // pre-fix): un plan nuevo empieza su propio reloj de backoff/give-up desde cero.
-        resetKey: planData?.id,
+        resetKey: `${planData?.id ?? ''}#${pollRestartNonce}`,
         tick: _pollTick,
         onGiveUpChange: setPlanPollGaveUp,
     });
@@ -3346,6 +3358,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // persist. Solo autenticados (guest = plan localStorage-only, sin persist server).
         const _swapPlanId = planData?.id || planData?.plan_id || null;
         const _swapResumable = !!(userId && userId !== 'guest' && _swapPlanId);
+        let _swapTimedOut = false;  // [P1-SWAP-CLIENT-TIMEOUT] (ámbito de la función: lo leen catch y finally)
         if (_swapResumable) {
             try {
                 safeLocalStorageSet('mealfit_meal_regen_inflight', {
@@ -3371,6 +3384,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const sessionId = safeLocalStorageGet('mealfit_user_id', 'guest_session');
             const response = await fetchWithAuth(API_SWAP_URL, {
                 method: 'POST',
+                timeout: SWAP_TIMEOUT_MS,  // [P1-SWAP-CLIENT-TIMEOUT]
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: userId || "guest",
@@ -3744,6 +3758,14 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             return newMealData.name;
 
         } catch (error) {
+            // [P1-SWAP-CLIENT-TIMEOUT · 2026-09-04] Venció el tope del cliente pero el servidor sigue
+            // (P1-SWAP-REGEN-RESUME persiste server-side): NO pintar la alternativa local genérica ni
+            // culpar a la red. El marker in-flight se queda para que el resume/poll recoja el plato real.
+            if (error?.code === 'request_timeout') {
+                _swapTimedOut = true;
+                toast.info(t('El plato sigue cocinándose en el servidor. Aparecerá solo en un momento.'), { id: 'swap-result', duration: 6000 });
+                return null;
+            }
             // [P2-SWAP-422-UX-COPY · 2026-05-22] Si el backend rechazó por
             // strict-pantry sin inventario, NO degradar a fallback local
             // (que produciría un plato genérico ignorando la razón del user).
@@ -3792,6 +3814,14 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 });
                 return null;
             }
+            // [P1-SWAP-CLIENT-TIMEOUT v2 · 2026-09-04] Con cuenta y plan en el servidor, un fallo del swap
+            // NO se disfraza con un plato inventado en el cliente (el dueño lo vio: «apareció un plato
+            // distinto y luego el original»). Se conserva el plato actual y se avisa. El fallback local
+            // queda SOLO para invitados, cuyo plan vive únicamente en este navegador.
+            if (_swapResumable) {
+                toast.error(t('No se pudo cambiar el plato'), { description: t('Revisa tu conexión e inténtalo de nuevo.') });
+                return null;
+            }
             const localFallback = getAlternativeMeal(mealType, currentName, targetCalories, userDietType);
 
             const updatedPlan = { ...planData };
@@ -3823,7 +3853,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // [P1-SWAP-REGEN-RESUME] Ruta sin-refresh: el request terminó en esta sesión →
             // limpiar marker + estado. (Con refresh, este finally nunca corre y el marker
             // sobrevive para que el effect de resume retome el spinner + poll.)
-            safeLocalStorageRemove('mealfit_meal_regen_inflight');
+            // [P1-SWAP-CLIENT-TIMEOUT] con timeout el marker sobrevive: el resume/poll aplica el plato persistido.
+            if (!_swapTimedOut) safeLocalStorageRemove('mealfit_meal_regen_inflight');
             setMealRegenInFlight(null);
         }
     };
@@ -4468,6 +4499,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // mínima, NUNCA para bloquear nada (el plan sigue usable, solo dejó de
             // refrescarse solo).
             planPollGaveUp,
+            restartPlanPoll,
             restoreSessionData,
             setRecalcLock,
             withRecalcLock,
@@ -4479,7 +4511,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
-        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restoreSessionData, serverGeneratingPlanId,
+        _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restartPlanPoll, restoreSessionData, serverGeneratingPlanId,
         setRecalcLock, withRecalcLock,
     ]);
 

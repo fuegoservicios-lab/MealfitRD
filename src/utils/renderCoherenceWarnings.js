@@ -338,19 +338,27 @@ export const buildHistoricalCoherenceToast = (history, opts = {}) => {
     if (recent.length === 0) {
         return null;
     }
-
-    // Todas las entries restantes son accionables (block o hipótesis accionable)
-    // → severidad warning (vale la pena que el usuario revise).
+    // [P2-COHERENCE-HISTORY-DEDUPE · 2026-09-04] Cada recálculo de la lista redetecta la MISMA alerta y
+    // añade una entrada igual al historial: el dueño vio «16 revisiones automáticas» que eran una sola
+    // alerta vista 16 veces. Se cuentan alertas DISTINTAS (acción + hipótesis + nº de divergencias).
+    const seen = new Set();
+    const distinct = recent.filter((e) => {
+        const hyps = e.hypotheses && typeof e.hypotheses === 'object'
+            ? Object.keys(e.hypotheses).sort().map((k) => `${k}=${e.hypotheses[k]}`).join(',')
+            : '';
+        const sig = `${e.action_taken}|${hyps}|${e.divergence_count ?? ''}|${e.block_set ? 1 : 0}`;
+        if (seen.has(sig)) return false;
+        seen.add(sig);
+        return true;
+    });
     const severity = 'warning';
-
-    // Ternario y no `tn`: el singular dice «una revisión», no «1 revisión» — un
-    // plural con `{n}` cambiaría el copy español para que encaje en el molde.
-    const title = recent.length === 1
-        ? t('Tu lista de compras tuvo una revisión automática reciente')
-        : t('Tu lista de compras tuvo {n} revisiones automáticas recientes', { n: recent.length });
-    const description = t('Algunas cantidades pueden necesitar ajuste manual. Verifica los items antes de comprar.');
-
-    return { severity, title, description, count: recent.length };
+    // [P2-SHOPPING-COPY-QUIET · 2026-09-04] «Tuvo N revisiones automáticas» contaba detecciones; lo útil
+    // es QUÉ pasa: cuántas cantidades pueden no cuadrar (la última alerta vigente) y qué hacer.
+    const latest = distinct[distinct.length - 1];
+    const n = Number(latest && latest.divergence_count) > 0 ? Number(latest.divergence_count) : distinct.length;
+    const title = t('Revisa las cantidades de tu lista de compras');
+    const description = t('El control automático encontró {n} cantidad(es) que pueden no cuadrar con las recetas. Ajústalas antes de comprar.', { n });
+    return { severity, title, description, count: distinct.length, divergences: n };
 };
 
 // [P3-HISTORICAL-TOAST-DISMISS · 2026-05-14] Persistencia del dismiss
@@ -450,7 +458,9 @@ export const emitHistoricalCoherenceToast = (toast, history, options = {}) => {
     }
     const { severity, title, description } = descriptor;
     const duration = typeof options.duration === 'number' ? options.duration : 8000;
-    const toastOpts = { description, duration, onDismiss: _writeDismissAt };
+    // [P2-COHERENCE-HISTORY-DEDUPE] visto = visto: también al cerrarse solo (antes solo el cierre manual
+    // escribía la marca y el aviso volvía en cada visita al Dashboard).
+    const toastOpts = { description, duration, onDismiss: _writeDismissAt, onAutoClose: _writeDismissAt };
     const emitter = severity === 'warning' ? toast.warning : toast.info;
     if (typeof emitter !== 'function') {
         if (typeof toast === 'function') {

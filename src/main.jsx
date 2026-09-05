@@ -147,6 +147,14 @@ const updateSW = _sinSW ? _noop : registerSW({
           // Sólo bloquea si la generación es RECIENTE (< 30 min); un flag viejo es basura.
           if (started && Date.now() - started < 30 * 60 * 1000) return false;
         }
+        // [P2-SW-APPLY-RESPECTS-INFLIGHT · 2026-09-04] un swap o un «actualizar día» a medias también
+        // son «generación en vuelo»: en prod esta rama recargó a los 9 s de un swap (pestaña oculta).
+        for (const [key, maxAgeMs] of [['mealfit_meal_regen_inflight', 6 * 60 * 1000], ['mealfit_day_regen_inflight', 9 * 60 * 1000], ['mealfit_chat_turn_inflight', 3 * 60 * 1000]]) {
+          const rawOp = safeLocalStorageGet(key, null);
+          if (!rawOp) continue;
+          const startedOp = Number((typeof rawOp === 'string' ? JSON.parse(rawOp) : rawOp)?.startedAt || 0);
+          if (startedOp && Date.now() - startedOp < maxAgeMs) return false;
+        }
         return true;
       } catch { return false; }
     };

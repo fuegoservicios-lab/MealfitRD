@@ -114,26 +114,29 @@ const ErrorRetryButton = ({ onClick }) => {
         type="button"
         onClick={onClick}
         aria-label={t('Reintentar el último mensaje')}
+        // [P2-CHAT-ERROR-MINIMAL · 2026-09-04] Antes: caja roja con borde y botón bordeado de 44 px
+        // («muy feo, hazlo más minimalista»). Ahora: una línea discreta y «Reintentar» como enlace.
         style={{
-            marginTop: '0.75rem',
+            marginTop: 0,
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.4rem',
-            background: 'var(--bg-card)',
-            border: '1px solid #fca5a5',
-            color: 'var(--danger-text)',
-            padding: '0.45rem 0.9rem',
-            minHeight: 44,
-            borderRadius: '0.5rem',
-            fontSize: '0.875rem',
-            fontWeight: 500,
+            gap: '0.35rem',
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            borderRadius: 999,
+            color: 'var(--text-main)',
+            padding: '0.3rem 0.75rem',
+            minHeight: 30,
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            lineHeight: 1,
             cursor: 'pointer',
             transition: 'background 0.15s ease, border-color 0.15s ease',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--danger-bg)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-muted)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
     >
-        <RefreshCw size={15} strokeWidth={2.2} />
+        <RefreshCw size={13} strokeWidth={2.2} aria-hidden="true" />
         {t('Reintentar')}
     </button>
     );
@@ -206,7 +209,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                 <span>{daySeparator}</span>
             </div>
         )}
-        <div className={msg.isWelcome ? 'message-row-welcome' : undefined} style={{
+        <div className={msg.isWelcome ? 'message-row-welcome' : undefined} data-client-message-id={msg.clientMessageId || undefined} style={{
             display: 'flex',
             gap: '0.75rem',
             flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
@@ -227,16 +230,17 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     maxWidth: msg.role === 'user' ? '80%' : '100%',
                     minWidth: 0,
                     width: msg.role === 'user' ? 'fit-content' : 'auto',
-                    color: msg.role === 'user' ? 'var(--text-main)' : (isErrorBubble ? 'var(--danger-text)' : 'var(--text-main)'),
+                    color: msg.role === 'user' ? 'var(--text-main)' : (isErrorBubble ? 'var(--text-muted)' : 'var(--text-main)'),
                     fontSize: '0.95rem',
                     lineHeight: 1.6,
                     whiteSpace: 'pre-wrap',
                     overflowWrap: 'break-word',
                     wordBreak: 'break-word',
-                    background: msg.role === 'user' ? 'var(--bg-muted)' : (isErrorBubble ? 'var(--danger-bg)' : 'var(--bg-card)'),
-                    padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.9rem 1.1rem' : '1rem 0'),
-                    borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : (isErrorBubble ? '0.85rem' : '0'),
-                    border: msg.role === 'user' ? '1px solid var(--border)' : (isErrorBubble ? '1px solid var(--danger-border)' : 'none'),
+                    // [P2-CHAT-ERROR-MINIMAL] el error ya no es una caja roja: texto apagado con un icono, sin fondo ni borde
+                    background: msg.role === 'user' ? 'var(--bg-muted)' : 'var(--bg-card)',
+                    padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.6rem 0' : '1rem 0'),
+                    borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0',
+                    border: msg.role === 'user' ? '1px solid var(--border)' : 'none',
                     boxShadow: 'none'
                 }}
             >
@@ -273,16 +277,20 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         })}
                     </div>
                 )}
-                {msg.content && msg.content !== '📷 Imagen enviada' && (
+                {/* [P2-CHAT-ERROR-MINIMAL v2] el error es UNA línea: icono · texto · Reintentar (el markdown
+                    partía el texto en un párrafo propio y el botón caía a una tercera línea). */}
+                {isErrorBubble && (
+                    <div className="chat-error-line" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem 0.9rem', fontSize: '0.9rem', minHeight: 32 }}>
+                        <span>{msg.content}</span>
+                        {msg.retryable && typeof onErrorRetry === 'function' && (
+                            <ErrorRetryButton onClick={() => onErrorRetry(msg)} />
+                        )}
+                    </div>
+                )}
+                {!isErrorBubble && msg.content && msg.content !== '📷 Imagen enviada' && (
                     <div className="markdown-chat">
                         <LazyMarkdown>{msg.content}</LazyMarkdown>
                     </div>
-                )}
-
-                {/* [P1-CHAT-ERROR-DIFF · 2026-05-19] Botón retry solo si
-                    msg.retryable; el copy del bubble ya comunica el por qué */}
-                {isErrorBubble && msg.retryable && typeof onErrorRetry === 'function' && (
-                    <ErrorRetryButton onClick={() => onErrorRetry(msg)} />
                 )}
 
                 {/* Action bar for model messages — oculto en errores */}

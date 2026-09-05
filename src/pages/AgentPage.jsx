@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] SSOT del alto del textarea.
 import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autosizeTextarea';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -1188,6 +1188,14 @@ const AgentPage = () => {
     const _setTurnActive = useCallback((v) => {
         isTurnActiveRef.current = v;
         setIsTurnActive(v);
+        // [P2-SW-APPLY-RESPECTS-INFLIGHT v2 · 2026-09-04] un turno del coach en curso también es
+        // «operación en vuelo»: la auto-aplicación de la versión nueva recargó la página a mitad
+        // de una respuesta (20:45 UTC, SSE abortado por el cliente sin chunks) y el usuario vio
+        // «la respuesta no llegó». El marker vive mientras el stream esté abierto.
+        try {
+            if (v) safeLocalStorageSet('mealfit_chat_turn_inflight', { startedAt: Date.now() });
+            else safeLocalStorageRemove('mealfit_chat_turn_inflight');
+        } catch (_) { /* no-op */ }
     }, []);
     // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] El guard del refetch usa el
     // isLoadingRef pre-existente (declarado más abajo junto a los refs del
@@ -1655,52 +1663,182 @@ const AgentPage = () => {
     // 'auto' (instantáneo) mientras el último mensaje stremea; 'smooth' solo en
     // el update final/no-streaming. Sin reflow read en código de app.
     const scrollRafRef = useRef(null);
+    // ===== [P2-CHAT-SCROLL-MODES · 2026-09-04] Un solo modelo de scroll, calcado de ChatGPT =====
+    // mode: 'bottom'   → pegado al fondo: cualquier crecimiento (respuesta, imágenes, markdown) lo
+    //                    mantiene abajo, SIN animar.
+    //       'anchored' → el mensaje recién enviado queda arriba y la respuesta crece debajo; el
+    //                    espaciador del final reserva justo el sitio (por geometría) y solo encoge.
+    //                    Si la respuesta supera la ventana, se la persigue hasta el final mientras
+    //                    llega; en cuanto el usuario sube por encima del ancla, pasa a 'free'.
+    //       'free'     → el usuario está leyendo arriba: no se toca nada; aparece la píldora.
+    // Transiciones: cargar historial → bottom (asentar y revelar) · enviar → anchored · subir → free ·
+    // volver al fondo o pulsar la píldora → bottom. Todo pin automático usa behavior 'instant'
+    // (el contenedor tiene scroll-behavior: smooth y 'auto' heredaba la animación: temblor).
+    const scrollModeRef = useRef('bottom');
+    const sentAnchorRef = useRef(null); // { clientMessageId, placed, rowTop }
+    const spacerRef = useRef(null);     // <div className="anchor-spacer">: altura directa en el DOM (mismo frame, sin estado)
+    const spacerPxRef = useRef(0);
+    const lastScrollTopRef = useRef(0);
+    const [threadSettling, setThreadSettling] = useState(false);
+    const settleTimerRef = useRef(null);
+    const settleCapRef = useRef(null);
+    const _setSpacer = useCallback((px) => {
+        spacerPxRef.current = px;
+        if (spacerRef.current) spacerRef.current.style.height = `${px}px`;
+    }, []);
+    const _setMode = useCallback((mode) => {
+        scrollModeRef.current = mode;
+        userScrolledUpRef.current = mode === 'free';
+    }, []);
+    const _pinBottomInstant = useCallback(() => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        try { el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }); } catch { el.scrollTop = el.scrollHeight; }
+    }, []);
+    // «Asentar y revelar» (carga del historial): invisible mientras la altura cambia; se revela ya abajo.
+    const _revealThread = useCallback(() => {
+        if (settleTimerRef.current) { clearTimeout(settleTimerRef.current); settleTimerRef.current = null; }
+        if (settleCapRef.current) { clearTimeout(settleCapRef.current); settleCapRef.current = null; }
+        _pinBottomInstant();
+        setThreadSettling(false);
+    }, [_pinBottomInstant]);
+    const _armSettle = useCallback(() => {
+        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+        settleTimerRef.current = setTimeout(_revealThread, 150);
+    }, [_revealThread]);
+    const _beginSettle = useCallback(() => {
+        setThreadSettling(true);
+        _armSettle();
+        if (settleCapRef.current) clearTimeout(settleCapRef.current);
+        settleCapRef.current = setTimeout(_revealThread, 900);
+    }, [_armSettle, _revealThread]);
+    // Geometría del ancla: espaciador = topAncla + clientHeight − contenidoSinEspaciador (así el final
+    // del contenido coincide con el final de la ventana: cero scroll sobrante). La primera vez lleva el
+    // mensaje arriba (único scroll animado del sistema).
+    const _layoutAnchor = useCallback(() => {
+        const el = messagesContainerRef.current;
+        const anchor = sentAnchorRef.current;
+        if (!el || !anchor) return;
+        const row = el.querySelector(`[data-client-message-id="${anchor.clientMessageId}"]`);
+        if (!row) return;
+        const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
+        const rowTop = Math.max(0, Math.round(row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - padTop - 12));
+        const contentWithoutSpacer = el.scrollHeight - spacerPxRef.current;
+        let spacer = Math.max(0, Math.round(rowTop + el.clientHeight - contentWithoutSpacer));
+        if (anchor.placed && spacer > spacerPxRef.current) spacer = spacerPxRef.current; // solo encoge
+        if (Math.abs(spacer - spacerPxRef.current) > 2) _setSpacer(spacer);
+        if (!anchor.placed) {
+            anchor.placed = true;
+            anchor.rowTop = rowTop;
+            lastScrollTopRef.current = el.scrollTop;
+            try { el.scrollTo({ top: rowTop, behavior: 'smooth' }); } catch { el.scrollTop = rowTop; }
+        } else if (spacerPxRef.current === 0) {
+            // la respuesta ya pasa de la ventana: perseguirla hasta el final mientras llega
+            const last = messagesRef.current?.[messagesRef.current.length - 1];
+            if (last?.isStreaming) _pinBottomInstant();
+        }
+    }, [_setSpacer, _pinBottomInstant]);
+    // Tras cada cambio de mensajes, en el MISMO frame (sin estado intermedio: sin temblor).
+    useLayoutEffect(() => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        const mode = scrollModeRef.current;
+        if (mode === 'anchored') {
+            if (messages.length > VIRTUALIZE_THRESHOLD) {
+                const a = sentAnchorRef.current;
+                if (a && !a.placed) {
+                    a.placed = true;
+                    const idx = messages.findIndex((m) => m?.clientMessageId === a.clientMessageId);
+                    if (idx >= 0) requestAnimationFrame(() => virtualizedListRef.current?.scrollToIndex(idx, { align: 'start', behavior: 'smooth' }));
+                }
+                return;
+            }
+            _layoutAnchor();
+        } else if (mode === 'bottom') {
+            if (messages.length > VIRTUALIZE_THRESHOLD) virtualizedListRef.current?.scrollToBottom({ behavior: 'auto' });
+            else _pinBottomInstant();
+        }
+    }, [messages, _layoutAnchor, _pinBottomInstant]);
+    // Crecimiento de altura SIN cambio de mensajes (imágenes, markdown diferido): mismo criterio.
+    useEffect(() => {
+        const el = messagesContainerRef.current;
+        const list = messagesEndRef.current?.parentElement;
+        if (!el || !list || typeof ResizeObserver === 'undefined') return undefined;
+        const ro = new ResizeObserver(() => {
+            if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }
+            const mode = scrollModeRef.current;
+            if (mode === 'bottom') {
+                if (el.scrollHeight - el.scrollTop - el.clientHeight > 2) _pinBottomInstant();
+            } else if (mode === 'anchored') {
+                _layoutAnchor();
+            }
+        });
+        ro.observe(list);
+        return () => ro.disconnect();
+    }, [currentSessionId, _armSettle, _pinBottomInstant, _layoutAnchor]);
+    // Cambiar de conversación: todo a cero.
+    useEffect(() => {
+        sentAnchorRef.current = null;
+        _setSpacer(0);
+        _setMode('bottom');
+    }, [currentSessionId, _setSpacer, _setMode]);
     const scrollToBottom = (force = false, behaviorOverride = null) => {
         if (userScrolledUpRef.current && !force) return;
+        if (scrollModeRef.current === 'anchored' && !force) return; // anclado: manda el ancla
         if (scrollRafRef.current) return; // ya hay un scroll agendado este frame
         scrollRafRef.current = requestAnimationFrame(() => {
             scrollRafRef.current = null;
             const msgs = messagesRef.current;
-            const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
-            const behavior = behaviorOverride || (last?.isStreaming ? 'auto' : 'smooth');
-            if (msgs.length > VIRTUALIZE_THRESHOLD) {
-                virtualizedListRef.current?.scrollToBottom({ behavior });
-            } else {
-                messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
-            }
+            const behavior = behaviorOverride || 'instant';
             if (force) {
-                userScrolledUpRef.current = false;
+                sentAnchorRef.current = null;
+                _setSpacer(0);
+                _setMode('bottom');
                 setShowJumpToLatest(false);
+            }
+            if (msgs.length > VIRTUALIZE_THRESHOLD) {
+                virtualizedListRef.current?.scrollToBottom({ behavior: behavior === 'instant' ? 'auto' : behavior });
+            } else {
+                const el = messagesContainerRef.current;
+                if (el) { try { el.scrollTo({ top: el.scrollHeight, behavior }); } catch { el.scrollTop = el.scrollHeight; } }
             }
         });
     };
     scrollToBottomRef.current = scrollToBottom;
 
-    // [P2-CHAT-SCROLL-RACE · 2026-05-19] Listener montado en el container
-    // scrollable. Umbral 120px desde el bottom: cubre el overshoot natural
-    // por scroll momentum en mobile + zona neutral donde un microscroll
-    // accidental no marca "scrolled up". Cálculo: si distanceFromBottom
-    // > 120, el user está claramente leyendo historial; <= 120 cuenta
-    // como "engaged con el fondo" (auto-scroll seguro).
     const handleMessagesScroll = useCallback(() => {
         const el = messagesContainerRef.current;
         if (!el) return;
         try {
             const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-            const scrolledUp = distanceFromBottom > 120;
-            userScrolledUpRef.current = scrolledUp;
-            setShowJumpToLatest(scrolledUp);
+            const goingUp = el.scrollTop < lastScrollTopRef.current - 1;
+            lastScrollTopRef.current = el.scrollTop;
+            const mode = scrollModeRef.current;
+            if (mode === 'anchored') {
+                const a = sentAnchorRef.current;
+                if (a?.placed && goingUp && el.scrollTop < (a.rowTop ?? 0) - 8) {
+                    // subió por encima del ancla: libre; el espaciador sobra y queda bajo la ventana (sin salto)
+                    _setMode('free');
+                    sentAnchorRef.current = null;
+                    _setSpacer(0);
+                }
+            } else if (mode === 'bottom') {
+                if (distanceFromBottom > 120) _setMode('free');
+            } else if (distanceFromBottom <= 4) {
+                _setMode('bottom');
+            }
+            const m = scrollModeRef.current;
+            setShowJumpToLatest(m === 'free' || (m === 'anchored' && distanceFromBottom > 120));
         } catch (_e) {
-            // Defensivo contra browsers raros que devuelvan NaN o lancen
-            // en getters. NO afecta el flow del chat.
+            // best-effort
         }
-    }, []);
+    }, [_setMode, _setSpacer]);
 
     const handleVirtualizedAtBottomChange = useCallback((atBottom) => {
-        const scrolledUp = !atBottom;
-        userScrolledUpRef.current = scrolledUp;
-        setShowJumpToLatest(scrolledUp);
-    }, []);
+        if (atBottom) _setMode('bottom');
+        else if (scrollModeRef.current !== 'anchored') _setMode('free');
+        setShowJumpToLatest(!atBottom);
+    }, [_setMode]);
 
     // [P2-CHAT-SESSIONS-PAGING · 2026-09-03] Recientes se cortaba en 60 y los chats más viejos
     // dejaban de existir sin aviso. El backend acepta `offset` y devuelve `has_more`; la lista
@@ -1860,8 +1998,8 @@ const AgentPage = () => {
             return {
                 role: 'model',
                 content: canRetry
-                    ? t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Puedes reintentar.')
-                    : t('⚠ La respuesta del coach no llegó: se interrumpió en el servidor. Vuelve a enviar tu mensaje (o la foto).'),
+                    ? t('No llegó la respuesta del coach.')
+                    : t('No llegó la respuesta del coach. Vuelve a enviar tu mensaje (o la foto).'),
                 errorType: 'dead_turn',
                 retryable: canRetry,
                 retryPrompt: canRetry ? lastPrev.content : null,
@@ -1873,8 +2011,8 @@ const AgentPage = () => {
             return {
                 role: 'model',
                 content: canRetry
-                    ? t('⚠ La página se recargó antes de que llegara la respuesta. Puedes reintentar.')
-                    : t('⚠ La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'),
+                    ? t('La página se recargó antes de que llegara la respuesta.')
+                    : t('La página se recargó antes de que llegara la respuesta. Vuelve a enviar tu mensaje (o la foto).'),
                 errorType: 'refresh_orphan',
                 retryable: canRetry,
                 retryPrompt: canRetry ? lastPrev.content : null,
@@ -1884,7 +2022,7 @@ const AgentPage = () => {
         }
         return {
             role: 'model',
-            content: t('⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
+            content: t('Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
             _stoppedByUser: true,
             _isErrorBubble: true,
             retryable: false,
@@ -2082,6 +2220,16 @@ const AgentPage = () => {
             const _MAX_RETRIES_GLOBAL = 3;
             if (retryCount >= _MAX_RETRIES_GLOBAL || (response && response.ok)) {
                 setIsLoadingHistory(false);
+                // [P2-CHAT-SCROLL-MODES] historial cargado → modo 'bottom' + asentar y revelar
+                sentAnchorRef.current = null;
+                _setSpacer(0);
+                _setMode('bottom');
+                setShowJumpToLatest(false);
+                // Ocultar SOLO si aún no había nada en pantalla: el historial se carga dos veces al
+                // refrescar (sesión provisional → sesión real) y la segunda vez el hilo ya se veía;
+                // esconderlo otra vez era el parpadeo («desaparece unos milisegundos dos veces»).
+                if (!(messagesRef.current?.length > 0)) _beginSettle();
+                requestAnimationFrame(() => _pinBottomInstant());
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2136,9 +2284,7 @@ const AgentPage = () => {
         }
     };
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+    // [P2-CHAT-SCROLL-MODES] el autoscroll por cambio de mensajes vive en el useLayoutEffect de arriba.
 
     // Cargar sesiones al abrir la pagina (para todos los usuarios)
     useEffect(() => {
@@ -2453,6 +2599,8 @@ const AgentPage = () => {
             });
         } else {
             newMessages.push({ role: 'user', content: userMsg, clientMessageId, created_at: new Date().toISOString() });
+            sentAnchorRef.current = { clientMessageId, placed: false };  // [P2-CHAT-SCROLL-MODES] → anclado
+            _setMode('anchored');
         }
 
         setMessages(newMessages);
@@ -3071,7 +3219,7 @@ const AgentPage = () => {
             if (lastPrev && lastPrev._stoppedByUser) return prev; // sin duplicar
             return [...prev, {
                 role: 'model',
-                content: t('⏹ Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
+                content: t('Detenido. Cuando quieras, vuelve a enviar tu mensaje.'),
                 _stoppedByUser: true,
                 _isErrorBubble: true,
                 retryable: false,
@@ -3260,8 +3408,13 @@ const AgentPage = () => {
             borderBottomRightRadius: isMobile ? '0' : '1.5rem',
             borderTop: isCentered ? 'none' : '1px solid var(--border)',
             boxShadow: isCentered ? '0 -2px 20px rgba(0,0,0,0.04)' : 'none',
-            position: isCentered ? 'absolute' : 'sticky',
-            bottom: isCentered ? 0 : (isMobile ? 0 : '1.25rem'),
+            // [P2-CHAT-SCROLLBAR-CLASSIC v4 · 2026-09-04] En PC el wrapper era sticky a 1.25rem del borde:
+            // el sticky lo subía 20 px sobre el final del scroller y tapaba el botón de BAJAR de la
+            // barra clásica (14 px). El aire se da ahora como margen; el scroller termina encima del
+            // cuadro y la barra queda entera. En móvil sigue sticky a 0 (teclado, P1-CHAT-KEYBOARD-TABBAR).
+            position: isCentered ? 'absolute' : (isMobile ? 'sticky' : 'relative'),
+            bottom: isCentered ? 0 : (isMobile ? 0 : 'auto'),
+            marginBottom: (!isCentered && !isMobile) ? '1.25rem' : 0,
             left: 0,
             right: 0,
             width: '100%',
@@ -3281,6 +3434,21 @@ const AgentPage = () => {
                 acciones de un toque que mandan directo al coach. Viven DENTRO del wrapper de la
                 caja (sticky en escritorio, fijo en móvil): fuera de él quedaban en el flujo del
                 scroller y la caja pegajosa las tapaba en PC. */}
+            {/* [P2-CHAT-JUMP-TO-LATEST-DESKTOP · 2026-09-04] El botón vivía fuera del cuadro y su estilo
+                solo existía en el bloque móvil (≤1024 px): en PC se pintaba como un <button> sin estilo
+                estirado a todo el ancho («una barra rara con un punto»). Anclado al cuadro de escribir,
+                un solo estilo sirve en PC, móvil y con el teclado abierto. */}
+            {!isCentered && showJumpToLatest && messages.length > 0 && (
+                <button
+                    type="button"
+                    className="jump-to-latest"
+                    aria-label={t('Ir al mensaje más reciente')}
+                    title={t('Ir al mensaje más reciente')}
+                    onClick={() => scrollToBottom(true, 'smooth')}
+                >
+                    <ArrowDown size={18} strokeWidth={2.4} aria-hidden="true" />
+                </button>
+            )}
             {!isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
                 <div className="chat-quick-chips" role="group" aria-label={t('Acciones rápidas')}>
                     {[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')].map((texto) => (
@@ -3373,7 +3541,7 @@ const AgentPage = () => {
                                         disabled={isTurnActive}
                                         className="attachment-remove"
                                     >
-                                        <X size={14} />
+                                        <X size={12} strokeWidth={2.75} aria-hidden="true" />
                                     </button>
                                 </div>
                             ))}
@@ -3468,7 +3636,7 @@ const AgentPage = () => {
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
                             placeholder={micErrorMsg || t("Pregúntale a {app}", { app: BRAND })}
-                            onFocus={() => setTimeout(scrollToBottom, 300)}
+                            onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se
                             // dispara al teclear, así que no veía los cambios
@@ -3714,6 +3882,32 @@ const AgentPage = () => {
     return (
         <>
             <style>{`
+                /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP · 2026-09-04] «Ir al último mensaje»: píldora
+                   flotante anclada al cuadro de escribir (position: absolute respecto al
+                   .input-wrapper, que es sticky en PC y relative en móvil). Un solo estilo. */
+                .jump-to-latest {
+                    position: absolute;
+                    top: -3rem;
+                    left: 50%;
+                    transform: translateX(-50%);  /* v2: centrada, como Claude/ChatGPT */
+                    z-index: 18;
+                    width: 36px;
+                    height: 36px;
+                    padding: 0;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 999px;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    color: var(--text-main);
+                    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+                    cursor: pointer;
+                    transition: box-shadow 0.15s ease, filter 0.15s ease;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .jump-to-latest:hover { box-shadow: 0 10px 28px rgba(15, 23, 42, 0.26); filter: brightness(1.04); }
+                .jump-to-latest:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.55); outline-offset: 2px; }
                 /* [P1-CHAT-DELETE-TOUCH · 2026-08-10] La papelera de cada conversación
                    se revelaba SOLO con :hover, y en un teléfono no hay hover: desde el
                    móvil no se podía borrar NINGUNA conversación. Con el tope de 40
@@ -3843,22 +4037,35 @@ const AgentPage = () => {
                     scroll-snap-type: x proximity;
                 }
                 .attachment-rail::-webkit-scrollbar { display: none; }
+                /* [P2-CHAT-ATTACHMENT-THUMB · 2026-09-04] La miniatura llevaba una X roja de 44 px que
+                   se comía la esquina («se ve demasiado grande, muy feo»). Ahora: miniatura con marco y
+                   sombra suave, y un chip de cierre pequeño (22 px, oscuro, rojo solo al pasar) con el
+                   área táctil de 44 px puesta en un pseudo-elemento invisible. */
+                /* [P2-CHAT-ATTACHMENT-THUMB v2] tamaño «como ChatGPT» (el dueño lo pidió con captura):
+                   128 px en escritorio, 104 px en móvil, sin marco interior, esquinas de 16 px y el
+                   chip de cierre DENTRO de la esquina. */
                 .attachment-preview {
                     position: relative;
-                    flex: 0 0 64px;
-                    width: 64px;
-                    height: 64px;
-                    padding: 3px;
-                    border-radius: 12px;
+                    flex: 0 0 128px;
+                    width: 128px;
+                    height: 128px;
+                    padding: 0;
+                    margin-top: 4px;
+                    border-radius: 16px;
                     border: 1px solid var(--border);
                     background: var(--bg-card);
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+                    overflow: hidden;
                     scroll-snap-align: start;
+                }
+                @media (max-width: 480px) {
+                    .attachment-preview { flex-basis: 104px; width: 104px; height: 104px; border-radius: 14px; }
                 }
                 .attachment-preview > img {
                     width: 100%;
                     height: 100%;
                     display: block;
-                    border-radius: 9px;
+                    border-radius: inherit;
                     object-fit: cover;
                 }
                 .attachment-placeholder {
@@ -3891,19 +4098,39 @@ const AgentPage = () => {
                 }
                 .attachment-remove {
                     position: absolute;
-                    top: -14px;
-                    right: -14px;
-                    width: 44px;
-                    height: 44px;
+                    top: 6px;
+                    right: 6px;
+                    width: 24px;
+                    height: 24px;
+                    padding: 0;
                     display: grid;
                     place-items: center;
-                    border: 3px solid var(--bg-muted);
+                    border: 0;
                     border-radius: 999px;
-                    background: #dc2626;
+                    background: rgba(15, 23, 42, 0.78);
+                    backdrop-filter: blur(4px);
                     color: white;
                     cursor: pointer;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+                    transition: background 0.15s ease, transform 0.15s ease;
                     -webkit-tap-highlight-color: transparent;
                 }
+                /* área táctil de 44 px sin agrandar el chip */
+                .attachment-remove::after {
+                    content: '';
+                    position: absolute;
+                    inset: -10px;
+                    border-radius: 999px;
+                }
+                .attachment-remove:hover:not(:disabled),
+                .attachment-remove:focus-visible {
+                    background: var(--danger-fill, #dc2626);
+                }
+                .attachment-remove:focus-visible {
+                    outline: 2px solid rgba(79, 70, 229, 0.65);
+                    outline-offset: 2px;
+                }
+                .attachment-remove:disabled { opacity: 0.5; cursor: default; }
             `}</style>
             <div className="agent-container"
                 onTouchStart={handleTouchStart}
@@ -4266,7 +4493,15 @@ const AgentPage = () => {
                         onScroll={handleMessagesScroll}
                         style={{
                             flex: 1,
-                            padding: messages.length === 0 ? 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 1.5rem 0 1.5rem' : 'calc(4.5rem + max(env(safe-area-inset-top), 24px)) 2rem 0.5rem 2rem',
+                            // [P2-CHAT-SCROLLBAR-CLASSIC v3 · 2026-09-04] La cabecera es absoluta: su alto iba como
+                            // padding DENTRO del scroller y tapaba el botón de subir de la barra clásica (el
+                            // scroller empezaba detrás de la cabecera). Ahora, como ya hacía el móvil
+                            // (P1-CHAT-HEADER-CLEARANCE), el viewport desplazable empieza DEBAJO de la cabecera.
+                            // [P2-CHAT-SCROLLBAR-TWINS · 2026-09-04] 4.5rem de cabecera + 12px = 84px: el mismo alto
+                            // que el bloque «Nuevo chat» del panel de recientes (1.25rem + 2.75rem + 1.25rem), para que
+                            // las dos barras de scroll arranquen a la misma altura.
+                            marginTop: 'calc(4.5rem + max(env(safe-area-inset-top), 12px))',
+                            padding: messages.length === 0 ? '1.25rem 1.5rem 0 1.5rem' : '1.25rem 2rem 0.5rem 2rem',
                             overflowY: messages.length > VIRTUALIZE_THRESHOLD ? 'hidden' : 'auto',
                             minHeight: 0,
                             minWidth: 0,
@@ -4276,7 +4511,8 @@ const AgentPage = () => {
                             justifyContent: 'flex-start',
                             alignItems: messages.length === 0 ? 'flex-start' : 'center',
                             background: messages.length === 0 ? 'var(--bg-card)' : 'var(--bg-card)',
-                            scrollBehavior: 'smooth'
+                            scrollBehavior: 'smooth',
+                            visibility: threadSettling ? 'hidden' : 'visible'  // [P2-CHAT-RELOAD-BOTTOM v4]
                         }}
                     >
                         {messages.length === 0 && !isLoadingHistory ? (
@@ -4503,23 +4739,12 @@ const AgentPage = () => {
                                 )}
                                 {/* El sentinel no es un mensaje: cancela el gap de 2rem que
                                     Flex añadiría después del último turno real. */}
+                                <div ref={spacerRef} className="anchor-spacer" aria-hidden="true" style={{ height: 0, flex: 'none' }} />
                                 <div ref={messagesEndRef} className="messages-end-sentinel" />
                             </div>
                             )
                         )}
                     </div>
-
-                    {showJumpToLatest && messages.length > 0 && (
-                        <button
-                            type="button"
-                            className="jump-to-latest"
-                            aria-label={t('Ir al mensaje más reciente')}
-                            title={t('Ir al mensaje más reciente')}
-                            onClick={() => scrollToBottom(true, 'smooth')}
-                        >
-                            <ArrowDown size={20} strokeWidth={2.4} />
-                        </button>
-                    )}
 
                     {/* Area condicional para input */}
                     {/* Input Area (Pinned to bottom if messages exist) */}
@@ -4575,23 +4800,61 @@ const AgentPage = () => {
                     100% { transform: rotate(0deg); }
                 }
 
-                /* --- Custom Scrollbar (Sidebar & PC Chat) --- */
-                .sidebar-scrollable, .messages-container {
-                    scrollbar-width: thin;
-                    scrollbar-color: rgba(203, 213, 225, 0.4) transparent;
+                /* --- Scrollbar clásica (Sidebar & PC Chat) ---
+                   [P2-CHAT-SCROLLBAR-CLASSIC · 2026-09-04] El dueño pidió una barra «como la de
+                   siempre»: pista visible, pulgar redondeado siempre visible y las flechitas de
+                   subir/bajar en los extremos (el pulgar fino de 6 px sobre fondo transparente no se
+                   veía y no se sabía dónde hacer clic). Los selectores llevan html delante para
+                   ganar al atenuado global del tema oscuro de index.css (misma especificidad, esta
+                   hoja carga después). En móvil sigue oculta (bloque de abajo). */
+                /* Solo Firefox (no tiene ::-webkit-scrollbar). En Chromium, scrollbar-width y
+                   scrollbar-color sobre el MISMO elemento desactivan todas las pseudo-clases
+                   ::-webkit-scrollbar-* (Chrome 121+): por eso las flechas no salían. */
+                @supports not selector(::-webkit-scrollbar) {
+                    html .sidebar-scrollable, html .messages-container {
+                        scrollbar-width: auto;
+                        scrollbar-color: rgba(148, 163, 184, 0.7) rgba(148, 163, 184, 0.12);
+                    }
                 }
-                .sidebar-scrollable::-webkit-scrollbar, .messages-container::-webkit-scrollbar {
-                    width: 6px;
+                html .sidebar-scrollable::-webkit-scrollbar, html .messages-container::-webkit-scrollbar {
+                    width: 12px;
                 }
-                .sidebar-scrollable::-webkit-scrollbar-track, .messages-container::-webkit-scrollbar-track {
-                    background: transparent;
+                html .sidebar-scrollable::-webkit-scrollbar-track, html .messages-container::-webkit-scrollbar-track {
+                    background: rgba(148, 163, 184, 0.10);
+                    border-left: 1px solid rgba(148, 163, 184, 0.14);
                 }
-                .sidebar-scrollable::-webkit-scrollbar-thumb, .messages-container::-webkit-scrollbar-thumb {
-                    background-color: rgba(203, 213, 225, 0.4);
-                    border-radius: 10px;
+                html .sidebar-scrollable::-webkit-scrollbar-thumb, html .messages-container::-webkit-scrollbar-thumb {
+                    background-color: rgba(148, 163, 184, 0.62);
+                    border-radius: 8px;
+                    border: 2px solid transparent;
+                    background-clip: padding-box;
+                    min-height: 40px;
                 }
-                .sidebar-scrollable:hover::-webkit-scrollbar-thumb, .messages-container:hover::-webkit-scrollbar-thumb {
-                    background-color: rgba(148, 163, 184, 0.6);
+                html .sidebar-scrollable::-webkit-scrollbar-thumb:hover, html .messages-container::-webkit-scrollbar-thumb:hover {
+                    background-color: rgba(203, 213, 225, 0.85);
+                }
+                /* flechitas: un botón en cada extremo, con el triángulo pintado en SVG */
+                html .sidebar-scrollable::-webkit-scrollbar-button, html .messages-container::-webkit-scrollbar-button {
+                    display: block;
+                    height: 14px;
+                    width: 12px;
+                    background-color: rgba(148, 163, 184, 0.10);
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    background-size: 8px 8px;
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:decrement, html .messages-container::-webkit-scrollbar-button:vertical:decrement {
+                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path d='M4 1.5 L7.5 6.5 L0.5 6.5 Z' fill='rgb(148,163,184)'/></svg>");
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:increment, html .messages-container::-webkit-scrollbar-button:vertical:increment {
+                    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path d='M0.5 1.5 L7.5 1.5 L4 6.5 Z' fill='rgb(148,163,184)'/></svg>");
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:hover, html .messages-container::-webkit-scrollbar-button:hover {
+                    background-color: rgba(148, 163, 184, 0.22);
+                }
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:start:increment, html .messages-container::-webkit-scrollbar-button:vertical:start:increment,
+                html .sidebar-scrollable::-webkit-scrollbar-button:vertical:end:decrement, html .messages-container::-webkit-scrollbar-button:vertical:end:decrement {
+                    display: none;
                 }
 
                 /* ====== MOBILE REDESIGN ====== */
@@ -4831,26 +5094,8 @@ const AgentPage = () => {
                         transition: padding-bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
                         border-radius: 0 !important;
                     }
-                    .jump-to-latest {
-                        position: absolute;
-                        right: max(1rem, env(safe-area-inset-right, 0px));
-                        bottom: calc(6.8rem + 64px + env(safe-area-inset-bottom, 0px));
-                        z-index: 18;
-                        width: 44px;
-                        height: 44px;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        border-radius: 999px;
-                        border: 1px solid var(--border);
-                        background: var(--bg-card);
-                        color: var(--text-main);
-                        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
-                        cursor: pointer;
-                    }
-                    html[data-kb-open] .jump-to-latest {
-                        bottom: 6.25rem;
-                    }
+                    /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP] el botón vive dentro del .input-wrapper: sin
+                       reglas de bottom contra la barra de pestañas ni el teclado. */
                     /* [P1-CHAT-KEYBOARD-TABBAR · 2026-08-23 · corregido el 23] Con teclado no
                        hay barra de pestañas (ver BottomTabBar.module.css): la caja suelta la
                        reserva y queda pegada al teclado, que es donde se escribe.

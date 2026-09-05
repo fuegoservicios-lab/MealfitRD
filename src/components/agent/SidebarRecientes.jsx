@@ -57,6 +57,7 @@ export const SidebarRecientes = ({
                         border: '1px solid color-mix(in srgb, var(--primary) 32%, transparent)',
                         borderRadius: '1.5rem',
                         padding: '0.8rem 1.2rem',
+                        height: '2.75rem',  // [P2-CHAT-SCROLLBAR-TWINS] alto fijo: el hilo del chat se alinea a él
                         color: 'var(--primary)',
                         fontWeight: 700,
                         display: 'flex',

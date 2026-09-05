@@ -24,6 +24,7 @@ import {
     PLAN_POLL_FAST_MS,
     PLAN_POLL_NEAR_TERM_ETA_MS,
     PLAN_POLL_GIVEUP_MS,
+    PLAN_POLL_DORMANT_MS,
     isPlanActiveForFastPoll,
     isPlanInFlight,
     growPollDelay,
@@ -52,6 +53,7 @@ export function usePlanPollLoop({
     fastMs = PLAN_POLL_FAST_MS,
     nearTermMs = PLAN_POLL_NEAR_TERM_ETA_MS,
     giveUpMs = PLAN_POLL_GIVEUP_MS,
+    dormantMs = PLAN_POLL_DORMANT_MS,
 }) {
     const tickRef = useLatestRef(tick);
     const onGiveUpChangeRef = useLatestRef(onGiveUpChange);
@@ -62,11 +64,15 @@ export function usePlanPollLoop({
             return undefined;
         }
 
+        // [P2-PLAN-POLL-DORMANT-SLEEP · 2026-09-04] Un (re)arranque del loop limpia el give-up:
+        // «Revisar ahora» reinicia el loop vía resetKey y el banner debe irse sin refrescar la página.
+        onGiveUpChangeRef.current?.(false);
         let cancelled = false;
         let timeoutId = null;
         let delayMs = fastMs;
         let activeSinceMs = Date.now();
         let lastSnapshot = null;
+        let dormant = false; // [P2-PLAN-POLL-DORMANT-SLEEP] el reloj de give-up no cuenta el sueño
 
         const scheduleNext = (ms) => {
             if (cancelled) return;
@@ -75,7 +81,16 @@ export function usePlanPollLoop({
 
         const runTick = async () => {
             if (cancelled) return;
+            // [P2-PLAN-POLL-HIDDEN-NO-CLOCK · 2026-09-04] Pestaña oculta: ni se sondea ni corre el reloj
+            // de give-up ni se pierde el estado «dormido». Antes el tick devolvía null cada 25 s y esos
+            // vacíos contaban como «activo sin progreso»: a los 30 min oculta, al volver, «Dejamos de
+            // revisar…». El despertar real es visibilitychange (abajo).
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                scheduleNext(dormant ? dormantMs : delayMs);
+                return;
+            }
             const nowBeforeFetch = Date.now();
+            if (dormant) { activeSinceMs = nowBeforeFetch; dormant = false; } // despertar: reloj a cero
             if (hasPollGivenUp(activeSinceMs, nowBeforeFetch, giveUpMs)) {
                 // Tope duro: ~30min de "activo, sin progreso" (medido contra
                 // p95/max reales de duración de chunk, ver planPollBackoff.js).
@@ -131,7 +146,17 @@ export function usePlanPollLoop({
                 // revisar…") no distingue POR QUÉ se detuvo, solo que debe
                 // ofrecer un botón manual. Notificar aquí también, no solo en
                 // el timeout de `giveUpMs`.
-                onGiveUpChangeRef.current?.(true);
+                // [P2-PLAN-POLL-DORMANT-SLEEP · 2026-09-04] El siguiente bloque está programado para
+                // más adelante: eso NO es rendirse, es dormir. Antes el loop moría aquí y avisaba
+                // give-up, y el banner «Dejamos de revisar…» salía en cada plan sano cada vez que
+                // el dueño dejaba la pestaña un rato (y solo se iba refrescando la página). Ahora:
+                // latido largo + despertar al volver a la pestaña; el reloj de give-up no corre
+                // dormido (mide actividad sin progreso). La señal de give-up se conserva SOLO para
+                // la pantalla muda (0 días, [P1-PLAN-POLL-DORMANT-GIVEUP-SIGNAL]).
+                activeSinceMs = now;
+                dormant = true;
+                onGiveUpChangeRef.current?.(!(Number(snapshot.daysCount) > 0));
+                scheduleNext(dormantMs);
                 return;
             }
 
@@ -149,12 +174,21 @@ export function usePlanPollLoop({
             scheduleNext(delayMs);
         };
 
+        // [P2-PLAN-POLL-DORMANT-SLEEP] Volver a la pestaña despierta el loop de inmediato (un tick),
+        // sea cual sea el latido pendiente.
+        const onVisible = () => {
+            if (cancelled || typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+            if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+            runTick();
+        };
+        if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
         runTick(); // primer tick inmediato — paridad con el `pollLatestPlan()` eager pre-fix.
 
         return () => {
             cancelled = true;
             if (timeoutId) clearTimeout(timeoutId);
+            if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [enabled, resetKey, fastMs, nearTermMs, giveUpMs]);
+    }, [enabled, resetKey, fastMs, nearTermMs, giveUpMs, dormantMs]);
 }
