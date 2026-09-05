@@ -3,7 +3,7 @@
 // `_fidelity_report.mode` (Fase 3) para decir con honestidad si el motor OBEDECIÓ la política
 // (`enforce`) o solo la registró (`shadow`). Nunca inventa: si no hay política, no se pinta.
 import { useState } from 'react';
-import { Compass, ChevronDown, ChevronUp, AlertTriangle, ShoppingBasket, Snowflake, CookingPot, Leaf, Utensils } from 'lucide-react';
+import { Compass, ChevronDown, ChevronUp, AlertTriangle, ShoppingBasket, Snowflake, CookingPot, Leaf, Utensils, SlidersHorizontal } from 'lucide-react';
 // [P1-ARQ25-F7-CULTURE · 2026-09-05] «Cocina: dominicana 70 % · española 30 %» desde culture_weights.
 import { cultureWeightsSummary, cultureForCountry } from '../../config/cultures';
 import { useT } from '../../i18n';
@@ -75,9 +75,10 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                         {enforced ? t('Tu plan sigue tu política') : t('Lo que pediste para tu plan')}
                     </span>
                     <span className={styles.summary}>
+                        {/* [P2-POLICY-PANEL-UI · 2026-09-05] La cocina vive en la FILA de abajo (con su icono);
+                            repetirla aquí la mostraba dos veces en el mismo bloque. */}
                         {modeLabel(t, mode)} · {t('Compra cada {n} días', { n: shop.main_cycle_days ?? 7 })}
                         {shop.fresh_topup_days ? ` · ${t('Frescos cada {n} días', { n: shop.fresh_topup_days })}` : ''}
-                        {cultureText ? ` · ${cultureText}` : ''}
                     </span>
                 </span>
                 {count > 0 && (
@@ -144,7 +145,8 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                         </p>
                     )}
                     {onEdit && (
-                        <button type="button" className={styles.editLink} onClick={() => onEdit('mealOrganization')}>
+                        <button type="button" className={styles.editCta} onClick={() => onEdit('mealOrganization')}>
+                            <SlidersHorizontal size={15} aria-hidden="true" />
                             {t('Cambiar mis preferencias')}
                         </button>
                     )}

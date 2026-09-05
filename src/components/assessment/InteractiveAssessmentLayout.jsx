@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
-import { ChevronLeft, LogIn, LogOut } from 'lucide-react';
+import { ChevronLeft, LayoutDashboard, LogIn, LogOut } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 import Wordmark from '../common/Wordmark';
 import LocaleSwitcher from '../common/LocaleSwitcher';
@@ -18,6 +18,10 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
     // ninguna pista de que su plan seguía vivo.
     const _planGenerandose = planData?.generation_status === 'generating'
         && !(Array.isArray(planData?.days) && planData.days.length > 0);
+    // [P2-POLICY-PANEL-UI · 2026-09-05] Con plan vivo y cuenta, el asistente es una EDICIÓN: se puede volver al panel
+    // sin destruir nada (el pill de login cierra sesión y borra el formulario).
+    const _puedeVolverAlPanel = !isGuest && Boolean(
+        planData && (_planGenerandose || (Array.isArray(planData.days) && planData.days.length > 0)));
     const navigate = useNavigate();
     const t = useT();
     const progress = (currentStep / (totalSteps - 1)) * 100;
@@ -119,14 +123,28 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     (v2 lo dejaba en el slot del grid .headerContent, que es
                     max-width:1200px centrado → en pantallas anchas flotaba a ~360px
                     del borde). Mismo teardown handleBackToLogin. */}
-                <button
-                    onClick={pedirConfirmacionSalida}
-                    className={styles.loginExitBtn}
-                    aria-label={t('Volver al inicio de sesión')}
-                >
-                    <LogIn size={15} strokeWidth={2.4} aria-hidden="true" />
-                    {t('Volver al login')}
-                </button>
+                {/* [P2-POLICY-PANEL-UI · 2026-09-05] Quien entra al asistente DESDE el panel («Cambiar mis
+                    preferencias») ya tiene plan y cuenta: para él la salida no es cerrar sesión, es VOLVER. El pill
+                    destructivo se reserva para quien aún no tiene plan. */}
+                {_puedeVolverAlPanel ? (
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className={styles.loginExitBtn}
+                        aria-label={t('Volver al panel')}
+                    >
+                        <LayoutDashboard size={15} strokeWidth={2.4} aria-hidden="true" />
+                        {t('Volver al panel')}
+                    </button>
+                ) : (
+                    <button
+                        onClick={pedirConfirmacionSalida}
+                        className={styles.loginExitBtn}
+                        aria-label={t('Volver al inicio de sesión')}
+                    >
+                        <LogIn size={15} strokeWidth={2.4} aria-hidden="true" />
+                        {t('Volver al login')}
+                    </button>
+                )}
                 <div className={styles.headerContent}>
                     {currentStep > 0 ? (
                         <button onClick={prevStep} className={styles.backBtn} aria-label={t('Paso anterior')}>
