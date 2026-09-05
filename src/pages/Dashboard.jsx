@@ -4303,13 +4303,25 @@ const DashboardInner = () => {
             // ciclo > 7 días): los perecederos van para TODO el ciclo en una compra; nada de «repite cada 7 días».
             const _policyShopping = planData?._plan_policy?.effective?.shopping || null;
             const isSingleTrip = !isWeekly && !!_policyShopping && Number(_policyShopping.main_cycle_days || 0) > 7 && !_policyShopping.fresh_topup_days;
+            // [P1-ARQ25-F7-CULTURE · subfase G] el copy de la compra única depende del congelador declarado
+            const _freezerMode = String(_policyShopping?.freezer_mode || 'limited');
+            const _singleTripLabel = _freezerMode === 'none'
+                ? t('PERECEDEROS — UNA SOLA COMPRA (SIN CONGELADOR: CONSUME PRIMERO)')
+                : (_freezerMode === 'full'
+                    ? t('PERECEDEROS — UNA SOLA COMPRA (CONGELA LAS PROTEÍNAS EL DÍA DE LA COMPRA)')
+                    : t('PERECEDEROS — UNA SOLA COMPRA (CONGELA LO DE LA SEGUNDA SEMANA)'));
+            const _singleTripDesc = _freezerMode === 'none'
+                ? t('Elegiste reponer solo en la compra grande y no congelas: la proteína fresca es para la primera semana; después huevos, enlatados, legumbres y queso curado. Estas cantidades cubren todo tu ciclo de {duracion}.', { duracion: durationText })
+                : (_freezerMode === 'full'
+                    ? t('Elegiste reponer solo en la compra grande: congela las proteínas el día de la compra y descongela la noche anterior. Estas cantidades cubren todo tu ciclo de {duracion}.', { duracion: durationText })
+                    : t('Elegiste reponer solo en la compra grande: congela la proteína de la segunda semana el día de la compra; de la tercera en adelante, huevos, enlatados, legumbres y queso curado. Estas cantidades cubren todo tu ciclo de {duracion}.', { duracion: durationText }));
             const perishableLabel = isWeekly
                 ? t('COMPRA ESTA SEMANA — PERECEDEROS')
-                : (isSingleTrip ? t('PERECEDEROS — UNA SOLA COMPRA (CONGELA O CONSUME PRIMERO)') : t('COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)'));
+                : (isSingleTrip ? _singleTripLabel : t('COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)'));
             const perishableDesc = isWeekly
                 ? t('Carnes, lácteos, frutas y vegetales frescos. Consume o refrigera pronto.')
                 : (isSingleTrip
-                    ? t('Elegiste reponer solo en la compra grande: estas cantidades cubren todo tu ciclo de {duracion}. Congela las proteínas y consume primero lo más delicado.', { duracion: durationText })
+                    ? _singleTripDesc
                     : t('Esta comida fresca alcanza ~7 días: en tu ciclo de {duracion} la compras {idas} veces (cada 7 días). Se dañan rápido, por eso no se compran todas de una vez.', { duracion: durationText, idas: _cycleTrips }));
             const stableLabel = duration === 'monthly'
                 ? t('DESPENSA DEL MES — ESTABLES (COMPRA UNA SOLA VEZ)')

@@ -33,7 +33,7 @@ export const CYCLE_DAYS = { weekly: 7, biweekly: 15, monthly: 30 };
 export const RELAXATION_REASON_CODES = [
     'anchor_conflicts_allergy', 'anchor_conflicts_diet', 'anchor_not_in_market',
     'budget_advisory_no_prices', 'budget_below_floor', 'cycle_shortened_no_freezer_no_topup',
-    'recurrence_clamped', 'anchors_capped',
+    'recurrence_clamped', 'anchors_capped', 'pantry_proteins_after_first_week',
 ];
 
 export const modeLabel = (t, mode) => ({
@@ -100,6 +100,8 @@ export const relaxationCopy = (t, r) => {
             return t('Tu presupuesto ({amount}) está por debajo del mínimo para un plan que cumpla tus metas ({floor}). Súbelo o ajusta las metas.', { amount: _num(ev.amount_dop), floor: _num(ev.floor_dop) });
         case 'cycle_shortened_no_freezer_no_topup':
             return t('Sin congelador ni reposición de frescos, el ciclo de compra pasa a 7 días.');
+        case 'pantry_proteins_after_first_week':
+            return t('Sin congelador ni reposición de frescos: la proteína fresca es para la primera semana; después huevos, enlatados, legumbres y queso curado.');
         case 'recurrence_clamped':
             return t('La frecuencia pedida se ajustó al rango posible (0–7 por semana).');
         case 'anchors_capped':
