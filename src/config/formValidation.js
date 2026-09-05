@@ -1,6 +1,7 @@
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16, fix-round 1] `coerceCountry`/`COUNTRY_SYSTEM_UI`
 // para `currencyOptionsForCountry`/`effectiveBudgetCurrency` más abajo. Import a nivel
 // de módulo (no local) porque este archivo no tiene ningún otro import — la única
+import { CULTURE_PROFILES_UI } from './cultures';
 // excepción se documenta aquí para que no sorprenda en review.
 import {
     COUNTRIES,
@@ -141,6 +142,8 @@ export const REQUIRED_FORM_FIELDS = [
     // [P1-ARQ25-F4-FORM · 2026-09-03] Perfil global de recurrencia: obligatorio en el wizard cuando
     // el formulario progresivo está encendido (frontend-only en la paridad: el backend defaultea).
     ...(PLAN_POLICY_FORM_UI ? ['mealOrganization'] : []),
+    // [P1-ARQ25-F7-CULTURE · 2026-09-05] Obligatoria por decisión del dueño; frontend-only (el backend cae a la cocina del mercado).
+    ...(COUNTRY_SYSTEM_UI && CULTURE_PROFILES_UI ? ['cultureProfiles'] : []),
     'gender', 'age', 'height', 'weight', 'weightUnit', 'activityLevel',
     'scheduleType', 'sleepHours', 'stressLevel', 'cookingTime', 'budget',
     'householdSize', 'groceryDuration',

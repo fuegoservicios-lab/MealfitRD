@@ -404,7 +404,7 @@ const InteractiveAssessmentFlow = () => {
             // (findFirstIncompleteField solo cubre REQUIRED_FORM_FIELDS) — contradicción
             // UI↔contrato. El gate lineal del NextButton interno se mantiene intacto.
             title: <>{t('Tus hábitos de consumo')}</>,
-            subtitle: t('Alcohol, tabaco, cafeína y agua cambian cómo calibramos tu plan (y cómo interactúa con tus medicamentos).'),
+            subtitle: t('Alcohol, tabaco, cafeína y agua cambian cómo calibramos tu plan.'),
             hasInternalNext: true,
             component: <QHabits onManualAdvance={nextStep} />
         },
@@ -442,7 +442,7 @@ const InteractiveAssessmentFlow = () => {
         // que cada movimiento lo paga una vez.
         ...(COUNTRY_SYSTEM_UI ? [{
             title: <>{t('¿En qué país haces la compra?')}</>,
-            subtitle: t('Adapta tus platos, medidas y — donde ya está listo — los precios del súper.'),
+            subtitle: t('Aquí compras: de esto salen tus medidas y, donde ya los tenemos, los precios del súper.'),
             fields: ['country'],
             component: <QCountry onAutoAdvance={handleAutoAdvance} />
         }] : []),
@@ -450,9 +450,11 @@ const InteractiveAssessmentFlow = () => {
         // usa la cocina del país de compra y la declara en la política («sugerida»). Una principal +
         // hasta dos secundarias con intensidad; el país sigue mandando en precios y catálogo.
         ...(COUNTRY_SYSTEM_UI && CULTURE_PROFILES_UI ? [{
-            title: <>{t('Cocinas que te representan')}</>,
-            subtitle: t('Tu cocina principal guía los platos; tu país de compra, los precios y el catálogo. Puedes sumar hasta dos cocinas más.'),
+            // Obligatorio (dueño, 2026-09-05): la cocina del país se SUGIERE, pero la persona la confirma.
+            title: <>{t('¿Qué cocina quieres en tu mesa?')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
+            subtitle: t('Elige tu cocina principal. Si quieres, añade hasta dos más.'),
             hasInternalNext: true,
+            fields: ['cultureProfiles'],
             component: <QCulture onManualAdvance={nextStep} />
         }] : []),
         {
@@ -463,7 +465,7 @@ const InteractiveAssessmentFlow = () => {
             // quincenal"). El orden de captura no afecta los datos — ambos se
             // envían juntos al final.
             title: <>{t('Frecuencia de tus compras')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Con esto calculamos cuánto comprar cada vez para que ningún ingrediente se dañe ni te falte antes del próximo mercado.'),
+            subtitle: t('¿Cada cuánto vas al súper? Así compras justo lo que aguanta hasta la próxima vez.'),
             hasInternalNext: true,
             fields: ['groceryDuration'],
             component: <QHousehold onManualAdvance={nextStep} />
@@ -472,7 +474,7 @@ const InteractiveAssessmentFlow = () => {
         // condicionales al ciclo (frescos solo si compras cada 15/30 días). Detrás del knob.
         ...(PLAN_POLICY_FORM_UI ? [{
             title: t('Tu compra y tu cocina (Opcional)'),
-            subtitle: t('Reposiciones de frescos, congelador y cocinar por tandas: así la lista y el plan se ajustan a tu ritmo real.'),
+            subtitle: t('¿Repones frescos entre compras? ¿Congelas? ¿Cocinas por tandas? Con eso la lista se ajusta a ti.'),
             hasInternalNext: true,
             component: <QShoppingHabits onManualAdvance={nextStep} />
         }] : []),
@@ -520,7 +522,7 @@ const InteractiveAssessmentFlow = () => {
             // free-text) para avanzar. La copy era el origen del falso positivo
             // de "no rechazos" que dejaba colar cilantro/hígado/etc. al plan.
             title: <>{t('Alimentos que no te gustan')}&nbsp;<span style={{ color: '#EF4444' }}>*</span></>,
-            subtitle: t('Selecciona los que apliquen, escribe otros, o marca "Ninguno" si no rechazas ningún alimento.'),
+            subtitle: t('Marca los que apliquen, escribe otros o marca «Ninguno».'),
             hasInternalNext: true,
             fields: ['dislikes'],
             component: <QDislikes onManualAdvance={nextStep} />
@@ -557,7 +559,7 @@ const InteractiveAssessmentFlow = () => {
             // imposible. Ahora la vía para lo no listado es el chip «Otra
             // condición», que es una señal ESTRUCTURADA — no prosa que haya que
             // parsear (ver el rationale del gate en QMedical.jsx).
-            subtitle: t('Marca todas las que apliquen, o "Ninguna" si no tienes ninguna condición preexistente. Si tienes una que no está en la lista, marca "Otra condición".'),
+            subtitle: t('Marca las que tengas, «Ninguna» si no, u «Otra condición» si no está en la lista.'),
             hasInternalNext: true,
             fields: ['medicalConditions'],
             component: <QMedical onManualAdvance={nextStep} />

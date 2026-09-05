@@ -66,7 +66,9 @@ describe('wizard: el paso va detrás del país y no siembra nada', () => {
         const block = FLOW.slice(culture - 700, culture);
         expect(block).toContain('...(COUNTRY_SYSTEM_UI && CULTURE_PROFILES_UI ? [{');
         expect(block).toContain('hasInternalNext: true,');
-        expect(block).not.toContain('fields:');
+        expect(block).toContain("fields: ['cultureProfiles'],"); // obligatorio (dueño, 2026-09-05)
+        expect(block).toContain("<span style={{ color: '#EF4444' }}>*</span>");
+        expect(VALID).toContain("...(COUNTRY_SYSTEM_UI && CULTURE_PROFILES_UI ? ['cultureProfiles'] : []),");
     });
     it('el campo nace null en initialFormData y tiene etiqueta traducible', () => {
         expect(CTX).toContain('cultureProfiles: null,');
@@ -81,12 +83,13 @@ describe('wizard: el paso va detrás del país y no siembra nada', () => {
 });
 
 describe('QCulture: sugerencia visible, elección explícita', () => {
-    it('sin elección marca la cocina del país de compra como sugerida y NO escribe el campo', () => {
+    it('sin elección la cocina del país de compra aparece SUGERIDA, sin marcar, y el paso no deja avanzar', () => {
         const updates = [];
         const { container, getByText } = render(<Harness country="US" initial={null} onUpdate={(k, v) => updates.push([k, v])} />);
-        expect(checkedMain(container)).toBe('us_everyday');
+        expect(checkedMain(container)).toBeNull();
         expect(cultureForCountry('US')).toBe('us_everyday');
-        expect(getByText(/Sugerida por tu país de compra/)).toBeTruthy();
+        expect(getByText('Sugerida')).toBeTruthy();
+        expect(getByText('Elige tu cocina principal').closest('button').disabled).toBe(true);
         expect(updates).toEqual([]);
     });
     it('tocar otra principal escribe {main, secondary: []}', () => {
@@ -101,7 +104,7 @@ describe('QCulture: sugerencia visible, elección explícita', () => {
         const initial = { main: 'dominican_criolla', secondary: [{ profile_id: 'us_everyday', intensity: 'frecuente' }] };
         const { container, getAllByRole, getByText } = render(<Harness country="US" initial={initial} onUpdate={(k, v) => updates.push([k, v])} />);
         // pill de intensidad
-        fireEvent.click(getByText(/Predominante/));
+        fireEvent.click(getByText(/Mucho/));
         expect(updates.at(-1)[1].secondary[0]).toEqual({ profile_id: 'us_everyday', intensity: 'predominante' });
         // segunda secundaria
         // el chip (role=button), no la tarjeta principal que comparte el mismo texto
@@ -112,9 +115,8 @@ describe('QCulture: sugerencia visible, elección explícita', () => {
         const disabled = chips.filter((b) => b.getAttribute('aria-disabled') === 'true');
         expect(disabled.length).toBe(CULTURES.length - 1 - MAX_SECONDARY_CULTURES);
         expect(container.querySelector('input[name="cultureMain"][value="dominican_criolla"]').checked).toBe(true);
-        // volver a la sugerencia limpia el campo
-        fireEvent.click(getByText('Volver a la sugerencia de mi país'));
-        expect(updates.at(-1)).toEqual(['cultureProfiles', null]);
+        // con principal elegida, el paso deja avanzar
+        expect(getByText('Siguiente').closest('button').disabled).toBe(false);
     });
 });
 
