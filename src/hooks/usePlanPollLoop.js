@@ -81,6 +81,14 @@ export function usePlanPollLoop({
 
         const runTick = async () => {
             if (cancelled) return;
+            // [P2-PLAN-POLL-HIDDEN-NO-CLOCK · 2026-09-04] Pestaña oculta: ni se sondea ni corre el reloj
+            // de give-up ni se pierde el estado «dormido». Antes el tick devolvía null cada 25 s y esos
+            // vacíos contaban como «activo sin progreso»: a los 30 min oculta, al volver, «Dejamos de
+            // revisar…». El despertar real es visibilitychange (abajo).
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                scheduleNext(dormant ? dormantMs : delayMs);
+                return;
+            }
             const nowBeforeFetch = Date.now();
             if (dormant) { activeSinceMs = nowBeforeFetch; dormant = false; } // despertar: reloj a cero
             if (hasPollGivenUp(activeSinceMs, nowBeforeFetch, giveUpMs)) {

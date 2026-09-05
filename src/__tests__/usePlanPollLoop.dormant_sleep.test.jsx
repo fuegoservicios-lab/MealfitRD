@@ -43,6 +43,26 @@ describe('[P2-PLAN-POLL-DORMANT-SLEEP] dormido no es rendido', () => {
         expect(tick).toHaveBeenCalledTimes(3);
     });
 
+    it('[P2-PLAN-POLL-HIDDEN-NO-CLOCK] con la pestaña oculta no corre el reloj de give-up ni se pierde el sueño', async () => {
+        const tick = vi.fn(dormant(3));
+        const onGiveUpChange = vi.fn();
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+        renderHook(() => usePlanPollLoop({ enabled: true, tick, onGiveUpChange, fastMs: 1000, nearTermMs: 900000, giveUpMs: 60000, dormantMs: 5 * 60 * 1000 }));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(tick).toHaveBeenCalledTimes(1);
+        // se oculta la pestaña durante 40 min: ningún tick, ningún give-up
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+        await vi.advanceTimersByTimeAsync(40 * 60 * 1000);
+        expect(tick).toHaveBeenCalledTimes(1);
+        expect(onGiveUpChange).not.toHaveBeenCalledWith(true);
+        // vuelve: un tick, y sigue sin rendirse (el reloj arranca de cero al despertar)
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+        document.dispatchEvent(new Event('visibilitychange'));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(tick).toHaveBeenCalledTimes(2);
+        expect(onGiveUpChange).not.toHaveBeenCalledWith(true);
+    });
+
     it('pantalla muda (0 días) dormida: SÍ avisa give-up (se conserva la señal de P1-PLAN-POLL-DORMANT-GIVEUP-SIGNAL)', async () => {
         const tick = vi.fn(dormant(0));
         const onGiveUpChange = vi.fn();
