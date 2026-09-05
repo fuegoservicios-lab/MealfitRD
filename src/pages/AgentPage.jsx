@@ -4033,7 +4033,11 @@ const AgentPage = () => {
                     overflow-x: auto;
                     overscroll-behavior-x: contain;
                     scrollbar-width: none;
-                    padding: 0.35rem 0.4rem 0.55rem 3rem;
+                    /* [P2-CHAT-THUMB-ALIGN · 2026-09-05] Los 3rem de sangría izquierda dejaban la miniatura
+                       flotando en mitad del cajón, sin alinearse con nada: ni con el «+» de adjuntar (que
+                       empieza 40 px antes) ni con el borde del compositor. Alineada ahora con el borde
+                       interior, que es donde el ojo espera la esquina. El resto de la sangría se mantiene. */
+                    padding: 0.35rem 0.4rem 0.55rem 0.4rem;
                     scroll-snap-type: x proximity;
                 }
                 .attachment-rail::-webkit-scrollbar { display: none; }
