@@ -4299,12 +4299,18 @@ const DashboardInner = () => {
             //   - Perecederos: cantidad para 1 semana (compra recurrente).
             //   - Estables: cantidad para todo el periodo (compra única).
             const isWeekly = duration === 'weekly';
+            // [P1-SINGLE-TRIP-POLICY · 2026-09-05] «No, solo la compra grande» (política sin reposición de frescos y
+            // ciclo > 7 días): los perecederos van para TODO el ciclo en una compra; nada de «repite cada 7 días».
+            const _policyShopping = planData?._plan_policy?.effective?.shopping || null;
+            const isSingleTrip = !isWeekly && !!_policyShopping && Number(_policyShopping.main_cycle_days || 0) > 7 && !_policyShopping.fresh_topup_days;
             const perishableLabel = isWeekly
                 ? t('COMPRA ESTA SEMANA — PERECEDEROS')
-                : t('COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)');
+                : (isSingleTrip ? t('PERECEDEROS — UNA SOLA COMPRA (CONGELA O CONSUME PRIMERO)') : t('COMPRA ESTA SEMANA — PERECEDEROS (REPITE CADA 7 DÍAS)'));
             const perishableDesc = isWeekly
                 ? t('Carnes, lácteos, frutas y vegetales frescos. Consume o refrigera pronto.')
-                : t('Esta comida fresca alcanza ~7 días: en tu ciclo de {duracion} la compras {idas} veces (cada 7 días). Se dañan rápido, por eso no se compran todas de una vez.', { duracion: durationText, idas: _cycleTrips });
+                : (isSingleTrip
+                    ? t('Elegiste reponer solo en la compra grande: estas cantidades cubren todo tu ciclo de {duracion}. Congela las proteínas y consume primero lo más delicado.', { duracion: durationText })
+                    : t('Esta comida fresca alcanza ~7 días: en tu ciclo de {duracion} la compras {idas} veces (cada 7 días). Se dañan rápido, por eso no se compran todas de una vez.', { duracion: durationText, idas: _cycleTrips }));
             const stableLabel = duration === 'monthly'
                 ? t('DESPENSA DEL MES — ESTABLES (COMPRA UNA SOLA VEZ)')
                 : duration === 'biweekly'
