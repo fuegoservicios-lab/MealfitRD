@@ -7754,8 +7754,15 @@ const DashboardInner = () => {
                         flexWrap: 'wrap',
                     }}
                 >
+                    {/* [P2-POLL-BANNER-COPY · 2026-09-06] El texto anterior contaba el MECANISMO
+                        —«dejamos de revisar si llegaron tus próximas semanas»— y el dueño lo leyó como un
+                        aviso de que algo iba mal: le salía cada vez que dejaba la pestaña un rato. Y es lo
+                        contrario: el sondeo se detiene solo, a los ~30 min sin novedades, para no machacar
+                        el servidor ni la batería; el plan está perfectamente. El aviso dice ahora eso, en
+                        ese orden: primero que no pasa nada, luego por qué se detuvo, y por último que no
+                        hace falta hacer nada. El botón se queda para quien no quiera esperar. */}
                     <span>
-                        {t('Dejamos de revisar si llegaron tus próximas semanas — puede que estén programadas para más adelante. Vuelve a esta pestaña más tarde y las buscamos de nuevo.')}
+                        {t('Todo va bien: las próximas semanas de tu plan se preparan en su fecha. Dejamos de comprobarlo cada poco para no gastar batería, y lo miramos otra vez cuando vuelvas a abrir la app.')}
                     </span>
                     <button
                         type="button"
@@ -7772,7 +7779,7 @@ const DashboardInner = () => {
                             whiteSpace: 'nowrap',
                         }}
                     >
-                        {t('Revisar ahora')}
+                        {t('Comprobar ahora')}
                     </button>
                 </div>
             )}
