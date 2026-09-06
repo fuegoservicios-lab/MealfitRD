@@ -152,6 +152,15 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     const media = Array.isArray(msg.attachments) && msg.attachments.length
         ? msg.attachments
         : (msg.isImage && msg.imageUrl ? [{ id: 'legacy', url: msg.imageUrl }] : []);
+    // [P2-PHOTO-BUBBLE-CLEAN · 2026-09-06] Foto SOLA: sin la caja gris alrededor.
+    //
+    // La burbuja del usuario lleva siempre fondo, borde y 0,85rem×1,4rem de padding — chrome
+    // pensado para TEXTO. Cuando el mensaje es únicamente una imagen, ese chrome enmarca la foto
+    // en un recuadro gris que no aporta nada: la miniatura ya tiene su propio radio y su propio
+    // recorte. Con texto (foto + comentario) el chrome SÍ hace falta y se queda como estaba.
+    const soloFoto = media.length > 0
+        && !String(msg.content || '').trim()
+        && msg.role === 'user';
     const viewerUrl = viewerIndex === null
         ? null
         : (media[viewerIndex]?.url || media[viewerIndex]?.image_url || null);
@@ -237,10 +246,12 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     overflowWrap: 'break-word',
                     wordBreak: 'break-word',
                     // [P2-CHAT-ERROR-MINIMAL] el error ya no es una caja roja: texto apagado con un icono, sin fondo ni borde
-                    background: msg.role === 'user' ? 'var(--bg-muted)' : 'var(--bg-card)',
-                    padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.6rem 0' : '1rem 0'),
-                    borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0',
-                    border: msg.role === 'user' ? '1px solid var(--border)' : 'none',
+                    // [P2-PHOTO-BUBBLE-CLEAN] la foto sola no lleva el chrome del texto
+                    background: soloFoto ? 'transparent' : (msg.role === 'user' ? 'var(--bg-muted)' : 'var(--bg-card)'),
+                    padding: soloFoto ? 0 : (msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.6rem 0' : '1rem 0')),
+                    borderRadius: soloFoto ? '0.85rem' : (msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0'),
+                    border: soloFoto ? 'none' : (msg.role === 'user' ? '1px solid var(--border)' : 'none'),
+                    overflow: soloFoto ? 'hidden' : undefined,
                     boxShadow: 'none'
                 }}
             >
