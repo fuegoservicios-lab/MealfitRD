@@ -588,6 +588,18 @@ export default defineConfig(({ mode }) => {
       'e2e/**',
       // [P1-IOS-NATIVE-SHELL] proyecto Xcode de Capacitor (trae su propia copia de dist).
       'ios/**',
+      // [ARQ27 · 2026-09-06] Worktrees de agente. `.claude/worktrees/<nombre>/` es un checkout
+      // COMPLETO del frontend en otra revisión, así que vitest encontraba ahí dentro una copia
+      // vieja de cada test —y sus `e2e/*.spec.js`, que `e2e/**` no atrapa porque va anclado a la
+      // raíz—. El gate del deploy salió ROJO por un test que en el árbol real pasa 4/4: el
+      // worktree databa del 02-sep y llevaba la versión anterior de
+      // `Dashboard.upcoming_days_recovery.test.jsx`.
+      //
+      // Es la misma clase de fallo que `test_h_previous_provider_name_absent_from_repo` con
+      // `venv-test/`: un runner que baja a un directorio que no es el repo mide otro árbol, y
+      // duele el doble porque el veredicto parece del producto. Va como `**/.claude/**` y no como
+      // `.claude/**` para que valga a cualquier profundidad.
+      '**/.claude/**',
     ],
   },
   }
