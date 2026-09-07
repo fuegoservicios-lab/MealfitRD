@@ -30,10 +30,19 @@ export const ANCHOR_FREQUENCIES = [
 export const CYCLE_NEEDS_TOPUP = ['biweekly', 'monthly'];
 export const CYCLE_DAYS = { weekly: 7, biweekly: 15, monthly: 30 };
 
+// Paridad con `_REASON_COPY` del compilador (la exige `test_p1_arq25_f4_form.py`): un código que
+// no esté aquí produce una relajación que vive en el jsonb y NUNCA llega al panel «solicitaste /
+// aplicamos / por qué» — o sea, un recorte mudo justo donde el usuario mira.
+//
+// P1-ANCHOR-PORTION · 2026-09-07 añade los dos de `portion` (la ración de un básico: «desayuno 10
+// claras»). Ojo al escribir aquí: el guard parsea con `\[([^\]]*)\]`, así que un corchete dentro
+// del array —los de un marcador, sin ir más lejos— corta la lista y deja códigos fuera en
+// silencio. Por eso este comentario va ARRIBA y no entre las comillas.
 export const RELAXATION_REASON_CODES = [
     'anchor_conflicts_allergy', 'anchor_conflicts_diet', 'anchor_not_in_market',
     'budget_advisory_no_prices', 'budget_below_floor', 'cycle_shortened_no_freezer_no_topup',
     'recurrence_clamped', 'anchors_capped', 'pantry_proteins_after_first_week',
+    'portion_invalid', 'portion_out_of_range',
 ];
 
 export const modeLabel = (t, mode) => ({
@@ -90,6 +99,12 @@ export const frequencyIdFor = (min, max) => {
 /** Ancla del formulario (`stapleAnchors[i]`) con defaults explícitos. */
 export const anchorDefaults = (name) => ({
     name, slots: [], min_per_7d: 2, max_per_7d: 7, preparation_mode: 'vary_preparation',
+    // P1-ANCHOR-PORTION · 2026-09-07 — CUÁNTO, además de cuándo y cuán a menudo. `null` = «la
+    // ración normal», que es lo que hace todo el mundo hoy; el backend NO inventa un default.
+    // Forma: { qty: <número>, unit: '<unidad>' }. La unidad es obligatoria: sin ella, `150` de
+    // pollo se leería como 150 unidades, y el compilador la descarta diciéndolo.
+    // Falta el control visual en el asistente: hoy el campo viaja, pero nadie lo escribe.
+    portion: null,
 });
 
 export const relaxationIsBlocking = (r) => r?.action === 'waiting_user';
@@ -119,6 +134,9 @@ export const relaxationTitle = (t, r) => {
             return t('Guardamos tus primeros alimentos habituales');
         case 'recurrence_clamped':
             return t('Ajustamos la frecuencia pedida');
+        case 'portion_invalid':
+        case 'portion_out_of_range':
+            return t('Ajustamos la cantidad de un alimento habitual');
         default:
             return t('Un ajuste en tu plan');
     }
@@ -145,6 +163,10 @@ export const relaxationCopy = (t, r) => {
             return t('La frecuencia pedida se ajustó al rango posible (0–7 por semana).');
         case 'anchors_capped':
             return t('Solo los primeros {n} básicos se usan como anclas.', { n: r.applied });
+        case 'portion_invalid':
+            return t('No entendimos la cantidad que pediste para este básico (falta la unidad o no es un número), así que usamos la ración normal.');
+        case 'portion_out_of_range':
+            return t('La cantidad pedida es demasiado alta para una ración; la ajustamos a {n}.', { n: r?.applied?.qty });
         default:
             return String(r?.reason_code || '');
     }
