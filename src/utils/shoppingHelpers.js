@@ -206,6 +206,23 @@ export const buildGlossIndex = (masterList) => {
 
 const _SPANISH_GLOSS_COUNTRIES = new Set(['ES', 'MX', 'CO', 'PR']);
 
+// [P1-GLOSS-MAPUEY-DO · 2026-09-07] Los glosses que van en dirección CONTRARIA.
+//
+// Los 22 de agosto le explican un dominicanismo a un extranjero: el nombre canónico es el que un
+// dominicano reconoce («Auyama», «Chinola», «Guineo») y el paréntesis es para los demás. Por eso
+// la regla de arriba excluye a DO — a un dominicano no le aclara nada que la chinola sea
+// maracuyá, sólo le añade un paréntesis en cada línea de la lista.
+//
+// El mapuey es el caso inverso, reportado por el dueño: en RD la gente dice «ñame» y «mapuey»
+// suena a otra cosa (83 menciones en 12 de 95 planes vivos). Aquí el nombre canónico es el RARO
+// y el paréntesis es el que aclara, así que sí se muestra en DO.
+//
+// SE MANTIENE PEQUEÑO A PROPÓSITO. Si esta lista pasa de unas pocas entradas deja de ser una
+// excepción y pasa a ser una PROPIEDAD del alimento — entonces toca una columna en
+// `master_ingredients` (`gloss_dir` o similar) y no un set en el cliente, que driftaría del
+// catálogo en silencio. Hoy es uno.
+const _GLOSS_INVERSO_DO = new Set(['mapuey']);
+
 export const glossShoppingItemName = (
     name,
     displayNameEn,
@@ -234,7 +251,11 @@ export const glossShoppingItemName = (
     // Para los cuatro mercados hispanohablantes beta se conserva el identificador
     // canónico y se adjunta el término panhispánico; DO queda byte-idéntico.
     if (locale === 'es-DO') {
-        if (!_SPANISH_GLOSS_COUNTRIES.has(_country) || !_glossEs) return spanishName;
+        // [P1-GLOSS-MAPUEY-DO · 2026-09-07] DO deja de ser byte-idéntico SÓLO para los glosses de
+        // dirección inversa (ver `_GLOSS_INVERSO_DO`). Para los otros 21 sigue igual: el gloss
+        // existe para el extranjero y a un dominicano le sobra.
+        const _inverso = _GLOSS_INVERSO_DO.has(_sinAcentos(spanishName));
+        if ((!_SPANISH_GLOSS_COUNTRIES.has(_country) && !_inverso) || !_glossEs) return spanishName;
         if (_sinAcentos(_glossEs) === _sinAcentos(spanishName)) return spanishName;
         if (!spanishName) return _glossEs;
         return `${spanishName} (${_glossEs})`;

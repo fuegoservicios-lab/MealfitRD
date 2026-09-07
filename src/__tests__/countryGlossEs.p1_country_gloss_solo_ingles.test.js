@@ -15,6 +15,30 @@ describe('[P1-COUNTRY-GLOSS-SOLO-INGLES] gloss español por país', () => {
         ).toBe('Lechosa');
     });
 
+    // [P1-GLOSS-MAPUEY-DO · 2026-09-07] La excepción, y por qué NO es una relajación de la regla.
+    //
+    // Los 22 glosses de agosto van en una dirección: explicarle un dominicanismo a un extranjero.
+    // El del mapuey va en la contraria — en RD la gente dice «ñame» y «mapuey» suena a otra cosa
+    // (83 menciones en 12 de 95 planes vivos), así que aquí el nombre canónico es el RARO.
+    it('DO SÍ ve el gloss cuando va en dirección inversa (mapuey)', () => {
+        expect(
+            glossShoppingItemName('Mapuey', 'Mapuey yam', 'es-DO', null, 'DO', 'ñame indio'),
+        ).toBe('Mapuey (ñame indio)');
+    });
+
+    it('la excepción es por ALIMENTO, no una puerta abierta para DO', () => {
+        for (const [name, gloss] of [['Auyama', 'calabaza'], ['Chinola', 'maracuyá'],
+                                     ['Guineo', 'banana'], ['Recao', 'culantro']]) {
+            expect(glossShoppingItemName(name, null, 'es-DO', null, 'DO', gloss)).toBe(name);
+        }
+    });
+
+    it('el mapuey sigue glosado para los cuatro mercados beta', () => {
+        expect(
+            glossShoppingItemName('Mapuey', 'Mapuey yam', 'es-DO', null, 'ES', 'ñame indio'),
+        ).toBe('Mapuey (ñame indio)');
+    });
+
     it('un locale inglés conserva el gloss inglés aunque el país sea ES', () => {
         expect(
             glossShoppingItemName('Lechosa', 'Papaya', 'en-US', null, 'ES', 'papaya'),
