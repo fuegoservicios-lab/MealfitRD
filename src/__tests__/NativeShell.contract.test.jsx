@@ -112,7 +112,11 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
         const src = read('App.jsx');
         // Sin regex dinámica: en un template string `\{` y `\s` pierden el backslash
         // antes de llegar a RegExp (me pasó). Se busca el literal exacto del JSX.
-        for (const ruta of ['/motor', '/como-funciona', '/funciones', '/precision', '/about', '/novedades', '/novedades/:slug', '/supermercado']) {
+        // `/about` NO está en esta lista y no es un olvido: desde P1-ABOUT-UNA-SOLA-COPIA ya
+        // no se enruta en la SPA, y su garantía se comprueba en el `it` de abajo. Una ruta
+        // que no existe es una garantía más fuerte que una gateada — pero solo si el BOTÓN
+        // que llevaba a ella también se gateó, que es lo que aquel test verifica.
+        for (const ruta of ['/motor', '/como-funciona', '/funciones', '/precision', '/novedades', '/novedades/:slug', '/supermercado']) {
             const i = src.indexOf(`<Route path="${ruta}" element={`);
             expect(i, `${ruta} no está enrutada`).toBeGreaterThan(0);
             // La ventana termina en el cierre de ESTE <Route … />, no a N caracteres:
@@ -124,6 +128,32 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
             expect(ventana, `${ruta} debe colapsar a /dashboard bajo NATIVE_NO_COMMERCE (citan precios en RD$ y enlazan a /precios)`)
                 .toMatch(/NATIVE_NO_COMMERCE\s*\?\s*<Navigate to="\/dashboard" replace $/);
         }
+    });
+
+    // [P1-ABOUT-UNA-SOLA-COPIA · 2026-09-07] `/about` salió de la SPA porque lo sirve el apex
+    // (mealfit.conf:104; :440 hace 301 en el host de la app) y la ruta React solo se alcanzaba
+    // por navegación de cliente desde el pie — renderizando una SEGUNDA página Acerca de cuyo
+    // texto ya había divergido.
+    //
+    // Al desaparecer la ruta desaparece TAMBIÉN su gate nativo, y ahí estaba el riesgo: un
+    // `<a href>` sin gatear habría llevado el webview al apex, que cita precios en RD$ y enlaza
+    // a `/precios` (3.1.1). El gate se muda al pie, y este test es quien lo sujeta.
+    it('Footer.jsx: el enlace a /about va al apex y NO se pinta en nativo', () => {
+        const src = read('components/layout/Footer.jsx');
+        expect(src, 'el pie debe consumir el ÚNICO gate de plataforma')
+            .toMatch(/import \{ nativeHidesCommerce \} from '\.\.\/\.\.\/config\/platform'/);
+        expect(src, 'el enlace a /about debe estar envuelto en !nativeHidesCommerce()')
+            .toMatch(/!nativeHidesCommerce\(\)\s*&&\s*\(\s*<EnlaceApex a="\/about">/);
+        expect(src, 'debe ir por <a> al apex (EnlaceLegal), no por <Link> de React Router')
+            .not.toMatch(/<Link to="\/about"/);
+    });
+
+    it('App.jsx: /about ya NO se enruta en la SPA (una sola copia, la del apex)', () => {
+        const src = read('App.jsx');
+        expect(src, 'reenrutarla resucitaría la segunda página Acerca de')
+            .not.toContain('<Route path="/about" element={');
+        expect(src, 'y su import perezoso debe irse con ella')
+            .not.toMatch(/lazy\(\(\) => import\('\.\/pages\/AboutPage'\)\)/);
     });
 
     it('Dashboard: el badge del tier NO es un botón a /dashboard/upgrade en nativo', () => {

@@ -11,6 +11,7 @@ import Wordmark from '../common/Wordmark';
 import { isPaperSurface } from '../../utils/paperSurface';
 import { useT } from '../../i18n';
 import { apexUrl } from '../../config/site';
+import { nativeHidesCommerce } from '../../config/platform';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../../data/routeMeta';
@@ -34,11 +35,18 @@ import { BRAND } from '../../data/routeMeta';
  */
 // El helper es SSOT en `config/site.js` (lo estrenó Login.jsx en junio).
 
-function EnlaceLegal({ a, children }) {
+function EnlaceApex({ a, children }) {
     // `rel="noopener"` aunque no lleve `target`: es el mismo origen de marca pero
     // otro origen web, y cuesta cero.
     return <a href={apexUrl(a)} rel="noopener">{children}</a>;
 }
+
+// [P1-ABOUT-UNA-SOLA-COPIA · 2026-09-07] `EnlaceLegal` es el MISMO componente, no una copia:
+// `/about` necesitaba exactamente este mecanismo pero no es una página legal, y reusar el
+// nombre habría roto —con razón— el guard que exige que haya OCHO enlaces legales y solo
+// ocho (`legal_apunta_al_apex.test.js`). Un alias mantiene una única implementación y deja
+// que cada call site se llame por lo que es.
+const EnlaceLegal = EnlaceApex;
 
 // [P3-LEGAL-BACK-LINK · 2026-05-26 · 4ª iter] Si el path actual es una página legal,
 // NO usar ese path como `from` del próximo Link (eso haría que "Volver" regrese de
@@ -194,7 +202,21 @@ const Footer = () => {
                         de 812px: Empresas+Soporte, la fila siguiente, seguía a 249px de alto
                         (el mayor bloque restante tras Marca). Mismo patrón aquí. */}
                     <FooterColumn title={t('Empresas')} collapsible={isPaper}>
-                            <Link to="/about" state={{ from: fromPath }}>Bioboros</Link>
+                            {/* [P1-ABOUT-UNA-SOLA-COPIA · 2026-09-07] `<a>` al apex, NO un
+                                `<Link>`: `/about` lo sirve el sitio estático
+                                (mealfit.conf:104) y en el host de la app hace 301 (:440), así
+                                que una navegación de React Router —que nunca toca el
+                                servidor— renderizaba una SEGUNDA página Acerca de con texto
+                                divergente. Misma dirección, dos contenidos según cómo
+                                llegaras. Es la enfermedad que `EnlaceLegal` ya curó arriba
+                                (P1-LEGAL-UNA-SOLA-COPIA).
+                                En NATIVO no se enlaza: a diferencia de las legales —que Apple
+                                EXIGE que sean alcanzables— esta es marketing, cita precios en
+                                RD$ y enlaza a `/precios` (3.1.1). Antes lo tapaba el gate de
+                                la ruta React; al quitar la ruta, el gate se muda aquí. */}
+                            {!nativeHidesCommerce() && (
+                                <EnlaceApex a="/about">Bioboros</EnlaceApex>
+                            )}
                             <Link to="/novedades" state={{ from: fromPath }}>{t('Novedades')}</Link>
                             {/* [P1-SUPERMARKET-DB · 2026-07-02] Base de datos pública del
                                 Supermercado RD (alimentos verificados + precios RD$). */}

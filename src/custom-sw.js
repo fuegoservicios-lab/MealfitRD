@@ -19,7 +19,7 @@ const _IS_APP_HOST = /^app\./i.test(self.location.hostname);
 // no puede casar nunca no es inofensivo aquí — es una entrada que alguien leerá
 // como «existe esa página» al depurar el caché del service worker.
 const _APP_ONLY_CHUNKS = /(?:^|\/)(Dashboard|AgentPage|Pantry|Recipes|Settings|History|Plan|Assessment|Upgrade|Login|ResetPassword|DashboardLayout|VirtualizedMessageList|CameraViewfinder|BrandSelect|HelpChatWidget|PaymentModal|SettingsDialog)-[A-Za-z0-9_-]+\.(?:js|css)$/;
-const _MARKETING_ONLY_CHUNKS = /(?:^|\/)(Home|NewsPage|NewsArticlePage|AboutPage|ResearchPage|Engine|PricingPage|HowItWorksPage|FeaturesPage|PrecisionPage|LegalPages)-[A-Za-z0-9_-]+\.(?:js|css)$/;
+const _MARKETING_ONLY_CHUNKS = /(?:^|\/)(Home|NewsPage|NewsArticlePage|ResearchPage|Engine|PricingPage|HowItWorksPage|FeaturesPage|PrecisionPage|LegalPages)-[A-Za-z0-9_-]+\.(?:js|css)$/;
 
 // VitePWA inject-manifest will inject '_self.__WB_MANIFEST' here.
 const _manifest = (self.__WB_MANIFEST || []).filter((entry) => {

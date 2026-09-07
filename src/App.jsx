@@ -108,9 +108,6 @@ const Research = lazy(() => import('./pages/ResearchPage'));
 const Refunds = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.Refunds })));
 // [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable (reglas de uso responsable).
 const AcceptableUse = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.AcceptableUse })));
-// [P3-ABOUT-PAGE-ABSTRACT · 2026-06-30] "Acerca de Bioboros" — página propia con estética
-// abstracta (aurora CSS + tipografía editorial), distinta de las políticas y del marketing.
-const About = lazy(() => import('./pages/AboutPage'));
 // [P3-NEWS-1 · 2026-07-01] Novedades: índice (/novedades) + artículo (/novedades/:slug).
 const NewsPage = lazy(() => import('./pages/NewsPage'));
 const NewsArticlePage = lazy(() => import('./pages/NewsArticlePage'));
@@ -629,12 +626,13 @@ function App() {
             <Route path="/refunds" element={<Layout><Refunds /></Layout>} />
             {/* [P3-ACCEPTABLE-USE-PAGE · 2026-06-30] Política de Uso Aceptable. */}
             <Route path="/acceptable-use" element={<Layout><AcceptableUse /></Layout>} />
-            {/* [P3-ABOUT-PAGE · 2026-06-30] Acerca de Bioboros (categoría Empresas). */}
-            <Route path="/about" element={
-              NATIVE_NO_COMMERCE
-                ? <Navigate to="/dashboard" replace />
-                : <Layout><About /></Layout>
-            } />
+            {/* [P1-ABOUT-UNA-SOLA-COPIA · 2026-09-07] `/about` YA NO se enruta aquí. Lo sirve
+                el sitio estático del apex (mealfit.conf:104) y en el host de la app hace 301
+                (:440), así que esta ruta solo se alcanzaba por navegación de React Router
+                —el pie— y renderizaba una SEGUNDA página Acerca de cuyo texto ya había
+                divergido del apex: misma dirección, dos contenidos según cómo llegaras.
+                El pie enlaza ahora con `<a>` al apex y oculta el enlace en nativo.
+                Mismo cierre que P1-LEGAL-UNA-SOLA-COPIA hizo con las legales. */}
             {/* [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad). */}
             <Route path="/responsible-disclosure" element={<Layout><ResponsibleDisclosure /></Layout>} />
 
