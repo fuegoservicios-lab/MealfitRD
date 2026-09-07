@@ -37,7 +37,7 @@ const ROWS = [
             <p className={styles.rowText}>
                 Creemos que una buena nutrición no debería requerir contratar a un especialista
                 costoso ni seguir dietas genéricas pensadas para otros países y otros bolsillos.
-                Por eso pusimos la <strong>nutrición de precisión al alcance de cualquiera</strong>,
+                Por eso pusimos la <strong>nutrición de vanguardia al alcance de cualquiera</strong>,
                 con la comida de aquí.
             </p>
         ),
@@ -114,10 +114,10 @@ const AboutPage = () => {
                 <header className={styles.hero}>
                     <span className={`${styles.eyebrow} ${styles.reveal}`}>Acerca de Bioboros</span>
                     <h1 className={`${styles.headline} ${styles.reveal}`} style={{ animationDelay: '0.06s' }}>
-                        Precisión nutricional para la <span className={styles.grad}>mesa dominicana</span>.
+                        Nutrición de vanguardia para la <span className={styles.grad}>mesa dominicana</span>.
                     </h1>
                     <p className={`${styles.lead} ${styles.reveal}`} style={{ animationDelay: '0.14s' }}>
-                        Somos una plataforma dominicana de nutrición de precisión potenciada por
+                        Somos una plataforma dominicana de nutrición de vanguardia potenciada por
                         inteligencia artificial. Creamos planes 100% personalizados con alimentos que
                         de verdad se consiguen —y se comen— aquí.
                     </p>
