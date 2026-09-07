@@ -209,6 +209,51 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                         ))}
                     </div>
                 </div>
+                {/* [P1-ANCHOR-PORTION · 2026-09-07] CUÁNTO, además de cuándo y cuán a menudo.
+                    Vacío = la ración normal: NO se siembra un número, porque un default sembrado
+                    es indistinguible de una elección y aquí decidiría la comida de alguien.
+                    La unidad se ELIGE y no se adivina: sin ella, «150» de pollo se leería como
+                    150 piezas (P1-UNKNOWN-UNIT-NOT-WHOLE). */}
+                <div>
+                    <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                        {t('¿Cuánto en cada comida?')} <span style={{ opacity: 0.7 }}>{t('(opcional)')}</span>
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                        <input
+                            type="number" min="1" max="100" inputMode="numeric"
+                            aria-label={t('¿Cuánto en cada comida?')}
+                            value={a.portion?.qty ?? ''}
+                            onChange={(e) => {
+                                const v = e.target.value;
+                                const n = Number(v);
+                                setAnchor(name, {
+                                    portion: (v === '' || !Number.isFinite(n) || n <= 0)
+                                        ? null
+                                        : { qty: n, unit: a.portion?.unit || 'unidad' },
+                                });
+                            }}
+                            style={{ width: '5.5rem', padding: '0.4rem 0.55rem', borderRadius: '0.5rem',
+                                     border: '1px solid var(--border)', background: 'transparent',
+                                     color: 'var(--text)' }}
+                        />
+                        <select
+                            aria-label={t('Unidad')}
+                            value={a.portion?.unit || 'unidad'}
+                            onChange={(e) => setAnchor(name, a.portion
+                                ? { portion: { ...a.portion, unit: e.target.value } }
+                                : {})}
+                            style={{ padding: '0.4rem 0.55rem', borderRadius: '0.5rem',
+                                     border: '1px solid var(--border)', background: 'transparent',
+                                     color: 'var(--text)' }}
+                        >
+                            <option value="unidad">{t('unidades')}</option>
+                            <option value="g">{t('gramos')}</option>
+                        </select>
+                    </div>
+                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {t('Déjalo vacío y usamos la ración normal.')}
+                    </p>
+                </div>
                 <div role="radiogroup" aria-label={t('¿Cómo lo preparamos?')}>
                     <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('¿Cómo lo preparamos?')}</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
