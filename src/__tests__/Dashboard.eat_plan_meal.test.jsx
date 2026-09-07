@@ -31,6 +31,7 @@ import * as router from 'react-router-dom';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
+import { MEAL_WINDOWS } from '../config/mealWindows';
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom');
@@ -128,7 +129,42 @@ function _postBody(fetchMock) {
     return JSON.parse(call[1].body);
 }
 
+// [P1-TEST-CLOCK-FROZEN · 2026-09-07] El reloj se congela porque estas pruebas dependían de la
+// HORA A LA QUE SE EJECUTAN, y eso las hacía rojas de madrugada.
+//
+// `handleEatPlanMeal` consulta `mealTimingIssue(meal.meal)` ANTES de registrar, y si la hora local
+// es anterior al inicio de la ventana del slot abre la hoja «¿todavía no?» y hace `return`: no hay
+// POST y no hay `toast.success`. Con `desayuno: { start: 5 }`, los seis casos del camino feliz
+// fallaban entre las 00:00 y las 05:00, todos los días.
+//
+// No es una hipótesis: el gate pasó con 3.493 en verde a las 23:04, la misma suite dio 6 rojos a
+// las 00:30 SIN cambiar una línea, y volvió sola a 8 verdes al cruzar las 05:00.
+//
+// `toFake: ['Date']` a propósito: falsear también los temporizadores colgaría los `waitFor` de
+// testing-library. Mismo patrón que `Dashboard.upcoming_days_recovery.test.jsx`.
+//
+// La hora elegida (19:00) está DESPUÉS del inicio de las cuatro ventanas (5/11/14/17), así que
+// ningún slot dispara la pregunta. La lógica de la ventana se prueba aparte y con horas
+// inyectadas en `EatPlanMealSheet.test.jsx`; aquí sólo se exige que no interfiera.
+beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-07T19:00:00-04:00'));
+});
+afterAll(() => { vi.useRealTimers(); });
+
 describe('P1-EAT-PLAN-MEAL — "Me lo comí" registra el plato del plan y descuenta la Nevera', () => {
+    it('la hora congelada está dentro de las cuatro ventanas (si no, estas pruebas mienten)', () => {
+        // Mover la hora a las 08:00 dejaría `cena` (start 17) disparando la pregunta y volvería
+        // a poner rojos los casos de cena, esta vez SIEMPRE y sin pista de por qué. Verificado
+        // por mutación: congelado a las 02:00 salen los mismos 6 rojos que en producción de
+        // madrugada; a las 19:00, los 8 verdes.
+        const h = new Date().getHours();
+        for (const [slot, w] of Object.entries(MEAL_WINDOWS)) {
+            expect(h, `la hora congelada (${h}h) es ANTERIOR al inicio de ${slot} (${w.start}h): `
+                + 'el flujo abriría la hoja «¿todavía no?» en vez de registrar').toBeGreaterThanOrEqual(w.start);
+        }
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(router.useNavigate).mockReturnValue(vi.fn());
