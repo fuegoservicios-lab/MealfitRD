@@ -29,6 +29,8 @@ export const CULTURES = [
     { id: 'colombia_casera', labelKey: i18nKey('Cocina colombiana'), marketDefault: 'CO' },
     { id: 'spain_mediterranea', labelKey: i18nKey('Cocina española'), marketDefault: 'ES' },
     { id: 'us_everyday', labelKey: i18nKey('Cocina estadounidense cotidiana'), marketDefault: 'US' },
+    // [P1-PLAN-LOTE-3 · 2026-09-11 · B5] «nada criollo»: la cocina es la del mercado, sin sesgo (sin bandera)
+    { id: 'neutral', labelKey: i18nKey('Sin cocina en particular'), marketDefault: null },
 ];
 
 // Intensidad de una cocina secundaria → parte aproximada de las comidas (espejo de INTENSITY_WEIGHT).
@@ -66,6 +68,7 @@ export const cultureHints = (t) => ({
     colombia_casera: t('Arepas, sopas, fríjoles, arroz con pollo, sudados'),
     spain_mediterranea: t('Legumbres, pescado, aceite de oliva, guisos y plancha'),
     us_everyday: t('Desayunos rápidos, ensaladas, sándwiches, horneados y parrilla'),
+    neutral: t('Platos de cualquier cocina que venda tu mercado, sin sesgo'),
 });
 
 /**
