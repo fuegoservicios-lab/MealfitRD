@@ -719,6 +719,10 @@ const InteractiveAssessmentFlow = () => {
     // `step_view` por paso visto, `wizard_start`/`wizard_restore` una vez por montaje, flush al
     // ocultar la pestaña. Best-effort y con opt-out: nunca condiciona el wizard.
     const _wizardStartedRef = useRef(false);
+    // [P1-PLAN-LOTE-10 · 2026-09-11 · B9] El paso ANTERIOR, para emitir `step_done` al avanzar. Medido en
+    // producción: 121 filas y 0 `step_done` — el embudo por paso del doc (`step_view` → `step_done`) era
+    // ciego porque nadie lo emitía, aunque el backend ya lo aceptaba. Volver atrás no termina un paso.
+    const _wizardPrevRef = useRef(null);
     useEffect(() => {
         const step = steps[currentStep];
         const field = (step?.fields || [])[0] || null;
@@ -731,6 +735,9 @@ const InteractiveAssessmentFlow = () => {
             _wizardStartedRef.current = true;
             trackWizard(currentStep > 0 ? 'wizard_restore' : 'wizard_start', meta);
         }
+        const prev = _wizardPrevRef.current;
+        if (prev && currentStep > prev.index) trackWizard('step_done', prev.meta);
+        _wizardPrevRef.current = { index: currentStep, meta };
         trackWizard('step_view', meta);
     }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {

@@ -45,6 +45,10 @@ describe('wizard: preguntas §6.7 detrás del knob', () => {
     it('el embudo emite inicio/restauración una vez, un step_view por paso, submit y flush al ocultar', () => {
         expect(FLOW).toContain("trackWizard(currentStep > 0 ? 'wizard_restore' : 'wizard_start', meta);");
         expect(FLOW).toContain("trackWizard('step_view', meta);");
+        // [P1-PLAN-LOTE-10 · 2026-09-11 · B9] `step_done` al AVANZAR (índice mayor); sin él el embudo por paso
+        // era ciego (121 filas en producción, 0 `step_done`). Volver atrás no termina un paso.
+        expect(FLOW).toContain("if (prev && currentStep > prev.index) trackWizard('step_done', prev.meta);");
+        expect(FLOW).toContain("_wizardPrevRef.current = { index: currentStep, meta };");
         expect(FLOW).toContain("trackWizard('wizard_submit', {");
         expect(FLOW).toContain("window.addEventListener('pagehide', onHide);");
     });
