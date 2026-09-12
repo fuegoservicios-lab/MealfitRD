@@ -406,6 +406,7 @@ const InteractiveAssessmentFlow = () => {
             title: <>{t('Tus hábitos de consumo')}</>,
             subtitle: t('Alcohol, tabaco, cafeína y agua cambian cómo calibramos tu plan.'),
             hasInternalNext: true,
+            id: 'habits',
             component: <QHabits onManualAdvance={nextStep} />
         },
         {
@@ -476,6 +477,7 @@ const InteractiveAssessmentFlow = () => {
             title: t('Tu compra y tu cocina (Opcional)'),
             subtitle: t('¿Repones frescos entre compras? ¿Congelas? ¿Cocinas por tandas? Con eso la lista se ajusta a ti.'),
             hasInternalNext: true,
+            id: 'shoppingHabits',
             component: <QShoppingHabits onManualAdvance={nextStep} />
         }] : []),
         {
@@ -543,6 +545,7 @@ const InteractiveAssessmentFlow = () => {
             title: t('Tus básicos de siempre (Opcional)'),
             subtitle: t('Alimentos que comes seguido y quieres ver repetidos en tu plan sin que cuente como falta de variedad.'),
             hasInternalNext: true,
+            id: 'stapleFoods',
             component: <QStapleFoods onManualAdvance={nextStep} />
         },
         {
@@ -581,6 +584,7 @@ const InteractiveAssessmentFlow = () => {
             title: <>{t('Tu meta de peso')}</>,
             subtitle: t('Cuantificar la meta nos deja calibrar el ritmo del plan a tu medida — o déjala en manos de la IA.'),
             hasInternalNext: true,
+            id: 'goalTarget',
             component: <QGoalTarget onManualAdvance={nextStep} />
         },
         {
@@ -609,6 +613,7 @@ const InteractiveAssessmentFlow = () => {
             hasInternalNext: true,
             // [P1-PANTRY-WIZARD-STEP · 2026-07-11] En modo pantry este step ya NO es el
             // final: avanza al paso "Prepara tu Nevera" (abajo) y el submit vive allí.
+            id: 'supplements',
             component: <QSupplements
                 onFinish={isPantryMode ? () => nextStep() : submitAndGenerate}
                 isSubmitting={isSubmitting}
@@ -626,6 +631,7 @@ const InteractiveAssessmentFlow = () => {
             title: <>{t('Prepara tu Nevera')}</>,
             subtitle: t('Agrega los alimentos que tienes en casa; tu plan se construirá alrededor de ellos y la lista de compras te dirá solo lo que falte.'),
             hasInternalNext: true,
+            id: 'pantryBuilder',
             component: <QPantryBuilder onFinish={submitAndGenerate} isSubmitting={isSubmitting} />
         }] : [])
     ];
@@ -704,6 +710,7 @@ const InteractiveAssessmentFlow = () => {
             title: <>{t('Último paso: tu contador')}</>,
             subtitle: t('Sin plan generado, sin gastar créditos. Lo enciendes cuando quieras.'),
             hasInternalNext: true,
+            id: 'trackingFinish',
             component: <QTrackingFinish />
         },
     ].filter(Boolean);
@@ -726,8 +733,11 @@ const InteractiveAssessmentFlow = () => {
     useEffect(() => {
         const step = steps[currentStep];
         const field = (step?.fields || [])[0] || null;
+        // [P1-PLAN-LOTE-13 · 2026-09-12] `step.id` primero: los 7 pasos sin `fields` (hábitos, compra y cocina,
+        // básicos, meta de peso, suplementos, nevera, cierre del contador) salían como `step_<índice>` y el índice
+        // se mueve con cada knob y cada reordenación — el embudo por paso (plan_policy_f4.md) los mezclaba.
         const meta = {
-            step_id: field || `step_${currentStep}`, field, index: currentStep, total: steps.length,
+            step_id: step?.id || field || `step_${currentStep}`, field, index: currentStep, total: steps.length,
             app_mode: formData.appMode || null, plan_source: formData.planSource || null,
             policy_form: PLAN_POLICY_FORM_UI, form_version: PLAN_POLICY_FORM_UI ? 'v2' : 'v1',
         };

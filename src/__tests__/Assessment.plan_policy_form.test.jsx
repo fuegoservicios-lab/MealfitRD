@@ -49,6 +49,13 @@ describe('wizard: preguntas §6.7 detrás del knob', () => {
         // era ciego (121 filas en producción, 0 `step_done`). Volver atrás no termina un paso.
         expect(FLOW).toContain("if (prev && currentStep > prev.index) trackWizard('step_done', prev.meta);");
         expect(FLOW).toContain("_wizardPrevRef.current = { index: currentStep, meta };");
+        // [P1-PLAN-LOTE-13 · 2026-09-12] los 7 pasos sin `fields` llevan `id` propio y `step_id` lo prefiere al campo:
+        // salían como `step_<índice>` (8, 12, 13, 18, 19, 21, 22, 24, 25 en producción) y el índice se mueve con cada knob.
+        expect(FLOW).toContain("step_id: step?.id || field || `step_${currentStep}`,");
+        for (const id of ['habits', 'shoppingHabits', 'stapleFoods', 'goalTarget', 'supplements', 'pantryBuilder', 'trackingFinish']) {
+            expect(FLOW).toContain(`id: '${id}',`);
+        }
+        expect((FLOW.match(/^\s+id: '[A-Za-z]+',$/gm) || []).length).toBe(7);
         expect(FLOW).toContain("trackWizard('wizard_submit', {");
         expect(FLOW).toContain("window.addEventListener('pagehide', onHide);");
     });
