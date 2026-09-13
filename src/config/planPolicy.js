@@ -43,6 +43,7 @@ export const RELAXATION_REASON_CODES = [
     'budget_advisory_no_prices', 'budget_below_floor', 'cycle_shortened_no_freezer_no_topup',
     'recurrence_clamped', 'anchors_capped', 'pantry_proteins_after_first_week',
     'portion_invalid', 'portion_out_of_range',
+    'portion_cap_default_not_enforced',   // [P1-PLAN-LOTE-26] ración de piezas no honrada en modo sombra (deferred)
 ];
 
 export const modeLabel = (t, mode) => ({
@@ -137,6 +138,8 @@ export const relaxationTitle = (t, r) => {
         case 'portion_invalid':
         case 'portion_out_of_range':
             return t('Ajustamos la cantidad de un alimento habitual');
+        case 'portion_cap_default_not_enforced':
+            return t('Mantenemos la ración de siempre de un alimento habitual');
         default:
             return t('Un ajuste en tu plan');
     }
@@ -167,6 +170,8 @@ export const relaxationCopy = (t, r) => {
             return t('No entendimos la cantidad que pediste para este básico (falta la unidad o no es un número), así que usamos la ración normal.');
         case 'portion_out_of_range':
             return t('La cantidad pedida es demasiado alta para una ración; la ajustamos a {n}.', { n: r?.applied?.qty });
+        case 'portion_cap_default_not_enforced':
+            return t('Pediste {n} por comida; por ahora salen {m}, el tope de siempre. La ración pedida se honra cuando tu plan entre en la política en vigor.', { n: r?.requested, m: r?.applied });
         default:
             return String(r?.reason_code || '');
     }
