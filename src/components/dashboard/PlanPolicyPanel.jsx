@@ -60,7 +60,6 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
     const requested = policy?.requested || {};
     const relaxations = Array.isArray(policy?.relaxations) ? policy.relaxations : [];
     const enforced = fidelity?.mode === 'enforce' || fidelity?.enforced === true;
-    const mode = effective.recurrence?.global_mode;
     const shop = effective.shopping || {};
     const reqAnchors = _anchorsById(requested);
     const appAnchors = _anchorsById(effective);
