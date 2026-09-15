@@ -9,7 +9,7 @@ import { cultureWeightsSummary, cultureForCountry } from '../../config/cultures'
 import { useT } from '../../i18n';
 import {
     slotLabel, freezerFact, batchFact, topupFact, frequencyLabel, frequencyIdFor,
-    relaxationCopy, relaxationTitle, relaxationIsBlocking,
+    relaxationCopy, relaxationTitle, relaxationIsBlocking, prepTimeFact, prepTimeCopy,
 } from '../../config/planPolicy';
 import styles from './PlanPolicyPanel.module.css';
 
@@ -67,7 +67,9 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
     const anchorIds = [...new Set([...reqAnchors.keys(), ...appAnchors.keys()])];
     const blocking = relaxations.filter(relaxationIsBlocking);
     const soft = relaxations.filter((r) => !relaxationIsBlocking(r));
-    const count = relaxations.length;
+    // [P1-PLAN-LOTE-54 · 2026-09-15] El tiempo de cocina que el revisor midió cuenta como un ajuste más (`prepTimeFact`).
+    const tiempo = prepTimeFact(fidelity);
+    const count = relaxations.length + (tiempo ? 1 : 0);
     const cultureText = cultureWeightsSummary(t, effective.culture_weights);
     const cultureIsMarketDefault = Array.isArray(effective.culture_weights) && effective.culture_weights.length === 1
         && effective.culture_weights[0]?.profile_id === cultureForCountry(effective.market_country);
@@ -90,7 +92,7 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                 </span>
                 {count > 0 && (
                     <span className={blocking.length ? styles.badgeWarn : styles.badge}>
-                        {t('{n} ajustes', { n: count })}
+                        {count === 1 ? t('1 ajuste') : t('{n} ajustes', { n: count })}
                     </span>
                 )}
                 {open ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
@@ -143,7 +145,7 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                     ) : (
                         <p className={styles.muted}>{t('No marcaste alimentos habituales: el plan varía libremente dentro de tu perfil.')}</p>
                     )}
-                    {soft.length > 0 && (
+                    {(soft.length > 0 || tiempo) && (
                         <>
                             <h4 className={styles.subhead}>{t('Así adaptamos tu plan')}</h4>
                             <ul className={styles.reasons}>
@@ -153,6 +155,12 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                                         <span className={styles.reasonDetail}>{relaxationCopy(t, r)}</span>
                                     </li>
                                 ))}
+                                {tiempo && (
+                                    <li key="tiempo-de-cocina">
+                                        <span className={styles.reasonTitle}>{t('Tiempo de cocina')}</span>
+                                        <span className={styles.reasonDetail}>{prepTimeCopy(t, tiempo)}</span>
+                                    </li>
+                                )}
                             </ul>
                         </>
                     )}

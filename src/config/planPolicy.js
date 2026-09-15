@@ -176,3 +176,33 @@ export const relaxationCopy = (t, r) => {
             return String(r?.reason_code || '');
     }
 };
+
+// [P1-PLAN-LOTE-54 · 2026-09-15] El tiempo de cocina, dicho donde el usuario mira. El revisor ya medía cuántas comidas
+// pasan del tiempo que marcó (`_fidelity_report.issues`, código `prep_time_over_budget`, `horizon._prep_time_issues`),
+// pero el panel sólo leía el `mode`. En las 5 pruebas del dueño con «Nada» (unos 10 min) salían de 6 a 10 comidas por
+// plan de hasta 70 min y la pantalla no lo decía. El backend lista como mucho 10: con 10, «al menos 10».
+export const PREP_TIME_ISSUES_CAP = 10;
+
+export const prepTimeFact = (fidelity) => {
+    const issues = (Array.isArray(fidelity?.issues) ? fidelity.issues : [])
+        .filter((i) => i?.code === 'prep_time_over_budget' && Number.isFinite(Number(i?.minutes)));
+    const budget = Number(issues[0]?.budget);
+    if (!issues.length || !(budget > 0)) return null;
+    return {
+        n: issues.length,
+        capped: issues.length >= PREP_TIME_ISSUES_CAP,
+        max: Math.max(...issues.map((i) => Number(i.minutes))),
+        budget,
+    };
+};
+
+export const prepTimeCopy = (t, f) => {
+    const v = { n: f.n, max: _num(f.max), budget: _num(f.budget) };
+    if (f.n === 1) {
+        return t('Con el tiempo que marcaste (unos {budget} min por comida), una de las comidas revisadas pide más: {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarla con “Cambiar Plato”.', v);
+    }
+    if (f.capped) {
+        return t('Con el tiempo que marcaste (unos {budget} min por comida), al menos {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar Plato”.', v);
+    }
+    return t('Con el tiempo que marcaste (unos {budget} min por comida), {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar Plato”.', v);
+};
