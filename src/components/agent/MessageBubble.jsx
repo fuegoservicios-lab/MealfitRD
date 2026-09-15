@@ -107,13 +107,15 @@ const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = tru
 // si msg.retryable === true (errores no-retryables como 402 quota o 401/403
 // auth muestran solo el copy explicativo). Sin styles inline pesados; el
 // botón hereda paleta error (rojo).
-const ErrorRetryButton = ({ onClick }) => {
+// [P2-CHAT-FRONT-AUDIT · 2026-09-14] `reload`: el 409 (la respuesta a regenerar ya cambió)
+// no se reintenta — el mismo botón recarga la conversación y lo dice.
+const ErrorRetryButton = ({ onClick, reload = false }) => {
     const t = useT();
     return (
     <button
         type="button"
         onClick={onClick}
-        aria-label={t('Reintentar el último mensaje')}
+        aria-label={reload ? t('Recargar conversación') : t('Reintentar el último mensaje')}
         // [P2-CHAT-ERROR-MINIMAL · 2026-09-04] Antes: caja roja con borde y botón bordeado de 44 px
         // («muy feo, hazlo más minimalista»). Ahora: una línea discreta y «Reintentar» como enlace.
         style={{
@@ -137,7 +139,7 @@ const ErrorRetryButton = ({ onClick }) => {
         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
     >
         <RefreshCw size={13} strokeWidth={2.2} aria-hidden="true" />
-        {t('Reintentar')}
+        {reload ? t('Recargar conversación') : t('Reintentar')}
     </button>
     );
 };
@@ -294,13 +296,20 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     <div className="chat-error-line" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem 0.9rem', fontSize: '0.9rem', minHeight: 32 }}>
                         <span>{msg.content}</span>
                         {msg.retryable && typeof onErrorRetry === 'function' && (
-                            <ErrorRetryButton onClick={() => onErrorRetry(msg)} />
+                            <ErrorRetryButton onClick={() => onErrorRetry(msg)} reload={msg.reloadHistory === true} />
                         )}
                     </div>
                 )}
                 {!isErrorBubble && msg.content && msg.content !== '📷 Imagen enviada' && (
                     <div className="markdown-chat">
                         <LazyMarkdown>{msg.content}</LazyMarkdown>
+                    </div>
+                )}
+                {/* [P2-CHAT-FRONT-AUDIT · 2026-09-14] La respuesta se cortó antes de terminar
+                    (stream cerrado sin `done`, error o red): lo recibido se conserva, pero dicho. */}
+                {msg.role === 'model' && msg._incomplete === true && !msg.isStreaming && !isErrorBubble && (
+                    <div className="msg-incomplete-note" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                        {t('Respuesta incompleta')}
                     </div>
                 )}
 

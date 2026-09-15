@@ -46,6 +46,15 @@ import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // compartida chunk/done) + reconciliación del payload `done` contra lo ya
 // mostrado, en vez de blind-replace. Ver el módulo para el rationale completo.
 import { stripUiActionTags, reconcileFinalChatText } from '../utils/chatStreamReconcile';
+// [P2-CHAT-FRONT-AUDIT · 2026-09-14] Lógica pura del turno (burbujas colgadas, id de turno,
+// refresco de cuota al cierre, unión de listas clínicas) — ver el módulo.
+import {
+    closeStreamingBubbles,
+    normalizeHydratedMessages,
+    createTurnGate,
+    scheduleTurnEndRefresh,
+    valueForUpdatedField,
+} from '../utils/chatTurn';
 // [P3-AGENT-PREFILL · 2026-06-15] Pregunta pre-cargada desde el dashboard
 // (p.ej. tocar un micronutriente → "¿cómo subo mi fibra?").
 import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill';
@@ -191,6 +200,15 @@ const _agentErrorCopy = () => ({
         text: t('Llegaste al límite mensual de tu plan. Actualiza para seguir conversando.'),
         retryable: false,
     },
+    // [P2-CHAT-FRONT-AUDIT · 2026-09-14] 409 = la respuesta que se intentaba regenerar ya
+    // cambió en el servidor. Caía al copy genérico «reintentar», y reintentar repetía el 409.
+    // Lo que sirve es RECARGAR la conversación: el botón de la burbuja hace eso.
+    409: {
+        icon: '🔄',
+        text: t('Esa respuesta cambió mientras tanto. Recarga la conversación para ver la versión actual.'),
+        retryable: false,
+        reloadHistory: true,
+    },
     401: {
         icon: '🔐',
         text: t('Tu sesión expiró. Vuelve a iniciar sesión para continuar.'),
@@ -218,6 +236,8 @@ const _buildAgentErrorMessage = ({
     clientMessageId,
     isAgentError,
     userMessage,
+    regenerateMessageId,
+    regenerateResponseContent,
 }) => {
     let entry = _agentErrorCopy()[status];
     if (!entry) {
@@ -238,12 +258,20 @@ const _buildAgentErrorMessage = ({
     const canRetry = entry.retryable && Boolean(
         retryPrompt || retryImageUrl || retryAttachments?.length || retryWithCurrentAttachments
     );
+    // [P2-CHAT-FRONT-AUDIT · 2026-09-14] El 409 no se reintenta: su botón recarga el historial.
+    const reloadHistory = Boolean(entry.reloadHistory);
     return {
         role: 'model',
         content: `${entry.icon} ${entry.text}`,
         errorType: status === 0 ? 'network' : `http_${status}`,
         errorStatus: status,
-        retryable: canRetry,
+        retryable: canRetry || reloadHistory,
+        reloadHistory,
+        // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Reintentar una REGENERACIÓN fallida debe seguir
+        // siendo una regeneración: sin esto el reintento era un envío normal y el backend
+        // guardaba una respuesta nueva junto a la vieja.
+        retryRegenerateMessageId: canRetry ? (regenerateMessageId || undefined) : undefined,
+        retryRegenerateResponseContent: canRetry ? (regenerateResponseContent || undefined) : undefined,
         retryPrompt: canRetry ? retryPrompt : null,
         retryImageUrl: canRetry ? retryImageUrl : null,
         retryAttachments: canRetry ? retryAttachments : null,
@@ -1098,7 +1126,10 @@ const AgentPage = () => {
                     && cache.messages.length > 0
                     && fresh
                 ) {
-                    return cache.messages;
+                    // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Un mensaje cacheado nunca sigue
+                    // «escribiéndose»: si se guardó con `isStreaming: true` (turno cortado),
+                    // se cierra al hidratar — si no, quedaba sin Copiar/Regenerar para siempre.
+                    return normalizeHydratedMessages(cache.messages);
                 }
             }
         } catch (_e) {
@@ -1162,9 +1193,13 @@ const AgentPage = () => {
     }, [planData, formData, userProfile, messages]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    // [P1-COACH-QUOTA-METER] al montar (y al cambiar de usuario). [P2-CHAT-FRONT-AUDIT ·
+    // 2026-09-14] El refresco «tras cada respuesta» ya NO cuelga de `isLoading`: pasaba a false
+    // con el PRIMER token, antes de que el backend cobrara (en el `finally` de su generador), y
+    // el medidor iba siempre un mensaje por detrás. Ahora lo agenda el `finally` de handleSend.
     useEffect(() => {
-        if (!isLoading) refreshCoachQuota(); // [P1-COACH-QUOTA-METER] al montar y tras cada respuesta
-    }, [isLoading, refreshCoachQuota]);
+        refreshCoachQuota();
+    }, [refreshCoachQuota]);
 
     // [P1-CHAT-TURN-ACTIVE · 2026-08-10] `isLoading` NO significa «hay un turno en
     // vuelo»: significa «se está pensando». Deja de ser cierto en el PRIMER token
@@ -1197,6 +1232,19 @@ const AgentPage = () => {
             else safeLocalStorageRemove('mealfit_chat_turn_inflight');
         } catch (_) { /* no-op */ }
     }, []);
+    // [P2-CHAT-FRONT-AUDIT · 2026-09-14] El booleano de arriba dice «hay un turno»; no dice
+    // CUÁL. Un turno viejo reanudado tras Detener/«Nuevo chat» (p. ej. al terminar
+    // `waitUntilSettled` de una foto HEIC) veía el `true` del turno NUEVO y seguía, y su
+    // `finally` apagaba el candado y el controller del nuevo. Cada turno guarda su id y solo
+    // toca el estado compartido mientras sea el vigente; Detener y «Nuevo chat» invalidan.
+    const turnGateRef = useRef(null);
+    if (turnGateRef.current === null) turnGateRef.current = createTurnGate();
+    // [P0-CHAT-ALLERGY-FRONTEND-UNION · 2026-09-14] El `done` de un turno largo no puede unir
+    // contra el `formData` capturado al ENVIAR: lee siempre el último.
+    const formDataRef = useRef(formData);
+    useEffect(() => {
+        formDataRef.current = formData;
+    }, [formData]);
     // [P2-CHAT-HISTORY-CLEAN · 2026-07-12] El guard del refetch usa el
     // isLoadingRef pre-existente (declarado más abajo junto a los refs del
     // stream) — NO redeclarar aquí.
@@ -2448,6 +2496,7 @@ const AgentPage = () => {
         // vez de bloquear el toque — bloquearlo en silencio es peor: el usuario
         // toca, no pasa nada y no sabe por qué.
         if (isTurnActiveRef.current) {
+            turnGateRef.current.invalidate(); // [P2-CHAT-FRONT-AUDIT] el turno viejo deja de ser el vigente
             try { abortControllerRef.current?.abort(); } catch { /* ya cerrado */ }
             abortControllerRef.current = null;
             setAbortController(null);
@@ -2492,6 +2541,9 @@ const AgentPage = () => {
 
         // El lock nace antes de esperar la preparación: dos taps mientras un HEIC se
         // decodifica no pueden abrir dos turnos con snapshots distintos.
+        // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Id del turno: ver `turnGateRef`.
+        const turnId = turnGateRef.current.begin();
+        const _isCurrentTurn = () => turnGateRef.current.isCurrent(turnId);
         _setTurnActive(true);
         const clientMessageId = options.clientMessageId || crypto.randomUUID();
         let currentAttachments = overrideAttachments;
@@ -2499,15 +2551,19 @@ const AgentPage = () => {
             try {
                 currentAttachments = await waitUntilSettled();
             } catch (error) {
-                _setTurnActive(false);
-                handleAttachmentReject(error?.code || 'IMAGE_PREP_FAILED');
+                if (_isCurrentTurn()) {
+                    _setTurnActive(false);
+                    handleAttachmentReject(error?.code || 'IMAGE_PREP_FAILED');
+                }
                 return;
             }
         }
         // El usuario puede detener/cambiar de chat mientras una foto termina de
         // prepararse. La preparación puede acabar, pero ese turno ya no tiene permiso
         // para crear una burbuja ni abrir una petición con la sesión anterior.
-        if (!isTurnActiveRef.current || (!textToSend.trim() && currentAttachments.length === 0)) {
+        // [P2-CHAT-FRONT-AUDIT] Y si ya no es el vigente, NO toca el candado: es de otro turno.
+        if (!_isCurrentTurn() || !isTurnActiveRef.current) return;
+        if (!textToSend.trim() && currentAttachments.length === 0) {
             _setTurnActive(false);
             return;
         }
@@ -2621,6 +2677,42 @@ const AgentPage = () => {
         let uploadedImageUrl = null;
         let uploadedAttachments = overrideAttachments;
 
+        // [P2-CHAT-FRONT-AUDIT · 2026-09-14] UN solo mensaje de error por turno: el backend
+        // puede emitir dos eventos `error` en el mismo turno (y un corte de red puede sumarse
+        // a un `error` previo) y salían dos burbujas. Toda burbuja de error del turno pasa
+        // por aquí, que además CIERRA la burbuja parcial (sin esto quedaba `isStreaming: true`
+        // y el efecto de caché la guardaba así) y lleva el contexto de regeneración.
+        let _turnErrorShown = false;
+        let _sawDone = false;
+        const _pushTurnError = (args) => {
+            if (!_isCurrentTurn() || _turnErrorShown) return;
+            if (_sawDone) {
+                // La respuesta ya llegó entera: un error posterior no la invalida a ojos del usuario.
+                console.error('[P2-CHAT-FRONT-AUDIT] error del stream después de done', args?.status);
+                return;
+            }
+            _turnErrorShown = true;
+            setMessages(prev => [...closeStreamingBubbles(prev), _buildAgentErrorMessage({
+                ...args,
+                regenerateMessageId: options.regenerateMessageId,
+                regenerateResponseContent: options.regenerateResponseContent,
+            })]);
+        };
+        // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Cada efecto del `done` en su propio try: antes un
+        // `catch` vacío envolvía todo el bloque y una excepción en `saveGeneratedPlan` o en
+        // `updateData` se tragaba en silencio Y se saltaba los efectos siguientes.
+        // `console.error` se conserva en producción (P3-CONSOLE-DEV-GUARDS).
+        const _runDoneHandler = (label, fn) => {
+            try {
+                const r = fn();
+                if (r && typeof r.catch === 'function') {
+                    r.catch((e) => console.error(`[P2-CHAT-FRONT-AUDIT] efecto de done «${label}» falló`, e));
+                }
+            } catch (e) {
+                console.error(`[P2-CHAT-FRONT-AUDIT] efecto de done «${label}» falló`, e);
+            }
+        };
+
         try {
             // [P1-CHAT-STOP-POWER · 2026-07-12] El AbortController nace ANTES
             // del análisis de foto: el botón Detener cancela también la fase
@@ -2677,7 +2769,7 @@ const AgentPage = () => {
                 } catch (uploadError) {
                     if (uploadError?.name === 'AbortError') throw uploadError;
                     controller.abort();
-                    setMessages((prev) => [...prev, _buildAgentErrorMessage({
+                    _pushTurnError({
                         status: uploadError?.status || 0,
                         userMessage: uploadError?.userMessage,
                         retryPrompt: userMsg,
@@ -2685,7 +2777,7 @@ const AgentPage = () => {
                         retryWithCurrentAttachments: true,
                         retryTruncateIndex: originalUserMessageIndex,
                         clientMessageId,
-                    })]);
+                    });
                     return; // conserva el rail de adjuntos para reintentar sin volver a elegir
                 }
 
@@ -2822,6 +2914,11 @@ const AgentPage = () => {
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
+                        // [P2-CHAT-FRONT-AUDIT] Un turno que ya no es el vigente no escribe más.
+                        if (!_isCurrentTurn()) {
+                            try { reader.cancel().catch(() => { /* ya cerrado */ }); } catch { /* ya cerrado */ }
+                            break;
+                        }
 
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
@@ -2831,8 +2928,15 @@ const AgentPage = () => {
 
                         for (const line of lines) {
                             if (line.trim().startsWith('data: ')) {
+                                // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Solo el JSON roto se ignora; un
+                                // fallo de los handlers de abajo ya NO se traga en silencio.
+                                let dataObj;
                                 try {
-                                    const dataObj = JSON.parse(line.trim().substring(6));
+                                    dataObj = JSON.parse(line.trim().substring(6));
+                                } catch {
+                                    continue; // línea JSON rota o cortada: se ignora
+                                }
+                                try {
 
                                     if (dataObj.type === 'progress') {
                                         setStreamingStatus(dataObj.message);
@@ -2949,6 +3053,7 @@ const AgentPage = () => {
                                             isCallMode: !!callModeRef.current,
                                             sessionId: currentSessionId,
                                         });
+                                        _sawDone = true; // [P2-CHAT-FRONT-AUDIT] el turno terminó bien
                                         setIsLoading(false);
                                         setStreamingStatus(null);
 
@@ -3007,20 +3112,31 @@ const AgentPage = () => {
                                         }
 
                                         // Acciones post-respuesta
-                                        fetchChatSessions();
-                                        if (messages.length === 0) {
-                                            setTimeout(fetchChatSessions, 4000);
-                                            setTimeout(fetchChatSessions, 8000);
-                                        }
+                                        // [P2-CHAT-FRONT-AUDIT] cada una aislada: ver `_runDoneHandler`.
+                                        _runDoneHandler('fetchChatSessions', () => {
+                                            fetchChatSessions();
+                                            if (messages.length === 0) {
+                                                setTimeout(fetchChatSessions, 4000);
+                                                setTimeout(fetchChatSessions, 8000);
+                                            }
+                                        });
 
-                                        if (dataObj.updated_fields && Object.keys(dataObj.updated_fields).length > 0) {
+                                        if (dataObj.updated_fields && Object.keys(dataObj.updated_fields).length > 0 && updateData) {
                                             Object.entries(dataObj.updated_fields).forEach(([field, val]) => {
-                                                if (updateData) updateData(field, val);
+                                                // [P0-CHAT-ALLERGY-FRONTEND-UNION · 2026-09-14] `allergies` y
+                                                // `medicalConditions` se UNEN con lo que ya hay, nunca se
+                                                // reemplazan. La herramienta del backend fusiona en la base,
+                                                // pero aquí se reemplazaba la lista y la sincronización del
+                                                // Dashboard (PATCH del formulario entero, merge superficial)
+                                                // borraba las alergias previas. SSOT: utils/chatTurn.js.
+                                                _runDoneHandler(`updated_fields.${field}`, () => {
+                                                    updateData(field, valueForUpdatedField(field, val, formDataRef.current));
+                                                });
                                             });
                                         }
                                         // Si el agente generó un plan nuevo, actualizarlo
                                         if (dataObj.new_plan) {
-                                            saveGeneratedPlan(dataObj.new_plan);
+                                            _runDoneHandler('saveGeneratedPlan', () => saveGeneratedPlan(dataObj.new_plan));
                                         }
 
                                         // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir
@@ -3031,7 +3147,7 @@ const AgentPage = () => {
                                         // `_coherence_warnings` del guard
                                         // P2-COHERENCE-1). Toast no-bloqueante
                                         // — silencio si lista vacía o ausente.
-                                        emitCoherenceToast(toast, dataObj.coherence_warnings);
+                                        _runDoneHandler('coherence_warnings', () => emitCoherenceToast(toast, dataObj.coherence_warnings));
 
                                         // [P3-PANTRY-INVALIDATE-FROM-CHAT · 2026-05-22]
                                         // Si el backend marcó que una tool del agente
@@ -3105,16 +3221,22 @@ const AgentPage = () => {
 
                                         // Actualizar contador de créditos en tiempo real
                                         setTimeout(async () => {
-                                            await checkPlanLimit(session?.user?.id || userProfile?.id || localSessionId);
+                                            try {
+                                                await checkPlanLimit(session?.user?.id || userProfile?.id || localSessionId);
+                                            } catch (e) {
+                                                console.error('[P2-CHAT-FRONT-AUDIT] efecto de done «checkPlanLimit» falló', e);
+                                            }
                                         }, 1000);
 
                                     } else if (dataObj.type === 'error') {
                                         // [P1-CHAT-ERROR-DIFF · 2026-05-19]
                                         // Error emitido por el LangGraph mid-stream
                                         // (tool falló, exception interna). Retryable.
+                                        // [P2-CHAT-FRONT-AUDIT] `_pushTurnError` cierra la burbuja
+                                        // parcial y garantiza UNA burbuja de error por turno.
                                         setIsLoading(false);
                                         setStreamingStatus(null);
-                                        setMessages(prev => [...prev, _buildAgentErrorMessage({
+                                        _pushTurnError({
                                             status: 500,
                                             retryPrompt: userMsg,
                                             retryImageUrl: uploadedImageUrl,
@@ -3122,13 +3244,33 @@ const AgentPage = () => {
                                             retryTruncateIndex: originalUserMessageIndex,
                                             clientMessageId,
                                             isAgentError: true,
-                                        })]);
+                                        });
                                     }
-                                } catch (e) {
-                                    // Ignorar lineas JSON rotas temporalmente
+                                } catch (handlerError) {
+                                    // [P2-CHAT-FRONT-AUDIT] Antes: catch vacío. Visible en producción.
+                                    console.error('[P2-CHAT-FRONT-AUDIT] handler de evento del stream falló', dataObj?.type, handlerError);
                                 }
                             }
                         }
+                    }
+                    // [P2-CHAT-FRONT-AUDIT · 2026-09-14] El stream se cerró SIN `done` (corte del
+                    // servidor, proxy, despliegue): antes se salía del bucle sin mirar y la burbuja
+                    // quedaba en `isStreaming: true` para siempre. Se cierra (el texto recibido se
+                    // conserva marcado `_incomplete`; si estaba vacía, se quita) y, si el turno no
+                    // mostró ya un error, se ofrece reintentar.
+                    if (!_sawDone && _isCurrentTurn()) {
+                        setIsLoading(false);
+                        setStreamingStatus(null);
+                        setMessages(prev => closeStreamingBubbles(prev));
+                        _pushTurnError({
+                            status: 502,
+                            retryPrompt: userMsg,
+                            retryImageUrl: uploadedImageUrl,
+                            retryAttachments: _durableRetryAttachments(uploadedAttachments),
+                            retryTruncateIndex: originalUserMessageIndex,
+                            clientMessageId,
+                            isAgentError: true,
+                        });
                     }
                 } else {
                     // [P1-CHAT-ERROR-DIFF · 2026-05-19] Diferenciación de status
@@ -3150,7 +3292,7 @@ const AgentPage = () => {
                             setCoachQuota((q) => ({ ...(q || {}), limit: Number(_limit), used: Number(_limit), remaining: 0, resets_at: _resets }));
                         }
                     }
-                    setMessages(prev => [...prev, _buildAgentErrorMessage({
+                    _pushTurnError({
                         status: response.status,
                         retryPrompt: userMsg,
                         retryImageUrl: uploadedImageUrl,
@@ -3158,7 +3300,7 @@ const AgentPage = () => {
                         retryTruncateIndex: originalUserMessageIndex,
                         clientMessageId,
                         userMessage: _quotaMessage,
-                    })]);
+                    });
                 }
             }
         } catch (error) {
@@ -3170,22 +3312,35 @@ const AgentPage = () => {
             // [P1-CHAT-ERROR-DIFF · 2026-05-19] Network errors (fetch failure,
             // DNS, offline) llegan acá como TypeError; status=0 dispara el
             // copy "Sin conexión" + botón Reintentar.
-            setMessages(prev => [...prev, _buildAgentErrorMessage({
+            // [P2-CHAT-FRONT-AUDIT] Corte a MITAD del stream: `_pushTurnError` cierra
+            // antes la burbuja parcial (conserva lo recibido como incompleto).
+            _pushTurnError({
                 status: 0,
                 retryPrompt: userMsg,
                 retryImageUrl: uploadedImageUrl,
                 retryAttachments: _durableRetryAttachments(uploadedAttachments),
                 retryTruncateIndex: originalUserMessageIndex,
                 clientMessageId,
-            })]);
+            });
         } finally {
-            setIsLoading(false);
+            if (turnGateRef.current.isCurrent(turnId)) {
+                setIsLoading(false);
+                _setTurnActive(false);
+                setStreamingStatus(null);
+                setAbortController(null);
+                abortControllerRef.current = null;
+            }
             // [P1-CHAT-TURN-ACTIVE] ÚNICO punto autoritativo de apagado: el `finally`
             // cubre las cuatro salidas (done, error del stream, abort y excepción).
             // Apagarlo en cualquier rama concreta reabre el hueco por otra puerta.
-            _setTurnActive(false);
-            setStreamingStatus(null);
-            setAbortController(null);
+            // [P2-CHAT-FRONT-AUDIT · 2026-09-14] …pero SOLO si este turno sigue siendo el
+            // vigente: si Detener/«Nuevo chat» ya abrió otro, el candado y el controller
+            // son del turno nuevo y no se tocan.
+            //
+            // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Medidor de cuota: al TERMINAR el turno (el
+            // backend cobra al cerrar su generador), no con el primer token. Corre también en
+            // turnos detenidos o reemplazados: un turno cortado puede haberse cobrado igual.
+            scheduleTurnEndRefresh(refreshCoachQuota);
         }
     };
 
@@ -3194,8 +3349,13 @@ const AgentPage = () => {
     }); // cada commit conserva la clausura más reciente sin una lista manual incompleta
 
     const handleStopGeneration = () => {
-        if (abortController) {
-            abortController.abort();
+        // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Detener aborta el controller VIGENTE (el ref, no
+        // el state, que puede ir un render por detrás) e invalida el turno: su `finally` ya no
+        // toca el candado ni el controller de un turno posterior.
+        const _ctrl = abortControllerRef.current || abortController;
+        if (_ctrl || isTurnActiveRef.current) turnGateRef.current.invalidate();
+        if (_ctrl) {
+            _ctrl.abort();
             setAbortController(null);
             abortControllerRef.current = null;
             setIsLoading(false);
@@ -3252,6 +3412,12 @@ const AgentPage = () => {
 
     const retryErrorMessage = useStableCallback((message) => {
         if (!message?.retryable) return;
+        // [P2-CHAT-FRONT-AUDIT · 2026-09-14] 409: la respuesta a regenerar cambió en el
+        // servidor; reintentar repetiría el 409. El botón recarga la conversación.
+        if (message.reloadHistory) {
+            if (!isTurnActiveRef.current) fetchSessionMessages(currentSessionId);
+            return;
+        }
         const useCurrentAttachments = Boolean(message.retryWithCurrentAttachments);
         if (
             !message.retryPrompt
@@ -3267,6 +3433,10 @@ const AgentPage = () => {
             }),
             truncateIndex: message.retryTruncateIndex,
             clientMessageId: message.clientMessageId,
+            // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Una regeneración fallida se reintenta COMO
+            // regeneración (sustituye la respuesta vieja en el servidor, no añade otra).
+            regenerateMessageId: message.retryRegenerateMessageId,
+            regenerateResponseContent: message.retryRegenerateResponseContent,
         });
     });
 

@@ -67,6 +67,22 @@ export default function HelpChatWidget({ onClose }) {
     const [isLoading, setIsLoading] = useState(false);
     const listRef = useRef(null);
     const inputRef = useRef(null);
+    // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Candado SÍNCRONO (ref), como el del coach
+    // (P1-CHAT-TURN-ACTIVE): el `isLoading` de React no cambia hasta el siguiente render,
+    // así que un doble toque dentro del mismo frame enviaba la pregunta dos veces.
+    const sendingRef = useRef(false);
+    // Petición en vuelo: se aborta al cerrar el panel (antes seguía viva y hacía
+    // setState sobre un componente desmontado).
+    const abortRef = useRef(null);
+    const mountedRef = useRef(true);
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            try { abortRef.current?.abort(); } catch { /* ya cerrada */ }
+            abortRef.current = null;
+        };
+    }, []);
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
 
     // [P1-HELP-BOT-KEYBOARD · 2026-08-22] En móvil la hoja es fixed a 100dvh y el teclado
@@ -107,7 +123,10 @@ export default function HelpChatWidget({ onClose }) {
         const errorFallback = t('No pude responder ahora mismo. Intenta de nuevo en un momento o escríbenos por correo (abajo) y te ayudamos.');
         const rateLimitMsg = t('Vamos muy rápido 😅 — espera unos segundos y vuelve a preguntar.');
         const clean = (text ?? '').trim().slice(0, MAX_INPUT);
-        if (!clean || isLoading) return;
+        if (!clean || sendingRef.current) return;
+        sendingRef.current = true;
+        const controller = new AbortController();
+        abortRef.current = controller;
         setInput('');
         setIsLoading(true);
         const history = [...messages, { role: 'user', content: clean }];
@@ -115,6 +134,7 @@ export default function HelpChatWidget({ onClose }) {
         try {
             const res = await fetchWithAuth('/api/help/chat', {
                 method: 'POST',
+                signal: controller.signal,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     // Solo la cola reciente; el backend igual recorta (MAX_TURNS).
@@ -127,8 +147,10 @@ export default function HelpChatWidget({ onClose }) {
                     hide_commerce: nativeHidesCommerce(),
                 }),
             });
+            if (!mountedRef.current) return;
             if (res.ok) {
                 const data = await res.json();
+                if (!mountedRef.current) return;
                 const reply = typeof data?.reply === 'string' ? data.reply.trim() : '';
                 setMessages(prev => [...prev, {
                     role: 'assistant',
@@ -142,13 +164,19 @@ export default function HelpChatWidget({ onClose }) {
                     isError: res.status !== 429,
                 }]);
             }
-        } catch {
+        } catch (error) {
+            // Panel cerrado (abort) o desmontado: nada que pintar.
+            if (error?.name === 'AbortError' || !mountedRef.current) return;
             setMessages(prev => [...prev, { role: 'assistant', content: errorFallback, isError: true }]);
         } finally {
-            setIsLoading(false);
-            inputRef.current?.focus();
+            sendingRef.current = false;
+            if (abortRef.current === controller) abortRef.current = null;
+            if (mountedRef.current) {
+                setIsLoading(false);
+                inputRef.current?.focus();
+            }
         }
-    }, [messages, isLoading, t]);
+    }, [messages, t]);
 
     const handleSubmit = (e) => {
         e.preventDefault();

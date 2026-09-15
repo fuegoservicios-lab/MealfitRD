@@ -3137,5 +3137,8 @@
   "🫘 CONDICIÓN RENAL DETECTADA — IMPORTANTE: la nutrición en enfermedad renal depende de tu estadio (G1–G5) y de si estás en diálisis, y DEBE ser supervisada por tu nefrólogo o nutricionista renal.": "🫘 KIDNEY CONDITION DETECTED — IMPORTANT: nutrition in kidney disease depends on your stage (G1–G5) and on whether you are on dialysis, and MUST be supervised by your nephrologist or renal dietitian.",
   "🫘 Condición renal — requiere supervisión de tu nefrólogo": "🫘 Kidney condition — requires supervision by your nephrologist",
   "Mantenemos la ración de siempre de un alimento habitual": "We keep the usual serving of one of your staples",
-  "Pediste {n} por comida; por ahora salen {m}, el tope de siempre. La ración pedida se honra cuando tu plan entre en la política en vigor.": "You asked for {n} per meal; for now you get {m}, the usual cap. The requested serving is honored once your plan enters the enforced policy."
+  "Pediste {n} por comida; por ahora salen {m}, el tope de siempre. La ración pedida se honra cuando tu plan entre en la política en vigor.": "You asked for {n} per meal; for now you get {m}, the usual cap. The requested serving is honored once your plan enters the enforced policy.",
+  "Esa respuesta cambió mientras tanto. Recarga la conversación para ver la versión actual.": "That reply changed in the meantime. Reload the conversation to see the current version.",
+  "Recargar conversación": "Reload conversation",
+  "Respuesta incompleta": "Incomplete reply"
 }
