@@ -25,10 +25,24 @@
 //
 // Día LOCAL, no UTC: para alguien en RD (UTC-4) el corte en UTC caería a las
 // 20:00 y le cortaría el chat en plena cena.
-import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
+//
+// [P1-PLAN-LOTE-71 · 2026-09-16] El chat del día vive en el SERVIDOR, no solo en
+// este navegador. El dueño cerró sesión, volvió a entrar y el Agente le abrió un
+// chat en blanco, con su conversación de esa misma mañana (6 mensajes, la última
+// a las 12:58) listada en «Recientes · Hoy». La regla de arriba solo miraba esta
+// clave de localStorage, y el logout la BORRA a propósito (P2-CHAT-CACHE-XUSER:
+// en un dispositivo compartido, el siguiente usuario no puede heredarla). Pasaría
+// igual en un teléfono nuevo o tras limpiar el navegador.
+//
+// Por eso una sesión que abrió la regla (y no el usuario) queda marcada, y cuando
+// llega la lista del servidor —que ya es solo tuya, por el token— se cambia por tu
+// chat de hoy si existe. Una elegida a mano («Nuevo chat», «Recientes») o ya usada
+// no se toca jamás: la marca se borra en cuanto hay actividad.
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from './safeLocalStorage';
 
 export const SESSION_KEY = 'mealfit_current_session';
 export const SESSION_DAY_KEY = 'mealfit_current_session_day';
+export const SESSION_AUTO_KEY = 'mealfit_current_session_auto';
 
 /** Fecha local en YYYY-MM-DD. */
 export const hoyLocal = (d = new Date()) => {
@@ -56,16 +70,64 @@ export const resolverSesionDelDia = ({ hoy = hoyLocal(), nuevoId } = {}) => {
     const id = nuevoId || crypto.randomUUID();
     safeLocalStorageSet(SESSION_KEY, id);
     safeLocalStorageSet(SESSION_DAY_KEY, hoy);
+    // [P1-PLAN-LOTE-71] La abrió la regla, no el usuario: si el servidor ya
+    // tiene un chat de hoy, `sesionDelDiaAAdoptar` la cambia por ese.
+    safeLocalStorageSet(SESSION_AUTO_KEY, id);
     return { sessionId: id, esNueva: true };
 };
 
 /**
  * Marca actividad en la sesión abierta. Se llama cuando hay mensajes REALES
  * (no la pantalla de bienvenida), así que una sesión que solo se abrió y no se
- * usó no reclama el día para sí.
+ * usó no reclama el día para sí. También al elegir una sesión a mano.
  */
 export const marcarActividad = (sessionId, hoy = hoyLocal()) => {
     if (!pareceUuid(sessionId)) return;
     safeLocalStorageSet(SESSION_KEY, sessionId);
     safeLocalStorageSet(SESSION_DAY_KEY, hoy);
+    // [P1-PLAN-LOTE-71] Elegida o usada: ya no es «la que abrió la regla».
+    safeLocalStorageRemove(SESSION_AUTO_KEY);
+};
+
+/** Día local (YYYY-MM-DD) de una marca de tiempo del servidor, o null. */
+export const diaLocalDe = (marca) => {
+    if (!marca) return null;
+    const d = new Date(marca);
+    return Number.isNaN(d.getTime()) ? null : hoyLocal(d);
+};
+
+/**
+ * [P1-PLAN-LOTE-71] Tu chat de hoy según el servidor: la sesión con mensajes
+ * cuya última actividad cae hoy (día local); de varias, la más reciente. El
+ * backend marca con `title_key: 'empty'` la sesión en la que nadie escribió.
+ * Misma fecha que agrupa «Hoy» en Recientes: `last_activity`, o `created_at`.
+ */
+export const sesionDeHoyEnServidor = (sesiones, hoy = hoyLocal()) => {
+    let elegida = null;
+    let masReciente = -Infinity;
+    for (const s of Array.isArray(sesiones) ? sesiones : []) {
+        if (!s || !pareceUuid(s.id) || s.title_key === 'empty') continue;
+        const marca = s.last_activity || s.created_at;
+        if (diaLocalDe(marca) !== hoy) continue;
+        const instante = new Date(marca).getTime();
+        if (instante > masReciente) {
+            elegida = s.id;
+            masReciente = instante;
+        }
+    }
+    return elegida;
+};
+
+/**
+ * [P1-PLAN-LOTE-71] A qué sesión pasar al recibir la lista del servidor, o null
+ * para quedarse. Solo se cambia la sesión que abrió la regla del día (nunca una
+ * elegida o usada) y solo si el servidor no la conoce con mensajes.
+ */
+export const sesionDelDiaAAdoptar = ({ sesiones, actual, hoy = hoyLocal() } = {}) => {
+    if (!pareceUuid(actual)) return null;
+    if (safeLocalStorageGet(SESSION_AUTO_KEY, null) !== actual) return null;
+    const lista = Array.isArray(sesiones) ? sesiones : [];
+    if (lista.some((s) => s && s.id === actual && s.title_key !== 'empty')) return null;
+    const deHoy = sesionDeHoyEnServidor(lista, hoy);
+    return deHoy && deHoy !== actual ? deHoy : null;
 };

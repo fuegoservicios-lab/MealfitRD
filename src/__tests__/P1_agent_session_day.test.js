@@ -17,7 +17,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
     resolverSesionDelDia, marcarActividad, hoyLocal,
-    SESSION_KEY, SESSION_DAY_KEY,
+    diaLocalDe, sesionDeHoyEnServidor, sesionDelDiaAAdoptar,
+    SESSION_KEY, SESSION_DAY_KEY, SESSION_AUTO_KEY,
 } from '../utils/chatSessionDay';
 
 const UUID_A = '11111111-2222-4333-8444-555555555555';
@@ -91,5 +92,82 @@ describe('[P1-AGENT-SESSION-DAY] el día es LOCAL, no UTC', () => {
 
     it('formatea con ceros a la izquierda', () => {
         expect(hoyLocal(new Date(2026, 0, 5))).toBe('2026-01-05');
+    });
+});
+
+/* [P1-PLAN-LOTE-71 · 2026-09-16] El chat del día vive en el SERVIDOR. El logout
+ * borra la clave local (P2-CHAT-CACHE-XUSER) y el dueño, al volver a entrar,
+ * recibió un chat en blanco con el suyo de esa mañana en «Recientes · Hoy». */
+const UUID_C = '33333333-4444-4555-8666-777777777777';
+// Marca con el formato real del backend: `created_at::text` en una base en GMT.
+const marca = (d) => d.toISOString().replace('T', ' ').replace('Z', '000+00');
+const aLas = (h, m = 0, dia = 16) => new Date(2026, 8, dia, h, m, 0);
+const sesion = (id, cuando, extra = {}) => ({
+    id, title: 'Primer saludo', title_key: null, created_at: marca(cuando), last_activity: marca(cuando), ...extra,
+});
+
+describe('[P1-PLAN-LOTE-71] el chat de hoy se recupera del servidor', () => {
+    beforeEach(() => { localStorage.clear(); });
+
+    it('la sesión que abre la regla queda marcada; elegirla o usarla quita la marca', () => {
+        resolverSesionDelDia({ hoy: '2026-09-16', nuevoId: UUID_A });
+        expect(localStorage.getItem(SESSION_AUTO_KEY)).toBe(UUID_A);
+        marcarActividad(UUID_A, '2026-09-16');
+        expect(localStorage.getItem(SESSION_AUTO_KEY)).toBeNull();
+    });
+
+    it('volver el mismo día a la sesión automática conserva la marca', () => {
+        // Ir a la Nevera y volver antes de que llegue la lista no puede perder la adopción.
+        resolverSesionDelDia({ hoy: '2026-09-16', nuevoId: UUID_A });
+        resolverSesionDelDia({ hoy: '2026-09-16', nuevoId: UUID_B });
+        expect(localStorage.getItem(SESSION_AUTO_KEY)).toBe(UUID_A);
+    });
+
+    it('el caso del dueño: tras el logout, el chat de esa mañana se adopta', () => {
+        resolverSesionDelDia({ hoy: '2026-09-16', nuevoId: UUID_A });
+        marcarActividad(UUID_A, '2026-09-16');               // chateó por la mañana
+        localStorage.removeItem(SESSION_KEY);                  // lo que hace el logout
+        const { sessionId } = resolverSesionDelDia({ hoy: '2026-09-16', nuevoId: UUID_B });
+        expect(sessionId).toBe(UUID_B);                        // la regla sola abre uno en blanco…
+        const sesiones = [sesion(UUID_A, aLas(12, 58))];
+        expect(sesionDelDiaAAdoptar({ sesiones, actual: UUID_B, hoy: '2026-09-16' })).toBe(UUID_A);
+    });
+
+    it('un «Nuevo chat» elegido a mano no se cambia', () => {
+        marcarActividad(UUID_C, '2026-09-16');
+        const sesiones = [sesion(UUID_A, aLas(12, 58))];
+        expect(sesionDelDiaAAdoptar({ sesiones, actual: UUID_C, hoy: '2026-09-16' })).toBeNull();
+    });
+
+    it('si la sesión abierta ya tiene mensajes en el servidor, se queda', () => {
+        resolverSesionDelDia({ hoy: '2026-09-16', nuevoId: UUID_B });
+        const sesiones = [sesion(UUID_A, aLas(12, 58)), sesion(UUID_B, aLas(9, 0))];
+        expect(sesionDelDiaAAdoptar({ sesiones, actual: UUID_B, hoy: '2026-09-16' })).toBeNull();
+    });
+
+    it('sin chat de hoy (o solo uno vacío) no hay nada que adoptar', () => {
+        resolverSesionDelDia({ hoy: '2026-09-16', nuevoId: UUID_B });
+        const ayer = [sesion(UUID_A, aLas(23, 50, 15))];
+        expect(sesionDelDiaAAdoptar({ sesiones: ayer, actual: UUID_B, hoy: '2026-09-16' })).toBeNull();
+        const vacio = [sesion(UUID_A, aLas(12, 0), { title: null, title_key: 'empty' })];
+        expect(sesionDelDiaAAdoptar({ sesiones: vacio, actual: UUID_B, hoy: '2026-09-16' })).toBeNull();
+        expect(sesionDelDiaAAdoptar({ sesiones: undefined, actual: UUID_B, hoy: '2026-09-16' })).toBeNull();
+    });
+
+    it('de varios chats de hoy gana el de actividad más reciente, sin fiarse del orden', () => {
+        const sesiones = [
+            sesion(UUID_A, aLas(8, 26)),
+            sesion(UUID_C, aLas(16, 5), { title: null, title_key: 'image_or_system' }),
+            sesion(UUID_B, aLas(12, 58)),
+        ];
+        expect(sesionDeHoyEnServidor(sesiones, '2026-09-16')).toBe(UUID_C);
+    });
+
+    it('el día de la marca es LOCAL: las 22:30 en RD son 02:30 UTC del día siguiente', () => {
+        const nocheLocal = aLas(22, 30);
+        expect(diaLocalDe(marca(nocheLocal))).toBe('2026-09-16');
+        expect(diaLocalDe(nocheLocal.toISOString())).toBe('2026-09-16');
+        expect(diaLocalDe('no-es-fecha')).toBeNull();
+        expect(diaLocalDe(null)).toBeNull();
     });
 });

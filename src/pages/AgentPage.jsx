@@ -32,7 +32,7 @@ import { safeJSONParse } from '../utils/safeJSONParse';
 // rationale (QuotaExceededError silente). Migración del setItem raw al
 // helper P2-AUDIT-3 que atrapa errores y devuelve boolean.
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
-import { resolverSesionDelDia, marcarActividad } from '../utils/chatSessionDay';
+import { resolverSesionDelDia, marcarActividad, sesionDelDiaAAdoptar } from '../utils/chatSessionDay';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat desde el módulo SSOT (mismas
 // que _clearUserScopedCaches borra en logout/user-switch). Los aliases `_CHAT_*`
 // viven a scope de MÓDULO (no de componente) a propósito: un const de componente
@@ -1893,6 +1893,29 @@ const AgentPage = () => {
     // pide la siguiente página con «Ver más» y la anexa sin duplicar.
     const [hasMoreSessions, setHasMoreSessions] = useState(false);
     const [isLoadingMoreSessions, setIsLoadingMoreSessions] = useState(false);
+
+    // [P1-PLAN-LOTE-71 · 2026-09-16] Tu chat de hoy está en el servidor aunque este navegador
+    // lo haya olvidado: el logout borra la sesión guardada (P2-CHAT-CACHE-XUSER) y el dueño,
+    // al volver a entrar, recibió un chat en blanco con el suyo de esa mañana en «Recientes».
+    // Con la PRIMERA lista del servidor en cada montaje, la sesión que abrió la regla del día
+    // pasa a la de hoy. La regla vive en `utils/chatSessionDay`; aquí solo se comprueba que no
+    // haya nada del usuario en juego: turno en vuelo, mensajes o borrador.
+    const adopcionDelDiaHechaRef = useRef(false);
+    const adoptarSesionDelDia = useStableCallback((sesionesDelServidor) => {
+        if (adopcionDelDiaHechaRef.current || !session?.user?.id) return;
+        adopcionDelDiaHechaRef.current = true;
+        if (isTurnActiveRef.current) return;
+        if ((messagesRef.current || []).some((m) => !m?.isWelcome)) return;
+        const borrador = draftSnapshotRef.current;
+        if (borrador && ((borrador.text || '').trim() || (borrador.files || []).length > 0)) return;
+        const deHoy = sesionDelDiaAAdoptar({ sesiones: sesionesDelServidor, actual: currentSessionIdRef.current });
+        if (!deHoy) return;
+        // «Cargando mensajes…» en lugar del saludo de un chat que ya no es el tuyo; lo cierra
+        // `fetchSessionMessages` al llegar el historial.
+        setIsLoadingHistory(true);
+        setCurrentSessionId(deHoy);
+    });
+
     const fetchChatSessions = useCallback(async (offset = 0) => {
         try {
             const userId = session?.user?.id || userProfile?.id || localSessionId;
@@ -1945,6 +1968,7 @@ const AgentPage = () => {
                     });
                     return merged;
                 });
+                if (!isGuest && offset === 0) adoptarSesionDelDia(data.sessions || []);
             }
         } catch (error) {
             console.error("Error fetching sessions:", error);
@@ -1956,7 +1980,7 @@ const AgentPage = () => {
         // (se lee por currentSessionIdRef.current arriba) → la identidad de este
         // callback ya no cambia al cambiar de sesión, evitando el re-GET de toda la
         // lista en el effect de mount y la recreación del interval del title-poll.
-    }, [session?.user?.id, userProfile?.id, localSessionId]);
+    }, [session?.user?.id, userProfile?.id, localSessionId, adoptarSesionDelDia]);
     const loadMoreSessions = useCallback(async () => {
         if (isLoadingMoreSessions) return;
         setIsLoadingMoreSessions(true);
