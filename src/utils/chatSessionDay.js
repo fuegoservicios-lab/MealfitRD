@@ -67,13 +67,21 @@ export const resolverSesionDelDia = ({ hoy = hoyLocal(), nuevoId } = {}) => {
     if (pareceUuid(guardada) && dia === hoy) {
         return { sessionId: guardada, esNueva: false };
     }
+    return { sessionId: abrirSesionAutomatica({ hoy, nuevoId }), esNueva: true };
+};
+
+/**
+ * Abre una sesión en blanco a nombre de la regla del día (no del usuario).
+ * [P1-PLAN-LOTE-71] La marca automática permite que, si el servidor ya tiene
+ * un chat de hoy, `sesionDelDiaAAdoptar` la cambie por ese.
+ * [P1-PLAN-LOTE-73] La usa también la renovación de medianoche.
+ */
+export const abrirSesionAutomatica = ({ hoy = hoyLocal(), nuevoId } = {}) => {
     const id = nuevoId || crypto.randomUUID();
     safeLocalStorageSet(SESSION_KEY, id);
     safeLocalStorageSet(SESSION_DAY_KEY, hoy);
-    // [P1-PLAN-LOTE-71] La abrió la regla, no el usuario: si el servidor ya
-    // tiene un chat de hoy, `sesionDelDiaAAdoptar` la cambia por ese.
     safeLocalStorageSet(SESSION_AUTO_KEY, id);
-    return { sessionId: id, esNueva: true };
+    return id;
 };
 
 /**
@@ -134,4 +142,92 @@ export const sesionDelDiaAAdoptar = ({ sesiones, actual, hoy = hoyLocal() } = {}
     if (lista.some((s) => s && s.id === actual && s.title_key !== 'empty')) return null;
     const deHoy = sesionDeHoyEnServidor(lista, hoy);
     return deHoy && deHoy !== actual ? deHoy : null;
+};
+
+// [P1-PLAN-LOTE-73 · 2026-09-16] La renovación diaria también con la pestaña
+// abierta, y la cuenta regresiva bajo «Nuevo chat». El dueño pidió no tener que
+// pulsar «Nuevo chat» cada día. Al ENTRAR ya era automático (la regla de arriba);
+// lo que faltaba era el cambio cuando el Agente se queda abierto de un día para
+// otro. Solo se renueva la sesión que nadie ha usado ni elegido HOY (su día
+// anotado es anterior) y cuya conversación es de ayer por sus mensajes, y nunca
+// se corta nada en curso: el último mensaje tiene al menos `MINUTOS_DE_GRACIA`,
+// y no hay turno, borrador ni interacción reciente (eso lo mira `AgentPage`).
+// Si escribes pasada la medianoche, el día anotado ya es hoy y el chat sigue; si
+// abres a mano un chat viejo, también (elegirlo lo anota hoy).
+
+/** Minutos que tiene que tener el último mensaje de ayer para dar el chat por cerrado. */
+export const MINUTOS_DE_GRACIA = 15;
+
+/** Milisegundos hasta la próxima medianoche local. */
+export const msHastaMedianoche = (ahora = new Date()) => {
+    const manana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 0, 0, 0, 0);
+    return Math.max(0, manana.getTime() - ahora.getTime());
+};
+
+/** Horas y minutos (hacia abajo) de una cuenta regresiva. */
+export const partesCuentaRegresiva = (ms) => {
+    const minutos = Math.floor(Math.max(0, ms) / 60000);
+    return { h: Math.floor(minutos / 60), m: minutos % 60, menosDeUnMinuto: minutos === 0 };
+};
+
+const _instante = (msg) => {
+    if (!msg || msg.isWelcome || msg._isErrorBubble || !msg.created_at) return null;
+    const t = new Date(msg.created_at).getTime();
+    return Number.isNaN(t) ? null : t;
+};
+
+/** Instante (ms) del último mensaje real de la conversación, o null si no hay ninguno. */
+export const ultimoMensajeReal = (messages) => {
+    let ultimo = null;
+    for (const m of Array.isArray(messages) ? messages : []) {
+        const t = _instante(m);
+        if (t !== null && (ultimo === null || t > ultimo)) ultimo = t;
+    }
+    return ultimo;
+};
+
+/** Día anotado para `sessionId` si es la sesión guardada, o null. */
+export const diaAnotadoDe = (sessionId) => (
+    pareceUuid(sessionId) && safeLocalStorageGet(SESSION_KEY, null) === sessionId
+        ? safeLocalStorageGet(SESSION_DAY_KEY, null)
+        : null
+);
+
+/**
+ * ¿Hay que abrir el chat de hoy en lugar de `sessionId`? Solo si nadie la ha
+ * usado ni elegido hoy (día anotado anterior a hoy), su conversación es de un
+ * día anterior (por su último mensaje real) y ese mensaje tiene al menos
+ * `minutosDeGracia`. Una conversación sin mensajes reales ya es «nueva».
+ */
+export const debeRenovarse = ({ messages, sessionId, ahora = new Date(), minutosDeGracia = MINUTOS_DE_GRACIA } = {}) => {
+    const hoy = hoyLocal(ahora);
+    const anotado = diaAnotadoDe(sessionId);
+    if (!anotado || anotado >= hoy) return false;
+    const ultimo = ultimoMensajeReal(messages);
+    if (ultimo === null) return false;
+    if (hoyLocal(new Date(ultimo)) >= hoy) return false;
+    return ahora.getTime() - ultimo >= minutosDeGracia * 60000;
+};
+
+/**
+ * Día de actividad que anotar para la sesión: el de su último mensaje real,
+ * nunca anterior al que ya tenía. Antes se anotaba HOY cada vez que cambiaban
+ * los mensajes, y eso incluye HIDRATAR: abrir a las 00:30 un chat de ayer lo
+ * convertía en «el de hoy» y al volver a entrar resucitaba. Elegirlo a mano
+ * (`marcarActividad` con hoy) sigue contando como hoy: el día no retrocede.
+ */
+export const diaDeActividad = (messages, sessionId, hoy = hoyLocal()) => {
+    const ultimo = ultimoMensajeReal(messages);
+    const delMensaje = ultimo === null ? hoy : hoyLocal(new Date(ultimo));
+    const guardada = safeLocalStorageGet(SESSION_KEY, null);
+    const anotado = guardada === sessionId ? safeLocalStorageGet(SESSION_DAY_KEY, null) : null;
+    return anotado && anotado > delMensaje ? anotado : delMensaje;
+};
+
+/** Texto de la cuenta regresiva bajo «Nuevo chat» (`t` = el traductor de la app). */
+export const textoCuentaRegresiva = (ms, t) => {
+    const { h, m, menosDeUnMinuto } = partesCuentaRegresiva(ms);
+    if (menosDeUnMinuto) return t('Nuevo chat automático en menos de un minuto');
+    if (h === 0) return t('Nuevo chat automático en {m} min', { m });
+    return t('Nuevo chat automático en {h} h {m} min', { h, m });
 };

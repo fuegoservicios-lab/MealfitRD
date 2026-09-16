@@ -18,6 +18,8 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
     resolverSesionDelDia, marcarActividad, hoyLocal,
     diaLocalDe, sesionDeHoyEnServidor, sesionDelDiaAAdoptar,
+    abrirSesionAutomatica, msHastaMedianoche, partesCuentaRegresiva, textoCuentaRegresiva,
+    ultimoMensajeReal, debeRenovarse, diaDeActividad,
     SESSION_KEY, SESSION_DAY_KEY, SESSION_AUTO_KEY,
 } from '../utils/chatSessionDay';
 
@@ -169,5 +171,79 @@ describe('[P1-PLAN-LOTE-71] el chat de hoy se recupera del servidor', () => {
         expect(diaLocalDe(nocheLocal.toISOString())).toBe('2026-09-16');
         expect(diaLocalDe('no-es-fecha')).toBeNull();
         expect(diaLocalDe(null)).toBeNull();
+    });
+});
+
+/* [P1-PLAN-LOTE-73 · 2026-09-16] El chat del día se renueva solo también con la
+ * pestaña abierta, sin cortar nada en curso, y la cuenta regresiva lo anuncia. */
+const msg = (cuando, extra = {}) => ({ role: 'user', content: 'x', created_at: cuando.toISOString(), ...extra });
+
+describe('[P1-PLAN-LOTE-73] renovación diaria y cuenta regresiva', () => {
+    beforeEach(() => { localStorage.clear(); });
+
+    it('abrirSesionAutomatica deja sesión, día y marca automática', () => {
+        expect(abrirSesionAutomatica({ hoy: '2026-09-17', nuevoId: UUID_C })).toBe(UUID_C);
+        expect(localStorage.getItem(SESSION_KEY)).toBe(UUID_C);
+        expect(localStorage.getItem(SESSION_DAY_KEY)).toBe('2026-09-17');
+        expect(localStorage.getItem(SESSION_AUTO_KEY)).toBe(UUID_C);
+    });
+
+    it('la cuenta regresiva va a la medianoche local, en horas y minutos hacia abajo', () => {
+        const ms = msHastaMedianoche(new Date(2026, 8, 16, 17, 38, 30));
+        expect(partesCuentaRegresiva(ms)).toEqual({ h: 6, m: 21, menosDeUnMinuto: false });
+        const t = (k, v) => (v ? k.replace(/\{(\w+)\}/g, (_, n) => String(v[n])) : k);
+        expect(textoCuentaRegresiva(ms, t)).toBe('Nuevo chat automático en 6 h 21 min');
+        expect(textoCuentaRegresiva(msHastaMedianoche(new Date(2026, 8, 16, 23, 10, 0)), t)).toBe('Nuevo chat automático en 50 min');
+        expect(textoCuentaRegresiva(msHastaMedianoche(new Date(2026, 8, 16, 23, 59, 40)), t))
+            .toBe('Nuevo chat automático en menos de un minuto');
+    });
+
+    it('el último mensaje real ignora el saludo, las burbujas de error y lo que no tiene fecha', () => {
+        const a = new Date(2026, 8, 16, 22, 0);
+        const lista = [
+            { role: 'model', content: 'hola', isWelcome: true, created_at: new Date(2026, 8, 17, 9, 0).toISOString() },
+            msg(a),
+            { role: 'model', content: 'error', _isErrorBubble: true, created_at: new Date(2026, 8, 17, 9, 0).toISOString() },
+            { role: 'model', content: 'sin fecha' },
+        ];
+        expect(ultimoMensajeReal(lista)).toBe(a.getTime());
+        expect(ultimoMensajeReal([{ role: 'model', content: 'hola', isWelcome: true }])).toBeNull();
+    });
+
+    it('se renueva solo si la conversación es de ayer y su último mensaje tiene 15 minutos o más', () => {
+        marcarActividad(UUID_A, '2026-09-16');
+        const ahora = new Date(2026, 8, 17, 0, 30);
+        const r = (messages, extra = {}) => debeRenovarse({ messages, sessionId: UUID_A, ahora, ...extra });
+        expect(r([msg(new Date(2026, 8, 16, 23, 40))])).toBe(true);
+        expect(r([msg(new Date(2026, 8, 17, 0, 20))])).toBe(false);                                       // de hoy
+        expect(r([msg(new Date(2026, 8, 16, 23, 59))], { ahora: new Date(2026, 8, 17, 0, 5) })).toBe(false);
+        expect(r([])).toBe(false);                                                                         // ya es nuevo
+        expect(r([{ role: 'model', content: 'hola', isWelcome: true }])).toBe(false);
+    });
+
+    it('no se renueva una sesión usada o elegida hoy, ni una que no es la guardada', () => {
+        const viejos = [msg(new Date(2026, 8, 2, 12, 0))];
+        const ahora = new Date(2026, 8, 17, 10, 0);
+        marcarActividad(UUID_A, '2026-09-17');                         // abierta a mano hoy
+        expect(debeRenovarse({ messages: viejos, sessionId: UUID_A, ahora })).toBe(false);
+        marcarActividad(UUID_A, '2026-09-16');
+        expect(debeRenovarse({ messages: viejos, sessionId: UUID_B, ahora })).toBe(false);   // no es la guardada
+        expect(debeRenovarse({ messages: viejos, sessionId: UUID_A, ahora })).toBe(true);
+    });
+
+    it('hidratar pasada la medianoche no convierte el chat de ayer en el de hoy', () => {
+        localStorage.setItem(SESSION_KEY, UUID_A);
+        localStorage.setItem(SESSION_DAY_KEY, '2026-09-16');
+        const ayer = [msg(new Date(2026, 8, 16, 23, 40))];
+        expect(diaDeActividad(ayer, UUID_A, '2026-09-17')).toBe('2026-09-16');
+        // Un mensaje de hoy, sí.
+        expect(diaDeActividad([...ayer, msg(new Date(2026, 8, 17, 0, 10))], UUID_A, '2026-09-17')).toBe('2026-09-17');
+        // Sin fechas (caché vieja): la conducta de antes, hoy.
+        expect(diaDeActividad([{ role: 'user', content: 'x' }], UUID_A, '2026-09-17')).toBe('2026-09-17');
+    });
+
+    it('el día anotado no retrocede: elegir a mano un chat viejo lo hace el de hoy', () => {
+        marcarActividad(UUID_B, '2026-09-17');
+        expect(diaDeActividad([msg(new Date(2026, 8, 2, 12, 0))], UUID_B, '2026-09-17')).toBe('2026-09-17');
     });
 });

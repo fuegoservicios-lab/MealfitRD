@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, Loader2, Ghost, Trash2 } from 'lucide-react';
 import { formatDate, useT } from '../../i18n';
+import CuentaRegresivaChat from './CuentaRegresivaChat';
 
 export const SidebarRecientes = ({
     showSidebar,
@@ -45,7 +46,10 @@ export const SidebarRecientes = ({
         >
             {/* [P3-SIDEBAR-LOADBAR-FULL · 2026-06-19] Keyframe del shimmer de la barra de carga (full-width). */}
             <style>{'@keyframes sbLoadShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}'}</style>
-            <div className="sidebar-header-padding" style={{ padding: '1.25rem 1rem', display: 'flex', gap: '0.5rem' }}>
+            {/* [P1-PLAN-LOTE-73 · 2026-09-16] Bajo el botón, la cuenta regresiva del chat del día. El bloque
+                conserva sus 84 px (0.75rem + 2.75rem + 0.25rem + 1rem + 0.5rem): la barra de scroll del hilo
+                arranca a esa altura (P2-CHAT-SCROLLBAR-TWINS). */}
+            <div className="sidebar-header-padding" style={{ padding: '0.75rem 1rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <button
                     onClick={handleNewChat}
                     style={{
@@ -80,6 +84,7 @@ export const SidebarRecientes = ({
                 >
                     <Plus size={18} /> <span>{t('Nuevo chat')}</span>
                 </button>
+                <CuentaRegresivaChat />
             </div>
             
             <div className="sidebar-scrollable" style={{ flex: 1, overflowY: 'auto', padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>

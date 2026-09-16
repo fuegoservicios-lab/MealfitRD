@@ -32,7 +32,10 @@ import { safeJSONParse } from '../utils/safeJSONParse';
 // rationale (QuotaExceededError silente). Migración del setItem raw al
 // helper P2-AUDIT-3 que atrapa errores y devuelve boolean.
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
-import { resolverSesionDelDia, marcarActividad, sesionDelDiaAAdoptar, esSesionAutomatica } from '../utils/chatSessionDay';
+import {
+    resolverSesionDelDia, marcarActividad, sesionDelDiaAAdoptar, esSesionAutomatica,
+    abrirSesionAutomatica, debeRenovarse, diaDeActividad,
+} from '../utils/chatSessionDay';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat desde el módulo SSOT (mismas
 // que _clearUserScopedCaches borra en logout/user-switch). Los aliases `_CHAT_*`
 // viven a scope de MÓDULO (no de componente) a propósito: un const de componente
@@ -1180,7 +1183,9 @@ const AgentPage = () => {
         // filtra justo lo que cuenta: ni la pantalla de bienvenida (que se
         // descarta arriba) ni los chunks del streaming. Abrir el Agente y no
         // escribir nada NO reclama el día: mañana seguirás empezando fresco.
-        marcarActividad(currentSessionId);
+        // [P1-PLAN-LOTE-73] Con el día del último mensaje real, no con hoy: hidratar pasada la medianoche
+        // un chat de ayer no lo convierte en el de hoy (ver `diaDeActividad`).
+        marcarActividad(currentSessionId, diaDeActividad(messages, currentSessionId));
         try {
             const capped = messages.length > _CHAT_CACHE_MAX_MSGS
                 ? messages.slice(-_CHAT_CACHE_MAX_MSGS)
@@ -2019,6 +2024,53 @@ const AgentPage = () => {
             setIsLoadingMoreSessions(false);
         }
     }, [fetchChatSessions, chatSessions.length, isLoadingMoreSessions]);
+
+    // [P1-PLAN-LOTE-73 · 2026-09-16] El chat del día se renueva solo, también con la pestaña abierta. Al entrar ya
+    // lo hacía la regla del día; faltaba cuando el Agente se queda abierto de un día para otro. Nunca corta nada en
+    // curso ni pisa una elección: la sesión no se ha usado ni elegido hoy, su conversación es de ayer (último
+    // mensaje de hace 15 min o más), no hay turno ni borrador y, si lo dispara el reloj, no has tocado la página en
+    // 5 minutos (ver `debeRenovarse`). Se comprueba al volver a la pestaña y una vez por minuto. La sesión nueva es
+    // automática: si otro dispositivo ya abrió el chat de hoy, la adopción (P1-PLAN-LOTE-71) la cambia por ese.
+    const ultimaInteraccionRef = useRef(Date.now());
+    const renovarChatDelDia = useStableCallback((motivo) => {
+        if (isTurnActiveRef.current) return false;
+        const borrador = draftSnapshotRef.current;
+        if (borrador && ((borrador.text || '').trim() || (borrador.files || []).length > 0)) return false;
+        if (!debeRenovarse({ messages: messagesRef.current, sessionId: currentSessionIdRef.current })) return false;
+        if (motivo === 'reloj' && Date.now() - ultimaInteraccionRef.current < 5 * 60 * 1000) return false;
+        const nuevoId = abrirSesionAutomatica();
+        if (!session?.user?.id && !userProfile?.id) {
+            setGuestSessionIds((prev) => {
+                const lista = [nuevoId, ...prev].slice(0, 40);
+                safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(lista));
+                return lista;
+            });
+        }
+        adopcionDelDiaHechaRef.current = false;
+        // Sin el envoltorio `setCurrentSessionId`: marcaría actividad y la sesión dejaría de ser automática.
+        _setCurrentSessionId(nuevoId);
+        setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }]);
+        fetchChatSessions();
+        return true;
+    });
+    useEffect(() => {
+        const marcarInteraccion = () => { ultimaInteraccionRef.current = Date.now(); };
+        const alVolver = () => {
+            if (typeof document === 'undefined' || document.visibilityState === 'visible') renovarChatDelDia('vuelta');
+        };
+        const opciones = { capture: true, passive: true };
+        const eventos = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+        eventos.forEach((ev) => document.addEventListener(ev, marcarInteraccion, opciones));
+        document.addEventListener('visibilitychange', alVolver);
+        window.addEventListener('focus', alVolver);
+        const reloj = setInterval(() => renovarChatDelDia('reloj'), 60 * 1000);
+        return () => {
+            eventos.forEach((ev) => document.removeEventListener(ev, marcarInteraccion, opciones));
+            document.removeEventListener('visibilitychange', alVolver);
+            window.removeEventListener('focus', alVolver);
+            clearInterval(reloj);
+        };
+    }, [renovarChatDelDia]);
 
     // [P1-AGENT-WELCOME-STABLE · 2026-05-20 · refined: regenerar c/30min]
     // Helper que setea/refresca el welcome screen sin causar el bug
@@ -4755,7 +4807,8 @@ const AgentPage = () => {
                             // scroller empezaba detrás de la cabecera). Ahora, como ya hacía el móvil
                             // (P1-CHAT-HEADER-CLEARANCE), el viewport desplazable empieza DEBAJO de la cabecera.
                             // [P2-CHAT-SCROLLBAR-TWINS · 2026-09-04] 4.5rem de cabecera + 12px = 84px: el mismo alto
-                            // que el bloque «Nuevo chat» del panel de recientes (1.25rem + 2.75rem + 1.25rem), para que
+                            // que el bloque «Nuevo chat» del panel de recientes (0.75rem + 2.75rem + 0.25rem + 1rem + 0.5rem
+                            // desde P1-PLAN-LOTE-73, con la cuenta regresiva bajo el botón), para que
                             // las dos barras de scroll arranquen a la misma altura.
                             marginTop: 'calc(4.5rem + max(env(safe-area-inset-top), 12px))',
                             padding: messages.length === 0 ? '1.25rem 1.5rem 0 1.5rem' : '1.25rem 2rem 0.5rem 2rem',
@@ -5174,7 +5227,7 @@ const AgentPage = () => {
                     }
                     /* --- Sidebar top safe-area --- */
                     .sidebar-header-padding {
-                        padding-top: calc(1.25rem + max(env(safe-area-inset-top), 24px)) !important;
+                        padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
                     }
                     .agent-header-title {
                         font-size: 1.1rem !important;
