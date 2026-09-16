@@ -34,7 +34,7 @@ const estado = {
 };
 vi.mock('../context/AssessmentContext', () => ({ useAssessment: () => estado }));
 
-const servidor = { sesiones: [], historial: {} };
+const servidor = { sesiones: [], historial: {}, listaFalla: false };
 const pedidos = [];
 vi.mock('../config/api', async (importOriginal) => {
     const real = await importOriginal();
@@ -43,7 +43,10 @@ vi.mock('../config/api', async (importOriginal) => {
         ...real,
         fetchWithAuth: vi.fn(async (url) => {
             pedidos.push(url);
-            if (url.startsWith('/api/chat/sessions/')) return json({ sessions: servidor.sesiones, has_more: false });
+            if (url.startsWith('/api/chat/sessions/')) {
+                if (servidor.listaFalla) return { ok: false, status: 500, json: async () => ({}) };
+                return json({ sessions: servidor.sesiones, has_more: false });
+            }
             const m = /^\/api\/chat\/history\/([0-9a-f-]+)/.exec(url);
             if (m) return json({ messages: servidor.historial[m[1]] || [], turn_active: false });
             if (url === '/api/chat/quota') return json({ used: 2, limit: 60, remaining: 58 });
@@ -97,6 +100,8 @@ const asentar = async () => {
 };
 
 const pidioLaLista = () => pedidos.some((u) => u.startsWith('/api/chat/sessions/'));
+const historiales = () => pedidos.filter((u) => u.startsWith('/api/chat/history/'));
+const cargando = () => screen.queryByText('Cargando mensajes...');
 
 beforeAll(() => {
     // jsdom no trae estas APIs de layout; la página solo las usa para el scroll.
@@ -115,13 +120,19 @@ beforeEach(() => {
     pedidos.length = 0;
     servidor.sesiones = [CHAT_DE_HOY, CHAT_DE_AYER];
     servidor.historial = { [HOY_ID]: MENSAJES_DE_HOY };
+    servidor.listaFalla = false;
 });
 
 describe('[P1-PLAN-LOTE-71] tras volver a iniciar sesión, el Agente abre tu chat de hoy', () => {
     it('sin la clave local (el logout la borra), recupera del servidor el chat de hoy', async () => {
-        // Estado exacto tras `_clearUserScopedCaches`: sin `mealfit_current_session`.
+        // Estado exacto tras `_clearUserScopedCaches`: sin `mealfit_current_session` ni lista en caché.
         pintar();
+        // Un solo cambio en pantalla: «Cargando mensajes…» y luego la conversación, sin un saludo en medio.
+        expect(cargando()).toBeInTheDocument();
         expect(await screen.findByText('Respuesta de la mañana del coach', {}, { timeout: 3000 })).toBeInTheDocument();
+        // La sesión en blanco que abrió la regla no tiene historial: ni se pidió.
+        expect(historiales()).toEqual([`/api/chat/history/${HOY_ID}`]);
+        expect(cargando()).toBeNull();
         expect(screen.getByText('hola, esto lo escribí esta mañana')).toBeInTheDocument();
         expect(window.localStorage.getItem('mealfit_current_session')).toBe(HOY_ID);
         expect(window.localStorage.getItem('mealfit_current_session_day')).toBe(hoyLocal());
@@ -159,5 +170,49 @@ describe('[P1-PLAN-LOTE-71] tras volver a iniciar sesión, el Agente abre tu cha
         await asentar();
         expect(window.localStorage.getItem('mealfit_current_session')).not.toBe(HOY_ID);
         expect(pedidos).not.toContain(`/api/chat/history/${HOY_ID}`);
+    });
+});
+
+describe('[P1-PLAN-LOTE-71] la espera del chat de hoy nunca se queda colgada', () => {
+    it('sin chat de hoy, «Cargando mensajes…» da paso al saludo', async () => {
+        servidor.sesiones = [CHAT_DE_AYER];
+        pintar();
+        expect(cargando()).toBeInTheDocument();
+        await waitFor(() => expect(pidioLaLista()).toBe(true));
+        await asentar();
+        expect(cargando()).toBeNull();
+        expect(screen.queryByText('lo de ayer')).toBeNull();
+    });
+
+    it('si la lista falla, también', async () => {
+        servidor.listaFalla = true;
+        pintar();
+        await waitFor(() => expect(pidioLaLista()).toBe(true));
+        await asentar();
+        expect(cargando()).toBeNull();
+        expect(historiales()).toEqual([]);
+    });
+
+    it('en la visita normal del día (con la lista en caché) el saludo sale al instante', async () => {
+        // Primera visita de un día nuevo: hay caché de la barra lateral y la regla abre sesión nueva.
+        window.localStorage.setItem('mealfit_chat_sessions_cache_v2', JSON.stringify({
+            sessions: [CHAT_DE_AYER], cachedAt: Date.now(),
+        }));
+        servidor.sesiones = [CHAT_DE_AYER];
+        pintar();
+        expect(cargando()).toBeNull();
+        await waitFor(() => expect(pidioLaLista()).toBe(true));
+        await asentar();
+        expect(cargando()).toBeNull();
+    });
+
+    it('elegir «Nuevo chat» durante la espera la termina', async () => {
+        servidor.listaFalla = true;
+        pintar();
+        expect(cargando()).toBeInTheDocument();
+        await act(async () => {
+            screen.getAllByText('Nuevo chat')[0].closest('button').click();
+        });
+        expect(cargando()).toBeNull();
     });
 });

@@ -32,7 +32,7 @@ import { safeJSONParse } from '../utils/safeJSONParse';
 // rationale (QuotaExceededError silente). Migración del setItem raw al
 // helper P2-AUDIT-3 que atrapa errores y devuelve boolean.
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
-import { resolverSesionDelDia, marcarActividad, sesionDelDiaAAdoptar } from '../utils/chatSessionDay';
+import { resolverSesionDelDia, marcarActividad, sesionDelDiaAAdoptar, esSesionAutomatica } from '../utils/chatSessionDay';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat desde el módulo SSOT (mismas
 // que _clearUserScopedCaches borra en logout/user-switch). Los aliases `_CHAT_*`
 // viven a scope de MÓDULO (no de componente) a propósito: un const de componente
@@ -953,6 +953,12 @@ const AgentPage = () => {
         // Elegir una sesión a mano (crear una nueva, o abrir otra de
         // «Recientes») cuenta como actividad de HOY: es tu chat del día.
         marcarActividad(id);
+        // [P1-PLAN-LOTE-71] Elegir a mano durante la espera del chat de hoy la termina (la adopción ya la
+        // dio por cerrada antes de llamar aquí).
+        if (esperandoChatDelDiaRef.current) {
+            esperandoChatDelDiaRef.current = false;
+            setIsLoadingHistory(false);
+        }
         _setCurrentSessionId(id);
     };
     // [P5-SPEED-SESSION-REFETCH · 2026-06-01] Ref espejo de currentSessionId para que
@@ -1031,7 +1037,15 @@ const AgentPage = () => {
         } catch (_e) { /* ignore */ }
         return true;
     });
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    // [P1-PLAN-LOTE-71 · 2026-09-16] Sin nada local que enseñar —sesión abierta por la regla del día y ninguna
+    // lista en caché, que es justo lo que deja el logout— tu chat de hoy puede estar en el servidor. Hasta que
+    // llegue la lista se ve «Cargando mensajes…» y no un saludo que a los 300 ms se cambia por la conversación:
+    // dos cambios seguidos son el parpadeo doble que el dueño ya reportó. Lo resuelve `adoptarSesionDelDia`.
+    const [esperaInicialDelDia] = useState(() => (
+        Boolean(session?.user?.id) && chatSessions.length === 0 && esSesionAutomatica(currentSessionId)
+    ));
+    const esperandoChatDelDiaRef = useRef(esperaInicialDelDia);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(esperaInicialDelDia);
     const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 768 : true);
     const sidebarRef = useRef(null);
     const sidebarTriggerRef = useRef(null);
@@ -1901,17 +1915,30 @@ const AgentPage = () => {
     // pasa a la de hoy. La regla vive en `utils/chatSessionDay`; aquí solo se comprueba que no
     // haya nada del usuario en juego: turno en vuelo, mensajes o borrador.
     const adopcionDelDiaHechaRef = useRef(false);
+    // Fin de la espera inicial sin cambiar de sesión: se ve el saludo de siempre.
+    const terminarEsperaDelDia = useStableCallback(() => {
+        if (!esperandoChatDelDiaRef.current) return;
+        esperandoChatDelDiaRef.current = false;
+        setIsLoadingHistory(false);
+    });
     const adoptarSesionDelDia = useStableCallback((sesionesDelServidor) => {
         if (adopcionDelDiaHechaRef.current || !session?.user?.id) return;
         adopcionDelDiaHechaRef.current = true;
-        if (isTurnActiveRef.current) return;
-        if ((messagesRef.current || []).some((m) => !m?.isWelcome)) return;
-        const borrador = draftSnapshotRef.current;
-        if (borrador && ((borrador.text || '').trim() || (borrador.files || []).length > 0)) return;
-        const deHoy = sesionDelDiaAAdoptar({ sesiones: sesionesDelServidor, actual: currentSessionIdRef.current });
-        if (!deHoy) return;
+        const elegirDeHoy = () => {
+            if (isTurnActiveRef.current) return null;
+            if ((messagesRef.current || []).some((m) => !m?.isWelcome)) return null;
+            const borrador = draftSnapshotRef.current;
+            if (borrador && ((borrador.text || '').trim() || (borrador.files || []).length > 0)) return null;
+            return sesionDelDiaAAdoptar({ sesiones: sesionesDelServidor, actual: currentSessionIdRef.current });
+        };
+        const deHoy = elegirDeHoy();
+        if (!deHoy) {
+            terminarEsperaDelDia();
+            return;
+        }
         // «Cargando mensajes…» en lugar del saludo de un chat que ya no es el tuyo; lo cierra
         // `fetchSessionMessages` al llegar el historial.
+        esperandoChatDelDiaRef.current = false;
         setIsLoadingHistory(true);
         setCurrentSessionId(deHoy);
     });
@@ -1975,12 +2002,14 @@ const AgentPage = () => {
             _captureAgentPageException(error, { action: 'fetchSessions' });
         } finally {
             setIsLoadingSessions(false);
+            // [P1-PLAN-LOTE-71] Sin lista (error o respuesta no-ok) la espera no puede quedarse colgada.
+            terminarEsperaDelDia();
         }
         // [P5-SPEED-SESSION-REFETCH · 2026-06-01] currentSessionId removido de deps
         // (se lee por currentSessionIdRef.current arriba) → la identidad de este
         // callback ya no cambia al cambiar de sesión, evitando el re-GET de toda la
         // lista en el effect de mount y la recreación del interval del title-poll.
-    }, [session?.user?.id, userProfile?.id, localSessionId, adoptarSesionDelDia]);
+    }, [session?.user?.id, userProfile?.id, localSessionId, adoptarSesionDelDia, terminarEsperaDelDia]);
     const loadMoreSessions = useCallback(async () => {
         if (isLoadingMoreSessions) return;
         setIsLoadingMoreSessions(true);
@@ -2387,6 +2416,9 @@ const AgentPage = () => {
         // SIEMPRE esperar a que la sesión de el backend anterior esté hidratada antes de hacer peticiones autenticadas
         if (!session?.user?.id) return;
         if (!currentSessionId) return;
+        // [P1-PLAN-LOTE-71] La sesión que abrió la regla no tiene historial; mientras se espera la lista, su
+        // respuesta vacía solo cerraría «Cargando mensajes…» antes de tiempo.
+        if (esperandoChatDelDiaRef.current) return;
 
         fetchSessionMessages(currentSessionId);
     }, [currentSessionId, fetchSessionMessages, session?.user?.id]);

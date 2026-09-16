@@ -89,6 +89,11 @@ export const marcarActividad = (sessionId, hoy = hoyLocal()) => {
     safeLocalStorageRemove(SESSION_AUTO_KEY);
 };
 
+/** [P1-PLAN-LOTE-71] ¿La abrió la regla del día (y nadie la ha elegido ni usado)? */
+export const esSesionAutomatica = (sessionId) => (
+    pareceUuid(sessionId) && safeLocalStorageGet(SESSION_AUTO_KEY, null) === sessionId
+);
+
 /** Día local (YYYY-MM-DD) de una marca de tiempo del servidor, o null. */
 export const diaLocalDe = (marca) => {
     if (!marca) return null;
@@ -124,8 +129,7 @@ export const sesionDeHoyEnServidor = (sesiones, hoy = hoyLocal()) => {
  * elegida o usada) y solo si el servidor no la conoce con mensajes.
  */
 export const sesionDelDiaAAdoptar = ({ sesiones, actual, hoy = hoyLocal() } = {}) => {
-    if (!pareceUuid(actual)) return null;
-    if (safeLocalStorageGet(SESSION_AUTO_KEY, null) !== actual) return null;
+    if (!esSesionAutomatica(actual)) return null;
     const lista = Array.isArray(sesiones) ? sesiones : [];
     if (lista.some((s) => s && s.id === actual && s.title_key !== 'empty')) return null;
     const deHoy = sesionDeHoyEnServidor(lista, hoy);
