@@ -5,16 +5,23 @@
 // El mismo lenguaje que «¿Eliminar esta conversación?» (P2-CHAT-DELETE-CONFIRM):
 // icono en círculo, pregunta en negrita, explicación en gris, dos botones a lo
 // ancho — Cancelar fantasma, confirmar sólido (rojo si `danger`).
-import { useEffect, useState, useCallback } from 'react';
-import { AlertTriangle, HelpCircle } from 'lucide-react';
-import Modal from './Modal';
+import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
 import { subscribeConfirmHost } from '../../utils/confirmToast';
+
+// [P2-CI-ARRANQUE-CONFIRM · 2026-09-16] El host se monta en App.jsx y tiene que escuchar desde el
+// arranque; el diálogo no. Importado aquí de forma estática, `Modal` metía framer-motion en la carga
+// inicial de todas las rutas: 187,4 kB gz contra un techo de 148, y la CI roja en `check:presupuestos`
+// desde el 04-sep (tapada hasta el 15 por un error de ESLint). Así queda en 147,2. Se pide con la
+// primera confirmación y se queda montado, para que el cierre conserve su animación.
+const ConfirmDialog = lazy(() => import('./ConfirmDialog'));
 
 const ConfirmDialogHost = () => {
     const [req, setReq] = useState(null);
+    const [dialogoPedido, setDialogoPedido] = useState(false);
 
     useEffect(() => {
         const unsubscribe = subscribeConfirmHost((next) => {
+            setDialogoPedido(true);
             // una a la vez: la anterior, si quedaba abierta, se resuelve como cancelada
             setReq((prev) => {
                 if (prev && prev.id !== next.id) {
@@ -38,66 +45,11 @@ const ConfirmDialogHost = () => {
     const onCancel = useCallback(() => close(false), [close]);
     const onConfirm = useCallback(() => close(true), [close]);
 
-    const Icon = req?.danger ? AlertTriangle : HelpCircle;
-
+    if (!dialogoPedido) return null;
     return (
-        <Modal
-            isOpen={!!req}
-            onClose={onCancel}
-            titleId="bb-confirm-dialog-title"
-            maxWidth="420px"
-            isBottomSheetOnMobile={true}
-        >
-            {req && (
-                <div role="alertdialog" aria-labelledby="bb-confirm-dialog-title" aria-describedby={req.description ? 'bb-confirm-dialog-desc' : undefined}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.9rem', marginBottom: req.description ? '0.75rem' : '1.25rem' }}>
-                        <div style={{
-                            width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-                            display: 'grid', placeItems: 'center',
-                            background: req.danger ? 'var(--danger-bg)' : 'var(--bg-muted)',
-                            color: req.danger ? 'var(--danger)' : 'var(--primary)',
-                            border: `1px solid ${req.danger ? 'var(--danger-border)' : 'var(--border)'}`,
-                        }}>
-                            <Icon size={20} strokeWidth={2.2} aria-hidden="true" />
-                        </div>
-                        <h3 id="bb-confirm-dialog-title" style={{ margin: '0.45rem 2rem 0 0', fontSize: '1.08rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>
-                            {req.message}
-                        </h3>
-                    </div>
-                    {req.description && (
-                        <p id="bb-confirm-dialog-desc" style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>
-                            {req.description}
-                        </p>
-                    )}
-                    <div style={{ display: 'flex', gap: '0.6rem' }}>
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            style={{
-                                flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
-                                background: 'transparent', border: '1px solid var(--border)',
-                                color: 'var(--text-main)', fontWeight: 600, fontSize: '0.95rem', fontFamily: 'inherit',
-                            }}
-                        >
-                            {req.cancelLabel}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onConfirm}
-                            className={req.danger ? 'ui-btn-danger' : undefined}
-                            autoFocus
-                            style={{
-                                flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
-                                fontWeight: 700, fontSize: '0.95rem', fontFamily: 'inherit',
-                                ...(req.danger ? {} : { background: 'var(--primary-fill, #4F46E5)', color: '#fff', border: '1px solid transparent' }),
-                            }}
-                        >
-                            {req.confirmLabel}
-                        </button>
-                    </div>
-                </div>
-            )}
-        </Modal>
+        <Suspense fallback={null}>
+            <ConfirmDialog req={req} onCancel={onCancel} onConfirm={onConfirm} />
+        </Suspense>
     );
 };
 

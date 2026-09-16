@@ -54,6 +54,10 @@ const TECHOS = {
        (08-23). Son arranque a propósito —deciden idioma, plataforma y sesión antes de pintar—, no
        grasa: el techo viejo medía un producto sin app nativa ni idiomas. Margen corto otra vez
        (1,7 kB): el siguiente que quiera entrar tiene que escribir aquí qué se gana. */
+    /* [P2-CI-ARRANQUE-CONFIRM · 2026-09-16] Medido 187,4 desde el 04-sep: `ConfirmDialogHost`, montado en
+       App.jsx, importaba `Modal` y con él framer-motion entero (+40 kB gz) al arranque de TODAS las rutas.
+       La CI estuvo roja por esto desde ese día, tapada hasta el 15 por un error de ESLint que cortaba antes.
+       El diálogo pasa a cargarse con la primera confirmación: 147,2. El techo NO se tocó. */
     arranqueJS: 148,
     // Las hojas de estilo que bloquean el pintado. Medido: 10,2.
     arranqueCSS: 12,

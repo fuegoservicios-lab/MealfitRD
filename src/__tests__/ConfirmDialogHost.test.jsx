@@ -1,7 +1,7 @@
 // [P2-CONFIRM-DIALOG-PLACEMENT · 2026-09-04] Las confirmaciones de `confirmToast` dejan de ser
 // un toast arriba («parece una notificación y se ve poquito») y pasan a un diálogo real:
 // centrado en PC, hoja inferior en móvil. Misma API, misma Promise<boolean>.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -11,6 +11,13 @@ vi.mock('../i18n', () => ({ t: (s, v) => (v ? s.replace(/\{(\w+)\}/g, (_, k) => 
 const src = (p) => readFileSync(resolve(process.cwd(), p), 'utf8').split(String.fromCharCode(13)).join('');
 
 describe('ConfirmDialogHost', () => {
+    // [P2-CI-ARRANQUE-CONFIRM · 2026-09-16] El diálogo se carga perezoso (con framer-motion detrás). La
+    // primera transformación de ese grafo puede pasar del segundo de `findByRole` en una máquina cargada:
+    // se calienta una vez aquí para que los casos midan el diálogo y no la compilación.
+    beforeAll(async () => {
+        await import('../components/common/ConfirmDialog');
+    });
+
     beforeEach(() => {
         vi.resetModules();
     });
@@ -81,5 +88,15 @@ describe('ConfirmDialogHost', () => {
         expect(tp).toMatch(/confirmToast\([\s\S]{0,300}danger: true/);
         const settings = src('src/pages/Settings.jsx');
         expect(settings).toMatch(/olvidar esta información[\s\S]{0,200}danger: true/);
+    });
+});
+
+describe('[P2-CI-ARRANQUE-CONFIRM] el diálogo no viaja en la carga inicial', () => {
+    it('el host (montado en App.jsx) pide el diálogo con import() y no importa Modal', () => {
+        const host = src('src/components/common/ConfirmDialogHost.jsx');
+        expect(host).toContain("const ConfirmDialog = lazy(() => import('./ConfirmDialog'));");
+        expect(host).not.toMatch(/^import .*Modal/m);
+        expect(host).not.toMatch(/^import .*lucide-react/m);
+        expect(src('src/components/common/ConfirmDialog.jsx')).toContain("import Modal from './Modal';");
     });
 });
