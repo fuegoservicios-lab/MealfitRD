@@ -27,6 +27,24 @@
             "side";
         padding: 0.9rem;
     }
+
+    /* [P1-PLAN-LOTE-91 · 2026-09-17] DESCARTADA, la invitación deja de encabezar. Al pulsar «Ahora no» la
+       tarjeta colapsa a un enlace (`.turnOnLink`, 27px de texto tenue) que hasta ahora se quedaba en la
+       primera posición: desde el lote 88 las secciones van sin marco, así que ese enlace suelto a 24px del
+       título se leía como una línea DEL «Progreso en Tiempo Real» (reporte del dueño con captura: «se puso
+       raro lo del progreso en tiempo real»). Lo que el usuario descarta no puede encabezar su pantalla: la
+       puerta sigue ahí, al final, donde ya vive el resto del contexto.
+
+       Se reordenan las ÁREAS y no la fila del elemento: mover solo el bloque dejaría su fila vacía y, en
+       una rejilla con `gap`, una fila vacía sigue cobrando sus dos huecos. `:has()` mira hacia abajo desde
+       `.page`; donde no exista (navegador viejo) no casa la regla y el enlace se queda arriba, que es
+       exactamente la conducta previa. */
+    .page:has(.turnOnSlot > .turnOnLink) {
+        grid-template-areas:
+            "main"
+            "side"
+            "plan";
+    }
 }
 
 .mainCol,
@@ -40,6 +58,11 @@
 .mainCol { grid-area: main; }
 .sideCol { grid-area: side; }
 .turnOnSlot { grid-area: plan; min-width: 0; }
+
+/* [P1-PLAN-LOTE-91 · 2026-09-17] Con la hidratación apagada en Preferencias, `WaterTracker` devuelve null y
+   la columna queda VACÍA: una fila de 0px de alto, pero con su hueco de rejilla a cada lado. `display: none`
+   la saca del reparto y el hueco desaparece con ella. */
+.sideCol:empty { display: none; }
 
 .loading {
     display: flex;
@@ -172,6 +195,14 @@
     /* `:not(:empty)`: con la hidratación apagada en Preferencias el componente devuelve null y la línea
        quedaría colgando sobre nada. */
     .sideCol:not(:empty) {
+        border-top: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+        padding-top: 1.5rem;
+    }
+
+    /* [P1-PLAN-LOTE-91 · 2026-09-17] El enlace de la invitación descartada cierra la pantalla: misma línea
+       fina que separa las demás secciones, para que no parezca el pie de la hidratación. La tarjeta SIN
+       descartar no la lleva — ya se distingue sola por su marco. */
+    .turnOnSlot:has(> .turnOnLink) {
         border-top: 1px solid var(--border, rgba(148, 163, 184, 0.25));
         padding-top: 1.5rem;
     }
