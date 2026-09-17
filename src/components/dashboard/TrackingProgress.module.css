@@ -509,7 +509,7 @@
        ahí sí se pagaría en lectura, y el número consumido es lo que se mira de
        lejos. Recupera ~90px, que es justo una fila de comida. */
     .content {
-        gap: 1.15rem;
+        gap: 1.4rem;   /* [P1-PLAN-LOTE-87] aire */
     }
 
     /* [P1-MACRO-BARS-UNIFORM · 2026-08-11] Las cuatro barras son IGUALES y ocupan el
@@ -539,7 +539,7 @@
     .macroGrid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 0.9rem;
+        gap: 1.15rem;   /* [P1-PLAN-LOTE-87] aire */
     }
 
     .barHeader {
@@ -667,8 +667,12 @@
    dónde sale. */
 
 @media (max-width: 480px) {
+    /* [P1-PLAN-LOTE-87 · 2026-09-17] P1-MACRO-CARD-DENSITY apretó esta tarjeta para que la lista
+       de comidas cupiera sin scroll; el dueño la siente «muy encogida». Se afloja donde NO cuesta
+       legibilidad —relleno y huecos—, sin tocar letras ni alturas de barra (sus dos correcciones
+       de agosto siguen en pie). */
     .card {
-        padding: 1rem;
+        padding: 1.15rem;
     }
 
     .title {
@@ -676,19 +680,19 @@
     }
 
     .macroGrid {
-        gap: 0.75rem;
+        gap: 1rem;
     }
 
     /* [P1-MACRO-CARD-DENSITY · 2026-08-10] En 480px y menos el encabezado de la
        tarjeta y su separación se llevaban casi un tercio del alto útil antes de
        enseñar un solo número. */
     .header {
-        margin-bottom: 1rem;
-        padding-bottom: 0.75rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.9rem;
     }
 
     .content {
-        gap: 1rem;
+        gap: 1.3rem;
     }
 }
 

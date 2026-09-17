@@ -5,6 +5,12 @@
 .page {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
+    /* [P1-PLAN-LOTE-87 · 2026-09-17] Áreas con nombre: el contenido a la izquierda; a la derecha,
+       la hidratación y debajo la invitación a encender el plan. En el teléfono (abajo) la misma
+       invitación pasa a ser lo PRIMERO que se ve. */
+    grid-template-areas:
+        "main side"
+        "main plan";
     gap: 1.25rem;
     align-items: start;
     padding: 1.25rem;
@@ -15,6 +21,10 @@
 @media (max-width: 900px) {
     .page {
         grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "plan"
+            "main"
+            "side";
         padding: 0.9rem;
     }
 }
@@ -26,6 +36,10 @@
     gap: 1.1rem;
     min-width: 0;
 }
+
+.mainCol { grid-area: main; }
+.sideCol { grid-area: side; }
+.turnOnSlot { grid-area: plan; min-width: 0; }
 
 .loading {
     display: flex;

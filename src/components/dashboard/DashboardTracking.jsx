@@ -209,6 +209,13 @@ const DashboardTracking = () => {
                     Un número que nada toca confunde (pregunta del dueño con captura). El dashboard
                     de plan (`Dashboard.jsx`) lo sigue mostrando: vuelve al reanudar el plan. */}
                 <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />
+            </div>
+
+            {/* [P1-PLAN-LOTE-87 · 2026-09-17] La invitación a encender el plan es hija DIRECTA de la
+                rejilla: en el escritorio queda bajo la hidratación (área «plan»); en el teléfono va
+                la PRIMERA (el dueño: «debería estar arriba de primero»). El orden lo decide el CSS
+                por área, no un segundo render ni un `order` dentro de la columna lateral. */}
+            <div className={styles.turnOnSlot}>
                 <TurnOnPlanCard formData={formData} hayPlanPausado={!!planData} />
             </div>
         </div>
