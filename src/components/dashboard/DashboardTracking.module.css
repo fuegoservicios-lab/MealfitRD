@@ -223,4 +223,16 @@
     .turnOnBtn { padding: 0.5rem 0.9rem; }
 
     .turnOnGhost { padding: 0.5rem 0.4rem; }
+
+    /* [P1-PLAN-LOTE-94 · 2026-09-17] Sin tarjeta (lote 88), el texto del contador queda directamente sobre el
+       fondo decorativo del dashboard (`DashboardLayout .container::before`, la imagen de burbujas al 85 %). En
+       CLARO eso baja el subtítulo `#64748B` a ~4,1:1 cuando sobre la tarjeta blanca daba 4,9:1 — por debajo del
+       4,5:1 que pide AA para texto pequeño. Esta página se apoya en el color liso de página y las burbujas
+       quedan detrás; es el mismo criterio que `SETTINGS-MOBILE-WHITE-BG` ya aplicó en Configuración.
+
+       Acotado al tema CLARO a propósito: en oscuro el fondo es oscuro, el contraste sobra y el degradado
+       superior es parte de la identidad que el dueño eligió — ahí no se toca nada. */
+    :global(html:not([data-theme="dark"])) .page {
+        background: var(--bg-page, #F8FAFC);
+    }
 }
