@@ -44,7 +44,8 @@ describe('la invitación descartada no encabeza', () => {
     });
 
     it('el enlace cierra con la misma línea fina que separa las secciones; la tarjeta no la lleva', () => {
-        const plano = bloque(CSS(), '@media (max-width: 480px) {');
+        // [P1-PLAN-LOTE-92] el bloque del teléfono es el de 768, no el de 480
+        const plano = bloque(CSS(), '@media (max-width: 768px) {');
         expect(plano).toContain('.turnOnSlot:has(> .turnOnLink) { border-top: 1px solid var(--border,');
         expect(plano).toContain('padding-top: 1.5rem;');
         expect(plano).not.toContain('.turnOnCard { border-top');

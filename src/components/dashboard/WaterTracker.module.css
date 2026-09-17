@@ -226,7 +226,13 @@
    contador de seguimiento). El vaso, los vasitos y los atajos conservan su forma: lo que tiene marco, se toca.
    Media query de VIEWPORT y no @container: la regla es sobre el propio contenedor, y un contenedor no se
    consulta a sí mismo. */
-@media (max-width: 480px) {
+/* [P1-PLAN-LOTE-92 · 2026-09-17] Este bloque vivía en `max-width: 480px` y en el iPhone del dueño NO casaba: su
+   captura mostraba el contenido al 75 % del ancho —tarjeta con relleno y borde— con el JS y el CSS correctos ya
+   cargados (comprobado en el log del servidor). Un viewport CSS mayor de 480 en un teléfono es normal en cuanto
+   el usuario baja el zoom del sitio, y el resto del armazón ya decide «esto es un teléfono» en 768 (el relleno de
+   `mainContent`, el icono de 40px, el relleno de la tarjeta). Un diseño que se cae por 40 px de zoom no es el
+   diseño: es una coincidencia. */
+@media (max-width: 768px) {
   .card.flatMobile {
     overflow: visible;
     margin-bottom: 0;

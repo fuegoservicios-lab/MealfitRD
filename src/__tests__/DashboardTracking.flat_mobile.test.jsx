@@ -22,10 +22,12 @@ const sinComentarios = (css) => {
     }
 };
 
-// El bloque `@media (max-width: 480px)` que contiene el aplanado: el ÚLTIMO del fichero (el primero es el del lote 87).
+// El bloque del TELÉFONO que contiene el aplanado: el ÚLTIMO `@media (max-width: 768px)` del fichero.
+// [P1-PLAN-LOTE-92 · 2026-09-17] Era el de 480px y no casaba en el teléfono del dueño (con el zoom del sitio por
+// debajo del 100 %, su viewport CSS pasa de 480). El corte es ahora el mismo que usa el armazón para el teléfono.
 const bloquePlano = (rel) => {
     const css = sinComentarios(src(rel));
-    const i = css.lastIndexOf('@media (max-width: 480px) {');
+    const i = css.lastIndexOf('@media (max-width: 768px) {');
     expect(i).toBeGreaterThan(-1);
     // Nada del aplanado vive fuera de ese bloque: en tableta y escritorio las tarjetas siguen siendo tarjetas.
     expect(css.slice(0, i)).not.toContain('flatMobile');

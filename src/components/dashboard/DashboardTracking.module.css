@@ -186,7 +186,13 @@
    hidratación) van planas y a todo el ancho; se separan con aire y UNA línea fina. El canal lateral baja a 16px
    (13,6 del shell + 2,4 de aquí). La invitación al plan SIGUE siendo tarjeta —es un aviso que se descarta y debe
    distinguirse del contenido— pero más compacta: va la primera y no debe empujar los números. */
-@media (max-width: 480px) {
+/* [P1-PLAN-LOTE-92 · 2026-09-17] Este bloque vivía en `max-width: 480px` y en el iPhone del dueño NO casaba: su
+   captura mostraba el contenido al 75 % del ancho —tarjeta con relleno y borde— con el JS y el CSS correctos ya
+   cargados (comprobado en el log del servidor). Un viewport CSS mayor de 480 en un teléfono es normal en cuanto
+   el usuario baja el zoom del sitio, y el resto del armazón ya decide «esto es un teléfono» en 768 (el relleno de
+   `mainContent`, el icono de 40px, el relleno de la tarjeta). Un diseño que se cae por 40 px de zoom no es el
+   diseño: es una coincidencia. */
+@media (max-width: 768px) {
     .page {
         padding: 0.35rem 0.15rem 0.5rem;
         gap: 1.5rem;
