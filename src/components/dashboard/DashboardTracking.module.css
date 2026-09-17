@@ -158,3 +158,32 @@
 }
 
 .turnOnLink:hover { color: var(--primary, #4F46E5); }
+
+/* [P1-PLAN-LOTE-88 · 2026-09-17] El contador en el teléfono, sin «tarjeticas»: las secciones grandes (progreso,
+   hidratación) van planas y a todo el ancho; se separan con aire y UNA línea fina. El canal lateral baja a 16px
+   (13,6 del shell + 2,4 de aquí). La invitación al plan SIGUE siendo tarjeta —es un aviso que se descarta y debe
+   distinguirse del contenido— pero más compacta: va la primera y no debe empujar los números. */
+@media (max-width: 480px) {
+    .page {
+        padding: 0.35rem 0.15rem 0.5rem;
+        gap: 1.5rem;
+    }
+
+    /* `:not(:empty)`: con la hidratación apagada en Preferencias el componente devuelve null y la línea
+       quedaría colgando sobre nada. */
+    .sideCol:not(:empty) {
+        border-top: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+        padding-top: 1.5rem;
+    }
+
+    .turnOnCard {
+        padding: 0.8rem 0.95rem;
+        gap: 0.35rem;
+    }
+
+    .turnOnActions { margin-top: 0.15rem; }
+
+    .turnOnBtn { padding: 0.5rem 0.9rem; }
+
+    .turnOnGhost { padding: 0.5rem 0.4rem; }
+}

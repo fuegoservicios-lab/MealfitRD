@@ -72,7 +72,7 @@ const readWaterStateFromCache = (userId) => {
     }
 };
 
-const WaterTracker = ({ userId }) => {
+const WaterTracker = ({ userId, flatOnMobile = false }) => {
     const t = useT();
     const tn = useTn();
     const [enabled, setEnabled] = useState(readEnabledFromCache);
@@ -257,7 +257,7 @@ const WaterTracker = ({ userId }) => {
     if (!enabled) return null;
 
     return (
-        <section className={`${styles.card} ${complete ? styles.complete : ''}`} aria-label={t('Hidratación')}>
+        <section className={`${styles.card} ${complete ? styles.complete : ''} ${flatOnMobile ? styles.flatMobile : ''}`} aria-label={t('Hidratación')}>
             <div className={styles.inner}>
                 {/* Vaso animado */}
                 <div className={styles.vessel}>

@@ -221,3 +221,27 @@
   .pct { font-size: 1.9rem; }
   .stepper { margin-left: 0; }
 }
+
+/* [P1-PLAN-LOTE-88 · 2026-09-17] Sin «tarjetica» en el teléfono cuando el padre lo pide (`flatOnMobile`; hoy el
+   contador de seguimiento). El vaso, los vasitos y los atajos conservan su forma: lo que tiene marco, se toca.
+   Media query de VIEWPORT y no @container: la regla es sobre el propio contenedor, y un contenedor no se
+   consulta a sí mismo. */
+@media (max-width: 480px) {
+  .card.flatMobile {
+    overflow: visible;
+    margin-bottom: 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .card.flatMobile .inner { padding: 0; gap: 0; }
+
+  /* Una sección sin marco se presenta por su título: con tarjeta, el vaso podía ir primero porque el marco
+     ya decía «esto es una cosa»; sin él, tras la línea divisoria aparecía un vaso suelto y el nombre debajo.
+     `display: contents` sube la cabecera a la rejilla de `.inner` para poder ordenarla antes del vaso; los
+     huecos siguen saliendo de los márgenes de siempre (por eso `gap: 0` arriba). */
+  .card.flatMobile .body { display: contents; }
+  .card.flatMobile .head { order: -1; }
+  .card.flatMobile .vessel { margin-bottom: 18px; }
+}

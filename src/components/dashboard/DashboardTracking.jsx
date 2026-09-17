@@ -158,6 +158,10 @@ const DashboardTracking = () => {
 
     useEffect(() => { cargar(); }, [cargar]);
 
+    // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile` en las dos secciones grandes: en el teléfono van SIN
+    // marco de tarjeta y a todo el ancho (el dueño: «quitamos eso de las tarjeticas en móviles»). Sigue
+    // con marco lo que se toca o se descarta: la invitación al plan, las filas de comidas, los botones.
+    // El dashboard de plan comparte estas tarjetas y no pasa la prop: allí no cambia nada.
     return (
         <div className={styles.page}>
             <div className={styles.mainCol}>
@@ -197,7 +201,7 @@ const DashboardTracking = () => {
                     // (calories numérico + macros con 'g'): la tarjeta consume una
                     // sola forma venga del plan o de aquí. El diario del día y los
                     // botones de registrar ya viven dentro.
-                    <TrackingProgress planData={targets} userId={userProfile?.id} />
+                    <TrackingProgress planData={targets} userId={userProfile?.id} flatOnMobile />
                 )}
             </div>
 
@@ -208,7 +212,7 @@ const DashboardTracking = () => {
                     ninguna es alcanzable; el coach tiene su cuota aparte y escanear/anotar no cuentan.
                     Un número que nada toca confunde (pregunta del dueño con captura). El dashboard
                     de plan (`Dashboard.jsx`) lo sigue mostrando: vuelve al reanudar el plan. */}
-                <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />
+                <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} flatOnMobile />
             </div>
 
             {/* [P1-PLAN-LOTE-87 · 2026-09-17] La invitación a encender el plan es hija DIRECTA de la

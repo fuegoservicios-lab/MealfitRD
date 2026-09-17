@@ -818,3 +818,22 @@
 :global(html[data-theme="dark"]) .mealsShowMore {
     color: #A5B4FC;
 }
+
+/* [P1-PLAN-LOTE-88 · 2026-09-17] Sin «tarjetica» en el teléfono — SOLO donde el padre lo pide (`flatOnMobile`; hoy el
+   contador de seguimiento, el dashboard de plan no cambia). Medido a 392px: shell 13,6 + página 14,4 + borde 1 +
+   relleno 18,4 = 47,4px perdidos POR LADO; las barras usaban 297 de 392px. Sin marco usan 360.
+   Va al FINAL y con la regla oscura en el mismo selector: `html[data-theme="dark"] .card` (0,2,1) le ganaría el
+   fondo, el borde y la sombra a un `.card.flatMobile` (0,2,0) suelto. */
+@media (max-width: 480px) {
+    .card.flatMobile,
+    :global(html[data-theme="dark"]) .card.flatMobile {
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+        margin-bottom: 0;
+        /* sin esquinas que recortar; visible deja respirar la sombra del icono en el borde */
+        overflow: visible;
+    }
+}

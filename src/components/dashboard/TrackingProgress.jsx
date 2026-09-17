@@ -134,7 +134,7 @@ const _buildConsumedSnapshot = ({ meals, totals, cacheKey }) => {
     };
 };
 
-const TrackingProgress = ({ planData, userId }) => {
+const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
     const t = useT();
     const tn = useTn();
 
@@ -423,7 +423,9 @@ const TrackingProgress = ({ planData, userId }) => {
     const percFat = calcPerc(displayedConsumed.fats, goalFat);
 
     return (
-        <div className={styles.card}>
+        // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile`: en ≤480px la sección pierde el marco de tarjeta
+        // (borde, fondo, sombra y relleno) y usa el ancho entero. Lo pide el padre; hoy solo el contador.
+        <div className={flatOnMobile ? `${styles.card} ${styles.flatMobile}` : styles.card}>
             {/* Header Sector */}
             <div className={styles.header}>
                 <div className={styles.headerLeft}>
@@ -647,7 +649,8 @@ const TrackingProgress = ({ planData, userId }) => {
 
 TrackingProgress.propTypes = {
     planData: PropTypes.object.isRequired,
-    userId: PropTypes.string
+    userId: PropTypes.string,
+    flatOnMobile: PropTypes.bool
 };
 
 // --- Componente Interno para Barra Individual ---
