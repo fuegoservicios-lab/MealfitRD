@@ -51,6 +51,40 @@ export function clearStoredMfSession() {
     safeLocalStorageRemove(MF_SESSION_KEY);
 }
 
+// [P1-PLAN-LOTE-90 · 2026-09-17] El marcador que el backend emite JUNTO a la cookie de sesión
+// (`auth.SESSION_MARKER_COOKIE_NAME`): vale "1", no lleva secreto y no es HttpOnly, justo para que
+// se pueda leer aquí. Dice «en este navegador hay (o hubo) una sesión first-party: pregunta».
+//
+// POR QUÉ EXISTE. Incidente del 17-sep en el PWA de iOS del dueño: el código OTP se verificó dos
+// veces (200, sesión emitida, cookie puesta) y tras recargar la app volvió a /login en menos de un
+// segundo SIN llamar a /api/auth/me. `checkFirstPartySession` solo preguntaba si encontraba el token
+// en localStorage; ese día no estaba, y la cookie —válida— no sirvió de nada. El token en
+// localStorage se pensó como RESPALDO de la cookie (el PWA de iOS la pierde entre lanzamientos) y
+// había acabado siendo la ÚNICA puerta. El marcador viaja con la cookie, así que no depende de que
+// localStorage haya guardado nada, y el visitante anónimo (sin marcador) sigue sin generar un 401.
+const MF_SESSION_MARKER = '__Host-mf_has_session=1';
+
+export function hasSessionMarker() {
+    try {
+        if (typeof document === 'undefined' || typeof document.cookie !== 'string') return false;
+        return document.cookie.split(';').some((c) => c.trim() === MF_SESSION_MARKER);
+    } catch {
+        return false;
+    }
+}
+
+// Apagar el marcador DESDE AQUÍ (el servidor también lo borra en /logout y en el 401 de /me, pero un
+// cierre de sesión sin red no llega al servidor). Una cookie `__Host-` no-HttpOnly se puede expirar
+// desde JS con sus mismos atributos: Secure, Path=/ y sin Domain.
+export function clearSessionMarker() {
+    try {
+        if (typeof document === 'undefined') return;
+        document.cookie = '__Host-mf_has_session=; Max-Age=0; Path=/; Secure; SameSite=Strict';
+    } catch {
+        /* best-effort */
+    }
+}
+
 // Tras un login REAL de Neon (Bearer vivo): emite la cookie + guarda el token en
 // localStorage. fetchWithAuth adjunta el Bearer EdDSA que el backend exige.
 export async function mintFirstPartySession() {
@@ -77,7 +111,11 @@ export async function checkFirstPartySession() {
     // Evita el 401 rojo y ruidoso en consola (p.ej. al abrir la Política desde el
     // link del login sin sesión). Caso raro cookie-sin-localStorage: el usuario
     // simplemente vuelve a iniciar sesión (sin pérdida de datos).
-    if (!tok) return null;
+    // [P1-PLAN-LOTE-90 · 2026-09-17] Ese «caso raro» le pasó al dueño, y «vuelve a iniciar sesión» no
+    // lo arreglaba: cada login dejaba la cookie puesta y el token sin guardar, y cada arranque volvía a
+    // no preguntar. Ahora basta el MARCADOR que viaja con la cookie (ver `hasSessionMarker`). Sin token
+    // y sin marcador sigue sin haber llamada: el visitante anónimo no genera un 401.
+    if (!tok && !hasSessionMarker()) return null;
     try {
         const headers = {};
         if (tok) headers['X-MF-Session'] = tok;
@@ -87,8 +125,9 @@ export async function checkFirstPartySession() {
             headers,
         });
         if (!res || !res.ok) {
-            // 401 → token/cookie inválidos o expirados: limpiar el stale.
-            if (res && res.status === 401) clearStoredMfSession();
+            // 401 → token/cookie inválidos o expirados: limpiar el stale (y el marcador: si
+            // quedara puesto, cada arranque repetiría este 401).
+            if (res && res.status === 401) { clearStoredMfSession(); clearSessionMarker(); }
             return null;
         }
         const data = await res.json().catch(() => null);
@@ -233,6 +272,10 @@ export async function adoptOAuthVerifierFirstParty(verifier) {
 // Cierra la sesión first-party: borra el token local + la cookie del servidor.
 export async function logoutFirstPartySession() {
     clearStoredMfSession();
+    // [P1-PLAN-LOTE-90] El marcador cae AQUÍ y no solo en el servidor: si el POST de abajo no llega
+    // (sin red), la cookie de sesión sigue viva en el navegador y, con el marcador puesto, el
+    // siguiente arranque volvería a entrar solo. Cerrar sesión tiene que cerrar aunque no haya red.
+    clearSessionMarker();
     // [P1-FORM-KEY · 2026-06-21] Olvidar la llave estable del usuario que sale (per-user;
     // el próximo login setea la suya). Defensa: no dejar la llave de A en memoria para B.
     setFormCryptoSecret(null);
