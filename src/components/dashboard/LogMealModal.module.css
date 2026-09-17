@@ -585,14 +585,16 @@
 }
 
 /* [P1-PLAN-LOTE-85 · 2026-09-17] Las dos vías de registrar como selector de dos opciones
-   (sustituye al chip «Foto» de la cabecera): la tarjeta tiene un solo botón y aquí se elige. */
+   (sustituye al chip «Foto» de la cabecera): la tarjeta tiene un solo botón y aquí se elige.
+   Tokens del módulo (`--text-main`, `--text-muted`, `--border`, `--primary`) y regla propia en oscuro,
+   como el resto de controles de este panel. */
 .modes {
     display: flex;
     gap: 4px;
     padding: 4px;
     border-radius: 12px;
-    border: 1px solid var(--border-color, #E2E8F0);
-    background: var(--surface-2, #F1F5F9);
+    border: 1px solid var(--border, #E2E8F0);
+    background: #F1F5F9;
 }
 
 .mode {
@@ -606,7 +608,7 @@
     border-radius: 9px;
     border: 1px solid transparent;
     background: transparent;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-muted, #5B6A7D);
     font: inherit;
     font-size: 0.86rem;
     font-weight: 700;
@@ -615,13 +617,13 @@
 }
 
 .mode:hover {
-    color: var(--text-primary, #0F172A);
+    color: var(--text-main, #0F172A);
 }
 
 .modeActive {
-    background: var(--surface-1, #FFFFFF);
-    color: var(--text-primary, #0F172A);
-    border-color: var(--border-color, #E2E8F0);
+    background: #ffffff;
+    color: var(--primary, #4F46E5);
+    border-color: var(--border, #E2E8F0);
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
     cursor: default;
 }
@@ -629,6 +631,18 @@
 .mode:focus-visible {
     outline: 3px solid rgba(79, 70, 229, 0.5);
     outline-offset: 2px;
+}
+
+:global(html[data-theme="dark"]) .modes {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(148, 163, 184, 0.22);
+}
+
+:global(html[data-theme="dark"]) .modeActive {
+    background: #0F172A;
+    color: var(--text-main, #E2E8F0);
+    border-color: rgba(148, 163, 184, 0.25);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
 .customNote {
