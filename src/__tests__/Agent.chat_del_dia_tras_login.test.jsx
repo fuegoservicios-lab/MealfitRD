@@ -206,13 +206,15 @@ describe('[P1-PLAN-LOTE-71] la espera del chat de hoy nunca se queda colgada', (
         expect(cargando()).toBeNull();
     });
 
-    it('elegir «Nuevo chat» durante la espera la termina', async () => {
+    it('durante la espera el botón «Nuevo chat» está bloqueado (P1-PLAN-LOTE-76) y la espera termina sola', async () => {
         servidor.listaFalla = true;
         pintar();
         expect(cargando()).toBeInTheDocument();
-        await act(async () => {
-            screen.getAllByText('Nuevo chat')[0].closest('button').click();
-        });
-        expect(cargando()).toBeNull();
+        const boton = screen.getAllByText('Nuevo chat')[0].closest('button');
+        expect(boton).toBeDisabled();
+        const antes = window.localStorage.getItem('mealfit_current_session');
+        await act(async () => { boton.click(); });
+        await waitFor(() => expect(cargando()).toBeNull());   // la lista fallida termina la espera
+        expect(window.localStorage.getItem('mealfit_current_session')).toBe(antes);   // el clic no abrió nada
     });
 });

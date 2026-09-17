@@ -34,7 +34,7 @@ import { safeJSONParse } from '../utils/safeJSONParse';
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import {
     resolverSesionDelDia, marcarActividad, sesionDelDiaAAdoptar, esSesionAutomatica,
-    abrirSesionAutomatica, debeRenovarse, diaDeActividad,
+    abrirSesionAutomatica, debeRenovarse, diaDeActividad, nuevoChatBloqueado,
 } from '../utils/chatSessionDay';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat desde el módulo SSOT (mismas
 // que _clearUserScopedCaches borra en logout/user-switch). Los aliases `_CHAT_*`
@@ -2598,6 +2598,8 @@ const AgentPage = () => {
     }, [messages, isLoading, isLoadingHistory, currentSessionId]);
 
     const handleNewChat = () => {
+        // [P1-PLAN-LOTE-76 · 2026-09-17] bloqueo total mientras el chat abierto es el de hoy, por cualquier camino
+        if (nuevoChatBloqueado(currentSessionIdRef.current)) return;
         // [P1-CHAT-TURN-ACTIVE · 2026-08-10] Era el único camino sin guard: tocar
         // «Nuevo chat» a mitad de una respuesta dejaba el stream anterior vivo
         // escribiendo sobre el estado de la conversación NUEVA. Se corta el turno en

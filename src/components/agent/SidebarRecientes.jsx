@@ -2,6 +2,7 @@ import React from 'react';
 import { Plus, Loader2, Ghost, Trash2 } from 'lucide-react';
 import { formatDate, useT } from '../../i18n';
 import CuentaRegresivaChat from './CuentaRegresivaChat';
+import { nuevoChatBloqueado } from '../../utils/chatSessionDay';
 
 export const SidebarRecientes = ({
     showSidebar,
@@ -22,6 +23,8 @@ export const SidebarRecientes = ({
     onLoadMoreSessions = null,
 }) => {
     const t = useT();
+    // [P1-PLAN-LOTE-76 · 2026-09-17] bloqueo total mientras el chat abierto es el de hoy (se renueva solo)
+    const bloqueado = nuevoChatBloqueado(currentSessionId);
     return (
         <div
             ref={sidebarRef}
@@ -52,6 +55,9 @@ export const SidebarRecientes = ({
             <div className="sidebar-header-padding" style={{ padding: '0.75rem 1rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <button
                     onClick={handleNewChat}
+                    disabled={bloqueado}
+                    aria-disabled={bloqueado}
+                    title={bloqueado ? t('El chat se renueva solo cada día a medianoche, si no estás escribiendo.') : undefined}
                     style={{
                         // [SIDEBAR-NEWCHAT-CONTRAST · 2026-06-01] var(--primary) (en vez de
                         // #4F46E5 hardcodeado) → texto/ícono nítidos en oscuro (indigo-400);
@@ -68,12 +74,14 @@ export const SidebarRecientes = ({
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '0.5rem',
-                        cursor: 'pointer',
+                        cursor: bloqueado ? 'not-allowed' : 'pointer',
+                        opacity: bloqueado ? 0.55 : 1,
                         transition: 'all 0.2s',
                         fontSize: '1rem',
                         boxShadow: 'none'
                     }}
                     onMouseEnter={e => {
+                        if (bloqueado) return;
                         e.currentTarget.style.background = 'color-mix(in srgb, var(--primary) 20%, transparent)';
                         e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary) 45%, transparent)';
                     }}

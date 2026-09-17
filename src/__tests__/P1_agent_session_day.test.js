@@ -20,7 +20,7 @@ import {
     diaLocalDe, sesionDeHoyEnServidor, sesionDelDiaAAdoptar,
     abrirSesionAutomatica, msHastaMedianoche, partesCuentaRegresiva, textoCuentaRegresiva,
     ultimoMensajeReal, debeRenovarse, diaDeActividad,
-    SESSION_KEY, SESSION_DAY_KEY, SESSION_AUTO_KEY,
+    SESSION_KEY, SESSION_DAY_KEY, SESSION_AUTO_KEY, nuevoChatBloqueado,
 } from '../utils/chatSessionDay';
 
 const UUID_A = '11111111-2222-4333-8444-555555555555';
@@ -245,5 +245,16 @@ describe('[P1-PLAN-LOTE-73] renovación diaria y cuenta regresiva', () => {
     it('el día anotado no retrocede: elegir a mano un chat viejo lo hace el de hoy', () => {
         marcarActividad(UUID_B, '2026-09-17');
         expect(diaDeActividad([msg(new Date(2026, 8, 2, 12, 0))], UUID_B, '2026-09-17')).toBe('2026-09-17');
+    });
+});
+
+describe('[P1-PLAN-LOTE-76] nuevoChatBloqueado', () => {
+    it('bloqueado cuando el día anotado de la sesión abierta es hoy; libre si no', () => {
+        marcarActividad(UUID_A, '2026-09-16');
+        expect(nuevoChatBloqueado(UUID_A, '2026-09-16')).toBe(true);
+        expect(nuevoChatBloqueado(UUID_A, '2026-09-17')).toBe(false);     // día anotado viejo: salida de emergencia
+        expect(nuevoChatBloqueado(UUID_B, '2026-09-16')).toBe(false);     // otra sesión: sin día anotado
+        window.localStorage.clear();
+        expect(nuevoChatBloqueado(UUID_A, '2026-09-16')).toBe(false);
     });
 });

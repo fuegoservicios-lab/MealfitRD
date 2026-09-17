@@ -198,3 +198,27 @@ describe('[P1-PLAN-LOTE-73] la cuenta regresiva bajo «Nuevo chat»', () => {
         expect(boton.nextElementSibling?.textContent).toBe('Nuevo chat automático en 6 h 21 min');
     });
 });
+
+describe('[P1-PLAN-LOTE-76] «Nuevo chat» bloqueado mientras el chat abierto es el de hoy', () => {
+    it('el botón «Nuevo chat» está bloqueado mientras el chat abierto es el de hoy', async () => {
+        conversacionDeAyer();
+        vi.setSystemTime(local(17, 10, 0));
+        pintar();                                                   // la regla abre el chat de hoy
+        await screen.findByText('Cena', {}, { timeout: 3000 });
+        const boton = screen.getAllByText('Nuevo chat')[0].closest('button');
+        expect(boton).toBeDisabled();
+        expect(boton.getAttribute('title')).toBe('El chat se renueva solo cada día a medianoche, si no estás escribiendo.');
+        const antes = window.localStorage.getItem('mealfit_current_session');
+        await act(async () => { boton.click(); });
+        expect(window.localStorage.getItem('mealfit_current_session')).toBe(antes);
+    });
+
+    it('sigue bloqueado tras la renovación de medianoche (el chat nuevo también es el de hoy)', async () => {
+        conversacionDeAyer();
+        await abrirElChatDeAyerALas(local(16, 23, 45));
+        vi.setSystemTime(local(17, 0, 30));
+        await volverALaPestana();
+        await waitFor(() => expect(screen.queryByText(TEXTO_DE_AYER)).toBeNull());
+        expect(screen.getAllByText('Nuevo chat')[0].closest('button')).toBeDisabled();
+    });
+});

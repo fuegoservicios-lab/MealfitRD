@@ -187,6 +187,12 @@ export const ultimoMensajeReal = (messages) => {
 };
 
 /** Día anotado para `sessionId` si es la sesión guardada, o null. */
+// [P1-PLAN-LOTE-76 · 2026-09-17] «Nuevo chat» bloqueado mientras el chat abierto es el de HOY (día anotado =
+// hoy, sea automático o elegido a mano): decisión del dueño, «bloqueo total hasta medianoche». Solo se habilita
+// en el estado degenerado en que el día anotado no es hoy (renovación imposible, almacenamiento borrado): la
+// salida de emergencia para no quedarse sin chat.
+export const nuevoChatBloqueado = (sessionId, hoy = hoyLocal()) => diaAnotadoDe(sessionId) === hoy;
+
 export const diaAnotadoDe = (sessionId) => (
     pareceUuid(sessionId) && safeLocalStorageGet(SESSION_KEY, null) === sessionId
         ? safeLocalStorageGet(SESSION_DAY_KEY, null)
