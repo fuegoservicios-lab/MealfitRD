@@ -517,6 +517,23 @@
         padding: 1.5rem;
         padding-bottom: calc(1.5rem + 70px + env(safe-area-inset-bottom, 0px));
         flex: 1;
+        /* [P1-PLAN-LOTE-93 · 2026-09-17] `width: 100%` NO es redundante: sin él, el ancho de TODO el
+           dashboard en el teléfono lo decidía el texto más largo que hubiera en pantalla.
+
+           `.mainContent` lleva `max-width: 1200px; margin: 0 auto` (base) para centrar la columna en
+           escritorio, donde es un bloque normal y ocupa el ancho disponible. Aquí su padre pasa a
+           `display: flex; flex-direction: column`, y un ítem flex con márgenes AUTOMÁTICOS en el eje
+           transversal deja de estirarse: se dimensiona a su contenido (`fit-content`) y se centra.
+
+           Lo reportó el dueño con capturas y la pista exacta: «ese problema sucede cuando se le da a
+           Ahora no». Al descartar la invitación al plan desaparecía el texto más ancho de la pantalla
+           («Te faltan 19 preguntas del formulario y usa 1 crédito de tu mes.») y el dashboard entero
+           encogía de 360 px a 294 px de 392, centrado, con ~33 px muertos a cada lado. Medido montando
+           el armazón REAL en el arnés: con la tarjeta 360, sin ella 294, con esta línea 360 en ambos.
+
+           Afectaba a TODAS las páginas del dashboard, no solo al contador: cualquiera cuyo contenido
+           midiera menos que la pantalla se dibujaba estrecha y centrada. */
+        width: 100%;
     }
 
     /* En rutas sin BottomTabBar (Ajustes), elimina el padding-bottom reservado. */
