@@ -21,7 +21,6 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalS
 import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
-import CreditsMeter from './CreditsMeter';
 import styles from './DashboardTracking.module.css';
 
 // Cuántas preguntas del contrato de PLAN le faltan — un hecho, no un adjetivo.
@@ -142,8 +141,7 @@ const DashboardTracking = () => {
     const t = useT();
     // Créditos: mismas props que el call site de DashboardInner — el medidor no
     // deriva nada solo (con undefined pintaría 0/0 «agotado», una mentira roja).
-    const { userProfile, formData, planData, session, userPlanLimit, remainingCredits, planCount, isGuest } = useAssessment();
-    const isLimitReached = typeof userPlanLimit === 'number' && planCount >= userPlanLimit;
+    const { userProfile, formData, planData, session } = useAssessment();
     const navigate = useNavigate();
     // null = todavía no sé · {ok:false} = no puedo (y por qué) · {ok:true} = metas.
     const [targets, setTargets] = useState(null);
@@ -204,12 +202,12 @@ const DashboardTracking = () => {
             </div>
 
             <div className={styles.sideCol}>
-                <CreditsMeter
-                    remainingCredits={remainingCredits}
-                    userPlanLimit={userPlanLimit}
-                    isLimitReached={isLimitReached}
-                    isGuest={isGuest}
-                />
+                {/* [P1-PLAN-LOTE-86 · 2026-09-17] Sin medidor de créditos aquí: los créditos solo los
+                    consumen acciones del generador (generar/analizar plan, cambiar plato, regenerar
+                    día, expandir receta, arreglar sodio, reintentar bloques) y en modo seguimiento
+                    ninguna es alcanzable; el coach tiene su cuota aparte y escanear/anotar no cuentan.
+                    Un número que nada toca confunde (pregunta del dueño con captura). El dashboard
+                    de plan (`Dashboard.jsx`) lo sigue mostrando: vuelve al reanudar el plan. */}
                 <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />
                 <TurnOnPlanCard formData={formData} hayPlanPausado={!!planData} />
             </div>
