@@ -45,6 +45,7 @@ import { getAvatarId, subscribeAvatar } from '../../utils/avatarStore';
 // drawer) — global a todas las páginas del dashboard. Se auto-renderiza via
 // portal a <body>, así que basta montarlo una vez aquí.
 import NotificationCenter from './NotificationCenter';
+import NotificationSlot from './NotificationSlot';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
@@ -142,6 +143,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
 
     // Settings funciona como página standalone (sin sidebar global ni BottomTabBar).
     const isSettings = location.pathname.startsWith('/dashboard/settings');
+    // [P1-PLAN-LOTE-89 · 2026-09-17] El centro de notificaciones vive SOLO en «Hoy» (/dashboard), de donde
+    // salen sus avisos. Una sola condición para el centro Y para su hueco en la cabecera: si divergen, la
+    // campana atraca en una cabecera sin centro o el centro se queda sin dónde atracar.
+    const showNotifCenter = location.pathname.replace(/\/$/, '') === '/dashboard';
     // [P3-RECIPES-EDGE-MOBILE · 2026-06-24] Recetas va edge-to-edge en móvil
     // (sin el padding horizontal del mainContent) para máxima visibilidad —
     // conservando header y BottomTabBar (a diferencia de noPaddingMobile).
@@ -373,13 +378,20 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                     <div className={styles.mobileLogo}>
                         <Wordmark />
                     </div>
-                    <button
-                        className={styles.menuBtn}
-                        onClick={() => setIsMobileMoreMenuOpen(true)}
-                        aria-label={t('Abrir menú')}
-                    >
-                        <Menu size={22} />
-                    </button>
+                    {/* [P1-PLAN-LOTE-89 · 2026-09-17] La campana de notificaciones atraca aquí, a la
+                        izquierda del menú (antes: tirador en el borde derecho, encima de las tarjetas).
+                        `NotificationSlot` solo es el hueco; la campana la pinta NotificationCenter, y
+                        por eso el hueco se monta con SU misma condición (`showNotifCenter`). */}
+                    <div className={styles.mobileHeaderActions}>
+                        {showNotifCenter && <NotificationSlot />}
+                        <button
+                            className={styles.menuBtn}
+                            onClick={() => setIsMobileMoreMenuOpen(true)}
+                            aria-label={t('Abrir menú')}
+                        >
+                            <Menu size={22} />
+                        </button>
+                    </div>
                 </header>
                 )}
 
@@ -440,7 +452,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 preserva el estado/notificaciones del NotificationCenter.
                 [P3-NOTIF-HANDLE-RAISE · 2026-07-04] Ídem con el chat de ayuda
                 abierto: el panel vive abajo-derecha y el tirador le quedaba encima. */}
-            {location.pathname.replace(/\/$/, '') === '/dashboard' && (
+            {/* [P1-PLAN-LOTE-89 · 2026-09-17] En teléfono y tableta la campana ya no es un tirador:
+                atraca en la cabecera (hueco de arriba). Allí `hidden` no aplica —la tapa el velo del
+                menú—; sigue valiendo para el tirador de escritorio. */}
+            {showNotifCenter && (
                 <NotificationCenter hidden={isMobileMoreMenuOpen || isHelpChatOpen} />
             )}
 

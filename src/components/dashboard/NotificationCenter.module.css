@@ -912,3 +912,144 @@
     .handleAlert .handleBadge { animation: none; }
     .chevron { transition: none; }
 }
+
+/* ============================ CAMPANA ATRACADA ============================
+   [P1-PLAN-LOTE-89 · 2026-09-17] En teléfono y tableta la campana deja el borde derecho y atraca en
+   la cabecera, a la izquierda del menú (`NotificationSlot` + `utils/notifSlot.js`). El dueño, con
+   captura a 392px: «en vez de la derecha, ¿por qué no mejor arriba? un diseño único y abstracto,
+   llamativo y que no estorbe ni choque con nada».
+
+   La forma: un ORBE de vidrio con un anillo cónico teal→índigo (la misma «celda de energía» del
+   tirador y del centro). En reposo el anillo está quieto y tenue: no pide atención. Con algo sin
+   leer el anillo gira despacio y un satélite lo orbita — movimiento, no tamaño, es lo que llama.
+
+   No estorba por construcción: vive DENTRO de la cabecera (z-index 40), así que el velo del menú,
+   los modales y el cajón la tapan solos; ya no flota sobre las tarjetas ni hereda el parche de
+   `mealfit-hide-notif-mobile`. Mide 40px, lo mismo que el botón del menú: la cabecera no crece.
+
+   `.handle.handleDocked` (0,2,0) le gana a `.handle` en cualquier media query; el tema claro va
+   con su propio selector porque `html:not([data-theme="dark"]) .handle` pesa (0,2,1). */
+.handle.handleDocked {
+    position: relative;
+    top: auto;
+    right: auto;
+    transform: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: #c7d2fe;
+    background: radial-gradient(circle at 32% 26%, rgba(51, 65, 85, 0.96), rgba(15, 23, 42, 0.98) 72%);
+    box-shadow:
+        0 6px 16px -10px rgba(34, 211, 238, 0.65),
+        inset 0 1px 0 0 rgba(148, 163, 184, 0.14);
+    transition: box-shadow 0.32s ease, color 0.2s ease;
+}
+
+.handle.handleDocked:hover,
+.handle.handleDocked.handleOpen {
+    transform: none;
+    color: #e0e7ff;
+    box-shadow:
+        0 8px 20px -10px rgba(34, 211, 238, 0.85),
+        inset 0 1px 0 0 rgba(148, 163, 184, 0.2);
+}
+
+/* El anillo: cónico, con un tramo que se desvanece — leído en reposo es un arco, no un borde. */
+.handleDocked::before {
+    padding: 1.5px;
+    background: conic-gradient(
+        from 210deg,
+        rgba(34, 211, 238, 0.95),
+        rgba(129, 140, 248, 0.75) 32%,
+        rgba(129, 140, 248, 0) 58%,
+        rgba(34, 211, 238, 0.3) 86%,
+        rgba(34, 211, 238, 0.95)
+    );
+    opacity: 0.55;
+    transition: opacity 0.3s ease;
+}
+
+.handleDocked.handleAlert::before {
+    opacity: 1;
+    animation: notifRingSpin 9s linear infinite;
+}
+
+.handleDocked .handleGlow {
+    inset: 5px;
+    border-radius: 50%;
+    opacity: 0.3;
+}
+
+.handleDocked.handleAlert .handleGlow { opacity: 0.75; }
+
+.handleDocked .handleIcon {
+    transform: none;
+}
+
+/* El satélite: la órbita es un aro invisible algo mayor que el orbe; el punto va clavado arriba
+   y lo que gira es el aro. */
+.handleOrbit {
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.handleOrbit::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    margin-left: -2.5px;
+    border-radius: 50%;
+    background: #67e8f9;
+    box-shadow: 0 0 8px 1px rgba(34, 211, 238, 0.9);
+}
+
+.handleAlert .handleOrbit {
+    opacity: 1;
+    animation: notifOrbit 4.2s linear infinite;
+}
+
+.handleDocked .handleBadge {
+    top: -5px;
+    right: -6px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    font-size: 0.62rem;
+}
+
+@keyframes notifRingSpin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes notifOrbit {
+    to { transform: rotate(360deg); }
+}
+
+:global(html:not([data-theme="dark"])) .handle.handleDocked {
+    color: #0e7490;
+    background: radial-gradient(circle at 32% 26%, #ffffff, #eaf1fa 78%);
+    box-shadow:
+        0 6px 14px -10px rgba(14, 116, 144, 0.55),
+        0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+:global(html:not([data-theme="dark"])) .handle.handleDocked:hover {
+    color: var(--primary);
+}
+
+:global(html:not([data-theme="dark"])) .handleOrbit::after {
+    background: #0891b2;
+    box-shadow: 0 0 6px 1px rgba(8, 145, 178, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .handleDocked.handleAlert::before,
+    .handleAlert .handleOrbit { animation: none; }
+}

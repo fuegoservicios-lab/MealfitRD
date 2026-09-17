@@ -319,6 +319,13 @@
     z-index: 40;
 }
 
+/* [P1-PLAN-LOTE-89 · 2026-09-17] La campana atracada + el menú: un solo grupo a la derecha. */
+.mobileHeaderActions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
 .menuBtn {
     background: #F8FAFC;
     border: 1px solid #E2E8F0;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +20,8 @@ import {
 // [P3-NOTIF-CENTER · 2026-06-16] Mismo hook a11y SSOT que el resto de modales
 // custom (focus-trap + ESC + lock de scroll + restore-focus). SSR-safe.
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { subscribeNotifSlot, getNotifSlot } from '../../utils/notifSlot';
 import { useAssessment } from '../../context/AssessmentContext';
 import { requestAgentPrefill } from '../../utils/agentPrefill';
 // classify = SSOT del cálculo de las mini-barras (mismo que el panel de micros).
@@ -358,6 +360,15 @@ export default function NotificationCenter({ hidden = false }) {
     const count = items.length;
     const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
 
+    // [P1-PLAN-LOTE-89 · 2026-09-17] En teléfono y tableta la campana ATRACA en la cabecera (el hueco
+    // que registra `NotificationSlot`, junto al menú) en vez de colgar del borde derecho, donde chocaba
+    // con las tarjetas. 1024px = el mismo corte con el que las dos cabeceras móviles se hacen visibles
+    // (DashboardLayout.module.css y el `isMobile` de AgentPage): con el hueco montado pero oculto
+    // (escritorio) no hay dónde atracar y sigue el tirador de siempre.
+    const slot = useSyncExternalStore(subscribeNotifSlot, getNotifSlot, () => null);
+    const cabeceraVisible = useMediaQuery('(max-width: 1024px)');
+    const docked = !!slot && cabeceraVisible;
+
     // Borrado directo: removeNotification actualiza el store → el item sale del
     // array → AnimatePresence reproduce su exit. Sin timeouts que limpiar.
     const handleRemove = useCallback((id) => {
@@ -447,7 +458,7 @@ export default function NotificationCenter({ hidden = false }) {
     const trigger = (
         <button
             type="button"
-            className={`${styles.handle} ${open ? styles.handleOpen : ''} ${unreadCount > 0 ? styles.handleAlert : ''}`}
+            className={`${styles.handle} ${docked ? styles.handleDocked : ''} ${open ? styles.handleOpen : ''} ${unreadCount > 0 ? styles.handleAlert : ''}`}
             onClick={() => setOpen((v) => !v)}
             aria-label={unreadCount > 0
                 ? t('Notificaciones, {n} sin leer', { n: unreadCount })
@@ -455,7 +466,9 @@ export default function NotificationCenter({ hidden = false }) {
             aria-expanded={open}
         >
             <span className={styles.handleGlow} aria-hidden="true" />
-            <Bell size={19} strokeWidth={2.2} className={styles.handleIcon} />
+            {/* El satélite: un punto que orbita el anillo SOLO mientras hay algo sin leer. */}
+            {docked && <span className={styles.handleOrbit} aria-hidden="true" />}
+            <Bell size={docked ? 18 : 19} strokeWidth={2.2} className={styles.handleIcon} />
             {unreadCount > 0 && (
                 <span className={styles.handleBadge} aria-hidden="true">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -576,13 +589,15 @@ export default function NotificationCenter({ hidden = false }) {
     // (3 rayas) está abierto el padre pasa `hidden` y aquí NO pintamos el portal (chocaban
     // visualmente). El componente sigue montado → preserva estado/notificaciones; reaparece
     // al cerrar el menú.
-    if (hidden) return null;
+    // [P1-PLAN-LOTE-89] Atracada, la campana vive DENTRO de la cabecera (z-index 40): el velo del menú
+    // (200) y cualquier modal la tapan solos, así que ya no hace falta esconderla — y esconderla haría
+    // parpadear la cabecera justo al abrir el menú.
+    if (hidden && !docked) return null;
     if (typeof document === 'undefined') return null;
-    return createPortal(
+    return (
         <>
-            {trigger}
-            {drawer}
-        </>,
-        document.body,
+            {createPortal(trigger, docked ? slot : document.body)}
+            {createPortal(drawer, document.body)}
+        </>
     );
 }
