@@ -82,6 +82,8 @@ describe('foto desde el componedor', () => {
         const user = userEvent.setup();
         const onScan = vi.fn();
         const { unmount } = render(<LogMealModal onClose={() => {}} onScan={onScan} />);
+        // [P1-PLAN-LOTE-85] las dos vías, una al lado de la otra, dentro del componedor
+        expect(screen.getByRole('button', { name: 'Buscar o escribir' })).toHaveAttribute('aria-pressed', 'true');
         await user.click(screen.getByLabelText('Escanear con foto'));
         expect(onScan).toHaveBeenCalledTimes(1);
         unmount();
@@ -96,5 +98,16 @@ describe('foto desde el componedor', () => {
         const dash = src('src/pages/Dashboard.jsx');
         expect(dash).toContain("onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }}");
         expect(dash).toContain('{scanMealOpen && <ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)}');
+    });
+
+    it('[P1-PLAN-LOTE-85] la tarjeta tiene un solo botón y las dos vías viven dentro del componedor', () => {
+        const tp = src('src/components/dashboard/TrackingProgress.jsx');
+        expect(tp).not.toContain('scanBtnSecondary');
+        expect(tp).not.toContain("t('Escanear comida con la cámara')");
+        expect(tp).toContain("{t('Registrar comida')}");
+        const lm = src('src/components/dashboard/LogMealModal.jsx');
+        expect(lm).toContain('className={styles.modes}');
+        expect(lm).toContain("t('Buscar o escribir')");
+        expect(lm).not.toContain("t('Foto')");
     });
 });

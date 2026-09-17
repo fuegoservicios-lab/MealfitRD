@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Camera, Flag, Trash2, Loader2, Plus } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -454,10 +454,12 @@ const TrackingProgress = ({ planData, userId }) => {
                 </div>
                 
                 {isLoggedIn ? (
-                    // [P1-MANUAL-FOOD-LOG · 2026-08-11] Dos vías de registrar, lado a
-                    // lado: el componedor (buscar y anotar, la vía de los 15 segundos)
-                    // y el escáner de siempre. El manual va PRIMERO porque no depende
-                    // de tener el plato delante — el escáner sí.
+                    // [P1-MANUAL-FOOD-LOG · 2026-08-11] Dos vías de registrar: el componedor
+                    // (buscar y anotar, la vía de los 15 segundos) y el escáner de siempre.
+                    // [P1-PLAN-LOTE-85 · 2026-09-17] UN solo botón en la tarjeta; las dos vías
+                    // viven DENTRO del componedor como un selector de dos opciones (el dueño:
+                    // «desde afuera las dos opciones se ve un poco raro»). El escáner se abre
+                    // desde ahí (`handleLogToScan`).
                     <div className={styles.logButtons}>
                         <button
                             className={styles.scanBtn}
@@ -466,15 +468,6 @@ const TrackingProgress = ({ planData, userId }) => {
                         >
                             <Plus size={18} strokeWidth={2.5} />
                             {t('Registrar comida')}
-                        </button>
-                        <button
-                            className={`${styles.scanBtn} ${styles.scanBtnSecondary}`}
-                            onClick={() => setScanOpen(true)}
-                            type="button"
-                            aria-label={t('Escanear comida con la cámara')}
-                            title={t('Escanear comida')}
-                        >
-                            <Camera size={18} strokeWidth={2.5} />
                         </button>
                     </div>
                 ) : (

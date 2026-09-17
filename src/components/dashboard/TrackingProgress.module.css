@@ -204,10 +204,6 @@
     gap: 0.4rem;
 }
 
-.scanBtnSecondary {
-    padding: 0.5rem 0.6rem;
-}
-
 .scanBtn {
     display: inline-flex;
     align-items: center;

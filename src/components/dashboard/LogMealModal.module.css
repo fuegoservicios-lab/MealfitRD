@@ -584,29 +584,49 @@
     gap: 6px;
 }
 
-.scanBtn {
+/* [P1-PLAN-LOTE-85 · 2026-09-17] Las dos vías de registrar como selector de dos opciones
+   (sustituye al chip «Foto» de la cabecera): la tarjeta tiene un solo botón y aquí se elige. */
+.modes {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #E2E8F0);
+    background: var(--surface-2, #F1F5F9);
+}
+
+.mode {
+    flex: 1 1 0;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    height: 32px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid var(--border-color, #E2E8F0);
+    min-height: 38px;
+    padding: 0 10px;
+    border-radius: 9px;
+    border: 1px solid transparent;
     background: transparent;
-    color: var(--text-primary, #334155);
+    color: var(--text-secondary, #64748B);
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.86rem;
     font-weight: 700;
     cursor: pointer;
-    transition: box-shadow 0.15s ease, filter 0.15s ease;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.scanBtn:hover {
-    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.14);
-    filter: brightness(1.03);
+.mode:hover {
+    color: var(--text-primary, #0F172A);
 }
 
-.scanBtn:focus-visible {
+.modeActive {
+    background: var(--surface-1, #FFFFFF);
+    color: var(--text-primary, #0F172A);
+    border-color: var(--border-color, #E2E8F0);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
+    cursor: default;
+}
+
+.mode:focus-visible {
     outline: 3px solid rgba(79, 70, 229, 0.5);
     outline-offset: 2px;
 }

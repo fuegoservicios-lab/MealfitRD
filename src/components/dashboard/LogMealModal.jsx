@@ -246,17 +246,27 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
                 <div className={styles.head}>
                     <h2 className={styles.title}>{t('Registrar comida')}</h2>
                     <div className={styles.headActions}>
-                        {typeof onScan === 'function' && (
-                            <button type="button" className={styles.scanBtn} onClick={onScan} aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
-                                <Camera size={16} strokeWidth={2.25} aria-hidden="true" />
-                                <span>{t('Foto')}</span>
-                            </button>
-                        )}
                         <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>
                     </div>
                 </div>
+
+                {/* [P1-PLAN-LOTE-85 · 2026-09-17] Las dos vías de registrar, DENTRO del componedor: la
+                    tarjeta tiene un solo botón. «Buscar o escribir» es este mismo panel (activa);
+                    «Escanear con foto» se lo pide al padre (`onScan`), que cierra esto y abre el escáner. */}
+                {typeof onScan === 'function' && (
+                    <div className={styles.modes} role="group" aria-label={t('Cómo registrar')}>
+                        <button type="button" className={`${styles.mode} ${styles.modeActive}`} aria-pressed="true">
+                            <Search size={15} strokeWidth={2.25} aria-hidden="true" />
+                            <span>{t('Buscar o escribir')}</span>
+                        </button>
+                        <button type="button" className={styles.mode} onClick={onScan} aria-pressed="false" aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
+                            <Camera size={15} strokeWidth={2.25} aria-hidden="true" />
+                            <span>{t('Escanear con foto')}</span>
+                        </button>
+                    </div>
+                )}
 
                 <div className={styles.selectors}>
                     <select className={styles.select} value={mealType} onChange={(e) => setMealType(e.target.value)} aria-label={t('Tipo de comida')}>
