@@ -197,3 +197,30 @@ describe('deslizar hacia abajo cierra y el fondo no se mueve', () => {
         }
     });
 });
+
+// [P1-PLAN-LOTE-101] La causa de fondo del «baja un poquito»: el foco al abrir desplazaba el documento.
+describe('el foco del diálogo no desplaza el documento', () => {
+    it('el hook enfoca con preventScroll al abrir y al devolver el foco', () => {
+        const hook = src('src/hooks/useModalAccessibility.js');
+        expect(hook).toContain('containerRef.current.focus({ preventScroll: true });');
+        expect(hook).toContain('triggerRef.current.focus({ preventScroll: true });');
+        expect(hook).not.toContain('containerRef.current.focus();');
+        expect(hook).not.toContain('triggerRef.current.focus();');
+    });
+
+    it('abrir a scroll 0 y cerrar deja scroll 0 aunque el foco intente desplazar', async () => {
+        vi.useFakeTimers();
+        const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true, writable: true });
+        const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+        const { unmount } = render(<LogMealModal onClose={vi.fn()} />);
+        vi.advanceTimersByTime(20);
+        const llamadas = focus.mock.calls.filter((c) => c[0] && c[0].preventScroll === true);
+        expect(llamadas.length).toBeGreaterThan(0);
+        unmount();
+        expect(scrollTo.mock.calls.every((c) => c[1] === 0)).toBe(true);
+        focus.mockRestore();
+        scrollTo.mockRestore();
+        vi.useRealTimers();
+    });
+});

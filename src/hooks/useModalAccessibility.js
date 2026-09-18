@@ -97,9 +97,14 @@ export function useModalAccessibility({ isOpen, onClose, disableClose = false, i
 
         // Focus inicial al root del modal (screen readers anuncian).
         // Pequeño timeout para que el ref esté populado tras render.
+        // [P1-PLAN-LOTE-101 · 2026-09-18] `preventScroll`: al enfocar, el navegador «desplaza para mostrar» el
+        // elemento, y un modal `position: fixed` que ENTRA con animación (translateY desde abajo) está en ese
+        // instante parcialmente fuera del viewport → el DOCUMENTO de fondo se desplazaba ~20 px (el dueño, en el
+        // componedor: «si estoy lo más arriba, abro y cierro, y baja»). Un diálogo fijo no necesita que nadie
+        // scrollee para verlo; lo mismo al devolver el foco al disparador.
         const focusTimeout = setTimeout(() => {
             if (containerRef.current) {
-                containerRef.current.focus();
+                containerRef.current.focus({ preventScroll: true });
             }
         }, 10);
 
@@ -140,7 +145,7 @@ export function useModalAccessibility({ isOpen, onClose, disableClose = false, i
             // Restore focus al trigger original (preserva keyboard flow).
             if (triggerRef.current && typeof triggerRef.current.focus === 'function') {
                 try {
-                    triggerRef.current.focus();
+                    triggerRef.current.focus({ preventScroll: true });
                 } catch (_e) {
                     // Element puede haber sido removido del DOM — ignorar.
                 }

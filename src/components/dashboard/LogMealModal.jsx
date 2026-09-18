@@ -222,13 +222,21 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
             if (Math.abs(window.scrollY - scrollY0) > 1) window.scrollTo(0, scrollY0);
         };
         const vv = window.visualViewport;
-        if (!vv) return restaurarScroll;
+        if (!vv) {
+            return () => {
+                restaurarScroll();
+                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restaurarScroll);
+            };
+        }
         const alto0 = vv.height;
         const alCambiar = () => { if (vv.height >= alto0 - 1) restaurarScroll(); };
         vv.addEventListener('resize', alCambiar);
         return () => {
             vv.removeEventListener('resize', alCambiar);
             restaurarScroll();
+            // [P1-PLAN-LOTE-101] y un frame después: el desplazamiento que provoca devolver el foco puede
+            // llegar tras esta limpieza.
+            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restaurarScroll);
         };
     }, []);
 
