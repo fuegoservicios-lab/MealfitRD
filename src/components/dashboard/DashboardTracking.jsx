@@ -12,7 +12,7 @@
 // que una barra ausente: parece que funciona.
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Gauge, ArrowRight } from 'lucide-react';
+import { Loader2, Gauge } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -55,13 +55,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
     // puerta de vuelta dentro del dashboard: la nota de pausa de DashboardInner
     // quedó inalcanzable para usuarios en tracking.
     if (hayPlanPausado) {
-        if (dismissed) {
-            return (
-                <button type="button" className={styles.turnOnLink} onClick={reanudarPlanes}>
-                    {t('Tu plan está en pausa. Reanúdalo aquí')} <ArrowRight size={13} aria-hidden="true" />
-                </button>
-            );
-        }
+        if (dismissed) return null;
         return (
             <div className={styles.turnOnCard}>
                 <span className={styles.turnOnTitle}>{t('Tu plan está en pausa')}</span>
@@ -87,20 +81,13 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
         );
     }
 
-    // Las cinco reglas del «enciéndelo» (todas restricciones): un solo sitio, un
-    // hecho y un coste, sin animación, el descarte colapsa a enlace (no borra la
-    // puerta: sigue en el propio formulario), y el descarte PERSISTE.
-    if (dismissed) {
-        return (
-            <button
-                type="button"
-                className={styles.turnOnLink}
-                onClick={irAlPlan}
-            >
-                {t('¿Quieres el plan completo? Enciéndelo aquí')} <ArrowRight size={13} aria-hidden="true" />
-            </button>
-        );
-    }
+    // Las reglas del «enciéndelo» (todas restricciones): un solo sitio, un hecho y
+    // un coste, sin animación, y el descarte PERSISTE.
+    // [P1-PLAN-LOTE-98 · 2026-09-18] Descartada, no queda NADA en el contador (ni el
+    // enlace tenue del lote 91): la puerta de vuelta es el interruptor de
+    // Configuración → Capacidades, y el dueño la quiere solo ahí. Vale para las dos
+    // ofertas (encender y reanudar).
+    if (dismissed) return null;
 
     return (
         <div className={styles.turnOnCard}>
