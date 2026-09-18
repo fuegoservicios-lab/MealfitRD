@@ -121,7 +121,9 @@ describe('[P1-PLAN-LOTE-73] con la pestaña abierta de un día para otro', () =>
         const antes = listas();
         vi.setSystemTime(local(17, 0, 30));
         await volverALaPestana();
-        await waitFor(() => expect(screen.queryByText(TEXTO_DE_AYER)).toBeNull());
+        // [P1-PLAN-LOTE-102] 3 s como los findByText de arriba: con el 1 s por defecto este test tumbó TRES deploys
+        // bajo carga (lotes 92, 99 y 102) y pasaba 10/10 aislado — era el tiempo, no el chat.
+        await waitFor(() => expect(screen.queryByText(TEXTO_DE_AYER)).toBeNull(), { timeout: 3000 });
         const nueva = window.localStorage.getItem('mealfit_current_session');
         expect(nueva).not.toBe(AYER_ID);
         expect(window.localStorage.getItem('mealfit_current_session_auto')).toBe(nueva);
@@ -218,7 +220,9 @@ describe('[P1-PLAN-LOTE-76] «Nuevo chat» bloqueado mientras el chat abierto es
         await abrirElChatDeAyerALas(local(16, 23, 45));
         vi.setSystemTime(local(17, 0, 30));
         await volverALaPestana();
-        await waitFor(() => expect(screen.queryByText(TEXTO_DE_AYER)).toBeNull());
+        // [P1-PLAN-LOTE-102] 3 s como los findByText de arriba: con el 1 s por defecto este test tumbó TRES deploys
+        // bajo carga (lotes 92, 99 y 102) y pasaba 10/10 aislado — era el tiempo, no el chat.
+        await waitFor(() => expect(screen.queryByText(TEXTO_DE_AYER)).toBeNull(), { timeout: 3000 });
         expect(screen.getAllByText('Nuevo chat')[0].closest('button')).toBeDisabled();
     });
 });
