@@ -38,9 +38,9 @@ describe('[P1-AGENT-MENU-SSOT] el menú respeta el modo', () => {
         expect(etiquetas(menuItemsDelAgente(true))).not.toContain('Recetas');
     });
 
-    it('en modo contador «Plan» se llama «Hoy»', () => {
+    it('en modo contador «Plan» se llama «Progreso» (lote 102; antes «Hoy»)', () => {
         const inicio = menuItemsDelAgente(true).find((i) => i.path === '/dashboard');
-        expect(inicio?.label).toBe('Hoy');
+        expect(inicio?.label).toBe('Progreso');
     });
 
     it('con el plan activo conserva Recetas y el rótulo «Plan»', () => {
