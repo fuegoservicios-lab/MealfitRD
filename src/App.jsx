@@ -40,6 +40,9 @@ import useThemeColor from './components/common/useThemeColor';
 // haber nada pendiente que recuperar — pero su import estatico metia el modulo
 // entero en el chunk de entrada que descarga el visitante anonimo.
 const PendingPipelineRecovery = lazy(() => import('./components/PendingPipelineRecovery'));
+// [P1-PLAN-LOTE-97 · 2026-09-18] «¿Es la cuenta que querías?» tras un acceso con Google a una cuenta que el
+// dispositivo no conocía. Perezoso y fuera del apex por lo mismo que PendingPipelineRecovery: en el landing no hay sesión.
+const AvisoCuentaGoogle = lazy(() => import('./components/auth/AvisoCuentaGoogle'));
 // [SCROLL-RESTORE-REFRESH · 2026-06-19] Restaura la posición de scroll al
 // refrescar (el landing/otras páginas viven tras ProtectedRoute + lazy chunks, y
 // el restore nativo del browser falla porque el contenido aún no tiene altura).
@@ -507,6 +510,11 @@ function App() {
         {!IS_APEX_HOST && (
           <Suspense fallback={null}>
             <PendingPipelineRecovery />
+          </Suspense>
+        )}
+        {!IS_APEX_HOST && (
+          <Suspense fallback={null}>
+            <AvisoCuentaGoogle />
           </Suspense>
         )}
         {/* [P2-8 · 2026-07-09] Banner "Sin conexión" (bottom, no-bloqueante). */}

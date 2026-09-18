@@ -9,6 +9,7 @@ import { useAssessment } from '../context/AssessmentContext';
 // [P1-OTP-FIRST-PARTY · 2026-07-03] la verificación del código emite sesión first-party
 // vía nuestro backend (la cookie de Neon vía XHR era third-party → bloqueada en móvil).
 import { logoutFirstPartySession, verifyEmailOtpFirstParty } from '../utils/firstPartySession';
+import { marcarInicioGoogle } from '../utils/cuentasDelDispositivo';
 import { humanizeAuthError } from '../utils/authErrors';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import PlanShowcase from '../components/auth/PlanShowcase';
@@ -298,6 +299,9 @@ const Login = () => {
         // (carrera que obligaba a pulsar "Continuar con Google" una 2ª vez). sessionStorage
         // sobrevive el round-trip app→Google→app (mismo origen, misma pestaña).
         try { sessionStorage.setItem('mf_oauth_pending', '1'); } catch { /* noop */ }
+        // [P1-PLAN-LOTE-97 · 2026-09-18] Google no pregunta qué cuenta usar (lote 96): al volver, si trae una cuenta que
+        // este dispositivo no conocía mientras conocía otra, `AvisoCuentaGoogle` pregunta «¿Es la cuenta que querías?».
+        if (provider === 'google') marcarInicioGoogle();
         try {
             const { error: oauthError } = await authClient.auth.signInWithOAuth({
                 provider,

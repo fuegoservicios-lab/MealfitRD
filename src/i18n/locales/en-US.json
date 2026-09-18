@@ -3149,5 +3149,11 @@
   "Pediste {n} por comida; por ahora salen {m}, el tope de siempre. La ración pedida se honra cuando tu plan entre en la política en vigor.": "You asked for {n} per meal; for now you get {m}, the usual cap. The requested serving is honored once your plan enters the enforced policy.",
   "Esa respuesta cambió mientras tanto. Recarga la conversación para ver la versión actual.": "That reply changed in the meantime. Reload the conversation to see the current version.",
   "Recargar conversación": "Reload conversation",
-  "Respuesta incompleta": "Incomplete reply"
+  "Respuesta incompleta": "Incomplete reply",
+  "¿Es la cuenta que querías?": "Is this the account you wanted?",
+  "Cuenta nueva, creada por Google": "New account, created by Google",
+  "Primera vez en este teléfono": "First time on this phone",
+  "Antes entrabas con {anterior}. Google usa la cuenta que tenga abierta el teléfono, sin preguntar: para entrar con la de antes, sal y usa «Continuar con correo».": "Before, you signed in with {anterior}. Google uses whichever account is open on the phone, without asking: to sign in with the previous one, sign out and use “Continue with email”.",
+  "Sí, seguir con esta": "Yes, continue with this one",
+  "No, salir": "No, sign out"
 }

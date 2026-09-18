@@ -3149,5 +3149,11 @@
   "Pediste {n} por comida; por ahora salen {m}, el tope de siempre. La ración pedida se honra cuando tu plan entre en la política en vigor.": "Hai chiesto {n} per pasto; per ora ne escono {m}, il tetto di sempre. La porzione richiesta viene rispettata quando il tuo piano entra nella politica in vigore.",
   "Esa respuesta cambió mientras tanto. Recarga la conversación para ver la versión actual.": "Quella risposta è cambiata nel frattempo. Ricarica la conversazione per vedere la versione attuale.",
   "Recargar conversación": "Ricarica conversazione",
-  "Respuesta incompleta": "Risposta incompleta"
+  "Respuesta incompleta": "Risposta incompleta",
+  "¿Es la cuenta que querías?": "È l'account che volevi?",
+  "Cuenta nueva, creada por Google": "Account nuovo, creato da Google",
+  "Primera vez en este teléfono": "Prima volta su questo telefono",
+  "Antes entrabas con {anterior}. Google usa la cuenta que tenga abierta el teléfono, sin preguntar: para entrar con la de antes, sal y usa «Continuar con correo».": "Prima accedevi con {anterior}. Google usa l'account aperto sul telefono, senza chiedere: per accedere con quello di prima, esci e usa «Continua con l'email».",
+  "Sí, seguir con esta": "Sì, continua con questo",
+  "No, salir": "No, esci"
 }
