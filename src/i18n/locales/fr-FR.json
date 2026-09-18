@@ -2911,10 +2911,6 @@
   },
   "{n} bloques sin feedback. A partir de 3 consecutivos el plan se marca como \"degradado por engagement\".": "{n} blocs sans retour. À partir de 3 consécutifs, le plan est marqué comme \"dégradé par engagement\".",
   "{n} chunks no recuperables.": "{n} blocs non récupérables.",
-  "{n} comidas registradas hoy": {
-    "one": "{n} repas enregistré aujourd'hui",
-    "other": "{n} repas enregistrés aujourd'hui"
-  },
   "{n} créditos al mes": "{n} crédits par mois",
   "{n} disponibles hoy": {
     "one": "{n} disponible aujourd'hui",
@@ -3189,5 +3185,9 @@
     "other": "Avec les données de {n} repas sur {total}"
   },
   "Las comidas registradas por foto o con macros propias no traen micros.": "Les repas enregistrés par photo ou avec des macros saisis n'apportent pas de micros.",
-  "Sin metas todavía: completa sexo y edad en Configuración.": "Pas encore d'objectifs : renseignez le sexe et l'âge dans les Réglages."
+  "Sin metas todavía: completa sexo y edad en Configuración.": "Pas encore d'objectifs : renseignez le sexe et l'âge dans les Réglages.",
+  "{n} comidas registradas": {
+    "one": "{n} repas enregistré",
+    "other": "{n} repas enregistrés"
+  }
 }

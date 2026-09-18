@@ -102,7 +102,7 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByText('2 comidas registradas hoy')).toBeInTheDocument();
+            expect(screen.getByText('2 comidas registradas')).toBeInTheDocument();
         });
 
         expect(container).toHaveTextContent(/955\s*\/\s*2[\s.,]?100 kcal/);
@@ -147,7 +147,7 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
+            expect(screen.getByText('1 comida registrada')).toBeInTheDocument();
         });
 
         expect(container).toHaveTextContent(/955\s*\/\s*2[\s.,]?100 kcal/);
@@ -187,13 +187,13 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
+            expect(screen.getByText('1 comida registrada')).toBeInTheDocument();
         });
 
         // Nota: NO se agrega un `not.toHaveTextContent(/0\s*\/\s*2050 kcal/)` —
         // "750" termina en "0", así que ese regex coincidiría como substring de
         // "750/ 2050 kcal" (falso positivo de matcher, no del componente). La
-        // aserción positiva de arriba + `getByText('1 comida registrada hoy')`
+        // aserción positiva de arriba + `getByText('1 comida registrada')`
         // (exact single-node match) ya prueban que NO quedó en 0.
         expect(container).toHaveTextContent(/750\s*\/\s*2[\s.,]?050 kcal/);
     });
@@ -217,7 +217,7 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
             <TrackingProgress userId="user-2" planData={{ ..._PLAN_DATA, cycle_start_date: '2026-01-01T00:00:00.000Z' }} />
         );
         await waitFor(() => {
-            expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
+            expect(screen.getByText('1 comida registrada')).toBeInTheDocument();
         });
         // [P1-CACHE-ASSERT-RACE · 2026-08-09] Dentro de `waitFor`: la key la
         // escribe un `useEffect` de persistencia, y el `waitFor` de arriba solo
@@ -239,7 +239,7 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
             <TrackingProgress userId="user-2" planData={{ ..._PLAN_DATA, cycle_start_date: '2026-06-15T00:00:00.000Z' }} />
         );
         await waitFor(() => {
-            expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
+            expect(screen.getByText('1 comida registrada')).toBeInTheDocument();
         });
         // [P1-CACHE-ASSERT-RACE] Ídem que arriba — y aquí importa el doble,
         // porque es la aserción que da nombre al test.
@@ -277,7 +277,7 @@ describe('TrackingProgress cuenta el día, no el ciclo del plan', () => {
         render(<TrackingProgress userId="user-3" planData={_PLAN_DATA} />);
 
         await waitFor(() => {
-            expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
+            expect(screen.getByText('1 comida registrada')).toBeInTheDocument();
         });
 
         // [P1-CACHE-ASSERT-RACE] El sweep y la escritura de la key fresca son

@@ -186,7 +186,7 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en «Tus macros de ho
         expect(_EATEN_CLAIM).not.toContain('con los tres golpes');
         // el contador ya no vive aquí: ni su botón de borrar ni su subtítulo
         expect(screen.queryByRole('button', { name: /del diario$/ })).not.toBeInTheDocument();
-        expect(screen.queryByText(/comidas? registradas? hoy/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/comidas? registradas?$/)).not.toBeInTheDocument();
     });
 
     it('borrar en «Progreso» y volver: el dashboard se vuelve a montar, pide el diario y desbloquea', async () => {

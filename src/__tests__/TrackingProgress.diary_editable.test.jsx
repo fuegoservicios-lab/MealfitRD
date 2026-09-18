@@ -103,7 +103,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         // kcal por fila (no solo el total agregado del ProgressBar).
         expect(screen.getByText(/Almuerzo · 450 kcal/)).toBeInTheDocument();
         expect(screen.getByText(/Merienda · 200 kcal/)).toBeInTheDocument();
-        expect(screen.getByText('2 comidas registradas hoy')).toBeInTheDocument();
+        expect(screen.getByText('2 comidas registradas')).toBeInTheDocument();
     });
 
     it('pide confirmación y NO borra nada si el usuario cancela', async () => {
@@ -121,7 +121,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         // Solo el GET inicial se disparó — ningún DELETE.
         expect(fetchWithAuth).toHaveBeenCalledTimes(1);
         expect(screen.getByText('Pollo con arroz')).toBeInTheDocument();
-        expect(screen.getByText('2 comidas registradas hoy')).toBeInTheDocument();
+        expect(screen.getByText('2 comidas registradas')).toBeInTheDocument();
     });
 
     it('al confirmar, llama al DELETE con el id correcto y baja count + totales de inmediato', async () => {
@@ -151,7 +151,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         await waitFor(() => {
             expect(screen.queryByText('Pollo con arroz')).not.toBeInTheDocument();
         });
-        expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
+        expect(screen.getByText('1 comida registrada')).toBeInTheDocument();
         expect(container).toHaveTextContent(/200\s*\/\s*2[\s.,]?100 kcal/);
         expect(container).not.toHaveTextContent(/650\s*\/\s*2[\s.,]?100 kcal/);
         expect(toast.success).toHaveBeenCalledTimes(1);
@@ -196,7 +196,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         });
         // La fila y los totales quedan exactamente como antes del intento.
         expect(screen.getByText('Pollo con arroz')).toBeInTheDocument();
-        expect(screen.getByText('2 comidas registradas hoy')).toBeInTheDocument();
+        expect(screen.getByText('2 comidas registradas')).toBeInTheDocument();
         expect(container).toHaveTextContent(/650\s*\/\s*2[\s.,]?100 kcal/);
     });
 
@@ -206,7 +206,7 @@ describe('[P1-DIARY-EDITABLE] TrackingProgress — lista + delete de comidas', (
         render(<TrackingProgress userId="user-1" planData={_PLAN_DATA} />);
 
         await waitFor(() => {
-            expect(screen.getByText('0 comidas registradas hoy')).toBeInTheDocument();
+            expect(screen.getByText('0 comidas registradas')).toBeInTheDocument();
         });
         expect(screen.getByText(/Aún no registras comidas hoy/)).toBeInTheDocument();
     });

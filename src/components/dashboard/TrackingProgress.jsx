@@ -441,8 +441,9 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
                                 ? t('Cargando registros...')
                                 : tn(
                                     displayedConsumed.meals.length,
-                                    '{n} comida registrada hoy',
-                                    '{n} comidas registradas hoy',
+                                    // [P1-PLAN-LOTE-104] sin «hoy»: el título ya lo dice (el dueño: «no quiero que se repita»)
+                                    '{n} comida registrada',
+                                    '{n} comidas registradas',
                                     { n: displayedConsumed.meals.length }
                                 )}
                         </p>
