@@ -1,16 +1,18 @@
-// [P1-PLAN-LOTE-103 · 2026-09-18] «Micros de hoy» y la pestaña «Progreso» del modo plan.
+// [P1-PLAN-LOTE-103 · 2026-09-18 · reanclado P1-PLAN-LOTE-105] «Micros de hoy» y la pestaña «Progreso» del modo plan.
 //
-//  · el contador de micros pinta los OCHO del dueño, con la cobertura honesta («con datos de 1 de 2 comidas») y el
+//  · la lista de micros pinta los OCHO del dueño, con la cobertura honesta («con datos de 1 de 2 comidas») y el
 //    sodio como techo (se pasa → rojo);
 //  · sin metas no hay barra contra un cero inventado;
-//  · vuelve a pedir el día al registrar/borrar y las metas al cambiar el perfil;
+//  · [lote 105] ya no pide nada: la tarjeta fusionada (TrackingProgress) le pasa los micros del MISMO fetch del
+//    día; `resumirMicros` es la aritmética del servidor para el borrado optimista;
 //  · en modo plan, «Progreso» es pestaña propia y el dashboard del plan ya no monta el contador ni la hidratación;
 //    lo que sabe de hoy le llega por `useTodaysConsumedMeals` (adopta el evento del contador; si no, pide él).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act, renderHook } from '@testing-library/react';
+import { render, screen, act, renderHook } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import MicrosTracker from '../components/dashboard/MicrosTracker';
+import MicrosList from '../components/dashboard/MicrosList';
+import { resumirMicros } from '../components/dashboard/microsShared';
 import { useTodaysConsumedMeals } from '../hooks/useTodaysConsumedMeals';
 import { fetchWithAuth } from '../config/api';
 
@@ -34,19 +36,11 @@ const HOY = {
     },
 };
 
-const enrutar = ({ hoy = HOY, metas = METAS } = {}) => vi.fn(async (url) => {
-    if (String(url).startsWith('/api/nutrition/targets')) return respuesta({ ok: true, calories: 2000, macros: {}, micros: metas });
-    if (String(url).startsWith('/api/diary/consumed/')) return respuesta(hoy);
-    return respuesta({});
-});
-
-describe('MicrosTracker', () => {
+describe('MicrosList', () => {
     beforeEach(() => { fetchWithAuth.mockReset(); });
 
     it('pinta los ocho con sus metas, la cobertura honesta y el sodio como techo pasado', async () => {
-        fetchWithAuth.mockImplementation(enrutar());
-        render(<MicrosTracker userId="u1" />);
-        await screen.findByText('Con datos de 1 de 2 comidas');
+        render(<MicrosList micros={HOY.totals.micros} coverage={HOY.totals.micros_coverage} metas={METAS} />);
         for (const l of ['Fibra', 'Sodio', 'Potasio', 'Calcio', 'Hierro', 'Vitamina C', 'Vitamina A', 'Vitamina D']) {
             expect(screen.getByText(l)).toBeInTheDocument();
         }
@@ -61,26 +55,22 @@ describe('MicrosTracker', () => {
         expect(screen.getByText('Las comidas registradas por foto o con macros propias no traen micros.')).toBeInTheDocument();
     });
 
-    it('sin metas no hay barra ni meta inventada; sin comidas invita a registrar', async () => {
-        fetchWithAuth.mockImplementation(enrutar({ metas: {} }));
-        render(<MicrosTracker userId="u1" />);
+    it('sin metas no hay barra ni meta inventada', async () => {
+        render(<MicrosList micros={HOY.totals.micros} coverage={HOY.totals.micros_coverage} metas={{}} />);
         await screen.findByText('Sin metas todavía: completa sexo y edad en Configuración.');
         expect(screen.getByRole('progressbar', { name: 'Fibra' }).firstChild.style.width).toBe('0%');
         expect(screen.queryByText('/ 38 g')).toBeNull();
     });
 
-    it('vuelve a pedir el día al registrar o borrar y las metas al cambiar el perfil', async () => {
-        fetchWithAuth.mockImplementation(enrutar());
-        render(<MicrosTracker userId="u1" />);
-        await screen.findByText('Con datos de 1 de 2 comidas');
-        const antes = fetchWithAuth.mock.calls.length;
-        await act(async () => { window.dispatchEvent(new Event('mealfit:diary-changed')); });
-        await act(async () => { window.dispatchEvent(new Event('mealfit:refresh-inventory')); });
-        await act(async () => { window.dispatchEvent(new Event('mealfit:targets-changed')); });
-        await waitFor(() => expect(fetchWithAuth.mock.calls.length).toBe(antes + 3));
-        const urls = fetchWithAuth.mock.calls.slice(antes).map((c) => String(c[0]));
-        expect(urls.filter((u) => u.startsWith('/api/diary/consumed/'))).toHaveLength(2);
-        expect(urls.filter((u) => u.startsWith('/api/nutrition/targets'))).toHaveLength(1);
+    it('resumirMicros suma solo las comidas con datos y cuenta la cobertura como el servidor', () => {
+        const meals = [
+            { id: 'a', micros: { values: { fiber_g: 10, sodium_mg: 500 }, resolved: 2, total: 2 } },
+            { id: 'b', micros: null },
+            { id: 'c', micros: { values: { fiber_g: 5.5, sodium_mg: 100 }, resolved: 1, total: 1 } },
+        ];
+        expect(resumirMicros(meals)).toEqual({ micros: { fiber_g: 15.5, sodium_mg: 600 }, coverage: { con_datos: 2, total: 3 } });
+        expect(resumirMicros([{ id: 'x', micros: null }])).toEqual({ micros: null, coverage: { con_datos: 0, total: 1 } });
+        expect(resumirMicros(undefined)).toEqual({ micros: null, coverage: { con_datos: 0, total: 0 } });
     });
 });
 
@@ -109,14 +99,17 @@ describe('la división Plan / Progreso', () => {
         expect(dash).toContain("const todaysConsumedMeals = useTodaysConsumedMeals(session?.user?.id || userProfile?.id);");
         expect(src('src/pages/ProgressPage.jsx')).toContain('<DashboardTracking modo="plan" />');
         expect(src('src/App.jsx')).toContain('<Route path="/dashboard/progress" element={<ProgressPage />} />');
-        // al borrar en el contador, quien esté escuchando vuelve a pedir el día
-        expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("window.dispatchEvent(new Event('mealfit:diary-changed'))");
+        // al borrar en el contador, quien esté escuchando vuelve a pedir el día ([lote 105] con `source`, para que
+        // la propia tarjeta no reaccione a su borrado)
+        expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'tracking-progress' } }))");
     });
 
     it('en modo plan las metas de macros son las del plan y no hay invitación a encenderlo', () => {
         const s = src('src/components/dashboard/DashboardTracking.jsx');
         expect(s).toContain("const metasMacros = modo === 'plan' && planData?.calories ? { ok: true, ...planData } : targets;");
         expect(s).toContain("{modo === 'contador' && <TurnOnPlanCard formData={formData} hayPlanPausado={!!planData} />}");
-        expect(s).toContain('<MicrosTracker userId={userProfile?.id} flatOnMobile />');
+        // [lote 105] los micros van dentro de TrackingProgress; DashboardTracking solo pasa las metas
+        expect(s).toContain('microTargets={targets?.micros || null}');
+        expect(s).not.toContain('MicrosTracker');
     });
 });

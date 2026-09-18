@@ -183,12 +183,6 @@
         padding-top: 1.5rem;
     }
 
-    /* [P1-PLAN-LOTE-103] «Micros de hoy» se separa de las macros con la misma línea fina que la hidratación. */
-    .microsSlot {
-        border-top: 1px solid var(--border, rgba(148, 163, 184, 0.25));
-        padding-top: 1.5rem;
-    }
-
     .turnOnCard {
         padding: 0.8rem 0.95rem;
         gap: 0.35rem;

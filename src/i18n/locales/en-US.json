@@ -2231,7 +2231,6 @@
   "Sintetizadas: {n}": "Synthesized: {n}",
   "Sistema": "System",
   "Snack": "Snack",
-  "Snacks": "Snacks",
   "Sobre el límite": "Over the limit",
   "Solicitaste {min}-{max}; aplicamos {amin}-{amax}.": "You asked for {min}-{max}; we applied {amin}-{amax}.",
   "Solo contar lo que como": "Just count what I eat",
@@ -3166,10 +3165,9 @@
   "{n} en tu plato": "{n} on your plate",
   "Añade al menos un alimento para registrar.": "Add at least one food to log.",
   "Extra": "Extra",
-  "Tus macros de hoy": "Your macros today",
+  "Tus macros y micros de hoy": "Your macros and micros today",
   "Altura fuera de rango (100-250 cm).": "Height out of range (100-250 cm).",
   "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Saved. Your tracker targets already reflect the new data.",
-  "Micros de hoy": "Your micros today",
   "Fibra": "Fiber",
   "Sodio": "Sodium",
   "Potasio": "Potassium",
@@ -3179,7 +3177,6 @@
   "Vitamina A": "Vitamin A",
   "máx.": "max.",
   "Registra una comida y aquí verás sus micros.": "Log a meal and its micros will show up here.",
-  "Ninguna de tus comidas de hoy trae micros (foto o macros propias).": "None of today's meals carry micros (photo or custom macros).",
   "Con datos de {n} de {total} comidas": {
     "one": "With data from {n} of {total} meals",
     "other": "With data from {n} of {total} meals"
@@ -3189,5 +3186,15 @@
   "{n} comidas registradas": {
     "one": "{n} meal logged",
     "other": "{n} meals logged"
-  }
+  },
+  "Micros": "Micros",
+  "Ninguna de estas comidas trae micros (foto o macros propias).": "None of these meals carry micros (photo or custom macros).",
+  "Extras y snacks": "Extras and snacks",
+  "Ver 2 semanas más": "Show 2 more weeks",
+  "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {
+    "one": "Last 7 days: average of {kcal} kcal over {n} logged day",
+    "other": "Last 7 days: average of {kcal} kcal over {n} logged days"
+  },
+  "Registrar en este día": "Log on this day",
+  "Solo se puede registrar hasta 7 días atrás.": "You can only log up to 7 days back."
 }

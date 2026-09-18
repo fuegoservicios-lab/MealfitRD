@@ -844,3 +844,47 @@
         overflow: visible;
     }
 }
+
+/* [P1-PLAN-LOTE-105 · 2026-09-18] Los micros dentro de la tarjeta: sección con su cabecera pequeña (icono,
+   «Micros», cobertura honesta), separada de las macros por la misma línea fina que la lista de comidas. */
+.microsSection {
+    margin-top: 1.5rem;
+    padding-top: 1.35rem;
+    border-top: 1px solid var(--border, #F1F5F9);
+}
+
+.microsHead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.microsIcon {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: linear-gradient(150deg, #A78BFA, #6D28D9);
+    box-shadow: 0 4px 12px -5px rgba(109, 40, 217, .6);
+}
+
+.microsTitle {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    color: var(--text-main);
+}
+
+.microsSub {
+    margin: 1px 0 0;
+    font-size: .76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1.3;
+}

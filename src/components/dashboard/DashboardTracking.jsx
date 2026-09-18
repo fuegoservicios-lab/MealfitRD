@@ -22,7 +22,6 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalS
 import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
-import MicrosTracker from './MicrosTracker';
 import styles from './DashboardTracking.module.css';
 
 // Cuántas preguntas del contrato de PLAN le faltan — un hecho, no un adjetivo.
@@ -128,7 +127,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
 
 // [P1-PLAN-LOTE-103 · 2026-09-18] `modo`: «contador» (sin generador: las metas salen de /api/nutrition/targets y va
 // la invitación a encender el plan) o «plan» (la pestaña «Progreso» del modo plan: las metas son las del plan
-// vigente y no hay invitación). Las tres secciones —macros, micros, hidratación— son las mismas en los dos.
+// vigente y no hay invitación). Las secciones —macros y micros en una tarjeta, hidratación— son las mismas en los dos.
 const DashboardTracking = ({ modo = 'contador' }) => {
     const t = useT();
     // Créditos: mismas props que el call site de DashboardInner — el medidor no
@@ -204,13 +203,10 @@ const DashboardTracking = ({ modo = 'contador' }) => {
                     // (calories numérico + macros con 'g'): la tarjeta consume una
                     // sola forma venga del plan o de aquí. El diario del día y los
                     // botones de registrar ya viven dentro.
-                    <TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile />
+                    // [P1-PLAN-LOTE-105] los micros van DENTRO de la misma tarjeta (metas de /nutrition/targets en
+                    // los dos modos: en modo plan el plan trae las macros, no las metas DRI de los micros).
+                    <TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile microTargets={targets?.micros || null} />
                 )}
-
-                {/* [P1-PLAN-LOTE-103] «Micros de hoy», debajo de las macros; en el teléfono con su línea fina. */}
-                <div className={styles.microsSlot}>
-                    <MicrosTracker userId={userProfile?.id} flatOnMobile />
-                </div>
             </div>
 
             <div className={styles.sideCol}>

@@ -48,7 +48,7 @@ import {
 import { searchFoods, previewLine, unitsFor, defaultUnitFor, defaultQtyFor } from '../../utils/foodSearch';
 import { getMealTypes, getMealTypeExtra, clampMacro } from './mealLogShared';
 import MacroInput from '../common/MacroInput';
-import { useT, useTn } from '../../i18n';
+import { formatDate, useT, useTn } from '../../i18n';
 import styles from './LogMealModal.module.css';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
@@ -68,6 +68,18 @@ const _getDayOptions = (t) => [
     { value: 1, label: t('Ayer') },
     { value: 2, label: t('Antier') },
 ];
+
+// [P1-PLAN-LOTE-105] Desde el diario de días anteriores se abre el componedor YA en ese día. Si es más atrás
+// que «Antier» (hasta 7, el tope del backend), el día pedido se añade como chip con su fecha: el usuario ve en
+// qué día va a quedar y puede cambiarlo; sin el chip, el valor sería invisible y el grupo no marcaría ninguno.
+const _getDayOptionsCon = (t, daysAgo) => {
+    const base = _getDayOptions(t);
+    const n = Number(daysAgo) || 0;
+    if (n <= 2 || n > 7) return base;
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return [...base, { value: n, label: formatDate(d, { weekday: 'short', day: 'numeric' }) }];
+};
 
 // [P1-PLAN-LOTE-99] Un grupo de chips excluyentes. Botones con `aria-pressed` y no radios: el valor ya vive en
 // el estado del componedor y un botón se toca igual en el teléfono y con el teclado.
@@ -96,7 +108,7 @@ Chips.propTypes = {
 
 // [P1-EAT-PLAN-MEAL-TRUTH · v3] `initialMealType`: al llegar desde «Comí otra cosa» del plato del plan,
 // el componedor abre en el slot de ese plato (almuerzo), no en «Extra»: la sustitución es del almuerzo.
-const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
+const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0 }) => {
     const t = useT();
     const tn = useTn();
     const [foods, setFoods] = useState(() => getCachedMasterList() || []);
@@ -109,7 +121,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
         const known = getMealTypes(t).map((o) => o.value);
         return wanted && known.includes(wanted) ? wanted : getMealTypeExtra(t).value;
     });
-    const [daysAgo, setDaysAgo] = useState(0);
+    const [daysAgo, setDaysAgo] = useState(() => Math.max(0, Math.min(7, Number(initialDaysAgo) || 0)));
     const [mealName, setMealName] = useState('');
     const [deductPantry, setDeductPantry] = useState(false);
     const [frequent, setFrequent] = useState([]);
@@ -689,7 +701,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
 
                     <section className={styles.section} aria-labelledby="lm-cuando">
                         <h3 id="lm-cuando" className={styles.sectionTitle}>{t('¿Cuándo?')}</h3>
-                        <Chips label={t('Día')} options={_getDayOptions(t)} value={daysAgo} onChange={setDaysAgo} />
+                        <Chips label={t('Día')} options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo} />
                     </section>
                 </div>
 
@@ -720,6 +732,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
 LogMealModal.propTypes = {
     onScan: PropTypes.func,
     initialMealType: PropTypes.string,
+    // [P1-PLAN-LOTE-105] el día en que se abre (0 = hoy … 7): lo pasa el diario de días anteriores
+    initialDaysAgo: PropTypes.number,
     onClose: PropTypes.func.isRequired,
 };
 

@@ -290,7 +290,7 @@ describe('P1-EATEN-RECIPE-LOCK — bloqueo REAL (no solo visual) de PDF/checkbox
         });
         await waitFor(() => expect(screen.getAllByText('Ya registraste tu desayuno')).toHaveLength(2));
 
-        const _expectedFragment = 'Bórralo en «Tus macros de hoy» para desbloquear.';
+        const _expectedFragment = 'Bórralo en «Tus macros y micros de hoy» para desbloquear.';
 
         const pdfBtn = screen.getByText(/Descargar PDF/).closest('button');
         const pdfDescId = pdfBtn.getAttribute('aria-describedby');

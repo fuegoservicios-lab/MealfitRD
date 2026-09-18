@@ -1,4 +1,4 @@
-// [P1-DIARY-HISTORY · 2026-07-31 · rediseño P2-DIARY-SLOTS] El diario, día por día.
+// [P1-DIARY-HISTORY · 2026-07-31 · rediseño P2-DIARY-SLOTS · completado P1-PLAN-LOTE-105] El diario, día por día.
 //
 // POR QUÉ EXISTE
 // El coach registra hacia atrás (`days_ago`): "cené dos panes" dicho por la
@@ -23,16 +23,34 @@
 // UNA SOLA GRAMÁTICA: punteado = sin dato. Lo usa el riel de un día sin
 // registro en la tira y lo usa una franja vacía. Las dos mitades del cajón
 // dicen lo mismo de la misma forma.
+//
+// [P1-PLAN-LOTE-105 · 2026-09-18] LO QUE LE FALTABA PARA SER EL DIARIO ENTERO (auditoría a petición del dueño):
+//  · los MICROS del día (solo enseñaba macros): la misma lista que la tarjeta de hoy, con sus metas;
+//  · las comidas «extra» eran INVISIBLES: el componedor registra `meal_type='extra'` por defecto y el cajón solo
+//    dibujaba las cuatro franjas + `snack` — la comida contaba en el total y no salía en ninguna fila;
+//  · BORRAR desde cualquier día (solo hoy tenía papelera, en la tarjeta) — una cena mal anotada ayer no se podía
+//    quitar desde la app;
+//  · REGISTRAR en el día que miras (hasta 7 atrás, el tope del backend), con el mismo componedor;
+//  · ver MÁS de 14 días (hasta 90, el tope del endpoint) y la media de la semana;
+//  · se refresca solo cuando algo cambia mientras está abierto (registrar/borrar en la tarjeta o en el chat).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, ChevronRight } from 'lucide-react';
+import { X, CalendarDays, ChevronRight, Trash2, Loader2, Plus, FlaskConical } from 'lucide-react';
+import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
-import { formatDate, useT } from '../../i18n';
+import { confirmToast } from '../../utils/confirmToast';
+import { formatDate, formatNumber, useT, useTn } from '../../i18n';
+import MicrosList from './MicrosList';
+import { useMicrosSubtitulo } from './microsShared';
+import LogMealModal from './LogMealModal';
 import styles from './DiaryHistory.module.css';
 
 const DIAS_TIRA = 14;
+// Tope del endpoint (`/consumed-range` clampa a 90) y del retrodatado (`days_ago` ≤ 7 en el backend).
+const DIAS_MAX = 90;
+const DIAS_ATRAS_REGISTRO = 7;
 
 // [P1-I18N-DASHBOARD · 2026-08-15] Las tablas de copy son FUNCIONES: evaluadas
 // como constantes correrían al importar, antes de que el catálogo exista, y se
@@ -47,9 +65,11 @@ const getFranjas = (t) => [
     { key: 'merienda', label: t('Merienda'), color: '#F472B6' },
     { key: 'cena', label: t('Cena'), color: '#818CF8' },
 ];
-// `snack` no tiene fila propia: no es una franja del día sino algo suelto entre
-// medias. Se agrupa al final y solo aparece si existe.
-const getSnack = (t) => ({ key: 'snack', label: t('Snacks'), color: '#94A3B8' });
+// `snack` y `extra` (el default del componedor) no tienen fila propia: no son una franja del día sino algo
+// suelto entre medias. Se agrupan al final —junto con cualquier valor que no sea una franja— y solo aparecen si
+// existen. [P1-PLAN-LOTE-105] antes solo `snack`: lo registrado como «extra» no salía en ninguna fila.
+const OTROS = 'otros';
+const getOtros = (t) => ({ key: OTROS, label: t('Extras y snacks'), color: '#94A3B8' });
 
 const getMacros = (t) => [
     { key: 'protein', label: t('Proteína'), color: '#60A5FA', goal: 'protein' },
@@ -92,6 +112,9 @@ const desdeISO = (iso) => {
     return new Date(a, (m || 1) - 1, d || 1);
 };
 
+/** Cuántos días atrás queda `iso` respecto a hoy (local). */
+const diasAtras = (iso, hoyISO) => Math.round((desdeISO(hoyISO) - desdeISO(iso)) / 86400000);
+
 const aFecha = (raw) => {
     if (!raw) return null;
     const d = new Date(raw);
@@ -127,14 +150,21 @@ const horaFiable = (meal) => {
 // cosmética — «03:05» y «15:05» son horas distintas para quien espera AM/PM.
 const hhmm = (d) => formatDate(d, { timeStyle: 'short' });
 
-const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {} }) => {
+const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacros = {}, targetMicros = null }) => {
     const t = useT();
+    const tn = useTn();
+    const subtituloMicros = useMicrosSubtitulo();
     const hoyISO = useMemo(() => aISO(new Date()), []);
     const [selected, setSelected] = useState(hoyISO);
+    const [maxDias, setMaxDias] = useState(DIAS_TIRA);
     const [resumen, setResumen] = useState([]);
     const [dia, setDia] = useState(null);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
+    // [P1-PLAN-LOTE-105] sube cuando algo cambió (borrar aquí, registrar en el componedor, la tarjeta o el chat)
+    const [version, setVersion] = useState(0);
+    const [borrandoId, setBorrandoId] = useState(null);
+    const [registrando, setRegistrando] = useState(false);
     const cierreRef = useRef(null);
     const stripRef = useRef(null);
     const activoRef = useRef(null);
@@ -143,13 +173,13 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
 
     const dias = useMemo(() => {
         const out = [];
-        for (let i = DIAS_TIRA - 1; i >= 0; i -= 1) {
+        for (let i = maxDias - 1; i >= 0; i -= 1) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             out.push(aISO(d));
         }
         return out;
-    }, []);
+    }, [maxDias]);
 
     const porFecha = useMemo(() => {
         const m = new Map();
@@ -163,7 +193,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         (async () => {
             try {
                 const res = await fetchWithAuth(
-                    `/api/diary/consumed-range/${userId}?days=${DIAS_TIRA}&tzOffset=${tzOffset}`
+                    `/api/diary/consumed-range/${userId}?days=${maxDias}&tzOffset=${tzOffset}`
                 );
                 const data = await res.json();
                 if (vivo && Array.isArray(data?.days)) setResumen(data.days);
@@ -172,7 +202,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             }
         })();
         return () => { vivo = false; };
-    }, [open, userId, tzOffset]);
+    }, [open, userId, tzOffset, maxDias, version]);
 
     useEffect(() => {
         if (!open || !userId) return undefined;
@@ -197,7 +227,21 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             }
         })();
         return () => { vivo = false; };
-    }, [open, userId, selected, tzOffset, t]);
+    }, [open, userId, selected, tzOffset, t, version]);
+
+    // [P1-PLAN-LOTE-105] Mientras está abierto, lo que cambie el diario desde fuera (registrar desde el
+    // componedor —que dispara `mealfit:refresh-inventory`—, borrar en la tarjeta, el coach) se refleja aquí sin
+    // cerrar y volver a abrir. El borrado propio sube `version` a mano y lleva `source` para no reaccionar dos veces.
+    useEffect(() => {
+        if (!open) return undefined;
+        const refrescar = (e) => { if (e?.detail?.source !== 'diary-history') setVersion((v) => v + 1); };
+        window.addEventListener('mealfit:refresh-inventory', refrescar);
+        window.addEventListener('mealfit:diary-changed', refrescar);
+        return () => {
+            window.removeEventListener('mealfit:refresh-inventory', refrescar);
+            window.removeEventListener('mealfit:diary-changed', refrescar);
+        };
+    }, [open]);
 
     // [P1-DIARY-STRIP-SCROLL] Los 14 días no caben y la barra está oculta: sin
     // esto la tira abría por los días MÁS VIEJOS y hoy/ayer quedaban fuera de
@@ -206,7 +250,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         if (!open) return;
         const nodo = activoRef.current;
         const cinta = stripRef.current;
-        if (!nodo || !cinta) return;
+        if (!nodo || !cinta || typeof cinta.scrollTo !== 'function') return;
         const izq = nodo.offsetLeft - (cinta.clientWidth - nodo.offsetWidth) / 2;
         cinta.scrollTo({
             left: Math.max(0, izq),
@@ -226,33 +270,82 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     useEffect(() => {
         if (!open) return undefined;
         const onKey = (e) => {
+            // con el componedor abierto encima, las teclas son suyas (Escape lo cierra a él, no al cajón)
+            if (registrando) return;
             if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); moverDia(-1); }
             else if (e.key === 'ArrowRight') { e.preventDefault(); moverDia(1); }
         };
-        window.addEventListener('keydown', onKey);
-        cierreRef.current?.focus();
-        return () => window.removeEventListener('keydown', onKey);
-    }, [open, onClose, moverDia]);
+        // [P1-PLAN-LOTE-105] En CAPTURA a propósito. Con un Escape real, el hook del componedor (listener en
+        // `document`) lo cierra y React vuelve a pintar en el microtask que corre ENTRE listeners del mismo
+        // evento: este efecto se re-registraba con `registrando=false` y el mismo Escape llegaba a `window` y
+        // cerraba también el cajón (medido en el arnés; con un evento sintético no pasa porque no hay
+        // checkpoint de microtasks a mitad del dispatch). En captura este handler corre ANTES que nadie, con el
+        // estado de antes de la tecla.
+        window.addEventListener('keydown', onKey, true);
+        if (!registrando) cierreRef.current?.focus({ preventScroll: true });
+        return () => window.removeEventListener('keydown', onKey, true);
+    }, [open, onClose, moverDia, registrando]);
+
+    // [P1-PLAN-LOTE-105] Borrar desde cualquier día: el mismo DELETE (filtrado por user_id) que la papelera de la
+    // tarjeta de hoy. Tras borrar se vuelve a pedir el día y la tira, y se avisa a la tarjeta (si era hoy, sus
+    // barras cambian) y a quien más escuche.
+    const borrarComida = useCallback(async (meal) => {
+        if (!meal?.id || borrandoId) return;
+        const ok = await confirmToast(
+            t('¿Eliminar "{nombre}" del diario? Esta acción no se puede deshacer.', { nombre: meal.meal_name }),
+            { confirmLabel: t('Eliminar'), cancelLabel: t('Cancelar'), danger: true }
+        );
+        if (!ok) return;
+        setBorrandoId(meal.id);
+        try {
+            const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}`, { method: 'DELETE' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data?.success) throw new Error(data?.detail || data?.message || 'delete failed');
+            setVersion((v) => v + 1);
+            try {
+                window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'diary-history', date: selected } }));
+            } catch { /* best-effort */ }
+            toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
+        } catch (err) {
+            console.error('Error eliminando comida del diario:', err);
+            toast.error(t('No se pudo eliminar la comida. Intenta de nuevo.'));
+        } finally {
+            setBorrandoId(null);
+        }
+    }, [borrandoId, selected, t]);
+
+    const cerrarComponedor = useCallback(() => setRegistrando(false), []);
 
     const fecha = desdeISO(selected);
     const esHoy = selected === hoyISO;
-    const esAyer = useMemo(() => {
-        const a = new Date(); a.setDate(a.getDate() - 1);
-        return selected === aISO(a);
-    }, [selected]);
+    const atras = diasAtras(selected, hoyISO);
+    const esAyer = atras === 1;
+    const puedeRegistrar = atras >= 0 && atras <= DIAS_ATRAS_REGISTRO;
     const totales = dia?.totals || {};
+    const coberturaMicros = dia ? (totales.micros_coverage || { con_datos: 0, total: (dia.meals || []).length }) : null;
 
-    // Las comidas agrupadas por franja, en el orden del día.
+    // Las comidas agrupadas por franja, en el orden del día; lo que no es franja va a «otros».
     const porFranja = useMemo(() => {
         const m = new Map();
+        const franjas = new Set(getFranjas(t).map((f) => f.key));
         (dia?.meals || []).forEach((meal) => {
-            const k = (meal.meal_type || 'snack').toLowerCase();
+            const raw = String(meal.meal_type || '').toLowerCase();
+            const k = franjas.has(raw) ? raw : OTROS;
             if (!m.has(k)) m.set(k, []);
             m.get(k).push(meal);
         });
         return m;
-    }, [dia]);
+    }, [dia, t]);
+
+    // [P1-PLAN-LOTE-105] La semana en una línea: media de kcal en los días CON registro de los últimos 7.
+    const semana = useMemo(() => {
+        const ultimos = dias.slice(-7);
+        const con = ultimos.map((iso) => porFecha.get(iso)).filter((r) => (r?.meals_count || 0) > 0);
+        if (!con.length) return null;
+        const media = Math.round(con.reduce((s, r) => s + (Number(r.calories) || 0), 0) / con.length);
+        return { media, n: con.length };
+    }, [dias, porFecha]);
 
     const sinNada = !cargando && !error && (dia?.meals || []).length === 0;
 
@@ -261,22 +354,38 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const renderComida = (meal) => {
         const h = horaFiable(meal);
         const creado = aFecha(meal?.created_at);
+        const borrando = borrandoId === meal.id;
         return (
-            <div key={meal.id || meal.meal_name}>
-                <div className={styles.mealName}>{meal.meal_name || t('Sin nombre')}</div>
-                <div className={styles.mealMacros}>
-                    <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
-                    {' · '}P {num(meal.protein)} · C {num(meal.carbs)} · G {num(meal.healthy_fats)}
-                </div>
-                {/* La hora solo si es de fiar. Si se anotó otro día, se dice ESO
-                    — que es verdad y además útil — en vez de una hora inventada. */}
-                {!h && creado && (
-                    <div className={styles.loggedOn}>
-                        {t('Lo anotaste el {diaSemana} {dia}', {
-                            diaSemana: getDiasLargo(t)[creado.getDay()].toLowerCase(),
-                            dia: creado.getDate(),
-                        })}
+            <div key={meal.id || meal.meal_name} className={styles.meal}>
+                <div className={styles.mealBody}>
+                    <div className={styles.mealName}>{meal.meal_name || t('Sin nombre')}</div>
+                    <div className={styles.mealMacros}>
+                        <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
+                        {' · '}P {num(meal.protein)} · C {num(meal.carbs)} · G {num(meal.healthy_fats)}
                     </div>
+                    {/* La hora solo si es de fiar. Si se anotó otro día, se dice ESO
+                        — que es verdad y además útil — en vez de una hora inventada. */}
+                    {!h && creado && (
+                        <div className={styles.loggedOn}>
+                            {t('Lo anotaste el {diaSemana} {dia}', {
+                                diaSemana: getDiasLargo(t)[creado.getDay()].toLowerCase(),
+                                dia: creado.getDate(),
+                            })}
+                        </div>
+                    )}
+                </div>
+                {meal.id && (
+                    <button
+                        type="button"
+                        className={styles.mealDel}
+                        aria-label={t('Eliminar {nombre} del diario', { nombre: meal.meal_name })}
+                        onClick={() => borrarComida(meal)}
+                        disabled={borrando}
+                    >
+                        {borrando
+                            ? <Loader2 size={15} className="spin-animation" aria-hidden="true" />
+                            : <Trash2 size={15} strokeWidth={2.25} aria-hidden="true" />}
+                    </button>
                 )}
             </div>
         );
@@ -319,6 +428,18 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 </header>
 
                 <div ref={stripRef} className={styles.strip} role="tablist" aria-label={t('Elegir día')}>
+                    {/* [P1-PLAN-LOTE-105] la tira crece hacia atrás de dos en dos semanas, hasta el tope del endpoint */}
+                    {maxDias < DIAS_MAX && (
+                        <button
+                            type="button"
+                            className={styles.moreDays}
+                            onClick={() => setMaxDias((n) => Math.min(DIAS_MAX, n + DIAS_TIRA))}
+                            title={t('Ver 2 semanas más')}
+                            aria-label={t('Ver 2 semanas más')}
+                        >
+                            +14
+                        </button>
+                    )}
                     {dias.map((iso) => {
                         const d = desdeISO(iso);
                         const r = porFecha.get(iso);
@@ -354,6 +475,15 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         );
                     })}
                 </div>
+
+                {semana && (
+                    <div className={styles.weekLine}>
+                        {tn(semana.n,
+                            'Últimos 7 días: media de {kcal} kcal en {n} día con registro',
+                            'Últimos 7 días: media de {kcal} kcal en {n} días con registro',
+                            { kcal: formatNumber(semana.media), n: semana.n })}
+                    </div>
+                )}
 
                 <div className={styles.quota}>
                     <div className={styles.quotaTop}>
@@ -430,16 +560,16 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                         );
                     })}
 
-                    {!cargando && !error && (porFranja.get(getSnack(t).key) || []).length > 0 && (
-                        <div className={styles.slot} style={{ color: getSnack(t).color }}>
+                    {!cargando && !error && (porFranja.get(OTROS) || []).length > 0 && (
+                        <div className={styles.slot} style={{ color: getOtros(t).color }}>
                             <span className={styles.slotRule} />
                             <div>
                                 <div className={styles.slotHead}>
-                                    <span className={styles.slotLabel} style={{ color: getSnack(t).color }}>
-                                        {getSnack(t).label}
+                                    <span className={styles.slotLabel} style={{ color: getOtros(t).color }}>
+                                        {getOtros(t).label}
                                     </span>
                                 </div>
-                                {porFranja.get(getSnack(t).key).map((meal) => renderComida(meal))}
+                                {porFranja.get(OTROS).map((meal) => renderComida(meal))}
                             </div>
                         </div>
                     )}
@@ -451,8 +581,36 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                                 : t('Ese día quedó sin registrar. Puedes contárselo al coach aunque haya pasado — él lo anota en la fecha que corresponda.')}
                         </p>
                     )}
+
+                    {/* [P1-PLAN-LOTE-105] registrar EN el día que miras (hasta 7 atrás, el tope del backend) */}
+                    {!cargando && !error && (
+                        puedeRegistrar ? (
+                            <button type="button" className={styles.addBtn} onClick={() => setRegistrando(true)}>
+                                <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+                                {esHoy ? t('Registrar comida') : t('Registrar en este día')}
+                            </button>
+                        ) : (
+                            <p className={styles.addHint}>{t('Solo se puede registrar hasta 7 días atrás.')}</p>
+                        )
+                    )}
+
+                    {/* [P1-PLAN-LOTE-105] los micros del día: la misma lista que la tarjeta de hoy, compacta */}
+                    {!cargando && !error && dia && (
+                        <section className={styles.micros} aria-labelledby="diario-micros-titulo">
+                            <div className={styles.microsHead}>
+                                <FlaskConical size={14} strokeWidth={2.4} aria-hidden="true" />
+                                <span id="diario-micros-titulo" className={styles.microsTitle}>{t('Micros')}</span>
+                                <span className={styles.microsSub}>{subtituloMicros(coberturaMicros)}</span>
+                            </div>
+                            <MicrosList micros={totales.micros || null} coverage={coberturaMicros} metas={targetMicros} compact showNotes={false} />
+                        </section>
+                    )}
                 </div>
             </motion.aside>
+
+            {registrando && (
+                <LogMealModal onClose={cerrarComponedor} initialDaysAgo={atras} />
+            )}
         </>
     );
 
@@ -465,6 +623,7 @@ DiaryHistory.propTypes = {
     onClose: PropTypes.func,
     targetCalories: PropTypes.number,
     targetMacros: PropTypes.object,
+    targetMicros: PropTypes.object,
 };
 
 /** Botón que abre el cajón. Vive junto al componente para que añadirlo a una

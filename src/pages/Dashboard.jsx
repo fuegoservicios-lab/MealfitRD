@@ -52,7 +52,7 @@ function _formatoDiaCorto(iso) {
     if (!iso) return '';
     return formatDate(iso, { weekday: 'long', day: 'numeric', month: 'long' });
 }
-// [P1-PLAN-LOTE-103 · 2026-09-18] «Tus macros de hoy» e «Hidratación» viven en la pestaña «Progreso» (ProgressPage);
+// [P1-PLAN-LOTE-103 · 2026-09-18] «Tus macros y micros de hoy» e «Hidratación» viven en la pestaña «Progreso» (ProgressPage);
 // el diario de hoy que necesita «Tu Menú» lo trae `useTodaysConsumedMeals`.
 import { useTodaysConsumedMeals } from '../hooks/useTodaysConsumedMeals';
 // [P3-WATER-TRACKER · 2026-05-16] Tracker de hidratacion (8 vasos diarios)
@@ -8251,7 +8251,7 @@ const DashboardInner = () => {
                 </motion.div>
             )}
 
-            {/* [P1-PLAN-LOTE-103 · 2026-09-18] «Tus macros de hoy» (TrackingProgress) y la hidratación se mudaron a la
+            {/* [P1-PLAN-LOTE-103 · 2026-09-18] «Tus macros y micros de hoy» (TrackingProgress) y la hidratación se mudaron a la
                 pestaña «Progreso» (ProgressPage → DashboardTracking modo="plan"): el dueño quiso separar lo que es
                 progreso (macros, micros, agua) de lo que es plan. */}
 

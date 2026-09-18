@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -18,6 +18,10 @@ import { isDarkActive } from '../../utils/theme';
 import ScanMealModal from './ScanMealModal';
 // [P1-MANUAL-FOOD-LOG · 2026-08-11] El componedor manual: registrar sin foto.
 import LogMealModal from './LogMealModal';
+// [P1-PLAN-LOTE-105 · 2026-09-18] Los micros viven en ESTA tarjeta (antes «Micros de hoy» aparte): un solo fetch
+// del día alimenta macros y micros, y el diario de días anteriores pinta la misma lista.
+import MicrosList from './MicrosList';
+import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import styles from './TrackingProgress.module.css';
 
@@ -40,7 +44,7 @@ import styles from './TrackingProgress.module.css';
 //
 // Tooltip-anchor: P1-TRACKING-CACHE-CONSUMED.
 const _CONSUMED_CACHE_KEY_PREFIX = 'mealfit_tracking_consumed_';
-const _CONSUMED_DEFAULT = { calories: 0, protein: 0, carbs: 0, fats: 0, meals: [] };
+const _CONSUMED_DEFAULT = { calories: 0, protein: 0, carbs: 0, fats: 0, meals: [], micros: null, microsCoverage: null };
 
 // [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas hoy dentro de
 // la card. Antes esta card solo exponía `consumed.meals.length` (el conteo);
@@ -110,6 +114,9 @@ const _macroNumber = (value) => {
 // hoy → "0 comidas registradas hoy" con la fila viva en la DB, inalcanzable
 // desde el botón de borrar de P1-DIARY-EDITABLE porque éste solo puede
 // apuntar a filas que la card renderiza).
+// [P1-PLAN-LOTE-105] Los micros van en el MISMO snapshot que las macros: cada comida trae `micros` (o null) y
+// el total se recalcula aquí (`resumirMicros`, la aritmética de `diary_micros.resumen_micros`), así el borrado
+// optimista deja macros y micros coherentes sin esperar al servidor.
 const _buildConsumedSnapshot = ({ meals, totals, cacheKey }) => {
     if (!Array.isArray(meals)) {
         return {
@@ -118,25 +125,31 @@ const _buildConsumedSnapshot = ({ meals, totals, cacheKey }) => {
             carbs: _macroNumber(totals?.carbs),
             fats: _macroNumber(totals?.healthy_fats ?? totals?.fats),
             meals: [],
+            micros: totals?.micros || null,
+            microsCoverage: totals?.micros_coverage || { con_datos: 0, total: 0 },
             _fetched: true,
             _cacheKey: cacheKey,
         };
     }
 
+    const { micros, coverage } = resumirMicros(meals);
     return {
         calories: Math.round(meals.reduce((sum, meal) => sum + _macroNumber(meal?.calories), 0)),
         protein: Math.round(meals.reduce((sum, meal) => sum + _macroNumber(meal?.protein), 0)),
         carbs: Math.round(meals.reduce((sum, meal) => sum + _macroNumber(meal?.carbs), 0)),
         fats: Math.round(meals.reduce((sum, meal) => sum + _macroNumber(meal?.healthy_fats ?? meal?.fats), 0)),
         meals,
+        micros,
+        microsCoverage: coverage,
         _fetched: true,
         _cacheKey: cacheKey,
     };
 };
 
-const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
+const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets = null }) => {
     const t = useT();
     const tn = useTn();
+    const subtituloMicros = useMicrosSubtitulo();
 
     // [P2-DIARY-SCAN-MACROS · 2026-05-30] Estado del modal de escaneo. Al
     // registrar una comida el modal dispara `mealfit:refresh-inventory`, que
@@ -336,12 +349,19 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
                 fetchConsumed();
             }
         };
+        // [P1-PLAN-LOTE-105] El diario de días anteriores también borra (cualquier día, hoy incluido) y avisa
+        // con `mealfit:diary-changed`; el borrado PROPIO de esta tarjeta lleva `source` y ya actualizó el estado.
+        const onDiaryChanged = (e) => {
+            if (isMounted && e?.detail?.source !== 'tracking-progress') fetchConsumed();
+        };
         window.addEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
+        window.addEventListener('mealfit:diary-changed', onDiaryChanged);
         document.addEventListener('visibilitychange', onVisibilityChange);
 
         return () => {
             isMounted = false;
             window.removeEventListener('mealfit:refresh-inventory', onAgentRefreshInventory);
+            window.removeEventListener('mealfit:diary-changed', onDiaryChanged);
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
     }, [userId, consumedCacheKey]);
@@ -380,7 +400,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
             // que usa el fetch inicial, así el resultado es idéntico al que
             // devolvería un refetch (sin esperar el roundtrip).
             // [P1-PLAN-LOTE-103] «Micros de hoy» y el dashboard del plan (useTodaysConsumedMeals) vuelven a pedir el día.
-            try { window.dispatchEvent(new Event('mealfit:diary-changed')); } catch { /* best-effort */ }
+            try { window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'tracking-progress' } })); } catch { /* best-effort */ }
             setConsumed((prev) => _buildConsumedSnapshot({
                 meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
                 cacheKey: consumedCacheKey,
@@ -411,6 +431,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
     const _todaysMeals = displayedConsumed.meals || [];
     const visibleMeals = mealsExpanded ? _todaysMeals : _todaysMeals.slice(0, _MEALS_VISIBLE_CAP);
     const hiddenMealsCount = _todaysMeals.length - visibleMeals.length;
+    // [P1-PLAN-LOTE-105] cobertura de micros del día (un snapshot cacheado de antes del lote no la trae: se deriva)
+    const coberturaMicros = displayedConsumed.microsCoverage || { con_datos: 0, total: _todaysMeals.length };
 
     // [P3-TRACKING-OVER-LIMIT · 2026-05-20] Pre-fix `calcPerc` capeaba al 100%
     // con `Math.min(..., 100)` — ocultaba visualmente cuando el usuario excedía
@@ -435,7 +457,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
                         <Activity size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h2 className={styles.title}>{t('Tus macros de hoy')}</h2>
+                        <h2 className={styles.title}>{t('Tus macros y micros de hoy')}</h2>
                         <p className={styles.subtitle}>
                             {loading
                                 ? t('Cargando registros...')
@@ -524,6 +546,27 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
                     />
                 </div>
             </div>
+
+            {/* [P1-PLAN-LOTE-105 · 2026-09-18] Los micros, bajo las macros y ANTES de la lista de comidas: primero los
+                números del día, después las comidas que los produjeron. Misma lista que el diario de días anteriores. */}
+            {isLoggedIn && (
+                <div className={styles.microsSection}>
+                    <div className={styles.microsHead}>
+                        <span className={styles.microsIcon} aria-hidden="true"><FlaskConical size={16} strokeWidth={2.4} /></span>
+                        <div>
+                            <h3 className={styles.microsTitle}>{t('Micros')}</h3>
+                            <p className={styles.microsSub}>
+                                {loading ? t('Cargando registros...') : subtituloMicros(coberturaMicros)}
+                            </p>
+                        </div>
+                    </div>
+                    <MicrosList
+                        micros={displayedConsumed.micros}
+                        coverage={loading ? null : coberturaMicros}
+                        metas={microTargets}
+                    />
+                </div>
+            )}
 
             {/* [P1-DIARY-EDITABLE · 2026-07-28] Lista de comidas registradas
                 hoy — antes esta card solo exponía el CONTEO (subtitle arriba);
@@ -624,6 +667,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
                     userId={userId}
                     targetCalories={goalCal}
                     targetMacros={{ protein: goalPro, carbs: goalCarb, fats: goalFat }}
+                    targetMicros={microTargets}
                 />
             )}
 
@@ -653,7 +697,9 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
 TrackingProgress.propTypes = {
     planData: PropTypes.object.isRequired,
     userId: PropTypes.string,
-    flatOnMobile: PropTypes.bool
+    flatOnMobile: PropTypes.bool,
+    // [P1-PLAN-LOTE-105] metas de los ocho micros (`/api/nutrition/targets.micros`); null = sin barra
+    microTargets: PropTypes.object,
 };
 
 // --- Componente Interno para Barra Individual ---

@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-103 · 2026-09-18] Las comidas registradas HOY, para quien no monta «Tus macros de hoy».
+// [P1-PLAN-LOTE-103 · 2026-09-18] Las comidas registradas HOY, para quien no monta «Tus macros y micros de hoy».
 //
 // Hasta este lote, «Tu Menú» (Dashboard.jsx, modo plan) sabía qué se comió hoy porque `TrackingProgress` vivía en
 // la misma pantalla y emitía `mealfit:today-consumed-updated` con cada cambio de su estado (fetch, refetch, borrado
@@ -20,6 +20,18 @@ const _hoyUrl = (userId) => {
     return `/api/diary/consumed/${userId}?date=${y}-${m}-${d}&tzOffset=${now.getTimezoneOffset()}`;
 };
 
+/** Las comidas de hoy, o null si no hay usuario / no hay red (se conserva lo último visto). */
+const _pedirHoy = async (userId) => {
+    if (!userId || userId === 'guest') return null;
+    try {
+        const r = await fetchWithAuth(_hoyUrl(userId));
+        const d = await r.json().catch(() => null);
+        return Array.isArray(d?.meals) ? d.meals : null;
+    } catch {
+        return null;
+    }
+};
+
 export function useTodaysConsumedMeals(userId) {
     const [meals, setMeals] = useState([]);
     // Época: un evento adoptado invalida los fetches propios que estaban en vuelo. Sin esto, el fetch del montaje
@@ -27,16 +39,22 @@ export function useTodaysConsumedMeals(userId) {
     const epocaRef = useRef(0);
 
     const cargar = useCallback(async () => {
-        if (!userId || userId === 'guest') return;
         const mia = epocaRef.current;
-        try {
-            const r = await fetchWithAuth(_hoyUrl(userId));
-            const d = await r.json().catch(() => null);
-            if (mia === epocaRef.current && Array.isArray(d?.meals)) setMeals(d.meals);
-        } catch { /* sin red: se conserva lo último visto */ }
+        const m = await _pedirHoy(userId);
+        if (m && mia === epocaRef.current) setMeals(m);
     }, [userId]);
 
-    useEffect(() => { cargar(); }, [cargar]);
+    // [P1-PLAN-LOTE-105] el fetch del montaje va en un async propio del efecto (no en `cargar()` síncrono): es lo
+    // que la regla `set-state-in-effect` acepta, y además desmonta limpio (`vivo`).
+    useEffect(() => {
+        let vivo = true;
+        const mia = epocaRef.current;
+        (async () => {
+            const m = await _pedirHoy(userId);
+            if (vivo && m && mia === epocaRef.current) setMeals(m);
+        })();
+        return () => { vivo = false; };
+    }, [userId]);
 
     useEffect(() => {
         const adoptar = (event) => {

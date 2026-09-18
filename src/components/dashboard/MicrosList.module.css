@@ -1,37 +1,12 @@
-/* [P1-PLAN-LOTE-103 · 2026-09-18] «Micros de hoy». Misma familia que «Tus macros de hoy» e «Hidratación»:
-   tarjeta con tokens del DS, badge con gradiente, y en el teléfono SIN marco (`flatMobile`, lote 88). */
-.card {
+/* [P1-PLAN-LOTE-103 · 2026-09-18 · fusionado P1-PLAN-LOTE-105] La lista de los ocho micros. Ya no es tarjeta:
+   vive dentro de «Tus macros y micros de hoy» y dentro del diario de días anteriores (variante `compact`). */
+.wrap {
     --mi-1: #A78BFA;
     --mi-2: #8B5CF6;
     --mi-3: #6D28D9;
     width: 100%;
     box-sizing: border-box;
-    margin-bottom: 2rem;
-    padding: 22px;
-    background:
-        radial-gradient(120% 80% at 100% 0%, rgba(139, 92, 246, .10), transparent 45%),
-        var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
 }
-
-.head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-
-.badge {
-    flex: none;
-    width: 42px;
-    height: 42px;
-    border-radius: 13px;
-    display: grid;
-    place-items: center;
-    color: #fff;
-    background: linear-gradient(150deg, var(--mi-1), var(--mi-3));
-    box-shadow: 0 6px 16px -5px rgba(109, 40, 217, .6);
-}
-
-.title { margin: 0; font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-main); }
-.sub { margin: 2px 0 0; font-size: .78rem; font-weight: 600; color: var(--text-muted); line-height: 1.35; }
 
 .list {
     list-style: none;
@@ -107,22 +82,19 @@
 .fill.over { background: linear-gradient(90deg, #FB7185, #E11D48); }
 
 .note {
-    margin: 14px 0 0;
+    margin: 12px 0 0;
     font-size: .78rem;
     line-height: 1.4;
     color: var(--text-muted);
 }
 
-/* [P1-PLAN-LOTE-88] en el teléfono la sección va plana y a todo el ancho, como sus hermanas */
-@media (max-width: 768px) {
-    .card.flatMobile,
-    :global(html[data-theme="dark"]) .card.flatMobile {
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: none;
-        box-shadow: none;
-        margin-bottom: 0;
-        overflow: visible;
-    }
-}
+/* [P1-PLAN-LOTE-105] variante compacta del diario de días anteriores: dos columnas siempre (el cajón mide
+   ≤460px), letra pequeña y barra fina — la misma gramática que la fila de macros del cajón. */
+.compact .list { grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+.compact .rowTop { margin-bottom: 4px; gap: 6px; }
+.compact .label { font-size: .72rem; }
+.compact .tag { font-size: .58rem; padding: 0 5px; }
+.compact .value { font-size: .68rem; }
+.compact .value b { font-size: .78rem; }
+.compact .track { height: 3px; }
+.compact .note { margin-top: 8px; font-size: .72rem; }

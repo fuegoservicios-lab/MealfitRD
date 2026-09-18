@@ -2231,7 +2231,6 @@
   "Sintetizadas: {n}": "Synthétisées : {n}",
   "Sistema": "Système",
   "Snack": "Collation",
-  "Snacks": "Collations",
   "Sobre el límite": "Au-dessus de la limite",
   "Solicitaste {min}-{max}; aplicamos {amin}-{amax}.": "Vous avez demandé {min}-{max} ; nous avons appliqué {amin}-{amax}.",
   "Solo contar lo que como": "Compter seulement ce que je mange",
@@ -3166,10 +3165,9 @@
   "{n} en tu plato": "{n} dans votre assiette",
   "Añade al menos un alimento para registrar.": "Ajoutez au moins un aliment pour enregistrer.",
   "Extra": "Extra",
-  "Tus macros de hoy": "Vos macros du jour",
+  "Tus macros y micros de hoy": "Vos macros et micros du jour",
   "Altura fuera de rango (100-250 cm).": "Taille hors limites (100-250 cm).",
   "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Enregistré. Les objectifs du compteur reflètent déjà les nouvelles données.",
-  "Micros de hoy": "Vos micros du jour",
   "Fibra": "Fibres",
   "Sodio": "Sodium",
   "Potasio": "Potassium",
@@ -3179,7 +3177,6 @@
   "Vitamina A": "Vitamine A",
   "máx.": "max.",
   "Registra una comida y aquí verás sus micros.": "Enregistrez un repas et ses micros apparaîtront ici.",
-  "Ninguna de tus comidas de hoy trae micros (foto o macros propias).": "Aucun de vos repas du jour n'apporte de micros (photo ou macros saisis).",
   "Con datos de {n} de {total} comidas": {
     "one": "Avec les données de {n} repas sur {total}",
     "other": "Avec les données de {n} repas sur {total}"
@@ -3189,5 +3186,15 @@
   "{n} comidas registradas": {
     "one": "{n} repas enregistré",
     "other": "{n} repas enregistrés"
-  }
+  },
+  "Micros": "Micros",
+  "Ninguna de estas comidas trae micros (foto o macros propias).": "Aucun de ces repas n’apporte de micros (photo ou macros personnalisés).",
+  "Extras y snacks": "Extras et collations",
+  "Ver 2 semanas más": "Voir 2 semaines de plus",
+  "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {
+    "one": "7 derniers jours : moyenne de {kcal} kcal sur {n} jour enregistré",
+    "other": "7 derniers jours : moyenne de {kcal} kcal sur {n} jours enregistrés"
+  },
+  "Registrar en este día": "Enregistrer ce jour-là",
+  "Solo se puede registrar hasta 7 días atrás.": "Vous ne pouvez enregistrer que jusqu’à 7 jours en arrière."
 }

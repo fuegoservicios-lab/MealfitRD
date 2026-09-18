@@ -1,6 +1,6 @@
 // [P1-PLAN-LOTE-102 · 2026-09-18] Cuatro cosas del dueño tras probar el 101 en el iPhone:
 //  · un solo icono de cámara en «Escanear comida» (se va el del título, queda el de «Usar la cámara»);
-//  · la pestaña del contador se llama «Progreso» (no «Hoy») y la sección «Tus macros de hoy» (no «Progreso en
+//  · la pestaña del contador se llama «Progreso» (no «Hoy») y la sección «Tus macros y micros de hoy» (no «Progreso en
 //    Tiempo Real») — y el coach y el aviso «Bórralo en «…»» nombran la sección como el usuario la VE;
 //  · en modo contador, Configuración guarda peso/altura/edad/sexo al momento (sin regenerar ni gastar crédito) y
 //    avisa a la pantalla de progreso para que vuelva a pedir las metas.
@@ -22,10 +22,10 @@ describe('un solo icono de cámara', () => {
 });
 
 describe('los nombres que ve el usuario', () => {
-    it('pestaña «Progreso» en modo contador, sección «Tus macros de hoy», y el aviso y el coach dicen lo mismo', () => {
+    it('pestaña «Progreso» en modo contador, sección «Tus macros y micros de hoy», y el aviso y el coach dicen lo mismo', () => {
         expect(src('src/config/dashboardNav.js')).toContain("trackingMode ? t('Progreso') : t('Plan|nav')");
-        expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("t('Tus macros de hoy')");
-        expect(src('src/utils/todayRemaining.js')).toContain("const seccion = t('Tus macros de hoy');");
+        expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain("t('Tus macros y micros de hoy')");
+        expect(src('src/utils/todayRemaining.js')).toContain("const seccion = t('Tus macros y micros de hoy');");
         for (const f of ['src/components/dashboard/TrackingProgress.jsx', 'src/utils/todayRemaining.js', 'src/config/dashboardNav.js']) {
             const code = src(f).split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
             expect(code, f).not.toContain("t('Progreso en Tiempo Real')");

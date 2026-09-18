@@ -6,6 +6,9 @@ import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] Hook SSOT de media queries (P2-14).
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+// [P1-PLAN-LOTE-105] fototeca directa en la app nativa (Capacitor Camera); en la web, null
+import { isNativeApp } from '../../config/platform';
+import { chooseNativeGalleryImage, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
 // [P1-SCANNER-SHARED · 2026-08-10] El visor en vivo es SSOT compartido con el
 // escáner de la Nevera — no una segunda copia de 200 líneas.
 import CameraViewfinder from '../common/CameraViewfinder';
@@ -336,6 +339,19 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
         galleryInputRef.current?.click();
     }, []);
 
+    // [P1-PLAN-LOTE-105 · 2026-09-18] «Elegir de galería» en la app nativa abre la fototeca DIRECTA con el plugin
+    // (el input de la web dispara la hoja de iOS de tres opciones, que el dueño no quería). Cancelar no es error;
+    // cualquier otro fallo cae al input de siempre para no dejar al usuario sin camino.
+    const openGallery = useCallback(async () => {
+        if (!isNativeApp()) { galleryInputRef.current?.click(); return; }
+        try {
+            const file = await chooseNativeGalleryImage();
+            if (file) await handleFile(file);
+        } catch (err) {
+            if (!isNativePickerCancellation(err)) galleryInputRef.current?.click();
+        }
+    }, [handleFile]);
+
     const applyPortion = useCallback((m) => {
         setMultiplier(m);
         setForm((prev) => ({
@@ -549,7 +565,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                             )}
                             <button
                                 className={styles.optionCard}
-                                onClick={() => galleryInputRef.current?.click()}
+                                onClick={openGallery}
                             >
                                 {/* En escritorio la galería es la ÚNICA acción, así que se queda el
                                     tile primario que antes llevaba la cámara — no puede quedar una

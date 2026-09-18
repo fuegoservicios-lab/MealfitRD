@@ -140,7 +140,7 @@ describe('P1-EATEN-SLOT-RECIPES — Recetas anota el slot ya comido hoy (el riel
             // el PDF/checkboxes/pasos SÍ están bloqueados de verdad, así que
             // el mismo texto que usa Dashboard.jsx es el honesto acá también.
             expect(t).toMatch(/desbloquear/i);
-            expect(t).toContain('Bórralo en «Tus macros de hoy»');
+            expect(t).toContain('Bórralo en «Tus macros y micros de hoy»');
         }
 
         const railTitle = screen.getAllByText('Mangú con los tres golpes').find((el) => el.closest('button'));

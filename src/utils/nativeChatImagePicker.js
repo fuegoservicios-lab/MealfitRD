@@ -53,3 +53,24 @@ export async function takeNativeChatPhoto() {
     });
     return [await mediaResultToFile(result, 0)];
 }
+
+// [P1-PLAN-LOTE-105 · 2026-09-18] UNA foto de la fototeca, para el escáner de comidas. En la app nativa el
+// `<input type="file" accept="image/*">` de la web abre SIEMPRE la hoja de iOS con tres opciones (Fototeca /
+// Tomar foto / Seleccionar archivo) — no hay forma de evitarla desde la web; el dueño la quería directa. El plugin
+// abre el selector de fotos del sistema sin preguntar. En la web devuelve null y el escáner sigue con su input.
+export async function chooseNativeGalleryImage() {
+    if (!isNativeApp()) return null;
+    const { Camera, MediaTypeSelection } = await import('@capacitor/camera');
+    const { results = [] } = await Camera.chooseFromGallery({
+        mediaType: MediaTypeSelection.Photo,
+        allowMultipleSelection: false,
+        limit: 1,
+        quality: 90,
+        targetWidth: 2000,
+        targetHeight: 2000,
+        correctOrientation: true,
+        includeMetadata: true,
+    });
+    if (!results.length) return null;
+    return mediaResultToFile(results[0], 0);
+}

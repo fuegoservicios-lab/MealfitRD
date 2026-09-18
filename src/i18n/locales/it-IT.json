@@ -2231,7 +2231,6 @@
   "Sintetizadas: {n}": "Sintetizzate: {n}",
   "Sistema": "Sistema",
   "Snack": "Snack",
-  "Snacks": "Snack",
   "Sobre el límite": "Oltre il limite",
   "Solicitaste {min}-{max}; aplicamos {amin}-{amax}.": "Hai chiesto {min}-{max}; abbiamo applicato {amin}-{amax}.",
   "Solo contar lo que como": "Solo contare ciò che mangio",
@@ -3166,10 +3165,9 @@
   "{n} en tu plato": "{n} nel tuo piatto",
   "Añade al menos un alimento para registrar.": "Aggiungi almeno un alimento per registrare.",
   "Extra": "Extra",
-  "Tus macros de hoy": "I tuoi macro di oggi",
+  "Tus macros y micros de hoy": "I tuoi macro e micro di oggi",
   "Altura fuera de rango (100-250 cm).": "Altezza fuori intervallo (100-250 cm).",
   "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Salvato. Gli obiettivi del contatore riflettono già i nuovi dati.",
-  "Micros de hoy": "I tuoi micro di oggi",
   "Fibra": "Fibre",
   "Sodio": "Sodio",
   "Potasio": "Potassio",
@@ -3179,7 +3177,6 @@
   "Vitamina A": "Vitamina A",
   "máx.": "max.",
   "Registra una comida y aquí verás sus micros.": "Registra un pasto e qui vedrai i suoi micro.",
-  "Ninguna de tus comidas de hoy trae micros (foto o macros propias).": "Nessuno dei pasti di oggi porta micro (foto o macro propri).",
   "Con datos de {n} de {total} comidas": {
     "one": "Con i dati di {n} pasto su {total}",
     "other": "Con i dati di {n} pasti su {total}"
@@ -3189,5 +3186,15 @@
   "{n} comidas registradas": {
     "one": "{n} pasto registrato",
     "other": "{n} pasti registrati"
-  }
+  },
+  "Micros": "Micro",
+  "Ninguna de estas comidas trae micros (foto o macros propias).": "Nessuno di questi pasti porta micro (foto o macro personalizzati).",
+  "Extras y snacks": "Extra e spuntini",
+  "Ver 2 semanas más": "Vedi altre 2 settimane",
+  "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {
+    "one": "Ultimi 7 giorni: media di {kcal} kcal in {n} giorno registrato",
+    "other": "Ultimi 7 giorni: media di {kcal} kcal in {n} giorni registrati"
+  },
+  "Registrar en este día": "Registra in questo giorno",
+  "Solo se puede registrar hasta 7 días atrás.": "Puoi registrare solo fino a 7 giorni indietro."
 }

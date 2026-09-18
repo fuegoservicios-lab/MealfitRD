@@ -21,7 +21,7 @@
 // hiciera, solo re-probaría la mitad que Dashboard.today_remaining.test.jsx
 // ya cubre.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, within } from './utils/test-utils';
+import { render, screen, waitFor, within } from './utils/test-utils';
 import Dashboard from '../pages/Dashboard';
 import * as router from 'react-router-dom';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
@@ -101,7 +101,7 @@ const _FOUR_MEALS_TODAY = [
 // plan (`_FOUR_MEALS_TODAY[0].name` = "Mangú con los tres golpes"). Mismo
 // string en la card, el chip y los 2 botones bloqueados (SSOT real —
 // `eatenClaimForSlot(consumedTodayMeals, meal.meal, 'unlock')`).
-const _EATEN_CLAIM = 'Registraste «Mangú (registrado hoy)» (~500 kcal) como tu desayuno de hoy. Bórralo en «Tus macros de hoy» para desbloquear.';
+const _EATEN_CLAIM = 'Registraste «Mangú (registrado hoy)» (~500 kcal) como tu desayuno de hoy. Bórralo en «Tus macros y micros de hoy» para desbloquear.';
 
 const _todayIso = () => new Date().toISOString();
 
@@ -129,7 +129,7 @@ const _diaryTotals = (meals) => ({
 
 const _jsonResponse = (body, ok = true) => ({ ok, json: async () => body });
 
-// [P1-PLAN-LOTE-103 · 2026-09-18] La unión cambió de forma: «Tus macros de hoy» (con su botón de borrar) vive
+// [P1-PLAN-LOTE-103 · 2026-09-18] La unión cambió de forma: «Tus macros y micros de hoy» (con su botón de borrar) vive
 // ahora en la pestaña «Progreso», y el dashboard del plan sabe qué se comió hoy por `useTodaysConsumedMeals`, que
 // pide el diario él mismo y adopta el evento del contador si conviven. El round trip real pasa a ser: borrar en
 // «Progreso» → volver al dashboard (se vuelve a montar) → el hook pide el diario → el menú se desbloquea. Y, sin
@@ -156,7 +156,7 @@ async function _cardBloqueado() {
     return menuCard;
 }
 
-describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en «Tus macros de hoy» (pestaña Progreso) desbloquea "Tu Menú"', () => {
+describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en «Tus macros y micros de hoy» (pestaña Progreso) desbloquea "Tu Menú"', () => {
     beforeEach(() => {
         localStorage.clear();
         _diarioActual = [_DIARY_MEAL_TODAY];
@@ -169,7 +169,7 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en «Tus macros de ho
         vi.mocked(fetchWithAuth).mockImplementation(_makeFetchWithAuthMock());
     });
 
-    it('con el desayuno en el diario el card arranca bloqueado, con la frase honesta y la escotilla a «Tus macros de hoy»', async () => {
+    it('con el desayuno en el diario el card arranca bloqueado, con la frase honesta y la escotilla a «Tus macros y micros de hoy»', async () => {
         render(<Dashboard />, {
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
@@ -181,7 +181,7 @@ describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en «Tus macros de ho
         expect(screen.getByText(/Te quedan/)).toBeInTheDocument();
         expect(swapBtn).toHaveAttribute('title', _EATEN_CLAIM);
         expect(likeBtn).toHaveAttribute('title', _EATEN_CLAIM);
-        expect(_EATEN_CLAIM).toContain('Tus macros de hoy');
+        expect(_EATEN_CLAIM).toContain('Tus macros y micros de hoy');
         expect(_EATEN_CLAIM).toContain('Mangú (registrado hoy)');
         expect(_EATEN_CLAIM).not.toContain('con los tres golpes');
         // el contador ya no vive aquí: ni su botón de borrar ni su subtítulo

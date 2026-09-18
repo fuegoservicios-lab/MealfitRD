@@ -342,19 +342,19 @@ describe('eatenClaimForSlot — caso real del owner: el plan prescribe una cosa,
 
     it('cta="unlock" (Dashboard: controles REALMENTE deshabilitados) lleva el escape hatch y "desbloquear"', () => {
         const claim = eatenClaimForSlot(_LOGGED, 'Desayuno', 'unlock');
-        expect(claim).toContain('Tus macros de hoy');
+        expect(claim).toContain('Tus macros y micros de hoy');
         expect(claim).toMatch(/desbloquear/i);
     });
 
     it('cta="info" (Recetas: solo lectura) lleva el mismo escape hatch SIN afirmar que algo está bloqueado', () => {
         const claim = eatenClaimForSlot(_LOGGED, 'Desayuno', 'info');
-        expect(claim).toContain('Tus macros de hoy');
+        expect(claim).toContain('Tus macros y micros de hoy');
         expect(claim).not.toMatch(/desbloquear/i);
     });
 
     it('cta="none" devuelve la frase sola, sin CTA', () => {
         const claim = eatenClaimForSlot(_LOGGED, 'Desayuno', 'none');
-        expect(claim).not.toContain('Tus macros de hoy');
+        expect(claim).not.toContain('Tus macros y micros de hoy');
     });
 
     it('cae a "algo" cuando la fila del diario no trae nombre (nunca inventa uno, nunca revienta)', () => {

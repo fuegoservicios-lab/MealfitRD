@@ -2231,7 +2231,6 @@
   "Sintetizadas: {n}": "Sintetizadas: {n}",
   "Sistema": "Sistema",
   "Snack": "Lanche",
-  "Snacks": "Lanches",
   "Sobre el límite": "Acima do limite",
   "Solicitaste {min}-{max}; aplicamos {amin}-{amax}.": "Você pediu {min}-{max}; aplicamos {amin}-{amax}.",
   "Solo contar lo que como": "Só contar o que eu como",
@@ -3166,10 +3165,9 @@
   "{n} en tu plato": "{n} no seu prato",
   "Añade al menos un alimento para registrar.": "Adicione pelo menos um alimento para registrar.",
   "Extra": "Extra",
-  "Tus macros de hoy": "Seus macros de hoje",
+  "Tus macros y micros de hoy": "Seus macros e micros de hoje",
   "Altura fuera de rango (100-250 cm).": "Altura fora do intervalo (100-250 cm).",
   "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Salvo. As metas do contador já refletem os novos dados.",
-  "Micros de hoy": "Seus micros de hoje",
   "Fibra": "Fibra",
   "Sodio": "Sódio",
   "Potasio": "Potássio",
@@ -3179,7 +3177,6 @@
   "Vitamina A": "Vitamina A",
   "máx.": "máx.",
   "Registra una comida y aquí verás sus micros.": "Registre uma refeição e aqui você verá os micros.",
-  "Ninguna de tus comidas de hoy trae micros (foto o macros propias).": "Nenhuma das refeições de hoje traz micros (foto ou macros próprios).",
   "Con datos de {n} de {total} comidas": {
     "one": "Com dados de {n} de {total} refeições",
     "other": "Com dados de {n} de {total} refeições"
@@ -3189,5 +3186,15 @@
   "{n} comidas registradas": {
     "one": "{n} refeição registrada",
     "other": "{n} refeições registradas"
-  }
+  },
+  "Micros": "Micros",
+  "Ninguna de estas comidas trae micros (foto o macros propias).": "Nenhuma destas refeições traz micros (foto ou macros próprios).",
+  "Extras y snacks": "Extras e lanches",
+  "Ver 2 semanas más": "Ver mais 2 semanas",
+  "Últimos 7 días: media de {kcal} kcal en {n} días con registro": {
+    "one": "Últimos 7 dias: média de {kcal} kcal em {n} dia com registro",
+    "other": "Últimos 7 dias: média de {kcal} kcal em {n} dias com registro"
+  },
+  "Registrar en este día": "Registrar neste dia",
+  "Solo se puede registrar hasta 7 días atrás.": "Só é possível registrar até 7 dias atrás."
 }

@@ -53,7 +53,7 @@ describe('[P1-I18N-EATEN-CLAIM-FRASE-FABRICADA]', () => {
         // La cabecera de la sección es `t('Progreso en Tiempo Real')`; el toast tiene que
         // decir lo MISMO que pone en la pantalla, o manda al usuario a buscar algo que no
         // existe con ese nombre.
-        expect(claim).not.toContain('Tus macros de hoy');
+        expect(claim).not.toContain('Tus macros y micros de hoy');
     });
 
     it('joinNamesEsDo usa la conjuncion del idioma, no « y » clavada', () => {
@@ -68,7 +68,7 @@ describe('[P1-I18N-EATEN-CLAIM-FRASE-FABRICADA] en es-DO nada cambia', () => {
     it('el copy español es byte-identico al de antes', async () => {
         await loadLocale(DEFAULT_LOCALE);
         expect(eatenClaimForSlot(COMIDAS, 'almuerzo', 'unlock')).toBe(
-            'Registraste «Arroz con pollo» (~450 kcal) como tu almuerzo de hoy. Bórralo en «Tus macros de hoy» para desbloquear.',
+            'Registraste «Arroz con pollo» (~450 kcal) como tu almuerzo de hoy. Bórralo en «Tus macros y micros de hoy» para desbloquear.',
         );
         expect(joinNamesEsDo(['A', 'B', 'C'])).toBe('A, B y C');
     });
