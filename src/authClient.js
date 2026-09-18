@@ -151,6 +151,11 @@ export const authClient = {
         signUp: (...a) => _getClient().then((c) => c.auth.signUp(...a)),
         signInWithPassword: (...a) => _getClient().then((c) => c.auth.signInWithPassword(...a)),
         updateUser: (...a) => _getClient().then((c) => c.auth.updateUser(...a)),
+        // [P1-PLAN-LOTE-96 · 2026-09-17] `prompt=select_account` (que Google pregunte siempre qué cuenta usar)
+        // NO se puede añadir desde aquí, y ya se intentó (lote 95, revertido): la URL que devuelve Neon no es la
+        // de Google sino `…/sign-in/social/init?token=…`, un salto en SU dominio que redirige a Google desde el
+        // servidor sin reenviar parámetros; y su proveedor de Google solo acepta client ID y secret. Medido en
+        // producción. Ni `options.queryParams` (el adaptador no lo reenvía) ni tocar la URL sirven.
         signInWithOAuth: (...a) => _getClient().then((c) => c.auth.signInWithOAuth(...a)),
         getBetterAuthInstance: async () => {
             const c = await _getClient();
