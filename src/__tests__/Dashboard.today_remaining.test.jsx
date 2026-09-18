@@ -365,10 +365,10 @@ describe('P1-TODAY-REMAINING — "Tu Menú" atenúa lo ya comido hoy (derivado, 
 
         // Cada uno explica el POR QUÉ y el CÓMO deshacerlo (accesible vía
         // title/aria-label, es-DO, corto).
-        expect(swapBtn).toHaveAttribute('title', expect.stringContaining('Progreso en Tiempo Real'));
-        expect(likeBtn).toHaveAttribute('title', expect.stringContaining('Progreso en Tiempo Real'));
-        expect(swapBtn.getAttribute('aria-label') || swapBtn.getAttribute('title')).toMatch(/Progreso en Tiempo Real/);
-        expect(likeBtn.getAttribute('aria-label') || likeBtn.getAttribute('title')).toMatch(/Progreso en Tiempo Real/);
+        expect(swapBtn).toHaveAttribute('title', expect.stringContaining('Tus macros de hoy'));
+        expect(likeBtn).toHaveAttribute('title', expect.stringContaining('Tus macros de hoy'));
+        expect(swapBtn.getAttribute('aria-label') || swapBtn.getAttribute('title')).toMatch(/Tus macros de hoy/);
+        expect(likeBtn.getAttribute('aria-label') || likeBtn.getAttribute('title')).toMatch(/Tus macros de hoy/);
 
         // [P1-EATEN-SLOT-COPY · 2026-07-28] El "por qué" NUNCA puede ser
         // "comiste esto" (el plato mostrado, "Mangú con los tres golpes",

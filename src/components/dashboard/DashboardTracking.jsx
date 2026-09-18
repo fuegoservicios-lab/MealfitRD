@@ -145,6 +145,13 @@ const DashboardTracking = () => {
 
     useEffect(() => { cargar(); }, [cargar]);
 
+    // [P1-PLAN-LOTE-102 · 2026-09-18] Configuración (modo contador) guarda peso/altura/edad/sexo al momento y avisa:
+    // las metas se vuelven a pedir sin recargar la página.
+    useEffect(() => {
+        window.addEventListener('mealfit:targets-changed', cargar);
+        return () => window.removeEventListener('mealfit:targets-changed', cargar);
+    }, [cargar]);
+
     // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile` en las dos secciones grandes: en el teléfono van SIN
     // marco de tarjeta y a todo el ancho (el dueño: «quitamos eso de las tarjeticas en móviles»). Sigue
     // con marco lo que se toca o se descarta: la invitación al plan, las filas de comidas, los botones.

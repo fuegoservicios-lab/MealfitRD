@@ -444,12 +444,10 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 className={styles.card}
             >
                 <div className={styles.header}>
-                    {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] Icono como tile con
-                        gradiente (lenguaje de la familia de diálogos pulidos). */}
+                    {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] Icono como tile con gradiente.
+                        [P1-PLAN-LOTE-102 · 2026-09-18] Quitado: repetía la cámara de «Usar la cámara» a 8 líneas
+                        de distancia (el dueño: «no quiero dos svg de una cámara en el mismo sitio»). */}
                     <h2 id="scan-meal-title" className={styles.title}>
-                        <span className={styles.titleIco}>
-                            <Camera size={17} strokeWidth={2.25} />
-                        </span>
                         {t('Escanear comida')}
                     </h2>
                     <button

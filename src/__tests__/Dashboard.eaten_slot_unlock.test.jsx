@@ -101,7 +101,7 @@ const _FOUR_MEALS_TODAY = [
 // plan (`_FOUR_MEALS_TODAY[0].name` = "Mangú con los tres golpes"). Mismo
 // string en la card, el chip y los 2 botones bloqueados (SSOT real —
 // `eatenClaimForSlot(consumedTodayMeals, meal.meal, 'unlock')`).
-const _EATEN_CLAIM = 'Registraste «Mangú (registrado hoy)» (~500 kcal) como tu desayuno de hoy. Bórralo en «Progreso en Tiempo Real» para desbloquear.';
+const _EATEN_CLAIM = 'Registraste «Mangú (registrado hoy)» (~500 kcal) como tu desayuno de hoy. Bórralo en «Tus macros de hoy» para desbloquear.';
 
 const _todayIso = () => new Date().toISOString();
 

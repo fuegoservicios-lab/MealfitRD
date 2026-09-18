@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { nativeHidesCommerce } from '../config/platform';
+import { isTrackingMode } from '../config/dashboardNav';
 import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, periodLabel, tierDisplayName } from '../config/plans';
 import {
     User, Shield, ChevronRight, ArrowLeft,
@@ -1560,6 +1561,89 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // [P3-PROFILE-METRICS-COMMIT · 2026-05-20] Persistir body metrics +
     // regenerar plan en un solo flujo. Solo se invoca desde el botón
     // "Actualizar Plan con Nuevos Datos" cuando bodyMetricsChanged===true.
+    // [P1-PLAN-LOTE-102 · 2026-09-18] En modo CONTADOR (sin generador de planes) no hay plan que regenerar ni
+    // crédito que gastar: peso, altura, edad y sexo se guardan al momento y las metas del contador
+    // (/api/nutrition/targets lee health_profile) cambian en tiempo real. `mealfit:targets-changed` avisa a la
+    // pantalla de progreso para que vuelva a pedir las metas sin recargar (el dueño: «que se pueda configurar en
+    // tiempo real ya que no hay generador de planes, y que se vea reflejado en los contadores»).
+    const enModoContador = isTrackingMode(userProfile);
+    const handleSaveTracking = async () => {
+        if (isSaving || isRegeneratingFromMetrics) return;
+        const trimmedName = userName.trim();
+        if (!trimmedName) {
+            setNameError(t("Por favor, ingresa tu nombre."));
+            return;
+        }
+        setNameError('');
+
+        const parsedWeight = parseFloat(weightInput);
+        const _weightMin = weightUnit === 'lb' ? 55 : 25;
+        const _weightMax = weightUnit === 'lb' ? 660 : 300;
+        const weightValid = !isNaN(parsedWeight) && parsedWeight >= _weightMin && parsedWeight <= _weightMax;
+        let heightCm = null;
+        if (heightUnit === 'ft') {
+            const ft = parseFloat(heightFeet) || 0;
+            const inches = parseFloat(heightInches) || 0;
+            if (ft > 0 || inches > 0) heightCm = Math.round(ft * 30.48 + inches * 2.54);
+        } else {
+            const n = parseFloat(heightInput);
+            if (!isNaN(n)) heightCm = n;
+        }
+        const heightValid = heightCm !== null && heightCm >= 100 && heightCm <= 250;
+        if (weightInput && !weightValid) {
+            toast.error(t('Peso fuera de rango ({min}-{max} {unidad}).', { min: _weightMin, max: _weightMax, unidad: weightUnit }));
+            return;
+        }
+        if ((heightUnit === 'cm' ? heightInput : (heightFeet || heightInches)) && !heightValid) {
+            toast.error(t('Altura fuera de rango (100-250 cm).'));
+            return;
+        }
+        let ageNum = null;
+        if (ageInput !== '' && ageInput != null) {
+            ageNum = parseInt(ageInput, 10);
+            if (isNaN(ageNum) || ageNum < 12 || ageNum > 100) {
+                toast.error(t("Edad fuera de rango (12–100 años)."));
+                return;
+            }
+        }
+
+        setIsSaving(true);
+        const overrides = {};
+        if (weightValid) { overrides.weight = parsedWeight; overrides.weightUnit = weightUnit; }
+        if (heightValid) overrides.height = heightCm;
+        if (ageNum != null) overrides.age = ageNum;
+        if (genderInput === 'male' || genderInput === 'female') overrides.gender = genderInput;
+        // Reflejar en formData (la próxima generación, si algún día enciende el plan, parte de aquí).
+        if (weightValid) { updateData('weight', parsedWeight); if (weightUnit !== formData?.weightUnit) updateData('weightUnit', weightUnit); }
+        if (heightValid) updateData('height', heightCm);
+        if (ageNum != null) updateData('age', ageNum);
+        if (overrides.gender) updateData('gender', overrides.gender);
+
+        const updatePayload = { full_name: trimmedName };
+        const hp = Object.keys(overrides).length ? buildHealthProfilePayload(formData, overrides, session) : null;
+        if (hp) updatePayload.health_profile = hp;
+        const result = await updateUserProfile(updatePayload);
+        setIsSaving(false);
+        if (!result.success) {
+            setSaveStatus('error');
+            toast.error(t("Hubo un error al guardar. Por favor verifica tu conexión."));
+            return;
+        }
+        _bodyMetricsOriginalRef.current = {
+            weight: String(weightInput),
+            height: String(heightCm ?? heightInput),
+            weightUnit,
+        };
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus(''), 3000);
+        if (hp) {
+            window.dispatchEvent(new Event('mealfit:targets-changed'));
+            toast.success(t('Guardado. Tus metas del contador ya reflejan los nuevos datos.'));
+        } else {
+            toast.success(t("Perfil actualizado con éxito."));
+        }
+    };
+
     const handleUpdatePlanWithMetrics = async () => {
         if (isSaving || isRegeneratingFromMetrics) return;
 
@@ -2744,7 +2828,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 "Actualizar Plan con Nuevos Datos" (persist + regenerate).
                                 Si no, mostrar "Guardar Cambios" normal (solo nombre).
                                 Aviso visible cuando hay draft de body metrics. */}
-                            {bodyMetricsChanged && (
+                            {bodyMetricsChanged && !enModoContador && (
                                 <div style={{
                                     marginTop: '0.25rem',
                                     padding: '0.85rem 1rem',
@@ -2766,7 +2850,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 </div>
                             )}
                             <div className={styles.saveBtnContainer} style={{ marginTop: '0.5rem' }}>
-                                {bodyMetricsChanged ? (
+                                {/* [P1-PLAN-LOTE-102] En modo contador: UN botón, «Guardar», sin regenerar nada. */}
+                                {enModoContador ? (
+                                    <button
+                                        onClick={handleSaveTracking}
+                                        disabled={isSaving}
+                                        className={`${styles.saveChangesBtn} ${saveStatus === 'success' ? styles.saveChangesBtnSuccess : styles.saveChangesBtnDefault}`}
+                                    >
+                                        {isSaving ? <>{t('Guardando...')}</> : saveStatus === 'success' ? <>{t('¡Guardado!')}</> : <>{t('Guardar')}</>}
+                                    </button>
+                                ) : bodyMetricsChanged ? (
                                     <button
                                         onClick={handleUpdatePlanWithMetrics}
                                         disabled={isRegeneratingFromMetrics}

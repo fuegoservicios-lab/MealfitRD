@@ -433,7 +433,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
                         <Activity size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h2 className={styles.title}>{t('Progreso en Tiempo Real')}</h2>
+                        <h2 className={styles.title}>{t('Tus macros de hoy')}</h2>
                         <p className={styles.subtitle}>
                             {loading
                                 ? t('Cargando registros...')

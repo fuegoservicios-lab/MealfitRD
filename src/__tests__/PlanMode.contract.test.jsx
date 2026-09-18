@@ -27,10 +27,10 @@ describe('[P1-PLAN-MODE] dashboardNav — SSOT de la nav por modo', () => {
         expect(items[0].label).toBe('Plan');
     });
 
-    it('modo seguimiento: Recetas se OCULTA y Plan se rotula Hoy', () => {
+    it('modo seguimiento: Recetas se OCULTA y Plan se rotula Progreso (lote 102; antes «Hoy»)', () => {
         const items = navItemsFor({ trackingMode: true });
         expect(items.map((i) => i.key)).toEqual(['plan', 'agent', 'pantry', 'history']);
-        expect(items[0].label).toBe('Hoy');
+        expect(items[0].label).toBe('Progreso');
         expect(items[0].path).toBe('/dashboard'); // mismo destino, otro rótulo
     });
 

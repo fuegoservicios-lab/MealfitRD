@@ -1918,7 +1918,6 @@
   "Procesando lento": "Processing slowly",
   "Procesando...": "Processing...",
   "Progreso": "Progress",
-  "Progreso en Tiempo Real": "Real-Time Progress",
   "Progreso registrado": "Progress logged",
   "Prot. Vegana": "Vegan Prot.",
   "Protección de Datos": "Data Protection",
@@ -3170,5 +3169,8 @@
   "¿Cuándo?": "When?",
   "{n} en tu plato": "{n} on your plate",
   "Añade al menos un alimento para registrar.": "Add at least one food to log.",
-  "Extra": "Extra"
+  "Extra": "Extra",
+  "Tus macros de hoy": "Your macros today",
+  "Altura fuera de rango (100-250 cm).": "Height out of range (100-250 cm).",
+  "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Saved. Your tracker targets already reflect the new data."
 }

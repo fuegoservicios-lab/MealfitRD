@@ -1918,7 +1918,6 @@
   "Procesando lento": "Processando devagar",
   "Procesando...": "Processando...",
   "Progreso": "Progresso",
-  "Progreso en Tiempo Real": "Progresso em Tempo Real",
   "Progreso registrado": "Progresso registrado",
   "Prot. Vegana": "Prot. Vegana",
   "Protección de Datos": "Proteção de Dados",
@@ -3170,5 +3169,8 @@
   "¿Cuándo?": "Quando?",
   "{n} en tu plato": "{n} no seu prato",
   "Añade al menos un alimento para registrar.": "Adicione pelo menos um alimento para registrar.",
-  "Extra": "Extra"
+  "Extra": "Extra",
+  "Tus macros de hoy": "Seus macros de hoje",
+  "Altura fuera de rango (100-250 cm).": "Altura fora do intervalo (100-250 cm).",
+  "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Salvo. As metas do contador já refletem os novos dados."
 }
