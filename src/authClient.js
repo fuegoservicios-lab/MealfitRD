@@ -112,6 +112,60 @@ async function _signInWithOAuth({ provider = 'google', options } = {}) {
     }
 }
 
+// [P1-PLAN-LOTE-95 · 2026-09-17] «Continuar con Google» pregunta SIEMPRE qué cuenta usar (decisión del dueño).
+// Sin `prompt`, Google reutiliza la sesión activa del navegador: en el iPhone del dueño entró sin preguntar con
+// la OTRA cuenta de Gmail del teléfono y creó una identidad nueva y vacía. `select_account` fuerza el selector.
+//
+// Se añade a la URL de autorización y no a la petición porque no hay otra vía: el endpoint `/sign-in/social` de
+// Better Auth solo acepta `loginHint` y `additionalData` (el `prompt` es configuración del proveedor en Neon),
+// y el adaptador Supabase no reenvía `queryParams`. Solo se toca el host de Google; `none` no admite
+// compañía (Google lo rechaza), así que si viniera se respeta tal cual. Nunca lanza: ante cualquier URL rara
+// devuelve la original y el acceso sigue como siempre.
+export function conSelectorDeCuenta(url) {
+    try {
+        const u = new URL(url);
+        if (u.hostname !== 'accounts.google.com') return url;
+        const valores = (u.searchParams.get('prompt') || '').split(' ').filter(Boolean);
+        if (valores.includes('none') || valores.includes('select_account')) return url;
+        valores.push('select_account');
+        u.searchParams.set('prompt', valores.join(' '));
+        return u.toString();
+    } catch {
+        return url;
+    }
+}
+
+// [P1-PLAN-LOTE-95] Envuelve el `signInWithOAuth` del adaptador SOLO para Google: se pide la URL a Better Auth
+// con `disableRedirect: true` (el servidor responde `redirect: false` y el `redirectPlugin` del cliente no
+// navega), se le añade el selector de cuenta y se navega aquí. La misma petición, las mismas cookies y el mismo
+// cliente que antes. Si el cliente Better Auth no está expuesto (otra versión del paquete), se usa el camino de
+// siempre: el acceso nunca depende de este arreglo.
+function _conGoogleQuePregunta(c) {
+    const original = typeof c?.auth?.signInWithOAuth === 'function' ? c.auth.signInWithOAuth.bind(c.auth) : _signInWithOAuth;
+    return async (credentials = {}) => {
+        const { provider, options } = credentials;
+        const ba = provider === 'google' && typeof c.auth.getBetterAuthInstance === 'function'
+            ? c.auth.getBetterAuthInstance() : null;
+        if (!ba?.signIn || typeof ba.signIn.social !== 'function') return original(credentials);
+        const callbackURL = options?.redirectTo
+            || (typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : '/dashboard');
+        try {
+            const r = await ba.signIn.social({ provider, callbackURL, disableRedirect: true });
+            const url = r?.data?.url;
+            if (url) {
+                if (typeof window !== 'undefined') window.location.href = conSelectorDeCuenta(url);
+                return { data: { provider, url }, error: null };
+            }
+            return {
+                data: { provider, url: null },
+                error: r?.error || { message: t('No pudimos iniciar el acceso con Google. Inténtalo de nuevo.'), mfCopy: true },
+            };
+        } catch (e) {
+            return { data: { provider, url: null }, error: e };
+        }
+    };
+}
+
 // [P2-NEON-LAZY · 2026-07-12] Singleton lazy del cliente SDK. La primera llamada a
 // cualquier método de la facade dispara el dynamic import del SDK (~89KB) UNA vez;
 // las siguientes reutilizan la promesa cacheada. La inyección de signInWithOAuth
@@ -130,6 +184,11 @@ function _getClient() {
                 }
             } catch (e) {
                 console.error('[P1-NEON-AUTH-OAUTH-FIX] no se pudo inyectar signInWithOAuth:', e);
+            }
+            try {
+                if (c?.auth) c.auth.signInWithOAuth = _conGoogleQuePregunta(c);   // [P1-PLAN-LOTE-95]
+            } catch (e) {
+                console.error('[P1-PLAN-LOTE-95] no se pudo envolver signInWithOAuth:', e);
             }
             return c;
         });
