@@ -209,6 +209,7 @@
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    touch-action: pan-y;
     display: flex;
     flex-direction: column;
     gap: 1.35rem;

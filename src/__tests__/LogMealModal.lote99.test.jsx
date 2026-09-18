@@ -131,3 +131,69 @@ describe('el scroll del fondo vuelve a donde estaba al cerrar', () => {
         scrollTo.mockRestore();
     });
 });
+
+// [P1-PLAN-LOTE-101 · 2026-09-18] El gesto de la hoja de actualizar platos, aquí: el fondo no se mueve y deslizar
+// hacia abajo cierra.
+describe('deslizar hacia abajo cierra y el fondo no se mueve', () => {
+    const toque = (el, tipo, y, ts) => {
+        const ev = new Event(tipo, { bubbles: true, cancelable: true });
+        Object.defineProperty(ev, 'touches', { value: [{ clientY: y, clientX: 100 }] });
+        Object.defineProperty(ev, 'timeStamp', { value: ts });
+        el.dispatchEvent(ev);
+        return ev;
+    };
+
+    beforeEach(() => {
+        _resetPantryCacheForTests();
+        setCachedMasterList(FOODS);
+        setCachedDishes([]);
+        fetchWithAuth.mockReset();
+        fetchWithAuth.mockImplementation(async () => respuesta({ items: [] }));
+        window.matchMedia = vi.fn().mockImplementation((q) => ({ matches: q === '(max-width: 640px)', media: q, addEventListener() {}, removeEventListener() {} }));
+    });
+
+    it('un arrastre largo hacia abajo cierra; uno corto vuelve a su sitio', async () => {
+        vi.useFakeTimers();
+        const onClose = vi.fn();
+        render(<LogMealModal onClose={onClose} />);
+        const panel = screen.getByRole('dialog');
+        // corto Y lento (un flick corto también cierra, como en la hoja de actualizar platos)
+        toque(panel, 'touchstart', 100, 0);
+        toque(panel, 'touchmove', 130, 100);
+        toque(panel, 'touchmove', 140, 200);
+        expect(panel.style.transform).toBe('translateY(32px)');
+        toque(panel, 'touchend', 140, 300);
+        expect(onClose).not.toHaveBeenCalled();
+        expect(panel.style.transform).toBe('');
+        toque(panel, 'touchstart', 100, 100);
+        toque(panel, 'touchmove', 150, 116);
+        toque(panel, 'touchmove', 200, 132);
+        toque(panel, 'touchend', 200, 148);
+        expect(panel.style.transform).toBe('translateY(110%)');
+        vi.advanceTimersByTime(200);
+        expect(onClose).toHaveBeenCalledTimes(1);
+        vi.useRealTimers();
+    });
+
+    it('con el cuerpo sin desbordar, el pan se cancela: no llega a la página de fondo', () => {
+        render(<LogMealModal onClose={vi.fn()} />);
+        const panel = screen.getByRole('dialog');
+        const cuerpo = screen.getByText('¿Qué comiste?').closest('div');
+        toque(panel, 'touchstart', 300, 0);
+        // dedo subiendo (querer ver más) sobre un cuerpo que no scrollea → cancelado, la página no se mueve
+        const ev = toque(cuerpo, 'touchmove', 260, 16);
+        expect(ev.defaultPrevented).toBe(true);
+        toque(panel, 'touchend', 260, 32);
+        expect(panel.style.transform).toBe('');
+    });
+
+    it('el cuerpo declara su eje y la hoja lleva los cuatro manejadores', () => {
+        const css = src('src/components/dashboard/LogMealModal.module.css');
+        expect(regla(css, '.body')).toContain('touch-action: pan-y;');
+        const jsx = src('src/components/dashboard/LogMealModal.jsx');
+        expect(jsx).toContain("el.addEventListener('touchmove', block, { passive: false });");
+        for (const h of ['onTouchStart={onSheetTouchStart}', 'onTouchMove={onSheetTouchMove}', 'onTouchEnd={onSheetTouchEnd}', 'onTouchCancel={onSheetTouchEnd}']) {
+            expect(jsx).toContain(h);
+        }
+    });
+});

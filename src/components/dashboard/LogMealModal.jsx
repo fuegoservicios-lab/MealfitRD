@@ -121,6 +121,96 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
 
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
 
+    // [P1-PLAN-LOTE-101 · 2026-09-18] Dos cosas del mismo gesto, copiadas de la hoja de actualizar platos
+    // (MotivoActualizarModal, P2-SWAP-SHEET-SCROLL v4/v5), sin framer:
+    //  1. EL FONDO NO SE MUEVE. El dueño: «todavía sigue igual dando scroll hacia abajo cuando lo cierro». El
+    //     `overflow: hidden` del body no frena el toque en iOS y `overscroll-behavior` solo actúa en elementos
+    //     que SÍ scrollean: con el cuerpo de la hoja sin desbordar (o en su tope), el pan pasaba a la PÁGINA y al
+    //     cerrar el dashboard aparecía desplazado. Listener `touchmove` NO pasivo (React registra el suyo pasivo):
+    //     se cancela el pan cuando el cuerpo no puede seguir en esa dirección.
+    //  2. DESLIZAR HACIA ABAJO CIERRA, «así como los menús de actualizar platos»: con el cuerpo arriba del todo y
+    //     el dedo bajando, la hoja sigue al dedo 1:1 y al soltar cierra por distancia (>70 px) o velocidad, o
+    //     vuelve con transición. Si el dedo sube, o el cuerpo no está arriba, el gesto es del scroll; y si el
+    //     scroll llega arriba con el dedo aún bajando, la hoja toma el relevo (v4).
+    const bodyRef = useRef(null);
+    const gestureRef = useRef({ y0: null, active: false, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 });
+    const cerrandoRef = useRef(false);
+    const enTelefono = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return undefined;
+        const block = (e) => {
+            const g = gestureRef.current;
+            if (g.y0 == null || !e.cancelable) return;
+            if (g.active) { e.preventDefault(); return; }
+            const sc = bodyRef.current;
+            const t = e.touches[0];
+            if (!sc || !sc.contains(e.target)) { e.preventDefault(); return; }
+            const scrollable = sc.scrollHeight > sc.clientHeight + 1;
+            if (!scrollable) { e.preventDefault(); return; }
+            const dir = t.clientY - g.y0;
+            const atTop = sc.scrollTop <= 0;
+            const atBottom = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1;
+            if ((dir > 0 && atTop) || (dir < 0 && atBottom)) e.preventDefault();
+        };
+        el.addEventListener('touchmove', block, { passive: false });
+        return () => el.removeEventListener('touchmove', block);
+    }, [containerRef]);
+
+    const moverHoja = (y, animar) => {
+        const el = containerRef.current;
+        if (!el) return;
+        el.style.transition = animar ? 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none';
+        el.style.transform = y ? `translateY(${y}px)` : '';
+    };
+    const onSheetTouchStart = (e) => {
+        if (!enTelefono() || saving || cerrandoRef.current) return;
+        const t = e.touches[0];
+        gestureRef.current = { y0: t.clientY, active: false, ceded: false, off: 8, lastY: t.clientY, lastT: e.timeStamp, vy: 0 };
+    };
+    const onSheetTouchMove = (e) => {
+        const g = gestureRef.current;
+        if (g.y0 == null) return;
+        const t = e.touches[0];
+        const sc = bodyRef.current;
+        const atTop = !sc || sc.scrollTop <= 0;
+        if (!g.active) {
+            if (g.ceded) {
+                // el scroll llevaba el gesto; si el cuerpo ya está arriba y el dedo sigue bajando, relevo
+                if (atTop && t.clientY - g.lastY > 0) { g.y0 = t.clientY; g.off = 0; g.ceded = false; g.active = true; }
+                else { g.lastY = t.clientY; g.lastT = e.timeStamp; return; }
+            } else {
+                const dy0 = t.clientY - g.y0;
+                if (dy0 > 8 && atTop) g.active = true;
+                else if (Math.abs(dy0) > 8) { g.ceded = true; g.lastY = t.clientY; g.lastT = e.timeStamp; return; }
+                else return;
+            }
+        }
+        const dt = Math.max(1, e.timeStamp - g.lastT);
+        g.vy = (t.clientY - g.lastY) / dt;
+        g.lastY = t.clientY;
+        g.lastT = e.timeStamp;
+        moverHoja(Math.max(0, t.clientY - g.y0 - g.off), false);
+    };
+    const onSheetTouchEnd = () => {
+        const g = gestureRef.current;
+        const wasActive = g.active;
+        const y = wasActive ? Math.max(0, g.lastY - g.y0 - g.off) : 0;
+        const vy = g.vy;
+        gestureRef.current = { y0: null, active: false, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 };
+        if (!wasActive) return;
+        // cierra con poco: 70 px, o un flick corto, o lo recorrido más la inercia proyectada (150 ms)
+        if (y > 70 || vy > 0.35 || y + vy * 150 > 100) {
+            cerrandoRef.current = true;
+            const el = containerRef.current;
+            if (el) { el.style.transition = 'transform 0.18s ease-in'; el.style.transform = 'translateY(110%)'; }
+            setTimeout(onClose, 170);
+        } else {
+            moverHoja(0, true);
+        }
+    };
+
     // [P1-PLAN-LOTE-100 · 2026-09-18] «Al cerrar se scrollea un poco hacia abajo» (el dueño, en el iPhone). Para
     // revelar el campo enfocado, iOS desplaza el DOCUMENTO de fondo aunque el body lleve `overflow: hidden`, y al
     // cerrar la hoja el dashboard aparecía movido respecto a donde estaba. Se recuerda el scroll al abrir y se
@@ -306,7 +396,18 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
     const cuerpo = (
         <div className={styles.overlay}>
             <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
-            <div ref={containerRef} className={styles.panel} role="dialog" aria-modal="true" aria-label={t('Registrar comida')} tabIndex={-1}>
+            <div
+                ref={containerRef}
+                className={styles.panel}
+                role="dialog"
+                aria-modal="true"
+                aria-label={t('Registrar comida')}
+                tabIndex={-1}
+                onTouchStart={onSheetTouchStart}
+                onTouchMove={onSheetTouchMove}
+                onTouchEnd={onSheetTouchEnd}
+                onTouchCancel={onSheetTouchEnd}
+            >
                 <div className={styles.head}>
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
@@ -333,7 +434,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
                     )}
                 </div>
 
-                <div className={styles.body}>
+                <div ref={bodyRef} className={styles.body}>
                     {/* ---- ¿Qué comiste? ---- */}
                     <section className={styles.section} aria-labelledby="lm-que">
                         <h3 id="lm-que" className={styles.sectionTitle}>{t('¿Qué comiste?')}</h3>
