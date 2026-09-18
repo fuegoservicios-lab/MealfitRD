@@ -37,9 +37,15 @@ const bloquePlano = (rel) => {
 describe('contador sin tarjeticas en el teléfono', () => {
     it('solo el contador pide las secciones planas; el dashboard de plan no', () => {
         const tracking = src('src/components/dashboard/DashboardTracking.jsx');
-        expect(tracking).toContain('<TrackingProgress planData={targets} userId={userProfile?.id} flatOnMobile />');
+        expect(tracking).toContain('<TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile />');
+        expect(tracking).toContain('<MicrosTracker userId={userProfile?.id} flatOnMobile />');
         expect(tracking).toContain("|| 'guest'} flatOnMobile />");
-        expect(src('src/pages/Dashboard.jsx')).not.toContain('flatOnMobile');
+        // [P1-PLAN-LOTE-103] el dashboard del plan ya no monta el contador: vive en la pestaña «Progreso»
+        const dash = src('src/pages/Dashboard.jsx');
+        expect(dash).not.toContain('flatOnMobile');
+        expect(dash).not.toContain('<TrackingProgress');
+        expect(dash).not.toContain('<WaterTracker');
+        expect(src('src/pages/ProgressPage.jsx')).toContain('<DashboardTracking modo="plan" />');
         // opt-in: sin la prop, la clase no se añade
         expect(src('src/components/dashboard/TrackingProgress.jsx')).toContain('flatOnMobile = false');
         expect(src('src/components/dashboard/WaterTracker.jsx')).toContain('flatOnMobile = false');

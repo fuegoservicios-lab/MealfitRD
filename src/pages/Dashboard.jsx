@@ -52,10 +52,11 @@ function _formatoDiaCorto(iso) {
     if (!iso) return '';
     return formatDate(iso, { weekday: 'long', day: 'numeric', month: 'long' });
 }
-import TrackingProgress from '../components/dashboard/TrackingProgress';
+// [P1-PLAN-LOTE-103 · 2026-09-18] «Tus macros de hoy» e «Hidratación» viven en la pestaña «Progreso» (ProgressPage);
+// el diario de hoy que necesita «Tu Menú» lo trae `useTodaysConsumedMeals`.
+import { useTodaysConsumedMeals } from '../hooks/useTodaysConsumedMeals';
 // [P3-WATER-TRACKER · 2026-05-16] Tracker de hidratacion (8 vasos diarios)
 // reemplaza el card "Mi Nevera" que duplicaba la pagina Pantry.
-import WaterTracker from '../components/dashboard/WaterTracker';
 // [P2-CREDITS-METER · 2026-06-15] Gauge circular animado de créditos (reemplaza
 // el badge plano icono+número del header). Recibe la misma data del badge.
 import CreditsMeter from '../components/dashboard/CreditsMeter';
@@ -168,7 +169,6 @@ import { INSIGHTS_RESTORE_EVENT, insightsDismissKey } from '../utils/insightsPan
 // cerraba) y screen readers no lo anunciaban como dialog.
 import { useModalAccessibility } from '../hooks/useModalAccessibility';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + matchMedia local).
-import { useMediaQuery } from '../hooks/useMediaQuery';
 // [P2-15 · 2026-07-09] Store single-source de la Nevera Virtual (antes 3 copias
 // sincronizadas a mano: localStorage + useState local aquí + useState en Pantry).
 import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
@@ -1848,15 +1848,9 @@ const DashboardInner = () => {
     // cambio de su estado — un segundo `GET /api/diary/consumed/{userId}`
     // aquí crearía una segunda fuente de verdad que puede divergir de la
     // primera tras un delete.
-    const [todaysConsumedMeals, setTodaysConsumedMeals] = useState([]);
-    useEffect(() => {
-        const onTodaysConsumedUpdated = (event) => {
-            const meals = event?.detail?.meals;
-            if (Array.isArray(meals)) setTodaysConsumedMeals(meals);
-        };
-        window.addEventListener('mealfit:today-consumed-updated', onTodaysConsumedUpdated);
-        return () => window.removeEventListener('mealfit:today-consumed-updated', onTodaysConsumedUpdated);
-    }, []);
+    // [P1-PLAN-LOTE-103 · 2026-09-18] El contador ya no vive en esta pantalla (pestaña «Progreso»): el hook adopta su
+    // evento si está montado y, si no, pide el diario él mismo con las mismas señales de refresco.
+    const todaysConsumedMeals = useTodaysConsumedMeals(session?.user?.id || userProfile?.id);
     // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] eliminado el estado
     // `pantryCompletionList` junto con el panel "Para completar tu Nevera"
     // (decisión del owner: redundante con la lista de compras + ocupaba espacio).
@@ -1868,12 +1862,8 @@ const DashboardInner = () => {
 
     // [P3-WATER-TRACKER · 2026-05-16] Detector de viewport mobile (≤768px,
     // mismo breakpoint que el resto de las media queries del Dashboard).
-    // Determina si <WaterTracker /> se renderiza ENCIMA del menu de comidas
-    // (mobile) o dentro de la columna derecha junto a Insights (desktop).
-    // Una sola instancia activa a la vez evita doble fetch + state divergente.
-    // [P2-14 · 2026-07-09] Hook SSOT (antes useState + matchMedia local con
-    // fallback addListener; el hook cubre ambas APIs).
-    const isMobileViewport = useMediaQuery('(max-width: 768px)');
+    // [P1-PLAN-LOTE-103] Aquí vivía `isMobileViewport` (para elegir dónde iba el WaterTracker); la hidratación se
+    // mudó a la pestaña «Progreso» y ya no hay nada que decidir por viewport en esta pantalla.
 
     // Estado para "Nevera Virtual" - ingredientes temporalmente marcados como agotados
     // [P2-15 · 2026-07-09] Single-source: el store compartido reemplaza el
@@ -8261,11 +8251,9 @@ const DashboardInner = () => {
                 </motion.div>
             )}
 
-            {/* --- DAILY TRACKER UI (incluye objetivo + progreso fusionados) --- */}
-            <TrackingProgress
-                planData={planData}
-                userId={session?.user?.id || userProfile?.id || 'guest'}
-            />
+            {/* [P1-PLAN-LOTE-103 · 2026-09-18] «Tus macros de hoy» (TrackingProgress) y la hidratación se mudaron a la
+                pestaña «Progreso» (ProgressPage → DashboardTracking modo="plan"): el dueño quiso separar lo que es
+                progreso (macros, micros, agua) de lo que es plan. */}
 
             {/* [P3-WATER-TRACKER · 2026-05-16] En mobile el WaterTracker
                 vive ENCIMA del menu de comidas (UX: la hidratacion es accion
@@ -8277,7 +8265,6 @@ const DashboardInner = () => {
                 del ciclo de plan — un usuario sin plan activo igual debe poder
                 rastrear vasos. El propio componente se auto-oculta si el
                 usuario apago el toggle en Preferencias. */}
-            {isMobileViewport && <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />}
 
             {/* --- MAIN CONTENT COLUMNS --- */}
             <div className="main-grid">
@@ -9586,7 +9573,6 @@ const DashboardInner = () => {
                         NO gateado por `isPlanExpired` — la hidratacion es
                         independiente del plan. El componente se auto-oculta
                         via toggle en Preferencias. */}
-                    {!isMobileViewport && <WaterTracker userId={session?.user?.id || userProfile?.id || 'guest'} />}
 
                     {/* Insights Card */}
                     {/* [P1-REASONING-DISMISS · 2026-06-26] Dismissible: la X archiva el

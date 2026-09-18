@@ -21,9 +21,11 @@ const read = (rel) => fs.readFileSync(path.join(SRC, rel), 'utf8');
 
 /* ═══ A1. dashboardNav: el SSOT decide, los consumidores solo pegan iconos ═══ */
 describe('[P1-PLAN-MODE] dashboardNav — SSOT de la nav por modo', () => {
-    it('modo plan: 5 entradas, Recetas presente, rótulo Plan', () => {
+    it('modo plan: 6 entradas (Progreso tras Plan desde el lote 103), Recetas presente, rótulo Plan', () => {
         const items = navItemsFor({ trackingMode: false });
-        expect(items.map((i) => i.key)).toEqual(['plan', 'agent', 'pantry', 'recipes', 'history']);
+        expect(items.map((i) => i.key)).toEqual(['plan', 'progress', 'agent', 'pantry', 'recipes', 'history']);
+        expect(items[1].label).toBe('Progreso');
+        expect(items[1].path).toBe('/dashboard/progress');
         expect(items[0].label).toBe('Plan');
     });
 
@@ -351,9 +353,11 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         const s = read('components/dashboard/DashboardTracking.jsx');
         const mountIdx = s.indexOf('<TrackingProgress');
         expect(mountIdx).toBeGreaterThan(-1);
-        // el mount vive dentro de la rama {targets?.ok && (…)}
+        // el mount vive dentro de la rama {metasMacros?.ok && (…)} — [P1-PLAN-LOTE-103] `metasMacros` es `targets`
+        // en modo contador y el plan vigente en modo plan; sin `ok` no hay tarjeta
         const antes = s.slice(Math.max(0, mountIdx - 600), mountIdx);
-        expect(antes).toContain('{targets?.ok && (');
+        expect(antes).toContain('{metasMacros?.ok && (');
+        expect(s).toContain("const metasMacros = modo === 'plan' && planData?.calories ? { ok: true, ...planData } : targets;");
         // el descarte de la tarjeta persiste y colapsa a enlace (no borra la puerta)
         expect(s).toContain("_DISMISS_KEY = 'mealfit_turnon_card_dismissed'");
         expect(s).toContain('safeLocalStorageSet(_DISMISS_KEY');

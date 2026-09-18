@@ -3172,5 +3172,22 @@
   "Extra": "Extra",
   "Tus macros de hoy": "Seus macros de hoje",
   "Altura fuera de rango (100-250 cm).": "Altura fora do intervalo (100-250 cm).",
-  "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Salvo. As metas do contador já refletem os novos dados."
+  "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Salvo. As metas do contador já refletem os novos dados.",
+  "Micros de hoy": "Seus micros de hoje",
+  "Fibra": "Fibra",
+  "Sodio": "Sódio",
+  "Potasio": "Potássio",
+  "Calcio": "Cálcio",
+  "Hierro": "Ferro",
+  "Vitamina C": "Vitamina C",
+  "Vitamina A": "Vitamina A",
+  "máx.": "máx.",
+  "Registra una comida y aquí verás sus micros.": "Registre uma refeição e aqui você verá os micros.",
+  "Ninguna de tus comidas de hoy trae micros (foto o macros propias).": "Nenhuma das refeições de hoje traz micros (foto ou macros próprios).",
+  "Con datos de {n} de {total} comidas": {
+    "one": "Com dados de {n} de {total} refeições",
+    "other": "Com dados de {n} de {total} refeições"
+  },
+  "Las comidas registradas por foto o con macros propias no traen micros.": "Refeições registradas por foto ou com macros próprios não trazem micros.",
+  "Sin metas todavía: completa sexo y edad en Configuración.": "Ainda sem metas: preencha sexo e idade em Configurações."
 }

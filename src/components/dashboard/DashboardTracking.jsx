@@ -12,6 +12,7 @@
 // que una barra ausente: parece que funciona.
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import { Loader2, Gauge } from 'lucide-react';
 import { fetchWithAuth } from '../../config/api';
 import { reanudarPlanes } from '../../utils/planModeResume';
@@ -21,6 +22,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalS
 import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
+import MicrosTracker from './MicrosTracker';
 import styles from './DashboardTracking.module.css';
 
 // Cuántas preguntas del contrato de PLAN le faltan — un hecho, no un adjetivo.
@@ -124,7 +126,10 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
     );
 };
 
-const DashboardTracking = () => {
+// [P1-PLAN-LOTE-103 · 2026-09-18] `modo`: «contador» (sin generador: las metas salen de /api/nutrition/targets y va
+// la invitación a encender el plan) o «plan» (la pestaña «Progreso» del modo plan: las metas son las del plan
+// vigente y no hay invitación). Las tres secciones —macros, micros, hidratación— son las mismas en los dos.
+const DashboardTracking = ({ modo = 'contador' }) => {
     const t = useT();
     // Créditos: mismas props que el call site de DashboardInner — el medidor no
     // deriva nada solo (con undefined pintaría 0/0 «agotado», una mentira roja).
@@ -145,6 +150,10 @@ const DashboardTracking = () => {
 
     useEffect(() => { cargar(); }, [cargar]);
 
+    // En modo plan las metas de macros son las del plan vigente (misma forma que /nutrition/targets, por contrato);
+    // sin plan cargado (p. ej. generándose) se cae a las metas del perfil.
+    const metasMacros = modo === 'plan' && planData?.calories ? { ok: true, ...planData } : targets;
+
     // [P1-PLAN-LOTE-102 · 2026-09-18] Configuración (modo contador) guarda peso/altura/edad/sexo al momento y avisa:
     // las metas se vuelven a pedir sin recargar la página.
     useEffect(() => {
@@ -159,13 +168,13 @@ const DashboardTracking = () => {
     return (
         <div className={styles.page}>
             <div className={styles.mainCol}>
-                {targets === null && (
+                {metasMacros === null && (
                     <div className={styles.loading}>
                         <Loader2 className={styles.spin} size={22} aria-hidden="true" /> {t('Calculando tus metas…')}
                     </div>
                 )}
 
-                {targets?.ok === false && (
+                {metasMacros?.ok === false && (
                     <div className={styles.noGoals}>
                         <Gauge size={20} aria-hidden="true" />
                         <div>
@@ -190,13 +199,18 @@ const DashboardTracking = () => {
                     </div>
                 )}
 
-                {targets?.ok && (
+                {metasMacros?.ok && (
                     // La forma de `targets` es idéntica a plan_data POR CONTRATO
                     // (calories numérico + macros con 'g'): la tarjeta consume una
                     // sola forma venga del plan o de aquí. El diario del día y los
                     // botones de registrar ya viven dentro.
-                    <TrackingProgress planData={targets} userId={userProfile?.id} flatOnMobile />
+                    <TrackingProgress planData={metasMacros} userId={userProfile?.id} flatOnMobile />
                 )}
+
+                {/* [P1-PLAN-LOTE-103] «Micros de hoy», debajo de las macros; en el teléfono con su línea fina. */}
+                <div className={styles.microsSlot}>
+                    <MicrosTracker userId={userProfile?.id} flatOnMobile />
+                </div>
             </div>
 
             <div className={styles.sideCol}>
@@ -214,10 +228,12 @@ const DashboardTracking = () => {
                 la PRIMERA (el dueño: «debería estar arriba de primero»). El orden lo decide el CSS
                 por área, no un segundo render ni un `order` dentro de la columna lateral. */}
             <div className={styles.turnOnSlot}>
-                <TurnOnPlanCard formData={formData} hayPlanPausado={!!planData} />
+                {modo === 'contador' && <TurnOnPlanCard formData={formData} hayPlanPausado={!!planData} />}
             </div>
         </div>
     );
 };
+
+DashboardTracking.propTypes = { modo: PropTypes.oneOf(['contador', 'plan']) };
 
 export default DashboardTracking;

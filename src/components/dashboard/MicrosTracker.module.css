@@ -1,0 +1,128 @@
+/* [P1-PLAN-LOTE-103 · 2026-09-18] «Micros de hoy». Misma familia que «Tus macros de hoy» e «Hidratación»:
+   tarjeta con tokens del DS, badge con gradiente, y en el teléfono SIN marco (`flatMobile`, lote 88). */
+.card {
+    --mi-1: #A78BFA;
+    --mi-2: #8B5CF6;
+    --mi-3: #6D28D9;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 2rem;
+    padding: 22px;
+    background:
+        radial-gradient(120% 80% at 100% 0%, rgba(139, 92, 246, .10), transparent 45%),
+        var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+}
+
+.head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+
+.badge {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: linear-gradient(150deg, var(--mi-1), var(--mi-3));
+    box-shadow: 0 6px 16px -5px rgba(109, 40, 217, .6);
+}
+
+.title { margin: 0; font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; color: var(--text-main); }
+.sub { margin: 2px 0 0; font-size: .78rem; font-weight: 600; color: var(--text-muted); line-height: 1.35; }
+
+.list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 22px;
+}
+
+@media (max-width: 560px) {
+    .list { grid-template-columns: 1fr; gap: 12px; }
+}
+
+.row { min-width: 0; }
+
+.rowTop {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.tag {
+    font-size: .66rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+    color: var(--text-muted);
+}
+
+.value {
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.value b { color: var(--text-main); font-weight: 800; font-size: .95rem; }
+
+.track {
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-light) 22%, transparent);
+    overflow: hidden;
+}
+
+.fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--mi-1), var(--mi-2));
+    transition: width .35s ease;
+}
+
+.fill.done { background: linear-gradient(90deg, #34D399, #10B981); }
+.fill.ok { background: linear-gradient(90deg, #67E8F9, #22D3EE); }
+.fill.near { background: linear-gradient(90deg, #FCD34D, #F59E0B); }
+.fill.over { background: linear-gradient(90deg, #FB7185, #E11D48); }
+
+.note {
+    margin: 14px 0 0;
+    font-size: .78rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+/* [P1-PLAN-LOTE-88] en el teléfono la sección va plana y a todo el ancho, como sus hermanas */
+@media (max-width: 768px) {
+    .card.flatMobile,
+    :global(html[data-theme="dark"]) .card.flatMobile {
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+        margin-bottom: 0;
+        overflow: visible;
+    }
+}

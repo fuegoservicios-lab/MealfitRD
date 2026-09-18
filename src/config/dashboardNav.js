@@ -22,6 +22,10 @@ export const navItemsFor = ({ trackingMode = false } = {}) => [
     // [P1-PLAN-LOTE-102 · 2026-09-18] «Progreso», no «Hoy»: la pestaña es el contador (macros, hidratación), y «Hoy»
     // no decía de qué (el dueño).
     { key: 'plan', label: trackingMode ? t('Progreso') : t('Plan|nav'), path: '/dashboard' },
+    // [P1-PLAN-LOTE-103 · 2026-09-18] En modo plan, «Progreso» es pestaña propia: macros y micros de hoy e hidratación
+    // salen del dashboard del plan (el dueño: «dividir lo que tenga que ver con progreso en un apartado aparte»).
+    // En modo contador NO se duplica: ahí «Progreso» ya es la primera.
+    ...(trackingMode ? [] : [{ key: 'progress', label: t('Progreso'), path: '/dashboard/progress' }]),
     { key: 'agent', label: t('Agente'), path: '/dashboard/agent' },
     { key: 'pantry', label: t('Nevera'), path: '/dashboard/pantry' },
     ...(trackingMode ? [] : [{ key: 'recipes', label: t('Recetas'), path: '/dashboard/recipes' }]),

@@ -9,7 +9,7 @@ import PropTypes from 'prop-types';
 // es lazy y sus páginas ya cargan framer de todos modos.
 import { MotionConfig } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Activity, Settings, LogOut, Menu, X, Clock, Refrigerator, Lock, Info, ChevronRight, HelpCircle } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
@@ -163,6 +163,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // aquí solo se les pega el icono. Dos copias a mano eran dos verdades.
     const _navIcons = {
         plan: { icon: LayoutDashboard },
+        progress: { icon: Activity },  // [P1-PLAN-LOTE-103] «Progreso» en modo plan
         agent: { icon: AgentIcon },
         pantry: { icon: Refrigerator, iconStroke: 2.25 },
         recipes: { icon: RecipesIcon },

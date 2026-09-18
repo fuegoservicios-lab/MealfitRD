@@ -3172,5 +3172,22 @@
   "Extra": "Extra",
   "Tus macros de hoy": "I tuoi macro di oggi",
   "Altura fuera de rango (100-250 cm).": "Altezza fuori intervallo (100-250 cm).",
-  "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Salvato. Gli obiettivi del contatore riflettono già i nuovi dati."
+  "Guardado. Tus metas del contador ya reflejan los nuevos datos.": "Salvato. Gli obiettivi del contatore riflettono già i nuovi dati.",
+  "Micros de hoy": "I tuoi micro di oggi",
+  "Fibra": "Fibre",
+  "Sodio": "Sodio",
+  "Potasio": "Potassio",
+  "Calcio": "Calcio",
+  "Hierro": "Ferro",
+  "Vitamina C": "Vitamina C",
+  "Vitamina A": "Vitamina A",
+  "máx.": "max.",
+  "Registra una comida y aquí verás sus micros.": "Registra un pasto e qui vedrai i suoi micro.",
+  "Ninguna de tus comidas de hoy trae micros (foto o macros propias).": "Nessuno dei pasti di oggi porta micro (foto o macro propri).",
+  "Con datos de {n} de {total} comidas": {
+    "one": "Con i dati di {n} pasto su {total}",
+    "other": "Con i dati di {n} pasti su {total}"
+  },
+  "Las comidas registradas por foto o con macros propias no traen micros.": "I pasti registrati con foto o con macro propri non portano micro.",
+  "Sin metas todavía: completa sexo y edad en Configuración.": "Ancora senza obiettivi: completa sesso ed età nelle Impostazioni."
 }

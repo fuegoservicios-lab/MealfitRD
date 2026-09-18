@@ -106,7 +106,9 @@ function _dispatchTodaysConsumed(meals) {
 // text ("N comidas registradas hoy") guarantees its dispatch already fired,
 // so our manual dispatch afterward is the LAST word.
 async function _waitForTrackingProgressSettled() {
-    await _esperaTexto(/comidas? registradas? hoy/);
+    // [P1-PLAN-LOTE-103] El contador vive en «Progreso»; aquí quien pide el diario es `useTodaysConsumedMeals`, y su
+    // fetch propio NO pisa un evento adoptado (época): basta con dejar que el fetch del montaje resuelva.
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
 }
 
 // Misma llamada que usa el código de producción (Dashboard.jsx) — así la

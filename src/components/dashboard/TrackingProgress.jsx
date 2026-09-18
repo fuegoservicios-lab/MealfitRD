@@ -379,6 +379,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false }) => {
             // Recalcula totales/count con la fila ya fuera — mismo builder
             // que usa el fetch inicial, así el resultado es idéntico al que
             // devolvería un refetch (sin esperar el roundtrip).
+            // [P1-PLAN-LOTE-103] «Micros de hoy» y el dashboard del plan (useTodaysConsumedMeals) vuelven a pedir el día.
+            try { window.dispatchEvent(new Event('mealfit:diary-changed')); } catch { /* best-effort */ }
             setConsumed((prev) => _buildConsumedSnapshot({
                 meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
                 cacheKey: consumedCacheKey,

@@ -78,6 +78,7 @@ const Plan = lazy(() => import('./pages/Plan'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 
 const Pantry = lazy(() => import('./pages/Pantry'));
+const ProgressPage = lazy(() => import('./pages/ProgressPage'));
 const Recipes = lazy(() => import('./pages/Recipes'));
 const Settings = lazy(() => import('./pages/Settings'));
 // [P1-SETTINGS-DIALOG · 2026-08-10] La ventana de configuración. Lazy igual que
@@ -579,6 +580,7 @@ function App() {
             <Route element={<ProtectedRoute><DashboardAnimatedLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/dashboard/pantry" element={<Pantry />} />
+              <Route path="/dashboard/progress" element={<ProgressPage />} />
               <Route path="/dashboard/recipes" element={<Recipes />} />
               {/* [P1-AGENT-KEEP-ALIVE · 2026-05-20] AgentPage vive residente
                   en DashboardAnimatedLayout (keep-alive). Esta route es solo

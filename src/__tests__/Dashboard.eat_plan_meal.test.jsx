@@ -112,7 +112,8 @@ function _routeFetch(eatResponse = _eatOk()) {
 }
 
 async function _waitForTrackingProgressSettled() {
-    await screen.findByText(/comidas? registradas? hoy/);
+    // [P1-PLAN-LOTE-103] el contador vive en «Progreso»; aquí «listo» = las tarjetas del menú con su botón.
+    await waitFor(() => expect(screen.getAllByLabelText(/Registrar que te comiste/i).length).toBeGreaterThan(0));
 }
 
 function _eatButtonFor(dishName) {

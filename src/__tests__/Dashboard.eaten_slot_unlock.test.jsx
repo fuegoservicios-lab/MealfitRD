@@ -129,164 +129,101 @@ const _diaryTotals = (meals) => ({
 
 const _jsonResponse = (body, ok = true) => ({ ok, json: async () => body });
 
-// Enrutado por MÉTODO+URL. El ÚNICO manejo especial es el GET/DELETE real de
-// `/api/diary/consumed/*` que TrackingProgress dispara de verdad; cualquier
-// otro `fetchWithAuth` (inventario, etc.) recibe el mismo shape "diario
-// vacío" que Dashboard.today_remaining.test.jsx ya usa como blanket mock —
-// probado inofensivo para el resto del árbol de Dashboard.
-function _makeFetchWithAuthMock({ deleteOk }) {
-    return vi.fn((url, options) => {
+// [P1-PLAN-LOTE-103 · 2026-09-18] La unión cambió de forma: «Tus macros de hoy» (con su botón de borrar) vive
+// ahora en la pestaña «Progreso», y el dashboard del plan sabe qué se comió hoy por `useTodaysConsumedMeals`, que
+// pide el diario él mismo y adopta el evento del contador si conviven. El round trip real pasa a ser: borrar en
+// «Progreso» → volver al dashboard (se vuelve a montar) → el hook pide el diario → el menú se desbloquea. Y, sin
+// cambiar de pantalla, la señal `mealfit:diary-changed` (la emite TrackingProgress al borrar) hace que el hook
+// vuelva a pedir. Este archivo prueba esas dos uniones sin despachar `mealfit:today-consumed-updated` a mano.
+
+let _diarioActual = [];
+
+function _makeFetchWithAuthMock() {
+    return vi.fn((url) => {
         const isDiaryEndpoint = typeof url === 'string' && url.startsWith('/api/diary/consumed/');
-        if (isDiaryEndpoint && options?.method === 'DELETE') {
-            return Promise.resolve(deleteOk
-                ? _jsonResponse({ success: true, message: 'Comida eliminada del diario.' })
-                : _jsonResponse({ detail: 'No se pudo eliminar la comida.' }, false));
-        }
         if (isDiaryEndpoint) {
-            return Promise.resolve(_jsonResponse({
-                totals: _diaryTotals([_DIARY_MEAL_TODAY]),
-                meals: [_DIARY_MEAL_TODAY],
-            }));
+            return Promise.resolve(_jsonResponse({ totals: _diaryTotals(_diarioActual), meals: [..._diarioActual] }));
         }
         return Promise.resolve(_jsonResponse({ totals: { calories: 0, protein: 0, carbs: 0, healthy_fats: 0 }, meals: [] }));
     });
 }
 
-// Espera a que el fetch REAL de montaje de TrackingProgress resuelva Y
-// despache `mealfit:today-consumed-updated` con el desayuno de hoy — nunca
-// disparamos ese evento a mano en este archivo.
-async function _waitForTrackingProgressSettledWithMeal() {
-    await screen.findByText('1 comida registrada hoy');
+
+async function _cardBloqueado() {
+    const menuName = await screen.findByText('Mangú con los tres golpes');
+    const menuCard = menuName.closest('.meal-card');
+    await waitFor(() => expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM));
+    return menuCard;
 }
 
-describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en "Progreso en Tiempo Real" desbloquea "Tu Menú"', () => {
+describe('P1-EATEN-SLOT-UNLOCK — round trip real: borrar en «Tus macros de hoy» (pestaña Progreso) desbloquea "Tu Menú"', () => {
     beforeEach(() => {
-        // [P1-TRACKING-CACHE-CONSUMED] TrackingProgress hidrata `consumed`
-        // desde localStorage (keyed por user+fecha de HOY) en el initializer
-        // de su `useState` — sin limpiar, el snapshot que un test anterior
-        // dejó (mismo `userId` de prueba 'test-user', misma fecha) hidrataría
-        // el siguiente test ANTES de que su propio fetch mockeado resuelva.
-        // Mismo guard que TrackingProgress.diary_editable.test.jsx.
         localStorage.clear();
+        _diarioActual = [_DIARY_MEAL_TODAY];
         vi.mocked(router.useNavigate).mockReturnValue(vi.fn());
         vi.mocked(useRegeneratePlan).mockReturnValue({ regeneratePlan: vi.fn() });
         vi.mocked(confirmToast).mockReset().mockResolvedValue(true);
         vi.mocked(toast.success).mockClear();
         vi.mocked(toast.error).mockClear();
         window.scrollTo = vi.fn();
+        vi.mocked(fetchWithAuth).mockImplementation(_makeFetchWithAuthMock());
     });
 
-    it('click en Eliminar → DELETE resuelve OK → el card del menú se desbloquea sin dispatch manual', async () => {
-        vi.mocked(fetchWithAuth).mockImplementation(_makeFetchWithAuthMock({ deleteOk: true }));
-
+    it('con el desayuno en el diario el card arranca bloqueado, con la frase honesta y la escotilla a «Tus macros de hoy»', async () => {
         render(<Dashboard />, {
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
-
-        await _waitForTrackingProgressSettledWithMeal();
-
-        // El diario YA traía el desayuno de hoy antes del primer render útil
-        // → el card matching arranca bloqueado (match inequívoco: un solo
-        // slot "Desayuno" hoy).
-        const menuName = await screen.findByText('Mangú con los tres golpes');
-        const menuCard = menuName.closest('.meal-card');
-        expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM);
+        const menuCard = await _cardBloqueado();
         const [, swapBtn, likeBtn] = within(menuCard).getAllByRole('button');
-        // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] "Me gusta" sigue con `disabled` real;
-        // "Cambiar Plato" pasó a `aria-disabled` porque un botón `disabled` no emite
-        // click y el dueño pidió que al pulsarlo explique por qué está bloqueado. La
-        // escotilla de escape que esta suite protege —«bórralo en Progreso en Tiempo
-        // Real»— no solo sigue: ahora también llega a quien TOCA el candado, no solo a
-        // quien puede posar un puntero encima.
         expect(likeBtn).toBeDisabled();
         expect(swapBtn).toHaveAttribute('aria-disabled', 'true');
-
-        // [P1-EATEN-SLOT-COPY · 2026-07-28] El chip SOLO nombra el slot
-        // ("Ya registraste tu desayuno") — nunca dice "esto" (la copia
-        // vieja apuntaba al plato MOSTRADO, "Mangú con los tres golpes",
-        // que el usuario NO comió — comió "Mangú (registrado hoy)").
         expect(screen.getByText('Ya registraste tu desayuno')).toBeInTheDocument();
-        expect(within(menuCard).queryByText(/esto/i)).not.toBeInTheDocument();
         expect(screen.getByText(/Te quedan/)).toBeInTheDocument();
-
-        // Los 2 botones bloqueados llevan la MISMA frase honesta — nombra lo
-        // que el diario registró, jamás "Mangú con los tres golpes" (el
-        // plato del PLAN que decora esta card).
         expect(swapBtn).toHaveAttribute('title', _EATEN_CLAIM);
         expect(likeBtn).toHaveAttribute('title', _EATEN_CLAIM);
-        // El de swap nombra además el control: bloqueado se queda sin rótulo visible
-        // (solo el candado), así que el nombre accesible es lo único que dice cuál es.
-        expect(swapBtn.getAttribute('aria-label')).toContain(_EATEN_CLAIM);
-        expect(swapBtn.getAttribute('aria-label')).toMatch(/^Cambiar plato\./);
-        expect(likeBtn).toHaveAttribute('aria-label', _EATEN_CLAIM);
+        expect(_EATEN_CLAIM).toContain('Tus macros de hoy');
         expect(_EATEN_CLAIM).toContain('Mangú (registrado hoy)');
         expect(_EATEN_CLAIM).not.toContain('con los tres golpes');
+        // el contador ya no vive aquí: ni su botón de borrar ni su subtítulo
+        expect(screen.queryByRole('button', { name: /del diario$/ })).not.toBeInTheDocument();
+        expect(screen.queryByText(/comidas? registradas? hoy/)).not.toBeInTheDocument();
+    });
 
-        // El control de borrado vive en "Progreso en Tiempo Real" — su
-        // accessible name usa el nombre del RENGLÓN DEL DIARIO, nunca el del
-        // plato del menú.
-        const deleteBtn = screen.getByRole('button', { name: 'Eliminar Mangú (registrado hoy) del diario' });
-        fireEvent.click(deleteBtn);
-
-        // `confirmToast` (mockeado a resolver `true`) + el DELETE real son
-        // async — esperar el toast de éxito de TrackingProgress antes de
-        // asertar el efecto río abajo en el menú.
-        await waitFor(() => {
-            expect(toast.success).toHaveBeenCalledTimes(1);
+    it('borrar en «Progreso» y volver: el dashboard se vuelve a montar, pide el diario y desbloquea', async () => {
+        const primera = render(<Dashboard />, {
+            customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
+        await _cardBloqueado();
+        primera.unmount();
 
-        // El card del menú se desbloquea: sin title de bloqueo, botones
-        // habilitados, chip fuera, línea "Te quedan" fuera (0 comidas hoy).
-        await waitFor(() => {
-            expect(menuCard).not.toHaveAttribute('title');
+        _diarioActual = []; // lo que queda tras el DELETE en la pestaña «Progreso»
+        render(<Dashboard />, {
+            customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
-        expect(swapBtn).not.toBeDisabled();
+        const menuName = await screen.findByText('Mangú con los tres golpes');
+        const menuCard = menuName.closest('.meal-card');
+        await waitFor(() => expect(menuCard).not.toHaveAttribute('title'));
+        const [, swapBtn, likeBtn] = within(menuCard).getAllByRole('button');
+        expect(swapBtn).not.toHaveAttribute('aria-disabled', 'true');
         expect(likeBtn).not.toBeDisabled();
         expect(screen.queryByText('Ya registraste tu desayuno')).not.toBeInTheDocument();
         expect(screen.queryByText(/Te quedan/)).not.toBeInTheDocument();
-
-        // El renglón también desapareció de "Progreso en Tiempo Real" — la
-        // misma verdad en ambos lugares, sin segundo fetch.
-        expect(screen.queryByText('Mangú (registrado hoy)')).not.toBeInTheDocument();
-        expect(screen.getByText('0 comidas registradas hoy')).toBeInTheDocument();
     });
 
-    it('si el DELETE falla, el card del menú se queda bloqueado — un unlock visual sería mentirle al usuario', async () => {
-        vi.mocked(fetchWithAuth).mockImplementation(_makeFetchWithAuthMock({ deleteOk: false }));
-
+    it('sin cambiar de pantalla, `mealfit:diary-changed` hace que vuelva a pedir el diario: desbloquea si ya no está, sigue bloqueado si sigue', async () => {
         render(<Dashboard />, {
             customContext: { ..._baseContext, planData: _plan([{ day: 1, day_name: 'Hoy', meals: _FOUR_MEALS_TODAY }]) },
         });
+        const menuCard = await _cardBloqueado();
 
-        await _waitForTrackingProgressSettledWithMeal();
-        const menuName = await screen.findByText('Mangú con los tres golpes');
-        const menuCard = menuName.closest('.meal-card');
+        // el DELETE falló en otra superficie: el diario sigue igual → sigue bloqueado
+        window.dispatchEvent(new Event('mealfit:diary-changed'));
+        await new Promise((r) => setTimeout(r, 30));
         expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM);
 
-        const deleteBtn = screen.getByRole('button', { name: 'Eliminar Mangú (registrado hoy) del diario' });
-        fireEvent.click(deleteBtn);
-
-        await waitFor(() => {
-            expect(toast.error).toHaveBeenCalledTimes(1);
-        });
-
-        // Sigue bloqueado: title, botones deshabilitados, chip, renglón del
-        // diario y "Te quedan" intactos — el fallo del DELETE no debe
-        // parecer un éxito.
-        expect(menuCard).toHaveAttribute('title', _EATEN_CLAIM);
-        const [, swapBtn, likeBtn] = within(menuCard).getAllByRole('button');
-        // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] "Me gusta" sigue con `disabled` real;
-        // "Cambiar Plato" pasó a `aria-disabled` porque un botón `disabled` no emite
-        // click y el dueño pidió que al pulsarlo explique por qué está bloqueado. La
-        // escotilla de escape que esta suite protege —«bórralo en Progreso en Tiempo
-        // Real»— no solo sigue: ahora también llega a quien TOCA el candado, no solo a
-        // quien puede posar un puntero encima.
-        expect(likeBtn).toBeDisabled();
-        expect(swapBtn).toHaveAttribute('aria-disabled', 'true');
-        expect(screen.getByText('Ya registraste tu desayuno')).toBeInTheDocument();
-        expect(within(menuCard).queryByText(/esto/i)).not.toBeInTheDocument();
-        expect(screen.getByText(/Te quedan/)).toBeInTheDocument();
-        expect(screen.getByText('Mangú (registrado hoy)')).toBeInTheDocument();
-        expect(screen.getByText('1 comida registrada hoy')).toBeInTheDocument();
+        _diarioActual = [];
+        window.dispatchEvent(new Event('mealfit:diary-changed'));
+        await waitFor(() => expect(menuCard).not.toHaveAttribute('title'));
+        expect(screen.queryByText('Ya registraste tu desayuno')).not.toBeInTheDocument();
     });
 });

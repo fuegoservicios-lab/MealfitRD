@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Clock, Refrigerator, Lock } from 'lucide-react';
+import { LayoutDashboard, Activity, Clock, Refrigerator, Lock } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 // [P1-GUEST-NAV-LOCK · 2026-06-15] Modo invitado: secciones que requieren cuenta.
@@ -17,6 +17,7 @@ import styles from './BottomTabBar.module.css';
 // depende del modo (contexto) — un const a nivel de módulo no lo ve.
 const _tabIcons = {
     plan: { icon: LayoutDashboard },
+    progress: { icon: Activity },  // [P1-PLAN-LOTE-103] «Progreso» en modo plan
     agent: { icon: AgentIcon },
     pantry: { icon: Refrigerator, iconStroke: 2.25 },
     recipes: { icon: RecipesIcon },
