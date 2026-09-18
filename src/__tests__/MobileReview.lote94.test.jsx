@@ -12,18 +12,14 @@ import { resolve } from 'node:path';
 const src = (p) => readFileSync(resolve(process.cwd(), p), 'utf8').split(String.fromCharCode(13)).join('');
 const plano = (s) => s.split(/\s+/).join(' ');
 
-describe('el componedor no corta el tipo de comida', () => {
-    it('la fila deja de repartirse a partes iguales y se apila en pantallas muy estrechas', () => {
+// [P1-PLAN-LOTE-99 · 2026-09-18] SUPERSEDED: el tipo de comida y el día ya no son <select> sino chips con todas las
+// opciones a la vista (no hay valor que cortar). Lo que sigue vigente de aquel lote es el punto 2 (abajo); el contrato
+// nuevo del componedor vive en `LogMealModal.lote99.test.jsx`.
+describe('el componedor ya no tiene el desplegable que cortaba', () => {
+    it('no queda ni la rejilla de los dos selects ni la clase del select', () => {
         const css = src('src/components/dashboard/LogMealModal.module.css');
-        const i = css.indexOf('.selectors {');
-        const regla = plano(css.slice(i, css.indexOf('}', i)));
-        expect(regla).toContain('display: grid;');
-        expect(regla).toContain('grid-template-columns: minmax(0, 1fr) auto;');
-        expect(regla).not.toContain('display: flex;');
-        expect(plano(css)).toContain('@media (max-width: 380px) { .selectors { grid-template-columns: 1fr; } }');
-        // red de seguridad para traducciones largas
-        const j = css.indexOf('.select {');
-        expect(plano(css.slice(j, css.indexOf('}', j)))).toContain('text-overflow: ellipsis;');
+        expect(css).not.toContain('.selectors {');
+        expect(css).not.toContain(String.fromCharCode(10) + '.select {');
     });
 });
 

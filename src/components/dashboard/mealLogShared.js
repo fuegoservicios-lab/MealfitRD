@@ -20,7 +20,9 @@ export const getMealTypes = (t) => [
 // ni bloquea swap/PDF (P1-EATEN-RECIPE-LOCK). Las kcal cuentan igual. El escáner no
 // la ofrece a propósito: su flujo nació atado a los slots del plan y cambiarle el
 // default es otra conversación.
-export const getMealTypeExtra = (t) => ({ value: 'extra', label: t('Extra (fuera del plan)') });
+// [P1-PLAN-LOTE-99] La etiqueta es «Extra» a secas: «(fuera del plan)» no decía nada a quien usa la app SIN plan
+// (modo seguimiento). Lo que significa lo explica el componedor cuando se elige.
+export const getMealTypeExtra = (t) => ({ value: 'extra', label: t('Extra') });
 
 // Auto-detección del tipo de comida por la hora local. Editable después.
 export const guessMealType = () => {

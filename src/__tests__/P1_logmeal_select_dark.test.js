@@ -25,7 +25,8 @@ import path from 'path';
 
 const DIR = path.resolve(__dirname, '../components/dashboard');
 const MODULOS = [
-    ['LogMealModal.module.css', '.select'],
+    // [P1-PLAN-LOTE-99] Los dos desplegables de arriba son chips; el unico <select> que queda es la unidad de cada linea.
+    ['LogMealModal.module.css', '.lineUnit'],
     ['ScanMealModal.module.css', '.selectInput'],
 ];
 

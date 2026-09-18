@@ -1,22 +1,28 @@
-/* [P1-MANUAL-FOOD-LOG · 2026-08-11] El componedor de comidas. MISMA familia visual
-   que ScanMealModal (acento indigo, radios 22px, tinte radial arriba, dark vía
-   html[data-theme="dark"]): las dos vías de registrar comida deben leerse como
-   hermanas, no como dos apps. Los bloques .macro* son la piel local del MacroInput
-   compartido (la lógica vive en common/; ver el porqué de las clases inyectables ahí). */
+/* [P1-MANUAL-FOOD-LOG · 2026-08-11] El componedor de comidas. MISMA familia visual que ScanMealModal (acento
+   indigo, radios 22px, tinte radial arriba, dark vía html[data-theme="dark"]): las dos vías de registrar comida
+   deben leerse como hermanas, no como dos apps. Los bloques .macro* son la piel local del MacroInput compartido
+   (la lógica vive en common/; ver el porqué de las clases inyectables ahí).
+
+   [P1-PLAN-LOTE-99 · 2026-09-18] Rehecho de arriba abajo (ver la cabecera del .jsx). Reglas de esta piel:
+   · TOKENS del tema (`--bg-card`, `--bg-muted`, `--border`, `--text-*`) en vez de hex + un bloque oscuro que
+     repetía cada control: el oscuro sale solo, y lo poco que no, va al final.
+   · En el teléfono (≤640px) el panel es una HOJA INFERIOR: pegada abajo, a todo el ancho, esquinas arriba,
+     cabecera y pie fijos, cuerpo desplazable. En escritorio, centrado y 600px.
+   · Todo campo de texto a 1rem: por debajo de 16px iOS hace zoom al enfocar (P2-MOBILE-AUDIT-LOGIN-WIZARD).
+   · Objetivos táctiles de 44px: chips, resultados, papelera, botón principal. */
 
 .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
+    background: rgba(2, 6, 23, 0.6);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     /* Portalizado a <body>: fuera del `isolation: isolate` del dashboard, la banda
        de raíz manda (z-scale). Mismo peldaño que el resto de modales. */
     z-index: var(--z-modal, 1000);
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    padding: 1rem;
     animation: lmFadeIn 0.2s ease;
 }
 
@@ -25,8 +31,13 @@
     to { opacity: 1; }
 }
 
+@keyframes lmRise {
+    from { transform: translateY(24px); }
+    to { transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .overlay { animation: none; }
+    .overlay, .panel { animation: none; }
 }
 
 .backdrop {
@@ -40,591 +51,114 @@
 
 .panel {
     position: relative;
-    background:
-        radial-gradient(130% 65% at 50% 0%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 55%),
-        #ffffff;
-    border-radius: 22px;
-    border: 1px solid #E2E8F0;
-    box-shadow:
-        0 28px 70px -16px rgba(15, 23, 42, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    width: 100%;
-    max-width: 560px;
-    max-height: 92vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 1.25rem 1.5rem 1.5rem;
-    outline: none;
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
+    width: 100%;
+    /* `dvh`: la barra del navegador del teléfono se esconde al desplazar y `vh` la cuenta siempre. */
+    max-height: 94vh;
+    max-height: 94dvh;
+    min-height: 0;
+    background:
+        radial-gradient(130% 40% at 50% 0%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 60%),
+        var(--bg-card, #ffffff);
+    color: var(--text-main, #0F172A);
+    border: 1px solid var(--border, #E2E8F0);
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -20px 60px -20px rgba(2, 6, 23, 0.5);
+    outline: none;
+    animation: lmRise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+@media (min-width: 641px) {
+    .overlay { align-items: center; padding: 1rem; }
+    .panel {
+        max-width: 600px;
+        max-height: 92vh;
+        max-height: 92dvh;
+        border-bottom: 1px solid var(--border, #E2E8F0);
+        border-radius: 22px;
+        box-shadow: 0 28px 70px -16px rgba(2, 6, 23, 0.45);
+    }
+}
+
+/* ---- Cabecera fija ---- */
 .head {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.5rem 1.1rem 0.85rem;
+    border-bottom: 1px solid var(--border, #E2E8F0);
+}
+
+/* El asa de la hoja: solo decora (la hoja se cierra con la X, el fondo o Escape), y solo en el teléfono. */
+.grip {
+    align-self: center;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted, #64748B) 35%, transparent);
+    margin-bottom: 0.15rem;
+}
+
+@media (min-width: 641px) {
+    .grip { display: none; }
+    .head { padding-top: 1.1rem; }
+}
+
+.headRow {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
 }
 
 .title {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     font-weight: 800;
     letter-spacing: -0.02em;
-    color: #0F172A;
+    color: var(--text-main, #0F172A);
 }
 
 .close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border: 0;
-    border-radius: 9px;
+    border-radius: 10px;
     background: transparent;
     color: var(--primary, #4F46E5);
     cursor: pointer;
 }
 
-.close:hover { background: rgba(79, 70, 229, 0.1); }
-
-/* [P1-PLAN-LOTE-94 · 2026-09-17] Los dos desplegables NO miden lo mismo y no pueden repartirse la fila a
-   partes iguales. Medido con la tipografía real: «Extra (fuera del plan)» —el valor POR DEFECTO— pide 185px
-   con su flecha, y «Hoy/Ayer/Antier» se apaña con 85. Con `flex: 1` los dos salían a 150px y el primero
-   mostraba «Extra (fuera del» a 392px y «Extra (fuel» a 320px: un `<select>` nativo no pone puntos
-   suspensivos, corta y ya.
-
-   `auto` en la segunda columna = lo que mida su texto más largo; el tipo de comida se queda con el resto.
-   Por debajo de 380px ni así caben los dos, así que se apilan: más vale una fila de más que un valor a
-   medias. `minmax(0, 1fr)` mantiene al primero encogible (sin él, un idioma con etiquetas más largas
-   desbordaría la fila en vez de recortarse). */
-.selectors {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.6rem;
-}
-
-@media (max-width: 380px) {
-    .selectors {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* [P1-LOGMEAL-SELECT-DARK · 2026-08-12] Dos defectos del mismo control.
-
-   1. LA FLECHA PEGADA AL CANTO (dueño: «la flechita hacia abajo del menú de
-      hoy está muy pegada al borde»). Es la que dibuja el navegador, y NO se
-      mueve con relleno: medido en banco con tres selects nativos a 0,7rem,
-      1,2rem y 2rem de `padding-right` — la flecha sale EXACTAMENTE en el mismo
-      píxel en los tres. La única forma de darle aire es apagar la nativa y
-      poner la nuestra, con su posición declarada.
-
-   2. EL DESPLEGABLE EN OSCURO. La lista que abre el <select> la pinta el
-      sistema, no el CSS: por eso el claro salía perfecto y el oscuro abría una
-      lista gris con resalte azul de Windows. Chrome elige esa variante por el
-      `color-scheme` DEL ELEMENTO — el heredado del <html> se pierde aquí
-      (lección ya escrita en `.mf-chip-select`, index.css). Se fija explícito y
-      mapeado al tema; la regla de `option` cubre los motores que sí las estilan.
-
-   El relleno derecho sube a 2rem: es el hueco donde vive la flecha propia. */
-.select {
-    flex: 1;
-    min-width: 0;
-    border: 1px solid #E2E8F0;
-    background-color: #F8FAFC;
-    border-radius: 0.7rem;
-    padding: 0.55rem 2rem 0.55rem 0.7rem;
-    font: inherit;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #0F172A;
-    appearance: none;
-    -webkit-appearance: none;
-    color-scheme: light;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B6A7D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    /* [P1-PLAN-LOTE-94] Red de seguridad para un idioma con etiquetas más largas que el español: si aun
-       así no cabe, que se lea «Extra (fuera…» y no un corte seco a mitad de palabra. */
-    text-overflow: ellipsis;
-}
-
-.select option {
-    background-color: var(--bg-card, #FFFFFF);
-    color: var(--text-main, #0F172A);
-}
-
-.searchWrap { position: relative; }
-
-.searchIcon {
-    position: absolute;
-    left: 0.8rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-light, #7D8B9F);
-    pointer-events: none;
-}
-
-.search {
-    width: 100%;
-    border: 1px solid #E2E8F0;
-    background: #F8FAFC;
-    border-radius: 0.8rem;
-    padding: 0.7rem 0.8rem 0.7rem 2.3rem;
-    font: inherit;
-    font-size: 0.95rem;
-    color: #0F172A;
-    outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.search:focus {
-    border-color: #6366F1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-}
-
-.results {
-    list-style: none;
-    margin: 0.4rem 0 0;
-    padding: 0.3rem;
-    border: 1px solid #E2E8F0;
-    border-radius: 0.9rem;
-    background: #fff;
-    box-shadow: 0 12px 30px -12px rgba(15, 23, 42, 0.25);
-    max-height: 260px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.result {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
-    width: 100%;
-    text-align: left;
-    border: 0;
-    background: transparent;
-    border-radius: 0.6rem;
-    padding: 0.5rem 0.65rem;
-    cursor: pointer;
-    font: inherit;
-}
-
-.result:hover { background: rgba(99, 102, 241, 0.08); }
-
-.resultLabel {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: #0F172A;
-}
-
-.resultSub {
-    font-size: 0.75rem;
-    color: var(--text-muted, #5B6A7D);
-}
-
-.resultCustom .resultLabel { color: var(--primary, #4F46E5); }
-
-.loadError {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.8rem;
-    padding: 0.8rem 0.9rem;
-    border: 1px solid var(--warning-border);
-    background: var(--warning-bg);
-    border-radius: 0.8rem;
-    font-size: 0.88rem;
-    color: var(--warning-text);
-}
-
-.retry {
-    border: 0;
-    background: var(--primary-fill, #4F46E5);
-    color: #fff;
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 700;
-    border-radius: 0.6rem;
-    padding: 0.45rem 0.85rem;
-    cursor: pointer;
-    flex-shrink: 0;
-}
-
-.frequent { display: flex; flex-direction: column; gap: 0.5rem; }
-
-.frequentTitle {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-muted, #5B6A7D);
-}
-
-.frequentRow {
-    display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    padding-bottom: 0.2rem;
-}
-
-.chip {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
-    border: 1px solid #E2E8F0;
-    background: #F8FAFC;
-    border-radius: 0.8rem;
-    padding: 0.5rem 0.75rem;
-    cursor: pointer;
-    font: inherit;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.chip:hover { border-color: #6366F1; }
-
-.chipName { font-size: 0.85rem; font-weight: 700; color: #0F172A; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-.chipMeta { font-size: 0.72rem; color: var(--text-muted, #5B6A7D); }
-
-.plate {
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-    border-top: 1px solid #EDF2F7;
-    padding-top: 0.8rem;
-}
-
-.plateTitle {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-muted, #5B6A7D);
-}
-
-.line {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-}
-
-.lineName {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #0F172A;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.lineQty {
-    width: 58px;
-    border: 1px solid #E2E8F0;
-    background: #F8FAFC;
-    border-radius: 0.55rem;
-    padding: 0.35rem 0.45rem;
-    font: inherit;
-    font-size: 0.88rem;
-    font-weight: 700;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-}
-
-.lineQty::-webkit-outer-spin-button,
-.lineQty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.lineQty { -moz-appearance: textfield; appearance: textfield; }
-
-.lineUnit {
-    border: 1px solid #E2E8F0;
-    background: #F8FAFC;
-    border-radius: 0.55rem;
-    padding: 0.35rem 0.4rem;
-    font: inherit;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #0F172A;
-}
-
-.lineMeta {
-    font-size: 0.78rem;
-    color: var(--text-muted, #5B6A7D);
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-}
-
-.lineDel {
-    display: inline-flex;
-    border: 0;
-    background: transparent;
-    color: var(--text-light, #7D8B9F);
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 0.4rem;
-    flex-shrink: 0;
-}
-
-.lineDel:hover { color: #B91C1C; background: rgba(185, 28, 28, 0.08); }
-
-.totals {
-    display: flex;
-    align-items: baseline;
-    gap: 0.9rem;
-    padding: 0.55rem 0.7rem;
-    background: #F8FAFC;
-    border-radius: 0.7rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #334155;
-    font-variant-numeric: tabular-nums;
-}
-
-.totalKcal {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: #0F172A;
-}
-
-.nameInput {
-    width: 100%;
-    border: 1px solid #E2E8F0;
-    background: #fff;
-    border-radius: 0.7rem;
-    padding: 0.55rem 0.7rem;
-    font: inherit;
-    font-size: 0.9rem;
-    color: #0F172A;
-}
-
-.pantryToggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #334155;
-    cursor: pointer;
-    user-select: none;
-}
-
-.footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.6rem;
-    padding-top: 0.3rem;
-}
-
-.ghostBtn {
-    border: 1px solid #E2E8F0;
-    background: transparent;
-    color: #334155;
-    font: inherit;
-    font-size: 0.9rem;
-    font-weight: 700;
-    border-radius: 0.75rem;
-    padding: 0.6rem 1.1rem;
-    cursor: pointer;
-}
-
-.primaryBtn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    border: 0;
-    background: var(--primary-fill, #4F46E5);
-    color: #fff;
-    font: inherit;
-    font-size: 0.9rem;
-    font-weight: 700;
-    border-radius: 0.75rem;
-    padding: 0.6rem 1.3rem;
-    cursor: pointer;
-}
-
-.primaryBtn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-.smallBtn {
-    border: 0;
-    background: var(--primary-fill, #4F46E5);
-    color: #fff;
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 700;
-    border-radius: 0.6rem;
-    padding: 0.45rem 0.9rem;
-    cursor: pointer;
-}
-
-.spin { animation: lmSpin 1s linear infinite; }
-
-@keyframes lmSpin { to { transform: rotate(360deg); } }
-
-.customBox {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    border: 1px dashed color-mix(in srgb, var(--primary) 40%, transparent);
-    border-radius: 0.9rem;
-    padding: 0.8rem;
-    background: rgba(99, 102, 241, 0.04);
-}
-
-.customName { font-size: 0.92rem; font-weight: 800; color: #0F172A; }
-
-.customGrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.6rem;
-}
-
-.customActions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-}
-
-/* ---- La piel local del MacroInput compartido ---- */
-.macroField { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
-.macroLabel { font-size: 0.8rem; font-weight: 700; color: #475569; }
-
-.macroInputWrap {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    border: 1px solid #E2E8F0;
-    background: #F8FAFC;
-    border-radius: 0.7rem;
-    padding: 0 0.7rem;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.macroInputWrap:focus-within {
-    border-color: #6366F1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-}
-
-.macroInput {
-    flex: 1;
-    width: 100%;
-    min-width: 0;
-    border: none;
-    background: transparent;
-    padding: 0.65rem 0;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #0F172A;
-    outline: none;
-    font-variant-numeric: tabular-nums;
-}
-
-.macroInput::-webkit-outer-spin-button,
-.macroInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.macroInput { -moz-appearance: textfield; appearance: textfield; }
-
-.macroUnit { font-size: 0.8rem; font-weight: 600; color: var(--text-light, #7D8B9F); flex-shrink: 0; }
-
-/* ---- Tema oscuro (paridad con ScanMealModal) ---- */
-:global(html[data-theme="dark"]) .panel {
-    background:
-        radial-gradient(130% 65% at 50% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 55%),
-        #0F172A;
-    border-color: rgba(148, 163, 184, 0.18);
-}
-
-:global(html[data-theme="dark"]) .title,
-:global(html[data-theme="dark"]) .resultLabel,
-:global(html[data-theme="dark"]) .chipName,
-:global(html[data-theme="dark"]) .lineName,
-:global(html[data-theme="dark"]) .totalKcal,
-:global(html[data-theme="dark"]) .customName { color: var(--text-main, #E2E8F0); }
-
-:global(html[data-theme="dark"]) .select,
-:global(html[data-theme="dark"]) .search,
-:global(html[data-theme="dark"]) .lineQty,
-:global(html[data-theme="dark"]) .lineUnit,
-:global(html[data-theme="dark"]) .nameInput,
-:global(html[data-theme="dark"]) .chip,
-:global(html[data-theme="dark"]) .macroInputWrap {
-    /* `background-color` y NO el atajo `background`: el atajo resetea
-       `background-image`, y en `.select` eso le borraba la flecha propia. */
-    background-color: rgba(30, 41, 59, 0.6);
-    border-color: rgba(148, 163, 184, 0.22);
-    color: var(--text-main, #E2E8F0);
-}
-
-/* [P1-LOGMEAL-SELECT-DARK · 2026-08-12] El desplegable nativo y la flecha, en
-   oscuro. El `color-scheme` es lo que hace que la lista abra oscura en vez de
-   con el gris del sistema. */
-:global(html[data-theme="dark"]) .select {
-    color-scheme: dark;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-}
-
-:global(html[data-theme="dark"]) .select option {
-    background-color: #1E293B;
-    color: var(--text-main, #E2E8F0);
-}
-
-:global(html[data-theme="dark"]) .macroInput { color: var(--text-main, #E2E8F0); }
-
-:global(html[data-theme="dark"]) .results {
-    background: #0F172A;
-    border-color: rgba(148, 163, 184, 0.22);
-}
-
-:global(html[data-theme="dark"]) .result:hover { background: rgba(99, 102, 241, 0.15); }
-
-:global(html[data-theme="dark"]) .totals {
-    background: rgba(30, 41, 59, 0.6);
-    color: var(--text-main, #E2E8F0);
-}
-
-:global(html[data-theme="dark"]) .pantryToggle,
-:global(html[data-theme="dark"]) .ghostBtn { color: var(--text-main, #E2E8F0); }
-
-:global(html[data-theme="dark"]) .ghostBtn { border-color: rgba(148, 163, 184, 0.25); }
-
-:global(html[data-theme="dark"]) .plate { border-top-color: rgba(148, 163, 184, 0.15); }
-
-/* [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] foto desde el componedor + estimación de macros */
-.headActions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* [P1-PLAN-LOTE-85 · 2026-09-17] Las dos vías de registrar como selector de dos opciones
-   (sustituye al chip «Foto» de la cabecera): la tarjeta tiene un solo botón y aquí se elige.
-   Tokens del módulo (`--text-main`, `--text-muted`, `--border`, `--primary`) y regla propia en oscuro,
-   como el resto de controles de este panel. */
+.close:hover { background: color-mix(in srgb, var(--primary, #4F46E5) 10%, transparent); }
+
+/* [P1-PLAN-LOTE-85 · 2026-09-17] Las dos vías de registrar como selector de dos opciones (sustituye al chip
+   «Foto» de la cabecera): la tarjeta tiene un solo botón y aquí se elige.
+   [P1-PLAN-LOTE-99] Etiquetas en UNA línea: a 392px partían en dos («Buscar o / escribir»). Por debajo de 360px
+   el icono cede su sitio al texto. */
 .modes {
     display: flex;
     gap: 4px;
     padding: 4px;
     border-radius: 12px;
     border: 1px solid var(--border, #E2E8F0);
-    background: #F1F5F9;
+    background: var(--bg-muted, #F1F5F9);
 }
 
 .mode {
     flex: 1 1 0;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 38px;
-    padding: 0 10px;
+    min-height: 40px;
+    padding: 0 8px;
     border-radius: 9px;
     border: 1px solid transparent;
     background: transparent;
@@ -636,12 +170,26 @@
     transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.mode:hover {
-    color: var(--text-main, #0F172A);
+.mode > svg { flex-shrink: 0; }
+
+.mode > span {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+@media (max-width: 360px) {
+    .mode > svg { display: none; }
+    .mode { font-size: 0.8rem; padding: 0 6px; }
+    .footerInfo { font-size: 0.8rem; }
+    .primaryBtn { min-width: 118px; padding: 0 1rem; }
+}
+
+.mode:hover { color: var(--text-main, #0F172A); }
+
 .modeActive {
-    background: #ffffff;
+    background: var(--bg-card, #ffffff);
     color: var(--primary, #4F46E5);
     border-color: var(--border, #E2E8F0);
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
@@ -653,35 +201,574 @@
     outline-offset: 2px;
 }
 
-:global(html[data-theme="dark"]) .modes {
-    background: rgba(30, 41, 59, 0.6);
-    border-color: rgba(148, 163, 184, 0.22);
+/* ---- Cuerpo desplazable ---- */
+.body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 1.35rem;
+    padding: 1rem 1.1rem 1.25rem;
 }
 
-:global(html[data-theme="dark"]) .modeActive {
-    background: #0F172A;
-    color: var(--text-main, #E2E8F0);
-    border-color: rgba(148, 163, 184, 0.25);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
 }
 
-.customNote {
-    display: block;
+.sectionTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-main, #0F172A);
+}
+
+.sectionCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary, #4F46E5) 14%, transparent);
+    color: var(--primary, #4F46E5);
     font-size: 0.78rem;
-    line-height: 1.35;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.subTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted, #5B6A7D);
+}
+
+.hint {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--text-muted, #5B6A7D);
+}
+
+/* ---- Buscador ---- */
+.searchWrap { position: relative; }
+
+.searchIcon {
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-light, #7D8B9F);
+    pointer-events: none;
+}
+
+.search {
+    width: 100%;
+    min-height: 50px;
+    border: 1.5px solid var(--border, #E2E8F0);
+    background: var(--bg-muted, #F8FAFC);
+    color: var(--text-main, #0F172A);
+    border-radius: 14px;
+    padding: 0.7rem 0.9rem 0.7rem 2.6rem;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search::placeholder { color: var(--text-light, #7D8B9F); font-weight: 500; }
+
+.search:focus {
+    border-color: var(--primary, #6366F1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
+.results,
+.frequentList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.result {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    min-height: 52px;
+    text-align: left;
+    border: 1px solid var(--border, #E2E8F0);
+    background: var(--bg-card, #ffffff);
+    border-radius: 12px;
+    padding: 0.55rem 0.6rem 0.55rem 0.85rem;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.result:hover { border-color: var(--primary, #6366F1); background: color-mix(in srgb, var(--primary, #6366F1) 6%, var(--bg-card, #fff)); }
+.result:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.5); outline-offset: 2px; }
+
+.resultText {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.resultLabel {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text-main, #0F172A);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.resultSub {
+    font-size: 0.78rem;
+    color: var(--text-muted, #5B6A7D);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* El «+»: la promesa de que tocar la fila AÑADE (no abre ni guarda). */
+.resultAdd {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--primary, #4F46E5) 12%, transparent);
+    color: var(--primary, #4F46E5);
+}
+
+.resultCustom { border-style: dashed; }
+.resultCustom .resultLabel { color: var(--primary, #4F46E5); -webkit-line-clamp: 3; }
+
+.loadError {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--warning-border);
+    background: var(--warning-bg);
+    border-radius: 12px;
+    font-size: 0.88rem;
+    color: var(--warning-text);
+}
+
+.retry {
+    border: 0;
+    background: var(--primary-fill, #4F46E5);
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 0.5rem 0.9rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.frequent { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* ---- Chips (¿Qué comida es? / ¿Cuándo?) ---- */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 1rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--border, #E2E8F0);
+    background: var(--bg-card, #ffffff);
+    color: var(--text-main, #0F172A);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.chip:hover { border-color: var(--primary, #6366F1); }
+.chip:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.5); outline-offset: 2px; }
+
+.chipOn {
+    background: var(--primary-fill, #4F46E5);
+    border-color: var(--primary-fill, #4F46E5);
+    color: #fff;
+}
+
+/* ---- Tu plato ---- */
+.plate {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* [P1-PLAN-LOTE-99] Dos filas por línea: nombre + papelera arriba; cantidad, unidad y gramos·kcal debajo.
+   En una sola fila de 300px el nombre quedaba en «Pechuga a la…» y la papelera a 2px del select. */
+.line {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.65rem 0.75rem 0.7rem 0.9rem;
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: 12px;
+    background: var(--bg-card, #ffffff);
+}
+
+.lineTop {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* El nombre es LO que se registra: cabe en dos líneas antes de recortarse (a 392px «Pechuga a la plancha con arroz y
+   hab…» en una sola no dice qué plato es). */
+.lineName {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text-main, #0F172A);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.lineDel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin: -6px -6px -6px 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-light, #7D8B9F);
+    cursor: pointer;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.lineDel:hover { color: var(--danger, #B91C1C); background: var(--danger-bg, rgba(185, 28, 28, 0.08)); }
+
+.lineBottom {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.lineQty {
+    width: 68px;
+    min-height: 40px;
+    border: 1px solid var(--border, #E2E8F0);
+    background: var(--bg-muted, #F8FAFC);
+    color: var(--text-main, #0F172A);
+    border-radius: 10px;
+    padding: 0.3rem 0.45rem;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.lineQty::-webkit-outer-spin-button,
+.lineQty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.lineQty { -moz-appearance: textfield; appearance: textfield; }
+
+/* [P1-LOGMEAL-SELECT-DARK · 2026-08-12] El único <select> que queda (la unidad de cada línea). Dos defectos del
+   control nativo, ya documentados cuando lo sufrió el desplegable de arriba (hoy chips):
+   1. LA FLECHA PEGADA AL CANTO: la dibuja el navegador y NO se mueve con relleno (medido en banco a 0,7 / 1,2 /
+      2rem: mismo píxel). Se apaga la nativa y se pone la propia, con su posición declarada.
+   2. EL DESPLEGABLE EN OSCURO: la lista la pinta el sistema por el `color-scheme` DEL ELEMENTO — el heredado del
+      <html> se pierde aquí. Se fija explícito y mapeado al tema. */
+.lineUnit {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 150px;
+    min-height: 40px;
+    border: 1px solid var(--border, #E2E8F0);
+    background-color: var(--bg-muted, #F8FAFC);
+    color: var(--text-main, #0F172A);
+    border-radius: 10px;
+    padding: 0.3rem 1.9rem 0.3rem 0.6rem;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    appearance: none;
+    -webkit-appearance: none;
+    color-scheme: light;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B6A7D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.55rem center;
+    text-overflow: ellipsis;
+}
+
+.lineUnit option {
+    background-color: var(--bg-card, #FFFFFF);
+    color: var(--text-main, #0F172A);
+}
+
+.lineMeta {
+    margin-left: auto;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted, #5B6A7D);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* La cifra grande a la izquierda; las tres macros en UNA fila a la derecha que, si no cabe (320px), baja entera
+   —nunca «154 g carbs» en una línea y «12 g grasas» solo en la siguiente. */
+.totals {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.3rem 1rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--bg-muted, #F1F5F9);
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted, #5B6A7D);
+    font-variant-numeric: tabular-nums;
+}
+
+.totalKcal {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-main, #0F172A);
+    margin-right: auto;
+}
+
+.totalMacros {
+    display: inline-flex;
+    gap: 0.9rem;
+    white-space: nowrap;
+}
+
+.totalKcal small { font-size: 0.8rem; font-weight: 700; color: var(--text-muted, #5B6A7D); }
+
+.totalMacro b { color: var(--text-main, #0F172A); font-weight: 800; }
+
+.nameInput {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid var(--border, #E2E8F0);
+    background: var(--bg-card, #fff);
+    color: var(--text-main, #0F172A);
+    border-radius: 12px;
+    padding: 0.55rem 0.85rem;
+    font: inherit;
+    font-size: 1rem;
+}
+
+.nameInput::placeholder { color: var(--text-light, #7D8B9F); }
+
+.pantryToggle {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.pantryToggle input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--primary-fill, #4F46E5);
+    flex-shrink: 0;
+}
+
+.pantryIcon { display: inline-flex; color: var(--primary, #4F46E5); flex-shrink: 0; }
+
+.pantryText {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-main, #0F172A);
+}
+
+.pantrySub {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted, #5B6A7D);
+}
+
+/* ---- Pie fijo ---- */
+.footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border, #E2E8F0);
+    background: var(--bg-card, #ffffff);
+}
+
+@media (min-width: 641px) {
+    .footer { padding-bottom: 0.9rem; border-radius: 0 0 22px 22px; }
+}
+
+.footerInfo {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    color: var(--text-muted, #5B6A7D);
+}
+
+.footerInfo b { color: var(--text-main, #0F172A); font-weight: 800; font-size: 1rem; }
+
+.ghostBtn {
+    border: 1px solid var(--border, #E2E8F0);
+    background: transparent;
+    color: var(--text-main, #334155);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+}
+
+.primaryBtn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 48px;
+    min-width: 140px;
+    border: 0;
+    background: var(--primary-fill, #4F46E5);
+    color: #fff;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 800;
+    border-radius: 14px;
+    padding: 0 1.4rem;
+    cursor: pointer;
+    box-shadow: 0 8px 20px -10px rgba(79, 70, 229, 0.7);
+}
+
+.primaryBtn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+.smallBtn {
+    border: 0;
+    background: var(--primary-fill, #4F46E5);
+    color: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+}
+
+.spin { animation: lmSpin 1s linear infinite; }
+
+@keyframes lmSpin { to { transform: rotate(360deg); } }
+
+/* ---- Alimento propio ---- */
+.customBox {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    border: 1.5px dashed color-mix(in srgb, var(--primary, #4F46E5) 45%, transparent);
+    border-radius: 14px;
+    padding: 0.85rem;
+    background: color-mix(in srgb, var(--primary, #4F46E5) 5%, transparent);
+}
+
+.customName { font-size: 1rem; font-weight: 800; color: var(--text-main, #0F172A); }
+
+.customHint, .customNote {
+    display: block;
+    font-size: 0.8rem;
+    line-height: 1.4;
     color: var(--text-muted, #64748B);
 }
+
+.customNote { color: var(--primary, #4F46E5); font-weight: 600; }
+
+.customGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+}
+
+/* [P1-PLAN-LOTE-99] Tres acciones en 300px no caben en fila: «Estimar» ocupa la primera entera. */
+.customActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.customActions > .estimateBtn { grid-column: 1 / -1; }
 
 .estimateBtn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    margin-right: auto;
-    border: 1px solid var(--primary-fill, #4F46E5);
+    min-height: 44px;
+    border: 1.5px solid var(--primary-fill, #4F46E5);
     background: transparent;
     color: var(--primary-fill, #4F46E5);
     font: inherit;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     font-weight: 700;
     padding: 0.45rem 0.8rem;
     border-radius: 10px;
@@ -694,12 +781,83 @@
     filter: brightness(1.03);
 }
 
-.estimateBtn:disabled {
-    opacity: 0.65;
-    cursor: wait;
-}
+.estimateBtn:disabled { opacity: 0.65; cursor: wait; }
 
 .estimateBtn:focus-visible {
     outline: 3px solid rgba(79, 70, 229, 0.5);
     outline-offset: 2px;
 }
+
+/* ---- La piel local del MacroInput compartido ---- */
+.macroField { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.macroLabel { font-size: 0.8rem; font-weight: 700; color: var(--text-muted, #475569); }
+
+.macroInputWrap {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border: 1px solid var(--border, #E2E8F0);
+    background: var(--bg-card, #ffffff);
+    border-radius: 10px;
+    padding: 0 0.7rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.macroInputWrap:focus-within {
+    border-color: var(--primary, #6366F1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.macroInput {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    padding: 0.6rem 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main, #0F172A);
+    outline: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.macroInput::-webkit-outer-spin-button,
+.macroInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.macroInput { -moz-appearance: textfield; appearance: textfield; }
+
+.macroUnit { font-size: 0.8rem; font-weight: 600; color: var(--text-light, #7D8B9F); flex-shrink: 0; }
+
+/* ---- Tema oscuro: solo lo que los tokens no cubren ---- */
+:global(html[data-theme="dark"]) .panel {
+    background:
+        radial-gradient(130% 40% at 50% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 60%),
+        var(--bg-card, #0F172A);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+
+:global(html[data-theme="dark"]) .modeActive {
+    background: var(--bg-card, #0F172A);
+    color: var(--text-main, #E2E8F0);
+    border-color: rgba(148, 163, 184, 0.25);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* [P1-LOGMEAL-SELECT-DARK] `background-color` y NO el atajo `background`: el atajo resetea `background-image`
+   y borraría la flecha propia. El `color-scheme` es lo que hace que la lista abra oscura. */
+:global(html[data-theme="dark"]) .lineUnit {
+    color-scheme: dark;
+    background-color: var(--bg-muted, #1E293B);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+:global(html[data-theme="dark"]) .lineUnit option {
+    background-color: #1E293B;
+    color: var(--text-main, #E2E8F0);
+}
+
+:global(html[data-theme="dark"]) .result:hover {
+    background: color-mix(in srgb, var(--primary, #6366F1) 14%, var(--bg-card, #0F172A));
+}
+
+:global(html[data-theme="dark"]) .primaryBtn { box-shadow: 0 8px 20px -10px rgba(99, 102, 241, 0.55); }
