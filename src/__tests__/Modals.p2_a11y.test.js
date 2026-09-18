@@ -73,7 +73,8 @@ describe('[P2-CUSTOM-MODALS-A11Y] hook SSOT', () => {
 
     it('restaura focus al trigger original al cerrar (cleanup)', () => {
         expect(hookSrc).toMatch(/triggerRef\.current\s*=\s*document\.activeElement/);
-        expect(hookSrc).toMatch(/triggerRef\.current\.focus\s*\(\s*\)/);
+        // [P1-PLAN-LOTE-101] con `preventScroll`: devolver el foco no desplaza el documento
+        expect(hookSrc).toMatch(/triggerRef\.current\.focus\s*\(\s*\{\s*preventScroll:\s*true\s*\}\s*\)/);
     });
 
     it('lock body overflow mientras isOpen', () => {
