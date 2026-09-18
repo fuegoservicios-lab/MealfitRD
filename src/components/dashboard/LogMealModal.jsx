@@ -121,6 +121,27 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null }) => {
 
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
 
+    // [P1-PLAN-LOTE-100 · 2026-09-18] «Al cerrar se scrollea un poco hacia abajo» (el dueño, en el iPhone). Para
+    // revelar el campo enfocado, iOS desplaza el DOCUMENTO de fondo aunque el body lleve `overflow: hidden`, y al
+    // cerrar la hoja el dashboard aparecía movido respecto a donde estaba. Se recuerda el scroll al abrir y se
+    // restaura al desmontar (y en cuanto el visual viewport recupera su alto, por si el teclado se cierra antes).
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const scrollY0 = window.scrollY;
+        const restaurarScroll = () => {
+            if (Math.abs(window.scrollY - scrollY0) > 1) window.scrollTo(0, scrollY0);
+        };
+        const vv = window.visualViewport;
+        if (!vv) return restaurarScroll;
+        const alto0 = vv.height;
+        const alCambiar = () => { if (vv.height >= alto0 - 1) restaurarScroll(); };
+        vv.addEventListener('resize', alCambiar);
+        return () => {
+            vv.removeEventListener('resize', alCambiar);
+            restaurarScroll();
+        };
+    }, []);
+
     // Catálogo + platos: cache 24 h; si falta, un fetch. FAIL-CLOSED como los paneles
     // de Ajustes: sin catálogo no hay búsqueda que ofrecer, y un buscador vacío que
     // parece «sin resultados» miente sobre lo que hay.

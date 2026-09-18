@@ -108,3 +108,26 @@ describe('preguntas con chips en vez de desplegables sin etiqueta', () => {
         expect(screen.getByRole('button', { name: 'Extra' })).toHaveAttribute('aria-pressed', 'false');
     });
 });
+
+// [P1-PLAN-LOTE-100 · 2026-09-18] Al cerrar la hoja, el dashboard quedaba movido «un poco hacia abajo»: iOS desplaza el
+// documento de fondo para revelar el campo enfocado y nadie lo devolvía a su sitio.
+describe('el scroll del fondo vuelve a donde estaba al cerrar', () => {
+    it('se recuerda al abrir y se restaura al desmontar y cuando el visual viewport recupera su alto', () => {
+        const jsx = src('src/components/dashboard/LogMealModal.jsx');
+        expect(jsx).toContain('const scrollY0 = window.scrollY;');
+        expect(jsx).toContain('if (Math.abs(window.scrollY - scrollY0) > 1) window.scrollTo(0, scrollY0);');
+        expect(jsx).toContain('const alCambiar = () => { if (vv.height >= alto0 - 1) restaurarScroll(); };');
+        const limpieza = jsx.slice(jsx.indexOf("vv.removeEventListener('resize', alCambiar);"));
+        expect(limpieza.slice(0, 120)).toContain('restaurarScroll();');
+    });
+
+    it('en el navegador: abrir con la página desplazada y cerrar la deja donde estaba', () => {
+        const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+        Object.defineProperty(window, 'scrollY', { value: 340, configurable: true, writable: true });
+        const { unmount } = render(<LogMealModal onClose={vi.fn()} />);
+        window.scrollY = 412; // iOS movió el documento para revelar el campo
+        unmount();
+        expect(scrollTo).toHaveBeenCalledWith(0, 340);
+        scrollTo.mockRestore();
+    });
+});
