@@ -3204,5 +3204,14 @@
   "¿Qué es?": "O que é?",
   "¿Cuánto comiste?": "Quanto você comeu?",
   "antier": "anteontem",
-  "Quedó en el diario de {dia}; la ves en «Ver días anteriores».": "Ficou no diário de {dia}; veja em «Ver dias anteriores»."
+  "Quedó en el diario de {dia}; la ves en «Ver días anteriores».": "Ficou no diário de {dia}; veja em «Ver dias anteriores».",
+  "Te escucho…": "Estou ouvindo…",
+  "Dictar por voz": "Ditar por voz",
+  "Detener dictado": "Parar ditado",
+  "Permite el micrófono para dictar": "Permita o microfone para ditar",
+  "No encuentro un micrófono": "Não encontro um microfone",
+  "El dictado necesita conexión": "O ditado precisa de conexão",
+  "No te escuché. Toca el micrófono y habla": "Não ouvi você. Toque no microfone e fale",
+  "El dictado no está disponible en tu idioma": "O ditado não está disponível no seu idioma",
+  "No pude iniciar el dictado": "Não consegui iniciar o ditado"
 }

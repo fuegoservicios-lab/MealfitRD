@@ -2719,6 +2719,9 @@ const Pantry = () => {
         (e) => tempOfZone(ZONE_DEFINITIONS.find((z) => z.key === getZoneForCategory(e.category))) === tempZone,
     );
 
+    // [P1-PLAN-LOTE-125] «vacía» = ni un alimento en NINGÚN mueble (no «este mueble sin nada»)
+    const neveraVacia = inventory.length === 0;
+
     // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Shell móvil dedicado (topbar
     // apilado + zonas + chips + tarjeta por alimento). Usa los MISMOS
     // derivados y handlers que el desktop; solo cambia la composición visual.
@@ -2731,21 +2734,28 @@ const Pantry = () => {
                 <div className={mstyles.toprow}>
                     <span className={mstyles.count}><b>{inventory.length}</b> {tn(inventory.length, 'alimento', 'alimentos')}</span>
                 </div>
-                <div className={mstyles.search}>
-                    <Search size={17} />
-                    <input
-                        type="search"
-                        placeholder={t('Buscar ingrediente…')}
-                        autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
-                        inputMode="search" enterKeyHint="search"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
+                {/* [P1-PLAN-LOTE-125] Con la nevera VACÍA no se ofrece lo que no puede hacer nada: ni buscar, ni «Borrar
+                    todos» (que además pesaba lo mismo que el botón principal), ni el chip «Todos 0», ni el aviso de
+                    «nevera baja» encima de un «está vacía» que ya lo dice. Queda una sola cosa que hacer: añadir. */}
+                {!neveraVacia && (
+                    <div className={mstyles.search}>
+                        <Search size={17} />
+                        <input
+                            type="search"
+                            placeholder={t('Buscar ingrediente…')}
+                            autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
+                            inputMode="search" enterKeyHint="search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                )}
                 <div className={mstyles.actions}>
-                    <button type="button" className={`${mstyles.btn} ${mstyles.clear}`} onClick={() => setShowDeleteConfirm(true)}>
-                        <Trash2 size={16} />{t('Borrar todos')}
-                    </button>
+                    {!neveraVacia && (
+                        <button type="button" className={`${mstyles.btn} ${mstyles.clear}`} onClick={() => setShowDeleteConfirm(true)}>
+                            <Trash2 size={16} />{t('Borrar todos')}
+                        </button>
+                    )}
                     <button type="button" className={`${mstyles.btn} ${mstyles.add}`} onClick={() => { setShowAddMenu(true); setAddItemSearch(''); }}>
                         <Plus size={16} />{t('Añadir alimento')}
                     </button>
@@ -2786,6 +2796,7 @@ const Pantry = () => {
                 )}
             </div>
 
+            {tempZoneCount > 0 && (
             <div className={mstyles.chips}>
                 <button type="button" className={mstyles.fchip} aria-pressed={effFilter === 'todos'} onClick={() => setCatFilter('todos')}>
                     {t('Todos')} <b>{tempZoneCount}</b>
@@ -2807,8 +2818,9 @@ const Pantry = () => {
                     );
                 })}
             </div>
+            )}
 
-            {pantryStatus?.is_below && (
+            {pantryStatus?.is_below && !neveraVacia && (
                 <div role="status" className={mstyles.lowBanner}>
                     <PackageX size={18} strokeWidth={2.5} />
                     <span>
@@ -2819,13 +2831,22 @@ const Pantry = () => {
 
             <div className={mstyles.body}>
                 {visibleZones.length === 0 && depletedForTemp.length === 0 && (
-                    <div className={mstyles.empty}>
+                    <div className={mstyles.empty} data-mueble={tempZone}>
                         {searchQuery.trim() ? (
-                            <>{t('No hay alimentos que coincidan con “{consulta}”.', { consulta: searchQuery.trim() })}</>
+                            <>
+                                <span className={mstyles.emptyIco} aria-hidden="true"><Search size={24} /></span>
+                                {t('No hay alimentos que coincidan con “{consulta}”.', { consulta: searchQuery.trim() })}
+                            </>
                         ) : tempZone === 'frio' ? (
-                            <><b>{t('Tu nevera está vacía')}</b>{t('Añade tus ingredientes con el botón “Añadir alimento”.')}</>
+                            <>
+                                <span className={mstyles.emptyIco} aria-hidden="true"><Snowflake size={26} /></span>
+                                <b>{t('Tu nevera está vacía')}</b>{t('Añade tus ingredientes con el botón “Añadir alimento”.')}
+                            </>
                         ) : (
-                            <><b>{t('Tu alacena está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí.')}</>
+                            <>
+                                <span className={mstyles.emptyIco} aria-hidden="true"><Package size={26} /></span>
+                                <b>{t('Tu alacena está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí.')}
+                            </>
                         )}
                     </div>
                 )}

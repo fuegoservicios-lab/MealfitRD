@@ -103,6 +103,8 @@ import Wordmark from '../components/common/Wordmark';
 // de React (`_buildAgentErrorMessage`, `menuItemsDelAgente`); dentro del componente
 // se usa `useT()`, que además suscribe al cambio de idioma.
 import { t, useT, formatDate } from '../i18n';
+import { getLocale } from '../i18n';
+import { useDictado } from '../hooks/useDictado';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
 import { nativeHidesCommerce } from '../config/platform';
 
@@ -1640,12 +1642,20 @@ const AgentPage = () => {
     const virtualizedListRef = useRef(null);
     const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
-    // Setters/refs del dictado eliminados junto con toggleDictation (dead code
-    // post P1-DEADCODE-TTS). Los valores siguen leyéndose en la UI (placeholder
-    // del textarea, gate del botón enviar) con su estado inicial constante.
-    const [isListening] = useState(false);
-    const [micErrorMsg] = useState(null);
+    // [P1-PLAN-LOTE-125 · 2026-09-19] El dictado VUELVE (el dueño: «agrega un microfonito para poder hablar en vez
+    // de escribir»), ahora como hook: `useDictado` escribe en la caja mientras se habla. `isListening` y
+    // `micErrorMsg` conservan su nombre porque la UI ya los leía (placeholder del textarea, guard de handleSend).
+    // `recognitionRef` queda solo para los restos del Modo Llamada (P1-DEADCODE-TTS): nadie lo llena.
+    const dictado = useDictado({ valor: input, alCambiar: setInput, locale: getLocale(), esNativa: isNativeApp() });
+    const isListening = dictado.escuchando;
+    const micErrorMsg = dictado.error ? t(dictado.error) : null;
     const recognitionRef = useRef(null);
+    // lo dictado crece por abajo: la caja (que tiene alto máximo) sigue a la última palabra
+    useEffect(() => {
+        if (!isListening) return;
+        const el = chatInputRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+    }, [isListening, input]);
 
     // Para Drag & Drop de Imágenes
     const [isDragging, setIsDragging] = useState(false);
@@ -2936,8 +2946,10 @@ const AgentPage = () => {
             return;
         }
 
+        // [P1-PLAN-LOTE-125] `cancelar` y no `detener`: el motor suelta resultados DESPUÉS de parar, y uno tardío
+        // volvería a escribir en la caja el mensaje que se acaba de enviar.
         if (isListening) {
-            recognitionRef.current?.stop();
+            dictado.cancelar();
         }
 
         // Asegurar que el currentSessionId esté en la lista de localStorage.
@@ -3957,7 +3969,7 @@ const AgentPage = () => {
 
     const renderInputArea = (isCentered = false) => (
         <div
-            className="input-wrapper"
+            className={`input-wrapper${isListening ? ' dictando' : ''}`}
             ref={inputWrapperRef}
             onPointerDownCapture={() => { composerPointerDownRef.current = true; }}
             onPointerUpCapture={() => {
@@ -4091,7 +4103,7 @@ const AgentPage = () => {
                         {/* Removido temporalmente para evitar redundancia con el placeholder */}
                     </div>
                 )}
-                <div style={{
+                <div className="input-box-dictable" style={{
                     display: 'flex',
                     flexDirection: 'column',
                     background: isCentered ? 'var(--bg-muted)' : 'var(--bg-muted)',
@@ -4220,10 +4232,11 @@ const AgentPage = () => {
                             // maneja con gracia el copy 413. 8192 chars ≈ texto
                             // muy por encima de cualquier input de chat normal.
                             maxLength={8192}
-                            onChange={(e) => setInput(e.target.value)}
+                            // [P1-PLAN-LOTE-125] teclear mientras se dicta apaga el dictado: manda lo que escribe el usuario
+                            onChange={(e) => { if (isListening) dictado.cancelar(); setInput(e.target.value); }}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
-                            placeholder={micErrorMsg || t("Pregúntale a {app}", { app: BRAND })}
+                            placeholder={isListening ? t('Te escucho…') : (micErrorMsg || t("Pregúntale a {app}", { app: BRAND }))}
                             onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se
@@ -4282,10 +4295,26 @@ const AgentPage = () => {
                             </button>
                         ) : (
                             <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
-                                {(!input.trim() || isListening || isCallModeActive) && (
-                                    <>
-                                        {/* FUNCIONALIDAD DE VOZ (LLAMADA/MIC) DESACTIVADA TEMPORALMENTE */}
-                                    </>
+                                {/* [P1-PLAN-LOTE-125] El micrófono. Siempre a la vista (también con texto: lo dictado se
+                                    AÑADE a lo escrito), salvo donde fallaría seguro — eso lo decide `dictadoDisponible`.
+                                    `preventDefault` en pointerdown: tocarlo no le quita el foco a la caja, así que el
+                                    teclado se queda como estaba (ni se abre ni se cierra). El Modo Llamada sigue apagado. */}
+                                {dictado.disponible && !isCallModeActive && (
+                                    <button
+                                        type="button"
+                                        className={`chat-mic-btn ${isListening ? 'escuchando' : ''}`}
+                                        aria-label={isListening ? t('Detener dictado') : t('Dictar por voz')}
+                                        title={isListening ? t('Detener dictado') : t('Dictar por voz')}
+                                        aria-pressed={isListening}
+                                        onPointerDown={(e) => e.preventDefault()}
+                                        onClick={dictado.alternar}
+                                    >
+                                        {isListening ? (
+                                            <span className="chat-mic-ondas" aria-hidden="true"><i /><i /><i /><i /></span>
+                                        ) : (
+                                            <Mic size={21} strokeWidth={2.1} />
+                                        )}
+                                    </button>
                                 )}
                                 {(input.trim() || attachments.length > 0) && (
                                     <button
@@ -4590,6 +4619,77 @@ const AgentPage = () => {
                     flex-shrink: 0;
                     outline: none;
                     -webkit-tap-highlight-color: transparent;
+                }
+                /* [P1-PLAN-LOTE-125] El microfono del chat. En reposo es un boton fantasma (no compite con ENVIAR);
+                   escuchando se llena, late con dos anillos y cambia el icono por cuatro barras que se mueven. */
+                .chat-mic-btn {
+                    position: relative;
+                    background: transparent;
+                    color: var(--text-muted);
+                    border: none;
+                    border-radius: 50%;
+                    width: 44px;
+                    height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                    outline: none;
+                    -webkit-tap-highlight-color: transparent;
+                    transition: color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+                }
+                .chat-mic-btn:hover { color: var(--primary); background: var(--bg-muted); }
+                .chat-mic-btn:active { transform: scale(0.9); }
+                .chat-mic-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+                .chat-mic-btn.escuchando {
+                    color: #fff;
+                    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+                    box-shadow: 0 6px 18px -6px rgba(79, 70, 229, 0.7);
+                }
+                .chat-mic-btn.escuchando::before,
+                .chat-mic-btn.escuchando::after {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 50%;
+                    border: 2px solid rgba(99, 102, 241, 0.55);
+                    animation: chat-mic-anillo 1.8s ease-out infinite;
+                    pointer-events: none;
+                }
+                .chat-mic-btn.escuchando::after { animation-delay: 0.9s; }
+                @keyframes chat-mic-anillo {
+                    0% { transform: scale(1); opacity: 0.7; }
+                    100% { transform: scale(1.75); opacity: 0; }
+                }
+                .chat-mic-ondas { display: inline-flex; align-items: center; gap: 3px; height: 18px; }
+                .chat-mic-ondas i {
+                    display: block;
+                    width: 3px;
+                    height: 100%;
+                    border-radius: 2px;
+                    background: currentColor;
+                    transform-origin: center;
+                    animation: chat-mic-onda 0.9s ease-in-out infinite;
+                }
+                .chat-mic-ondas i:nth-child(1) { animation-delay: -0.45s; }
+                .chat-mic-ondas i:nth-child(2) { animation-delay: -0.15s; }
+                .chat-mic-ondas i:nth-child(3) { animation-delay: -0.6s; }
+                .chat-mic-ondas i:nth-child(4) { animation-delay: -0.3s; }
+                @keyframes chat-mic-onda {
+                    0%, 100% { transform: scaleY(0.3); }
+                    50% { transform: scaleY(1); }
+                }
+                .input-wrapper.dictando .input-box-dictable {
+                    border-color: color-mix(in srgb, var(--primary) 60%, var(--border)) !important;
+                    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent) !important;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .chat-mic-btn { transition: none; }
+                    .chat-mic-btn.escuchando::before,
+                    .chat-mic-btn.escuchando::after { animation: none; opacity: 0.45; transform: scale(1.18); }
+                    .chat-mic-btn.escuchando::after { display: none; }
+                    .chat-mic-ondas i { animation: none; transform: scaleY(0.6); }
                 }
                 .chat-offline-status {
                     width: fit-content;

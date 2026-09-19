@@ -24,6 +24,11 @@ const config: CapacitorConfig = {
     //    se apaga donde vive, `webView.scrollView.bounces = false` en
     //    ios/App/App/AppDelegate.swift.
     contentInset: 'never',
+    // [P1-PLAN-LOTE-125] El binario DECLARA que ya trae los permisos de micrófono y voz del Info.plist
+    // (`NSMicrophoneUsageDescription` + `NSSpeechRecognitionUsageDescription`). La web no puede leer el plist, y
+    // un paquete OTA también corre sobre binarios viejos: sin esta marca `utils/dictado.js` no pinta el micrófono
+    // (iOS negaría el permiso sin preguntar). Van JUNTOS: no quites una cosa sin la otra.
+    appendUserAgent: 'BioborosNative/mic',
     // La PWA ya pinta su propio color de barra por página (useThemeColor); el WebView
     // nativo no debe superponer un fondo blanco al arrancar.
     backgroundColor: '#0b0b0b',

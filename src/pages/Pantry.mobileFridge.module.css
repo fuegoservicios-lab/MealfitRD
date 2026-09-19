@@ -44,7 +44,9 @@
    el cursor. Y con el token de PELIGRO, no el del CTA — el intento anterior la
    teñía con `--cta-tint`, que resultó inerte (se resuelve en :root con el
    fallback índigo) y dejaba un halo azul alrededor del botón rojo. */
-.clear { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
+/* [P1-PLAN-LOTE-125] Lo destructivo NO pesa lo mismo que lo principal: «Borrar todos» deja de repartirse el ancho a
+   medias con «Añadir alimento» (ocupa lo suyo, sin relleno) y el botón principal se queda el resto. */
+.clear { flex: 0 0 auto; color: var(--danger-text); background: transparent; border-color: var(--danger-border); }
 .clear:hover { box-shadow: var(--cta-shadow-danger-hover); }
 .clear:active { box-shadow: var(--cta-shadow-danger-active); }
 
@@ -126,8 +128,12 @@
 .agotar:hover { color: var(--danger-text); border-color: var(--danger-border); background: var(--danger-bg); }
 
 /* [P2-DESIGN-CONSISTENCY · 2026-07-07] Empty state = card con borde punteado (igual que desktop/Recetas). */
-.empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: .88rem; line-height: 1.5; border: 1px dashed var(--border); background: var(--bg-page); border-radius: 16px; margin: 10px 2px; }
-.empty b { display: block; color: var(--text-main); font-size: 1rem; font-weight: 800; margin-bottom: 6px; }
+/* [P1-PLAN-LOTE-125] Sin el borde punteado (una caja dentro de otra caja): el vacío es un icono del mueble, el
+   titular y una línea, con aire. El color sale del mueble: frío = cian de la puerta, alacena = ámbar. */
+.empty { --vacio: #22D3EE; padding: 44px 24px 40px; text-align: center; color: var(--text-muted); font-size: .88rem; line-height: 1.55; border: 0; background: transparent; max-width: 34ch; margin: 6px auto; }
+.empty[data-mueble="seco"] { --vacio: #FBBF24; }
+.empty b { display: block; color: var(--text-main); font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; margin-bottom: 6px; }
+.emptyIco { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 20px; display: grid; place-items: center; color: color-mix(in srgb, var(--vacio) 78%, var(--text-main)); background: color-mix(in srgb, var(--vacio) 12%, transparent); border: 1px solid color-mix(in srgb, var(--vacio) 26%, transparent); box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--vacio) 70%, transparent); }
 
 /* Agotados (depleted) */
 .depleted { margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border); }

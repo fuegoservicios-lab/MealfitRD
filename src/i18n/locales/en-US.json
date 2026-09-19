@@ -3204,5 +3204,14 @@
   "¿Qué es?": "What is it?",
   "¿Cuánto comiste?": "How much did you eat?",
   "antier": "the day before yesterday",
-  "Quedó en el diario de {dia}; la ves en «Ver días anteriores».": "It went into {dia}’s diary; see it under “View previous days”."
+  "Quedó en el diario de {dia}; la ves en «Ver días anteriores».": "It went into {dia}’s diary; see it under “View previous days”.",
+  "Te escucho…": "Listening…",
+  "Dictar por voz": "Dictate by voice",
+  "Detener dictado": "Stop dictation",
+  "Permite el micrófono para dictar": "Allow the microphone to dictate",
+  "No encuentro un micrófono": "I can’t find a microphone",
+  "El dictado necesita conexión": "Dictation needs a connection",
+  "No te escuché. Toca el micrófono y habla": "I didn’t hear you. Tap the microphone and speak",
+  "El dictado no está disponible en tu idioma": "Dictation isn’t available in your language",
+  "No pude iniciar el dictado": "I couldn’t start dictation"
 }

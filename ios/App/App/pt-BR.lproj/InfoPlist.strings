@@ -5,3 +5,5 @@
 "NSCameraUsageDescription" = "O Bioboros usa a câmera para escanear suas refeições e registrá-las no seu diário.";
 "NSPhotoLibraryUsageDescription" = "O Bioboros acessa suas fotos para que você possa registrar uma refeição a partir de uma imagem.";
 "NSPhotoLibraryAddUsageDescription" = "O Bioboros salva na sua galeria as fotos de refeições que você tira no app.";
+"NSMicrophoneUsageDescription" = "O Bioboros usa o microfone para você ditar ao coach em vez de digitar.";
+"NSSpeechRecognitionUsageDescription" = "O Bioboros transforma sua voz em texto para escrever sua mensagem no chat.";

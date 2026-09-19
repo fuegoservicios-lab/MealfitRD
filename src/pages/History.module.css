@@ -63,7 +63,67 @@
     background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(248,250,252,0.6));
     backdrop-filter: blur(12px);
     border-radius: 1.5rem;
-    border: 2px dashed #CBD5E1;
+    border: 1px solid #E2E8F0;
+}
+
+/* [P1-PLAN-LOTE-125] El vacío del Historial enseña lo que va a contener: tres fichas «fantasma» que se apagan hacia
+   abajo y el icono montado sobre ellas. Sin borde punteado (leía como «zona para soltar archivos»). */
+.emptyArt {
+    position: relative;
+    width: min(280px, 100%);
+    margin: 0 auto 2.4rem;
+    display: grid;
+    gap: 9px;
+}
+
+.emptyGhost {
+    position: relative;
+    display: block;
+    height: 50px;
+    border-radius: 15px;
+    border: 1px solid #E2E8F0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.8));
+}
+
+.emptyGhost::before,
+.emptyGhost::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #E2E8F0;
+}
+
+.emptyGhost::before {
+    left: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+}
+
+.emptyGhost::after {
+    left: 52px;
+    width: 46%;
+    height: 8px;
+    border-radius: 99px;
+    margin-top: -7px;
+    box-shadow: 0 15px 0 0 #EEF2F6;
+}
+
+.emptyGhost:nth-child(2) { opacity: 0.6; transform: scale(0.94); }
+.emptyGhost:nth-child(3) { opacity: 0.28; transform: scale(0.88); }
+
+.emptyArt .emptyIcon {
+    position: absolute;
+    left: 50%;
+    bottom: -1.5rem;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 60px;
+    margin: 0;
+    border-radius: 20px;
+    border: 4px solid #FFFFFF;
+    box-sizing: content-box;
 }
 
 /* [P3-HIST-EMPTY-CTA · 2026-07-02] Chip con gradiente + halo suave (antes flat
@@ -1688,6 +1748,24 @@
         border-radius: 1.25rem;
     }
 
+    /* [P1-PLAN-LOTE-125] En el teléfono el vacío no es una caja: ocupa el alto libre (cabecera y barra de pestañas
+       fuera) y se centra, en vez de quedarse arriba con media pantalla muerta debajo. */
+    .emptyStateArt {
+        min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 15rem);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        backdrop-filter: none;
+        border: 0;
+        padding: 1.5rem 0.75rem;
+    }
+
+    .emptyStateArt .emptyCta {
+        max-width: 22rem;
+    }
+
     .emptyIcon {
         width: 64px;
         height: 64px;
@@ -2676,6 +2754,24 @@
 :global(html[data-theme="dark"]) .emptyState {
     background: linear-gradient(135deg, rgba(17, 24, 39, 0.8), rgba(30, 41, 59, 0.6));
     border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .emptyGhost {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(17, 24, 39, 0.55));
+    border-color: var(--border);
+}
+
+:global(html[data-theme="dark"]) .emptyGhost::before { background: rgba(148, 163, 184, 0.22); }
+
+:global(html[data-theme="dark"]) .emptyGhost::after {
+    background: rgba(148, 163, 184, 0.22);
+    box-shadow: 0 15px 0 0 rgba(148, 163, 184, 0.12);
+}
+
+:global(html[data-theme="dark"]) .emptyArt .emptyIcon { border-color: var(--bg-page); }
+
+@media (max-width: 640px) {
+    :global(html[data-theme="dark"]) .emptyStateArt { background: transparent; }
 }
 
 :global(html[data-theme="dark"]) .emptyIcon {

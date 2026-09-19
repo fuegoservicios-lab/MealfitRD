@@ -1883,10 +1883,18 @@ const History = () => {
         navigate('/assessment');
     };
 
+    // [P1-PLAN-LOTE-125 · 2026-09-19] El dueño: «mejora cómo se ve el historial visualmente». Era una caja de borde
+    // punteado pegada arriba con media pantalla vacía debajo. Ahora ENSEÑA lo que va a haber: tres fichas de plan
+    // «fantasma» que se van apagando, con el icono encima, centrado en el alto libre. Mismos textos y misma acción.
     const EmptyState = () => (
-        <div className={styles.emptyState} role="status">
-            <div className={styles.emptyIcon}>
-                <BookOpen size={32} />
+        <div className={`${styles.emptyState} ${styles.emptyStateArt}`} role="status">
+            <div className={styles.emptyArt} aria-hidden="true">
+                <span className={styles.emptyGhost} />
+                <span className={styles.emptyGhost} />
+                <span className={styles.emptyGhost} />
+                <div className={styles.emptyIcon}>
+                    <BookOpen size={28} />
+                </div>
             </div>
             <h3 className={styles.emptyTitle}>{t('Tu historial está vacío')}</h3>
             <p className={styles.emptyText}>

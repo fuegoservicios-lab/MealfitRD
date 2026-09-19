@@ -65,6 +65,10 @@
 	<string>Bioboros accede a tus fotos para que puedas registrar una comida desde una imagen.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Bioboros guarda en tu galería las fotos de comidas que tomas desde la app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Bioboros usa el micrófono para que puedas dictarle al coach en vez de escribir.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Bioboros convierte tu voz en texto para escribir tu mensaje en el chat.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIRequiredDeviceCapabilities</key>

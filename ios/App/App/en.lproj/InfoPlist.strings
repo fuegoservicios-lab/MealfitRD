@@ -5,3 +5,5 @@
 "NSCameraUsageDescription" = "Bioboros uses the camera to scan your meals and log them in your diary.";
 "NSPhotoLibraryUsageDescription" = "Bioboros accesses your photos so you can log a meal from an image.";
 "NSPhotoLibraryAddUsageDescription" = "Bioboros saves the meal photos you take in the app to your gallery.";
+"NSMicrophoneUsageDescription" = "Bioboros uses the microphone so you can dictate to the coach instead of typing.";
+"NSSpeechRecognitionUsageDescription" = "Bioboros turns your voice into text to write your chat message.";
