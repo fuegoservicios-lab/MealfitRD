@@ -59,13 +59,32 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     place-items: center;
+    /* [P1-PLAN-LOTE-122 · 2026-09-19] El dueño: «mejora cuando entro a la foto, la X está fuera del rango».
+       · La X tiene SU franja: el relleno superior era `max(3.5rem, zona segura)` — el mayor de los dos, no la suma—,
+         así que la foto empezaba a 56 px y la X (48 px desde los 12) acababa a 60: montada 4 px sobre la esquina de
+         la foto, y 39 px en un iPhone con muesca. Ahora es zona segura + 4rem y la X vive entera dentro.
+       · Fondo NEGRO opaco, como el visor de fotos del teléfono. Con el azul translúcido de antes, una foto con bandas
+         negras (captura de pantalla) se veía como una caja negra de esquinas redondas flotando; sobre negro las
+         bandas desaparecen y queda la foto.
+       · En el teléfono la foto va de borde a borde, sin esquinas redondeadas: cada píxel de ancho es foto. */
     padding:
-        max(3.5rem, env(safe-area-inset-top, 0px))
-        max(1rem, env(safe-area-inset-right, 0px))
-        max(2rem, env(safe-area-inset-bottom, 0px))
-        max(1rem, env(safe-area-inset-left, 0px));
-    background: rgba(2, 6, 23, 0.94);
+        calc(env(safe-area-inset-top, 0px) + 4rem)
+        env(safe-area-inset-right, 0px)
+        calc(env(safe-area-inset-bottom, 0px) + 1.25rem)
+        env(safe-area-inset-left, 0px);
+    background: rgb(0 0 0 / var(--visor-opacidad, 1));
     touch-action: pinch-zoom;
+    animation: visorEntra 0.18s ease-out;
+}
+
+/* con varias fotos, el contador de abajo también tiene su franja */
+.message-image-viewer.con-varias {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 3.5rem);
+}
+
+@keyframes visorEntra {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .message-image-viewer > img {
@@ -76,7 +95,29 @@
     min-width: 0;
     min-height: 0;
     object-fit: contain;
-    border-radius: 0.75rem;
+    border-radius: 0;
+    /* deslizar hacia abajo cierra: la foto sigue al dedo (utils/imageViewerGesture.js) y vuelve sola si se suelta antes */
+    transform: translateY(var(--visor-baja, 0px));
+    transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.message-image-viewer.arrastrando > img {
+    transition: none;
+}
+
+@media (min-width: 769px) {
+    .message-image-viewer {
+        padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+        padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+    }
+    .message-image-viewer > img {
+        border-radius: 0.75rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .message-image-viewer { animation: none; }
+    .message-image-viewer > img { transition: none; }
 }
 
 /* la foto todavía viene de camino (carga autenticada): el hueco conserva el sitio */
@@ -96,19 +137,23 @@
     background: rgba(148, 163, 184, 0.18);
 }
 
+/* [P1-PLAN-LOTE-122] Dentro de la franja superior (zona segura + 4rem): 0.5rem + 44 px + aire. Icono en vez del
+   carácter «×», que cada tipografía centra a su manera. */
 .message-image-viewer-close {
     position: absolute;
-    top: max(0.75rem, env(safe-area-inset-top, 0px));
+    top: calc(env(safe-area-inset-top, 0px) + 0.6rem);
     right: max(0.75rem, env(safe-area-inset-right, 0px));
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    padding: 0;
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.12);
     color: white;
-    font-size: 2rem;
-    line-height: 1;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .message-image-viewer-nav {
@@ -131,7 +176,7 @@
 
 .message-image-viewer-count {
     position: absolute;
-    bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.85rem);
     left: 50%;
     transform: translateX(-50%);
     padding: 0.3rem 0.65rem;

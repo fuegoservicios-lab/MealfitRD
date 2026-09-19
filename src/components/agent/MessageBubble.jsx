@@ -8,7 +8,8 @@ import BotAvatar from './BotAvatar';
 // porque react-markdown + remark deps (~60KB gzip) solo se descargan tras
 // el primer render de markdown.
 import LazyMarkdown from '../common/LazyMarkdown';
-import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, RefreshCw, Copy, Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ejeDelGesto, decidirGestoVisor, arrastreDelVisor } from '../../utils/imageViewerGesture';
 import { fetchWithAuth } from '../../config/api';
 import { useT, formatDate } from '../../i18n';
 import { timeLabel } from '../../utils/chatTimeline';
@@ -152,6 +153,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     const viewerCloseRef = useRef(null);
     const viewerTriggerRef = useRef(null);
     const viewerSwipeRef = useRef(null);
+    const viewerRootRef = useRef(null);
     const media = Array.isArray(msg.attachments) && msg.attachments.length
         ? msg.attachments
         : (msg.isImage && msg.imageUrl ? [{ id: 'legacy', url: msg.imageUrl }] : []);
@@ -174,6 +176,58 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     const moveViewer = (direction) => {
         if (media.length < 2) return;
         setViewerIndex((current) => (Number(current) + direction + media.length) % media.length);
+    };
+    // [P1-PLAN-LOTE-122] Los gestos del visor (utils/imageViewerGesture.js): horizontal pasa de foto, hacia ABAJO
+    // cierra con la foto siguiendo al dedo. El arrastre se pinta con variables CSS sobre el propio visor: sin
+    // re-renderizar la burbuja en cada fotograma.
+    const pintarArrastre = (dy) => {
+        const el = viewerRootRef.current;
+        if (!el) return;
+        if (dy === null) {
+            el.classList.remove('arrastrando');
+            el.style.removeProperty('--visor-baja');
+            el.style.removeProperty('--visor-opacidad');
+            return;
+        }
+        const { baja, opacidad } = arrastreDelVisor(dy);
+        el.classList.add('arrastrando');
+        el.style.setProperty('--visor-baja', `${baja}px`);
+        el.style.setProperty('--visor-opacidad', String(opacidad));
+    };
+    const ahora = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const onViewerTouchStart = (event) => {
+        if (event.touches.length !== 1) { viewerSwipeRef.current = null; pintarArrastre(null); return; }
+        const tt = event.touches[0];
+        viewerSwipeRef.current = { x0: tt.clientX, y0: tt.clientY, y: tt.clientY, t: ahora(), vy: 0, eje: null };
+    };
+    const onViewerTouchMove = (event) => {
+        const g = viewerSwipeRef.current;
+        if (!g) return;
+        if (event.touches.length !== 1) { viewerSwipeRef.current = null; pintarArrastre(null); return; }
+        const tt = event.touches[0];
+        const dx = tt.clientX - g.x0;
+        const dy = tt.clientY - g.y0;
+        if (g.eje === null) g.eje = ejeDelGesto({ dx, dy });
+        const instante = ahora();
+        g.vy = (tt.clientY - g.y) / Math.max(8, instante - g.t);
+        g.y = tt.clientY;
+        g.t = instante;
+        const zoom = (typeof window !== 'undefined' && window.visualViewport?.scale) || 1;
+        if (g.eje === 'vertical' && zoom <= 1.01) pintarArrastre(dy);
+    };
+    const onViewerTouchEnd = (event) => {
+        const g = viewerSwipeRef.current;
+        viewerSwipeRef.current = null;
+        if (!g || event.changedTouches.length !== 1) { pintarArrastre(null); return; }
+        const tt = event.changedTouches[0];
+        const zoom = (typeof window !== 'undefined' && window.visualViewport?.scale) || 1;
+        const accion = decidirGestoVisor({
+            eje: g.eje, dx: tt.clientX - g.x0, dy: tt.clientY - g.y0, vy: g.vy, zoom, varias: media.length > 1,
+        });
+        pintarArrastre(null);
+        if (accion === 'cerrar') setViewerIndex(null);
+        else if (accion === 'anterior') moveViewer(-1);
+        else if (accion === 'siguiente') moveViewer(1);
     };
     useEffect(() => {
         if (!viewerOpen) return undefined;
@@ -329,23 +383,19 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
             </div>
             {viewerUrl && typeof document !== 'undefined' && createPortal(
                 <div
-                    className="message-image-viewer"
+                    ref={viewerRootRef}
+                    className={`message-image-viewer${media.length > 1 ? ' con-varias' : ''}`}
                     role="dialog"
                     aria-modal="true"
                     aria-label={t('Vista ampliada de imagen')}
                     onClick={() => setViewerIndex(null)}
-                    onTouchStart={(event) => {
-                        if (event.touches.length === 1) viewerSwipeRef.current = event.touches[0].clientX;
-                    }}
-                    onTouchEnd={(event) => {
-                        if (viewerSwipeRef.current === null || event.changedTouches.length !== 1) return;
-                        const delta = event.changedTouches[0].clientX - viewerSwipeRef.current;
-                        viewerSwipeRef.current = null;
-                        if (Math.abs(delta) >= 55) moveViewer(delta > 0 ? -1 : 1);
-                    }}
+                    onTouchStart={onViewerTouchStart}
+                    onTouchMove={onViewerTouchMove}
+                    onTouchEnd={onViewerTouchEnd}
+                    onTouchCancel={onViewerTouchEnd}
                 >
                     <button ref={viewerCloseRef} type="button" className="message-image-viewer-close" aria-label={t('Cerrar imagen')} onClick={() => setViewerIndex(null)}>
-                        ×
+                        <X size={22} strokeWidth={2.4} aria-hidden="true" />
                     </button>
                     <ChatImage url={viewerUrl} alt={t('Imagen ampliada')} onClick={(event) => event.stopPropagation()} />
                     {media.length > 1 && (
