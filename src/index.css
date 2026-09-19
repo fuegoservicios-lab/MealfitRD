@@ -497,6 +497,9 @@
   /* Safe Area Insets for Mobile PWA (iOS Nav Bar / Notch) */
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  /* [P1-PLAN-LOTE-118] Lo que la barra de pestañas DEVUELVE cuando está plegada (64 px de barra − 22 px del asa).
+     Todo lo que reserva sitio para la barra lo resta; abierta vale 0 y nada cambia. */
+  --tabbar-recupera: 0px;
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
 
@@ -1295,7 +1298,7 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px - var(--tabbar-recupera, 0px));
   z-index: var(--z-sysbanner);
   display: flex;
   align-items: center;
@@ -1960,4 +1963,9 @@ button.ui-close.ui-close--sm > svg { width: 16px; height: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
     button.ui-close, button.ui-close:hover:not(:disabled), button.ui-close:active:not(:disabled) { transform: none; transition: none !important; }
+}
+
+/* [P1-PLAN-LOTE-118] Barra de pestañas plegada: ver hooks/useTabBarPlegable.js. */
+html[data-tabbar-plegada] {
+  --tabbar-recupera: 42px;
 }

@@ -5622,7 +5622,8 @@ const AgentPage = () => {
                            pasa de 0.8rem a 1.4rem: los 64px de la reserva son la barra de
                            pestañas, no aire — la caja quedaba pegada a su borde superior
                            (captura del dueño, 2026-08-23 5:50). */
-                        padding: 0.8rem 1.25rem calc(1.4rem + 64px + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
+                        /* [P1-PLAN-LOTE-118] con la barra plegada la caja baja lo que la barra devuelve */
+                        padding: 0.8rem 1.25rem calc(1.4rem + 64px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px)) 1.25rem !important;
                         padding-left: max(1.25rem, env(safe-area-inset-left, 0px)) !important;
                         padding-right: max(1.25rem, env(safe-area-inset-right, 0px)) !important;
                         background: var(--bg-card) !important;
@@ -5722,7 +5723,7 @@ const AgentPage = () => {
                            inferior, donde ahora vive la barra de pestañas: sin esta reserva
                            las últimas conversaciones de la lista quedan debajo de ella y no
                            se pueden tocar. Mismo cálculo que '.input-wrapper'. */
-                        padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+                        padding-bottom: calc(64px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px));
                         box-sizing: border-box;
                     }
                     .sidebar-overlay {

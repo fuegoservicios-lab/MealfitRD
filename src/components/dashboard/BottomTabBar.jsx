@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Activity, Clock, Refrigerator, Lock } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
@@ -10,6 +11,7 @@ import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del data del Historial
 import { prefetchHistoryList } from '../../utils/historyCaches';
 import { useT } from '../../i18n';
+import { useTabBarPlegable } from '../../hooks/useTabBarPlegable';
 import styles from './BottomTabBar.module.css';
 
 // [P1-PLAN-MODE · 2026-08-11] Las entradas salen del SSOT (config/dashboardNav);
@@ -37,6 +39,10 @@ const BottomTabBar = () => {
     // /dashboard, el tap lleva a /register (gancho de conversión).
     const isTabLocked = (path) => isGuest && path !== '/dashboard';
 
+    // [P1-PLAN-LOTE-118] La barra se pliega deslizándola hacia abajo o tocando el asa (hooks/useTabBarPlegable.js).
+    const navRef = useRef(null);
+    const { plegada, alternar, gestos } = useTabBarPlegable(navRef);
+
     const handleTap = (path) => {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate(15);
@@ -51,7 +57,17 @@ const BottomTabBar = () => {
     };
 
     return (
-        <nav className={styles.tabBar}>
+        <nav ref={navRef} className={`${styles.tabBar} ${plegada ? styles.plegada : ''}`} {...gestos}>
+            {/* El asa: visible siempre en el borde superior; plegada, es toda la franja que queda a la vista. */}
+            <button
+                type="button"
+                className={styles.asa}
+                onClick={alternar}
+                aria-expanded={!plegada}
+                aria-label={plegada ? t('Mostrar el menú') : t('Ocultar el menú')}
+            >
+                <span className={styles.asaPildora} aria-hidden="true" />
+            </button>
             {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = location.pathname === tab.path;
@@ -72,6 +88,9 @@ const BottomTabBar = () => {
                         onMouseEnter={_prefetch}
                         aria-label={locked ? t('{label} (crea tu cuenta para desbloquear)', { label: tab.label }) : tab.label}
                         aria-current={isActive ? 'page' : undefined}
+                        // plegada, las pestañas quedan fuera de pantalla: tampoco deben recibir foco ni toques
+                        tabIndex={plegada ? -1 : undefined}
+                        aria-hidden={plegada ? true : undefined}
                         style={locked ? { opacity: 0.55 } : undefined}
                     >
                         <span style={{ position: 'relative', display: 'inline-flex' }}>

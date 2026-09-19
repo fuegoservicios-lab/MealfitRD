@@ -481,6 +481,8 @@
   "Con el tiempo que marcaste (unos {budget} min por comida), una de las comidas revisadas pide más: {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarla con “Cambiar Plato”.": "Avec le temps que vous avez indiqué (environ {budget} min par repas), un des repas examinés demande plus : {max} min. Nous n’avons pas encore assez de plats aussi rapides ; vous pouvez le remplacer avec « Changer de plat ».",
   "Con el tiempo que marcaste (unos {budget} min por comida), {n} de las comidas revisadas piden más: hasta {max} min. Aún no tenemos suficientes platos tan rápidos; puedes cambiarlas con “Cambiar Plato”.": "Avec le temps que vous avez indiqué (environ {budget} min par repas), {n} des repas examinés demandent plus : jusqu’à {max} min. Nous n’avons pas encore assez de plats aussi rapides ; vous pouvez les remplacer avec « Changer de plat ».",
   "Cómo registrar": "Comment enregistrer",
+  "Mostrar el menú": "Afficher le menu",
+  "Ocultar el menú": "Masquer le menu",
   "Platos de cualquier cocina que venda tu mercado, sin sesgo": "Des plats de n'importe quelle cuisine que vend votre marché, sans parti pris",
   "Sin cocina en particular": "Aucune cuisine en particulier",
   "Cocina mexicana": "Cuisine mexicaine",

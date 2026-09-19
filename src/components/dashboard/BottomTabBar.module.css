@@ -45,6 +45,77 @@
            que el teclado de iOS: las tres piezas se mueven a la vez o se ve un tiron. */
         transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.18s ease;
         box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.06);
+        /* [P1-PLAN-LOTE-118] Alto de la franja que queda a la vista con la barra plegada. La barra no necesita
+           ningún gesto nativo (los toques siguen llegando): sin `touch-action: none`, arrastrarla para plegarla
+           desplazaba además la página de debajo. */
+        --tabbar-asa: 22px;
+        touch-action: none;
+    }
+
+    /* [P1-PLAN-LOTE-118] PLEGADA: baja hasta dejar solo la franja del asa, ENCIMA de la zona del indicador de inicio
+       (ahí un gesto hacia arriba es «ir a inicio» del sistema). Misma curva que el teclado: es el mismo tipo de
+       movimiento que la regla `data-kb-open` de arriba, que sigue ganando (lleva `!important`). */
+    .tabBar.plegada {
+        transform: translateY(calc(100% - var(--tabbar-asa) - env(safe-area-inset-bottom, 0px)));
+        box-shadow: none;
+    }
+
+    .tabBar.plegada .tab {
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+
+    /* El asa. Abierta: una píldora discreta en el borde superior (zona táctil de 56×16 que no pisa iconos ni
+       rótulos: el contenido de las pestañas empieza a 12 px). Plegada: toda la franja visible es el botón. */
+    .asa {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 56px;
+        height: 16px;
+        padding: 0;
+        border: 0;
+        background: none;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .asaPildora {
+        display: block;
+        width: 30px;
+        height: 4px;
+        margin-top: 5px;
+        border-radius: 999px;
+        background: rgba(100, 116, 139, 0.45);
+        transition: width 0.2s ease, background 0.2s ease;
+    }
+
+    .tabBar.plegada .asa {
+        left: 0;
+        transform: none;
+        width: 100%;
+        height: var(--tabbar-asa);
+        align-items: center;
+    }
+
+    .tabBar.plegada .asaPildora {
+        width: 40px;
+        margin-top: 0;
+        background: rgba(100, 116, 139, 0.7);
+    }
+
+    :global(html[data-theme="dark"]) .asaPildora {
+        background: rgba(148, 163, 184, 0.4);
+    }
+
+    :global(html[data-theme="dark"]) .tabBar.plegada .asaPildora {
+        background: rgba(148, 163, 184, 0.65);
     }
 
     .tab {

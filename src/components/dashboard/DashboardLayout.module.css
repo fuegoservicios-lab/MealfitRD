@@ -515,7 +515,7 @@
 
     .mainContent {
         padding: 1.5rem;
-        padding-bottom: calc(1.5rem + 70px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(1.5rem + 70px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px));
         flex: 1;
         /* [P1-PLAN-LOTE-93 · 2026-09-17] `width: 100%` NO es redundante: sin él, el ancho de TODO el
            dashboard en el teléfono lo decidía el texto más largo que hubiera en pantalla.
@@ -560,7 +560,7 @@
 @media (max-width: 768px) {
     .mainContent {
         padding: 0.65rem 0.85rem;
-        padding-bottom: calc(2rem + 75px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(2rem + 75px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px));
         overflow-x: hidden;
         max-width: 100vw;
     }
