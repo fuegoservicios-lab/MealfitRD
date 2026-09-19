@@ -13,6 +13,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 // [P1-PLAN-LOTE-105] fototeca directa en la app nativa (Capacitor Camera); en la web, null
 import { isNativeApp } from '../../config/platform';
 import { chooseNativeGalleryImage, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
+import { captureException } from '../../utils/observability';
 // [P1-SCANNER-SHARED · 2026-08-10] El visor en vivo es SSOT compartido con el
 // escáner de la Nevera — no una segunda copia de 200 líneas.
 import CameraViewfinder from '../common/CameraViewfinder';
@@ -366,9 +367,17 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             const file = await chooseNativeGalleryImage();
             if (file) await handleFile(file);
         } catch (err) {
-            if (!isNativePickerCancellation(err)) galleryInputRef.current?.click();
+            if (isNativePickerCancellation(err)) return;
+            // [P1-PLAN-LOTE-107 · 2026-09-18] El fallo del selector nativo NO puede ser silencioso: caer callado
+            // al input de la web enseña otra vez la hoja de tres opciones de iOS y desde fuera es indistinguible
+            // de «no se hizo nada» (y cada build nativo cuesta minutos de Mac). Se reporta, se dice con su código
+            // —un pantallazo basta para diagnosticar— y DESPUÉS se abre el input para no dejar al usuario sin camino.
+            try { captureException(err, { tags: { component: 'ScanMealModal', action: 'native_gallery_picker' } }); } catch { /* best-effort */ }
+            const codigo = String(err?.code || err?.message || 'desconocido').slice(0, 80);
+            toast.error(t('No pudimos abrir tus fotos. Revisa los permisos e inténtalo de nuevo.'), { description: `[${codigo}]` });
+            galleryInputRef.current?.click();
         }
-    }, [handleFile]);
+    }, [handleFile, t]);
 
     const applyPortion = useCallback((m) => {
         setMultiplier(m);
