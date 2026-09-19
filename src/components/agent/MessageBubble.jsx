@@ -321,7 +321,8 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         style={{ marginBottom: msg.content ? '0.5rem' : 0 }}
                     >
                         {media.map((attachment, mediaIndex) => {
-                            const key = attachment.id || attachment.attachment_id || `${attachment.url}-${mediaIndex}`;
+                            // [P1-PLAN-LOTE-123] `clientKey` primero: no cambia cuando la foto local pasa a ser la del servidor
+                            const key = attachment.clientKey || attachment.id || attachment.attachment_id || `${attachment.url}-${mediaIndex}`;
                             if (brokenImages.has(key)) {
                                 return <div className="message-media-broken" key={key}>{t('Imagen no disponible')}</div>;
                             }

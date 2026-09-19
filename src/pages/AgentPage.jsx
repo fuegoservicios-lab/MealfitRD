@@ -79,6 +79,7 @@ import { captureException, addBreadcrumb } from '../utils/observability';
 import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, resolverInsetNativo, altoDeReferencia, KB_UMBRAL_PX } from '../utils/keyboardViewport';
 import { alternarSondaTecladoNativa } from '../utils/keyboardProbe';
 import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMoverse } from '../utils/chatKeyboardScroll';
+import { decidirAlAlejarseDelFondo } from '../utils/chatScrollIntent';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
 import { useChatAttachments } from '../hooks/useChatAttachments';
@@ -1926,6 +1927,9 @@ const AgentPage = () => {
         scrollModeRef.current = mode;
         userScrolledUpRef.current = mode === 'free';
     }, []);
+    // [P1-PLAN-LOTE-123] Para distinguir «el usuario subió» de «el contenido cambió de alto» (utils/chatScrollIntent.js).
+    const gestoScrollRef = useRef({ tocando: false, ultimoEn: 0 });
+    const ultimoCambioDeAltoRef = useRef(0);
     const _pinBottomInstant = useCallback(() => {
         const el = messagesContainerRef.current;
         if (!el) return;
@@ -1987,6 +1991,7 @@ const AgentPage = () => {
     useLayoutEffect(() => {
         const el = messagesContainerRef.current;
         if (!el) return;
+        ultimoCambioDeAltoRef.current = Date.now(); // [P1-PLAN-LOTE-123] cambiar los mensajes cambia el alto
         const mode = scrollModeRef.current;
         if (mode === 'anchored') {
             if (messages.length > VIRTUALIZE_THRESHOLD) {
@@ -2018,6 +2023,7 @@ const AgentPage = () => {
         const ro = new ResizeObserver(() => {
             const delta = altoPrevio - el.clientHeight;
             altoPrevio = el.clientHeight;
+            ultimoCambioDeAltoRef.current = Date.now();
             if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }
             const mode = scrollModeRef.current;
             if (mode === 'bottom') {
@@ -2034,6 +2040,32 @@ const AgentPage = () => {
         ro.observe(el);
         return () => ro.disconnect();
     }, [currentSessionId, _armSettle, _pinBottomInstant, _layoutAnchor]);
+    // [P1-PLAN-LOTE-123] El gesto del usuario sobre el historial: dedo, rueda, teclado o la barra de scroll.
+    useEffect(() => {
+        const el = messagesContainerRef.current;
+        if (!el) return undefined;
+        const g = gestoScrollRef.current;
+        const baja = () => { g.tocando = true; g.ultimoEn = Date.now(); };
+        const sube = () => { g.tocando = false; g.ultimoEn = Date.now(); };
+        const marca = () => { g.ultimoEn = Date.now(); };
+        const pasivo = { passive: true };
+        el.addEventListener('touchstart', baja, pasivo);
+        el.addEventListener('touchmove', marca, pasivo);
+        el.addEventListener('touchend', sube, pasivo);
+        el.addEventListener('touchcancel', sube, pasivo);
+        el.addEventListener('pointerdown', marca, pasivo);
+        el.addEventListener('wheel', marca, pasivo);
+        el.addEventListener('keydown', marca);
+        return () => {
+            el.removeEventListener('touchstart', baja, pasivo);
+            el.removeEventListener('touchmove', marca, pasivo);
+            el.removeEventListener('touchend', sube, pasivo);
+            el.removeEventListener('touchcancel', sube, pasivo);
+            el.removeEventListener('pointerdown', marca, pasivo);
+            el.removeEventListener('wheel', marca, pasivo);
+            el.removeEventListener('keydown', marca);
+        };
+    }, [currentSessionId]);
     // Cambiar de conversación: todo a cero.
     useEffect(() => {
         sentAnchorRef.current = null;
@@ -2099,7 +2131,16 @@ const AgentPage = () => {
                     _setSpacer(0);
                 }
             } else if (mode === 'bottom') {
-                if (distanceFromBottom > 120) _setMode('free');
+                // [P1-PLAN-LOTE-123] Lejos del fondo SIN gesto del usuario y pegado a un cambio de alto = el layout
+                // encogió y volvió a crecer (una foto que se recarga): se re-ancla. Declararlo «libre» dejaba la
+                // respuesta del agente fuera de cuadro.
+                const g = gestoScrollRef.current;
+                const alejarse = decidirAlAlejarseDelFondo({
+                    distancia: distanceFromBottom, tocando: g.tocando, ultimoGestoEn: g.ultimoEn,
+                    ultimoCambioDeAltoEn: ultimoCambioDeAltoRef.current, ahora: Date.now(),
+                });
+                if (alejarse === 'fijar') _pinBottomInstant();
+                else if (distanceFromBottom > 120) _setMode('free');
             } else if (distanceFromBottom <= 4) {
                 _setMode('bottom');
             }
@@ -2108,7 +2149,7 @@ const AgentPage = () => {
         } catch (_e) {
             // best-effort
         }
-    }, [_setMode, _setSpacer]);
+    }, [_setMode, _setSpacer, _pinBottomInstant]);
 
     const handleVirtualizedAtBottomChange = useCallback((atBottom) => {
         if (atBottom) _setMode('bottom');
@@ -2987,6 +3028,9 @@ const AgentPage = () => {
         const originalUserMessageIndex = newMessages.length;
         const bubbleAttachments = currentAttachments.map((item) => ({
             id: item.attachment_id || item.id,
+            // [P1-PLAN-LOTE-123] La clave de React de la foto. Al terminar la subida el `id` pasa del local al del
+            // servidor: con el `id` como clave la foto se REMONTABA vacía (la caja bajaba de 260 a 96 px y volvía).
+            clientKey: item.id,
             url: item.url || item.image_url || item.thumbDataUrl || item.previewUrl,
             // [P1-PLAN-LOTE-117] para el visor: la vista previa a resolución de subida, no la miniatura de 360 px
             fullUrl: item.url || item.image_url || item.previewUrl || item.thumbDataUrl,
@@ -3131,7 +3175,9 @@ const AgentPage = () => {
                     if (index !== prev.length - 1 || message.role !== 'user' || !message.isImage) return message;
                     const remote = uploadedAttachments.map((item) => ({
                         id: item.attachment_id || item.id,
+                        clientKey: item.id, // [P1-PLAN-LOTE-123] la misma clave que la burbuja local: relevo sin remontar
                         url: item.url || item.thumbDataUrl,
+                        fullUrl: item.image_url || item.url || item.thumbDataUrl,
                         name: item.file?.name || item.sourceFile?.name,
                         description: item.description,
                         kind: item.kind,
