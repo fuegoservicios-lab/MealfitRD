@@ -488,6 +488,22 @@
         display: flex;
     }
 
+    /* [P1-PLAN-LOTE-126 · 2026-09-19] El alto de la cabecera del teléfono, IMPUESTO y no descrito.
+       El dueño: «cuando la nevera está vacía tiene el scroll de manera innecesaria». Nevera, Recetas e Historial llenan
+       la pantalla con `min-height: 100dvh − (safe-area + 48px)`, donde 48 px «era» la cabecera. La cabecera mide 66 px
+       (medido: relleno 6 + 9,6 + 9,6, contenido 40, borde 1) y nunca midió 48: la página salía 18 px más alta que la
+       pantalla y una nevera VACÍA se podía desplazar. Un número que DESCRIBE a otro elemento miente en cuanto ese
+       elemento cambia; ahora la cabecera TOMA su alto de esta variable y las tres páginas restan la misma. Quien
+       cambie el relleno de `.mobileHeader` cambia los dos términos de aquí, o la cabecera recorta su contenido y se ve. */
+    .container {
+        --dash-header-h: calc(max(env(safe-area-inset-top), 6px) + 1.2rem + 41px);
+    }
+
+    .mobileHeader {
+        box-sizing: border-box;
+        height: var(--dash-header-h);
+    }
+
     .sidebar {
         transform: translateX(-100%);
         width: 280px;

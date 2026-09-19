@@ -12,7 +12,7 @@
   box-sizing: border-box;
   background: var(--bg-card);
   border: 1px solid var(--border); border-left: 0; border-right: 0; border-radius: 0;
-  min-height: calc(100dvh - env(safe-area-inset-top, 0px) - 48px);
+  min-height: calc(100dvh - var(--dash-header-h, 66.2px));
   padding-bottom: calc(80px - var(--tabbar-recupera, 0px) + env(safe-area-inset-bottom, 0px));
 }
 
