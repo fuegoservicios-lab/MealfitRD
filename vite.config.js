@@ -559,11 +559,11 @@ export default defineConfig(({ mode }) => {
     // Medido, no supuesto: con 4 workers, dos corridas consecutivas dieron
     // 265/265 archivos y 2.697/2.697 tests, exit 0 y cero errores (a 2026-08-23
     // la suite creció a ~319 archivos / ~3.120 tests y sigue estable). Cuesta ~130 s
-    // (a 2026-09-19: ~409 archivos / ~3.700 tests, igual de estable.)
     // frente a ~98 s. Treinta segundos por una cifra en la que se puede confiar
     // es un cambio barato; el que sale caro es desplegar con la suite a medias.
     //
     // Knob por si otra maquina aguanta mas (o menos): VITEST_MAX_WORKERS.
+    // [2026-09-19] La suite va por ~409 archivos / ~3.700 tests, igual de estable.
     maxWorkers: Number(process.env.VITEST_MAX_WORKERS) || 4,
     minWorkers: 1,
     // [P1-4 · COVERAGE-REPORT-ONLY · 2026-07-09] @vitest/coverage-v8 en modo
