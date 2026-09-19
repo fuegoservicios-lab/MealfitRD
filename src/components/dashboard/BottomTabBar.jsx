@@ -64,7 +64,7 @@ const BottomTabBar = () => {
                 className={styles.asa}
                 onClick={alternar}
                 aria-expanded={!plegada}
-                aria-label={plegada ? t('Mostrar el menú') : t('Ocultar el menú')}
+                aria-label={plegada ? t('Mostrar la barra de navegación') : t('Ocultar la barra de navegación')}
             >
                 <span className={styles.asaPildora} aria-hidden="true" />
             </button>

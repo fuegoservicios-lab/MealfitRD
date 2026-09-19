@@ -40,12 +40,12 @@ describe('decidirAlSoltar', () => {
 describe('la barra', () => {
     it('el asa la pliega, lo recuerda, marca <html> y saca las pestañas del foco; otro toque la devuelve', () => {
         pintar();
-        const asa = screen.getByRole('button', { name: 'Ocultar el menú', hidden: true });
+        const asa = screen.getByRole('button', { name: 'Ocultar la barra de navegación', hidden: true });
         expect(asa).toHaveAttribute('aria-expanded', 'true');
         fireEvent.click(asa);
         expect(localStorage.getItem(CLAVE_TABBAR_PLEGADA)).toBe('1');
         expect(document.documentElement.hasAttribute('data-tabbar-plegada')).toBe(true);
-        const abrir = screen.getByRole('button', { name: 'Mostrar el menú', hidden: true });
+        const abrir = screen.getByRole('button', { name: 'Mostrar la barra de navegación', hidden: true });
         expect(abrir).toHaveAttribute('aria-expanded', 'false');
         // plegada, las pestañas no se alcanzan con el teclado ni las anuncia el lector
         // por atributo y no por rol: un elemento `aria-hidden` no tiene nombre accesible, que es justo lo que se comprueba
@@ -62,7 +62,7 @@ describe('la barra', () => {
     it('nace como la dejaste', () => {
         localStorage.setItem(CLAVE_TABBAR_PLEGADA, '1');
         pintar();
-        expect(screen.getByRole('button', { name: 'Mostrar el menú', hidden: true })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Mostrar la barra de navegación', hidden: true })).toBeInTheDocument();
         expect(document.documentElement.hasAttribute('data-tabbar-plegada')).toBe(true);
     });
 
