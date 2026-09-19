@@ -255,15 +255,43 @@
         font-weight: 800;
     }
 
+    /* [P1-PLAN-LOTE-120 · 2026-09-19] La pestaña activa se marca con un BRILLO, no con una raya. Era una barrita sólida
+       de 32×2,5 en el borde superior, y desde el lote 118 ese borde tiene además el asa de plegar: dos rayitas en el
+       mismo sitio diciendo cosas distintas (el dueño: «que no se parezca a la raya de bajar el menú, quiero que sea
+       un brillo»). Ahora es luz que cae desde el borde sobre el icono: sin contorno no se confunde con un control.
+       `z-index: -1` la pinta sobre el fondo de la barra (que es su contexto de apilamiento: `fixed` + z-index) y
+       DEBAJO del icono y el rótulo, así no los tiñe. */
     .activeIndicator {
         position: absolute;
         top: 0;
         left: 50%;
         transform: translateX(-50%);
-        width: 32px;
-        height: 2.5px;
-        background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%);
-        border-radius: 0 0 2px 2px;
+        width: 84px;
+        max-width: 100%;
+        height: 40px;
+        z-index: -1;
+        pointer-events: none;
+        background: radial-gradient(ellipse 50% 100% at 50% 0%,
+            rgba(99, 102, 241, 0.30) 0%,
+            rgba(99, 102, 241, 0.12) 45%,
+            rgba(99, 102, 241, 0) 75%);
+        animation: brilloEntra 0.3s ease-out;
+    }
+
+    @keyframes brilloEntra {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* el icono activo también emite: el brillo de arriba y él son la misma luz */
+    .tabActive .tabIcon {
+        filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.45));
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .activeIndicator {
+            animation: none;
+        }
     }
 
     /* [APPEARANCE-THEME · 2026-05-28] Tab bar oscura: superficie slate
@@ -280,6 +308,12 @@
         color: var(--primary-light);
     }
     :global(html[data-theme="dark"]) .activeIndicator {
-        background: linear-gradient(90deg, var(--primary-light) 0%, #A78BFA 100%);
+        background: radial-gradient(ellipse 50% 100% at 50% 0%,
+            rgba(165, 180, 252, 0.42) 0%,
+            rgba(165, 180, 252, 0.16) 45%,
+            rgba(165, 180, 252, 0) 75%);
+    }
+    :global(html[data-theme="dark"]) .tabActive .tabIcon {
+        filter: drop-shadow(0 0 7px rgba(165, 180, 252, 0.55));
     }
 }
