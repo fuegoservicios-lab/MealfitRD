@@ -222,7 +222,10 @@ describe('[P1-PLAN-LOTE-76] «Nuevo chat» bloqueado mientras el chat abierto es
         await volverALaPestana();
         // [P1-PLAN-LOTE-102] 3 s como los findByText de arriba: con el 1 s por defecto este test tumbó TRES deploys
         // bajo carga (lotes 92, 99 y 102) y pasaba 10/10 aislado — era el tiempo, no el chat.
-        await waitFor(() => expect(screen.queryByText(TEXTO_DE_AYER)).toBeNull(), { timeout: 3000 });
+        // [P1-PLAN-LOTE-117] …y con 3 s tumbó tres más (105, 116 y 117), siempre dentro de la suite entera del deploy y
+        // siempre 10/10 aislado. La espera es un TECHO, no una pausa: en verde vuelve en cuanto el texto desaparece. 10 s
+        // de techo (y 20 s para el test) dejan de convertir la carga de la máquina en un despliegue perdido.
+        await waitFor(() => expect(screen.queryByText(TEXTO_DE_AYER)).toBeNull(), { timeout: 10000 });
         expect(screen.getAllByText('Nuevo chat')[0].closest('button')).toBeDisabled();
-    });
+    }, 20000);
 });
