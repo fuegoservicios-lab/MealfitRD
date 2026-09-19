@@ -31,13 +31,50 @@
 import { isNativeApp, nativeHttpGet } from '../config/platform';
 import { captureException } from '../utils/observability';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
+import { toast } from 'sonner';
+import { t } from '../i18n';
 
 export const OTA_BASE_URL = 'https://app.bioboros.com/ota/';
 export const OTA_MANIFEST_URL = `${OTA_BASE_URL}latest.json`;
 const ID_RE = /^\d{8}-\d{6}$/;
 const SHA_RE = /^[0-9a-f]{64}$/;
 const CLAVE_BLOQUEADOS = 'mf_ota_bloqueados';
-const REVISAR_CADA_MS = 60 * 60 * 1000;
+// [P1-PLAN-LOTE-113 · 2026-09-19] Era 1 HORA, y eso rompía el uso real. La revisión corre al arrancar en frío y al
+// VOLVER a la app si pasó este tiempo desde la última. Con una hora, quien volvía a la app a los 50 minutos de un
+// despliegue no revisaba nada: cerraba del todo, abría (ahí SÍ revisa y descarga, pero ya corre el paquete viejo),
+// probaba… y veía lo de antes. El dueño lo vivió tres veces seguidas («sigue igual» al teclado, a las metas, y un
+// `/sonda` que llegó al servidor como mensaje normal: la prueba de que corría un paquete sin ese código).
+// La revisión cuesta un GET de ~300 bytes: un minuto de calma basta para no repetirla en ráfagas.
+const REVISAR_CADA_MS = 60 * 1000;
+const CLAVE_AVISADO = 'mf_ota_avisado';
+const CLAVE_VISTO = 'mf_ota_visto';
+
+// [P1-PLAN-LOTE-113] El paquete se aplica en el siguiente arranque EN FRÍO y nadie lo sabía: en iOS casi nadie
+// cierra las apps del todo, así que una actualización descargada podía tardar días en verse. Se dice UNA vez por
+// paquete, sin botón: la recarga en caliente sigue descartada (decisión 1 de arriba).
+function avisarPreparado(bundleId) {
+    if (safeLocalStorageGet(CLAVE_AVISADO, null) === bundleId) return;
+    safeLocalStorageSet(CLAVE_AVISADO, bundleId);
+    try {
+        toast(t('Actualización lista'), {
+            description: t('Cierra la app del todo y vuelve a abrirla para aplicarla.'),
+            duration: 9000,
+        });
+    } catch { /* best-effort */ }
+}
+
+// Y al revés: la primera vez que corre un paquete nuevo se confirma, para no tener que adivinar si ya se aplicó.
+async function avisarSiSeActualizo(LiveUpdate) {
+    const propio = otaOwnId();
+    const visto = safeLocalStorageGet(CLAVE_VISTO, null);
+    if (visto === propio) return;
+    safeLocalStorageSet(CLAVE_VISTO, propio);
+    let esOta = false;
+    try { esOta = Boolean((await LiveUpdate.getCurrentBundle())?.bundleId); } catch { /* sin dato: no se avisa */ }
+    // Primera ejecución tras instalar el binario: no hay nada que celebrar. Un paquete OTA sí es una actualización.
+    if (!visto && !esOta) return;
+    try { toast.success(t('App actualizada'), { duration: 4000 }); } catch { /* best-effort */ }
+}
 
 export function otaOwnId() {
     try {
@@ -147,6 +184,7 @@ export async function revisarOta(LiveUpdate) {
             await LiveUpdate.downloadBundle({ bundleId, url, checksum });
         }
         await LiveUpdate.setNextBundle({ bundleId });
+        avisarPreparado(bundleId);
         return 'preparado';
     } catch (err) {
         avisar(err, 'revisar');
@@ -173,6 +211,7 @@ export function iniciarOtaNativa() {
                 bloquear(r.previousBundleId);
                 avisar(new Error('OTA: el paquete no arrancó y se volvió al anterior'), 'rollback', { bundleId: r.previousBundleId });
             }
+            avisarSiSeActualizo(LiveUpdate);
             setTimeout(() => { revisarOta(LiveUpdate); }, 4000);
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible' && Date.now() - _ultimaRevision > REVISAR_CADA_MS) {
