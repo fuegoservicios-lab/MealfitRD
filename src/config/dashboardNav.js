@@ -32,6 +32,27 @@ export const navItemsFor = ({ trackingMode = false } = {}) => [
     { key: 'history', label: t('Historial'), path: '/history' },
 ];
 
+// [P1-PLAN-LOTE-119 · 2026-09-19] El reparto del TELÉFONO. Con el generador encendido la nav tiene 6 entradas y la
+// barra de pestañas se veía «con demasiados apartados» (el dueño): 6 celdas de 65 px con los rótulos apretados, una
+// más de las 5 que aguanta una barra inferior. Lo que NO cabe va al menú ☰ de la cabecera, y sale por orden de
+// `SALEN_PRIMERO`: el Historial es el destino menos diario (se entra a recuperar un plan viejo, no a vivir el de hoy).
+// En modo contador son 4 y nadie se mueve — ahí el Historial es además donde viven las recetas.
+// El lateral de escritorio y el menú del Agente siguen pintando `navItemsFor` ENTERO: no tienen ese límite.
+export const TAB_BAR_MAX = 5;
+const SALEN_PRIMERO = ['history'];
+
+export const repartoTelefono = (items) => {
+    const fuera = new Set();
+    for (const key of SALEN_PRIMERO) {
+        if (items.length - fuera.size <= TAB_BAR_MAX) break;
+        if (items.some((it) => it.key === key)) fuera.add(key);
+    }
+    return {
+        barra: items.filter((it) => !fuera.has(it.key)),
+        menu: items.filter((it) => fuera.has(it.key)),
+    };
+};
+
 /** El modo, leído como lo lee el wrapper del Dashboard: perfil primero, espejo
  *  localStorage después — «no sé» jamás se trata como «tracking» para OCULTAR
  *  entradas (ocultar por error es peor que mostrar de más).

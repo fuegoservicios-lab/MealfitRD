@@ -1298,7 +1298,8 @@ html[data-theme="paper"] ::-webkit-scrollbar-thumb:hover {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px - var(--tabbar-recupera, 0px));
+  /* [P1-PLAN-LOTE-119] 72 → 88: la lengüeta del asa sobresale 16 px de la barra y pisaba el centro del aviso. */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 88px - var(--tabbar-recupera, 0px));
   z-index: var(--z-sysbanner);
   display: flex;
   align-items: center;

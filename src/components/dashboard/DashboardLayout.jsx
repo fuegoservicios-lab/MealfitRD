@@ -13,7 +13,7 @@ import { LayoutDashboard, Activity, Settings, LogOut, Menu, X, Clock, Refrigerat
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
-import { navItemsFor, isTrackingMode } from '../../config/dashboardNav';
+import { navItemsFor, isTrackingMode, repartoTelefono } from '../../config/dashboardNav';
 // [P3-DASH-MODALS-A11Y · 2026-05-30] Hook SSOT de a11y (ESC + focus-trap +
 // restore + body-overflow) para el "Mobile More Menu" — overlay full-screen
 // con acción destructiva (Cerrar Sesión) que era el único surface modal-like
@@ -171,6 +171,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     };
     const menuItems = navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })
         .map((it) => ({ ...it, ..._navIcons[it.key] }));
+    // [P1-PLAN-LOTE-119] Lo que no cabe en la barra de pestañas del teléfono (el Historial, con el generador
+    // encendido) encabeza el menú ☰. Mismo SSOT que la barra: lo que sale de un sitio entra en el otro.
+    const menuTelefono = repartoTelefono(menuItems).menu;
 
     // [P1-GUEST-LOGOUT · 2026-06-15] Un invitado no tiene email: mostrar "Invitado".
     const logoutLabel = isGuest ? t('Salir del modo invitado') : t('Cerrar sesión');
@@ -469,6 +472,33 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         onClick={closeMoreMenu}
                     />
                     <div className={styles.mobileMoreMenu} role="menu" ref={moreMenuRef} tabIndex={-1}>
+                        {/* [P1-PLAN-LOTE-119] Las secciones que la barra de pestañas ya no lleva (máx. 5). Al
+                            invitado, como en la barra: candado y a crear la cuenta. */}
+                        {menuTelefono.map((item) => {
+                            const Icon = item.icon;
+                            const bloqueada = isGuest && item.path !== '/dashboard';
+                            const _prefetch = () => {
+                                if (bloqueada) return;
+                                prefetchRoute(item.path);
+                                if (item.path === '/history') prefetchHistoryList();
+                            };
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={bloqueada ? '/register' : item.path}
+                                    className={styles.mobileMoreItem}
+                                    onClick={closeMoreMenu}
+                                    onTouchStart={_prefetch}
+                                    role="menuitem"
+                                    aria-current={location.pathname === item.path ? 'page' : undefined}
+                                    style={bloqueada ? { opacity: 0.6 } : undefined}
+                                >
+                                    <Icon size={18} strokeWidth={2.5} />
+                                    <span style={{ flex: 1 }}>{item.label}</span>
+                                    {bloqueada && <Lock size={13} strokeWidth={2.5} aria-hidden="true" />}
+                                </Link>
+                            );
+                        })}
                         {/* [P1-GUEST-APPEARANCE · 2026-06-15] Invitado → apariencia
                             (tema) en vez de Ajustes (gateado + fetches auth). */}
                         {isGuest ? (

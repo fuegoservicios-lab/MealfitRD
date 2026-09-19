@@ -1,11 +1,11 @@
 import { useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Activity, Clock, Refrigerator, Lock } from 'lucide-react';
+import { LayoutDashboard, Activity, Clock, Refrigerator, Lock, ChevronDown } from 'lucide-react';
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 // [P1-GUEST-NAV-LOCK · 2026-06-15] Modo invitado: secciones que requieren cuenta.
 import { useAssessment } from '../../context/AssessmentContext';
-import { navItemsFor, isTrackingMode } from '../../config/dashboardNav';
+import { navItemsFor, isTrackingMode, repartoTelefono } from '../../config/dashboardNav';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al touchstart
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del data del Historial
@@ -31,7 +31,9 @@ const BottomTabBar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { isGuest, userProfile, planData } = useAssessment();
-    const tabs = navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })
+    // [P1-PLAN-LOTE-119] La barra lleva como mucho 5: lo que no cabe (el Historial, con el generador encendido) vive
+    // en el menú ☰ de la cabecera. El reparto es del SSOT (`repartoTelefono`), no de aquí.
+    const tabs = repartoTelefono(navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })).barra
         .map((it) => ({ ...it, ..._tabIcons[it.key] }));
 
     // [P1-GUEST-NAV-LOCK · 2026-06-15] Para invitados, todo salvo Plan requiere
@@ -41,7 +43,7 @@ const BottomTabBar = () => {
 
     // [P1-PLAN-LOTE-118] La barra se pliega deslizándola hacia abajo o tocando el asa (hooks/useTabBarPlegable.js).
     const navRef = useRef(null);
-    const { plegada, alternar, gestos } = useTabBarPlegable(navRef);
+    const { plegada, alternar, gestos, pista } = useTabBarPlegable(navRef);
 
     const handleTap = (path) => {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -58,15 +60,19 @@ const BottomTabBar = () => {
 
     return (
         <nav ref={navRef} className={`${styles.tabBar} ${plegada ? styles.plegada : ''}`} {...gestos}>
-            {/* El asa: visible siempre en el borde superior; plegada, es toda la franja que queda a la vista. */}
+            {/* El asa. [P1-PLAN-LOTE-119] Abierta es una LENGÜETA con flecha que sobresale del borde superior (la píldora
+                gris del 118 no decía «tócame»: el dueño); plegada, toda la franja que queda a la vista, con la flecha
+                hacia arriba. `pista`: las primeras veces la flecha se mece para presentarse, y calla en cuanto se usa. */}
             <button
                 type="button"
-                className={styles.asa}
+                className={`${styles.asa} ${pista ? styles.asaPista : ''}`}
                 onClick={alternar}
                 aria-expanded={!plegada}
                 aria-label={plegada ? t('Mostrar la barra de navegación') : t('Ocultar la barra de navegación')}
             >
-                <span className={styles.asaPildora} aria-hidden="true" />
+                <span className={styles.asaLengua} aria-hidden="true">
+                    <ChevronDown size={16} strokeWidth={2.75} className={styles.asaFlecha} />
+                </span>
             </button>
             {tabs.map((tab) => {
                 const Icon = tab.icon;

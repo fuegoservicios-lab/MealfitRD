@@ -13,12 +13,25 @@
 //  · El espacio se DEVUELVE: `html[data-tabbar-plegada]` sube `--tabbar-recupera` y todo lo que reservaba sitio para
 //    la barra (el contenido de cada página, la caja del chat, el cajón de conversaciones, el aviso «sin conexión») lo
 //    resta. Con el teclado abierto manda la regla de siempre (`html[data-kb-open]`): la barra se va entera.
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 
 export const CLAVE_TABBAR_PLEGADA = 'mf_tabbar_plegada';
 export const UMBRAL_PLEGAR_PX = 26;
 const UMBRAL_VELOCIDAD = 0.35; // px/ms
+
+// [P1-PLAN-LOTE-119 · 2026-09-19] LA PISTA. El dueño: «si se pudiera notar más que eso se puede presionar para bajarse
+// fuera mejor». El asa pasa a ser una lengüeta con flecha, y las primeras veces la flecha se mece para presentarse.
+// Una animación que no calla nunca es ruido: se acaba en cuanto el asa se USA una vez, o a las `PISTAS_MAX` apariciones
+// si nadie la toca (la barra se monta en cada página: sin tope se mecería en cada navegación para siempre).
+export const CLAVE_ASA_USADA = 'mf_tabbar_asa_usada';
+export const CLAVE_ASA_PISTAS = 'mf_tabbar_asa_pistas';
+export const PISTAS_MAX = 5;
+
+/** Decisión PURA: ¿toca presentarse? */
+export function debePresentarse({ usada, vistas }) {
+    return usada !== '1' && (parseInt(vistas, 10) || 0) < PISTAS_MAX;
+}
 
 /** Decisión PURA al soltar el dedo. `dy` > 0 = hacia abajo. */
 export function decidirAlSoltar({ plegada, dy = 0, vy = 0 }) {
@@ -28,8 +41,20 @@ export function decidirAlSoltar({ plegada, dy = 0, vy = 0 }) {
 
 export function useTabBarPlegable(navRef) {
     const [plegada, setPlegada] = useState(() => safeLocalStorageGet(CLAVE_TABBAR_PLEGADA, null) === '1');
+    const [pista, setPista] = useState(() => debePresentarse({
+        usada: safeLocalStorageGet(CLAVE_ASA_USADA, null),
+        vistas: safeLocalStorageGet(CLAVE_ASA_PISTAS, '0'),
+    }));
     const gesto = useRef(null);
     const arrastroRef = useRef(false);
+
+    // cada aparición de la pista cuenta UNA vez (al montar), no en cada render
+    const naciaConPista = useRef(pista);
+    useEffect(() => {
+        if (!naciaConPista.current) return;
+        const vistas = parseInt(safeLocalStorageGet(CLAVE_ASA_PISTAS, '0'), 10) || 0;
+        safeLocalStorageSet(CLAVE_ASA_PISTAS, String(vistas + 1));
+    }, []);
 
     useLayoutEffect(() => {
         const root = document.documentElement;
@@ -41,6 +66,9 @@ export function useTabBarPlegable(navRef) {
         setPlegada(valor);
         if (valor) safeLocalStorageSet(CLAVE_TABBAR_PLEGADA, '1');
         else safeLocalStorageRemove(CLAVE_TABBAR_PLEGADA);
+        // quien ya la usó no necesita que se la presenten
+        safeLocalStorageSet(CLAVE_ASA_USADA, '1');
+        setPista(false);
         try { navigator.vibrate?.(10); } catch { /* sin háptica */ }
     }, []);
 
@@ -101,6 +129,7 @@ export function useTabBarPlegable(navRef) {
 
     return {
         plegada,
+        pista: pista && !plegada,
         alternar: () => fijar(!plegada),
         gestos: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel: onTouchEnd, onClickCapture },
     };
