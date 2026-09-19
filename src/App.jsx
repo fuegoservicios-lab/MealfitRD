@@ -30,7 +30,6 @@ import { I18nProvider, useT } from './i18n';
 import SkipLink from './components/common/SkipLink';
 // [P2-8 · 2026-07-09] Señal ambiental de conectividad (banner no-bloqueante).
 import OfflineBanner from './components/common/OfflineBanner';
-import IOSInstallPrompt from './components/IOSInstallPrompt';
 import useThemeColor from './components/common/useThemeColor';
 // [P1-DEEP-SEARCH-PIPELINE · 2026-05-15] Boot hook que detecta planes pendientes
 // y redirige al dashboard cuando el pipeline backend completa fuera del SSE.
@@ -457,7 +456,10 @@ function App() {
         <RouteTitle />
         {/* [P3-APP-SUBDOMAIN-ROUTING · 2026-06-28] Apex → app.* para rutas de app. */}
         <ApexAppRedirect />
-        <IOSInstallPrompt />
+        {/* [P1-PLAN-LOTE-109] Aqui vivia el componente IOSInstallPrompt, el aviso «Instala Bioboros /
+            Agregar a inicio». Retirado por el dueno: con la app en TestFlight ya no se
+            empuja la PWA, y dentro del WebView nativo el aviso salia igual (no es
+            `standalone`) pidiendo instalar lo que ya esta instalado. No lo repongas. */}
         {/* [P1-TOASTER-MISSING · 2026-05-30] <Toaster/> de sonner. SIN este
             componente montado, sonner NO renderiza NINGÚN toast (no auto-monta).
             Fue removido por accidente en 06f042a ("perf: lazy loading",

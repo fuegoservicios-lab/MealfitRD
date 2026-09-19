@@ -76,7 +76,6 @@ describe('[P1-Z-SCALE] nadie inventa números altos por su cuenta', () => {
         'components/common/EvaluarDeNuevoModal.jsx',
         'components/common/PantryConsentModal.jsx',
         'components/common/SkipLink.module.css',
-        'components/IOSInstallPrompt.jsx',
         'components/layout/Header.module.css',
         'pages/Supermarket.module.css',
     ];

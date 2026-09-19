@@ -16,7 +16,6 @@ const SITIOS = [
     'src/components/dashboard/PaymentModal.jsx',
     'src/components/dashboard/RestockNudge.jsx',
     'src/components/dashboard/ScanMealModal.jsx',
-    'src/components/IOSInstallPrompt.jsx',
     'src/components/layout/Header.jsx',
     'src/pages/Dashboard.jsx',
     'src/pages/History.jsx',
@@ -48,9 +47,9 @@ describe('ui-close: cierre uniforme', () => {
     it('los avisos compactos usan la variante pequeña (mismo botón, dos tamaños)', () => {
         const css = read('src/index.css');
         expect(css).toContain('button.ui-close.ui-close--sm { --ui-close-size: 32px;');
-        const n = ['src/pages/Dashboard.jsx', 'src/components/dashboard/RestockNudge.jsx', 'src/components/IOSInstallPrompt.jsx']
+        const n = ['src/pages/Dashboard.jsx', 'src/components/dashboard/RestockNudge.jsx']
             .reduce((acc, f) => acc + (read(f).match(/ui-close--sm/g) || []).length, 0);
-        expect(n).toBe(6);
+        expect(n).toBe(5);
     });
     it('Dashboard: los 5 avisos descartables usan el mismo cierre', () => {
         const src = read('src/pages/Dashboard.jsx');
