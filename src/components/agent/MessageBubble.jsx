@@ -14,6 +14,7 @@ import { useT, formatDate } from '../../i18n';
 import { timeLabel } from '../../utils/chatTimeline';
 import { toast } from 'sonner';
 import { triggerMobileHaptic } from '../../utils/mobileHaptics';
+import { ChatImage } from './ChatImage';
 import './MessageBubble.css';
 
 const MessageActions = ({ content, sessionId, onRegenerate, showRegenerate = true }) => {
@@ -163,9 +164,12 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     const soloFoto = media.length > 0
         && !String(msg.content || '').trim()
         && msg.role === 'user';
+    // [P1-PLAN-LOTE-117] El visor abre la versión COMPLETA. Recién enviada, la burbuja pinta la miniatura local de
+    // 360 px (`thumbDataUrl`): ampliada a pantalla entera se veía borrosa («que se vea nítida»). `fullUrl` apunta a la
+    // vista previa a resolución de subida hasta que el servidor devuelve su URL.
     const viewerUrl = viewerIndex === null
         ? null
-        : (media[viewerIndex]?.url || media[viewerIndex]?.image_url || null);
+        : (media[viewerIndex]?.fullUrl || media[viewerIndex]?.url || media[viewerIndex]?.image_url || null);
     const viewerOpen = viewerIndex !== null && Boolean(viewerUrl);
     const moveViewer = (direction) => {
         if (media.length < 2) return;
@@ -278,12 +282,12 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                                         setViewerIndex(mediaIndex);
                                     }}
                                 >
-                                    <img
-                                        src={attachment.url || attachment.image_url}
+                                    <ChatImage
+                                        url={attachment.url || attachment.image_url}
                                         alt={t('Imagen enviada {number}', { number: mediaIndex + 1 })}
                                         loading="lazy"
                                         decoding="async"
-                                        onError={() => setBrokenImages((prev) => new Set(prev).add(key))}
+                                        onBroken={() => setBrokenImages((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))}
                                     />
                                 </button>
                             );
@@ -343,7 +347,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     <button ref={viewerCloseRef} type="button" className="message-image-viewer-close" aria-label={t('Cerrar imagen')} onClick={() => setViewerIndex(null)}>
                         ×
                     </button>
-                    <img src={viewerUrl} alt={t('Imagen ampliada')} onClick={(event) => event.stopPropagation()} />
+                    <ChatImage url={viewerUrl} alt={t('Imagen ampliada')} onClick={(event) => event.stopPropagation()} />
                     {media.length > 1 && (
                         <>
                             <button type="button" className="message-image-viewer-nav previous" aria-label={t('Imagen anterior')} onClick={(event) => { event.stopPropagation(); moveViewer(-1); }}><ChevronLeft size={28} /></button>

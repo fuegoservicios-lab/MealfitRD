@@ -52,6 +52,12 @@
     inset: 0;
     z-index: 10020;
     display: grid;
+    /* [P1-PLAN-LOTE-117] Pista DEFINIDA. Con filas/columnas `auto` el `max-height: 100%` de la imagen no tenía
+       contra qué resolverse: la fila crecía con la foto y una imagen alta (captura de teléfono, 739×1600) se salía
+       por abajo de la pantalla en escritorio. Con `minmax(0, 1fr)` la celda mide lo que mide el visor y la foto
+       se encoge para caber ENTERA. */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     place-items: center;
     padding:
         max(3.5rem, env(safe-area-inset-top, 0px))
@@ -65,8 +71,29 @@
 .message-image-viewer > img {
     max-width: 100%;
     max-height: 100%;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
     object-fit: contain;
     border-radius: 0.75rem;
+}
+
+/* la foto todavía viene de camino (carga autenticada): el hueco conserva el sitio */
+.message-media-loading {
+    display: block;
+    width: 100%;
+    min-height: 96px;
+    height: 100%;
+    background: var(--bg-muted);
+}
+
+.message-image-viewer > .message-media-loading {
+    width: 120px;
+    height: 120px;
+    min-height: 0;
+    border-radius: 0.75rem;
+    background: rgba(148, 163, 184, 0.18);
 }
 
 .message-image-viewer-close {

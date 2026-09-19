@@ -2988,6 +2988,8 @@ const AgentPage = () => {
         const bubbleAttachments = currentAttachments.map((item) => ({
             id: item.attachment_id || item.id,
             url: item.url || item.image_url || item.thumbDataUrl || item.previewUrl,
+            // [P1-PLAN-LOTE-117] para el visor: la vista previa a resolución de subida, no la miniatura de 360 px
+            fullUrl: item.url || item.image_url || item.previewUrl || item.thumbDataUrl,
             name: item.name || item.file?.name || item.sourceFile?.name,
             status: item.status || 'ready',
         })).filter((item) => item.url);
