@@ -16,6 +16,7 @@ import { mintFirstPartySession, checkFirstPartySession, logoutFirstPartySession,
 // para los reads en el initializer del provider (líneas 88+) donde un
 // throw de localStorage congela el provider entero.
 import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+import { clearTargetsCache } from '../utils/targetsCache';
 // [POSTHOG-ANALYTICS · 2026-07-12] identify/reset per-usuario + trackEvent del embudo.
 import { identifyPostHog, resetPostHog } from '../utils/posthogClient';
 import { trackEvent } from '../utils/analytics';
@@ -251,6 +252,8 @@ const _clearUserScopedCaches = () => {
     // es solo cache. En dispositivo compartido, sin este remove el usuario B
     // veía los ítems agotados de A en la Nevera hasta que el fetch de BD
     // reconciliaba. Hermano omitido del fix P1-XTAB-CACHE-LEAK — misma clase.
+    // [P1-PLAN-LOTE-112] Metas del contador recordadas (calorías/macros/micros del usuario): misma clase.
+    try { clearTargetsCache(); } catch { /* noop */ }
     safeLocalStorageRemove('mealfit_depleted_items');
     // [P3-DEPLETED-MIGRATION-FLAG-XUSER · 2026-05-30] Limpiar también el flag
     // derivado `mealfit_depleted_items_migrated_at` (one-shot migration del

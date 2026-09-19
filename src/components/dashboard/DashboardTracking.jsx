@@ -11,6 +11,7 @@
 // son un plan genérico disfrazado de meta personal, y una barra que miente es peor
 // que una barra ausente: parece que funciona.
 import { useState, useEffect, useCallback } from 'react';
+import { readTargetsCache, writeTargetsCache } from '../../utils/targetsCache';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { Loader2, Gauge } from 'lucide-react';
@@ -135,17 +136,31 @@ const DashboardTracking = ({ modo = 'contador' }) => {
     const { userProfile, formData, planData, session } = useAssessment();
     const navigate = useNavigate();
     // null = todavía no sé · {ok:false} = no puedo (y por qué) · {ok:true} = metas.
-    const [targets, setTargets] = useState(null);
+    // [P1-PLAN-LOTE-112 · 2026-09-19] Nace con las metas RECORDADAS (utils/targetsCache.js): volver a «Progreso» ya
+    // no enseña «Calculando tus metas…». Se vuelve a pedir por detrás en cada montaje y, si algo cambió, se
+    // actualiza sin aviso. Un fallo (red, 5xx) no pisa unas metas buenas que ya están en pantalla.
+    const uid = userProfile?.id || null;
+    const [targetsPedidas, setTargets] = useState(() => readTargetsCache(uid));
+    // El perfil puede llegar DESPUÉS del primer render (uid null al nacer): la caché se consulta también aquí.
+    const targets = targetsPedidas ?? readTargetsCache(uid);
 
     const cargar = useCallback(async () => {
+        let nuevo;
         try {
             const r = await fetchWithAuth('/api/nutrition/targets');
             const d = await r.json().catch(() => null);
-            setTargets(d && typeof d.ok === 'boolean' ? d : { ok: false, missing_fields: [] });
+            nuevo = d && typeof d.ok === 'boolean' ? d : { ok: false, missing_fields: [] };
         } catch {
-            setTargets({ ok: false, missing_fields: [], reason: 'network' });
+            nuevo = { ok: false, missing_fields: [], reason: 'network' };
         }
-    }, []);
+        if (nuevo.ok) writeTargetsCache(uid, nuevo);
+        // `missing_fields` con contenido es una respuesta VERDADERA del servidor (el perfil ya no alcanza): esa sí
+        // manda. Lo que no pisa a unas metas buenas es el «no pude» sin motivo (red caída, 5xx).
+        setTargets((prev) => {
+            const vigente = prev ?? readTargetsCache(uid);
+            return !nuevo.ok && vigente?.ok && !nuevo.missing_fields?.length ? vigente : nuevo;
+        });
+    }, [uid]);
 
     useEffect(() => { cargar(); }, [cargar]);
 
