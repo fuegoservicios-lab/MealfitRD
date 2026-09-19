@@ -78,6 +78,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 import { captureException, addBreadcrumb } from '../utils/observability';
 import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, resolverInsetNativo, altoDeReferencia, KB_UMBRAL_PX } from '../utils/keyboardViewport';
 import { alternarSondaTecladoNativa } from '../utils/keyboardProbe';
+import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMoverse } from '../utils/chatKeyboardScroll';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
 import { useChatAttachments } from '../hooks/useChatAttachments';
@@ -573,6 +574,8 @@ const AgentPage = () => {
     const navMenuTriggerRef = useRef(null);
     const inputWrapperRef = useRef(null);
     const scrollToBottomRef = useRef(null);
+    // [P1-PLAN-LOTE-115] Qué hace la conversación cuando el teclado SE ABRE (ver utils/chatKeyboardScroll.js).
+    const alAbrirTecladoRef = useRef(null);
     // [P1-CHAT-KB-SCROLL-QUIETO · 2026-08-23] Estado de la histéresis del inset: qué se
     // aplicó y si el teclado estaba abierto. En refs y no en estado de React porque los
     // lee un handler de visualViewport que no debe provocar renders.
@@ -772,7 +775,10 @@ const AgentPage = () => {
                 // el «delay» del dueño. En nativo el inset es teclado − paneo, siempre, y el alto base del
                 // contenedor se fija en px mientras haya teclado para que el parpadeo tampoco entre por `100dvh`.
                 const nativo = isNativeApp();
-                const insetMedido = nativo ? resolverInsetNativo({ kb, vvOffsetTop: vv.offsetTop }) : layoutInset;
+                // [P1-PLAN-LOTE-115] El paneo solo se descuenta en la medición de ASIENTO. Medido: un arrastre sobre la
+                // caja paneaba 19→86 px en 60 ms y volvía a 0; perseguirlo con una transición de 250 ms despegaba la
+                // caja del teclado y la devolvía tarde. Un paneo que SIGUE ahí 350 ms después sí se compensa.
+                const insetMedido = nativo ? resolverInsetNativo({ kb, vvOffsetTop: forzarMedicion ? vv.offsetTop : 0 }) : layoutInset;
                 const encogeDeVerdad = nativo ? false : documentoEncoge;
                 if (nativo) {
                     if (abierto && window.innerWidth <= 1024) {
@@ -796,6 +802,9 @@ const AgentPage = () => {
                     forzar: forzarMedicion || encogeDeVerdad,
                 });
                 insetAplicadoRef.current = aplicado;
+                // [P1-PLAN-LOTE-115] Cerrado → abierto: se decide UNA vez qué pasa con la conversación. (Con la
+                // apertura anticipada de la app nativa esto ya lo hizo `alGanarElFoco` y aquí llega «ya abierto».)
+                if (abierto && !tecladoAbiertoRef.current) alAbrirTecladoRef.current?.();
                 tecladoAbiertoRef.current = abierto;
                 contenedor.style.setProperty('--kb-inset', `${aplicado}px`);
                 // [P1-PLAN-LOTE-111 → 112] El ALTO DEL TECLADO firme (medición de asiento) se recuerda para
@@ -939,7 +948,7 @@ const AgentPage = () => {
             contenedor.style.setProperty('--kb-inset', `${recordado}px`);
             root.toggleAttribute('data-kb-open', true);
             root.toggleAttribute('data-kb-scroll-lock', true);
-            if (!userScrolledUpRef.current) scrollToBottomRef.current?.(false, 'auto');
+            alAbrirTecladoRef.current?.();
             if (abriendoTimer) clearTimeout(abriendoTimer);
             abriendoTimer = setTimeout(() => {
                 abriendoTimer = null;
@@ -947,6 +956,38 @@ const AgentPage = () => {
                 updateInputPosition(true);
             }, 900);
         };
+
+        // [P1-PLAN-LOTE-115] Con el teclado abierto el WebView nativo deja ARRASTRAR la página entera cuando el dedo
+        // cae donde nada puede desplazarse (medido: paneo 19→86 px en 60 ms desde un toque en la caja). Se bloquea
+        // ese arrastre y solo ese; la decisión, con sus excepciones, vive en utils/chatKeyboardScroll.js.
+        let toque = null;
+        const alEmpezarToque = (e) => {
+            const t = e.touches?.[0];
+            toque = t ? { x: t.clientX, y: t.clientY, t0: e.timeStamp, veredicto: 'esperar' } : null;
+        };
+        const alMoverToque = (e) => {
+            if (!toque || !tecladoAbiertoRef.current || !isNativeApp()) return;
+            const t = e.touches?.[0];
+            if (!t) return;
+            if (toque.veredicto === 'esperar') {
+                const dx = t.clientX - toque.x;
+                const dy = t.clientY - toque.y;
+                const raiz = inputWrapperRef.current?.closest('.agent-container') || document.body;
+                toque.veredicto = decidirArrastreConTeclado({
+                    dx,
+                    dy,
+                    msDesdeElToque: e.timeStamp - toque.t0,
+                    enCampoDeTexto: Boolean(e.target?.closest?.('textarea, input, [contenteditable="true"]')),
+                    scrollerPuede: scrollerPuedeMoverse(e.target, raiz.parentElement, dy),
+                });
+            }
+            if (toque.veredicto === 'bloquear' && e.cancelable) e.preventDefault();
+        };
+        const alAcabarToque = () => { toque = null; };
+        document.addEventListener('touchstart', alEmpezarToque, { passive: true });
+        document.addEventListener('touchmove', alMoverToque, { passive: false });
+        document.addEventListener('touchend', alAcabarToque, { passive: true });
+        document.addEventListener('touchcancel', alAcabarToque, { passive: true });
 
         vv.addEventListener('resize', alEvento);
         vv.addEventListener('scroll', alEvento);
@@ -973,6 +1014,10 @@ const AgentPage = () => {
             vv.removeEventListener('scroll', alEvento);
             window.removeEventListener('resize', alEvento);
             window.removeEventListener('scroll', mantenerDocumentoAnclado);
+            document.removeEventListener('touchstart', alEmpezarToque);
+            document.removeEventListener('touchmove', alMoverToque);
+            document.removeEventListener('touchend', alAcabarToque);
+            document.removeEventListener('touchcancel', alAcabarToque);
             // Cambiar de ruta con el teclado abierto no debe dejar la barra escondida.
             resetViewportState();
         };
@@ -1954,16 +1999,28 @@ const AgentPage = () => {
         const el = messagesContainerRef.current;
         const list = messagesEndRef.current?.parentElement;
         if (!el || !list || typeof ResizeObserver === 'undefined') return undefined;
+        // [P1-PLAN-LOTE-115] También se observa el CONTENEDOR, no solo el contenido: el teclado cambia el alto de la
+        // ventana de lectura durante 250 ms sin que cambie un solo mensaje, y nadie volvía a fijar el final hasta la
+        // siguiente medición del teclado — las últimas líneas quedaban bajo la caja de escribir a media animación.
+        // En modo libre se conserva la posición respecto al borde INFERIOR (lo que estaba encima de la caja sigue
+        // encima de la caja), que es como se comportan las apps de chat nativas.
+        let altoPrevio = el.clientHeight;
         const ro = new ResizeObserver(() => {
+            const delta = altoPrevio - el.clientHeight;
+            altoPrevio = el.clientHeight;
             if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }
             const mode = scrollModeRef.current;
             if (mode === 'bottom') {
                 if (el.scrollHeight - el.scrollTop - el.clientHeight > 2) _pinBottomInstant();
             } else if (mode === 'anchored') {
                 _layoutAnchor();
+            } else if (delta !== 0) {
+                el.scrollTop = Math.max(0, el.scrollTop + delta);
+                lastScrollTopRef.current = el.scrollTop;
             }
         });
         ro.observe(list);
+        ro.observe(el);
         return () => ro.disconnect();
     }, [currentSessionId, _armSettle, _pinBottomInstant, _layoutAnchor]);
     // Cambiar de conversación: todo a cero.
@@ -1995,6 +2052,24 @@ const AgentPage = () => {
         });
     };
     scrollToBottomRef.current = scrollToBottom;
+
+    // [P1-PLAN-LOTE-115] Al abrir el teclado: que lo que el agente acaba de decir —casi siempre una pregunta— quede a
+    // la vista encima de la caja. La decisión es pura (utils/chatKeyboardScroll.js); aquí solo se ejecuta.
+    alAbrirTecladoRef.current = () => {
+        const el = messagesContainerRef.current;
+        const msgs = messagesRef.current || [];
+        const accion = decidirScrollAlAbrirTeclado({
+            mode: scrollModeRef.current,
+            streaming: Boolean(msgs[msgs.length - 1]?.isStreaming),
+            virtualizada: msgs.length > VIRTUALIZE_THRESHOLD,
+            scrollHeight: el?.scrollHeight || 0,
+            scrollTop: el?.scrollTop || 0,
+            clientHeight: el?.clientHeight || 0,
+            spacerPx: spacerPxRef.current,
+        });
+        if (accion === 'fijar') scrollToBottom(false, 'auto');
+        else if (accion === 'forzar') scrollToBottom(true, 'auto');
+    };
 
     const handleMessagesScroll = useCallback(() => {
         const el = messagesContainerRef.current;

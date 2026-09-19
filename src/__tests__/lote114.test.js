@@ -32,7 +32,8 @@ describe('la secuencia medida (844 → 441 → 844)', () => {
 describe('el chat lo usa solo en nativo', () => {
     const src = readFileSync(join(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
     it('inset nativo, sin «forzar» por documentoEncoge, y alto base fijo mientras hay teclado', () => {
-        expect(src).toContain('const insetMedido = nativo ? resolverInsetNativo({ kb, vvOffsetTop: vv.offsetTop }) : layoutInset;');
+        // [115] el paneo solo se descuenta en la medición de asiento (ver lote115.test.js)
+        expect(src).toContain('const insetMedido = nativo ? resolverInsetNativo({ kb, vvOffsetTop: forzarMedicion ? vv.offsetTop : 0 }) : layoutInset;');
         expect(src).toContain('const encogeDeVerdad = nativo ? false : documentoEncoge;');
         expect(src).toContain('forzar: forzarMedicion || encogeDeVerdad,');
         expect(src).toContain('layoutInset: insetMedido,');
