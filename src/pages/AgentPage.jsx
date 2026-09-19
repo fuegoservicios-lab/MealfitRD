@@ -4880,6 +4880,7 @@ const AgentPage = () => {
                         {/* Left: Menu */}
                         <button
                             ref={sidebarTriggerRef}
+                            className="chat-header-btn"
                             onClick={() => setShowSidebar(!showSidebar)}
                             style={{
                                 background: 'transparent',
@@ -4941,6 +4942,7 @@ const AgentPage = () => {
                         <div ref={navMenuRef} className="nav-menu-wrapper" style={{ position: 'relative', marginRight: '-0.4rem' }}>
                             <button
                                 ref={navMenuTriggerRef}
+                                className="chat-header-btn"
                                 onClick={() => setShowNavMenu(!showNavMenu)}
                                 style={{
                                     background: 'transparent',
@@ -5450,16 +5452,31 @@ const AgentPage = () => {
                         flex: 1 !important;
                         background: var(--bg-card) !important;
                     }
-                    /* --- Header glassmorphism --- */
+                    /* --- Cabecera TRANSPARENTE ---
+                       [P1-PLAN-LOTE-121 · 2026-09-19] El dueño: «quiero que el encabezado sea transparente y no diga
+                       Bioboros 1 para así poder tener más espacio para que el usuario pueda ver el chat». Era una
+                       franja opaca de 4.5rem + zona segura con su raya: el chat empezaba debajo. Ahora NO hay franja:
+                       quedan los dos botones flotando como fichas y la conversación pasa POR DEBAJO de ellos.
+                         · El fondo es un degradado: opaco sobre la barra de estado (la hora y la batería no se leen
+                           sobre texto que se mueve) y transparente a la altura de los botones.
+                         · pointer-events: none en la franja y auto en sus hijos: el hueco entre los dos botones
+                           ya no es cabecera, es chat — se puede tocar y arrastrar lo que hay debajo.
+                         · Sin backdrop-filter: el desenfoque recompuesto mientras algo se mueve es la fuente de los
+                           artefactos de iOS que este archivo ya pagó (P1-KB-SIN-DESENFOQUE). */
                     .mobile-chat-header {
-                        background: var(--bg-card) !important;
+                        background: linear-gradient(to bottom,
+                            var(--bg-card) 0%,
+                            var(--bg-card) max(env(safe-area-inset-top), 24px),
+                            color-mix(in srgb, var(--bg-card) 72%, transparent) 62%,
+                            transparent 100%) !important;
                         backdrop-filter: none !important;
                         -webkit-backdrop-filter: none !important;
-                        border-bottom: 1px solid var(--border) !important;
-                        padding: 0.75rem 1.25rem !important;
-                        padding-left: max(1.25rem, env(safe-area-inset-left, 0px)) !important;
-                        padding-right: max(1.25rem, env(safe-area-inset-right, 0px)) !important;
-                        padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
+                        border-bottom: 0 !important;
+                        pointer-events: none;
+                        padding: 0.35rem 1rem !important;
+                        padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
+                        padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
+                        padding-top: calc(0.35rem + max(env(safe-area-inset-top), 24px)) !important;
                         position: absolute !important;
                         top: 0 !important;
                         left: 0 !important;
@@ -5470,11 +5487,20 @@ const AgentPage = () => {
                     .sidebar-header-padding {
                         padding-top: calc(0.75rem + max(env(safe-area-inset-top), 24px)) !important;
                     }
-                    .agent-header-title {
-                        font-size: 1.1rem !important;
-                        font-weight: 700 !important;
-                        letter-spacing: -0.03em !important;
+                    .mobile-chat-header > * { pointer-events: auto; }
+                    /* El rótulo «Bioboros 1» no informa de nada dentro de la app y ocupaba el centro de la franja.
+                       Sigue en escritorio, donde el espacio no escasea. */
+                    .agent-header-title { display: none !important; }
+                    /* Los botones, como fichas: sobre una franja opaca bastaba el icono; flotando sobre el texto del
+                       chat necesitan su propio fondo para leerse. Los márgenes negativos alineaban ÓPTICAMENTE un
+                       icono sin contorno con el borde; una ficha con contorno se alinea por su caja. */
+                    .chat-header-btn {
+                        background: color-mix(in srgb, var(--bg-card) 92%, transparent) !important;
+                        border: 1px solid var(--border) !important;
+                        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.14);
+                        margin-left: 0 !important;
                     }
+                    .nav-menu-wrapper { margin-right: 0 !important; }
                     /* --- Messages area --- */
                     .messages-container {
                         padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
@@ -5485,8 +5511,14 @@ const AgentPage = () => {
                            primera burbuja podía quedar a 8 px de la línea del encabezado.
                            Ahora el viewport desplazable empieza físicamente debajo del
                            header y conserva 1.25rem de aire que nunca se puede scrollear. */
-                        margin-top: calc(4.5rem + max(env(safe-area-inset-top), 24px)) !important;
-                        padding-top: 1.25rem !important;
+                        /* [P1-PLAN-LOTE-121] Con la cabecera transparente el viewport desplazable vuelve a empezar
+                           ARRIBA DEL TODO y la altura de los botones va como relleno: que la conversación pase por
+                           debajo de ellos es ahora el diseño, no el defecto. Lo que aquel arreglo protegía sigue
+                           protegido por otra vía: el anclaje del mensaje enviado (_layoutAnchor) descuenta este
+                           padding-top, así que la burbuja anclada aterriza DEBAJO de los botones, no tras ellos.
+                           3.7rem = 0.35 + 2.75 (botón de 44 px) + 0.35 de la franja + 0.25 de aire. */
+                        margin-top: 0 !important;
+                        padding-top: calc(3.7rem + max(env(safe-area-inset-top), 24px)) !important;
                         padding-bottom: 0.5rem !important;
                         background: var(--bg-card) !important;
                         -ms-overflow-style: none;

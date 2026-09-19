@@ -238,13 +238,18 @@ describe('[P1-CHAT-HEADER-GAP] el primer turno no invade el encabezado', () => {
         expect(src).toMatch(/gap:\s*'2rem'/);
     });
 
-    it('el scroller empieza debajo del header y conserva aire no desplazable', () => {
+    // [P1-PLAN-LOTE-121 · 2026-09-19] Este contrato decía lo CONTRARIO («el scroller empieza debajo del header»): la
+    // cabecera era una franja opaca con raya, y una burbuja a 8 px de esa raya era un defecto. El dueño pidió la
+    // cabecera transparente para ver más chat: ya no hay raya que invadir, y que la conversación pase por debajo de
+    // los dos botones es el diseño. Lo que sigue protegido: el relleno reserva la altura de los botones (el primer
+    // turno, con el scroll arriba del todo, nace DEBAJO de ellos) y el anclaje del mensaje enviado lo descuenta.
+    it('el scroller empieza arriba del todo y reserva como relleno la altura de los botones', () => {
         const src = read('pages/AgentPage.jsx');
         const i = src.indexOf('/* --- Messages area --- */');
         const regla = src.slice(src.indexOf('.messages-container {', i), src.indexOf('}', src.indexOf('.messages-container {', i)));
-        expect(regla).toMatch(/margin-top:\s*calc\(4\.5rem \+ max\(env\(safe-area-inset-top\), 24px\)\)/);
-        expect(regla).toMatch(/padding-top:\s*1\.25rem/);
-        expect(regla).not.toMatch(/padding-top:\s*calc\(4\.5rem/);
+        expect(regla).toMatch(/margin-top:\s*0 !important/);
+        expect(regla).toMatch(/padding-top:\s*calc\(3\.7rem \+ max\(env\(safe-area-inset-top\), 24px\)\)/);
+        expect(src).toMatch(/const padTop = parseFloat\(getComputedStyle\(el\)\.paddingTop\) \|\| 0;/);
     });
 });
 
