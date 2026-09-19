@@ -58,7 +58,7 @@ function avisarPreparado(bundleId) {
     try {
         toast(t('Actualización lista'), {
             description: t('Cierra la app del todo y vuelve a abrirla para aplicarla.'),
-            duration: 9000,
+            duration: 6000,
         });
     } catch { /* best-effort */ }
 }
