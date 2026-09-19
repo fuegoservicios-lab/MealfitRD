@@ -24,7 +24,7 @@ import { projectMeasureForCountry, unitOptionsForCountry } from '../config/unitS
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
 // fetchWithAuth; el cliente anterior queda solo para Auth (otros archivos).
-import { Search, Plus, Minus, Trash2, Tag, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Tag, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX, Refrigerator } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
 import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
@@ -2839,12 +2839,12 @@ const Pantry = () => {
                             </>
                         ) : tempZone === 'frio' ? (
                             <>
-                                <span className={mstyles.emptyIco} aria-hidden="true"><Snowflake size={26} /></span>
+                                <span className={mstyles.emptyIco} aria-hidden="true"><Refrigerator size={26} /></span>
                                 <b>{t('Tu nevera está vacía')}</b>{t('Añade tus ingredientes con el botón “Añadir alimento”.')}
                             </>
                         ) : (
                             <>
-                                <span className={mstyles.emptyIco} aria-hidden="true"><Package size={26} /></span>
+                                <span className={mstyles.emptyIco} aria-hidden="true"><Wheat size={26} /></span>
                                 <b>{t('Tu alacena está vacía')}</b>{t('Arroz, granos, especias y conservas viven aquí.')}
                             </>
                         )}

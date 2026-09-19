@@ -9,6 +9,15 @@ import path from 'node:path';
 
 const leer = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf-8').replace(/\r\n/g, '\n');
 
+describe('lote 126 - el icono del vacio no repite el de la pestana', () => {
+    it('nevera = nevera, alacena = espiga: el copo y la caja ya estan en la pestana de al lado', () => {
+        const p = leer('src/pages/Pantry.jsx');
+        expect(p).toContain('<span className={mstyles.emptyIco} aria-hidden="true"><Refrigerator size={26} /></span>');
+        expect(p).toContain('<span className={mstyles.emptyIco} aria-hidden="true"><Wheat size={26} /></span>');
+        expect(p).not.toContain('emptyIco} aria-hidden="true"><Snowflake');
+    });
+});
+
 describe('lote 126 · el alto de la cabecera del teléfono es UNA variable', () => {
     const layout = leer('src/components/dashboard/DashboardLayout.module.css');
 
