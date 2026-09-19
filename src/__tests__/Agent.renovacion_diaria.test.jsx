@@ -76,7 +76,17 @@ const pintar = () => render(
     </MemoryRouter>,
 );
 
+// [P1-PLAN-LOTE-125] Este fichero lleva ocho deploys perdidos (92, 99, 102, 105, 116, 117, 125…) y subir los techos de
+// espera nunca lo arregló. Causa que encaja con el código (DEDUCIDA, no reproducida: aislado pasa siempre): `findByText` resuelve en cuanto el texto de ayer está en el DOM, pero
+// `messagesRef` se sincroniza en un efecto PASIVO que React corre después. Si el `visibilitychange` sale antes de ese
+// efecto, `renovarChatDelDia` lee la conversación vieja (solo la bienvenida), `debeRenovarse` dice que no, y nadie
+// vuelve a preguntar: el test espera 10 s algo que ya no va a pasar. Aislado el efecto corre a tiempo; con la máquina
+// cargada, no. En la vida real nadie vuelve a una pestaña en el mismo milisegundo en que se pintó. Se deja ASENTAR
+// la página antes de disparar el evento.
 const volverALaPestana = async () => {
+    await act(async () => {
+        for (let i = 0; i < 4; i += 1) await new Promise((r) => setTimeout(r, 0));
+    });
     await act(async () => {
         document.dispatchEvent(new Event('visibilitychange'));
         for (let i = 0; i < 6; i += 1) await new Promise((r) => setTimeout(r, 0));
