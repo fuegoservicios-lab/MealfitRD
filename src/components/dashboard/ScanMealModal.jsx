@@ -8,6 +8,7 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // el scroll del fondo vuelve a su sitio; y los mismos chips para «¿Qué comida es?» y «¿Cuándo?».
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import Chips from './Chips';
+import { getDayOptionsCon as _getDayOptionsCon, normalizarDiasAtras, nombreDelDiaAtras } from './dayOptions';
 // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] Hook SSOT de media queries (P2-14).
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 // [P1-PLAN-LOTE-105] fototeca directa en la app nativa (Capacitor Camera); en la web, null
@@ -61,12 +62,8 @@ const _PORTIONS = [0.5, 1, 2];
 
 // [P1-PLAN-LOTE-106 · 2026-09-18] «¿Cuándo?» también en el escáner (el dueño: «esa es mi cena del día de ayer que
 // no pude agregar»). `days_ago` ya lo aceptaba `POST /api/diary/consumed` (0..7); el escáner nunca lo mandaba.
-// Función, no constante: un `t()` en ámbito de módulo se congela en español.
-const _getDayOptions = (t) => [
-    { value: 0, label: t('Hoy') },
-    { value: 1, label: t('Ayer') },
-    { value: 2, label: t('Antier') },
-];
+// [P1-PLAN-LOTE-124] Los chips viven en ./dayOptions.js, compartidos con el componedor: el escáner también se abre
+// desde «Ver días anteriores» (hasta 7 días atrás) y necesita el chip del día pedido, igual que él.
 
 // La piel de MacroInput en ESTE modal (la lógica compartida vive en common/).
 const _MACRO_CLASSES = {
@@ -107,7 +104,7 @@ const _downscaleToJpegFile = (file, maxSide = 1024) => new Promise((resolve, rej
     img.src = url;
 });
 
-const ScanMealModal = ({ isOpen, onClose, userId }) => {
+const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] "Tomar foto" solo donde es el gesto natural.
     //
     // En escritorio, `<input capture="environment">` abre la WEBCAM: apuntar un portátil al plato
@@ -145,7 +142,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
     const [components, setComponents] = useState([]);
     const [multiplier, setMultiplier] = useState(1);
     // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
-    const [daysAgo, setDaysAgo] = useState(0);
+    const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
     const [form, setForm] = useState({
         meal_name: '',
         meal_type: _guessMealType(),
@@ -196,7 +193,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             setBase({ calories: 0, protein: 0, carbs: 0, healthy_fats: 0 });
             setComponents([]);
             setMultiplier(1);
-            setDaysAgo(0);
+            setDaysAgo(normalizarDiasAtras(initialDaysAgo));
             setForm({
                 meal_name: '',
                 meal_type: _guessMealType(),
@@ -206,7 +203,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 healthy_fats: 0,
             });
         }
-    }, [isOpen, _setPreviewUrl]);
+    }, [isOpen, _setPreviewUrl, initialDaysAgo]);
 
     useEffect(() => () => {
         // Cleanup final al desmontar el componente.
@@ -465,7 +462,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             // [P1-PLAN-LOTE-106] si no es de hoy, decirlo: no aparece en «Tus macros y micros de hoy», sino en
             // «Ver días anteriores» — la misma regla que el coach.
             if (daysAgo > 0) {
-                const dia = daysAgo === 1 ? t('ayer') : t('antier');
+                const dia = nombreDelDiaAtras(t, daysAgo); // [P1-PLAN-LOTE-124] más de dos días atrás ya no es «antier»
                 descripcion = [descripcion, t('Quedó en el diario de {dia}; la ves en «Ver días anteriores».', { dia })]
                     .filter(Boolean).join(' ');
             }
@@ -729,7 +726,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
 
                         <section className={styles.section} aria-labelledby="scan-q-cuando">
                             <h3 id="scan-q-cuando" className={styles.sectionTitle}>{t('¿Cuándo?')}</h3>
-                            <Chips label={t('Día')} options={_getDayOptions(t)} value={daysAgo} onChange={setDaysAgo} disabled={phase === 'saving'} />
+                            <Chips label={t('Día')} options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo} disabled={phase === 'saving'} />
                         </section>
 
                         {/* [P1-PHOTO-DEDUCTS · 2026-08-07] Componentes detectados,
@@ -844,6 +841,7 @@ ScanMealModal.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
     userId: PropTypes.string.isRequired,
+    initialDaysAgo: PropTypes.number,
 };
 
 // [P3-SCAN-MACRO-INPUT-EMPTY · movido a common/MacroInput por P1-MANUAL-FOOD-LOG]

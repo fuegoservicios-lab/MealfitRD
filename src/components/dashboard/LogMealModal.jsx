@@ -44,13 +44,16 @@ import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import Chips from './Chips';
+import { getDayOptionsCon as _getDayOptionsCon } from './dayOptions';
+import { readFrequentFoodsCache, writeFrequentFoodsCache, mismaListaFrecuente } from '../../utils/frequentFoodsCache';
+import { safeLocalStorageGet } from '../../utils/safeLocalStorage';
 import {
     getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes,
 } from '../../utils/pantryCache';
 import { searchFoods, previewLine, unitsFor, defaultUnitFor, defaultQtyFor } from '../../utils/foodSearch';
 import { getMealTypes, getMealTypeExtra, clampMacro } from './mealLogShared';
 import MacroInput from '../common/MacroInput';
-import { formatDate, useT, useTn } from '../../i18n';
+import { useT, useTn } from '../../i18n';
 import styles from './LogMealModal.module.css';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
@@ -64,29 +67,14 @@ const _MACRO_CLASSES = {
     unit: styles.macroUnit,
 };
 
-// Función, no constante: un `t()` en ámbito de módulo se congela en español.
-const _getDayOptions = (t) => [
-    { value: 0, label: t('Hoy') },
-    { value: 1, label: t('Ayer') },
-    { value: 2, label: t('Antier') },
-];
-
-// [P1-PLAN-LOTE-105] Desde el diario de días anteriores se abre el componedor YA en ese día. Si es más atrás
-// que «Antier» (hasta 7, el tope del backend), el día pedido se añade como chip con su fecha: el usuario ve en
-// qué día va a quedar y puede cambiarlo; sin el chip, el valor sería invisible y el grupo no marcaría ninguno.
-const _getDayOptionsCon = (t, daysAgo) => {
-    const base = _getDayOptions(t);
-    const n = Number(daysAgo) || 0;
-    if (n <= 2 || n > 7) return base;
-    const d = new Date();
-    d.setDate(d.getDate() - n);
-    return [...base, { value: n, label: formatDate(d, { weekday: 'short', day: 'numeric' }) }];
-};
+// [P1-PLAN-LOTE-105] Desde el diario de días anteriores se abre el componedor YA en ese día; si es más atrás que
+// «Antier», el día pedido se añade como chip con su fecha. [P1-PLAN-LOTE-124] La regla vive en ./dayOptions.js,
+// compartida con el escáner de fotos (que ahora también se abre desde el diario).
 
 // [P1-PLAN-LOTE-106] `Chips` (los grupos excluyentes de «¿Qué comida es?» y «¿Cuándo?») es componente
 // compartido con el escáner: ./Chips.jsx.
 
-const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0 }) => {
+const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0, userId = null }) => {
     const t = useT();
     const tn = useTn();
     const [foods, setFoods] = useState(() => getCachedMasterList() || []);
@@ -102,7 +90,14 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const [daysAgo, setDaysAgo] = useState(() => Math.max(0, Math.min(7, Number(initialDaysAgo) || 0)));
     const [mealName, setMealName] = useState('');
     const [deductPantry, setDeductPantry] = useState(false);
-    const [frequent, setFrequent] = useState([]);
+    // [P1-PLAN-LOTE-124] De quién es la lista recordada: el padre puede decirlo (`userId`); si no, el usuario que la
+    // app ya recuerda al iniciar sesión (`mealfit_user_id`, que el logout borra). Un invitado no tiene lista propia.
+    const uid = useMemo(() => {
+        const u = userId || safeLocalStorageGet('mealfit_user_id', null);
+        return u && u !== 'guest' ? String(u) : null;
+    }, [userId]);
+    // nace con la última lista buena: «Lo que más registras» ya está ahí al abrir la hoja
+    const [frequent, setFrequent] = useState(() => readFrequentFoodsCache(uid) || []);
     const [saving, setSaving] = useState(false);
     const [customDraft, setCustomDraft] = useState(null);
     // [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] «Escríbelo y estimamos las macros»
@@ -158,15 +153,21 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
     useEffect(() => { load(); }, [load]);
 
-    // «Lo que más registras» — falla en silencio a lista vacía: es azúcar, no base.
+    // «Lo que más registras» — falla en silencio: es azúcar, no base.
+    // [P1-PLAN-LOTE-124] Se sigue pidiendo en cada apertura, pero por DETRÁS de la lista recordada: una respuesta
+    // mala no la pisa, y una idéntica ni toca el estado (la lista no se mueve bajo el dedo).
     useEffect(() => {
         let vivo = true;
         fetchWithAuth('/api/diary/foods/frequent?limit=6')
-            .then((r) => (r.ok ? r.json() : { items: [] }))
-            .then((d) => { if (vivo) setFrequent(d.items || []); })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => {
+                if (!d || !Array.isArray(d.items)) return;
+                writeFrequentFoodsCache(uid, d.items);
+                if (vivo) setFrequent((prev) => (mismaListaFrecuente(prev, d.items) ? prev : d.items));
+            })
             .catch(() => { });
         return () => { vivo = false; };
-    }, []);
+    }, [uid]);
 
     const resultados = useMemo(
         () => searchFoods(query, foods, dishes, 10),
@@ -606,6 +607,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
 LogMealModal.propTypes = {
     onScan: PropTypes.func,
+    userId: PropTypes.string,
     initialMealType: PropTypes.string,
     // [P1-PLAN-LOTE-105] el día en que se abre (0 = hoy … 7): lo pasa el diario de días anteriores
     initialDaysAgo: PropTypes.number,

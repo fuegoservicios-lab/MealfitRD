@@ -45,6 +45,7 @@ import { formatDate, formatNumber, useT, useTn } from '../../i18n';
 import MicrosList from './MicrosList';
 import { useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
+import ScanMealModal from './ScanMealModal';
 import styles from './DiaryHistory.module.css';
 
 const DIAS_TIRA = 14;
@@ -165,6 +166,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [version, setVersion] = useState(0);
     const [borrandoId, setBorrandoId] = useState(null);
     const [registrando, setRegistrando] = useState(false);
+    // [P1-PLAN-LOTE-124] El dueño: «registrar comida mediante ver días anteriores no aparece la manera de agregar
+    // mediante la cámara o foto». El componedor se montaba aquí sin `onScan`, y sin él no pinta las pestañas
+    // «Buscar o escribir / Escanear con foto». Ahora cede el paso al escáner, que nace YA en el día que se mira.
+    const [escaneando, setEscaneando] = useState(false);
     const cierreRef = useRef(null);
     const stripRef = useRef(null);
     const activoRef = useRef(null);
@@ -271,7 +276,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         if (!open) return undefined;
         const onKey = (e) => {
             // con el componedor abierto encima, las teclas son suyas (Escape lo cierra a él, no al cajón)
-            if (registrando) return;
+            if (registrando || escaneando) return;
             if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); moverDia(-1); }
             else if (e.key === 'ArrowRight') { e.preventDefault(); moverDia(1); }
@@ -283,9 +288,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         // checkpoint de microtasks a mitad del dispatch). En captura este handler corre ANTES que nadie, con el
         // estado de antes de la tecla.
         window.addEventListener('keydown', onKey, true);
-        if (!registrando) cierreRef.current?.focus({ preventScroll: true });
+        if (!registrando && !escaneando) cierreRef.current?.focus({ preventScroll: true });
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [open, onClose, moverDia, registrando]);
+    }, [open, onClose, moverDia, registrando, escaneando]);
 
     // [P1-PLAN-LOTE-105] Borrar desde cualquier día: el mismo DELETE (filtrado por user_id) que la papelera de la
     // tarjeta de hoy. Tras borrar se vuelve a pedir el día y la tira, y se avisa a la tarjeta (si era hoy, sus
@@ -316,6 +321,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     }, [borrandoId, selected, t]);
 
     const cerrarComponedor = useCallback(() => setRegistrando(false), []);
+    const pasarAlEscaner = useCallback(() => { setRegistrando(false); setEscaneando(true); }, []);
+    const cerrarEscaner = useCallback(() => setEscaneando(false), []);
 
     const fecha = desdeISO(selected);
     const esHoy = selected === hoyISO;
@@ -609,7 +616,10 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             </motion.aside>
 
             {registrando && (
-                <LogMealModal onClose={cerrarComponedor} initialDaysAgo={atras} />
+                <LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialDaysAgo={atras} userId={userId} />
+            )}
+            {escaneando && (
+                <ScanMealModal isOpen onClose={cerrarEscaner} userId={userId || 'guest'} initialDaysAgo={atras} />
             )}
         </>
     );
