@@ -55,6 +55,9 @@ import { glossUnitWord } from '../../utils/shoppingHelpers';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
 import { mensajeDeError } from '../../utils/errorCopy';
+import { isNativeApp } from '../../config/platform';
+import { chooseNativeGalleryImage, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
+import { captureException } from '../../utils/observability';
 
 const _apiJson = async (path, options = {}) => {
     const resp = await fetchWithAuth(path, options);
@@ -260,9 +263,23 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
     // Falla la cámara (denegada/no disponible) o el usuario prefiere el <input>
     // de siempre: cierra el visor (para el stream si llegó a abrir) y dispara
     // el picker nativo — nunca deja al usuario en un callejón sin salida.
-    const handleFallbackToFile = () => {
+    //
+    // [P1-PLAN-LOTE-110 · 2026-09-19] En la app nativa el input de la web abre la hoja de iOS (Fototeca / Hacer
+    // foto / Seleccionar archivo): quien pulsa «Subir una foto en su lugar» ya dijo que NO quiere la cámara. Va
+    // directo a la fototeca con el plugin; cancelar no es error y un fallo se dice, se reporta y cae al input.
+    const handleFallbackToFile = async () => {
         closeViewfinder();
-        fileInputRef.current?.click();
+        if (!isNativeApp()) { fileInputRef.current?.click(); return; }
+        try {
+            const file = await chooseNativeGalleryImage();
+            if (file) await handlePhotoSelected(file);
+        } catch (err) {
+            if (isNativePickerCancellation(err)) return;
+            try { captureException(err, { tags: { component: 'PantryScanButton', action: 'native_gallery_picker' } }); } catch { /* best-effort */ }
+            const codigo = String(err?.code || err?.message || 'desconocido').slice(0, 80);
+            toast.error(t('No pudimos abrir tus fotos. Revisa los permisos e inténtalo de nuevo.'), { description: `[${codigo}]` });
+            fileInputRef.current?.click();
+        }
     };
 
     const renderResultsChecklist = () => (

@@ -353,11 +353,6 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
         setViewfinderOpen(false);
     }, [handleFile]);
 
-    const handleViewfinderFallback = useCallback(() => {
-        setViewfinderOpen(false);
-        galleryInputRef.current?.click();
-    }, []);
-
     // [P1-PLAN-LOTE-105 · 2026-09-18] «Elegir de galería» en la app nativa abre la fototeca DIRECTA con el plugin
     // (el input de la web dispara la hoja de iOS de tres opciones, que el dueño no quería). Cancelar no es error;
     // cualquier otro fallo cae al input de siempre para no dejar al usuario sin camino.
@@ -378,6 +373,14 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             galleryInputRef.current?.click();
         }
     }, [handleFile, t]);
+
+    // [P1-PLAN-LOTE-110 · 2026-09-19] «Subir una foto en su lugar» (la salida del visor) hacía click al input de la
+    // web: en la app nativa eso es OTRA VEZ la hoja de tres opciones de iOS que el lote 105 quitó de «Elegir de
+    // galería» (captura del dueño). Las dos entradas a la fototeca pasan por `openGallery`, que decide nativo/web.
+    const handleViewfinderFallback = useCallback(() => {
+        setViewfinderOpen(false);
+        void openGallery();
+    }, [openGallery]);
 
     const applyPortion = useCallback((m) => {
         setMultiplier(m);
