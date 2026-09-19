@@ -30,6 +30,11 @@ const config: CapacitorConfig = {
   },
   plugins: {
     PushNotifications: { presentationOptions: ['badge', 'sound', 'alert'] },
+    // [P1-PLAN-LOTE-108] OTA autoalojada (src/native/liveUpdate.js). SIN `appId` ni
+    // `autoUpdateStrategy`: eso es Capawesome Cloud y aquí los paquetes salen de nuestro
+    // VPS. `readyTimeout` es la red de seguridad: un paquete que no llama a `ready()` en
+    // 10 s se descarta y la app vuelve sola al del binario. NO lo pongas a 0.
+    LiveUpdate: { readyTimeout: 10000, autoDeleteBundles: true },
   },
 };
 

@@ -29,6 +29,8 @@ import { registrarSentry, registrarArranqueSentry } from './utils/observability'
 import { registerSW } from 'virtual:pwa-register'
 import { isApexHost } from './config/site'
 import { isNativeApp } from './config/platform'
+// [P1-PLAN-LOTE-108] OTA de la app nativa. En la web es un no-op (gate dentro).
+import { iniciarOtaNativa } from './native/liveUpdate'
 
 // [P3-SW-NO-APEX · 2026-08-18] En el APEX no se registra service worker: es
 // HTML estatico y la PWA es del producto, que vive en app.bioboros.com. Sin
@@ -474,6 +476,10 @@ iniciarSondaTeclado(); // gateada por dentro: DEV libre, produccion solo con ?kb
 // (en prod StrictMode es no-op, no afecta runtime). Latent bugs sin
 // detección era el costo real de mantenerlo deshabilitado. Anchor:
 // P2-STRICT-MODE-ENABLE.
+// [P1-PLAN-LOTE-108] ANTES del render: el listener de `mealfit:app-ready` tiene que
+// existir cuando la app lo emita. Confirma el paquete y busca uno nuevo (solo nativo).
+iniciarOtaNativa()
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <GlobalErrorBoundary>

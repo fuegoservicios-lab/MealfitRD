@@ -1,0 +1,14 @@
+{
+  "_doc": "[P1-PLAN-LOTE-108] SSOT de las actualizaciones en vivo de la app nativa. enabled=false deja de ofrecer paquetes; reset=true devuelve a todos al paquete del binario. minNativeBuild = build number MINIMO del binario capaz de correr esta web: SUBELO (al numero del proximo build de Codemagic) cada vez que cambie nativeDeps, y lanza ese build. lote108.test.js falla si nativeDeps no coincide con package.json.",
+  "enabled": true,
+  "reset": false,
+  "minNativeBuild": 13,
+  "nativeDeps": {
+    "@capacitor/camera": "^8.2.3",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capawesome/capacitor-live-update": "^8.4.2"
+  }
+}

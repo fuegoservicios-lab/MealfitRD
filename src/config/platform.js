@@ -17,7 +17,7 @@
 // Spec: docs/superpowers/specs/2026-08-21-ios-native-shell-design.md
 // tooltip-anchor: isNativeApp (test_p1_ios_native_shell.py, NativeShell.contract.test.jsx)
 
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { registerNativeProbe } from './site';
 
 export function isNativeApp() {
@@ -32,6 +32,14 @@ export function isNativeApp() {
 // en nativo pero NO puede importar este módulo (site.js también corre en Node, sin
 // Capacitor). Se le inyecta la sonda al cargar platform.js, que sólo vive en el bundle.
 registerNativeProbe(isNativeApp);
+
+// [P1-PLAN-LOTE-108] GET por la pila NATIVA (no pasa por el WebView, así que no hay
+// CORS): lo usa `native/liveUpdate.js` para leer el manifiesto OTA, que es un estático
+// de nginx y no manda cabeceras CORS a `capacitor://localhost`. Vive aquí porque este
+// módulo es el único que habla con `@capacitor/core` (NativeShell.contract.test.jsx).
+export function nativeHttpGet(options) {
+    return CapacitorHttp.get(options);
+}
 
 // Nombre del CONTRATO, no del mecanismo: lo que las superficies preguntan es «¿debo
 // esconder el comercio?», no «¿estoy en iOS?». Si un día el comercio nativo existe

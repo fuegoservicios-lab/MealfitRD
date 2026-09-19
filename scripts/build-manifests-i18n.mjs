@@ -31,7 +31,11 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(__dirname, '..');
 const ORIGEN = join(RAIZ, 'public', 'manifest.json');
-const DESTINO = existsSync(join(RAIZ, 'dist')) ? join(RAIZ, 'dist') : join(RAIZ, 'public');
+// [P1-PLAN-LOTE-108] `MF_DIST_DIR`: el paquete OTA se construye en `dist-native` para no
+// pisar el `dist` web que el mismo despliegue acaba de generar.
+const DESTINO = process.env.MF_DIST_DIR
+    ? join(RAIZ, process.env.MF_DIST_DIR)
+    : existsSync(join(RAIZ, 'dist')) ? join(RAIZ, 'dist') : join(RAIZ, 'public');
 
 // Las cadenas del manifiesto NO viven en los catálogos de la app: son ocho literales que
 // nadie más usa, y meterlas en `locales/*.json` las haría aparecer como claves huérfanas

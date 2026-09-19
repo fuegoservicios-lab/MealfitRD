@@ -186,6 +186,12 @@ const sinComentariosHtml = () => ({
     },
 });
 
+// [P1-PLAN-LOTE-108] `20260919-041500` en UTC: se compara como texto.
+function otaStamp(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}-${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}`
+}
+
 export default defineConfig(({ mode }) => {
   // El origen de Neon Auth se deriva de `VITE_NEON_AUTH_URL` en vez de repetirse
   // a mano: el valor ya vive en `.env.production` y una segunda copia en el HTML
@@ -354,6 +360,13 @@ export default defineConfig(({ mode }) => {
   // Ver [BIOBOROS-SENTRY-RELEASE] arriba. Anchor: BIOBOROS-SENTRY-RELEASE-DEFINE.
   define: {
     __APP_RELEASE__: JSON.stringify(APP_RELEASE),
+    // [P1-PLAN-LOTE-108] Identidad del paquete web DENTRO de la app nativa (OTA).
+    // Sello UTC ordenable: la app solo acepta un paquete POSTERIOR al que ya corre.
+    // `scripts/build-ota-bundle.mjs` lo fija por env para que el manifiesto y el
+    // bundle digan lo mismo; Codemagic no lo fija y cae al reloj del build. Fuera
+    // de `native` va vacio y `src/native/liveUpdate.js` no hace nada.
+    // Anchor: P1-PLAN-LOTE-108-OTA-BUNDLE-ID.
+    __OTA_BUNDLE_ID__: JSON.stringify(mode === 'native' ? (process.env.MF_OTA_BUNDLE_ID || otaStamp()) : ''),
   },
   // [P2-DEV-LAN · 2026-08-23] El bucle de trabajo en un TELÉFONO real. Emular un móvil
   // en el escritorio no reproduce el teclado de iOS — y ahí es donde viven los defectos
