@@ -76,7 +76,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
-import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, KB_UMBRAL_PX } from '../utils/keyboardViewport';
+import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, resolverInsetNativo, altoDeReferencia, KB_UMBRAL_PX } from '../utils/keyboardViewport';
 import { alternarSondaTecladoNativa } from '../utils/keyboardProbe';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
@@ -657,6 +657,7 @@ const AgentPage = () => {
             root?.removeAttribute('data-kb-scroll-lock');
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
             if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
+            if (contenedor) contenedor.style.removeProperty('--app-height');
             if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
             insetAplicadoRef.current = 0;
             tecladoAbiertoRef.current = false;
@@ -765,9 +766,24 @@ const AgentPage = () => {
                 // descontó el teclado principal, pero el Form Assistant queda encima del
                 // compositor. El resolvedor da un solo dueño: PWA mueve directamente la
                 // caja; Safari encoge el contenedor con su layoutInset. Nunca ambos.
+                // [P1-PLAN-LOTE-114 · 2026-09-19] En la APP NATIVA el WebView encoge `innerHeight` unos fotogramas
+                // al abrir el teclado y lo restaura sin evento (medido: ver `resolverInsetNativo`). Leído como
+                // «el documento ya encogió», dejaba el inset en 0 y la caja de escribir TAPADA hasta el asiento:
+                // el «delay» del dueño. En nativo el inset es teclado − paneo, siempre, y el alto base del
+                // contenedor se fija en px mientras haya teclado para que el parpadeo tampoco entre por `100dvh`.
+                const nativo = isNativeApp();
+                const insetMedido = nativo ? resolverInsetNativo({ kb, vvOffsetTop: vv.offsetTop }) : layoutInset;
+                const encogeDeVerdad = nativo ? false : documentoEncoge;
+                if (nativo) {
+                    if (abierto && window.innerWidth <= 1024) {
+                        contenedor.style.setProperty('--app-height', `${altoDeReferencia(window.innerHeight, window.innerWidth)}px`);
+                    } else {
+                        contenedor.style.removeProperty('--app-height');
+                    }
+                }
                 const posicion = resolverPosicionTeclado(window, {
                     abierto,
-                    layoutInset,
+                    layoutInset: insetMedido,
                 });
                 // [P1-KB-RESIZES-CONTENT] Si el NAVEGADOR redimensiona el layout viewport
                 // (`interactive-widget=resizes-content`, o la PWA instalada), el alto ya lo
@@ -777,7 +793,7 @@ const AgentPage = () => {
                 const aplicado = insetEstabilizado(insetAplicadoRef.current, posicion.containerInset, {
                     abierto,
                     estabaAbierto: tecladoAbiertoRef.current,
-                    forzar: forzarMedicion || documentoEncoge,
+                    forzar: forzarMedicion || encogeDeVerdad,
                 });
                 insetAplicadoRef.current = aplicado;
                 tecladoAbiertoRef.current = abierto;
@@ -916,6 +932,8 @@ const AgentPage = () => {
             if (!contenedor) return;
             cerrandoRef.current = false;
             abriendoRef.current = true;
+            // [114] mismo alto base fijo que en la medición: el parpadeo de `innerHeight` no debe mover nada.
+            if (window.innerWidth <= 1024) contenedor.style.setProperty('--app-height', `${altoDeReferencia(window.innerHeight, window.innerWidth)}px`);
             insetAplicadoRef.current = recordado;
             tecladoAbiertoRef.current = true;
             contenedor.style.setProperty('--kb-inset', `${recordado}px`);
@@ -932,6 +950,10 @@ const AgentPage = () => {
 
         vv.addEventListener('resize', alEvento);
         vv.addEventListener('scroll', alEvento);
+        // [P1-PLAN-LOTE-114] `innerHeight` puede cambiar SIN evento del visual viewport (el parpadeo del WebView
+        // nativo): el `resize` de la ventana es la única señal de esa vuelta, y sin él una medida tomada en mitad
+        // del parpadeo se quedaba puesta hasta el asiento — o para siempre.
+        window.addEventListener('resize', alEvento);
         document.addEventListener('focusin', alGanarElFoco);
         const mantenerDocumentoAnclado = () => {
             if (!root?.hasAttribute('data-kb-scroll-lock')) return;
@@ -949,6 +971,7 @@ const AgentPage = () => {
             abriendoRef.current = false;
             vv.removeEventListener('resize', alEvento);
             vv.removeEventListener('scroll', alEvento);
+            window.removeEventListener('resize', alEvento);
             window.removeEventListener('scroll', mantenerDocumentoAnclado);
             // Cambiar de ruta con el teclado abierto no debe dejar la barra escondida.
             resetViewportState();

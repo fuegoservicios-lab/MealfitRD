@@ -69,7 +69,7 @@ export function iniciarSondaTeclado() {
     Object.assign(caja.style, {
         position: 'fixed', top: 'env(safe-area-inset-top, 0px)', left: '0', zIndex: '99999',
         margin: '0', padding: '4px 6px', font: '9.5px/1.25 monospace', color: '#0f0', maxWidth: '100vw',
-        background: 'rgba(0,0,0,.75)', pointerEvents: 'none', whiteSpace: 'pre',
+        background: 'rgba(0,0,0,.8)', pointerEvents: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
     });
     document.body.appendChild(caja);
 
@@ -103,9 +103,13 @@ export function iniciarSondaTeclado() {
         const alto = _cont ? Math.round(_cont.getBoundingClientRect().height) : -1;
         const fondo = _caja ? Math.round(_caja.getBoundingClientRect().bottom) : -1;
         const varInset = _cont ? (_cont.style.getPropertyValue('--kb-inset') || '-') : '-';
-        const fila = `+${String(ms).padStart(4)} ${evento.padEnd(7)} H=${window.innerHeight} vv=${Math.round(vv.height)} S=${Math.round(vv.offsetTop)} ` +
-            `→ kb=${m.kb} inset=${m.layoutInset} var=${varInset} cont=${alto} caja=${fondo} ` +
-            `${m.abierto ? 'AB' : 'ce'} kbOpen=${document.documentElement.hasAttribute('data-kb-open') ? 1 : 0}`;
+        // [P1-PLAN-LOTE-114] Compacta: la primera captura del dueño cortaba cada fila por la derecha y se perdían
+        // `caja` y `kbOpen`. `sy` = scroll del documento y `top` = borde superior del contenedor: lo que faltaba
+        // para explicar la captura con la página desplazada hacia arriba.
+        const tope = _cont ? Math.round(_cont.getBoundingClientRect().top) : -1;
+        const fila = `+${String(ms).padStart(4)} ${evento.padEnd(7)} H=${window.innerHeight} vv=${Math.round(vv.height)} S=${Math.round(vv.offsetTop)} sy=${Math.round(window.scrollY)} ` +
+            `kb=${m.kb} var=${varInset} top=${tope} cont=${alto} caja=${fondo} ` +
+            `${m.abierto ? 'AB' : 'ce'}${document.documentElement.hasAttribute('data-kb-open') ? 1 : 0}`;
         log.push(fila);
         if (log.length > 40) log.shift();
         const recordado = safeLocalStorageGet('mf_kb_inset_nativo', '-');
@@ -122,6 +126,8 @@ export function iniciarSondaTeclado() {
     const onFinAlto = (e) => { if (e.propertyName === 'height' && e.target?.classList?.contains('agent-container')) pintar('altoFin'); };
     document.addEventListener('pointerdown', onToque, true);
     document.addEventListener('transitionend', onFinAlto, true);
+    const onVentana = () => pintar('ventana');
+    window.addEventListener('resize', onVentana);
     vv.addEventListener('resize', onResize);
     vv.addEventListener('scroll', onScroll);
     document.addEventListener('focusin', onFocus);
@@ -133,6 +139,7 @@ export function iniciarSondaTeclado() {
         vv.removeEventListener('scroll', onScroll);
         document.removeEventListener('focusin', onFocus);
         document.removeEventListener('focusout', onBlur);
+        window.removeEventListener('resize', onVentana);
         document.removeEventListener('pointerdown', onToque, true);
         document.removeEventListener('transitionend', onFinAlto, true);
         caja.remove();

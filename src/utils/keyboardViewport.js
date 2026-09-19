@@ -186,6 +186,32 @@ export function _reiniciarAltoDeReferencia() {
     _altoSinTecladoPorAncho.clear();
 }
 
+/**
+ * [P1-PLAN-LOTE-114 · 2026-09-19] Inset del contenedor en la APP NATIVA (WKWebView de Capacitor).
+ *
+ * MEDIDO con la sonda en el iPhone del dueño (paquete 20260919-083939), abriendo el teclado del chat:
+ *
+ *     +  0 toque   H=844 vv=844        kb=0   var=0
+ *     + 39 focus   H=844 vv=844        kb=0   var=403   ← la apertura anticipada
+ *     +113 resize  H=844 vv=441        kb=403 var=403   ← iOS entrega la geometría FINAL al empezar
+ *     +140 scroll  H=441 vv=441        kb=403 var=0     ← ¡`innerHeight` cae a 441 un instante!
+ *     +297 altoFin H=844 vv=441        kb=403 var=0   cont=844  ← y vuelve a 844 SIN evento: la caja, TAPADA
+ *     +756 altoFin H=844 vv=441        kb=403 var=403 cont=441  ← la arregla el asiento de 350 ms
+ *
+ * El WebView encoge el layout viewport durante UNOS FOTOGRAMAS y lo restaura sin avisar. `medirTecladoDeVentana`
+ * lo lee como «el documento ya encogió» (lo que hace de verdad la PWA instalada), descuenta los 403 px y deja el
+ * inset en 0; cuando `innerHeight` vuelve a 844 nadie re-mide y la caja de escribir queda detrás del teclado hasta
+ * el asiento: ESE es el «delay al abrir» (~750 ms), y si el parpadeo dura más que el asiento, la caja no vuelve
+ * («el teclado ni se encaja») e iOS desplaza la página para enseñar el cursor.
+ *
+ * En nativo el estado estable es SIEMPRE «el documento no encoge»: el inset es el teclado menos el paneo, y el
+ * parpadeo de `innerHeight` se ignora. El llamador además fija el alto base del contenedor en px mientras el
+ * teclado está abierto, para que ese parpadeo tampoco lo mueva a través de `100dvh`.
+ */
+export function resolverInsetNativo({ kb = 0, vvOffsetTop = 0 } = {}) {
+    return Math.max(0, Math.round((Number(kb) || 0) - Math.max(0, Number(vvOffsetTop) || 0)));
+}
+
 /** Lee el `window` real y delega en la función pura. Sin visualViewport → todo a cero. */
 export function medirTecladoDeVentana(win = typeof window !== 'undefined' ? window : null) {
     const vv = win && win.visualViewport;
