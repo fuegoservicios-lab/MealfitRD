@@ -1914,6 +1914,7 @@ const AgentPage = () => {
     const spacerRef = useRef(null);     // <div className="anchor-spacer">: altura directa en el DOM (mismo frame, sin estado)
     const spacerPxRef = useRef(0);
     const lastScrollTopRef = useRef(0);
+    const ventanaCambioRef = useRef(false); // [P1-PLAN-LOTE-116] ver `_layoutAnchor`
     const [threadSettling, setThreadSettling] = useState(false);
     const settleTimerRef = useRef(null);
     const settleCapRef = useRef(null);
@@ -1950,7 +1951,11 @@ const AgentPage = () => {
     // Geometría del ancla: espaciador = topAncla + clientHeight − contenidoSinEspaciador (así el final
     // del contenido coincide con el final de la ventana: cero scroll sobrante). La primera vez lleva el
     // mensaje arriba (único scroll animado del sistema).
+    // [P1-PLAN-LOTE-116] `ventanaCambio`: lo que cambió es el alto de la VENTANA (el teclado se abre o se cierra), no
+    // el contenido. Ahí el espaciador sí puede crecer y el mensaje enviado vuelve arriba: al cerrarse el teclado tras
+    // enviar, la ventana gana ~400 px y sin esto el mensaje quedaba a media pantalla con el hueco debajo desperdiciado.
     const _layoutAnchor = useCallback(() => {
+        const ventanaCambio = ventanaCambioRef.current === true;
         const el = messagesContainerRef.current;
         const anchor = sentAnchorRef.current;
         if (!el || !anchor) return;
@@ -1960,13 +1965,18 @@ const AgentPage = () => {
         const rowTop = Math.max(0, Math.round(row.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - padTop - 12));
         const contentWithoutSpacer = el.scrollHeight - spacerPxRef.current;
         let spacer = Math.max(0, Math.round(rowTop + el.clientHeight - contentWithoutSpacer));
-        if (anchor.placed && spacer > spacerPxRef.current) spacer = spacerPxRef.current; // solo encoge
+        if (!ventanaCambio) {
+            if (anchor.placed && spacer > spacerPxRef.current) spacer = spacerPxRef.current; // solo encoge
+        }
         if (Math.abs(spacer - spacerPxRef.current) > 2) _setSpacer(spacer);
         if (!anchor.placed) {
             anchor.placed = true;
             anchor.rowTop = rowTop;
             lastScrollTopRef.current = el.scrollTop;
             try { el.scrollTo({ top: rowTop, behavior: 'smooth' }); } catch { el.scrollTop = rowTop; }
+        } else if (ventanaCambio && spacerPxRef.current > 0) {
+            // la respuesta aún cabe en la ventana: el mensaje enviado sigue arriba mientras la ventana cambia de alto
+            if (Math.abs(el.scrollTop - rowTop) > 2) { lastScrollTopRef.current = rowTop; el.scrollTop = rowTop; }
         } else if (spacerPxRef.current === 0) {
             // la respuesta ya pasa de la ventana: perseguirla hasta el final mientras llega
             const last = messagesRef.current?.[messagesRef.current.length - 1];
@@ -2013,7 +2023,8 @@ const AgentPage = () => {
             if (mode === 'bottom') {
                 if (el.scrollHeight - el.scrollTop - el.clientHeight > 2) _pinBottomInstant();
             } else if (mode === 'anchored') {
-                _layoutAnchor();
+                ventanaCambioRef.current = delta !== 0;
+                try { _layoutAnchor(); } finally { ventanaCambioRef.current = false; }
             } else if (delta !== 0) {
                 el.scrollTop = Math.max(0, el.scrollTop + delta);
                 lastScrollTopRef.current = el.scrollTop;
@@ -2942,7 +2953,17 @@ const AgentPage = () => {
         // React termine el render del setInput('') antes — sino el focus
         // se pierde con el re-render del textarea. NO restaurar si modo
         // llamada (el voice flow no escribe).
-        if (_hadFocusPreSend && !callModeRef.current) {
+        //
+        // [P1-PLAN-LOTE-116 · 2026-09-19] …salvo con el teclado VIRTUAL en pantalla: ahí enviar lo CIERRA, como hacen
+        // ChatGPT y Gemini. El dueño: «cuando le mando una foto o cualquier mensaje, el sistema dura mucho en redirigir
+        // hacia la respuesta». Con el teclado abierto la ventana de lectura mide ~200 px: el mensaje enviado (y más
+        // si lleva foto) la llena entera y la respuesta del agente nace debajo, fuera de cuadro, hasta que crece lo
+        // bastante para que el chat la persiga. Cerrar el teclado le da la pantalla a la respuesta. Con teclado
+        // físico (escritorio, iPad) no hay nada que tapar y se conserva el foco para seguir escribiendo.
+        const _tecladoVirtual = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
+        if (_hadFocusPreSend && _tecladoVirtual) {
+            try { chatInputRef.current?.blur(); } catch (_e) { /* swallow */ }
+        } else if (_hadFocusPreSend && !callModeRef.current) {
             setTimeout(() => {
                 try { chatInputRef.current?.focus(); } catch (_e) { /* swallow */ }
             }, 0);
@@ -2979,6 +3000,12 @@ const AgentPage = () => {
                 attachments: bubbleAttachments,
                 clientMessageId,
             });
+            // [P1-PLAN-LOTE-116] Con foto no hay ancla (el alto de la burbuja no se conoce hasta que carga la imagen),
+            // pero el modo tiene que ser «abajo» SIEMPRE: si el usuario venía de leer más arriba (modo libre), nada
+            // llevaba la vista al mensaje recién enviado ni a la respuesta.
+            sentAnchorRef.current = null;
+            _setSpacer(0);
+            _setMode('bottom');
         } else {
             newMessages.push({ role: 'user', content: userMsg, clientMessageId, created_at: new Date().toISOString() });
             sentAnchorRef.current = { clientMessageId, placed: false };  // [P2-CHAT-SCROLL-MODES] → anclado
