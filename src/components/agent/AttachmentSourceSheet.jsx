@@ -15,7 +15,13 @@ import './AttachmentSourceSheet.css';
 //     documento al MONTAR, y montado de por vida lo recordaría al cargar el chat, no al abrir la hoja.
 // El contrato de accesibilidad no cambia (agentMobileMedia.a11y.test.jsx): foco a la primera acción, trampa de Tab,
 // Escape, y foco de vuelta al disparador salvo que el chat pida lo contrario.
-function SheetInner({ onClose, onGallery, onCamera, triggerRef, restoreFocus }) {
+//
+// MODO MENÚ (`anchorRect`). El dueño, tras probar: «cuando abro lo de subir foto me cierra el teclado». Gemini no lo
+// cierra: abre un menú pequeño encima del «+» y el teclado sigue ahí. Con `anchorRect` la hoja se pinta así, anclada
+// al botón, sin velo, y NO mueve el foco en ningún momento —ni al abrir, ni al tocar una opción, ni al cerrar—: el
+// cuadro de texto sigue siendo el elemento enfocado, que es lo único que mantiene el teclado de iOS en pantalla.
+function SheetInner({ onClose, onGallery, onCamera, triggerRef, restoreFocus, anchorRect }) {
+    const esMenu = Boolean(anchorRect);
     const t = useT();
     const dialogRef = useRef(null);
     const firstActionRef = useRef(null);
@@ -29,7 +35,7 @@ function SheetInner({ onClose, onGallery, onCamera, triggerRef, restoreFocus }) 
     useEffect(() => {
         const previous = document.activeElement;
         const returnFocus = triggerRef?.current || previous;
-        firstActionRef.current?.focus({ preventScroll: true });
+        if (!esMenu) firstActionRef.current?.focus({ preventScroll: true });
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
                 event.preventDefault();
@@ -52,22 +58,33 @@ function SheetInner({ onClose, onGallery, onCamera, triggerRef, restoreFocus }) 
         document.addEventListener('keydown', handleKeyDown);
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
-            if (restoreFocusRef.current) returnFocus?.focus?.();
+            if (restoreFocusRef.current && !esMenu) returnFocus?.focus?.();
         };
-    }, [triggerRef]);
+    }, [triggerRef, esMenu]);
+
+    // En modo menú, `mousedown` es el evento que movería el foco: se anula en todo el árbol de la hoja.
+    const noRobarFoco = (event) => { if (esMenu) event.preventDefault(); };
+    const estiloMenu = esMenu ? {
+        left: `${Math.max(8, Math.round(anchorRect.left))}px`,
+        bottom: `${Math.max(8, Math.round(window.innerHeight - anchorRect.top + 8))}px`,
+    } : undefined;
 
     return createPortal(
-        <div className="attachment-source-backdrop" onMouseDown={onClose}>
+        <div
+            className={`attachment-source-backdrop${esMenu ? ' attachment-source-backdrop--menu' : ''}`}
+            onMouseDown={(event) => { noRobarFoco(event); onClose(); }}
+        >
             <div
                 ref={dialogRef}
-                className="attachment-source-sheet"
+                className={`attachment-source-sheet${esMenu ? ' attachment-source-sheet--menu' : ''}`}
+                style={estiloMenu}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="attachment-source-title"
-                onMouseDown={(event) => event.stopPropagation()}
-                {...gestos}
+                onMouseDown={(event) => { noRobarFoco(event); event.stopPropagation(); }}
+                {...(esMenu ? {} : gestos)}
             >
-                <span className="attachment-source-grip" aria-hidden="true" />
+                {!esMenu && <span className="attachment-source-grip" aria-hidden="true" />}
                 <div className="attachment-source-heading">
                     <h2 id="attachment-source-title">{t('Añadir imagen')}</h2>
                     <button className="ui-close" type="button" onClick={onClose} aria-label={t('Cerrar')}><X size={20} strokeWidth={2.25} aria-hidden="true" /></button>
@@ -88,7 +105,7 @@ function SheetInner({ onClose, onGallery, onCamera, triggerRef, restoreFocus }) 
     );
 }
 
-export function AttachmentSourceSheet({ open, onClose, onGallery, onCamera, triggerRef, restoreFocus = true }) {
+export function AttachmentSourceSheet({ open, onClose, onGallery, onCamera, triggerRef, restoreFocus = true, anchorRect = null }) {
     if (!open || typeof document === 'undefined') return null;
     return (
         <SheetInner
@@ -97,6 +114,7 @@ export function AttachmentSourceSheet({ open, onClose, onGallery, onCamera, trig
             onCamera={onCamera}
             triggerRef={triggerRef}
             restoreFocus={restoreFocus}
+            anchorRect={anchorRect}
         />
     );
 }

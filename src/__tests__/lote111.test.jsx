@@ -52,20 +52,65 @@ describe('la hoja de adjuntar', () => {
     });
 });
 
-describe('el chat devuelve el teclado', () => {
+describe('modo menú: con el teclado abierto, adjuntar NO lo cierra', () => {
+    const Menu = () => {
+        const [open, setOpen] = React.useState(true);
+        return <>
+            <textarea aria-label="mensaje" autoFocus />
+            <AttachmentSourceSheet
+                open={open}
+                onClose={() => setOpen(false)}
+                onGallery={vi.fn()}
+                onCamera={vi.fn()}
+                restoreFocus={false}
+                anchorRect={{ left: 20, top: 500 }}
+            />
+        </>;
+    };
+    it('se ancla encima del «+» y el cuadro de texto conserva el foco al abrir, al tocar y al cerrar', () => {
+        render(<Menu />);
+        const campo = screen.getByLabelText('mensaje');
+        campo.focus();
+        const hoja = screen.getByRole('dialog');
+        expect(hoja.className).toContain('attachment-source-sheet--menu');
+        expect(hoja.style.left).toBe('20px');
+        expect(hoja.style.bottom).toBe(`${window.innerHeight - 500 + 8}px`);
+        expect(document.querySelector('.attachment-source-grip')).not.toBeInTheDocument();
+        expect(campo).toHaveFocus();
+        // `mousedown` es lo que movería el foco: en modo menú va anulado en la hoja y en el fondo
+        const sobreOpcion = fireEvent.mouseDown(screen.getByRole('button', { name: /Elegir de la galería/ }));
+        expect(sobreOpcion).toBe(false);
+        expect(campo).toHaveFocus();
+        const sobreFondo = fireEvent.mouseDown(document.querySelector('.attachment-source-backdrop--menu'));
+        expect(sobreFondo).toBe(false);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(campo).toHaveFocus();
+    });
+});
+
+describe('el chat', () => {
     const src = leer('pages/AgentPage.jsx');
-    it('recuerda si había teclado al abrir la hoja en nativo', () => {
-        expect(src).toContain('reopenKeyboardAfterAttachmentRef.current = teniaTeclado;');
-        expect(src).toContain('setAttachmentSheetOwnsFocus(!teniaTeclado);');
+    it('en nativo no suelta el foco para adjuntar y ancla el menú al «+» si había teclado', () => {
+        expect(src).toContain('if (abierto && !isNativeApp()) chatInputRef.current?.blur();');
+        expect(src).toContain('setAttachmentAnchorRect(teniaTeclado ? (attachmentTriggerRef.current?.getBoundingClientRect?.() || null) : null);');
+        expect(src).toContain('anchorRect={attachmentAnchorRect}');
         expect(src).toContain('restoreFocus={attachmentSheetOwnsFocus}');
     });
-    it('lo devuelve al cancelar (dentro del toque) y al terminar el selector nativo, pase lo que pase', () => {
+    it('tras el selector del sistema repone el teclado solo si de verdad se fue', () => {
         const i = src.indexOf('const runNativeImagePicker = async (source) => {');
-        const cuerpo = src.slice(i, i + 1200);
-        expect(cuerpo).toMatch(/finally \{[\s\S]*restoreChatKeyboardAfterAttachment\(\);/);
-        const j = src.indexOf('<AttachmentSourceSheet');
-        const hoja = src.slice(j, j + 700);
-        expect(hoja.indexOf('restoreChatKeyboardAfterAttachment();')).toBeGreaterThan(-1);
-        expect(hoja.indexOf('restoreChatKeyboardAfterAttachment();')).toBeLessThan(hoja.indexOf('setShowAttachmentSource(false);'));
+        expect(src.slice(i, i + 1200)).toMatch(/finally \{[\s\S]*restoreChatKeyboardAfterAttachment\(\);/);
+        const j = src.indexOf('const restoreChatKeyboardAfterAttachment = () => {');
+        expect(src.slice(j, j + 600)).toContain('if (!campo || medirTecladoDeVentana(window).abierto) return;');
+    });
+    it('anticipa la apertura del teclado con el inset recordado, solo en la app nativa', () => {
+        expect(src).toContain("document.addEventListener('focusin', alGanarElFoco);");
+        expect(src).toContain("document.removeEventListener('focusin', alGanarElFoco);");
+        const k = src.indexOf('const alGanarElFoco = (e) => {');
+        const cuerpo = src.slice(k, k + 1600);
+        expect(cuerpo).toContain('if (!isNativeApp() ||');
+        expect(cuerpo).toContain('if (recordado < KB_UMBRAL_PX ||');
+        expect(cuerpo).toContain('abriendoRef.current = true;');
+        // y la medición «cerrado» que llega durante la subida no deshace lo anticipado
+        expect(src).toMatch(/if \(abriendoRef\.current\) \{\s*if \(!abiertoMedido\) return;/);
     });
 });

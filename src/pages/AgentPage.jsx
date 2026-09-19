@@ -76,7 +76,9 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
-import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado } from '../utils/keyboardViewport';
+import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, KB_UMBRAL_PX } from '../utils/keyboardViewport';
+// [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
+const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
@@ -585,6 +587,8 @@ const AgentPage = () => {
     // [P1-KB-CERROJO-DE-CIERRE] Activo desde que el campo pierde el foco hasta que la
     // geometria confirma que el teclado se fue. Ver el porque, medido, en el handler.
     const cerrandoRef = useRef(false);
+    // [P1-PLAN-LOTE-111] Cerrojo de APERTURA (app nativa): ver `alGanarElFoco`.
+    const abriendoRef = useRef(false);
 
     // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
     // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
@@ -669,6 +673,7 @@ const AgentPage = () => {
             return undefined;
         }
         const vv = window.visualViewport;
+        let abriendoTimer = null;
 
         const updateInputPosition = (forzarMedicion = false) => {
             const wrapper = inputWrapperRef.current;
@@ -700,6 +705,14 @@ const AgentPage = () => {
             // Se libera sola cuando `kb` baja del umbral, así que un teclado que NO se
             // cierre (cambio de campo) no queda atrapado en el estado equivocado.
             if (cerrandoRef.current && !abiertoMedido) cerrandoRef.current = false;
+            // [P1-PLAN-LOTE-111] Apertura anticipada en curso: el foco ya colocó el chat donde va a quedar y la
+            // geometría todavía no llegó (iOS la entrega al TERMINAR la animación). Una medida «cerrado» aquí es
+            // la foto vieja: aplicarla bajaría la caja para volver a subirla 250 ms después.
+            if (abriendoRef.current) {
+                if (!abiertoMedido) return;
+                abriendoRef.current = false;
+                if (abriendoTimer) { clearTimeout(abriendoTimer); abriendoTimer = null; }
+            }
             const abierto = cerrandoRef.current ? false : abiertoMedido;
             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] Este handler escribe SOLO
             // `transform` — propiedad que React NO declara en el prop `style` del
@@ -768,6 +781,13 @@ const AgentPage = () => {
                 insetAplicadoRef.current = aplicado;
                 tecladoAbiertoRef.current = abierto;
                 contenedor.style.setProperty('--kb-inset', `${aplicado}px`);
+                // [P1-PLAN-LOTE-111] El inset FIRME (medición de asiento, sin paneo) se recuerda para anticipar
+                // la próxima apertura. Solo en la app nativa, que es donde se usa.
+                if (forzarMedicion && abierto && aplicado >= KB_UMBRAL_PX && vv.offsetTop < 1 && isNativeApp()) {
+                    if (String(aplicado) !== safeLocalStorageGet(CLAVE_INSET_NATIVO, null)) {
+                        safeLocalStorageSet(CLAVE_INSET_NATIVO, String(aplicado));
+                    }
+                }
                 wrapper.style.transform = posicion.composerLift > 0
                     ? `translateY(-${posicion.composerLift}px)`
                     : '';
@@ -856,6 +876,8 @@ const AgentPage = () => {
                 return; // cambia de campo: el teclado sigue
             }
             cerrandoRef.current = true;
+            abriendoRef.current = false;
+            if (abriendoTimer) { clearTimeout(abriendoTimer); abriendoTimer = null; }
             root?.removeAttribute('data-kb-open');
             root?.removeAttribute('data-kb-scroll-lock');
             insetAplicadoRef.current = 0;
@@ -865,8 +887,46 @@ const AgentPage = () => {
             if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
         };
 
+        // [P1-PLAN-LOTE-111 · 2026-09-19] APERTURA ANTICIPADA — «tiene delay cuando lo abro» (el dueño, app nativa).
+        //
+        // La apertura se decidía solo por geometría, e iOS entrega el `resize` del visual viewport cuando el
+        // teclado YA TERMINÓ de subir: durante ~300 ms el teclado tapa la caja y luego el chat salta. El cierre no
+        // tenía ese retraso porque P1-KB-CIERRE-SIN-ESPERA lo adelanta con el foco; la apertura no se adelantaba
+        // porque «foco ⇒ teclado» es falso en general (P1-CHAT-FOCO-NO-MUEVE: escritorio estrechado, DevTools).
+        //
+        // En la APP NATIVA con puntero táctil sí es cierto, y además se sabe cuánto mide: el inset firme de la
+        // última apertura. Al enfocar se aplica ESE valor ya —la transición de alto del contenedor lleva la curva
+        // y la duración del teclado de iOS, así que suben juntos— y la geometría, cuando llega, solo confirma o
+        // corrige. Sin valor recordado (primera vez) no se anticipa nada. Si el teclado no aparece (teclado
+        // físico), a los 900 ms manda la medición y todo vuelve a su sitio.
+        const alGanarElFoco = (e) => {
+            const campo = e.target;
+            if (!isNativeApp() || !campo || !inputWrapperRef.current?.contains(campo)) return;
+            if (campo.tagName !== 'TEXTAREA' && campo.tagName !== 'INPUT') return;
+            if (tecladoAbiertoRef.current || !window.matchMedia?.('(pointer: coarse)')?.matches) return;
+            const recordado = Number(safeLocalStorageGet(CLAVE_INSET_NATIVO, 0)) || 0;
+            if (recordado < KB_UMBRAL_PX || recordado > window.innerHeight * 0.7) return;
+            const contenedor = inputWrapperRef.current.closest('.agent-container');
+            if (!contenedor) return;
+            cerrandoRef.current = false;
+            abriendoRef.current = true;
+            insetAplicadoRef.current = recordado;
+            tecladoAbiertoRef.current = true;
+            contenedor.style.setProperty('--kb-inset', `${recordado}px`);
+            root.toggleAttribute('data-kb-open', true);
+            root.toggleAttribute('data-kb-scroll-lock', true);
+            if (!userScrolledUpRef.current) scrollToBottomRef.current?.(false, 'auto');
+            if (abriendoTimer) clearTimeout(abriendoTimer);
+            abriendoTimer = setTimeout(() => {
+                abriendoTimer = null;
+                abriendoRef.current = false;
+                updateInputPosition(true);
+            }, 900);
+        };
+
         vv.addEventListener('resize', alEvento);
         vv.addEventListener('scroll', alEvento);
+        document.addEventListener('focusin', alGanarElFoco);
         const mantenerDocumentoAnclado = () => {
             if (!root?.hasAttribute('data-kb-scroll-lock')) return;
             if (window.scrollX === 0 && window.scrollY === 0) return;
@@ -877,7 +937,10 @@ const AgentPage = () => {
         updateInputPosition();
         return () => {
             document.removeEventListener('focusout', alPerderElFoco);
+            document.removeEventListener('focusin', alGanarElFoco);
             if (asiento) clearTimeout(asiento);
+            if (abriendoTimer) clearTimeout(abriendoTimer);
+            abriendoRef.current = false;
             vv.removeEventListener('resize', alEvento);
             vv.removeEventListener('scroll', alEvento);
             window.removeEventListener('scroll', mantenerDocumentoAnclado);
@@ -1368,6 +1431,7 @@ const AgentPage = () => {
     // «+» baja el teclado para enseñar la hoja y, al elegir o cancelar, el teclado vuelve solo: se sigue escribiendo.
     const reopenKeyboardAfterAttachmentRef = useRef(false);
     const [attachmentSheetOwnsFocus, setAttachmentSheetOwnsFocus] = useState(true);
+    const [attachmentAnchorRect, setAttachmentAnchorRect] = useState(null);
     const [showAttachmentSource, setShowAttachmentSource] = useState(false);
     // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
@@ -1382,7 +1446,9 @@ const AgentPage = () => {
     const prepareAttachmentPickerGesture = useCallback(() => {
         const abierto = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
         attachmentPickerHadKeyboardRef.current = abierto;
-        if (abierto) chatInputRef.current?.blur();
+        // [P1-PLAN-LOTE-111] En la app nativa el teclado NO se cierra para adjuntar (menú sobre el «+», como
+        // Gemini). En la web sí: el menú de iOS se dibuja mal con el teclado en pantalla (P1-CHAT-PICKER-...).
+        if (abierto && !isNativeApp()) chatInputRef.current?.blur();
     }, []);
 
     const waitForAttachmentKeyboardClose = useCallback((shouldWait) => {
@@ -1620,10 +1686,18 @@ const AgentPage = () => {
         addFiles(e.target.files);
     };
 
+    // Al volver del selector del sistema iOS suele reponer el teclado solo (el cuadro de texto nunca dejó de ser
+    // el elemento enfocado). Si no lo hizo, un `focus()` sobre lo ya enfocado no hace nada: hay que soltar y
+    // volver a tomar el foco. Se decide 350 ms después, con la geometría ya asentada, para no parpadear.
     const restoreChatKeyboardAfterAttachment = () => {
         if (!reopenKeyboardAfterAttachmentRef.current) return;
         reopenKeyboardAfterAttachmentRef.current = false;
-        chatInputRef.current?.focus({ preventScroll: true });
+        setTimeout(() => {
+            const campo = chatInputRef.current;
+            if (!campo || medirTecladoDeVentana(window).abierto) return;
+            if (document.activeElement === campo) campo.blur();
+            campo.focus({ preventScroll: true });
+        }, 350);
     };
 
     const runNativeImagePicker = async (source) => {
@@ -1655,9 +1729,9 @@ const AgentPage = () => {
                 || medirTecladoDeVentana(window).abierto;
             attachmentPickerHadKeyboardRef.current = false;
             reopenKeyboardAfterAttachmentRef.current = teniaTeclado;
-            // Con teclado, el foco al cerrar la hoja es del chat (vuelve al cuadro de texto), no de la hoja.
+            // Con teclado: menú anclado al «+» que no toca el foco (el teclado se queda). Sin teclado: hoja inferior.
             setAttachmentSheetOwnsFocus(!teniaTeclado);
-            if (teniaTeclado) chatInputRef.current?.blur();
+            setAttachmentAnchorRect(teniaTeclado ? (attachmentTriggerRef.current?.getBoundingClientRect?.() || null) : null);
             setShowAttachmentSource(true);
             return;
         }
@@ -5090,14 +5164,15 @@ const AgentPage = () => {
             <AttachmentSourceSheet
                 open={showAttachmentSource}
                 onClose={() => {
-                    // Dentro del gesto del toque: iOS solo levanta el teclado con un foco pedido por el usuario.
-                    restoreChatKeyboardAfterAttachment();
+                    // Cancelar no toca el foco: con el menú el teclado nunca se fue.
+                    reopenKeyboardAfterAttachmentRef.current = false;
                     setShowAttachmentSource(false);
                 }}
                 onGallery={() => runNativeImagePicker('gallery')}
                 onCamera={() => runNativeImagePicker('camera')}
                 triggerRef={attachmentTriggerRef}
                 restoreFocus={attachmentSheetOwnsFocus}
+                anchorRect={attachmentAnchorRect}
             />
 
             <style>{`

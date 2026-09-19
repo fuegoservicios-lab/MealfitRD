@@ -104,11 +104,67 @@
     font-size: 0.78rem;
 }
 
+/* [P1-PLAN-LOTE-111] Modo menú: anclado encima del «+», sin velo, con el teclado abierto (como Gemini). */
+.attachment-source-backdrop--menu {
+    display: block;
+    background: transparent;
+}
+
+.attachment-source-sheet--menu {
+    position: fixed;
+    width: min(260px, calc(100vw - 16px));
+    padding: 0.35rem;
+    border-bottom: 1px solid var(--border);
+    border-radius: 1rem;
+    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.32);
+    transform-origin: bottom left;
+}
+
+.attachment-source-sheet--menu .attachment-source-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.attachment-source-sheet--menu .attachment-source-tiles {
+    grid-template-columns: 1fr;
+    gap: 0;
+}
+
+.attachment-source-sheet--menu .attachment-source-action {
+    min-height: 52px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0.6rem;
+    border: 0;
+    background: transparent;
+}
+
+.attachment-source-sheet--menu .attachment-source-action + .attachment-source-action {
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 0.75rem 0.75rem;
+}
+
+.attachment-source-sheet--menu .attachment-source-action > .attachment-source-ico {
+    width: 36px;
+    height: 36px;
+    background: var(--bg-muted);
+}
+
+.attachment-source-sheet--menu .attachment-source-action small { display: none; }
+
 @media (prefers-reduced-motion: no-preference) {
     .attachment-source-backdrop { animation: attachment-fade-in 220ms ease-out; }
     /* curva y duración del teclado de iOS: hoja y teclado se cruzan como un solo movimiento */
     .attachment-source-sheet { animation: attachment-sheet-in 320ms cubic-bezier(0.32, 0.72, 0, 1); }
+    .attachment-source-sheet--menu { animation: attachment-menu-in 140ms ease-out; }
 }
 
 @keyframes attachment-fade-in { from { opacity: 0; } }
 @keyframes attachment-sheet-in { from { transform: translateY(100%); } }
+@keyframes attachment-menu-in { from { transform: scale(0.92); opacity: 0; } }
