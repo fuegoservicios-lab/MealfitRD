@@ -27,7 +27,8 @@ const DIR = path.resolve(__dirname, '../components/dashboard');
 const MODULOS = [
     // [P1-PLAN-LOTE-99] Los dos desplegables de arriba son chips; el unico <select> que queda es la unidad de cada linea.
     ['LogMealModal.module.css', '.lineUnit'],
-    ['ScanMealModal.module.css', '.selectInput'],
+    // [P1-PLAN-LOTE-106] El escaner ya no tiene ningun <select>: «¿Que comida es?» son chips (Chips.jsx), como en el
+    // componedor. Su `.selectInput` se fue con el.
 ];
 
 const bloque = (css, selector) => {

@@ -2,6 +2,9 @@
    alineada con TrackingProgress / LogoutConfirmModal: acento indigo, bordes
    redondeados, soporte tema oscuro vía html[data-theme="dark"]. */
 
+/* [P1-PLAN-LOTE-106 · 2026-09-18] La misma hoja inferior que «Registrar comida» (LogMealModal, lote 99): en el
+   teléfono pegada abajo, cabecera y pie fijos, cuerpo desplazable; en escritorio (≥641px) centrada. Antes era una
+   tarjeta centrada con `max-height: 92vh` y scroll interno: en el iPhone el botón de registrar quedaba bajo el borde. */
 .overlay {
     position: fixed;
     inset: 0;
@@ -10,10 +13,19 @@
     -webkit-backdrop-filter: blur(4px);
     z-index: 1000;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    padding: 1rem;
+    padding: 0;
     animation: fadeIn 0.2s ease;
+}
+
+@keyframes smRise {
+    from { transform: translateY(24px); }
+    to { transform: translateY(0); }
+}
+
+@media (min-width: 641px) {
+    .overlay { align-items: center; padding: 1rem; }
 }
 
 @keyframes fadeIn {
@@ -34,22 +46,107 @@
         0 28px 70px -16px rgba(15, 23, 42, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.6);
     width: 100%;
-    /* [P1-MEAL-SCAN-POLISH v2 · 2026-07-12] 460→560px: los inputs numéricos
-       (intrínseco ~170px + unidad + padding) rozaban el borde en 2 columnas.
-       overflow-x hidden = jamás scrollbar horizontal. */
-    max-width: 560px;
-    max-height: 92vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 1.5rem;
+    /* [P1-PLAN-LOTE-106] panel de tres zonas: la hoja NO scrollea entera, scrollea `.body`. */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 94vh;
+    max-height: 94dvh;
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+    overflow: hidden;
+    padding: 0;
     outline: none;
+    animation: smRise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (min-width: 641px) {
+    .card {
+        /* [P1-MEAL-SCAN-POLISH v2 · 2026-07-12] 460→560px: los inputs numéricos
+           (intrínseco ~170px + unidad + padding) rozaban el borde en 2 columnas. */
+        max-width: 560px;
+        max-height: 92vh;
+        max-height: 92dvh;
+        border-bottom: 1px solid #E2E8F0;
+        border-radius: 22px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overlay, .card { animation: none; }
 }
 
 .header {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.5rem 1.25rem 0.85rem;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+/* El asa de la hoja: solo decora, y solo en el teléfono. */
+.grip {
+    align-self: center;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted, #64748B) 35%, transparent);
+}
+
+@media (min-width: 641px) {
+    .grip { display: none; }
+    .header { padding-top: 1.1rem; }
+}
+
+.headerRow {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1.25rem;
+    gap: 0.75rem;
+}
+
+.subtitle {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    color: #64748B;
+}
+
+/* Cuerpo desplazable: el único que scrollea (el fondo no se mueve: `useBottomSheet`). */
+.body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+/* Pie fijo, con el hueco de la barra de inicio del iPhone. */
+.footer {
+    flex: 0 0 auto;
+    padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid #E2E8F0;
+    background: #ffffff;
+}
+
+/* Las preguntas de la revisión, con la gramática del componedor. */
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.sectionTitle {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #0F172A;
 }
 
 .title {
@@ -98,7 +195,7 @@
     color: #64748B;
     font-size: 0.9rem;
     line-height: 1.45;
-    margin: 0 0 1.25rem;
+    margin: 0 0 1.1rem;
 }
 
 /* ---- Fase selección ----
@@ -255,17 +352,16 @@
 .reviewWrap {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 1.35rem;
 }
 
-/* [P1-MEAL-SCAN-POLISH · 2026-07-12] Tipo de comida + Porción comparten fila:
-   dos controles cortos que apilados quemaban ~140px verticales. */
+/* [P1-MEAL-SCAN-POLISH · 2026-07-12 · P1-PLAN-LOTE-106] La porción en UNA fila: rótulo a la izquierda y los tres
+   multiplicadores a lo ancho (el tipo de comida ya no comparte fila: son chips con su propia pregunta). */
 .fieldRow {
     display: grid;
-    /* minmax(0,…): sin el 0, el min-width:auto del select impide encoger. */
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
     gap: 0.75rem;
-    align-items: end;
+    align-items: center;
 }
 
 .fieldRow > * { min-width: 0; }
@@ -284,33 +380,25 @@
     letter-spacing: 0.03em;
 }
 
-.textInput,
-/* [P1-LOGMEAL-SELECT-DARK · 2026-08-12] El gemelo de `.select` de
-   LogMealModal, con los dos mismos defectos: la flecha nativa pegada al canto
-   (medido: el relleno NO la mueve) y el desplegable que el sistema pinta claro
-   en tema oscuro. Se arregla igual y a la vez — dejar el gemelo sin tocar es
-   como empiezan los drifts. Ver el comentario largo en LogMealModal.module.css. */
-.selectInput {
+/* [P1-PLAN-LOTE-106] Solo el campo de TEXTO del nombre: antes compartía regla con el `<select>` del tipo de comida
+   (P1-LOGMEAL-SELECT-DARK) y heredaba su flecha — se veía un «⌄» al final del nombre (captura del dueño). El
+   desplegable ya no existe: «¿Qué comida es?» son chips, como en el componedor. */
+.textInput {
     width: 100%;
-    padding: 0.7rem 2.1rem 0.7rem 0.85rem;
+    padding: 0.7rem 0.85rem;
     border-radius: 0.7rem;
     border: 1px solid #E2E8F0;
     background-color: #F8FAFC;
     color: #0F172A;
     appearance: none;
     -webkit-appearance: none;
-    color-scheme: light;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B6A7D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 0.8rem center;
-    font-size: 0.95rem;
+    font-size: 1rem; /* iOS hace zoom por debajo de 16px */
     font-weight: 600;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.textInput:focus,
-.selectInput:focus {
+.textInput:focus {
     border-color: #6366F1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
@@ -320,13 +408,14 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap;
 }
 
 .portionBtn {
+    flex: 1 1 0;
     min-width: 48px;
+    min-height: 44px;
     padding: 0.5rem 0.75rem;
-    border-radius: 0.6rem;
+    border-radius: 0.7rem;
     border: 1px solid #E2E8F0;
     background: #F8FAFC;
     color: #334155;
@@ -418,12 +507,13 @@
 
 /* ---- Acciones ---- */
 /* [P1-MEAL-SCAN-POLISH · 2026-07-12] Una sola fila: "Volver a escanear"
-   compacto a la izquierda, "Registrar comida" protagonista a la derecha. */
+   compacto a la izquierda, "Registrar comida" protagonista a la derecha.
+   [P1-PLAN-LOTE-106] Vive en el pie FIJO: siempre a la vista en el teléfono. */
 .actions {
     display: flex;
     flex-direction: row;
+    align-items: center;
     gap: 0.6rem;
-    margin-top: 0.35rem;
 }
 
 .saveBtn {
@@ -432,7 +522,9 @@
     justify-content: center;
     gap: 0.5rem;
     flex: 1;
-    padding: 0.9rem;
+    min-height: 48px;
+    white-space: nowrap;
+    padding: 0.8rem 1rem;
     border-radius: 0.85rem;
     border: none;
     background: linear-gradient(135deg, #10B981 0%, #059669 100%);
@@ -449,13 +541,15 @@
 
 .retakeBtn {
     flex-shrink: 0;
-    padding: 0.7rem 0.9rem;
+    min-height: 44px;
+    padding: 0.6rem 0.85rem;
     border-radius: 0.85rem;
     border: 1px solid #E2E8F0;
     background: transparent;
     color: #64748B;
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    white-space: nowrap;
     cursor: pointer;
 }
 
@@ -474,6 +568,15 @@
 }
 
 :global(html[data-theme="dark"]) .title { color: var(--text-main); }
+:global(html[data-theme="dark"]) .subtitle { color: var(--text-muted); }
+:global(html[data-theme="dark"]) .sectionTitle { color: var(--text-main); }
+:global(html[data-theme="dark"]) .header,
+:global(html[data-theme="dark"]) .footer { border-color: var(--border); }
+:global(html[data-theme="dark"]) .footer { background: var(--bg-card); }
+:global(html[data-theme="dark"]) .componentRow { border-color: var(--border); }
+@media (min-width: 641px) {
+    :global(html[data-theme="dark"]) .card { border-bottom-color: var(--border); }
+}
 :global(html[data-theme="dark"]) .hint { color: var(--text-muted); }
 
 :global(html[data-theme="dark"]) .closeBtn {
@@ -487,23 +590,12 @@
 :global(html[data-theme="dark"]) .previewWrap { background: var(--bg-muted); }
 
 :global(html[data-theme="dark"]) .textInput,
-:global(html[data-theme="dark"]) .selectInput,
 :global(html[data-theme="dark"]) .macroInputWrap,
 :global(html[data-theme="dark"]) .portionBtn {
     /* `background-color` y NO el atajo: el atajo resetea `background-image` y
-       en `.selectInput` eso le borraba la flecha propia. */
+       en el desplegable (ya retirado, lote 106) eso le borraba la flecha propia. */
     background-color: var(--bg-muted);
     border-color: var(--border);
-    color: var(--text-main);
-}
-
-:global(html[data-theme="dark"]) .selectInput {
-    color-scheme: dark;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-}
-
-:global(html[data-theme="dark"]) .selectInput option {
-    background-color: var(--bg-muted);
     color: var(--text-main);
 }
 
@@ -524,7 +616,6 @@
 
 /* ====== MOBILE ====== */
 @media (max-width: 480px) {
-    .card { padding: 1.15rem; border-radius: 1rem; }
     .macrosGrid { gap: 0.6rem; }
     .optionSub { display: none; }
 }
@@ -536,38 +627,46 @@
 /* [P1-PHOTO-DEDUCTS · 2026-08-07] Checklist de componentes detectados en el
    plato. Sólo los marcados se descuentan de la Nevera. */
 .componentsBlock {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    margin-top: 0.75rem;
+    gap: 0;
 }
 
 .componentsHint {
-    margin: 0 0 0.15rem;
-    font-size: 0.72rem;
-    opacity: 0.7;
-    line-height: 1.35;
+    margin: 0.35rem 0 0.4rem;
+    font-size: 0.82rem;
+    color: #64748B;
+    line-height: 1.4;
 }
 
+/* [P1-PLAN-LOTE-106] filas de dedo: 48 px, separadas por una línea fina, casilla de 22 px y cantidad a 1rem. */
 .componentRow {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.82rem;
+    gap: 0.7rem;
+    min-height: 48px;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid #F1F5F9;
+    font-size: 0.95rem;
     cursor: pointer;
 }
 
+.componentRow:last-child { border-bottom: 0; }
+
 .componentRow input[type="checkbox"] {
     flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    accent-color: var(--primary-fill, #4F46E5);
     cursor: pointer;
 }
 
 .componentQty {
-    width: 4.2rem;
+    width: 4.6rem;
     flex-shrink: 0;
-    padding: 0.2rem 0.35rem;
-    font-size: 0.82rem;
-    border-radius: 0.35rem;
+    padding: 0.45rem 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    border-radius: 0.55rem;
     border: 1px solid var(--border-color, #d1d5db);
     background: var(--input-bg, transparent);
     color: inherit;
@@ -581,7 +680,7 @@
 }
 
 .componentName {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-width: 0;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
 }

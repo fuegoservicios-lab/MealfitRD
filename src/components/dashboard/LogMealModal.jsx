@@ -42,6 +42,8 @@ import { X, Search, Plus, Trash2, Loader2, Refrigerator, Camera, Sparkles, Histo
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
+import { useBottomSheet } from '../../hooks/useBottomSheet';
+import Chips from './Chips';
 import {
     getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes,
 } from '../../utils/pantryCache';
@@ -81,33 +83,9 @@ const _getDayOptionsCon = (t, daysAgo) => {
     return [...base, { value: n, label: formatDate(d, { weekday: 'short', day: 'numeric' }) }];
 };
 
-// [P1-PLAN-LOTE-99] Un grupo de chips excluyentes. Botones con `aria-pressed` y no radios: el valor ya vive en
-// el estado del componedor y un botón se toca igual en el teléfono y con el teclado.
-const Chips = ({ label, options, value, onChange }) => (
-    <div className={styles.chips} role="group" aria-label={label}>
-        {options.map((o) => (
-            <button
-                key={String(o.value)}
-                type="button"
-                className={o.value === value ? `${styles.chip} ${styles.chipOn}` : styles.chip}
-                aria-pressed={o.value === value}
-                onClick={() => onChange(o.value)}
-            >
-                {o.label}
-            </button>
-        ))}
-    </div>
-);
+// [P1-PLAN-LOTE-106] `Chips` (los grupos excluyentes de «¿Qué comida es?» y «¿Cuándo?») es componente
+// compartido con el escáner: ./Chips.jsx.
 
-Chips.propTypes = {
-    label: PropTypes.string.isRequired,
-    options: PropTypes.arrayOf(PropTypes.shape({ value: PropTypes.any, label: PropTypes.string })).isRequired,
-    value: PropTypes.any,
-    onChange: PropTypes.func.isRequired,
-};
-
-// [P1-EAT-PLAN-MEAL-TRUTH · v3] `initialMealType`: al llegar desde «Comí otra cosa» del plato del plan,
-// el componedor abre en el slot de ese plato (almuerzo), no en «Extra»: la sustitución es del almuerzo.
 const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0 }) => {
     const t = useT();
     const tn = useTn();
@@ -145,112 +123,9 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     //     vuelve con transición. Si el dedo sube, o el cuerpo no está arriba, el gesto es del scroll; y si el
     //     scroll llega arriba con el dedo aún bajando, la hoja toma el relevo (v4).
     const bodyRef = useRef(null);
-    const gestureRef = useRef({ y0: null, active: false, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 });
-    const cerrandoRef = useRef(false);
-    const enTelefono = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
-
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return undefined;
-        const block = (e) => {
-            const g = gestureRef.current;
-            if (g.y0 == null || !e.cancelable) return;
-            if (g.active) { e.preventDefault(); return; }
-            const sc = bodyRef.current;
-            const t = e.touches[0];
-            if (!sc || !sc.contains(e.target)) { e.preventDefault(); return; }
-            const scrollable = sc.scrollHeight > sc.clientHeight + 1;
-            if (!scrollable) { e.preventDefault(); return; }
-            const dir = t.clientY - g.y0;
-            const atTop = sc.scrollTop <= 0;
-            const atBottom = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1;
-            if ((dir > 0 && atTop) || (dir < 0 && atBottom)) e.preventDefault();
-        };
-        el.addEventListener('touchmove', block, { passive: false });
-        return () => el.removeEventListener('touchmove', block);
-    }, [containerRef]);
-
-    const moverHoja = (y, animar) => {
-        const el = containerRef.current;
-        if (!el) return;
-        el.style.transition = animar ? 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none';
-        el.style.transform = y ? `translateY(${y}px)` : '';
-    };
-    const onSheetTouchStart = (e) => {
-        if (!enTelefono() || saving || cerrandoRef.current) return;
-        const t = e.touches[0];
-        gestureRef.current = { y0: t.clientY, active: false, ceded: false, off: 8, lastY: t.clientY, lastT: e.timeStamp, vy: 0 };
-    };
-    const onSheetTouchMove = (e) => {
-        const g = gestureRef.current;
-        if (g.y0 == null) return;
-        const t = e.touches[0];
-        const sc = bodyRef.current;
-        const atTop = !sc || sc.scrollTop <= 0;
-        if (!g.active) {
-            if (g.ceded) {
-                // el scroll llevaba el gesto; si el cuerpo ya está arriba y el dedo sigue bajando, relevo
-                if (atTop && t.clientY - g.lastY > 0) { g.y0 = t.clientY; g.off = 0; g.ceded = false; g.active = true; }
-                else { g.lastY = t.clientY; g.lastT = e.timeStamp; return; }
-            } else {
-                const dy0 = t.clientY - g.y0;
-                if (dy0 > 8 && atTop) g.active = true;
-                else if (Math.abs(dy0) > 8) { g.ceded = true; g.lastY = t.clientY; g.lastT = e.timeStamp; return; }
-                else return;
-            }
-        }
-        const dt = Math.max(1, e.timeStamp - g.lastT);
-        g.vy = (t.clientY - g.lastY) / dt;
-        g.lastY = t.clientY;
-        g.lastT = e.timeStamp;
-        moverHoja(Math.max(0, t.clientY - g.y0 - g.off), false);
-    };
-    const onSheetTouchEnd = () => {
-        const g = gestureRef.current;
-        const wasActive = g.active;
-        const y = wasActive ? Math.max(0, g.lastY - g.y0 - g.off) : 0;
-        const vy = g.vy;
-        gestureRef.current = { y0: null, active: false, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 };
-        if (!wasActive) return;
-        // cierra con poco: 70 px, o un flick corto, o lo recorrido más la inercia proyectada (150 ms)
-        if (y > 70 || vy > 0.35 || y + vy * 150 > 100) {
-            cerrandoRef.current = true;
-            const el = containerRef.current;
-            if (el) { el.style.transition = 'transform 0.18s ease-in'; el.style.transform = 'translateY(110%)'; }
-            setTimeout(onClose, 170);
-        } else {
-            moverHoja(0, true);
-        }
-    };
-
-    // [P1-PLAN-LOTE-100 · 2026-09-18] «Al cerrar se scrollea un poco hacia abajo» (el dueño, en el iPhone). Para
-    // revelar el campo enfocado, iOS desplaza el DOCUMENTO de fondo aunque el body lleve `overflow: hidden`, y al
-    // cerrar la hoja el dashboard aparecía movido respecto a donde estaba. Se recuerda el scroll al abrir y se
-    // restaura al desmontar (y en cuanto el visual viewport recupera su alto, por si el teclado se cierra antes).
-    useEffect(() => {
-        if (typeof window === 'undefined') return undefined;
-        const scrollY0 = window.scrollY;
-        const restaurarScroll = () => {
-            if (Math.abs(window.scrollY - scrollY0) > 1) window.scrollTo(0, scrollY0);
-        };
-        const vv = window.visualViewport;
-        if (!vv) {
-            return () => {
-                restaurarScroll();
-                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restaurarScroll);
-            };
-        }
-        const alto0 = vv.height;
-        const alCambiar = () => { if (vv.height >= alto0 - 1) restaurarScroll(); };
-        vv.addEventListener('resize', alCambiar);
-        return () => {
-            vv.removeEventListener('resize', alCambiar);
-            restaurarScroll();
-            // [P1-PLAN-LOTE-101] y un frame después: el desplazamiento que provoca devolver el foco puede
-            // llegar tras esta limpieza.
-            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restaurarScroll);
-        };
-    }, []);
+    // [P1-PLAN-LOTE-106] el gesto de la hoja (deslizar para cerrar, toque que no pasa al fondo) y la
+    // restauración del scroll al cerrar viven en `useBottomSheet`, compartido con el escáner de fotos.
+    const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: saving });
 
     // Catálogo + platos: cache 24 h; si falta, un fetch. FAIL-CLOSED como los paneles
     // de Ajustes: sin catálogo no hay búsqueda que ofrecer, y un buscador vacío que
@@ -423,10 +298,10 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                 aria-modal="true"
                 aria-label={t('Registrar comida')}
                 tabIndex={-1}
-                onTouchStart={onSheetTouchStart}
-                onTouchMove={onSheetTouchMove}
-                onTouchEnd={onSheetTouchEnd}
-                onTouchCancel={onSheetTouchEnd}
+                onTouchStart={hoja.onTouchStart}
+                onTouchMove={hoja.onTouchMove}
+                onTouchEnd={hoja.onTouchEnd}
+                onTouchCancel={hoja.onTouchEnd}
             >
                 <div className={styles.head}>
                     <span className={styles.grip} aria-hidden="true" />

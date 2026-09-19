@@ -113,7 +113,9 @@ describe('preguntas con chips en vez de desplegables sin etiqueta', () => {
 // documento de fondo para revelar el campo enfocado y nadie lo devolvía a su sitio.
 describe('el scroll del fondo vuelve a donde estaba al cerrar', () => {
     it('se recuerda al abrir y se restaura al desmontar y cuando el visual viewport recupera su alto', () => {
-        const jsx = src('src/components/dashboard/LogMealModal.jsx');
+        // [P1-PLAN-LOTE-106] vive en el hook compartido con el escáner (useBottomSheet); el componedor lo monta
+        expect(src('src/components/dashboard/LogMealModal.jsx')).toContain('const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: saving });');
+        const jsx = src('src/hooks/useBottomSheet.js');
         expect(jsx).toContain('const scrollY0 = window.scrollY;');
         expect(jsx).toContain('if (Math.abs(window.scrollY - scrollY0) > 1) window.scrollTo(0, scrollY0);');
         expect(jsx).toContain('const alCambiar = () => { if (vv.height >= alto0 - 1) restaurarScroll(); };');
@@ -190,9 +192,10 @@ describe('deslizar hacia abajo cierra y el fondo no se mueve', () => {
     it('el cuerpo declara su eje y la hoja lleva los cuatro manejadores', () => {
         const css = src('src/components/dashboard/LogMealModal.module.css');
         expect(regla(css, '.body')).toContain('touch-action: pan-y;');
+        // [P1-PLAN-LOTE-106] el bloqueo del fondo vive en el hook compartido; el panel lleva sus cuatro manejadores
+        expect(src('src/hooks/useBottomSheet.js')).toContain("el.addEventListener('touchmove', block, { passive: false });");
         const jsx = src('src/components/dashboard/LogMealModal.jsx');
-        expect(jsx).toContain("el.addEventListener('touchmove', block, { passive: false });");
-        for (const h of ['onTouchStart={onSheetTouchStart}', 'onTouchMove={onSheetTouchMove}', 'onTouchEnd={onSheetTouchEnd}', 'onTouchCancel={onSheetTouchEnd}']) {
+        for (const h of ['onTouchStart={hoja.onTouchStart}', 'onTouchMove={hoja.onTouchMove}', 'onTouchEnd={hoja.onTouchEnd}', 'onTouchCancel={hoja.onTouchEnd}']) {
             expect(jsx).toContain(h);
         }
     });

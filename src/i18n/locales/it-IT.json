@@ -3196,5 +3196,11 @@
     "other": "Ultimi 7 giorni: media di {kcal} kcal in {n} giorni registrati"
   },
   "Registrar en este día": "Registra in questo giorno",
-  "Solo se puede registrar hasta 7 días atrás.": "Puoi registrare solo fino a 7 giorni indietro."
+  "Solo se puede registrar hasta 7 días atrás.": "Puoi registrare solo fino a 7 giorni indietro.",
+  "Revisa y registra": "Controlla e registra",
+  "La IA estimó esto por la foto. Corrige lo que no cuadre.": "L’IA lo ha stimato dalla foto. Correggi ciò che non torna.",
+  "¿Qué es?": "Che cos’è?",
+  "¿Cuánto comiste?": "Quanto hai mangiato?",
+  "antier": "l’altro ieri",
+  "Quedó en el diario de {dia}; la ves en «Ver días anteriores».": "È nel diario di {dia}; lo trovi in «Vedi giorni precedenti»."
 }

@@ -4,6 +4,10 @@ import { Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle, ChevronRi
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
+// [P1-PLAN-LOTE-106] la misma hoja inferior que el componedor: deslizar para cerrar, el toque no pasa al fondo,
+// el scroll del fondo vuelve a su sitio; y los mismos chips para «¿Qué comida es?» y «¿Cuándo?».
+import { useBottomSheet } from '../../hooks/useBottomSheet';
+import Chips from './Chips';
 // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] Hook SSOT de media queries (P2-14).
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 // [P1-PLAN-LOTE-105] fototeca directa en la app nativa (Capacitor Camera); en la web, null
@@ -53,6 +57,15 @@ import {
 // Multiplicadores de porción rápidos. "Personalizado" se logra editando los
 // campos a mano (los presets solo rellenan).
 const _PORTIONS = [0.5, 1, 2];
+
+// [P1-PLAN-LOTE-106 · 2026-09-18] «¿Cuándo?» también en el escáner (el dueño: «esa es mi cena del día de ayer que
+// no pude agregar»). `days_ago` ya lo aceptaba `POST /api/diary/consumed` (0..7); el escáner nunca lo mandaba.
+// Función, no constante: un `t()` en ámbito de módulo se congela en español.
+const _getDayOptions = (t) => [
+    { value: 0, label: t('Hoy') },
+    { value: 1, label: t('Ayer') },
+    { value: 2, label: t('Antier') },
+];
 
 // La piel de MacroInput en ESTE modal (la lógica compartida vive en common/).
 const _MACRO_CLASSES = {
@@ -130,6 +143,8 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
     // cantidad no obligue a re-serializar en cada tecla.
     const [components, setComponents] = useState([]);
     const [multiplier, setMultiplier] = useState(1);
+    // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
+    const [daysAgo, setDaysAgo] = useState(0);
     const [form, setForm] = useState({
         meal_name: '',
         meal_type: _guessMealType(),
@@ -142,6 +157,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
     const cameraInputRef = useRef(null);
     const galleryInputRef = useRef(null);
     const previewUrlRef = useRef(null);
+    const bodyRef = useRef(null);
 
     const isBusy = phase === 'scanning' || phase === 'saving';
 
@@ -159,6 +175,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
         onClose,
         disableClose: isBusy, // no cerrar mientras sube/guarda (operación en vuelo)
     });
+    const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: isBusy });
 
     // Revoca el objectURL del preview al reemplazarlo o al desmontar — evita leak.
     const _setPreviewUrl = useCallback((url) => {
@@ -178,6 +195,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             setBase({ calories: 0, protein: 0, carbs: 0, healthy_fats: 0 });
             setComponents([]);
             setMultiplier(1);
+            setDaysAgo(0);
             setForm({
                 meal_name: '',
                 meal_type: _guessMealType(),
@@ -394,6 +412,8 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                     protein: form.protein,
                     carbs: form.carbs,
                     healthy_fats: form.healthy_fats,
+                    // [P1-PLAN-LOTE-106] el día elegido en «¿Cuándo?» (0 = hoy); el backend retrodata `consumed_at`
+                    days_ago: daysAgo,
                     // [P1-PHOTO-DEDUCTS · 2026-08-07] Solo los MARCADOS. Se
                     // serializan aquí (no en el state) para que editar una
                     // cantidad no re-serialice en cada tecla. El formato es el
@@ -430,6 +450,13 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                     { n: bajaron }
                 );
             }
+            // [P1-PLAN-LOTE-106] si no es de hoy, decirlo: no aparece en «Tus macros y micros de hoy», sino en
+            // «Ver días anteriores» — la misma regla que el coach.
+            if (daysAgo > 0) {
+                const dia = daysAgo === 1 ? t('ayer') : t('antier');
+                descripcion = [descripcion, t('Quedó en el diario de {dia}; la ves en «Ver días anteriores».', { dia })]
+                    .filter(Boolean).join(' ');
+            }
             toast.success(
                 t('{nombre} registrada ({kcal} kcal).', { nombre: name, kcal: form.calories }),
                 descripcion ? { description: descripcion } : undefined
@@ -440,7 +467,7 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
             setPhase('review');
             setError(t('No pudimos registrar la comida. Intenta de nuevo.'));
         }
-    }, [form, userId, onClose, components, t, tn]);
+    }, [form, userId, onClose, components, daysAgo, t, tn]);
 
     const handleOverlayClick = useCallback((e) => {
         if (e.target === e.currentTarget && !isBusy) onClose();
@@ -448,9 +475,15 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
 
     if (!isOpen) return null;
 
+    const enRevision = phase === 'review' || phase === 'saving';
+
     return (
         <>
         <div className={styles.overlay} onClick={handleOverlayClick}>
+            {/* [P1-PLAN-LOTE-106 · 2026-09-18] La misma hoja que «Registrar comida» (lote 99): cabecera y pie FIJOS,
+                cuerpo desplazable. Antes era una tarjeta centrada con scroll interno: en el teléfono el botón de
+                registrar quedaba bajo el borde y el formulario era una columna de campos sin jerarquía (captura del
+                dueño). En escritorio sigue centrada. */}
             <div
                 ref={containerRef}
                 role="dialog"
@@ -458,24 +491,37 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                 aria-labelledby="scan-meal-title"
                 tabIndex={-1}
                 className={styles.card}
+                onTouchStart={hoja.onTouchStart}
+                onTouchMove={hoja.onTouchMove}
+                onTouchEnd={hoja.onTouchEnd}
+                onTouchCancel={hoja.onTouchEnd}
             >
                 <div className={styles.header}>
-                    {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] Icono como tile con gradiente.
-                        [P1-PLAN-LOTE-102 · 2026-09-18] Quitado: repetía la cámara de «Usar la cámara» a 8 líneas
-                        de distancia (el dueño: «no quiero dos svg de una cámara en el mismo sitio»). */}
-                    <h2 id="scan-meal-title" className={styles.title}>
-                        {t('Escanear comida')}
-                    </h2>
-                    <button
-                        className={`${styles.closeBtn} ui-close`}
-                        onClick={onClose}
-                        disabled={isBusy}
-                        aria-label={t('Cerrar')}
-                    >
-                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
-                    </button>
+                    <span className={styles.grip} aria-hidden="true" />
+                    <div className={styles.headerRow}>
+                        {/* [P3-SCAN-MODAL-POLISH · 2026-07-12] Icono como tile con gradiente.
+                            [P1-PLAN-LOTE-102 · 2026-09-18] Quitado: repetía la cámara de «Usar la cámara» a 8 líneas
+                            de distancia (el dueño: «no quiero dos svg de una cámara en el mismo sitio»). */}
+                        <div>
+                            <h2 id="scan-meal-title" className={styles.title}>
+                                {enRevision ? t('Revisa y registra') : t('Escanear comida')}
+                            </h2>
+                            {enRevision && (
+                                <p className={styles.subtitle}>{t('La IA estimó esto por la foto. Corrige lo que no cuadre.')}</p>
+                            )}
+                        </div>
+                        <button
+                            className={`${styles.closeBtn} ui-close`}
+                            onClick={onClose}
+                            disabled={isBusy}
+                            aria-label={t('Cerrar')}
+                        >
+                            <X size={20} strokeWidth={2.25} aria-hidden="true" />
+                        </button>
+                    </div>
                 </div>
 
+                <div ref={bodyRef} className={styles.body}>
                 {/* Preview de la foto (si hay). [P1-MEAL-SCAN-POLISH] En revisión
                     pasa a banner compacto para que todo quepa sin scroll. */}
                 {preview && (
@@ -606,11 +652,14 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                     </>
                 )}
 
-                {/* FASE 2: revisar/editar y registrar */}
-                {(phase === 'review' || phase === 'saving') && (
+                {/* FASE 2: revisar/editar y registrar
+                    [P1-PLAN-LOTE-106] Cuatro preguntas, en el orden en que se contestan, con la misma gramática que el
+                    componedor: «¿Qué es?» (nombre), «¿Cuánto?» (porción + macros), «¿Qué comida es?» y «¿Cuándo?»
+                    (chips, no desplegables), y al final lo que se descuenta de la Nevera. */}
+                {enRevision && (
                     <div className={styles.reviewWrap}>
-                        <label className={styles.field}>
-                            <span className={styles.fieldLabel}>{t('Nombre')}</span>
+                        <section className={styles.section} aria-labelledby="scan-q-nombre">
+                            <h3 id="scan-q-nombre" className={styles.sectionTitle}>{t('¿Qué es?')}</h3>
                             <input
                                 type="text"
                                 value={form.meal_name}
@@ -618,32 +667,22 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                 onChange={(e) => setForm((p) => ({ ...p, meal_name: e.target.value }))}
                                 className={styles.textInput}
                                 placeholder={t('Ej: Mangú con salami')}
+                                aria-label={t('Nombre')}
                             />
-                        </label>
+                        </section>
 
-                        {/* [P1-MEAL-SCAN-POLISH] Tipo + Porción en una fila. */}
-                        <div className={styles.fieldRow}>
-                            <label className={styles.field}>
-                                <span className={styles.fieldLabel}>{t('Tipo de comida')}</span>
-                                <select
-                                    value={form.meal_type}
-                                    onChange={(e) => setForm((p) => ({ ...p, meal_type: e.target.value }))}
-                                    className={styles.selectInput}
-                                >
-                                    {_getMealTypes(t).map((mt) => (
-                                        <option key={mt.value} value={mt.value}>{mt.label}</option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <div className={styles.field}>
+                        <section className={styles.section} aria-labelledby="scan-q-cuanto">
+                            <h3 id="scan-q-cuanto" className={styles.sectionTitle}>{t('¿Cuánto comiste?')}</h3>
+                            {/* [P1-MEAL-SCAN-POLISH] Porción en fila (`fieldRow`): los tres multiplicadores a lo ancho. */}
+                            <div className={styles.fieldRow}>
                                 <span className={styles.fieldLabel}>{t('Porción')}</span>
-                                <div className={styles.portionRow}>
+                                <div className={styles.portionRow} role="group" aria-label={t('Porción')}>
                                     {_PORTIONS.map((p) => (
                                         <button
                                             key={p}
                                             type="button"
                                             className={`${styles.portionBtn} ${multiplier === p ? styles.portionActive : ''}`}
+                                            aria-pressed={multiplier === p}
                                             onClick={() => applyPortion(p)}
                                             title={t('Multiplica las macros estimadas; también puedes editarlas abajo')}
                                         >
@@ -652,7 +691,6 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                     ))}
                                 </div>
                             </div>
-                        </div>
 
                         <div className={styles.macrosGrid}>
                             <MacroInput classes={_MACRO_CLASSES} label={t('Calorías')} unit="kcal" value={form.calories}
@@ -664,6 +702,23 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                             <MacroInput classes={_MACRO_CLASSES} label={t('Grasas')} unit="g" value={form.healthy_fats}
                                 onChange={(v) => handleMacroChange('healthy_fats', v)} />
                         </div>
+                        </section>
+
+                        <section className={styles.section} aria-labelledby="scan-q-tipo">
+                            <h3 id="scan-q-tipo" className={styles.sectionTitle}>{t('¿Qué comida es?')}</h3>
+                            <Chips
+                                label={t('Tipo de comida')}
+                                options={_getMealTypes(t)}
+                                value={form.meal_type}
+                                onChange={(v) => setForm((p) => ({ ...p, meal_type: v }))}
+                                disabled={phase === 'saving'}
+                            />
+                        </section>
+
+                        <section className={styles.section} aria-labelledby="scan-q-cuando">
+                            <h3 id="scan-q-cuando" className={styles.sectionTitle}>{t('¿Cuándo?')}</h3>
+                            <Chips label={t('Día')} options={_getDayOptions(t)} value={daysAgo} onChange={setDaysAgo} disabled={phase === 'saving'} />
+                        </section>
 
                         {/* [P1-PHOTO-DEDUCTS · 2026-08-07] Componentes detectados,
                             confirmables uno a uno. Sólo los marcados se descuentan
@@ -674,10 +729,10 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                             el escáner falló, cuando lo normal en platos difíciles
                             de desglosar es simplemente registrar macros. */}
                         {components.length > 0 && (
-                            <div className={styles.componentsBlock}>
-                                <span className={styles.fieldLabel}>
+                            <section className={`${styles.section} ${styles.componentsBlock}`} aria-labelledby="scan-q-nevera">
+                                <h3 id="scan-q-nevera" className={styles.sectionTitle}>
                                     {t('Descontar de tu Nevera')}
-                                </span>
+                                </h3>
                                 <p className={styles.componentsHint}>
                                     {t('Lo detectamos en la foto. Desmarca lo que no lleve o ajusta la cantidad.')}
                                 </p>
@@ -720,9 +775,16 @@ const ScanMealModal = ({ isOpen, onClose, userId }) => {
                                         </span>
                                     </label>
                                 ))}
-                            </div>
+                            </section>
                         )}
+                    </div>
+                )}
+                </div>
 
+                {/* Pie FIJO (solo en revisión): «Volver a escanear» discreto y «Registrar comida» protagonista,
+                    siempre a la vista — antes se perdía bajo el borde de la tarjeta en el teléfono. */}
+                {enRevision && (
+                    <div className={styles.footer}>
                         <div className={styles.actions}>
                             <button
                                 className={styles.retakeBtn}

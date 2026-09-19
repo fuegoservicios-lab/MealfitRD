@@ -3196,5 +3196,11 @@
     "other": "Last 7 days: average of {kcal} kcal over {n} logged days"
   },
   "Registrar en este día": "Log on this day",
-  "Solo se puede registrar hasta 7 días atrás.": "You can only log up to 7 days back."
+  "Solo se puede registrar hasta 7 días atrás.": "You can only log up to 7 days back.",
+  "Revisa y registra": "Review and log",
+  "La IA estimó esto por la foto. Corrige lo que no cuadre.": "The AI estimated this from the photo. Fix anything that looks off.",
+  "¿Qué es?": "What is it?",
+  "¿Cuánto comiste?": "How much did you eat?",
+  "antier": "the day before yesterday",
+  "Quedó en el diario de {dia}; la ves en «Ver días anteriores».": "It went into {dia}’s diary; see it under “View previous days”."
 }
