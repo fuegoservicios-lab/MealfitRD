@@ -1364,6 +1364,10 @@ const AgentPage = () => {
     const attachmentTriggerRef = useRef(null);
     const attachmentPickerOpeningRef = useRef(false);
     const attachmentPickerHadKeyboardRef = useRef(false);
+    // [P1-PLAN-LOTE-111] ¿Hay que DEVOLVER el teclado al terminar de adjuntar? (app nativa). En ChatGPT/Gemini el
+    // «+» baja el teclado para enseñar la hoja y, al elegir o cancelar, el teclado vuelve solo: se sigue escribiendo.
+    const reopenKeyboardAfterAttachmentRef = useRef(false);
+    const [attachmentSheetOwnsFocus, setAttachmentSheetOwnsFocus] = useState(true);
     const [showAttachmentSource, setShowAttachmentSource] = useState(false);
     // [P3-CHAT-FOCUS-TELEM · 2026-05-19] Ref al textarea para refocus
     // post-send (solo cuando tenía focus pre-send — preserva mobile UX
@@ -1616,6 +1620,12 @@ const AgentPage = () => {
         addFiles(e.target.files);
     };
 
+    const restoreChatKeyboardAfterAttachment = () => {
+        if (!reopenKeyboardAfterAttachmentRef.current) return;
+        reopenKeyboardAfterAttachmentRef.current = false;
+        chatInputRef.current?.focus({ preventScroll: true });
+    };
+
     const runNativeImagePicker = async (source) => {
         const remaining = Math.max(1, CHAT_IMAGE_MAX_COUNT - attachments.length);
         setShowAttachmentSource(false);
@@ -1630,6 +1640,9 @@ const AgentPage = () => {
                 triggerMobileHaptic('error');
                 toast.error(t('No pudimos abrir tus fotos. Revisa los permisos e inténtalo de nuevo.'));
             }
+        } finally {
+            // Elegida, cancelada o fallida: el selector del sistema ya se fue y el usuario vuelve a escribir.
+            restoreChatKeyboardAfterAttachment();
         }
     };
 
@@ -1637,7 +1650,14 @@ const AgentPage = () => {
         if (isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) return;
         if (attachmentPickerOpeningRef.current) return;
         if (isNativeApp()) {
+            const teniaTeclado = attachmentPickerHadKeyboardRef.current
+                || tecladoAbiertoRef.current
+                || medirTecladoDeVentana(window).abierto;
             attachmentPickerHadKeyboardRef.current = false;
+            reopenKeyboardAfterAttachmentRef.current = teniaTeclado;
+            // Con teclado, el foco al cerrar la hoja es del chat (vuelve al cuadro de texto), no de la hoja.
+            setAttachmentSheetOwnsFocus(!teniaTeclado);
+            if (teniaTeclado) chatInputRef.current?.blur();
             setShowAttachmentSource(true);
             return;
         }
@@ -5070,11 +5090,14 @@ const AgentPage = () => {
             <AttachmentSourceSheet
                 open={showAttachmentSource}
                 onClose={() => {
+                    // Dentro del gesto del toque: iOS solo levanta el teclado con un foco pedido por el usuario.
+                    restoreChatKeyboardAfterAttachment();
                     setShowAttachmentSource(false);
                 }}
                 onGallery={() => runNativeImagePicker('gallery')}
                 onCamera={() => runNativeImagePicker('camera')}
                 triggerRef={attachmentTriggerRef}
+                restoreFocus={attachmentSheetOwnsFocus}
             />
 
             <style>{`
