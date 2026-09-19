@@ -77,6 +77,7 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
 import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, KB_UMBRAL_PX } from '../utils/keyboardViewport';
+import { alternarSondaTecladoNativa } from '../utils/keyboardProbe';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
 import { useChatAttachments } from '../hooks/useChatAttachments';
@@ -688,7 +689,7 @@ const AgentPage = () => {
             // Y esta ruta FABRICA ese caso: es la única del dashboard que bloquea el scroll
             // del documento, y sin recorrido iOS no puede hacer otra cosa que panear.
             // La aritmética y sus casos viven en utils/keyboardViewport.js (+ su test).
-            const { layoutInset, abierto: abiertoMedido, documentoEncoge } = medirTecladoDeVentana(window);
+            const { kb, layoutInset, abierto: abiertoMedido, documentoEncoge } = medirTecladoDeVentana(window);
             // [P1-KB-CERROJO-DE-CIERRE · 2026-08-23] MEDIDO con la sonda en el iPhone del
             // dueño (8:11). Al cerrar, la secuencia real es:
             //     blur    kb=337  cont=366   ← suelta el campo
@@ -781,11 +782,16 @@ const AgentPage = () => {
                 insetAplicadoRef.current = aplicado;
                 tecladoAbiertoRef.current = abierto;
                 contenedor.style.setProperty('--kb-inset', `${aplicado}px`);
-                // [P1-PLAN-LOTE-111] El inset FIRME (medición de asiento, sin paneo) se recuerda para anticipar
-                // la próxima apertura. Solo en la app nativa, que es donde se usa.
-                if (forzarMedicion && abierto && aplicado >= KB_UMBRAL_PX && vv.offsetTop < 1 && isNativeApp()) {
-                    if (String(aplicado) !== safeLocalStorageGet(CLAVE_INSET_NATIVO, null)) {
-                        safeLocalStorageSet(CLAVE_INSET_NATIVO, String(aplicado));
+                // [P1-PLAN-LOTE-111 → 112] El ALTO DEL TECLADO firme (medición de asiento) se recuerda para
+                // anticipar la próxima apertura. Solo en la app nativa, que es donde se usa.
+                // [112] Se guardaba el inset APLICADO y solo sin paneo: si el WebView encoge el documento por su
+                // cuenta (inset 0) o iOS deja algo de paneo en reposo, no se guardaba NUNCA y la anticipación no
+                // llegaba a existir — indistinguible, desde fuera, de «sigue igual». `kb` no depende de ninguna
+                // de las dos cosas, y es lo que el contenedor tiene que ceder en el instante del foco (paneo 0,
+                // documento aún sin encoger); lo que pase después lo corrige la geometría.
+                if (forzarMedicion && abierto && kb >= KB_UMBRAL_PX && isNativeApp()) {
+                    if (String(kb) !== safeLocalStorageGet(CLAVE_INSET_NATIVO, null)) {
+                        safeLocalStorageSet(CLAVE_INSET_NATIVO, String(kb));
                     }
                 }
                 wrapper.style.transform = posicion.composerLift > 0
@@ -2728,6 +2734,14 @@ const AgentPage = () => {
     const handleSend = async (overrideInput = null, options = {}) => {
         triggerMobileHaptic('medium');
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
+        // [P1-PLAN-LOTE-112] `/sonda` en la app nativa enciende/apaga la sonda del teclado (utils/keyboardProbe.js).
+        // No es un mensaje: no abre turno ni llega al servidor. Fuera de la app nativa es texto normal.
+        if (isNativeApp() && textToSend.trim().toLowerCase() === '/sonda') {
+            const encendida = alternarSondaTecladoNativa();
+            setInput('');
+            toast.info(encendida ? t('Sonda del teclado encendida') : t('Sonda del teclado apagada'));
+            return;
+        }
         if (!isOnline) {
             triggerMobileHaptic('warning');
             toast.error(t('Estás sin conexión. Tu borrador está guardado y podrás enviarlo al volver.'));

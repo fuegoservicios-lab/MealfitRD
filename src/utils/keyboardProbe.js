@@ -15,9 +15,31 @@
  * `import.meta.env.DEV` este módulo NO hace nada: no hay sonda en producción.
  */
 import { medirTecladoDeVentana } from './keyboardViewport';
-import { safeLocalStorageGet } from './safeLocalStorage';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from './safeLocalStorage';
+import { isNativeApp } from '../config/platform';
 
 const CLAVE = 'mf_kb_probe_log';
+// [P1-PLAN-LOTE-112 · 2026-09-19] La sonda en la APP NATIVA. Allí no hay barra de direcciones donde teclear
+// `?kbprobe`, y el primer arreglo del «delay al abrir el teclado» (lote 111) se decidió sin números: el dueño
+// respondió «sigue igual». El interruptor nativo es escribir `/sonda` en el chat y enviarlo (AgentPage lo intercepta:
+// no llega al servidor). Es explícito —nadie se la encuentra puesta— y persiste hasta el siguiente `/sonda`, porque
+// lo que hay que medir incluye el arranque en frío. En la WEB la regla de arriba no cambia: solo `?kbprobe`.
+export const CLAVE_SONDA_NATIVA = 'mf_kb_sonda_nativa';
+let _pararSonda = null;
+
+/** `/sonda` en el chat de la app nativa: enciende o apaga. Devuelve el estado nuevo. */
+export function alternarSondaTecladoNativa() {
+    if (!isNativeApp()) return false;
+    if (_pararSonda) {
+        _pararSonda();
+        _pararSonda = null;
+        safeLocalStorageRemove(CLAVE_SONDA_NATIVA);
+        return false;
+    }
+    safeLocalStorageSet(CLAVE_SONDA_NATIVA, '1');
+    iniciarSondaTeclado();
+    return Boolean(_pararSonda);
+}
 
 export function iniciarSondaTeclado() {
     // [P1-KB-SONDA-EN-PRODUCCION · 2026-08-23] La sonda pasa a funcionar TAMBIEN en
@@ -37,19 +59,22 @@ export function iniciarSondaTeclado() {
         activa = import.meta.env.DEV
             ? (pedida || safeLocalStorageGet('mfKbProbe') === '1')
             : pedida;
+        if (!activa && isNativeApp()) activa = safeLocalStorageGet(CLAVE_SONDA_NATIVA) === '1';
     } catch { /* sin storage */ }
     if (!activa) return undefined;
+    if (_pararSonda) return _pararSonda;
 
     const caja = document.createElement('pre');
     caja.setAttribute('aria-hidden', 'true');
     Object.assign(caja.style, {
         position: 'fixed', top: 'env(safe-area-inset-top, 0px)', left: '0', zIndex: '99999',
-        margin: '0', padding: '4px 6px', font: '11px/1.3 monospace', color: '#0f0',
+        margin: '0', padding: '4px 6px', font: '9.5px/1.25 monospace', color: '#0f0', maxWidth: '100vw',
         background: 'rgba(0,0,0,.75)', pointerEvents: 'none', whiteSpace: 'pre',
     });
     document.body.appendChild(caja);
 
     const modo = (() => {
+        if (isNativeApp()) return 'nativa';
         try {
             if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) return 'PWA';
         } catch { /* noop */ }
@@ -57,7 +82,14 @@ export function iniciarSondaTeclado() {
     })();
 
     const log = [];
+    // [P1-PLAN-LOTE-112] TIEMPOS. Un retraso se mide en milisegundos, y la sonda no los llevaba: `+ms` cuenta desde
+    // el último toque dentro de la caja de escribir (o desde el foco si no hubo toque). La cabecera dice qué paquete
+    // OTA corre de verdad y qué inset tiene recordado la apertura anticipada — las dos dudas del «sigue igual».
+    let t0 = performance.now();
+    const paquete = (() => { try { return typeof __OTA_BUNDLE_ID__ === 'string' && __OTA_BUNDLE_ID__ ? __OTA_BUNDLE_ID__ : 'web'; } catch { return '?'; } })();
     const pintar = (evento) => {
+        if (evento === 'toque') t0 = performance.now();
+        const ms = Math.round(performance.now() - t0);
         const vv = window.visualViewport;
         const m = medirTecladoDeVentana(window);
         // [P1-KB-SONDA-EN-PRODUCCION · 2026-08-23] `cont` es el alto REAL que el navegador
@@ -70,12 +102,14 @@ export function iniciarSondaTeclado() {
         const _caja = document.querySelector('.input-wrapper');
         const alto = _cont ? Math.round(_cont.getBoundingClientRect().height) : -1;
         const fondo = _caja ? Math.round(_caja.getBoundingClientRect().bottom) : -1;
-        const fila = `${evento.padEnd(7)} H=${window.innerHeight} vv=${Math.round(vv.height)} S=${Math.round(vv.offsetTop)} ` +
-            `→ kb=${m.kb} inset=${m.layoutInset} cont=${alto} caja=${fondo} ` +
-            `${m.abierto ? 'ABIERTO' : 'cerrado'} kbOpen=${document.documentElement.hasAttribute('data-kb-open') ? 1 : 0}`;
+        const varInset = _cont ? (_cont.style.getPropertyValue('--kb-inset') || '-') : '-';
+        const fila = `+${String(ms).padStart(4)} ${evento.padEnd(7)} H=${window.innerHeight} vv=${Math.round(vv.height)} S=${Math.round(vv.offsetTop)} ` +
+            `→ kb=${m.kb} inset=${m.layoutInset} var=${varInset} cont=${alto} caja=${fondo} ` +
+            `${m.abierto ? 'AB' : 'ce'} kbOpen=${document.documentElement.hasAttribute('data-kb-open') ? 1 : 0}`;
         log.push(fila);
         if (log.length > 40) log.shift();
-        caja.textContent = `[${modo}] sonda teclado — últimos eventos\n` + log.slice(-6).join('\n');
+        const recordado = safeLocalStorageGet('mf_kb_inset_nativo', '-');
+        caja.textContent = `[${modo}] paquete ${paquete} · inset recordado ${recordado}\n` + log.slice(-12).join('\n');
         try { sessionStorage.setItem(CLAVE, log.join('\n')); } catch { /* lleno */ }
     };
 
@@ -84,17 +118,25 @@ export function iniciarSondaTeclado() {
     const onScroll = () => pintar('scroll');
     const onFocus = () => pintar('focus');
     const onBlur = () => pintar('blur');
+    const onToque = (e) => { if (e.target?.closest?.('.input-wrapper')) pintar('toque'); };
+    const onFinAlto = (e) => { if (e.propertyName === 'height' && e.target?.classList?.contains('agent-container')) pintar('altoFin'); };
+    document.addEventListener('pointerdown', onToque, true);
+    document.addEventListener('transitionend', onFinAlto, true);
     vv.addEventListener('resize', onResize);
     vv.addEventListener('scroll', onScroll);
     document.addEventListener('focusin', onFocus);
     document.addEventListener('focusout', onBlur);
     pintar('inicio');
 
-    return () => {
+    _pararSonda = () => {
         vv.removeEventListener('resize', onResize);
         vv.removeEventListener('scroll', onScroll);
         document.removeEventListener('focusin', onFocus);
         document.removeEventListener('focusout', onBlur);
+        document.removeEventListener('pointerdown', onToque, true);
+        document.removeEventListener('transitionend', onFinAlto, true);
         caja.remove();
+        _pararSonda = null;
     };
+    return _pararSonda;
 }
