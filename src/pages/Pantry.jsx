@@ -24,7 +24,7 @@ import { projectMeasureForCountry, unitOptionsForCountry } from '../config/unitS
 // datos viven en Neon (PostgREST/Realtime apuntan al Postgres stale de
 // el backend anterior). Todo el acceso a datos va por los endpoints backend vía
 // fetchWithAuth; el cliente anterior queda solo para Auth (otros archivos).
-import { Search, Plus, Minus, Trash2, Tag, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX, Refrigerator } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Tag, Loader2, Save, X, Search as SearchIcon, AlertCircle, Snowflake, Beef, Drumstick, Fish, Egg, Apple, Carrot, Salad, Milk, Wheat, Croissant, Cookie, Nut, GlassWater, Package, Leaf, Droplets, Flame, ShoppingBasket, RotateCcw, PackageX, Refrigerator, Thermometer } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth, API_BASE } from '../config/api';
 import { getShelfLifeBadge, getShelfLifeBadgeStyle } from '../utils/shelfLife';
@@ -2792,7 +2792,7 @@ const Pantry = () => {
                     ))}
                 </div>
                 {tempZone === 'frio' && (
-                    <span className={mstyles.temp}><Snowflake size={15} />{t('{temp} · Frío Max', { temp: formatTemperature(3, { weightUnit: formData?.weightUnit }) })} <span className={mstyles.dot} /></span>
+                    <span className={mstyles.temp}><Thermometer size={15} />{t('{temp} · Frío Max', { temp: formatTemperature(3, { weightUnit: formData?.weightUnit }) })} <span className={mstyles.dot} /></span>
                 )}
             </div>
 
@@ -2919,7 +2919,7 @@ const Pantry = () => {
                             temperatura que declarar. */}
                         {tempZone === 'frio' && (
                             <span className={fstyles.temp}>
-                                <Snowflake size={13} /> {t('{temp} · Frío Max', { temp: formatTemperature(3, { weightUnit: formData?.weightUnit }) })} <span className={fstyles.dot} />
+                                <Thermometer size={13} /> {t('{temp} · Frío Max', { temp: formatTemperature(3, { weightUnit: formData?.weightUnit }) })} <span className={fstyles.dot} />
                             </span>
                         )}
 

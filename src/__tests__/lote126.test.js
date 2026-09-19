@@ -15,6 +15,9 @@ describe('lote 126 - el icono del vacio no repite el de la pestana', () => {
         expect(p).toContain('<span className={mstyles.emptyIco} aria-hidden="true"><Refrigerator size={26} /></span>');
         expect(p).toContain('<span className={mstyles.emptyIco} aria-hidden="true"><Wheat size={26} /></span>');
         expect(p).not.toContain('emptyIco} aria-hidden="true"><Snowflake');
+        // el copo queda SOLO en la pestana «Nevera»: el chip de temperatura lleva un termometro
+        expect(p.match(/<Snowflake /g)).toHaveLength(2);
+        expect(p.match(/<Thermometer /g)).toHaveLength(2);
     });
 });
 
