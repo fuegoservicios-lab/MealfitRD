@@ -229,6 +229,15 @@ if (!isMarketingVisit()) {
     .catch(() => { /* sin listener las notificaciones se recuperan en el proximo boot */ });
 }
 
+// [P1-PLAN-LOTE-133 · 2026-09-20] En la app nativa no hay Service Worker ni Web Push: los recordatorios de comida son
+// notificaciones LOCALES programadas en el telefono. Al arrancar se vuelven a sincronizar con el servidor (y al
+// registrar una comida, y al volver a la app). Import dinamico: el plugin no entra en el chunk de entrada.
+if (isNativeApp()) {
+  import('./utils/avisosDeComida')
+    .then((m) => m.iniciarAvisosLocales())
+    .catch(() => { /* sin sincronizar, los avisos ya programados siguen saliendo */ });
+}
+
 // [P1-SENTRY-SAMPLE-COST · 2026-05-12] `tracesSampleRate` driven from env
 // var con default seguro 0.1 (10%). Pre-fix `tracesSampleRate: 1.0` capturaba
 // el 100% de transacciones — a escala satura la cuota Sentry y los errores

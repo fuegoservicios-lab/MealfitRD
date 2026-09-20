@@ -162,6 +162,13 @@ self.addEventListener('push', (event) => {
             url: data.url || "/dashboard/agent"
         }
     };
+    // [P1-PLAN-LOTE-133 · 2026-09-20] Con etiqueta, el aviso nuevo SUSTITUYE al anterior de la misma comida en vez de
+    // apilarse: cuatro recordatorios al día eran cuatro notificaciones pegajosas (`requireInteraction`) que cerrar
+    // una a una. `renotify` hace que el reemplazo vuelva a sonar; sin etiqueta, la conducta de siempre.
+    if (typeof data.tag === 'string' && data.tag) {
+        notificationOptions.tag = data.tag.slice(0, 64);
+        notificationOptions.renotify = true;
+    }
 
     event.waitUntil(
         self.registration.showNotification(title, notificationOptions)
@@ -190,9 +197,22 @@ self.addEventListener('notificationclick', (event) => {
 
         if (matchingClient) {
             return matchingClient.focus();
-        } else {
-            return clients.openWindow(urlToOpen);
         }
+        // [P1-PLAN-LOTE-133] La comparación exacta casi nunca casa: el aviso trae `?session_id=…` y la app abierta
+        // está en otra ruta, así que cada toque abría OTRA ventana (en la PWA instalada, otra instancia). Si la app
+        // ya está abierta en este origen, se la lleva al destino y se enfoca; solo si no hay ninguna se abre una.
+        let mismaApp = null;
+        for (let i = 0; i < windowClients.length; i++) {
+            try {
+                if (new URL(windowClients[i].url).origin === self.location.origin) { mismaApp = windowClients[i]; break; }
+            } catch (_e) { /* url ilegible: no es la nuestra */ }
+        }
+        if (mismaApp && typeof mismaApp.navigate === 'function') {
+            return mismaApp.navigate(urlToOpen)
+                .then((c) => (c || mismaApp).focus())
+                .catch(() => clients.openWindow(urlToOpen));
+        }
+        return clients.openWindow(urlToOpen);
     });
 
     event.waitUntil(promiseChain);

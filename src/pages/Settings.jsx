@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { nativeHidesCommerce } from '../config/platform';
+import { nativeHidesCommerce, isNativeApp } from '../config/platform';
 import { isTrackingMode } from '../config/dashboardNav';
 import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, periodLabel, tierDisplayName } from '../config/plans';
 import {
@@ -19,7 +19,8 @@ import { fetchWithAuth } from '../config/api';
 import { confirmToast } from '../utils/confirmToast';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
-import { requestNotificationPermission, subscribeToPushNotifications, unsubscribeFromPushNotifications, isPushSupported } from '../utils/pushNotifications';
+// [P1-PLAN-LOTE-133] el interruptor habla con UNA fachada: Web Push en navegador/PWA, avisos locales en la app nativa
+import { estadoDeAvisos, activarAvisos, desactivarAvisos, CLAVE_AVISOS_LOCALES } from '../utils/avisosDeComida';
 import { trackEvent, isAnalyticsOptedOut, persistAnalyticsOptOut } from '../utils/analytics';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
 // — iOS Private Mode lanza SecurityError y corta el cleanup del reset
@@ -283,22 +284,27 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         return safeLocalStorageGet('mealfit_notifications') === 'true';
     });
 
-    // Estado para las Notificaciones Web Push (IA)
+    // Estado de «Alertas Inteligentes» (Web Push en navegador/PWA · avisos locales en la app nativa)
     // Lazy init desde localStorage + Notification.permission para evitar flash off→on al refrescar.
     const [pushEnabled, setPushEnabled] = useState(() => {
         try {
+            if (isNativeApp()) return safeLocalStorageGet(CLAVE_AVISOS_LOCALES, null) === '1';
             if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
             return safeLocalStorageGet('mealfit_push_enabled', null) === 'true';
         } catch { return false; }
     });
     const [isPushLoading, setIsPushLoading] = useState(false);
     const [isPushBlocked, setIsPushBlocked] = useState(false);
+    // { code, msg }: el aviso en línea decide por CÓDIGO; el texto ya viene en el idioma activo
     const [pushSubscribeError, setPushSubscribeError] = useState(null);
+    // [P1-PLAN-LOTE-133] el canal de ESTE dispositivo; null = aún no se sabe (no se pinta un interruptor muerto)
+    const [canalAvisos, setCanalAvisos] = useState(null);
 
-    // Persistir el último valor confirmado para hidratación instantánea en el próximo mount.
+    // Persistir el último valor confirmado para hidratación instantánea en el próximo mount (solo el canal web:
+    // el de la app nativa lo escribe la fachada).
     useEffect(() => {
-        safeLocalStorageSet('mealfit_push_enabled', String(pushEnabled));
-    }, [pushEnabled]);
+        if (canalAvisos === 'web-push') safeLocalStorageSet('mealfit_push_enabled', String(pushEnabled));
+    }, [pushEnabled, canalAvisos]);
 
     // [P1-4] Preferencia de logging: 'manual' (default) o 'auto_proxy'.
     // En auto_proxy el sistema NO pausa los chunks aunque el usuario deje de loguear comidas.
@@ -661,49 +667,25 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     };
 
     useEffect(() => {
-        const checkSubscription = async () => {
-            if (isPushSupported() && 'Notification' in window) {
-                // Si el permiso está denegado o por defecto, sabemos que es falso
-                if (Notification.permission === 'denied') {
-                    setPushEnabled(false);
-                    setIsPushBlocked(true);
-                    return;
-                }
-                if (Notification.permission !== 'granted') {
-                    setPushEnabled(false);
-                    return;
-                }
-                
-                // Si está concedido, tenemos que verificar si hay una suscripción activa
-                try {
-                    let registration = await navigator.serviceWorker.getRegistration();
-                    
-                    if (!registration) {
-                        registration = await Promise.race([
-                            navigator.serviceWorker.ready,
-                            new Promise((_, reject) => setTimeout(() => reject(new Error("SW timeout")), 2000))
-                        ]);
-                    }
-
-                    if (registration) {
-                        const subscription = await registration.pushManager.getSubscription();
-                        setPushEnabled(!!subscription);
-                    } else {
-                        setPushEnabled(false);
-                    }
-                } catch (e) {
-                    console.error("Error checking subscription:", e);
-                    setPushEnabled(false);
-                }
+        let cancelado = false;
+        (async () => {
+            try {
+                const estado = await estadoDeAvisos();
+                if (cancelado) return;
+                setCanalAvisos(estado.canal);
+                setPushEnabled(estado.activo);
+                setIsPushBlocked(estado.bloqueado);
+            } catch (e) {
+                console.error("Error leyendo el estado de los avisos:", e);
             }
-        };
-        checkSubscription();
+        })();
+        return () => { cancelado = true; };
     }, []);
 
     // Detecta cuando el usuario revoca el permiso de notificaciones desde fuera de la app
     // (chrome://settings, otra pestaña). Sin esto el toggle quedaba ON pero ningún push llegaba.
     useEffect(() => {
-        if (typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+        if (isNativeApp() || typeof navigator === 'undefined' || !navigator.permissions?.query) return;
         let permStatus;
         let cancelled = false;
 
@@ -1434,53 +1416,47 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
     const handleTogglePush = async () => {
         try {
-            if (!isPushSupported()) {
-                toast.error(t("Tu navegador no soporta notificaciones Push."));
-                return;
-            }
-
             setIsPushLoading(true);
 
             if (pushEnabled) {
-                // Desuscribir
-                const success = await unsubscribeFromPushNotifications();
-                if (success) {
+                const r = await desactivarAvisos();
+                if (r.ok) {
                     setPushEnabled(false);
                     toast.success(t("Notificaciones de la IA desactivadas."));
                 } else {
                     toast.error(t("Error al desactivar notificaciones."));
                 }
             } else {
-                // Suscribir
-                const permissionGranted = await requestNotificationPermission();
-                if (!permissionGranted) {
-                    const msg = await getNotificationBlockedMessage();
-                    toast.error(msg, { duration: 6000 });
-                    setIsPushLoading(false);
-                    return;
-                }
-
-                const result = await subscribeToPushNotifications();
-                if (result && result.success) {
+                const r = await activarAvisos();
+                if (r.canal) setCanalAvisos(r.canal);
+                if (r.ok) {
                     setPushEnabled(true);
                     setPushSubscribeError(null);
-                    toast.success(t("¡Notificaciones de la IA activadas con éxito!"));
+                    toast.success(r.motivo === 'schedule'
+                        ? t('Alertas activadas. Con horario nocturno o rotativo no programamos recordatorios de comida.')
+                        : t("¡Notificaciones de la IA activadas con éxito!"));
+                } else if (r.code === 'permiso_denegado') {
+                    setIsPushBlocked(true);
+                    const msg = r.canal === 'local'
+                        ? t('Las notificaciones de Bioboros están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → Bioboros.')
+                        : await getNotificationBlockedMessage();
+                    toast.error(msg, { duration: 6000 });
                 } else {
-                    // [P2-I18N-PUSH-TOGGLE-ERROR-ES · 2026-08-22] El util devuelve un
-                    // CÓDIGO; el texto se resuelve AQUÍ, que es donde se sabe el idioma
-                    // activo. El `result.error` que sobrevive es el mensaje del NAVEGADOR
-                    // (no copy nuestro), y por eso se respeta tal cual.
+                    // [P2-I18N-PUSH-TOGGLE-ERROR-ES · 2026-08-22] La fachada devuelve un CÓDIGO; el texto se
+                    // resuelve AQUÍ, que es donde se sabe el idioma activo. El `r.error` que sobrevive es el
+                    // mensaje del NAVEGADOR (no copy nuestro), y por eso se respeta tal cual.
                     const _copyPush = {
                         push_unsupported: t('Push no soportado en este navegador.'),
                         vapid_missing: t('No se configuró la llave VAPID.'),
                         brave_blocks_push: t("Brave bloquea Push por defecto. Ve a brave://settings/privacy y activa 'Usar servicios de Google para mensajería push'."),
                         sw_missing: t('No hay Service Worker registrado en este navegador.'),
-                        server_error: t('El servidor rechazó la suscripción (error {codigo}).', { codigo: result?.status ?? '?' }),
+                        server_error: t('El servidor rechazó la suscripción (error {codigo}).', { codigo: r?.status ?? '?' }),
+                        local_error: t('No se pudieron programar los avisos en este teléfono. Inténtalo de nuevo.'),
                     };
-                    const errMsg = _copyPush[result?.code]
-                        || result?.error
+                    const errMsg = _copyPush[r?.code]
+                        || r?.error
                         || t('Error desconocido al suscribirse.');
-                    setPushSubscribeError(errMsg);
+                    setPushSubscribeError({ code: r?.code || 'desconocido', msg: errMsg });
                     toast.error(errMsg, { duration: 6000 });
                 }
             }
@@ -1488,7 +1464,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         } catch (err) {
             console.error("handleTogglePush error:", err);
             const errMsg = err.message || t('Error inesperado.');
-            setPushSubscribeError(errMsg);
+            setPushSubscribeError({ code: 'excepcion', msg: errMsg });
             toast.error(t('Error inesperado: {detalle}', { detalle: errMsg }));
             setIsPushLoading(false);
         }
@@ -3127,38 +3103,59 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.95rem' }}>
                                             {t('Alertas Inteligentes')}
-                                            <span style={{
-                                                fontSize: '0.6rem',
-                                                background: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
-                                                color: '#FFFFFF',
-                                                padding: '0.2rem 0.5rem',
-                                                borderRadius: '1rem',
-                                                fontWeight: 700,
-                                                letterSpacing: '0.5px',
-                                                textTransform: 'uppercase'
-                                            }}>Beta</span>
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.45', marginTop: '0.25rem' }}>
                                             {t('Recibe avisos en tu pantalla si olvidas registrar una comida')}
                                         </div>
                                     </div>
                                 </div>
-                                <label className={styles.toggleSwitch} style={{ flexShrink: 0, opacity: isPushBlocked ? 0.4 : 1 }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={pushEnabled}
-                                        onChange={handleTogglePush}
-                                        disabled={isPushLoading || isPushBlocked}
-                                        aria-label={t('Activar avisos de comidas')}
-                                    />
-                                    <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
-                                </label>
+                                {/* [P1-PLAN-LOTE-133] el interruptor solo donde PUEDE funcionar; si no, abajo se dice qué hacer */}
+                                {(canalAvisos === null || canalAvisos === 'web-push' || canalAvisos === 'local') && (
+                                    <label className={styles.toggleSwitch} style={{ flexShrink: 0, opacity: isPushBlocked ? 0.4 : 1 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={pushEnabled}
+                                            onChange={handleTogglePush}
+                                            disabled={isPushLoading || isPushBlocked || canalAvisos === null}
+                                            aria-label={t('Alertas Inteligentes')}
+                                        />
+                                        <span className={styles.toggleSlider} style={{ opacity: isPushLoading ? 0.5 : 1 }}></span>
+                                    </label>
+                                )}
                             </div>
+
+                            {(canalAvisos === 'ios-instalar' || canalAvisos === 'nativa-actualizar' || canalAvisos === 'sin-soporte') && (
+                                <div
+                                    role="note"
+                                    data-canal-avisos={canalAvisos}
+                                    style={{
+                                        display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                                        marginTop: '0.65rem', padding: '0.6rem 0.85rem',
+                                        background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
+                                        borderRadius: '0.65rem',
+                                        fontSize: '0.78rem', color: 'var(--warning-text)', lineHeight: 1.4,
+                                    }}
+                                >
+                                    <AlertTriangle size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--warning)' }} />
+                                    <span>
+                                        {canalAvisos === 'ios-instalar'
+                                            ? t('En el iPhone los avisos solo llegan a la app instalada: en Safari toca Compartir → «Agregar a inicio» y actívalos desde ahí.')
+                                            : canalAvisos === 'nativa-actualizar'
+                                                ? t('Actualiza la app para activar los avisos: esta versión todavía no los trae.')
+                                                : t('Este navegador no admite avisos en pantalla. Prueba con Chrome, Edge o Safari.')}
+                                    </span>
+                                </div>
+                            )}
 
                             {isPushBlocked && (
                                 <div
                                     role="alert"
-                                    onClick={async () => { const msg = await getNotificationBlockedMessage(); toast.error(msg, { duration: 6000 }); }}
+                                    onClick={async () => {
+                                        const msg = canalAvisos === 'local'
+                                            ? t('Las notificaciones de Bioboros están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → Bioboros.')
+                                            : await getNotificationBlockedMessage();
+                                        toast.error(msg, { duration: 6000 });
+                                    }}
                                     /* [P1-WARN-BANNER-TOKENS · 2026-08-11] Este aviso llevaba el ámbar
                                        CLARO clavado a mano (`#FFF7ED` de fondo, `#FED7AA` de borde,
                                        `#92400E` de texto) sin ninguna noción de tema, así que en
@@ -3185,7 +3182,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     }}
                                 >
                                     <Lock size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--warning)' }} />
-                                    <span>{t('Permiso bloqueado en el navegador.')} <strong>{t('Toca aquí para ver cómo reactivarlo.')}</strong></span>
+                                    <span>{canalAvisos === 'local' ? t('Permiso bloqueado en el iPhone.') : t('Permiso bloqueado en el navegador.')} <strong>{t('Toca aquí para ver cómo reactivarlo.')}</strong></span>
                                 </div>
                             )}
 
@@ -3202,11 +3199,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 >
                                     <AlertTriangle size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--danger)' }} />
                                     <span>
-                                        {pushSubscribeError.includes('Brave') || pushSubscribeError.includes('push service')
+                                        {pushSubscribeError.code === 'brave_blocks_push'
                                             ? <>{t('Notificaciones bloqueadas por Brave. Habilita la mensajería push en')} <strong>brave://settings/privacy</strong>.</>
-                                            : pushSubscribeError.includes('Service Worker') || pushSubscribeError.includes('timeout')
+                                            : pushSubscribeError.code === 'sw_missing'
                                                 ? <>{t('Servicio no disponible. Recarga la página e intenta de nuevo.')}</>
-                                                : <>{t('No se pudo activar. Recarga la página e intenta de nuevo.')}</>
+                                                : <>{pushSubscribeError.msg || t('No se pudo activar. Recarga la página e intenta de nuevo.')}</>
                                         }
                                     </span>
                                 </div>

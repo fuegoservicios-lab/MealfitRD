@@ -4212,6 +4212,14 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         // signOut dispara onAuthStateChange(null), que ahora intenta PRESERVAR la
         // sesión first-party; si no la borramos primero, el logout no surtiría
         // efecto (el guard la reconstruiría). Best-effort.
+        // [P1-PLAN-LOTE-133 · 2026-09-20] ANTES de soltar el token (el DELETE de la suscripción va autenticado): este
+        // dispositivo deja de recibir los avisos de ESTA cuenta. La fila de `push_subscriptions` sobrevivía al logout,
+        // así que los recordatorios de comida del usuario A le llegaban al B que entrara después en el mismo
+        // navegador; y en el teléfono, los avisos locales de A seguían sonando. Acotado a 2,5 s: jamás bloquea el logout.
+        try {
+            const { apagarAvisosAlCerrarSesion } = await import('../utils/avisosDeComida');
+            await apagarAvisosAlCerrarSesion();
+        } catch { /* el logout sigue */ }
         await logoutFirstPartySession();
         try {
             await authClient.auth.signOut();

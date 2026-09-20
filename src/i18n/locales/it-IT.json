@@ -99,7 +99,6 @@
   "Activa tu Coach nutricional IA": "Attiva il tuo Coach nutrizionale IA",
   "Activa. La IA aprende de tus conversaciones y recuerda lo importante.": "Attiva. L'IA impara dalle tue conversazioni e ricorda ciò che conta.",
   "Activando...": "Attivazione...",
-  "Activar avisos de comidas": "Attiva avvisi pasti",
   "Activar o desactivar la hidratacion del Dashboard": "Attiva o disattiva l'idratazione nella Dashboard",
   "Activar o pausar la memoria a largo plazo": "Attiva o metti in pausa la memoria a lungo termine",
   "Activo": "Attivo",
@@ -2426,7 +2425,6 @@
   "Tu mejor versión,": "La tua versione migliore,",
   "Tu meta de peso": "Il tuo obiettivo di peso",
   "Tu motivación": "La tua motivazione",
-  "Tu navegador no soporta notificaciones Push.": "Il tuo browser non supporta le notifiche Push.",
   "Tu nevera está baja (tienes {n} alimentos).": {
     "one": "Il tuo Frigo è quasi vuoto (hai {n} alimento).",
     "other": "Il tuo Frigo è quasi vuoto (hai {n} alimenti)."
@@ -3215,5 +3213,13 @@
   "El dictado no está disponible en tu idioma": "La dettatura non è disponibile nella tua lingua",
   "No pude iniciar el dictado": "Non sono riuscito ad avviare la dettatura",
   "Animación fluida del teclado encendida": "Animazione fluida della tastiera attiva",
-  "Animación fluida del teclado apagada": "Animazione fluida della tastiera disattivata"
+  "Animación fluida del teclado apagada": "Animazione fluida della tastiera disattivata",
+  "Alertas activadas. Con horario nocturno o rotativo no programamos recordatorios de comida.": "Avvisi attivati. Con turni notturni o a rotazione non programmiamo promemoria dei pasti.",
+  "Las notificaciones de Bioboros están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → Bioboros.": "Le notifiche di Bioboros sono disattivate sul tuo iPhone. Attivale in Impostazioni → Notifiche → Bioboros.",
+  "No se pudieron programar los avisos en este teléfono. Inténtalo de nuevo.": "Non è stato possibile programmare gli avvisi su questo telefono. Riprova.",
+  "En el iPhone los avisos solo llegan a la app instalada: en Safari toca Compartir → «Agregar a inicio» y actívalos desde ahí.": "Su iPhone gli avvisi arrivano solo all'app installata: in Safari tocca Condividi → «Aggiungi alla schermata Home» e attivali da lì.",
+  "Actualiza la app para activar los avisos: esta versión todavía no los trae.": "Aggiorna l'app per attivare gli avvisi: questa versione non li include ancora.",
+  "Este navegador no admite avisos en pantalla. Prueba con Chrome, Edge o Safari.": "Questo browser non supporta gli avvisi sullo schermo. Prova con Chrome, Edge o Safari.",
+  "Permiso bloqueado en el iPhone.": "Permesso bloccato sull'iPhone.",
+  "No se pudieron activar las alertas": "Impossibile attivare gli avvisi"
 }

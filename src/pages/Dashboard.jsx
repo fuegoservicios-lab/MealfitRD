@@ -6,7 +6,8 @@ import { createPortal } from 'react-dom';
 import { useAssessment, conservarPlanId } from '../context/AssessmentContext';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { requestNotificationPermission, subscribeToPushNotifications, isPushSupported } from '../utils/pushNotifications';
+// [P1-PLAN-LOTE-133] Web Push en navegador/PWA y avisos locales en la app nativa, detrás de UNA fachada
+import { estadoDeAvisos, activarAvisos } from '../utils/avisosDeComida';
 
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import {
@@ -3362,7 +3363,7 @@ const DashboardInner = () => {
 
     // --- NUEVO: ONBOARDING DE ALERTAS INTELIGENTES (WEB PUSH) ---
     useEffect(() => {
-        if (!loadingData && userProfile && isPushSupported() && 'Notification' in window) {
+        if (!loadingData && userProfile) {
             // Evaluamos si es un usuario recién registrado basándonos en la fecha de creación
             // Consideramos "nuevo" si su cuenta se creó hace menos de unas 2-24 horas, o simplemente
             // miramos el planCount === 1 (es su primer plan generado)
@@ -3377,19 +3378,28 @@ const DashboardInner = () => {
             // usuarios nuevos en Private Mode.
             const hasSeenOnboarding = safeLocalStorageGet('mealfit_push_onboarding_seen');
 
-            if (isNewUser && !hasSeenOnboarding && Notification.permission === 'default') {
-                // Pequeño retraso para que la interfaz se asiente primero antes de mostrar el modal
-                const timer = setTimeout(() => {
-                    setShowPushOnboarding(true);
-                    // [P1-PUSH-ONBOARDING-SEEN-ON-SHOW · 2026-07-09] Marcar 'visto' al MOSTRARLO, no solo al
-                    // activar/descartar. Bug reportado en iOS (móvil): el user activó las alertas pero el
-                    // modal reapareció al reabrir/reiniciar la app — el flag no se había persistido a tiempo
-                    // o el re-trigger corrió antes del handler. Marcando al mostrar, el onboarding aparece a
-                    // lo sumo UNA vez por dispositivo (activar/descartar/navegar → no reaparece). El usuario
-                    // siempre puede activarlas desde Ajustes si las omitió.
-                    safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
-                }, 2000);
-                return () => clearTimeout(timer);
+            if (isNewUser && !hasSeenOnboarding) {
+                // [P1-PLAN-LOTE-133] Se ofrece donde los avisos PUEDEN funcionar y aún no están encendidos ni bloqueados.
+                // Antes la puerta era `Notification.permission === 'default'`, que en la app nativa no existe: a quien
+                // usa el iPhone jamás se le ofrecían.
+                let cancelado = false;
+                let timer = null;
+                estadoDeAvisos().then((estado) => {
+                    if (cancelado || estado.activo || estado.bloqueado) return;
+                    if (estado.canal !== 'web-push' && estado.canal !== 'local') return;
+                    // Pequeño retraso para que la interfaz se asiente primero antes de mostrar el modal
+                    timer = setTimeout(() => {
+                        setShowPushOnboarding(true);
+                        // [P1-PUSH-ONBOARDING-SEEN-ON-SHOW · 2026-07-09] Marcar 'visto' al MOSTRARLO, no solo al
+                        // activar/descartar. Bug reportado en iOS (móvil): el user activó las alertas pero el
+                        // modal reapareció al reabrir/reiniciar la app — el flag no se había persistido a tiempo
+                        // o el re-trigger corrió antes del handler. Marcando al mostrar, el onboarding aparece a
+                        // lo sumo UNA vez por dispositivo (activar/descartar/navegar → no reaparece). El usuario
+                        // siempre puede activarlas desde Ajustes si las omitió.
+                        safeLocalStorageSet('mealfit_push_onboarding_seen', 'true');
+                    }, 2000);
+                }).catch(() => { /* sin estado legible no se ofrece nada */ });
+                return () => { cancelado = true; if (timer) clearTimeout(timer); };
             }
         }
     }, [loadingData, userProfile, planCount, formData]);
@@ -3397,15 +3407,20 @@ const DashboardInner = () => {
     const handleEnablePush = async () => {
         setIsPushEnabling(true);
         try {
-            const permission = await requestNotificationPermission();
-            if (permission) {
-                await subscribeToPushNotifications(userProfile.id);
+            // [P1-PLAN-LOTE-133] El resultado MANDA: antes se descartaba (la función no lanza, devuelve un código) y el
+            // «¡activadas!» salía aunque el navegador o el servidor hubieran rechazado la suscripción.
+            const r = await activarAvisos();
+            if (r.ok) {
                 toast.success(t('¡Alertas Inteligentes activadas!'), {
                     description: t('Te avisaremos si olvidas registrar una comida.'),
                     icon: '🧠'
                 });
-            } else {
+            } else if (r.code === 'permiso_denegado') {
                 toast.info(t('Notificaciones omitidas'), {
+                    description: t('Puedes activarlas más adelante desde Ajustes.')
+                });
+            } else {
+                toast.error(t('No se pudieron activar las alertas'), {
                     description: t('Puedes activarlas más adelante desde Ajustes.')
                 });
             }
