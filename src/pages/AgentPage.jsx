@@ -3321,9 +3321,20 @@ const AgentPage = () => {
         // teclado). Enviar ya no hace `blur()`. Lo que el lote 116 protegía —que la respuesta no naciera fuera de
         // cuadro en una ventana de ~200 px— se conserva de otra forma: con el teclado en pantalla el envío va en modo
         // «abajo» (la vista SIGUE a la respuesta, como un chat de mensajería) en vez de «anclado» (ver más abajo).
+        //
+        // [P1-PLAN-LOTE-134 · 2026-09-20] El dueño, con el chat ya a su gusto («esto está perfecto»): «quiero que cuando
+        // envíe un mensaje se cierre automáticamente el teclado para enfocarnos en el mensaje». Vuelve el cierre del lote
+        // 116, SOLO en enviar: el «+», el micrófono y la X de la foto siguen sin llevarse el teclado (lotes 127-130), y
+        // los botones siguen actuando en `pointerdown` sin perder el foco — el foco se suelta AQUÍ, a propósito, cuando el
+        // texto ya se capturó. Con la ventana entera el mensaje enviado vuelve a anclarse arriba (el ancla recupera el
+        // alto que gana la ventana: `ventanaCambio`). Si el teclado está en pantalla pero el foco NO es de la caja, no se
+        // cierra nada y el envío sigue a la respuesta en modo «abajo» (la rama del lote 130, más abajo).
         const _tecladoVirtual = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
-        // [130] solo si el foco de verdad se fue (con teclado virtual ya no se va: reenfocar haría parpadear)
-        if (_hadFocusPreSend && !callModeRef.current) {
+        const _cierraTeclado = Boolean(_hadFocusPreSend && _tecladoVirtual);
+        if (_cierraTeclado) {
+            try { chatInputRef.current?.blur(); } catch (_e) { /* swallow */ }
+        // [130] solo si el foco de verdad se fue: reenfocar lo ya enfocado haría parpadear
+        } else if (_hadFocusPreSend && !callModeRef.current) {
             setTimeout(() => {
                 try { if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus(); } catch (_e) { /* swallow */ }
             }, 0);
@@ -3371,9 +3382,10 @@ const AgentPage = () => {
             sentAnchorRef.current = null;
             _setSpacer(0);
             _setMode('bottom');
-        } else if (_tecladoVirtual) {
-            // [P1-PLAN-LOTE-130] teclado en pantalla (ya no se cierra al enviar): ventana de ~300 px. Anclar el mensaje
-            // arriba dejaría la respuesta naciendo bajo el pliegue (la queja del lote 116); se sigue el final.
+        } else if (_tecladoVirtual && !_cierraTeclado) {
+            // [P1-PLAN-LOTE-130] teclado en pantalla que NO se va a cerrar ([134]: el foco no era de la caja): ventana de
+            // ~300 px. Anclar el mensaje arriba dejaría la respuesta naciendo bajo el pliegue (la queja del lote 116);
+            // se sigue el final.
             newMessages.push({ role: 'user', content: userMsg, clientMessageId, created_at: new Date().toISOString() });
             sentAnchorRef.current = null;
             _setSpacer(0);

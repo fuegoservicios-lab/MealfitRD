@@ -12,14 +12,16 @@ describe('enviar con el teclado virtual abierto', () => {
     // [P1-PLAN-LOTE-130 · 2026-09-19] El dueño REVIRTIÓ el cierre: «haz lo mismo con el + y enviar» (que no cierren el
     // teclado). Lo que el lote 116 protegía —que la respuesta no nazca fuera de cuadro en una ventana de ~300 px— se
     // conserva de otra forma: con el teclado en pantalla el envío va en modo «abajo» (la vista sigue a la respuesta).
-    it('YA NO lo cierra: conserva el foco, y con el teclado en pantalla la vista sigue a la respuesta', () => {
+    // [P1-PLAN-LOTE-134 · 2026-09-20] …y el dueño lo RESTAURA: «quiero que cuando envíe un mensaje se cierre
+    // automáticamente el teclado para enfocarnos en el mensaje». Enviar vuelve a cerrarlo (solo enviar; ver lote134).
+    it('lo cierra (lote 134); sin teclado virtual conserva el foco, y si el teclado NO se cierra la vista sigue a la respuesta', () => {
         const i = src.indexOf('const _tecladoVirtual = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;');
         expect(i).toBeGreaterThan(-1);
         const bloque = src.slice(i, i + 700);
-        expect(bloque).not.toContain('chatInputRef.current?.blur()');
+        expect(bloque).toMatch(/if \(_cierraTeclado\) \{\s*try \{ chatInputRef\.current\?\.blur\(\); \}/);
         expect(bloque).toMatch(/if \(_hadFocusPreSend && !callModeRef\.current\) \{\s*setTimeout\(/);
         expect(bloque).toContain('if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus();');
-        expect(src).toMatch(/\} else if \(_tecladoVirtual\) \{[\s\S]{0,700}sentAnchorRef\.current = null;\s*_setSpacer\(0\);\s*_setMode\('bottom'\);/);
+        expect(src).toMatch(/\} else if \(_tecladoVirtual && !_cierraTeclado\) \{[\s\S]{0,700}sentAnchorRef\.current = null;\s*_setSpacer\(0\);\s*_setMode\('bottom'\);/);
     });
 });
 

@@ -36,15 +36,16 @@ describe('lote 130 · «+» y ENVIAR no le quitan el foco a la caja', () => {
     });
 });
 
-describe('lote 130 · enviar ya no cierra el teclado', () => {
-    it('sin blur; el foco solo se retoma si de verdad se fue', () => {
+// [P1-PLAN-LOTE-134 · 2026-09-20] El dueño restaura el cierre AL ENVIAR («que se cierre automáticamente el teclado para
+// enfocarnos en el mensaje»). De este lote siguen en pie el «+» (arriba) y lo que no depende del cierre:
+describe('lote 130 · lo que sigue en pie tras el lote 134', () => {
+    it('el foco solo se retoma si de verdad se fue (teclado físico)', () => {
         const i = ap.indexOf('const _tecladoVirtual = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;');
         const bloque = ap.slice(i, i + 700);
-        expect(bloque).not.toContain('.blur()');
         expect(bloque).toContain('if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus();');
     });
 
-    it('con el teclado en pantalla el envío sigue a la respuesta (modo «abajo»); sin él, sigue anclando el mensaje arriba', () => {
-        expect(ap).toMatch(/\} else if \(_tecladoVirtual\) \{[\s\S]{0,700}_setMode\('bottom'\);\s*\} else \{[\s\S]{0,300}_setMode\('anchored'\);/);
+    it('si el teclado se queda en pantalla el envío sigue a la respuesta (modo «abajo»); si no, ancla el mensaje arriba', () => {
+        expect(ap).toMatch(/\} else if \(_tecladoVirtual && !_cierraTeclado\) \{[\s\S]{0,700}_setMode\('bottom'\);\s*\} else \{[\s\S]{0,300}_setMode\('anchored'\);/);
     });
 });
