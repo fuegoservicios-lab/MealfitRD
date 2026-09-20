@@ -3134,12 +3134,16 @@ const AgentPage = () => {
         // si lleva foto) la llena entera y la respuesta del agente nace debajo, fuera de cuadro, hasta que crece lo
         // bastante para que el chat la persiga. Cerrar el teclado le da la pantalla a la respuesta. Con teclado
         // físico (escritorio, iPad) no hay nada que tapar y se conserva el foco para seguir escribiendo.
+        //
+        // [P1-PLAN-LOTE-130 · 2026-09-19] El dueño lo REVIERTE: «haz lo mismo con el + y enviar» (= que no cierren el
+        // teclado). Enviar ya no hace `blur()`. Lo que el lote 116 protegía —que la respuesta no naciera fuera de
+        // cuadro en una ventana de ~200 px— se conserva de otra forma: con el teclado en pantalla el envío va en modo
+        // «abajo» (la vista SIGUE a la respuesta, como un chat de mensajería) en vez de «anclado» (ver más abajo).
         const _tecladoVirtual = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
-        if (_hadFocusPreSend && _tecladoVirtual) {
-            try { chatInputRef.current?.blur(); } catch (_e) { /* swallow */ }
-        } else if (_hadFocusPreSend && !callModeRef.current) {
+        if (_hadFocusPreSend && !callModeRef.current) {
             setTimeout(() => {
-                try { chatInputRef.current?.focus(); } catch (_e) { /* swallow */ }
+                // solo si de verdad se fue: reenfocar lo ya enfocado no hace nada, y con teclado virtual no debe parpadear
+                try { if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus({ preventScroll: true }); } catch (_e) { /* swallow */ }
             }, 0);
         }
 
@@ -3182,6 +3186,13 @@ const AgentPage = () => {
             // [P1-PLAN-LOTE-116] Con foto no hay ancla (el alto de la burbuja no se conoce hasta que carga la imagen),
             // pero el modo tiene que ser «abajo» SIEMPRE: si el usuario venía de leer más arriba (modo libre), nada
             // llevaba la vista al mensaje recién enviado ni a la respuesta.
+            sentAnchorRef.current = null;
+            _setSpacer(0);
+            _setMode('bottom');
+        } else if (_tecladoVirtual) {
+            // [P1-PLAN-LOTE-130] teclado en pantalla (ya no se cierra al enviar): ventana de ~300 px. Anclar el mensaje
+            // arriba dejaría la respuesta naciendo bajo el pliegue (la queja del lote 116); se sigue el final.
+            newMessages.push({ role: 'user', content: userMsg, clientMessageId, created_at: new Date().toISOString() });
             sentAnchorRef.current = null;
             _setSpacer(0);
             _setMode('bottom');
@@ -4097,6 +4108,19 @@ const AgentPage = () => {
     // tabulación no cambia. Sin adjuntos sigue siendo la pastilla de una fila (el chat no pierde alto).
     const cajaApilada = attachments.length > 0;
 
+    // [P1-PLAN-LOTE-130 · 2026-09-19] El dueño, tras confirmar que la X de la foto ya no cierra el teclado: «ahora haz lo
+    // mismo con el + y enviar». Con el teclado abierto, «+» y ENVIAR ya actúan en `pointerdown` (P0-CHAT-IOS-APP-BOTONES-
+    // CON-TECLADO) — pero el foco no se va ahí: se va cuando WebKit sintetiza mousedown/click tras el `touchend`, y el
+    // `preventDefault` de pointerdown no lo evita (medido con el micrófono, lote 127). Si el gesto YA se atendió en
+    // pointerdown, el `touchend` se cancela: no hay click sintetizado y el foco no sale de la caja. Si NO se atendió
+    // (sin teclado abierto, Safari normal) no se toca nada: la acción sigue llegando por el click de siempre.
+    const handleComposerTouchEnd = (action) => (event) => {
+        const pending = appComposerGestureRef.current;
+        if (!event.cancelable || pending.action !== action || Date.now() > pending.expiresAt) return;
+        event.preventDefault();
+    };
+    const keepComposerFocus = (event) => event.preventDefault();
+
     const renderInputArea = (isCentered = false) => (
         <div
             className={`input-wrapper${isListening ? ' dictando' : ''}`}
@@ -4334,6 +4358,8 @@ const AgentPage = () => {
                                 className={`attachment-btn ${(isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT) ? 'disabled' : ''}`}
                                 disabled={isTurnActive || attachments.length >= CHAT_IMAGE_MAX_COUNT}
                                 onPointerDown={handleAttachmentPointerDown}
+                                onMouseDown={keepComposerFocus}
+                                onTouchEnd={handleComposerTouchEnd('attachment')}
                                 onClick={handleAttachmentClick}
                                 title={t('Adjuntar imagen')}
                             >
@@ -4459,6 +4485,8 @@ const AgentPage = () => {
                                         aria-label={t('Enviar')}
                                         className="touch-scale"
                                         onPointerDown={handleSendPointerDown}
+                                        onMouseDown={keepComposerFocus}
+                                        onTouchEnd={handleComposerTouchEnd('send')}
                                         onClick={handleSendClick}
                                         disabled={isTurnActive || attachmentsHaveErrors}
                                         style={{
