@@ -920,10 +920,10 @@ const AgentPage = () => {
         // Mientras `coreo.fase` no es null, `updateInputPosition` no escribe. Cada paso deja marca en la sonda.
         const coreo = { fase: null, timer: null, piezas: [], destino: 0, medirLuego: false, willChangePrevio: new WeakMap() };
         let msVigente = 0;
+        // [138] Se recuerda el `will-change` que traía cada pieza: la caja ya viene promovida a capa por React, y soltarla
+        // al acabar obligaba a crear (y pintar) la capa otra vez en el primer fotograma de la apertura siguiente.
         const moverPiezas = (y, ms) => {
             for (const el of coreo.piezas) {
-                // [138] se recuerda el `will-change` que traía: la caja ya viene promovida a capa por React, y soltarla
-                // al acabar obligaba a crear (y pintar) la capa otra vez en el primer fotograma de la apertura siguiente
                 if (!coreo.willChangePrevio.has(el)) coreo.willChangePrevio.set(el, el.style.willChange || '');
                 el.style.willChange = 'transform';
                 // con PRIORIDAD: la hoja de estilos le pone a la caja `transition: padding-bottom … !important`, y un
