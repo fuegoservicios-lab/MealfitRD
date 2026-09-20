@@ -3223,5 +3223,15 @@
   "No se pudieron activar las alertas": "Não foi possível ativar os alertas",
   "Pausamos la hidratación": "Pausamos a hidratação",
   "Llevabas 2 días sin anotar agua. Puedes volver a encenderla en Configuración → Capacidades.": "Você ficou 2 dias sem anotar água. Dá para reativar em Configurações → Capacidades.",
-  "Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.": "Visível no seu Dashboard. Com os alertas ativos lembramos você de beber água; após 2 dias sem anotar copos, desligamos por você."
+  "Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.": "Visível no seu Dashboard. Com os alertas ativos lembramos você de beber água; após 2 dias sem anotar copos, desligamos por você.",
+  "La app pasa a modo contador (macros y diario). Puedes volver a encender la generación cuando quieras.": "O app passa para o modo contador (macros e diário). Você pode ligar a geração de novo quando quiser.",
+  "Ahora mismo no se puede cambiar la generación de planes. Inténtalo más tarde.": "No momento não é possível alterar a geração de planos. Tente mais tarde.",
+  "Generación apagada. La app queda como contador; enciéndela cuando quieras.": "Geração desligada. O app fica como contador; ligue quando quiser.",
+  "Editaste tu peso o altura pero no guardaste los cambios. Si sales ahora, los nuevos valores se": "Você editou seu peso ou altura, mas não salvou as alterações. Se sair agora, os novos valores serão",
+  "Apagada. La app funciona como contador; enciéndela cuando quieras que la IA te arme un plan.": "Desligada. O app funciona como contador; ligue quando quiser que a IA monte um plano.",
+  "No pudimos leer si está encendida. Revisa tu conexión y vuelve a intentarlo.": "Não conseguimos ver se está ligada. Verifique sua conexão e tente de novo.",
+  "Se aplicará al catálogo de alimentos de tu diario.": "Será aplicado ao catálogo de alimentos do seu diário.",
+  "Generador de planes, memoria y datos del agente": "Gerador de planos, memória e dados do agente",
+  "Gestiona tu cuenta, tus metas y preferencias.": "Gerencie sua conta, suas metas e preferências.",
+  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Define o catálogo de alimentos do seu diário e, se você ligar os planos, sua cozinha local."
 }

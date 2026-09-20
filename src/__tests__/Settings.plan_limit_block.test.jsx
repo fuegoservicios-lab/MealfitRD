@@ -15,8 +15,9 @@ describe('Plan & Objetivo: estado sin créditos', () => {
         expect(SRC).toContain("t('Sin créditos este mes')");
         expect(SRC).toContain("t('Se renuevan el {fecha}.', { fecha: _fecha })");
         expect(SRC).toContain("timeZone: 'UTC'");
-        expect(SRC).toContain('{planData && isLimitReached ? renderPlanLimitBlock() : (');   // escritorio
-        expect(SRC).toContain('ctaSlot={planData && isLimitReached ? renderPlanLimitBlock() : null}');   // móvil
+        // [P1-PLAN-LOTE-136] …salvo en modo contador con un plan EN PAUSA: ahí el botón reanuda gratis, no hay créditos que pedir
+        expect(SRC).toContain('{planData && isLimitReached && !enModoContador ? renderPlanLimitBlock() : (');   // escritorio
+        expect(SRC).toContain('ctaSlot={planData && isLimitReached && !enModoContador ? renderPlanLimitBlock() : null}');   // móvil
         expect(SRC).not.toContain("t('Límite de plan alcanzado')");
         expect(SRC).not.toContain("t('Actualiza tu suscripción para continuar')");
     });

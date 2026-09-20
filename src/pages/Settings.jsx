@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { nativeHidesCommerce } from '../config/platform';
 import { isTrackingMode } from '../config/dashboardNav';
+import { reanudarPlanes } from '../utils/planModeResume';
 import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, periodLabel, tierDisplayName } from '../config/plans';
 import {
     User, Shield, ChevronRight, ArrowLeft,
@@ -456,7 +457,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             updateData('country', country);
             try { await refreshProfileAndPlan(); } catch { /* best-effort, ver QTrackingFinish */ }
             toast.success(t('País actualizado'), {
-                description: t('Se aplicará a tus próximos planes y bloques.'),
+                // [P1-PLAN-LOTE-136] en modo contador no hay «próximos planes»: el país decide el catálogo del diario
+                description: isTrackingMode(userProfile)
+                    ? t('Se aplicará al catálogo de alimentos de tu diario.')
+                    : t('Se aplicará a tus próximos planes y bloques.'),
             });
         } catch {
             toast.error(t('No se pudo guardar tu país. Inténtalo de nuevo.'));
@@ -545,22 +549,35 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [planModeState, setPlanModeState] = useState(null);
     const [isPlanModeLoading, setIsPlanModeLoading] = useState(false);
 
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
+    // [P1-PLAN-LOTE-136 · 2026-09-20] Si la lectura fallaba, la tarjeta del interruptor NO se pintaba — sin aviso ni
+    // reintento — y es la ÚNICA puerta de vuelta al generador (decisión del lote 98). Ahora reintenta una vez y, si
+    // sigue sin respuesta, lo dice con un botón para volver a probar.
+    const [planModeLoadFailed, setPlanModeLoadFailed] = useState(false);
+    const planModeVivoRef = useRef(true);
+    const cargarPlanMode = useCallback(async () => {
+        setPlanModeLoadFailed(false);
+        for (let intento = 0; intento < 2; intento += 1) {
             try {
                 const res = await fetchWithAuth('/api/profile/plan-mode');
-                if (!res.ok) return;
-                const data = await res.json();
-                if (!cancelled && (data?.plan_mode === 'plan' || data?.plan_mode === 'tracking')) {
-                    setPlanModeState(data.plan_mode);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data?.plan_mode === 'plan' || data?.plan_mode === 'tracking') {
+                        if (planModeVivoRef.current) setPlanModeState(data.plan_mode);
+                        return;
+                    }
                 }
             } catch (e) {
                 console.debug('No se pudo cargar plan_mode:', e);
             }
-        })();
-        return () => { cancelled = true; };
+            if (intento === 0) await new Promise((r) => setTimeout(r, 1200));
+        }
+        if (planModeVivoRef.current) setPlanModeLoadFailed(true);
     }, []);
+    useEffect(() => {
+        planModeVivoRef.current = true;
+        cargarPlanMode();
+        return () => { planModeVivoRef.current = false; };
+    }, [cargarPlanMode]);
 
     // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] Las metas del panel Plan &
     // Objetivo cuando NO hay plan: mismas fuentes que el dashboard del contador
@@ -570,18 +587,25 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // (Escrito en letras a propósito: el ancla del contract test barre este
     // archivo buscando la forma con dígitos.)
     const [trackingTargets, setTrackingTargets] = useState(null);
+    // [P1-PLAN-LOTE-136 · 2026-09-20] «Contador manda» TAMBIÉN aquí. Con un plan EN PAUSA este panel enseñaba las kcal
+    // congeladas del plan mientras el contador —la pantalla que el usuario mira cada día— usaba las de su perfil de hoy:
+    // dos pantallas, dos metas. Y tras «Guardar» (que avisa con `mealfit:targets-changed` y dice «tus metas ya reflejan
+    // los nuevos datos») el panel no volvía a pedirlas. La lectura del modo vive ARRIBA por eso: la usa este efecto.
+    const enModoContador = isTrackingMode(userProfile);
     useEffect(() => {
-        if (planData || isGuest) return undefined;
+        if ((planData && !enModoContador) || isGuest) return undefined;
         let cancelled = false;
-        (async () => {
+        const pedir = async () => {
             try {
                 const r = await fetchWithAuth('/api/nutrition/targets');
                 const d = await r.json().catch(() => null);
                 if (!cancelled && d?.ok) setTrackingTargets(d);
             } catch { /* fail-closed: el panel muestra '—' */ }
-        })();
-        return () => { cancelled = true; };
-    }, [planData, isGuest]);
+        };
+        pedir();
+        window.addEventListener('mealfit:targets-changed', pedir);
+        return () => { cancelled = true; window.removeEventListener('mealfit:targets-changed', pedir); };
+    }, [planData, isGuest, enModoContador]);
 
     const handleTogglePlanMode = async () => {
         if (planModeState === null || isPlanModeLoading) return;
@@ -598,7 +622,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     // contador; el plan no desaparece pero ya no es la pantalla.
                     // El copy anterior («menú, recetas y lista siguen visibles»)
                     // describía el contrato viejo y habría prometido en falso.
-                    description: t('La app pasa a modo contador (macros y diario). Tu plan no se pierde: queda guardado en tu Historial y puedes reanudarlo cuando quieras — retoma exactamente donde quedó.'),
+                    // [P1-PLAN-LOTE-136] …y a quien NUNCA tuvo plan (entró por el wizard como contador, encendió y se
+                    // arrepintió) no se le promete un plan guardado en un Historial vacío.
+                    description: planData
+                        ? t('La app pasa a modo contador (macros y diario). Tu plan no se pierde: queda guardado en tu Historial y puedes reanudarlo cuando quieras — retoma exactamente donde quedó.')
+                        : t('La app pasa a modo contador (macros y diario). Puedes volver a encender la generación cuando quieras.'),
                     confirmLabel: t('Pausar planes'),
                     cancelLabel: t('Volver'),
                 },
@@ -615,6 +643,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             });
             const data = await res.json().catch(() => null);
             if (!res.ok || !data?.success) throw new Error(data?.detail || 'PUT failed');
+            // [P1-PLAN-LOTE-136] El servidor dice en qué modo QUEDÓ. Con el interruptor operativo apagado
+            // (`MEALFIT_PLAN_MODE_SWITCH=false`) contesta éxito sin hacer nada: pintar «Planes en pausa» ahí era decirle
+            // al usuario que frenó una generación que sigue corriendo.
+            const quedo = (data.plan_mode === 'plan' || data.plan_mode === 'tracking') ? data.plan_mode : next;
+            if (quedo !== next) {
+                setPlanModeState(quedo);
+                toast.error(t('Ahora mismo no se puede cambiar la generación de planes. Inténtalo más tarde.'));
+                return;
+            }
             setPlanModeState(next);
             // Espejo local: el wrapper del Dashboard y la nav lo leen sin roundtrip.
             safeLocalStorageSet('mealfit_plan_mode', next);
@@ -635,8 +672,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 updateData('appMode', 'plan');
                 toast.success(t('Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.'));
             } else {
+                // [136] reanudar CON plan también devuelve el wizard a la rama del plan (pausar lo había llevado a la corta)
+                if (!pausing) updateData('appMode', 'plan');
                 toast.success(pausing
-                    ? t('Planes en pausa. La app queda como contador; reanuda cuando quieras.')
+                    ? (planData
+                        ? t('Planes en pausa. La app queda como contador; reanuda cuando quieras.')
+                        : t('Generación apagada. La app queda como contador; enciéndela cuando quieras.'))
                     : (data.plan_expired
                         ? t('Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.')
                         : t('Planes reanudados: la generación continúa donde quedó.')));
@@ -651,6 +692,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             // la única rehidratación completa (plan + polling de chunks + franja).
             if (planData) {
                 setTimeout(() => window.location.reload(), 900);
+            } else {
+                // [P1-PLAN-LOTE-136] SIN plan no hay recarga, y `userProfile.plan_mode` en memoria seguía diciendo el modo
+                // viejo: `isTrackingMode` lee el perfil ANTES que el espejo, así que el botón «Guardar», la navegación y
+                // el dashboard se quedaban en el modo anterior hasta el siguiente foco (apagar dejaba a la vista
+                // «Actualizar Plan con Nuevos Datos», que gasta un crédito con el generador recién apagado).
+                try { await refreshProfileAndPlan(); } catch { /* best-effort: el espejo local ya dice el modo nuevo */ }
             }
         } catch (e) {
             console.error('handleTogglePlanMode error:', e);
@@ -1160,7 +1207,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const _settingsDark = isDarkActive();
     const sectionsConfig = [
         { id: 'profile', label: t('General'), description: t('Cuenta, apariencia y notificaciones'), Icon: Cog, iconBg: _settingsDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', iconColor: _settingsDark ? '#60A5FA' : '#3B82F6' },
-        { id: 'preferences', label: t('Capacidades'), description: t('Modo automático, memoria y datos del agente'), Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
+        { id: 'preferences', label: t('Capacidades'), description: isTrackingMode(userProfile) ? t('Generador de planes, memoria y datos del agente') : t('Modo automático, memoria y datos del agente'), Icon: SlidersHorizontal, iconBg: _settingsDark ? 'rgba(219, 39, 119, 0.18)' : '#FCE7F3', iconColor: _settingsDark ? '#F472B6' : '#DB2777' },
         // [P2-PRIVACY-SETTINGS · 2026-07-04] Privacidad va DEBAJO de Capacidades
         // (a pedido del owner): políticas, memoria y export de datos.
         { id: 'privacy', label: t('Privacidad'), description: t('Tus datos, memoria y políticas'), Icon: ShieldCheck, iconBg: _settingsDark ? 'rgba(20, 184, 166, 0.18)' : '#CCFBF1', iconColor: _settingsDark ? '#2DD4BF' : '#0F766E' },
@@ -1536,7 +1583,6 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // (/api/nutrition/targets lee health_profile) cambian en tiempo real. `mealfit:targets-changed` avisa a la
     // pantalla de progreso para que vuelva a pedir las metas sin recargar (el dueño: «que se pueda configurar en
     // tiempo real ya que no hay generador de planes, y que se vea reflejado en los contadores»).
-    const enModoContador = isTrackingMode(userProfile);
     const handleSaveTracking = async () => {
         if (isSaving || isRegeneratingFromMetrics) return;
         const trimmedName = userName.trim();
@@ -1590,7 +1636,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         if (overrides.gender) updateData('gender', overrides.gender);
 
         const updatePayload = { full_name: trimmedName };
-        const hp = Object.keys(overrides).length ? buildHealthProfilePayload(formData, overrides, session) : null;
+        // [P1-PLAN-LOTE-136] SOLO lo editado. `buildHealthProfilePayload` manda el formulario ENTERO, y el del contador
+        // lleva los 12 campos que la rama corta jamás preguntó (vacíos), `householdSize`, `appMode`…: escribirlos en
+        // `health_profile` rompía la regla de esa rama («los pasos saltados NO se rellenan con nada») y metía una
+        // segunda verdad del modo en el jsonb. Va lo que el SERVIDOR ya tiene (el perfil en memoria) + lo editado: el
+        // PATCH funde clave a clave, y `updateUserProfile` REEMPLAZA `health_profile` en memoria con lo que se le pasa
+        // (mandar solo las cinco claves dejaría el perfil en memoria sin país, alergias ni horario hasta recargar).
+        const hp = Object.keys(overrides).length ? { ...(userProfile?.health_profile || {}), ...overrides } : null;
         if (hp) updatePayload.health_profile = hp;
         const result = await updateUserProfile(updatePayload);
         setIsSaving(false);
@@ -2165,7 +2217,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const _dailyMacros = (() => {
         // [P1-SETTINGS-TRACKING-COHERENCE · 2026-08-12] Sin plan, las metas del
         // contador (targets ya validó ok:true; macros vienen como '123g').
-        if (!planData && trackingTargets?.ok) {
+        if ((!planData || enModoContador) && trackingTargets?.ok) {
             const _g = (s) => Math.round(parseFloat(s) || 0);
             return {
                 protein: _g(trackingTargets.macros?.protein),
@@ -2202,7 +2254,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // Objetivo: plan vigente → sus calorías; modo contador → la meta REAL de
     // targets; y si aún no llegó, null (el render pinta '—', no un 2000
     // genérico — la mentira que este modo existe para no decir).
-    const _goalKcal = planData?.calories
+    const _goalKcal = (planData?.calories && !enModoContador)
         ? Math.round(planData.calories)
         : (trackingTargets?.ok ? Math.round(trackingTargets.calories) : null);
 
@@ -2293,7 +2345,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                         porque el motor traduce cadenas, no árboles JSX: el `<strong>` es
                         marcado y no puede viajar dentro de la clave. */}
                     <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.55, margin: '0 0 1.5rem 0' }}>
-                        {t('Editaste tu peso o altura pero no actualizaste tu plan. Si sales ahora, los nuevos valores se')}{' '}
+                        {enModoContador
+                            ? t('Editaste tu peso o altura pero no guardaste los cambios. Si sales ahora, los nuevos valores se')
+                            : t('Editaste tu peso o altura pero no actualizaste tu plan. Si sales ahora, los nuevos valores se')}{' '}
                         <strong>{t('descartarán')}</strong>.
                     </p>
                     <div className={styles.modalButtons}>
@@ -2457,7 +2511,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 <div className={`${styles.pageHeader} ${activeSection ? styles.pageHeaderInSection : ''}`}>
                     {/* Default (desktop siempre, móvil cuando NO hay sección activa). */}
                     <h1 className={`${styles.pageTitle} ${styles.titleDesktop}`}>{t('Configuración')}</h1>
-                    <p className={`${styles.pageSubtitle} ${styles.subtitleDesktop}`}>{t('Gestiona tu cuenta, plan y preferencias.')}</p>
+                    <p className={`${styles.pageSubtitle} ${styles.subtitleDesktop}`}>{enModoContador ? t('Gestiona tu cuenta, tus metas y preferencias.') : t('Gestiona tu cuenta, plan y preferencias.')}</p>
                     {/* Móvil cuando hay sección activa: refleja la sección.
                         [P3-PLANOBJETIVO-MOBILE · 2026-06-29] 'plan' se excluye: su
                         pantalla inmersiva (PlanObjetivo) ya renderiza su propio título
@@ -3008,7 +3062,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             {t('País')}
                         </h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                            {t('Define tu cocina local y, donde ya está listo, los precios del súper. Aplica a tus próximos planes.')}
+                            {enModoContador
+                                ? t('Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.')
+                                : t('Define tu cocina local y, donde ya está listo, los precios del súper. Aplica a tus próximos planes.')}
                         </p>
 
                         <div
@@ -3226,6 +3282,25 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 Solo se pinta con el estado YA cargado (planModeState
                                 null = fetch en vuelo) y no para invitados: el modo vive
                                 en user_profiles y un invitado no tiene fila. */}
+                            {!isGuest && planModeState === null && planModeLoadFailed && (
+                                <div className={styles.preferenceCard} role="alert" data-plan-mode-error="1">
+                                    <div className={styles.preferenceCardBody}>
+                                        <div className={styles.preferenceCardText}>
+                                            <div className={styles.preferenceCardTitle}>{t('Generación de planes')}</div>
+                                            <div className={styles.preferenceCardDesc}>
+                                                {t('No pudimos leer si está encendida. Revisa tu conexión y vuelve a intentarlo.')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={cargarPlanMode}
+                                        style={{ flexShrink: 0, padding: '0.5rem 0.9rem', borderRadius: '0.65rem', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
+                                    >
+                                        {t('Reintentar')}
+                                    </button>
+                                </div>
+                            )}
                             {!isGuest && planModeState !== null && (
                                 <div
                                     className={`${styles.preferenceCard} ${styles.preferenceCardGreen} ${planModeState === 'plan' ? styles.preferenceCardActive : ''}`}
@@ -3247,7 +3322,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             <div className={styles.preferenceCardDesc}>
                                                 {planModeState === 'plan'
                                                     ? t('Encendida. La IA genera tu menú, recetas y lista de compras.')
-                                                    : t('En pausa. La app funciona como contador; tu plan y tus datos se conservan.')}
+                                                    : (planData
+                                                        ? t('En pausa. La app funciona como contador; tu plan y tus datos se conservan.')
+                                                        : t('Apagada. La app funciona como contador; enciéndela cuando quieras que la IA te arme un plan.'))}
                                             </div>
                                         </div>
                                     </div>
@@ -3268,6 +3345,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 Refactor inline-styles → CSS module con
                                 clases compartidas. Card 1: Modo automático
                                 (naranja, visible para todos los tiers). */}
+                            {/* [P1-PLAN-LOTE-136 · 2026-09-20] Solo con el generador ENCENDIDO. `logging_preference` lo lee
+                                únicamente el worker de bloques del plan (¿pausar la generación si dejas de registrar?),
+                                que en modo contador está apagado: aquí el interruptor no hacía nada y su texto hablaba
+                                de «no pausar tu plan» a quien no tiene plan o lo pausó él mismo. */}
+                            {!enModoContador && (
                             <div
                                 className={`${styles.preferenceCard} ${styles.preferenceCardOrange} ${loggingPreference === 'auto_proxy' ? styles.preferenceCardActive : ''}`}
                             >
@@ -3295,6 +3377,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <span className={styles.toggleSlider} style={{ opacity: isLoggingPrefLoading ? 0.5 : 1 }}></span>
                                 </label>
                             </div>
+                            )}
 
                             {/* [P3-HIDRATACION-MOVED-OUT · 2026-05-27] Card de
                                 Hidratación movida fuera de esta sección — ya
@@ -4025,9 +4108,13 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     topBar={false}
                                     backButton={false}
                                     goal={_goalMeta.label}
-                                    kcal={_goalKcal || 0}
-                                    macros={_dailyMacros}
+                                    kcal={_goalKcal}
+                                    macros={_goalKcal === null ? null : _dailyMacros}
                                     onEvaluate={() => {
+                                        // [P1-PLAN-LOTE-136] En modo contador con un plan EN PAUSA el botón no vende
+                                        // «Evaluar de nuevo» (1 crédito): reanuda lo que ya es suyo, gratis.
+                                        if (enModoContador && planData) { reanudarPlanes(); return; }
+                                        if (enModoContador) updateData('appMode', 'tracking');   // la puerta declara su rama
                                         // [P1-SETTINGS-TRACKING-COHERENCE] Sin plan no hay
                                         // nada que «renovar»: el CTA actualiza tus datos
                                         // (wizard, paso 1) y las metas salen recalculadas.
@@ -4035,8 +4122,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         if (!isLimitReached) setShowEvaluateModal(true);
                                     }}
                                     evaluateDisabled={false}
-                                    evaluateLabel={!planData ? t('Actualizar mis datos') : t('Evaluar de nuevo')}
-                                    ctaSlot={planData && isLimitReached ? renderPlanLimitBlock() : null}
+                                    evaluateLabel={!planData ? t('Actualizar mis datos') : (enModoContador ? t('Reanudar el plan') : t('Evaluar de nuevo'))}
+                                    ctaSlot={planData && isLimitReached && !enModoContador ? renderPlanLimitBlock() : null}
                                 />
                             </div>
 
@@ -4079,16 +4166,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 {/* CTA — [P1-SETTINGS-TRACKING-COHERENCE] sin plan, el botón
                                     actualiza tus datos (no hay plan que renovar ni crédito que
                                     gastar: el límite de planes no aplica aquí). */}
-                                {planData && isLimitReached ? renderPlanLimitBlock() : (
+                                {planData && isLimitReached && !enModoContador ? renderPlanLimitBlock() : (
                                     <button
                                         type="button"
                                         onClick={() => {
+                                            if (enModoContador && planData) { reanudarPlanes(); return; }   // [136] gratis
+                                            if (enModoContador) updateData('appMode', 'tracking');
                                             if (!planData) { setCurrentStep(1); navigate('/assessment'); return; }
                                             setShowEvaluateModal(true);
                                         }}
                                         className="plan-goal-cta"
                                     >
-                                        {!planData ? t('Actualizar mis datos') : t('Evaluar de Nuevo')}
+                                        {!planData ? t('Actualizar mis datos') : (enModoContador ? t('Reanudar el plan') : t('Evaluar de Nuevo'))}
                                         <ArrowRight size={19} strokeWidth={2.25} className="plan-goal-arrow" />
                                     </button>
                                 )}

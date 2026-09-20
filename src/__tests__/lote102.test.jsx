@@ -43,7 +43,8 @@ describe('modo contador: peso y altura en tiempo real', () => {
         expect(h).not.toContain('regeneratePlan(');
         expect(h).not.toContain('getFreshPlanCount(');
         expect(h).toContain("window.dispatchEvent(new Event('mealfit:targets-changed'));");
-        expect(h).toContain('buildHealthProfilePayload(formData, overrides, session)');
+        // [P1-PLAN-LOTE-136] ya no manda el formulario ENTERO (campos nunca preguntados, appMode): perfil del servidor + lo editado
+        expect(h).toContain('{ ...(userProfile?.health_profile || {}), ...overrides }');
         // el aviso de «debes regenerar el plan» no aplica sin plan, y el botón es «Guardar»
         expect(s).toContain('{bodyMetricsChanged && !enModoContador && (');
         expect(s).toContain('{enModoContador ? (');

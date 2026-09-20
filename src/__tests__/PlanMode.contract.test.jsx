@@ -204,7 +204,10 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         // la confirmación vive dentro de la rama `pausing` (reanudar no confirma)
         const h = s.indexOf('const handleTogglePlanMode');
         expect(h).toBeGreaterThan(-1);
-        const cuerpo = s.slice(h, h + 3000);
+        // [P1-PLAN-LOTE-136] Ventana SEMÁNTICA (hasta la siguiente declaración top-level), como su test hermano de abajo:
+        // la de 3000 caracteres se desbordó en cuanto la función ganó comentarios legítimos (el espejo quedó fuera).
+        const fin = s.indexOf('\n    const ', h + 10);
+        const cuerpo = s.slice(h, fin > h ? fin : h + 8000);
         expect(cuerpo).toContain("const pausing = planModeState === 'plan';");
         expect(cuerpo).toMatch(/if \(pausing\) \{[\s\S]{0,400}confirmToast\(/);
         // espejo localStorage tras el PUT (wrapper de la casa, no raw)

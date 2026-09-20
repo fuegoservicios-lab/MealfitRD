@@ -3223,5 +3223,15 @@
   "No se pudieron activar las alertas": "Couldn't turn on alerts",
   "Pausamos la hidratación": "We paused hydration",
   "Llevabas 2 días sin anotar agua. Puedes volver a encenderla en Configuración → Capacidades.": "You went 2 days without logging water. You can turn it back on in Settings → Capabilities.",
-  "Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.": "Shown on your Dashboard. With alerts on we remind you to drink water; after 2 days without logging glasses, we turn it off for you."
+  "Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.": "Shown on your Dashboard. With alerts on we remind you to drink water; after 2 days without logging glasses, we turn it off for you.",
+  "La app pasa a modo contador (macros y diario). Puedes volver a encender la generación cuando quieras.": "The app switches to counter mode (macros and diary). You can turn plan generation back on whenever you like.",
+  "Ahora mismo no se puede cambiar la generación de planes. Inténtalo más tarde.": "Plan generation can't be changed right now. Please try again later.",
+  "Generación apagada. La app queda como contador; enciéndela cuando quieras.": "Generation off. The app stays as a counter; turn it on whenever you like.",
+  "Editaste tu peso o altura pero no guardaste los cambios. Si sales ahora, los nuevos valores se": "You edited your weight or height but didn't save the changes. If you leave now, the new values will be",
+  "Apagada. La app funciona como contador; enciéndela cuando quieras que la IA te arme un plan.": "Off. The app works as a counter; turn it on whenever you want the AI to build you a plan.",
+  "No pudimos leer si está encendida. Revisa tu conexión y vuelve a intentarlo.": "We couldn't check whether it's on. Check your connection and try again.",
+  "Se aplicará al catálogo de alimentos de tu diario.": "It will apply to the food catalog of your diary.",
+  "Generador de planes, memoria y datos del agente": "Plan generator, memory and agent data",
+  "Gestiona tu cuenta, tus metas y preferencias.": "Manage your account, goals and preferences.",
+  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Sets the food catalog of your diary and, if you turn plans on, your local cuisine."
 }

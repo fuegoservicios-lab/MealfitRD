@@ -85,7 +85,9 @@ export default function PlanObjetivo({
                 {/* [P1-I18N-DASHBOARD · 2026-08-15] `formatNumber` sigue al idioma
                     activo; el `'es-DO'` clavado dejaba el separador español en una
                     pantalla en inglés, donde ese punto se lee como decimal. */}
-                {formatNumber(Number(kcal || 0))}
+                {/* [P1-PLAN-LOTE-136] sin metas todavía (cargando, o `ok:false`) va «—», como en el escritorio: «0 kcal»
+                    se lee como una meta real de cero. */}
+                {kcal == null ? '—' : formatNumber(Number(kcal))}
                 <span className={styles.kcalUnit}>kcal</span>
             </div>
             <div className={styles.kcalCaption}>{t('Calorías diarias objetivo')}</div>
@@ -109,7 +111,7 @@ export default function PlanObjetivo({
                             <span className={styles.macroDot} style={{ background: m.color }} />
                             <span className={styles.macroColLabel}>{m.label}</span>
                         </div>
-                        <div className={styles.macroColValue}>{grams[m.key]}g</div>
+                        <div className={styles.macroColValue}>{macros == null ? '—' : `${grams[m.key]}g`}</div>
                     </div>
                 ))}
             </div>

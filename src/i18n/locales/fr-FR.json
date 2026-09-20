@@ -3223,5 +3223,15 @@
   "No se pudieron activar las alertas": "Impossible d'activer les alertes",
   "Pausamos la hidratación": "Hydratation en pause",
   "Llevabas 2 días sin anotar agua. Puedes volver a encenderla en Configuración → Capacidades.": "Tu es resté 2 jours sans noter d'eau. Tu peux la réactiver dans Réglages → Capacités.",
-  "Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.": "Visible sur ton Dashboard. Avec les alertes activées, on te rappelle de boire de l'eau ; après 2 jours sans noter de verres, on la désactive pour toi."
+  "Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.": "Visible sur ton Dashboard. Avec les alertes activées, on te rappelle de boire de l'eau ; après 2 jours sans noter de verres, on la désactive pour toi.",
+  "La app pasa a modo contador (macros y diario). Puedes volver a encender la generación cuando quieras.": "L'app passe en mode compteur (macros et journal). Tu peux réactiver la génération quand tu veux.",
+  "Ahora mismo no se puede cambiar la generación de planes. Inténtalo más tarde.": "Impossible de modifier la génération de plans pour le moment. Réessaie plus tard.",
+  "Generación apagada. La app queda como contador; enciéndela cuando quieras.": "Génération désactivée. L'app reste un compteur ; réactive-la quand tu veux.",
+  "Editaste tu peso o altura pero no guardaste los cambios. Si sales ahora, los nuevos valores se": "Tu as modifié ton poids ou ta taille sans enregistrer. Si tu quittes maintenant, les nouvelles valeurs seront",
+  "Apagada. La app funciona como contador; enciéndela cuando quieras que la IA te arme un plan.": "Désactivée. L'app fonctionne comme un compteur ; active-la quand tu veux que l'IA te prépare un plan.",
+  "No pudimos leer si está encendida. Revisa tu conexión y vuelve a intentarlo.": "Impossible de vérifier si elle est activée. Vérifie ta connexion et réessaie.",
+  "Se aplicará al catálogo de alimentos de tu diario.": "Cela s'appliquera au catalogue d'aliments de ton journal.",
+  "Generador de planes, memoria y datos del agente": "Générateur de plans, mémoire et données de l'agent",
+  "Gestiona tu cuenta, tus metas y preferencias.": "Gère ton compte, tes objectifs et tes préférences.",
+  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Définit le catalogue d'aliments de ton journal et, si tu actives les plans, ta cuisine locale."
 }
