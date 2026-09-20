@@ -3189,13 +3189,6 @@ const AgentPage = () => {
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
         // [P1-PLAN-LOTE-112] `/sonda` en la app nativa enciende/apaga la sonda del teclado (utils/keyboardProbe.js).
         // No es un mensaje: no abre turno ni llega al servidor. Fuera de la app nativa es texto normal.
-        // [P1-PLAN-LOTE-131] `/fluido` enciende/apaga la coreografía del teclado solo con `transform` (modo de prueba).
-        if (isNativeApp() && textToSend.trim().toLowerCase() === '/fluido') {
-            const encendida = alternarCoreografia();
-            setInput('');
-            toast.info(encendida ? t('Animación fluida del teclado encendida') : t('Animación fluida del teclado apagada'));
-            return;
-        }
         if (isNativeApp() && textToSend.trim().toLowerCase() === '/sonda') {
             const encendida = alternarSondaTecladoNativa();
             setInput('');
@@ -3216,6 +3209,16 @@ const AgentPage = () => {
             ? options.overrideAttachments
             : (options.overrideImageUrl ? [{ id: `legacy-${Date.now()}`, url: options.overrideImageUrl, status: 'ready' }] : []);
         if ((!textToSend.trim() && attachments.length === 0 && overrideAttachments.length === 0) || isTurnActiveRef.current) return;
+
+        // [P1-PLAN-LOTE-131] `/fluido` enciende/apaga la coreografía del teclado solo con `transform` (modo de prueba). No es
+        // un mensaje: no abre turno ni llega al servidor. Va DESPUÉS del guard de arriba a propósito: un contrato
+        // (test_p1_chat_stop_power) exige ese guard en los primeros 1.800 caracteres de handleSend.
+        if (isNativeApp() && textToSend.trim().toLowerCase() === '/fluido') {
+            const encendida = alternarCoreografia();
+            setInput('');
+            toast.info(encendida ? t('Animación fluida del teclado encendida') : t('Animación fluida del teclado apagada'));
+            return;
+        }
 
         // El lock nace antes de esperar la preparación: dos taps mientras un HEIC se
         // decodifica no pueden abrir dos turnos con snapshots distintos.
