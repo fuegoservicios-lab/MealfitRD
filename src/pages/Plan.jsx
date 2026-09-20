@@ -1658,6 +1658,11 @@ const Plan = () => {
                             });
                         });
                         if (!nativeHidesCommerce()) navigate('/dashboard/upgrade', { replace: true });
+                        // [P1-PLAN-LOTE-137 · 2026-09-20] En la app nativa no hay a dónde vender, pero quedarse aquí
+                        // tampoco: `status` ya es 'generating' y la pantalla seguía «Diseñando tu plan» sin nada
+                        // generándose, hasta que el usuario pulsara Cancelar (⇒ formulario). Al panel: su contador o
+                        // su plan, con el aviso de créditos encima.
+                        else navigate('/dashboard', { replace: true });
                         return;
                     }
                     // [P3-ERROR-REDIRECT-ASSESSMENT · 2026-05-16] SSE + endpoint
