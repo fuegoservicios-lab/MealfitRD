@@ -82,6 +82,9 @@ import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMo
 import { decidirAlAlejarseDelFondo } from '../utils/chatScrollIntent';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
+// [P1-PLAN-LOTE-138] Lo que tarda iOS en reponer el teclado al volver del selector (medido: 0,40 s) más el relevo y
+// la medición de asiento. Hasta entonces la foto no se reduce ni se recodifica: el hilo principal es del teclado.
+const ESPERA_PREPARAR_FOTO_MS = 650;
 // [P1-PLAN-LOTE-129] La duración REAL de la animación del teclado, tal como la dio UIKit la última vez (ms).
 const CLAVE_MS_NATIVO = 'mf_kb_ms_nativo';
 // [P1-PLAN-LOTE-127] Cuando se mira si iOS escondio el teclado al encender el microfono (ms desde que empieza a escuchar).
@@ -112,7 +115,7 @@ import { t, useT, formatDate } from '../i18n';
 import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
-import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
+import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
 import { nativeHidesCommerce } from '../config/platform';
 
@@ -915,10 +918,13 @@ const AgentPage = () => {
         //            fuera transform en el mismo fotograma;
         //   cerrar = layout final de golpe + `transform` que lo deshace a la vista → el transform baja a 0.
         // Mientras `coreo.fase` no es null, `updateInputPosition` no escribe. Cada paso deja marca en la sonda.
-        const coreo = { fase: null, timer: null, piezas: [], destino: 0, medirLuego: false };
+        const coreo = { fase: null, timer: null, piezas: [], destino: 0, medirLuego: false, willChangePrevio: new WeakMap() };
         let msVigente = 0;
         const moverPiezas = (y, ms) => {
             for (const el of coreo.piezas) {
+                // [138] se recuerda el `will-change` que traía: la caja ya viene promovida a capa por React, y soltarla
+                // al acabar obligaba a crear (y pintar) la capa otra vez en el primer fotograma de la apertura siguiente
+                if (!coreo.willChangePrevio.has(el)) coreo.willChangePrevio.set(el, el.style.willChange || '');
                 el.style.willChange = 'transform';
                 // con PRIORIDAD: la hoja de estilos le pone a la caja `transition: padding-bottom … !important`, y un
                 // inline normal pierde contra eso (medido en el arnés: la caja saltaba 266 px en vez de animar)
@@ -927,7 +933,11 @@ const AgentPage = () => {
             }
         };
         const soltarPiezas = () => {
-            for (const el of coreo.piezas) { el.style.removeProperty('transition'); el.style.transform = ''; el.style.willChange = ''; }
+            for (const el of coreo.piezas) {
+                el.style.removeProperty('transition');
+                el.style.transform = '';
+                el.style.willChange = coreo.willChangePrevio.get(el) || '';
+            }
             coreo.piezas = [];
         };
         // El alto del contenedor lo anima React (`transition: height …` en su style). Para cambiarlo de golpe se apaga
@@ -969,7 +979,12 @@ const AgentPage = () => {
             root.toggleAttribute('data-kb-scroll-lock', true);
             soltarPiezas();
             void contenedor.offsetHeight;                      // el layout final, YA
-            if (acompana && lista) lista.scrollTop = lista.scrollHeight;   // la ventana encogió por abajo: el final sigue a la vista
+            // la ventana encogió por abajo: el final sigue a la vista. [138] Con `behavior: 'instant'`: la lista lleva
+            // `scroll-behavior: smooth`, y ahí asignar `scrollTop` NO es inmediato (medido en el arnés: 3958 → 3958) — el
+            // contenido bajaba 266 px de golpe al soltar el transform y volvía deslizándose: un glitch al final de CADA apertura.
+            if (acompana && lista) {
+                try { lista.scrollTo({ top: lista.scrollHeight, behavior: 'instant' }); } catch { lista.scrollTop = lista.scrollHeight; }
+            }
             marcarSondaTeclado('relevo');
             // el estado se cierra EN EL ACTO (un cierre que llegue ya encuentra el layout abierto y fase null); al
             // fotograma siguiente solo se devuelve la transición del alto, cuando el cambio ya está pintado
@@ -1002,10 +1017,12 @@ const AgentPage = () => {
             coreo.fase = 'abriendo';
             coreo.destino = inset;
             root.setAttribute('data-kb-abriendo', '');          // la barra de pestañas se va YA (también es transform)
-            moverPiezas(-recorrido, msVigente);
+            // [138] al abrir el chat llega un poco ANTES que el teclado (ver `duracionDeApertura`): tapado nunca
+            const msApertura = duracionDeApertura(msVigente);
+            moverPiezas(-recorrido, msApertura);
             marcarSondaTeclado('coreo+');
             if (coreo.timer) clearTimeout(coreo.timer);
-            coreo.timer = setTimeout(() => relevoDeApertura(contenedor, lista, coreo.acompana), msVigente + RELEVO_MARGEN_MS);
+            coreo.timer = setTimeout(() => relevoDeApertura(contenedor, lista, coreo.acompana), msApertura + RELEVO_MARGEN_MS);
             return true;
         };
 
@@ -1185,7 +1202,18 @@ const AgentPage = () => {
                 if (tecladoAbiertoRef.current || insetAplicadoRef.current > 0) alPerderElFoco({ relatedTarget: null });
                 return;
             }
-            if (String(aviso.inset) !== safeLocalStorageGet(CLAVE_INSET_NATIVO, null)) safeLocalStorageSet(CLAVE_INSET_NATIVO, String(aviso.inset));
+            // [P1-PLAN-LOTE-138] Una apertura, UNA animación. Al volver del selector iOS anuncia 308 y, 124 ms después, 335
+            // (medido): obedecer los dos re-apuntaba un transform que ya corre en el compositor. `insetDeApertura` decide
+            // qué alto vale (el firme recordado si el anuncio se le parece; ver sus casos), y el de paso NO se recuerda.
+            const anunciado = aviso.inset;
+            aviso.inset = insetDeApertura({
+                anunciado,
+                recordado: Number(safeLocalStorageGet(CLAVE_INSET_NATIVO, 0)) || 0,
+                vigente: insetAplicadoRef.current,
+                abierto: tecladoAbiertoRef.current,
+                enApertura: abriendoRef.current || coreo.fase === 'abriendo',
+            });
+            if (aviso.inset === anunciado && String(anunciado) !== safeLocalStorageGet(CLAVE_INSET_NATIVO, null)) safeLocalStorageSet(CLAVE_INSET_NATIVO, String(anunciado));
             if (tecladoAbiertoRef.current && insetAplicadoRef.current === aviso.inset) return;   // ya lo había colocado el foco
             anticiparApertura(aviso.inset);
         };
@@ -1663,6 +1691,11 @@ const AgentPage = () => {
         triggerMobileHaptic('error');
         toast.error(copy);
     }, [t]);
+    // [P1-PLAN-LOTE-138] Miniaturas que el navegador no supo pintar desde `previewUrl`: vuelven al hueco con icono.
+    const [previewsRotas, setPreviewsRotas] = useState(() => new Set());
+    const marcarPreviewRota = useCallback((id) => {
+        setPreviewsRotas((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    }, []);
     const {
         attachments,
         addFiles,
@@ -2088,7 +2121,8 @@ const AgentPage = () => {
             const files = source === 'camera'
                 ? await takeNativeChatPhoto()
                 : await chooseNativeChatImages(remaining);
-            if (files?.length) addFiles(files);
+            // [P1-PLAN-LOTE-138] con teclado que reponer, la preparación de la foto espera a que acabe de subir
+            if (files?.length) addFiles(files, { prepararTrasMs: reopenKeyboardAfterAttachmentRef.current ? ESPERA_PREPARAR_FOTO_MS : 0 });
         } catch (error) {
             if (!isNativePickerCancellation(error)) {
                 _captureAgentPageException(error, { action: `native_${source}_picker` });
@@ -3214,7 +3248,8 @@ const AgentPage = () => {
             : (options.overrideImageUrl ? [{ id: `legacy-${Date.now()}`, url: options.overrideImageUrl, status: 'ready' }] : []);
         if ((!textToSend.trim() && attachments.length === 0 && overrideAttachments.length === 0) || isTurnActiveRef.current) return;
 
-        // [P1-PLAN-LOTE-131] `/fluido` enciende/apaga la coreografía del teclado solo con `transform` (modo de prueba). No es
+        // [P1-PLAN-LOTE-131 → 138] `/fluido` apaga/enciende la coreografía del teclado solo con `transform` (desde el 138
+        // viene ENCENDIDA: es el interruptor de vuelta al modo anterior, para comparar en el teléfono). No es
         // un mensaje: no abre turno ni llega al servidor. Va DESPUÉS del guard de arriba a propósito: un contrato
         // (test_p1_chat_stop_power) exige ese guard en los primeros 1.800 caracteres de handleSend.
         if (isNativeApp() && textToSend.trim().toLowerCase() === '/fluido') {
@@ -4489,10 +4524,15 @@ const AgentPage = () => {
                         >
                             {attachments.map((item, index) => (
                                 <div className={`attachment-preview ${item.status}`} role="listitem" key={item.id}>
-                                    {item.status === 'ready' ? (
+                                    {/* [P1-PLAN-LOTE-138] La foto se VE en cuanto se elige (`previewUrl`, decodificada fuera del
+                                        hilo principal); antes salía un hueco con un icono hasta que acababa la preparación. Si el
+                                        navegador no sabe pintarla (un HEIC en escritorio), vuelve el hueco. */}
+                                    {item.status !== 'error' && (item.thumbDataUrl || (item.previewUrl && !previewsRotas.has(item.id))) ? (
                                         <img
                                             src={item.thumbDataUrl || item.previewUrl}
                                             alt={t('Imagen adjunta {number}', { number: index + 1 })}
+                                            decoding={item.thumbDataUrl ? 'sync' : 'async'}
+                                            onError={() => marcarPreviewRota(item.id)}
                                         />
                                     ) : (
                                         <div className="attachment-placeholder" aria-hidden="true"><ImageIcon size={22} /></div>
@@ -5150,7 +5190,7 @@ const AgentPage = () => {
                     background: var(--bg-muted);
                     color: var(--text-muted);
                 }
-                .attachment-preview.preparing > img { opacity: 0.55; }
+                .attachment-preview.preparing > img { opacity: 0.78; }
                 .attachment-spinner,
                 .attachment-error {
                     position: absolute;

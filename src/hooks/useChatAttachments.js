@@ -45,6 +45,7 @@ export function useChatAttachments({ onReject, concurrency = 2 } = {}) {
     const jobsRef = useRef([]);
     const activeJobsRef = useRef(0);
     const mountedRef = useRef(true);
+    const pumpTimerRef = useRef(null);
 
     useEffect(() => { itemsRef.current = state.items; }, [state.items]);
 
@@ -70,7 +71,21 @@ export function useChatAttachments({ onReject, concurrency = 2 } = {}) {
         }
     }, [concurrency]);
 
-    const addFiles = useCallback((inputFiles) => {
+    // [P1-PLAN-LOTE-138 · 2026-09-20] La preparación (reducir a 1.600 px + recodificar a JPEG) corre en el hilo
+    // principal. En la app nativa, al volver del selector de fotos, caía JUSTO mientras iOS repone el teclado: la sonda
+    // del dueño midió el chat clavado 80 ms a mitad de la subida. `prepararTrasMs` la aplaza; la miniatura no espera
+    // (se pinta desde `previewUrl`) y ENVIAR tampoco (`waitUntilSettled` adelanta la tanda).
+    const programarPump = useCallback((ms) => {
+        if (!(ms > 0)) {
+            if (pumpTimerRef.current) { clearTimeout(pumpTimerRef.current); pumpTimerRef.current = null; }
+            pump();
+            return;
+        }
+        if (pumpTimerRef.current) return;   // ya hay una tanda esperando: esta entra en la misma
+        pumpTimerRef.current = setTimeout(() => { pumpTimerRef.current = null; pump(); }, ms);
+    }, [pump]);
+
+    const addFiles = useCallback((inputFiles, { prepararTrasMs = 0 } = {}) => {
         const files = Array.from(inputFiles || []);
         const existing = itemsRef.current;
         const freeSlots = Math.max(0, CHAT_IMAGE_MAX_COUNT - existing.length);
@@ -109,10 +124,10 @@ export function useChatAttachments({ onReject, concurrency = 2 } = {}) {
         if (accepted.length) {
             itemsRef.current = [...existing, ...accepted].slice(0, CHAT_IMAGE_MAX_COUNT);
             dispatch({ type: 'add', items: accepted });
-            pump();
+            programarPump(prepararTrasMs);
         }
         return accepted.map((item) => item.id);
-    }, [onReject, pump]);
+    }, [onReject, programarPump]);
 
     const restorePreparedFiles = useCallback((inputFiles) => {
         const existing = itemsRef.current;
@@ -164,6 +179,7 @@ export function useChatAttachments({ onReject, concurrency = 2 } = {}) {
     }, []);
 
     const waitUntilSettled = useCallback(async () => {
+        programarPump(0);   // [138] quien espera (ENVIAR) no aguarda el aplazamiento
         while (mountedRef.current && itemsRef.current.some((item) => item.status === 'preparing')) {
             await new Promise((resolve) => setTimeout(resolve, 30));
         }
@@ -175,13 +191,14 @@ export function useChatAttachments({ onReject, concurrency = 2 } = {}) {
             throw error;
         }
         return snapshot.filter((item) => item.status === 'ready');
-    }, []);
+    }, [programarPump]);
 
     useEffect(() => {
         mountedRef.current = true;
         const controllers = controllersRef.current;
         return () => {
             mountedRef.current = false;
+            if (pumpTimerRef.current) { clearTimeout(pumpTimerRef.current); pumpTimerRef.current = null; }
             controllers.forEach((controller) => controller.abort());
             itemsRef.current.forEach((item) => {
                 if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);

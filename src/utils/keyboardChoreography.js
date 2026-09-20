@@ -13,7 +13,8 @@
 //   · CERRAR: layout primero (el final, de golpe) + transform que lo deshace visualmente → y el transform baja a 0.
 //
 // Aquí vive lo que se puede probar sin navegador: cuánto hay que desplazar y cuándo la lista acompaña a la caja.
-// El baile imperativo está en `pages/AgentPage.jsx` (efecto del teclado). Es un modo de PRUEBA: se enciende con `/fluido`.
+// El baile imperativo está en `pages/AgentPage.jsx` (efecto del teclado). Nació como modo de PRUEBA (lote 131, `/fluido`);
+// desde el lote 138 es el modo por defecto de la app nativa y `/fluido` lo apaga.
 import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from './safeLocalStorage';
 
 export const CLAVE_COREOGRAFIA = 'mf_kb_coreografia';
@@ -25,17 +26,58 @@ export const KB_PAD_ABIERTO_REM = 1.1;
 /** Margen tras la animación antes del relevo: un par de fotogramas, para no cortar la cola de la curva. */
 export const RELEVO_MARGEN_MS = 34;
 
+// [P1-PLAN-LOTE-138 · 2026-09-20] ENCENDIDA POR DEFECTO. El dueño, con la sonda puesta y el modo de prueba apagado: «aún
+// no lo siento 100 % fluido y rápido… en la app de Gemini se siente muy pero muy fluido». Su captura MIDE el porqué:
+//   · al volver del selector, el alto del chat se quedó clavado en 597 px durante 80 ms (+5015 → +5095) — justo cuando
+//     el hilo principal reduce y recodifica la foto — y acabó 70 ms después que el teclado;
+//   · al abrir, +185 ms después del toque el alto seguía en 844: ni un fotograma pintado.
+// Animar `height` necesita al hilo principal en CADA fotograma (y el WebView lo pinta a 60 Hz; el teclado del iPhone
+// del dueño, ProMotion, va a 120). Un `transform` se le entrega UNA vez al compositor y corre allí, a la cadencia de la
+// pantalla, pase lo que pase en el hilo principal. `/fluido` queda como interruptor de VUELTA (guarda '0').
 export function coreografiaEncendida() {
-    return safeLocalStorageGet(CLAVE_COREOGRAFIA, null) === '1';
+    return safeLocalStorageGet(CLAVE_COREOGRAFIA, null) !== '0';
 }
 
 export function alternarCoreografia() {
     if (coreografiaEncendida()) {
-        safeLocalStorageRemove(CLAVE_COREOGRAFIA);
+        safeLocalStorageSet(CLAVE_COREOGRAFIA, '0');
         return false;
     }
-    safeLocalStorageSet(CLAVE_COREOGRAFIA, '1');
+    safeLocalStorageRemove(CLAVE_COREOGRAFIA);
     return true;
+}
+
+/**
+ * [P1-PLAN-LOTE-138] Al ABRIR, el chat llega un poco ANTES que el teclado. La curva del teclado de iOS es privada y la
+ * web solo puede aproximarla: si el chat va por detrás, el teclado TAPA la caja de escribir (se ve como retraso); si va
+ * por delante, entre los dos asoma un instante el fondo del propio chat (no se ve). Ante la duda, por delante. Al
+ * CERRAR es al revés —bajar antes que el teclado mete la caja detrás de él—, así que el cierre usa la duración entera.
+ */
+export const COREO_ADELANTO = 0.85;
+export const COREO_MS_MIN = 140;
+export function duracionDeApertura(msTeclado = 0) {
+    const ms = Number(msTeclado) || 0;
+    if (ms <= 0) return 0;
+    return Math.max(COREO_MS_MIN, Math.round(ms * COREO_ADELANTO));
+}
+
+/**
+ * [P1-PLAN-LOTE-138] Qué alto usar cuando UIKit anuncia que el teclado sube. MEDIDO al volver del selector de fotos:
+ *     N+308·383 → N-0·0 → N+335·400      (tres avisos en 124 ms; el alto firme es 335)
+ * El 308 es un teclado de paso (sin la barra de sugerencias). Obedecerlo y corregir 124 ms después RE-APUNTA una
+ * animación que ya está en el compositor: la nueva arranca desde donde el hilo principal CREE que va la vieja, y si
+ * entre medias hubo un atasco (los 80 ms medidos) la caja retrocede un tramo y vuelve a subir. Una apertura, UNA animación:
+ *   · cerrado → si el anuncio se parece al alto firme recordado, vale el recordado;
+ *   · apertura en vuelo → un anuncio parecido al destino NO re-apunta (la medición de asiento ajusta lo que falte);
+ *   · abierto y quieto (cambio al teclado de emojis) → manda el anuncio.
+ */
+export const KB_ANUNCIO_PARECIDO_PX = 60;
+export function insetDeApertura({ anunciado = 0, recordado = 0, vigente = 0, abierto = false, enApertura = false } = {}) {
+    const a = Math.max(0, Math.round(Number(anunciado) || 0));
+    const parecido = (b) => Number(b) > 0 && Math.abs(a - Number(b)) <= KB_ANUNCIO_PARECIDO_PX;
+    if (abierto && enApertura) return parecido(vigente) ? Math.round(Number(vigente)) : a;
+    if (!abierto && parecido(recordado)) return Math.round(Number(recordado));
+    return a;
 }
 
 /**

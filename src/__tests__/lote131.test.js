@@ -19,11 +19,11 @@ const ap = leer('src/pages/AgentPage.jsx');
 describe('lote 131 · las piezas puras', () => {
     beforeEach(() => localStorage.removeItem(CLAVE_COREOGRAFIA));
 
-    it('es un modo de PRUEBA: apagado por defecto, y `/fluido` lo alterna', () => {
-        expect(coreografiaEncendida()).toBe(false);
-        expect(alternarCoreografia()).toBe(true);
+    it('nació como modo de PRUEBA apagado; desde el lote 138 viene ENCENDIDO y `/fluido` lo alterna', () => {
         expect(coreografiaEncendida()).toBe(true);
         expect(alternarCoreografia()).toBe(false);
+        expect(coreografiaEncendida()).toBe(false);
+        expect(alternarCoreografia()).toBe(true);
         expect(localStorage.getItem(CLAVE_COREOGRAFIA)).toBeNull();
     });
 
