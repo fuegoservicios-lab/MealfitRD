@@ -27,7 +27,8 @@ describe('lote 128 · sin barra de accesorios sobre el teclado en la app nativa'
     it('el binario retransmite keyboardWillShow/Hide a la web, AÑADIENDO observadores (sin retirar los de WebKit)', () => {
         expect(escena).toContain('UIResponder.keyboardWillShowNotification');
         expect(escena).toContain('UIResponder.keyboardWillHideNotification');
-        expect(escena).toContain("new CustomEvent('mf:teclado-nativo',{detail:{tipo:'\\(tipo)',alto:\\(alto),ms:\\(ms)}})");
+        // [P1-PLAN-LOTE-140] el aviso ganó campos DETRÁS (`cubierto`, `id`, `motivo`); los tres de siempre siguen y en su orden
+        expect(escena).toContain("new CustomEvent('mf:teclado-nativo',{detail:{tipo:'\\(tipo)',alto:\\(alto),ms:\\(ms),cubierto:");
         expect(escena).not.toContain('removeObserver');
         const sonda = leer('src/utils/keyboardProbe.js');
         expect(sonda).toContain("export const EVENTO_TECLADO_NATIVO = 'mf:teclado-nativo';");
