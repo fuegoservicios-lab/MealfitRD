@@ -814,7 +814,7 @@ const Plan = () => {
         // generar; bloquear nueva generación si ya no quedan.
         isGuest, consumeGuestCredit, remainingCredits,
         // [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Ver los dos call sites de `ack` abajo.
-        updateData, hydrateLatestPlan, userProfile, refreshProfileAndPlan } = useAssessment();  // [P1-CHECKIN-QUEUE-PARITY] updateData faltaba en el destructuring (eslint no-undef)
+        updateData, userProfile, refreshProfileAndPlan, hydrateLatestPlan } = useAssessment();  // [P1-CHECKIN-QUEUE-PARITY] updateData faltaba en el destructuring (eslint no-undef)
     const t = useT();
     // [P1-PLAN-LOTE-137 · 2026-09-20] Generar desde el CONTADOR enciende el modo en el servidor, y `saveGeneratedPlan`
     // pone al cliente al día (espejo + perfil en memoria). Pero hay un segundo camino de llegada que no pasa por él:
