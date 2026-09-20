@@ -77,11 +77,13 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
 import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, resolverInsetNativo, altoDeReferencia, KB_UMBRAL_PX } from '../utils/keyboardViewport';
-import { alternarSondaTecladoNativa } from '../utils/keyboardProbe';
+import { alternarSondaTecladoNativa, marcarSondaTeclado } from '../utils/keyboardProbe';
 import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMoverse } from '../utils/chatKeyboardScroll';
 import { decidirAlAlejarseDelFondo } from '../utils/chatScrollIntent';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
+// [P1-PLAN-LOTE-127] Cuando se mira si iOS escondio el teclado al encender el microfono (ms desde que empieza a escuchar).
+const MIC_REPONER_TECLADO_MS = [350, 700, 1200, 2000];
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
@@ -1650,6 +1652,36 @@ const AgentPage = () => {
     const isListening = dictado.escuchando;
     const micErrorMsg = dictado.error ? t(dictado.error) : null;
     const recognitionRef = useRef(null);
+    // [P1-PLAN-LOTE-127 · 2026-09-19] El dueño, ya con el build que trae el micrófono: «cuando abro el teclado y
+    // prendo el micrófono se cierra el teclado». El toque no le quita el foco a la caja (`preventDefault` en
+    // pointerdown); quien esconde el teclado es iOS al arrancar la sesión de audio (o su aviso de permiso la primera
+    // vez), y lo hace SIN desenfocar el campo — la misma forma que al volver del selector de fotos
+    // (`restoreChatKeyboardAfterAttachment`), así que el remedio es el mismo: si había teclado al tocar el
+    // micrófono y, ya escuchando, la geometría dice que se fue, se suelta y se retoma el foco. Se mira varias
+    // veces porque iOS no lo esconde en un instante fijo; en cuanto se repone una vez, se deja de mirar. Sin
+    // teclado al empezar no se abre ninguno. DEDUCIDO, no medido: cada paso deja marca en la sonda (`/sonda`).
+    const reponerTecladoTrasMicRef = useRef(false);
+    const handleMicClick = () => {
+        if (!isListening) {
+            reponerTecladoTrasMicRef.current = Boolean(tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto);
+            marcarSondaTeclado(reponerTecladoTrasMicRef.current ? 'micKB' : 'mic');
+        }
+        dictado.alternar();
+    };
+    useEffect(() => {
+        if (!isListening || !reponerTecladoTrasMicRef.current) return undefined;
+        reponerTecladoTrasMicRef.current = false;
+        marcarSondaTeclado('micON');
+        const relojes = MIC_REPONER_TECLADO_MS.map((ms) => setTimeout(() => {
+            const campo = chatInputRef.current;
+            if (!campo || medirTecladoDeVentana(window).abierto) return;
+            relojes.forEach(clearTimeout);
+            marcarSondaTeclado('kbRepon');
+            if (document.activeElement === campo) campo.blur();
+            campo.focus({ preventScroll: true });
+        }, ms));
+        return () => relojes.forEach(clearTimeout);
+    }, [isListening]);
     // lo dictado crece por abajo: la caja (que tiene alto máximo) sigue a la última palabra
     useEffect(() => {
         if (!isListening) return;
@@ -4108,7 +4140,10 @@ const AgentPage = () => {
                     flexDirection: 'column',
                     background: isCentered ? 'var(--bg-muted)' : 'var(--bg-muted)',
                     borderRadius: isCentered ? '2rem' : (attachments.length ? '1rem' : '2rem'),
-                    padding: isCentered ? '0.5rem 0.5rem 0.5rem 1rem' : (attachments.length ? '0.5rem' : '0.5rem 0.5rem 0.5rem 1rem'),
+                    // [P1-PLAN-LOTE-127] Relleno SIMÉTRICO. Eran 16 px a la izquierda y 8 a la derecha, y el «+» era un
+                    // glifo suelto dentro de un botón invisible: medido, 28 px del borde al «+» contra 11 px del borde
+                    // a ENVIAR (el dueño: «no hay simetría en la parte izquierda donde está el signo de +»).
+                    padding: '0.5rem',
                     boxShadow: 'none',
                     border: isCentered ? '1px solid var(--border)' : '1px solid var(--border)',
                     transition: 'all 0.2s ease',
@@ -4307,7 +4342,7 @@ const AgentPage = () => {
                                         title={isListening ? t('Detener dictado') : t('Dictar por voz')}
                                         aria-pressed={isListening}
                                         onPointerDown={(e) => e.preventDefault()}
-                                        onClick={dictado.alternar}
+                                        onClick={handleMicClick}
                                     >
                                         {isListening ? (
                                             <span className="chat-mic-ondas" aria-hidden="true"><i /><i /><i /><i /></span>
@@ -4604,11 +4639,15 @@ const AgentPage = () => {
                     }
                 }
 
+                /* [P1-PLAN-LOTE-127] El «+» es un CIRCULO visible del mismo tamano que ENVIAR y con su mismo margen
+                   al borde (8 px de relleno + 2 px): las dos puntas de la caja pesan igual y el circulo queda
+                   concentrico con la esquina de la pastilla. La miniatura adjunta arranca en esa misma vertical. */
                 .attachment-btn {
-                    background: transparent;
-                    color: var(--text-muted);
+                    background: color-mix(in srgb, var(--text-main) 9%, transparent);
+                    color: var(--text-main);
                     border: none;
                     border-radius: 50%;
+                    margin-left: 2px;
                     width: 44px;
                     height: 44px;
                     display: flex;
@@ -4704,12 +4743,12 @@ const AgentPage = () => {
                     text-align: center;
                 }
                 .attachment-btn:not(.disabled):hover {
-                    color: #3b82f6;
-                    background: var(--bg-muted);
+                    color: var(--primary);
+                    background: color-mix(in srgb, var(--text-main) 15%, transparent);
                 }
                 .attachment-btn:not(.disabled):active {
                     transform: scale(0.85);
-                    background: var(--bg-muted);
+                    background: color-mix(in srgb, var(--text-main) 15%, transparent);
                 }
                 .attachment-btn.disabled {
                     opacity: 0.5;
@@ -4725,7 +4764,7 @@ const AgentPage = () => {
                        flotando en mitad del cajón, sin alinearse con nada: ni con el «+» de adjuntar (que
                        empieza 40 px antes) ni con el borde del compositor. Alineada ahora con el borde
                        interior, que es donde el ojo espera la esquina. El resto de la sangría se mantiene. */
-                    padding: 0.35rem 0.4rem 0.55rem 0.4rem;
+                    padding: 0.35rem 0.4rem 0.55rem 2px;
                     scroll-snap-type: x proximity;
                 }
                 .attachment-rail::-webkit-scrollbar { display: none; }

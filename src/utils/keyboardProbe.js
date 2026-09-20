@@ -41,6 +41,14 @@ export function alternarSondaTecladoNativa() {
     return Boolean(_pararSonda);
 }
 
+/** [P1-PLAN-LOTE-127] Deja una marca con nombre en la sonda (si está encendida; si no, no cuesta nada). Para que
+ *  una captura diga QUÉ hizo la app entre dos movimientos del teclado — p. ej. el dictado: `micKB`, `micON`, `kbRepon`. */
+export const EVENTO_MARCA_SONDA = 'mf:sonda-teclado';
+export function marcarSondaTeclado(nombre) {
+    if (!_pararSonda || typeof document === 'undefined') return;
+    document.dispatchEvent(new CustomEvent(EVENTO_MARCA_SONDA, { detail: String(nombre || '').slice(0, 7) }));
+}
+
 export function iniciarSondaTeclado() {
     // [P1-KB-SONDA-EN-PRODUCCION · 2026-08-23] La sonda pasa a funcionar TAMBIEN en
     // produccion, y solo con `?kbprobe=1` EXPLICITO en la URL. Razon: el teclado de iOS
@@ -124,6 +132,8 @@ export function iniciarSondaTeclado() {
     const onBlur = () => pintar('blur');
     const onToque = (e) => { if (e.target?.closest?.('.input-wrapper')) pintar('toque'); };
     const onFinAlto = (e) => { if (e.propertyName === 'height' && e.target?.classList?.contains('agent-container')) pintar('altoFin'); };
+    const onMarca = (e) => pintar(e.detail || 'marca');
+    document.addEventListener(EVENTO_MARCA_SONDA, onMarca);
     document.addEventListener('pointerdown', onToque, true);
     document.addEventListener('transitionend', onFinAlto, true);
     const onVentana = () => pintar('ventana');
@@ -140,6 +150,7 @@ export function iniciarSondaTeclado() {
         document.removeEventListener('focusin', onFocus);
         document.removeEventListener('focusout', onBlur);
         window.removeEventListener('resize', onVentana);
+        document.removeEventListener(EVENTO_MARCA_SONDA, onMarca);
         document.removeEventListener('pointerdown', onToque, true);
         document.removeEventListener('transitionend', onFinAlto, true);
         caja.remove();

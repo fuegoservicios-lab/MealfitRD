@@ -183,7 +183,9 @@ describe('lote 125 · el chat, el Historial y la Nevera', () => {
         const ap = leer('src/pages/AgentPage.jsx');
         expect(ap).toContain("const dictado = useDictado({ valor: input, alCambiar: setInput, locale: getLocale(), esNativa: isNativeApp() });");
         expect(ap).toContain('{dictado.disponible && !isCallModeActive && (');
-        expect(ap).toContain('onClick={dictado.alternar}');
+        // [P1-PLAN-LOTE-127] el clic pasa por handleMicClick (recuerda si había teclado) y de ahí a dictado.alternar()
+        expect(ap).toContain('onClick={handleMicClick}');
+        expect(ap).toContain('dictado.alternar();');
         expect(ap).toContain('onPointerDown={(e) => e.preventDefault()}');
         expect(ap).toMatch(/if \(isListening\) \{\n\s+dictado\.cancelar\(\);/);
         expect(ap).toContain("placeholder={isListening ? t('Te escucho…') :");
