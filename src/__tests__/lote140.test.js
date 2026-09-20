@@ -98,14 +98,18 @@ describe('lote 140 · la geometría que se manda al binario', () => {
 
     it('cuánto se desplaza la conversación junto a la caja', () => {
         const l = { scrollHeight: 3000, clientHeight: 600, overflowY: 'auto' };
-        // abrir: pegada (o va a ir) → sin tope; leyendo arriba → quieta
-        expect(desplazamientoDeLista({ ...l, scrollTop: 2400 })).toBe(LISTA_SIN_TOPE);
-        expect(desplazamientoDeLista({ ...l, scrollTop: 900 })).toBe(0);
-        expect(desplazamientoDeLista({ ...l, scrollTop: 900, vaAlFinal: true })).toBe(LISTA_SIN_TOPE);
-        // cerrar: pegada → baja hasta agotar su scroll, no más (con 120 px de scroll no puede bajar 266)
-        expect(desplazamientoDeLista({ ...l, abierto: true, scrollTop: 2400 })).toBe(2400);
-        expect(desplazamientoDeLista({ scrollHeight: 720, clientHeight: 600, scrollTop: 120, abierto: true })).toBe(120);
-        expect(desplazamientoDeLista({ ...l, abierto: true, scrollTop: 900 })).toBe(0);
+        // [P1-PLAN-LOTE-141] lo decide el MODO de scroll (quien reacciona al cambio de alto de la ventana), no «pegada o no»:
+        // el 140 dejaba quieta la conversación en modo libre mientras la página la subía debajo → salto al fundir la captura.
+        // abrir: 'bottom' y 'free' suben con la caja; 'anchored' no… salvo que vaya a soltarse y bajar al final
+        expect(desplazamientoDeLista({ ...l, scrollTop: 2400, modo: 'bottom' })).toBe(LISTA_SIN_TOPE);
+        expect(desplazamientoDeLista({ ...l, scrollTop: 900, modo: 'free' })).toBe(LISTA_SIN_TOPE);
+        expect(desplazamientoDeLista({ ...l, scrollTop: 900, modo: 'anchored' })).toBe(0);
+        expect(desplazamientoDeLista({ ...l, scrollTop: 900, modo: 'anchored', vaAlFinal: true })).toBe(LISTA_SIN_TOPE);
+        // cerrar: baja hasta agotar su scroll, no más (con 120 px de scroll no puede bajar 266); anclada, quieta
+        expect(desplazamientoDeLista({ ...l, abierto: true, scrollTop: 2400, modo: 'bottom' })).toBe(2400);
+        expect(desplazamientoDeLista({ scrollHeight: 720, clientHeight: 600, scrollTop: 120, abierto: true, modo: 'free' })).toBe(120);
+        expect(desplazamientoDeLista({ ...l, abierto: true, scrollTop: 900, modo: 'free' })).toBe(900);
+        expect(desplazamientoDeLista({ ...l, abierto: true, scrollTop: 900, modo: 'anchored' })).toBe(0);
         // no llena su ventana, o virtualizada: no se mueve
         expect(desplazamientoDeLista({ scrollHeight: 400, clientHeight: 600, scrollTop: 0, vaAlFinal: true })).toBe(0);
         expect(desplazamientoDeLista({ ...l, scrollTop: 2400, overflowY: 'hidden' })).toBe(0);

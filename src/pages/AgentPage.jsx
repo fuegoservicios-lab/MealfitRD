@@ -1144,7 +1144,8 @@ const AgentPage = () => {
                 altoPantalla: altoDeReferencia(window.innerHeight, window.innerWidth),
                 anchoPantalla: window.innerWidth,
                 vvOffsetTop: vv.offsetTop,
-                cajaTop: wrapper.getBoundingClientRect().top,
+                // [141] la flecha de «ir al final» cuelga de la caja (sobresale por arriba): viaja en SU tira
+                cajaTop: Math.min(wrapper.getBoundingClientRect().top, (wrapper.querySelector('.jump-to-latest')?.getBoundingClientRect().top ?? Infinity) - 4),
                 cabeceraBottom: rc ? rc.bottom : 0,
                 // la franja opaca sobre la barra de estado: el relleno superior de la cabecera menos sus 0.35rem propios
                 franjaAlto: cabecera ? Math.max(0, (parseFloat(getComputedStyle(cabecera).paddingTop) || 0) - 0.35 * fuente) : 0,
@@ -1154,6 +1155,7 @@ const AgentPage = () => {
                 lista: lista ? {
                     scrollHeight: lista.scrollHeight, scrollTop: lista.scrollTop, clientHeight: lista.clientHeight,
                     overflowY: getComputedStyle(lista).overflowY, vaAlFinal: ultimaAccionAlAbrirRef.current !== 'nada',
+                    modo: scrollModeRef.current,
                 } : null,
                 cubreCierre: nativoCubreElCierre(),
             });
@@ -2568,6 +2570,11 @@ const AgentPage = () => {
             } else if (mode === 'anchored') {
                 ventanaCambioRef.current = delta !== 0;
                 try { _layoutAnchor(); } finally { ventanaCambioRef.current = false; }
+            } else if (delta !== 0 && document.documentElement.hasAttribute('data-kb-sin-anim')) {
+                // [P1-PLAN-LOTE-141] bajo la captura nativa el layout cambia DE GOLPE, y esto también: la lista lleva
+                // `scroll-behavior: smooth`, y un `scrollTop =` deslizándose 0,3 s seguiría en marcha al retirar la captura
+                try { el.scrollTo({ top: Math.max(0, el.scrollTop + delta), behavior: 'instant' }); } catch { /* sigue donde está */ }
+                lastScrollTopRef.current = el.scrollTop;
             } else if (delta !== 0) {
                 el.scrollTop = Math.max(0, el.scrollTop + delta);
                 lastScrollTopRef.current = el.scrollTop;
