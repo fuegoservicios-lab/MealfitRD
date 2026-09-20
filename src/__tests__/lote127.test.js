@@ -32,6 +32,18 @@ describe('lote 127 · encender el micrófono no se lleva el teclado', () => {
         expect(ap).toContain('const MIC_REPONER_TECLADO_MS = [350, 700, 1200, 2000];');
     });
 
+    it('el TOQUE no le quita el foco a la caja: se atiende en touchend y se cancela (ni parpadeo ni cierre al pausar)', () => {
+        expect(ap).toContain('onTouchEnd={handleMicTouchEnd}');
+        expect(ap).toContain('onMouseDown={(e) => e.preventDefault()}');
+        const toque = ap.slice(ap.indexOf('const handleMicTouchEnd = (e) => {'), ap.indexOf('useEffect(() => {', ap.indexOf('const handleMicTouchEnd = (e) => {')));
+        expect(toque).toContain('if (!e.cancelable) return;');
+        expect(toque).toContain('e.preventDefault();');
+        expect(toque).toContain('micPorToqueRef.current = Date.now();');
+        expect(toque).toContain('accionarMic();');
+        // y un clic que llegue del mismo gesto no alterna dos veces
+        expect(ap).toContain('if (Date.now() - micPorToqueRef.current < MIC_CLIC_FANTASMA_MS) return;');
+    });
+
     it('cada paso deja marca en la sonda del teclado, y sin sonda no cuesta nada', () => {
         const sonda = leer('src/utils/keyboardProbe.js');
         expect(sonda).toContain("export const EVENTO_MARCA_SONDA = 'mf:sonda-teclado';");

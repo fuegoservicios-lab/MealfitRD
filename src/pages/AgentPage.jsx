@@ -84,6 +84,8 @@ import { decidirAlAlejarseDelFondo } from '../utils/chatScrollIntent';
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
 // [P1-PLAN-LOTE-127] Cuando se mira si iOS escondio el teclado al encender el microfono (ms desde que empieza a escuchar).
 const MIC_REPONER_TECLADO_MS = [350, 700, 1200, 2000];
+// Ventana en la que un clic tras un toque YA atendido en touchend se considera el mismo gesto.
+const MIC_CLIC_FANTASMA_MS = 700;
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
@@ -1660,13 +1662,36 @@ const AgentPage = () => {
     // micrófono y, ya escuchando, la geometría dice que se fue, se suelta y se retoma el foco. Se mira varias
     // veces porque iOS no lo esconde en un instante fijo; en cuanto se repone una vez, se deja de mirar. Sin
     // teclado al empezar no se abre ninguno. DEDUCIDO, no medido: cada paso deja marca en la sonda (`/sonda`).
+    //
+    // [P1-PLAN-LOTE-127 · corrección del mismo día] Desplegado lo de arriba, el dueño: «se cierra unos milisegundos y
+    // se vuelve a abrir y no debería ser así, y cuando lo pauso se cierra». Que PAUSAR también lo cierre descarta la
+    // sesión de audio como causa única: lo común a encender y pausar es el TOQUE. En iOS el teclado no se va en
+    // pointerdown sino cuando WebKit sintetiza mousedown/click tras el touchend y el foco abandona la caja —
+    // `preventDefault` en pointerdown no lo evita. El remedio conocido: atender el toque en `touchend` y cancelarlo,
+    // de modo que WebKit no sintetiza nada y el foco NUNCA sale de la caja (ni parpadeo al encender, ni cierre al
+    // pausar). `mousedown` cancelado cubre el ratón. La reposición de abajo queda solo como red.
     const reponerTecladoTrasMicRef = useRef(false);
-    const handleMicClick = () => {
+    const micPorToqueRef = useRef(0);
+    const accionarMic = () => {
         if (!isListening) {
             reponerTecladoTrasMicRef.current = Boolean(tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto);
             marcarSondaTeclado(reponerTecladoTrasMicRef.current ? 'micKB' : 'mic');
         }
         dictado.alternar();
+    };
+    const handleMicClick = () => {
+        // si WebKit aun así entrega el clic de un toque ya atendido, no se alterna dos veces
+        if (Date.now() - micPorToqueRef.current < MIC_CLIC_FANTASMA_MS) return;
+        accionarMic();
+    };
+    const handleMicTouchEnd = (e) => {
+        if (!e.cancelable) return;                       // el gesto era un desplazamiento: no es un toque
+        const dedo = e.changedTouches?.[0];
+        const caja = e.currentTarget.getBoundingClientRect();
+        if (dedo && (dedo.clientX < caja.left || dedo.clientX > caja.right || dedo.clientY < caja.top || dedo.clientY > caja.bottom)) return;
+        e.preventDefault();                              // sin mousedown/click sintetizados: el foco no se mueve
+        micPorToqueRef.current = Date.now();
+        accionarMic();
     };
     useEffect(() => {
         if (!isListening || !reponerTecladoTrasMicRef.current) return undefined;
@@ -4342,6 +4367,8 @@ const AgentPage = () => {
                                         title={isListening ? t('Detener dictado') : t('Dictar por voz')}
                                         aria-pressed={isListening}
                                         onPointerDown={(e) => e.preventDefault()}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onTouchEnd={handleMicTouchEnd}
                                         onClick={handleMicClick}
                                     >
                                         {isListening ? (
