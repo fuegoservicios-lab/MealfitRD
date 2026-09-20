@@ -9,7 +9,7 @@ import path from 'node:path';
 vi.mock('../config/api', () => ({ fetchWithAuth: vi.fn() }));
 
 import { fetchWithAuth } from '../config/api';
-import { escondidaHasta, leerInvitacion, anotarInvitacion, SEMANA_MS } from '../utils/planInvite';
+import { escondidaHasta, estadoLocal, leerInvitacion, anotarInvitacion, SEMANA_MS, A_LA_VISTA_MS } from '../utils/planInvite';
 import { avisosDeAguaAProgramar, idsPropios, ID_BASE_AGUA, DIAS_DE_AGUA } from '../utils/avisosDeComida';
 
 const leer = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf-8').replace(/\r\n/g, '\n');
@@ -38,30 +38,56 @@ describe('lote 135 · la invitación al plan: una vez por semana y por usuario',
             method: 'PATCH', body: JSON.stringify({ action: 'dismiss' }),
         }));
         fetchWithAuth.mockClear();
-        expect(await leerInvitacion(CLAVE, 'u1', AHORA + 1000)).toEqual({ visible: false });
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA + 1000)).toEqual({ visible: false, nueva: false });
         expect(fetchWithAuth).not.toHaveBeenCalled();   // lo que ya se sabe no se pregunta
     });
 
     it('el servidor manda: si dice que no toca, se recuerda hasta cuándo; si falla, se muestra', async () => {
         const vuelve = new Date(AHORA + 3 * 24 * 3600 * 1000).toISOString();
         fetchWithAuth.mockResolvedValueOnce({ ok: true, json: async () => ({ visible: false, next_at: vuelve }) });
-        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: false });
-        expect(escondidaHasta(CLAVE, 'u1')).toBe(Date.parse(vuelve));
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: false, nueva: false });
+        expect(escondidaHasta(CLAVE, 'u1', AHORA)).toBe(Date.parse(vuelve));
         localStorage.clear();
         fetchWithAuth.mockResolvedValueOnce({ ok: false, status: 404 });   // frontend desplegado antes que el backend
-        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true });
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true, nueva: true });
         // …pero a quien ya la había descartado (el «1» heredado) un fallo del servidor no se la devuelve
         localStorage.setItem(CLAVE, '1');
         fetchWithAuth.mockResolvedValueOnce({ ok: false, status: 404 });
-        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: false });
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: false, nueva: false });
         fetchWithAuth.mockResolvedValueOnce({ ok: true, json: async () => ({ visible: true, next_at: null }) });
-        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true });   // el servidor SÍ manda sobre el «1»
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true, nueva: true });   // el servidor SÍ manda sobre el «1»
     });
 
-    it('la tarjeta NACE escondida, pregunta al volver a la app y conserva sus contratos', () => {
+    it('SIN PARPADEO: dentro de sus 24 h la tarjeta nace A LA VISTA desde el espejo, sin esperar a la red', async () => {
+        // el dueño: «desaparece 1 segundo y vuelve a aparecer cuando salgo del apartado y vuelvo, no quiero que pase eso»
+        fetchWithAuth.mockResolvedValueOnce({ ok: true, json: async () => ({ visible: true, next_at: null }) });
+        expect(estadoLocal(CLAVE, 'u1', AHORA)).toBe('desconocido');
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true, nueva: true });   // abre la semana
+        expect(estadoLocal(CLAVE, 'u1', AHORA + 60 * 1000)).toBe('visible');                          // la vuelta al contador
+        fetchWithAuth.mockRejectedValueOnce(new Error('sin red'));
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA + 60 * 1000)).toEqual({ visible: true, nueva: false });
+        // pasadas sus 24 h se esconde SOLA y sin preguntar a nadie, hasta cumplir la semana
+        fetchWithAuth.mockClear();
+        expect(estadoLocal(CLAVE, 'u1', AHORA + A_LA_VISTA_MS + 1)).toBe('escondida');
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA + A_LA_VISTA_MS + 1)).toEqual({ visible: false, nueva: false });
+        expect(fetchWithAuth).not.toHaveBeenCalled();
+        expect(estadoLocal(CLAVE, 'u1', AHORA + SEMANA_MS + 1)).toBe('desconocido');
+    });
+
+    it('el servidor corrige al espejo: descartada en OTRO dispositivo, aquí también se esconde', async () => {
+        fetchWithAuth.mockResolvedValueOnce({ ok: true, json: async () => ({ visible: true, next_at: null }) });
+        await leerInvitacion(CLAVE, 'u1', AHORA);
+        const vuelve = new Date(AHORA + 6 * 24 * 3600 * 1000).toISOString();
+        fetchWithAuth.mockResolvedValueOnce({ ok: true, json: async () => ({ visible: false, next_at: vuelve }) });
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA + 1000)).toEqual({ visible: false, nueva: false });
+        expect(estadoLocal(CLAVE, 'u1', AHORA + 2000)).toBe('escondida');
+    });
+
+    it('la tarjeta nace como diga el espejo, pregunta al volver a la app y conserva sus contratos', () => {
         const dt = leer('src/components/dashboard/DashboardTracking.jsx');
-        expect(dt).toContain('const [dismissed, setDismissed] = useState(true);');
-        expect(dt).toContain("if (r.visible) anotarInvitacion(_DISMISS_KEY, userId, 'seen');");
+        expect(dt).toContain("const [dismissed, setDismissed] = useState(() => estadoLocal(_DISMISS_KEY, userId) !== 'visible');");
+        expect(dt).toContain("if (local !== 'desconocido') setDismissed(local !== 'visible');");
+        expect(dt).toContain("if (r.nueva) anotarInvitacion(_DISMISS_KEY, userId, 'seen');");
         expect(dt).toContain("document.addEventListener('visibilitychange', alVolver);");
         expect(dt.split('onClick={descartar}').length - 1).toBe(2);      // las dos ofertas: encender y reanudar
         expect(dt).toContain("_DISMISS_KEY = 'mealfit_turnon_card_dismissed'");

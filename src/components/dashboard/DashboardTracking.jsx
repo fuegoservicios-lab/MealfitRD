@@ -19,7 +19,7 @@ import { fetchWithAuth } from '../../config/api';
 import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
 import { missingPlanQuestionsCount } from '../../config/formValidation';
-import { leerInvitacion, anotarInvitacion } from '../../utils/planInvite';
+import { leerInvitacion, anotarInvitacion, estadoLocal } from '../../utils/planInvite';
 import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
@@ -34,19 +34,24 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
     const navigate = useNavigate();
     const { updateData, session, userProfile } = useAssessment();
     const userId = session?.user?.id || userProfile?.id || '';
-    // [P1-PLAN-LOTE-135 · 2026-09-20] Una vez por SEMANA y por USUARIO (utils/planInvite.js). Nace escondida y solo
-    // aparece cuando el servidor dice que toca: al revés, parpadeaba un instante en cada entrada al contador de quien
-    // ya la había descartado. Se vuelve a preguntar al volver a la app (el dashboard es keep-alive: sin esto, la
-    // tarjeta vista el lunes seguiría pintada el jueves en una sesión que nunca se cerró).
-    const [dismissed, setDismissed] = useState(true);
+    // [P1-PLAN-LOTE-135 · 2026-09-20] Una vez por SEMANA y por USUARIO (utils/planInvite.js). NACE como diga el espejo
+    // local, sin esperar a la red: a la vista si está dentro de sus 24 h, escondida si no. La primera versión nacía
+    // SIEMPRE escondida y reaparecía un segundo después en cada entrada al contador, empujando todo hacia abajo (el
+    // dueño: «desaparece 1 segundo y vuelve a aparecer cuando salgo del apartado y vuelvo, no quiero que pase eso»).
+    // El servidor se consulta igual, en segundo plano, y corrige (p. ej. descartada en otro dispositivo). Se vuelve a
+    // preguntar al volver a la app: el dashboard es keep-alive y la tarjeta del lunes seguiría pintada el jueves.
+    const [dismissed, setDismissed] = useState(() => estadoLocal(_DISMISS_KEY, userId) !== 'visible');
     useEffect(() => {
         if (!userId) return undefined;
         let vivo = true;
         const preguntar = () => {
+            // el `userId` puede llegar un render después que la tarjeta: lo que el espejo ya sabe se aplica en el acto
+            const local = estadoLocal(_DISMISS_KEY, userId);
+            if (local !== 'desconocido') setDismissed(local !== 'visible');
             leerInvitacion(_DISMISS_KEY, userId).then((r) => {
                 if (!vivo) return;
                 setDismissed(!r.visible);
-                if (r.visible) anotarInvitacion(_DISMISS_KEY, userId, 'seen');
+                if (r.nueva) anotarInvitacion(_DISMISS_KEY, userId, 'seen');   // solo la vista que ABRE la semana
             });
         };
         const alVolver = () => { if (document.visibilityState === 'visible') preguntar(); };
