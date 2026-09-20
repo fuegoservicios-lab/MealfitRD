@@ -319,8 +319,8 @@ const Recipes = () => {
     // igual porque chunkStart/Size/Days tienen defaults seguros para planData=null.
     // [P1-PLAN-LOTE-137 · 2026-09-20] Con el generador APAGADO esta pantalla no existe: la nav la oculta, pero la ruta
     // seguía montada. Sin plan, el rebote de abajo mandaba a un usuario CONTADOR al formulario (REPLACE: de ahí no
-    // vuelve solo); con un plan en pausa pintaba Recetas entera, con la expansión de receta por IA (`/recipe/expand`,
-    // que gasta crédito y escribe en un plan que el usuario paró). Contador manda: a su dashboard.
+    // vuelve solo); con un plan en pausa pintaba Recetas entera — una pantalla que la nav de este modo
+    // oculta a propósito, presentando como vigente un plan que el usuario paró. Contador manda: a su dashboard.
     if (isTrackingMode(userProfile)) {
         return <Navigate to="/dashboard" replace />;
     }
