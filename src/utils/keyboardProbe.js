@@ -44,6 +44,8 @@ export function alternarSondaTecladoNativa() {
 /** [P1-PLAN-LOTE-127] Deja una marca con nombre en la sonda (si está encendida; si no, no cuesta nada). Para que
  *  una captura diga QUÉ hizo la app entre dos movimientos del teclado — p. ej. el dictado: `micKB`, `micON`, `kbRepon`. */
 export const EVENTO_MARCA_SONDA = 'mf:sonda-teclado';
+/** Lo emite el binario nativo (SceneDelegate.swift) al recibir keyboardWillShow/Hide: `{ tipo, alto, ms }`. */
+export const EVENTO_TECLADO_NATIVO = 'mf:teclado-nativo';
 export function marcarSondaTeclado(nombre) {
     if (!_pararSonda || typeof document === 'undefined') return;
     document.dispatchEvent(new CustomEvent(EVENTO_MARCA_SONDA, { detail: String(nombre || '').slice(0, 7) }));
@@ -133,6 +135,14 @@ export function iniciarSondaTeclado() {
     const onToque = (e) => { if (e.target?.closest?.('.input-wrapper')) pintar('toque'); };
     const onFinAlto = (e) => { if (e.propertyName === 'height' && e.target?.classList?.contains('agent-container')) pintar('altoFin'); };
     const onMarca = (e) => pintar(e.detail || 'marca');
+    // [P1-PLAN-LOTE-128] El binario nuevo retransmite `keyboardWillShow/Hide` de UIKit (SceneDelegate.swift): llegan
+    // ANTES de la animación, con el alto y la duración reales. La sonda los apunta (`N+336·250` = abre, 336 px, 250 ms;
+    // `N-…` = cierra) para MEDIR cuánto se adelanta o se atrasa hoy el chat respecto al teclado de verdad.
+    const onNativo = (e) => {
+        const d = e.detail || {};
+        pintar(`N${d.tipo === 'cierra' ? '-' : '+'}${Number(d.alto) || 0}·${Number(d.ms) || 0}`);
+    };
+    window.addEventListener(EVENTO_TECLADO_NATIVO, onNativo);
     document.addEventListener(EVENTO_MARCA_SONDA, onMarca);
     document.addEventListener('pointerdown', onToque, true);
     document.addEventListener('transitionend', onFinAlto, true);
@@ -151,6 +161,7 @@ export function iniciarSondaTeclado() {
         document.removeEventListener('focusout', onBlur);
         window.removeEventListener('resize', onVentana);
         document.removeEventListener(EVENTO_MARCA_SONDA, onMarca);
+        window.removeEventListener(EVENTO_TECLADO_NATIVO, onNativo);
         document.removeEventListener('pointerdown', onToque, true);
         document.removeEventListener('transitionend', onFinAlto, true);
         caja.remove();

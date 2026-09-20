@@ -24,6 +24,17 @@ describe('lote 128 · sin barra de accesorios sobre el teclado en la app nativa'
         expect(escena).toContain('object_setClass(contenido, claseNueva)');
     });
 
+    it('el binario retransmite keyboardWillShow/Hide a la web, AÑADIENDO observadores (sin retirar los de WebKit)', () => {
+        expect(escena).toContain('UIResponder.keyboardWillShowNotification');
+        expect(escena).toContain('UIResponder.keyboardWillHideNotification');
+        expect(escena).toContain("new CustomEvent('mf:teclado-nativo',{detail:{tipo:'\\(tipo)',alto:\\(alto),ms:\\(ms)}})");
+        expect(escena).not.toContain('removeObserver');
+        const sonda = leer('src/utils/keyboardProbe.js');
+        expect(sonda).toContain("export const EVENTO_TECLADO_NATIVO = 'mf:teclado-nativo';");
+        expect(sonda).toContain('window.addEventListener(EVENTO_TECLADO_NATIVO, onNativo);');
+        expect(sonda).toContain('window.removeEventListener(EVENTO_TECLADO_NATIVO, onNativo);');
+    });
+
     it('NO entra @capacitor/keyboard: dejaría ciega la geometría del teclado del chat (decisión del lote 111)', () => {
         const pkg = JSON.parse(leer('package.json'));
         expect(Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })).not.toContain('@capacitor/keyboard');
