@@ -4677,15 +4677,17 @@ const AgentPage = () => {
                     }
                 }
 
-                /* [P1-PLAN-LOTE-127] El «+» es un CIRCULO visible del mismo tamano que ENVIAR y con su mismo margen
-                   al borde (8 px de relleno + 2 px): las dos puntas de la caja pesan igual y el circulo queda
-                   concentrico con la esquina de la pastilla. La miniatura adjunta arranca en esa misma vertical. */
+                /* [P1-PLAN-LOTE-128] El «+» vuelve a ser un GLIFO LIMPIO, sin circulo. El dueno: «me gustaba antes…
+                   ese gris no le queda y cuando lo presiono no me gusta tampoco». El circulo gris (lote 127) existia
+                   para igualar margenes con ENVIAR cuando compartian fila; con la caja apilada sobra, y la referencia
+                   del dueno lleva el «+» suelto. Al pulsar: solo encoge y toma el color de marca — sin fondo. Y el
+                   hover SOLO donde hay puntero de verdad: en tactil el :hover se queda pegado tras el toque, que
+                   era el gris que seguia ahi despues de presionar. */
                 .attachment-btn {
-                    background: color-mix(in srgb, var(--text-main) 9%, transparent);
-                    color: var(--text-main);
+                    background: transparent;
+                    color: var(--text-muted);
                     border: none;
                     border-radius: 50%;
-                    margin-left: 2px;
                     width: 44px;
                     height: 44px;
                     display: flex;
@@ -4780,13 +4782,15 @@ const AgentPage = () => {
                     font-weight: 650;
                     text-align: center;
                 }
-                .attachment-btn:not(.disabled):hover {
-                    color: var(--primary);
-                    background: color-mix(in srgb, var(--text-main) 15%, transparent);
+                @media (hover: hover) and (pointer: fine) {
+                    .attachment-btn:not(.disabled):hover {
+                        color: var(--primary);
+                        background: var(--bg-muted);
+                    }
                 }
                 .attachment-btn:not(.disabled):active {
                     transform: scale(0.85);
-                    background: color-mix(in srgb, var(--text-main) 15%, transparent);
+                    color: var(--primary);
                 }
                 .attachment-btn.disabled {
                     opacity: 0.5;

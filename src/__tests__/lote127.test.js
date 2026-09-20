@@ -60,12 +60,15 @@ describe('lote 127 · la caja del chat es simétrica', () => {
         expect(ap).not.toContain("'0.5rem 0.5rem 0.5rem 1rem'");
     });
 
-    it('el «+» es un círculo visible del tamaño de ENVIAR y con su mismo margen al borde', () => {
+    it('[lote 128] el «+» vuelve a ser un glifo limpio: sin círculo gris, y sin «hover» pegado en táctil', () => {
         const css = ap.slice(ap.indexOf('.attachment-btn {'), ap.indexOf('.chat-mic-btn {'));
-        expect(css).toContain('background: color-mix(in srgb, var(--text-main) 9%, transparent);');
-        expect(css).toContain('margin-left: 2px;');
-        expect(css).toContain('width: 44px;');
-        expect(ap).toContain("marginRight: '2px'");
+        expect(css).toContain('background: transparent;');
+        expect(css).not.toContain('var(--text-main) 9%');
+        expect(css).toContain('width: 44px;');     // el área táctil no encoge
+        // las reglas de hover/active viven más abajo en el CSS (tras el bloque del micrófono): se buscan en todo el fichero
+        expect(ap).toMatch(/@media \(hover: hover\) and \(pointer: fine\) \{\n\s+\.attachment-btn:not\(\.disabled\):hover \{/);
+        const activo = ap.slice(ap.indexOf('.attachment-btn:not(.disabled):active {'));
+        expect(activo.slice(0, activo.indexOf('}'))).not.toContain('background');
     });
 
     it('la miniatura adjunta arranca en la misma vertical que el «+»', () => {
@@ -83,7 +86,7 @@ describe('lote 127 · la caja del chat es simétrica', () => {
     });
 
     it('ningún acento grave dentro del CSS del chat (rompe el template literal)', () => {
-        const css = ap.slice(ap.indexOf('/* [P1-PLAN-LOTE-127] El «+» es un CIRCULO'), ap.indexOf('.chat-mic-btn {'));
+        const css = ap.slice(ap.indexOf('/* [P1-PLAN-LOTE-128] El «+» vuelve a ser un GLIFO LIMPIO'), ap.indexOf('.chat-mic-btn {'));
         expect(css.length).toBeGreaterThan(100);
         expect(css).not.toContain('`');
     });
