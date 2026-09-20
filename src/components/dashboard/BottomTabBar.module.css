@@ -8,6 +8,9 @@
    `data-kb-open` en <html> desde su handler de visualViewport) la barra no se pinta:
    iOS recoloca lo `fixed` encima del teclado y tapaba la caja de escribir del chat.
    Con teclado no se navega, se escribe. Fuera del @media para ganar a la regla móvil. */
+/* [P1-PLAN-LOTE-131] `data-kb-abriendo`: la coreografia del teclado retrasa `data-kb-open` (que cambia el layout de la
+   caja) hasta su relevo, pero la barra tiene que irse al EMPEZAR, con el teclado. Es la misma regla con dos llaves. */
+:global(html[data-kb-abriendo]) .tabBar,
 :global(html[data-kb-open]) .tabBar {
     /* [P1-KB-SIN-GLITCH · 2026-08-23] Era `display: none`, y ese es el glitch: `display`
        no se puede animar, así que la barra DESAPARECÍA y REAPARECÍA de golpe mientras el

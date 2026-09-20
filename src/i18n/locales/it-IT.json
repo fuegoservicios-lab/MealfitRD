@@ -3213,5 +3213,7 @@
   "El dictado necesita conexión": "La dettatura richiede una connessione",
   "No te escuché. Toca el micrófono y habla": "Non ti ho sentito. Tocca il microfono e parla",
   "El dictado no está disponible en tu idioma": "La dettatura non è disponibile nella tua lingua",
-  "No pude iniciar el dictado": "Non sono riuscito ad avviare la dettatura"
+  "No pude iniciar el dictado": "Non sono riuscito ad avviare la dettatura",
+  "Animación fluida del teclado encendida": "Animazione fluida della tastiera attiva",
+  "Animación fluida del teclado apagada": "Animazione fluida della tastiera disattivata"
 }

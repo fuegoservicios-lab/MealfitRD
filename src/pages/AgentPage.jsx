@@ -112,6 +112,7 @@ import { t, useT, formatDate } from '../i18n';
 import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
+import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
 import { nativeHidesCommerce } from '../config/platform';
 
@@ -586,6 +587,7 @@ const AgentPage = () => {
     const scrollToBottomRef = useRef(null);
     // [P1-PLAN-LOTE-115] Qué hace la conversación cuando el teclado SE ABRE (ver utils/chatKeyboardScroll.js).
     const alAbrirTecladoRef = useRef(null);
+    const ultimaAccionAlAbrirRef = useRef('nada');
     // [P1-CHAT-KB-SCROLL-QUIETO · 2026-08-23] Estado de la histéresis del inset: qué se
     // aplicó y si el teclado estaba abierto. En refs y no en estado de React porque los
     // lee un handler de visualViewport que no debe provocar renders.
@@ -693,6 +695,10 @@ const AgentPage = () => {
         const updateInputPosition = (forzarMedicion = false) => {
             const wrapper = inputWrapperRef.current;
             if (!wrapper) return;
+            // [P1-PLAN-LOTE-131] Con la coreografía en curso el layout está a propósito en un extremo y lo que se ve lo
+            // lleva un `transform`: una medida aplicada ahora movería las dos cosas a la vez (y este handler además
+            // limpia el transform de la caja). Se apunta y se mide al acabar.
+            if (coreo.fase) { coreo.medirLuego = true; return; }
             const contenedor = wrapper.closest('.agent-container');
             // [P1-KB-VIEWPORT-MATH · 2026-08-23] DOS números, no uno. `kb` (alto real del
             // teclado, independiente del paneo de iOS) responde «¿hay teclado?»; `layoutInset`
@@ -893,9 +899,110 @@ const AgentPage = () => {
         let msTimer = null;
         const fijarDuracionTeclado = (ms) => {
             if (!root || !(ms > 0)) return;
+            msVigente = ms;
             root.style.setProperty('--kb-ms', `${ms}ms`);
             if (msTimer) clearTimeout(msTimer);
             msTimer = setTimeout(() => { msTimer = null; root.style.removeProperty('--kb-ms'); }, ms + 150);
+        };
+
+        // [P1-PLAN-LOTE-131 · 2026-09-19] COREOGRAFÍA SOLO CON `transform` (modo de prueba: `/fluido` en el chat nativo).
+        // El porqué y las piezas puras: utils/keyboardChoreography.js. Aquí, el baile:
+        //   abrir  = `transform` en la caja (y en la lista si está pegada al final) → RELEVO al acabar: layout final y
+        //            fuera transform en el mismo fotograma;
+        //   cerrar = layout final de golpe + `transform` que lo deshace a la vista → el transform baja a 0.
+        // Mientras `coreo.fase` no es null, `updateInputPosition` no escribe. Cada paso deja marca en la sonda.
+        const coreo = { fase: null, timer: null, piezas: [], destino: 0, medirLuego: false };
+        let msVigente = 0;
+        const moverPiezas = (y, ms) => {
+            for (const el of coreo.piezas) {
+                el.style.willChange = 'transform';
+                // con PRIORIDAD: la hoja de estilos le pone a la caja `transition: padding-bottom … !important`, y un
+                // inline normal pierde contra eso (medido en el arnés: la caja saltaba 266 px en vez de animar)
+                el.style.setProperty('transition', ms > 0 ? `transform ${ms}ms ${CURVA_TECLADO}` : 'none', 'important');
+                el.style.transform = y ? `translateY(${y}px)` : 'translateY(0px)';
+            }
+        };
+        const soltarPiezas = () => {
+            for (const el of coreo.piezas) { el.style.removeProperty('transition'); el.style.transform = ''; el.style.willChange = ''; }
+            coreo.piezas = [];
+        };
+        // El alto del contenedor lo anima React (`transition: height …` en su style). Para cambiarlo de golpe se apaga
+        // esa transición un fotograma. La cadena de React se guarda UNA vez: si se leyera en cada uso, un cierre que
+        // llegara con ella aún apagada guardaría 'none' y la dejaría apagada para siempre.
+        // «Al fotograma siguiente», pero sin quedarse esperando uno que no llega: `requestAnimationFrame` se PARA con la
+        // pagina oculta (medido en el arnes: nunca corria) y eso es justo lo que pasa al abrir el selector de fotos con el
+        // teclado abierto. Sin respaldo, la caja se quedaba con su transform puesto y el alto sin transicion. Lo que
+        // llegue primero —el fotograma o 60 ms— corre UNA vez; el estilo ya esta asentado (reflow forzado antes).
+        const alSiguienteFotograma = (fn) => {
+            let hecho = false;
+            const una = () => { if (hecho) return; hecho = true; fn(); };
+            requestAnimationFrame(una);
+            setTimeout(una, 60);
+        };
+        const congelarAlto = (contenedor) => {
+            if (!contenedor) return;
+            if (coreo.transicionBase == null && contenedor.style.transition !== 'none') coreo.transicionBase = contenedor.style.transition;
+            coreo.contenedor = contenedor;
+            root.setAttribute('data-kb-sin-anim', '');
+            contenedor.style.transition = 'none';
+        };
+        const descongelarAlto = (contenedor) => {
+            if (contenedor && coreo.transicionBase != null) contenedor.style.transition = coreo.transicionBase;
+            root.removeAttribute('data-kb-sin-anim');
+        };
+        const acabarCoreografia = () => {
+            if (coreo.timer) { clearTimeout(coreo.timer); coreo.timer = null; }
+            coreo.fase = null;
+            root?.removeAttribute('data-kb-abriendo');
+            if (coreo.medirLuego) { coreo.medirLuego = false; updateInputPosition(true); }
+        };
+        // El relevo de la apertura: en UN fotograma, fuera el transform y dentro el layout final — sin animar nada.
+        const relevoDeApertura = (contenedor, lista, acompana) => {
+            coreo.timer = null;
+            congelarAlto(contenedor);
+            contenedor.style.setProperty('--kb-inset', `${coreo.destino}px`);
+            root.toggleAttribute('data-kb-open', true);
+            root.toggleAttribute('data-kb-scroll-lock', true);
+            soltarPiezas();
+            void contenedor.offsetHeight;                      // el layout final, YA
+            if (acompana && lista) lista.scrollTop = lista.scrollHeight;   // la ventana encogió por abajo: el final sigue a la vista
+            marcarSondaTeclado('relevo');
+            // el estado se cierra EN EL ACTO (un cierre que llegue ya encuentra el layout abierto y fase null); al
+            // fotograma siguiente solo se devuelve la transición del alto, cuando el cambio ya está pintado
+            acabarCoreografia();
+            alSiguienteFotograma(() => descongelarAlto(contenedor));
+        };
+        // Devuelve true si se encargó ella de la apertura (y entonces NADIE más escribe el layout hasta el relevo).
+        const abrirConCoreografia = (contenedor, inset, vaAlFinal) => {
+            if (!isNativeApp() || !coreografiaEncendida() || !(msVigente > 0)) return false;
+            if (root.hasAttribute('data-kb-open') && coreo.fase !== 'abriendo') return false;   // layout ya abierto: es un ajuste fino
+            const wrapper = inputWrapperRef.current;
+            const lista = messagesContainerRef.current;
+            if (!wrapper) return false;
+            // reabrir a mitad de un cierre: las MISMAS piezas, que se retoman donde estén (cambiarlas dejaría una con su
+            // transform puesto para siempre); el relleno cerrado ya se midió al cerrar
+            if (coreo.fase === 'cerrando' && coreo.timer) { clearTimeout(coreo.timer); coreo.timer = null; }
+            if (coreo.fase === null) {
+                const acompana = Boolean(lista) && listaAcompana({
+                    scrollHeight: lista.scrollHeight, scrollTop: lista.scrollTop, clientHeight: lista.clientHeight,
+                    overflowY: getComputedStyle(lista).overflowY, vaAlFinal,
+                });
+                soltarPiezas();
+                coreo.piezas = acompana ? [lista, wrapper] : [wrapper];
+                coreo.acompana = acompana;
+                // el relleno CERRADO se mide ahora, que el layout aún lo tiene
+                coreo.padCerrado = parseFloat(getComputedStyle(wrapper).paddingBottom) || 0;
+            }
+            const padAbierto = KB_PAD_ABIERTO_REM * (parseFloat(getComputedStyle(root).fontSize) || 16);
+            const recorrido = recorridoDelTeclado({ inset, padCerrado: coreo.padCerrado, padAbierto });
+            coreo.fase = 'abriendo';
+            coreo.destino = inset;
+            root.setAttribute('data-kb-abriendo', '');          // la barra de pestañas se va YA (también es transform)
+            moverPiezas(-recorrido, msVigente);
+            marcarSondaTeclado('coreo+');
+            if (coreo.timer) clearTimeout(coreo.timer);
+            coreo.timer = setTimeout(() => relevoDeApertura(contenedor, lista, coreo.acompana), msVigente + RELEVO_MARGEN_MS);
+            return true;
         };
 
         // Coloca YA el chat donde va a quedar con el teclado abierto, antes de que la geometría lo confirme. La usan el
@@ -912,16 +1019,69 @@ const AgentPage = () => {
             if (window.innerWidth <= 1024) contenedor.style.setProperty('--app-height', `${altoDeReferencia(window.innerHeight, window.innerWidth)}px`);
             insetAplicadoRef.current = inset;
             tecladoAbiertoRef.current = true;
-            contenedor.style.setProperty('--kb-inset', `${inset}px`);
-            root.toggleAttribute('data-kb-open', true);
-            root.toggleAttribute('data-kb-scroll-lock', true);
+            ultimaAccionAlAbrirRef.current = 'nada';
             if (!estabaAbierto) alAbrirTecladoRef.current?.();
+            // [131] con la coreografía el layout NO se toca aquí: lo pone el relevo, al acabar el transform
+            if (!abrirConCoreografia(contenedor, inset, ultimaAccionAlAbrirRef.current !== 'nada')) {
+                contenedor.style.setProperty('--kb-inset', `${inset}px`);
+                root.toggleAttribute('data-kb-open', true);
+                root.toggleAttribute('data-kb-scroll-lock', true);
+            }
             if (abriendoTimer) clearTimeout(abriendoTimer);
             abriendoTimer = setTimeout(() => {
                 abriendoTimer = null;
                 abriendoRef.current = false;
                 updateInputPosition(true);
             }, 900);
+        };
+
+        // [P1-PLAN-LOTE-131] El cierre con coreografía va en DOS tiempos alrededor de las mutaciones de `alPerderElFoco`
+        // (que se quedan donde estaban: sus contratos las buscan ahí). Esta función corre ANTES y devuelve la que corre
+        // DESPUÉS — o null si no toca (modo apagado, web, o nada que animar).
+        const prepararCierreConCoreografia = () => {
+            if (!isNativeApp() || !coreografiaEncendida() || !(msVigente > 0)) return null;
+            const wrapper = inputWrapperRef.current;
+            const lista = messagesContainerRef.current;
+            if (!wrapper) return null;
+            if (coreo.fase === 'abriendo') {
+                // se cierra ANTES del relevo: el layout sigue cerrado; basta con devolver las piezas a su sitio
+                if (coreo.timer) { clearTimeout(coreo.timer); coreo.timer = null; }
+                const devolverPiezas = () => {
+                    coreo.fase = 'cerrando';
+                    root.removeAttribute('data-kb-abriendo');
+                    moverPiezas(0, msVigente);
+                    marcarSondaTeclado('coreo<');
+                    coreo.timer = setTimeout(() => { soltarPiezas(); acabarCoreografia(); }, msVigente + RELEVO_MARGEN_MS);
+                };
+                return devolverPiezas;
+            }
+            if (!root.hasAttribute('data-kb-open') || !(insetAplicadoRef.current > 0)) return null;
+            const inset = insetAplicadoRef.current;
+            const padAbierto = parseFloat(getComputedStyle(wrapper).paddingBottom) || 0;
+            const acompana = Boolean(lista) && listaAcompana({
+                scrollHeight: lista.scrollHeight, scrollTop: lista.scrollTop, clientHeight: lista.clientHeight,
+                overflowY: getComputedStyle(lista).overflowY,
+            });
+            if (coreo.timer) { clearTimeout(coreo.timer); coreo.timer = null; }
+            soltarPiezas();
+            coreo.fase = 'cerrando';
+            congelarAlto(wrapper.closest('.agent-container'));
+            const deshacerYBajar = (contenedor) => {
+                const padCerrado = parseFloat(getComputedStyle(wrapper).paddingBottom) || 0;   // fuerza el layout FINAL
+                coreo.padCerrado = padCerrado;
+                const recorrido = recorridoDelTeclado({ inset, padCerrado, padAbierto });
+                coreo.piezas = acompana ? [lista, wrapper] : [wrapper];
+                moverPiezas(-recorrido, 0);                      // a la vista, todo sigue donde estaba
+                void wrapper.offsetHeight;
+                marcarSondaTeclado('coreo-');
+                alSiguienteFotograma(() => {
+                    descongelarAlto(contenedor);
+                    if (coreo.fase !== 'cerrando') return;        // se reabrió entre medias: manda la apertura
+                    moverPiezas(0, msVigente);
+                    coreo.timer = setTimeout(() => { soltarPiezas(); acabarCoreografia(); }, msVigente + RELEVO_MARGEN_MS);
+                });
+            };
+            return deshacerYBajar;
         };
 
         // [P1-KB-CIERRE-SIN-ESPERA · 2026-08-23] «Cuando lo cierro es lento.»
@@ -955,6 +1115,8 @@ const AgentPage = () => {
             }
             // [129] en la app nativa el chat baja con la duración REAL del teclado (la del último aviso de UIKit)
             if (isNativeApp()) fijarDuracionTeclado(Number(safeLocalStorageGet(CLAVE_MS_NATIVO, 0)) || 0);
+            // [131] coreografía del cierre, 1/2: lo que hay que saber ANTES de tocar el layout
+            const cierre = prepararCierreConCoreografia();
             cerrandoRef.current = true;
             abriendoRef.current = false;
             if (abriendoTimer) { clearTimeout(abriendoTimer); abriendoTimer = null; }
@@ -964,7 +1126,9 @@ const AgentPage = () => {
             tecladoAbiertoRef.current = false;
             const contenedor = inputWrapperRef.current?.closest('.agent-container');
             if (contenedor) contenedor.style.setProperty('--kb-inset', '0px');
-            if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
+            if (inputWrapperRef.current && !cierre) inputWrapperRef.current.style.transform = '';
+            // [131] 2/2: el layout ya es el final; el transform lo deshace a la vista y baja a 0 con el teclado
+            if (cierre) cierre(contenedor);
         };
 
         // [P1-PLAN-LOTE-111 · 2026-09-19] APERTURA ANTICIPADA — «tiene delay cuando lo abro» (el dueño, app nativa).
@@ -1078,6 +1242,13 @@ const AgentPage = () => {
             root?.style.removeProperty('--kb-ms');
             if (asiento) clearTimeout(asiento);
             if (abriendoTimer) clearTimeout(abriendoTimer);
+            // [131] la coreografia no deja piezas con transform ni llaves en <html> al salir del chat
+            if (coreo.timer) clearTimeout(coreo.timer);
+            soltarPiezas();
+            coreo.fase = null;
+            root?.removeAttribute('data-kb-abriendo');
+            root?.removeAttribute('data-kb-sin-anim');
+            descongelarAlto(coreo.contenedor);
             abriendoRef.current = false;
             vv.removeEventListener('resize', alEvento);
             vv.removeEventListener('scroll', alEvento);
@@ -2241,6 +2412,7 @@ const AgentPage = () => {
             clientHeight: el?.clientHeight || 0,
             spacerPx: spacerPxRef.current,
         });
+        ultimaAccionAlAbrirRef.current = accion;   // [131] la coreografía del teclado lo lee: ¿la lista va a ir al final?
         if (accion === 'fijar') scrollToBottom(false, 'auto');
         else if (accion === 'forzar') scrollToBottom(true, 'auto');
     };
@@ -3017,6 +3189,13 @@ const AgentPage = () => {
         const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
         // [P1-PLAN-LOTE-112] `/sonda` en la app nativa enciende/apaga la sonda del teclado (utils/keyboardProbe.js).
         // No es un mensaje: no abre turno ni llega al servidor. Fuera de la app nativa es texto normal.
+        // [P1-PLAN-LOTE-131] `/fluido` enciende/apaga la coreografía del teclado solo con `transform` (modo de prueba).
+        if (isNativeApp() && textToSend.trim().toLowerCase() === '/fluido') {
+            const encendida = alternarCoreografia();
+            setInput('');
+            toast.info(encendida ? t('Animación fluida del teclado encendida') : t('Animación fluida del teclado apagada'));
+            return;
+        }
         if (isNativeApp() && textToSend.trim().toLowerCase() === '/sonda') {
             const encendida = alternarSondaTecladoNativa();
             setInput('');
@@ -6010,6 +6189,11 @@ const AgentPage = () => {
                         /* [P1-CHAT-AIRE-INFERIOR · 2026-08-23] 0.8rem → 1.1rem: con el
                            teclado abierto la caja quedaba lamiendo su borde superior. */
                         padding-bottom: 1.1rem !important;
+                    }
+                    /* [P1-PLAN-LOTE-131] En el relevo de la coreografia el relleno cambia de golpe, a proposito: lo que se ve
+                       lo lleva (o lo acaba de soltar) un transform, y animar ademas el relleno moveria la caja dos veces. */
+                    html[data-kb-sin-anim] .input-wrapper {
+                        transition: none !important;
                     }
                     /* --- Welcome screen --- */
                     .welcome-heading {

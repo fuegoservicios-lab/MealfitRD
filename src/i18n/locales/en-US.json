@@ -3213,5 +3213,7 @@
   "El dictado necesita conexión": "Dictation needs a connection",
   "No te escuché. Toca el micrófono y habla": "I didn’t hear you. Tap the microphone and speak",
   "El dictado no está disponible en tu idioma": "Dictation isn’t available in your language",
-  "No pude iniciar el dictado": "I couldn’t start dictation"
+  "No pude iniciar el dictado": "I couldn’t start dictation",
+  "Animación fluida del teclado encendida": "Smooth keyboard animation on",
+  "Animación fluida del teclado apagada": "Smooth keyboard animation off"
 }

@@ -3213,5 +3213,7 @@
   "El dictado necesita conexión": "La dictée a besoin d’une connexion",
   "No te escuché. Toca el micrófono y habla": "Je ne vous ai pas entendu. Touchez le micro et parlez",
   "El dictado no está disponible en tu idioma": "La dictée n’est pas disponible dans votre langue",
-  "No pude iniciar el dictado": "Je n’ai pas pu démarrer la dictée"
+  "No pude iniciar el dictado": "Je n’ai pas pu démarrer la dictée",
+  "Animación fluida del teclado encendida": "Animation fluide du clavier activée",
+  "Animación fluida del teclado apagada": "Animation fluide du clavier désactivée"
 }
