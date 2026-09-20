@@ -32,21 +32,24 @@ const leer = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf-8')
 const ap = leer('src/pages/AgentPage.jsx');
 const foto = (name) => new File([new Uint8Array([1, 2, 3])], name, { type: 'image/jpeg' });
 
-describe('lote 138 · la coreografía es el modo por defecto', () => {
-    beforeEach(() => localStorage.removeItem(CLAVE_COREOGRAFIA));
+describe('lote 138 → 139 · la coreografía vuelve a ser un modo de PRUEBA', () => {
+    beforeEach(() => { localStorage.removeItem(CLAVE_COREOGRAFIA); localStorage.removeItem('mf_kb_coreografia'); });
 
-    it('viene ENCENDIDA; `/fluido` la apaga (guarda «0») y la vuelve a encender', () => {
-        expect(coreografiaEncendida()).toBe(true);
-        expect(alternarCoreografia()).toBe(false);
-        expect(localStorage.getItem(CLAVE_COREOGRAFIA)).toBe('0');
+    // El 138 la encendió por defecto sin medirla en el iPhone; la sonda del dueño (paquete 20260920-211937) enseñó lo que el
+    // arnés no tiene: con el layout aún cerrado iOS PANEA la página 335 px (`sy=335 top=-335`), la caja sube dos veces
+    // (`caja=174`) y salta a su sitio en el relevo (`caja=509`).
+    it('[139] APAGADA por defecto; `/fluido` la enciende (guarda «1») y la apaga', () => {
         expect(coreografiaEncendida()).toBe(false);
         expect(alternarCoreografia()).toBe(true);
+        expect(localStorage.getItem(CLAVE_COREOGRAFIA)).toBe('1');
+        expect(alternarCoreografia()).toBe(false);
         expect(localStorage.getItem(CLAVE_COREOGRAFIA)).toBeNull();
     });
 
-    it('quien la encendió a mano en el lote 131 (guardó «1») sigue con ella', () => {
-        localStorage.setItem(CLAVE_COREOGRAFIA, '1');
-        expect(coreografiaEncendida()).toBe(true);
+    it('[139] la llave cambió de nombre: ni el «1» del lote 131 ni haber pasado por el 138 la dejan encendida', () => {
+        expect(CLAVE_COREOGRAFIA).toBe('mf_kb_coreografia_v2');
+        localStorage.setItem('mf_kb_coreografia', '1');
+        expect(coreografiaEncendida()).toBe(false);
     });
 
     it('al ABRIR el chat llega antes que el teclado; la duración nunca baja del mínimo ni inventa una', () => {

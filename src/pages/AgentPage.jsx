@@ -3248,8 +3248,8 @@ const AgentPage = () => {
             : (options.overrideImageUrl ? [{ id: `legacy-${Date.now()}`, url: options.overrideImageUrl, status: 'ready' }] : []);
         if ((!textToSend.trim() && attachments.length === 0 && overrideAttachments.length === 0) || isTurnActiveRef.current) return;
 
-        // [P1-PLAN-LOTE-131 → 138] `/fluido` apaga/enciende la coreografía del teclado solo con `transform` (desde el 138
-        // viene ENCENDIDA: es el interruptor de vuelta al modo anterior, para comparar en el teléfono). No es
+        // [P1-PLAN-LOTE-131 → 139] `/fluido` enciende/apaga la coreografía del teclado solo con `transform` (modo de PRUEBA;
+        // el 138 la encendió por defecto y el 139 la apagó: en el iPhone iOS panea la página durante la apertura). No es
         // un mensaje: no abre turno ni llega al servidor. Va DESPUÉS del guard de arriba a propósito: un contrato
         // (test_p1_chat_stop_power) exige ese guard en los primeros 1.800 caracteres de handleSend.
         if (isNativeApp() && textToSend.trim().toLowerCase() === '/fluido') {

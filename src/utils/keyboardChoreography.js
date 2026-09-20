@@ -13,11 +13,11 @@
 //   · CERRAR: layout primero (el final, de golpe) + transform que lo deshace visualmente → y el transform baja a 0.
 //
 // Aquí vive lo que se puede probar sin navegador: cuánto hay que desplazar y cuándo la lista acompaña a la caja.
-// El baile imperativo está en `pages/AgentPage.jsx` (efecto del teclado). Nació como modo de PRUEBA (lote 131, `/fluido`);
-// desde el lote 138 es el modo por defecto de la app nativa y `/fluido` lo apaga.
+// El baile imperativo está en `pages/AgentPage.jsx` (efecto del teclado). Es un modo de PRUEBA: se enciende con `/fluido`
+// (el lote 138 lo encendió por defecto y el 139 lo devolvió aquí: ver `coreografiaEncendida`).
 import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from './safeLocalStorage';
 
-export const CLAVE_COREOGRAFIA = 'mf_kb_coreografia';
+export const CLAVE_COREOGRAFIA = 'mf_kb_coreografia_v2';
 /** La misma curva que ya comparten el alto del chat, el relleno de la caja y la barra de pestañas. */
 export const CURVA_TECLADO = 'cubic-bezier(0.32, 0.72, 0, 1)';
 /** Relleno inferior de la caja con el teclado abierto — espejo de la regla CSS `html[data-kb-open] .input-wrapper`
@@ -26,24 +26,27 @@ export const KB_PAD_ABIERTO_REM = 1.1;
 /** Margen tras la animación antes del relevo: un par de fotogramas, para no cortar la cola de la curva. */
 export const RELEVO_MARGEN_MS = 34;
 
-// [P1-PLAN-LOTE-138 · 2026-09-20] ENCENDIDA POR DEFECTO. El dueño, con la sonda puesta y el modo de prueba apagado: «aún
-// no lo siento 100 % fluido y rápido… en la app de Gemini se siente muy pero muy fluido». Su captura MIDE el porqué:
-//   · al volver del selector, el alto del chat se quedó clavado en 597 px durante 80 ms (+5015 → +5095) — justo cuando
-//     el hilo principal reduce y recodifica la foto — y acabó 70 ms después que el teclado;
-//   · al abrir, +185 ms después del toque el alto seguía en 844: ni un fotograma pintado.
-// Animar `height` necesita al hilo principal en CADA fotograma (y el WebView lo pinta a 60 Hz; el teclado del iPhone
-// del dueño, ProMotion, va a 120). Un `transform` se le entrega UNA vez al compositor y corre allí, a la cadencia de la
-// pantalla, pase lo que pase en el hilo principal. `/fluido` queda como interruptor de VUELTA (guarda '0').
+// [P1-PLAN-LOTE-139 · 2026-09-20] APAGADA por defecto OTRA VEZ. El lote 138 la encendió sin medirla en el iPhone y el dueño
+// la vio «peor, sobre todo al abrir». Su sonda (paquete 20260920-211937) dice por qué, y es algo que el arnés no tiene:
+//     + 92 coreo+                                                     ← arranca el transform; el LAYOUT sigue cerrado
+//     +150 resize  H=509 S=335 sy=335 top=-335 caja=394               ← iOS DESPLAZA la página 335 px para enseñar el campo
+//     +466 relevo  H=509 S=335 sy=335 top=-335 cont=509 caja=174      ← la caja subió DOS veces (paneo + transform)
+//     +484 scroll  S=0 sy=0 top=0 caja=509                            ← y salta a su sitio
+// El camino de siempre no lo sufre porque al foco pone YA el layout final y el cerrojo del documento
+// (`data-kb-scroll-lock`): WebKit ve el campo visible y no panea. La coreografía deja el layout cerrado hasta el relevo —
+// justo lo que invita al paneo—, y además `innerHeight` se quedó en 509 durante toda la subida (con el cerrojo puesto
+// antes, el `body` fijo recortaría la caja por debajo de 509). No se arregla a ciegas: vuelve a ser un modo de PRUEBA.
+// La llave cambia de nombre a propósito: quien guardó «1» en la vieja (lote 131) o pasó por el 138 arranca APAGADO.
 export function coreografiaEncendida() {
-    return safeLocalStorageGet(CLAVE_COREOGRAFIA, null) !== '0';
+    return safeLocalStorageGet(CLAVE_COREOGRAFIA, null) === '1';
 }
 
 export function alternarCoreografia() {
     if (coreografiaEncendida()) {
-        safeLocalStorageSet(CLAVE_COREOGRAFIA, '0');
+        safeLocalStorageRemove(CLAVE_COREOGRAFIA);
         return false;
     }
-    safeLocalStorageRemove(CLAVE_COREOGRAFIA);
+    safeLocalStorageSet(CLAVE_COREOGRAFIA, '1');
     return true;
 }
 
