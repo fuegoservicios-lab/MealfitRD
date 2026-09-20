@@ -111,6 +111,7 @@ import Wordmark from '../components/common/Wordmark';
 import { t, useT, formatDate } from '../i18n';
 import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
+import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
 import { nativeHidesCommerce } from '../config/platform';
 
@@ -1731,6 +1732,8 @@ const AgentPage = () => {
     // `preventDefault` en pointerdown no lo evita. El remedio conocido: atender el toque en `touchend` y cancelarlo,
     // de modo que WebKit no sintetiza nada y el foco NUNCA sale de la caja (ni parpadeo al encender, ni cierre al
     // pausar). `mousedown` cancelado cubre el ratón. La reposición de abajo queda solo como red.
+    // [P1-PLAN-LOTE-129] quitar la foto adjunta (la X) tampoco se lleva el teclado: ver hooks/useToqueSinFoco.js
+    const sinFoco = useToqueSinFoco();
     const reponerTecladoTrasMicRef = useRef(false);
     const micPorToqueRef = useRef(0);
     const accionarMic = () => {
@@ -4267,7 +4270,7 @@ const AgentPage = () => {
                                     <button
                                         type="button"
                                         aria-label={t('Quitar imagen {number}', { number: index + 1 })}
-                                        onClick={() => removeSelectedAttachment(item.id)}
+                                        {...sinFoco(() => removeSelectedAttachment(item.id))}
                                         disabled={isTurnActive}
                                         className="attachment-remove"
                                     >
