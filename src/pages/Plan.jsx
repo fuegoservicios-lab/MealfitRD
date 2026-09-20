@@ -6,6 +6,8 @@ import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCro
 import PropTypes from 'prop-types';
 
 import { useAssessment } from '../context/AssessmentContext';
+import { isTrackingMode } from '../config/dashboardNav';
+import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
 // [P1-IOS-NATIVE-SHELL-2 · 2026-08-22] Gate único de comercio (config/platform.js).
 import { nativeHidesCommerce } from '../config/platform';
@@ -812,8 +814,19 @@ const Plan = () => {
         // generar; bloquear nueva generación si ya no quedan.
         isGuest, consumeGuestCredit, remainingCredits,
         // [P1-PLANPAGE-HYDRATE-ON-ACK · 2026-07-25] Ver los dos call sites de `ack` abajo.
-        updateData, hydrateLatestPlan } = useAssessment();  // [P1-CHECKIN-QUEUE-PARITY] updateData faltaba en el destructuring (eslint no-undef)
+        updateData, hydrateLatestPlan, userProfile, refreshProfileAndPlan } = useAssessment();  // [P1-CHECKIN-QUEUE-PARITY] updateData faltaba en el destructuring (eslint no-undef)
     const t = useT();
+    // [P1-PLAN-LOTE-137 · 2026-09-20] Generar desde el CONTADOR enciende el modo en el servidor, y `saveGeneratedPlan`
+    // pone al cliente al día (espejo + perfil en memoria). Pero hay un segundo camino de llegada que no pasa por él:
+    // cuando el stream muere y el plan se ADOPTA con `hydrateLatestPlan` (las dos llamadas de abajo). Ahí el usuario
+    // aterrizaba en su contador con «Tu plan está en pausa» sobre el plan que acababa de pagar, hasta el siguiente
+    // foco de la ventana. Mismo cierre, por el otro camino: espejo ya, y el perfil se vuelve a leer.
+    const alDiaConElModoRef = useRef(null);
+    alDiaConElModoRef.current = async () => {
+        if (!isTrackingMode(userProfile)) return;
+        marcarModoPlanTrasGenerar();
+        try { await refreshProfileAndPlan?.(); } catch { /* el espejo local ya dice 'plan' */ }
+    };
     const [status, setStatus] = useState('analyzing'); // analyzing, generating, preview, ready
     // [P2-LINT-ZERO · 2026-07-09] setTempPlan nunca se llamaba (setter muerto)
     // → tempPlan es constante null; se conserva porque el JSX lo referencia.
@@ -887,6 +900,7 @@ const Plan = () => {
             // Detalle y evidencia: src/__tests__/PlanPageHydrateOnAck.test.js
             if (planIdFinal) {
                 try { await hydrateLatestPlan?.({ force: true, expectPlanId: planIdFinal, src: 'plan-page' }); } catch { /* noop */ }
+                try { await alDiaConElModoRef.current?.(); } catch { /* noop */ }
             }
             fetchWithAuth(`/api/plans/pending-status/ack${qs}`, { method: 'POST' }).catch(() => {});
             safeLocalStorageRemove('mealfit_plan_in_progress');
@@ -1157,6 +1171,7 @@ const Plan = () => {
                                 // plan primero. (Contar los caminos, no blindar uno.)
                                 if (pendingData.plan_id_final) {
                                     try { await hydrateLatestPlan?.({ force: true, expectPlanId: pendingData.plan_id_final, src: 'plan-page' }); } catch { /* noop */ }
+                                    try { await alDiaConElModoRef.current?.(); } catch { /* noop */ }
                                 }
                                 // Ackear el KV (idempotente, fire-and-forget) para que no re-dispare recovery.
                                 const _aqs = _gsid ? `?session_id=${encodeURIComponent(_gsid)}` : '';

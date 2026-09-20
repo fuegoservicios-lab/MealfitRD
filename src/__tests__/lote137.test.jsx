@@ -193,6 +193,18 @@ describe('lote 137 · el Agente', () => {
     });
 });
 
+describe('lote 137 · generar desde el contador deja al cliente en modo plan por LOS DOS caminos de llegada', () => {
+    it('el plan ADOPTADO (stream muerto ⇒ hydrateLatestPlan) también pone el espejo y relee el perfil', () => {
+        const p = leer('src/pages/Plan.jsx');
+        expect(p).toContain('if (!isTrackingMode(userProfile)) return;');
+        expect(p).toMatch(/marcarModoPlanTrasGenerar\(\);\s*try \{ await refreshProfileAndPlan\?\.\(\); \}/);
+        // las DOS llamadas de adopción van seguidas del cierre (contar los caminos, no blindar uno)
+        const adopciones = p.match(/await hydrateLatestPlan\?\.\(\{ force: true, expectPlanId: [^}]+\}\); \} catch \{ \/\* noop \*\/ \}\s*try \{ await alDiaConElModoRef\.current\?\.\(\); \}/g) || [];
+        expect(adopciones.length).toBe(2);
+        expect((p.match(/hydrateLatestPlan\?\.\(\{ force: true, expectPlanId/g) || []).length).toBe(2);
+    });
+});
+
 describe('lote 137 · formulario y Nevera', () => {
     it('el formulario ofrece «Volver al panel» al usuario contador, también en el paso 0 del teléfono', () => {
         const f = leer('src/components/assessment/InteractiveAssessmentLayout.jsx');
