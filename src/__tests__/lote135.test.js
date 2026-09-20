@@ -50,6 +50,12 @@ describe('lote 135 · la invitación al plan: una vez por semana y por usuario',
         localStorage.clear();
         fetchWithAuth.mockResolvedValueOnce({ ok: false, status: 404 });   // frontend desplegado antes que el backend
         expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true });
+        // …pero a quien ya la había descartado (el «1» heredado) un fallo del servidor no se la devuelve
+        localStorage.setItem(CLAVE, '1');
+        fetchWithAuth.mockResolvedValueOnce({ ok: false, status: 404 });
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: false });
+        fetchWithAuth.mockResolvedValueOnce({ ok: true, json: async () => ({ visible: true, next_at: null }) });
+        expect(await leerInvitacion(CLAVE, 'u1', AHORA)).toEqual({ visible: true });   // el servidor SÍ manda sobre el «1»
     });
 
     it('la tarjeta NACE escondida, pregunta al volver a la app y conserva sus contratos', () => {

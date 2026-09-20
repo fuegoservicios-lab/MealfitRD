@@ -35,12 +35,16 @@ function _esconderHasta(clave, userId, until) {
     safeLocalStorageSet(clave, JSON.stringify({ u: String(userId || ''), until }));
 }
 
-/** ¿Toca mostrarla AHORA? `{ visible }`. Sin red se muestra: esconderla por un fallo la quitaría para siempre. */
+/**
+ * ¿Toca mostrarla AHORA? `{ visible }`. Sin respuesta del servidor se muestra (esconderla por un fallo la quitaría para
+ * siempre)… salvo a quien YA la había descartado con el «1» heredado: a ese un fallo de red no se la devuelve.
+ */
 export async function leerInvitacion(clave, userId, ahora = Date.now()) {
     if (escondidaHasta(clave, userId) > ahora) return { visible: false };
+    const sinServidor = { visible: safeLocalStorageGet(clave, null) !== '1' };
     try {
         const res = await fetchWithAuth(RUTA);
-        if (!res.ok) return { visible: true };
+        if (!res.ok) return sinServidor;
         const datos = await res.json();
         if (datos?.visible === false) {
             const vuelve = Date.parse(datos.next_at || '');
@@ -49,7 +53,7 @@ export async function leerInvitacion(clave, userId, ahora = Date.now()) {
         }
         return { visible: true };
     } catch {
-        return { visible: true };
+        return sinServidor;
     }
 }
 
