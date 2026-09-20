@@ -3140,10 +3140,10 @@ const AgentPage = () => {
         // cuadro en una ventana de ~200 px— se conserva de otra forma: con el teclado en pantalla el envío va en modo
         // «abajo» (la vista SIGUE a la respuesta, como un chat de mensajería) en vez de «anclado» (ver más abajo).
         const _tecladoVirtual = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
+        // [130] solo si el foco de verdad se fue (con teclado virtual ya no se va: reenfocar haría parpadear)
         if (_hadFocusPreSend && !callModeRef.current) {
             setTimeout(() => {
-                // solo si de verdad se fue: reenfocar lo ya enfocado no hace nada, y con teclado virtual no debe parpadear
-                try { if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus({ preventScroll: true }); } catch (_e) { /* swallow */ }
+                try { if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus(); } catch (_e) { /* swallow */ }
             }, 0);
         }
 

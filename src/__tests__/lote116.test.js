@@ -18,7 +18,7 @@ describe('enviar con el teclado virtual abierto', () => {
         const bloque = src.slice(i, i + 700);
         expect(bloque).not.toContain('chatInputRef.current?.blur()');
         expect(bloque).toMatch(/if \(_hadFocusPreSend && !callModeRef\.current\) \{\s*setTimeout\(/);
-        expect(bloque).toContain('if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus({ preventScroll: true });');
+        expect(bloque).toContain('if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus();');
         expect(src).toMatch(/\} else if \(_tecladoVirtual\) \{[\s\S]{0,700}sentAnchorRef\.current = null;\s*_setSpacer\(0\);\s*_setMode\('bottom'\);/);
     });
 });

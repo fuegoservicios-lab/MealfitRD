@@ -41,7 +41,7 @@ describe('lote 130 · enviar ya no cierra el teclado', () => {
         const i = ap.indexOf('const _tecladoVirtual = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;');
         const bloque = ap.slice(i, i + 700);
         expect(bloque).not.toContain('.blur()');
-        expect(bloque).toContain('if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus({ preventScroll: true });');
+        expect(bloque).toContain('if (document.activeElement !== chatInputRef.current) chatInputRef.current?.focus();');
     });
 
     it('con el teclado en pantalla el envío sigue a la respuesta (modo «abajo»); sin él, sigue anclando el mensaje arriba', () => {
