@@ -78,11 +78,18 @@ function _esInstalada() {
     } catch { return false; }
 }
 
+// [P1-PLAN-LOTE-135 · 2026-09-20] EL PLUGIN VIAJA DENTRO DE UNA CAJA `{ LN }`, NUNCA SUELTO. El dueño, ya con el
+// binario que trae el plugin: «es que ni se inmuta, no se puede encender». Una función `async` que DEVUELVE un valor
+// le pregunta si es una promesa (lee `.then`), y el plugin de Capacitor es un Proxy que responde a CUALQUIER propiedad
+// con una función que llama al lado nativo: `.then(resolve, reject)` se volvía una llamada nativa «then» que no
+// existe y que jamás invoca a `resolve`. La promesa no se resolvía NUNCA: el canal se quedaba en `null` y el
+// interruptor, deshabilitado para siempre. Pasa igual con `await plugin` y con `resolve(plugin)`. No lo «simplifiques»
+// devolviendo el plugin: `lote135.proxy.test.js` lo prueba con un doble fiel al Proxy real.
 async function _pluginLocal() {
     try {
         if (!nativePluginAvailable('LocalNotifications')) return null;
         const mod = await import('@capacitor/local-notifications');
-        return mod.LocalNotifications || null;
+        return mod.LocalNotifications ? { LN: mod.LocalNotifications } : null;
     } catch {
         return null;
     }
@@ -180,7 +187,7 @@ export async function sincronizarAvisosLocales() {
     if (_sincronizando) return _sincronizando;
     _sincronizando = (async () => {
         try {
-            const LN = await _pluginLocal();
+            const LN = (await _pluginLocal())?.LN;
             if (!LN) return { ok: false, code: 'nativa-actualizar' };
             const permiso = await LN.checkPermissions();
             if (permiso?.display !== 'granted') return { ok: false, code: 'permiso' };
@@ -206,7 +213,7 @@ export async function sincronizarAvisosLocales() {
 export async function estadoDeAvisos() {
     const canal = await canalDeEsteDispositivo();
     if (canal === 'local') {
-        const LN = await _pluginLocal();
+        const LN = (await _pluginLocal())?.LN;
         let permiso = 'prompt';
         try { permiso = (await LN.checkPermissions())?.display || 'prompt'; } catch { /* sin permiso legible */ }
         const quiere = safeLocalStorageGet(CLAVE_AVISOS_LOCALES, null) === '1';
@@ -237,7 +244,7 @@ export async function estadoDeAvisos() {
 export async function activarAvisos() {
     const canal = await canalDeEsteDispositivo();
     if (canal === 'local') {
-        const LN = await _pluginLocal();
+        const LN = (await _pluginLocal())?.LN;
         let permiso = (await LN.checkPermissions())?.display;
         if (permiso !== 'granted') permiso = (await LN.requestPermissions())?.display;
         if (permiso !== 'granted') return { ok: false, canal, code: 'permiso_denegado' };
@@ -268,7 +275,7 @@ export async function desactivarAvisos() {
     if (canal === 'local') {
         safeLocalStorageSet(CLAVE_AVISOS_LOCALES, '0');
         try {
-            const LN = await _pluginLocal();
+            const LN = (await _pluginLocal())?.LN;
             await LN.cancel({ notifications: idsPropios().map((id) => ({ id })) });
         } catch { /* nada que cancelar */ }
         return { ok: true, canal };
@@ -310,7 +317,7 @@ let _iniciado = false;
 export async function iniciarAvisosLocales() {
     if (_iniciado || !isNativeApp()) return;
     _iniciado = true;
-    const LN = await _pluginLocal();
+    const LN = (await _pluginLocal())?.LN;
     if (!LN) return;
     try {
         await LN.addListener('localNotificationActionPerformed', (ev) => {
