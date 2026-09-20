@@ -57,8 +57,12 @@ describe('el chat lo cablea', () => {
     const src = readFileSync(join(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
     it('la política corre UNA vez al abrir: en la apertura anticipada y en la transición medida', () => {
         expect(src).toContain('if (abierto && !tecladoAbiertoRef.current) alAbrirTecladoRef.current?.();');
-        const i = src.indexOf('const alGanarElFoco = (e) => {');
-        expect(src.slice(i, i + 1900)).toContain('alAbrirTecladoRef.current?.();');
+        // [P1-PLAN-LOTE-129] la apertura anticipada vive en `anticiparApertura` (la comparten el foco y el aviso nativo),
+        // y allí corre solo si el teclado NO estaba ya abierto: dos avisos seguidos (308 → 335 px) no deciden dos veces.
+        const i = src.indexOf('const anticiparApertura = (inset) => {');
+        expect(src.slice(i, i + 1400)).toContain('if (!estabaAbierto) alAbrirTecladoRef.current?.();');
+        const j = src.indexOf('const alGanarElFoco = (e) => {');
+        expect(src.slice(j, j + 1200)).toContain('anticiparApertura(recordado);');
         expect(src).toContain("else if (accion === 'forzar') scrollToBottom(true, 'auto');");
     });
     it('el contenedor también se observa: el final sigue pegado mientras la ventana encoge', () => {

@@ -377,7 +377,9 @@ describe('[P1-KB-CERROJO-DE-CIERRE] el evento rezagado no vuelve a encoger el ch
 describe('[P1-KB-BAJADA-FLUIDA] el chat acompaña al teclado en vez de saltar', () => {
     it('el contenedor anima su alto con la curva y duración del teclado de iOS', () => {
         const src = read('pages/AgentPage.jsx');
-        expect(src).toMatch(/transition: isMobile \? 'height 0\.25s cubic-bezier\(0\.32, 0\.72, 0, 1\)' : undefined/);
+        // [P1-PLAN-LOTE-129] la duración la pone el teclado cuando avisa (`--kb-ms`: 0,38–0,40 s medidos en iOS 26);
+        // los 0,25 s quedan como valor por defecto para quien no recibe aviso (web, PWA, binarios viejos).
+        expect(src).toMatch(/transition: isMobile \? 'height var\(--kb-ms, 0\.25s\) cubic-bezier\(0\.32, 0\.72, 0, 1\)' : undefined/);
     });
 
     it('solo en móvil: en escritorio el alto no se mueve y animarlo solo retrasaría', () => {

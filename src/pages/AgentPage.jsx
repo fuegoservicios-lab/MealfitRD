@@ -76,12 +76,14 @@ import { consumeAgentPrefill, AGENT_PREFILL_EVENT } from '../utils/agentPrefill'
 // La fachada lo encola. Además deja UNA sola puerta a `@sentry/*` en todo el
 // árbol (`utils/sentryBoot.js`), que es lo que hace verificable la propiedad.
 import { captureException, addBreadcrumb } from '../utils/observability';
-import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, resolverInsetNativo, altoDeReferencia, KB_UMBRAL_PX } from '../utils/keyboardViewport';
-import { alternarSondaTecladoNativa, marcarSondaTeclado } from '../utils/keyboardProbe';
+import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, resolverInsetNativo, altoDeReferencia, decidirAvisoNativo, KB_UMBRAL_PX } from '../utils/keyboardViewport';
+import { alternarSondaTecladoNativa, marcarSondaTeclado, EVENTO_TECLADO_NATIVO } from '../utils/keyboardProbe';
 import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMoverse } from '../utils/chatKeyboardScroll';
 import { decidirAlAlejarseDelFondo } from '../utils/chatScrollIntent';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
+// [P1-PLAN-LOTE-129] La duración REAL de la animación del teclado, tal como la dio UIKit la última vez (ms).
+const CLAVE_MS_NATIVO = 'mf_kb_ms_nativo';
 // [P1-PLAN-LOTE-127] Cuando se mira si iOS escondio el teclado al encender el microfono (ms desde que empieza a escuchar).
 const MIC_REPONER_TECLADO_MS = [350, 700, 1200, 2000];
 // Ventana en la que un clic tras un toque YA atendido en touchend se considera el mismo gesto.
@@ -884,6 +886,43 @@ const AgentPage = () => {
             asiento = setTimeout(() => { asiento = null; updateInputPosition(true); }, 350);
         };
 
+        // [P1-PLAN-LOTE-129] La DURACIÓN con la que se mueven las tres piezas (alto del chat, relleno de la caja y barra de
+        // pestañas: `var(--kb-ms, 0.25s)` en las tres). Se fija en <html> —la barra vive fuera del chat— y se RETIRA al
+        // acabar la animación: la barra también usa esa transición para plegarse, y plegar no es cosa del teclado.
+        let msTimer = null;
+        const fijarDuracionTeclado = (ms) => {
+            if (!root || !(ms > 0)) return;
+            root.style.setProperty('--kb-ms', `${ms}ms`);
+            if (msTimer) clearTimeout(msTimer);
+            msTimer = setTimeout(() => { msTimer = null; root.style.removeProperty('--kb-ms'); }, ms + 150);
+        };
+
+        // Coloca YA el chat donde va a quedar con el teclado abierto, antes de que la geometría lo confirme. La usan el
+        // foco (lote 111, con el alto recordado) y el aviso nativo (lote 129, con el alto exacto). El cerrojo `abriendoRef`
+        // hace que una medida «cerrado» que llegue durante la subida no deshaga lo anticipado; si a los 900 ms la
+        // geometría no confirmó nada (teclado físico), manda la medición y todo vuelve a su sitio.
+        const anticiparApertura = (inset) => {
+            const contenedor = inputWrapperRef.current?.closest('.agent-container');
+            if (!contenedor) return;
+            const estabaAbierto = tecladoAbiertoRef.current;
+            cerrandoRef.current = false;
+            abriendoRef.current = true;
+            // [114] mismo alto base fijo que en la medición: el parpadeo de `innerHeight` no debe mover nada.
+            if (window.innerWidth <= 1024) contenedor.style.setProperty('--app-height', `${altoDeReferencia(window.innerHeight, window.innerWidth)}px`);
+            insetAplicadoRef.current = inset;
+            tecladoAbiertoRef.current = true;
+            contenedor.style.setProperty('--kb-inset', `${inset}px`);
+            root.toggleAttribute('data-kb-open', true);
+            root.toggleAttribute('data-kb-scroll-lock', true);
+            if (!estabaAbierto) alAbrirTecladoRef.current?.();
+            if (abriendoTimer) clearTimeout(abriendoTimer);
+            abriendoTimer = setTimeout(() => {
+                abriendoTimer = null;
+                abriendoRef.current = false;
+                updateInputPosition(true);
+            }, 900);
+        };
+
         // [P1-KB-CIERRE-SIN-ESPERA · 2026-08-23] «Cuando lo cierro es lento.»
         //
         // El estado «hay teclado» se decide por GEOMETRÍA (`kb >= 120`), y al cerrarse iOS
@@ -913,6 +952,8 @@ const AgentPage = () => {
             if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
                 return; // cambia de campo: el teclado sigue
             }
+            // [129] en la app nativa el chat baja con la duración REAL del teclado (la del último aviso de UIKit)
+            if (isNativeApp()) fijarDuracionTeclado(Number(safeLocalStorageGet(CLAVE_MS_NATIVO, 0)) || 0);
             cerrandoRef.current = true;
             abriendoRef.current = false;
             if (abriendoTimer) { clearTimeout(abriendoTimer); abriendoTimer = null; }
@@ -944,24 +985,40 @@ const AgentPage = () => {
             if (tecladoAbiertoRef.current || !window.matchMedia?.('(pointer: coarse)')?.matches) return;
             const recordado = Number(safeLocalStorageGet(CLAVE_INSET_NATIVO, 0)) || 0;
             if (recordado < KB_UMBRAL_PX || recordado > window.innerHeight * 0.7) return;
-            const contenedor = inputWrapperRef.current.closest('.agent-container');
-            if (!contenedor) return;
-            cerrandoRef.current = false;
-            abriendoRef.current = true;
-            // [114] mismo alto base fijo que en la medición: el parpadeo de `innerHeight` no debe mover nada.
-            if (window.innerWidth <= 1024) contenedor.style.setProperty('--app-height', `${altoDeReferencia(window.innerHeight, window.innerWidth)}px`);
-            insetAplicadoRef.current = recordado;
-            tecladoAbiertoRef.current = true;
-            contenedor.style.setProperty('--kb-inset', `${recordado}px`);
-            root.toggleAttribute('data-kb-open', true);
-            root.toggleAttribute('data-kb-scroll-lock', true);
-            alAbrirTecladoRef.current?.();
-            if (abriendoTimer) clearTimeout(abriendoTimer);
-            abriendoTimer = setTimeout(() => {
-                abriendoTimer = null;
-                abriendoRef.current = false;
-                updateInputPosition(true);
-            }, 900);
+            // [129] el foco llega unos ms ANTES que el aviso nativo: se mueve ya con la duración de la última vez
+            fijarDuracionTeclado(Number(safeLocalStorageGet(CLAVE_MS_NATIVO, 0)) || 0);
+            anticiparApertura(recordado);
+        };
+
+        // [P1-PLAN-LOTE-129 · 2026-09-19] EL TECLADO AVISA ANTES DE MOVERSE — y ahora el chat le hace caso.
+        //
+        // MEDIDO con la sonda en el iPhone del dueño (build 16, «cuando voy a seleccionar una foto con el teclado abierto
+        // se ve un poquito glicheado»). Al volver del selector de fotos iOS repone el teclado SIN evento de foco (el campo
+        // nunca dejó de estar enfocado), así que la apertura anticipada del lote 111 no corre y solo queda la geometría:
+        //     +5383 N+335·400   ← UIKit: el teclado EMPIEZA a subir (335 px, 400 ms)
+        //     +5560 resize      ← 177 ms después se entera la web; la caja lleva 177 ms TAPADA por el teclado
+        //     +5812 altoFin     ← y ahora sube en 250 ms: aparece por detrás del teclado, tarde y a otro ritmo
+        // Dos defectos en una fila: llegar 177 ms tarde, y mover el chat en 0,25 s cuando el teclado de este iOS tarda
+        // 0,38–0,40 s (la constante venía de iOS antiguos). El binario retransmite `keyboardWillShow/Hide`
+        // (SceneDelegate.swift → `mf:teclado-nativo`): con ese aviso el chat arranca EN EL MISMO instante, con el alto
+        // exacto y la duración real — también en la primera apertura, sin «inset recordado».
+        //   · `cierra` entra por la MISMA puerta que el blur (`alPerderElFoco`): cubre los cierres sin blur (el selector
+        //     de fotos) y, cuando hay blur, llega después y no cambia nada.
+        //   · Un aviso sin animación (`N-0·0`, medido en mitad de la vuelta del selector) se ignora: la geometría manda.
+        //   · Binarios viejos no emiten nada y todo sigue como antes. La decisión, con sus casos: `decidirAvisoNativo`.
+        const alTecladoNativo = (e) => {
+            if (!isNativeApp()) return;
+            const aviso = decidirAvisoNativo({ ...(e.detail || {}), innerHeight: altoDeReferencia(window.innerHeight, window.innerWidth) });
+            if (aviso.accion === 'ignorar') return;
+            if (String(aviso.ms) !== safeLocalStorageGet(CLAVE_MS_NATIVO, null)) safeLocalStorageSet(CLAVE_MS_NATIVO, String(aviso.ms));
+            fijarDuracionTeclado(aviso.ms);
+            if (aviso.accion === 'cerrar') {
+                if (tecladoAbiertoRef.current || insetAplicadoRef.current > 0) alPerderElFoco({ relatedTarget: null });
+                return;
+            }
+            if (String(aviso.inset) !== safeLocalStorageGet(CLAVE_INSET_NATIVO, null)) safeLocalStorageSet(CLAVE_INSET_NATIVO, String(aviso.inset));
+            if (tecladoAbiertoRef.current && insetAplicadoRef.current === aviso.inset) return;   // ya lo había colocado el foco
+            anticiparApertura(aviso.inset);
         };
 
         // [P1-PLAN-LOTE-115] Con el teclado abierto el WebView nativo deja ARRASTRAR la página entera cuando el dedo
@@ -1003,6 +1060,7 @@ const AgentPage = () => {
         // del parpadeo se quedaba puesta hasta el asiento — o para siempre.
         window.addEventListener('resize', alEvento);
         document.addEventListener('focusin', alGanarElFoco);
+        window.addEventListener(EVENTO_TECLADO_NATIVO, alTecladoNativo);
         const mantenerDocumentoAnclado = () => {
             if (!root?.hasAttribute('data-kb-scroll-lock')) return;
             if (window.scrollX === 0 && window.scrollY === 0) return;
@@ -1014,6 +1072,9 @@ const AgentPage = () => {
         return () => {
             document.removeEventListener('focusout', alPerderElFoco);
             document.removeEventListener('focusin', alGanarElFoco);
+            window.removeEventListener(EVENTO_TECLADO_NATIVO, alTecladoNativo);
+            if (msTimer) clearTimeout(msTimer);
+            root?.style.removeProperty('--kb-ms');
             if (asiento) clearTimeout(asiento);
             if (abriendoTimer) clearTimeout(abriendoTimer);
             abriendoRef.current = false;
@@ -4937,7 +4998,7 @@ const AgentPage = () => {
                     // chat baja ACOMPAÑANDO al teclado en vez de adelantarse.
                     // Sólo en móvil: en escritorio el alto no se mueve y una transición ahí
                     // sólo podría retrasar un cambio de layout legítimo.
-                    transition: isMobile ? 'height 0.25s cubic-bezier(0.32, 0.72, 0, 1)' : undefined,
+                    transition: isMobile ? 'height var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1)' : undefined,
                     background: 'var(--bg-card)',
                     borderRadius: isMobile ? '0' : '1.5rem',
                     boxShadow: isMobile ? 'none' : '0 10px 40px -10px rgba(0,0,0,0.08)',
@@ -5902,7 +5963,7 @@ const AgentPage = () => {
                            barra de pestanas. Tres piezas de la misma escena con tres tiempos es
                            exactamente lo que se ve como glitch al bajar. Ahora las tres usan la
                            curva y la duracion del teclado de iOS. */
-                        transition: padding-bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1) !important;
+                        transition: padding-bottom var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1) !important;
                         border-radius: 0 !important;
                     }
                     /* [P2-CHAT-JUMP-TO-LATEST-DESKTOP] el botón vive dentro del .input-wrapper: sin

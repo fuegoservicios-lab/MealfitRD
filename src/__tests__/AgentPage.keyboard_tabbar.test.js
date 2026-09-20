@@ -118,7 +118,8 @@ describe('[P1-CHAT-KEYBOARD-TABBAR] la barra de pestañas se esconde mientras ha
     it('las TRES piezas del cierre comparten curva y duracion', () => {
         // El glitch era desincronizacion: contenedor 0.25s, relleno 0.2s ease-out, barra
         // sin animar. Tres tiempos distintos en la misma escena se ven como un tiron.
-        const CURVA = '0.25s cubic-bezier(0.32, 0.72, 0, 1)';
+        // [P1-PLAN-LOTE-129] la duración la pone el teclado cuando avisa (`--kb-ms`); sin aviso, 0,25 s. Las TRES igual.
+        const CURVA = 'var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1)';
         const jsx = read('pages/AgentPage.jsx');
         const css = read('components/dashboard/BottomTabBar.module.css');
         expect(jsx.split(CURVA).length - 1, 'contenedor + relleno de la caja').toBe(2);

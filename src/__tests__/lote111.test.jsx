@@ -109,7 +109,10 @@ describe('el chat', () => {
         const cuerpo = src.slice(k, k + 1600);
         expect(cuerpo).toContain('if (!isNativeApp() ||');
         expect(cuerpo).toContain('if (recordado < KB_UMBRAL_PX ||');
-        expect(cuerpo).toContain('abriendoRef.current = true;');
+        // [P1-PLAN-LOTE-129] colocar el chat pasó a `anticiparApertura`, que comparten el foco y el aviso nativo
+        expect(cuerpo).toContain('anticiparApertura(recordado);');
+        const a = src.indexOf('const anticiparApertura = (inset) => {');
+        expect(src.slice(a, a + 1400)).toContain('abriendoRef.current = true;');
         // y la medición «cerrado» que llega durante la subida no deshace lo anticipado
         expect(src).toMatch(/if \(abriendoRef\.current\) \{\s*if \(!abiertoMedido\) return;/);
     });

@@ -208,6 +208,32 @@ export function _reiniciarAltoDeReferencia() {
  * parpadeo de `innerHeight` se ignora. El llamador además fija el alto base del contenedor en px mientras el
  * teclado está abierto, para que ese parpadeo tampoco lo mueva a través de `100dvh`.
  */
+/**
+ * [P1-PLAN-LOTE-129 · 2026-09-19] Qué hacer con un aviso del teclado que retransmite el binario nativo
+ * (`keyboardWillShow/Hide` de UIKit → evento `mf:teclado-nativo` { tipo, alto, ms }). Llega ANTES de la animación, con el
+ * alto exacto y su duración: es lo único que permite al chat moverse A LA VEZ que el teclado (el `visualViewport` avisa
+ * cuando la animación ya terminó). Casos medidos en el iPhone del dueño, al volver del selector de fotos:
+ *     N+308·383 → N-0·0 → N+335·400   (tres avisos en 54 ms)
+ *   · sin animación (`ms` 0) → IGNORAR: es iOS recolocando sus vistas, no un teclado que se mueve; si de verdad fuera un
+ *     cambio instantáneo, la geometría (que sigue mandando) lo recoge.
+ *   · `abre` con un alto no creíble (menor que el umbral de «hay teclado»: barra de un teclado físico; o mayor que el 70 %
+ *     de la pantalla) → IGNORAR.
+ *   · la duración se acota: un valor absurdo no puede dejar el chat moviéndose 5 s ni saltando en 10 ms.
+ */
+export const KB_MS_MIN = 150;
+export const KB_MS_MAX = 600;
+export function decidirAvisoNativo({ tipo, alto = 0, ms = 0, innerHeight = 0 } = {}) {
+    const duracion = Number(ms) || 0;
+    if (duracion <= 0) return { accion: 'ignorar', motivo: 'sin_animacion' };
+    const acotada = Math.min(KB_MS_MAX, Math.max(KB_MS_MIN, Math.round(duracion)));
+    if (tipo === 'cierra') return { accion: 'cerrar', ms: acotada };
+    const inset = Math.round(Number(alto) || 0);
+    if (tipo !== 'abre' || inset < KB_UMBRAL_PX || inset > (Number(innerHeight) || 0) * 0.7) {
+        return { accion: 'ignorar', motivo: 'alto_no_creible' };
+    }
+    return { accion: 'abrir', inset, ms: acotada };
+}
+
 export function resolverInsetNativo({ kb = 0, vvOffsetTop = 0 } = {}) {
     return Math.max(0, Math.round((Number(kb) || 0) - Math.max(0, Number(vvOffsetTop) || 0)));
 }
