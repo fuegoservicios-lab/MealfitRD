@@ -153,7 +153,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
             if (data?.enabled === false && typeof data?.auto_off_at === 'string' && data.auto_off_at
                 && safeLocalStorageGet(LS_AUTO_OFF_VISTO, null) !== data.auto_off_at) {
                 safeLocalStorageSet(LS_AUTO_OFF_VISTO, data.auto_off_at);
-                toast(avisoApagadoRef.current.titulo, { description: avisoApagadoRef.current.cuerpo, duration: 9000 });
+                toast(avisoApagadoRef.current.titulo, { description: avisoApagadoRef.current.cuerpo, duration: 6000 });
             }
         } finally {
             setLoading(false);
