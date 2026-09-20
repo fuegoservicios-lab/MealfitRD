@@ -2631,7 +2631,6 @@
   "Ya tienes un plan generándose": "You already have a plan being generated",
   "Ya tienes uno en curso. Te avisamos cuando esté listo.": "You already have one in progress. We'll let you know when it's ready.",
   "Ya tienes {cantidad} {unidad} · sumará a tu existente": "You already have {cantidad} {unidad} · it'll add to what you have",
-  "Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito (15/mes).": "You already used your free trial plan. Sign up to get the free plan credits (15/month).",
   "Ya usé {alimento}": "I already used {alimento}",
   "Yield no aplicado": "Yield not applied",
   "Zona de peligro": "Danger zone",
@@ -3240,5 +3239,6 @@
   "Proponme una comida": "Suggest a meal",
   "¿Cuánta proteína me falta hoy?": "How much protein do I still need today?",
   "Proponme una comida para cerrar mis macros": "Suggest a meal to close out my macros",
-  "¿Cómo registro lo que como?": "How do I log what I eat?"
+  "¿Cómo registro lo que como?": "How do I log what I eat?",
+  "Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito ({n}/mes).": "You already used your free trial plan. Sign up to get the free plan credits ({n}/month)."
 }

@@ -6,6 +6,7 @@ import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCro
 import PropTypes from 'prop-types';
 
 import { useAssessment } from '../context/AssessmentContext';
+import { TIER_CREDITS } from '../config/plans';
 import { isTrackingMode } from '../config/dashboardNav';
 import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
 import { fetchWithAuth, getPlanChunkStatus, retryPlanChunk } from '../config/api';
@@ -1192,7 +1193,7 @@ const Plan = () => {
                 if (isGuest && typeof remainingCredits === 'number' && remainingCredits <= 0) {
                     import('sonner').then(({ toast }) => {
                         toast.info(t('Crea tu cuenta para generar más planes'), {
-                            description: t('Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito (15/mes).'),
+                            description: t('Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito ({n}/mes).', { n: TIER_CREDITS.gratis }),
                             duration: 6000, id: 'plan-ready',
                         });
                     });

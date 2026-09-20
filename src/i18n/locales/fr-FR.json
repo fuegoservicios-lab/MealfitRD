@@ -2631,7 +2631,6 @@
   "Ya tienes un plan generándose": "Vous avez déjà un plan en cours de génération",
   "Ya tienes uno en curso. Te avisamos cuando esté listo.": "Vous en avez déjà un en cours. Nous vous préviendrons quand il sera prêt.",
   "Ya tienes {cantidad} {unidad} · sumará a tu existente": "Vous avez déjà {cantidad} {unidad} · s'ajoutera à l'existant",
-  "Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito (15/mes).": "Vous avez déjà utilisé votre plan d'essai gratuit. Inscrivez-vous pour obtenir les crédits du plan gratuit (15/mois).",
   "Ya usé {alimento}": "J'ai déjà utilisé {alimento}",
   "Yield no aplicado": "Rendement non appliqué",
   "Zona de peligro": "Zone de danger",
@@ -3240,5 +3239,6 @@
   "Proponme una comida": "Propose-moi un repas",
   "¿Cuánta proteína me falta hoy?": "Combien de protéines me manque-t-il aujourd'hui ?",
   "Proponme una comida para cerrar mis macros": "Propose-moi un repas pour boucler mes macros",
-  "¿Cómo registro lo que como?": "Comment enregistrer ce que je mange ?"
+  "¿Cómo registro lo que como?": "Comment enregistrer ce que je mange ?",
+  "Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito ({n}/mes).": "Vous avez déjà utilisé votre plan d'essai gratuit. Inscrivez-vous pour obtenir les crédits du plan gratuit ({n}/mois)."
 }
