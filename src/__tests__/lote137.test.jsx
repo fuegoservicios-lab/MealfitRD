@@ -206,6 +206,16 @@ describe('lote 137 · generar desde el contador deja al cliente en modo plan por
 });
 
 describe('lote 137 · formulario y Nevera', () => {
+    it('«Solo contar» con un plan VIVO confirma la pausa (como Configuración) y rehidrata la pantalla', () => {
+        const q = leer('src/components/assessment/questions/QTrackingFinish.jsx');
+        const iConfirm = q.indexOf("t('¿Pausar la generación de planes?')");
+        expect(iConfirm).toBeGreaterThan(-1);
+        // la confirmación va ANTES de tocar el servidor, y solo con plan vivo (no re-pregunta a quien ya está en pausa)
+        expect(iConfirm).toBeLessThan(q.indexOf("fetchWithAuth('/api/profile'"));
+        expect(q).toContain("&& planData?.generation_status !== 'paused_by_user';");
+        expect(q).toContain('if (_conPlanVivo) setTimeout(() => window.location.reload(), 900);');
+    });
+
     it('el formulario ofrece «Volver al panel» al usuario contador, también en el paso 0 del teléfono', () => {
         const f = leer('src/components/assessment/InteractiveAssessmentLayout.jsx');
         expect(f).toContain('const _contadorConPanel = !isGuest && isTrackingMode(userProfile)');

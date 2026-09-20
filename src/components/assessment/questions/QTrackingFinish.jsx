@@ -17,10 +17,11 @@ import { useAssessment } from '../../../context/AssessmentContext';
 import { TRACKING_REQUIRED_FIELDS } from '../../../config/formValidation';
 import { useT } from '../../../i18n';
 import { safeLocalStorageSet } from '../../../utils/safeLocalStorage';
+import { confirmToast } from '../../../utils/confirmToast';
 
 export const QTrackingFinish = () => {
     const navigate = useNavigate();
-    const { formData, refreshProfileAndPlan, loadingSensitive } = useAssessment();
+    const { formData, refreshProfileAndPlan, loadingSensitive, planData } = useAssessment();
     const t = useT();
     const [saving, setSaving] = useState(false);
 
@@ -38,6 +39,23 @@ export const QTrackingFinish = () => {
                 duration: 3000,
             });
             return;
+        }
+        // [P1-PLAN-LOTE-137 · 2026-09-20] Esta puerta también PAUSA: quien llega aquí con un plan vivo («Cambiar mis
+        // preferencias» ⇒ paso 0 ⇒ «Solo contar») cancelaba la cola de su plan sin que nadie se lo dijera — el paso
+        // promete «sin plan generado», y la confirmación «¿Pausar…?» solo existía en Configuración. Mismo diálogo,
+        // mismo copy.
+        const _conPlanVivo = Array.isArray(planData?.days) && planData.days.length > 0
+            && planData?.generation_status !== 'paused_by_user';
+        if (_conPlanVivo) {
+            const ok = await confirmToast(
+                t('¿Pausar la generación de planes?'),
+                {
+                    description: t('La app pasa a modo contador (macros y diario). Tu plan no se pierde: queda guardado en tu Historial y puedes reanudarlo cuando quieras — retoma exactamente donde quedó.'),
+                    confirmLabel: t('Pausar planes'),
+                    cancelLabel: t('Volver'),
+                },
+            );
+            if (!ok) return;
         }
         setSaving(true);
         try {
@@ -133,6 +151,9 @@ export const QTrackingFinish = () => {
 
             toast.success(t('Listo: tus metas están calculadas. Anota tu primera comida.'));
             navigate('/dashboard', { replace: true });
+            // [137] Con plan vivo, el `planData` en memoria sigue diciendo el estado de ANTES de la pausa (y su sondeo
+            // de bloques sigue vivo): la misma recarga que cierra el interruptor de Configuración (P1-PAUSE-STALE-PLANDATA).
+            if (_conPlanVivo) setTimeout(() => window.location.reload(), 900);
         } catch (e) {
             toast.error(e?.message || t('No se pudo terminar. Intenta de nuevo.'));
         } finally {
