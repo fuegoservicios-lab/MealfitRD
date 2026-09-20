@@ -304,6 +304,15 @@ const _clearUserScopedCaches = () => {
     // exitGuest/mount) de una vez.
     safeLocalStorageRemove('mealfit_wizard_step');
     safeLocalStorageRemove('mealfit_wizard_step_mode'); // [P1-WIZARD-MAXSTEP-BRANCH] el sello de rama muere con el indice
+    // [P1-PLAN-LOTE-137 · 2026-09-20] Tres claves GLOBALES del modo contador que ningún teardown borraba. El espejo
+    // del modo lo leen la navegación, el Dashboard y ProtectedRoute mientras el perfil no ha llegado: en un
+    // dispositivo compartido, la cuenta B (con plan) veía el contador de A, la nav sin Recetas y «Tu plan está en
+    // pausa» hasta que cargaba su perfil. Y si A apagó la hidratación (o se le apagó sola a las 48 h), B nacía con
+    // ella apagada y SIN consultar jamás al servidor (el tracker no pregunta cuando se cree apagado). Ausentes son
+    // inocuas: sin espejo manda el perfil, y sin la bandera el tracker nace encendido y le pregunta al servidor.
+    safeLocalStorageRemove('mealfit_plan_mode');
+    safeLocalStorageRemove('mealfit_water_tracker_enabled');
+    safeLocalStorageRemove('mealfit_water_auto_off_visto');
 };
 
 
@@ -1326,6 +1335,13 @@ export const AssessmentProvider = ({ children }) => {
 
             if (data) {
                 setUserProfile(data);
+                // [P1-PLAN-LOTE-137 · 2026-09-20] El espejo del modo se SIEMBRA desde el perfil. Solo lo escribían el
+                // cierre del formulario y el interruptor de Configuración: en un dispositivo NUEVO no existía, y el
+                // siguiente arranque con el perfil lento pintaba un instante el dashboard del plan (y su nav
+                // completa) a quien usa la app como contador.
+                if (data.plan_mode === 'tracking' || data.plan_mode === 'plan') {
+                    safeLocalStorageSet('mealfit_plan_mode', data.plan_mode);
+                }
                 // [P1-I18N-DASHBOARD · 2026-08-15] El idioma sigue al USUARIO,
                 // no al dispositivo: `user_profiles.locale` es la fuente de
                 // verdad y este es el punto donde llega. `localStorage` ya

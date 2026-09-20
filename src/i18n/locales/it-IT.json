@@ -1091,7 +1091,6 @@
   "Genera tu primer plan nutricional y lo encontrarás aquí.": "Genera il tuo primo piano nutrizionale e lo troverai qui.",
   "Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.": "Genera gratis un piano di prova. Crea l'account quando vuoi salvarlo.",
   "Generación de planes": "Generazione dei piani",
-  "Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.": "Generazione attiva. Compila il modulo quando vuoi e l'IA ti prepara il piano.",
   "Generado: {fecha}": "Generato: {fecha}",
   "General": "Generale",
   "Generando": "In generazione",
@@ -3233,5 +3232,13 @@
   "Se aplicará al catálogo de alimentos de tu diario.": "Verrà applicato al catalogo di alimenti del tuo diario.",
   "Generador de planes, memoria y datos del agente": "Generatore di piani, memoria e dati dell'agente",
   "Gestiona tu cuenta, tus metas y preferencias.": "Gestisci il tuo account, i tuoi obiettivi e le preferenze.",
-  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Definisce il catalogo di alimenti del tuo diario e, se attivi i piani, la tua cucina locale."
+  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Definisce il catalogo di alimenti del tuo diario e, se attivi i piani, la tua cucina locale.",
+  "Cargando tu progreso...": "Caricamento dei tuoi progressi...",
+  "¡Plan reactivado! La generación de planes vuelve a estar encendida.": "Piano riattivato! La generazione dei piani è di nuovo attiva.",
+  "Tienes la generación de planes apagada: reactivar este plan la vuelve a encender.": "La generazione dei piani è disattivata: riattivare questo piano la riaccende.",
+  "¿Qué me falta hoy?": "Cosa mi manca oggi?",
+  "Proponme una comida": "Proponimi un pasto",
+  "¿Cuánta proteína me falta hoy?": "Quante proteine mi mancano oggi?",
+  "Proponme una comida para cerrar mis macros": "Proponimi un pasto per chiudere i miei macro",
+  "¿Cómo registro lo que como?": "Come registro quello che mangio?"
 }

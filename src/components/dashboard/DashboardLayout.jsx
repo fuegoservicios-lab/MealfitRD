@@ -146,7 +146,12 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // [P1-PLAN-LOTE-89 · 2026-09-17] El centro de notificaciones vive SOLO en «Hoy» (/dashboard), de donde
     // salen sus avisos. Una sola condición para el centro Y para su hueco en la cabecera: si divergen, la
     // campana atraca en una cabecera sin centro o el centro se queda sin dónde atracar.
-    const showNotifCenter = location.pathname.replace(/\/$/, '') === '/dashboard';
+    // [P1-PLAN-LOTE-137 · 2026-09-20] …y SOLO con el generador encendido. Todos los avisos del centro nacen en el
+    // dashboard del PLAN (micronutrientes del plan, calidad del plan, reposición de la lista): en modo contador nadie
+    // los produce, así que la campana era un control muerto cuyo vacío hablaba de «calidad del plan», y con un plan en
+    // pausa conservaba avisos viejos con acciones que ya no llevan a ningún sitio («Ir a mi plan» ⇒ esta misma pantalla).
+    const showNotifCenter = location.pathname.replace(/\/$/, '') === '/dashboard'
+        && !isTrackingMode(userProfile, planData);
     // [P3-RECIPES-EDGE-MOBILE · 2026-06-24] Recetas va edge-to-edge en móvil
     // (sin el padding horizontal del mainContent) para máxima visibilidad —
     // conservando header y BottomTabBar (a diferencia de noPaddingMobile).

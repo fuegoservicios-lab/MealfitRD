@@ -6,6 +6,7 @@ import { fetchWithAuth } from '../../config/api';
 import LazyMarkdown from '../common/LazyMarkdown';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { SUPPORT_EMAIL } from './moreInfoLinks';
+import { isTrackingMode } from '../../config/dashboardNav';
 import { nativeHidesCommerce } from '../../config/platform';
 import { medirTecladoDeVentana } from '../../utils/keyboardViewport';
 import { safeJSONParse } from '../../utils/safeJSONParse';
@@ -44,11 +45,14 @@ const getGreeting = (t) => ({
 
 // Cuerpo con llaves: el validador mide el ámbito contando llaves y una flecha que
 // devuelve un array pelado dejaría estos `t()` a profundidad 0.
-const getSuggestions = (t) => {
+// [P1-PLAN-LOTE-137 · 2026-09-20] `contador`: con el generador apagado no hay plato del día que cambiar; la pregunta
+// útil ahí es cómo se anota una comida. «¿Cómo genero mi plan…?» se queda: es justo cómo se enciende.
+const getSuggestions = (t, contador = false) => {
     const base = [
         t('¿Cómo genero mi plan de comidas?'),
         t('¿Para qué sirve la Nevera?'),
     ];
+    if (contador) return [t('¿Cómo registro lo que como?'), ...base];
     if (nativeHidesCommerce()) return [t('¿Cómo cambio un plato del día?'), ...base];
     return [t('¿Qué incluye cada plan y cuánto cuesta?'), ...base];
 };
@@ -229,7 +233,7 @@ export default function HelpChatWidget({ onClose }) {
                     )}
                     {showSuggestions && (
                         <div className={styles.suggestions}>
-                            {getSuggestions(t).map((s) => (
+                            {getSuggestions(t, isTrackingMode(null)).map((s) => (
                                 <button key={s} type="button" className={styles.suggestionChip} onClick={() => sendMessage(s)}>
                                     {s}
                                 </button>

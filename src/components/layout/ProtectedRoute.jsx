@@ -89,8 +89,16 @@ const ProtectedRoute = ({ children, landing = false }) => {
 
     const hasHealthProfile = userProfile?.health_profile
         && Object.keys(userProfile.health_profile).length > 0;
+    // [P1-PLAN-LOTE-137 · 2026-09-20] El espejo local del modo contador TAMBIÉN acredita el formulario: solo lo
+    // escriben el cierre de la rama corta, el interruptor de Configuración y (desde este lote) el perfil ya leído.
+    // Sin él, a un contador SIN plan —que no tiene `planData` que lo salve— un `/api/profile` caído o lento (el
+    // perfil no reintenta y la espera se suelta a los 5 s) lo echaba al FORMULARIO vacío, y de ahí no volvía solo
+    // (el rebote es REPLACE y la guarda inversa solo actúa en POP). La forma de P1-LOGIN-PLAN-SYNC-RETRY: «no lo sé»
+    // tratado como «no lo tiene». Solo cuenta SIN perfil leído: con perfil en mano manda el perfil.
+    const _espejoContador = !userProfile && !isGuest
+        && safeLocalStorageGet('mealfit_plan_mode', null) === 'tracking';
     // Acceso garantizado si ya tiene un plan generado (aunque el perfil aún no esté sincronizado)
-    const hasCompletedAssessment = hasHealthProfile || !!planData;
+    const hasCompletedAssessment = hasHealthProfile || !!planData || _espejoContador;
 
     // [P1-PANTRY-WIZARD-STEP · 2026-07-11] Nota histórica: el modo "Desde mi Nevera"
     // tuvo por unas horas un desvío a /dashboard/pantry ANTES de generar (excepción
@@ -100,6 +108,24 @@ const ProtectedRoute = ({ children, landing = false }) => {
     // ser uniforme.
     if (!hasCompletedAssessment && !isOnAssessment && !isOnPlan && !isOnLanding && !isOnAccountSettings) {
         return <Navigate to="/assessment" replace />;
+    }
+
+    // [P1-PLAN-LOTE-137 · 2026-09-20] Llegada FRÍA a /plan (URL tecleada, marcador, autocompletado del navegador).
+    // `/plan` no es una página: es EL DISPARO — al montarse genera (1 crédito), y el backend reenciende el generador.
+    // Con el generador APAGADO eso era apagarlo en Configuración y volver a encenderlo por accidente pagando; con un
+    // plan vivo, regenerarlo sin confirmación. Las entradas legítimas son todas PUSH (el cierre del formulario,
+    // «Actualizar plan») o llevan la bandera de generación en curso (recuperación tras cerrar la app); la recarga a
+    // mitad de una generación queda exenta, como en las otras dos guardas POP de este fichero.
+    if (isOnPlan && navigationType === 'POP' && !_hasPendingPlanRecovery) {
+        const planNavEntry = typeof performance !== 'undefined' && typeof performance.getEntriesByType === 'function'
+            ? performance.getEntriesByType('navigation')[0]
+            : undefined;
+        if (planNavEntry?.type !== 'reload') {
+            const _modoEnPlan = userProfile?.plan_mode || safeLocalStorageGet('mealfit_plan_mode', null);
+            if (hasCompletedAssessment && (_modoEnPlan === 'tracking' || planData)) {
+                return <Navigate to="/dashboard" replace />;
+            }
+        }
     }
 
     // [P1-ASSESSMENT-POP-DASHBOARD · 2026-08-20] Guard INVERSO del de arriba:

@@ -2993,6 +2993,8 @@ const Pantry = () => {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
+                            {/* [P1-PLAN-LOTE-137] sin nada que vaciar no hay botón de vaciar (paridad con el teléfono) */}
+                            {!neveraVacia && (
                             <button
                                 type="button"
                                 className={`${fstyles.btn} ${fstyles.clear} ${fstyles.iconbtn}`}
@@ -3002,6 +3004,7 @@ const Pantry = () => {
                             >
                                 <Trash2 size={16} />
                             </button>
+                            )}
                             {/* [P1-PANTRY-SCAN-TOOLBAR · 2026-08-14] El escáner, aquí y
                                 no en una tarjeta suelta debajo: escanear y añadir son la
                                 MISMA tarea por dos caminos (meter comida en la nevera,
@@ -3051,8 +3054,11 @@ const Pantry = () => {
                             })}
                         </div>
 
-                        {/* Banner: nevera baja (server-driven, no bloquea) */}
-                        {pantryStatus?.is_below && (
+                        {/* Banner: nevera baja (server-driven, no bloquea).
+                            [P1-PLAN-LOTE-137] Con la nevera VACÍA manda su estado vacío, igual que en el teléfono
+                            (lote 125): en escritorio salían los dos a la vez — «Tu nevera está baja (tienes 0
+                            alimentos)» encima de «Tu nevera está vacía» (captura del dueño, 20-sep). */}
+                        {pantryStatus?.is_below && !neveraVacia && (
                             <div role="status" className={fstyles.lowBanner}>
                                 <PackageX size={18} strokeWidth={2.5} />
                                 <span>

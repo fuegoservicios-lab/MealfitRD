@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { isTrackingMode } from '../../config/dashboardNav';
 import { useI18n } from '../../i18n';
 // [P1-LANDING-BENCH-1 · 2026-08-07] Hechos estructurales desde el SSOT — las
 // meta descriptions escribían «17 micronutrientes» y «+200 alimentos» a mano
@@ -173,7 +174,12 @@ export default function RouteTitle() {
             // Las rutas de APP van por catalogo (las lee una persona logueada); las de
             // marketing siguen saliendo del SSOT de build en espanol, igual que su
             // canonical y su description.
-            const appTitulo = TITULOS_APP(t)[path];
+            // [P1-PLAN-LOTE-137 · 2026-09-20] Con el generador apagado `/dashboard` es el contador, y su pestaña se llama
+            // «Progreso» (SSOT de la nav): el título decía «Mi plan» a quien no tiene plan. Se lee el espejo local —que
+            // desde este lote el perfil siembra— porque este componente no vive dentro del contexto del usuario.
+            const appTitulo = (path === '/dashboard' && isTrackingMode(null))
+                ? t('Progreso')
+                : TITULOS_APP(t)[path];
             document.title = appTitulo ? `${appTitulo} · ${BRAND}` : (TITLES[path] || BRAND);
         }
 

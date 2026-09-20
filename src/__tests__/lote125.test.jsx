@@ -207,7 +207,8 @@ describe('lote 125 · el chat, el Historial y la Nevera', () => {
     it('con la Nevera vacía no se ofrece lo que no puede hacer nada, y «Borrar todos» no pesa como el botón principal', () => {
         const p = leer('src/pages/Pantry.jsx');
         expect(p).toContain('const neveraVacia = inventory.length === 0;');
-        expect(p.match(/\{!neveraVacia && \(/g)).toHaveLength(2);
+        // [P1-PLAN-LOTE-137] +1: el botón «Vaciar la nevera» del shell de ESCRITORIO (paridad con el teléfono)
+        expect(p.match(/\{!neveraVacia && \(/g)).toHaveLength(3);
         expect(p).toContain('{tempZoneCount > 0 && (');
         expect(p).toContain('{pantryStatus?.is_below && !neveraVacia && (');
         const css = leer('src/pages/Pantry.mobileFridge.module.css');

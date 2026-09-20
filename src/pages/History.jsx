@@ -8,6 +8,7 @@ import { useAssessment } from '../context/AssessmentContext';
 // [P1-HIST-PAUSED-BADGE · 2026-08-14] SSOT del modo (perfil → espejo local) —
 // el mismo que consultan la nav del dashboard y el saludo del agente.
 import { isTrackingMode } from '../config/dashboardNav';
+import { reanudarPlanes, reanudarTrasReactivar } from '../utils/planModeResume';
 // [P1-HIST-PAUSED-SURFACES · 2026-08-14] Wrapper obligatorio del repo: iOS Safari
 // en modo privado lanza SecurityError con localStorage crudo.
 import { safeLocalStorageRemove } from '../utils/safeLocalStorage';
@@ -1142,6 +1143,15 @@ const History = () => {
             // bucket temporal del plan (pasa a "activo"), el listado
             // cacheado mostraría el bucket viejo hasta el próximo fetch.
             invalidateHistoryListCache();
+            // [P1-PLAN-LOTE-137 · 2026-09-20] Con el generador APAGADO, «¡Plan reactivado! Tu dashboard se ha
+            // actualizado» era falso dos veces: `/dashboard` es el contador y el plan copiado seguía en pausa.
+            // Reactivar un plan ES querer que mande: se enciende la generación (el confirm ya lo avisó).
+            if (enModoContador) {
+                toast.dismiss(toastId);
+                navigate('/dashboard');
+                await reanudarTrasReactivar();
+                return;
+            }
             toast.success(t('¡Plan reactivado!'), {
                 id: toastId,
                 description: t('Tu dashboard se ha actualizado.')
@@ -5288,8 +5298,16 @@ const History = () => {
                                 // quieras — aunque su ventana de fechas solape hoy.
                                 const _hideRestore = (!!currentPlanId && selectedPlan?.id === currentPlanId) || _selectedIsPlaceholder;
                                 if (_hideRestore) {
-                                    // Footer vacío — la X del header cierra.
-                                    return null;
+                                    // [P1-PLAN-LOTE-137] El plan ACTUAL en pausa: aquí vive el «Reanudar» que
+                                    // Configuración, la tarjeta del contador y el coach prometen.
+                                    if (!enModoContador || _selectedIsPlaceholder) return null;
+                                    return (
+                                        <div className={`${styles.modalFooter} ${styles.modalFooterSingle}`}>
+                                            <button onClick={reanudarPlanes} className={styles.modalActionBtn}>
+                                                <RotateCcw size={18} /> {t('Reanudar el plan')}
+                                            </button>
+                                        </div>
+                                    );
                                 }
                                 return (
                                     <div className={`${styles.modalFooter} ${styles.modalFooterSingle}`}>
@@ -5338,6 +5356,7 @@ const History = () => {
                             </div>
                             <h3 id="history-restore-confirm-title" className={styles.confirmTitle}>{t('¿Reactivar este plan?')}</h3>
                             <p id="history-restore-confirm-desc" className={styles.confirmText}>
+                                {enModoContador && <>{t('Tienes la generación de planes apagada: reactivar este plan la vuelve a encender.')}{' '}</>}
                                 {t('Tu plan actual será reemplazado por')} <strong>{confirmRestore.name || t('este plan')}</strong>. {t('Esta acción no se puede deshacer.')}
                             </p>
                             <div className={styles.confirmActions}>

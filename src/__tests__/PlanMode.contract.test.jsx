@@ -334,8 +334,13 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(flipIdx).toBeLessThan(navIdx);
         const st = read('pages/Settings.jsx');
         expect(st).toContain("if (!pausing && !planData) {");
-        const toggleBlock = st.slice(st.indexOf('if (!pausing && !planData) {'), st.indexOf('if (!pausing && !planData) {') + 400);
+        // [P1-PLAN-LOTE-137] El interruptor SIN plan ya no hace PUT: es la MISMA puerta que la tarjeta — flip de rama y
+        // al formulario (el modo lo enciende el servidor al generar). Ventana hasta el `if (pausing)` que le sigue.
+        const _iSinPlan = st.indexOf('if (!pausing && !planData) {');
+        const toggleBlock = st.slice(_iSinPlan, st.indexOf('        if (pausing) {', _iSinPlan));
         expect(toggleBlock).toContain("updateData('appMode', 'plan')");
+        expect(toggleBlock.indexOf("updateData('appMode', 'plan')")).toBeLessThan(toggleBlock.indexOf("navigate('/assessment')"));
+        expect(toggleBlock).not.toContain('/api/profile/plan-mode');
     });
 
     it('QTrackingFinish: hidrata el contexto ANTES de navegar (el rebote del botón mudo)', () => {

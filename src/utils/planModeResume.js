@@ -36,7 +36,9 @@ import { t } from '../i18n';
 import { mensajeDeError } from './errorCopy';
 import { safeLocalStorageSet } from './safeLocalStorage';
 
-export const reanudarPlanes = async () => {
+// [P1-PLAN-LOTE-137 · 2026-09-20] El núcleo es privado y lleva el mensaje de éxito como OPCIÓN; los dos exports
+// públicos siguen SIN parámetros (la razón 2 de arriba: van directos a un `onClick`).
+const _reanudar = async ({ exito } = {}) => {
     const tId = toast.loading(t('Reanudando…'), { duration: 20000, position: 'top-center' });
     try {
         const r = await fetchWithAuth('/api/profile/plan-mode', {
@@ -54,9 +56,9 @@ export const reanudarPlanes = async () => {
             throw new Error(mensajeDeError(d, t('No se pudo reanudar.'), t));
         }
         safeLocalStorageSet('mealfit_plan_mode', 'plan');
-        toast.success(d.plan_expired
+        toast.success(exito || (d.plan_expired
             ? t('Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.')
-            : t('Planes reanudados: la generación continúa donde quedó.'));
+            : t('Planes reanudados: la generación continúa donde quedó.')));
         setTimeout(() => window.location.reload(), 900);
         return true;
     } catch (e) {
@@ -67,3 +69,13 @@ export const reanudarPlanes = async () => {
         return false;
     }
 };
+
+export const reanudarPlanes = () => _reanudar();
+
+// «Reactivar este Plan» desde el Historial con el generador APAGADO: reactivar ES pedir que ese plan mande, así que
+// tras el restore se enciende la generación por el mismo camino (PUT exento de cuota + espejo + recarga). Sin esto el
+// toast decía «¡Plan reactivado! Tu dashboard se ha actualizado» y el usuario aterrizaba en su contador, con el plan
+// recién copiado todavía en pausa.
+export const reanudarTrasReactivar = () => _reanudar({
+    exito: t('¡Plan reactivado! La generación de planes vuelve a estar encendida.'),
+});

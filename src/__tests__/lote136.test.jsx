@@ -56,7 +56,9 @@ describe('lote 136 · Plan & Objetivo: contador manda, con o sin plan en pausa',
 });
 
 describe('lote 136 · el interruptor del generador', () => {
-    const h = st.slice(st.indexOf('const handleTogglePlanMode'), st.indexOf('const handleTogglePlanMode') + 6500);
+    // ventana SEMÁNTICA (hasta el siguiente `useEffect`): la fija de 6500 caducó al crecer el handler en el lote 137
+    const _iToggle = st.indexOf('const handleTogglePlanMode');
+    const h = st.slice(_iToggle, st.indexOf('    useEffect(() => {', _iToggle));
 
     it('no promete «tu plan queda en el Historial» a quien nunca tuvo plan', () => {
         expect(h).toMatch(/description: planData\s*\? t\('La app pasa a modo contador \(macros y diario\)\. Tu plan no se pierde/);

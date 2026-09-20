@@ -9,9 +9,10 @@ import Wordmark from '../common/Wordmark';
 import LocaleSwitcher from '../common/LocaleSwitcher';
 import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 import { useT } from '../../i18n';
+import { isTrackingMode } from '../../config/dashboardNav';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
-    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, planData } = useAssessment();
+    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, updateData, planData } = useAssessment();
     // [P1-ARQ25-F1-CLOSE · 2026-09-02] Si ya hay un plan generándose (placeholder de la cola sin
     // días), el asistente lo dice arriba y manda al panel: reenviar el formulario cancelaría
     // la generación en marcha. Vivo: tras un reinicio del backend el cliente aterrizó aquí sin
@@ -20,8 +21,18 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
         && !(Array.isArray(planData?.days) && planData.days.length > 0);
     // [P2-POLICY-PANEL-UI · 2026-09-05] Con plan vivo y cuenta, el asistente es una EDICIÓN: se puede volver al panel
     // sin destruir nada (el pill de login cierra sesión y borra el formulario).
-    const _puedeVolverAlPanel = !isGuest && Boolean(
-        planData && (_planGenerandose || (Array.isArray(planData.days) && planData.days.length > 0)));
+    // [P1-PLAN-LOTE-137 · 2026-09-20] …y quien usa la app como CONTADOR también tiene panel, aunque no tenga plan: entra
+    // aquí por «Encender el plan» (o «Completar») y, si se arrepentía, la única salida rotulada era «Volver al login»
+    // — cerrar sesión. En la app nativa no hay botón atrás: tocaba matar la app o rehacer la rama corta.
+    const _contadorConPanel = !isGuest && isTrackingMode(userProfile)
+        && Boolean(userProfile?.health_profile && Object.keys(userProfile.health_profile).length > 0);
+    const _puedeVolverAlPanel = !isGuest && (_contadorConPanel || Boolean(
+        planData && (_planGenerandose || (Array.isArray(planData.days) && planData.days.length > 0))));
+    const volverAlPanel = () => {
+        // el contador que se arrepiente deja el formulario en SU rama (la del plan la abre la tarjeta al volver a pedirla)
+        if (_contadorConPanel) updateData('appMode', 'tracking');
+        navigate('/dashboard');
+    };
     const navigate = useNavigate();
     const t = useT();
     const progress = (currentStep / (totalSteps - 1)) * 100;
@@ -128,7 +139,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     destructivo se reserva para quien aún no tiene plan. */}
                 {_puedeVolverAlPanel ? (
                     <button
-                        onClick={() => navigate('/dashboard')}
+                        onClick={volverAlPanel}
                         className={styles.loginExitBtn}
                         aria-label={t('Volver al panel')}
                     >
@@ -149,6 +160,16 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                     {currentStep > 0 ? (
                         <button onClick={prevStep} className={styles.backBtn} aria-label={t('Paso anterior')}>
                             <ChevronLeft size={24} />
+                        </button>
+                    ) : _puedeVolverAlPanel ? (
+                        /* [P1-PLAN-LOTE-137] En el teléfono el pill de la esquina no existe: en el paso 0, quien tiene
+                           un panel al que volver (plan vivo o contador) ve ESA salida, no la de cerrar sesión. */
+                        <button
+                            onClick={volverAlPanel}
+                            className={`${styles.backBtn} ${styles.backToLogin}`}
+                            aria-label={t('Volver al panel')}
+                        >
+                            <LayoutDashboard size={22} aria-hidden="true" />
                         </button>
                     ) : (
                         /* [FORM-BACK-TO-LOGIN · 2026-07-03] Botón de salir al login del

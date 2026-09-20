@@ -1091,7 +1091,6 @@
   "Genera tu primer plan nutricional y lo encontrarás aquí.": "Generate your first nutrition plan and you'll find it here.",
   "Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.": "Generate a free sample plan. Create your account whenever you want to save it.",
   "Generación de planes": "Plan generation",
-  "Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.": "Generation is on. Fill out the form whenever you like and the AI builds your plan.",
   "Generado: {fecha}": "Generated: {fecha}",
   "General": "General",
   "Generando": "Generating",
@@ -3233,5 +3232,13 @@
   "Se aplicará al catálogo de alimentos de tu diario.": "It will apply to the food catalog of your diary.",
   "Generador de planes, memoria y datos del agente": "Plan generator, memory and agent data",
   "Gestiona tu cuenta, tus metas y preferencias.": "Manage your account, goals and preferences.",
-  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Sets the food catalog of your diary and, if you turn plans on, your local cuisine."
+  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Sets the food catalog of your diary and, if you turn plans on, your local cuisine.",
+  "Cargando tu progreso...": "Loading your progress...",
+  "¡Plan reactivado! La generación de planes vuelve a estar encendida.": "Plan reactivated! Plan generation is back on.",
+  "Tienes la generación de planes apagada: reactivar este plan la vuelve a encender.": "Plan generation is currently off: reactivating this plan turns it back on.",
+  "¿Qué me falta hoy?": "What am I missing today?",
+  "Proponme una comida": "Suggest a meal",
+  "¿Cuánta proteína me falta hoy?": "How much protein do I still need today?",
+  "Proponme una comida para cerrar mis macros": "Suggest a meal to close out my macros",
+  "¿Cómo registro lo que como?": "How do I log what I eat?"
 }

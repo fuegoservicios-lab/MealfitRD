@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
 import { isTrackingMode, navItemsFor } from '../config/dashboardNav';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
 // [P3-LAZY-MARKDOWN · 2026-05-12] import de `react-markdown` eliminado:
@@ -361,8 +361,12 @@ const _computeFetchBackoffMs = (baseDelayMs, attempt) => {
  * para que la conversación siga detrás y no se desmonte.
  */
 export const menuItemsDelAgente = (enModoContador) => {
+    // [P1-PLAN-LOTE-137 · 2026-09-20] `progress` faltaba desde el lote 103 (la pestaña «Progreso» del modo plan): la
+    // entrada llegaba con `icon: undefined` y `<item.icon/>` tumbaba el menú ☰ del Agente en modo plan. El respaldo
+    // (`?? LayoutDashboard`) es para la PRÓXIMA entrada que alguien añada a la nav sin pasar por aquí.
     const iconoPorKey = {
         plan: LayoutDashboard,
+        progress: Activity,
         pantry: Refrigerator,
         recipes: Utensils,
         history: Clock,
@@ -370,7 +374,7 @@ export const menuItemsDelAgente = (enModoContador) => {
     return [
         ...navItemsFor({ trackingMode: enModoContador })
             .filter((i) => i.key !== 'agent')
-            .map((i) => ({ icon: iconoPorKey[i.key], label: i.label, path: i.path })),
+            .map((i) => ({ icon: iconoPorKey[i.key] ?? LayoutDashboard, label: i.label, path: i.path })),
         { icon: Settings, label: t('Configuración'), path: '/dashboard/settings', asDialog: true },
     ];
 };
@@ -4401,7 +4405,11 @@ const AgentPage = () => {
                 si la caja va pegajosa o fija, así que el atajo aparece exactamente donde la caja es «de móvil». */}
             {isMobile && !isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
                 <div className="chat-quick-chips" role="group" aria-label={t('Acciones rápidas')}>
-                    {[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')].map((texto) => (
+                    {/* [P1-PLAN-LOTE-137] Con el generador apagado no hay nada que «toque» ni plato que cambiar: un
+                        toque gastaba 1 de los mensajes del mes en un «no puedo». El contador tiene sus tres. */}
+                    {(enModoContador
+                        ? [t('¿Qué me falta hoy?'), t('Registrar lo que comí'), t('Proponme una comida')]
+                        : [t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')]).map((texto) => (
                         <button
                             key={texto}
                             type="button"
@@ -5624,8 +5632,12 @@ const AgentPage = () => {
                                 }}>
                                     {[
                                         { icon: '🖼️', text: t('Analizar mi comida') },
-                                        { icon: '💪', text: t('Dieta para ganar volumen') },
-                                        { icon: '✨', text: t('Plan de pérdida de peso') },
+                                        // [P1-PLAN-LOTE-137] en contador no se ofrece «un plan»: se ofrece cuadrar el día
+                                        ...(enModoContador
+                                            ? [{ icon: '💪', text: t('¿Cuánta proteína me falta hoy?') },
+                                               { icon: '✨', text: t('Proponme una comida para cerrar mis macros') }]
+                                            : [{ icon: '💪', text: t('Dieta para ganar volumen') },
+                                               { icon: '✨', text: t('Plan de pérdida de peso') }]),
                                         { icon: '🍳', text: t('Receta alta en proteína') }
                                     ].map((suggestion, idx) => (
                                         <button

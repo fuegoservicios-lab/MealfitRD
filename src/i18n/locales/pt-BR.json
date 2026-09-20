@@ -1091,7 +1091,6 @@
   "Genera tu primer plan nutricional y lo encontrarás aquí.": "Gere seu primeiro plano nutricional e ele aparecerá aqui.",
   "Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.": "Gere um plano de amostra grátis. Crie sua conta quando quiser salvá-lo.",
   "Generación de planes": "Geração de planos",
-  "Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.": "Geração ligada. Preencha o formulário quando quiser e a IA monta seu plano.",
   "Generado: {fecha}": "Gerado: {fecha}",
   "General": "Geral",
   "Generando": "Gerando",
@@ -3233,5 +3232,13 @@
   "Se aplicará al catálogo de alimentos de tu diario.": "Será aplicado ao catálogo de alimentos do seu diário.",
   "Generador de planes, memoria y datos del agente": "Gerador de planos, memória e dados do agente",
   "Gestiona tu cuenta, tus metas y preferencias.": "Gerencie sua conta, suas metas e preferências.",
-  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Define o catálogo de alimentos do seu diário e, se você ligar os planos, sua cozinha local."
+  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Define o catálogo de alimentos do seu diário e, se você ligar os planos, sua cozinha local.",
+  "Cargando tu progreso...": "Carregando seu progresso...",
+  "¡Plan reactivado! La generación de planes vuelve a estar encendida.": "Plano reativado! A geração de planos voltou a ficar ligada.",
+  "Tienes la generación de planes apagada: reactivar este plan la vuelve a encender.": "A geração de planos está desligada: reativar este plano volta a ligá-la.",
+  "¿Qué me falta hoy?": "O que me falta hoje?",
+  "Proponme una comida": "Sugira uma refeição",
+  "¿Cuánta proteína me falta hoy?": "Quanta proteína ainda me falta hoje?",
+  "Proponme una comida para cerrar mis macros": "Sugira uma refeição para fechar meus macros",
+  "¿Cómo registro lo que como?": "Como registro o que eu como?"
 }

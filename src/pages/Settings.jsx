@@ -34,7 +34,8 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 import { applyThemePref, isDarkActive } from '../utils/theme';
 // [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma de la interfaz.
 import { LOCALES } from '../i18n/locales';
-import { SUPERSEDED, formatDate, formatNumber, useI18n } from '../i18n';
+import { SUPERSEDED, formatDate, formatNumber, tn, useI18n } from '../i18n';
+import { missingPlanQuestionsCount } from '../config/formValidation';
 // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Selector de país, en oscuro hasta el
 // flip global (COUNTRY_SYSTEM_UI). SSOT compartido con QCountry.jsx — el
 // `code` es el dato del motor, `coerceCountry` es el mismo fail-safe que usa
@@ -610,6 +611,35 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const handleTogglePlanMode = async () => {
         if (planModeState === null || isPlanModeLoading) return;
         const pausing = planModeState === 'plan';
+        // [P1-PLAN-LOTE-137 · 2026-09-20] Encender SIN plan: todavía no hay nada que encender. El PUT dejaba al usuario
+        // en «modo plan sin plan», y ahí su dashboard ES el formulario: perdía el contador en cada arranque, en la app
+        // nativa sin barra de pestañas ni vuelta atrás, y las únicas salidas eran generar (1 crédito), rehacer la rama
+        // corta o cerrar sesión — con un toast que decía «completa el formulario cuando quieras». Misma puerta que la
+        // tarjeta del contador (`irAlPlan`): se pasa el formulario a la rama del plan y se navega; el modo lo enciende
+        // el servidor cuando de verdad se genera (`POST /generation-runs` ⇒ `ensure_plan_generation_enabled`). Si se
+        // arrepiente a mitad, vuelve a su contador intacto.
+        if (!pausing && !planData) {
+            const faltan = missingPlanQuestionsCount(formData || {});
+            const ok = await confirmToast(
+                t('¿Quieres que la IA te arme el plan?'),
+                {
+                    description: faltan > 0
+                        ? tn(
+                            faltan,
+                            'Te faltan {n} pregunta del formulario y usa 1 crédito de tu mes.',
+                            'Te faltan {n} preguntas del formulario y usa 1 crédito de tu mes.',
+                            { n: faltan }
+                        )
+                        : t('Ya tienes todo respondido: generarlo usa 1 crédito de tu mes.'),
+                    confirmLabel: t('Encender el plan'),
+                    cancelLabel: t('Ahora no'),
+                },
+            );
+            if (!ok) return;
+            updateData('appMode', 'plan');
+            navigate('/assessment');
+            return;
+        }
         if (pausing) {
             // Confirmación SOLO al pausar: reanudar es recuperar lo que ya era tuyo.
             // [P1-CONFIRM-TOAST-LAYOUT · 2026-08-12] Pregunta corta como título,
@@ -668,20 +698,16 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 // paso 0 se lo ofrece.
                 updateData('appMode', 'tracking');
             }
-            if (!pausing && !planData) {
-                updateData('appMode', 'plan');
-                toast.success(t('Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.'));
-            } else {
-                // [136] reanudar CON plan también devuelve el wizard a la rama del plan (pausar lo había llevado a la corta)
-                if (!pausing) updateData('appMode', 'plan');
-                toast.success(pausing
-                    ? (planData
-                        ? t('Planes en pausa. La app queda como contador; reanuda cuando quieras.')
-                        : t('Generación apagada. La app queda como contador; enciéndela cuando quieras.'))
-                    : (data.plan_expired
-                        ? t('Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.')
-                        : t('Planes reanudados: la generación continúa donde quedó.')));
-            }
+            // [136] reanudar CON plan también devuelve el wizard a la rama del plan (pausar lo había llevado a la corta).
+            // [137] «encender SIN plan» ya no llega aquí: sale arriba, hacia el formulario.
+            if (!pausing) updateData('appMode', 'plan');
+            toast.success(pausing
+                ? (planData
+                    ? t('Planes en pausa. La app queda como contador; reanuda cuando quieras.')
+                    : t('Generación apagada. La app queda como contador; enciéndela cuando quieras.'))
+                : (data.plan_expired
+                    ? t('Planes reanudados. Tu plan venció la ventana: genera uno nuevo cuando quieras.')
+                    : t('Planes reanudados: la generación continúa donde quedó.')));
             // [P1-PAUSE-STALE-PLANDATA · 2026-08-12] Con plan vivo, RECARGAR tras el
             // toast — el mismo cierre que el botón Reanudar de la franja. El PUT dejó
             // el servidor perfecto (flag + paused_by_user + cola cancelada, verificado

@@ -10417,6 +10417,11 @@ const Dashboard = () => {
     const t = useT();
     const { loadingData, planData, planSyncFailed, retryPlanSync, userProfile } = useAssessment();
 
+    // [P1-PLAN-LOTE-137 · 2026-09-20] El modo se resuelve ANTES que cualquier pantalla que hable del plan. El contador
+    // no necesita `/api/plans-data/latest`: con la sincronización del plan caída, a quien NO tiene plan se le tapaba su
+    // contador con «No pudimos sincronizar tu plan… Tu plan sigue guardado». Perfil primero, espejo local después.
+    const _planMode = userProfile?.plan_mode || safeLocalStorageGet('mealfit_plan_mode', null) || null;
+
     // ESTADO DE CARGA: recuperando datos de la DB → loader.
     if (loadingData) {
         return (
@@ -10431,7 +10436,7 @@ const Dashboard = () => {
                 background: 'var(--bg-page)'
             }}>
                 <Loader2 className="spin-fast" size={48} color="var(--primary)" />
-                <p style={{ fontWeight: 600 }}>{t('Sincronizando tu plan...')}</p>
+                <p style={{ fontWeight: 600 }}>{_planMode === 'tracking' ? t('Cargando tu progreso...') : t('Sincronizando tu plan...')}</p>
                 <style>{`
                     .spin-fast { animation: spin 1s linear infinite; }
                     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -10445,7 +10450,7 @@ const Dashboard = () => {
     // usuario no tenga plan. Antes este caso caía al Navigate de abajo y el
     // usuario con plan aterrizaba en el FORMULARIO (reporte del owner desde el
     // teléfono). Pantalla honesta con Reintentar en vez de asumir "sin plan".
-    if (!planData && planSyncFailed) {
+    if (!planData && planSyncFailed && _planMode !== 'tracking') {
         return (
             <div style={{
                 height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -10488,10 +10493,6 @@ const Dashboard = () => {
     // orden viejo, un plan pausado en memoria clavaba DashboardInner aunque el
     // usuario acabara de elegir «solo contador»: el contador manda cuando es
     // elección explícita; el plan queda en Historial con «Reanudar».
-    let _localMode = null;
-    _localMode = safeLocalStorageGet('mealfit_plan_mode', null);
-    const _planMode = userProfile?.plan_mode || _localMode || null;
-
     if (_planMode === 'tracking') {
         return <DashboardTracking />;
     }

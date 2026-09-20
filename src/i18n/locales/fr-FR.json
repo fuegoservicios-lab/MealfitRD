@@ -1091,7 +1091,6 @@
   "Genera tu primer plan nutricional y lo encontrarás aquí.": "Générez votre premier plan nutritionnel et vous le retrouverez ici.",
   "Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.": "Générez un plan d'exemple gratuit. Créez votre compte quand vous voudrez l'enregistrer.",
   "Generación de planes": "Génération de plans",
-  "Generación encendida. Completa el formulario cuando quieras y la IA te arma el plan.": "Génération activée. Remplissez le formulaire quand vous voulez et l'IA vous construit le plan.",
   "Generado: {fecha}": "Généré le {fecha}",
   "General": "Général",
   "Generando": "Génération en cours",
@@ -3233,5 +3232,13 @@
   "Se aplicará al catálogo de alimentos de tu diario.": "Cela s'appliquera au catalogue d'aliments de ton journal.",
   "Generador de planes, memoria y datos del agente": "Générateur de plans, mémoire et données de l'agent",
   "Gestiona tu cuenta, tus metas y preferencias.": "Gère ton compte, tes objectifs et tes préférences.",
-  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Définit le catalogue d'aliments de ton journal et, si tu actives les plans, ta cuisine locale."
+  "Define el catálogo de alimentos de tu diario y, si enciendes los planes, tu cocina local.": "Définit le catalogue d'aliments de ton journal et, si tu actives les plans, ta cuisine locale.",
+  "Cargando tu progreso...": "Chargement de ta progression...",
+  "¡Plan reactivado! La generación de planes vuelve a estar encendida.": "Plan réactivé ! La génération de plans est de nouveau activée.",
+  "Tienes la generación de planes apagada: reactivar este plan la vuelve a encender.": "La génération de plans est désactivée : réactiver ce plan la rallume.",
+  "¿Qué me falta hoy?": "Que me manque-t-il aujourd'hui ?",
+  "Proponme una comida": "Propose-moi un repas",
+  "¿Cuánta proteína me falta hoy?": "Combien de protéines me manque-t-il aujourd'hui ?",
+  "Proponme una comida para cerrar mis macros": "Propose-moi un repas pour boucler mes macros",
+  "¿Cómo registro lo que como?": "Comment enregistrer ce que je mange ?"
 }
