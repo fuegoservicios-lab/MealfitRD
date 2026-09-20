@@ -59,7 +59,8 @@ describe('lote 133 · qué programa el teléfono', () => {
         expect(n.every((x) => propios.has(x.id))).toBe(true);
         expect(new Set(n.map((x) => x.id)).size).toBe(n.length);
         expect(Math.min(...idsPropios())).toBe(ID_BASE);
-        expect(idsPropios().length).toBe(DIAS_PROGRAMADOS * 10);
+        // [P1-PLAN-LOTE-135] …más el rango del agua (4200+), que se cancela con los mismos 7 días
+        expect(idsPropios().length).toBe(DIAS_PROGRAMADOS * 10 * 2);
     });
 
     it('apagado por el servidor (turno nocturno/rotativo), o respuesta rota: no se programa nada', () => {

@@ -2587,7 +2587,6 @@
   "Violaciones": "Violations",
   "Violaciones de alergias detectadas en el último chunk. Las alergias son inmortales — el próximo chunk hereda este conteo.": "Allergy violations detected in the last chunk. Allergies are immortal — the next chunk inherits this count.",
   "Violaciones de alergias — el sistema las trata como inmortales": "Allergy violations — the system treats them as immortal",
-  "Visible en tu Dashboard. Marca tus vasos diarios; la meta se calcula segun tu peso.": "Visible on your Dashboard. Check off your daily glasses; the goal is calculated from your weight.",
   "Vista ampliada de imagen": "Enlarged image view",
   "Vitamina D": "Vitamin D",
   "Volver": "Back",
@@ -3221,5 +3220,8 @@
   "Actualiza la app para activar los avisos: esta versión todavía no los trae.": "Update the app to turn on alerts: this version doesn't include them yet.",
   "Este navegador no admite avisos en pantalla. Prueba con Chrome, Edge o Safari.": "This browser doesn't support on-screen alerts. Try Chrome, Edge or Safari.",
   "Permiso bloqueado en el iPhone.": "Permission blocked on the iPhone.",
-  "No se pudieron activar las alertas": "Couldn't turn on alerts"
+  "No se pudieron activar las alertas": "Couldn't turn on alerts",
+  "Pausamos la hidratación": "We paused hydration",
+  "Llevabas 2 días sin anotar agua. Puedes volver a encenderla en Configuración → Capacidades.": "You went 2 days without logging water. You can turn it back on in Settings → Capabilities.",
+  "Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.": "Shown on your Dashboard. With alerts on we remind you to drink water; after 2 days without logging glasses, we turn it off for you."
 }

@@ -360,7 +360,8 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         expect(s).toContain("const metasMacros = modo === 'plan' && planData?.calories ? { ok: true, ...planData } : targets;");
         // el descarte de la tarjeta persiste y colapsa a enlace (no borra la puerta)
         expect(s).toContain("_DISMISS_KEY = 'mealfit_turnon_card_dismissed'");
-        expect(s).toContain('safeLocalStorageSet(_DISMISS_KEY');
+        // [P1-PLAN-LOTE-135] …una semana y POR USUARIO: lo guarda utils/planInvite.js (servidor + espejo local)
+        expect(s).toContain("anotarInvitacion(_DISMISS_KEY, userId, 'dismiss');");
     });
 
     it('Con plan pausado la tarjeta del contador ofrece REANUDAR, no vender el wizard', () => {

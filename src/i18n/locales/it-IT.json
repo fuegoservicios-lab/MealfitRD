@@ -2587,7 +2587,6 @@
   "Violaciones": "Violazioni",
   "Violaciones de alergias detectadas en el último chunk. Las alergias son inmortales — el próximo chunk hereda este conteo.": "Violazioni di allergie rilevate nell'ultimo chunk. Le allergie sono immortali — il chunk successivo eredita questo conteggio.",
   "Violaciones de alergias — el sistema las trata como inmortales": "Violazioni di allergie — il sistema le tratta come immortali",
-  "Visible en tu Dashboard. Marca tus vasos diarios; la meta se calcula segun tu peso.": "Visibile nella tua Dashboard. Segna i bicchieri giornalieri; l'obiettivo si calcola in base al tuo peso.",
   "Vista ampliada de imagen": "Vista ingrandita dell’immagine",
   "Vitamina D": "Vitamina D",
   "Volver": "Indietro",
@@ -3221,5 +3220,8 @@
   "Actualiza la app para activar los avisos: esta versión todavía no los trae.": "Aggiorna l'app per attivare gli avvisi: questa versione non li include ancora.",
   "Este navegador no admite avisos en pantalla. Prueba con Chrome, Edge o Safari.": "Questo browser non supporta gli avvisi sullo schermo. Prova con Chrome, Edge o Safari.",
   "Permiso bloqueado en el iPhone.": "Permesso bloccato sull'iPhone.",
-  "No se pudieron activar las alertas": "Impossibile attivare gli avvisi"
+  "No se pudieron activar las alertas": "Impossibile attivare gli avvisi",
+  "Pausamos la hidratación": "Idratazione in pausa",
+  "Llevabas 2 días sin anotar agua. Puedes volver a encenderla en Configuración → Capacidades.": "Sei stato 2 giorni senza segnare acqua. Puoi riattivarla in Impostazioni → Capacità.",
+  "Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.": "Visibile nella tua Dashboard. Con gli avvisi attivi ti ricordiamo di bere acqua; dopo 2 giorni senza segnare bicchieri, la disattiviamo noi."
 }

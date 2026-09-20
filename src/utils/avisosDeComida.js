@@ -35,6 +35,13 @@ export const DIAS_PROGRAMADOS = 7;
 // ids propios y deterministas: día 0..6 × comida 0..9 → 4100..4169. Cancelar «los nuestros» no toca nada más.
 export const ID_BASE = 4100;
 const RUTA_DEL_AVISO = '/dashboard/agent';
+// [P1-PLAN-LOTE-135 · 2026-09-20] Avisos de HIDRATACIÓN (backend/hydration_reminders.py): tres puntos de control al
+// día, en su propio rango de ids. Solo se programan HOY + 2 días: si el usuario no vuelve a abrir la app, a las 48 h
+// el servidor apaga la hidratación y el teléfono ya no tiene nada más programado — no hay aviso huérfano.
+export const ID_BASE_AGUA = 4200;
+export const DIAS_DE_AGUA = 3;
+const RUTA_DEL_AGUA = '/dashboard';
+const EVENTO_AGUA_CAMBIO = 'mealfit:water-changed';
 
 /** El valor con el que NACE el interruptor (síncrono, sin parpadeo off→on): lo último confirmado en este dispositivo. */
 export function interruptorAlNacer() {
@@ -96,6 +103,9 @@ export async function canalDeEsteDispositivo() {
 export function idsPropios() {
     const ids = [];
     for (let d = 0; d < DIAS_PROGRAMADOS; d += 1) for (let m = 0; m < 10; m += 1) ids.push(ID_BASE + d * 10 + m);
+    // [135] los del agua se cancelan SIEMPRE por los 7 días, aunque hoy solo se programen 3: si el rango encoge en un
+    // despliegue, los ya programados con el rango viejo no quedan huérfanos.
+    for (let d = 0; d < DIAS_PROGRAMADOS; d += 1) for (let m = 0; m < 10; m += 1) ids.push(ID_BASE_AGUA + d * 10 + m);
     return ids;
 }
 
@@ -130,6 +140,38 @@ export function notificacionesAProgramar(respuesta, ahora = new Date()) {
     return out;
 }
 
+/**
+ * Los avisos de hidratación a programar. Pura. `respuesta.water` viene del mismo GET que las comidas.
+ *   · HOY: solo los puntos de control en los que el usuario NO va al día (`met_today`), con su cuenta real;
+ *   · los días siguientes: todos, con el texto genérico (nadie sabe cuántos vasos llevará mañana).
+ */
+export function avisosDeAguaAProgramar(respuesta, ahora = new Date()) {
+    const agua = respuesta?.water;
+    if (!agua || agua.enabled !== true || !Array.isArray(agua.reminders)) return [];
+    const dias = Math.max(1, Math.min(DIAS_PROGRAMADOS, Number(agua.days) || DIAS_DE_AGUA));
+    const out = [];
+    for (let d = 0; d < dias; d += 1) {
+        agua.reminders.slice(0, 10).forEach((r, m) => {
+            const hora = Number(r?.hour);
+            const minuto = Number(r?.minute ?? 0);
+            const cuerpo = d === 0 ? r?.body : (r?.body_generic || r?.body);
+            if (!Number.isFinite(hora) || hora < 0 || hora > 23 || !Number.isFinite(minuto) || !cuerpo) return;
+            if (d === 0 && r.met_today) return;
+            const at = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + d, hora, minuto, 0, 0);
+            if (at.getTime() <= ahora.getTime() + 60 * 1000) return;
+            out.push({
+                id: ID_BASE_AGUA + d * 10 + m,
+                title: String(r.title || BRAND),
+                body: String(cuerpo),
+                schedule: { at, allowWhileIdle: true },
+                threadIdentifier: 'agua',
+                extra: { url: agua.url || RUTA_DEL_AGUA, kind: 'water' },
+            });
+        });
+    }
+    return out;
+}
+
 let _sincronizando = null;
 
 /** Reprograma los avisos locales contra lo que dice el servidor. No hace nada si el interruptor está apagado. */
@@ -142,11 +184,13 @@ export async function sincronizarAvisosLocales() {
             if (!LN) return { ok: false, code: 'nativa-actualizar' };
             const permiso = await LN.checkPermissions();
             if (permiso?.display !== 'granted') return { ok: false, code: 'permiso' };
-            const res = await fetchWithAuth('/api/notifications/meal-reminders');
+            // `canal=local`: el servidor anota que a este usuario los avisos SÍ le llegan (sin eso no le cuenta los
+            // de agua como «ignorados» ni le apaga la hidratación a las 48 h).
+            const res = await fetchWithAuth('/api/notifications/meal-reminders?canal=local');
             if (!res.ok) return { ok: false, code: 'servidor', status: res.status };
             const datos = await res.json();
             await LN.cancel({ notifications: idsPropios().map((id) => ({ id })) });
-            const notifications = notificacionesAProgramar(datos);
+            const notifications = [...notificacionesAProgramar(datos), ...avisosDeAguaAProgramar(datos)];
             if (notifications.length) await LN.schedule({ notifications });
             return { ok: true, programadas: notifications.length, motivo: datos?.reason || null };
         } catch (e) {
@@ -289,6 +333,13 @@ export async function iniciarAvisosLocales() {
         sincronizarAvisosLocales();
     };
     window.addEventListener('mealfit:diary-changed', resincronizar(1500));
+    // [135] Anotar agua cambia qué avisos tocan hoy. Por el FINAL de la ráfaga, no por el principio: quien toca «+» tres
+    // veces seguidas debe quedar sincronizado con 3 vasos, no con el primero (el freno de arriba descartaría los otros).
+    let aguaTimer = null;
+    window.addEventListener(EVENTO_AGUA_CAMBIO, () => {
+        if (aguaTimer) clearTimeout(aguaTimer);
+        aguaTimer = setTimeout(() => { aguaTimer = null; ultimo = Date.now(); sincronizarAvisosLocales(); }, 4000);
+    });
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') resincronizar(60 * 1000)();
     });

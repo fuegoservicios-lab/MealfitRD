@@ -19,7 +19,7 @@ import { fetchWithAuth } from '../../config/api';
 import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
 import { missingPlanQuestionsCount } from '../../config/formValidation';
-import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
+import { leerInvitacion, anotarInvitacion } from '../../utils/planInvite';
 import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
@@ -32,8 +32,32 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
     const t = useT();
     const tn = useTn();
     const navigate = useNavigate();
-    const { updateData } = useAssessment();
-    const [dismissed, setDismissed] = useState(() => safeLocalStorageGet(_DISMISS_KEY, null) === '1');
+    const { updateData, session, userProfile } = useAssessment();
+    const userId = session?.user?.id || userProfile?.id || '';
+    // [P1-PLAN-LOTE-135 · 2026-09-20] Una vez por SEMANA y por USUARIO (utils/planInvite.js). Nace escondida y solo
+    // aparece cuando el servidor dice que toca: al revés, parpadeaba un instante en cada entrada al contador de quien
+    // ya la había descartado. Se vuelve a preguntar al volver a la app (el dashboard es keep-alive: sin esto, la
+    // tarjeta vista el lunes seguiría pintada el jueves en una sesión que nunca se cerró).
+    const [dismissed, setDismissed] = useState(true);
+    useEffect(() => {
+        if (!userId) return undefined;
+        let vivo = true;
+        const preguntar = () => {
+            leerInvitacion(_DISMISS_KEY, userId).then((r) => {
+                if (!vivo) return;
+                setDismissed(!r.visible);
+                if (r.visible) anotarInvitacion(_DISMISS_KEY, userId, 'seen');
+            });
+        };
+        const alVolver = () => { if (document.visibilityState === 'visible') preguntar(); };
+        preguntar();
+        document.addEventListener('visibilitychange', alVolver);
+        return () => { vivo = false; document.removeEventListener('visibilitychange', alVolver); };
+    }, [userId]);
+    const descartar = () => {
+        anotarInvitacion(_DISMISS_KEY, userId, 'dismiss');
+        setDismissed(true);
+    };
     // [AUDIT-FORM-COPY · 2026-08-12] En PREGUNTAS (la unidad de la pantalla),
     // no en campos: «Tus Medidas» son 4 campos y UNA pregunta.
     const faltan = missingPlanQuestionsCount(formData || {});
@@ -71,10 +95,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                     <button
                         type="button"
                         className={styles.turnOnGhost}
-                        onClick={() => {
-                            safeLocalStorageSet(_DISMISS_KEY, '1');
-                            setDismissed(true);
-                        }}
+                        onClick={descartar}
                     >
                         {t('Ahora no')}
                     </button>
@@ -84,7 +105,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
     }
 
     // Las reglas del «enciéndelo» (todas restricciones): un solo sitio, un hecho y
-    // un coste, sin animación, y el descarte PERSISTE.
+    // un coste, sin animación, y el descarte PERSISTE — una semana, por usuario (lote 135).
     // [P1-PLAN-LOTE-98 · 2026-09-18] Descartada, no queda NADA en el contador (ni el
     // enlace tenue del lote 91): la puerta de vuelta es el interruptor de
     // Configuración → Capacidades, y el dueño la quiere solo ahí. Vale para las dos
@@ -111,10 +132,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                 <button
                     type="button"
                     className={styles.turnOnGhost}
-                    onClick={() => {
-                        safeLocalStorageSet(_DISMISS_KEY, '1');
-                        setDismissed(true);
-                    }}
+                    onClick={descartar}
                 >
                     {/* [P2-I18N-BOTON-AHORA-NO-SIN-ENVOLVER · 2026-08-23] La traducción
                         existía en los cuatro catálogos (la usa el otro «Ahora no» de este

@@ -28,6 +28,10 @@ const GOAL_MAX = 14;
 const ML_PER_GLASS_FALLBACK = 240; // espeja backend _WATER_ML_PER_GLASS
 const LS_ENABLED_KEY = 'mealfit_water_tracker_enabled';
 const LS_WATER_CACHE_PREFIX = 'mealfit_water_state_';
+// [P1-PLAN-LOTE-135] El último apagado AUTOMÁTICO del que ya se avisó en este dispositivo (ISO del servidor).
+const LS_AUTO_OFF_VISTO = 'mealfit_water_auto_off_visto';
+// Anotar agua cambia qué avisos de hidratación tocan hoy: la app nativa re-programa los suyos (utils/avisosDeComida).
+export const EVENTO_AGUA_CAMBIO = 'mealfit:water-changed';
 
 const _waterCacheKey = (userId, dateStr) =>
     userId ? `${LS_WATER_CACHE_PREFIX}${userId}_${dateStr}` : null;
@@ -93,6 +97,12 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
     // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en
     // effect). Init equivalente: `goal` ya arranca de _cachedState?.goal.
     const goalRef = useLatestRef(goal);
+    // [P1-PLAN-LOTE-135] Los textos del aviso de «se apagó sola», resueltos con `t(…)` a la vista del verificador de
+    // i18n (que no ve un `tRef.current('…')`) y leídos por ref desde `loadIntake`, que no depende del idioma.
+    const avisoApagadoRef = useLatestRef({
+        titulo: t('Pausamos la hidratación'),
+        cuerpo: t('Llevabas 2 días sin anotar agua. Puedes volver a encenderla en Configuración → Capacidades.'),
+    });
 
     // Persistir state al cache (key con fecha → TTL implícito 24h + rollover).
     useEffect(() => {
@@ -136,6 +146,14 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
             if (typeof data?.enabled === 'boolean') {
                 setEnabled(data.enabled);
                 safeLocalStorageSet(LS_ENABLED_KEY, String(data.enabled));
+            }
+            // [P1-PLAN-LOTE-135 · 2026-09-20] La hidratación se apaga SOLA tras 48 h de avisos sin un vaso anotado
+            // (backend/hydration_reminders.py). La tarjeta desaparece; que no sea en silencio: se dice UNA vez por
+            // apagado y por dispositivo, con el camino de vuelta.
+            if (data?.enabled === false && typeof data?.auto_off_at === 'string' && data.auto_off_at
+                && safeLocalStorageGet(LS_AUTO_OFF_VISTO, null) !== data.auto_off_at) {
+                safeLocalStorageSet(LS_AUTO_OFF_VISTO, data.auto_off_at);
+                toast(avisoApagadoRef.current.titulo, { description: avisoApagadoRef.current.cuerpo, duration: 9000 });
             }
         } finally {
             setLoading(false);
@@ -206,6 +224,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
             }
             const data = await res.json().catch(() => null);
             lastSavedRef.current = target;
+            try { window.dispatchEvent(new Event(EVENTO_AGUA_CAMBIO)); } catch { /* sin window: nada que avisar */ }
             if (data) {
                 if (Number.isInteger(data.goal)) setGoal(sanitizeGoal(data.goal));
                 if (data.goal_basis) setGoalBasis(data.goal_basis);

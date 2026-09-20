@@ -3436,7 +3436,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 </div>
                                                 <div className={styles.preferenceCardDesc}>
                                                     {waterTrackerEnabled
-                                                        ? t('Visible en tu Dashboard. Marca tus vasos diarios; la meta se calcula segun tu peso.')
+                                                        ? t('Visible en tu Dashboard. Con las alertas activas te recordamos beber agua; si pasas 2 días sin anotar vasos, la apagamos por ti.')
                                                         : t('Oculto del Dashboard. Tu historial de vasos se conserva si lo reactivas.')}
                                                 </div>
                                             </div>
