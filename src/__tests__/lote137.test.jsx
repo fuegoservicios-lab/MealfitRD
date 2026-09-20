@@ -205,6 +205,17 @@ describe('lote 137 · generar desde el contador deja al cliente en modo plan por
     });
 });
 
+describe('lote 137 · los avisos del teléfono suenan', () => {
+    it('TODO aviso local (comidas y agua) lleva `sound`: sin él el plugin de iOS lo entrega mudo', () => {
+        const av = leer('src/utils/avisosDeComida.js');
+        expect(av).toContain("export const SONIDO_DEL_AVISO = 'default';");
+        const programados = av.match(/schedule: \{ at, allowWhileIdle: true \},/g) || [];
+        const conSonido = av.match(/schedule: \{ at, allowWhileIdle: true \},\s*sound: SONIDO_DEL_AVISO,/g) || [];
+        expect(programados.length).toBe(2);
+        expect(conSonido.length).toBe(programados.length);
+    });
+});
+
 describe('lote 137 · formulario y Nevera', () => {
     it('«Solo contar» con un plan VIVO confirma la pausa (como Configuración) y rehidrata la pantalla', () => {
         const q = leer('src/components/assessment/questions/QTrackingFinish.jsx');

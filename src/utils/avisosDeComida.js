@@ -39,6 +39,12 @@ const RUTA_DEL_AVISO = '/dashboard/agent';
 // día, en su propio rango de ids. Solo se programan HOY + 2 días: si el usuario no vuelve a abrir la app, a las 48 h
 // el servidor apaga la hidratación y el teléfono ya no tiene nada más programado — no hay aviso huérfano.
 export const ID_BASE_AGUA = 4200;
+// [P1-PLAN-LOTE-137 · 2026-09-20] El dueño, con el primer aviso real en la pantalla de bloqueo: «salió fuera de la app y
+// eso está bien, pero no hizo ningún sonido, y WhatsApp sí suena». El plugin en iOS SOLO pone `content.sound` si el
+// aviso trae `sound` no vacío (`LocalNotificationsPlugin.swift`: `if let sound …, !sound.isEmpty`); sin él queda en nil
+// y iOS lo entrega MUDO aunque el permiso incluya sonido. No empaquetamos ningún audio: un nombre que no existe en el
+// bundle hace que iOS toque el sonido de notificación POR DEFECTO del sistema, que es justo lo que se quiere.
+export const SONIDO_DEL_AVISO = 'default';
 export const DIAS_DE_AGUA = 3;
 const RUTA_DEL_AGUA = '/dashboard';
 const EVENTO_AGUA_CAMBIO = 'mealfit:water-changed';
@@ -139,6 +145,7 @@ export function notificacionesAProgramar(respuesta, ahora = new Date()) {
                 title: String(r.title || BRAND),
                 body: String(r.body),
                 schedule: { at, allowWhileIdle: true },
+                sound: SONIDO_DEL_AVISO,
                 threadIdentifier: 'comidas',
                 extra: { url: respuesta.url || RUTA_DEL_AVISO, meal: r.meal || '' },
             });
@@ -171,6 +178,7 @@ export function avisosDeAguaAProgramar(respuesta, ahora = new Date()) {
                 title: String(r.title || BRAND),
                 body: String(cuerpo),
                 schedule: { at, allowWhileIdle: true },
+                sound: SONIDO_DEL_AVISO,
                 threadIdentifier: 'agua',
                 extra: { url: agua.url || RUTA_DEL_AGUA, kind: 'water' },
             });
