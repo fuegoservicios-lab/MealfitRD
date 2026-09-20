@@ -20,6 +20,7 @@ import { MemoryRouter, Routes, Route, Link } from 'react-router-dom';
 import ProtectedRoute from '../components/layout/ProtectedRoute';
 import { menuItemsDelAgente } from '../pages/AgentPage';
 import { navItemsFor } from '../config/dashboardNav';
+import { sinRepetirLoDeHoy } from '../utils/avisosDeComida';
 
 const leer = (rel) => readFileSync(resolve(process.cwd(), rel), 'utf8').replace(/\r\n/g, '\n');
 
@@ -224,6 +225,32 @@ describe('lote 137 · anotar por el chat cancela el recordatorio de esa comida',
         expect(av).toContain("for (const ev of ['mealfit:chat-turn-done', 'mealfit:refresh-inventory', 'mealfit:refresh-hydration']) {");
         // por el FINAL de la ráfaga, y marcando `ultimo` para que el freno de los otros disparadores cuente
         expect(av).toMatch(/chatTimer = setTimeout\(\(\) => \{ chatTimer = null; ultimo = Date\.now\(\); sincronizarAvisosLocales\(\); \}, 2500\);/);
+    });
+});
+
+describe('lote 137 · una pregunta por comida y día', () => {
+    const ahora = new Date(2026, 8, 20, 15, 20, 0);
+    const aviso = (meal, h, dia = 20) => ({ id: 1, extra: { meal }, schedule: { at: new Date(2026, 8, dia, h, 35, 0) } });
+
+    it('si el aviso de hoy de esa comida YA sonó, no se reprograma hoy aunque el servidor mueva la hora (14:35 ⇒ 15:35)', () => {
+        const libro = { fecha: '2026-09-20', comidas: { almuerzo: new Date(2026, 8, 20, 14, 35, 0).getTime() } };
+        const r = sinRepetirLoDeHoy([aviso('almuerzo', 15), aviso('cena', 20), aviso('almuerzo', 15, 21)], libro, ahora);
+        expect(r.notificaciones.map((n) => `${n.extra.meal}-${n.schedule.at.getDate()}`)).toEqual(['cena-20', 'almuerzo-21']);
+        expect(r.libro.comidas.almuerzo).toBe(libro.comidas.almuerzo);      // se sigue recordando que ya sonó
+        expect(r.libro.comidas.cena).toBe(new Date(2026, 8, 20, 20, 35, 0).getTime());
+    });
+
+    it('un aviso de hoy que aún NO sonó sí se puede mover; y el libro de ayer no cuenta', () => {
+        const pendiente = { fecha: '2026-09-20', comidas: { cena: new Date(2026, 8, 20, 20, 35, 0).getTime() } };
+        expect(sinRepetirLoDeHoy([aviso('cena', 21)], pendiente, ahora).notificaciones).toHaveLength(1);
+        const deAyer = { fecha: '2026-09-19', comidas: { almuerzo: new Date(2026, 8, 19, 14, 35, 0).getTime() } };
+        expect(sinRepetirLoDeHoy([aviso('almuerzo', 15)], deAyer, ahora).notificaciones).toHaveLength(1);
+        expect(sinRepetirLoDeHoy([aviso('almuerzo', 15)], null, ahora).notificaciones).toHaveLength(1);
+    });
+
+    it('el agua (sin `extra.meal`) no pasa por este filtro', () => {
+        const agua = { id: 9, extra: { kind: 'water' }, schedule: { at: new Date(2026, 8, 20, 19, 35, 0) } };
+        expect(sinRepetirLoDeHoy([agua], { fecha: '2026-09-20', comidas: {} }, ahora).notificaciones).toEqual([agua]);
     });
 });
 

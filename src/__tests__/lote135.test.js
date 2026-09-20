@@ -132,7 +132,8 @@ describe('lote 135 · avisos de hidratación en el teléfono', () => {
         expect(ids).toContain(ID_BASE_AGUA + 69);
         const av = leer('src/utils/avisosDeComida.js');
         expect(av).toContain("fetchWithAuth('/api/notifications/meal-reminders?canal=local')");
-        expect(av).toContain('[...notificacionesAProgramar(datos), ...avisosDeAguaAProgramar(datos)]');
+        // [P1-PLAN-LOTE-137] las de comida pasan antes por «una pregunta por comida y día»; el agua se sigue sumando igual
+        expect(av).toContain('[..._deComida.notificaciones, ...avisosDeAguaAProgramar(datos)]');
     });
 
     it('anotar agua re-sincroniza por el FINAL de la ráfaga (tres toques = 3 vasos, no el primero)', () => {

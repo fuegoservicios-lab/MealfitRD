@@ -22,6 +22,7 @@ import { fetchWithAuth } from '../config/api';
 import { isNativeApp, nativePluginAvailable } from '../config/platform';
 import { BRAND } from '../data/routeMeta';
 import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
+import { safeJSONParse } from './safeJSONParse';
 import {
     isPushSupported,
     requestNotificationPermission,
@@ -45,6 +46,37 @@ export const ID_BASE_AGUA = 4200;
 // y iOS lo entrega MUDO aunque el permiso incluya sonido. No empaquetamos ningún audio: un nombre que no existe en el
 // bundle hace que iOS toque el sonido de notificación POR DEFECTO del sistema, que es justo lo que se quiere.
 export const SONIDO_DEL_AVISO = 'default';
+// [P1-PLAN-LOTE-137] Lo que ya se programó para HOY, por comida (`{ fecha, comidas: { almuerzo: <ms> } }`).
+const CLAVE_PROGRAMADO_HOY = 'mealfit_avisos_programados_hoy';
+
+const _fechaLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * Un recordatorio por comida y DÍA. La hora del aviso es adaptativa (la recalcula el servidor en cada
+ * sincronización) y se mueve: al dueño le sonó «¿Ya almorzaste?» a las 14:35 y, tras abrir la app, el almuerzo se
+ * reprogramó para las 15:35 — la misma pregunta dos veces en una hora. Pura: recibe lo que se iba a programar, el
+ * libro de lo ya programado hoy y «ahora»; devuelve `{ notificaciones, libro }`. Una comida cuyo aviso de hoy YA
+ * sonó (su hora programada pasó) no se vuelve a programar hoy; los demás días y el agua no se tocan.
+ */
+export function sinRepetirLoDeHoy(notificaciones, libro, ahora = new Date()) {
+    const hoy = _fechaLocal(ahora);
+    const previas = libro && libro.fecha === hoy && libro.comidas && typeof libro.comidas === 'object' ? libro.comidas : {};
+    const comidas = {};
+    for (const [meal, at] of Object.entries(previas)) {
+        if (Number(at) <= ahora.getTime()) comidas[meal] = Number(at);      // ya sonó hoy: se recuerda
+    }
+    const out = [];
+    for (const n of notificaciones || []) {
+        const meal = n?.extra?.meal;
+        const at = n?.schedule?.at instanceof Date ? n.schedule.at : null;
+        if (meal && at && _fechaLocal(at) === hoy) {
+            if (comidas[meal] !== undefined && comidas[meal] <= ahora.getTime()) continue;   // hoy ya se preguntó
+            comidas[meal] = at.getTime();
+        }
+        out.push(n);
+    }
+    return { notificaciones: out, libro: { fecha: hoy, comidas } };
+}
 export const DIAS_DE_AGUA = 3;
 const RUTA_DEL_AGUA = '/dashboard';
 const EVENTO_AGUA_CAMBIO = 'mealfit:water-changed';
@@ -205,7 +237,13 @@ export async function sincronizarAvisosLocales() {
             if (!res.ok) return { ok: false, code: 'servidor', status: res.status };
             const datos = await res.json();
             await LN.cancel({ notifications: idsPropios().map((id) => ({ id })) });
-            const notifications = [...notificacionesAProgramar(datos), ...avisosDeAguaAProgramar(datos)];
+            // [137] una pregunta por comida y día (ver `sinRepetirLoDeHoy`)
+            const _deComida = sinRepetirLoDeHoy(
+                notificacionesAProgramar(datos),
+                safeJSONParse(safeLocalStorageGet(CLAVE_PROGRAMADO_HOY, null), null),
+            );
+            safeLocalStorageSet(CLAVE_PROGRAMADO_HOY, JSON.stringify(_deComida.libro));
+            const notifications = [..._deComida.notificaciones, ...avisosDeAguaAProgramar(datos)];
             if (notifications.length) await LN.schedule({ notifications });
             return { ok: true, programadas: notifications.length, motivo: datos?.reason || null };
         } catch (e) {
