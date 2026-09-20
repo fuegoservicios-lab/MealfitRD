@@ -174,7 +174,13 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        # [P1-PLAN-LOTE-128 · 2026-09-19] `false`, a pedido del dueño. `submit_to_testflight` NO es «subir a
+        # TestFlight» (eso lo hace este bloque `app_store_connect` por existir: el IPA se sube siempre): es pedirle a
+        # Apple la REVISIÓN BETA para testers EXTERNOS. Sin grupo externo ni «Test Information» en App Store Connect
+        # esa petición falla, y los builds 13 y 16 acabaron «finished with post-processing failed» con el IPA
+        # perfectamente subido e instalable (el dueño está en el grupo INTERNO, que Apple reparte sola). Un rojo que
+        # no significa nada enseña a ignorar los rojos. Volver a `true` el día que exista el grupo externo.
+        submit_to_testflight: false
         # SIN `beta_groups` para el grupo interno. [Build #6, 2026-08-22] «Failed to
         # add build to 'Equipo Bioboros' beta group. Builds cannot be assigned to this
         # internal group. Cannot add internal group to a build»: los grupos INTERNOS no
