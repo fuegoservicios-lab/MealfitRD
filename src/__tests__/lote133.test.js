@@ -87,7 +87,8 @@ describe('lote 133 · el interruptor de Configuración', () => {
     });
 
     it('habla con la fachada, no con la Web Push a pelo', () => {
-        expect(st).toContain("import { estadoDeAvisos, activarAvisos, desactivarAvisos, CLAVE_AVISOS_LOCALES } from '../utils/avisosDeComida';");
+        expect(st).toContain("import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador } from '../utils/avisosDeComida';");
+        expect(st).toContain('const [pushEnabled, setPushEnabled] = useState(interruptorAlNacer);');
         expect(st).not.toContain("from '../utils/pushNotifications'");
         expect(st).toContain('const r = await activarAvisos();');
         expect(st).toContain('const r = await desactivarAvisos();');
@@ -125,8 +126,26 @@ describe('lote 133 · lo demás que hacía falta', () => {
         expect(main).toMatch(/if \(isNativeApp\(\)\) \{\n\s+import\('\.\/utils\/avisosDeComida'\)\n\s+\.then\(\(m\) => m\.iniciarAvisosLocales\(\)\)/);
         const av = leer('src/utils/avisosDeComida.js');
         expect(av).toContain("await import('@capacitor/local-notifications')");
+        // platform.js es el ÚNICO que habla con @capacitor/core (NativeShell.contract): la fachada pregunta por el plugin ahí
+        expect(av).toContain("if (!nativePluginAvailable('LocalNotifications')) return null;");
+        expect(av).not.toContain('@capacitor/core');
+        expect(leer('src/config/platform.js')).toContain('export function nativePluginAvailable(name) {');
         expect(av).not.toMatch(/^import .*@capacitor\/local-notifications/m);
         expect(leer('package.json')).toContain('"@capacitor/local-notifications"');
+    });
+
+    it('el plugin entra en la foto del OTA SIN subir minNativeBuild: el JS corre en los binarios que aún no lo traen', () => {
+        const cfg = JSON.parse(leer('ota.config.json'));
+        expect(cfg.nativeDeps['@capacitor/local-notifications']).toBeTruthy();
+        expect(cfg.minNativeBuild).toBe(13);
+        expect(cfg._nota_lote_133).toContain('nativePluginAvailable');
+    });
+
+    it('los textos nuevos no hornean la marca ni resucitan el aviso de instalación que el lote 109 retiró', () => {
+        const st = leer('src/pages/Settings.jsx');
+        expect(st).toContain("t('Las notificaciones de {app} están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → {app}.', { app: BRAND })");
+        expect(st).toContain("instalada en tu pantalla de inicio. Ábrela desde ahí y actívalos.', { app: BRAND })");
+        expect(leer('src/i18n/locales/en-US.json')).not.toContain('«Agregar a inicio»');
     });
 
     it('Service Worker: etiqueta por comida (no se apilan) y el toque lleva la app abierta al chat', () => {

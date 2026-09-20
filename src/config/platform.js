@@ -41,6 +41,16 @@ export function nativeHttpGet(options) {
     return CapacitorHttp.get(options);
 }
 
+// [P1-PLAN-LOTE-133] ¿Este BINARIO trae el plugin nativo `name`? El JS llega por OTA a binarios anteriores al plugin:
+// quien lo use pregunta aquí antes de importarlo (los avisos locales muestran «Actualiza la app…» en vez de romperse).
+export function nativePluginAvailable(name) {
+    try {
+        return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable(name);
+    } catch {
+        return false;
+    }
+}
+
 // Nombre del CONTRATO, no del mecanismo: lo que las superficies preguntan es «¿debo
 // esconder el comercio?», no «¿estoy en iOS?». Si un día el comercio nativo existe
 // (StoreKit), cambia esta función y no los 6 call sites.

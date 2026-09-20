@@ -19,7 +19,8 @@
 //   · 'nativa-actualizar'  binario anterior al plugin (el JS llega por OTA; el plugin, solo con un build nuevo).
 //   · 'sin-soporte'        navegador sin Push.
 import { fetchWithAuth } from '../config/api';
-import { isNativeApp } from '../config/platform';
+import { isNativeApp, nativePluginAvailable } from '../config/platform';
+import { BRAND } from '../data/routeMeta';
 import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
 import {
     isPushSupported,
@@ -34,6 +35,20 @@ export const DIAS_PROGRAMADOS = 7;
 // ids propios y deterministas: día 0..6 × comida 0..9 → 4100..4169. Cancelar «los nuestros» no toca nada más.
 export const ID_BASE = 4100;
 const RUTA_DEL_AVISO = '/dashboard/agent';
+
+/** El valor con el que NACE el interruptor (síncrono, sin parpadeo off→on): lo último confirmado en este dispositivo. */
+export function interruptorAlNacer() {
+    try {
+        if (isNativeApp()) return safeLocalStorageGet(CLAVE_AVISOS_LOCALES, null) === '1';
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+        return safeLocalStorageGet(CLAVE_PUSH_WEB, null) === 'true';
+    } catch { return false; }
+}
+
+/** ¿El permiso lo da el NAVEGADOR (y por tanto se puede vigilar con `navigator.permissions`)? En la app nativa, no. */
+export function elPermisoEsDelNavegador() {
+    return !isNativeApp();
+}
 
 /** El canal que le toca a este dispositivo. Pura: todo lo que mira entra por parámetro (la prueba lo agradece). */
 export function canalDeAvisos({ esNativa, pluginLocal, pushSoportado, esIOS, esInstalada } = {}) {
@@ -58,8 +73,7 @@ function _esInstalada() {
 
 async function _pluginLocal() {
     try {
-        const { Capacitor } = await import('@capacitor/core');
-        if (!Capacitor.isPluginAvailable('LocalNotifications')) return null;
+        if (!nativePluginAvailable('LocalNotifications')) return null;
         const mod = await import('@capacitor/local-notifications');
         return mod.LocalNotifications || null;
     } catch {
@@ -105,7 +119,7 @@ export function notificacionesAProgramar(respuesta, ahora = new Date()) {
             if (at.getTime() <= ahora.getTime() + 60 * 1000) return;
             out.push({
                 id: ID_BASE + d * 10 + m,
-                title: String(r.title || 'Bioboros'),
+                title: String(r.title || BRAND),
                 body: String(r.body),
                 schedule: { at, allowWhileIdle: true },
                 threadIdentifier: 'comidas',

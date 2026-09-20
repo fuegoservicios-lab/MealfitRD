@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { nativeHidesCommerce, isNativeApp } from '../config/platform';
+import { nativeHidesCommerce } from '../config/platform';
 import { isTrackingMode } from '../config/dashboardNav';
 import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, periodLabel, tierDisplayName } from '../config/plans';
 import {
@@ -20,7 +20,7 @@ import { confirmToast } from '../utils/confirmToast';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 // [P1-PLAN-LOTE-133] el interruptor habla con UNA fachada: Web Push en navegador/PWA, avisos locales en la app nativa
-import { estadoDeAvisos, activarAvisos, desactivarAvisos, CLAVE_AVISOS_LOCALES } from '../utils/avisosDeComida';
+import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador } from '../utils/avisosDeComida';
 import { trackEvent, isAnalyticsOptedOut, persistAnalyticsOptOut } from '../utils/analytics';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
 // — iOS Private Mode lanza SecurityError y corta el cleanup del reset
@@ -286,13 +286,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
     // Estado de «Alertas Inteligentes» (Web Push en navegador/PWA · avisos locales en la app nativa)
     // Lazy init desde localStorage + Notification.permission para evitar flash off→on al refrescar.
-    const [pushEnabled, setPushEnabled] = useState(() => {
-        try {
-            if (isNativeApp()) return safeLocalStorageGet(CLAVE_AVISOS_LOCALES, null) === '1';
-            if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
-            return safeLocalStorageGet('mealfit_push_enabled', null) === 'true';
-        } catch { return false; }
-    });
+    const [pushEnabled, setPushEnabled] = useState(interruptorAlNacer);
     const [isPushLoading, setIsPushLoading] = useState(false);
     const [isPushBlocked, setIsPushBlocked] = useState(false);
     // { code, msg }: el aviso en línea decide por CÓDIGO; el texto ya viene en el idioma activo
@@ -685,7 +679,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // Detecta cuando el usuario revoca el permiso de notificaciones desde fuera de la app
     // (chrome://settings, otra pestaña). Sin esto el toggle quedaba ON pero ningún push llegaba.
     useEffect(() => {
-        if (isNativeApp() || typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+        if (!elPermisoEsDelNavegador() || typeof navigator === 'undefined' || !navigator.permissions?.query) return;
         let permStatus;
         let cancelled = false;
 
@@ -1438,7 +1432,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                 } else if (r.code === 'permiso_denegado') {
                     setIsPushBlocked(true);
                     const msg = r.canal === 'local'
-                        ? t('Las notificaciones de Bioboros están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → Bioboros.')
+                        ? t('Las notificaciones de {app} están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → {app}.', { app: BRAND })
                         : await getNotificationBlockedMessage();
                     toast.error(msg, { duration: 6000 });
                 } else {
@@ -3139,7 +3133,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     <AlertTriangle size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--warning)' }} />
                                     <span>
                                         {canalAvisos === 'ios-instalar'
-                                            ? t('En el iPhone los avisos solo llegan a la app instalada: en Safari toca Compartir → «Agregar a inicio» y actívalos desde ahí.')
+                                            ? t('En el iPhone los avisos solo funcionan con {app} instalada en tu pantalla de inicio. Ábrela desde ahí y actívalos.', { app: BRAND })
                                             : canalAvisos === 'nativa-actualizar'
                                                 ? t('Actualiza la app para activar los avisos: esta versión todavía no los trae.')
                                                 : t('Este navegador no admite avisos en pantalla. Prueba con Chrome, Edge o Safari.')}
@@ -3152,7 +3146,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     role="alert"
                                     onClick={async () => {
                                         const msg = canalAvisos === 'local'
-                                            ? t('Las notificaciones de Bioboros están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → Bioboros.')
+                                            ? t('Las notificaciones de {app} están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → {app}.', { app: BRAND })
                                             : await getNotificationBlockedMessage();
                                         toast.error(msg, { duration: 6000 });
                                     }}

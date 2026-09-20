@@ -8,7 +8,9 @@
     "@capacitor/core": "^8.5.0",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.5.0",
+    "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/push-notifications": "^8.1.2",
     "@capawesome/capacitor-live-update": "^8.4.2"
-  }
+  },
+  "_nota_lote_133": "@capacitor/local-notifications entra SIN subir minNativeBuild, a proposito: el JS pregunta nativePluginAvailable('LocalNotifications') antes de importarlo y en un binario sin el plugin muestra 'Actualiza la app...'. Subirlo habria dejado sin OTA a los binarios instalados hasta el build nuevo."
 }

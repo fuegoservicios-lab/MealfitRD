@@ -3215,10 +3215,10 @@
   "Animación fluida del teclado encendida": "Animation fluide du clavier activée",
   "Animación fluida del teclado apagada": "Animation fluide du clavier désactivée",
   "Alertas activadas. Con horario nocturno o rotativo no programamos recordatorios de comida.": "Alertes activées. Avec un horaire de nuit ou tournant, nous ne programmons pas de rappels de repas.",
-  "Las notificaciones de Bioboros están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → Bioboros.": "Les notifications de Bioboros sont désactivées sur ton iPhone. Active-les dans Réglages → Notifications → Bioboros.",
+  "Las notificaciones de {app} están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → {app}.": "Les notifications de {app} sont désactivées sur ton iPhone. Active-les dans Réglages → Notifications → {app}.",
   "No se pudieron programar los avisos en este teléfono. Inténtalo de nuevo.": "Impossible de programmer les alertes sur ce téléphone. Réessaie.",
-  "En el iPhone los avisos solo llegan a la app instalada: en Safari toca Compartir → «Agregar a inicio» y actívalos desde ahí.": "Sur iPhone, les alertes n'arrivent que dans l'app installée : dans Safari, touche Partager → « Sur l'écran d'accueil » et active-les depuis là.",
-  "Actualiza la app para activar los avisos: esta versión todavía no los trae.": "Mets l'app à jour pour activer les alertes : cette version ne les propose pas encore.",
+  "En el iPhone los avisos solo funcionan con {app} instalada en tu pantalla de inicio. Ábrela desde ahí y actívalos.": "Sur iPhone, les alertes ne fonctionnent qu'avec {app} installée sur ton écran d'accueil. Ouvre-la depuis là et active-les.",
+  "Actualiza la app para activar los avisos: esta versión todavía no los trae.": "Mets l'app à jour pour activer les alertes : cette version ne les propose pas encore.",
   "Este navegador no admite avisos en pantalla. Prueba con Chrome, Edge o Safari.": "Ce navigateur ne prend pas en charge les alertes à l'écran. Essaie Chrome, Edge ou Safari.",
   "Permiso bloqueado en el iPhone.": "Autorisation bloquée sur l'iPhone.",
   "No se pudieron activar las alertas": "Impossible d'activer les alertes"
