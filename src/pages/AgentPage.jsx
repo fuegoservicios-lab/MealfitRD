@@ -4024,6 +4024,15 @@ const AgentPage = () => {
         void handleSend();
     };
 
+    // [P1-PLAN-LOTE-127 · caja APILADA] El dueño, con una captura de referencia: «lo quiero simétrico… el + está abajo
+    // y el texto va de acorde a la imagen cuando está seleccionada». Con una foto adjunta la caja deja de ser una
+    // fila: arriba la miniatura, debajo el texto a TODO el ancho (arranca en la vertical de la imagen) y al pie una
+    // fila de acciones — «+» a la izquierda, micrófono y ENVIAR a la derecha. Antes el texto quedaba encajonado entre
+    // el «+» y los botones, sin relación con la foto de encima. Se hace con `order` + `flex-wrap`, SIN mover el JSX:
+    // el input de fichero sigue dentro del span del «+» (iOS ancla ahí su menú, P1-CHAT-PICKER-ANCLADO) y el orden de
+    // tabulación no cambia. Sin adjuntos sigue siendo la pastilla de una fila (el chat no pierde alto).
+    const cajaApilada = attachments.length > 0;
+
     const renderInputArea = (isCentered = false) => (
         <div
             className={`input-wrapper${isListening ? ' dictando' : ''}`}
@@ -4164,7 +4173,7 @@ const AgentPage = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     background: isCentered ? 'var(--bg-muted)' : 'var(--bg-muted)',
-                    borderRadius: isCentered ? '2rem' : (attachments.length ? '1rem' : '2rem'),
+                    borderRadius: cajaApilada ? '1.75rem' : '2rem',
                     // [P1-PLAN-LOTE-127] Relleno SIMÉTRICO. Eran 16 px a la izquierda y 8 a la derecha, y el «+» era un
                     // glifo suelto dentro de un botón invisible: medido, 28 px del borde al «+» contra 11 px del borde
                     // a ENVIAR (el dueño: «no hay simetría en la parte izquierda donde está el signo de +»).
@@ -4212,7 +4221,7 @@ const AgentPage = () => {
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        flexWrap: 'nowrap',
+                        flexWrap: cajaApilada ? 'wrap' : 'nowrap',
                         width: '100%',
                         minWidth: 0,
                         maxWidth: '100%'
@@ -4309,10 +4318,12 @@ const AgentPage = () => {
                             // o el ancho disponible.
                             enterKeyHint={isMobile ? "enter" : "send"}
                             style={{
-                                flex: 1,
+                                // apilada: el texto ocupa su propia línea, ENCIMA de la fila del «+» y los botones
+                                flex: cajaApilada ? '1 0 100%' : 1,
+                                order: cajaApilada ? -1 : 0,
                                 background: 'transparent',
                                 border: 'none',
-                                padding: '0.4rem 0.5rem',
+                                padding: cajaApilada ? '0.45rem 0.6rem 0.5rem' : '0.4rem 0.5rem',
                                 borderRadius: '0',
                                 fontSize: '1rem',
                                 lineHeight: '1.4',

@@ -72,6 +72,16 @@ describe('lote 127 · la caja del chat es simétrica', () => {
         expect(ap).toContain('padding: 0.35rem 0.4rem 0.55rem 2px;');
     });
 
+    it('con foto adjunta la caja se APILA: texto a todo el ancho bajo la imagen y el «+» en la fila de abajo', () => {
+        expect(ap).toContain('const cajaApilada = attachments.length > 0;');
+        expect(ap).toContain("flexWrap: cajaApilada ? 'wrap' : 'nowrap',");
+        expect(ap).toContain("flex: cajaApilada ? '1 0 100%' : 1,");
+        expect(ap).toContain('order: cajaApilada ? -1 : 0,');
+        expect(ap).toContain("borderRadius: cajaApilada ? '1.75rem' : '2rem',");
+        // sin mover el JSX: el input de fichero sigue dentro del span del «+» (iOS ancla ahí su menú)
+        expect(ap.indexOf('ref={fileInputRef}')).toBeLessThan(ap.indexOf('ref={chatInputRef}\n                            rows={1}'));
+    });
+
     it('ningún acento grave dentro del CSS del chat (rompe el template literal)', () => {
         const css = ap.slice(ap.indexOf('/* [P1-PLAN-LOTE-127] El «+» es un CIRCULO'), ap.indexOf('.chat-mic-btn {'));
         expect(css.length).toBeGreaterThan(100);
