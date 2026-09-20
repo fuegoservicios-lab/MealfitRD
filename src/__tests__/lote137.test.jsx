@@ -216,6 +216,17 @@ describe('lote 137 · los avisos del teléfono suenan', () => {
     });
 });
 
+describe('lote 137 · anotar por el chat cancela el recordatorio de esa comida', () => {
+    it('el chat avisa al terminar CADA turno, y el programador de avisos locales lo escucha', () => {
+        const ag = leer('src/pages/AgentPage.jsx');
+        expect(ag).toContain("window.dispatchEvent(new CustomEvent('mealfit:chat-turn-done'))");
+        const av = leer('src/utils/avisosDeComida.js');
+        expect(av).toContain("for (const ev of ['mealfit:chat-turn-done', 'mealfit:refresh-inventory', 'mealfit:refresh-hydration']) {");
+        // por el FINAL de la ráfaga, y marcando `ultimo` para que el freno de los otros disparadores cuente
+        expect(av).toMatch(/chatTimer = setTimeout\(\(\) => \{ chatTimer = null; ultimo = Date\.now\(\); sincronizarAvisosLocales\(\); \}, 2500\);/);
+    });
+});
+
 describe('lote 137 · formulario y Nevera', () => {
     it('«Solo contar» con un plan VIVO confirma la pausa (como Configuración) y rehidrata la pantalla', () => {
         const q = leer('src/components/assessment/questions/QTrackingFinish.jsx');

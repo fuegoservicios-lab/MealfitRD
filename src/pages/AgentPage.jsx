@@ -3825,6 +3825,10 @@ const AgentPage = () => {
                                             },
                                         });
                                         fullText = reconcileFinalChatText(_displayedBeforeDone, _finalResponse);
+                                        // [P1-PLAN-LOTE-137 · 2026-09-20] Fin de turno, SIEMPRE (no depende de que el
+                                        // modelo emita un tag): el coach pudo anotar una comida o un vaso, y el
+                                        // programador de avisos locales tiene que enterarse (utils/avisosDeComida).
+                                        try { window.dispatchEvent(new CustomEvent('mealfit:chat-turn-done')); } catch { /* best-effort */ }
 
                                         if (callModeRef.current) {
                                             const remainingText = fullText.substring(lastSpokenIndex).trim();

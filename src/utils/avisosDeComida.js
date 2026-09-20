@@ -355,6 +355,20 @@ export async function iniciarAvisosLocales() {
         if (aguaTimer) clearTimeout(aguaTimer);
         aguaTimer = setTimeout(() => { aguaTimer = null; ultimo = Date.now(); sincronizarAvisosLocales(); }, 4000);
     });
+    // [P1-PLAN-LOTE-137 · 2026-09-20] El dueño: «me llegó la notificación del almuerzo y ya había almorzado». Medido
+    // (nginx + diario): la app sincronizó a las 15:20:15 —almuerzo aún sin anotar ⇒ aviso programado para las 15:35—,
+    // el almuerzo se anotó POR EL CHAT a las 15:21:32, y nadie volvió a sincronizar: `mealfit:diary-changed` solo lo
+    // emiten las tarjetas del diario, no el chat, que es justo por donde el aviso pide que se anote. Se escucha el
+    // fin de cada turno del chat (no depende de que el modelo emita su tag) y los dos eventos que el chat ya lanza
+    // al mutar diario/agua. Por el FINAL de la ráfaga: la escritura de la tool ya está en la base cuando corre.
+    let chatTimer = null;
+    const trasElChat = () => {
+        if (chatTimer) clearTimeout(chatTimer);
+        chatTimer = setTimeout(() => { chatTimer = null; ultimo = Date.now(); sincronizarAvisosLocales(); }, 2500);
+    };
+    for (const ev of ['mealfit:chat-turn-done', 'mealfit:refresh-inventory', 'mealfit:refresh-hydration']) {
+        window.addEventListener(ev, trasElChat);
+    }
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') resincronizar(60 * 1000)();
     });
