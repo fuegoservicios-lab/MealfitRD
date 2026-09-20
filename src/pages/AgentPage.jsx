@@ -3554,7 +3554,9 @@ const AgentPage = () => {
                 const visionItems = uploadedAttachments.map((item) => ({
                     attachment_id: item.attachment_id || item.id,
                     kind: item.description
-                        ? (item.kind === 'otro' ? 'otro' : (item.kind === 'items' ? 'items' : 'plato'))
+                        // [P1-PLAN-LOTE-132] 'etiqueta' = tabla nutricional leída (el coach la pide antes de anotar una
+                        // proteína de envase): convertida en 'plato' llegaba como una comida de 120 kcal.
+                        ? (item.kind === 'otro' ? 'otro' : (item.kind === 'items' ? 'items' : (item.kind === 'etiqueta' ? 'etiqueta' : 'plato')))
                         : 'unavailable',
                     description: item.description || undefined,
                     reason: item.reason || (item.busy ? 'busy' : (item.description ? undefined : 'down')),
