@@ -1979,18 +1979,18 @@ html[data-tabbar-plegada] {
    línea ocupa; el velo es una sombra INTERIOR, así funciona sobre cualquier fondo —liso, degradado o transparente—
    sin conocerlo. `!important` solo donde el `boxShadow` en línea ganaría. Solo con puntero fino: en táctil un
    :hover se queda pegado tras el toque.
-     · boton  — botón lleno: se levanta, gana sombra y se aviva
+     · boton  — botón lleno: gana sombra y se aviva (NO se mueve)
      · fila   — disparador, opción o segmento: velo + anillo
      · icono  — botón de solo icono: velo */
 @media (hover: hover) and (pointer: fine) {
   [data-hover] { transition: box-shadow .16s ease, filter .16s ease, transform .16s ease, background-color .16s ease, border-color .16s ease; }
 
+  /* sin translate/scale en :hover — P2-HOVER-NO-MOTION: «no quiero que ningún botón se mueva al pasarle el ratón» */
   [data-hover="boton"]:not(:disabled):hover {
-    transform: translateY(-1px);
     filter: brightness(1.08) saturate(1.05);
     box-shadow: 0 10px 22px -10px rgb(0 0 0 / .55), 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent) !important;
   }
-  [data-hover="boton"]:not(:disabled):active { transform: translateY(0) scale(.98); filter: brightness(.97); }
+  [data-hover="boton"]:not(:disabled):active { transform: scale(.98); filter: brightness(.97); }
 
   [data-hover="fila"]:not(:disabled):hover {
     box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--text-main) 6%, transparent),
