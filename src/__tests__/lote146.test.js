@@ -34,7 +34,8 @@ describe('lote 146 · Sign in with Apple nativo', () => {
         const login = leer('src/pages/Login.jsx');
         // el JSX consume EL gate de siempre (P1-IOS-NATIVE-SHELL: una superficie, un gate); la rama nativa es del handler
         expect(login).toContain('{appleSignInEnabled() && (');
-        expect(login).toContain("const handleApple = () => (appleSignInNativo() ? handleAppleNativo() : handleOAuth('apple'));");
+        // [lote 148] la rama web dejó de ser Better Auth (Neon Auth no ofrece Apple): ahora es la librería de Apple
+        expect(login).toContain('appleSignInNativo() ? await pedirCredencialDeApple() : await pedirCredencialDeAppleWeb()');
         expect(login).toContain('if (credencial.cancelado) { setGoogleLoading(false); return; }');
         expect(leer('src/config/platform.js')).toMatch(/export function nativeHidesOAuthRedirect\(\) \{/);
     });

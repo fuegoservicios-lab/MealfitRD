@@ -236,7 +236,13 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
     it('Login: Sign in with Apple existe, gateado por appleSignInEnabled, con su clave en los 4 catálogos', () => {
         const src = read('pages/Login.jsx');
         expect(src).toMatch(/appleSignInEnabled\(\) && \(/);
-        expect(src).toMatch(/handleOAuth\('apple'\)/);
+        // [P1-PLAN-LOTE-148 · 2026-09-21] Este contrato exigía `handleOAuth('apple')` —el mismo flujo de Better Auth
+        // que Google— porque en agosto se dio por hecho que el proveedor de Apple existiría en Neon Auth. NO existe:
+        // Neon solo ofrece Google, GitHub y Vercel (leído en su documentación el 21-sep, después de mandar al dueño a
+        // configurar un Services ID para un proveedor inexistente). Apple va por su propia vía en los dos sitios: el
+        // SDK en el binario, la librería de Apple en el navegador. Lo que este test protege —que el botón EXISTA con
+        // la misma prominencia que Google, guideline 4.8— sigue intacto; lo que cambia es por dónde va.
+        expect(src).toMatch(/onClick=\{handleApple\}/);
         expect(src).toContain("t('Continuar con Apple')");
         for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
             const cat = JSON.parse(read(`i18n/locales/${loc}.json`));

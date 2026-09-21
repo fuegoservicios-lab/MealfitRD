@@ -10,6 +10,7 @@ import { useAssessment } from '../context/AssessmentContext';
 // vía nuestro backend (la cookie de Neon vía XHR era third-party → bloqueada en móvil).
 import { logoutFirstPartySession, verifyEmailOtpFirstParty, signInWithAppleFirstParty, signInWithGoogleFirstParty } from '../utils/firstPartySession';
 import { pedirCredencialDeApple } from '../utils/appleSignInNative';
+import { pedirCredencialDeAppleWeb } from '../utils/appleSignInWeb';
 import { pedirCodigoDeGoogle } from '../utils/googleSignInNative';
 import { marcarInicioGoogle } from '../utils/cuentasDelDispositivo';
 import { humanizeAuthError } from '../utils/authErrors';
@@ -285,13 +286,15 @@ const Login = () => {
     // [P1-PLAN-LOTE-146] En la app de iOS con el plugin nativo, Apple va por el SDK (hoja de Face ID) y se canjea en
     // nuestro backend: Neon Auth no ofrece Apple y el OAuth por redirección no vuelve a la app. En la web sigue el
     // camino de Better Auth, gateado por env como siempre.
-    const handleApple = () => (appleSignInNativo() ? handleAppleNativo() : handleOAuth('apple'));
+    // [P1-PLAN-LOTE-148] En la web va por la librería de Apple (modo emergente), no por Better Auth: Neon Auth no
+    // ofrece Apple. Los dos caminos terminan en el MISMO canje, porque los dos entregan un `id_token` de Apple.
+    const handleApple = () => handleAppleNativo();
     const handleAppleNativo = async () => {
         if (googleLoading) return;
         setGoogleLoading(true);
         setError(null);
         try {
-            const credencial = await pedirCredencialDeApple();
+            const credencial = appleSignInNativo() ? await pedirCredencialDeApple() : await pedirCredencialDeAppleWeb();
             if (credencial.cancelado) { setGoogleLoading(false); return; }   // cerró la hoja: no es un error
             const { error: appleError } = await signInWithAppleFirstParty(credencial);
             if (appleError) {
