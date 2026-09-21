@@ -21,16 +21,20 @@ describe('lote 146 · Sign in with Apple nativo', () => {
         expect(util).toContain('return { identityToken: r.identityToken, nonce, name:');
     });
 
-    it('el plugin se registra a nivel de MÓDULO (un Proxy de Capacitor jamás sale de una función async)', () => {
+    it('el plugin se registra a nivel de MÓDULO y por platform.js (el ÚNICO que habla con Capacitor)', () => {
         const util = leer('src/utils/appleSignInNative.js');
-        expect(util).toMatch(/^const MfAppleSignIn = registerPlugin\('MfAppleSignIn'\);$/m);
-        expect(util).toContain("return nativePluginAvailable('MfAppleSignIn');");
+        expect(util).toMatch(/^const MfAppleSignIn = registrarPluginNativo\('MfAppleSignIn'\);$/m);
+        expect(util).not.toContain('@capacitor/core');
+        const plat = leer('src/config/platform.js');
+        expect(plat).toContain("return nativePluginAvailable('MfAppleSignIn');");
+        expect(plat).toContain('if (appleSignInNativo()) return true;');
     });
 
     it('el botón solo existe donde puede funcionar, y cerrar la hoja NO es un error', () => {
         const login = leer('src/pages/Login.jsx');
-        expect(login).toContain('{(appleSignInEnabled() || appleNativo) && (');
-        expect(login).toContain("const handleApple = () => (appleNativo ? handleAppleNativo() : handleOAuth('apple'));");
+        // el JSX consume EL gate de siempre (P1-IOS-NATIVE-SHELL: una superficie, un gate); la rama nativa es del handler
+        expect(login).toContain('{appleSignInEnabled() && (');
+        expect(login).toContain("const handleApple = () => (appleSignInNativo() ? handleAppleNativo() : handleOAuth('apple'));");
         expect(login).toContain('if (credencial.cancelado) { setGoogleLoading(false); return; }');
         // Google sigue oculto en nativo: eso es OTRO problema (el deep link) y no se toca aquí
         expect(leer('src/config/platform.js')).toMatch(/export function nativeHidesOAuthRedirect\(\) \{\s+return isNativeApp\(\);/);

@@ -5,18 +5,14 @@
 // de Apple y devuelve el identity token; aquí se prepara el nonce y se canjea en NUESTRO backend, que es quien
 // verifica la firma y emite la sesión (`signInWithAppleFirstParty`). La web no decide nada.
 //
-// El botón solo existe donde puede funcionar: `appleNativeAvailable()` pregunta por el plugin, así que un binario
-// anterior —o el navegador— no lo pinta. Y el backend lo tiene apagado por knob hasta que ese build exista.
-import { registerPlugin } from '@capacitor/core';
-import { nativePluginAvailable } from '../config/platform';
+// El botón solo existe donde puede funcionar: quien lo decide es `appleSignInEnabled()` en `config/platform.js`
+// (el ÚNICO gate), que pregunta por este plugin — un binario anterior, o el navegador, no lo pinta.
+import { registrarPluginNativo } from '../config/platform';
 
 // A nivel de MÓDULO y jamás devuelto desde una función `async`: un plugin de Capacitor es un Proxy, el motor le lee
-// `.then` al resolver la promesa y se cuelga para siempre (la trampa del lote 133).
-const MfAppleSignIn = registerPlugin('MfAppleSignIn');
-
-export function appleNativeAvailable() {
-    return nativePluginAvailable('MfAppleSignIn');
-}
+// `.then` al resolver la promesa y se cuelga para siempre (la trampa del lote 133). El registro pasa por
+// `platform.js` porque es el ÚNICO sitio que habla con Capacitor (P1-IOS-NATIVE-SHELL).
+const MfAppleSignIn = registrarPluginNativo('MfAppleSignIn');
 
 const aHex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 

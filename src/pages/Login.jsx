@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { appleSignInEnabled, nativeHidesOAuthRedirect } from '../config/platform';
+import { appleSignInEnabled, appleSignInNativo, nativeHidesOAuthRedirect } from '../config/platform';
 import { apexUrl } from '../config/site';
 import { authClient, sendEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { useAssessment } from '../context/AssessmentContext';
 // [P1-OTP-FIRST-PARTY · 2026-07-03] la verificación del código emite sesión first-party
 // vía nuestro backend (la cookie de Neon vía XHR era third-party → bloqueada en móvil).
 import { logoutFirstPartySession, verifyEmailOtpFirstParty, signInWithAppleFirstParty } from '../utils/firstPartySession';
-import { appleNativeAvailable, pedirCredencialDeApple } from '../utils/appleSignInNative';
+import { pedirCredencialDeApple } from '../utils/appleSignInNative';
 import { marcarInicioGoogle } from '../utils/cuentasDelDispositivo';
 import { humanizeAuthError } from '../utils/authErrors';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
@@ -263,8 +263,7 @@ const Login = () => {
     // [P1-PLAN-LOTE-146] En la app de iOS con el plugin nativo, Apple va por el SDK (hoja de Face ID) y se canjea en
     // nuestro backend: Neon Auth no ofrece Apple y el OAuth por redirección no vuelve a la app. En la web sigue el
     // camino de Better Auth, gateado por env como siempre.
-    const appleNativo = appleNativeAvailable();
-    const handleApple = () => (appleNativo ? handleAppleNativo() : handleOAuth('apple'));
+    const handleApple = () => (appleSignInNativo() ? handleAppleNativo() : handleOAuth('apple'));
     const handleAppleNativo = async () => {
         if (googleLoading) return;
         setGoogleLoading(true);
@@ -423,7 +422,7 @@ const Login = () => {
                                 {/* [P1-IOS-NATIVE-SHELL] Apple exige el botón con la MISMA prominencia
                                     que Google (4.8). Gateado por env hasta que el provider exista en
                                     Neon Auth; sin provider, un botón que falla sería peor que ninguno. */}
-                                {(appleSignInEnabled() || appleNativo) && (
+                                {appleSignInEnabled() && (
                                     <button type="button" className="mf-btn mf-btn--apple" onClick={handleApple} disabled={googleLoading}>
                                         <AppleIcon /> {t('Continuar con Apple')}
                                     </button>
@@ -431,7 +430,7 @@ const Login = () => {
 
                                 {/* El «o» separa OAuth de correo: sin ningún botón encima
                                     (nativo sin deep link, sin provider Apple) quedaría colgado. */}
-                                {(!nativeHidesOAuthRedirect() || appleSignInEnabled() || appleNativo) && (
+                                {(!nativeHidesOAuthRedirect() || appleSignInEnabled()) && (
                                     <div className="mf-divider"><span>o</span></div>
                                 )}
 

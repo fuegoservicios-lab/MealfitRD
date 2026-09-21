@@ -17,7 +17,7 @@
 // Spec: docs/superpowers/specs/2026-08-21-ios-native-shell-design.md
 // tooltip-anchor: isNativeApp (test_p1_ios_native_shell.py, NativeShell.contract.test.jsx)
 
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { registerNativeProbe } from './site';
 
 export function isNativeApp() {
@@ -51,6 +51,14 @@ export function nativePluginAvailable(name) {
     }
 }
 
+// [P1-PLAN-LOTE-146] Registrar un plugin LOCAL del binario (los que viven en SceneDelegate.swift, no en un
+// paquete npm). Vive aquí por la misma razón que `nativeHttpGet`: este módulo es el único que habla con
+// `@capacitor/core`. **Llamarlo a nivel de MÓDULO y devolverlo tal cual**: lo que vuelve es un Proxy, y si
+// sale de una función `async` el motor le lee `.then` y la promesa se cuelga para siempre (lección del lote 133).
+export function registrarPluginNativo(name) {
+    return registerPlugin(name);
+}
+
 // Nombre del CONTRATO, no del mecanismo: lo que las superficies preguntan es «¿debo
 // esconder el comercio?», no «¿estoy en iOS?». Si un día el comercio nativo existe
 // (StoreKit), cambia esta función y no los 6 call sites.
@@ -75,5 +83,15 @@ export function nativeHidesOAuthRedirect() {
 // se pinta. Env explícita, no derivada de `isNativeApp()`: el botón también debe verse
 // en la web una vez exista el provider.
 export function appleSignInEnabled() {
+    // [P1-PLAN-LOTE-146 · 2026-09-20] En la app nativa NO decide la env: decide el BINARIO. El botón va por el
+    // plugin local `MfAppleSignIn` (hoja de Apple + canje en nuestro backend), así que un binario que lo trae
+    // puede ofrecerlo aunque la web no, y uno anterior nunca lo pinta. El gate sigue siendo UNO: las superficies
+    // preguntan «¿ofrezco Apple?» y no «¿qué mecanismo hay detrás?» — eso lo contesta `appleSignInNativo()`.
+    if (appleSignInNativo()) return true;
     return String(import.meta.env.VITE_AUTH_APPLE_ENABLED ?? '').toLowerCase() === 'true';
+}
+
+// ¿El botón de Apple va por el SDK del binario (true) o por la redirección web de Better Auth (false)?
+export function appleSignInNativo() {
+    return nativePluginAvailable('MfAppleSignIn');
 }
