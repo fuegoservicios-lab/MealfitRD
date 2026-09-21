@@ -1993,7 +1993,17 @@ html[data-tabbar-plegada] {
      sombra: `drop-shadow` va en el `filter`, así que SE SUMA a la suya en vez de pisarla, y toma su forma. Sin
      `!important` y sin `box-shadow`: el relieve propio de cada botón —en línea o por clase— sobrevive intacto. */
   [data-hover="boton"]:not(:disabled):hover {
-    filter: brightness(1.06) saturate(1.03) drop-shadow(0 6px 12px rgb(0 0 0 / .3));
+    /* [P1-PLAN-LOTE-151 · segunda vuelta] «su sombreado no se nota casi nada». Me pasé al corregir: un relieve
+       NEGRO sobre un fondo casi negro no existe, y un +6 % de brillo sobre un relleno índigo tampoco se ve.
+       Lo que se ve en un tema depende del tema, así que van los DOS halos y cada uno hace su turno: el oscuro
+       se lee sobre fondo claro y el blanco sobre fondo oscuro; cada uno es invisible donde no hace falta. Blanco
+       FIJO y no `currentColor`: en un botón lleno `currentColor` es el color de su TEXTO, que en los rellenos
+       claros —el «Encender el plan» del Historial es índigo claro con letra casi negra— sale oscuro y vuelve a
+       desaparecer sobre el panel oscuro. Los `drop-shadow` se apilan y siguen la forma del botón, y ninguno pisa
+       la sombra propia del control, que es lo que se rompió en la primera vuelta. */
+    filter: brightness(1.13) saturate(1.05)
+            drop-shadow(0 5px 12px rgb(0 0 0 / .32))
+            drop-shadow(0 0 9px rgb(255 255 255 / .22));
   }
   [data-hover="boton"]:not(:disabled):active { transform: scale(.98); filter: brightness(.97); }
 

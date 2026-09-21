@@ -1912,7 +1912,8 @@ const History = () => {
                     ? t('Estás usando la app como contador. Si enciendes el plan, cada uno que generes se guardará aquí.')
                     : t('Genera tu primer plan nutricional y lo encontrarás aquí.')}
             </p>
-            <button className={styles.emptyCta} onClick={_encenderElPlan}>
+            {/* [P1-PLAN-LOTE-151] Su único hover era un cambio de sombra NEGRA: invisible sobre el panel oscuro. */}
+            <button data-hover="boton" className={styles.emptyCta} onClick={_encenderElPlan}>
                 {enModoContador ? t('Encender el plan') : t('Crear mi primer plan')} <ChevronRight size={17} />
             </button>
         </div>

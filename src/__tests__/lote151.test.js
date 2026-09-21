@@ -85,7 +85,16 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
         expect(regla).toContain('drop-shadow(');
         expect(regla).not.toContain('box-shadow');
         expect(regla).not.toContain('!important');
-        expect(regla).not.toContain('currentColor');
+        // [segunda vuelta] «su sombreado no se nota casi nada»: un relieve negro sobre fondo casi negro no existe.
+        // Van DOS halos, uno por tema, y el claro es blanco FIJO — `currentColor` es el color del TEXTO y en los
+        // rellenos claros (el «Encender el plan» del Historial) sale oscuro y vuelve a desaparecer en oscuro.
+        expect(regla).toContain('drop-shadow(0 5px 12px rgb(0 0 0 / .32))');
+        expect(regla).toContain('drop-shadow(0 0 9px rgb(255 255 255 / .22))');
+        const declaracion = regla.slice(regla.indexOf('filter:'));   // el comentario de la regla también habla de currentColor
+        expect(declaracion).not.toContain('currentColor');
+        expect(declaracion).toContain('brightness(1.13)');
+        // y el del Historial, cuyo único hover era cambiar una sombra negra, declara la variante
+        expect(leer('src/pages/History.jsx')).toContain('<button data-hover="boton" className={styles.emptyCta}');
         // y el botón de «Reponer mi Nevera» sigue teniendo resplandor propio que conservar
         const sn = leer('src/components/dashboard/StatusNotice.module.css');
         expect(sn).toContain('box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--sn-tone) 80%, transparent);');
