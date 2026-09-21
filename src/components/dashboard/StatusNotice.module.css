@@ -69,6 +69,7 @@
 .calma .boton:hover { border-color: var(--sn-tone); background: color-mix(in srgb, var(--sn-tone) 10%, transparent); }
 
 @media (max-width: 560px) {
+  .aviso { align-items: flex-start; }
   .accion { padding: 14px; }
   .accion .boton { width: 100%; justify-content: center; }
   .calma .boton { margin-left: 39px; }

@@ -701,8 +701,8 @@
 
 /* satélites: valores vivos que salen de la tarjeta cuando el plan ya existe */
 .mf-sat { position: absolute; z-index: 2; pointer-events: none; }
-.mf-sat--kcal { top: 58px; right: -46px; }
-.mf-sat--macros { bottom: 34px; left: -52px; }
+.mf-sat--kcal { top: -20px; right: -34px; }
+.mf-sat--macros { bottom: -22px; left: -40px; }
 .mf-sat__in {
   display: inline-flex; align-items: center; gap: 0.6rem;
   padding: 0.55rem 0.85rem; border-radius: 99px;
@@ -715,7 +715,7 @@
 .mf-sat__ico { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #FB7185; background: rgba(251, 113, 133, 0.16); }
 .mf-sat__val { font-family: var(--font-heading, 'Outfit', sans-serif); font-weight: 800; font-size: 0.95rem; color: var(--mf-text); font-variant-numeric: tabular-nums; }
 .mf-sat__val small { font-size: 0.66rem; font-weight: 500; color: var(--mf-text-dim); }
-@media (max-width: 1180px) { .mf-sat--kcal { right: -18px; } .mf-sat--macros { left: -20px; } }
+@media (max-width: 1180px) { .mf-sat--kcal { right: -14px; } .mf-sat--macros { left: -16px; } }
 
 .mf-democard__body { position: relative; min-height: 410px; }
 /* escenas en absoluto → cross-fade (se solapan en la transición sin saltar el layout) */
@@ -745,19 +745,19 @@
 .mf-scene--center { justify-content: center; padding-top: 0; }
 
 /* checklist (estilo "la IA trabaja") */
-.mf-checklist { gap: 0.9rem; justify-content: center; }
+.mf-checklist { gap: 1.2rem; justify-content: center; }
 .mf-step { display: flex; align-items: center; gap: 0.75rem; opacity: 0.45; transition: opacity 0.35s ease; }
 .mf-step.is-done, .mf-step.is-current { opacity: 1; }
-.mf-step__icon { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1.5px solid var(--mf-border); color: var(--mf-text-faint); }
+.mf-step__icon { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1.5px solid var(--mf-border); color: var(--mf-text-faint); }
 .mf-step.is-done .mf-step__icon { background: var(--mf-secondary); border-color: transparent; color: #06281c; }
 .mf-step.is-current .mf-step__icon { border-color: var(--mf-primary); color: var(--mf-primary); }
 .mf-step__num { font-size: 0.78rem; font-weight: 700; }
-.mf-step__txt { font-size: 0.92rem; color: var(--mf-text); }
+.mf-step__txt { font-size: 0.98rem; color: var(--mf-text); }
 .mf-step.is-done .mf-step__txt { color: var(--mf-text-dim); }
 .mf-step__tag { margin-left: auto; font-size: 0.72rem; font-weight: 700; color: var(--mf-primary); background: rgba(129, 140, 248, 0.14); padding: 0.2rem 0.5rem; border-radius: 6px; white-space: nowrap; }
 .mf-spin { animation: mfSpin 0.9s linear infinite; }
 .mf-step.is-current .mf-step__icon { box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.14); }
-.mf-genbar { margin-top: 0.6rem; height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.mf-genbar { margin-top: 0.9rem; height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
 .mf-genbar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--mf-primary), var(--mf-secondary)); box-shadow: 0 0 12px rgba(129, 140, 248, 0.6); }
 
 /* ajuste de plato */

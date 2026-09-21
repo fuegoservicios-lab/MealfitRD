@@ -69,7 +69,7 @@ export default function HeroIllustration() {
             ))}
 
             {/* sombra del bol + bol (relleno tenue y trazo continuo) */}
-            <ellipse className="mf-illu-sombra" cx="132" cy="190" rx="44" ry="4.5" fill="#000" opacity="0.35" />
+            <ellipse className="mf-illu-sombra" cx="132" cy="190" rx="40" ry="3.6" fill="#000" opacity="0.22" />
             <path d="M84 150 Q132 196 180 150 Z" fill="url(#mfIlluBolFondo)" />
             <g stroke="url(#mfIlluBol)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
                 <path className="mf-illu-bol" pathLength="1" d="M84 150 Q132 196 180 150" />
