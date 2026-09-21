@@ -186,7 +186,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     // [P3-ACCOUNT-MENU-REDESIGN · 2026-06-27] Datos para la card del menú de cuenta.
     // Reusa la misma lógica guest/tier del popover previo: invitado → 'Invitado'
     // + sub-label "Plan de muestra"; free registrado → 'Gratuito'; premium → tier.
-    const realEmail = session?.user?.email || '';
+    // [P1-PLAN-LOTE-145] En la app nativa la sesión propia no siempre trae el correo (el dueño: «¿no debería
+    // aparecerme el correo cuando vaya a cerrar sesión?»): el perfil sí lo tiene. Mismo orden que Header.jsx.
+    const realEmail = session?.user?.email || userProfile?.email || '';
     // [P3-ACCOUNT-MENU-NAME · 2026-06-27] Nombre real del perfil ("Nombre Completo"
     // de Settings = userProfile.full_name); fallback al local del email si aún no
     // se ha guardado un nombre.
@@ -439,7 +441,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                 isOpen={showLogoutModal}
                 onConfirm={handleLogoutConfirm}
                 onCancel={() => setShowLogoutModal(false)}
-                userEmail={session?.user?.email}
+                userEmail={accountEmail}
                 userName={accountName}
                 isGuest={isGuest}
             />

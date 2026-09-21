@@ -454,7 +454,7 @@ const Header = () => {
                 navigate('/login', { replace: true });
             }}
             onCancel={() => setShowLogoutModal(false)}
-            userEmail={session?.user?.email}
+            userEmail={accountEmail || undefined}
             isGuest={isGuest}
             userName={accountName}
         />
