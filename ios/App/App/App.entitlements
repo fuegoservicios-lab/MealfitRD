@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- [P1-PLAN-LOTE-146] Sign in with Apple nativo. La capacidad esta activada en el App ID
+	     com.bioboros.app (2026-09-20); sin esta clave el perfil la trae pero el binario no la pide
+	     y ASAuthorizationController falla con el error 1000. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+</dict>
+</plist>

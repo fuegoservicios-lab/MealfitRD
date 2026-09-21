@@ -184,6 +184,37 @@ export async function verifyEmailOtpFirstParty(email, otp) {
     }
 }
 
+// [P1-PLAN-LOTE-146 · 2026-09-20] Sign in with Apple NATIVO: el identity token que entrega el binario se canjea en
+// NUESTRO backend (verifica la firma contra Apple y emite la sesión first-party). Misma forma que el OTP.
+export async function signInWithAppleFirstParty({ identityToken, nonce, name }) {
+    try {
+        const res = await fetchWithTimeout(api('/api/auth/apple/native'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identity_token: identityToken, nonce, name: name || undefined }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok || !data.user_id) {
+            const sinCorreo = data?.error_code === 'apple_no_email' || data?.error_code === 'apple_email_unverified';
+            return {
+                error: {
+                    message: sinCorreo
+                        ? t('Apple no compartió un correo verificado. Entra con tu correo.')
+                        : t('No se pudo entrar con Apple. Inténtalo de nuevo o entra con tu correo.'),
+                    mfCopy: true,
+                    status: res.status,
+                },
+            };
+        }
+        if (data.token) _storeToken(data.token);
+        _applyFormKey(data);
+        return { data, error: null };
+    } catch (e) {
+        return { error: { message: t('No se pudo entrar con Apple. Inténtalo de nuevo o entra con tu correo.'), mfCopy: true, name: e?.name } };
+    }
+}
+
 // [P1-OAUTH-CHALLENGE-COOKIE · 2026-08-10] EL CANJE VUELVE AL NAVEGADOR.
 //
 // LA VERSIÓN ANTERIOR NO PODÍA FUNCIONAR, Y LOS LOGS LO GRITABAN: 24 intentos,

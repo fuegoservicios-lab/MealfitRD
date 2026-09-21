@@ -1,6 +1,7 @@
 import UIKit
 import WebKit
 import ObjectiveC
+import AuthenticationServices
 import Capacitor
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
@@ -11,7 +12,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = CAPBridgeViewController()
+        window?.rootViewController = PuenteBioboros()
         window?.makeKeyAndVisible()
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
@@ -68,6 +69,90 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidBecomeActive(_ scene: UIScene) {
         if let bridgeVC = window?.rootViewController as? CAPBridgeViewController {
             bridgeVC.webView?.ocultarBarraDeAccesorios()
+        }
+    }
+}
+
+// [P1-PLAN-LOTE-146 · 2026-09-20] «CONTINUAR CON APPLE», NATIVO. El dueno: «por que en la app nativa no esta el
+// boton de continuar con google?». Porque el OAuth por redireccion no vuelve a la app (P1-IOS-OAUTH-GATE), y Apple
+// (4.8) exige su propio boton si se ofrece otro proveedor social. Neon Auth no ofrece Apple como proveedor, asi que
+// el camino es el del SDK: la hoja nativa (Face ID), sin Safari ni redirecciones.
+//
+// El binario solo PIDE la credencial y se la entrega a la web; no decide nada. El identity token (un JWT firmado por
+// Apple) viaja al backend, que lo verifica contra las claves publicas de Apple y emite la sesion. El `nonce` llega ya
+// como SHA-256 (lo calcula la web, que se queda el crudo para el backend): un token robado de otra sesion no lo trae.
+//
+// Es un plugin LOCAL de Capacitor (no un manejador de mensajes de WebKit: aquel canal fue el del teclado nativo, revertido en
+// el lote 143) registrado por el controlador propio. La web pregunta `isPluginAvailable('MfAppleSignIn')` antes de
+// pintar el boton: un binario sin este codigo simplemente no lo ofrece.
+final class PuenteBioboros: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(MfAppleSignInPlugin())
+    }
+}
+
+@objc(MfAppleSignInPlugin)
+final class MfAppleSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    let identifier = "MfAppleSignInPlugin"
+    let jsName = "MfAppleSignIn"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "authorize", returnType: CAPPluginReturnPromise)
+    ]
+    private var llamadaEnCurso: CAPPluginCall?
+
+    @objc func authorize(_ call: CAPPluginCall) {
+        guard let nonce = call.getString("nonce"), !nonce.isEmpty else {
+            call.reject("falta el nonce", "NONCE")
+            return
+        }
+        if llamadaEnCurso != nil {
+            call.reject("ya hay una peticion en curso", "EN_CURSO")
+            return
+        }
+        call.keepAlive = true
+        llamadaEnCurso = call
+        let peticion = ASAuthorizationAppleIDProvider().createRequest()
+        peticion.requestedScopes = [.fullName, .email]
+        peticion.nonce = nonce
+        DispatchQueue.main.async {
+            let controlador = ASAuthorizationController(authorizationRequests: [peticion])
+            controlador.delegate = self
+            controlador.presentationContextProvider = self
+            controlador.performRequests()
+        }
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        return bridge?.viewController?.view.window ?? ASPresentationAnchor()
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard let llamada = llamadaEnCurso else { return }
+        llamadaEnCurso = nil
+        defer { bridge?.releaseCall(llamada) }
+        guard let credencial = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let datos = credencial.identityToken,
+              let token = String(data: datos, encoding: .utf8) else {
+            llamada.reject("Apple no entrego el identity token", "SIN_TOKEN")
+            return
+        }
+        // El nombre SOLO llega la primera vez que la persona autoriza la app; despues viene vacio.
+        let partes = [credencial.fullName?.givenName, credencial.fullName?.familyName].compactMap { $0 }.filter { !$0.isEmpty }
+        llamada.resolve([
+            "identityToken": token,
+            "name": partes.joined(separator: " ")
+        ])
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        guard let llamada = llamadaEnCurso else { return }
+        llamadaEnCurso = nil
+        defer { bridge?.releaseCall(llamada) }
+        let codigo = (error as? ASAuthorizationError)?.code
+        if codigo == .canceled {
+            llamada.reject("cancelado", "CANCELADO")
+        } else {
+            llamada.reject(error.localizedDescription, "APPLE_\((error as NSError).code)")
         }
     }
 }
