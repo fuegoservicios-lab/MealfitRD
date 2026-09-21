@@ -5,7 +5,9 @@
   build de Android falla con «resource color/colorPrimary not found» antes de compilar una sola línea.
 
   Los valores son los de la marca, los mismos que usa el binario de iOS:
-    · primary      índigo de la app (`--primary-fill`, el relleno de los botones).
+    · primary      índigo de la app (el token `primary-fill`, el relleno de los botones). Escrito sin los dos
+                   guiones del nombre CSS a propósito: dentro de un comentario XML son ilegales y el build
+                   muere con «not well-formed» antes de compilar.
     · primaryDark  el negro del arranque, igual que `backgroundColor` de capacitor.config.ts y que el
                    `#0b0b0b` de iOS: si difieren, el destello del arranque se ve de otro color.
     · accent       el mismo índigo; no hay un acento distinto en el sistema de la app.

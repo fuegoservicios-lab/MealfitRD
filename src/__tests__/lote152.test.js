@@ -82,6 +82,23 @@ describe('lote 152 · la app de Android existe y arranca', () => {
         expect(cm).toContain('ios-testflight:');
     });
 
+    it('los XML de Android son válidos — un comentario mal puesto tira el build entero', () => {
+        // Salió de verdad al escribir este lote: un comentario del `colors.xml` citaba el token CSS
+        // `--primary-fill`, y dentro de un comentario XML dos guiones seguidos son ilegales. El build de
+        // Android muere con «not well-formed» ANTES de compilar, y eso se descubre 10 minutos después, en
+        // Codemagic, gastando un build. Aquí tarda milisegundos.
+        const dir = path.join(RAIZ, 'android/app/src/main/res/values');
+        const ficheros = fs.readdirSync(dir).filter((f) => f.endsWith('.xml'))
+            .map((f) => path.join('android/app/src/main/res/values', f));
+        ficheros.push('android/app/src/main/AndroidManifest.xml');
+        const parser = new DOMParser();
+        for (const rel of ficheros) {
+            const doc = parser.parseFromString(leer(rel), 'application/xml');
+            const error = doc.querySelector('parsererror');
+            expect(error?.textContent ?? null, `${rel} no es XML válido`).toBeNull();
+        }
+    });
+
     it('targetSdk 34: el borde a borde forzado dejaría la cabecera bajo el reloj', () => {
         const v = leer('android/variables.gradle');
         const target = Number(/targetSdkVersion\s*=\s*(\d+)/.exec(v)[1]);
