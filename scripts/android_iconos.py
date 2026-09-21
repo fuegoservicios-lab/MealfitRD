@@ -55,8 +55,40 @@ def main() -> int:
         lienzo.save(os.path.join(carpeta, 'ic_launcher_foreground.png'))
         escritos += 3
     print(f'iconos de Android escritos: {escritos} ({len(DENSIDADES)} densidades)')
+    splashes(base)
     return 0
 
 
-if __name__ == '__main__':
+# ---------------------------------------------------------------------------------------------------
+# [P1-PLAN-LOTE-152] La pantalla de arranque. La plantilla deja el logo de Capacitor sobre blanco, y
+# eso es lo PRIMERO que ve un tester al abrir la app. Se sustituye por el icono de la marca sobre el
+# mismo negro que `backgroundColor` de capacitor.config.ts: si el arranque fuera blanco y el WebView
+# negro, cada apertura daría un destello.
+FONDO = (11, 11, 11)
+PROPORCION_LOGO = 0.26   # del lado MENOR, para que en apaisado no ocupe media pantalla
+
+
+def _esquinas_redondas(img, radio):
+    mascara = Image.new('L', img.size, 0)
+    ImageDraw.Draw(mascara).rounded_rectangle((0, 0, img.size[0] - 1, img.size[1] - 1), radio, fill=255)
+    fuera = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    fuera.paste(img, (0, 0), mascara)
+    return fuera
+
+
+def splashes(base):
+    import glob
+    hechos = 0
+    for ruta in sorted(glob.glob(os.path.join(RES, 'drawable*', 'splash.png'))):
+        ancho, alto = Image.open(ruta).size
+        lienzo = Image.new('RGB', (ancho, alto), FONDO)
+        lado = max(48, int(min(ancho, alto) * PROPORCION_LOGO))
+        logo = _esquinas_redondas(base.resize((lado, lado), Image.LANCZOS), int(lado * 0.22))
+        lienzo.paste(logo, ((ancho - lado) // 2, (alto - lado) // 2), logo)
+        lienzo.save(ruta)
+        hechos += 1
+    print(f'pantallas de arranque reescritas: {hechos}')
+
+
+if __name__ == "__main__":
     sys.exit(main())
