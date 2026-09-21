@@ -215,6 +215,34 @@ export async function signInWithAppleFirstParty({ identityToken, nonce, name }) 
     }
 }
 
+// [P1-PLAN-LOTE-147 · 2026-09-21] Google NATIVO: el código PKCE que devolvió la sesión web del binario se canjea en
+// NUESTRO backend (que habla con Google, verifica el id_token y emite la sesión first-party). Misma forma que Apple.
+export async function signInWithGoogleFirstParty({ code, codeVerifier, nonce, redirectUri }) {
+    try {
+        const res = await fetchWithTimeout(api('/api/auth/google/native'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, code_verifier: codeVerifier, nonce, redirect_uri: redirectUri }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok || !data.user_id) {
+            return {
+                error: {
+                    message: t('No se pudo entrar con Google. Inténtalo de nuevo o entra con tu correo.'),
+                    mfCopy: true,
+                    status: res.status,
+                },
+            };
+        }
+        if (data.token) _storeToken(data.token);
+        _applyFormKey(data);
+        return { data, error: null };
+    } catch (e) {
+        return { error: { message: t('No se pudo entrar con Google. Inténtalo de nuevo o entra con tu correo.'), mfCopy: true, name: e?.name } };
+    }
+}
+
 // [P1-OAUTH-CHALLENGE-COOKIE · 2026-08-10] EL CANJE VUELVE AL NAVEGADOR.
 //
 // LA VERSIÓN ANTERIOR NO PODÍA FUNCIONAR, Y LOS LOGS LO GRITABAN: 24 intentos,

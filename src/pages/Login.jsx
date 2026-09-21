@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { appleSignInEnabled, appleSignInNativo, nativeHidesOAuthRedirect } from '../config/platform';
+import { appleSignInEnabled, appleSignInNativo, googleSignInNativo, nativeHidesOAuthRedirect } from '../config/platform';
 import { apexUrl } from '../config/site';
 import { authClient, sendEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -8,8 +8,9 @@ import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-OTP-FIRST-PARTY · 2026-07-03] la verificación del código emite sesión first-party
 // vía nuestro backend (la cookie de Neon vía XHR era third-party → bloqueada en móvil).
-import { logoutFirstPartySession, verifyEmailOtpFirstParty, signInWithAppleFirstParty } from '../utils/firstPartySession';
+import { logoutFirstPartySession, verifyEmailOtpFirstParty, signInWithAppleFirstParty, signInWithGoogleFirstParty } from '../utils/firstPartySession';
 import { pedirCredencialDeApple } from '../utils/appleSignInNative';
+import { pedirCodigoDeGoogle } from '../utils/googleSignInNative';
 import { marcarInicioGoogle } from '../utils/cuentasDelDispositivo';
 import { humanizeAuthError } from '../utils/authErrors';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
@@ -259,7 +260,28 @@ const Login = () => {
     // Mismo flujo Better Auth (`sign-in/social`), mismo flag de retorno.
     // Los dos wrappers van ANTES del handler: `test_p1_otp_first_party` recorta el
     // bloque OTP hasta la primera aparición de `handleGoogle` y no debe tragarse el OAuth.
-    const handleGoogle = () => handleOAuth('google');
+    // [P1-PLAN-LOTE-147] En la app con el plugin, Google va por la sesión web nativa y se canjea en nuestro
+    // backend. En la web sigue el camino de Better Auth, intacto.
+    const handleGoogle = () => (googleSignInNativo() ? handleGoogleNativo() : handleOAuth('google'));
+    const handleGoogleNativo = async () => {
+        if (googleLoading) return;
+        setGoogleLoading(true);
+        setError(null);
+        try {
+            const vuelta = await pedirCodigoDeGoogle();
+            if (vuelta.cancelado) { setGoogleLoading(false); return; }   // cerró la vista: no es un error
+            const { error: googleError } = await signInWithGoogleFirstParty(vuelta);
+            if (googleError) {
+                setError(humanizeAuthError(googleError, t, locale));
+                setGoogleLoading(false);
+                return;
+            }
+            window.location.assign('/');
+        } catch {
+            setError(t('No se pudo entrar con Google. Inténtalo de nuevo o entra con tu correo.'));
+            setGoogleLoading(false);
+        }
+    };
     // [P1-PLAN-LOTE-146] En la app de iOS con el plugin nativo, Apple va por el SDK (hoja de Face ID) y se canjea en
     // nuestro backend: Neon Auth no ofrece Apple y el OAuth por redirección no vuelve a la app. En la web sigue el
     // camino de Better Auth, gateado por env como siempre.

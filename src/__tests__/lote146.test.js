@@ -36,8 +36,7 @@ describe('lote 146 · Sign in with Apple nativo', () => {
         expect(login).toContain('{appleSignInEnabled() && (');
         expect(login).toContain("const handleApple = () => (appleSignInNativo() ? handleAppleNativo() : handleOAuth('apple'));");
         expect(login).toContain('if (credencial.cancelado) { setGoogleLoading(false); return; }');
-        // Google sigue oculto en nativo: eso es OTRO problema (el deep link) y no se toca aquí
-        expect(leer('src/config/platform.js')).toMatch(/export function nativeHidesOAuthRedirect\(\) \{\s+return isNativeApp\(\);/);
+        expect(leer('src/config/platform.js')).toMatch(/export function nativeHidesOAuthRedirect\(\) \{/);
     });
 
     it('el binario: plugin local registrado por el controlador propio, entitlement y firma', () => {

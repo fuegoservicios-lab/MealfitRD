@@ -75,7 +75,16 @@ export function nativeHidesCommerce() {
 // PROPIO (no reusar `nativeHidesCommerce`): cuando llegue el deep link se apaga sólo
 // éste y el comercio sigue escondido.
 export function nativeHidesOAuthRedirect() {
+    // [P1-PLAN-LOTE-147 · 2026-09-21] …y ese día llegó. Con el plugin `MfWebAuth` en el binario, Google ya NO va por
+    // una redirección que no vuelve: va por `ASWebAuthenticationSession`, que captura la vuelta ella misma. El gate
+    // sigue siendo UNO y el JSX del login no cambia; lo que cambia es la respuesta.
+    if (googleSignInNativo()) return false;
     return isNativeApp();
+}
+
+// ¿El botón de Google va por la sesión web nativa del binario (true) o por la redirección de Better Auth (false)?
+export function googleSignInNativo() {
+    return nativePluginAvailable('MfWebAuth');
 }
 
 // Sign in with Apple (guideline 4.8: obligatorio si se ofrece Google). El provider se

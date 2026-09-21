@@ -88,6 +88,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 final class PuenteBioboros: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(MfAppleSignInPlugin())
+        bridge?.registerPluginInstance(MfWebAuthPlugin())
     }
 }
 
@@ -154,6 +155,70 @@ final class MfAppleSignInPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationCon
         } else {
             llamada.reject(error.localizedDescription, "APPLE_\((error as NSError).code)")
         }
+    }
+}
+
+// [P1-PLAN-LOTE-147 · 2026-09-21] SESION WEB DE AUTENTICACION, generica. El dueno: «¿por que en la app nativa no
+// esta el boton de continuar con google?». Porque el OAuth por redireccion manda a Safari y `capacitor://localhost`
+// no es una direccion a la que Safari sepa volver (P1-IOS-OAUTH-GATE).
+//
+// `ASWebAuthenticationSession` es la respuesta de Apple a exactamente eso: abre la pagina del proveedor en una vista
+// del sistema DENTRO de la app y captura ella misma la vuelta por un esquema propio, sin registrar nada en el
+// Info.plist. Es un marco del sistema: cero dependencias nuevas en el binario (el SDK de Google habria sido un pod).
+//
+// Este plugin es TONTO a proposito: recibe una URL y el esquema de vuelta, y devuelve la URL con la que el sistema
+// volvio. No sabe que es OAuth, ni que es Google. Toda la logica (PKCE, nonce, que parametros lleva la URL) vive en
+// JS y por tanto se arregla por OTA. La leccion de esta racha: cada ronda que necesita un build del dueno se paga
+// cara, asi que lo que pueda vivir en la web, vive en la web.
+@objc(MfWebAuthPlugin)
+final class MfWebAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthenticationPresentationContextProviding {
+    let identifier = "MfWebAuthPlugin"
+    let jsName = "MfWebAuth"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise)
+    ]
+    private var sesion: ASWebAuthenticationSession?
+
+    @objc func start(_ call: CAPPluginCall) {
+        guard let texto = call.getString("url"), let url = URL(string: texto),
+              let esquema = call.getString("scheme"), !esquema.isEmpty else {
+            call.reject("faltan url o scheme", "ARGUMENTOS")
+            return
+        }
+        // Solo https: este plugin no abre esquemas arbitrarios aunque quien lo llame sea nuestro propio JS.
+        guard url.scheme?.lowercased() == "https" else {
+            call.reject("solo https", "ESQUEMA")
+            return
+        }
+        call.keepAlive = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let sesion = ASWebAuthenticationSession(url: url, callbackURLScheme: esquema) { vuelta, error in
+                defer { self.sesion = nil; self.bridge?.releaseCall(call) }
+                if let vuelta = vuelta {
+                    call.resolve(["callbackUrl": vuelta.absoluteString])
+                    return
+                }
+                if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
+                    call.reject("cancelado", "CANCELADO")
+                } else {
+                    call.reject(error?.localizedDescription ?? "fallo la sesion", "SESION")
+                }
+            }
+            sesion.presentationContextProvider = self
+            // Con `false` la vista comparte las cookies de Safari: si ya tiene sesion de Google, es un solo toque.
+            sesion.prefersEphemeralWebBrowserSession = false
+            self.sesion = sesion
+            if !sesion.start() {
+                self.sesion = nil
+                self.bridge?.releaseCall(call)
+                call.reject("no se pudo abrir la sesion", "NO_ABRE")
+            }
+        }
+    }
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return bridge?.viewController?.view.window ?? ASPresentationAnchor()
     }
 }
 
