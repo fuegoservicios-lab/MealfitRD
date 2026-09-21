@@ -86,3 +86,46 @@ describe('lote 144 · respuesta al ratón de los controles con estilo en línea'
     });
 });
 
+// El dueño, sobre la demo del login: «mejora el diseño de esto radicalmente, y anima el de móviles».
+describe('lote 144 · la demo del login (escritorio) y su ilustración (móvil)', () => {
+    const demo = leer('src/components/auth/PlanShowcase.jsx');
+    const css = leer('src/pages/Login.css');
+
+    it('tres anillos concéntricos —uno por macro—, no un anillo y tres barras', () => {
+        for (const id of ['mfRingP', 'mfRingC', 'mfRingG']) expect(demo).toContain(`id="${id}"`);
+        expect(demo).toContain('animate={{ strokeDashoffset: c * (1 - m.pct / 100) }}');
+        expect(demo).not.toContain('mf-macro__track');
+    });
+
+    it('las DOS rayas bajo el título se fueron: la cabecera no lleva borde y el bloque del anillo es un panel', () => {
+        const k = css.indexOf('.mf-democard__head {');
+        expect(css.slice(k, css.indexOf('}', k))).not.toContain('border-bottom');
+        const h = css.indexOf('\n.mf-hero {');
+        const regla = css.slice(h, css.indexOf('}', h));
+        expect(regla).not.toContain('border-top');
+        expect(regla).toContain('border-radius: 1.1rem;');
+    });
+
+    it('cada plato es una tarjeta con icono y reparto P/C/G; el cursor cuelga de su objetivo', () => {
+        expect(demo).toContain('<span className="mf-meal__split" aria-hidden="true">');
+        expect(demo).toContain("style={{ '--mf-tint': meal.tint }}");
+        expect(demo).not.toContain('top: 250');
+        expect(demo).toContain('<Cursor pressed={press} style={{ right: 6, bottom: -16 }} />');
+    });
+
+    it('reduce-motion se respeta de verdad: ya no se lee `reduced.current` (el ref que dejó de existir)', () => {
+        expect(demo).not.toContain('reduced.current');
+        expect(demo).toContain('animate={reduced ? {} : { y: [0, -10, 0] }}');
+    });
+
+    it('la ilustración del móvil está viva, y sin animación se ve ENTERA (lo oculto vive solo en el keyframe)', () => {
+        const illu = leer('src/components/auth/HeroIllustration.jsx');
+        expect(leer('src/pages/Login.jsx')).toContain("import HeroIllustration from '../components/auth/HeroIllustration';");
+        expect(illu).toContain('{!reduced && GOTAS.map((g) => (');
+        expect(illu).toContain('<animateMotion path={g.d}');
+        expect(css).toContain('.mf-illu-linea, .mf-illu-bol, .mf-illu-tallo { stroke-dasharray: 1; stroke-dashoffset: 0; }');
+        expect(css).toContain('@keyframes mfIlluDibuja { from { stroke-dashoffset: 1; opacity: 0; }');
+        expect(css).toContain('.mf-illu, .mf-illu * { animation: none !important; }');
+    });
+});
+

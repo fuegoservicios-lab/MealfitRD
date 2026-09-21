@@ -13,6 +13,8 @@ import { marcarInicioGoogle } from '../utils/cuentasDelDispositivo';
 import { humanizeAuthError } from '../utils/authErrors';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import PlanShowcase from '../components/auth/PlanShowcase';
+// [P1-PLAN-LOTE-144] la ilustración hero del móvil, ahora animada, vive en su fichero
+import HeroIllustration from '../components/auth/HeroIllustration';
 import './Login.css';
 import Wordmark from '../components/common/Wordmark';
 import { useI18n } from '../i18n';
@@ -51,37 +53,6 @@ function GoogleIcon() {
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-        </svg>
-    );
-}
-
-/* ---- Ilustración hero (solo móvil) — bol con brote + constelación de macros en la
-   paleta Bioboros. Estilo line-art tipo el login de Claude, pero temática nutrición. ---- */
-function HeroIllustration() {
-    return (
-        <svg viewBox="0 0 260 196" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            {/* constelación: líneas finas que conectan los nodos */}
-            <g stroke="var(--mf-text-faint)" strokeWidth="1.4" strokeLinecap="round" opacity="0.55">
-                <path d="M132 150 L70 72" />
-                <path d="M132 150 L198 64" />
-                <path d="M70 72 L198 64" />
-                <path d="M198 64 L218 122" />
-                <path d="M70 72 L46 124" />
-            </g>
-            {/* bol (línea continua) */}
-            <g stroke="var(--mf-text)" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" opacity="0.92">
-                <path d="M84 150 Q132 196 180 150" />
-                <path d="M76 149 H188" />
-            </g>
-            {/* brote: tallo + hoja */}
-            <path d="M132 148 C132 122 132 106 132 88" stroke="var(--mf-secondary)" strokeWidth="2.6" strokeLinecap="round" />
-            <path d="M132 108 C116 104 108 90 113 76 C129 80 138 98 132 108 Z" fill="var(--mf-secondary)" opacity="0.9" />
-            {/* nodos de macros */}
-            <circle cx="70" cy="72" r="10" fill="var(--mf-primary)" />
-            <circle cx="198" cy="64" r="12.5" fill="var(--mf-accent)" />
-            <circle cx="218" cy="122" r="8" fill="var(--mf-fat)" />
-            <circle cx="46" cy="124" r="7" fill="var(--mf-secondary)" />
-            <circle cx="132" cy="150" r="5" fill="var(--mf-text)" />
         </svg>
     );
 }
