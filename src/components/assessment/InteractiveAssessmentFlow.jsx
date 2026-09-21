@@ -827,7 +827,16 @@ const InteractiveAssessmentFlow = () => {
 
     const currentStepConfig = steps[currentStep] || steps[0];
     const hasCompletedBefore = !!planData;
-    const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore;
+    // [P1-PLAN-LOTE-151 · 2026-09-21] El dueño: «¿por qué si todas las preguntas están seleccionadas no aparece el
+    // botón para saltar a la última?». Porque `canSkip` solo miraba DOS historias: haber avanzado más lejos en ESTA
+    // visita, o tener ya un plan. Faltaba la tercera, que es exactamente la suya: terminó la rama corta del contador
+    // y ahora enciende el plan, así que llega con casi todo respondido y solo le faltan las preguntas que esa rama
+    // se salta — y sin atajo tenía que recorrer los 26 pasos para contestar 13. Saltar es seguro aquí porque
+    // `handleSkipToLastStep` valida antes y, si falta algo, te deja en el primer campo incompleto con un aviso:
+    // el atajo se convierte en «llévame a lo que falta», que es justo lo que necesita.
+    const _traeLoDelContador = !isGuest && !_isTracking
+        && findFirstIncompleteFieldFor(formData, TRACKING_REQUIRED_FIELDS) === null;
+    const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore || _traeLoDelContador;
 
     // [P1-FORM-AUDIT-BATCH · 2026-07-03] Clamp REAL al nº de pasos: el clamp del provider
     // admite hasta 100 (genérico, no conoce steps.length). Con un `mealfit_wizard_step`

@@ -148,6 +148,8 @@
 
 .turnOnGhost {
     border: 0;
+    /* [P1-PLAN-LOTE-151] Radio propio: el velo del ratón es una sombra y toma la forma del elemento. */
+    border-radius: 0.65rem;
     background: transparent;
     color: var(--text-muted, #5B6A7D);
     font: inherit;

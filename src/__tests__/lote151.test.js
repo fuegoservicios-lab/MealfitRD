@@ -120,6 +120,32 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
         expect(dlg).toMatch(/data-hover="boton"\s+onClick=\{onConfirm\}/);
     });
 
+    it('quien llega del contador puede saltar a lo que le falta', () => {
+        // «¿por qué si todas las preguntas están seleccionadas no aparece el botón para saltar a la última?»:
+        // `canSkip` miraba dos historias —haber avanzado más en ESTA visita, o tener ya un plan— y le faltaba la
+        // suya: terminó la rama corta y enciende el plan, así que solo le faltan las preguntas que esa rama salta.
+        const flow = leer('src/components/assessment/InteractiveAssessmentFlow.jsx');
+        expect(flow).toContain('|| _traeLoDelContador;');
+        expect(flow).toContain('findFirstIncompleteFieldFor(formData, TRACKING_REQUIRED_FIELDS) === null');
+        expect(flow).toContain('!isGuest && !_isTracking');   // un invitado no; la rama corta tampoco
+        // y el atajo sigue siendo seguro: el handler valida y te deja en el primer campo incompleto
+        expect(flow).toContain('handleSkipToLastStep');
+    });
+
+    it('el CTA del formulario contesta al ratón y está menos brillante en reposo', () => {
+        const btn = leer('src/components/assessment/questions/NextButton.jsx');
+        expect(btn).toContain('data-hover="boton"');
+        expect(btn).toContain("color-mix(in srgb, var(--primary-dark) 86%, #000)");
+        expect(btn).toContain("color-mix(in srgb, var(--secondary-dark) 86%, #000)");
+        expect(btn).not.toContain("linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%)");
+    });
+
+    it('los chats recientes usan la utilidad común, no un hover a mano invisible en oscuro', () => {
+        const sb = leer('src/components/agent/SidebarRecientes.jsx');
+        expect(sb).toContain('data-hover="fila"');
+        expect(sb).not.toContain("e.currentTarget.style.background = 'var(--bg-muted)'");
+    });
+
     it('las tres variantes siguen pintando con sombras — que es POR QUÉ hace falta el radio', () => {
         const css = leer('src/index.css');
         expect(css).toContain('[data-hover="fila"]:not(:disabled):hover');

@@ -131,11 +131,12 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                     : t('Ya tienes todo respondido: generarlo usa 1 crédito de tu mes.')}
             </p>
             <div className={styles.turnOnActions}>
-                <button type="button" className={styles.turnOnBtn} onClick={irAlPlan}>
+                <button type="button" data-hover="boton" className={styles.turnOnBtn} onClick={irAlPlan}>
                     {t('Encender el plan')}
                 </button>
                 <button
                     type="button"
+                    data-hover="fila"
                     className={styles.turnOnGhost}
                     onClick={descartar}
                 >

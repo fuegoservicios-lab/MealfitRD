@@ -221,8 +221,11 @@ export const SidebarRecientes = ({
                                                 gap: '0.5rem',
                                                 transition: 'all 0.15s ease'
                                             }}
-                                            onMouseEnter={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = 'var(--bg-muted)'; }}
-                                            onMouseLeave={e => { if (currentSessionId !== s.id) e.currentTarget.style.background = 'transparent'; }}
+                                            /* [P1-PLAN-LOTE-151] Era un hover a mano que pintaba `--bg-muted`:
+                                               en oscuro, un gris casi igual al fondo. Pasa a la utilidad común
+                                               (velo + anillo), que se ve en los dos temas y no necesita saber
+                                               cuál es el chat abierto. */
+                                            data-hover="fila"
                                         >
                                             <span style={{ 
                                                 display: 'flex',

@@ -168,6 +168,7 @@ export const QTrackingFinish = () => {
             </p>
             <button
                 type="button"
+                data-hover="boton"
                 onClick={terminar}
                 disabled={saving}
                 style={{
