@@ -2518,7 +2518,15 @@ const AgentPage = () => {
         setIsLoadingHistory(false);
     });
     const adoptarSesionDelDia = useStableCallback((sesionesDelServidor) => {
-        if (adopcionDelDiaHechaRef.current || !session?.user?.id) return;
+        if (!session?.user?.id) return;
+        // [P1-PLAN-LOTE-151 · 2026-09-21] Esto corría UNA sola vez por montaje, y por eso un aviso del coach que
+        // llega con la página YA ABIERTA no se veía nunca: el recordatorio se escribe en tu chat de hoy desde el
+        // servidor, y aquí seguía el chat en blanco que abrió la regla del día. Medido el 21-sep: el aviso del
+        // desayuno se guardó a las 11:30 y el dueño tenía delante un chat vacío con el saludo de bienvenida.
+        // Ahora se puede volver a mirar en cada refresco de la lista; lo que protege que no te robe la conversación
+        // son las condiciones de `elegirDeHoy`, no el contador: no hay turno en marcha, no has escrito nada, no
+        // tienes borrador y la sesión abierta sigue siendo la automática. La espera INICIAL se cierra una vez.
+        const primeraVez = !adopcionDelDiaHechaRef.current;
         adopcionDelDiaHechaRef.current = true;
         const elegirDeHoy = () => {
             if (isTurnActiveRef.current) return null;
@@ -2529,7 +2537,7 @@ const AgentPage = () => {
         };
         const deHoy = elegirDeHoy();
         if (!deHoy) {
-            terminarEsperaDelDia();
+            if (primeraVez) terminarEsperaDelDia();
             return;
         }
         // «Cargando mensajes…» en lugar del saludo de un chat que ya no es el tuyo; lo cierra
@@ -3034,6 +3042,21 @@ const AgentPage = () => {
     useEffect(() => {
         fetchChatSessions();
     }, [fetchChatSessions]);
+
+    // [P1-PLAN-LOTE-151 · 2026-09-21] …y al VOLVER a la pestaña. Sin esto, la lista solo se pedía al montar, así
+    // que un recordatorio del coach escrito desde el servidor mientras el chat estaba abierto no aparecía hasta
+    // recargar. Es el gemelo del `visibilitychange` del Historial (P2-NEW-1). Nada de sondeo por reloj: solo
+    // cuando el usuario vuelve a mirar, que es justo cuando podría verlo.
+    useEffect(() => {
+        if (!session?.user?.id || typeof document === 'undefined') return undefined;
+        const alVolverALaPestana = () => {
+            if (document.hidden) return;
+            if (isTurnActiveRef.current) return;   // en mitad de una respuesta no se toca nada
+            fetchChatSessions();
+        };
+        document.addEventListener('visibilitychange', alVolverALaPestana);
+        return () => document.removeEventListener('visibilitychange', alVolverALaPestana);
+    }, [session?.user?.id, fetchChatSessions]);
 
     // Polling moderado (2500ms) para actualizar el título dinámico, con tope de 8 intentos (~20s)
     useEffect(() => {

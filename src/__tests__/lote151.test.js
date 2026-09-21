@@ -146,6 +146,20 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
         expect(sb).not.toContain("e.currentTarget.style.background = 'var(--bg-muted)'");
     });
 
+    it('un aviso del coach que llega con el chat abierto se ve sin recargar', () => {
+        // Medido el 21-sep: el recordatorio del desayuno se guardó en el servidor a las 11:30 y el dueño tenía
+        // delante un chat en blanco. La adopción del chat de hoy existía, pero corría UNA vez por montaje y la
+        // lista de sesiones solo se pedía al abrir la página.
+        const ap = leer('src/pages/AgentPage.jsx');
+        expect(ap).toContain('const primeraVez = !adopcionDelDiaHechaRef.current;');
+        expect(ap).toContain('if (primeraVez) terminarEsperaDelDia();');
+        expect(ap).not.toContain('if (adopcionDelDiaHechaRef.current || !session?.user?.id) return;');
+        expect(ap).toContain("document.addEventListener('visibilitychange', alVolverALaPestana);");
+        // lo que impide robar una conversación en marcha son las condiciones, no el contador
+        expect(ap).toContain('if (isTurnActiveRef.current) return null;');
+        expect(ap).toContain('if (isTurnActiveRef.current) return;');
+    });
+
     it('las tres variantes siguen pintando con sombras — que es POR QUÉ hace falta el radio', () => {
         const css = leer('src/index.css');
         expect(css).toContain('[data-hover="fila"]:not(:disabled):hover');
