@@ -116,7 +116,6 @@ import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
-import { alternarCierreNativo, alternarTecladoNativo, binarioMueveElChat, enviarAlNativo, geometriaParaNativo, nativoCubreElCierre, tecladoNativoEncendido, NATIVO_ESPERA_ABRIR_MS, NATIVO_ESPERA_CERRAR_MS } from '../utils/keyboardNative';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
 import { nativeHidesCommerce } from '../config/platform';
 
@@ -613,8 +612,6 @@ const AgentPage = () => {
     const cerrandoRef = useRef(false);
     // [P1-PLAN-LOTE-111] Cerrojo de APERTURA (app nativa): ver `alGanarElFoco`.
     const abriendoRef = useRef(false);
-    // [P1-PLAN-LOTE-140] El próximo cierre del teclado va por el camino de siempre (sin captura nativa): ver `handleSend`.
-    const cierreSinCoberturaRef = useRef(false);
 
     // IsMobile detection para asegurar sobrescritura inline a prueba de fallos de iOS
     // [P2-14 · 2026-07-09] Hook SSOT (antes useState + resize listener local).
@@ -894,7 +891,6 @@ const AgentPage = () => {
         let asiento = null;
         const alEvento = () => {
             updateInputPosition();
-            refrescarGeometriaNativa();                        // [140] tras cada movimiento del teclado, geometría al día
             if (asiento) clearTimeout(asiento);
             // [P1-KB-RESIZES-CONTENT · 2026-08-23] El asiento existe para la geometria que
             // el JS persigue. Cuando el navegador redimensiona el layout por su cuenta no
@@ -1109,186 +1105,6 @@ const AgentPage = () => {
             return deshacerYBajar;
         };
 
-        // [P1-PLAN-LOTE-140 · 2026-09-20] EL BINARIO MUEVE EL CHAT (modo de prueba: `/nativo`; necesita el build nuevo).
-        // El dueño: «en la app de Gemini se siente muy pero muy fluido y rápido». El porqué y las piezas puras:
-        // utils/keyboardNative.js; el baile nativo: ios/App/App/SceneDelegate.swift (`CoberturaDelTeclado`). Aquí:
-        //   · al FOCO (y al blur) el chat NO se mueve: manda su geometría al binario y ESPERA su aviso. El binario captura
-        //     la pantalla ANTES de avisar, así que lo que capture tiene que ser el layout quieto;
-        //   · el aviso llega con `cubierto:true`: el layout final se pone DE GOLPE (sin transición: lo tapa la captura, que
-        //     es la que se mueve con el teclado) y, asentado, se contesta `listo` para que el binario retire la captura;
-        //   · sin aviso a tiempo, o con `cubierto:false` (con su motivo en la sonda), todo sigue por el camino de siempre.
-        const nat = { espera: null, timer: null, geoTimer: null, sinEspera: false, padCerrado: 0 };
-        const nativoEncendido = () => isNativeApp() && tecladoNativoEncendido();
-        const soltarEsperaNativa = () => {
-            if (nat.timer) { clearTimeout(nat.timer); nat.timer = null; }
-            nat.espera = null;
-        };
-        // Devuelve true solo si el binario la recibió Y con ella puede cubrir.
-        const mandarGeometriaNativa = (abierto) => {
-            const wrapper = inputWrapperRef.current;
-            const contenedor = wrapper?.closest('.agent-container');
-            if (!wrapper || !contenedor || !nativoEncendido()) return false;
-            const lista = messagesContainerRef.current;
-            const fuente = parseFloat(getComputedStyle(root).fontSize) || 16;
-            // el relleno CERRADO solo se puede medir con el layout cerrado; abierto se usa el último conocido
-            if (!abierto) nat.padCerrado = parseFloat(getComputedStyle(wrapper).paddingBottom) || 0;
-            const cabecera = contenedor.querySelector('.mobile-chat-header');
-            const rc = cabecera ? cabecera.getBoundingClientRect() : null;
-            const fichas = [];
-            for (const boton of (cabecera ? cabecera.querySelectorAll('button') : [])) {
-                const r = boton.getBoundingClientRect();
-                if (r.width > 0 && r.top < rc.bottom) fichas.push({ x: r.left, y: r.top, w: r.width, h: r.height, r: getComputedStyle(boton).borderTopLeftRadius });
-            }
-            const geometria = geometriaParaNativo({
-                abierto,
-                altoPantalla: altoDeReferencia(window.innerHeight, window.innerWidth),
-                anchoPantalla: window.innerWidth,
-                vvOffsetTop: vv.offsetTop,
-                cajaTop: wrapper.getBoundingClientRect().top,
-                cabeceraBottom: rc ? rc.bottom : 0,
-                // la franja opaca sobre la barra de estado: el relleno superior de la cabecera menos sus 0.35rem propios
-                franjaAlto: cabecera ? Math.max(0, (parseFloat(getComputedStyle(cabecera).paddingTop) || 0) - 0.35 * fuente) : 0,
-                fichas,
-                padCerrado: nat.padCerrado,
-                padAbierto: KB_PAD_ABIERTO_REM * fuente,
-                lista: lista ? {
-                    scrollHeight: lista.scrollHeight, scrollTop: lista.scrollTop, clientHeight: lista.clientHeight,
-                    overflowY: getComputedStyle(lista).overflowY, vaAlFinal: ultimaAccionAlAbrirRef.current !== 'nada',
-                } : null,
-                cubreCierre: nativoCubreElCierre(),
-            });
-            return enviarAlNativo(geometria) && geometria.activo;
-        };
-        // La geometría ABIERTA tiene que estar al día sin esperar a nadie: hay cierres que no pasan por el blur (el
-        // selector de fotos). Se refresca, con calma, cuando la caja cambia de tamaño o la conversación se desplaza.
-        const refrescarGeometriaNativa = () => {
-            if (!isNativeApp()) return;
-            if (nat.geoTimer) clearTimeout(nat.geoTimer);
-            nat.geoTimer = setTimeout(() => {
-                nat.geoTimer = null;
-                if (nat.espera || coreo.fase || !nativoEncendido()) return;
-                const foco = document.activeElement;
-                const otroCampo = foco && foco !== document.body && !inputWrapperRef.current?.contains(foco)
-                    && (foco.tagName === 'TEXTAREA' || foco.tagName === 'INPUT' || foco.isContentEditable);
-                if (otroCampo) enviarAlNativo({ tipo: 'apagar' });   // ese teclado no es el del chat: no se cubre
-                else mandarGeometriaNativa(tecladoAbiertoRef.current);
-            }, 400);
-        };
-        const alDesplazarParaNativo = (e) => { if (e.target === messagesContainerRef.current) refrescarGeometriaNativa(); };
-        const observadorNativo = isNativeApp() && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(refrescarGeometriaNativa) : null;
-        if (observadorNativo && inputWrapperRef.current) observadorNativo.observe(inputWrapperRef.current);
-        const confirmarAlNativo = (contenedor, id, abierto) => {
-            alSiguienteFotograma(() => alSiguienteFotograma(() => {
-                descongelarAlto(contenedor);
-                if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
-                mandarGeometriaNativa(abierto);
-                enviarAlNativo({ tipo: 'listo', id });
-                marcarSondaTeclado('natOk');
-            }));
-        };
-        const abrirBajoCobertura = (contenedor, inset, id, veniaDelFoco) => {
-            const lista = messagesContainerRef.current;
-            const estabaAbierto = tecladoAbiertoRef.current;
-            if (!estabaAbierto && !veniaDelFoco) { ultimaAccionAlAbrirRef.current = 'nada'; alAbrirTecladoRef.current?.({ instantaneo: true }); }
-            // ¿el final de la conversación sigue a la vista? Se mide con el layout CERRADO, antes de tocarlo
-            const pegada = Boolean(lista) && listaAcompana({
-                scrollHeight: lista.scrollHeight, scrollTop: lista.scrollTop, clientHeight: lista.clientHeight,
-                overflowY: getComputedStyle(lista).overflowY, vaAlFinal: ultimaAccionAlAbrirRef.current !== 'nada',
-            });
-            cerrandoRef.current = false;
-            abriendoRef.current = true;
-            congelarAlto(contenedor);
-            // [114] el mismo alto base fijo que en los otros dos caminos (escrito distinto: un contrato CUENTA aquellos dos)
-            const altoBase = altoDeReferencia(window.innerHeight, window.innerWidth);
-            if (window.innerWidth <= 1024) contenedor.style.setProperty('--app-height', `${altoBase}px`);
-            insetAplicadoRef.current = inset;
-            tecladoAbiertoRef.current = true;
-            contenedor.style.setProperty('--kb-inset', `${inset}px`);
-            root.toggleAttribute('data-kb-open', true);
-            root.toggleAttribute('data-kb-scroll-lock', true);
-            void contenedor.offsetHeight;                      // el layout final, YA (debajo de la captura)
-            if (pegada) {
-                try { lista.scrollTo({ top: lista.scrollHeight, behavior: 'instant' }); } catch { lista.scrollTop = lista.scrollHeight; }
-            }
-            marcarSondaTeclado('nat+');
-            if (abriendoTimer) clearTimeout(abriendoTimer);
-            abriendoTimer = setTimeout(() => {
-                abriendoTimer = null;
-                abriendoRef.current = false;
-                updateInputPosition(true);
-            }, 900);
-            confirmarAlNativo(contenedor, id, true);
-        };
-        const cerrarBajoCobertura = (contenedor, id) => {
-            congelarAlto(contenedor);
-            cerrandoRef.current = true;
-            abriendoRef.current = false;
-            if (abriendoTimer) { clearTimeout(abriendoTimer); abriendoTimer = null; }
-            root.removeAttribute('data-kb-open');
-            root.removeAttribute('data-kb-scroll-lock');
-            insetAplicadoRef.current = 0;
-            tecladoAbiertoRef.current = false;
-            contenedor.style.setProperty('--kb-inset', '0px');
-            if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
-            void contenedor.offsetHeight;
-            marcarSondaTeclado('nat-');
-            confirmarAlNativo(contenedor, id, false);
-        };
-        // El aviso del binario, visto desde el modo nativo. Devuelve true si el chat ya quedó colocado bajo la captura.
-        const atenderCoberturaNativa = (detalle, aviso) => {
-            const enEspera = nat.espera;
-            soltarEsperaNativa();
-            // lo que el camino de siempre haga a continuación (en este mismo turno) no vuelve a ponerse a esperar
-            nat.sinEspera = true;
-            queueMicrotask(() => { nat.sinEspera = false; });
-            if (detalle?.cubierto !== true) {
-                if (enEspera) marcarSondaTeclado(`nat!${String(detalle?.motivo || '?').slice(0, 3)}`);
-                return false;
-            }
-            const id = Number(detalle.id) || 0;
-            const contenedor = inputWrapperRef.current?.closest('.agent-container');
-            if (!contenedor || !nativoEncendido()) {
-                enviarAlNativo({ tipo: 'listo', id });        // cubrió sin que nadie vaya a colocar nada: que retire ya
-                return false;
-            }
-            if (aviso.accion === 'cerrar') cerrarBajoCobertura(contenedor, id);
-            else abrirBajoCobertura(contenedor, aviso.inset, id, enEspera === 'abre');
-            return true;
-        };
-        const esperarAperturaNativa = (campo) => {
-            if (!nativoEncendido()) return false;
-            ultimaAccionAlAbrirRef.current = 'nada';
-            alAbrirTecladoRef.current?.({ instantaneo: true });   // la conversación decide YA si va al final, y va de golpe
-            if (!mandarGeometriaNativa(false)) return false;
-            soltarEsperaNativa();
-            nat.espera = 'abre';
-            marcarSondaTeclado('natFoco');
-            nat.timer = setTimeout(() => {
-                nat.timer = null;
-                nat.espera = null;
-                alGanarElFoco({ target: campo, sinNativo: true });
-            }, NATIVO_ESPERA_ABRIR_MS);
-            return true;
-        };
-        const esperarCierreNativo = () => {
-            if (nat.sinEspera || !nativoEncendido()) return false;
-            if (cierreSinCoberturaRef.current) {
-                cierreSinCoberturaRef.current = false;
-                return false;                                  // `handleSend` ya le dijo al binario que este no se cubre
-            }
-            if (nat.espera === 'cierra') return true;
-            if (!tecladoAbiertoRef.current || !mandarGeometriaNativa(true)) return false;
-            soltarEsperaNativa();
-            nat.espera = 'cierra';
-            marcarSondaTeclado('natBlur');
-            nat.timer = setTimeout(() => {
-                nat.timer = null;
-                nat.espera = null;
-                alPerderElFoco({ relatedTarget: null, deNativo: true });
-            }, NATIVO_ESPERA_CERRAR_MS);
-            return true;
-        };
-
         // [P1-KB-CIERRE-SIN-ESPERA · 2026-08-23] «Cuando lo cierro es lento.»
         //
         // El estado «hay teclado» se decide por GEOMETRÍA (`kb >= 120`), y al cerrarse iOS
@@ -1318,8 +1134,6 @@ const AgentPage = () => {
             if (destino && (destino.tagName === 'TEXTAREA' || destino.tagName === 'INPUT' || destino.isContentEditable)) {
                 return; // cambia de campo: el teclado sigue
             }
-            // [140] con el modo nativo el chat no baja al blur: el binario captura el layout ABIERTO y avisa (`N-`)
-            if (!e.deNativo && esperarCierreNativo()) return;
             // [129] en la app nativa el chat baja con la duración REAL del teclado (la del último aviso de UIKit)
             if (isNativeApp()) fijarDuracionTeclado(Number(safeLocalStorageGet(CLAVE_MS_NATIVO, 0)) || 0);
             // [131] coreografía del cierre, 1/2: lo que hay que saber ANTES de tocar el layout
@@ -1355,7 +1169,6 @@ const AgentPage = () => {
             if (!isNativeApp() || !campo || !inputWrapperRef.current?.contains(campo)) return;
             if (campo.tagName !== 'TEXTAREA' && campo.tagName !== 'INPUT') return;
             if (tecladoAbiertoRef.current || !window.matchMedia?.('(pointer: coarse)')?.matches) return;
-            if (!e.sinNativo && esperarAperturaNativa(campo)) return;   // [140] modo nativo: quieto hasta el aviso del binario
             const recordado = Number(safeLocalStorageGet(CLAVE_INSET_NATIVO, 0)) || 0;
             if (recordado < KB_UMBRAL_PX || recordado > window.innerHeight * 0.7) return;
             // [129] el foco llega unos ms ANTES que el aviso nativo: se mueve ya con la duración de la última vez
@@ -1385,8 +1198,6 @@ const AgentPage = () => {
             if (aviso.accion === 'ignorar') return;
             if (String(aviso.ms) !== safeLocalStorageGet(CLAVE_MS_NATIVO, null)) safeLocalStorageSet(CLAVE_MS_NATIVO, String(aviso.ms));
             fijarDuracionTeclado(aviso.ms);
-            // [P1-PLAN-LOTE-140] si el binario CUBRIÓ el chat con su captura, el layout final se pone de golpe y se acabó
-            if (atenderCoberturaNativa(e.detail, aviso)) return;
             if (aviso.accion === 'cerrar') {
                 if (tecladoAbiertoRef.current || insetAplicadoRef.current > 0) alPerderElFoco({ relatedTarget: null });
                 return;
@@ -1454,9 +1265,7 @@ const AgentPage = () => {
         };
         window.addEventListener('scroll', mantenerDocumentoAnclado, { passive: true });
         document.addEventListener('focusout', alPerderElFoco);
-        document.addEventListener('scroll', alDesplazarParaNativo, { capture: true, passive: true });
         updateInputPosition();
-        refrescarGeometriaNativa();
         return () => {
             document.removeEventListener('focusout', alPerderElFoco);
             document.removeEventListener('focusin', alGanarElFoco);
@@ -1465,12 +1274,6 @@ const AgentPage = () => {
             root?.style.removeProperty('--kb-ms');
             if (asiento) clearTimeout(asiento);
             if (abriendoTimer) clearTimeout(abriendoTimer);
-            // [140] al salir del chat el binario deja de cubrir: su geometría ya no describe lo que hay en pantalla
-            soltarEsperaNativa();
-            if (nat.geoTimer) clearTimeout(nat.geoTimer);
-            observadorNativo?.disconnect();
-            document.removeEventListener('scroll', alDesplazarParaNativo, { capture: true });
-            if (isNativeApp() && binarioMueveElChat()) enviarAlNativo({ tipo: 'apagar' });
             // [131] la coreografia no deja piezas con transform ni llaves en <html> al salir del chat
             if (coreo.timer) clearTimeout(coreo.timer);
             soltarPiezas();
@@ -2635,7 +2438,7 @@ const AgentPage = () => {
 
     // [P1-PLAN-LOTE-115] Al abrir el teclado: que lo que el agente acaba de decir —casi siempre una pregunta— quede a
     // la vista encima de la caja. La decisión es pura (utils/chatKeyboardScroll.js); aquí solo se ejecuta.
-    alAbrirTecladoRef.current = (opciones) => {
+    alAbrirTecladoRef.current = () => {
         const el = messagesContainerRef.current;
         const msgs = messagesRef.current || [];
         const accion = decidirScrollAlAbrirTeclado({
@@ -2648,10 +2451,6 @@ const AgentPage = () => {
             spacerPx: spacerPxRef.current,
         });
         ultimaAccionAlAbrirRef.current = accion;   // [131] la coreografía del teclado lo lee: ¿la lista va a ir al final?
-        // [P1-PLAN-LOTE-140] Con el binario moviendo el chat, el final se trae DE GOLPE y antes de que capture la pantalla:
-        // un scroll suave a medias en la captura acabaría en un salto al fundirla con la página (medido en el arnés: tras
-        // una respuesta la lista queda a 161 px del final, y la captura subía 266 donde la página subía 427).
-        if (opciones?.instantaneo && accion !== 'nada') { scrollToBottom(accion === 'forzar', 'instant'); return; }
         if (accion === 'fijar') scrollToBottom(false, 'auto');
         else if (accion === 'forzar') scrollToBottom(true, 'auto');
     };
@@ -3459,24 +3258,6 @@ const AgentPage = () => {
             toast.info(encendida ? t('Animación fluida del teclado encendida') : t('Animación fluida del teclado apagada'));
             return;
         }
-        // [P1-PLAN-LOTE-140] `/nativo` enciende/apaga que el BINARIO mueva el chat con el teclado (modo de PRUEBA, apagado
-        // por defecto; necesita el build que trae `CoberturaDelTeclado`). `/nativo cierre` decide si también cubre el cierre.
-        const ordenNativo = isNativeApp() ? /^\/nativo( cierre)?$/.exec(textToSend.trim().toLowerCase()) : null;
-        if (ordenNativo) {
-            setInput('');
-            if (!binarioMueveElChat()) {
-                toast.info(t('Esta prueba necesita la versión nueva de la app'));
-                return;
-            }
-            if (ordenNativo[1]) {
-                toast.info(alternarCierreNativo() ? t('Teclado nativo: también al cerrar') : t('Teclado nativo: solo al abrir'));
-                return;
-            }
-            const encendido = alternarTecladoNativo();
-            if (!encendido) enviarAlNativo({ tipo: 'apagar' });
-            toast.info(encendido ? t('Teclado movido por la app: encendido') : t('Teclado movido por la app: apagado'));
-            return;
-        }
 
         // El lock nace antes de esperar la preparación: dos taps mientras un HEIC se
         // decodifica no pueden abrir dos turnos con snapshots distintos.
@@ -3587,13 +3368,6 @@ const AgentPage = () => {
         // texto ya se capturó. Con la ventana entera el mensaje enviado vuelve a anclarse arriba (el ancla recupera el
         // alto que gana la ventana: `ventanaCambio`). Si el teclado está en pantalla pero el foco NO es de la caja, no se
         // cierra nada y el envío sigue a la respuesta en modo «abajo» (la rama del lote 130, más abajo).
-        // [P1-PLAN-LOTE-140] (va ANTES de `_tecladoVirtual`: varios contratos miden su ventana desde esa línea.) El cierre
-        // del teclado al ENVIAR no lo cubre el binario: la conversación salta a anclar el mensaje arriba, y una captura
-        // bajando con el teclado enseñaría 0,4 s la conversación de ANTES. El «apagar» llega antes que `keyboardWillHide`.
-        if (isNativeApp() && _hadFocusPreSend && (tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto)) {
-            cierreSinCoberturaRef.current = true;
-            enviarAlNativo({ tipo: 'apagar' });
-        }
         const _tecladoVirtual = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
         const _cierraTeclado = Boolean(_hadFocusPreSend && _tecladoVirtual);
         if (_cierraTeclado) {

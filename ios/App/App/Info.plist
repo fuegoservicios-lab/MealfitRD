@@ -71,8 +71,6 @@
 	<string>Bioboros convierte tu voz en texto para escribir tu mensaje en el chat.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>

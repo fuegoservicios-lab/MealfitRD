@@ -25,13 +25,6 @@
     pointer-events: none !important;
 }
 
-/* [P1-PLAN-LOTE-140] Con el binario moviendo el chat (una captura encima, animada por UIKit) el layout de debajo se pone
-   DE GOLPE: `data-kb-sin-anim` dura un par de fotogramas y en ellos la barra tampoco se anima. Al cerrar, la captura de
-   la caja baja y el teclado la va destapando: lo que asoma tiene que ser la barra YA en su sitio, no una a medio subir. */
-:global(html[data-kb-sin-anim]) .tabBar {
-    transition: none !important;
-}
-
 @media (max-width: 1024px) {
     .tabBar {
         display: flex;

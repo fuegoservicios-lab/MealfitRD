@@ -140,8 +140,7 @@ export function iniciarSondaTeclado() {
     // `N-…` = cierra) para MEDIR cuánto se adelanta o se atrasa hoy el chat respecto al teclado de verdad.
     const onNativo = (e) => {
         const d = e.detail || {};
-        // [P1-PLAN-LOTE-140] una `c` al final = el binario CUBRIÓ el chat con su captura (modo `/nativo`)
-        pintar(`N${d.tipo === 'cierra' ? '-' : '+'}${Number(d.alto) || 0}·${Number(d.ms) || 0}${d.cubierto === true ? 'c' : ''}`);
+        pintar(`N${d.tipo === 'cierra' ? '-' : '+'}${Number(d.alto) || 0}·${Number(d.ms) || 0}`);
     };
     window.addEventListener(EVENTO_TECLADO_NATIVO, onNativo);
     document.addEventListener(EVENTO_MARCA_SONDA, onMarca);
