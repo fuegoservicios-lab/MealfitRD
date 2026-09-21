@@ -98,23 +98,17 @@ export function radioEnPx(valor, ancho = 0, alto = 0) {
 }
 
 /**
- * Cuánto puede desplazarse la conversación junto a la caja. Lo decide el MODO de scroll del chat, que es quien reacciona
- * cuando la ventana de lectura cambia de alto (el ResizeObserver del contenedor, lote 115):
- *   · 'bottom' sigue pegada al final y 'free' conserva su posición respecto al borde INFERIOR → las dos se mueven con la caja;
- *   · 'anchored' mantiene el mensaje enviado ARRIBA → no se mueve… salvo que al abrir vaya a soltarse y bajar al final;
- *   · virtualizada (`overflow: hidden`, la mueve Virtuoso) o que no llena su ventana → 0: no se mueve.
- * Al ABRIR no hay tope (al encoger la ventana siempre queda scroll para subir lo que sube la caja); al CERRAR el tope es
- * su `scrollTop`: al crecer la ventana el contenido baja hasta agotar el scroll, no más.
- *
- * [P1-PLAN-LOTE-141] El 140 solo movía la lista si estaba PEGADA al final: con el chat en modo libre (leyendo un poco más
- * arriba, la flecha de «ir al final» a la vista) la captura dejaba la conversación quieta mientras la página la subía 266 px
- * debajo — al fundirse, la conversación entera saltaba. El dueño, en su primer build: «se medio buguea».
+ * Cuánto puede desplazarse la conversación junto a la caja.
+ *   · virtualizada (`overflow: hidden`, la mueve Virtuoso) o que no llena su ventana → 0: no se mueve;
+ *   · al ABRIR, pegada al final (o va a ir) → sin tope: sube lo que suba la caja;
+ *   · al CERRAR, pegada al final → su `scrollTop`: al crecer la ventana el navegador la baja hasta agotar el scroll, no más.
  */
-export function desplazamientoDeLista({ abierto = false, scrollHeight = 0, scrollTop = 0, clientHeight = 0, overflowY = 'auto', vaAlFinal = false, modo = 'bottom' } = {}) {
+export function desplazamientoDeLista({ abierto = false, scrollHeight = 0, scrollTop = 0, clientHeight = 0, overflowY = 'auto', vaAlFinal = false } = {}) {
     if (overflowY === 'hidden') return 0;
     if (num(scrollHeight) <= num(clientHeight) + 1) return 0;
-    if (abierto) return modo === 'anchored' ? 0 : Math.max(0, Math.round(num(scrollTop)));
-    return vaAlFinal || modo !== 'anchored' ? LISTA_SIN_TOPE : 0;
+    const pegada = num(scrollHeight) - num(scrollTop) - num(clientHeight) <= 4;
+    if (abierto) return pegada ? Math.max(0, Math.round(num(scrollTop))) : 0;
+    return pegada || vaAlFinal ? LISTA_SIN_TOPE : 0;
 }
 
 /**
