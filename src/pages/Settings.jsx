@@ -21,7 +21,7 @@ import { confirmToast } from '../utils/confirmToast';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 // [P1-PLAN-LOTE-133] el interruptor habla con UNA fachada: Web Push en navegador/PWA, avisos locales en la app nativa
-import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador } from '../utils/avisosDeComida';
+import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador, sincronizarAvisosLocales } from '../utils/avisosDeComida';
 import { trackEvent, isAnalyticsOptedOut, persistAnalyticsOptOut } from '../utils/analytics';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
 // — iOS Private Mode lanza SecurityError y corta el cleanup del reset
@@ -295,6 +295,32 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [pushSubscribeError, setPushSubscribeError] = useState(null);
     // [P1-PLAN-LOTE-133] el canal de ESTE dispositivo; null = aún no se sabe (no se pinta un interruptor muerto)
     const [canalAvisos, setCanalAvisos] = useState(null);
+
+    // [P1-PLAN-LOTE-150 · 2026-09-21] Qué avisos quiere, dentro de los que ya aceptó. El dueño: «quiero que se pueda
+    // desactivar y activar en configuraciones esa opción, ya que con eso tendría la opción de tener más tranquilidad
+    // al tener menos notificaciones». DOS y no uno global porque «menos notificaciones» casi siempre significa «unas
+    // sí y otras no». Viven en `health_profile` (jsonb con merge server-side): ausente ⇒ encendido, así que nadie
+    // pierde los que ya tenía. Apagar uno para las DOS vías —el teléfono y el cron— porque el servidor lee lo mismo.
+    const _prefAvisos = (clave) => (userProfile?.health_profile || {})[clave] !== false;
+    const [avisosComida, setAvisosComida] = useState(() => _prefAvisos('avisos_comida'));
+    const [avisosAgua, setAvisosAgua] = useState(() => _prefAvisos('avisos_agua'));
+    useEffect(() => {
+        setAvisosComida(_prefAvisos('avisos_comida'));
+        setAvisosAgua(_prefAvisos('avisos_agua'));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userProfile?.health_profile?.avisos_comida, userProfile?.health_profile?.avisos_agua]);
+
+    const cambiarPrefDeAviso = async (clave, valor) => {
+        const poner = clave === 'avisos_comida' ? setAvisosComida : setAvisosAgua;
+        poner(valor);
+        if (!safeUpdateHealthProfile({ [clave]: valor })) {
+            poner(!valor);                       // el perfil aún no está: se revierte el interruptor, no se miente
+            return;
+        }
+        // El teléfono reprograma con lo que diga el servidor: cancela lo pendiente y solo vuelve a poner lo encendido.
+        try { await sincronizarAvisosLocales(); } catch { /* el próximo arranque lo resincroniza */ }
+        toast.success(valor ? t('Avisos activados.') : t('Avisos desactivados.'));
+    };
 
     // Persistir el último valor confirmado para hidratación instantánea en el próximo mount (solo el canal web:
     // el de la app nativa lo escribe la fachada).
@@ -3282,6 +3308,28 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 : <>{pushSubscribeError.msg || t('No se pudo activar. Recarga la página e intenta de nuevo.')}</>
                                         }
                                     </span>
+                                </div>
+                            )}
+
+                            {/* [P1-PLAN-LOTE-150] Dentro de lo que ya aceptó: qué avisos quiere. Solo con las alertas
+                                encendidas — sin ellas no hay nada que afinar y serían dos controles muertos. */}
+                            {pushEnabled && !isPushBlocked && (canalAvisos === 'web-push' || canalAvisos === 'local') && (
+                                <div style={{ marginTop: '0.85rem', paddingTop: '0.85rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {[
+                                        { clave: 'avisos_comida', valor: avisosComida, titulo: t('Recordatorios de comida'), sub: t('Un aviso por comida, justo antes de tu hora habitual.') },
+                                        { clave: 'avisos_agua', valor: avisosAgua, titulo: t('Recordatorios de agua'), sub: t('Avisos para que no se te olvide beber durante el día.') },
+                                    ].map(({ clave, valor, titulo, sub }) => (
+                                        <div key={clave} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)' }}>{titulo}</div>
+                                                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '0.15rem' }}>{sub}</div>
+                                            </div>
+                                            <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                                <input type="checkbox" checked={valor} onChange={(e) => cambiarPrefDeAviso(clave, e.target.checked)} aria-label={titulo} />
+                                                <span className={styles.toggleSlider}></span>
+                                            </label>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 

@@ -88,7 +88,9 @@ describe('lote 133 · el interruptor de Configuración', () => {
     });
 
     it('habla con la fachada, no con la Web Push a pelo', () => {
-        expect(st).toContain("import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador } from '../utils/avisosDeComida';");
+        // [lote 150] la lista de nombres crece (entró `sincronizarAvisosLocales`); lo que este test protege es de
+        // DÓNDE vienen: la fachada, nunca la Web Push a pelo.
+        expect(st).toMatch(/import \{[^}]*estadoDeAvisos[^}]*activarAvisos[^}]*desactivarAvisos[^}]*interruptorAlNacer[^}]*elPermisoEsDelNavegador[^}]*\} from '\.\.\/utils\/avisosDeComida';/);
         expect(st).toContain('const [pushEnabled, setPushEnabled] = useState(interruptorAlNacer);');
         expect(st).not.toContain("from '../utils/pushNotifications'");
         expect(st).toContain('const r = await activarAvisos();');
