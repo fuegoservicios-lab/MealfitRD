@@ -475,6 +475,9 @@ export default function RestockNudge({
                                         fontWeight: 600,
                                         fontSize: '0.88rem',
                                         cursor: 'pointer',
+                                        // [P1-PLAN-LOTE-151] Sin radio, el velo del ratón salía cuadrado bajo el
+                                        // botón lleno de arriba, que sí es redondeado.
+                                        borderRadius: '0.6rem',
                                     }}
                                 >
                                     {t('Todavía no')}

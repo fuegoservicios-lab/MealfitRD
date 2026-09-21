@@ -3359,6 +3359,9 @@ const Pantry = () => {
                                                                         color: pickerQty <= 1 ? 'var(--border)' : 'var(--text-muted)',
                                                                         cursor: pickerQty <= 1 ? 'not-allowed' : 'pointer',
                                                                         touchAction: 'manipulation',
+                                                                        // [P1-PLAN-LOTE-151] Redondo como su gemelo «+» y como la píldora que los contiene:
+                                                                        // el velo del ratón es una sombra y sale con la forma de ESTE elemento.
+                                                                        borderRadius: '99px',
                                                                     }}
                                                                     aria-label={t('Disminuir cantidad')}
                                                                 >

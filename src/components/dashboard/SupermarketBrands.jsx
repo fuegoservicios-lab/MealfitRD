@@ -670,6 +670,12 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                     width: '100%', padding: '0.65rem 0.85rem',
                     background: 'transparent', border: 'none', cursor: 'pointer',
                     color: 'var(--text-main)', textAlign: 'left',
+                    // [P1-PLAN-LOTE-151 · 2026-09-21] El velo y el anillo de `data-hover` son sombras, y una
+                    // sombra sigue el radio DEL PROPIO elemento. Este botón no tenía ninguno: el sombreado salía
+                    // cuadrado dentro de una tarjeta redondeada. El contenedor no puede recortar con
+                    // `overflow:hidden` (se comería el popover absoluto), así que el radio va aquí. Menos 1 px:
+                    // es el radio INTERIOR, por dentro del borde de la tarjeta.
+                    borderRadius: 'calc(0.75rem - 1px)',
                 }}
             >
                 <Store size={15} style={{ flexShrink: 0, color: 'var(--text-muted)' }} aria-hidden="true" />

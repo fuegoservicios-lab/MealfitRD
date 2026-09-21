@@ -3002,6 +3002,8 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                                 cursor: 'pointer',
                                 transition: 'color 0.2s',
                                 letterSpacing: '0.01em',
+                                // [P1-PLAN-LOTE-151] El velo del ratón es una sombra: sin radio salía cuadrado.
+                                borderRadius: '0.6rem',
                             }}
                             onMouseOver={(e) => {
                                 e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
