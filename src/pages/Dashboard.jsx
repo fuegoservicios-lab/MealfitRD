@@ -16,9 +16,10 @@ import {
     Brain, Wallet, AlertCircle, Dumbbell,
     Lightbulb, Wand2, Clock, BookOpen, Loader2, Target, ShoppingCart, ChevronDown,
     ThumbsDown, Shuffle, X, Utensils, Copy, ChevronRight, Refrigerator,
-    CalendarClock
+    CalendarClock, Snowflake, MoonStar
 } from 'lucide-react';
 import { toast } from 'sonner';
+import StatusNotice from '../components/dashboard/StatusNotice';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. `useT()` dentro de componentes
 // (es lo que los suscribe al cambio de idioma); `t`/`tn` de módulo para los helpers
 // que viven FUERA de React (los `resolve*` exportados, las tablas de copy). Las
@@ -7731,6 +7732,25 @@ const DashboardInner = () => {
                 </motion.div>
             )}
 
+            {/* [P1-PLAN-FREEZE · 2026-07-11] Plan congelado por Nevera vacía: banner
+                persistente (sin X — el estado es accionable, no descartable). Tus días
+                NO corren mientras esté congelado; el restock lo reanuda solo.
+                [P1-PLAN-LOTE-144] Es lo ÚNICO de esta zona que le pide algo al usuario, así que va
+                primero (vivía debajo de los micronutrientes) y con peso de tarjeta: insignia, título
+                y botón lleno. Colores por token — los de antes estaban clavados para el tema oscuro. */}
+            {planData?._frozen_at && (
+                <StatusNotice
+                    peso="accion"
+                    tono="hielo"
+                    icono={<Snowflake size={21} />}
+                    titulo={t('Plan congelado — tu Nevera está vacía')}
+                    accion={t('Reponer mi Nevera →')}
+                    onAccion={() => navigate('/dashboard/pantry')}
+                >
+                    {t('Tus días NO están corriendo: no pierdes nada. Transfiere tu compra a la Nevera y el plan se reanuda solo, retomando exactamente donde quedó.')}
+                </StatusNotice>
+            )}
+
             {/* [P1-PLAN-POLL-BOUNDED · 2026-07-29] El poll de nuevas semanas
                 (AssessmentContext, `/plans-data/latest`) se rindió tras ~30min
                 "activo, sin progreso" — ver hooks/usePlanPollLoop.js. Sin esto, dejar
@@ -7745,19 +7765,16 @@ const DashboardInner = () => {
                 (days=0) ya es la señal más fuerte — esta anotación cubre el caso que
                 ESE banner no cubre (semanas ya materializadas, o `days=0` con
                 `hasPendingPipelineInFlight()` suprimiendo el banner localmente). */}
-            {planPollGaveUp && !isPlanCorrupted && planData?.generation_status === 'partial' && (
-                <div
-                    style={{
-                        borderBottom: '2px solid rgba(147, 197, 253, 0.3)',
-                        paddingBottom: '0.75rem',
-                        marginBottom: '1.5rem',
-                        fontSize: '0.85rem',
-                        color: 'var(--text-muted)',
-                        display: 'flex',
-                        alignItems: 'baseline',
-                        gap: '0.6rem',
-                        flexWrap: 'wrap',
-                    }}
+            {/* [P1-PLAN-LOTE-144] Con el plan CONGELADO este aviso calla: «todo va bien» encima de «plan congelado»
+                eran dos verdades que se leían como una contradicción, y la que pide algo al usuario es la otra. */}
+            {planPollGaveUp && !isPlanCorrupted && planData?.generation_status === 'partial' && !(planData?._frozen_at) && (
+                <StatusNotice
+                    peso="calma"
+                    tono="bien"
+                    icono={<MoonStar size={15} />}
+                    accion={t('Comprobar ahora')}
+                    iconoAccion={<RefreshCw size={13} />}
+                    onAccion={() => { hydrateLatestPlan?.({ force: true, src: 'give-up-retry' }); restartPlanPoll?.(); }}
                 >
                     {/* [P2-POLL-BANNER-COPY · 2026-09-06] El texto anterior contaba el MECANISMO
                         —«dejamos de revisar si llegaron tus próximas semanas»— y el dueño lo leyó como un
@@ -7766,27 +7783,8 @@ const DashboardInner = () => {
                         el servidor ni la batería; el plan está perfectamente. El aviso dice ahora eso, en
                         ese orden: primero que no pasa nada, luego por qué se detuvo, y por último que no
                         hace falta hacer nada. El botón se queda para quien no quiera esperar. */}
-                    <span>
-                        {t('Todo va bien: las próximas semanas de tu plan se preparan en su fecha. Dejamos de comprobarlo cada poco para no gastar batería, y lo miramos otra vez cuando vuelvas a abrir la app.')}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => { hydrateLatestPlan?.({ force: true, src: 'give-up-retry' }); restartPlanPoll?.(); }}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            color: 'var(--accent)',
-                            fontWeight: 600,
-                            fontSize: '0.85rem',
-                            cursor: 'pointer',
-                            textDecoration: 'underline',
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
-                        {t('Comprobar ahora')}
-                    </button>
-                </div>
+                    {t('Todo va bien: las próximas semanas de tu plan se preparan en su fecha. Dejamos de comprobarlo cada poco para no gastar batería, y lo miramos otra vez cuando vuelvas a abrir la app.')}
+                </StatusNotice>
             )}
 
             {/* [P3-RESTOCK-NUDGE · 2026-06-23] Banner + prompt + auto-fill de respaldo
@@ -8025,36 +8023,6 @@ const DashboardInner = () => {
                 saber que el sistema "se rindió" y que puede usar Cambiar Plato
                 para iterar manualmente. Flag viene de `plan_data._quality_degraded`
                 seteado en `should_retry` cuando `attempt >= MAX_ATTEMPTS=3`. */}
-            {/* [P1-PLAN-FREEZE · 2026-07-11] Plan congelado por Nevera vacía: banner
-                persistente (sin X — el estado es accionable, no descartable). Tus días
-                NO corren mientras esté congelado; el restock lo reanuda solo. */}
-            {planData?._frozen_at && (
-                <div style={{
-                    background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.35)',
-                    borderRadius: 14, padding: '14px 18px', margin: '0 0 14px',
-                    display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
-                }}>
-                    <div style={{ fontSize: 26 }}>🧊</div>
-                    <div style={{ flex: 1, minWidth: 220 }}>
-                        <div style={{ fontWeight: 800, color: '#7dd3fc', fontSize: 14 }}>
-                            {t('Plan congelado — tu Nevera está vacía')}
-                        </div>
-                        <div style={{ fontSize: 12.5, color: '#9fb3c8', marginTop: 3, lineHeight: 1.45 }}>
-                            {t('Tus días NO están corriendo: no pierdes nada. Transfiere tu compra a la Nevera y el plan se reanuda solo, retomando exactamente donde quedó.')}
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => navigate('/dashboard/pantry')}
-                        style={{
-                            padding: '9px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                            background: '#38bdf8', color: '#082f49', fontWeight: 800, fontSize: 13,
-                        }}
-                    >
-                        {t('Reponer mi Nevera →')}
-                    </button>
-                </div>
-            )}
             {planData?._quality_degraded && planData?._quality_degraded_severity === 'high' && !qDegradedHidden && (
                 <motion.div
                     initial={{ opacity: 0, y: -8 }}

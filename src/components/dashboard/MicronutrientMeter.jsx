@@ -225,23 +225,28 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
     if (_allZero) {
         return (
             <motion.section
-                className={styles.panel}
+                className={`${styles.panel} ${styles.panelQuiet}`}
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 role="region"
                 aria-label={t('Micronutrientes')}
             >
+                {/* [P1-PLAN-LOTE-144] En espera NO es un panel: es una fila. La cabecera de panel (insignia llena,
+                    halo, sombra) prometía contenido y debajo había una frase; ahora la insignia va en contorno,
+                    el estado es una píldora y la frase cuelga del título. */}
                 <header className={styles.head}>
                     <span className={styles.badge} aria-hidden="true"><FlaskIcon /></span>
                     <div className={styles.headText}>
-                        <h3 className={styles.title}>{t('Micronutrientes')}</h3>
-                        <span className={styles.sub}>{t('En espera de tus platos')}</span>
+                        <div className={styles.quietTop}>
+                            <h3 className={styles.title}>{t('Micronutrientes')}</h3>
+                            <span className={styles.quietPill}>{t('En espera de tus platos')}</span>
+                        </div>
+                        <p className={styles.emptyNote}>
+                            {t('Aún no hay platos que medir. Cuando tu plan tenga comidas, aquí verás cuánto aportan a cada micronutriente.')}
+                        </p>
                     </div>
                 </header>
-                <p className={styles.emptyNote}>
-                    {t('Aún no hay platos que medir. Cuando tu plan tenga comidas, aquí verás cuánto aportan a cada micronutriente.')}
-                </p>
             </motion.section>
         );
     }

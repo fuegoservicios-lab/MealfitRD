@@ -211,6 +211,31 @@
    — es información de espera, no un aviso. */
 .emptyNote { margin: 12px 2px 2px; font-size: .82rem; line-height: 1.55; color: var(--text-muted); }
 
+/* [P1-PLAN-LOTE-144 · 2026-09-20] El estado en espera es una FILA, no un panel: sin halo ni sombra, borde
+   discontinuo (hueco que se llenará), insignia en contorno y el estado como píldora junto al título. */
+.panelQuiet {
+  background: color-mix(in srgb, var(--surface-sunken) 45%, transparent);
+  border-style: dashed;
+  box-shadow: none;
+  padding: 14px 16px;
+  margin-bottom: 1.25rem;
+}
+:global(html[data-theme="dark"]) .panelQuiet { background: color-mix(in srgb, var(--bg-card) 60%, transparent); }
+.panelQuiet .head { align-items: center; }
+.panelQuiet .badge {
+  width: 34px; height: 34px; border-radius: 11px;
+  color: var(--ink-ok); background: color-mix(in srgb, #2DD4BF 14%, transparent);
+  border: 1px solid color-mix(in srgb, #2DD4BF 32%, transparent); box-shadow: none;
+}
+.panelQuiet .badge svg { width: 17px; height: 17px; }
+.panelQuiet .title { font-size: .95rem; }
+.panelQuiet .emptyNote { margin: 3px 0 0; font-size: .8rem; line-height: 1.5; }
+.quietTop { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.quietPill {
+  font-size: .68rem; font-weight: 700; letter-spacing: .01em; padding: 3px 9px; border-radius: 999px;
+  color: var(--text-muted); background: var(--mn-sunken); border: 1px solid var(--mn-line);
+}
+
 /* ---------- Chips "Al día" (expandibles → cantidad exacta) ---------- */
 .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; align-items: start; }
 .q {
