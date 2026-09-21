@@ -116,7 +116,7 @@ import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
-import { alternarCierreNativo, alternarTecladoNativo, binarioMueveElChat, enviarAlNativo, geometriaParaNativo, nativoCubreElCierre, tecladoNativoEncendido, NATIVO_ESPERA_ABRIR_MS, NATIVO_ESPERA_CERRAR_MS } from '../utils/keyboardNative';
+import { alternarCierreNativo, alternarNativoVivo, alternarTecladoNativo, binarioMueveElChat, binarioMueveLaPagina, enviarAlNativo, geometriaParaNativo, nativoCubreElCierre, nativoVivoElegido, tecladoNativoEncendido, NATIVO_ESPERA_ABRIR_MS, NATIVO_ESPERA_CERRAR_MS, NATIVO_FIN_MARGEN_MS } from '../utils/keyboardNative';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
 import { nativeHidesCommerce } from '../config/platform';
 
@@ -1117,7 +1117,7 @@ const AgentPage = () => {
         //   · el aviso llega con `cubierto:true`: el layout final se pone DE GOLPE (sin transición: lo tapa la captura, que
         //     es la que se mueve con el teclado) y, asentado, se contesta `listo` para que el binario retire la captura;
         //   · sin aviso a tiempo, o con `cubierto:false` (con su motivo en la sonda), todo sigue por el camino de siempre.
-        const nat = { espera: null, timer: null, geoTimer: null, sinEspera: false, padCerrado: 0 };
+        const nat = { espera: null, timer: null, geoTimer: null, finTimer: null, sinEspera: false, padCerrado: 0 };
         const nativoEncendido = () => isNativeApp() && tecladoNativoEncendido();
         const soltarEsperaNativa = () => {
             if (nat.timer) { clearTimeout(nat.timer); nat.timer = null; }
@@ -1139,6 +1139,10 @@ const AgentPage = () => {
                 const r = boton.getBoundingClientRect();
                 if (r.width > 0 && r.top < rc.bottom) fichas.push({ x: r.left, y: r.top, w: r.width, h: r.height, r: getComputedStyle(boton).borderTopLeftRadius });
             }
+            // [142] la sonda (`/sonda`) es fija en pantalla: como pieza quieta no viaja con la captura de la conversación
+            const sonda = document.querySelector('pre[data-mf-sonda]');
+            const rs = sonda ? sonda.getBoundingClientRect() : null;
+            if (rs && rs.width > 0) fichas.push({ x: rs.left, y: rs.top, w: rs.width, h: rs.height, r: '0px' });
             const geometria = geometriaParaNativo({
                 abierto,
                 altoPantalla: altoDeReferencia(window.innerHeight, window.innerWidth),
@@ -1158,6 +1162,9 @@ const AgentPage = () => {
                     modo: scrollModeRef.current,
                 } : null,
                 cubreCierre: nativoCubreElCierre(),
+                // [142] el binario mueve también la página viva: necesita el color del velo de la cabecera para pintarlo él
+                vivo: binarioMueveLaPagina() && nativoVivoElegido(),
+                colorFondo: getComputedStyle(contenedor).backgroundColor,
             });
             return enviarAlNativo(geometria) && geometria.activo;
         };
@@ -1179,16 +1186,33 @@ const AgentPage = () => {
         const alDesplazarParaNativo = (e) => { if (e.target === messagesContainerRef.current) refrescarGeometriaNativa(); };
         const observadorNativo = isNativeApp() && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(refrescarGeometriaNativa) : null;
         if (observadorNativo && inputWrapperRef.current) observadorNativo.observe(inputWrapperRef.current);
-        const confirmarAlNativo = (contenedor, id, abierto) => {
+        // [P1-PLAN-LOTE-142] MODO VIVO: tras `listo` el binario funde sus tiras y lo que se ve moverse es ESTA página (el
+        // WebView entero viaja con un transform nativo). La cabecera es fija en pantalla y viajaría con él: se esconde
+        // durante el viaje (encima están, quietas, las fichas y el velo del binario) y al acabar se repone y se dice `fin`.
+        const acabarVueloNativo = (id) => {
+            if (nat.finTimer) { clearTimeout(nat.finTimer); nat.finTimer = null; }
+            if (!root.hasAttribute('data-kb-vuelo')) return;
+            root.removeAttribute('data-kb-vuelo');
+            if (id == null) return;
+            alSiguienteFotograma(() => alSiguienteFotograma(() => { enviarAlNativo({ tipo: 'fin', id }); marcarSondaTeclado('natFin'); }));
+        };
+        const confirmarAlNativo = (contenedor, id, abierto, { vivo = false, mantener = false, ms = 0 } = {}) => {
+            if (vivo) {
+                root.setAttribute('data-kb-vuelo', '');
+                if (nat.finTimer) clearTimeout(nat.finTimer);
+                nat.finTimer = setTimeout(() => { nat.finTimer = null; acabarVueloNativo(id); }, Math.max(0, ms) + NATIVO_FIN_MARGEN_MS);
+            }
             alSiguienteFotograma(() => alSiguienteFotograma(() => {
                 descongelarAlto(contenedor);
                 if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
                 mandarGeometriaNativa(abierto);
-                enviarAlNativo({ tipo: 'listo', id });
+                // `mantener`: una apertura que no nació de un toque (la vuelta del selector de fotos) suele re-anunciarse
+                // (308 → 335): ahí las tiras se quedan puestas hasta el final, que tapan el segundo salto del layout
+                enviarAlNativo({ tipo: 'listo', id, mantener });
                 marcarSondaTeclado('natOk');
             }));
         };
-        const abrirBajoCobertura = (contenedor, inset, id, veniaDelFoco) => {
+        const abrirBajoCobertura = (contenedor, inset, id, veniaDelFoco, vuelo) => {
             const lista = messagesContainerRef.current;
             const estabaAbierto = tecladoAbiertoRef.current;
             if (!estabaAbierto && !veniaDelFoco) { ultimaAccionAlAbrirRef.current = 'nada'; alAbrirTecladoRef.current?.({ instantaneo: true }); }
@@ -1219,9 +1243,9 @@ const AgentPage = () => {
                 abriendoRef.current = false;
                 updateInputPosition(true);
             }, 900);
-            confirmarAlNativo(contenedor, id, true);
+            confirmarAlNativo(contenedor, id, true, { ...vuelo, mantener: !veniaDelFoco });
         };
-        const cerrarBajoCobertura = (contenedor, id) => {
+        const cerrarBajoCobertura = (contenedor, id, vuelo) => {
             congelarAlto(contenedor);
             cerrandoRef.current = true;
             abriendoRef.current = false;
@@ -1234,7 +1258,7 @@ const AgentPage = () => {
             if (inputWrapperRef.current) inputWrapperRef.current.style.transform = '';
             void contenedor.offsetHeight;
             marcarSondaTeclado('nat-');
-            confirmarAlNativo(contenedor, id, false);
+            confirmarAlNativo(contenedor, id, false, vuelo);
         };
         // El aviso del binario, visto desde el modo nativo. Devuelve true si el chat ya quedó colocado bajo la captura.
         const atenderCoberturaNativa = (detalle, aviso) => {
@@ -1253,8 +1277,9 @@ const AgentPage = () => {
                 enviarAlNativo({ tipo: 'listo', id });        // cubrió sin que nadie vaya a colocar nada: que retire ya
                 return false;
             }
-            if (aviso.accion === 'cerrar') cerrarBajoCobertura(contenedor, id);
-            else abrirBajoCobertura(contenedor, aviso.inset, id, enEspera === 'abre');
+            const vuelo = { vivo: detalle.vivo === true, ms: aviso.ms };
+            if (aviso.accion === 'cerrar') cerrarBajoCobertura(contenedor, id, vuelo);
+            else abrirBajoCobertura(contenedor, aviso.inset, id, enEspera === 'abre', vuelo);
             return true;
         };
         const esperarAperturaNativa = (campo) => {
@@ -1469,6 +1494,7 @@ const AgentPage = () => {
             if (abriendoTimer) clearTimeout(abriendoTimer);
             // [140] al salir del chat el binario deja de cubrir: su geometría ya no describe lo que hay en pantalla
             soltarEsperaNativa();
+            acabarVueloNativo(null);
             if (nat.geoTimer) clearTimeout(nat.geoTimer);
             observadorNativo?.disconnect();
             document.removeEventListener('scroll', alDesplazarParaNativo, { capture: true });
@@ -3468,11 +3494,16 @@ const AgentPage = () => {
         }
         // [P1-PLAN-LOTE-140] `/nativo` enciende/apaga que el BINARIO mueva el chat con el teclado (modo de PRUEBA, apagado
         // por defecto; necesita el build que trae `CoberturaDelTeclado`). `/nativo cierre` decide si también cubre el cierre.
-        const ordenNativo = isNativeApp() ? /^\/nativo( cierre)?$/.exec(textToSend.trim().toLowerCase()) : null;
+        const ordenNativo = isNativeApp() ? /^\/nativo( cierre| vivo)?$/.exec(textToSend.trim().toLowerCase()) : null;
         if (ordenNativo) {
             setInput('');
             if (!binarioMueveElChat()) {
                 toast.info(t('Esta prueba necesita la versión nueva de la app'));
+                return;
+            }
+            if (ordenNativo[1] === ' vivo') {
+                // [142] `/nativo vivo`: que viaje también la página viva (por defecto, si el binario sabe) o solo capturas (141)
+                toast.info(alternarNativoVivo() ? t('Teclado nativo: página viva') : t('Teclado nativo: solo captura'));
                 return;
             }
             if (ordenNativo[1]) {
@@ -6498,6 +6529,12 @@ const AgentPage = () => {
                     }
                     /* [P1-PLAN-LOTE-131] En el relevo de la coreografia el relleno cambia de golpe, a proposito: lo que se ve
                        lo lleva (o lo acaba de soltar) un transform, y animar ademas el relleno moveria la caja dos veces. */
+                    /* [P1-PLAN-LOTE-142] Con el binario moviendo la página VIVA (el WebView entero viaja), lo que es fijo en
+                       pantalla viajaría con él: durante el viaje se esconde — encima están, quietas, las copias del binario. */
+                    html[data-kb-vuelo] .mobile-chat-header,
+                    html[data-kb-vuelo] pre[data-mf-sonda] {
+                        visibility: hidden !important;
+                    }
                     html[data-kb-sin-anim] .input-wrapper {
                         transition: none !important;
                     }
