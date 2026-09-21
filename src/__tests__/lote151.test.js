@@ -91,6 +91,35 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
         expect(sn).toContain('box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--sn-tone) 80%, transparent);');
     });
 
+    it('las tarjetas del paso 1 responden al ratón también ELEGIDAS y también en oscuro', () => {
+        // «estos no tienen el sombreado al pasarle el mouse por encima» (paso 1 del formulario). Sí lo tenían:
+        // era invisible. La sombra iba en NEGRO sobre fondo oscuro, y la tarjeta seleccionada no respondía porque
+        // `.radioCard.checked` se declara DESPUÉS de `.radioCard:hover` con la misma especificidad y le ganaba.
+        const css = leer('src/components/common/FormUI.module.css');
+        expect(css).toContain('.radioCard.checked:not([aria-disabled]):hover {');
+        // el hover se anuncia con el borde + una sombra TEÑIDA, que se ve en los dos temas
+        const i = css.indexOf('.radioCard:not([aria-disabled]):hover {');
+        const regla = css.slice(i, css.indexOf('}', i));
+        expect(regla).toContain('border-color: color-mix(in srgb, var(--primary) 45%, var(--border));');
+        expect(regla).toContain('var(--primary)');
+        // y en oscuro ya SOLO se toca el fondo: repetir borde y sombra era lo que lo dejaba mudo
+        const j = css.indexOf('[data-theme="dark"]) .radioCard:not(.checked):not([aria-disabled]):hover {');
+        expect(j).toBeGreaterThan(-1);
+        const oscuro = css.slice(j, css.indexOf('}', j));
+        expect(oscuro).not.toContain('border-color');
+        expect(oscuro).not.toContain('box-shadow');
+        // ninguna sombra negra sobre las tarjetas: era el modo de fallo
+        expect(css).not.toContain('box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);');
+        // una tarjeta apagada NO reacciona: invitaría a un clic que no hace nada
+        expect(css).not.toMatch(/\.radioCard:hover\s*\{/);
+    });
+
+    it('los dos botones del diálogo de confirmación declaran su variante', () => {
+        const dlg = leer('src/components/common/ConfirmDialog.jsx');
+        expect(dlg).toMatch(/data-hover="fila"\s+onClick=\{onCancel\}/);
+        expect(dlg).toMatch(/data-hover="boton"\s+onClick=\{onConfirm\}/);
+    });
+
     it('las tres variantes siguen pintando con sombras — que es POR QUÉ hace falta el radio', () => {
         const css = leer('src/index.css');
         expect(css).toContain('[data-hover="fila"]:not(:disabled):hover');

@@ -37,8 +37,12 @@ const ConfirmDialog = ({ req, onCancel, onConfirm }) => {
                         </p>
                     )}
                     <div style={{ display: 'flex', gap: '0.6rem' }}>
+                        {/* [P1-PLAN-LOTE-151] Los dos botones del diálogo no contestaban al ratón: su estilo es EN
+                            LÍNEA, que no admite `:hover`. Cada uno con su variante — fantasma el de cancelar, lleno
+                            el de confirmar. */}
                         <button
                             type="button"
+                            data-hover="fila"
                             onClick={onCancel}
                             style={{
                                 flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
@@ -50,6 +54,7 @@ const ConfirmDialog = ({ req, onCancel, onConfirm }) => {
                         </button>
                         <button
                             type="button"
+                            data-hover="boton"
                             onClick={onConfirm}
                             className={req.danger ? 'ui-btn-danger' : undefined}
                             autoFocus

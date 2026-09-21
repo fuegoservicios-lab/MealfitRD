@@ -91,10 +91,25 @@
 
 /* [FORM-STATIC-HOVER · 2026-07-03] Sin translateY en hover/checked — las cards
    no se mueven (mismo pedido del usuario que calmó .mf-cta-btn). */
-.radioCard:hover {
-    background: #FAFAFA;
-    border-color: #CBD5E1;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+/* [P1-PLAN-LOTE-151 · 2026-09-21] El dueño, con captura del paso 1: «estos no tienen el sombreado al
+   pasarle el mouse por encima». Sí lo tenían — pero era invisible donde él mira. Dos causas:
+     · la sombra era NEGRA al 5 % (25 % en oscuro) sobre un fondo oscuro: nada;
+     · y la tarjeta SELECCIONADA no respondía en absoluto, porque `.radioCard.checked` se declara
+       DESPUÉS de `.radioCard:hover` con la misma especificidad y le ganaba background y borde.
+   Ahora el hover se anuncia con el BORDE y una sombra teñida de `--primary`, que se ve en los dos
+   temas; el fondo, que es lo único que cambia por tema, queda en su regla propia. `:not(.checked)`
+   para no borrar el tinte de la elegida, y `:not([aria-disabled])` porque una tarjeta apagada que
+   reacciona invita a un clic que no hace nada. */
+.radioCard:not(.checked):not([aria-disabled]):hover {
+    background: color-mix(in srgb, var(--primary) 4%, white);
+}
+.radioCard:not([aria-disabled]):hover {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--primary) 50%, transparent);
+}
+.radioCard.checked:not([aria-disabled]):hover {
+    border-color: var(--primary);
+    box-shadow: 0 8px 20px -6px color-mix(in srgb, var(--primary) 55%, transparent);
 }
 
 .radioCard.checked {
@@ -306,10 +321,11 @@
     border-color: var(--border);
 }
 
-:global(html[data-theme="dark"]) .radioCard:hover {
+/* [P1-PLAN-LOTE-151] En oscuro solo cambia el FONDO: el borde y la sombra teñida ya los pone la regla
+   de arriba y valen para los dos temas. Repetirlos aquí era lo que devolvía el borde a su color de
+   reposo —el hover no se notaba— y ponía una sombra negra sobre un fondo negro. */
+:global(html[data-theme="dark"]) .radioCard:not(.checked):not([aria-disabled]):hover {
     background: var(--bg-muted);
-    border-color: var(--border);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 :global(html[data-theme="dark"]) .radioCard.checked {
