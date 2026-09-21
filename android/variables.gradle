@@ -1,0 +1,28 @@
+ext {
+    minSdkVersion = 24
+    compileSdkVersion = 36
+    // [P1-PLAN-LOTE-152 · 2026-09-21] 34 a propósito, no 36.
+    //
+    // Desde `targetSdk` 35 Android IMPONE el modo de borde a borde: la app dibuja DEBAJO de la barra de estado
+    // y de la de navegación, y es la app quien tiene que apartarse. Nuestro CSS lo resuelve con
+    // `env(safe-area-inset-*)`, que en el WebView de Android devuelve 0 salvo que el contenedor le pase los
+    // insets — cosa que este proyecto no hace todavía. Con 36 la cabecera quedaría por debajo del reloj y la
+    // batería en TODAS las pantallas, y eso no se descubre hasta tener un teléfono delante.
+    //
+    // Con 34 el sistema dibuja sus barras como siempre y la app queda entre ellas, igual que en iOS. Es una
+    // decisión de la PRUEBA con testers, no definitiva: Play exige 35+ para publicar o actualizar, así que
+    // antes de subirla a Play hay que medir los insets en un dispositivo y subir este número. Para repartir el
+    // APK a mano a 5 personas, Play no interviene.
+    targetSdkVersion = 34
+    androidxActivityVersion = '1.11.0'
+    androidxAppCompatVersion = '1.7.1'
+    androidxCoordinatorLayoutVersion = '1.3.0'
+    androidxCoreVersion = '1.17.0'
+    androidxFragmentVersion = '1.8.9'
+    coreSplashScreenVersion = '1.2.0'
+    androidxWebkitVersion = '1.14.0'
+    junitVersion = '4.13.2'
+    androidxJunitVersion = '1.3.0'
+    androidxEspressoCoreVersion = '3.7.0'
+    cordovaAndroidVersion = '14.0.1'
+}

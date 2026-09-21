@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- [P1-PLAN-LOTE-152 · 2026-09-21] Solo van AQUÍ los permisos que ningún plugin declara por su cuenta.
+         Capacitor fusiona el manifiesto de cada plugin con éste, así que repetirlos sería ruido que luego
+         nadie sabe si se puede quitar. Ya los traen sus dueños:
+           · @capacitor/local-notifications → POST_NOTIFICATIONS, SCHEDULE_EXACT_ALARM, RECEIVE_BOOT_COMPLETED,
+             WAKE_LOCK (los avisos de comida y agua, que en la app nativa se programan en el teléfono).
+           · @capacitor/haptics → VIBRATE.
+         @capacitor/camera NO trae manifiesto: sus permisos son estos tres y son nuestros.
+
+         READ_MEDIA_IMAGES y READ_EXTERNAL_STORAGE son la MISMA necesidad en dos épocas de Android: elegir una
+         foto de la galería para el escáner. Desde Android 13 (API 33) el permiso viejo ya no se concede, y por
+         eso el viejo lleva `maxSdkVersion="32"`: sin ese tope, Play lo marca como permiso amplio innecesario.
+         No pedimos WRITE_EXTERNAL_STORAGE: la app no guarda nada en la galería (en iOS sí existe
+         NSPhotoLibraryAddUsageDescription, pero es para el mismo caso que aquí no aplica). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+    <!-- La cámara es OPCIONAL: sin esto, Play Store esconde la app a las tablets sin cámara, y el escáner es
+         una función más del contador, no la app entera. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+</manifest>

@@ -3,7 +3,9 @@
   "enabled": true,
   "reset": false,
   "minNativeBuild": 13,
+  "_nota_lote_152": "@capacitor/android entra SIN subir minNativeBuild, por la misma razon que local-notifications en el 133: es una PLATAFORMA nueva, no una capacidad nueva del binario de iOS. Subir el umbral habria dejado sin OTA a los iPhone instalados por un cambio que no les afecta. El primer APK nace con versionCode 100 (android/app/build.gradle), por encima del umbral, asi que Android si recibe OTA desde el dia uno.",
   "nativeDeps": {
+    "@capacitor/android": "^8.5.2",
     "@capacitor/camera": "^8.2.3",
     "@capacitor/core": "^8.5.0",
     "@capacitor/haptics": "^8.0.2",

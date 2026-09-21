@@ -1,0 +1,65 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "com.bioboros.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.bioboros.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        // [P1-PLAN-LOTE-152 · 2026-09-21] 100, no 1, y no es cosmético: es lo que decide si Android RECIBE las
+        // actualizaciones OTA. El manifiesto OTA lleva `minNativeBuild` (hoy 13) y cada binario lo compara con
+        // SU número de build (`decidirOta` → `binario_antiguo`). Con 1, el primer APK de Android nacería por
+        // debajo del umbral y rechazaría TODOS los paquetes OTA: durante una prueba con testers, cada arreglo
+        // exigiría un APK nuevo repartido a mano.
+        //
+        // El umbral es UNO para las dos plataformas, pero las numeraciones son independientes (iOS va por ~17,
+        // lo pone App Store Connect). Android arranca alto a propósito para no cruzarse con esa cuenta: el
+        // primer APK de Android es, por definición, el binario más nuevo que existe para Android, así que pasar
+        // el umbral es lo correcto. Lo que de verdad protege de usar un plugin que el binario no trae es
+        // `nativePluginAvailable`, que pregunta por el plugin concreto.
+        versionCode 100
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

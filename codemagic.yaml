@@ -20,6 +20,70 @@
 #   por ese nombre y nunca lo contiene.
 
 workflows:
+  # [P1-PLAN-LOTE-152 · 2026-09-21] Android → APK para repartir a mano.
+  #
+  # Hasta hoy «probar en Android» significaba abrir la web en Chrome, que es otra cosa: sin avisos en el
+  # teléfono, sin cámara nativa, sin OTA. Esta tanda de pruebas tiene testers de Android, así que hace falta
+  # un binario.
+  #
+  # CUATRO DECISIONES:
+  #   1. Linux, no Mac. Android no necesita macOS y los minutos de Mac son los caros (500/mes).
+  #   2. `assembleDebug`, no release. Un APK de depuración se instala igual y NO necesita almacén de claves:
+  #      el día 1 hay APK sin que el dueño configure nada. La firma de release hace falta para PLAY, y a Play
+  #      no vamos todavía — el paso de abajo explica cómo cambiarlo cuando toque.
+  #   3. Mismo `build:native` que iOS: la API absoluta y el bundle SIN claves de pago. Lo segundo es una regla
+  #      de Apple, no de Google, pero un solo bundle para las dos tiendas es una cosa menos que pueda divergir.
+  #   4. Sin `triggering`: a mano, como el de iOS.
+  #
+  # NO HAY QUE CONFIGURAR NADA EN CODEMAGIC para este flujo. El APK sale en los artefactos del build.
+  android-apk:
+    name: Android → APK (testers)
+    instance_type: linux_x2
+    max_build_duration: 45
+
+    environment:
+      node: 22
+      java: 21
+
+    scripts:
+      - name: Dependencias web (lockfile, reproducible)
+        script: npm ci
+
+      - name: Build web para el BINARIO
+        script: npm run build:native
+
+      - name: Sanidad del bundle nativo
+        # El mismo guard que iOS. El de los IDs de PayPal se mantiene aquí a propósito: el bundle es el
+        # mismo y si un día alguien lo rompe, que salte en los dos sitios y no en uno.
+        script: |
+          set -e
+          if grep -rqE --include="*.js" "P-[0-9A-Z]{24,26}" dist/assets/; then
+            echo "ERROR: hay plan IDs de PayPal dentro del bundle nativo"; exit 1
+          fi
+          if ! grep -rq "https://app.bioboros.com" dist/assets/; then
+            echo "ERROR: el bundle no lleva la API absoluta (VITE_API_BASE_URL)"; exit 1
+          fi
+          echo "bundle nativo OK"
+
+      - name: Capacitor sync
+        # Copia dist/ a android/app/src/main/assets/public y actualiza los plugins.
+        script: npx cap sync android
+
+      - name: APK
+        # Para pasar a RELEASE firmado (el día que vayamos a Play): subir el almacén de claves a Codemagic
+        # (Code signing identities → Android keystore, referencia `bioboros_android`), añadir arriba
+        #   android_signing:
+        #     - bioboros_android
+        # y cambiar esta línea por `./gradlew assembleRelease`. El artefacto pasa a app-release.apk.
+        script: |
+          set -e
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+        working_directory: android
+
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+
   ios-testflight:
     name: iOS → TestFlight
     # Apple Silicon. Xcode lo fija Codemagic; si un build rompe por versión de Xcode,

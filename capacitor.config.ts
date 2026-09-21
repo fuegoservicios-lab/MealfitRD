@@ -33,6 +33,27 @@ const config: CapacitorConfig = {
     // nativo no debe superponer un fondo blanco al arrancar.
     backgroundColor: '#0b0b0b',
   },
+  // [P1-PLAN-LOTE-152 · 2026-09-21] Android. Hasta hoy el único binario era el de iOS y «probar en Android»
+  // significaba abrir la web en Chrome — otra cosa distinta.
+  //
+  // Lo que NO se replica de iOS, a propósito:
+  //   · `appendUserAgent: 'BioborosNative/mic'`. Esa marca dice «este binario trae los permisos de micrófono del
+  //     Info.plist», y es una respuesta a un problema de iOS. En el WebView de Android no existe
+  //     `SpeechRecognition` (es de Chrome, no del WebView), así que el dictado se esconde solo por su propia
+  //     comprobación. Ponerla aquí pintaría un micrófono muerto.
+  //   · `contentInset`. Es de UIScrollView; en Android el notch lo resuelve el CSS con `env(safe-area-inset-*)`.
+  android: {
+    // EXPLÍCITO, no por defecto: de este esquema sale el ORIGEN del WebView (`https://localhost`), y ese
+    // origen tiene que estar en la lista CORS del backend. Dejarlo implícito significa que un cambio de
+    // versión de Capacitor puede mover el origen y tirar todas las llamadas a la API sin tocar una línea
+    // nuestra. iOS usa `capacitor://localhost` y lleva en la lista desde agosto; Android es el que faltaba.
+    androidScheme: 'https',
+    // Mismo negro que iOS: el WebView no debe destellar en blanco al arrancar.
+    backgroundColor: '#0b0b0b',
+    // El WebView de Android permite depurar con Chrome DevTools solo si se pide. Con 5 testers y sin poder
+    // tocarles el teléfono, poder mirar la consola por USB vale más que esconderla.
+    webContentsDebuggingEnabled: true,
+  },
   plugins: {
     PushNotifications: { presentationOptions: ['badge', 'sound', 'alert'] },
     // [P1-PLAN-LOTE-108] OTA autoalojada (src/native/liveUpdate.js). SIN `appId` ni

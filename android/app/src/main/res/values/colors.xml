@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  [P1-PLAN-LOTE-152 · 2026-09-21] La plantilla de Capacitor deja `styles.xml` citando tres colores
+  (`colorPrimary`, `colorPrimaryDark`, `colorAccent`) y NO crea el fichero que los define: sin esto el
+  build de Android falla con «resource color/colorPrimary not found» antes de compilar una sola línea.
+
+  Los valores son los de la marca, los mismos que usa el binario de iOS:
+    · primary      índigo de la app (`--primary-fill`, el relleno de los botones).
+    · primaryDark  el negro del arranque, igual que `backgroundColor` de capacitor.config.ts y que el
+                   `#0b0b0b` de iOS: si difieren, el destello del arranque se ve de otro color.
+    · accent       el mismo índigo; no hay un acento distinto en el sistema de la app.
+-->
+<resources>
+    <color name="colorPrimary">#4F46E5</color>
+    <color name="colorPrimaryDark">#0B0B0B</color>
+    <color name="colorAccent">#4F46E5</color>
+    <!-- Fondo del arranque, para que el WebView no destelle en blanco antes de pintar. -->
+    <color name="splashBackground">#0B0B0B</color>
+</resources>
