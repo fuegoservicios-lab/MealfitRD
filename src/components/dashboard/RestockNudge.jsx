@@ -464,7 +464,7 @@ export default function RestockNudge({
                                     <Check size={17} strokeWidth={2.4} />
                                     {t('Sí, ya compré — llenar mi Nevera')}
                                 </button>
-                                <button
+                                <button data-hover="fila"
                                     type="button"
                                     onClick={todaviaNo}
                                     style={{

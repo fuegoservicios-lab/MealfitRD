@@ -3314,7 +3314,7 @@ const Pantry = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <button
+                                            <button data-hover="fila"
                                                 disabled={isAdding}
                                                 style={{
                                                     background: isPickerOpen
@@ -3350,7 +3350,7 @@ const Pantry = () => {
                                                                 background: 'var(--bg-card)', borderRadius: '99px', padding: '0.35rem',
                                                                 border: '1px solid var(--border)',
                                                             }}>
-                                                                <button
+                                                                <button data-hover="fila"
                                                                     type="button"
                                                                     onClick={() => setPickerQty(q => Math.max(1, q - 1))}
                                                                     disabled={pickerQty <= 1}
@@ -3370,7 +3370,7 @@ const Pantry = () => {
                                                                 }}>
                                                                     {pickerQty}
                                                                 </span>
-                                                                <button
+                                                                <button data-hover="boton"
                                                                     type="button"
                                                                     onClick={() => setPickerQty(q => Math.min(999, q + 1))}
                                                                     style={{
@@ -3409,7 +3409,7 @@ const Pantry = () => {
                                                                     ])).map(unit => {
                                                                         const isActive = pickerUnit === unit;
                                                                         return (
-                                                                            <button
+                                                                            <button data-hover="fila"
                                                                                 type="button"
                                                                                 key={unit}
                                                                                 onClick={() => setPickerUnit(unit)}
@@ -3474,7 +3474,7 @@ const Pantry = () => {
                                                         )}
 
                                                         {/* Preview + Botón confirmar */}
-                                                        <button
+                                                        <button data-hover="boton"
                                                             type="button"
                                                             disabled={isAdding}
                                                             onClick={() => handleAddNewItem(item, pickerQty, pickerUnit)}
@@ -3628,7 +3628,7 @@ const Pantry = () => {
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
                                 marginBottom: '1.25rem',
                             }}>
-                                <button
+                                <button data-hover="fila"
                                     type="button"
                                     onClick={() => setQtyEditValue(v => Math.max(0, (Number(v) || 0) - 1))}
                                     disabled={qtyEditSaving || qtyEditValue <= 0}
@@ -3674,7 +3674,7 @@ const Pantry = () => {
                                         outline: 'none',
                                     }}
                                 />
-                                <button
+                                <button data-hover="boton"
                                     type="button"
                                     onClick={() => setQtyEditValue(v => Math.min(999, (Number(v) || 0) + 1))}
                                     disabled={qtyEditSaving || qtyEditValue >= 999}
@@ -3699,7 +3699,7 @@ const Pantry = () => {
                                 justifyContent: 'center', marginBottom: '1.5rem',
                             }}>
                                 {[1, 2, 5, 10, 20].map(preset => (
-                                    <button
+                                    <button data-hover="fila"
                                         type="button"
                                         key={preset}
                                         onClick={() => setQtyEditValue(preset)}
@@ -3735,7 +3735,7 @@ const Pantry = () => {
 
                             {/* Botones */}
                             <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <button
+                                <button data-hover="fila"
                                     type="button"
                                     onClick={() => setQtyEditItem(null)}
                                     disabled={qtyEditSaving}
@@ -3747,7 +3747,7 @@ const Pantry = () => {
                                 >
                                     {t('Cancelar')}
                                 </button>
-                                <button
+                                <button data-hover="boton"
                                     type="button"
                                     onClick={async () => {
                                         const targetItem = qtyEditItem;

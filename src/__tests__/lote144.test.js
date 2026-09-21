@@ -55,3 +55,34 @@ describe('lote 144 · avisos de estado del plan', () => {
         expect(regla).toContain('box-shadow: none;');
     });
 });
+
+// El dueño, después: «hay muchos botones que deben tener su sombreado o algo cuando le pasan el mouse por encima».
+// Un `style={{}}` no puede llevar :hover; el control declara `data-hover` y la respuesta vive en index.css.
+describe('lote 144 · respuesta al ratón de los controles con estilo en línea', () => {
+    const css = leer('src/index.css');
+
+    it('la utilidad existe, solo con puntero fino, y el velo es una sombra INTERIOR (no necesita conocer el fondo)', () => {
+        const k = css.indexOf('[P1-PLAN-LOTE-144 · 2026-09-20] Respuesta al ratón');
+        expect(k).toBeGreaterThan(-1);
+        const regla = css.slice(k);
+        expect(regla).toContain('@media (hover: hover) and (pointer: fine) {');
+        expect(regla).toContain('[data-hover="boton"]:not(:disabled):hover {');
+        expect(regla).toContain('[data-hover="fila"]:not(:disabled):hover {');
+        expect(regla).toContain('[data-hover="icono"]:not(:disabled):hover {');
+        expect(regla).toContain('box-shadow: inset 0 0 0 999px');
+    });
+
+    it('los que señaló el dueño la declaran', () => {
+        expect(DASH).toMatch(/data-hover="fila"\s+onClick=\{\(\) => setShowDespensaDropdown\(!showDespensaDropdown\)\}/);
+        expect(DASH).toMatch(/data-hover="fila"\s+onClick=\{\(\) => _setBudget\('budget', o\.val\)\}/);
+        expect(leer('src/components/dashboard/SupermarketBrands.jsx')).toMatch(/data-hover="fila"\s+onClick=\{toggle\}/);
+        expect(leer('src/components/history/HistoryDesktopPanel.jsx')).toContain('data-hover="fila" onClick={() => setSort(k)}');
+        expect(leer('src/pages/Settings.jsx')).toMatch(/disabled=\{isExportingData\}\s+data-hover="boton"/);
+        expect(leer('src/components/dashboard/StatusNotice.jsx')).toContain("data-hover={peso === 'accion' ? 'boton' : 'fila'}");
+        // el icono del historial del chat tenía un hover a mano con negro al 5 %: invisible en oscuro
+        const ap = leer('src/pages/AgentPage.jsx');
+        expect(ap).toMatch(/data-hover="icono"\s+aria-label=\{t\('Ver historial de chats'\)\}/);
+        expect(ap).not.toContain("e.currentTarget.style.background = 'rgba(0,0,0,0.05)'");
+    });
+});
+

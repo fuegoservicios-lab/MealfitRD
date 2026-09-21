@@ -17,7 +17,7 @@ export default function StatusNotice({ peso = 'calma', tono = 'hielo', icono, ti
                 <div className={styles.cuerpo}>{children}</div>
             </div>
             {accion && (
-                <button type="button" className={styles.boton} onClick={onAccion}>
+                <button type="button" className={styles.boton} data-hover={peso === 'accion' ? 'boton' : 'fila'} onClick={onAccion}>
                     {iconoAccion}
                     {accion}
                 </button>

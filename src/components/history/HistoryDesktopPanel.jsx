@@ -449,7 +449,7 @@ export default function HistoryDesktopPanel({
         <span style={{ fontSize: ".72rem", fontWeight: 600, color: "var(--text-light)" }}>{t("Ordenar:")}</span>
         <div style={{ display: "inline-flex", gap: 3, padding: 3, borderRadius: 11, background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
           {[["recent", t("Recientes")], ["kcal", t("Calorías")], ["name", t("Nombre")]].map(([k, l]) => (
-            <button key={k} type="button" onClick={() => setSort(k)} aria-pressed={sort === k}
+            <button key={k} type="button" data-hover="fila" onClick={() => setSort(k)} aria-pressed={sort === k}
               style={{ appearance: "none", border: 0, cursor: "pointer", fontFamily: "var(--font-body)", fontSize: ".74rem", fontWeight: 700, padding: "7px 14px", borderRadius: 8,
                 color: sort === k ? "var(--text-main)" : "var(--text-muted)", background: sort === k ? "var(--bg-card)" : "transparent", boxShadow: sort === k ? "0 1px 3px rgba(0,0,0,.35)" : "none" }}>{l}</button>
           ))}
@@ -494,7 +494,7 @@ export default function HistoryDesktopPanel({
           <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", border: "1px dashed var(--border)", background: "var(--bg-page)", borderRadius: 16 }}>
             <Icon name="search" size={28} />
             <p style={{ marginTop: 10 }}>{t("Sin resultados para")} <strong style={{ color: "var(--text-main)" }}>“{searchQuery.trim()}”</strong></p>
-            <button type="button" onClick={() => setSearchQuery("")} style={{ ...btn("ghost"), marginTop: 8 }}>{t("Limpiar búsqueda")}</button>
+            <button data-hover="fila" type="button" onClick={() => setSearchQuery("")} style={{ ...btn("ghost"), marginTop: 8 }}>{t("Limpiar búsqueda")}</button>
           </div>
         )}
       </div>

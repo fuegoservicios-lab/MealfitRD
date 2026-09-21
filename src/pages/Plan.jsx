@@ -2300,7 +2300,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
-                    <button 
+                    <button data-hover="boton" 
                         onClick={onAccept}
                         style={{
                             padding: '1rem', background: '#10B981', color: 'white', borderRadius: '0.75rem',
@@ -2311,7 +2311,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                         {t('Aceptar y Aplicar Nuevo Plan')}
                     </button>
                     {oldPlan && (
-                        <button 
+                        <button data-hover="fila" 
                             onClick={onReject}
                             style={{
                                 padding: '1rem', background: 'transparent', color: 'rgba(255,255,255,0.7)', 
@@ -2336,7 +2336,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             {newPlan?._review_disclaimer
                                 || t('El plan generado violaba alguna restricción crítica (alergia o condición médica declarada). Por seguridad, te servimos un plan de contingencia matemático. Regenera para intentar de nuevo o revisa tus restricciones en el formulario.')}
                         </p>
-                        <button
+                        <button data-hover="boton"
                             onClick={onRegenerate}
                             style={{
                                 width: '100%', padding: '0.75rem 1rem', background: '#EF4444', color: 'white', borderRadius: '0.5rem',
@@ -2367,7 +2367,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                                 ))}
                             </ul>
                         )}
-                        <button
+                        <button data-hover="boton"
                             onClick={onRegenerate}
                             style={{
                                 width: '100%', padding: '0.75rem 1rem', background: '#F59E0B', color: 'white', borderRadius: '0.5rem',
@@ -2416,7 +2416,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             >
                                 <ShoppingCart size={16} /> {t('Actualizar nevera')}
                             </Link>
-                            <button
+                            <button data-hover="boton"
                                 onClick={onRegenerate}
                                 style={{
                                     flex: '1 1 140px', padding: '0.75rem 1rem', background: '#F59E0B', color: 'white', borderRadius: '0.5rem',
@@ -2449,7 +2449,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             return (
                                 <div key={cid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '0.5rem' }}>
                                     <span>{t('Semana {n}', { n: wk })}</span>
-                                    <button
+                                    <button data-hover="boton"
                                         onClick={() => handleSimplifyChunk(cid)}
                                         disabled={simplifyingChunkId === cid}
                                         style={{
@@ -2488,7 +2488,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                         {failedChunks.map(chunk => (
                             <div key={chunk.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '0.5rem' }}>
                                 <span>{t('Semana {n}', { n: chunk.week_number })}</span>
-                                <button 
+                                <button data-hover="boton" 
                                     onClick={() => handleRetry(chunk.id)}
                                     disabled={isRetrying}
                                     style={{
@@ -2982,7 +2982,7 @@ const LoadingScreen = ({ status, streamPhase, daysCompleted = [], onCancel }) =>
                 {/* [P3-CANCEL-ONE-CLICK · 2026-05-16] Cancelar de un clic, discreto. */}
                 {onCancel && status !== 'ready' && status !== 'preview' && (
                     <div style={{ marginTop: '2.25rem', display: 'flex', justifyContent: 'center' }}>
-                        <motion.button
+                        <motion.button data-hover="fila"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.15 }}

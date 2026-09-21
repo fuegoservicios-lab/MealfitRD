@@ -5468,8 +5468,7 @@ const AgentPage = () => {
                                 transition: 'all 0.15s',
                                 marginLeft: '-0.625rem'
                             }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                            data-hover="icono"
                             aria-label={t('Ver historial de chats')}
                             aria-controls="agent-history-drawer"
                             aria-expanded={showSidebar}

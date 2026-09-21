@@ -169,7 +169,7 @@ function PlanCard({ plan, paused = false, onOpen, onEdit, onDelete, editing, tem
               <span style={{ fontFamily: "var(--font-heading)", fontSize: "1.02rem", fontWeight: 800, letterSpacing: "-.01em", color: "var(--text-main)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{plan.name}</span>
               {plan.generating
                 ? <span data-testid="history-generating-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, fontSize: ".68rem", fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--primary)", background: "color-mix(in srgb, var(--primary) 12%, transparent)", whiteSpace: "nowrap" }}><Loader2 size={11} className="spin-animation" aria-hidden="true" />{t("Generando")}</span>
-                : <button type="button" title={t("Renombrar")} onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} /></button>}
+                : <button data-hover="fila" type="button" title={t("Renombrar")} onClick={(e) => { e.stopPropagation(); onEdit && onEdit(); }} style={{ ...cardIconBtn, width: 26, height: 26 }}><Pencil size={14} /></button>}
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".75rem", color: "var(--text-light)", marginTop: 3 }}>
@@ -250,7 +250,7 @@ export default function HistoryMobilePanel({
         <Search size={16} style={{ flexShrink: 0 }} />
         <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("Buscar planes…")} aria-label={t("Buscar planes por nombre")} style={searchInput} />
         {q && (
-          <button type="button" onClick={() => setSearchQuery("")} aria-label={t("Limpiar búsqueda")} style={{ ...miniBtn, width: 28, height: 28 }}><X size={14} /></button>
+          <button data-hover="fila" type="button" onClick={() => setSearchQuery("")} aria-label={t("Limpiar búsqueda")} style={{ ...miniBtn, width: 28, height: 28 }}><X size={14} /></button>
         )}
       </div>
 

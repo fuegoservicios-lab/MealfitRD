@@ -157,7 +157,7 @@ const getCountryLabel = (code, t) => {
 const _UnitToggle = ({ unit, options, onChange }) => (
     <div style={{ display: 'inline-flex', gap: 2, background: 'var(--bg-muted)', padding: 2, borderRadius: '0.5rem', marginLeft: '0.5rem' }}>
         {options.map((opt) => (
-            <button
+            <button data-hover="fila"
                 key={opt}
                 type="button"
                 onClick={() => onChange(opt)}
@@ -3318,7 +3318,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             </div>
                                         </div>
                                     </div>
-                                    <button
+                                    <button data-hover="fila"
                                         type="button"
                                         onClick={cargarPlanMode}
                                         style={{ flexShrink: 0, padding: '0.5rem 0.9rem', borderRadius: '0.65rem', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
@@ -3663,7 +3663,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                         <span>{t('Añadido: {fecha}', { fecha: formatDate(fact.created_at) })}</span>
                                                     </div>
                                                 </div>
-                                                <button
+                                                <button data-hover="fila"
                                                     onClick={() => handleDeleteFact(fact.id)}
                                                     disabled={isDeletingFact === fact.id}
                                                     style={{
@@ -3846,7 +3846,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         {t('Controla si la IA aprende de tus conversaciones. El toggle vive en Capacidades.')}
                                     </div>
                                 </div>
-                                <button
+                                <button data-hover="fila"
                                     type="button"
                                     onClick={() => navigateToSection('preferences')}
                                     style={{
@@ -3875,6 +3875,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     type="button"
                                     onClick={handleExportData}
                                     disabled={isExportingData}
+                                    data-hover="boton"
                                     style={{
                                         flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.45rem',
                                         padding: '0.5rem 1rem', borderRadius: '0.65rem', border: 'none',

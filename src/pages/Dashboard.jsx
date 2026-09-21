@@ -6627,6 +6627,7 @@ const DashboardInner = () => {
                             )}
                             {/* Compact Trigger Row */}
                             <div
+                                data-hover="fila"
                                 onClick={() => setShowDespensaDropdown(!showDespensaDropdown)}
                                 style={{
                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -6981,6 +6982,7 @@ const DashboardInner = () => {
                                                                 <button
                                                                     key={o.val}
                                                                     type="button"
+                                                                    data-hover="fila"
                                                                     onClick={() => _setBudget('budget', o.val)}
                                                                     style={{
                                                                         flex: o.val === 'custom' ? '1 1 100%' : '1 1 calc(50% - 6px)',
@@ -7031,7 +7033,7 @@ const DashboardInner = () => {
                                                                     {currencyOptionsForCountry(formData?.country, COUNTRY_SYSTEM_UI).options.map(({ value: c }) => {
                                                                         const on = (_cur === c);
                                                                         return (
-                                                                            <button key={c} type="button" onClick={() => _setBudget('budgetCurrency', c)} aria-pressed={on}
+                                                                            <button key={c} type="button" data-hover="fila" onClick={() => _setBudget('budgetCurrency', c)} aria-pressed={on}
                                                                                 style={{ border: 'none', background: on ? 'var(--bg-card)' : 'transparent', padding: '4px 9px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700, color: on ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }}
                                                                             >{budgetCurrencySymbol(c)}</button>
                                                                         );
@@ -7635,7 +7637,7 @@ const DashboardInner = () => {
                             {t('Este es un plan de muestra. Crea tu cuenta gratis para guardarlo, desbloquear la semana completa y registrar tus comidas.')}
                         </span>
                     </div>
-                    <button
+                    <button data-hover="boton"
                         type="button"
                         onClick={() => navigate('/register')}
                         style={{
@@ -8096,7 +8098,7 @@ const DashboardInner = () => {
                                 <span style={{ color: isDark ? '#FCD34D' : '#92400E', fontSize: '0.72rem', display: 'block', marginBottom: '0.3rem' }}>
                                     {t('Este ajuste quedó limitado por tu')} <strong>{t('Nevera')}</strong>{t(': cocinamos solo con lo que tienes y no alcanzó para clavar los macros.')}
                                 </span>
-                                <button
+                                <button data-hover="boton"
                                     type="button"
                                     onClick={() => navigate('/dashboard/pantry')}
                                     style={{
@@ -8141,7 +8143,7 @@ const DashboardInner = () => {
                             falta pulsar para descubrir que no aplica. */}
                         {fixDayCtaApplies(planData) && (
                             <span style={{ display: 'block', marginTop: '0.5rem' }}>
-                                <button
+                                <button data-hover="boton"
                                     type="button"
                                     onClick={handleFixSodiumDay}
                                     disabled={fixSodiumDayLoading}
@@ -8385,7 +8387,7 @@ const DashboardInner = () => {
                                     <div style={{ fontSize: '0.8rem' }}>{_copy.body}</div>
                                 </div>
                                 {_copy.cta && _copy.url && (
-                                    <button
+                                    <button data-hover="boton"
                                         onClick={() => navigate(_copy.url)}
                                         style={{
                                             // El relleno sólido usa el ámbar del tema; el texto se
@@ -8434,7 +8436,7 @@ const DashboardInner = () => {
                         && (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '10px 14px', background: 'var(--success-bg)', borderRadius: '10px', marginBottom: '16px', color: 'var(--success-text)', fontSize: '0.85rem', border: '1px solid var(--success-border)' }}>
                             <span>{t('¿Quieres adelantar la próxima actualización?')}</span>
-                            <button
+                            <button data-hover="boton"
                                 onClick={async () => {
                                     if (!userProfile?.id) return;
                                     const tId = toast.loading(t('Refrescando próximos días…'), { duration: 20000, position: 'top-center' });
@@ -9735,7 +9737,7 @@ const DashboardInner = () => {
                             </p>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
-                                <button
+                                <button data-hover="boton"
                                     onClick={handleEnablePush}
                                     disabled={isPushEnabling}
                                     style={{
@@ -9758,7 +9760,7 @@ const DashboardInner = () => {
                                     )}
                                 </button>
 
-                                <button
+                                <button data-hover="fila"
                                     onClick={dismissPushOnboarding}
                                     disabled={isPushEnabling}
                                     style={{
@@ -10432,7 +10434,7 @@ const Dashboard = () => {
                 <p style={{ fontSize: '0.85rem', maxWidth: 340, margin: 0, lineHeight: 1.45 }}>
                     {t('Puede ser una conexión inestable o que la sesión aún se esté activando. Tu plan sigue guardado — vuelve a intentarlo.')}
                 </p>
-                <button
+                <button data-hover="boton"
                     onClick={() => retryPlanSync?.()}
                     style={{
                         marginTop: '0.25rem', padding: '0.6rem 1.4rem', borderRadius: '10px',

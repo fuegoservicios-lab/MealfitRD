@@ -662,6 +662,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
         }}>
             <button
                 type="button"
+                data-hover="fila"
                 onClick={toggle}
                 aria-expanded={open}
                 style={{
@@ -818,7 +819,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                         .find(Boolean);
                                     return (
                                         <li key={name}>
-                                            <button
+                                            <button data-hover="fila"
                                                 type="button"
                                                 onClick={() => setExpandedItem(isExpanded ? null : name)}
                                                 aria-expanded={isExpanded}
@@ -901,7 +902,7 @@ const SupermarketBrands = ({ shoppingList, activeList, onPrefApplied, onPrefPend
                                                                     // más barato cambia con los precios del súper).
                                                                     const isDefault = !isChosen && !chosenId && defaultVariant && v.id === defaultVariant.id;
                                                                     return (
-                                                                        <button
+                                                                        <button data-hover="fila"
                                                                             key={v.id}
                                                                             type="button"
                                                                             onClick={() => persistPref(foodKey, isChosen ? null : v.id, isChosen ? null : v)}
