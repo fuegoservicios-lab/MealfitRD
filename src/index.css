@@ -1985,10 +1985,15 @@ html[data-tabbar-plegada] {
 @media (hover: hover) and (pointer: fine) {
   [data-hover] { transition: box-shadow .16s ease, filter .16s ease, transform .16s ease, background-color .16s ease, border-color .16s ease; }
 
-  /* sin translate/scale en :hover — P2-HOVER-NO-MOTION: «no quiero que ningún botón se mueva al pasarle el ratón» */
+  /* sin translate/scale en :hover — P2-HOVER-NO-MOTION: «no quiero que ningún botón se mueva al pasarle el ratón»
+     [P1-PLAN-LOTE-151 · 2026-09-21] «el sombreado al pasarle el mouse por encima a este botón no me gusta»
+     («Reponer mi Nevera»). Era mío, del 144: la sombra NEGRA con `!important` SUSTITUÍA el resplandor propio del
+     botón —cian, del color del botón— y el anillo de `currentColor` lo contorneaba con su color de TEXTO, que en un
+     botón lleno es el de contraste, o sea oscuro. Un botón que ya sabe brillar no necesita que le presten una
+     sombra: `drop-shadow` va en el `filter`, así que SE SUMA a la suya en vez de pisarla, y toma su forma. Sin
+     `!important` y sin `box-shadow`: el relieve propio de cada botón —en línea o por clase— sobrevive intacto. */
   [data-hover="boton"]:not(:disabled):hover {
-    filter: brightness(1.08) saturate(1.05);
-    box-shadow: 0 10px 22px -10px rgb(0 0 0 / .55), 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent) !important;
+    filter: brightness(1.06) saturate(1.03) drop-shadow(0 6px 12px rgb(0 0 0 / .3));
   }
   [data-hover="boton"]:not(:disabled):active { transform: scale(.98); filter: brightness(.97); }
 

@@ -74,6 +74,23 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
         expect(src.slice(src.lastIndexOf('<button', j), j)).toContain("borderRadius: '99px'");
     });
 
+    it('un botón lleno conserva SU resplandor: el hover lo suma con drop-shadow, no lo sustituye', () => {
+        // «el sombreado al pasarle el mouse por encima a este botón no me gusta» (Reponer mi Nevera). La regla del
+        // 144 pisaba con `!important` la sombra CIAN del botón y le ponía una negra, más un anillo de
+        // `currentColor` — que en un botón lleno es el color del TEXTO, oscuro. `drop-shadow` vive en el `filter`:
+        // se suma a la sombra propia y sigue la forma del botón.
+        const css = leer('src/index.css');
+        const i = css.indexOf('[data-hover="boton"]:not(:disabled):hover {');
+        const regla = css.slice(i, css.indexOf('}', i));
+        expect(regla).toContain('drop-shadow(');
+        expect(regla).not.toContain('box-shadow');
+        expect(regla).not.toContain('!important');
+        expect(regla).not.toContain('currentColor');
+        // y el botón de «Reponer mi Nevera» sigue teniendo resplandor propio que conservar
+        const sn = leer('src/components/dashboard/StatusNotice.module.css');
+        expect(sn).toContain('box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--sn-tone) 80%, transparent);');
+    });
+
     it('las tres variantes siguen pintando con sombras — que es POR QUÉ hace falta el radio', () => {
         const css = leer('src/index.css');
         expect(css).toContain('[data-hover="fila"]:not(:disabled):hover');
