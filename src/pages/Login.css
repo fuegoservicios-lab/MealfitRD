@@ -590,7 +590,12 @@
     /* safe-area (PWA instalada a pantalla completa): el logo no se mete bajo el notch /
        barra de estado y el texto inferior no pega con el home indicator. */
     padding-top: calc(1.3rem + env(safe-area-inset-top, 0px));
-    padding-bottom: calc(2.2rem + env(safe-area-inset-bottom, 0px));
+    /* [P1-PLAN-LOTE-149 · 2026-09-21] 3,2rem y no 2,2. Con DOS botones de OAuth (Apple y Google entraron en los
+       lotes 146-147) la columna pasó a llenar la pantalla EXACTA: medido en el arnés a 390×797 —el viewport real de
+       la app instalada, que no llega hasta el borde— quedaban 15 px bajo el último texto y `scrollHeight ===
+       clientHeight`. El dueño: «casi está cerca del borde». Subir solo el relleno habría creado scroll, así que la
+       altura se libera arriba (ilustración y titular) y se gasta aquí. */
+    padding-bottom: calc(3.2rem + env(safe-area-inset-bottom, 0px));
     padding-left: max(1.4rem, env(safe-area-inset-left, 0px));
     padding-right: max(1.4rem, env(safe-area-inset-right, 0px));
     /* [P1-LOGIN-KEYBOARD] `height:100%` contra un padre ya no fijo colapsaba a auto y
@@ -622,9 +627,11 @@
 
   /* ilustración hero (más pequeña → libera altura; centrada en el espacio superior) */
   .mf-hero-illu {
+    /* [P1-PLAN-LOTE-149] De 54%/210px a 46%/176px: es lo decorativo, y era lo único que podía ceder los ~25 px que
+       necesitaba el borde inferior sin tocar ningún control. */
     display: block;
-    width: 54%;
-    max-width: 210px;
+    width: 46%;
+    max-width: 176px;
     margin: auto auto 0;   /* margin-top:auto → reparte espacio libre arriba */
   }
   .mf-hero-illu svg { width: 100%; height: auto; display: block; }
@@ -635,7 +642,8 @@
     line-height: 1.1;
     /* margen INFERIOR fijo = aire garantizado antes de los botones, aunque la pantalla
        sea corta y los márgenes auto se colapsen. */
-    margin: 1.3rem 0 1.7rem;
+    /* [P1-PLAN-LOTE-149] 1,1/1,4 en vez de 1,3/1,7: otros ~10 px para el borde inferior. */
+    margin: 1.1rem 0 1.4rem;
   }
   .mf-sub { display: none; }   /* look limpio de onboarding */
 
