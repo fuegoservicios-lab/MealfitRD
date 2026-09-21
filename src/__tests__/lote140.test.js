@@ -165,7 +165,7 @@ describe('lote 140 · el cableado del chat', () => {
     });
 
     it('bajo la captura NADA se anima: alto congelado, layout forzado, final de la lista sin scroll suave, y `listo` al asentarse', () => {
-        const k = ap.indexOf('const abrirBajoCobertura = (contenedor, inset, id, veniaDelFoco, vuelo) => {');
+        const k = ap.indexOf('const abrirBajoCobertura = (contenedor, inset, id, veniaDelFoco) => {');
         const abrir = ap.slice(k, ap.indexOf('\n        };', k));
         expect(abrir.indexOf('congelarAlto(contenedor);')).toBeLessThan(abrir.indexOf("contenedor.style.setProperty('--kb-inset', `${inset}px`);"));
         expect(abrir).toContain("root.toggleAttribute('data-kb-scroll-lock', true);");
@@ -173,16 +173,16 @@ describe('lote 140 · el cableado del chat', () => {
         expect(abrir).toContain("lista.scrollTo({ top: lista.scrollHeight, behavior: 'instant' });");
         // «pegada» se mide con el layout CERRADO, antes de tocarlo
         expect(abrir.indexOf('const pegada =')).toBeLessThan(abrir.indexOf('congelarAlto(contenedor);'));
-        expect(abrir).toContain('confirmarAlNativo(contenedor, id, true, { ...vuelo, mantener: !veniaDelFoco });');   // [142]
-        const c = ap.indexOf('const cerrarBajoCobertura = (contenedor, id, vuelo) => {');
+        expect(abrir).toContain('confirmarAlNativo(contenedor, id, true);');
+        const c = ap.indexOf('const cerrarBajoCobertura = (contenedor, id) => {');
         const cerrar = ap.slice(c, ap.indexOf('\n        };', c));
         expect(cerrar).toContain("root.removeAttribute('data-kb-open');");
         expect(cerrar).toContain("contenedor.style.setProperty('--kb-inset', '0px');");
-        expect(cerrar).toContain('confirmarAlNativo(contenedor, id, false, vuelo);');   // [142]
-        const f = ap.indexOf('const confirmarAlNativo = (contenedor, id, abierto, { vivo = false, mantener = false, ms = 0 } = {}) => {');
+        expect(cerrar).toContain('confirmarAlNativo(contenedor, id, false);');
+        const f = ap.indexOf('const confirmarAlNativo = (contenedor, id, abierto) => {');
         const confirmar = ap.slice(f, ap.indexOf('\n        };', f));
         // primero la geometría NUEVA, después `listo`: la cobertura siguiente ya la encuentra al día
-        expect(confirmar.indexOf('mandarGeometriaNativa(abierto);')).toBeLessThan(confirmar.indexOf("enviarAlNativo({ tipo: 'listo', id, mantener });"));
+        expect(confirmar.indexOf('mandarGeometriaNativa(abierto);')).toBeLessThan(confirmar.indexOf("enviarAlNativo({ tipo: 'listo', id });"));
         expect(confirmar).toContain('descongelarAlto(contenedor);');
         // y la barra de pestañas tampoco se anima en esos fotogramas
         expect(leer('src/components/dashboard/BottomTabBar.module.css')).toMatch(/:global\(html\[data-kb-sin-anim\]\) \.tabBar \{\s*transition: none !important;/);
@@ -210,7 +210,7 @@ describe('lote 140 · el cableado del chat', () => {
 
     it('al salir del chat el binario deja de cubrir, y `/nativo` solo existe en la app nativa', () => {
         expect(ap).toContain("if (isNativeApp() && binarioMueveElChat()) enviarAlNativo({ tipo: 'apagar' });");
-        expect(ap).toContain('const ordenNativo = isNativeApp() ? /^\\/nativo( cierre| vivo)?$/.exec(textToSend.trim().toLowerCase()) : null;');
+        expect(ap).toContain('const ordenNativo = isNativeApp() ? /^\\/nativo( cierre)?$/.exec(textToSend.trim().toLowerCase()) : null;');
         expect(ap).toContain("toast.info(t('Esta prueba necesita la versión nueva de la app'));");
         expect(ap).toContain("if (!encendido) enviarAlNativo({ tipo: 'apagar' });");
     });
@@ -235,8 +235,8 @@ describe('lote 140 · el binario', () => {
     it('una captura NUNCA se queda puesta: hay plazo, se retira al perder la escena, y un `listo` ajeno no retira nada', () => {
         expect(swift).toContain('DispatchQueue.main.asyncAfter(deadline: .now() + plazo)');
         expect(swift).toContain('func sceneWillResignActive(_ scene: UIScene) {\n        cobertura.retirarYa()');
-        expect(swift).toContain('guard id == idActual, capa != nil else { return }');
-        expect(swift).toContain('if animacionAcabada && paginaAcabo { retirar(fundido: geometria.fundidoMs / 1000) }');
+        expect(swift).toContain('if id == idActual && capa != nil {');
+        expect(swift).toContain('if animacionAcabada && paginaLista { retirar(fundido: geometria.fundidoMs / 1000) }');
     });
 
     it('sin geometría activa no cubre, y un cambio de teclado con el chat ya abierto tampoco', () => {

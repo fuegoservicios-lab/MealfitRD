@@ -3214,8 +3214,6 @@
   "Esta prueba necesita la versión nueva de la app": "This test needs the new version of the app",
   "Teclado nativo: también al cerrar": "Native keyboard: also when closing",
   "Teclado nativo: solo al abrir": "Native keyboard: only when opening",
-  "Teclado nativo: página viva": "Native keyboard: live page",
-  "Teclado nativo: solo captura": "Native keyboard: snapshot only",
   "Teclado movido por la app: encendido": "Keyboard moved by the app: on",
   "Teclado movido por la app: apagado": "Keyboard moved by the app: off",
   "Alertas activadas. Con horario nocturno o rotativo no programamos recordatorios de comida.": "Alerts on. With a night or rotating schedule we don't set meal reminders.",

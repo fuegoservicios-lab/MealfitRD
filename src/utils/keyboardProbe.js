@@ -76,7 +76,6 @@ export function iniciarSondaTeclado() {
 
     const caja = document.createElement('pre');
     caja.setAttribute('aria-hidden', 'true');
-    caja.setAttribute('data-mf-sonda', '');       // [142] el chat la manda al binario como pieza QUIETA (si no, viaja con la captura)
     Object.assign(caja.style, {
         position: 'fixed', top: 'env(safe-area-inset-top, 0px)', left: '0', zIndex: '99999',
         margin: '0', padding: '4px 6px', font: '9.5px/1.25 monospace', color: '#0f0', maxWidth: '100vw',
