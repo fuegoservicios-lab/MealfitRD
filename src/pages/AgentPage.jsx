@@ -4237,9 +4237,6 @@ const AgentPage = () => {
                 clientMessageId,
             });
         } finally {
-            // [P1-PLAN-LOTE-157] El vigilante muere con el turno, pase lo que pase: un
-            // `setInterval` que sobrevive a su turno acabaría abortando el siguiente.
-            if (_vigilanteDelSilencio) { clearInterval(_vigilanteDelSilencio); _vigilanteDelSilencio = null; }
             if (turnGateRef.current.isCurrent(turnId)) {
                 setIsLoading(false);
                 _setTurnActive(false);
@@ -4258,6 +4255,12 @@ const AgentPage = () => {
             // backend cobra al cerrar su generador), no con el primer token. Corre también en
             // turnos detenidos o reemplazados: un turno cortado puede haberse cobrado igual.
             scheduleTurnEndRefresh(refreshCoachQuota);
+            // [P1-PLAN-LOTE-157] El vigilante del silencio muere con el turno, pase lo que
+            // pase y sea o no el turno vigente: un `setInterval` que le sobreviva acabaría
+            // abortando el siguiente. Va al final del `finally` y no al principio porque ahí
+            // arriba manda el candado del turno (P2-CHAT-FRONT-AUDIT) y su comprobación tiene
+            // que seguir siendo lo primero que se lee.
+            if (_vigilanteDelSilencio) { clearInterval(_vigilanteDelSilencio); _vigilanteDelSilencio = null; }
         }
     };
 
