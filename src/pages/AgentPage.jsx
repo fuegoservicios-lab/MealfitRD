@@ -81,6 +81,8 @@ import { alternarSondaTecladoNativa, marcarSondaTeclado, EVENTO_TECLADO_NATIVO }
 import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMoverse } from '../utils/chatKeyboardScroll';
 // [P1-PLAN-LOTE-156] ¿Merece la pena preguntarle al servidor por una respuesta que quizá sí llegó?
 import { hayTurnoQueRescatar } from '../utils/rescateDelTurno';
+// [P1-PLAN-LOTE-157] ¿Este turno lleva tanto rato mudo que ya no va a volver?
+import { hayQueCortarPorSilencio } from '../utils/silencioDelStream';
 import { decidirAlAlejarseDelFondo } from '../utils/chatScrollIntent';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
@@ -3522,6 +3524,12 @@ const AgentPage = () => {
         // y el efecto de caché la guardaba así) y lleva el contexto de regeneración.
         let _turnErrorShown = false;
         let _sawDone = false;
+        // [P1-PLAN-LOTE-157] ¿El abort lo pidió el vigilante del silencio, o el usuario con
+        // «Detener»? Los dos llegan como `AbortError` y merecen finales opuestos: el de
+        // Detener no pinta nada (el usuario ya sabe lo que hizo); el del vigilante empuja un
+        // 502, que es la puerta del rescate del 156.
+        let _cortadoPorSilencio = false;
+        let _vigilanteDelSilencio = null;
         const _pushTurnError = (args) => {
             if (!_isCurrentTurn() || _turnErrorShown) return;
             if (_sawDone) {
@@ -3753,8 +3761,40 @@ const AgentPage = () => {
                     let buffer = "";
                     let lastSpokenIndex = 0;
 
+                    // [P1-PLAN-LOTE-157 · 2026-09-22] Techo de SILENCIO del turno.
+                    //
+                    // El presupuesto total del servidor (120 s) se comprueba al principio de su
+                    // bucle de eventos: solo corre cuando LLEGA un evento. Si el grafo se queda
+                    // mudo de verdad no hay evento que lo dispare, y este lado no tenía tope
+                    // propio — `fetchWithAuth` limpia su temporizador al llegar las cabeceras
+                    // (para no romper el SSE), así que el usuario podía quedarse en «Pensando…»
+                    // hasta rendirse. Un tester que se queda mirando fuerza el cierre de la app
+                    // y lo reporta como «se congeló».
+                    //
+                    // Se apoya en el rescate del 156: al abortar se empuja un `502`, que es la
+                    // puerta por la que el cliente le pregunta al servidor si la respuesta llegó
+                    // igual. Antes del 156 esto habría cambiado una espera infinita por una
+                    // pérdida; ahora es una espera acotada.
+                    //
+                    // El vigilante mira, NO cuenta: cualquier evento reinicia el reloj, y el
+                    // umbral (5 min de silencio absoluto) está muy por encima de los 2-4 min que
+                    // una tool legítima puede callar — cortar antes repetiría el defecto que
+                    // P2-CHAT-STREAM-INACTIVITY-POSTHOC tuvo que deshacer.
+                    let _ultimoEventoEn = (typeof performance !== 'undefined' && performance.now)
+                        ? performance.now() : Date.now();
+                    const _reloj = () => ((typeof performance !== 'undefined' && performance.now)
+                        ? performance.now() : Date.now());
+                    const _vigilante = setInterval(() => {
+                        if (!hayQueCortarPorSilencio(_reloj(), _ultimoEventoEn)) return;
+                        _cortadoPorSilencio = true;
+                        console.error('[P1-PLAN-LOTE-157] turno cortado: 5 min sin un solo evento del servidor');
+                        try { controller.abort(); } catch { /* ya cerrado */ }
+                    }, 30_000);
+                    _vigilanteDelSilencio = _vigilante;
+
                     while (true) {
                         const { done, value } = await reader.read();
+                        _ultimoEventoEn = _reloj();
                         if (done) break;
                         // [P2-CHAT-FRONT-AUDIT] Un turno que ya no es el vigente no escribe más.
                         if (!_isCurrentTurn()) {
@@ -4163,7 +4203,23 @@ const AgentPage = () => {
             }
         } catch (error) {
             if (error.name === 'AbortError') {
-
+                // [P1-PLAN-LOTE-157] …salvo que el abort sea del vigilante del silencio: ahí
+                // el usuario no pidió nada, así que callarse sería dejarlo con la burbuja a
+                // medias y sin explicación. El `502` es el mismo que el corte de stream sin
+                // `done`, y por eso dispara el rescate: si el servidor terminó, la respuesta
+                // aparece; si no, queda una burbuja con Reintentar.
+                if (_cortadoPorSilencio) {
+                    setMessages(prev => closeStreamingBubbles(prev));
+                    _pushTurnError({
+                        status: 502,
+                        retryPrompt: userMsg,
+                        retryImageUrl: uploadedImageUrl,
+                        retryAttachments: _durableRetryAttachments(uploadedAttachments),
+                        retryTruncateIndex: originalUserMessageIndex,
+                        clientMessageId,
+                        isAgentError: true,
+                    });
+                }
                 return;
             }
             console.error("Chat Error:", error);
@@ -4181,6 +4237,9 @@ const AgentPage = () => {
                 clientMessageId,
             });
         } finally {
+            // [P1-PLAN-LOTE-157] El vigilante muere con el turno, pase lo que pase: un
+            // `setInterval` que sobrevive a su turno acabaría abortando el siguiente.
+            if (_vigilanteDelSilencio) { clearInterval(_vigilanteDelSilencio); _vigilanteDelSilencio = null; }
             if (turnGateRef.current.isCurrent(turnId)) {
                 setIsLoading(false);
                 _setTurnActive(false);
