@@ -652,13 +652,19 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 bloque `isLoggedIn && !loading` a propósito: su condición propia
                 (`goal_eta`) ya lo restringe a quien tiene meta cuantificada, y meterlo
                 dentro lo haría parpadear en cada recarga del diario. */}
+            {/* [P1-PLAN-LOTE-165 · 2026-09-22] El ritmo y la nota llegan del servidor en español: el código del ritmo
+                («moderado») se pintaba crudo entre paréntesis y la nota de honestidad salía en español en el tooltip.
+                Ahora el ritmo usa la etiqueta del formulario y la nota su traducción. */}
             {planData?.goal_eta?.weeks_estimate ? (
-                <div className={styles.etaChip} title={planData.goal_eta.note}>
+                <div className={styles.etaChip} title={t('Estimación energética (~7,700 kcal ≈ 1 kg): el ritmo real varía con la adherencia, la retención de agua y la adaptación metabólica.')}>
                     <Flag size={13} strokeWidth={2.5} aria-hidden="true" />
                     {t('Meta: {peso} · ~{semanas} semanas a tu ritmo', {
                         peso: planData.goal_eta.target_weight_display,
                         semanas: planData.goal_eta.weeks_estimate,
-                    })}{planData.goal_eta.pace ? ` (${planData.goal_eta.pace})` : ''}
+                    })}{(() => {
+                        const ritmo = { gradual: t('Gradual'), moderado: t('Moderado'), decidido: t('Decidido') }[planData.goal_eta.pace];
+                        return ritmo ? ` (${ritmo})` : '';
+                    })()}
                 </div>
             ) : null}
 

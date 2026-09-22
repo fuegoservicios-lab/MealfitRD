@@ -25,6 +25,20 @@
     pointer-events: none !important;
 }
 
+/* [P1-PLAN-LOTE-165 · 2026-09-22] Fuera del chat, la barra se quedaba ENCIMA del teclado: `data-kb-open` solo lo
+   estampa el chat, así que escribir en la Nevera (o cualquier otro campo de una pestaña) dejaba la barra flotando sobre
+   el teclado y tapando lo que se escribe. En pantallas táctiles, un campo de texto enfocado basta para esconderla.
+   - Solo `(pointer: coarse)`: con ratón no hay teclado virtual que tapar.
+   - NUNCA en la ruta del chat (`.agent-route-active`): ahí manda el teclado de verdad, no el foco
+     (P1-CHAT-FOCO-NO-MUEVE: la caja suelta su reserva de 64 px y la barra se va A LA VEZ, con `data-kb-open`). */
+@media (max-width: 1024px) and (pointer: coarse) {
+    :global(html:not(:has(.agent-route-active)):has(:is(textarea, [contenteditable="true"], input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="file"], [type="color"])):focus)) .tabBar {
+        transform: translateY(110%) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+}
+
 @media (max-width: 1024px) {
     .tabBar {
         display: flex;

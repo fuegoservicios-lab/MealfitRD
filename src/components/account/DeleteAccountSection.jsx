@@ -14,6 +14,7 @@ import { useAssessment } from '../../context/AssessmentContext';
 import { fetchWithAuth } from '../../config/api';
 import Modal from '../common/Modal';
 import { useT } from '../../i18n';
+import { mensajeDeError } from '../../utils/errorCopy';
 
 const DZ_STYLES = `
 .mf-dz-card {
@@ -100,8 +101,10 @@ export default function DeleteAccountSection() {
             });
             if (!res.ok) {
                 let detail = t('No se pudo eliminar la cuenta. Inténtalo de nuevo.');
-                try { const j = await res.json(); if (j?.detail) detail = j.detail; } catch { /* sin body JSON */ }
-                throw new Error(detail);
+                // [P1-PLAN-LOTE-165] el `detail` del servidor va por código (sin código, el aviso propio): en crudo
+                // salía en español en los cinco idiomas.
+                try { const j = await res.json(); detail = mensajeDeError(j, detail, t); } catch { /* sin body JSON */ }
+                throw Object.assign(new Error(detail), { paraMostrar: true });
             }
             // Borrado OK → logout total (limpia localStorage/caches + signOut +
             // session=null sincrónico) y al login. El componente se desmonta al
@@ -127,7 +130,7 @@ export default function DeleteAccountSection() {
             navigate('/login', { replace: true });
         } catch (err) {
             console.error('Error eliminando cuenta:', err);
-            toast.error(err?.message || t('No se pudo eliminar la cuenta.'));
+            toast.error(err?.paraMostrar ? err.message : t('No se pudo eliminar la cuenta.'));
             setIsDeleting(false);
         }
     };

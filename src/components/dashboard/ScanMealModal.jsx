@@ -26,6 +26,8 @@ import styles from './ScanMealModal.module.css';
 // ~17 call sites en el mismo commit que la extracción.
 import MacroInput from '../common/MacroInput';
 import { useT, useTn } from '../../i18n';
+import { glossUnitWord } from '../../utils/shoppingHelpers';
+import { useTecladoDeHoja, estilosDeHojaConTeclado } from '../../hooks/useTecladoDeHoja';
 // [P2-VISION-COUNTRY-COPY · 2026-08-21] SSOT de países del frontend (espejo del backend con
 // test de paridad). Comparar contra 'DO' a mano aquí sería la tabla que P1-DIET-CANON-SSOT
 // prohíbe.
@@ -194,6 +196,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
         disableClose: isBusy, // no cerrar mientras sube/guarda (operación en vuelo)
     });
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: isBusy });
+    // [P1-PLAN-LOTE-165 · 2026-09-22] En el iPhone el teclado tapaba el pie de la revisión: la hoja sube por encima.
+    const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(isOpen));
 
     // Revoca el objectURL del preview al reemplazarlo o al desmontar — evita leak.
     const _setPreviewUrl = useCallback((url) => {
@@ -510,7 +514,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
 
     return (
         <>
-        <div className={styles.overlay} onClick={handleOverlayClick}>
+        <div className={styles.overlay} onClick={handleOverlayClick} style={teclado.fondo}>
             {/* [P1-PLAN-LOTE-106 · 2026-09-18] La misma hoja que «Registrar comida» (lote 99): cabecera y pie FIJOS,
                 cuerpo desplazable. Antes era una tarjeta centrada con scroll interno: en el teléfono el botón de
                 registrar quedaba bajo el borde y el formulario era una columna de campos sin jerarquía (captura del
@@ -522,6 +526,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                 aria-labelledby="scan-meal-title"
                 tabIndex={-1}
                 className={styles.card}
+                style={teclado.panel}
                 onTouchStart={hoja.onTouchStart}
                 onTouchMove={hoja.onTouchMove}
                 onTouchEnd={hoja.onTouchEnd}
@@ -804,7 +809,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                                         <span className={styles.componentName}>
                                             {/* El nombre del alimento y la unidad vienen del
                                                 catálogo/vision agent: solo se traduce el nexo. */}
-                                            {t('{unidad} de {nombre}', { unidad: c.unit, nombre: c.name })}
+                                            {/* [P1-PLAN-LOTE-165] la unidad del escáner se glosa (el nombre no: es del motor) */}
+                                            {t('{unidad} de {nombre}', { unidad: glossUnitWord(c.unit, t), nombre: c.name })}
                                         </span>
                                     </label>
                                 ))}

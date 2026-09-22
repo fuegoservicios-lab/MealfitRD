@@ -2099,6 +2099,20 @@ const AgentPage = () => {
     // -------------------------------------------
 
     const [loadingPhraseIdx, setLoadingPhraseIdx] = useState(0);
+    // [P1-PLAN-LOTE-165 · 2026-09-22] La frase de cada FASE del turno, traducida. El backend elige su frase de una lista
+    // española (`agent.py:get_progress_msg`) y aquí se pintaba tal cual: en inglés, francés, italiano o portugués el
+    // coach decía «Procesando tu solicitud detalladamente…» en cada turno. Ahora el evento trae `phase` y se pinta la
+    // frase de esa fase en el idioma del usuario. Sin `phase` (backend anterior al lote) se conserva la frase del
+    // servidor solo en español; en los demás idiomas no hay estado propio y caen las frases rotativas de abajo.
+    const frasesDeFase = {
+        analizando: t('Analizando tu mensaje…'),
+        generando_plan: t('Armando tu plan…'),
+        modificando_comida: t('Ajustando tu comida…'),
+        actualizando_bd: t('Guardando tus preferencias…'),
+        registrando_progreso: t('Anotando lo que comiste…'),
+        calculando_compras: t('Calculando tu lista de compras…'),
+        buscando_memoria: t('Buscando en tu memoria…'),
+    };
     const loadingPhrases = [
         t("Revisando tus preferencias y contexto..."),
         t("Evaluando tu perfil y macros..."),
@@ -3821,7 +3835,11 @@ const AgentPage = () => {
                                 try {
 
                                     if (dataObj.type === 'progress') {
-                                        setStreamingStatus(dataObj.message);
+                                        // [P1-PLAN-LOTE-165] la frase de la fase, traducida (ver `frasesDeFase`)
+                                        setStreamingStatus(
+                                            frasesDeFase[dataObj.phase]
+                                            || (String(getLocale() || '').startsWith('es') ? dataObj.message : null)
+                                        );
                                         // [P1-CHAT-NARRATION-KEPT-REVIEW-1 · 2026-07-28]
                                         // El backend une pasadas narrate-then-act con
                                         // '\n\n' en `done.response`

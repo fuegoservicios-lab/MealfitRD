@@ -475,8 +475,9 @@ const Login = () => {
 
                                 {/* El «o» separa OAuth de correo: sin ningún botón encima
                                     (nativo sin deep link, sin provider Apple) quedaría colgado. */}
+                                {/* [P1-PLAN-LOTE-165] la «o» era la única palabra sin traducir de la primera pantalla */}
                                 {(!nativeHidesOAuthRedirect() || appleSignInEnabled()) && (
-                                    <div className="mf-divider"><span>o</span></div>
+                                    <div className="mf-divider"><span>{t('o')}</span></div>
                                 )}
 
                                 <input

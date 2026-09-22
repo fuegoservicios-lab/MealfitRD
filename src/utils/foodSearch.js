@@ -1,6 +1,9 @@
 // [P1-MANUAL-FOOD-LOG · 2026-08-11] El buscador del componedor: LISTA en el cliente,
 // [P2-I18N-FOODSEARCH · 2026-08-22] `t` de módulo, invocada al construir el resultado.
 import { t } from '../i18n';
+// [P1-PLAN-LOTE-165 · 2026-09-22] La porción del catálogo llega como palabra española («taza», «unidad»): el
+// `unit` es vocabulario del motor y no se toca; solo el RÓTULO que se pinta pasa por la glosa de la Nevera.
+import { glossUnitWord } from './shoppingHelpers';
 // ARITMÉTICA en el servidor.
 //
 // La lista (filtro + ranking + alias) corre aquí sobre el catálogo que el cliente ya
@@ -104,7 +107,7 @@ export function searchFoods(query, foods, dishes, max = 12) {
                 // lista. Y era un TERNARIO, que es justo la forma que el escáner de
                 // cadenas sin envolver no inspeccionaba (P2-I18N-ESCANER-CIEGO-AL-TERNARIO).
                 sub: porcionDefault && porcionDefault.unit !== 'g'
-                    ? t('Alimento · {porcion} {g} g', { porcion: porcionDefault.label, g: Math.round(porcionDefault.grams_per_qty) })
+                    ? t('Alimento · {porcion} {g} g', { porcion: glossUnitWord(porcionDefault.label, t), g: Math.round(porcionDefault.grams_per_qty) })
                     : t('Alimento · por gramos'),
                 item: f,
                 rank: r,
@@ -159,7 +162,7 @@ export function unitsFor(entry) {
         ];
     }
     return (entry.item.portions || [{ unit: 'g', grams_per_qty: 1, label: 'g' }])
-        .map((p) => ({ unit: p.unit, label: p.label }));
+        .map((p) => ({ unit: p.unit, label: glossUnitWord(p.label, t) }));
 }
 
 /** La unidad con la que una entrada nace en el plato. */

@@ -416,6 +416,14 @@ const _ENVASES_TRADUCIBLES = (t) => ({
     bandeja: t('bandeja'), bandejas: t('bandejas'),
     cda: t('cda'), cdas: t('cdas'),
     cdta: t('cdta'), cdtas: t('cdtas'),
+    // [P1-PLAN-LOTE-165 · 2026-09-22] Las unidades que devuelve el escáner de platos (`vision_agent.py`: unidad,
+    // lasca, rodaja, taza, cucharada, g, lb) y las de los platos del componedor: se pintaban en español dentro de
+    // una pantalla traducida («unidad of Pan»).
+    lasca: t('lasca'), lascas: t('lascas'),
+    rodaja: t('rodaja'), rodajas: t('rodajas'),
+    cucharada: t('cucharada'), cucharadas: t('cucharadas'),
+    'porción': t('porción'), porcion: t('porción'), porciones: t('porciones'),
+    'ración': t('ración'), racion: t('ración'), raciones: t('raciones'),
 });
 
 // Abreviaturas de unidad: van con PUNTO, así que no las alcanza el barrido de sustantivos

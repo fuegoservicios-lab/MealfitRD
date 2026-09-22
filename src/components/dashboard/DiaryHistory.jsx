@@ -41,12 +41,16 @@ import { X, CalendarDays, ChevronRight, Trash2, Loader2, Plus, FlaskConical } fr
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
-import { formatDate, formatNumber, useT, useTn } from '../../i18n';
+import { formatDate, formatNumber, getLocale, useT, useTn } from '../../i18n';
 import MicrosList from './MicrosList';
 import { useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
 import ScanMealModal from './ScanMealModal';
 import styles from './DiaryHistory.module.css';
+
+// [P1-PLAN-LOTE-165 · 2026-09-22] El día de la semana DENTRO de una frase: en minúscula en español, portugués, francés e
+// italiano; en inglés va con mayúscula (salía «You logged it on monday 21»).
+const _diaEnFrase = (dia) => (String(getLocale() || '').startsWith('en') ? String(dia || '') : String(dia || '').toLowerCase());
 
 const DIAS_TIRA = 14;
 // Tope del endpoint (`/consumed-range` clampa a 90) y del retrodatado (`days_ago` ≤ 7 en el backend).
@@ -374,14 +378,17 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     <div className={styles.mealName}>{meal.meal_name || t('Sin nombre')}</div>
                     <div className={styles.mealMacros}>
                         <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
-                        {' · '}P {num(meal.protein)} · C {num(meal.carbs)} · G {num(meal.healthy_fats)}
+                        {/* [P1-PLAN-LOTE-165] «P · C · G» fijas eran incorrectas en inglés (grasa = F) y en francés
+                            (glucides/lipides = G/L): la abreviatura es de cada idioma. */}
+                        {' · '}{t('P {p} · C {c} · G {g}', { p: num(meal.protein), c: num(meal.carbs), g: num(meal.healthy_fats) })}
                     </div>
                     {/* La hora solo si es de fiar. Si se anotó otro día, se dice ESO
                         — que es verdad y además útil — en vez de una hora inventada. */}
                     {!h && creado && (
                         <div className={styles.loggedOn}>
                             {t('Lo anotaste el {diaSemana} {dia}', {
-                                diaSemana: getDiasLargo(t)[creado.getDay()].toLowerCase(),
+                                // [P1-PLAN-LOTE-165] en minúscula en es/pt/fr/it; en inglés el día va con mayúscula
+                                diaSemana: _diaEnFrase(getDiasLargo(t)[creado.getDay()]),
                                 dia: creado.getDate(),
                             })}
                         </div>

@@ -58,6 +58,7 @@ import styles from './LogMealModal.module.css';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
 import { mensajeDeError } from '../../utils/errorCopy';
+import { useTecladoDeHoja, estilosDeHojaConTeclado } from '../../hooks/useTecladoDeHoja';
 
 const _MACRO_CLASSES = {
     field: styles.macroField,
@@ -121,6 +122,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     // [P1-PLAN-LOTE-106] el gesto de la hoja (deslizar para cerrar, toque que no pasa al fondo) y la
     // restauración del scroll al cerrar viven en `useBottomSheet`, compartido con el escáner de fotos.
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose, disabled: saving });
+    // [P1-PLAN-LOTE-165 · 2026-09-22] En el iPhone el teclado tapaba el pie («Registrar»): la hoja sube por encima.
+    const teclado = estilosDeHojaConTeclado(useTecladoDeHoja(true));
 
     // Catálogo + platos: cache 24 h; si falta, un fetch. FAIL-CLOSED como los paneles
     // de Ajustes: sin catálogo no hay búsqueda que ofrecer, y un buscador vacío que
@@ -224,7 +227,13 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                 return;
             }
             if (!res.ok || !data?.success) {
-                throw new Error(data?.message || data?.detail || t('No se pudo registrar.'));
+                // [P1-PLAN-LOTE-165 · 2026-09-22] `message`/`detail` del servidor iban TAL CUAL al aviso: en español en los
+                // cinco idiomas («Inicia sesión para registrar comidas.», el 429 «Demasiadas solicitudes. Máximo…»). Se
+                // traduce por código; sin código, el aviso propio. Solo los errores marcados `paraMostrar` se pintan.
+                const _msg = res.status === 429
+                    ? t('Demasiadas solicitudes seguidas. Espera un momento y reintenta.')
+                    : mensajeDeError(data, t('No se pudo registrar.'), t);
+                throw Object.assign(new Error(_msg), { paraMostrar: true });
             }
             // Mismo evento que el escáner y el chat: la tarjeta de progreso refetchea.
             window.dispatchEvent(new Event('mealfit:refresh-inventory'));
@@ -243,7 +252,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
             }
             onClose();
         } catch (e) {
-            toast.error(e?.message || t('No se pudo registrar. Intenta de nuevo.'));
+            // sin red o tiempo agotado: «Failed to fetch» / «Request timeout tras 30000ms…» no son para el usuario
+            toast.error(e?.paraMostrar ? e.message : t('No se pudo registrar. Intenta de nuevo.'));
         } finally {
             setSaving(false);
         }
@@ -264,7 +274,9 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || data?.operation_failed || !data?.macros) {
-                throw new Error(data?.error_message || t('No pudimos estimar las macros ahora; escríbelas tú o inténtalo de nuevo.'));
+                // [P1-PLAN-LOTE-165] el `error_message` del servidor es la MISMA frase, pero en español fijo: se usa la
+                // traducida. Con el proveedor de IA inestable, este es el fallo más probable del componedor.
+                throw new Error(t('No pudimos estimar las macros ahora; escríbelas tú o inténtalo de nuevo.'));
             }
             const m = data.macros;
             setCustomDraft((p) => (p ? {
@@ -279,8 +291,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                 estimated: true,
                 portionNote: String(data.portion_note || '').trim(),
             } : p));
-        } catch (e) {
-            toast.error(e?.message || t('No pudimos estimar las macros ahora; escríbelas tú o inténtalo de nuevo.'));
+        } catch {
+            toast.error(t('No pudimos estimar las macros ahora; escríbelas tú o inténtalo de nuevo.'));
         } finally {
             setEstimating(false);
         }
@@ -290,11 +302,12 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const mealTypeOptions = [...getMealTypes(t), getMealTypeExtra(t)];
 
     const cuerpo = (
-        <div className={styles.overlay}>
+        <div className={styles.overlay} style={teclado.fondo}>
             <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
             <div
                 ref={containerRef}
                 className={styles.panel}
+                style={teclado.panel}
                 role="dialog"
                 aria-modal="true"
                 aria-label={t('Registrar comida')}
