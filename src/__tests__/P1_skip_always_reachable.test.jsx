@@ -22,6 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { render, screen } from './utils/test-utils';
 import InteractiveAssessmentFlow from '../components/assessment/InteractiveAssessmentFlow';
+import { REQUIRED_FORM_FIELDS } from '../config/formValidation';
 
 vi.mock('react-router-dom', async () => {
     const real = await vi.importActual('react-router-dom');
@@ -30,12 +31,26 @@ vi.mock('react-router-dom', async () => {
 
 const PLAN_PREVIO = { days: [{ day_name: 'Día 1', meals: [] }], generation_status: 'complete' };
 
+// [P1-PLAN-LOTE-154 · 2026-09-22] Antes estos casos montaban con `formData: {}` — un formulario
+// SIN CONTESTAR — y esperaban ver el atajo igual. Eso ya no ocurre, y no por un cambio de este
+// test: desde el 154 el botón solo se pinta si no falta nada obligatorio (el dueño lo vio en el
+// paso 2 de 26 con la pregunta en blanco). Lo que aquel arreglo defiende —«el atajo alcanza a
+// quien vuelve»— se mide igual, pero con el formulario que esa persona trae de verdad.
+//
+// Se deriva del CONTRATO y no de una lista a mano: así una pregunta obligatoria nueva no deja
+// este fixture a medias en silencio. El array vacío es el caso feo de `findFirstIncompleteField`
+// (los campos de chips llegan como array), así que va array donde el wizard guarda arrays.
+const _ARRAYS = new Set(['allergies', 'dislikes', 'medicalConditions', 'struggles', 'cultureProfiles']);
+const FORM_COMPLETO = Object.fromEntries(
+    REQUIRED_FORM_FIELDS.map((campo) => [campo, _ARRAYS.has(campo) ? ['Ninguna'] : 'x']),
+);
+
 const montar = (ctx = {}) => render(<InteractiveAssessmentFlow />, {
     customContext: {
         currentStep: 0,
         maxReachedStep: 0,
         planData: null,
-        formData: {},
+        formData: FORM_COMPLETO,
         setCurrentStep: vi.fn(),
         nextStep: vi.fn(),
         prevStep: vi.fn(),

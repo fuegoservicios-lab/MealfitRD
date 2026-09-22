@@ -838,6 +838,42 @@ const InteractiveAssessmentFlow = () => {
         && findFirstIncompleteFieldFor(formData, TRACKING_REQUIRED_FIELDS) === null;
     const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore || _traeLoDelContador;
 
+    // [P1-PLAN-LOTE-154 · 2026-09-22] El dueño, en el paso 2 de 26 con la pregunta obligatoria en blanco:
+    // «ni siquiera debe aparecerme este botón de saltar a la última pregunta… y aunque la llene no debería
+    // dejarme saltar otras preguntas que son obligatorias».
+    //
+    // Lo que veía es un botón que MIENTE. `canSkip` responde «¿tiene este usuario historia suficiente para
+    // que un atajo tenga sentido?» y eso era todo lo que se le pedía para pintarlo; quién puede saltar DE
+    // VERDAD lo decidía `handleSkipToLastStep` un click más tarde, rebotándolo al primer campo incompleto
+    // con un aviso. Dos respuestas distintas a la misma pregunta, y el usuario solo ve la primera: un botón
+    // que promete llevarte al final y te devuelve al principio. Que la validación funcionara —funcionaba,
+    // el aviso de la captura ES ella— no lo salva: la puerta se anuncia abierta y está cerrada.
+    //
+    // Ahora el botón aparece si, y solo si, no falta NADA obligatorio de su rama. Con eso las dos quejas se
+    // cierran de una vez: en el paso 2 sin contestar no se pinta, y al contestarlo sigue sin pintarse
+    // mientras queden otras obligatorias — porque el mismo contrato cubre TODAS, no la del paso en curso.
+    //
+    // `loadingSensitive` entra en la condición por la misma razón que vive dentro del handler (P1-14):
+    // mientras el formData cifrado se descifra, `findFirstIncompleteField` ve alergias vacías y contestaría
+    // que falta algo. Fuera de la condición el botón parpadearía al revés (visible con datos aún sin leer).
+    //
+    // NO se reemplaza la validación del handler, se DUPLICA a propósito: esta decide qué se ve y aquella es
+    // la guarda de último recurso, con su forma fijada por los tests de P1-14. Si mañana alguien afloja esta
+    // condición, el salto sigue sin poder saltarse una obligatoria.
+    //
+    // Lo que esto le quita al lote 151: quien llega del contador (`_traeLoDelContador`) ya no tiene atajo,
+    // porque le faltan justo las 13 preguntas que su rama se salta. Es coherente con lo que pidió entonces
+    // («si todas las preguntas están seleccionadas»): lo que aquel lote le dio no era un salto, era un
+    // «llévame a lo que falta» con la etiqueta equivocada. Si lo echa de menos, eso es un botón PROPIO con
+    // su propio texto, no éste.
+    const _faltaAlgoObligatorio = _isTracking
+        ? findFirstIncompleteFieldFor(formData, TRACKING_REQUIRED_FIELDS)
+        : findFirstIncompleteField(formData);
+    const canSkipToEnd = canSkip
+        && !loadingSensitive
+        && !_faltaAlgoObligatorio
+        && !hasOutOfScopeMedical(formData);
+
     // [P1-FORM-AUDIT-BATCH · 2026-07-03] Clamp REAL al nº de pasos: el clamp del provider
     // admite hasta 100 (genérico, no conoce steps.length). Con un `mealfit_wizard_step`
     // stale > 18 (storage corrupto o un deploy futuro que reduzca pasos) se renderizaba
@@ -1050,7 +1086,9 @@ const InteractiveAssessmentFlow = () => {
                          * Sigue siendo seguro mostrarlo en cualquier paso porque
                          * `handleSkipToLastStep` valida antes de saltar y devuelve al
                          * primer campo incompleto con un aviso (P1-SKIP-RESPECTS-BUDGET). */}
-                        {canSkip && currentStep < steps.length - 1 && (
+                        {/* [P1-PLAN-LOTE-154 · 2026-09-22] `canSkipToEnd`, no `canSkip`: el botón solo
+                         * existe cuando el salto es real. Ver el porqué donde se calcula. */}
+                        {canSkipToEnd && currentStep < steps.length - 1 && (
                             <button
                                 onClick={handleSkipToLastStep}
                                 className="mf-ghost-btn"
