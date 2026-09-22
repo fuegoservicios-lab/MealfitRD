@@ -267,7 +267,9 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
 
     it('Wizard: bifurcación por modo con la firma de forma como dep del memo', () => {
         const s = read('components/assessment/InteractiveAssessmentFlow.jsx');
-        expect(s).toContain('const steps = _isTracking ? _trackingSteps : [_appModeStep, ...planOnlySteps];');
+        // [P1-PLAN-LOTE-164] …con una TERCERA forma: «completar lo que falta» (quien viene del contador) usa su lista
+        // fijada; sin ella, la rama del plan de siempre.
+        expect(s).toContain('const steps = _isTracking ? _trackingSteps : (_pasosCompletar || [_appModeStep, ...planOnlySteps]);');
         // la dep del memo es la FIRMA (cambia cuando cambia qué campo vive en qué paso)
         expect(s).toContain('const stepsShape = steps.map((st) => (st.fields || []).join');
         expect(s).toContain('useMemo(() => buildFieldToStepIndex(steps), [stepsShape])');

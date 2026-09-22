@@ -1,5 +1,5 @@
 import { useAssessment } from '../../context/AssessmentContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import InteractiveAssessmentLayout from './InteractiveAssessmentLayout';
 import {
@@ -52,10 +52,23 @@ import { toast } from 'sonner';
 // el array `steps` (más abajo) declara su propia propiedad `fields: [...]`
 // y el mapping se construye en runtime → reordenar/insertar steps no rompe
 // la navegación a campo faltante.
-import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor, effectiveBudgetCurrency } from '../../config/formValidation';
+import { buildFieldToStepIndex, getFieldLabel, findFirstIncompleteField, findFirstIncompleteFieldFor, TRACKING_REQUIRED_FIELDS, minBudgetFor, effectiveBudgetCurrency, missingPlanFields } from '../../config/formValidation';
 import { pisoSinProcedencia } from '../../config/countries';
-import { useT } from '../../i18n';
+import { useT, useTn } from '../../i18n';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
+// [P1-PLAN-LOTE-164] «Completar lo que falta»: quien viene del contador solo contesta lo que la rama corta se saltó.
+import { leerCompletarFormulario, fijarPasosCompletar, terminarCompletarFormulario } from '../../utils/completarFormulario';
+
+// [P1-PLAN-LOTE-164 · 2026-09-22] Campos que el backend puede rechazar (422) y que NO viven en el `fields` de ningún
+// paso: se buscan por el campo hermano que sí está en su paso, o por el `id` del paso (prefijo #).
+const _CAMPO_EN_PASO = {
+    bodyFat: 'age', waistCm: 'age', weightUnit: 'age',
+    targetWeight: '#goalTarget', goalPace: '#goalTarget',
+    selectedSupplements: '#supplements',
+};
+// El paso final (lleva el envío) nunca se filtra en «completar»: se añade siempre al final de la lista.
+const _PASOS_FINALES = ['supplements', 'pantryBuilder'];
+const _clavePaso = (st) => st?.id || (st?.fields || [])[0] || null;
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
 import { BRAND } from '../../data/routeMeta';
@@ -114,8 +127,15 @@ const isCustomBudgetValid = (fd) => {
 const InteractiveAssessmentFlow = () => {
     const { currentStep, setCurrentStep, nextStep, formData, updateData, maxReachedStep, setMaxReachedStep, planData, loadingSensitive, isGuest } = useAssessment();  // isGuest: [P1-PANTRY-BUILDER-GATE]
     const navigate = useNavigate();
+    const location = useLocation();
     const t = useT();
+    const tn = useTn();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // [P1-PLAN-LOTE-164] La marca de «completar lo que falta» (la ponen el interruptor y la tarjeta del contador).
+    const [completar, setCompletar] = useState(() => leerCompletarFormulario());
+    // Un salto a un campo concreto pendiente de que exista su paso: lo pide Plan.jsx tras un 422 del servidor
+    // (`state.irACampo`) o el propio envío cuando el campo vive fuera de la lista de «completar».
+    const saltoPendienteRef = useRef(location.state?.irACampo || null);
 
     // [P1-FORM-4] Lock síncrono contra doble-submit dentro del mismo tab.
     // ANTES, `if (isSubmitting) return` era el único guard. `isSubmitting` es
@@ -263,17 +283,17 @@ const InteractiveAssessmentFlow = () => {
             // [P1-FORM-4] Liberar el lock: la validación falló, el usuario debe
             // poder reintentar tras corregir el campo faltante.
             submittingRef.current = false;
-            const stepIdx = fieldToStepIndex[missing];
             const label = getFieldLabel(missing, t);
+            // [P1-PLAN-LOTE-164] `_irAlCampo` también llega a pasos que no están en la lista de «completar» (sale del
+            // modo y salta cuando la rama entera exista): la promesa de llevarte vale en los dos casos.
+            const _llegaAlPaso = typeof _indiceDelCampo(missing) === 'number' || _completando;
             toast.error(t('Falta completar: {campo}', { campo: label }), {
                 // [AUDIT-FORM-COPY 2026-08-12] La promesa de navegar solo si HAY
                 // paso destino (householdSize es required sin paso: default 1).
-                description: typeof stepIdx === 'number' ? t('Te llevamos al paso correspondiente.') : t('Revisalo antes de continuar.'),
+                description: _llegaAlPaso ? t('Te llevamos al paso correspondiente.') : t('Revísalo antes de continuar.'),
                 duration: 4000,
             });
-            if (typeof stepIdx === 'number') {
-                setCurrentStep(stepIdx);
-            }
+            _irAlCampo(missing);
             return;
         }
 
@@ -292,8 +312,7 @@ const InteractiveAssessmentFlow = () => {
                 description: t('Te llevamos al paso de presupuesto para ajustarlo.'),
                 duration: 4000,
             });
-            const _budgetIdx = fieldToStepIndex['budget'];
-            if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
+            _irAlCampo('budget');
             return;
         }
 
@@ -307,8 +326,7 @@ const InteractiveAssessmentFlow = () => {
                 description: t('Revisa el paso de condiciones médicas.'),
                 duration: 4500,
             });
-            const _medIdx = fieldToStepIndex['medicalConditions'];
-            if (typeof _medIdx === 'number') setCurrentStep(_medIdx);
+            _irAlCampo('medicalConditions');
             return;
         }
 
@@ -320,6 +338,9 @@ const InteractiveAssessmentFlow = () => {
             policy_form: PLAN_POLICY_FORM_UI, form_version: PLAN_POLICY_FORM_UI ? 'v2' : 'v1',
         });
         flushWizardTelemetry();
+        // [P1-PLAN-LOTE-164] El envío cierra «completar»: si el servidor devuelve un 422, Plan.jsx trae de vuelta al
+        // formulario ENTERO en el campo rechazado (el paso puede no estar en la lista corta).
+        terminarCompletarFormulario();
         try {
             navigate('/plan');
         } catch (error) {
@@ -721,7 +742,61 @@ const InteractiveAssessmentFlow = () => {
     // residual en mealfit_form lo dejaba en un callejón sin salida con la
     // tarjeta del paso 0 deshabilitada (no podía ni ver el porqué).
     const _isTracking = formData.appMode === 'tracking' && !isGuest;
-    const steps = _isTracking ? _trackingSteps : [_appModeStep, ...planOnlySteps];
+
+    // [P1-PLAN-LOTE-164 · 2026-09-22] «COMPLETAR LO QUE FALTA». Quien viene del contador (interruptor de Configuración
+    // o tarjeta del dashboard) ya contestó la rama corta. Hasta hoy entraba a la rama del plan ENTERA: 26 pasos, 9 ya
+    // contestados, sin auto-avance (su historia encendía `canSkip`) y sin «Saltar» (le faltaban obligatorias) — el
+    // texto de su cierre prometía que «las preguntas que te saltaste se preguntan ahí» y se le preguntaba todo.
+    //
+    // La lista son los pasos que la rama corta NUNCA enseñó, más cualquier paso visto que siga incompleto (una
+    // obligatoria vacía, un presupuesto por debajo del piso, una condición fuera de alcance que hay que ver antes de
+    // generar), más el paso final, que lleva el envío. Se FIJA la primera vez (y se guarda con la marca): recalcularla
+    // con cada respuesta sacaría de la lista la pregunta recién contestada y correría los índices bajo los pies.
+    // Mientras las alergias y condiciones cifradas se descifran (`loadingSensitive`) no se calcula: se darían por vacías.
+    // Solo con cuenta, en la rama del plan y SIN plan vivo: con plan, el formulario es una edición y va entero.
+    const _completando = Boolean(completar) && !isGuest && !_isTracking && !planData;
+    const _idsFijadosRef = useRef(null);
+    let _idsCompletar = null;
+    if (_completando) {
+        if (Array.isArray(completar.ids)) {
+            _idsCompletar = completar.ids;
+        } else if (_idsFijadosRef.current) {
+            _idsCompletar = _idsFijadosRef.current;
+        } else if (!loadingSensitive) {
+            const _vistos = new Set(_trackingSteps.map(_clavePaso));
+            const _faltan = new Set(missingPlanFields(formData));
+            _idsFijadosRef.current = planOnlySteps
+                .filter((st) => !_PASOS_FINALES.includes(_clavePaso(st)))
+                .filter((st) => {
+                    const k = _clavePaso(st);
+                    if (!_vistos.has(k)) return true;
+                    if ((st.fields || []).some((f) => _faltan.has(f))) return true;
+                    if (typeof st.validateExtra === 'function' && !st.validateExtra(formData)) return true;
+                    return k === 'medicalConditions' && hasOutOfScopeMedical(formData);
+                })
+                .map(_clavePaso);
+            _idsCompletar = _idsFijadosRef.current;
+        }
+    }
+    const _pasosCompletar = _idsCompletar
+        ? [
+            ..._idsCompletar.map((k) => planOnlySteps.find((st) => _clavePaso(st) === k)).filter(Boolean),
+            ...planOnlySteps.filter((st) => _PASOS_FINALES.includes(_clavePaso(st))),
+        ]
+        : null;
+    // Con la marca puesta pero la lista aún sin calcular (descifrando) se pinta un cargador, no la rama entera: si no,
+    // el usuario vería un instante el paso equivocado y el embudo lo registraría.
+    const _esperandoCompletar = _completando && !_pasosCompletar;
+    const steps = _isTracking ? _trackingSteps : (_pasosCompletar || [_appModeStep, ...planOnlySteps]);
+    useEffect(() => {
+        // la lista fijada viaja con la marca: una recarga o una OTA a mitad la encuentran igual
+        if (_completando && _idsFijadosRef.current && !Array.isArray(completar?.ids)) fijarPasosCompletar(_idsFijadosRef.current);
+    });
+    const verTodasLasPreguntas = () => {
+        terminarCompletarFormulario();
+        _idsFijadosRef.current = null;
+        setCompletar(null);
+    };
     // [P1-ARQ25-F4-FORM · 2026-09-03] Embudo del wizard (línea base del gate de la Fase 4): un
     // `step_view` por paso visto, `wizard_start`/`wizard_restore` una vez por montaje, flush al
     // ocultar la pestaña. Best-effort y con opt-out: nunca condiciona el wizard.
@@ -731,6 +806,8 @@ const InteractiveAssessmentFlow = () => {
     // ciego porque nadie lo emitía, aunque el backend ya lo aceptaba. Volver atrás no termina un paso.
     const _wizardPrevRef = useRef(null);
     useEffect(() => {
+        // [P1-PLAN-LOTE-164] Mientras «completar» calcula su lista no hay paso que registrar.
+        if (_esperandoCompletar) return;
         const step = steps[currentStep];
         const field = (step?.fields || [])[0] || null;
         // [P1-PLAN-LOTE-13 · 2026-09-12] `step.id` primero: los 7 pasos sin `fields` (hábitos, compra y cocina,
@@ -749,7 +826,7 @@ const InteractiveAssessmentFlow = () => {
         if (prev && currentStep > prev.index) trackWizard('step_done', prev.meta);
         _wizardPrevRef.current = { index: currentStep, meta };
         trackWizard('step_view', meta);
-    }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [currentStep, _esperandoCompletar]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         const onHide = () => flushWizardTelemetry({ beacon: true });
         window.addEventListener('pagehide', onHide);
@@ -794,12 +871,25 @@ const InteractiveAssessmentFlow = () => {
     // al último paso, que en seguimiento es el CIERRE, o sea aterrizar en «Listo»
     // sin haber contestado Condiciones Médicas. Regla: modo distinto ⇒ el índice se
     // tira y se recalcula al primer paso de la rama nueva.
+    //
+    // [P1-PLAN-LOTE-164] «Completar» es un TERCER modo, y su sello lleva la hora de la petición: cada vez que el
+    // usuario vuelve a encender el plan se calcula una lista nueva, y un índice de la lista anterior no significa nada
+    // en ella. Mientras la lista no está calculada no se toca nada (el sello se escribiría para la rama equivocada).
+    const _modoWizard = _isTracking ? 'tracking' : (_completando ? `completar:${completar.pedidoEn}` : 'plan');
     useEffect(() => {
+        if (_esperandoCompletar) return;
         let _prevMode = null;
         _prevMode = safeLocalStorageGet('mealfit_wizard_step_mode', null);
-        const _mode = _isTracking ? 'tracking' : 'plan';
+        const _mode = _modoWizard;
         if (_prevMode !== _mode) {
             safeLocalStorageSet('mealfit_wizard_step_mode', _mode);
+            // «Completar» empieza en SU primera pregunta: su índice 0 no es QAppMode (ya contestada), es lo primero
+            // que falta. Y su máximo alcanzado nace en 0: nada de esta lista se ha visitado todavía.
+            if (_mode.startsWith('completar:')) {
+                if (currentStep !== 0) setCurrentStep(0);
+                setMaxReachedStep(0);
+                return;
+            }
             // [P1-WIZARD-MAXSTEP-BRANCH · 2026-08-12] maxReachedStep también es DE LA
             // RAMA, y se tira junto con currentStep. Heredarlo era el bug: llegar al
             // paso 9 de la rama corta hacía `canSkip=true` en los pasos 1-8 de la
@@ -823,7 +913,48 @@ const InteractiveAssessmentFlow = () => {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [_isTracking]);
+    }, [_modoWizard, _esperandoCompletar]);
+
+    // [P1-PLAN-LOTE-164] Ir al paso de un campo concreto. Fuera de «completar», o si su paso está en la lista, es un
+    // salto directo. Si el paso vive fuera de la lista corta (el servidor rechazó un dato que el contador ya había
+    // contestado), se sale de «completar» y el salto queda pendiente hasta que la rama entera exista.
+    const _indiceDelCampo = (campo) => {
+        const alias = _CAMPO_EN_PASO[campo];
+        if (alias && alias.startsWith('#')) {
+            const i = steps.findIndex((st) => st.id === alias.slice(1));
+            return i >= 0 ? i : undefined;
+        }
+        const idx = fieldToStepIndex[alias || campo];
+        return typeof idx === 'number' ? idx : undefined;
+    };
+    const _irAlCampo = (campo) => {
+        const idx = _indiceDelCampo(campo);
+        if (typeof idx === 'number') {
+            setCurrentStep(idx);
+            return true;
+        }
+        if (_completando) {
+            saltoPendienteRef.current = campo;
+            verTodasLasPreguntas();
+            return true;
+        }
+        return false;
+    };
+    useEffect(() => {
+        const campo = saltoPendienteRef.current;
+        if (!campo || _esperandoCompletar) return;
+        const idx = _indiceDelCampo(campo);
+        if (typeof idx === 'number') {
+            saltoPendienteRef.current = null;
+            setCurrentStep(idx);
+            setMaxReachedStep((m) => Math.max(m, idx));
+        } else if (_completando) {
+            verTodasLasPreguntas();
+        } else {
+            saltoPendienteRef.current = null;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stepsShape, _esperandoCompletar, _completando]);
 
     const currentStepConfig = steps[currentStep] || steps[0];
     const hasCompletedBefore = !!planData;
@@ -834,7 +965,9 @@ const InteractiveAssessmentFlow = () => {
     // se salta — y sin atajo tenía que recorrer los 26 pasos para contestar 13. Saltar es seguro aquí porque
     // `handleSkipToLastStep` valida antes y, si falta algo, te deja en el primer campo incompleto con un aviso:
     // el atajo se convierte en «llévame a lo que falta», que es justo lo que necesita.
-    const _traeLoDelContador = !isGuest && !_isTracking
+    // [P1-PLAN-LOTE-164] …salvo en «completar»: ahí la lista SON las preguntas que faltan, y `canSkip` apagaría el
+    // auto-avance en todas (dos toques por cada pregunta nueva, que es lo que el dueño encontraba).
+    const _traeLoDelContador = !isGuest && !_isTracking && !_completando
         && findFirstIncompleteFieldFor(formData, TRACKING_REQUIRED_FIELDS) === null;
     const canSkip = (currentStep < maxReachedStep) || hasCompletedBefore || _traeLoDelContador;
 
@@ -872,7 +1005,7 @@ const InteractiveAssessmentFlow = () => {
     const canSkipToEnd = canSkip
         && !loadingSensitive
         && !_faltaAlgoObligatorio
-        && !hasOutOfScopeMedical(formData);
+        && (_isTracking || !hasOutOfScopeMedical(formData));   // [P1-PLAN-LOTE-164] el alcance clínico es del PLAN
 
     // [P1-FORM-AUDIT-BATCH · 2026-07-03] Clamp REAL al nº de pasos: el clamp del provider
     // admite hasta 100 (genérico, no conoce steps.length). Con un `mealfit_wizard_step`
@@ -954,28 +1087,27 @@ const InteractiveAssessmentFlow = () => {
             ? findFirstIncompleteFieldFor(formData, TRACKING_REQUIRED_FIELDS)
             : findFirstIncompleteField(formData);
         if (missing) {
-            const stepIdx = fieldToStepIndex[missing];
             const label = getFieldLabel(missing, t);
+            const _llegaAlPaso = typeof _indiceDelCampo(missing) === 'number' || _completando;
             toast.info(t('Antes de saltar, completa: {campo}', { campo: label }), {
-                description: typeof stepIdx === 'number' ? t('Te llevamos al paso correspondiente.') : t('Revisalo antes de continuar.'),
+                description: _llegaAlPaso ? t('Te llevamos al paso correspondiente.') : t('Revísalo antes de continuar.'),
                 duration: 4000,
             });
-            if (typeof stepIdx === 'number') {
-                setCurrentStep(stepIdx);
-            }
+            _irAlCampo(missing);
             return;
         }
         // [P1-OUTSCOPE-SKIP-GATE · 2026-08-12] El gate clínico «fuera de alcance»
         // también sobrevive al salto (misma clase que el presupuesto: la regla
         // vivía SOLO en el disabled del botón del paso, y saltar es no pasar por
-        // el paso). Aplica en AMBAS ramas — el chip existe en las dos.
-        if (hasOutOfScopeMedical(formData)) {
+        // el paso).
+        // [P1-PLAN-LOTE-164] …pero SOLO en la rama del plan. El contador no genera nada con reglas clínicas: bloquear
+        // ahí dejaba a quien declara con honestidad «Otro medicamento» sin poder usar la app (ni el contador).
+        if (!_isTracking && hasOutOfScopeMedical(formData)) {
             toast.info(t('Tu condición o medicamento marcado está fuera del alcance del plan.'), {
                 description: t('Revisa el paso de condiciones médicas antes de continuar.'),
                 duration: 4500,
             });
-            const _medIdx = fieldToStepIndex['medicalConditions'];
-            if (typeof _medIdx === 'number') setCurrentStep(_medIdx);
+            _irAlCampo('medicalConditions');
             return;
         }
         // [P1-SKIP-RESPECTS-BUDGET · 2026-08-09] `findFirstIncompleteField` mira
@@ -989,12 +1121,17 @@ const InteractiveAssessmentFlow = () => {
                 description: t('Elegiste "Personalizar" y el monto no llega al mínimo.'),
                 duration: 4000,
             });
-            const _budgetIdx = fieldToStepIndex['budget'];
-            if (typeof _budgetIdx === 'number') setCurrentStep(_budgetIdx);
+            _irAlCampo('budget');
             return;
         }
         setCurrentStep(steps.length - 1);
     };
+
+    // [P1-PLAN-LOTE-164] Descifrando alergias y condiciones antes de fijar la lista de «completar»: un cargador
+    // (decenas de milisegundos), nunca un paso que luego desaparece. Todos los hooks van por encima de esta línea.
+    if (_esperandoCompletar) {
+        return <div className="page-loader" role="status" aria-label={t('Cargando')} />;
+    }
 
     return (
         <InteractiveAssessmentLayout
@@ -1004,6 +1141,40 @@ const InteractiveAssessmentFlow = () => {
             subtitle={currentStepConfig.subtitle}
         >
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', position: 'relative' }}>
+                {/* [P1-PLAN-LOTE-164] Lo que antes decía el diálogo de Configuración (que en el iPhone no llegaba a
+                    verse), dicho donde sí se ve: cuántas preguntas faltan, que lo ya contestado no se repite y que
+                    generar cuesta un crédito AL FINAL — abrir el formulario no gasta nada. */}
+                {_completando && currentStep === 0 && (
+                    <div
+                        role="note"
+                        data-testid="wizard-completar-aviso"
+                        style={{
+                            display: 'flex', flexDirection: 'column', gap: '0.35rem',
+                            padding: '0.85rem 1rem', marginBottom: '1.1rem', borderRadius: '0.85rem',
+                            border: '1px solid rgba(16, 185, 129, 0.35)', background: 'rgba(16, 185, 129, 0.08)',
+                        }}
+                    >
+                        <span style={{ fontWeight: 700 }}>
+                            {tn(
+                                steps.length,
+                                'Te falta {n} pregunta para tu plan.',
+                                'Te faltan {n} preguntas para tu plan.',
+                                { n: steps.length }
+                            )}
+                        </span>
+                        <span style={{ fontSize: '0.87rem', opacity: 0.85, lineHeight: 1.45 }}>
+                            {t('Lo que ya contestaste en el contador no se repite. Generar el plan usa 1 crédito de tu mes, y solo al final.')}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={verTodasLasPreguntas}
+                            className="mf-ghost-btn"
+                            style={{ alignSelf: 'flex-start', marginTop: '0.25rem' }}
+                        >
+                            {t('Ver todas las preguntas')}
+                        </button>
+                    </div>
+                )}
                 <div style={{ flex: 1 }}>
                     {currentStepConfig.component}
                 </div>

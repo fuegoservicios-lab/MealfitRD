@@ -34,8 +34,8 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStor
 import { applyThemePref, isDarkActive } from '../utils/theme';
 // [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma de la interfaz.
 import { LOCALES } from '../i18n/locales';
-import { SUPERSEDED, formatDate, formatNumber, tn, useI18n } from '../i18n';
-import { missingPlanQuestionsCount } from '../config/formValidation';
+import { SUPERSEDED, formatDate, formatNumber, useI18n } from '../i18n';
+import { pedirCompletarFormulario } from '../utils/completarFormulario';
 // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Selector de país, en oscuro hasta el
 // flip global (COUNTRY_SYSTEM_UI). SSOT compartido con QCountry.jsx — el
 // `code` es el dato del motor, `coerceCountry` es el mismo fail-safe que usa
@@ -674,24 +674,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // tarjeta del contador (`irAlPlan`): se pasa el formulario a la rama del plan y se navega; el modo lo enciende
         // el servidor cuando de verdad se genera (`POST /generation-runs` ⇒ `ensure_plan_generation_enabled`). Si se
         // arrepiente a mitad, vuelve a su contador intacto.
+        // [P1-PLAN-LOTE-164 · 2026-09-22] …y SIN diálogo de por medio. En el iPhone del dueño el interruptor «no hacía
+        // nada»: el diálogo de confirmación no llegaba a verse sobre la ventana de Configuración (el registro del
+        // servidor lo confirma: ni un paso del formulario llegó a montarse) y su siguiente toque lo cerraba sin verlo.
+        // Abrir el formulario no gasta nada —el crédito se gasta al final, en «Finalizar y Generar»—, así que no hay
+        // nada que confirmar aquí: lo que el diálogo contaba (cuántas preguntas faltan y que generar usa un crédito)
+        // lo dice ahora el primer paso del formulario, que además solo pregunta LO QUE FALTA (`completarFormulario`).
         if (!pausing && !planData) {
-            const faltan = missingPlanQuestionsCount(formData || {});
-            const ok = await confirmToast(
-                t('¿Quieres que la IA te arme el plan?'),
-                {
-                    description: faltan > 0
-                        ? tn(
-                            faltan,
-                            'Te faltan {n} pregunta del formulario y usa 1 crédito de tu mes.',
-                            'Te faltan {n} preguntas del formulario y usa 1 crédito de tu mes.',
-                            { n: faltan }
-                        )
-                        : t('Ya tienes todo respondido: generarlo usa 1 crédito de tu mes.'),
-                    confirmLabel: t('Encender el plan'),
-                    cancelLabel: t('Ahora no'),
-                },
-            );
-            if (!ok) return;
+            pedirCompletarFormulario();
             updateData('appMode', 'plan');
             navigate('/assessment');
             return;

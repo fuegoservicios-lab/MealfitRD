@@ -155,6 +155,7 @@ import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: los avisos de abajo salen desde
 // dentro de callbacks (handlers, polling, catch), no en render.
 import { claimLocaleForUser, localeParaEstampar, syncLocaleFromProfile, t } from '../i18n';
+import { CLAVE_COMPLETAR } from '../utils/completarFormulario';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
 // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Loop de polling acotado (discriminador +
@@ -304,6 +305,7 @@ const _clearUserScopedCaches = () => {
     // exitGuest/mount) de una vez.
     safeLocalStorageRemove('mealfit_wizard_step');
     safeLocalStorageRemove('mealfit_wizard_step_mode'); // [P1-WIZARD-MAXSTEP-BRANCH] el sello de rama muere con el indice
+    safeLocalStorageRemove(CLAVE_COMPLETAR); // [P1-PLAN-LOTE-164] «completar lo que falta» muere con la posición
     // [P1-PLAN-LOTE-137 · 2026-09-20] Tres claves GLOBALES del modo contador que ningún teardown borraba. El espejo
     // del modo lo leen la navegación, el Dashboard y ProtectedRoute mientras el perfil no ha llegado: en un
     // dispositivo compartido, la cuenta B (con plan) veía el contador de A, la nav sin Recetas y «Tu plan está en
@@ -532,6 +534,9 @@ export const AssessmentProvider = ({ children }) => {
         // (en-US/en-LR/my → lb, resto → kg). Decisión de producto: imperial
         // como default global; el user puede cambiar a kg via el toggle en
         // assessment o Settings.
+        // [P1-PLAN-LOTE-164 · 2026-09-22] Sigue en 'lb' para todos a propósito (decisión del dueño, con test). El
+        // riesgo para fr/it/pt —teclear «70» pensando en kilos— lo delata ahora QMeasurements con la equivalencia
+        // bajo el campo («≈ 31,8 kg»); cambiar el default por idioma queda propuesto al dueño, no hecho.
         return 'lb';
     };
 
@@ -4282,6 +4287,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         try { clearDisabledIngredientsStore(); } catch { /* noop */ }
         safeLocalStorageRemove('mealfit_wizard_step');
     safeLocalStorageRemove('mealfit_wizard_step_mode'); // [P1-WIZARD-MAXSTEP-BRANCH] el sello de rama muere con el indice // [P1-FORM-RESUME · 2026-06-19]
+    safeLocalStorageRemove(CLAVE_COMPLETAR); // [P1-PLAN-LOTE-164] «completar lo que falta» muere con la posición
         setPlanData(null);
         setFormData(initialFormData);
         setLikedMeals({});
@@ -4309,6 +4315,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         safeLocalStorageRemove('mealfit_dislikes');
         safeLocalStorageRemove('mealfit_wizard_step');
     safeLocalStorageRemove('mealfit_wizard_step_mode'); // [P1-WIZARD-MAXSTEP-BRANCH] el sello de rama muere con el indice // [P1-FORM-RESUME · 2026-06-19]
+    safeLocalStorageRemove(CLAVE_COMPLETAR); // [P1-PLAN-LOTE-164] «completar lo que falta» muere con la posición
         safeLocalStorageRemove('mealfit_user_id');
         safeLocalStorageRemove('mealfit_guest_session_id');
         safeLocalStorageRemove('mealfit_current_session');

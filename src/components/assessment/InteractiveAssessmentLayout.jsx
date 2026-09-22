@@ -10,9 +10,10 @@ import LocaleSwitcher from '../common/LocaleSwitcher';
 import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 import { useT } from '../../i18n';
 import { isTrackingMode } from '../../config/dashboardNav';
+import { terminarCompletarFormulario } from '../../utils/completarFormulario';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
-    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, updateData, planData } = useAssessment();
+    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, updateData, planData, session } = useAssessment();
     // [P1-ARQ25-F1-CLOSE · 2026-09-02] Si ya hay un plan generándose (placeholder de la cola sin
     // días), el asistente lo dice arriba y manda al panel: reenviar el formulario cancelaría
     // la generación en marcha. Vivo: tras un reinicio del backend el cliente aterrizó aquí sin
@@ -31,6 +32,8 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
     const volverAlPanel = () => {
         // el contador que se arrepiente deja el formulario en SU rama (la del plan la abre la tarjeta al volver a pedirla)
         if (_contadorConPanel) updateData('appMode', 'tracking');
+        // [P1-PLAN-LOTE-164] …y suelta «completar lo que falta»: la próxima vez que encienda el plan se calcula de nuevo.
+        terminarCompletarFormulario();
         navigate('/dashboard');
     };
     const navigate = useNavigate();
@@ -158,9 +161,24 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                 )}
                 <div className={styles.headerContent}>
                     {currentStep > 0 ? (
-                        <button onClick={prevStep} className={styles.backBtn} aria-label={t('Paso anterior')}>
-                            <ChevronLeft size={24} />
-                        </button>
+                        /* [P1-PLAN-LOTE-164 · 2026-09-22] En el teléfono la salida al panel existía SOLO en el paso 0 (el
+                           pill de la esquina se oculta a ≤768 px): desde el paso 12, doce toques de «atrás» — y en el
+                           iPhone no hay gesto atrás. Ahora va junto a la flecha en todos los pasos (en escritorio sigue
+                           el pill: este icono se oculta a ≥769 px). */
+                        <div className={styles.navIzq}>
+                            <button onClick={prevStep} className={styles.backBtn} aria-label={t('Paso anterior')}>
+                                <ChevronLeft size={24} />
+                            </button>
+                            {_puedeVolverAlPanel && (
+                                <button
+                                    onClick={volverAlPanel}
+                                    className={`${styles.backBtn} ${styles.panelMovil}`}
+                                    aria-label={t('Volver al panel')}
+                                >
+                                    <LayoutDashboard size={20} aria-hidden="true" />
+                                </button>
+                            )}
+                        </div>
                     ) : _puedeVolverAlPanel ? (
                         /* [P1-PLAN-LOTE-137] En el teléfono el pill de la esquina no existe: en el paso 0, quien tiene
                            un panel al que volver (plan vivo o contador) ve ESA salida, no la de cerrar sesión. */
@@ -205,7 +223,8 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         cuenta y, hasta hoy, sin forma de corregir la autodetección. Sigue
                         siendo el `:last-child` del grid → `justify-self: end`. */}
                     <div className={styles.backSpacer}>
-                        <LocaleSwitcher id="mf-locale-wizard" menuAlign="start" />
+                        {/* [P1-PLAN-LOTE-164] Con cuenta, el idioma elegido aquí se guarda en el perfil. */}
+                        <LocaleSwitcher id="mf-locale-wizard" menuAlign="start" guardarEnCuenta={!isGuest && Boolean(session)} />
                     </div>
                 </div>
                 

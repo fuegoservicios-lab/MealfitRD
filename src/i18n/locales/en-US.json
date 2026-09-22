@@ -1664,7 +1664,6 @@
   "No se pudo restaurar el alimento.": "Couldn't restore the food.",
   "No se pudo restaurar el plan (sesión inválida).": "Couldn’t restore the plan (invalid session).",
   "No se pudo sincronizar con la nube.": "Couldn’t sync with the cloud.",
-  "No se pudo terminar. Intenta de nuevo.": "Couldn't finish. Try again.",
   "No se pudo verificar el código (HTTP {status}).": "Couldn’t verify the code (HTTP {status}).",
   "No se renueva": "Not renewing",
   "No sustituye diagnóstico médico": "Not a substitute for medical diagnosis",
@@ -2115,7 +2114,7 @@
   "Revisa tu lista de compras": "Check your shopping list",
   "Revisa tus restricciones": "Check your restrictions",
   "Revisa tus restricciones declaradas.": "Check the restrictions you declared.",
-  "Revisalo antes de continuar.": "Review it before continuing.",
+  "Revísalo antes de continuar.": "Review it before continuing.",
   "Revisando la lista de compras…": "Reviewing the shopping list…",
   "Revisando tus preferencias y contexto...": "Reviewing your preferences and context...",
   "Revisar mi nevera": "Review my Fridge",
@@ -3263,5 +3262,25 @@
   "Estás usando la app como contador: tus días anteriores están en Progreso. Si un día enciendes el plan, cada uno que generes se guardará aquí.": "You're using the app as a counter: your previous days are in Progress. If you ever turn the plan on, every one you generate is saved here.",
   "Ver mis días anteriores": "View my previous days",
   "Borramos tu cuenta, pero algunos datos no se pudieron eliminar. Escríbenos a {correo} y lo terminamos.": "We deleted your account, but some data couldn't be removed. Email us at {correo} and we'll finish it.",
-  "Aviso del coach": "Coach reminder"
+  "Aviso del coach": "Coach reminder",
+  "Te faltan {n} preguntas para tu plan.": {
+    "one": "You have {n} question left for your plan.",
+    "other": "You have {n} questions left for your plan."
+  },
+  "Lo que ya contestaste en el contador no se repite. Generar el plan usa 1 crédito de tu mes, y solo al final.": "What you already answered in the counter isn't asked again. Generating the plan uses 1 credit this month, and only at the end.",
+  "Ver todas las preguntas": "See all the questions",
+  "Puedes seguir: el contador no aplica reglas clínicas.": "You can continue: the counter doesn't apply clinical rules.",
+  "Tus metas de calorías y macros serán orientativas, sin ajustes para esa condición o medicamento. Consúltalas con tu médico o nutricionista. Si algún día quieres que la IA te arme un plan, todavía no podremos calcularlo con seguridad para ti.": "Your calorie and macro goals will be a guide, with no adjustments for that condition or medication. Check them with your doctor or dietitian. If you ever want the AI to build you a plan, we still won't be able to calculate it safely for you.",
+  "Escribe una edad entre {min} y {max} años.": "Enter an age between {min} and {max} years.",
+  "¿Son centímetros? Toca CM y escríbelo ahí.": "Is that centimeters? Tap CM and enter it there.",
+  "Escribe tu altura en pies y pulgadas, por ejemplo 5 y 7.": "Enter your height in feet and inches, for example 5 and 7.",
+  "Escribe una altura entre {min} y {max} cm.": "Enter a height between {min} and {max} cm.",
+  "¿Son kilos? Toca KG: en libras el mínimo es {min}.": "Is that kilos? Tap KG: in pounds the minimum is {min}.",
+  "¿Son libras? Toca LB: en kilos el máximo es {max}.": "Is that pounds? Tap LB: in kilos the maximum is {max}.",
+  "Escribe un peso entre {min} y {max} {unidad}.": "Enter a weight between {min} and {max} {unidad}.",
+  "≈ {valor} {unidad}": "≈ {valor} {unidad}",
+  "Escribe un porcentaje entre {min} y {max}.": "Enter a percentage between {min} and {max}.",
+  "Escribe una cintura entre {min} y {max} cm.": "Enter a waist measurement between {min} and {max} cm.",
+  "No pudimos guardar tu contador. Revisa tu conexión e inténtalo de nuevo.": "We couldn't save your counter. Check your connection and try again.",
+  "Revisa tus datos": "Check your details"
 }

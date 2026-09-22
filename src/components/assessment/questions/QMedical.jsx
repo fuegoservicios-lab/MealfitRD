@@ -248,6 +248,12 @@ export const QMedical = ({ onManualAdvance }) => {
     // aplicar) aunque medicamentos sea un campo opcional.
     // [P1-OUTSCOPE-SKIP-GATE] Mismo SSOT que consumen salto y submit.
     const outOfScopeSelected = hasOutOfScopeMedical(formData);
+    // [P1-PLAN-LOTE-164 · 2026-09-22] El alcance clínico es del PLAN. En la rama del contador no se genera nada con
+    // reglas clínicas: bloquear ahí dejaba a quien declara con honestidad «Otra condición» u «Otro medicamento» (un
+    // anticonceptivo, un antidepresivo) sin poder usar la app EN ABSOLUTO — y la única salida era desmarcar, que es
+    // justo lo que el aviso de abajo existe para no enseñar. En el contador el aviso sigue, dice qué significa ahí
+    // (metas orientativas) y deja seguir. Si algún día enciende el plan, el formulario del plan vuelve a parar aquí.
+    const enContador = formData.appMode === 'tracking';
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -296,9 +302,19 @@ export const QMedical = ({ onManualAdvance }) => {
                 >
                     <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
                     <span>
-                        <strong>{t('Todavía no podemos calcular un plan seguro para esa condición.')}</strong>
-                        <br />
-                        {t('Nuestro motor aplica reglas clínicas verificadas solo para las condiciones y medicamentos de esta lista. Fuera de ellas no podemos garantizar que el plan sea adecuado para ti, y preferimos decírtelo antes que entregarte algo que parezca calculado y no lo esté.')}
+                        {enContador ? (
+                            <>
+                                <strong>{t('Puedes seguir: el contador no aplica reglas clínicas.')}</strong>
+                                <br />
+                                {t('Tus metas de calorías y macros serán orientativas, sin ajustes para esa condición o medicamento. Consúltalas con tu médico o nutricionista. Si algún día quieres que la IA te arme un plan, todavía no podremos calcularlo con seguridad para ti.')}
+                            </>
+                        ) : (
+                            <>
+                                <strong>{t('Todavía no podemos calcular un plan seguro para esa condición.')}</strong>
+                                <br />
+                                {t('Nuestro motor aplica reglas clínicas verificadas solo para las condiciones y medicamentos de esta lista. Fuera de ellas no podemos garantizar que el plan sea adecuado para ti, y preferimos decírtelo antes que entregarte algo que parezca calculado y no lo esté.')}
+                            </>
+                        )}
                         <br /><br />
                         {/* El énfasis obliga a partir la frase en tres claves; el «sí» va
                             aparte porque es justo la palabra que el <em> resalta. */}
@@ -430,7 +446,7 @@ export const QMedical = ({ onManualAdvance }) => {
                 de cliente es puenteable y aquí el punto entero es la seguridad. */}
             <NextButton
                 onClick={onManualAdvance}
-                disabled={(formData.medicalConditions || []).length === 0 || outOfScopeSelected}
+                disabled={(formData.medicalConditions || []).length === 0 || (outOfScopeSelected && !enContador)}
             />
         </div>
     );

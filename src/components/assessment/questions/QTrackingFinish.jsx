@@ -127,14 +127,16 @@ export const QTrackingFinish = () => {
                 body: JSON.stringify({ health_profile: hp }),
             });
             // El mensaje del Error se pinta tal cual en el toast del catch.
-            if (!r1.ok) throw new Error(t('No se pudo guardar tu perfil.'));
+            // [P1-PLAN-LOTE-164] Los errores PROPIOS llevan la marca `paraMostrar`: son los únicos que se pintan tal
+            // cual. Lo demás (sin red, «Request timeout tras 30000ms: https://…», «Load failed») es texto técnico.
+            if (!r1.ok) throw Object.assign(new Error(t('No se pudo guardar tu perfil.')), { paraMostrar: true });
 
             const r2 = await fetchWithAuth('/api/profile/plan-mode', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ plan_mode: 'tracking' }),
             });
-            if (!r2.ok) throw new Error(t('No se pudo activar el modo contador.'));
+            if (!r2.ok) throw Object.assign(new Error(t('No se pudo activar el modo contador.')), { paraMostrar: true });
 
             safeLocalStorageSet('mealfit_plan_mode', 'tracking');
 
@@ -155,7 +157,9 @@ export const QTrackingFinish = () => {
             // de bloques sigue vivo): la misma recarga que cierra el interruptor de Configuración (P1-PAUSE-STALE-PLANDATA).
             if (_conPlanVivo) setTimeout(() => window.location.reload(), 900);
         } catch (e) {
-            toast.error(e?.message || t('No se pudo terminar. Intenta de nuevo.'));
+            toast.error(e?.paraMostrar
+                ? e.message
+                : t('No pudimos guardar tu contador. Revisa tu conexión e inténtalo de nuevo.'));
         } finally {
             setSaving(false);
         }

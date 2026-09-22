@@ -12,6 +12,8 @@
 // (`mealfit_locale`), y cuando el usuario crea la cuenta, `localeParaEstampar` estampa lo
 // activo en su perfil si éste nace sin idioma — la elección hecha ANTES de la cuenta viaja
 // a la cuenta sola. Por eso no hay PATCH aquí: no hay a quién.
+// [P1-PLAN-LOTE-164 · 2026-09-22] …salvo en el formulario, donde el selector se usa CON cuenta: ahí quien lo monta
+// pasa `guardarEnCuenta` y el cambio se guarda en el perfil (si no, el siguiente arranque lo revertía).
 //
 // [P2-LOCALE-LISTBOX-DESKTOP · 2026-09-04] DOS controles según el puntero. En táctil, el
 // <select> nativo: el SO pone su propia rueda y es lo más accesible. Con puntero fino, un
@@ -21,7 +23,8 @@
 // Enter, Escape, Home/End). Las etiquetas van en su PROPIO idioma (`native`), porque quien
 // busca su idioma en una lista no sabe leer la que tiene delante.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useI18n } from '../../i18n';
+import { toast } from 'sonner';
+import { SUPERSEDED, useI18n } from '../../i18n';
 import { LOCALES } from '../../i18n/locales';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import styles from './LocaleSwitcher.module.css';
@@ -41,7 +44,7 @@ const Check = () => (
 // `menuAlign`: 'end' (default) = el menú cuelga alineado al borde derecho de la píldora (login,
 // donde el dueño lo quiso así); 'start' = nace en el borde izquierdo y crece hacia la derecha,
 // para el header del formulario, donde alineado al borde derecho caía sobre la tarjeta.
-export default function LocaleSwitcher({ className = '', id = 'mf-locale-switcher', menuAlign = 'end' }) {
+export default function LocaleSwitcher({ className = '', id = 'mf-locale-switcher', menuAlign = 'end', guardarEnCuenta = false }) {
     const { locale, setLocale, t } = useI18n();
     const [pendiente, setPendiente] = useState(null);
     const coarse = useMediaQuery('(pointer: coarse)');
@@ -61,10 +64,32 @@ export default function LocaleSwitcher({ className = '', id = 'mf-locale-switche
     const cambiar = async (code) => {
         if (!code || code === locale) return;
         setPendiente(code);
+        let aplicado = null;
         try {
-            await setLocale(code);
+            aplicado = await setLocale(code);
         } finally {
             setPendiente(null);
+        }
+        // [P1-PLAN-LOTE-164 · 2026-09-22] «No hay PATCH: no hay a quién» era verdad en el login, no en el formulario:
+        // ahí el selector se usa CON sesión, y el cambio solo quedaba en el dispositivo. En el siguiente arranque
+        // `syncLocaleFromProfile` aplicaba el idioma del perfil y lo revertía — y el coach y los avisos, que leen el
+        // perfil, seguían en el idioma anterior todo el tiempo. Con cuenta se guarda en el perfil, igual que el
+        // selector de Configuración; sin cuenta (login, invitado) sigue sin haber a quién. Lo decide quien lo monta
+        // (`guardarEnCuenta`), y la API se importa aquí dentro: el login no carga ni contexto ni cliente de API por él.
+        if (!aplicado || aplicado === SUPERSEDED || !guardarEnCuenta) return;
+        try {
+            const { fetchWithAuth } = await import('../../config/api');
+            const res = await fetchWithAuth('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fields: { locale: code } }),
+            });
+            if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
+        } catch {
+            toast.warning(
+                t('Idioma cambiado, pero no se pudo guardar en tu cuenta. Volverá al anterior la próxima vez que entres.'),
+                { duration: 5000 }
+            );
         }
     };
 

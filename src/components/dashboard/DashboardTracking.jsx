@@ -20,6 +20,7 @@ import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
 import { missingPlanQuestionsCount } from '../../config/formValidation';
 import { leerInvitacion, anotarInvitacion, estadoLocal } from '../../utils/planInvite';
+import { pedirCompletarFormulario } from '../../utils/completarFormulario';
 import { useT, useTn } from '../../i18n';
 import TrackingProgress from './TrackingProgress';
 import WaterTracker from './WaterTracker';
@@ -73,7 +74,11 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
     // tarjeta que promete encender el plan y te deja en el final del modo contador.
     // El flip de appMode dispara el reset de índice del wizard (modo distinto ⇒ el
     // paso persistido se tira) y la rama del plan pregunta los 12 que faltan.
+    // [P1-PLAN-LOTE-164 · 2026-09-22] Y el formulario pregunta SOLO lo que falta: la misma marca que el interruptor
+    // de Configuración (utils/completarFormulario.js). Sin ella, «la rama del plan pregunta los 12 que faltan» era
+    // verdad a medias: los preguntaba, pero dentro de los 26 pasos, repitiendo los 9 que ya contestó.
     const irAlPlan = () => {
+        pedirCompletarFormulario();
         updateData('appMode', 'plan');
         navigate('/assessment');
     };

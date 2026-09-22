@@ -58,14 +58,15 @@ describe('selector de idioma: nítido y legible en escritorio', () => {
         expect(block(css, '.menu {')).toContain('left: 0;');
         expect(block(css, '.menu {')).not.toContain('right: 0;');
         expect(block(css, '.menuEnd {')).toContain('right: 0;');
-        expect(jsx).toContain("menuAlign = 'end' }) {");
+        // [P1-PLAN-LOTE-164] la firma ganó `guardarEnCuenta` (el formulario guarda el idioma en el perfil)
+        expect(jsx).toContain("menuAlign = 'end', guardarEnCuenta = false }) {");
         expect(jsx).toContain("if (!open || menuAlign !== 'start') return undefined;");
         expect(jsx).toContain('const maxLeft = window.innerWidth - margin - w;');
         expect(jsx).toContain('const left = Math.max(b.right - w, Math.min(b.left, maxLeft));');
         expect(jsx).toContain("style={menuAlign === 'start' ? { left: menuShift } : undefined}");
         expect(jsx).toContain("window.addEventListener('resize', place);");
         expect(read('src/pages/Login.jsx')).toContain('<LocaleSwitcher id="mf-locale-login" />');
-        expect(read('src/components/assessment/InteractiveAssessmentLayout.jsx')).toContain('<LocaleSwitcher id="mf-locale-wizard" menuAlign="start" />');
+        expect(read('src/components/assessment/InteractiveAssessmentLayout.jsx')).toContain('<LocaleSwitcher id="mf-locale-wizard" menuAlign="start" guardarEnCuenta={!isGuest && Boolean(session)} />');
     });
 
     it('el login (oscuro fijo) pide el esquema oscuro al control y le da superficie de tarjeta propia', () => {

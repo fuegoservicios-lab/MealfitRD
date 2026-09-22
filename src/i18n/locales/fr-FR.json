@@ -1664,7 +1664,6 @@
   "No se pudo restaurar el alimento.": "Impossible de restaurer l'aliment.",
   "No se pudo restaurar el plan (sesión inválida).": "Impossible de restaurer le plan (session invalide).",
   "No se pudo sincronizar con la nube.": "Impossible de synchroniser avec le cloud.",
-  "No se pudo terminar. Intenta de nuevo.": "Impossible de terminer. Réessayez.",
   "No se pudo verificar el código (HTTP {status}).": "Impossible de vérifier le code (HTTP {status}).",
   "No se renueva": "Non renouvelé",
   "No sustituye diagnóstico médico": "Ne remplace pas un diagnostic médical",
@@ -2115,7 +2114,7 @@
   "Revisa tu lista de compras": "Vérifiez votre liste de courses",
   "Revisa tus restricciones": "Vérifiez vos restrictions",
   "Revisa tus restricciones declaradas.": "Vérifiez les restrictions que vous avez déclarées.",
-  "Revisalo antes de continuar.": "Vérifiez-le avant de continuer.",
+  "Revísalo antes de continuar.": "Vérifiez-le avant de continuer.",
   "Revisando la lista de compras…": "Vérification de la liste de courses…",
   "Revisando tus preferencias y contexto...": "Vérification de vos préférences et de votre contexte...",
   "Revisar mi nevera": "Vérifier mon frigo",
@@ -3263,5 +3262,25 @@
   "Estás usando la app como contador: tus días anteriores están en Progreso. Si un día enciendes el plan, cada uno que generes se guardará aquí.": "Vous utilisez l'appli en mode compteur : vos jours précédents sont dans Progression. Si un jour vous activez le plan, chacun de ceux que vous générez sera enregistré ici.",
   "Ver mis días anteriores": "Voir mes jours précédents",
   "Borramos tu cuenta, pero algunos datos no se pudieron eliminar. Escríbenos a {correo} y lo terminamos.": "Nous avons supprimé votre compte, mais certaines données n'ont pas pu être effacées. Écrivez-nous à {correo} et nous terminerons.",
-  "Aviso del coach": "Rappel du coach"
+  "Aviso del coach": "Rappel du coach",
+  "Te faltan {n} preguntas para tu plan.": {
+    "one": "Il vous reste {n} question pour votre plan.",
+    "other": "Il vous reste {n} questions pour votre plan."
+  },
+  "Lo que ya contestaste en el contador no se repite. Generar el plan usa 1 crédito de tu mes, y solo al final.": "Ce que vous avez déjà répondu dans le compteur n'est pas redemandé. Générer le plan utilise 1 crédit de votre mois, et seulement à la fin.",
+  "Ver todas las preguntas": "Voir toutes les questions",
+  "Puedes seguir: el contador no aplica reglas clínicas.": "Vous pouvez continuer : le compteur n'applique pas de règles cliniques.",
+  "Tus metas de calorías y macros serán orientativas, sin ajustes para esa condición o medicamento. Consúltalas con tu médico o nutricionista. Si algún día quieres que la IA te arme un plan, todavía no podremos calcularlo con seguridad para ti.": "Vos objectifs de calories et de macros seront indicatifs, sans ajustement pour cette condition ou ce médicament. Vérifiez-les avec votre médecin ou votre nutritionniste. Si un jour vous voulez que l'IA vous prépare un plan, nous ne pourrons pas encore le calculer en toute sécurité pour vous.",
+  "Escribe una edad entre {min} y {max} años.": "Saisissez un âge entre {min} et {max} ans.",
+  "¿Son centímetros? Toca CM y escríbelo ahí.": "Ce sont des centimètres ? Touchez CM et saisissez-le là.",
+  "Escribe tu altura en pies y pulgadas, por ejemplo 5 y 7.": "Saisissez votre taille en pieds et pouces, par exemple 5 et 7.",
+  "Escribe una altura entre {min} y {max} cm.": "Saisissez une taille entre {min} et {max} cm.",
+  "¿Son kilos? Toca KG: en libras el mínimo es {min}.": "Ce sont des kilos ? Touchez KG : en livres, le minimum est {min}.",
+  "¿Son libras? Toca LB: en kilos el máximo es {max}.": "Ce sont des livres ? Touchez LB : en kilos, le maximum est {max}.",
+  "Escribe un peso entre {min} y {max} {unidad}.": "Saisissez un poids entre {min} et {max} {unidad}.",
+  "≈ {valor} {unidad}": "≈ {valor} {unidad}",
+  "Escribe un porcentaje entre {min} y {max}.": "Saisissez un pourcentage entre {min} et {max}.",
+  "Escribe una cintura entre {min} y {max} cm.": "Saisissez un tour de taille entre {min} et {max} cm.",
+  "No pudimos guardar tu contador. Revisa tu conexión e inténtalo de nuevo.": "Nous n'avons pas pu enregistrer votre compteur. Vérifiez votre connexion et réessayez.",
+  "Revisa tus datos": "Vérifiez vos données"
 }

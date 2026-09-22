@@ -9,7 +9,7 @@ import { Input, Label } from '../../common/FormUI';
 // nativo a los inputs.
 import { BIO_RANGES, isBiometricInRange } from '../../../config/formValidation';
 import { NextButton } from './NextButton';
-import { useT } from '../../../i18n';
+import { formatNumber, useT } from '../../../i18n';
 
 export const QMeasurements = ({ onManualAdvance }) => {
     const { formData, updateData } = useAssessment();
@@ -117,6 +117,71 @@ export const QMeasurements = ({ onManualAdvance }) => {
     const waistOK = isBiometricInRange(formData.waistCm, BIO_RANGES.waistCm, { optional: true });
     const isFormValid = ageOK && heightOK && weightOK && bodyFatOK && waistOK;
 
+    // [P1-PLAN-LOTE-164 · 2026-09-22] Qué está mal, dicho junto al campo. Hasta hoy «Siguiente» se apagaba EN
+    // SILENCIO: 60 con LB marcado (el mínimo es 66 lb), 170 en la casilla de pies o una edad de 11 dejaban el botón
+    // gris sin una palabra (los `min`/`max` de HTML no avisan de nada fuera de un <form>). Solo se dice con algo
+    // escrito: un campo vacío no es un error, es una pregunta sin contestar.
+    const _escrito = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+    const _num = (v) => parseFloat(String(v).replace(',', '.'));
+    const _enRango = (v, r) => Number.isFinite(v) && v >= r.min && v <= r.max;
+    const avisoEdad = _escrito(formData.age) && !ageOK
+        ? t('Escribe una edad entre {min} y {max} años.', { min: BIO_RANGES.age.min, max: BIO_RANGES.age.max })
+        : null;
+    const avisoAltura = (() => {
+        if (unit === 'ft') {
+            const f = _num(feet);
+            // «170» en la casilla de pies: casi seguro son centímetros.
+            if (_escrito(feet) && f > BIO_RANGES.heightFt.max && _enRango(f, BIO_RANGES.heightCm)) {
+                return t('¿Son centímetros? Toca CM y escríbelo ahí.');
+            }
+            if ((_escrito(feet) || _escrito(inches)) && !heightOK) {
+                return t('Escribe tu altura en pies y pulgadas, por ejemplo 5 y 7.');
+            }
+            return null;
+        }
+        return _escrito(formData.height) && !heightOK
+            ? t('Escribe una altura entre {min} y {max} cm.', { min: BIO_RANGES.heightCm.min, max: BIO_RANGES.heightCm.max })
+            : null;
+    })();
+    const avisoPeso = (() => {
+        if (!_escrito(formData.weight) || weightOK) return null;
+        const p = _num(formData.weight);
+        if (weightUnit === 'lb' && p < BIO_RANGES.weightLb.min && _enRango(p, BIO_RANGES.weightKg)) {
+            return t('¿Son kilos? Toca KG: en libras el mínimo es {min}.', { min: BIO_RANGES.weightLb.min });
+        }
+        if (weightUnit === 'kg' && p > BIO_RANGES.weightKg.max && _enRango(p, BIO_RANGES.weightLb)) {
+            return t('¿Son libras? Toca LB: en kilos el máximo es {max}.', { max: BIO_RANGES.weightKg.max });
+        }
+        return t('Escribe un peso entre {min} y {max} {unidad}.', { min: weightRange.min, max: weightRange.max, unidad: weightUnit === 'kg' ? 'kg' : 'lb' });
+    })();
+    // La equivalencia en la OTRA unidad, siempre que el peso es válido: «80» pensando en kilos con LB marcado pasa
+    // el rango (36 kg) y calcula las metas de un adulto de 36 kg. Ver «≈ 36,3 kg» debajo lo delata sin bloquear a nadie.
+    const equivalenciaPeso = (() => {
+        if (!weightOK || !_escrito(formData.weight)) return null;
+        const p = _num(formData.weight);
+        if (!Number.isFinite(p)) return null;
+        const otro = weightUnit === 'kg' ? p * 2.20462 : p / 2.20462;
+        return t('≈ {valor} {unidad}', { valor: formatNumber(Math.round(otro * 10) / 10), unidad: weightUnit === 'kg' ? 'lb' : 'kg' });
+    })();
+    const avisoGrasa = !bodyFatOK
+        ? t('Escribe un porcentaje entre {min} y {max}.', { min: BIO_RANGES.bodyFat.min, max: BIO_RANGES.bodyFat.max })
+        : null;
+    const avisoCintura = !waistOK
+        ? t('Escribe una cintura entre {min} y {max} cm.', { min: BIO_RANGES.waistCm.min, max: BIO_RANGES.waistCm.max })
+        : null;
+    const _aviso = (id, texto, tono = 'error') => (texto ? (
+        <p
+            id={id}
+            role={tono === 'error' ? 'alert' : undefined}
+            style={{
+                margin: '0.35rem 0 0', fontSize: '0.8rem', lineHeight: 1.4,
+                color: tono === 'error' ? 'var(--danger)' : 'var(--text-muted)',
+            }}
+        >
+            {texto}
+        </p>
+    ) : null);
+
     return (
         <div style={{ display: 'grid', gap: '1.5rem' }}>
             {/* [P1-WIZARD-FIELD-ROWS · 2026-08-10] La rejilla y la cabecera de cada campo
@@ -132,11 +197,14 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         <Label htmlFor="age">{t('Edad (años)')}&nbsp;<span style={{ color: '#EF4444' }} aria-hidden="true">*</span></Label>
                     </div>
                     <Input
-                        id="age" type="number" placeholder={t('Ej. 28')}
+                        id="age" type="number" inputMode="numeric" enterKeyHint="next" placeholder={t('Ej. 28')}
                         min={BIO_RANGES.age.min} max={BIO_RANGES.age.max} step={BIO_RANGES.age.step}
                         value={formData.age} onChange={e => updateData('age', e.target.value)}
                         aria-required="true"
+                        aria-invalid={avisoEdad ? 'true' : undefined}
+                        aria-describedby={avisoEdad ? 'age-aviso' : undefined}
                     />
+                    {_aviso('age-aviso', avisoEdad)}
                 </div>
                 <div>
                     <div className="mf-field-head">
@@ -150,27 +218,32 @@ export const QMeasurements = ({ onManualAdvance }) => {
                     </div>
                     {unit === 'cm' ? (
                         <Input
-                            id="height" type="number" inputMode="decimal" placeholder={t('Ej. 170')}
+                            id="height" type="number" inputMode="decimal" enterKeyHint="next" placeholder={t('Ej. 170')}
                             min={BIO_RANGES.heightCm.min} max={BIO_RANGES.heightCm.max} step={BIO_RANGES.heightCm.step}
                             value={formData.height} onChange={e => updateData('height', _normalizeDecimal(e.target.value))}
                             aria-required="true"
+                            aria-invalid={avisoAltura ? 'true' : undefined}
+                            aria-describedby={avisoAltura ? 'height-aviso' : undefined}
                         />
                     ) : (
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <Input
-                                type="number" placeholder={t('Pies')} aria-label={t('Altura en pies')}
+                                type="number" inputMode="numeric" enterKeyHint="next" placeholder={t('Pies')} aria-label={t('Altura en pies')}
                                 min={BIO_RANGES.heightFt.min} max={BIO_RANGES.heightFt.max} step={BIO_RANGES.heightFt.step}
                                 value={feet} onChange={(e) => handleFtChange(e.target.value, inches)}
                                 aria-required="true"
+                                aria-invalid={avisoAltura ? 'true' : undefined}
+                                aria-describedby={avisoAltura ? 'height-aviso' : undefined}
                             />
                             <Input
-                                type="number" placeholder={t('Pulg')} aria-label={t('Altura en pulgadas')}
+                                type="number" inputMode="numeric" enterKeyHint="next" placeholder={t('Pulg')} aria-label={t('Altura en pulgadas')}
                                 min={BIO_RANGES.heightIn.min} max={BIO_RANGES.heightIn.max} step={BIO_RANGES.heightIn.step}
                                 value={inches} onChange={(e) => handleFtChange(feet, e.target.value)}
                                 aria-required="true"
                             />
                         </div>
                     )}
+                    {_aviso('height-aviso', avisoAltura)}
                 </div>
             </div>
 
@@ -198,21 +271,28 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         />
                     </div>
                     <Input
-                        id="weight" type="number" inputMode="decimal" placeholder={weightUnit === 'lb' ? t('Ej. 150') : t('Ej. 70')}
+                        id="weight" type="number" inputMode="decimal" enterKeyHint="next" placeholder={weightUnit === 'lb' ? t('Ej. 150') : t('Ej. 70')}
                         min={weightRange.min} max={weightRange.max} step={weightRange.step}
                         value={formData.weight} onChange={e => updateData('weight', _normalizeDecimal(e.target.value))}
                         aria-required="true"
+                        aria-invalid={avisoPeso ? 'true' : undefined}
+                        aria-describedby={avisoPeso ? 'weight-aviso' : (equivalenciaPeso ? 'weight-equivalencia' : undefined)}
                     />
+                    {_aviso('weight-aviso', avisoPeso)}
+                    {!avisoPeso && _aviso('weight-equivalencia', equivalenciaPeso, 'nota')}
                 </div>
                 <div>
                     <div className="mf-field-head">
                         <Label htmlFor="bodyFat">{t('% Grasa (Opcional)')}</Label>
                     </div>
                     <Input
-                        id="bodyFat" type="number" inputMode="decimal" placeholder={t('Ej. 20')}
+                        id="bodyFat" type="number" inputMode="decimal" enterKeyHint="next" placeholder={t('Ej. 20')}
                         min={BIO_RANGES.bodyFat.min} max={BIO_RANGES.bodyFat.max} step={BIO_RANGES.bodyFat.step}
                         value={formData.bodyFat} onChange={e => updateData('bodyFat', _normalizeDecimal(e.target.value))}
+                        aria-invalid={avisoGrasa ? 'true' : undefined}
+                        aria-describedby={avisoGrasa ? 'bodyfat-aviso' : undefined}
                     />
+                    {_aviso('bodyfat-aviso', avisoGrasa)}
                 </div>
                 {/* [P1-CLINICAL-INTAKE · 2026-07-03] Cintura opcional: criterio de riesgo
                     cardiometabólico + señal de composición corporal que el peso solo no da.
@@ -222,10 +302,13 @@ export const QMeasurements = ({ onManualAdvance }) => {
                         <Label htmlFor="waistCm">{t('Cintura en cm (Opcional)')}</Label>
                     </div>
                     <Input
-                        id="waistCm" type="number" inputMode="decimal" placeholder={t('Ej. 85')}
+                        id="waistCm" type="number" inputMode="decimal" enterKeyHint="done" placeholder={t('Ej. 85')}
                         min={BIO_RANGES.waistCm.min} max={BIO_RANGES.waistCm.max} step={BIO_RANGES.waistCm.step}
                         value={formData.waistCm || ''} onChange={e => updateData('waistCm', _normalizeDecimal(e.target.value))}
+                        aria-invalid={avisoCintura ? 'true' : undefined}
+                        aria-describedby={avisoCintura ? 'waist-aviso' : undefined}
                     />
+                    {_aviso('waist-aviso', avisoCintura)}
                 </div>
             </div>
 

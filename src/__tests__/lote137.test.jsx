@@ -269,7 +269,8 @@ describe('lote 137 · formulario y Nevera', () => {
         const f = leer('src/components/assessment/InteractiveAssessmentLayout.jsx');
         expect(f).toContain('const _contadorConPanel = !isGuest && isTrackingMode(userProfile)');
         expect(f).toContain("if (_contadorConPanel) updateData('appMode', 'tracking');");
-        expect((f.match(/onClick=\{volverAlPanel\}/g) || []).length).toBe(2);
+        // [P1-PLAN-LOTE-164] 2 → 3: el teléfono gana la salida al panel en TODOS los pasos (junto a la flecha).
+        expect((f.match(/onClick=\{volverAlPanel\}/g) || []).length).toBe(3);
         // en el paso 0 la salida destructiva (cerrar sesión) queda SOLO para quien no tiene panel
         expect(f).toMatch(/\) : _puedeVolverAlPanel \? \([\s\S]{0,500}onClick=\{volverAlPanel\}/);
     });

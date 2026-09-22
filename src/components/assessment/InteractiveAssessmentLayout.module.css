@@ -145,6 +145,22 @@
     }
 }
 
+/* [P1-PLAN-LOTE-164 · 2026-09-22] La flecha «paso anterior» y, en el teléfono, la salida al panel. */
+.navIzq {
+    display: flex;
+    align-items: center;
+}
+
+.panelMovil {
+    margin-left: 0;
+}
+
+@media (min-width: 769px) {
+    .panelMovil {
+        display: none;
+    }
+}
+
 /* [FORM-BACK-TO-LOGIN · 2026-07-03] Chevron "volver al login" del PASO 1 — SOLO
    móvil (en desktop existe el pill FORM-EXIT-TO-LOGIN-PC de la esquina). Se oculta
    con visibility (no display:none): es grid child de la col 1 y sin él el logo

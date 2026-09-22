@@ -1664,7 +1664,6 @@
   "No se pudo restaurar el alimento.": "Não foi possível restaurar o alimento.",
   "No se pudo restaurar el plan (sesión inválida).": "Não foi possível restaurar o plano (sessão inválida).",
   "No se pudo sincronizar con la nube.": "Não foi possível sincronizar com a nuvem.",
-  "No se pudo terminar. Intenta de nuevo.": "Não foi possível concluir. Tente de novo.",
   "No se pudo verificar el código (HTTP {status}).": "Não foi possível verificar o código (HTTP {status}).",
   "No se renueva": "Não renova",
   "No sustituye diagnóstico médico": "Não substitui diagnóstico médico",
@@ -2115,7 +2114,7 @@
   "Revisa tu lista de compras": "Revise sua lista de compras",
   "Revisa tus restricciones": "Revise suas restrições",
   "Revisa tus restricciones declaradas.": "Revise as restrições que você declarou.",
-  "Revisalo antes de continuar.": "Revise antes de continuar.",
+  "Revísalo antes de continuar.": "Revise antes de continuar.",
   "Revisando la lista de compras…": "Revisando a lista de compras…",
   "Revisando tus preferencias y contexto...": "Revisando suas preferências e contexto...",
   "Revisar mi nevera": "Revisar minha geladeira",
@@ -3263,5 +3262,25 @@
   "Estás usando la app como contador: tus días anteriores están en Progreso. Si un día enciendes el plan, cada uno que generes se guardará aquí.": "Você está usando o app como contador: seus dias anteriores estão em Progresso. Se um dia ligar o plano, cada um que gerar será salvo aqui.",
   "Ver mis días anteriores": "Ver meus dias anteriores",
   "Borramos tu cuenta, pero algunos datos no se pudieron eliminar. Escríbenos a {correo} y lo terminamos.": "Excluímos sua conta, mas alguns dados não puderam ser apagados. Escreva para {correo} e nós terminamos.",
-  "Aviso del coach": "Lembrete do coach"
+  "Aviso del coach": "Lembrete do coach",
+  "Te faltan {n} preguntas para tu plan.": {
+    "one": "Falta {n} pergunta para o seu plano.",
+    "other": "Faltam {n} perguntas para o seu plano."
+  },
+  "Lo que ya contestaste en el contador no se repite. Generar el plan usa 1 crédito de tu mes, y solo al final.": "O que você já respondeu no contador não se repete. Gerar o plano usa 1 crédito do seu mês, e só no final.",
+  "Ver todas las preguntas": "Ver todas as perguntas",
+  "Puedes seguir: el contador no aplica reglas clínicas.": "Você pode continuar: o contador não aplica regras clínicas.",
+  "Tus metas de calorías y macros serán orientativas, sin ajustes para esa condición o medicamento. Consúltalas con tu médico o nutricionista. Si algún día quieres que la IA te arme un plan, todavía no podremos calcularlo con seguridad para ti.": "Suas metas de calorias e macros serão orientativas, sem ajustes para essa condição ou medicamento. Confira-as com seu médico ou nutricionista. Se um dia você quiser que a IA monte um plano, ainda não poderemos calculá-lo com segurança para você.",
+  "Escribe una edad entre {min} y {max} años.": "Digite uma idade entre {min} e {max} anos.",
+  "¿Son centímetros? Toca CM y escríbelo ahí.": "São centímetros? Toque em CM e digite ali.",
+  "Escribe tu altura en pies y pulgadas, por ejemplo 5 y 7.": "Digite sua altura em pés e polegadas, por exemplo 5 e 7.",
+  "Escribe una altura entre {min} y {max} cm.": "Digite uma altura entre {min} e {max} cm.",
+  "¿Son kilos? Toca KG: en libras el mínimo es {min}.": "São quilos? Toque em KG: em libras o mínimo é {min}.",
+  "¿Son libras? Toca LB: en kilos el máximo es {max}.": "São libras? Toque em LB: em quilos o máximo é {max}.",
+  "Escribe un peso entre {min} y {max} {unidad}.": "Digite um peso entre {min} e {max} {unidad}.",
+  "≈ {valor} {unidad}": "≈ {valor} {unidad}",
+  "Escribe un porcentaje entre {min} y {max}.": "Digite uma porcentagem entre {min} e {max}.",
+  "Escribe una cintura entre {min} y {max} cm.": "Digite uma cintura entre {min} e {max} cm.",
+  "No pudimos guardar tu contador. Revisa tu conexión e inténtalo de nuevo.": "Não conseguimos salvar seu contador. Verifique sua conexão e tente de novo.",
+  "Revisa tus datos": "Revise seus dados"
 }

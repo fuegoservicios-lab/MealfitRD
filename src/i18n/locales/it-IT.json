@@ -1664,7 +1664,6 @@
   "No se pudo restaurar el alimento.": "Non è stato possibile ripristinare l'alimento.",
   "No se pudo restaurar el plan (sesión inválida).": "Impossibile ripristinare il piano (sessione non valida).",
   "No se pudo sincronizar con la nube.": "Impossibile sincronizzare con il cloud.",
-  "No se pudo terminar. Intenta de nuevo.": "Non è stato possibile completare. Riprova.",
   "No se pudo verificar el código (HTTP {status}).": "Impossibile verificare il codice (HTTP {status}).",
   "No se renueva": "Non si rinnova",
   "No sustituye diagnóstico médico": "Non sostituisce una diagnosi medica",
@@ -2115,7 +2114,7 @@
   "Revisa tu lista de compras": "Controlla la tua lista della spesa",
   "Revisa tus restricciones": "Controlla le tue restrizioni",
   "Revisa tus restricciones declaradas.": "Controlla le restrizioni che hai dichiarato.",
-  "Revisalo antes de continuar.": "Controllalo prima di continuare.",
+  "Revísalo antes de continuar.": "Controllalo prima di continuare.",
   "Revisando la lista de compras…": "Controlliamo la lista della spesa…",
   "Revisando tus preferencias y contexto...": "Esaminiamo le tue preferenze e il contesto...",
   "Revisar mi nevera": "Controlla il mio frigo",
@@ -3263,5 +3262,25 @@
   "Estás usando la app como contador: tus días anteriores están en Progreso. Si un día enciendes el plan, cada uno que generes se guardará aquí.": "Stai usando l'app come contatore: i tuoi giorni precedenti sono in Avanzamento. Se un giorno attivi il piano, ogni piano che generi verrà salvato qui.",
   "Ver mis días anteriores": "Vedi i miei giorni precedenti",
   "Borramos tu cuenta, pero algunos datos no se pudieron eliminar. Escríbenos a {correo} y lo terminamos.": "Abbiamo eliminato il tuo account, ma alcuni dati non sono stati cancellati. Scrivici a {correo} e completiamo noi.",
-  "Aviso del coach": "Promemoria del coach"
+  "Aviso del coach": "Promemoria del coach",
+  "Te faltan {n} preguntas para tu plan.": {
+    "one": "Ti manca {n} domanda per il tuo piano.",
+    "other": "Ti mancano {n} domande per il tuo piano."
+  },
+  "Lo que ya contestaste en el contador no se repite. Generar el plan usa 1 crédito de tu mes, y solo al final.": "Quello che hai già risposto nel contatore non si ripete. Generare il piano usa 1 credito del mese, e solo alla fine.",
+  "Ver todas las preguntas": "Vedi tutte le domande",
+  "Puedes seguir: el contador no aplica reglas clínicas.": "Puoi continuare: il contatore non applica regole cliniche.",
+  "Tus metas de calorías y macros serán orientativas, sin ajustes para esa condición o medicamento. Consúltalas con tu médico o nutricionista. Si algún día quieres que la IA te arme un plan, todavía no podremos calcularlo con seguridad para ti.": "I tuoi obiettivi di calorie e macro saranno indicativi, senza aggiustamenti per quella condizione o farmaco. Verificali con il tuo medico o nutrizionista. Se un giorno vorrai che l'IA ti prepari un piano, non potremo ancora calcolarlo in modo sicuro per te.",
+  "Escribe una edad entre {min} y {max} años.": "Inserisci un'età tra {min} e {max} anni.",
+  "¿Son centímetros? Toca CM y escríbelo ahí.": "Sono centimetri? Tocca CM e scrivilo lì.",
+  "Escribe tu altura en pies y pulgadas, por ejemplo 5 y 7.": "Inserisci la tua altezza in piedi e pollici, per esempio 5 e 7.",
+  "Escribe una altura entre {min} y {max} cm.": "Inserisci un'altezza tra {min} e {max} cm.",
+  "¿Son kilos? Toca KG: en libras el mínimo es {min}.": "Sono chili? Tocca KG: in libbre il minimo è {min}.",
+  "¿Son libras? Toca LB: en kilos el máximo es {max}.": "Sono libbre? Tocca LB: in chili il massimo è {max}.",
+  "Escribe un peso entre {min} y {max} {unidad}.": "Inserisci un peso tra {min} e {max} {unidad}.",
+  "≈ {valor} {unidad}": "≈ {valor} {unidad}",
+  "Escribe un porcentaje entre {min} y {max}.": "Inserisci una percentuale tra {min} e {max}.",
+  "Escribe una cintura entre {min} y {max} cm.": "Inserisci una circonferenza vita tra {min} e {max} cm.",
+  "No pudimos guardar tu contador. Revisa tu conexión e inténtalo de nuevo.": "Non siamo riusciti a salvare il tuo contatore. Controlla la connessione e riprova.",
+  "Revisa tus datos": "Controlla i tuoi dati"
 }

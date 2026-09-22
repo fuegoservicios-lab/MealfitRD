@@ -40,6 +40,22 @@ import { glossReviewIssue, glossReviewDisclaimer } from '../utils/clinicalNoteGl
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
 // max_calls=3 por usuario/IP, así que 60s es la peor cota antes de que la
 // ventana se libere por completo.
+/**
+ * [P1-PLAN-LOTE-164 · 2026-09-22] ¿Qué campo rechazó el servidor? Para volver al formulario EN ese paso y no en el
+ * primero. Formas reales del backend (`routers/plans.py`): `invalid_biometric_range` trae `errors[].field`,
+ * `missing_required_fields` trae `missing_fields[]`, y el alcance clínico no trae campo pero siempre es el de
+ * condiciones médicas. Sin pista, `undefined`: el formulario abre donde estaba.
+ */
+export function campoDelRechazo(detail, code) {
+    if (!detail || typeof detail !== 'object') return undefined;
+    const primero = Array.isArray(detail.errors) ? detail.errors[0] : null;
+    if (primero && typeof primero.field === 'string') return primero.field;
+    if (Array.isArray(detail.missing_fields) && typeof detail.missing_fields[0] === 'string') return detail.missing_fields[0];
+    if (typeof detail.field === 'string') return detail.field;
+    if (code === 'clinical_scope_exceeded' || code === 'too_many_medical_conditions') return 'medicalConditions';
+    return undefined;
+}
+
 const DEFAULT_RATE_LIMIT_RETRY_AFTER_S = 60;
 
 const _parseRetryAfter = (response) => {
@@ -143,6 +159,7 @@ async function fetchWithRetry(url, options, retries = 3, backoff = 2000) {
             const err = new Error(_msg);
             err.code = _code;
             err.terminal = true;
+            err.field = campoDelRechazo(_detail, _code);   // [P1-PLAN-LOTE-164]
             throw err;
         }
         if (response.status >= 500) throw new Error(`Server Error ${response.status}`);
@@ -443,6 +460,7 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                     const eForm = new Error(mensajeDeError({ detail: _detail }, t('Revisa los datos del formulario.'), t));
                     eForm.code = _detail.code || 'form_invalid';
                     eForm.terminal = true;
+                    eForm.field = campoDelRechazo(_detail, eForm.code);   // [P1-PLAN-LOTE-164]
                     throw eForm;
                 }
             }
@@ -1818,6 +1836,23 @@ const Plan = () => {
                             }, 1000);
                         });
                         navigate('/assessment', { replace: true });
+                        return;
+                    }
+                    // [P1-PLAN-LOTE-164 · 2026-09-22] Cualquier OTRO rechazo terminal del servidor (422 de rango
+                    // biométrico, campos que faltan, alcance clínico, días…) caía a la rama de abajo: «Conexión
+                    // interrumpida · tu plan se sigue generando», al panel SIN limpiar la bandera de generación en
+                    // curso — y ProtectedRoute, al ver la bandera, lo devolvía a /plan, que volvía a enviar y volvía
+                    // a recibir el mismo 422. El motivo real no se enseñaba nunca. Un rechazo no es una conexión
+                    // cortada: se limpia la bandera, se dice qué pasó y se vuelve al formulario EN el campo rechazado.
+                    if (error.terminal) {
+                        safeLocalStorageRemove('mealfit_plan_in_progress');
+                        import('sonner').then(({ toast }) => {
+                            toast.error(t('Revisa tus datos'), {
+                                description: error.message || t('Revisa los datos del formulario.'),
+                                duration: 6000, id: 'plan-ready',
+                            });
+                        });
+                        navigate('/assessment', { replace: true, state: error.field ? { irACampo: error.field } : undefined });
                         return;
                     }
                     // [P1-RECOVERY-SUSPEND-FIX · 2026-05-16] Si hay un flag
