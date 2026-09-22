@@ -100,7 +100,8 @@ describe('[P1-PLAN-LOTE-160] Google en Android', () => {
     it('sube el versionCode y NO el umbral de OTA', () => {
         const gradle = leer('android/app/build.gradle');
         const code = Number(/versionCode\s+(\d+)/.exec(gradle)[1]);
-        expect(code).toBe(102);
+        // [P1-PLAN-LOTE-163] el 103 (gesto atrás + icono) sigue por encima: lo que se vigila es que el 160 subió
+        expect(code).toBeGreaterThanOrEqual(102);
         // Mismo criterio que el 133 y el 152: la capacidad está gateada por `nativePluginAvailable`, así que
         // un binario sin el plugin degrada bien. Subir el umbral dejaría sin OTA a los ya instalados por una
         // capacidad que no les afecta.

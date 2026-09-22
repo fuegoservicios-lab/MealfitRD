@@ -23,8 +23,11 @@ android {
         // instale ENCIMA del anterior y que el tester distinga en Ajustes cuál tiene.
         // [P1-PLAN-LOTE-160 · 2026-09-22] 102: el APK que trae `MfGoogleId` («Continuar con Google»). Es
         // código NATIVO, así que no viaja por OTA: sin este build el botón no existe en Android.
-        versionCode 102
-        versionName "1.0"
+        // [P1-PLAN-LOTE-163 · 2026-09-22] 103: el APK que trae `@capacitor/app` (el gesto «atrás» dejaba de cerrar la
+        // app), el icono y la pantalla de arranque de Bioboros (eran el logo de Capacitor) y el detalle de Google.
+        // `versionName` lleva el número: con "1.0" fijo, Ajustes de Android no decía qué APK tenía cada tester.
+        versionCode 103
+        versionName "1.0.103"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

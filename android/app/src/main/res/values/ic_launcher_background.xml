@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- [P1-PLAN-LOTE-163] el azul de la marca: el fondo del icono adaptativo es el mismo que el del icono -->
+    <color name="ic_launcher_background">#01071D</color>
 </resources>

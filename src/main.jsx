@@ -236,6 +236,10 @@ if (isNativeApp()) {
   import('./utils/avisosDeComida')
     .then((m) => m.iniciarAvisosLocales())
     .catch(() => { /* sin sincronizar, los avisos ya programados siguen saliendo */ });
+  // [P1-PLAN-LOTE-163 · 2026-09-22] El gesto «atrás» de Android (ver native/botonAtras.js). Sin él, cerraba la app.
+  import('./native/botonAtras')
+    .then((m) => m.iniciarBotonAtras())
+    .catch(() => { /* sin el plugin, el gesto hace lo de antes */ });
 }
 
 // [P1-SENTRY-SAMPLE-COST · 2026-05-12] `tracesSampleRate` driven from env

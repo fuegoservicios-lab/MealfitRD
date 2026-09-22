@@ -97,7 +97,13 @@ public class MfGoogleId extends Plugin {
                         // Cerrar la hoja NO es un error: es la respuesta «ahora no». La web distingue este
                         // código para no pintar un mensaje rojo a quien simplemente cambió de idea.
                         if (e instanceof GetCredentialCancellationException) {
-                            call.reject("Cancelado por la persona.", "CANCELADO");
+                            // [P1-PLAN-LOTE-163] Credential Manager usa ESTA misma excepción para fallos de
+                            // configuración (cuenta fuera de los usuarios de prueba, huella que no coincide:
+                            // «[16] Account reauth failed»). El código sigue siendo CANCELADO —la web no pinta rojo—,
+                            // pero el mensaje original viaja en `data.detalle`: es lo único que los distingue.
+                            JSObject datos = new JSObject();
+                            datos.put("detalle", String.valueOf(e.getMessage()));
+                            call.reject("Cancelado por la persona.", "CANCELADO", datos);
                             return;
                         }
                         // Sin ninguna cuenta de Google en el teléfono tampoco hay nada que arreglar desde aquí:

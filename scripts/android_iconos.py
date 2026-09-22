@@ -21,7 +21,12 @@ DENSIDADES = {
     'xxxhdpi': (192, 432),
 }
 # Zona segura del icono adaptativo: el sistema recorta hasta 18 dp por lado.
-PROPORCION_SEGURA = 0.62
+#
+# [P1-PLAN-LOTE-163 · 2026-09-22] 0,62 → 1,0. Con el logo de Capacitor (un dibujo que llenaba casi todo el cuadro) había
+# que encogerlo; el icono de Bioboros es un fondo A SANGRE con el brote en el ~49 % central, así que a lienzo completo
+# el brote cae en ~53 dp de 108: dentro de los 66 dp de la zona segura. Encogerlo pintaría un cuadrado azul flotando
+# sobre el color de fondo del adaptativo, que ahora es el mismo azul (`values/ic_launcher_background.xml`).
+PROPORCION_SEGURA = 1.0
 
 
 def _redondo(img: Image.Image) -> Image.Image:
