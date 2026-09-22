@@ -82,9 +82,22 @@ export function nativeHidesOAuthRedirect() {
     return isNativeApp();
 }
 
-// ¿El botón de Google va por la sesión web nativa del binario (true) o por la redirección de Better Auth (false)?
+// ¿El botón de Google va por un mecanismo del BINARIO (true) o por la redirección de Better Auth (false)?
+//
+// [P1-PLAN-LOTE-160 · 2026-09-22] Dos mecanismos, un solo gate. iOS trae `MfWebAuth` (código + PKCE sobre
+// una vista web del sistema); Android trae `MfGoogleId` (Credential Manager, que entrega el token ya
+// emitido) porque Google retiró los esquemas propios como destino de redirección en Android.
+//
+// Las superficies preguntan «¿ofrezco Google sin redirección?», no «¿en qué plataforma estoy?». Por eso la
+// respuesta es un OR y no un `isIOS()`: un binario viejo de cualquiera de las dos, sin su plugin, contesta
+// false y cae solo al camino web — que es lo correcto, no un caso a evitar.
 export function googleSignInNativo() {
-    return nativePluginAvailable('MfWebAuth');
+    return nativePluginAvailable('MfWebAuth') || nativePluginAvailable('MfGoogleId');
+}
+
+// ¿Cuál de los dos? Solo lo pregunta el login, para elegir el módulo; nadie más debería necesitarlo.
+export function googleSignInPorCredentialManager() {
+    return nativePluginAvailable('MfGoogleId');
 }
 
 // Sign in with Apple (guideline 4.8: obligatorio si se ofrece Google). El provider se

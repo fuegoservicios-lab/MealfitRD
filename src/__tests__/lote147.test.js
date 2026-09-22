@@ -39,7 +39,10 @@ describe('lote 147 · Google nativo', () => {
     it('la condición nueva entra DENTRO del gate que ya existe: el JSX del login no cambia', () => {
         const plat = leer('src/config/platform.js');
         expect(plat).toContain('if (googleSignInNativo()) return false;');
-        expect(plat).toContain("return nativePluginAvailable('MfWebAuth');");
+        // [P1-PLAN-LOTE-160] La respuesta dejó de ser UN plugin: Android entró con `MfGoogleId` y el gate
+        // pasó a ser un OR. Lo que este test defiende sigue intacto —que la pregunta se le haga al BINARIO
+        // y no a la plataforma—, así que se ancla la mitad de iOS y el OR lo vigila `lote160.test.js`.
+        expect(plat).toMatch(/return nativePluginAvailable\('MfWebAuth'\)/);
         const login = leer('src/pages/Login.jsx');
         expect(login).toContain("const handleGoogle = () => (googleSignInNativo() ? handleGoogleNativo() : handleOAuth('google'));");
         expect(login).toContain('if (vuelta.cancelado) { setGoogleLoading(false); return; }');

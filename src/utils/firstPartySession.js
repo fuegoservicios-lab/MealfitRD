@@ -217,13 +217,22 @@ export async function signInWithAppleFirstParty({ identityToken, nonce, name }) 
 
 // [P1-PLAN-LOTE-147 · 2026-09-21] Google NATIVO: el código PKCE que devolvió la sesión web del binario se canjea en
 // NUESTRO backend (que habla con Google, verifica el id_token y emite la sesión first-party). Misma forma que Apple.
-export async function signInWithGoogleFirstParty({ code, codeVerifier, nonce, redirectUri }) {
+// [P1-PLAN-LOTE-160 · 2026-09-22] Dos formas, un solo endpoint. iOS trae `code` + `codeVerifier` (PKCE);
+// Android trae `idToken` porque Credential Manager lo entrega ya emitido y no hay nada que canjear. Lo que
+// viene después —verificar, resolver al usuario, sellar la cookie— es lo mismo, así que duplicar esta
+// función dejaría dos copias del manejo de errores y de la sesión.
+//
+// `JSON.stringify` omite las claves `undefined`, así que cada camino manda exactamente sus campos: el
+// backend elige la rama por la FORMA del cuerpo y no por un campo «plataforma» que el cliente podría mentir.
+export async function signInWithGoogleFirstParty({ code, codeVerifier, nonce, redirectUri, idToken }) {
     try {
         const res = await fetchWithTimeout(api('/api/auth/google/native'), {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, code_verifier: codeVerifier, nonce, redirect_uri: redirectUri }),
+            body: JSON.stringify({
+                code, code_verifier: codeVerifier, nonce, redirect_uri: redirectUri, id_token: idToken,
+            }),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok || !data?.ok || !data.user_id) {

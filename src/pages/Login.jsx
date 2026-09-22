@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { appleSignInEnabled, appleSignInNativo, googleSignInNativo, nativeHidesOAuthRedirect } from '../config/platform';
+import { appleSignInEnabled, appleSignInNativo, googleSignInNativo, googleSignInPorCredentialManager, nativeHidesOAuthRedirect } from '../config/platform';
 import { apexUrl } from '../config/site';
 import { authClient, sendEmailOtp } from '../authClient';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { useAssessment } from '../context/AssessmentContext';
 import { logoutFirstPartySession, verifyEmailOtpFirstParty, signInWithAppleFirstParty, signInWithGoogleFirstParty } from '../utils/firstPartySession';
 import { pedirCredencialDeApple } from '../utils/appleSignInNative';
 import { pedirCodigoDeGoogle } from '../utils/googleSignInNative';
+import { pedirTokenDeGoogle } from '../utils/googleSignInAndroid';
 import { marcarInicioGoogle } from '../utils/cuentasDelDispositivo';
 import { humanizeAuthError } from '../utils/authErrors';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
@@ -268,8 +269,18 @@ const Login = () => {
         setGoogleLoading(true);
         setError(null);
         try {
-            const vuelta = await pedirCodigoDeGoogle();
+            // [P1-PLAN-LOTE-160] El mecanismo lo decide el BINARIO, no la plataforma: Android trae
+            // Credential Manager (token ya emitido) porque Google retiró el esquema propio de vuelta.
+            const vuelta = googleSignInPorCredentialManager()
+                ? await pedirTokenDeGoogle()
+                : await pedirCodigoDeGoogle();
             if (vuelta.cancelado) { setGoogleLoading(false); return; }   // cerró la vista: no es un error
+            if (vuelta.sinCuentas) {
+                // No es un fallo nuestro y reintentar no lleva a nada: se dice lo que hay que hacer.
+                setError(t('No hay ninguna cuenta de Google en este teléfono. Añade una en los ajustes del sistema, o entra con tu correo.'));
+                setGoogleLoading(false);
+                return;
+            }
             const { error: googleError } = await signInWithGoogleFirstParty(vuelta);
             if (googleError) {
                 setError(humanizeAuthError(googleError, t, locale));

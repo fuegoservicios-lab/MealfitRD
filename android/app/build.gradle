@@ -21,7 +21,9 @@ android {
         // [P1-PLAN-LOTE-159 · 2026-09-22] 101: el segundo APK de los testers (el que trae
         // `adjustResize`). Con la clave de firma ya fija, subir el número es lo que deja que se
         // instale ENCIMA del anterior y que el tester distinga en Ajustes cuál tiene.
-        versionCode 101
+        // [P1-PLAN-LOTE-160 · 2026-09-22] 102: el APK que trae `MfGoogleId` («Continuar con Google»). Es
+        // código NATIVO, así que no viaja por OTA: sin este build el botón no existe en Android.
+        versionCode 102
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -87,6 +89,13 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // [P1-PLAN-LOTE-160 · 2026-09-22] «Continuar con Google» en Android va por Credential Manager: Google
+    // retiró los esquemas propios como destino de redirección, que es sobre lo que se apoya el camino de iOS.
+    // `credentials-play-services-auth` es el puente con los Servicios de Google del teléfono — sin él la hoja
+    // no aparece y `getCredentialAsync` falla en tiempo de ejecución, no de compilación.
+    implementation "androidx.credentials:credentials:$androidxCredentialsVersion"
+    implementation "androidx.credentials:credentials-play-services-auth:$androidxCredentialsVersion"
+    implementation "com.google.android.libraries.identity.googleid:googleid:$googleIdVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
