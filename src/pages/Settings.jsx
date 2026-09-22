@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { nativeHidesCommerce, nativePlatform } from '../config/platform';
+import { nativeHidesCommerce, nativePlatform, isNativeApp } from '../config/platform';
+import { BIO_RANGES } from '../config/formValidation';
+import { useCampoVisibleConTeclado } from '../hooks/useCampoVisibleConTeclado';
 import { isTrackingMode } from '../config/dashboardNav';
 import { reanudarPlanes } from '../utils/planModeResume';
 import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, periodLabel, tierDisplayName } from '../config/plans';
@@ -200,6 +202,8 @@ const _UnitToggle = ({ unit, options, onChange }) => (
    números que el usuario acababa de escribir. */
 const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null }) => {
     const inDialog = variant === 'dialog';
+    // [P1-PLAN-LOTE-166] el campo que se escribe (nombre, peso, edad…) no se queda debajo del teclado
+    useCampoVisibleConTeclado();
     // Obtenemos userProfile y updateUserProfile del contexto global
     // [P1-FORM-9] `session` necesario para el guard de hidratación cifrada en
     // `buildHealthProfilePayload`.
@@ -1379,11 +1383,36 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const json = JSON.stringify(data, null, 2);
+            const nombre = `bioboros_datos_${new Date().toISOString().slice(0, 10)}.json`;
+            // [P1-PLAN-LOTE-166 · 2026-09-22] En la app nativa no existe «descargar»: Capacitor no gestiona el
+            // `a.download` de abajo y el aviso «revisa tu carpeta de descargas» mentía. Ahí se COMPARTE el archivo (la
+            // hoja del sistema: guardarlo en Archivos, mandarlo por correo…); si el sistema no deja —Android no trae
+            // `navigator.share` en su WebView—, se copia al portapapeles; y si tampoco, se dice la verdad.
+            if (isNativeApp()) {
+                const archivo = typeof File === 'function' ? new File([json], nombre, { type: 'application/json' }) : null;
+                if (archivo && navigator.canShare?.({ files: [archivo] })) {
+                    try {
+                        await navigator.share({ files: [archivo], title: nombre });
+                        toast.success(t('Datos exportados.'));
+                        return;
+                    } catch (e) {
+                        if (e?.name === 'AbortError') return;   // cerró la hoja: no pasó nada malo
+                    }
+                }
+                try {
+                    await navigator.clipboard.writeText(json);
+                    toast.success(t('Copiamos tus datos al portapapeles: pégalos en una nota o un correo para guardarlos.'));
+                } catch {
+                    toast.error(t('Desde la app no se puede guardar el archivo. Descárgalo desde la web: app.bioboros.com → Configuración.'));
+                }
+                return;
+            }
+            const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `bioboros_datos_${new Date().toISOString().slice(0, 10)}.json`;
+            a.download = nombre;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -1669,9 +1698,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         }
         setNameError('');
 
-        const parsedWeight = parseFloat(weightInput);
-        const _weightMin = weightUnit === 'lb' ? 55 : 25;
-        const _weightMax = weightUnit === 'lb' ? 660 : 300;
+        const parsedWeight = parseFloat(String(weightInput).replace(',', '.'));
+        // [P1-PLAN-LOTE-166] los MISMOS rangos que el formulario (SSOT `BIO_RANGES`): aceptaba 25 kg / 55 lb y el
+        // servidor rechaza por debajo de 30 kg, así que se guardaba un peso con el que después no se podía generar.
+        const _weightRange = weightUnit === 'lb' ? BIO_RANGES.weightLb : BIO_RANGES.weightKg;
+        const _weightMin = _weightRange.min;
+        const _weightMax = _weightRange.max;
         const weightValid = !isNaN(parsedWeight) && parsedWeight >= _weightMin && parsedWeight <= _weightMax;
         let heightCm = null;
         if (heightUnit === 'ft') {
@@ -1747,9 +1779,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         if (isSaving || isRegeneratingFromMetrics) return;
 
         // Validación (mismo bloque que estaba en handleSaveProfile).
-        const parsedWeight = parseFloat(weightInput);
-        const _weightMin = weightUnit === 'lb' ? 55 : 25;
-        const _weightMax = weightUnit === 'lb' ? 660 : 300;
+        const parsedWeight = parseFloat(String(weightInput).replace(',', '.'));
+        const _weightRange = weightUnit === 'lb' ? BIO_RANGES.weightLb : BIO_RANGES.weightKg;   // [P1-PLAN-LOTE-166]
+        const _weightMin = _weightRange.min;
+        const _weightMax = _weightRange.max;
         const weightValid = !isNaN(parsedWeight) && parsedWeight >= _weightMin && parsedWeight <= _weightMax;
 
         let heightCm = null;
@@ -2793,8 +2826,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 <input
                                                     type="number"
                                                     inputMode="decimal"
-                                                    min={weightUnit === 'lb' ? '55' : '25'}
-                                                    max={weightUnit === 'lb' ? '660' : '300'}
+                                                    min={(weightUnit === 'lb' ? BIO_RANGES.weightLb : BIO_RANGES.weightKg).min}
+                                                    max={(weightUnit === 'lb' ? BIO_RANGES.weightLb : BIO_RANGES.weightKg).max}
                                                     step="0.1"
                                                     value={weightInput}
                                                     onChange={(e) => setWeightInput(e.target.value)}

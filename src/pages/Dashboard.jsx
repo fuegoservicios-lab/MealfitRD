@@ -8264,7 +8264,9 @@ const DashboardInner = () => {
                             <PlanPolicyPanel
                                 policy={planData._plan_policy}
                                 fidelity={planData._fidelity_report}
-                                onEdit={() => navigate('/assessment')}
+                                // [P1-PLAN-LOTE-166] «Editar» abre la pregunta de ESE campo (el panel ya lo pasaba y se tiraba):
+                                // antes abría el paso 0 y había que recorrer 26 pasos. El salto es el de «completar» (lote 164).
+                                onEdit={(campo) => navigate('/assessment', campo ? { state: { irACampo: campo } } : undefined)}
                             />
                         </div>
                     )}

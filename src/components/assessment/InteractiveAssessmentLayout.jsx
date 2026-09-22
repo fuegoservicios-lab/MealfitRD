@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAssessment } from '../../context/AssessmentContext';
-import { ChevronLeft, LayoutDashboard, LogIn, LogOut } from 'lucide-react';
+import { ChevronLeft, LayoutDashboard, LogIn, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import styles from './InteractiveAssessmentLayout.module.css';
 import Wordmark from '../common/Wordmark';
 import LocaleSwitcher from '../common/LocaleSwitcher';
@@ -11,6 +11,7 @@ import LogoutConfirmModal from '../dashboard/LogoutConfirmModal';
 import { useT } from '../../i18n';
 import { isTrackingMode } from '../../config/dashboardNav';
 import { terminarCompletarFormulario } from '../../utils/completarFormulario';
+import { useCampoVisibleConTeclado } from '../../hooks/useCampoVisibleConTeclado';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
     const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, updateData, session, planData } = useAssessment();
@@ -40,6 +41,27 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
     const t = useT();
     const progress = (currentStep / (totalSteps - 1)) * 100;
     const [confirmarSalida, setConfirmarSalida] = useState(false);
+    // [P1-PLAN-LOTE-166 · 2026-09-22] App Store 5.1.1(v): borrar la cuenta tiene que poder hacerse DENTRO de la app. Una
+    // cuenta recién creada que aún no terminó el alta no tenía cómo llegar a Configuración —en el teléfono no hay barra
+    // de direcciones y el formulario no la enlazaba—, aunque la ruta ya la dejaba entrar (exención de
+    // `/dashboard/settings` en `ProtectedRoute`). Quien tiene panel llega por él; el invitado no tiene cuenta que gestionar.
+    const _puedeIrAConfiguracion = !isGuest && Boolean(session) && !_puedeVolverAlPanel;
+    // Dos sitios según el ancho, uno solo visible (CSS): en el teléfono a la IZQUIERDA, junto a la salida (a 375 px la
+    // columna del idioma no tiene sitio y el icono pisaba el logo); en escritorio a la DERECHA, junto al idioma (a la
+    // izquierda vive la píldora «Volver al login» y la pisaba a ella).
+    const botonAjustes = (donde) => (_puedeIrAConfiguracion ? (
+        <button
+            type="button"
+            onClick={() => navigate('/dashboard/settings')}
+            className={`${styles.ajustesBtn} ${donde}`}
+            aria-label={t('Configuración')}
+            title={t('Configuración')}
+        >
+            <SettingsIcon size={20} aria-hidden="true" />
+        </button>
+    ) : null);
+    // [P1-PLAN-LOTE-166] el campo que se escribe no se queda debajo del teclado (red de seguridad, ver el hook)
+    useCampoVisibleConTeclado();
 
     // [FORM-BACK-TO-LOGIN · 2026-07-03] navigate('/login') a secas NO llega: el guard
     // redirect-if-session de Login.jsx (:211) rebota a "/" mientras haya sesión/guest
@@ -178,6 +200,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                                     <LayoutDashboard size={20} aria-hidden="true" />
                                 </button>
                             )}
+                            {botonAjustes(styles.ajustesMovil)}
                         </div>
                     ) : _puedeVolverAlPanel ? (
                         /* [P1-PLAN-LOTE-137] En el teléfono el pill de la esquina no existe: en el paso 0, quien tiene
@@ -201,13 +224,16 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                            escritorio. El usuario retrocedía paso a paso y el siguiente
                            toque, indistinguible de los anteriores, le borraba el
                            formulario entero. Un icono de salida dice lo que hace. */
-                        <button
-                            onClick={pedirConfirmacionSalida}
-                            className={`${styles.backBtn} ${styles.backToLogin}`}
-                            aria-label={t('Salir del formulario y volver al inicio de sesión')}
-                        >
-                            <LogOut size={22} aria-hidden="true" />
-                        </button>
+                        <div className={styles.navIzq}>
+                            <button
+                                onClick={pedirConfirmacionSalida}
+                                className={`${styles.backBtn} ${styles.backToLogin}`}
+                                aria-label={t('Salir del formulario y volver al inicio de sesión')}
+                            >
+                                <LogOut size={22} aria-hidden="true" />
+                            </button>
+                            {botonAjustes(styles.ajustesMovil)}
+                        </div>
                     )}
 
                     <div className={styles.logo}>
@@ -223,6 +249,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
                         cuenta y, hasta hoy, sin forma de corregir la autodetección. Sigue
                         siendo el `:last-child` del grid → `justify-self: end`. */}
                     <div className={styles.backSpacer}>
+                        {botonAjustes(styles.ajustesEscritorio)}
                         {/* [P1-PLAN-LOTE-164] Con cuenta, el idioma elegido aquí se guarda en el perfil. */}
                         <LocaleSwitcher id="mf-locale-wizard" menuAlign="start" guardarEnCuenta={!isGuest && Boolean(session)} />
                     </div>
@@ -320,6 +347,7 @@ const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, sub
             <LogoutConfirmModal
                 isOpen={confirmarSalida}
                 isGuest={isGuest}
+                sinTerminar={!_puedeVolverAlPanel}
                 userEmail={userProfile?.email}
                 userName={userProfile?.full_name}
                 onConfirm={handleBackToLogin}

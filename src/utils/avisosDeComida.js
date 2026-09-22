@@ -19,7 +19,8 @@
 //   · 'nativa-actualizar'  binario anterior al plugin (el JS llega por OTA; el plugin, solo con un build nuevo).
 //   · 'sin-soporte'        navegador sin Push.
 import { fetchWithAuth } from '../config/api';
-import { isNativeApp, nativePluginAvailable } from '../config/platform';
+import { isNativeApp, nativePluginAvailable, nativePlatform } from '../config/platform';
+import { t } from '../i18n';
 import { BRAND } from '../data/routeMeta';
 import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
 import { safeJSONParse } from './safeJSONParse';
@@ -160,6 +161,35 @@ async function _alarmaExactaConcedida(LN) {
     }
 }
 
+// [P1-PLAN-LOTE-166 · 2026-09-22] Android: los avisos iban al canal «Default» del plugin —nombre fijo en inglés en los
+// ajustes del sistema e importancia NORMAL: suena, pero no asoma arriba de la pantalla—. Canal propio, con el nombre en
+// el idioma del usuario e importancia ALTA (aviso emergente). Android no deja subir la importancia de un canal que ya
+// existe —por eso es un canal NUEVO y no un retoque del viejo—; el nombre sí se actualiza al volver a crearlo, así que
+// sigue al idioma. Si el canal no se pudo crear, el aviso sale por el de siempre: mandar un `channelId` que no existe
+// lo haría DESAPARECER sin error. (iOS no tiene canales: ahí no se intenta.)
+export const CANAL_ANDROID = 'bioboros-avisos';
+const _TOPE_CANAL_MS = 1500;
+
+async function _canalAndroid(LN) {
+    try {
+        if (nativePlatform() !== 'android') return null;
+        await Promise.race([
+            LN.createChannel({
+                id: CANAL_ANDROID,
+                name: t('Recordatorios'),
+                description: t('Tus comidas y el agua, a su hora.'),
+                importance: 4,
+                visibility: 1,
+                vibration: true,
+            }),
+            new Promise((_, rechazar) => setTimeout(() => rechazar(new Error('sin respuesta')), _TOPE_CANAL_MS)),
+        ]);
+        return CANAL_ANDROID;
+    } catch {
+        return null;
+    }
+}
+
 /** [P1-PLAN-LOTE-162] ¿Android está programando los avisos sin hora exacta por falta de permiso? */
 export async function alarmaExactaPendiente() {
     if (!isNativeApp()) return false;
@@ -289,8 +319,9 @@ export async function sincronizarAvisosLocales() {
             safeLocalStorageSet(CLAVE_PROGRAMADO_HOY, JSON.stringify(_deComida.libro));
             // [P1-PLAN-LOTE-162] exacta SOLO con el permiso ya dado: con él pendiente, el plugin abriría Ajustes.
             const exacta = (await _alarmaExactaConcedida(LN)) === true;
+            const canal = await _canalAndroid(LN);   // [P1-PLAN-LOTE-166] null ⇒ el canal de siempre
             const notifications = [..._deComida.notificaciones, ...avisosDeAguaAProgramar(datos)]
-                .map((n) => ({ ...n, isExactNotification: exacta }));
+                .map((n) => ({ ...n, isExactNotification: exacta, ...(canal ? { channelId: CANAL_ANDROID } : {}) }));
             if (notifications.length) await LN.schedule({ notifications });
             return { ok: true, programadas: notifications.length, motivo: datos?.reason || null };
         } catch (e) {

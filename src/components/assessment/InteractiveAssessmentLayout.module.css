@@ -110,6 +110,45 @@
     min-width: 40px;
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+}
+
+/* [P1-PLAN-LOTE-166] Configuración desde el formulario (cuenta sin panel: App Store 5.1.1(v)). El aspecto de las
+   flechas del header, sin su margen negativo de la izquierda y visible también en escritorio (no es `.backBtn`, que
+   el escritorio oculta). */
+.ajustesBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.ajustesBtn:hover {
+    background-color: var(--bg-muted);
+    color: var(--text-main);
+}
+
+/* Uno solo a la vista: el corte es el de la píldora «Volver al login» (visible a partir de 769 px). */
+@media (min-width: 769px) {
+    .ajustesMovil {
+        display: none;
+    }
+    .ajustesEscritorio {
+        margin-right: 0.35rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .ajustesEscritorio {
+        display: none;
+    }
 }
 
 .loginExitBtn {

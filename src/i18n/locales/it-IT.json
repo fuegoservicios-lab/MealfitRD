@@ -530,7 +530,6 @@
   "Comprobar ahora": "Controlla ora",
   "Comí otra cosa": "Ho mangiato altro",
   "Con esto el plan sabe si repetir es un acierto o un defecto.": "Così il piano sa se ripetere è un pregio o un difetto.",
-  "Con lo que respondiste calculamos tus calorías y macros diarios. Tu dashboard será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde el mismo dashboard — las preguntas que te saltaste se preguntan ahí, no se inventan.": "Con quello che hai risposto calcoliamo le tue calorie e macro giornaliere. La dashboard sarà il tuo contatore: annota quello che mangi, guarda i tuoi progressi e chiedi al coach. Se un giorno vorrai il piano completo con ricette e lista della spesa, lo attivi dalla stessa dashboard — le domande che hai saltato te le chiediamo lì, non ce le inventiamo.",
   "Con menos de {minimo} alimentos el plan sería casi igual al libre — agrega {faltan} más (proteínas, carbohidratos, vegetales) para que de verdad salga de tu Nevera.": "Con meno di {minimo} alimenti il piano sarebbe quasi uguale a quello libero — aggiungine altri {faltan} (proteine, carboidrati, verdure) perché nasca davvero dal tuo Frigo.",
   "Con más ingredientes registrados, escanear y anotar lo que comes te cuesta menos.": "Con più ingredienti registrati, scansionare e annotare quello che mangi ti costa meno fatica.",
   "Con tipo y horario, la IA coloca los carbohidratos y la proteína alrededor de tu entreno.": "Con tipo e orario, l'IA colloca i carboidrati e le proteine attorno al tuo allenamento.",
@@ -3302,5 +3301,15 @@
   "o": "o",
   "P {p} · C {c} · G {g}": "P {p} · C {c} · G {g}",
   "Estimación energética (~7,700 kcal ≈ 1 kg): el ritmo real varía con la adherencia, la retención de agua y la adaptación metabólica.": "Stima energetica (~7.700 kcal ≈ 1 kg): il ritmo reale varia con l'aderenza, la ritenzione idrica e l'adattamento metabolico.",
-  "Gradual": "Graduale"
+  "Gradual": "Graduale",
+  "Aún no terminaste el formulario: si cierras sesión, tus respuestas se borran de este dispositivo y tendrás que contestarlas de nuevo.": "Non hai ancora finito il modulo: se esci, le tue risposte vengono cancellate da questo dispositivo e dovrai rispondere di nuovo.",
+  "Datos exportados.": "Dati esportati.",
+  "Copiamos tus datos al portapapeles: pégalos en una nota o un correo para guardarlos.": "Abbiamo copiato i tuoi dati negli appunti: incollali in una nota o in un'email per conservarli.",
+  "Desde la app no se puede guardar el archivo. Descárgalo desde la web: app.bioboros.com → Configuración.": "L'app non può salvare il file. Scaricalo dal web: app.bioboros.com → Impostazioni.",
+  "Con lo que respondiste calculamos tus calorías y macros diarios. Tu panel será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde tu panel o desde Configuración, y solo te preguntamos lo que falte.": "Con quello che hai risposto calcoliamo le tue calorie e macro giornaliere. La dashboard sarà il tuo contatore: annota quello che mangi, guarda i tuoi progressi e chiedi al coach. Se un giorno vorrai il piano completo con ricette e lista della spesa, attivalo dalla dashboard o dalle Impostazioni, e ti chiederemo solo quello che manca.",
+  "Dos respuestas rápidas. Puedes dejarlo para después.": "Due risposte rapide. Puoi lasciarlo per dopo.",
+  "El catálogo de alimentos de tu diario se adapta a tu país.": "Il catalogo degli alimenti del tuo diario si adatta al tuo paese.",
+  "Catálogo nativo de alimentos para tu diario, con medidas locales.": "Catalogo nativo di alimenti per il tuo diario, con unità di misura locali.",
+  "Recordatorios": "Promemoria",
+  "Tus comidas y el agua, a su hora.": "I tuoi pasti e l'acqua, all'ora giusta."
 }

@@ -167,8 +167,11 @@ export const QTrackingFinish = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem', alignItems: 'flex-start' }}>
+            {/* [P1-PLAN-LOTE-166 · 2026-09-22] Decía «dashboard» (en español la app lo llama «panel») y que las preguntas
+                saltadas «se preguntan ahí»: desde el lote 164 encender el plan pregunta SOLO lo que falta, y se hace desde
+                la tarjeta del panel o desde Configuración. */}
             <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: 1.55 }}>
-                {t('Con lo que respondiste calculamos tus calorías y macros diarios. Tu dashboard será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde el mismo dashboard — las preguntas que te saltaste se preguntan ahí, no se inventan.')}
+                {t('Con lo que respondiste calculamos tus calorías y macros diarios. Tu panel será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde tu panel o desde Configuración, y solo te preguntamos lo que falte.')}
             </p>
             <button
                 type="button"

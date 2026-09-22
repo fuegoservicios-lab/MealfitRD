@@ -201,11 +201,14 @@ export function iniciarOtaNativa() {
     if (_iniciado || !isNativeApp() || !otaOwnId()) return;
     _iniciado = true;
     let listo = false;
+    // [P1-PLAN-LOTE-166 · 2026-09-22] El plugin se pide YA, al arrancar: al confirmar no se paga además su carga.
+    const plugin = import('@capawesome/capacitor-live-update');
+    plugin.catch(() => { /* lo informa `confirmar` */ });
     const confirmar = async () => {
         if (listo) return;
         listo = true;
         try {
-            const { LiveUpdate } = await import('@capawesome/capacitor-live-update');
+            const { LiveUpdate } = await plugin;
             const r = await LiveUpdate.ready();
             if (r?.rollback) {
                 bloquear(r.previousBundleId);
@@ -223,9 +226,17 @@ export function iniciarOtaNativa() {
         }
     };
     window.addEventListener('mealfit:app-ready', confirmar, { once: true });
-    // Respaldo: sin red la auth puede tardar más que `readyTimeout` y un paquete SANO
-    // no debe pagar por ello. Si a los 6 s React ya pintó algo, el paquete arranca.
-    setTimeout(() => {
-        if (document.getElementById('root')?.childElementCount) confirmar();
-    }, 6000);
+    // [P1-PLAN-LOTE-166 · 2026-09-22] Respaldo: sin red la auth puede tardar más que `readyTimeout` y un paquete SANO no
+    // debe pagar por ello. Era «si a los 6 s React ya pintó algo»: el reloj del plugin (10 s) arranca al crear el
+    // plugin, ANTES de que este JS se evalúe, así que en un teléfono lento 6 s de espera + la evaluación del paquete se
+    // comían el margen entero. Una vuelta atrás espuria no se queda en un arranque: `bloquear` veta ESE paquete para
+    // siempre en ese teléfono. El criterio es el mismo —React pintó en #root (nace vacío en index.html)—, pero se mira
+    // cada 250 ms desde ya, así que confirma en cuanto es verdad.
+    const inicio = Date.now();
+    const alPintar = () => {
+        if (listo) return;
+        if (document.getElementById('root')?.childElementCount) { confirmar(); return; }
+        if (Date.now() - inicio < 8000) setTimeout(alPintar, 250);
+    };
+    setTimeout(alPintar, 250);
 }

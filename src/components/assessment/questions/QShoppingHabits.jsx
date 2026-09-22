@@ -34,7 +34,8 @@ export const QShoppingHabits = ({ onManualAdvance }) => {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                {t('Tres respuestas rápidas. Puedes dejarlo para después.')}
+                {/* [P1-PLAN-LOTE-166] con compra semanal la pregunta de reponer frescos no sale: son dos, no tres */}
+                {askTopup ? t('Tres respuestas rápidas. Puedes dejarlo para después.') : t('Dos respuestas rápidas. Puedes dejarlo para después.')}
             </p>
             {askTopup && (
                 <Group id="q-fresh-topup" title={t('¿Puedes reponer alimentos frescos entre compras?')}>

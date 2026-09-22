@@ -82,9 +82,16 @@ export const QCountry = ({ onAutoAdvance }) => {
                     // futuro sin bandera dibujada en COUNTRY_FLAGS.
                     icon={COUNTRY_FLAGS[c.code] || Globe2}
                     label={c.beta ? `${t(c.labelKey)} · ${t('Beta')}` : t(c.labelKey)}
-                    desc={c.beta
-                        ? t('Adaptamos tu plan a tu cocina local. Los precios del súper de tu país llegan pronto — tu lista de compras saldrá sin importes.')
-                        : t('Catálogo nativo: precios del súper, platos criollos y medidas locales.')}
+                    // [P1-PLAN-LOTE-166 · 2026-09-22] En el contador no hay plan ni lista de compras: ahí el país decide el
+                    // catálogo de alimentos del diario (el subtítulo del paso ya lo decía; las tarjetas seguían
+                    // prometiendo lo del plan).
+                    desc={formData.appMode === 'tracking'
+                        ? (c.beta
+                            ? t('El catálogo de alimentos de tu diario se adapta a tu país.')
+                            : t('Catálogo nativo de alimentos para tu diario, con medidas locales.'))
+                        : (c.beta
+                            ? t('Adaptamos tu plan a tu cocina local. Los precios del súper de tu país llegan pronto — tu lista de compras saldrá sin importes.')
+                            : t('Catálogo nativo: precios del súper, platos criollos y medidas locales.'))}
                     checked={value === c.code}
                     onChange={(e) => { updateData('country', e.target.value); onAutoAdvance(); }}
                     onClick={() => { if (value === c.code) onAutoAdvance(); }}

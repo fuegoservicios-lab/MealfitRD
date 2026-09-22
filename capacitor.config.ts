@@ -59,8 +59,11 @@ const config: CapacitorConfig = {
     // [P1-PLAN-LOTE-108] OTA autoalojada (src/native/liveUpdate.js). SIN `appId` ni
     // `autoUpdateStrategy`: eso es Capawesome Cloud y aquí los paquetes salen de nuestro
     // VPS. `readyTimeout` es la red de seguridad: un paquete que no llama a `ready()` en
-    // 10 s se descarta y la app vuelve sola al del binario. NO lo pongas a 0.
-    LiveUpdate: { readyTimeout: 10000, autoDeleteBundles: true },
+    // ese plazo se descarta y la app vuelve sola al del binario. NO lo pongas a 0.
+    // [P1-PLAN-LOTE-166 · 2026-09-22] 10 s → 15 s: el reloj corre desde que se crea el plugin, antes de evaluar el JS, y
+    // en un Android de gama baja el margen no alcanzaba (y la vuelta atrás veta ESE paquete para siempre). Solo cambia
+    // con un binario nuevo (APK 103 / siguiente build de iOS); el JS ya confirma antes (liveUpdate.js).
+    LiveUpdate: { readyTimeout: 15000, autoDeleteBundles: true },
   },
 };
 

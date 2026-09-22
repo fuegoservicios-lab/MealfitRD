@@ -530,7 +530,6 @@
   "Comprobar ahora": "Vérifier maintenant",
   "Comí otra cosa": "J’ai mangé autre chose",
   "Con esto el plan sabe si repetir es un acierto o un defecto.": "Cela indique au plan si répéter est un atout ou un défaut.",
-  "Con lo que respondiste calculamos tus calorías y macros diarios. Tu dashboard será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde el mismo dashboard — las preguntas que te saltaste se preguntan ahí, no se inventan.": "Avec vos réponses, nous calculons vos calories et vos macros quotidiennes. Votre tableau de bord devient votre compteur : notez ce que vous mangez, suivez votre progression et interrogez le coach. Si un jour vous voulez le plan complet avec recettes et liste de courses, vous l'activez depuis ce même tableau de bord — les questions que vous avez sautées vous seront posées à ce moment-là, elles ne sont pas inventées.",
   "Con menos de {minimo} alimentos el plan sería casi igual al libre — agrega {faltan} más (proteínas, carbohidratos, vegetales) para que de verdad salga de tu Nevera.": "Avec moins de {minimo} aliments, le plan serait presque identique au plan libre — ajoutez-en {faltan} de plus (protéines, glucides, légumes) pour qu'il sorte vraiment de votre frigo.",
   "Con más ingredientes registrados, escanear y anotar lo que comes te cuesta menos.": "Avec plus d'ingrédients enregistrés, scanner et noter ce que vous mangez vous demande moins d'efforts.",
   "Con tipo y horario, la IA coloca los carbohidratos y la proteína alrededor de tu entreno.": "Avec le type et l'horaire, l'IA place les glucides et les protéines autour de votre entraînement.",
@@ -3302,5 +3301,15 @@
   "o": "ou",
   "P {p} · C {c} · G {g}": "P {p} · G {c} · L {g}",
   "Estimación energética (~7,700 kcal ≈ 1 kg): el ritmo real varía con la adherencia, la retención de agua y la adaptación metabólica.": "Estimation énergétique (~7 700 kcal ≈ 1 kg) : le rythme réel varie selon l'assiduité, la rétention d'eau et l'adaptation métabolique.",
-  "Gradual": "Progressif"
+  "Gradual": "Progressif",
+  "Aún no terminaste el formulario: si cierras sesión, tus respuestas se borran de este dispositivo y tendrás que contestarlas de nuevo.": "Vous n'avez pas encore terminé le formulaire : si vous vous déconnectez, vos réponses seront effacées de cet appareil et vous devrez y répondre à nouveau.",
+  "Datos exportados.": "Données exportées.",
+  "Copiamos tus datos al portapapeles: pégalos en una nota o un correo para guardarlos.": "Vos données ont été copiées dans le presse-papiers : collez-les dans une note ou un e-mail pour les conserver.",
+  "Desde la app no se puede guardar el archivo. Descárgalo desde la web: app.bioboros.com → Configuración.": "L'application ne peut pas enregistrer le fichier. Téléchargez-le depuis le web : app.bioboros.com → Réglages.",
+  "Con lo que respondiste calculamos tus calorías y macros diarios. Tu panel será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde tu panel o desde Configuración, y solo te preguntamos lo que falte.": "Avec vos réponses, nous calculons vos calories et vos macros quotidiennes. Votre tableau de bord devient votre compteur : notez ce que vous mangez, suivez votre progression et interrogez le coach. Si un jour vous voulez le plan complet avec recettes et liste de courses, activez-le depuis votre tableau de bord ou depuis les Réglages, et nous ne vous demanderons que ce qui manque.",
+  "Dos respuestas rápidas. Puedes dejarlo para después.": "Deux réponses rapides. Vous pouvez y revenir plus tard.",
+  "El catálogo de alimentos de tu diario se adapta a tu país.": "Le catalogue d'aliments de votre journal s'adapte à votre pays.",
+  "Catálogo nativo de alimentos para tu diario, con medidas locales.": "Catalogue d'aliments natif pour votre journal, avec des mesures locales.",
+  "Recordatorios": "Rappels",
+  "Tus comidas y el agua, a su hora.": "Vos repas et l'eau, à l'heure."
 }

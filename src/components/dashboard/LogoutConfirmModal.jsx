@@ -19,7 +19,10 @@ import { initialsFor } from '../../utils/initials';
 // la acción principal como botón sólido con «Cancelar» secundario debajo. La confirmación
 // se conserva a propósito: cerrar sesión por un clic accidental cuesta volver a entrar.
 
-const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, userName = null, isGuest = false }) => {
+// [P1-PLAN-LOTE-166 · 2026-09-22] `sinTerminar`: la cuenta aún no tiene NADA guardado (a mitad del alta, sin plan ni
+// contador). La promesa de siempre —«tu plan, tu Nevera y tu historial quedan guardados»— ahí era falsa: lo contestado
+// del formulario vive en este dispositivo y `resetApp` lo borra al cerrar sesión (alergias, condiciones, medicamentos…).
+const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, userName = null, isGuest = false, sinTerminar = false }) => {
     const t = useT();
     const [isClosing, setIsClosing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -100,6 +103,8 @@ const LogoutConfirmModal = ({ isOpen, onConfirm, onCancel, userEmail, userName =
                         {isGuest ? (
                             <>{t('Perderás el plan y el progreso de tu sesión de invitado.')}{' '}
                             <strong>{t('Crea una cuenta gratis')}</strong> {t('antes de salir para guardarlo.')}</>
+                        ) : sinTerminar ? (
+                            t('Aún no terminaste el formulario: si cierras sesión, tus respuestas se borran de este dispositivo y tendrás que contestarlas de nuevo.')
                         ) : (
                             t('Tu plan, tu Nevera y tu historial quedan guardados en tu cuenta.')
                         )}
@@ -140,6 +145,7 @@ LogoutConfirmModal.propTypes = {
     userEmail: PropTypes.string,
     userName: PropTypes.string,
     isGuest: PropTypes.bool,
+    sinTerminar: PropTypes.bool,
 };
 
 export default LogoutConfirmModal;

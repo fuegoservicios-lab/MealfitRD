@@ -37,6 +37,7 @@ import { apexUrl } from '../../config/site';
 const HelpChatWidget = lazy(() => import('./HelpChatWidget'));
 // [P1-APP-VERSION · 2026-06-19] Versión visible bajo el wordmark (SSOT en config).
 import { APP_VERSION } from '../../config/appVersion';
+import { otaOwnId } from '../../native/liveUpdate';
 // [P3-AVATAR-CYCLE · 2026-06-20] Avatar minimalista elegido en Ajustes, reflejado
 // en el botón de cuenta del sidebar y sincronizado en vivo vía avatarStore.
 import { MinimalAvatar } from '../avatars/minimalAvatars';
@@ -54,6 +55,11 @@ import { prefetchHistoryList } from '../../utils/historyCaches';
 import { useT } from '../../i18n';
 import styles from './DashboardLayout.module.css';
 import Wordmark from '../common/Wordmark';
+
+// [P1-PLAN-LOTE-166 · 2026-09-22] En la app nativa, el id del paquete OTA junto a la versión: «¿qué versión tienes?» se
+// contesta abriendo el menú. `v1.0.0` era el mismo en los APK 100, 101 y 102 y en todos los paquetes; en la web el id
+// es '' (solo el build nativo lo lleva) y no se pinta nada.
+const _otaId = otaOwnId();
 
 const DashboardLayout = ({ children, noPaddingMobile = false }) => {
     const t = useT();
@@ -237,7 +243,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             <Wordmark />
                         </div>
                         {/* [P1-APP-VERSION · 2026-06-19] Versión minimalista (estilo Anthropic) bajo el wordmark. */}
-                        <span className={styles.version}>v{APP_VERSION}</span>
+                        <span className={styles.version}>v{APP_VERSION}{_otaId ? ` · ${_otaId}` : ''}</span>
                     </div>
                     {/* Close button for mobile inside sidebar */}
                     <button className={styles.menuBtn} onClick={closeMenu} style={{ marginBottom: '3rem', display: 'none' }}>

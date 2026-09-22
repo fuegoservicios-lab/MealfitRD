@@ -530,7 +530,6 @@
   "Comprobar ahora": "Check now",
   "Comí otra cosa": "I ate something else",
   "Con esto el plan sabe si repetir es un acierto o un defecto.": "This tells the plan whether repeating is a win or a flaw.",
-  "Con lo que respondiste calculamos tus calorías y macros diarios. Tu dashboard será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde el mismo dashboard — las preguntas que te saltaste se preguntan ahí, no se inventan.": "From your answers we calculate your daily calories and macros. Your dashboard becomes your counter: log what you eat, track your progress and ask your coach. If someday you want the full plan with recipes and a shopping list, you turn it on from that same dashboard — the questions you skipped get asked there, they're never made up.",
   "Con menos de {minimo} alimentos el plan sería casi igual al libre — agrega {faltan} más (proteínas, carbohidratos, vegetales) para que de verdad salga de tu Nevera.": "With fewer than {minimo} foods the plan would be almost the same as the free-form one — add {faltan} more (protein, carbs, vegetables) so it really comes out of your Fridge.",
   "Con más ingredientes registrados, escanear y anotar lo que comes te cuesta menos.": "With more ingredients logged, scanning and recording what you eat takes less effort.",
   "Con tipo y horario, la IA coloca los carbohidratos y la proteína alrededor de tu entreno.": "With the type and time, the AI places carbs and protein around your workout.",
@@ -3302,5 +3301,15 @@
   "o": "or",
   "P {p} · C {c} · G {g}": "P {p} · C {c} · F {g}",
   "Estimación energética (~7,700 kcal ≈ 1 kg): el ritmo real varía con la adherencia, la retención de agua y la adaptación metabólica.": "Energy estimate (~7,700 kcal ≈ 1 kg): the real pace varies with adherence, water retention and metabolic adaptation.",
-  "Gradual": "Gradual"
+  "Gradual": "Gradual",
+  "Aún no terminaste el formulario: si cierras sesión, tus respuestas se borran de este dispositivo y tendrás que contestarlas de nuevo.": "You haven't finished the form yet: if you sign out, your answers are erased from this device and you'll have to answer them again.",
+  "Datos exportados.": "Data exported.",
+  "Copiamos tus datos al portapapeles: pégalos en una nota o un correo para guardarlos.": "We copied your data to the clipboard: paste it into a note or an email to keep it.",
+  "Desde la app no se puede guardar el archivo. Descárgalo desde la web: app.bioboros.com → Configuración.": "The app can't save the file. Download it from the web: app.bioboros.com → Settings.",
+  "Con lo que respondiste calculamos tus calorías y macros diarios. Tu panel será tu contador: anota lo que comes, mira tu progreso y pregúntale al coach. Si algún día quieres el plan completo con recetas y lista de compras, lo enciendes desde tu panel o desde Configuración, y solo te preguntamos lo que falte.": "From your answers we calculate your daily calories and macros. Your dashboard becomes your counter: log what you eat, track your progress and ask your coach. If someday you want the full plan with recipes and a shopping list, turn it on from your dashboard or from Settings, and we'll only ask what's missing.",
+  "Dos respuestas rápidas. Puedes dejarlo para después.": "Two quick answers. You can leave it for later.",
+  "El catálogo de alimentos de tu diario se adapta a tu país.": "Your diary's food catalog adapts to your country.",
+  "Catálogo nativo de alimentos para tu diario, con medidas locales.": "Native food catalog for your diary, with local measurements.",
+  "Recordatorios": "Reminders",
+  "Tus comidas y el agua, a su hora.": "Your meals and water, right on time."
 }
