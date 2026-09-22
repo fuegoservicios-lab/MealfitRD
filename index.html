@@ -687,7 +687,12 @@
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.style.cssText = 'display:block;width:100%;padding:.85rem 1rem;font-size:1rem;'
-          + 'background:transparent;color:#FBFBFA;border:1px solid #4F46E5;border-radius:10px;cursor:pointer';
+          // El borde va en blanco translúcido y no en la tinta de marca: el índigo viejo está
+          // retirado de las superficies de la PWA (P1-PAPER-THEME) y, además, este aviso existe
+          // precisamente para motores que no entienden el CSS moderno — cuanto menos dependa de
+          // la paleta del producto, mejor.
+          + 'background:transparent;color:#FBFBFA;border:1px solid rgba(251,251,250,.45);'
+          + 'border-radius:10px;cursor:pointer';
         btn.appendChild(document.createTextNode(BOTON[loc]));
         btn.onclick = function () {
           if (aviso.parentNode) aviso.parentNode.removeChild(aviso);
