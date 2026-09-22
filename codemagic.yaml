@@ -27,7 +27,11 @@ workflows:
   # un binario.
   #
   # CUATRO DECISIONES:
-  #   1. Linux, no Mac. Android no necesita macOS y los minutos de Mac son los caros (500/mes).
+  #   1. La MISMA Mac que iOS. [P1-PLAN-LOTE-153 · 2026-09-21] Nació pidiendo `linux_x2` con el argumento de
+  #      que Android no necesita macOS y los minutos de Mac son los caros. El primer build lo desmintió en
+  #      seco: «The selected instance type is not available with the current billing plan» — el plan gratuito
+  #      de Codemagic da 500 minutos de `mac_mini_m2` y NADA de Linux, así que la máquina barata no es la
+  #      barata: es la que no existe. Las imágenes de Mac traen el SDK de Android, y el build sale igual.
   #   2. `assembleDebug`, no release. Un APK de depuración se instala igual y NO necesita almacén de claves:
   #      el día 1 hay APK sin que el dueño configure nada. La firma de release hace falta para PLAY, y a Play
   #      no vamos todavía — el paso de abajo explica cómo cambiarlo cuando toque.
@@ -38,11 +42,12 @@ workflows:
   # NO HAY QUE CONFIGURAR NADA EN CODEMAGIC para este flujo. El APK sale en los artefactos del build.
   android-apk:
     name: Android → APK (testers)
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
     max_build_duration: 45
 
     environment:
       node: 22
+      # En las imágenes de macOS conviven varios JDK; Capacitor 8 pide 21.
       java: 21
 
     scripts:
