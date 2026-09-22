@@ -7,11 +7,16 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Clock, Refrigerator, X } from 'lucide-react';
-import { useT } from '../../i18n';
+import { useT, formatDate, getLocale } from '../../i18n';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import styles from './EatPlanMealSheet.module.css';
 
-const fmtHour = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+// [P1-PLAN-LOTE-167 · 2026-09-22] La hora en el formato de cada idioma («1:30 PM» en inglés): era «13:30» fijo en los
+// cinco. El español se queda como estaba (24 h, dos cifras: lo que ya ven sus usuarios); sin Intl, ese mismo formato.
+const _hora24 = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+const fmtHour = (d) => (String(getLocale() || '').startsWith('es')
+    ? _hora24(d)
+    : (formatDate(d, { hour: 'numeric', minute: '2-digit' }) || _hora24(d)));
 
 export default function EatPlanMealSheet({ mealName, timing, coverage, now = new Date(), busy = false, onConfirm, onAteOther, onNotYet, onClose }) {
     const t = useT();

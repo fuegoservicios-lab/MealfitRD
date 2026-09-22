@@ -59,6 +59,9 @@ const COPY_POR_CODIGO = {
     // condiciones) que la prosa necesita: el segundo argumento es el `detail` del servidor.
     // La clave es byte-idéntica al texto que emite el backend en es-DO, así que en español
     // no cambia nada y en los otros cuatro se traduce.
+    // [P1-PLAN-LOTE-167 · 2026-09-22] El rechazo crítico del generador (SSE `critical_restriction`): su prosa española
+    // nombra la restricción concreta y en español se sigue enseñando (Plan.jsx); fuera de él, este copy.
+    critical_restriction: (t) => t('No pudimos generar un plan que respete tus restricciones declaradas. Ajústalas e intenta de nuevo.'),
     too_many_medical_conditions: (t, d) => t(
         'Para garantizar la calidad clínica del plan, selecciona máximo {max} condiciones prioritarias.',
         { max: (d && Number.isFinite(Number(d.max))) ? Number(d.max) : 3 },

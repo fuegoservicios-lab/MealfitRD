@@ -712,6 +712,11 @@ function _pickGreeting() {
 function RotatingGreeting({ firstName }) {
     const prefersReducedMotion = useReducedMotion();
     const [g, setG] = useState(_pickGreeting);
+    // [P1-PLAN-LOTE-167 · 2026-09-22] El saludo se guarda YA traducido: al cambiar de idioma seguía en el anterior hasta
+    // el siguiente bloque de 2 h. Al cambiar el idioma se vuelve a elegir (mismo bloque ⇒ misma frase, en el nuevo).
+    // `catalogVersion`: el catálogo nuevo llega DESPUÉS de cambiar `locale` (se descarga), y es entonces cuando se traduce.
+    const { locale, catalogVersion } = useI18n();
+    useEffect(() => { setG(_pickGreeting()); }, [locale, catalogVersion]);
     useEffect(() => {
         // Chequeo cada minuto; sólo actualiza (y anima) al cruzar el bloque de 2h.
         const id = setInterval(() => {
@@ -1213,8 +1218,8 @@ const DashboardInner = () => {
             let result = null;
             try { result = await resp.json(); } catch (_) { /* body vacío o no-JSON */ }
             if (!resp.ok || !result?.success) {
-                const msg = (typeof result?.detail === 'string' ? result.detail : null)
-                    || t('Inténtalo de nuevo en un momento.');
+                // [P1-PLAN-LOTE-167] por código (el `detail` del servidor está en español): mismo canal que los demás
+                const msg = mensajeDeError(result, t('Inténtalo de nuevo en un momento.'), t);
                 toast.error(t('No se pudo registrar'), { description: msg });
                 return;
             }
@@ -1293,9 +1298,8 @@ const DashboardInner = () => {
             let result = null;
             try { result = await resp.json(); } catch (_) { /* body vacío o no-JSON */ }
             if (!resp.ok) {
-                const msg = result?.detail?.message
-                    || (typeof result?.detail === 'string' ? result.detail : null)
-                    || t('Inténtalo de nuevo en un momento.');
+                // [P1-PLAN-LOTE-167] por código, como el resto de errores del servidor (su prosa viene en español)
+                const msg = mensajeDeError(result, t('Inténtalo de nuevo en un momento.'), t);
                 toast.error(t('No se pudo arreglar el día'), { description: msg });
                 setPantryConsent(null);
                 pantryConsentContext.current = null;

@@ -456,6 +456,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             });
             if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
             toast.success(t('Idioma guardado.'), { duration: 2000 });
+            // [P1-PLAN-LOTE-167 · 2026-09-22] Los avisos ya programados en el teléfono (7 días) llevaban el texto del
+            // idioma anterior hasta la siguiente sincronización. El servidor ya tiene el idioma nuevo: se reprograman
+            // ahora (en la web o con los avisos apagados no hace nada).
+            sincronizarAvisosLocales().catch(() => {});
         } catch {
             // [P2-I18N-TOAST-PROMETE-LO-QUE-NO-CUMPLE · 2026-08-22] El aviso decía que el
             // cambio «queda en este dispositivo». No queda: al volver a entrar,

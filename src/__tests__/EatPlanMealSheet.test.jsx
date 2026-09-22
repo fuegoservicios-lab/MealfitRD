@@ -8,7 +8,12 @@ import { resolve } from 'node:path';
 import { mealTimingIssue, pantryCoverageIssue, normalizeSlot, MEAL_WINDOWS } from '../config/mealWindows';
 
 vi.mock('../hooks/useModalAccessibility', () => ({ useModalAccessibility: () => ({ containerRef: { current: null } }) }));
-vi.mock('../i18n', () => ({ useT: () => (s, v) => (v ? s.replace(/\{(\w+)\}/g, (_, k) => String(v[k])) : s) }));
+// [P1-PLAN-LOTE-167] la hoja formatea la hora según el idioma (`getLocale`/`formatDate`): el doble habla español
+vi.mock('../i18n', () => ({
+    useT: () => (s, v) => (v ? s.replace(/\{(\w+)\}/g, (_, k) => String(v[k])) : s),
+    getLocale: () => 'es-DO',
+    formatDate: () => '',
+}));
 
 const at = (h, m = 0) => { const d = new Date(2026, 8, 4, h, m); return d; };
 

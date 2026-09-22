@@ -1452,7 +1452,10 @@
   "Meta personalizada para": "Custom goal for",
   "Meta principal": "Main goal",
   "Meta principal y calorías": "Main goal and calories",
-  "Meta: {peso} · ~{semanas} semanas a tu ritmo": "Goal: {peso} · ~{semanas} weeks at your pace",
+  "Meta: {peso} · ~{semanas} semanas a tu ritmo": {
+    "one": "Goal: {peso} · ~{semanas} week at your pace",
+    "other": "Goal: {peso} · ~{semanas} weeks at your pace"
+  },
   "Metformina": "Metformin",
   "Mi Nevera": "My fridge",
   "Mi cuenta": "My account",
@@ -3311,5 +3314,6 @@
   "El catálogo de alimentos de tu diario se adapta a tu país.": "Your diary's food catalog adapts to your country.",
   "Catálogo nativo de alimentos para tu diario, con medidas locales.": "Native food catalog for your diary, with local measurements.",
   "Recordatorios": "Reminders",
-  "Tus comidas y el agua, a su hora.": "Your meals and water, right on time."
+  "Tus comidas y el agua, a su hora.": "Your meals and water, right on time.",
+  "ELIMINAR": "DELETE"
 }

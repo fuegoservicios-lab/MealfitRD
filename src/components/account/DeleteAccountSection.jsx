@@ -88,7 +88,13 @@ export default function DeleteAccountSection() {
     const [showModal, setShowModal] = useState(false);
     const [confirmText, setConfirmText] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
-    const ready = confirmText.trim().toUpperCase() === 'ELIMINAR';
+    // [P1-PLAN-LOTE-167 · 2026-09-22] La palabra a escribir va en el idioma de la pantalla («DELETE», «SUPPRIMER»…): se
+    // pedía «ELIMINAR» en los cinco. Se compara contra ESA misma variable (la que pinta la etiqueta y el placeholder),
+    // así que una traducción no puede dejar el botón muerto; «ELIMINAR» sigue valiendo, y al servidor le llega siempre
+    // `confirm: 'ELIMINAR'` (es el contrato de la API, no copy).
+    const palabra = t('ELIMINAR');
+    const escrito = confirmText.trim().toUpperCase();
+    const ready = escrito === palabra.toUpperCase() || escrito === 'ELIMINAR';
 
     const handleDelete = async () => {
         if (!ready || isDeleting) return;
@@ -165,11 +171,13 @@ export default function DeleteAccountSection() {
                     {t('Esta acción es')} <strong>{t('permanente')}</strong>{t('. Se borrarán tu plan, tu progreso, tu nevera y todos tus datos, y se cancelará cualquier suscripción activa. No se puede deshacer.')}
                 </p>
                 <label className="mf-dz-label" htmlFor="mf-dz-confirm">
-                    {/* `ELIMINAR` va interpolado, no dentro de la clave: es la palabra
+                    {/* La palabra va interpolado, no dentro de la frase: es la variable
                         EXACTA que compara `ready` (y el placeholder del campo). Si viajara
-                        dentro del texto traducible, una traducción la cambiaría y el botón
-                        de confirmar no se activaría nunca. */}
-                    {t('Escribe {palabra} para confirmar', { palabra: 'ELIMINAR' })}
+                        dentro del texto traducible, una traducción de la frase la cambiaría
+                        y el botón de confirmar no se activaría nunca. [P1-PLAN-LOTE-167]
+                        Ahora `palabra` es ella misma traducida, pero es UNA variable para
+                        las tres cosas: pinta, placeholder y comparación no pueden divergir. */}
+                    {t('Escribe {palabra} para confirmar', { palabra })}
                 </label>
                 <input
                     id="mf-dz-confirm"
@@ -177,7 +185,7 @@ export default function DeleteAccountSection() {
                     type="text"
                     value={confirmText}
                     onChange={(e) => setConfirmText(e.target.value)}
-                    placeholder="ELIMINAR"
+                    placeholder={palabra}
                     autoComplete="off"
                     autoCapitalize="characters"
                     disabled={isDeleting}

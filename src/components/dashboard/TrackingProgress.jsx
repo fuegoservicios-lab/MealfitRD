@@ -658,10 +658,13 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
             {planData?.goal_eta?.weeks_estimate ? (
                 <div className={styles.etaChip} title={t('Estimación energética (~7,700 kcal ≈ 1 kg): el ritmo real varía con la adherencia, la retención de agua y la adaptación metabólica.')}>
                     <Flag size={13} strokeWidth={2.5} aria-hidden="true" />
-                    {t('Meta: {peso} · ~{semanas} semanas a tu ritmo', {
-                        peso: planData.goal_eta.target_weight_display,
-                        semanas: planData.goal_eta.weeks_estimate,
-                    })}{(() => {
+                    {/* [P1-PLAN-LOTE-167] con plural: salía «~1 semanas» */}
+                    {tn(planData.goal_eta.weeks_estimate,
+                        'Meta: {peso} · ~{semanas} semana a tu ritmo',
+                        'Meta: {peso} · ~{semanas} semanas a tu ritmo', {
+                            peso: planData.goal_eta.target_weight_display,
+                            semanas: planData.goal_eta.weeks_estimate,
+                        })}{(() => {
                         const ritmo = { gradual: t('Gradual'), moderado: t('Moderado'), decidido: t('Decidido') }[planData.goal_eta.pace];
                         return ritmo ? ` (${ritmo})` : '';
                     })()}

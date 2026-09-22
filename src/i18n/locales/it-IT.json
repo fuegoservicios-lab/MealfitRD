@@ -1452,7 +1452,10 @@
   "Meta personalizada para": "Obiettivo personalizzato per",
   "Meta principal": "Obiettivo principale",
   "Meta principal y calorías": "Obiettivo principale e calorie",
-  "Meta: {peso} · ~{semanas} semanas a tu ritmo": "Obiettivo: {peso} · ~{semanas} settimane al tuo ritmo",
+  "Meta: {peso} · ~{semanas} semanas a tu ritmo": {
+    "one": "Obiettivo: {peso} · ~{semanas} settimana al tuo ritmo",
+    "other": "Obiettivo: {peso} · ~{semanas} settimane al tuo ritmo"
+  },
   "Metformina": "Metformina",
   "Mi Nevera": "Il mio frigo",
   "Mi cuenta": "Il mio account",
@@ -3311,5 +3314,6 @@
   "El catálogo de alimentos de tu diario se adapta a tu país.": "Il catalogo degli alimenti del tuo diario si adatta al tuo paese.",
   "Catálogo nativo de alimentos para tu diario, con medidas locales.": "Catalogo nativo di alimenti per il tuo diario, con unità di misura locali.",
   "Recordatorios": "Promemoria",
-  "Tus comidas y el agua, a su hora.": "I tuoi pasti e l'acqua, all'ora giusta."
+  "Tus comidas y el agua, a su hora.": "I tuoi pasti e l'acqua, all'ora giusta.",
+  "ELIMINAR": "ELIMINA"
 }

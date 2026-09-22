@@ -28,7 +28,7 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 // (`generateAIPlanStream` y sus helpers viven FUERA de React); `useT`/`useTn`
 // para los tres componentes de este archivo. Los mensajes de error que solo
 // alimentan un `console.*` o un `error.code` NO se traducen: nadie los lee.
-import { t, useT, useTn, useI18n } from '../i18n';
+import { t, useT, useTn, useI18n, getLocale } from '../i18n';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
 import { mensajeDeError } from '../utils/errorCopy';
@@ -313,7 +313,10 @@ export async function resumeQueueRunUntilReady(runId, { signal, onProgress } = {
         if (snap) {
             if (snap.status === 'CANCELLED' || snap.cancel_requested) throw new Error('UserCancelled');
             if (snap.status === 'FAILED') {
-                const e = new Error(snap.error_message || t('La generación falló.'));
+                // [P1-PLAN-LOTE-167] el `error_message` del run es español: fuera de él, por código
+                const e = new Error((snap.error_message && String(getLocale() || '').startsWith('es'))
+                    ? snap.error_message
+                    : mensajeDeError({ code: snap.error_code }, t('La generación falló.'), t));
                 e.code = snap.error_code || 'pipeline_error';
                 throw e;
             }
@@ -511,7 +514,13 @@ export const generateAIPlanStream = async (formData, onProgress) => {
 
                         if (eventType === 'error') {
                             console.error('❌ [SSE] Error del servidor:', eventData.data?.message);
-                            const err = new Error(eventData.data?.message || 'Error del servidor');
+                            // [P1-PLAN-LOTE-167 · 2026-09-22] La prosa del servidor está en español: fuera de él, por
+                            // código (el contrato de las ramas de arriba, P2-I18N-PLAN-TOASTS-ERROR-MESSAGE). En español
+                            // se conserva el texto concreto del servidor —«tu alergia a Maní…» dice más que el genérico—.
+                            const _crudoSse = eventData.data?.message;
+                            const err = new Error((_crudoSse && String(getLocale() || '').startsWith('es'))
+                                ? _crudoSse
+                                : mensajeDeError(eventData.data, t('La generación falló.'), t));
                             // Propagar el código del backend para que el caller pueda
                             // distinguir errores transitorios de IA (mostrar Retry) vs
                             // errores genéricos (navegar a dashboard).
@@ -630,6 +639,9 @@ export const generateAIPlanStream = async (formData, onProgress) => {
                 // detectamos el mensaje O el code del backend y propagamos
                 // limpio como UserCancelled.
                 error.code === 'cancelled' ||
+                // [P1-PLAN-LOTE-167] el backend lo manda como `user_cancelled`: la regex solo casaba con su frase
+                // española, y fuera del español el mensaje ya llega traducido
+                error.code === 'user_cancelled' ||
                 /cancelad[oa] por el usuario/i.test(error.message || '')
             ) {
                 console.warn("🚫 Generación cancelada por el usuario (vía SSE).");

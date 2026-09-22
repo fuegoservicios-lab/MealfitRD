@@ -1452,7 +1452,10 @@
   "Meta personalizada para": "Meta personalizada para",
   "Meta principal": "Meta principal",
   "Meta principal y calorías": "Meta principal e calorias",
-  "Meta: {peso} · ~{semanas} semanas a tu ritmo": "Meta: {peso} · ~{semanas} semanas no seu ritmo",
+  "Meta: {peso} · ~{semanas} semanas a tu ritmo": {
+    "one": "Meta: {peso} · ~{semanas} semana no seu ritmo",
+    "other": "Meta: {peso} · ~{semanas} semanas no seu ritmo"
+  },
   "Metformina": "Metformina",
   "Mi Nevera": "Minha geladeira",
   "Mi cuenta": "Minha conta",
@@ -3311,5 +3314,6 @@
   "El catálogo de alimentos de tu diario se adapta a tu país.": "O catálogo de alimentos do seu diário se adapta ao seu país.",
   "Catálogo nativo de alimentos para tu diario, con medidas locales.": "Catálogo nativo de alimentos para o seu diário, com medidas locais.",
   "Recordatorios": "Lembretes",
-  "Tus comidas y el agua, a su hora.": "Suas refeições e a água, na hora certa."
+  "Tus comidas y el agua, a su hora.": "Suas refeições e a água, na hora certa.",
+  "ELIMINAR": "EXCLUIR"
 }
