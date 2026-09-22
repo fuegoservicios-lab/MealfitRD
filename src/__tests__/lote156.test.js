@@ -101,3 +101,24 @@ describe('[P1-PLAN-LOTE-156] el chat usa la decisión, no una copia', () => {
         expect(src).toContain('cur.attempts > 30');
     });
 });
+
+describe('[P1-PLAN-LOTE-156] el teclado de Android tiene declarado su modo', () => {
+    const manifiesto = fs.readFileSync(
+        path.resolve(__dirname, '..', '..', 'android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+        'utf-8',
+    );
+
+    it('la actividad declara `adjustResize`', () => {
+        // Sin declararlo, Android usa ADJUST_UNSPECIFIED y «el sistema intenta elegir». Toda la
+        // coreografía del teclado del chat se apoya en `visualViewport`, que solo encoge si la
+        // VENTANA encoge; si el sistema decide desplazar, la web no se entera de que hay teclado.
+        // En iOS no se nota porque el binario retransmite keyboardWillShow desde SceneDelegate;
+        // en Android el MainActivity es el BridgeActivity pelado y no retransmite nada.
+        expect(manifiesto).toContain('android:windowSoftInputMode="adjustResize"');
+    });
+
+    it('sigue siendo XML válido (un `--` dentro de un comentario mata el build, lección del 152)', () => {
+        const doc = new DOMParser().parseFromString(manifiesto, 'application/xml');
+        expect(doc.getElementsByTagName('parsererror').length).toBe(0);
+    });
+});

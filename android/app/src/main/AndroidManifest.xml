@@ -9,8 +9,19 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- [P1-PLAN-LOTE-156 · 2026-09-22] `adjustResize` EXPLÍCITO.
+             Sin declararlo, Android usa `ADJUST_UNSPECIFIED` y «el sistema intenta elegir» entre
+             encoger la ventana o desplazarla. Toda la coreografía del teclado del chat (lotes
+             111/115/128/131/138) se apoya en `window.visualViewport`, y ese objeto solo encoge
+             si la ventana ENCOGE; si el sistema decide desplazar, la web no se entera de que hay
+             teclado. En iOS no se nota porque el binario retransmite `keyboardWillShow` desde
+             SceneDelegate.swift — en Android ese aviso no existe: el MainActivity es el
+             BridgeActivity pelado, así que la geometría es la única fuente que hay.
+             Si el sistema ya venía eligiendo `resize`, esto no cambia nada; si elegía desplazar,
+             arregla la caja de escribir tapada. No viaja por OTA: exige un APK nuevo. -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:windowSoftInputMode="adjustResize"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
