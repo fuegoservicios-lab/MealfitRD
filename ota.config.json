@@ -5,8 +5,10 @@
   "minNativeBuild": 13,
   "_nota_lote_152": "@capacitor/android entra SIN subir minNativeBuild, por la misma razon que local-notifications en el 133: es una PLATAFORMA nueva, no una capacidad nueva del binario de iOS. Subir el umbral habria dejado sin OTA a los iPhone instalados por un cambio que no les afecta. El primer APK nace con versionCode 100 (android/app/build.gradle), por encima del umbral, asi que Android si recibe OTA desde el dia uno.",
   "_nota_lote_160": "MfGoogleId (Credential Manager) entra SIN subir minNativeBuild, por la MISMA razon que local-notifications en el 133 y @capacitor/android en el 152: la web pregunta nativePluginAvailable('MfGoogleId') antes de usarlo, y un binario sin el plugin cae solo al camino de siempre (en Android eso es esconder el boton, que es lo que ya hacia). Subir el umbral dejaria sin OTA a los iPhone y al APK 101 instalados por una capacidad que no les afecta. Las tres dependencias nuevas son de GRADLE, no de npm: no tocan nativeDeps y por eso lote108.test.js sigue casando con package.json.",
+  "_nota_lote_163": "@capacitor/app (el gesto atras de Android) entra SIN subir minNativeBuild, por la MISMA razon que el 133, el 152 y el 160: src/native/botonAtras.js pregunta nativePluginAvailable('App') antes de importarlo, y en un binario sin el plugin no registra nada (queda como hoy). Subir el umbral dejaria sin OTA a los iPhone y a los APK 100-102 instalados por una capacidad que solo trae el APK 103. El deploy del 22-sep lo paro lote108.test.js porque el lote 163 anadio la dependencia sin anotarla aqui.",
   "nativeDeps": {
     "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/camera": "^8.2.3",
     "@capacitor/core": "^8.5.0",
     "@capacitor/haptics": "^8.0.2",

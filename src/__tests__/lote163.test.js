@@ -81,7 +81,12 @@ describe('lote 163 · el binario lo trae', () => {
         expect(Number(/versionCode\s+(\d+)/.exec(gradle)[1])).toBe(103);
         expect(gradle).toContain('versionName "1.0.103"');
         // la capacidad está gateada por `nativePluginAvailable('App')`: un APK viejo degrada bien con el JS nuevo
-        expect(JSON.parse(leer('ota.config.json')).minNativeBuild).toBe(13);
+        const ota = JSON.parse(leer('ota.config.json'));
+        expect(ota.minNativeBuild).toBe(13);
+        // …pero la dependencia SÍ entra en la foto del OTA (lote108.test.js exige que case con package.json): el
+        // primer intento del deploy se paró ahí porque el lote la añadió a package.json y no aquí.
+        expect(ota.nativeDeps['@capacitor/app']).toBe(JSON.parse(leer('package.json')).dependencies['@capacitor/app']);
+        expect(ota._nota_lote_163).toContain("nativePluginAvailable('App')");
     });
 
     it('Google en Android manda el detalle del «cancelado» (lo único que separa un «ahora no» de un fallo)', () => {
