@@ -13,7 +13,7 @@ import { isTrackingMode } from '../../config/dashboardNav';
 import { terminarCompletarFormulario } from '../../utils/completarFormulario';
 
 const InteractiveAssessmentLayout = ({ children, totalSteps, stepKey, title, subtitle }) => {
-    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, updateData, planData, session } = useAssessment();
+    const { currentStep, prevStep, resetApp, isGuest, exitGuestSession, userProfile, updateData, session, planData } = useAssessment();
     // [P1-ARQ25-F1-CLOSE · 2026-09-02] Si ya hay un plan generándose (placeholder de la cola sin
     // días), el asistente lo dice arriba y manda al panel: reenviar el formulario cancelaría
     // la generación en marcha. Vivo: tras un reinicio del backend el cliente aterrizó aquí sin
