@@ -3131,7 +3131,6 @@ const AgentPage = () => {
     }, []);
 
     useEffect(() => {
-        const last = messages[messages.length - 1];
         // [P1-PLAN-LOTE-156 · 2026-09-22] …y el corte de red EN MEDIO del turno, que es el caso
         // de móvil y no estaba cubierto.
         //
