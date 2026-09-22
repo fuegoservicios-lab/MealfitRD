@@ -218,7 +218,16 @@ const _agentErrorCopy = () => ({
     },
     402: {
         icon: '🔒',
-        text: t('Llegaste al límite mensual de tu plan. Actualiza para seguir conversando.'),
+        // [P1-PLAN-LOTE-155 · 2026-09-22] Dentro de la app nativa, el mismo aviso SIN la invitación
+        // a mejorar de plan. Es el copy de RESPALDO —el bueno («llegaste a tus 60 mensajes, se
+        // renueva el 1 de octubre») se arma más abajo con las cabeceras del 402, que ya respetaban
+        // este gate—, pero un respaldo es exactamente lo que se ve cuando algo falla: hasta hoy
+        // bastaba con que un proxy se comiera las cabeceras para que la app nativa invitara a
+        // comprar fuera, que es lo que `nativeHidesCommerce()` existe para impedir (Apple 3.1.1).
+        // Las DOS cadenas siguen vivas, así que ninguna traducción queda huérfana.
+        text: nativeHidesCommerce()
+            ? t('Llegaste al límite mensual de mensajes con el coach.')
+            : t('Llegaste al límite mensual de tu plan. Actualiza para seguir conversando.'),
         retryable: false,
     },
     // [P2-CHAT-FRONT-AUDIT · 2026-09-14] 409 = la respuesta que se intentaba regenerar ya
@@ -246,6 +255,17 @@ const _agentErrorCopy = () => ({
         retryable: true,
     },
 });
+
+// [P1-PLAN-LOTE-155 · 2026-09-22] El `code` del evento `error` del SSE → el estado HTTP cuyo copy
+// ya existe. Los códigos son los de `_chat_stream_error_payload` (backend/agent.py); lo que NO esté
+// aquí cae a 500, que es el genérico de siempre — añadir un código nuevo al backend nunca empeora
+// este lado, solo deja de mejorarlo hasta que se añada la fila.
+const ESTADO_POR_CODIGO_DE_ERROR = {
+    rate_limited: 429,
+    unavailable: 503,
+    timeout: 504,
+    internal: 500,
+};
 
 const _buildAgentErrorMessage = ({
     status,
@@ -4031,10 +4051,22 @@ const AgentPage = () => {
                                         // (tool falló, exception interna). Retryable.
                                         // [P2-CHAT-FRONT-AUDIT] `_pushTurnError` cierra la burbuja
                                         // parcial y garantiza UNA burbuja de error por turno.
+                                        // [P1-PLAN-LOTE-155 · 2026-09-22] …y el `code` del evento MANDA.
+                                        // El backend clasifica desde el 14-sep (`_chat_stream_error_payload`:
+                                        // rate_limited / unavailable / timeout / internal) y aquí se
+                                        // escribía `500` a pelo, así que los cuatro casos salían con el
+                                        // mismo «tuvo un problema… puedes reintentar». El peor es el
+                                        // cortacircuitos: dice reintenta YA cuando lo que hace falta es
+                                        // esperar los 30 s que tarda en cerrarse, y el usuario martillea
+                                        // justo al proveedor que está caído. Los copys específicos ya
+                                        // existían en `_agentErrorCopy` (429/503/504) y nadie los alcanzaba
+                                        // por esta puerta.
+                                        //
+                                        // *Clasificar sin que nadie lea la clasificación es no clasificar.*
                                         setIsLoading(false);
                                         setStreamingStatus(null);
                                         _pushTurnError({
-                                            status: 500,
+                                            status: ESTADO_POR_CODIGO_DE_ERROR[dataObj.code] || 500,
                                             retryPrompt: userMsg,
                                             retryImageUrl: uploadedImageUrl,
                                             retryAttachments: _durableRetryAttachments(uploadedAttachments),

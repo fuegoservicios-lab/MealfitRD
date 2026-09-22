@@ -593,6 +593,123 @@
     </script>
   </div>
 
+  <!-- [P1-PLAN-LOTE-155 · 2026-09-22] El motor web demasiado viejo se DICE, no se sufre.
+       La app se dibuja con `color-mix()` — 478 usos, es el sistema de color entero — más
+       `:has()` y `100dvh`. Un motor que no los entiende no falla: IGNORA esas declaraciones.
+       El resultado es una pantalla con los colores perdidos y alturas rotas, que el usuario
+       lee como «la app está rota» y reporta como «no funciona», sin una sola pista de por qué.
+       Dos casos reales, no hipotéticos:
+         · Android: el System WebView se actualiza por Play Store POR SU CUENTA, independiente
+           de la versión de Android. `minSdk` 24 admite teléfonos cuyo motor puede ser de 2019
+           con el sistema al día. Subir `minSdk` NO lo arregla: no es el sistema, es el motor.
+         · iOS: el binario declara `IPHONEOS_DEPLOYMENT_TARGET = 15.0`, y `color-mix` llegó en
+           Safari 16.2. Un iPhone en iOS 15 instala la app y la ve descolorida.
+       Va aquí, ANTES del módulo, y en ES5 a propósito: si el motor es tan viejo que ni parsea
+       el bundle, este aviso es lo ÚNICO que el usuario llegará a ver — sin él se queda con los
+       tres puntitos del splash para siempre. Y por eso mismo no usa `t()` ni el CSS de la app:
+       ninguno de los dos existe todavía. El texto sale de estos mapas (mismo patrón y mismo
+       porqué que el splash, P1-SPLASH-I18N) y `test_p1_plan_lote_155.py` los ancla.
+       No bloquea: «Continuar de todos modos» quita el aviso. Decirlo es el trabajo; decidir
+       por él, no. -->
+  <script>
+    (function () {
+      try {
+        var soporta = function (prop, val) {
+          try { return !!(window.CSS && CSS.supports && CSS.supports(prop, val)); } catch (e) { return false; }
+        };
+        var soportaSelector = function (sel) {
+          try { return !!(window.CSS && CSS.supports && CSS.supports('selector(' + sel + ')')); } catch (e) { return false; }
+        };
+        if (soporta('color', 'color-mix(in srgb, red, blue)')
+            && soporta('height', '100dvh')
+            && soportaSelector(':has(*)')) return;
+
+        var TITULO = {
+          'es-DO': 'Tu navegador es demasiado antiguo',
+          'en-US': 'Your browser is too old',
+          'pt-BR': 'Seu navegador é muito antigo',
+          'fr-FR': 'Votre navigateur est trop ancien',
+          'it-IT': 'Il tuo browser è troppo vecchio'
+        };
+        var CUERPO = {
+          'es-DO': 'Bioboros usa funciones que este navegador no entiende, así que la pantalla se verá mal: colores perdidos y cosas fuera de sitio.',
+          'en-US': 'Bioboros uses features this browser does not understand, so the screen will look wrong: missing colors and misplaced elements.',
+          'pt-BR': 'O Bioboros usa recursos que este navegador não entende, então a tela vai aparecer errada: cores perdidas e elementos fora do lugar.',
+          'fr-FR': 'Bioboros utilise des fonctions que ce navigateur ne comprend pas : l’écran s’affichera mal, avec des couleurs perdues et des éléments décalés.',
+          'it-IT': 'Bioboros usa funzioni che questo browser non capisce, quindi la schermata apparirà sbagliata: colori persi ed elementi fuori posto.'
+        };
+        var ACCION_WV = {
+          'es-DO': 'Abre Play Store, actualiza «Android System WebView» y Chrome, y vuelve a abrir Bioboros.',
+          'en-US': 'Open the Play Store, update “Android System WebView” and Chrome, then reopen Bioboros.',
+          'pt-BR': 'Abra a Play Store, atualize o “Android System WebView” e o Chrome, e abra o Bioboros de novo.',
+          'fr-FR': 'Ouvrez le Play Store, mettez à jour « Android System WebView » et Chrome, puis rouvrez Bioboros.',
+          'it-IT': 'Apri il Play Store, aggiorna “Android System WebView” e Chrome, poi riapri Bioboros.'
+        };
+        var ACCION_OTRO = {
+          'es-DO': 'Actualiza tu navegador —o tu teléfono— y vuelve a entrar.',
+          'en-US': 'Update your browser — or your phone — and come back.',
+          'pt-BR': 'Atualize seu navegador — ou seu telefone — e volte a entrar.',
+          'fr-FR': 'Mettez à jour votre navigateur — ou votre téléphone — et revenez.',
+          'it-IT': 'Aggiorna il browser — o il telefono — e rientra.'
+        };
+        var BOTON = {
+          'es-DO': 'Continuar de todos modos',
+          'en-US': 'Continue anyway',
+          'pt-BR': 'Continuar mesmo assim',
+          'fr-FR': 'Continuer quand même',
+          'it-IT': 'Continua comunque'
+        };
+
+        var loc = window.__mfLocale;
+        if (!loc || !TITULO[loc]) loc = 'es-DO';
+        // La cadena "; wv)" es la marca del WebView de Android en el user agent: ahí la acción es
+        // concreta (actualizar el motor desde Play), y en cualquier otro sitio es genérica.
+        var esWebViewAndroid = String(navigator.userAgent || '').indexOf('; wv)') !== -1;
+
+        var aviso = document.createElement('div');
+        aviso.id = 'mf-motor-viejo';
+        aviso.setAttribute('role', 'alertdialog');
+        aviso.setAttribute('aria-label', TITULO[loc]);
+        aviso.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;'
+          + 'background:#0B0B0B;color:#FBFBFA;overflow:auto;'
+          + "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.55";
+        var caja = document.createElement('div');
+        caja.style.cssText = 'max-width:32rem;margin:0 auto;padding:3rem 1.5rem';
+        var h = document.createElement('h1');
+        h.style.cssText = 'font-size:1.35rem;margin:0 0 .75rem;font-weight:700';
+        h.appendChild(document.createTextNode(TITULO[loc]));
+        var p1 = document.createElement('p');
+        p1.style.cssText = 'margin:0 0 1rem;font-size:1rem';
+        p1.appendChild(document.createTextNode(CUERPO[loc]));
+        var p2 = document.createElement('p');
+        p2.style.cssText = 'margin:0 0 1.75rem;font-size:1rem;font-weight:600';
+        p2.appendChild(document.createTextNode((esWebViewAndroid ? ACCION_WV : ACCION_OTRO)[loc]));
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'display:block;width:100%;padding:.85rem 1rem;font-size:1rem;'
+          + 'background:transparent;color:#FBFBFA;border:1px solid #4F46E5;border-radius:10px;cursor:pointer';
+        btn.appendChild(document.createTextNode(BOTON[loc]));
+        btn.onclick = function () {
+          if (aviso.parentNode) aviso.parentNode.removeChild(aviso);
+        };
+        caja.appendChild(h); caja.appendChild(p1); caja.appendChild(p2); caja.appendChild(btn);
+        aviso.appendChild(caja);
+
+        var pintar = function () {
+          if (!document.body || document.getElementById('mf-motor-viejo')) return;
+          document.body.appendChild(aviso);
+          // El splash seguiría girando por detrás; con el motor roto puede no apagarse nunca.
+          var splash = document.getElementById('pwa-splash');
+          if (splash) splash.style.display = 'none';
+        };
+        if (document.body) pintar();
+        else document.addEventListener('DOMContentLoaded', pintar);
+      } catch (e) {
+        /* Un aviso que revienta sería peor que el problema que avisa: se calla. */
+      }
+    })();
+  </script>
+
   <script type="module" src="/src/main.jsx"></script>
 </body>
 
