@@ -79,6 +79,8 @@ import { captureException, addBreadcrumb } from '../utils/observability';
 import { medirTecladoDeVentana, insetEstabilizado, resolverPosicionTeclado, resolverInsetNativo, altoDeReferencia, decidirAvisoNativo, KB_UMBRAL_PX } from '../utils/keyboardViewport';
 import { alternarSondaTecladoNativa, marcarSondaTeclado, EVENTO_TECLADO_NATIVO } from '../utils/keyboardProbe';
 import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMoverse } from '../utils/chatKeyboardScroll';
+// [P1-PLAN-LOTE-156] ¿Merece la pena preguntarle al servidor por una respuesta que quizá sí llegó?
+import { hayTurnoQueRescatar } from '../utils/rescateDelTurno';
 import { decidirAlAlejarseDelFondo } from '../utils/chatScrollIntent';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
@@ -3130,9 +3132,37 @@ const AgentPage = () => {
 
     useEffect(() => {
         const last = messages[messages.length - 1];
-        const orphan = Boolean(
-            last && last.role === 'user' && !isLoading && !isLoadingHistory
-        );
+        // [P1-PLAN-LOTE-156 · 2026-09-22] …y el corte de red EN MEDIO del turno, que es el caso
+        // de móvil y no estaba cubierto.
+        //
+        // Toda esta maquinaria (sondear el historial, adoptar la respuesta si el servidor va
+        // por delante) arrancaba solo con «el último mensaje es del usuario». Eso ocurre tras
+        // un refresh, porque el estado local muere con la página. Pero si el stream se corta
+        // EN VIVO —el tester cambia de app 20 s, Android suspende el WebView y mata el
+        // `fetch`— el `catch` deja una burbuja de error, así que el último mensaje ya NO es
+        // del usuario y el sondeo no se enteraba. Mientras tanto el backend TERMINA el turno
+        // y GUARDA la respuesta (el `done` del generador persiste aunque el cliente se haya
+        // ido): la respuesta existía, estaba pagada, y el usuario veía «Sin conexión».
+        //
+        // Y lo que hace a continuación es peor que no ver nada: pulsa Reintentar, se manda el
+        // mismo mensaje otra vez, se cobra otro mensaje de su cuota mensual y al recargar
+        // aparecen las DOS respuestas.
+        //
+        // No es hipotético: el p90 de un turno son 17,5 s medidos en producción. Veinte
+        // segundos mirando una pantalla es exactamente cuando la gente cambia de app.
+        //
+        // Solo para el corte de CONEXIÓN (`0` de red, `502` del stream cortado sin `done`):
+        // un 402 de cuota o un 413 nunca llegaron al modelo, así que no hay nada que rescatar.
+        // Y solo si el aparato se cree en línea: sin red, el sondeo tampoco va a llegar y la
+        // burbuja de «sin conexión» ya dice la verdad — 26 s de «Recuperando…» serían mentira.
+        // Si el rescate funciona, `fetchSessionMessages` repinta la conversación del servidor
+        // y la burbuja de error desaparece sola; si no, se queda donde está.
+        const orphan = hayTurnoQueRescatar({
+            mensajes: messages,
+            ocupado: isLoading,
+            cargandoHistorial: isLoadingHistory,
+            enLinea: typeof navigator === 'undefined' ? true : navigator.onLine,
+        });
         const st = _recoveryRef.current;
         if (!orphan) {
             if (st.active) {
