@@ -125,7 +125,13 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
 
     it('los dos botones del diálogo de confirmación declaran su variante', () => {
         const dlg = leer('src/components/common/ConfirmDialog.jsx');
-        expect(dlg).toMatch(/data-hover="fila"\s+onClick=\{onCancel\}/);
+        // [P1-PLAN-LOTE-158 · 2026-09-22] Cancelar pasa de `fila` a `fantasma`. El 151 le dio
+        // una variante para que CONTESTARA al ratón —su estilo es en línea y no admite
+        // `:hover`—, y eso sigue igual; lo que cambia es CUÁL. `fila` añade un anillo de 1 px
+        // que dibuja el contorno, y este botón ya trae su `1px solid var(--border)`: le pintaba
+        // un segundo borde pegado al primero. La variante de botón secundario no dibuja
+        // contorno; sube el texto a primer plano, que es lo que un botón necesita decir.
+        expect(dlg).toMatch(/data-hover="fantasma"\s+onClick=\{onCancel\}/);
         expect(dlg).toMatch(/data-hover="boton"\s+onClick=\{onConfirm\}/);
     });
 

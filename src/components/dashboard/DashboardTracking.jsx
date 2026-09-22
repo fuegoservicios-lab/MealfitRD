@@ -99,6 +99,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                     </button>
                     <button
                         type="button"
+                        data-hover="fantasma"
                         className={styles.turnOnGhost}
                         onClick={descartar}
                     >
@@ -136,7 +137,7 @@ const TurnOnPlanCard = ({ formData, hayPlanPausado = false }) => {
                 </button>
                 <button
                     type="button"
-                    data-hover="fila"
+                    data-hover="fantasma"
                     className={styles.turnOnGhost}
                     onClick={descartar}
                 >

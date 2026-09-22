@@ -42,7 +42,7 @@ const ConfirmDialog = ({ req, onCancel, onConfirm }) => {
                             el de confirmar. */}
                         <button
                             type="button"
-                            data-hover="fila"
+                            data-hover="fantasma"
                             onClick={onCancel}
                             style={{
                                 flex: 1, padding: '0.8rem 1rem', borderRadius: '0.8rem', cursor: 'pointer',
