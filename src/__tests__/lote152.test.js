@@ -72,7 +72,12 @@ describe('lote 152 · la app de Android existe y arranca', () => {
         expect(code).toBeGreaterThanOrEqual(ota.minNativeBuild);
     });
 
-    it('el flujo de Codemagic para Android existe y no pide firma para el primer APK', () => {
+    // [P1-PLAN-LOTE-159 · 2026-09-22] El título decía «no pide firma» y era cierto para el PRIMER
+    // APK: se repartía firmado con la clave de depuración de la máquina del build. Eso obligaba a
+    // desinstalar en cada reparto (firma distinta cada vez) y bloqueaba el login con Google, que se
+    // ata a la huella de la clave. Ahora el flujo SÍ pide una clave fija; lo que sigue sin pedir es
+    // un almacén de claves para CONSTRUIR (`assembleDebug`), que es lo que aquel lote protegía.
+    it('el flujo de Codemagic para Android existe y construye sin exigir un almacén de claves', () => {
         const cm = leer('codemagic.yaml');
         expect(cm).toContain('android-apk:');
         expect(cm).toContain('npx cap sync android');

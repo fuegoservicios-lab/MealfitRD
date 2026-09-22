@@ -18,7 +18,10 @@ android {
         // primer APK de Android es, por definición, el binario más nuevo que existe para Android, así que pasar
         // el umbral es lo correcto. Lo que de verdad protege de usar un plugin que el binario no trae es
         // `nativePluginAvailable`, que pregunta por el plugin concreto.
-        versionCode 100
+        // [P1-PLAN-LOTE-159 · 2026-09-22] 101: el segundo APK de los testers (el que trae
+        // `adjustResize`). Con la clave de firma ya fija, subir el número es lo que deja que se
+        // instale ENCIMA del anterior y que el tester distinga en Ajustes cuál tiene.
+        versionCode 101
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -27,10 +30,47 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // [P1-PLAN-LOTE-159 · 2026-09-22] Clave de firma FIJA para el APK de los testers.
+    //
+    // El problema que cierra: `assembleDebug` firma con la clave de depuración que genera la
+    // MÁQUINA del build, y las de Codemagic son efímeras. Cada APK salía firmado con una clave
+    // distinta, así que Android se negaba a instalarlo encima del anterior («no se pudo
+    // instalar») y el tester tenía que desinstalar y volver a entrar con su correo y su código.
+    // Repartir un arreglo costaba una reinstalación a cada persona.
+    //
+    // Y hay una segunda razón, la que mira al futuro: **Google como botón de entrada en Android
+    // se ata a la huella (SHA-1/SHA-256) de la clave de firma**. Con una clave que cambia en
+    // cada build, ese login se rompería en cada APK. Fijar la clave es el paso que tiene que ir
+    // ANTES, no después.
+    //
+    // El bloque es CONDICIONAL a propósito: sin las variables (un build local, o el flujo antes
+    // de que la clave esté subida a Codemagic) no se declara ninguna firma y Gradle sigue usando
+    // la de depuración de siempre. Así esto se puede mergear y desplegar hoy sin romper nada, y
+    // se activa solo cuando la clave exista. Los nombres son los que Codemagic exporta al añadir
+    // una clave Android al flujo (`android_signing` en codemagic.yaml).
+    def _cmKeystore = System.getenv("CM_KEYSTORE_PATH")
+    if (_cmKeystore) {
+        signingConfigs {
+            testers {
+                storeFile file(_cmKeystore)
+                storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CM_KEY_ALIAS")
+                keyPassword System.getenv("CM_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (_cmKeystore) { signingConfig signingConfigs.testers }
+        }
+        debug {
+            // El APK que se reparte a mano sale de `assembleDebug` (no exige almacén de claves
+            // para construirse). Firmarlo con la clave fija es lo que hace que el siguiente se
+            // instale ENCIMA en vez de obligar a desinstalar.
+            if (_cmKeystore) { signingConfig signingConfigs.testers }
         }
     }
 }

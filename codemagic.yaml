@@ -49,6 +49,24 @@ workflows:
       node: 22
       # En las imágenes de macOS conviven varios JDK; Capacitor 8 pide 21.
       java: 21
+      # [P1-PLAN-LOTE-159 · 2026-09-22] Clave de firma FIJA para el APK de los testers.
+      #
+      # Sin esto, `assembleDebug` firma con la clave de depuración que genera la máquina del
+      # build —y las de Codemagic son efímeras—, así que cada APK salía con una firma distinta:
+      # Android se niega a instalarlo encima del anterior y el tester tiene que desinstalar,
+      # perdiendo la sesión. Con la clave fija, el siguiente APK se instala encima y punto.
+      #
+      # `bioboros_testers` es el NOMBRE DE REFERENCIA que se le da a la clave al subirla en
+      # Codemagic → Teams/App settings → Code signing identities → Android keystores. La clave
+      # la crea el dueño con `keytool` y NO vive en este repositorio: aquí solo se nombra.
+      #
+      # Mientras la clave no exista, esta línea hace que el flujo falle al arrancar —es un
+      # error honesto y explícito («keystore not found»), no un APK mal firmado— y el bloque
+      # equivalente de `android/app/build.gradle` es condicional, así que un build local sigue
+      # funcionando sin nada. Si hiciera falta lanzar un APK antes de subir la clave, se comenta
+      # este bloque de dos líneas.
+      android_signing:
+        - bioboros_testers
 
     scripts:
       - name: Dependencias web (lockfile, reproducible)
