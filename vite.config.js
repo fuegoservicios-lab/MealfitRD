@@ -564,6 +564,10 @@ export default defineConfig(({ mode }) => {
     //
     // Knob por si otra maquina aguanta mas (o menos): VITEST_MAX_WORKERS.
     // [2026-09-19] La suite va por ~409 archivos / ~3.700 tests, igual de estable.
+    // [2026-09-22 · P1-PLAN-LOTE-157] 450 archivos / 4.044 tests, exit 0 con estos mismos 4
+    // workers. La cifra se actualiza aquí porque `test_p1_vitest_worker_stability` la compara
+    // con la realidad y falla si se separan más de 40: es lo que hace que una corrida
+    // incompleta se note. Dejarla vieja convierte el guard en ruido que se aprende a ignorar.
     maxWorkers: Number(process.env.VITEST_MAX_WORKERS) || 4,
     minWorkers: 1,
     // [P1-4 · COVERAGE-REPORT-ONLY · 2026-07-09] @vitest/coverage-v8 en modo
