@@ -45,7 +45,13 @@ describe('lote 147 · Google nativo', () => {
         expect(plat).toMatch(/return nativePluginAvailable\('MfWebAuth'\)/);
         const login = leer('src/pages/Login.jsx');
         expect(login).toContain("const handleGoogle = () => (googleSignInNativo() ? handleGoogleNativo() : handleOAuth('google'));");
-        expect(login).toContain('if (vuelta.cancelado) { setGoogleLoading(false); return; }');
+        // [P1-PLAN-LOTE-162] Cerrar la hoja sigue sin ser un ERROR (nada de rojo), pero en Android deja a la vista la
+        // salida del correo: Credential Manager reporta como «cancelado» también fallos de configuración.
+        const i = login.indexOf('if (vuelta.cancelado) {');
+        expect(i).toBeGreaterThan(-1);
+        const rama = login.slice(i, login.indexOf('return;', i));
+        expect(rama).toContain('setGoogleLoading(false);');
+        expect(rama).not.toContain('setError(');
     });
 
     it('el binario: plugin genérico, solo https, y la vista comparte cookies de Safari', () => {

@@ -60,7 +60,8 @@ describe('[P1-PLAN-LOTE-160] Google en Android', () => {
     });
 
     it('cerrar la hoja no es un error, y no tener cuentas tampoco', () => {
-        expect(util).toContain("if (e?.code === 'CANCELADO') return { cancelado: true };");
+        // [P1-PLAN-LOTE-162] …y trae el detalle nativo, lo único que separa un «ahora no» de un fallo de configuración
+        expect(util).toContain("if (e?.code === 'CANCELADO') return { cancelado: true, detalle: e?.data?.detalle || null };");
         expect(util).toContain("if (e?.code === 'SIN_CUENTAS') return { sinCuentas: true };");
         expect(plugin).toContain('"CANCELADO"');
         expect(plugin).toContain('"SIN_CUENTAS"');

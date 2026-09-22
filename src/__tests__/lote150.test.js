@@ -17,7 +17,10 @@ describe('lote 150 · los dos interruptores de avisos', () => {
     it('son DOS, separados, y viven en el perfil (no en este dispositivo)', () => {
         expect(S).toContain("const [avisosComida, setAvisosComida] = useState(() => _prefAvisos('avisos_comida'));");
         expect(S).toContain("const [avisosAgua, setAvisosAgua] = useState(() => _prefAvisos('avisos_agua'));");
-        expect(S).toContain("safeUpdateHealthProfile({ [clave]: valor })");
+        // [P1-PLAN-LOTE-162] Solo SU clave: `safeUpdateHealthProfile` mandaba el formulario entero y la copia local
+        // congelada de la OTRA preferencia la devolvía a su valor viejo (tocar «comida» re-encendía el agua).
+        expect(S).toContain("body: JSON.stringify({ health_profile: { [clave]: valor } }),");
+        expect(S).not.toContain("safeUpdateHealthProfile({ [clave]: valor })");
         // en el perfil y no en localStorage: apagarlo tiene que callar TAMBIÉN al cron del servidor
         expect(S).not.toContain("safeLocalStorageSet('mealfit_avisos_comida'");
     });
@@ -28,7 +31,8 @@ describe('lote 150 · los dos interruptores de avisos', () => {
 
     it('al cambiarlo, el teléfono reprograma, y si el perfil no está se revierte en vez de mentir', () => {
         const i = S.indexOf('const cambiarPrefDeAviso');
-        const cuerpo = S.slice(i, i + 900);
+        // [P1-PLAN-LOTE-162] la función creció (espera al PATCH, relee el perfil): la ventana crece con ella
+        const cuerpo = S.slice(i, i + 1600);
         expect(cuerpo).toContain('poner(!valor);');
         expect(cuerpo).toContain('await sincronizarAvisosLocales();');
         expect(S).toContain("sincronizarAvisosLocales } from '../utils/avisosDeComida';");

@@ -155,8 +155,12 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const t = useT();
     const tn = useTn();
     const subtituloMicros = useMicrosSubtitulo();
-    const hoyISO = useMemo(() => aISO(new Date()), []);
+    // [P1-PLAN-LOTE-162 · 2026-09-22] «Hoy» se recalcula al ABRIR. El cajón vive montado dentro de la tarjeta aunque
+    // esté cerrado, así que con `[]` el «hoy» era el del día en que se montó: con la app abierta desde anoche, la tira
+    // seguía en ayer y lo que se registraba desde aquí caía en un día desplazado. Al abrir, además, se vuelve a HOY.
+    const hoyISO = useMemo(() => aISO(new Date()), [open]); // eslint-disable-line react-hooks/exhaustive-deps
     const [selected, setSelected] = useState(hoyISO);
+    useEffect(() => { if (open) setSelected(aISO(new Date())); }, [open]);
     const [maxDias, setMaxDias] = useState(DIAS_TIRA);
     const [resumen, setResumen] = useState([]);
     const [dia, setDia] = useState(null);
@@ -176,15 +180,17 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
 
     const tzOffset = useMemo(() => new Date().getTimezoneOffset(), []);
 
+    // [P1-PLAN-LOTE-162] La tira cuenta hacia atrás DESDE `hoyISO` (mediodía local: ningún cambio de hora la mueve de día).
     const dias = useMemo(() => {
         const out = [];
+        const [y, m, d] = hoyISO.split('-').map(Number);
         for (let i = maxDias - 1; i >= 0; i -= 1) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            out.push(aISO(d));
+            const fecha = new Date(y, m - 1, d, 12, 0, 0, 0);
+            fecha.setDate(fecha.getDate() - i);
+            out.push(aISO(fecha));
         }
         return out;
-    }, [maxDias]);
+    }, [maxDias, hoyISO]);
 
     const porFecha = useMemo(() => {
         const m = new Map();

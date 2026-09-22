@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { nativeHidesCommerce } from '../config/platform';
+import { nativeHidesCommerce, nativePlatform } from '../config/platform';
 import { isTrackingMode } from '../config/dashboardNav';
 import { reanudarPlanes } from '../utils/planModeResume';
 import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, periodLabel, tierDisplayName } from '../config/plans';
@@ -21,7 +21,7 @@ import { confirmToast } from '../utils/confirmToast';
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 // [P1-PLAN-LOTE-133] el interruptor habla con UNA fachada: Web Push en navegador/PWA, avisos locales en la app nativa
-import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador, sincronizarAvisosLocales } from '../utils/avisosDeComida';
+import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador, alarmaExactaPendiente, pedirAlarmaExacta, sincronizarAvisosLocales } from '../utils/avisosDeComida';
 import { trackEvent, isAnalyticsOptedOut, persistAnalyticsOptOut } from '../utils/analytics';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
 // — iOS Private Mode lanza SecurityError y corta el cleanup del reset
@@ -209,7 +209,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // merge superficial de `updateUserProfile` — ese pisaría TODO
     // `health_profile` local con `{ country }` porque el PATCH manda solo la
     // clave cambiada (I6: jsonb_set quirúrgico, no full-overwrite).
-    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isPremium, isGuest, updateData, refreshProfileAndPlan } = useAssessment();
+    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isGuest, updateData, refreshProfileAndPlan } = useAssessment();
 
     // [P1-FORM-9] Wrapper análogo al de Dashboard.jsx: filtra flags `_*` y
     // bloquea si la hidratación cifrada del formData parece estar in-flight.
@@ -310,17 +310,47 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.health_profile?.avisos_comida, userProfile?.health_profile?.avisos_agua]);
 
+    // [P1-PLAN-LOTE-162 · 2026-09-22] Solo SU clave, esperando la respuesta. Iba por `safeUpdateHealthProfile`, que
+    // manda el FORMULARIO ENTERO del teléfono: la copia local de `avisos_agua` se quedaba con el valor de la primera
+    // carga, así que desde el segundo día tocar «comida» devolvía el agua a su valor viejo, en pantalla y en el
+    // servidor. Y el aviso «Avisos desactivados» salía sin esperar al guardado: sin red, el interruptor mentía.
+    // Mismo patrón que el país: PATCH de la clave, copia local, perfil releído del servidor y, al final, el teléfono.
+    const [guardandoPrefAviso, setGuardandoPrefAviso] = useState(false);
     const cambiarPrefDeAviso = async (clave, valor) => {
+        if (guardandoPrefAviso) return;
         const poner = clave === 'avisos_comida' ? setAvisosComida : setAvisosAgua;
         poner(valor);
-        if (!safeUpdateHealthProfile({ [clave]: valor })) {
-            poner(!valor);                       // el perfil aún no está: se revierte el interruptor, no se miente
+        setGuardandoPrefAviso(true);
+        try {
+            const res = await fetchWithAuth('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ health_profile: { [clave]: valor } }),
+            });
+            if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
+            updateData(clave, valor);
+            try { await refreshProfileAndPlan(); } catch { /* best-effort: el servidor ya lo tiene */ }
+        } catch {
+            poner(!valor);
+            toast.error(t('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'));
             return;
+        } finally {
+            setGuardandoPrefAviso(false);
         }
         // El teléfono reprograma con lo que diga el servidor: cancela lo pendiente y solo vuelve a poner lo encendido.
         try { await sincronizarAvisosLocales(); } catch { /* el próximo arranque lo resincroniza */ }
         toast.success(valor ? t('Avisos activados.') : t('Avisos desactivados.'));
     };
+
+    // [P1-PLAN-LOTE-162] Android sin permiso de alarmas exactas: los avisos salen, pero con margen. Se ofrece el
+    // permiso aquí, a propósito y con una frase, en vez de que el plugin abra Ajustes solo en cada reprogramación.
+    const [alarmaExactaFalta, setAlarmaExactaFalta] = useState(false);
+    useEffect(() => {
+        if (canalAvisos !== 'local' || !pushEnabled) { setAlarmaExactaFalta(false); return undefined; }
+        let cancelado = false;
+        alarmaExactaPendiente().then((v) => { if (!cancelado) setAlarmaExactaFalta(v === true); }).catch(() => {});
+        return () => { cancelado = true; };
+    }, [canalAvisos, pushEnabled]);
 
     // Persistir el último valor confirmado para hidratación instantánea en el próximo mount (solo el canal web:
     // el de la app nativa lo escribe la fachada).
@@ -1052,7 +1082,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
     // [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Estado del toggle del usuario.
     // `null` = aún no consultado al backend (loading). El componente del toggle
-    // solo monta para isPremium, así que el GET solo dispara para esos usuarios.
+    // monta para toda cuenta (no invitados) desde P1-PLAN-LOTE-162.
     const [ltmEnabled, setLtmEnabled] = useState(null);
     const [isLtmToggling, setIsLtmToggling] = useState(false);
 
@@ -1430,12 +1460,17 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         return () => { cancelled = true; };
     }, [userProfile?.id]);
 
-    // [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Carga el estado actual del toggle
-    // solo para usuarios isPremium. Para gratis ni se monta (no aplica).
+    // [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Carga el estado actual del toggle.
     // Default optimista TRUE si el GET falla — fail-open consistente con el
     // backend que asume TRUE para perfiles legacy sin el campo.
+    //
+    // [P1-PLAN-LOTE-162 · 2026-09-22] Para TODA cuenta, no solo Básico+. Desde P1-TIER-PARITY (2026-07-12) el
+    // servidor memoriza a todos los tiers (`chat.py`: «los planes solo difieren en créditos»), pero esta pantalla
+    // seguía montando el interruptor y la lista solo para `isPremium`: un usuario gratis tenía un coach que
+    // aprendía de él y no podía ver, borrar ni pausar lo aprendido — y en la app nativa leía un candado que
+    // anunciaba un plan de pago. Solo el invitado queda fuera: sin cuenta no hay nada que recordar.
     useEffect(() => {
-        if (!userProfile?.id || !isPremium) {
+        if (!userProfile?.id || isGuest) {
             setLtmEnabled(null);
             return;
         }
@@ -1456,7 +1491,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         };
         fetchLtmState();
         return () => { cancelled = true; };
-    }, [userProfile?.id, isPremium]);
+    }, [userProfile?.id, isGuest]);
 
     // [P3-WATER-TRACKER · 2026-05-16] Carga el estado actual del toggle
     // del water tracker. Disponible para todos los usuarios autenticados.
@@ -3253,8 +3288,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 <div
                                     role="alert"
                                     onClick={async () => {
+                                        // [P1-PLAN-LOTE-162] `local` es CUALQUIER app nativa: en Android el camino es otro.
                                         const msg = canalAvisos === 'local'
-                                            ? t('Las notificaciones de {app} están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → {app}.', { app: BRAND })
+                                            ? (nativePlatform() === 'android'
+                                                ? t('Las notificaciones de {app} están apagadas en tu teléfono. Actívalas en Ajustes → Aplicaciones → {app} → Notificaciones.', { app: BRAND })
+                                                : t('Las notificaciones de {app} están apagadas en tu iPhone. Actívalas en Ajustes → Notificaciones → {app}.', { app: BRAND }))
                                             : await getNotificationBlockedMessage();
                                         toast.error(msg, { duration: 6000 });
                                     }}
@@ -3284,7 +3322,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     }}
                                 >
                                     <Lock size={13} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--warning)' }} />
-                                    <span>{canalAvisos === 'local' ? t('Permiso bloqueado en el iPhone.') : t('Permiso bloqueado en el navegador.')} <strong>{t('Toca aquí para ver cómo reactivarlo.')}</strong></span>
+                                    <span>{canalAvisos === 'local' ? (nativePlatform() === 'android' ? t('Permiso bloqueado en el teléfono.') : t('Permiso bloqueado en el iPhone.')) : t('Permiso bloqueado en el navegador.')} <strong>{t('Toca aquí para ver cómo reactivarlo.')}</strong></span>
                                 </div>
                             )}
 
@@ -3308,6 +3346,42 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 : <>{pushSubscribeError.msg || t('No se pudo activar. Recarga la página e intenta de nuevo.')}</>
                                         }
                                     </span>
+                                </div>
+                            )}
+
+                            {/* [P1-PLAN-LOTE-162] Android sin «Alarmas y recordatorios»: los avisos salen igual, con margen.
+                                El permiso se pide AQUÍ, cuando la persona lo decide, no en cada reprogramación. */}
+                            {pushEnabled && !isPushBlocked && canalAvisos === 'local' && alarmaExactaFalta && (
+                                <div
+                                    role="status"
+                                    data-alarma-exacta="pendiente"
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                        marginTop: '0.65rem', padding: '0.6rem 0.85rem',
+                                        background: 'var(--bg-muted)', border: '1px solid var(--border)',
+                                        borderRadius: '0.65rem', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.4,
+                                    }}
+                                >
+                                    <Clock size={13} style={{ flexShrink: 0 }} aria-hidden="true" />
+                                    <span style={{ flex: 1, minWidth: 0 }}>
+                                        {t('Tus avisos pueden llegar con unos minutos de margen. Para que suenen a su hora exacta, permite «Alarmas y recordatorios».')}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        data-hover="fantasma"
+                                        onClick={async () => {
+                                            const ok = await pedirAlarmaExacta();
+                                            setAlarmaExactaFalta(!ok);
+                                            if (ok) toast.success(t('Listo: tus avisos sonarán a su hora.'));
+                                        }}
+                                        style={{
+                                            flexShrink: 0, padding: '0.4rem 0.75rem', borderRadius: '0.55rem',
+                                            border: '1px solid var(--border)', background: 'transparent',
+                                            color: 'var(--text-main)', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                                        }}
+                                    >
+                                        {t('Permitir')}
+                                    </button>
                                 </div>
                             )}
 
@@ -3338,9 +3412,8 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
                     {/* SECCIÓN PREFERENCIAS: Modo Automático + Memoria a Largo Plazo.
                         Modo Automático: visible para todos los usuarios autenticados.
-                        Memoria a Largo Plazo: visible SOLO para isPremium (Básico+).
-                        Para usuarios Gratis la sección sigue mostrándose, pero solo
-                        contiene el Modo Automático — el toggle de memoria está oculto. */}
+                        Memoria a Largo Plazo: visible para toda cuenta (P1-PLAN-LOTE-162:
+                        el servidor memoriza a todos los tiers desde P1-TIER-PARITY). */}
                     {activeSection === 'preferences' && (
                         <section className={styles.section}>
                             <h2 className={styles.sectionTitle}>
@@ -3470,7 +3543,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 border + bg active sean verdes (consistencia
                                 con las otras cards que usan green como su
                                 "active"). */}
-                            {isPremium && ltmEnabled !== null && (
+                            {!isGuest && ltmEnabled !== null && (
                                 <div
                                     className={`${styles.preferenceCard} ${ltmEnabled ? styles.preferenceCardGreen : styles.preferenceCardPurple} ${ltmEnabled ? styles.preferenceCardActive : ''}`}
                                 >
@@ -3669,13 +3742,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                 </p>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                                    {!isPremium ? (
+                                    {/* [P1-PLAN-LOTE-162] El candado era por TIER («a partir del plan Básico»); la memoria es
+                                        de todos desde P1-TIER-PARITY. Solo el invitado no la tiene, y no por plan: por cuenta. */}
+                                    {isGuest ? (
                                         <div style={{ textAlign: 'center', color: 'var(--text-light)', padding: '2.5rem 1.5rem', background: 'var(--bg-muted)', borderRadius: '1rem', border: '1px dashed var(--border)' }}>
                                             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
                                             <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>{t('Memoria a Largo Plazo')}</h4>
                                             <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>
-                                                {t('El Cerebro IA está disponible a partir del plan')} <strong>{t('Básico')}</strong>.<br />
-                                                {t('La IA aprenderá de tus gustos y conversaciones automáticamente.')}
+                                                {t('La memoria del coach necesita una cuenta. Inicia sesión para que recuerde tus gustos.')}
                                             </p>
                                         </div>
                                     ) : isLoadingFacts ? (

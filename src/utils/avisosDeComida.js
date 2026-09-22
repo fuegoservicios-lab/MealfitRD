@@ -133,6 +133,50 @@ async function _pluginLocal() {
     }
 }
 
+// [P1-PLAN-LOTE-162 · 2026-09-22] ALARMAS EXACTAS EN ANDROID. El plugin programa por defecto con alarma EXACTA
+// (`isExactNotification: true`) y, si Android no la permite, abre él solo la pantalla del sistema «Alarmas y
+// recordatorios» EN CADA `schedule()`. Desde Android 14 ese permiso nace DENEGADO para las apps nuevas, y esta app
+// reprograma al abrir, al volver, tras cada comida anotada y tras cada respuesta del coach: el tester que encendía
+// los avisos acababa sacado a Ajustes una y otra vez, sin una palabra de por qué. Ahora se programa EXACTA solo si el
+// permiso ya está dado; si no, inexacta (llega con algo de margen) y SIN abrir nada. El permiso se pide una vez, a
+// propósito y con explicación, desde Configuración (`pedirAlarmaExacta`).
+//
+// Tres respuestas: `true` concedido, `false` Android dice que no, `null` no se sabe (iOS no implementa el método —ahí
+// el campo no existe y se ignora— o no contestó a tiempo). Solo `true` pide exactitud: la duda nunca abre Ajustes.
+const _TOPE_CONSULTA_ALARMA_MS = 500;
+
+async function _alarmaExactaConcedida(LN) {
+    try {
+        const r = await Promise.race([
+            LN.checkExactNotificationSetting(),
+            new Promise((resolve) => setTimeout(() => resolve(null), _TOPE_CONSULTA_ALARMA_MS)),
+        ]);
+        if (!r || typeof r !== 'object') return null;
+        if (r.exact_alarm === 'granted') return true;
+        if (r.exact_alarm === 'denied') return false;
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+/** [P1-PLAN-LOTE-162] ¿Android está programando los avisos sin hora exacta por falta de permiso? */
+export async function alarmaExactaPendiente() {
+    if (!isNativeApp()) return false;
+    const LN = (await _pluginLocal())?.LN;
+    if (!LN) return false;
+    return (await _alarmaExactaConcedida(LN)) === false;
+}
+
+/** [P1-PLAN-LOTE-162] Lo pide la PERSONA desde Configuración: abre «Alarmas y recordatorios» y reprograma al volver. */
+export async function pedirAlarmaExacta() {
+    const LN = (await _pluginLocal())?.LN;
+    if (!LN) return false;
+    try { await LN.changeExactNotificationSetting(); } catch { /* volvió sin cambiar nada */ }
+    await sincronizarAvisosLocales();
+    return !(await alarmaExactaPendiente());
+}
+
 export async function canalDeEsteDispositivo() {
     const esNativa = isNativeApp();
     return canalDeAvisos({
@@ -243,7 +287,10 @@ export async function sincronizarAvisosLocales() {
                 safeJSONParse(safeLocalStorageGet(CLAVE_PROGRAMADO_HOY, null), null),
             );
             safeLocalStorageSet(CLAVE_PROGRAMADO_HOY, JSON.stringify(_deComida.libro));
-            const notifications = [..._deComida.notificaciones, ...avisosDeAguaAProgramar(datos)];
+            // [P1-PLAN-LOTE-162] exacta SOLO con el permiso ya dado: con él pendiente, el plugin abriría Ajustes.
+            const exacta = (await _alarmaExactaConcedida(LN)) === true;
+            const notifications = [..._deComida.notificaciones, ...avisosDeAguaAProgramar(datos)]
+                .map((n) => ({ ...n, isExactNotification: exacta }));
             if (notifications.length) await LN.schedule({ notifications });
             return { ok: true, programadas: notifications.length, motivo: datos?.reason || null };
         } catch (e) {

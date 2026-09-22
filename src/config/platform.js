@@ -28,6 +28,18 @@ export function isNativeApp() {
     }
 }
 
+// [P1-PLAN-LOTE-162 · 2026-09-22] 'ios' | 'android' | 'web'. Solo para COPY que depende del sistema (dónde está
+// el permiso bloqueado, qué menú abrir): las decisiones de producto siguen preguntando por CAPACIDAD
+// (`nativePluginAvailable`, `nativeHidesCommerce`), nunca por plataforma. Configuración le decía a un tester de
+// Android «Permiso bloqueado en el iPhone… Ajustes → Notificaciones».
+export function nativePlatform() {
+    try {
+        return Capacitor.getPlatform();
+    } catch {
+        return 'web';
+    }
+}
+
 // [P1-LEGAL-LINKS-APEX · 2026-08-22] `apexUrl()` (site.js) necesita saber si está
 // en nativo pero NO puede importar este módulo (site.js también corre en Node, sin
 // Capacitor). Se le inyecta la sonda al cargar platform.js, que sólo vive en el bundle.

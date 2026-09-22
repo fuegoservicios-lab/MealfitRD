@@ -197,7 +197,9 @@ describe('[P1-IOS-NATIVE-SHELL] B. parser — cada superficie consume el ÚNICO 
 
     it('Settings: «Suscripción» sale del registro de secciones en nativo (ids Y config)', () => {
         const src = read('pages/Settings.jsx');
-        expect(src).toMatch(/import \{ nativeHidesCommerce \} from '\.\.\/config\/platform'/);
+        // [P1-PLAN-LOTE-162] Settings importa además `nativePlatform` (solo para el COPY del permiso bloqueado en Android);
+        // lo que se vigila sigue siendo lo mismo: el comercio lo decide el gate único, importado de platform.
+        expect(src).toMatch(/import \{ nativeHidesCommerce(, \w+)* \} from '\.\.\/config\/platform'/);
         expect(src).toMatch(/\.\.\.\(nativeHidesCommerce\(\) \? \[\] : \['subscription'\]\)/);
         expect(src).toMatch(/\]\.filter\(s => SECTION_IDS\.includes\(s\.id\)\)/);
     });

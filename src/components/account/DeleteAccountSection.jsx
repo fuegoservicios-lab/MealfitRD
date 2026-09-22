@@ -106,6 +106,22 @@ export default function DeleteAccountSection() {
             // Borrado OK → logout total (limpia localStorage/caches + signOut +
             // session=null sincrónico) y al login. El componente se desmonta al
             // navegar, por eso NO reseteamos isDeleting en el happy-path.
+            //
+            // [P1-PLAN-LOTE-162 · 2026-09-22] Un borrado A MEDIAS responde 200 con `success: false` (el motor sigue
+            // tabla a tabla y junta los errores), y aquí solo se miraba `res.ok`: salía «Tu cuenta fue eliminada»
+            // aunque quedaran datos. Se dice lo que pasó y cómo terminarlo; la sesión se cierra igual.
+            let _resultado = null;
+            try { _resultado = await res.json(); } catch { /* sin cuerpo JSON: se trata como hecho */ }
+            if (_resultado && _resultado.success === false) {
+                console.error('Borrado de cuenta incompleto:', _resultado.errors);
+                toast.warning(
+                    t('Borramos tu cuenta, pero algunos datos no se pudieron eliminar. Escríbenos a {correo} y lo terminamos.', { correo: 'bioboros.support@gmail.com' }),
+                    { duration: 6000 },
+                );
+                await resetApp();
+                navigate('/login', { replace: true });
+                return;
+            }
             toast.success(t('Tu cuenta fue eliminada.'));
             await resetApp();
             navigate('/login', { replace: true });

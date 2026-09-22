@@ -8,6 +8,7 @@ import { fetchWithAuth } from '../../config/api';
 // en otro dia no tiene NINGUNA superficie donde verse.
 import DiaryHistory, { DiaryHistoryTrigger } from './DiaryHistory';
 import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
+import { consumirAbrirDiasAnteriores } from '../../utils/diasAnteriores';
 import { confirmToast } from '../../utils/confirmToast';
 import ProteinIcon from '../icons/ProteinIcon';
 import WheatFilledIcon from '../icons/WheatFilledIcon';
@@ -417,6 +418,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // Funciones Helper para calcular Progreso
     // [P1-DIARY-HISTORY · 2026-07-31]
     const [historyOpen, setHistoryOpen] = useState(false);
+    // [P1-PLAN-LOTE-162] Si se llega desde «Ver mis días anteriores» del Historial, el cajón se abre al montar.
+    useEffect(() => { if (consumirAbrirDiasAnteriores()) setHistoryOpen(true); }, []);
 
     const goalCal = parseInt(planData?.calories) || 2000;
     const goalPro = parseInt(planData?.macros?.protein) || 150;

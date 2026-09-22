@@ -667,12 +667,21 @@ const _coerceNumericHealthFields = (payload) => {
     return payload;
 };
 
+// [P1-PLAN-LOTE-162 · 2026-09-22] Preferencias de `health_profile` que tienen su PROPIO control y su propio guardado
+// (una clave, un PATCH). El formulario las trae dentro solo porque la hidratación copia al formulario toda clave del
+// perfil que encuentre vacía — y ahí se CONGELAN: la copia local no se refresca nunca. Si viajaran en el payload
+// completo, cada «Guardar» (o el del otro dispositivo) devolvería al servidor el valor de la primera carga: fue así
+// como apagar el agua y luego tocar «comida» volvía a encender el agua. El formulario no es su dueño: no las manda.
+export const CLAVES_CON_CONTROL_PROPIO = Object.freeze(['avisos_comida', 'avisos_agua']);
+
 export const buildHealthProfilePayload = (formData, overrides = {}, session = null) => {
     if (_isHydrationLikelyPending(formData, session)) {
         // Caller decide cómo notificar — devolvemos null para fallar explícito.
         return null;
     }
-    const merged = { ...stripInternalFlags(formData), ...(overrides || {}) };
+    const base = stripInternalFlags(formData);
+    for (const clave of CLAVES_CON_CONTROL_PROPIO) delete base[clave];
+    const merged = { ...base, ...(overrides || {}) };
     return _coerceNumericHealthFields(merged);
 };
 

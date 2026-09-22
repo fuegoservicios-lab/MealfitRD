@@ -43,7 +43,9 @@ export async function pedirTokenDeGoogle() {
     try {
         respuesta = await MfGoogleId.start({ serverClientId: GOOGLE_SERVER_CLIENT_ID, nonce });
     } catch (e) {
-        if (e?.code === 'CANCELADO') return { cancelado: true };
+        // [P1-PLAN-LOTE-162/163] El binario 103 manda en `data.detalle` el mensaje original de Credential Manager:
+        // «cancelado» cubre también fallos de configuración, y ese texto es lo único que los distingue.
+        if (e?.code === 'CANCELADO') return { cancelado: true, detalle: e?.data?.detalle || null };
         // Sin cuentas en el teléfono no hay nada que reintentar; se distingue para poder decirlo con
         // palabras en la pantalla en vez de un «inténtalo de nuevo» que no llevaría a ninguna parte.
         if (e?.code === 'SIN_CUENTAS') return { sinCuentas: true };

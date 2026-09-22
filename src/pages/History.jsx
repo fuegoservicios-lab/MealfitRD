@@ -12,6 +12,7 @@ import { reanudarPlanes, reanudarTrasReactivar } from '../utils/planModeResume';
 // [P1-HIST-PAUSED-SURFACES · 2026-08-14] Wrapper obligatorio del repo: iOS Safari
 // en modo privado lanza SecurityError con localStorage crudo.
 import { safeLocalStorageRemove } from '../utils/safeLocalStorage';
+import { pedirAbrirDiasAnteriores } from '../utils/diasAnteriores';
 import { CalendarDays, CalendarRange, CalendarCheck, Calendar, ChevronLeft, ChevronRight, Flame, Dumbbell, Wheat, Droplet, RotateCcw, Loader2, X, Edit2, Check, Trash2, Wand2, BookOpen, AlertTriangle, Sparkles, Search, Sun, Moon, Coffee, Fish } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -1896,6 +1897,14 @@ const History = () => {
     // [P1-PLAN-LOTE-125 · 2026-09-19] El dueño: «mejora cómo se ve el historial visualmente». Era una caja de borde
     // punteado pegada arriba con media pantalla vacía debajo. Ahora ENSEÑA lo que va a haber: tres fichas de plan
     // «fantasma» que se van apagando, con el icono encima, centrado en el alto libre. Mismos textos y misma acción.
+    // [P1-PLAN-LOTE-162 · 2026-09-22] En modo contador, el Historial vacío era un callejón: «Tu historial está vacío» y
+    // una única salida, ENCENDER EL PLAN — justo lo que esa persona eligió no hacer. Su diario real vive en Progreso →
+    // «Ver días anteriores». La acción principal lleva ahí (el cajón se abre solo al llegar, ver `diasAnteriores.js`);
+    // encender el plan queda como opción secundaria, sin empujar.
+    const _verDiasAnteriores = () => {
+        pedirAbrirDiasAnteriores();
+        navigate('/dashboard');
+    };
     const EmptyState = () => (
         <div className={`${styles.emptyState} ${styles.emptyStateArt}`} role="status">
             <div className={styles.emptyArt} aria-hidden="true">
@@ -1906,16 +1915,30 @@ const History = () => {
                     <BookOpen size={28} />
                 </div>
             </div>
-            <h3 className={styles.emptyTitle}>{t('Tu historial está vacío')}</h3>
+            <h3 className={styles.emptyTitle}>{enModoContador ? t('Todavía no hay planes') : t('Tu historial está vacío')}</h3>
             <p className={styles.emptyText}>
                 {enModoContador
-                    ? t('Estás usando la app como contador. Si enciendes el plan, cada uno que generes se guardará aquí.')
+                    ? t('Estás usando la app como contador: tus días anteriores están en Progreso. Si un día enciendes el plan, cada uno que generes se guardará aquí.')
                     : t('Genera tu primer plan nutricional y lo encontrarás aquí.')}
             </p>
             {/* [P1-PLAN-LOTE-151] Su único hover era un cambio de sombra NEGRA: invisible sobre el panel oscuro. */}
-            <button data-hover="boton" className={styles.emptyCta} onClick={_encenderElPlan}>
-                {enModoContador ? t('Encender el plan') : t('Crear mi primer plan')} <ChevronRight size={17} />
+            <button data-hover="boton" className={styles.emptyCta} onClick={enModoContador ? _verDiasAnteriores : _encenderElPlan}>
+                {enModoContador ? t('Ver mis días anteriores') : t('Crear mi primer plan')} <ChevronRight size={17} />
             </button>
+            {enModoContador && (
+                <button
+                    type="button"
+                    data-hover="fantasma"
+                    onClick={_encenderElPlan}
+                    style={{
+                        marginTop: '0.6rem', padding: '0.45rem 0.9rem', borderRadius: '0.6rem',
+                        border: 0, background: 'transparent', color: 'var(--text-muted)',
+                        fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+                    }}
+                >
+                    {t('Encender el plan')}
+                </button>
+            )}
         </div>
     );
 

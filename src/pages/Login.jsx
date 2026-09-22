@@ -274,7 +274,19 @@ const Login = () => {
             const vuelta = googleSignInPorCredentialManager()
                 ? await pedirTokenDeGoogle()
                 : await pedirCodigoDeGoogle();
-            if (vuelta.cancelado) { setGoogleLoading(false); return; }   // cerró la vista: no es un error
+            if (vuelta.cancelado) {
+                // [P1-PLAN-LOTE-162 · 2026-09-22] En Android, Credential Manager reporta como «cancelado» también fallos
+                // de configuración (cuenta que no está entre los usuarios de prueba de la pantalla de consentimiento,
+                // huella de la clave que no coincide): la hoja se cerraba y no pasaba NADA. Sin poder distinguirlos
+                // desde aquí, se deja la salida a la vista, sin rojo de error: el correo siempre funciona.
+                if (googleSignInPorCredentialManager()) {
+                    // `console.error` llega a Sentry en producción: es la única huella de un fallo de configuración.
+                    if (vuelta.detalle) console.error('[Google Android] hoja cerrada con detalle:', vuelta.detalle);
+                    toast(t('Si no pudiste entrar con Google, entra con tu correo: te mandamos un código de 6 dígitos.'), { duration: 6000 });
+                }
+                setGoogleLoading(false);
+                return;
+            }
             if (vuelta.sinCuentas) {
                 // No es un fallo nuestro y reintentar no lleva a nada: se dice lo que hay que hacer.
                 setError(t('No hay ninguna cuenta de Google en este teléfono. Añade una en los ajustes del sistema, o entra con tu correo.'));

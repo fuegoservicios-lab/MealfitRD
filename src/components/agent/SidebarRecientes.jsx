@@ -160,6 +160,8 @@ export const SidebarRecientes = ({
                                     const _rotulosGenericos = {
                                         empty: t('Nuevo chat'),
                                         image_or_system: t('Interacción con imagen o sistema'),
+                                        // [P1-PLAN-LOTE-161/162] el chat que abrió el AVISO del coach (aún sin mensajes tuyos)
+                                        coach: t('Aviso del coach'),
                                     };
                                     let originalTitle = s.title
                                         ? (s.title.replace(/\[?\(Hora actual del usuario:[^)]*\)\]?/gi, '').replace(/Mensaje del usuario:\s*/gi, '').trim()

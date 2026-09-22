@@ -140,6 +140,26 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     // en el submit ("2 unidades de huevo"), no aquí, para que editar la
     // cantidad no obligue a re-serializar en cada tecla.
     const [components, setComponents] = useState([]);
+    // [P1-PLAN-LOTE-162 · 2026-09-22] ¿Hay algo en la Nevera? `null` = no se sabe. Quien usa la app como contador casi
+    // nunca la llena, y cada foto terminaba en «Descontamos 0 de tu Nevera. No estaban registrados: arroz, pollo…»:
+    // un mensaje que suena a error sobre algo que esa persona no usa. Con la Nevera vacía la sección se llama por lo
+    // que es (los ingredientes que se guardan con la comida) y el aviso no habla de la Nevera. Los ingredientes se
+    // siguen enviando igual: son el detalle de la comida en el diario, no solo lo que se descuenta.
+    const [neveraConCosas, setNeveraConCosas] = useState(null);
+    useEffect(() => {
+        if (!components.length || neveraConCosas !== null || !userId) return undefined;
+        let cancelado = false;
+        (async () => {
+            try {
+                const res = await fetchWithAuth('/api/inventory');
+                if (!res.ok || cancelado) return;
+                const datos = await res.json();
+                const items = Array.isArray(datos?.items) ? datos.items : null;
+                if (items && !cancelado) setNeveraConCosas(items.some((it) => Number(it?.quantity) > 0));
+            } catch { /* se queda en «no se sabe»: la conducta de antes */ }
+        })();
+        return () => { cancelado = true; };
+    }, [components.length, neveraConCosas, userId]);
     const [multiplier, setMultiplier] = useState(1);
     // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
     const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
@@ -446,7 +466,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             const bajaron = (Array.isArray(data.deducted) ? data.deducted.length : 0)
                 + (Array.isArray(data.inferred) ? data.inferred.length : 0);
             let descripcion;
-            if (ausentes.length > 0) {
+            // [P1-PLAN-LOTE-162] Los ausentes solo se nombran si la Nevera está EN USO (algo bajó, o sabemos que tiene
+            // cosas). Con la Nevera vacía, «descontamos 0» no informa de nada: solo asusta.
+            if (ausentes.length > 0 && (bajaron > 0 || neveraConCosas === true)) {
                 descripcion = t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
                     n: bajaron,
                     faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
@@ -476,7 +498,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             setPhase('review');
             setError(t('No pudimos registrar la comida. Intenta de nuevo.'));
         }
-    }, [form, userId, onClose, components, daysAgo, t, tn]);
+    }, [form, userId, onClose, components, daysAgo, t, tn, neveraConCosas]);
 
     const handleOverlayClick = useCallback((e) => {
         if (e.target === e.currentTarget && !isBusy) onClose();
@@ -740,7 +762,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                         {components.length > 0 && (
                             <section className={`${styles.section} ${styles.componentsBlock}`} aria-labelledby="scan-q-nevera">
                                 <h3 id="scan-q-nevera" className={styles.sectionTitle}>
-                                    {t('Descontar de tu Nevera')}
+                                    {neveraConCosas === false ? t('Ingredientes que detectamos') : t('Descontar de tu Nevera')}
                                 </h3>
                                 <p className={styles.componentsHint}>
                                     {t('Lo detectamos en la foto. Desmarca lo que no lleve o ajusta la cantidad.')}
@@ -754,7 +776,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                                             onChange={() => setComponents((prev) => prev.map(
                                                 (x, j) => (j === i ? { ...x, checked: !x.checked } : x)
                                             ))}
-                                            aria-label={t('Descontar {nombre} de tu Nevera', { nombre: c.name })}
+                                            aria-label={neveraConCosas === false
+                                                ? t('Incluir {nombre}', { nombre: c.name })
+                                                : t('Descontar {nombre} de tu Nevera', { nombre: c.name })}
                                         />
                                         <input
                                             type="number"

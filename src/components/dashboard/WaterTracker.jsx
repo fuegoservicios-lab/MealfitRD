@@ -177,8 +177,18 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
     }, [currentDate, enabled]);
 
     // Cross-tab: re-GET al volver al tab + toggle de Settings + refresh del agente.
+    //
+    // [P1-PLAN-LOTE-162 · 2026-09-22] Al volver, la FECHA también se pone al día. Aquí se cargaban los vasos de HOY
+    // pero `currentDate` seguía en AYER hasta el tic de 60 s (pausado en segundo plano), y el primer «+1» salía como
+    // `{date: ayer, glasses: vasos_de_hoy + 1}`: el servidor sobrescribe el total del día, así que ayer pasaba de 8 a 1
+    // (racha rota) y el vaso de hoy no existía. Es justo el gesto de cada mañana con la app abierta desde anoche.
     useEffect(() => {
-        const onVisibility = () => { if (document.visibilityState === 'visible' && enabled) loadIntake(getLocalDateString()); };
+        const onVisibility = () => {
+            if (document.visibilityState !== 'visible' || !enabled) return;
+            const hoy = getLocalDateString();
+            setCurrentDate(hoy);
+            loadIntake(hoy);
+        };
         const onStorage = (e) => { if (e.key === LS_ENABLED_KEY) setEnabled(e.newValue === 'true'); };
         const onAgentRefresh = () => { if (enabled) loadIntake(getLocalDateString()); };
         document.addEventListener('visibilitychange', onVisibility);
@@ -251,8 +261,16 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
         flushPersist(target);
     }, [flushPersist]);
 
-    const add = useCallback((n) => { if (!loading) persist(glassesRef.current + n); }, [persist, loading]);
-    const setTo = useCallback((n) => { if (!loading) persist(n); }, [persist, loading]);
+    // [P1-PLAN-LOTE-162] Un toque con la fecha vieja no se guarda: se pone el día al corriente (eso recarga los vasos
+    // de hoy) y el toque se descarta. Perder un «+1» se nota y se repite; escribirlo en el día de ayer, no.
+    const fechaAlDia = useCallback(() => {
+        const hoy = getLocalDateString();
+        if (hoy === currentDate) return true;
+        setCurrentDate(hoy);
+        return false;
+    }, [currentDate]);
+    const add = useCallback((n) => { if (!loading && fechaAlDia()) persist(glassesRef.current + n); }, [persist, loading, fechaAlDia]);
+    const setTo = useCallback((n) => { if (!loading && fechaAlDia()) persist(n); }, [persist, loading, fechaAlDia]);
 
     // Layout responsivo de los vasos: hasta 8 → 1 fila; 9-14 → 2 filas.
     const columnsPerRow = useMemo(() => (goal <= 8 ? goal : Math.ceil(goal / 2)), [goal]);
