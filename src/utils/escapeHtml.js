@@ -36,13 +36,17 @@
  *   - Tooltip-anchor: P2-AUDIT-2-ESCAPE-HTML | gap audit 2026-05-15
  */
 
+const HTML_ENTITIES = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+};
+const MATCH_HTML_REGEXP = /[&<>"']/g;
+
 export function escapeHtml(input) {
     if (input === null || input === undefined) return '';
     const s = String(input);
-    return s
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return s.replace(MATCH_HTML_REGEXP, match => HTML_ENTITIES[match]);
 }
