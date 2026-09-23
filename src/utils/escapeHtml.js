@@ -36,13 +36,20 @@
  *   - Tooltip-anchor: P2-AUDIT-2-ESCAPE-HTML | gap audit 2026-05-15
  */
 
+const HTML_ESCAPES = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+};
+
+const HTML_ESCAPE_REGEX = /[&<>"']/g;
+
+// ⚡ Bolt: Aggregated sequential string replacements into a single pre-compiled RegExp
+// mapped to a dictionary to reduce O(M*N) string passes to a single O(N) pass.
 export function escapeHtml(input) {
     if (input === null || input === undefined) return '';
     const s = String(input);
-    return s
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return s.replace(HTML_ESCAPE_REGEX, (match) => HTML_ESCAPES[match]);
 }
