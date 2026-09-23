@@ -14,7 +14,8 @@ describe('burbuja de error minimalista', () => {
         expect(mb).not.toContain("isErrorBubble ? 'var(--danger-bg)'");
         expect(mb).not.toContain("isErrorBubble ? '1px solid var(--danger-border)'");
         expect(mb).toContain('className="chat-error-line"');
-        expect(mb).toContain("{!isErrorBubble && msg.content && msg.content !== '📷 Imagen enviada' && (");
+        // [P1-PLAN-LOTE-169] Con foto, el texto va en su propia burbuja (`_textoConFoto`); este camino es el de sin foto.
+        expect(mb).toContain("{!fotoAparte && !isErrorBubble && msg.content && msg.content !== '📷 Imagen enviada' && (");
         const i = mb.indexOf('const ErrorRetryButton = ');
         const btn = mb.slice(i, mb.indexOf('export const MemoizedMessageBubble', i));
         expect(btn).toContain("background: 'transparent',");

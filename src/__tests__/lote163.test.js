@@ -78,8 +78,10 @@ describe('lote 163 · el binario lo trae', () => {
 
     it('sube el versionCode (se instala encima) y NO el umbral de OTA; el versionName dice cuál es', () => {
         const gradle = leer('android/app/build.gradle');
-        expect(Number(/versionCode\s+(\d+)/.exec(gradle)[1])).toBe(103);
-        expect(gradle).toContain('versionName "1.0.103"');
+        // [P1-PLAN-LOTE-170] 103 era el APK de este lote; los siguientes suben (104 = SystemBars sin márgenes).
+        const code = Number(/versionCode\s+(\d+)/.exec(gradle)[1]);
+        expect(code).toBeGreaterThanOrEqual(103);
+        expect(gradle).toContain(`versionName "1.0.${code}"`);
         // la capacidad está gateada por `nativePluginAvailable('App')`: un APK viejo degrada bien con el JS nuevo
         const ota = JSON.parse(leer('ota.config.json'));
         expect(ota.minNativeBuild).toBe(13);

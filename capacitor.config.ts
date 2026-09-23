@@ -64,6 +64,20 @@ const config: CapacitorConfig = {
     // en un Android de gama baja el margen no alcanzaba (y la vuelta atrás veta ESE paquete para siempre). Solo cambia
     // con un binario nuevo (APK 103 / siguiente build de iOS); el JS ya confirma antes (liveUpdate.js).
     LiveUpdate: { readyTimeout: 15000, autoDeleteBundles: true },
+    // [P1-PLAN-LOTE-170 · 2026-09-23] Android: «el teclado le sigue tapando todo; en iPhone se ve bien», con el paquete
+    // OTA del teclado ya instalado (nginx: los dos Android lo bajaron y reabrieron la app). Capacitor 8 trae SystemBars,
+    // que en modo 'css' (el de por defecto) pone un escuchador de márgenes en la DecorView que SUSTITUYE el manejo de
+    // Android: reconstruye los márgenes sin el teclado (el `adjustResize` del manifiesto deja de actuar) y encoge la
+    // pantalla con un padding propio, solo si `isVisible(ime())`. Además deja pasar el margen del teclado a la WebView,
+    // que con `viewport-fit=cover` + `interactive-widget=resizes-content` y WebView ≥ 140 puede encogerse OTRA vez
+    // (incidencias #8601 y #8611 de Capacitor). La web ya no tiene cómo corregirlo: si la WebView no encoge, el
+    // `visualViewport` tampoco se entera y nuestra red de seguridad (lote 166) no ve teclado.
+    // 'disable' quita ese escuchador y devuelve el `adjustResize` de siempre: nuestra ventana NO es de borde a borde
+    // (targetSdk 34, ver variables.gradle), así que Android ya reserva las barras del sistema y encoge la WebView UNA vez
+    // con el teclado. Nada en la web lee las `--safe-area-inset-*` que inyectaba el modo 'css'. Solo Android (iOS lo
+    // ignora) y solo con un binario nuevo: APK 104. Si en un futuro subes targetSdk a 35, esto hay que revisarlo:
+    // ahí Android impone el borde a borde y alguien tiene que volver a manejar los márgenes.
+    SystemBars: { insetsHandling: 'disable' },
   },
 };
 
