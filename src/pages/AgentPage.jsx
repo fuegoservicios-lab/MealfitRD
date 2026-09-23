@@ -5674,6 +5674,8 @@ const AgentPage = () => {
                                 ref={navMenuTriggerRef}
                                 className="chat-header-btn"
                                 onClick={() => setShowNavMenu(!showNavMenu)}
+                                aria-label={showNavMenu ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+                                aria-expanded={showNavMenu}
                                 style={{
                                     background: 'transparent',
                                     border: 'none',
