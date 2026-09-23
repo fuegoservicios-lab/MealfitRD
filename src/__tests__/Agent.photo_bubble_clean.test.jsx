@@ -24,15 +24,20 @@ function pintar(msg) {
 }
 
 describe('[P2-PHOTO-BUBBLE-CLEAN] burbuja de foto', () => {
+    // [P1-PLAN-LOTE-169 · 2026-09-23] La foto del usuario ya no va DENTRO de una burbuja: el mensaje es un grupo sin
+    // chrome (`.msg-user-grupo`) y, sin texto, no existe `.msg-bubble-user` — que en el teléfono enmarcaba la foto por
+    // CSS con !important aunque el estilo en línea dijera «transparente». La promesa de este test sigue en pie.
     it('foto SOLA: sin fondo, sin borde y sin padding', () => {
-        const b = pintar({ role: 'user', content: '', attachments: [foto] });
+        const { container } = render(<MemoizedMessageBubble msg={{ role: 'user', content: '', attachments: [foto] }} index={0} currentSessionId="s1" />);
+        expect(container.querySelector('.msg-bubble-user')).toBeNull();
+        const b = container.querySelector('.msg-user-grupo');
         expect(b).toBeTruthy();
-        expect(b.style.background).toBe('transparent');
+        expect(['', 'transparent']).toContain(b.style.background);
         // jsdom devuelve 'medium' para `border: none` (normaliza a border-style); lo que
         // importa es que no quede una línea visible.
         expect(b.style.border).not.toContain('1px');
         expect(b.style.border).not.toContain('solid');
-        expect(b.style.padding === '0px' || b.style.padding === '0').toBe(true);
+        expect(['', '0', '0px']).toContain(b.style.padding);
     });
 
     it('foto CON texto: el chrome se queda', () => {
@@ -54,8 +59,10 @@ describe('[P2-PHOTO-BUBBLE-CLEAN] burbuja de foto', () => {
     });
 
     it('foto sola: el contenido en blanco no cuenta como texto', () => {
-        const b = pintar({ role: 'user', content: '   \n  ', attachments: [foto] });
-        expect(b.style.background).toBe('transparent');
+        // [P1-PLAN-LOTE-169] sin texto de verdad no se pinta la burbuja del texto (el grupo no lleva chrome)
+        const { container } = render(<MemoizedMessageBubble msg={{ role: 'user', content: '   \n  ', attachments: [foto] }} index={0} currentSessionId="s1" />);
+        expect(container.querySelector('.msg-bubble-user')).toBeNull();
+        expect(['', 'transparent']).toContain(container.querySelector('.msg-user-grupo').style.background);
     });
 
     it('la imagen se sigue mostrando', () => {

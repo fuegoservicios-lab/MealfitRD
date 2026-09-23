@@ -157,15 +157,17 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
     const media = Array.isArray(msg.attachments) && msg.attachments.length
         ? msg.attachments
         : (msg.isImage && msg.imageUrl ? [{ id: 'legacy', url: msg.imageUrl }] : []);
-    // [P2-PHOTO-BUBBLE-CLEAN · 2026-09-06] Foto SOLA: sin la caja gris alrededor.
+    // [P2-PHOTO-BUBBLE-CLEAN · 2026-09-06] Foto SOLA: sin la caja gris alrededor — la miniatura ya tiene su propio
+    // radio y su propio recorte. Con texto el chrome se quedaba… alrededor de los DOS.
     //
-    // La burbuja del usuario lleva siempre fondo, borde y 0,85rem×1,4rem de padding — chrome
-    // pensado para TEXTO. Cuando el mensaje es únicamente una imagen, ese chrome enmarca la foto
-    // en un recuadro gris que no aporta nada: la miniatura ya tiene su propio radio y su propio
-    // recorte. Con texto (foto + comentario) el chrome SÍ hace falta y se queda como estaba.
-    const soloFoto = media.length > 0
-        && !String(msg.content || '').trim()
-        && msg.role === 'user';
+    // [P1-PLAN-LOTE-169 · 2026-09-23] …y eso era lo raro. El dueño, con la foto del desayuno + «y me comí 3 tacos…»: la
+    // burbuja gris toma el ancho del TEXTO y la foto (320 px) deja al lado un hueco gris. Además, en el teléfono el
+    // chrome va por la CLASE `.msg-bubble-user` (con !important, AgentPage.jsx), así que la foto sola también salía
+    // enmarcada allí aunque el estilo en línea dijera «transparente». Ahora la foto del usuario va SIEMPRE fuera de la
+    // burbuja, alineada a la derecha, y el texto —si lo hay— lleva su propia burbuja, del ancho del texto: la forma de
+    // WhatsApp o iMessage. El contenedor (`msg-user-grupo`) no tiene chrome ni la clase de la burbuja.
+    const fotoAparte = msg.role === 'user' && media.length > 0;
+    const _textoConFoto = fotoAparte && Boolean(String(msg.content || '').trim()) && msg.content !== '📷 Imagen enviada';
     // [P1-PLAN-LOTE-117] El visor abre la versión COMPLETA. Recién enviada, la burbuja pinta la miniatura local de
     // 360 px (`thumbDataUrl`): ampliada a pantalla entera se veía borrosa («que se vea nítida»). `fullUrl` apunta a la
     // vista previa a resolución de subida hasta que el servidor devuelve su URL.
@@ -292,9 +294,22 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
             <div
                 {...(isErrorBubble ? { role: 'alert' } : {})}
                 {...(msg.role === 'model' && msg.isStreaming ? { 'aria-busy': true } : {})}
-                className={msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot'}
+                className={fotoAparte ? 'msg-user-grupo' : (msg.role === 'user' ? 'msg-bubble-user' : 'msg-bubble-bot')}
                 title={_hora || undefined}
-                style={{
+                style={fotoAparte ? {
+                    // [P1-PLAN-LOTE-169] columna sin chrome: la foto arriba, la burbuja del texto debajo, las dos a la derecha
+                    flex: '0 1 auto',
+                    maxWidth: '80%',
+                    minWidth: 0,
+                    width: 'fit-content',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '0.4rem',
+                    color: 'var(--text-main)',
+                    fontSize: '0.95rem',
+                    lineHeight: 1.6,
+                } : {
                     flex: msg.role === 'user' ? '0 1 auto' : 1,
                     maxWidth: msg.role === 'user' ? '80%' : '100%',
                     minWidth: 0,
@@ -306,19 +321,17 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                     overflowWrap: 'break-word',
                     wordBreak: 'break-word',
                     // [P2-CHAT-ERROR-MINIMAL] el error ya no es una caja roja: texto apagado con un icono, sin fondo ni borde
-                    // [P2-PHOTO-BUBBLE-CLEAN] la foto sola no lleva el chrome del texto
-                    background: soloFoto ? 'transparent' : (msg.role === 'user' ? 'var(--bg-muted)' : 'var(--bg-card)'),
-                    padding: soloFoto ? 0 : (msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.6rem 0' : '1rem 0')),
-                    borderRadius: soloFoto ? '0.85rem' : (msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0'),
-                    border: soloFoto ? 'none' : (msg.role === 'user' ? '1px solid var(--border)' : 'none'),
-                    overflow: soloFoto ? 'hidden' : undefined,
+                    background: msg.role === 'user' ? 'var(--bg-muted)' : 'var(--bg-card)',
+                    padding: msg.role === 'user' ? '0.85rem 1.4rem' : (isErrorBubble ? '0.6rem 0' : '1rem 0'),
+                    borderRadius: msg.role === 'user' ? '1.5rem 1.5rem 0.25rem 1.5rem' : '0',
+                    border: msg.role === 'user' ? '1px solid var(--border)' : 'none',
                     boxShadow: 'none'
                 }}
             >
                 {media.length > 0 && (
                     <div
                         className={`message-media-grid message-media-grid-${Math.min(media.length, 4)}`}
-                        style={{ marginBottom: msg.content ? '0.5rem' : 0 }}
+                        style={{ marginBottom: (!fotoAparte && msg.content) ? '0.5rem' : 0 }}
                     >
                         {media.map((attachment, mediaIndex) => {
                             // [P1-PLAN-LOTE-123] `clientKey` primero: no cambia cuando la foto local pasa a ser la del servidor
@@ -359,7 +372,31 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         )}
                     </div>
                 )}
-                {!isErrorBubble && msg.content && msg.content !== '📷 Imagen enviada' && (
+                {/* [P1-PLAN-LOTE-169] con foto, el texto va en SU burbuja (del ancho del texto), fuera de la foto */}
+                {_textoConFoto && (
+                    <div
+                        className="msg-bubble-user"
+                        style={{
+                            maxWidth: '100%',
+                            minWidth: 0,
+                            width: 'fit-content',
+                            color: 'var(--text-main)',
+                            whiteSpace: 'pre-wrap',
+                            overflowWrap: 'break-word',
+                            wordBreak: 'break-word',
+                            background: 'var(--bg-muted)',
+                            padding: '0.85rem 1.4rem',
+                            borderRadius: '1.5rem 1.5rem 0.25rem 1.5rem',
+                            border: '1px solid var(--border)',
+                            boxShadow: 'none',
+                        }}
+                    >
+                        <div className="markdown-chat">
+                            <LazyMarkdown>{msg.content}</LazyMarkdown>
+                        </div>
+                    </div>
+                )}
+                {!fotoAparte && !isErrorBubble && msg.content && msg.content !== '📷 Imagen enviada' && (
                     <div className="markdown-chat">
                         <LazyMarkdown>{msg.content}</LazyMarkdown>
                     </div>

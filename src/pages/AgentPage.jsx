@@ -6339,6 +6339,15 @@ const AgentPage = () => {
                     .msg-bubble-user * {
                         color: inherit !important;
                     }
+                    /* [P1-PLAN-LOTE-169 · 2026-09-23] Foto del usuario FUERA de la burbuja (MessageBubble): el grupo
+                       (foto + burbuja del texto) toma el ancho que tenía la burbuja, y la burbuja de dentro no vuelve
+                       a encogerse al 85 % de algo que ya está al 85 %. */
+                    .msg-user-grupo {
+                        max-width: 85% !important;
+                    }
+                    .msg-user-grupo > .msg-bubble-user {
+                        max-width: 100% !important;
+                    }
                     /* --- Bot bubble --- */
                     .msg-bubble-bot {
                         background: transparent !important;

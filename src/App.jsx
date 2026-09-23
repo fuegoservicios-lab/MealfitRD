@@ -344,13 +344,21 @@ const DashboardAnimatedLayout = () => {
    App no se mueva: `<Routes>{children}</Routes>` recibe exactamente los mismos
    elementos `<Route>` que antes. Un cambio de 2 líneas en un árbol de ~50
    rutas se revisa; uno de 125 líneas movidas, no.
+
+   [P1-PLAN-LOTE-169 · 2026-09-23] `location` SOLO con ventana abierta. React Router (v7, `useRoutesImpl`) envuelve
+   todo lo que cuelga de un `<Routes location={…}>` en un contexto con `navigationType: "POP"` FIJO. Pasarle siempre la
+   ubicación (`backgroundLocation || location`) hacía que CADA navegación pareciera un arranque en frío o un «atrás»
+   para las guardas POP de `ProtectedRoute` — y esas guardas echan al panel. Caso vivo del dueño en el iPhone: encender
+   «Generación de planes» (navigate PUSH a /assessment) → la guarda POP de /assessment lo devolvía al contador en el
+   mismo instante; y aun llegando al formulario, «Finalizar y Generar» (PUSH a /plan) habría rebotado igual. Sin
+   ventana, `<Routes>` sin `location` lee el tipo de navegación real del router.
    ========================================================================= */
-function ModalAwareRoutes({ children }) {
+export function ModalAwareRoutes({ children }) {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
   return (
     <>
-      <Routes location={backgroundLocation || location}>{children}</Routes>
+      <Routes location={backgroundLocation || undefined}>{children}</Routes>
       {backgroundLocation && (
         <Routes>
           <Route
