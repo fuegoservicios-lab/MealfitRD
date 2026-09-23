@@ -15,29 +15,10 @@
 // barra avisa al pasarse; el resto es SUELO y celebra al llegar. Sin metas se muestran los totales sin barra:
 // nunca una barra contra un cero inventado.
 import PropTypes from 'prop-types';
-import { formatNumber, useT } from '../../i18n';
+import { useT } from '../../i18n';
+import { formatoMicro, filasMicros } from './microsShared';
 import styles from './MicrosList.module.css';
-// `resumirMicros` y `useMicrosSubtitulo` viven en `microsShared.js` (no son componentes: react-refresh)
-
-// Orden de pantalla = orden del backend (diary_micros.MICROS_CONTADOR). La etiqueta es función: un `t()` en
-// ámbito de módulo se congela en español.
-const _FILAS = (t) => [
-    { key: 'fiber_g', label: t('Fibra'), unit: 'g' },
-    { key: 'sodium_mg', label: t('Sodio'), unit: 'mg' },
-    { key: 'potassium_mg', label: t('Potasio'), unit: 'mg' },
-    { key: 'calcium_mg', label: t('Calcio'), unit: 'mg' },
-    { key: 'iron_mg', label: t('Hierro'), unit: 'mg' },
-    { key: 'vit_c_mg', label: t('Vitamina C'), unit: 'mg' },
-    { key: 'vit_a_mcg', label: t('Vitamina A'), unit: 'mcg' },
-    { key: 'vit_d_mcg', label: t('Vitamina D'), unit: 'mcg' },
-];
-
-const _fmt = (v, unit) => {
-    const n = Number(v) || 0;
-    // mg/mcg enteros; gramos y valores pequeños con un decimal
-    if (unit === 'g' || n < 10) return formatNumber(Math.round(n * 10) / 10);
-    return formatNumber(Math.round(n));
-};
+// `resumirMicros`, `useMicrosSubtitulo` y `filasMicros` viven en `microsShared.js` (no son componentes: react-refresh)
 
 const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true }) => {
     const t = useT();
@@ -48,7 +29,7 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
     return (
         <div className={compact ? `${styles.wrap} ${styles.compact}` : styles.wrap}>
             <ul className={styles.list}>
-                {_FILAS(t).map((f) => {
+                {filasMicros(t).map((f) => {
                     const valor = sinDatos ? 0 : Number(micros?.[f.key] || 0);
                     const meta = hayMetas ? metas[f.key] : null;
                     const target = meta ? Number(meta.target) || 0 : 0;
@@ -62,8 +43,8 @@ const MicrosList = ({ micros, coverage, metas, compact = false, showNotes = true
                             <div className={styles.rowTop}>
                                 <span className={styles.label}>{f.label}{techo && <span className={styles.tag}>{t('máx.')}</span>}</span>
                                 <span className={styles.value}>
-                                    <b>{_fmt(valor, f.unit)}</b>
-                                    {meta ? ` / ${_fmt(target, f.unit)} ${f.unit}` : ` ${f.unit}`}
+                                    <b>{formatoMicro(valor, f.unit)}</b>
+                                    {meta ? ` / ${formatoMicro(target, f.unit)} ${f.unit}` : ` ${f.unit}`}
                                 </span>
                             </div>
                             <div className={styles.track} role="progressbar" aria-label={f.label} aria-valuemin={0} aria-valuemax={target || undefined} aria-valuenow={Math.round(valor)}>

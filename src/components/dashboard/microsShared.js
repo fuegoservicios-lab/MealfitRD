@@ -1,6 +1,26 @@
 // [P1-PLAN-LOTE-105 · 2026-09-18] Lo que comparten la tarjeta de hoy y el diario de días anteriores sobre los micros,
 // fuera de `MicrosList.jsx` porque no son componentes (react-refresh solo recarga en caliente ficheros de componentes).
-import { useT, useTn } from '../../i18n';
+import { formatNumber, useT, useTn } from '../../i18n';
+
+/** mg/mcg enteros; gramos y valores pequeños con un decimal (la tarjeta, el diario y lo que se comparte). */
+export const formatoMicro = (v, unit) => {
+    const n = Number(v) || 0;
+    if (unit === 'g' || n < 10) return formatNumber(Math.round(n * 10) / 10);
+    return formatNumber(Math.round(n));
+};
+
+/** Los OCHO micros (fibra, sodio, potasio, calcio, hierro, vitamina C, A, D) en orden = backend diary_micros.MICROS_CONTADOR.
+ *  Función, no constante: un t() en ámbito de módulo se congela en español. */
+export const filasMicros = (t) => [
+    { key: 'fiber_g', label: t('Fibra'), unit: 'g' },
+    { key: 'sodium_mg', label: t('Sodio'), unit: 'mg' },
+    { key: 'potassium_mg', label: t('Potasio'), unit: 'mg' },
+    { key: 'calcium_mg', label: t('Calcio'), unit: 'mg' },
+    { key: 'iron_mg', label: t('Hierro'), unit: 'mg' },
+    { key: 'vit_c_mg', label: t('Vitamina C'), unit: 'mg' },
+    { key: 'vit_a_mcg', label: t('Vitamina A'), unit: 'mcg' },
+    { key: 'vit_d_mcg', label: t('Vitamina D'), unit: 'mcg' },
+];
 
 /** Los totales de micros de un conjunto de comidas, con la misma aritmética que `diary_micros.resumen_micros`:
  *  el cliente la necesita para recalcular sin esperar al servidor cuando borra una comida (mismo criterio que
