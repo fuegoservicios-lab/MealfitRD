@@ -8,6 +8,25 @@ const METAS = { calories: 2050, protein: 134, carbs: 251, fats: 57 };
 
 afterEach(() => { vi.restoreAllMocks(); });
 
+/** Un lienzo de mentira que apunta cada `fillText` con su posición y la fuente con la que se pintó. `ancho` = píxeles
+ *  por carácter que devuelve `measureText` (exagerarlo pone a prueba los topes de ancho). */
+function conLienzo(ancho = 10) {
+    const textos = [];
+    const ctx = new Proxy({}, {
+        get: (obj, k) => {
+            if (k === 'fillText') return (s, x, y) => textos.push({ s: String(s), x, y, font: obj.font });
+            if (k === 'measureText') return (s) => ({ width: String(s).length * ancho });
+            if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop: () => {} });
+            if (k in obj) return obj[k];
+            return () => {};
+        },
+        set: (obj, k, v) => { obj[k] = v; return true; },
+    });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (cb) { cb(new Blob(['png'], { type: 'image/png' })); });
+    return textos;
+}
+
 describe('altoDeLaTarjeta', () => {
     it('crece con los micros y con las comidas', () => {
         const sin = altoDeLaTarjeta(resumenDelDia({ consumed: base, metas: METAS }));
@@ -44,6 +63,39 @@ describe('dibujarTarjetaDelDia', () => {
         expect(textos.some((s) => /1[.,\s]?205/.test(s))).toBe(true);
         expect(textos).toContain('bioboros.com');
     });
+    // [P1-COMPARTIR-DIA · fix round 1] «2,310 mg · máx. 2,0…» no cabía en la columna del valor: el techo se marca
+    // como en la tarjeta de la app (MicrosList), con una etiqueta «máx.» junto al nombre, y el valor va como los demás.
+    it('un micro con techo: «máx.» es una etiqueta aparte junto al nombre y el valor lleva el formato de los demás', async () => {
+        const textos = conLienzo();
+        await dibujarTarjetaDelDia(resumenDelDia({
+            consumed: { ...base, micros: { fiber_g: 12.4, sodium_mg: 2310 }, microsCoverage: { con_datos: 1, total: 1 } },
+            metas: METAS,
+            microMetas: { fiber_g: { target: 38, kind: 'floor' }, sodium_mg: { target: 2000, kind: 'ceiling' } },
+        }));
+        const todos = textos.map((x) => x.s).join(' | ');
+        expect(textos.some((x) => /^2[.,\s]?310 \/ 2[.,\s]?000 mg$/.test(x.s)), todos).toBe(true);
+        expect(textos.some((x) => /^12[.,]4 \/ 38 g$/.test(x.s)), todos).toBe(true);
+        const conMax = textos.filter((x) => /m[aá]x/i.test(x.s));
+        expect(conMax.map((x) => x.s), 'la etiqueta se pinta sola y ningún valor la lleva dentro').toEqual(['MÁX.']);
+        const [etiqueta] = conMax;
+        const nombre = textos.find((x) => x.s === 'Sodio');
+        expect(etiqueta.x).toBeGreaterThan(nombre.x);            // a la derecha del nombre…
+        expect(etiqueta.y).toBeLessThan(nombre.y);               // …y centrada en su altura, no en su línea base
+        expect(etiqueta.y).toBeGreaterThan(nombre.y - 30);
+        expect(etiqueta.font).toMatch(/^800 20px /);
+    });
+
+    it('el cierre nunca pisa «bioboros.com»: se mide el sitio y el cierre recibe lo que queda', async () => {
+        const K = 30;   // letra exagerada: sin tope, «¿Y tú, cómo vas hoy?» acabaría en 72 + 20·30 = 672 px
+        const textos = conLienzo(K);
+        await dibujarTarjetaDelDia(resumenDelDia({ consumed: base, metas: METAS }));
+        const sitio = textos.find((x) => x.s === 'bioboros.com');
+        const cierre = textos.find((x) => x.s.startsWith('¿Y tú'));
+        expect(cierre.y).toBe(sitio.y);
+        const bordeDelSitio = sitio.x - sitio.s.length * K;     // el sitio va alineado a la derecha
+        expect(cierre.x + cierre.s.length * K).toBeLessThanOrEqual(bordeDelSitio - 24);
+    });
+
     it('pie sin colisión: 40 px entre último contenido y divider (6 combos)', async () => {
         const combos = [
             { micros: false, meals: 0 },

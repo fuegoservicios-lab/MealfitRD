@@ -14,6 +14,8 @@ const ALTO = { cabecera: 250, calorias: 250, macro: 124, microsCab: 110, microFi
 const COLOR = {
     calories: ['#FCD34D', '#F59E0B'], protein: ['#93C5FD', '#3B82F6'], carbs: ['#6EE7B7', '#10B981'], fats: ['#F9A8D4', '#EC4899'],
 };
+// La etiqueta «máx.» de los techos (la de MicrosList en la app): píldora en mayúsculas junto al nombre del micro.
+const ETIQUETA = { tam: 20, padX: 9, alto: 30, radio: 6, aire: 10 };
 
 export function altoDeLaTarjeta(r) {
     let h = ALTO.cabecera + ALTO.calorias + 3 * ALTO.macro + ALTO.pie;
@@ -44,6 +46,7 @@ const _barra = (ctx, x, y, w, h, pct, [c1, c2]) => {
     _rect(ctx, x, y, Math.max(lleno, h), h, h / 2); ctx.fill();
 };
 
+/** Pinta `s` (recortado con «…» si pasa de `max`) y devuelve el ancho que ocupó: quien pinta al lado lo necesita. */
 const _texto = (ctx, s, x, y, { tam = 32, peso = 600, color = '#E2E8F0', alinear = 'left', max = null } = {}) => {
     ctx.font = `${peso} ${tam}px ${FUENTE}`;
     ctx.fillStyle = color;
@@ -55,6 +58,26 @@ const _texto = (ctx, s, x, y, { tam = 32, peso = 600, color = '#E2E8F0', alinear
         out = `${out.trimEnd()}…`;
     }
     ctx.fillText(out, x, y);
+    return ctx.measureText(out).width;
+};
+
+/** Ancho de la etiqueta «máx.» (deja puesta su fuente). */
+const _anchoEtiqueta = (ctx, s) => {
+    ctx.font = `800 ${ETIQUETA.tam}px ${FUENTE}`;
+    return ctx.measureText(String(s).toUpperCase()).width + 2 * ETIQUETA.padX;
+};
+
+/** La etiqueta «máx.»: texto #94A3B8 sobre gris translúcido, radio 6, centrada en `yCentro`. Devuelve su ancho. */
+const _etiqueta = (ctx, s, x, yCentro) => {
+    const w = _anchoEtiqueta(ctx, s);
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.18)';
+    _rect(ctx, x, yCentro - ETIQUETA.alto / 2, w, ETIQUETA.alto, ETIQUETA.radio); ctx.fill();
+    ctx.fillStyle = '#94A3B8';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(s).toUpperCase(), x + ETIQUETA.padX, yCentro);
+    ctx.textBaseline = 'alphabetic';
+    return w;
 };
 
 const _aBlob = (canvas) => new Promise((resolve) => {
@@ -154,9 +177,17 @@ export async function dibujarTarjetaDelDia(r) {
         r.micros.forEach((f, i) => {
             const x = M + (i % 2) * (col + 48);
             const yy = y + Math.floor(i / 2) * ALTO.microFila + 44;
-            _texto(ctx, f.label, x, yy, { tam: 30, peso: 700, color: '#E2E8F0', max: col * 0.5 });
-            const valor = f.techo && f.meta ? `${formatoMicro(f.valor, f.unit)} ${f.unit} · ${t('máx.')} ${formatoMicro(f.meta, f.unit)}` : (f.meta ? `${formatoMicro(f.valor, f.unit)} / ${formatoMicro(f.meta, f.unit)} ${f.unit}` : `${formatoMicro(f.valor, f.unit)} ${f.unit}`);
-            _texto(ctx, valor, x + col, yy, { tam: 28, peso: 800, color: '#FFFFFF', alinear: 'right', max: col * 0.62 });
+            // El valor lleva el formato de todos también en los techos («2,310 / 2,000 mg»): «2,310 mg · máx. 2,0…» no
+            // cabía. El techo lo dice la etiqueta «máx.» junto al nombre, como en la tarjeta de la app (MicrosList).
+            // El valor va primero: el nombre y la etiqueta se quedan con el ancho que sobra.
+            const valor = f.meta ? `${formatoMicro(f.valor, f.unit)} / ${formatoMicro(f.meta, f.unit)} ${f.unit}` : `${formatoMicro(f.valor, f.unit)} ${f.unit}`;
+            const anchoValor = _texto(ctx, valor, x + col, yy, { tam: 28, peso: 800, color: '#FFFFFF', alinear: 'right', max: col * 0.62 });
+            const maximo = f.techo ? t('máx.') : '';
+            const anchoEtiqueta = maximo ? _anchoEtiqueta(ctx, maximo) + ETIQUETA.aire : 0;
+            const anchoNombre = _texto(ctx, f.label, x, yy, {
+                tam: 30, peso: 700, color: '#E2E8F0', max: Math.max(60, col - anchoValor - 16 - anchoEtiqueta),
+            });
+            if (maximo) _etiqueta(ctx, maximo, x + anchoNombre + ETIQUETA.aire, yy - 11);   // centro de las mayúsculas a 30 px
             const pct = f.meta ? (f.valor / f.meta) * 100 : 0;
             const colores = f.techo ? (pct > 100 ? ['#F87171', '#EF4444'] : ['#67E8F9', '#22D3EE']) : ['#6EE7B7', '#10B981'];
             _barra(ctx, x, yy + 22, col, 12, pct, colores);
@@ -177,11 +208,12 @@ export async function dibujarTarjetaDelDia(r) {
         y += ALTO.comidasBuffer;
     }
 
-    // Pie
+    // Pie. El sitio se pinta primero y se mide: el cierre (en otro idioma puede ser largo) se queda con lo que sobra,
+    // con 24 px de aire, y nunca pisa «bioboros.com» en la misma línea.
     const yp = alto - 80;
     ctx.fillStyle = 'rgba(148, 163, 184, 0.25)'; ctx.fillRect(M, yp - 70, ANCHO - 2 * M, 2);
-    _texto(ctx, t('¿Y tú, cómo vas hoy?'), M, yp, { tam: 34, peso: 700, color: '#E2E8F0' });
-    _texto(ctx, SITIO, ANCHO - M, yp, { tam: 34, peso: 800, color: '#A5B4FC', alinear: 'right' });
+    const anchoSitio = _texto(ctx, SITIO, ANCHO - M, yp, { tam: 34, peso: 800, color: '#A5B4FC', alinear: 'right' });
+    _texto(ctx, t('¿Y tú, cómo vas hoy?'), M, yp, { tam: 34, peso: 700, color: '#E2E8F0', max: ANCHO - 2 * M - anchoSitio - 24 });
 
     return _aBlob(canvas);
 }
