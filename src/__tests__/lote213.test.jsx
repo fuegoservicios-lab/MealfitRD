@@ -255,6 +255,19 @@ describe('lote 213 · lo que se guarda', () => {
         expect(onGuardado).not.toHaveBeenCalled();
         expect(toast.success).not.toHaveBeenCalled();
     });
+
+    it('un 429 del perfil (10 por minuto) no se anuncia como un fallo de conexión', async () => {
+        fetchWithAuth.mockImplementation(async (url) => {
+            if (url === '/api/profile') return respuesta({ detail: 'Too Many Requests' }, false, 429);
+            return respuesta({ enabled: true, quiet_until_hour: 6, reminders_before_hour: 23, reminders: [], comidas: COMIDAS_NORMALES });
+        });
+        await montar();
+        fireEvent.click(interruptor('Cena'));
+        await waitFor(() => expect(toast.error).toHaveBeenCalledWith(
+            'Demasiadas solicitudes seguidas. Espera un momento y reintenta.', { id: 'recordatorios-comida' },
+        ));
+        await waitFor(() => expect(interruptor('Cena').checked).toBe(true));   // vuelve a lo guardado
+    });
 });
 
 describe('lote 213 · lo puro', () => {

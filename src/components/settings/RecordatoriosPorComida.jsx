@@ -70,12 +70,16 @@ const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ health_profile: { [CLAVE_AVISOS_POR_COMIDA]: configParaGuardar(lote) } }),
                 });
-                if (!res.ok) throw new Error(`PATCH /api/profile → HTTP ${res.status}`);
+                if (!res.ok) throw Object.assign(new Error(`PATCH /api/profile → HTTP ${res.status}`), { status: res.status });
             }
-        } catch {
+        } catch (err) {
             ok = false;
             deseadaRef.current = null;
-            toast.error(t('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'), { id: 'recordatorios-comida' });
+            // `PATCH /api/profile` admite 10 por minuto: quien prueba varias horas seguidas puede toparlo, y «revisa tu
+            // conexión» le mentiría.
+            toast.error(err?.status === 429
+                ? t('Demasiadas solicitudes seguidas. Espera un momento y reintenta.')
+                : t('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'), { id: 'recordatorios-comida' });
             setIntento((n) => n + 1);   // vuelve a pintar lo que de verdad quedó guardado
         } finally {
             guardandoRef.current = false;
