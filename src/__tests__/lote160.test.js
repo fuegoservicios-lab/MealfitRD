@@ -126,7 +126,10 @@ describe('[P1-PLAN-LOTE-160] Google en Android', () => {
         const sospechosos = [];
         const recorrer = (dir) => {
             for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-                if (['node_modules', '.git', 'build', 'dist', 'coverage'].includes(e.name)) continue;
+                // [P1-PLAN-LOTE-190] 'public' = android/app/src/main/assets/public, la COPIA generada del build web
+                // (7,3 MB, ignorada por git, igual que dist): leerla hacía pasar este test de 5 s bajo carga y tumbó
+                // dos despliegues. Un secreto ahí vendría de src/, que sí se recorre.
+                if (['node_modules', '.git', 'build', 'dist', 'coverage', 'public', '.gradle'].includes(e.name)) continue;
                 const p = path.join(dir, e.name);
                 if (e.isDirectory()) recorrer(p);
                 else if (/\.(js|jsx|json|java|gradle|xml|ts|tsx|mjs)$/.test(e.name)
@@ -136,5 +139,5 @@ describe('[P1-PLAN-LOTE-160] Google en Android', () => {
         recorrer(path.join(raiz, 'src'));
         recorrer(path.join(raiz, 'android'));
         expect(sospechosos).toEqual([]);
-    });
+    }, 20000);
 });
