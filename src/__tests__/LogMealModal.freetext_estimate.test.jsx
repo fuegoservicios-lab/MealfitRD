@@ -97,7 +97,10 @@ describe('foto desde el componedor', () => {
         expect(tp).toContain('<LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />');
         const dash = src('src/pages/Dashboard.jsx');
         expect(dash).toContain("onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }}");
-        expect(dash).toContain('{scanMealOpen && <ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)}');
+        // [P1-PLAN-LOTE-221] el escáner es perezoso: se monta al pedirlo, dentro de su propio Suspense
+        expect(dash).toContain('{scanMealOpen && (');
+        expect(dash).toContain('<ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)}');
+        expect(dash).toContain("const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));");
     });
 
     it('[P1-PLAN-LOTE-85] la tarjeta tiene un solo botón y las dos vías viven dentro del componedor', () => {

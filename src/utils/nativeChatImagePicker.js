@@ -54,7 +54,11 @@ export async function takeNativeChatPhoto() {
     return [await mediaResultToFile(result, 0)];
 }
 
-// [P1-PLAN-LOTE-105 · 2026-09-18] UNA foto de la fototeca, para el escáner de comidas. En la app nativa el
+// [P1-PLAN-LOTE-221 · 2026-09-24] VARIAS fotos de la fototeca para el escáner de comida (un plato por foto, hasta 4,
+// como el chat). Es el mismo selector del chat, que ya sabe elegir varias: un alias con el nombre del uso, no una copia.
+export const chooseNativeGalleryImages = (limit = 4) => chooseNativeChatImages(limit);
+
+// [P1-PLAN-LOTE-105 · 2026-09-18] UNA foto de la fototeca, para el escáner de comidas (hoy: el de la Nevera). En la app nativa el
 // `<input type="file" accept="image/*">` de la web abre SIEMPRE la hoja de iOS con tres opciones (Fototeca /
 // Tomar foto / Seleccionar archivo) — no hay forma de evitarla desde la web; el dueño la quería directa. El plugin
 // abre el selector de fotos del sistema sin preguntar. En la web devuelve null y el escáner sigue con su input.

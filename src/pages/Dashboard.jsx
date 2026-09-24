@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 // [UX-DURATION-PANEL-BACKDROP · 2026-07-03] Portal a <body> para el backdrop con blur del panel
 // duración/presupuesto (position:fixed dentro del árbol se rompería si un ancestro framer-motion
 // conserva un transform — el portal lo hace inmune a eso).
@@ -94,7 +94,6 @@ import OptionPickerModal from '../components/common/OptionPickerModal';
 import MotivoActualizarModal from '../components/dashboard/MotivoActualizarModal';
 import EatPlanMealSheet from '../components/dashboard/EatPlanMealSheet';
 import LogMealModal from '../components/dashboard/LogMealModal';
-import ScanMealModal from '../components/dashboard/ScanMealModal';
 import { mealTimingIssue, pantryCoverageIssue } from '../config/mealWindows';
 // [P2-CHUNK-OVERDUE-SIGNAL · 2026-08-04] Pestañas fantasma de los días del plan
 // que aún no existen (absorbe el skeleton que vivía inline en la fila de días).
@@ -236,6 +235,9 @@ import { isDarkActive } from '../utils/theme';
 import { hasPendingPipelineInFlight } from '../utils/pendingPipelineFlag';
 // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Ver la nota de errorCopy.js.
 import { mensajeDeError } from '../utils/errorCopy';
+// [P1-PLAN-LOTE-221 · 2026-09-24] El escáner de comida, perezoso y montado al pedirlo (ya se montaba así): el mismo
+// trozo que usan el panel de progreso y el diario, que se descarga cuando alguien lo abre.
+const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));
 
 // [P2-BRANDS-OPTIMISTIC · 2026-07-07] Update en TIEMPO REAL del brand elegido en
 // "Marcas del súper". El display de cada ítem es un solo string backend
@@ -10025,7 +10027,11 @@ const DashboardInner = () => {
                 />
             )}
             {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }} />}
-            {scanMealOpen && <ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)} userId={session?.user?.id || userProfile?.id || 'guest'} />}
+            {scanMealOpen && (
+                <Suspense fallback={null}>
+                    <ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)} userId={session?.user?.id || userProfile?.id || 'guest'} />
+                </Suspense>
+            )}
 
             {/* ═══════════ MODAL (rediseño): ¿Por qué quieres cambiar? — un plato (PC + móvil) ═══════════ */}
             <MotivoActualizarModal

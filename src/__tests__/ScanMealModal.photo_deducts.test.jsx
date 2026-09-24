@@ -14,6 +14,10 @@
 //   3. Lo que no bajo de la Nevera se DICE.
 //   4. Un plato sin componentes detectados sigue registrando macros — el bloque
 //      simplemente no aparece.
+//
+// [P1-PLAN-LOTE-221 · 2026-09-24] La casilla de cada componente pasa a decir «lo comí» (mueve las macros) y la
+// Nevera tiene su propio interruptor, «Descontar de mi Nevera», como el componedor: desmarcar el arroz del
+// restaurante para no descontarlo ya no puede quitarle sus calorías al plato.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, mockAssessmentContext } from './utils/test-utils';
 import * as assessmentModule from '../context/AssessmentContext';
@@ -123,9 +127,11 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
 
     it('muestra los componentes detectados para confirmar, no los descuenta solos', async () => {
         await _scan();
-        expect(screen.getByText(/Descontar de tu Nevera/i)).toBeInTheDocument();
+        expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
+        // [P1-PLAN-LOTE-221] la Nevera es un interruptor propio, encendido como siempre
+        expect(screen.getByRole('checkbox', { name: /Descontar de mi Nevera/i })).toBeChecked();
         // Nacen marcados (el caso comun es que la deteccion sea correcta)...
-        const chkHuevo = screen.getByLabelText(/Descontar huevo de tu Nevera/i);
+        const chkHuevo = screen.getByLabelText('Incluir huevo');
         expect(chkHuevo).toBeChecked();
         // ...pero nada se descuenta hasta que el usuario confirma el registro.
         const calls = vi.mocked(fetchWithAuth).mock.calls
@@ -135,7 +141,7 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
 
     it('solo manda los componentes MARCADOS, con el formato que el backend parsea', async () => {
         await _scan();
-        fireEvent.click(screen.getByLabelText(/Descontar queso frito de tu Nevera/i));
+        fireEvent.click(screen.getByLabelText('Incluir queso frito'));
         fireEvent.click(screen.getByRole('button', { name: /Registrar comida/i }));
 
         await waitFor(() => expect(toast.success).toHaveBeenCalled());
@@ -143,12 +149,24 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
         // "<qty> <unit> de <nombre>" es lo que `_parse_quantity` entiende.
         expect(body.ingredients).toEqual(['2 unidad de huevo']);
         expect(body.ingredients).not.toContain('2 lasca de queso frito');
+        expect(body.deduct_pantry).toBe(true);
+    });
+
+    it('[lote 221] con «Descontar de mi Nevera» apagado, los ingredientes se GUARDAN pero no se descuentan', async () => {
+        await _scan();
+        fireEvent.click(screen.getByRole('checkbox', { name: /Descontar de mi Nevera/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Registrar comida/i }));
+
+        await waitFor(() => expect(toast.success).toHaveBeenCalled());
+        const body = _consumedBody(vi.mocked(fetchWithAuth));
+        expect(body.deduct_pantry).toBe(false);
+        expect(body.ingredients).toEqual(['2 unidad de huevo', '2 lasca de queso frito']);
     });
 
     it('respeta la cantidad corregida a mano', async () => {
         await _scan();
         fireEvent.change(screen.getByLabelText(/Cantidad de huevo/i), { target: { value: '3' } });
-        fireEvent.click(screen.getByLabelText(/Descontar queso frito de tu Nevera/i));
+        fireEvent.click(screen.getByLabelText('Incluir queso frito'));
         fireEvent.click(screen.getByRole('button', { name: /Registrar comida/i }));
 
         await waitFor(() => expect(toast.success).toHaveBeenCalled());
@@ -158,7 +176,7 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
     it('una cantidad invalida excluye la fila en vez de mandar basura', async () => {
         await _scan();
         fireEvent.change(screen.getByLabelText(/Cantidad de huevo/i), { target: { value: '0' } });
-        fireEvent.click(screen.getByLabelText(/Descontar queso frito de tu Nevera/i));
+        fireEvent.click(screen.getByLabelText('Incluir queso frito'));
         fireEvent.click(screen.getByRole('button', { name: /Registrar comida/i }));
 
         await waitFor(() => expect(toast.success).toHaveBeenCalled());
@@ -197,7 +215,9 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
         // vacio que sugiera que el escaner fallo.
         vi.mocked(fetchWithAuth).mockImplementation(_routeFetch({ items: [] }));
         await _scan();
-        expect(screen.queryByText(/Descontar de tu Nevera/i)).not.toBeInTheDocument();
+        expect(screen.queryByText('Ingredientes que detectamos')).not.toBeInTheDocument();
+        // sin nada marcado que descontar, tampoco hay interruptor de Nevera
+        expect(screen.queryByText(/Descontar de mi Nevera/i)).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /Registrar comida/i }));
         await waitFor(() => expect(toast.success).toHaveBeenCalled());
@@ -234,20 +254,19 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
             };
         };
 
-        it('si el perfil la apaga con el escáner montado, «Descontar de tu Nevera» y sus interruptores se van; y vuelven', async () => {
+        it('si el perfil la apaga con el escáner montado, «Descontar de mi Nevera» se va; y vuelve', async () => {
             const cambiarPerfil = await escanearMontado(ENCENDIDA);
-            expect(screen.getByText('Descontar de tu Nevera')).toBeInTheDocument();
-            expect(screen.getByLabelText('Descontar huevo de tu Nevera')).toBeInTheDocument();
+            expect(screen.getByText('Descontar de mi Nevera')).toBeInTheDocument();
+            expect(screen.getByLabelText('Incluir huevo')).toBeInTheDocument();
 
             cambiarPerfil(APAGADA);
             expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
-            expect(screen.queryByText(/Descontar de tu Nevera/i)).not.toBeInTheDocument();
-            expect(screen.queryByLabelText(/Descontar .* de tu Nevera/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/Descontar de mi Nevera/i)).not.toBeInTheDocument();
+            // [P1-PLAN-LOTE-221] la casilla de cada componente es «lo comí»: sigue ahí con la Nevera apagada
             expect(screen.getByLabelText('Incluir huevo')).toBeInTheDocument();
 
             cambiarPerfil(ENCENDIDA);
-            expect(screen.getByText('Descontar de tu Nevera')).toBeInTheDocument();
-            expect(screen.getByLabelText('Descontar huevo de tu Nevera')).toBeInTheDocument();
+            expect(screen.getByText('Descontar de mi Nevera')).toBeInTheDocument();
         });
 
         it('montado con la Nevera apagada no pide el inventario; al encenderla, lo pide y lo usa', async () => {
@@ -262,7 +281,7 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
 
             cambiarPerfil(ENCENDIDA);
             await waitFor(() => expect(llamadasInventario()).toHaveLength(1));
-            expect(screen.getByText('Descontar de tu Nevera')).toBeInTheDocument();
+            expect(screen.getByText('Descontar de mi Nevera')).toBeInTheDocument();
             // lo leído SÍ se usa: la Nevera tiene cosas, así que el aviso nombra lo que no estaba en ella
             fireEvent.click(screen.getByRole('button', { name: /Registrar comida/i }));
             await waitFor(() => expect(toast.success).toHaveBeenCalled());
@@ -272,7 +291,7 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
         it('no consulta /api/inventory y llama a los componentes "Ingredientes que detectamos"', async () => {
             await _scan(APAGADA);
             expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
-            expect(screen.queryByText(/Descontar de tu Nevera/i)).not.toBeInTheDocument();
+            expect(screen.queryByText(/Descontar de mi Nevera/i)).not.toBeInTheDocument();
             expect(llamadasInventario()).toHaveLength(0);
         });
 

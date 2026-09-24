@@ -49,8 +49,11 @@ import { formatDate, formatNumber, getLocale, useT, useTn } from '../../i18n';
 import MicrosList from './MicrosList';
 import { useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
-import ScanMealModal from './ScanMealModal';
 import styles from './DiaryHistory.module.css';
+
+// [P1-PLAN-LOTE-221 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
+// vive en el mismo trozo del panel, y el escáner reconstruido lo pasaba del techo de precache-guard.
+const ScanMealModal = lazy(() => import('./ScanMealModal'));
 
 // [P1-COMPARTIR-DIA-PASADO] La hoja se carga al abrirla, como en la tarjeta (el mismo trozo: canvas + textos). Recibe
 // el día TAL CUAL llega del endpoint (`diario`) y lo adapta ella: importar aquí `compartirDia.js` lo metía entero en el
@@ -681,7 +684,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 <LogMealModal onClose={cerrarComponedor} onScan={pasarAlEscaner} initialDaysAgo={atras} userId={userId} />
             )}
             {escaneando && (
-                <ScanMealModal isOpen onClose={cerrarEscaner} userId={userId || 'guest'} initialDaysAgo={atras} />
+                <Suspense fallback={null}>
+                    <ScanMealModal isOpen onClose={cerrarEscaner} userId={userId || 'guest'} initialDaysAgo={atras} />
+                </Suspense>
             )}
             {aCompartir && (
                 <Suspense fallback={null}>

@@ -366,6 +366,11 @@
 
 .fieldRow > * { min-width: 0; }
 
+/* [P1-PLAN-LOTE-221] Con cuatro presets (½× 1× 1½× 2×) no caben junto al rótulo a 320-380 px: el rótulo sube. */
+@media (max-width: 380px) {
+    .fieldRow { grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
+}
+
 .field {
     display: flex;
     flex-direction: column;
@@ -412,9 +417,10 @@
 
 .portionBtn {
     flex: 1 1 0;
-    min-width: 48px;
+    min-width: 44px;
     min-height: 44px;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0.4rem;
+    white-space: nowrap;
     border-radius: 0.7rem;
     border: 1px solid #E2E8F0;
     background: #F8FAFC;
@@ -508,7 +514,9 @@
 /* ---- Acciones ---- */
 /* [P1-MEAL-SCAN-POLISH · 2026-07-12] Una sola fila: "Volver a escanear"
    compacto a la izquierda, "Registrar comida" protagonista a la derecha.
-   [P1-PLAN-LOTE-106] Vive en el pie FIJO: siempre a la vista en el teléfono. */
+   [P1-PLAN-LOTE-106] Vive en el pie FIJO: siempre a la vista en el teléfono.
+   [P1-PLAN-LOTE-221] «Volver a escanear» se mudó a la foto (`.previewRetake`): en español los dos botones no cabían
+   en 360 px y «Registrar comida» se cortaba. La fila se queda: el pie sigue siendo la fila de acciones. */
 .actions {
     display: flex;
     flex-direction: row;
@@ -539,22 +547,31 @@
 .saveBtn:hover:not(:disabled) { box-shadow: 0 10px 24px -6px rgba(5, 150, 105, 0.6); filter: brightness(1.05); }
 .saveBtn:disabled { opacity: 0.7; cursor: not-allowed; }
 
-.retakeBtn {
-    flex-shrink: 0;
-    min-height: 44px;
-    padding: 0.6rem 0.85rem;
-    border-radius: 0.85rem;
-    border: 1px solid #E2E8F0;
-    background: transparent;
-    color: #64748B;
+/* [P1-PLAN-LOTE-221] «Volver a escanear» sobre la foto (antes en el pie, donde a 360 px cortaba «Registrar comida»). */
+.previewRetake {
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 40px;
+    padding: 0.45rem 0.85rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    color: #FFFFFF;
+    font: inherit;
+    font-size: 0.82rem;
     font-weight: 700;
-    font-size: 0.88rem;
-    white-space: nowrap;
     cursor: pointer;
+    transition: background 0.15s ease;
 }
 
-.retakeBtn:hover:not(:disabled) { background: #F1F5F9; }
-.retakeBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.previewRetake:hover { background: rgba(15, 23, 42, 0.86); }
+.previewRetake:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 2px; }
 
 /* ====== TEMA OSCURO ====== */
 :global(html[data-theme="dark"]) .card {
@@ -603,10 +620,6 @@
 :global(html[data-theme="dark"]) .macroLabel { color: var(--text-muted); }
 :global(html[data-theme="dark"]) .fieldLabel { color: var(--text-muted); }
 
-:global(html[data-theme="dark"]) .retakeBtn {
-    border-color: var(--border);
-    color: var(--text-muted);
-}
 
 :global(html[data-theme="dark"]) .error {
     background: rgba(185, 28, 28, 0.15);
@@ -624,29 +637,45 @@
     .optionCard, .optionChev, .pickRow { transition: none; }
 }
 
-/* [P1-PHOTO-DEDUCTS · 2026-08-07] Checklist de componentes detectados en el
-   plato. Sólo los marcados se descuentan de la Nevera. */
+/* [P1-PHOTO-DEDUCTS · 2026-08-07] Checklist de componentes detectados en el plato.
+   [P1-PLAN-LOTE-221 · 2026-09-24] Dentro de «¿Cuánto comiste?»: con desglose, cada fila mueve las macros de arriba.
+   Cada fila son dos líneas — nombre y lo que aporta; la cantidad con −/+ y su unidad — para que a 320 px el nombre no
+   se monte encima del número y los botones tengan dedo (40 px). */
 .componentsBlock {
+    display: flex;
+    flex-direction: column;
     gap: 0;
+    margin-top: 0.35rem;
+}
+
+.componentsTitle {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #0F172A;
 }
 
 .componentsHint {
-    margin: 0.35rem 0 0.4rem;
+    margin: 0.3rem 0 0.35rem;
     font-size: 0.82rem;
     color: #64748B;
     line-height: 1.4;
 }
 
-/* [P1-PLAN-LOTE-106] filas de dedo: 48 px, separadas por una línea fina, casilla de 22 px y cantidad a 1rem. */
+.componentList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
 .componentRow {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.7rem;
     min-height: 48px;
-    padding: 0.35rem 0;
+    padding: 0.55rem 0;
     border-bottom: 1px solid #F1F5F9;
     font-size: 0.95rem;
-    cursor: pointer;
 }
 
 .componentRow:last-child { border-bottom: 0; }
@@ -655,32 +684,457 @@
     flex-shrink: 0;
     width: 22px;
     height: 22px;
+    margin: 0.1rem 0 0;
     accent-color: var(--primary-fill, #4F46E5);
     cursor: pointer;
 }
 
-.componentQty {
-    width: 4.6rem;
-    flex-shrink: 0;
-    padding: 0.45rem 0.5rem;
-    font-size: 1rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    border-radius: 0.55rem;
-    border: 1px solid var(--border-color, #d1d5db);
-    background: var(--input-bg, transparent);
-    color: inherit;
+.componentMain {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
 }
 
-/* Deshabilitado = la fila no se va a descontar; atenuar deja claro que el
-   número dejó de importar sin ocultarlo. */
-.componentQty:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
+.componentTop {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
 }
 
 .componentName {
     min-width: 0;
     line-height: 1.3;
+    font-weight: 600;
+    color: #0F172A;
     overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+/* El nombre llega en minúscula del motor («queso frito»): solo se pinta con mayúscula inicial, el dato no se toca. */
+.componentName::first-letter { text-transform: uppercase; }
+
+.componentKcal {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #64748B;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.componentQtyRow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.componentUnit {
+    min-width: 0;
+    font-size: 0.88rem;
+    color: #475569;
+    overflow-wrap: anywhere;
+}
+
+/* Desmarcado = no lo comió: la fila se atenúa y su cantidad deja de importar, sin esconderla (puede volver). */
+.componentOff .componentName,
+.componentOff .componentUnit { color: #64748B; text-decoration: line-through; text-decoration-thickness: 1px; }
+.componentOff .stepper { opacity: 0.45; }
+
+/* «−  [campo]  +»: un solo control con borde, botones de 40 px (dedo) y el número a 1rem (iOS no hace zoom). */
+.stepper {
+    display: inline-flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    border: 1px solid #E2E8F0;
+    border-radius: 0.7rem;
+    background: #F8FAFC;
+    overflow: hidden;
+}
+
+.stepper:focus-within {
+    border-color: #6366F1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.stepperBtn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #4F46E5;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.stepperBtn:hover:not(:disabled) { background: rgba(99, 102, 241, 0.1); }
+.stepperBtn:active:not(:disabled) { background: rgba(99, 102, 241, 0.18); }
+.stepperBtn:disabled { color: #CBD5E1; cursor: not-allowed; }
+.stepperBtn:focus-visible { outline: 2px solid var(--primary, #4F46E5); outline-offset: -2px; }
+
+.componentQty {
+    width: 3.6rem;
+    min-width: 0;
+    padding: 0.4rem 0.25rem;
+    border: 0;
+    border-left: 1px solid #E2E8F0;
+    border-right: 1px solid #E2E8F0;
+    background: transparent;
+    color: #0F172A;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    outline: none;
+}
+
+.componentQty:disabled { cursor: not-allowed; }
+
+/* ---- [P1-PLAN-LOTE-221] Varios platos ---- */
+.multiHint {
+    margin: 0.9rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: #64748B;
+    text-align: center;
+}
+
+.platoList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.platoCard {
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    background: #FFFFFF;
+    overflow: hidden;
+}
+
+.platoCardOpen {
+    border-color: color-mix(in srgb, var(--primary, #4F46E5) 45%, #E2E8F0);
+    box-shadow: 0 10px 24px -18px rgba(79, 70, 229, 0.55);
+}
+
+.platoHead {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding-right: 0.35rem;
+}
+
+.platoToggle {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 64px;
+    padding: 0.55rem 0.4rem 0.55rem 0.6rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.platoToggle:disabled { cursor: default; }
+.platoToggle:focus-visible { outline: 2px solid var(--primary, #4F46E5); outline-offset: -2px; border-radius: 14px; }
+
+.platoThumbWrap {
+    position: relative;
+    flex: none;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #F1F5F9;
+}
+
+.platoThumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.platoThumbSpin {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.platoInfo {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.platoNombre {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #0F172A;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.platoResumen {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748B;
+    font-variant-numeric: tabular-nums;
+}
+
+.platoChev {
+    flex: none;
+    color: #64748B;
+    transition: transform 0.18s ease;
+}
+
+.platoChevOpen { transform: rotate(180deg); }
+
+.platoQuitar {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #64748B;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.platoQuitar:hover:not(:disabled) { background: #FEF2F2; color: #DC2626; }
+.platoQuitar:disabled { opacity: 0.5; cursor: not-allowed; }
+.platoQuitar:focus-visible { outline: 2px solid var(--primary, #4F46E5); outline-offset: 2px; }
+
+.platoEditor {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    padding: 0.6rem 0.85rem 0.95rem;
+    border-top: 1px solid #F1F5F9;
+}
+
+/* El aviso de una foto que falló, con sus salidas. */
+.platoFallo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem 0.55rem;
+    margin: 0 0.6rem 0.6rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.7rem;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    color: #B91C1C;
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.reviewWrap > .platoFallo { margin: 0; }
+/* Dentro de la revisión la foto ya tiene el `gap` de la columna: sin margen propio. */
+.reviewWrap > .previewWrap { margin-bottom: 0; }
+
+.platoFalloTxt { flex: 1 1 12rem; min-width: 0; }
+
+.platoFalloAcciones {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-left: auto;
+}
+
+.linkBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 36px;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.linkBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.linkBtn:focus-visible { outline: 2px solid var(--primary, #4F46E5); outline-offset: 2px; }
+
+/* «¿Comiste algo más?» — añadir otro plato sin salir de la revisión. */
+.addRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px dashed #CBD5E1;
+    border-radius: 14px;
+}
+
+.addLabel {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.addBtns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.addBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 40px;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--primary, #4F46E5) 35%, #E2E8F0);
+    background: color-mix(in srgb, var(--primary, #4F46E5) 6%, transparent);
+    color: var(--primary, #4F46E5);
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.addBtn:hover { background: color-mix(in srgb, var(--primary, #4F46E5) 12%, transparent); }
+.addBtn:focus-visible { outline: 2px solid var(--primary, #4F46E5); outline-offset: 2px; }
+
+/* «Descontar de mi Nevera»: el mismo interruptor que el componedor (LogMealModal). */
+.pantryToggle {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.pantryToggle input {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    accent-color: var(--primary-fill, #4F46E5);
+    flex-shrink: 0;
+}
+
+.pantryIcon { display: inline-flex; color: var(--primary, #4F46E5); flex-shrink: 0; }
+
+.pantryText {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.pantryLabel {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-main, #0F172A);
+}
+
+.pantrySub {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted, #5B6A7D);
+}
+
+/* El total de varios platos, encima de «Registrar». */
+.footerTotal {
+    margin: 0 0 0.55rem;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #334155;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.footerNote {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #B45309;
+}
+
+/* ====== TEMA OSCURO · lote 221 ====== */
+:global(html[data-theme="dark"]) .componentsTitle,
+:global(html[data-theme="dark"]) .componentName,
+:global(html[data-theme="dark"]) .platoNombre,
+:global(html[data-theme="dark"]) .componentQty { color: var(--text-main); }
+:global(html[data-theme="dark"]) .componentsHint,
+:global(html[data-theme="dark"]) .componentKcal,
+:global(html[data-theme="dark"]) .componentUnit,
+:global(html[data-theme="dark"]) .platoResumen,
+:global(html[data-theme="dark"]) .multiHint { color: var(--text-muted); }
+:global(html[data-theme="dark"]) .componentOff .componentName,
+:global(html[data-theme="dark"]) .componentOff .componentUnit { color: var(--text-light, #64748B); }
+:global(html[data-theme="dark"]) .stepper {
+    background-color: var(--bg-muted);
+    border-color: var(--border);
+}
+:global(html[data-theme="dark"]) .componentQty { border-color: var(--border); }
+:global(html[data-theme="dark"]) .stepperBtn { color: #A5B4FC; }
+:global(html[data-theme="dark"]) .stepperBtn:disabled { color: color-mix(in srgb, var(--text-muted) 45%, transparent); }
+:global(html[data-theme="dark"]) .platoCard {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+:global(html[data-theme="dark"]) .platoCardOpen {
+    border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+}
+:global(html[data-theme="dark"]) .platoEditor { border-top-color: var(--border); }
+:global(html[data-theme="dark"]) .platoThumbWrap { background: var(--bg-muted); }
+:global(html[data-theme="dark"]) .platoQuitar:hover:not(:disabled) { background: rgba(185, 28, 28, 0.18); color: #FCA5A5; }
+:global(html[data-theme="dark"]) .platoFallo {
+    background: rgba(185, 28, 28, 0.15);
+    border-color: rgba(185, 28, 28, 0.4);
+    color: #FCA5A5;
+}
+:global(html[data-theme="dark"]) .addRow { border-color: var(--border); }
+:global(html[data-theme="dark"]) .addLabel { color: var(--text-main); }
+:global(html[data-theme="dark"]) .addBtn { color: #A5B4FC; border-color: color-mix(in srgb, #A5B4FC 35%, var(--border)); }
+:global(html[data-theme="dark"]) .footerTotal { color: var(--text-main); }
+:global(html[data-theme="dark"]) .footerNote { color: #FBBF24; }
+
+@media (prefers-reduced-motion: reduce) {
+    .platoChev, .stepperBtn, .addBtn, .platoQuitar { transition: none; }
 }

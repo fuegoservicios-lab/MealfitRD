@@ -7,7 +7,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScanMealModal from '../components/dashboard/ScanMealModal';
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
 import { isNativeApp } from '../config/platform';
-import { chooseNativeGalleryImage } from '../utils/nativeChatImagePicker';
+import { chooseNativeGalleryImage, chooseNativeGalleryImages } from '../utils/nativeChatImagePicker';
 import { captureException } from '../utils/observability';
 import { toast } from 'sonner';
 
@@ -22,6 +22,8 @@ vi.mock('../config/platform', () => ({ isNativeApp: vi.fn(() => false) }));
 vi.mock('../utils/observability', () => ({ captureException: vi.fn() }));
 vi.mock('../utils/nativeChatImagePicker', () => ({
     chooseNativeGalleryImage: vi.fn(),
+    // [P1-PLAN-LOTE-221] el de comida elige VARIAS fotos (un plato por foto)
+    chooseNativeGalleryImages: vi.fn(),
     isNativePickerCancellation: (e) => `${e?.code || ''} ${e?.message || ''}`.toLowerCase().includes('cancel'),
 }));
 
@@ -58,41 +60,44 @@ const abrirEscanerDeNevera = () => {
 beforeEach(() => {
     vi.mocked(isNativeApp).mockReturnValue(false);
     vi.mocked(chooseNativeGalleryImage).mockReset();
+    vi.mocked(chooseNativeGalleryImages).mockReset();
     vi.mocked(captureException).mockReset();
     toast.error.mockReset();
 });
 
+// [P1-PLAN-LOTE-221] Cada escáner con SU selector: el de comida elige varias fotos (un plato por foto), el de la
+// Nevera una. Se resuelve al correr el test (el mock ya existe entonces).
 describe.each([
-    ['escáner de comida', abrirEscanerDeComida, 'ScanMealModal'],
-    ['escáner de la Nevera', abrirEscanerDeNevera, 'PantryScanButton'],
-])('«Subir una foto en su lugar» — %s', (_nombre, abrir, componente) => {
+    ['escáner de comida', abrirEscanerDeComida, 'ScanMealModal', () => chooseNativeGalleryImages],
+    ['escáner de la Nevera', abrirEscanerDeNevera, 'PantryScanButton', () => chooseNativeGalleryImage],
+])('«Subir una foto en su lugar» — %s', (_nombre, abrir, componente, selectorDe) => {
     it('en la web abre el input de siempre', () => {
         const espias = abrir();
         expect(clics(espias)).toBe(1);
-        expect(chooseNativeGalleryImage).not.toHaveBeenCalled();
+        expect(selectorDe()).not.toHaveBeenCalled();
     });
 
     it('en nativo va a la fototeca directa y NO toca el input (la hoja de iOS)', async () => {
         vi.mocked(isNativeApp).mockReturnValue(true);
-        vi.mocked(chooseNativeGalleryImage).mockResolvedValue(null);
+        vi.mocked(selectorDe()).mockResolvedValue(null);
         const espias = abrir();
-        await waitFor(() => expect(chooseNativeGalleryImage).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(selectorDe()).toHaveBeenCalledTimes(1));
         expect(clics(espias)).toBe(0);
         expect(toast.error).not.toHaveBeenCalled();
     });
 
     it('en nativo, cancelar no es error', async () => {
         vi.mocked(isNativeApp).mockReturnValue(true);
-        vi.mocked(chooseNativeGalleryImage).mockRejectedValue(new Error('User cancelled photos app'));
+        vi.mocked(selectorDe()).mockRejectedValue(new Error('User cancelled photos app'));
         const espias = abrir();
-        await waitFor(() => expect(chooseNativeGalleryImage).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(selectorDe()).toHaveBeenCalledTimes(1));
         expect(clics(espias)).toBe(0);
         expect(captureException).not.toHaveBeenCalled();
     });
 
     it('en nativo, un fallo real se dice con su código, se reporta y cae al input', async () => {
         vi.mocked(isNativeApp).mockReturnValue(true);
-        vi.mocked(chooseNativeGalleryImage).mockRejectedValue(Object.assign(new Error('x'), { code: 'UNIMPLEMENTED' }));
+        vi.mocked(selectorDe()).mockRejectedValue(Object.assign(new Error('x'), { code: 'UNIMPLEMENTED' }));
         const espias = abrir();
         await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
         expect(toast.error.mock.calls[0][1]).toEqual({ description: '[UNIMPLEMENTED]' });

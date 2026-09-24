@@ -4,11 +4,14 @@
 // dueño, dos veces: «sigue igual»). Ahora: cancelar no es error; cualquier otro fallo se reporta, se dice con su
 // código y después se abre el input para no dejar al usuario sin camino. En la web (PWA) nada cambia: allí el menú
 // de iOS no se puede evitar.
+// [P1-PLAN-LOTE-221 · 2026-09-24] El escáner de comida elige VARIAS fotos (un plato por foto): usa
+// `chooseNativeGalleryImages`; lo que este archivo vigila —directo en nativo, cancelar no es error, el fallo se dice y
+// cae al input— no cambia.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ScanMealModal from '../components/dashboard/ScanMealModal';
 import { isNativeApp } from '../config/platform';
-import { chooseNativeGalleryImage } from '../utils/nativeChatImagePicker';
+import { chooseNativeGalleryImages } from '../utils/nativeChatImagePicker';
 import { captureException } from '../utils/observability';
 import { toast } from 'sonner';
 
@@ -18,7 +21,7 @@ vi.mock('../components/common/CameraViewfinder', () => ({ default: () => null })
 vi.mock('../config/platform', () => ({ isNativeApp: vi.fn(() => false) }));
 vi.mock('../utils/observability', () => ({ captureException: vi.fn() }));
 vi.mock('../utils/nativeChatImagePicker', () => ({
-    chooseNativeGalleryImage: vi.fn(),
+    chooseNativeGalleryImages: vi.fn(),
     isNativePickerCancellation: (e) => `${e?.code || ''} ${e?.message || ''}`.toLowerCase().includes('cancel'),
 }));
 
@@ -32,7 +35,7 @@ const abrirGaleria = () => {
 
 beforeEach(() => {
     vi.mocked(isNativeApp).mockReturnValue(false);
-    vi.mocked(chooseNativeGalleryImage).mockReset();
+    vi.mocked(chooseNativeGalleryImages).mockReset();
     vi.mocked(captureException).mockReset();
     toast.error.mockReset();
 });
@@ -41,14 +44,14 @@ describe('«Elegir de galería»', () => {
     it('en la web abre el input de siempre y no toca el plugin', () => {
         const clic = abrirGaleria();
         expect(clic).toHaveBeenCalledTimes(1);
-        expect(chooseNativeGalleryImage).not.toHaveBeenCalled();
+        expect(chooseNativeGalleryImages).not.toHaveBeenCalled();
     });
 
     it('en nativo usa el plugin; cancelar no es error ni abre el input', async () => {
         vi.mocked(isNativeApp).mockReturnValue(true);
-        vi.mocked(chooseNativeGalleryImage).mockRejectedValue(Object.assign(new Error('User cancelled photos app'), { code: 'OS-PLUG-CAMR-0006' }));
+        vi.mocked(chooseNativeGalleryImages).mockRejectedValue(Object.assign(new Error('User cancelled photos app'), { code: 'OS-PLUG-CAMR-0006' }));
         const clic = abrirGaleria();
-        await waitFor(() => expect(chooseNativeGalleryImage).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(chooseNativeGalleryImages).toHaveBeenCalledTimes(1));
         expect(clic).not.toHaveBeenCalled();
         expect(toast.error).not.toHaveBeenCalled();
         expect(captureException).not.toHaveBeenCalled();
@@ -56,7 +59,7 @@ describe('«Elegir de galería»', () => {
 
     it('en nativo, un fallo real se reporta, se dice con su código y después cae al input', async () => {
         vi.mocked(isNativeApp).mockReturnValue(true);
-        vi.mocked(chooseNativeGalleryImage).mockRejectedValue(Object.assign(new Error('plugin not implemented'), { code: 'UNIMPLEMENTED' }));
+        vi.mocked(chooseNativeGalleryImages).mockRejectedValue(Object.assign(new Error('plugin not implemented'), { code: 'UNIMPLEMENTED' }));
         const clic = abrirGaleria();
         await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
         expect(toast.error.mock.calls[0][0]).toBe('No pudimos abrir tus fotos. Revisa los permisos e inténtalo de nuevo.');
