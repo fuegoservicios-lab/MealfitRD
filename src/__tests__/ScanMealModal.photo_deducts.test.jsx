@@ -67,9 +67,11 @@ function _routeFetch({ items = _ITEMS, consumed = _consumedResponse() } = {}) {
     });
 }
 
-/** Sube una foto y espera a que el modal entre en fase de revision. */
-async function _scan() {
-    render(<ScanMealModal isOpen onClose={vi.fn()} userId={_UID} />);
+/** Sube una foto y espera a que el modal entre en fase de revision. `customContext` pasa por al `render` de
+ * test-utils (P1-NEVERA-OPCIONAL · 2026-09-23): sin él, `userProfile` es `undefined` y la Nevera queda activa
+ * (la conducta de siempre para estos tests). */
+async function _scan(customContext) {
+    render(<ScanMealModal isOpen onClose={vi.fn()} userId={_UID} />, { customContext });
     const file = new File([new Uint8Array([1, 2, 3])], 'plato.jpg', { type: 'image/jpeg' });
     // El input de galeria es el que existe en cualquier pointer (el de camara
     // solo se monta en pointer:coarse — P2-SCAN-NO-WEBCAM-ON-DESKTOP).
@@ -201,5 +203,43 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
         const body = _consumedBody(vi.mocked(fetchWithAuth));
         expect(body.ingredients).toEqual([]);
         expect(body.calories).toBe(750);
+    });
+
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada (modo contador), el escáner nace ya sabiendo que
+    // no hay inventario que consultar: no pregunta al servidor y no habla de "descontar de la Nevera".
+    describe('con la Nevera apagada', () => {
+        it('no consulta /api/inventory y llama a los componentes "Ingredientes que detectamos"', async () => {
+            await _scan({ userProfile: { nevera_activa: false } });
+            expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
+            expect(screen.queryByText(/Descontar de tu Nevera/i)).not.toBeInTheDocument();
+            const llamadasInventario = vi.mocked(fetchWithAuth).mock.calls
+                .filter(([u]) => typeof u === 'string' && u.includes('/api/inventory'));
+            expect(llamadasInventario).toHaveLength(0);
+        });
+
+        it('el aviso de "esto es una compra" ya no manda a "Escanear mi nevera"', async () => {
+            vi.mocked(fetchWithAuth).mockImplementation(async (url) => {
+                if (typeof url === 'string' && url.includes('/api/diary/upload')) {
+                    return {
+                        ok: true,
+                        json: async () => ({
+                            success: true, is_food: true, photo_kind: 'items',
+                            analysis_failed: false, busy: false, items: [],
+                        }),
+                    };
+                }
+                return { ok: true, json: async () => ({}) };
+            });
+            render(<ScanMealModal isOpen onClose={vi.fn()} userId={_UID} />, {
+                customContext: { userProfile: { nevera_activa: false } },
+            });
+            const file = new File([new Uint8Array([1, 2, 3])], 'compra.jpg', { type: 'image/jpeg' });
+            const inputs = document.querySelectorAll('input[type="file"]');
+            fireEvent.change(inputs[inputs.length - 1], { target: { files: [file] } });
+            await waitFor(() => expect(
+                screen.getByText('Esto parece una compra o alimentos sueltos, no un plato servido. Fotografía el plato ya servido para registrarlo.')
+            ).toBeInTheDocument());
+            expect(screen.queryByText(/Escanear mi nevera/i)).not.toBeInTheDocument();
+        });
     });
 });

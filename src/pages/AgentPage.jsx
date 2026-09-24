@@ -482,6 +482,9 @@ export const generateIntelligentWelcome = (userProfile, formData, planData) => {
     // Con `exactMealName` vacío, cada franja cae a sus variantes genéricas
     // («¿Ya sabes qué vas a cenar?»): coaching de contador, que ya existía.
     const enModoContador = isTrackingMode(userProfile, planData);
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] La variante genérica de almuerzo invitaba a mirar la Nevera aunque el
+    // usuario la haya apagado (modo contador, Configuración → Capacidades). Mismo SSOT que la nav (`neveraActiva`).
+    const neveraOn = neveraActiva(userProfile);
 
     if (planData && !isPlanExpired && !enModoContador && mealKeyword !== 'madrugada') {
         const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
@@ -533,7 +536,9 @@ export const generateIntelligentWelcome = (userProfile, formData, planData) => {
         ] : [
             t('¿Preparando ya el almuerzo o necesitas una receta rápida?'),
             t('¡Llegó la hora de almorzar! ¿Qué vas a preparar?'),
-            t('¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.')
+            neveraOn
+                ? t('¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.')
+                : t('¿Necesitas ideas para tu comida del mediodía? Cuéntame qué se te antoja.')
         ];
         mealContext = variants[Math.floor(Math.random() * variants.length)];
     } else if (mealKeyword === 'cena') {

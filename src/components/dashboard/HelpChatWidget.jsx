@@ -6,7 +6,7 @@ import { fetchWithAuth } from '../../config/api';
 import LazyMarkdown from '../common/LazyMarkdown';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { SUPPORT_EMAIL } from './moreInfoLinks';
-import { isTrackingMode } from '../../config/dashboardNav';
+import { isTrackingMode, neveraActiva } from '../../config/dashboardNav';
 import { nativeHidesCommerce } from '../../config/platform';
 import { medirTecladoDeVentana } from '../../utils/keyboardViewport';
 import { safeJSONParse } from '../../utils/safeJSONParse';
@@ -47,10 +47,13 @@ const getGreeting = (t) => ({
 // devuelve un array pelado dejaría estos `t()` a profundidad 0.
 // [P1-PLAN-LOTE-137 · 2026-09-20] `contador`: con el generador apagado no hay plato del día que cambiar; la pregunta
 // útil ahí es cómo se anota una comida. «¿Cómo genero mi plan…?» se queda: es justo cómo se enciende.
-const getSuggestions = (t, contador = false) => {
+// [P1-NEVERA-OPCIONAL · 2026-09-23] `nevera`: con la Nevera apagada, «¿Para qué sirve la Nevera?» no tiene
+// respuesta útil — la pantalla ni existe. NO exportada (evita el warning `react-refresh/only-export-components`
+// de un archivo mixto componente+helper); se prueba por fuente, igual que el resto de este archivo.
+const getSuggestions = (t, contador = false, nevera = true) => {
     const base = [
         t('¿Cómo genero mi plan de comidas?'),
-        t('¿Para qué sirve la Nevera?'),
+        ...(nevera ? [t('¿Para qué sirve la Nevera?')] : []),
     ];
     if (contador) return [t('¿Cómo registro lo que como?'), ...base];
     if (nativeHidesCommerce()) return [t('¿Cómo cambio un plato del día?'), ...base];
@@ -233,7 +236,7 @@ export default function HelpChatWidget({ onClose }) {
                     )}
                     {showSuggestions && (
                         <div className={styles.suggestions}>
-                            {getSuggestions(t, isTrackingMode(null)).map((s) => (
+                            {getSuggestions(t, isTrackingMode(null), neveraActiva(null)).map((s) => (
                                 <button key={s} type="button" className={styles.suggestionChip} onClick={() => sendMessage(s)}>
                                     {s}
                                 </button>

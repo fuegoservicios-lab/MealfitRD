@@ -33,6 +33,8 @@ import { useTecladoDeHoja, estilosDeHojaConTeclado } from '../../hooks/useTeclad
 // prohíbe.
 import { coerceCountry, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI } from '../../config/countries';
 import { useAssessment } from '../../context/AssessmentContext';
+// [P1-NEVERA-OPCIONAL · 2026-09-23] Mismo SSOT que la nav del dashboard.
+import { neveraActiva } from '../../config/dashboardNav';
 import {
     getMealTypes as _getMealTypes,
     guessMealType as _guessMealType,
@@ -142,13 +144,19 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     // en el submit ("2 unidades de huevo"), no aquí, para que editar la
     // cantidad no obligue a re-serializar en cada tecla.
     const [components, setComponents] = useState([]);
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada (modo contador, apagada a mano o automáticamente tras
+    // 48 h vacía) no hay inventario que consultar: nace directo en `false` — la misma rama que ya existía para
+    // «no se sabe si hay algo» (lote 162), no una tercera. Mismo SSOT que la nav (`neveraActiva`, dashboardNav.js).
+    const { userProfile: _perfilNevera } = useAssessment() || {};
+    const _neveraOn = neveraActiva(_perfilNevera);
     // [P1-PLAN-LOTE-162 · 2026-09-22] ¿Hay algo en la Nevera? `null` = no se sabe. Quien usa la app como contador casi
     // nunca la llena, y cada foto terminaba en «Descontamos 0 de tu Nevera. No estaban registrados: arroz, pollo…»:
     // un mensaje que suena a error sobre algo que esa persona no usa. Con la Nevera vacía la sección se llama por lo
     // que es (los ingredientes que se guardan con la comida) y el aviso no habla de la Nevera. Los ingredientes se
     // siguen enviando igual: son el detalle de la comida en el diario, no solo lo que se descuenta.
-    const [neveraConCosas, setNeveraConCosas] = useState(null);
+    const [neveraConCosas, setNeveraConCosas] = useState(() => (_neveraOn ? null : false));
     useEffect(() => {
+        if (!_neveraOn) return undefined;
         if (!components.length || neveraConCosas !== null || !userId) return undefined;
         let cancelado = false;
         (async () => {
@@ -161,7 +169,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             } catch { /* se queda en «no se sabe»: la conducta de antes */ }
         })();
         return () => { cancelado = true; };
-    }, [components.length, neveraConCosas, userId]);
+    }, [_neveraOn, components.length, neveraConCosas, userId]);
     const [multiplier, setMultiplier] = useState(1);
     // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
     const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
@@ -297,7 +305,11 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             if (data.photo_kind === 'items') {
                 _setPreviewUrl(null);
                 setPhase('select');
-                setError(t('Esto parece una compra o alimentos sueltos, no un plato servido. Para llevarlos a tu Nevera usa "Escanear mi nevera" (página Nevera) o mándale la foto al Agente.'));
+                // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada, «llévalos a tu Nevera» no es un camino que
+                // exista: el aviso solo pide una foto del plato ya servido.
+                setError(_neveraOn
+                    ? t('Esto parece una compra o alimentos sueltos, no un plato servido. Para llevarlos a tu Nevera usa "Escanear mi nevera" (página Nevera) o mándale la foto al Agente.')
+                    : t('Esto parece una compra o alimentos sueltos, no un plato servido. Fotografía el plato ya servido para registrarlo.'));
                 return;
             }
             if (!data.is_food) {
@@ -350,7 +362,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             setPhase('select');
             setError(t('No pudimos analizar la imagen. Revisa tu conexión e intenta de nuevo.'));
         }
-    }, [userId, _setPreviewUrl, t]);
+    }, [userId, _setPreviewUrl, t, _neveraOn]);
 
     const onCameraChange = (e) => { handleFile(e.target.files?.[0]); e.target.value = ''; };
     const onGalleryChange = (e) => { handleFile(e.target.files?.[0]); e.target.value = ''; };

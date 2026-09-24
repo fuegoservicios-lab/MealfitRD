@@ -190,7 +190,7 @@ describe('lote 137 · el Agente', () => {
     it('el widget de ayuda no sugiere «cambiar un plato del día» a quien no tiene plan', () => {
         const w = leer('src/components/dashboard/HelpChatWidget.jsx');
         expect(w).toContain("if (contador) return [t('¿Cómo registro lo que como?'), ...base];");
-        expect(w).toContain('getSuggestions(t, isTrackingMode(null))');
+        expect(w).toContain('getSuggestions(t, isTrackingMode(null), neveraActiva(null))');
     });
 });
 

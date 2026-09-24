@@ -43,6 +43,9 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
+import { useAssessment } from '../../context/AssessmentContext';
+// [P1-NEVERA-OPCIONAL · 2026-09-23] Mismo SSOT que la nav del dashboard.
+import { neveraActiva } from '../../config/dashboardNav';
 import Chips from './Chips';
 import { getDayOptionsCon as _getDayOptionsCon } from './dayOptions';
 import { readFrequentFoodsCache, writeFrequentFoodsCache, mismaListaFrecuente } from '../../utils/frequentFoodsCache';
@@ -89,6 +92,11 @@ export function cantidadEscrita(texto) {
 const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo = 0, userId = null }) => {
     const t = useT();
     const tn = useTn();
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada no hay inventario que descontar: el interruptor
+    // desaparece (no se deshabilita) y el POST nunca pide la resta, aunque `deductPantry` quedara en `true` de
+    // una sesión anterior. Mismo SSOT que la nav (`neveraActiva`, config/dashboardNav.js).
+    const { userProfile } = useAssessment() || {};
+    const neveraOn = neveraActiva(userProfile);
     const [foods, setFoods] = useState(() => getCachedMasterList() || []);
     const [dishes, setDishes] = useState(() => getCachedDishes() || []);
     const [loadFailed, setLoadFailed] = useState(false);
@@ -229,7 +237,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                     meal_name: mealName.trim() || undefined,
                     meal_type: mealType,
                     days_ago: daysAgo,
-                    deduct_pantry: deductPantry,
+                    deduct_pantry: neveraOn && deductPantry,
                 }),
             });
             const data = await res.json().catch(() => null);
@@ -579,18 +587,20 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                 aria-label={t('Nombre de la comida')}
                             />
 
-                            <label className={styles.pantryToggle}>
-                                <input
-                                    type="checkbox"
-                                    checked={deductPantry}
-                                    onChange={(e) => setDeductPantry(e.target.checked)}
-                                />
-                                <span className={styles.pantryIcon} aria-hidden="true"><Refrigerator size={18} /></span>
-                                <span className={styles.pantryText}>
-                                    <span>{t('Descontar de mi Nevera')}</span>
-                                    <span className={styles.pantrySub}>{t('Resta estos alimentos de lo que tienes guardado.')}</span>
-                                </span>
-                            </label>
+                            {neveraOn && (
+                                <label className={styles.pantryToggle}>
+                                    <input
+                                        type="checkbox"
+                                        checked={deductPantry}
+                                        onChange={(e) => setDeductPantry(e.target.checked)}
+                                    />
+                                    <span className={styles.pantryIcon} aria-hidden="true"><Refrigerator size={18} /></span>
+                                    <span className={styles.pantryText}>
+                                        <span>{t('Descontar de mi Nevera')}</span>
+                                        <span className={styles.pantrySub}>{t('Resta estos alimentos de lo que tienes guardado.')}</span>
+                                    </span>
+                                </label>
+                            )}
                         </section>
                     )}
 
