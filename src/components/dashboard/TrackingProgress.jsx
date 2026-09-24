@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share2 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -25,6 +25,9 @@ import MicrosList from './MicrosList';
 import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import styles from './TrackingProgress.module.css';
+
+// [P1-COMPARTIR-DIA · 2026-09-23] La hoja se carga al abrirla: canvas + textos no pesan en el panel.
+const ShareDaySheet = lazy(() => import('./ShareDaySheet'));
 
 // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Cache local del card
 // "Progreso en Tiempo Real" para arranque instantáneo al re-mount.
@@ -157,6 +160,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // el effect de abajo ya escucha → las barras se actualizan solas.
     const [scanOpen, setScanOpen] = useState(false);
     const [logOpen, setLogOpen] = useState(false);
+    const [shareOpen, setShareOpen] = useState(false);
     const isLoggedIn = !!userId && userId !== 'guest';
     // [P1-DAILY-NOT-CYCLE · 2026-07-28] La key ya no depende de `planData` en
     // absoluto (era el único consumidor de `_getPlanTrackingStartIso`, ahora
@@ -174,6 +178,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // escritura. Misma clase que P2-HIST-MODALS-A11Y (onClose memoizado con useCallback).
     const handleScanClose = useCallback(() => setScanOpen(false), []);
     const handleLogClose = useCallback(() => setLogOpen(false), []);
+    const handleShareClose = useCallback(() => setShareOpen(false), []);
     // [P1-DIARY-FREETEXT-ESTIMATE] «Foto» desde el componedor: cierra el composedor y abre el escáner
     const handleLogToScan = useCallback(() => { setLogOpen(false); setScanOpen(true); }, []);
 
@@ -491,6 +496,17 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     // «desde afuera las dos opciones se ve un poco raro»). El escáner se abre
                     // desde ahí (`handleLogToScan`).
                     <div className={styles.logButtons}>
+                        {!loading && _todaysMeals.length > 0 && (
+                            <button
+                                type="button"
+                                className={styles.shareBtn}
+                                aria-label={t('Compartir mi día')}
+                                title={t('Compartir mi día')}
+                                onClick={() => setShareOpen(true)}
+                            >
+                                <Share2 size={18} strokeWidth={2.5} aria-hidden="true" />
+                            </button>
+                        )}
                         <button
                             className={styles.scanBtn}
                             onClick={() => setLogOpen(true)}
@@ -694,6 +710,16 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         pagar ese fetch en cada visita al dashboard. */}
                     {logOpen && (
                         <LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />
+                    )}
+                    {shareOpen && (
+                        <Suspense fallback={null}>
+                            <ShareDaySheet
+                                onClose={handleShareClose}
+                                consumed={displayedConsumed}
+                                metas={{ calories: goalCal, protein: goalPro, carbs: goalCarb, fats: goalFat }}
+                                microMetas={microTargets}
+                            />
+                        </Suspense>
                     )}
                     <ScanMealModal
                         isOpen={scanOpen}

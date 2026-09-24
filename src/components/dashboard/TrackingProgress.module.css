@@ -228,6 +228,34 @@
 
 .scanBtn:hover svg { color: #6366F1; }
 
+/* [P1-COMPARTIR-DIA · 2026-09-23] «Compartir mi día»: un icono ANTES de «Registrar comida», con la MISMA piel que
+   `.scanBtn` (borde, tinte, radio, hover y su oscuro) en reglas PROPIAS, no agrupadas: la regla de `.scanBtn` es
+   una sola a propósito (P1-SCAN-BTN-ACCENT). Que las dos pieles no se separen lo vigila ShareDaySheet.test.jsx.
+   Cuadrado y sin texto: una etiqueta más apretaría la cabecera. No estira (ni `flex: 1` ni `width: 100%`): quien
+   llena la fila en el teléfono sigue siendo `.scanBtn` (P2-SCANBTN-PAIR-MOBILE). */
+.shareBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    min-height: 38px;
+    padding: 0;
+    border-radius: 9px;
+    border: 1px solid #C7D2FE;
+    background: rgba(99, 102, 241, 0.06);
+    color: #4F46E5;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.shareBtn svg { color: #6366F1; transition: color 0.15s ease; }
+
+.shareBtn:hover {
+    border-color: #A5B4FC;
+    background: rgba(99, 102, 241, 0.13);
+}
+
 /* Progress Bar */
 .barLarge,
 .barSmall {
@@ -634,6 +662,12 @@
         justify-content: center;
         padding: 0.7rem 1rem;
     }
+    /* [P1-COMPARTIR-DIA · 2026-09-23] Sigue a `.scanBtn`, que aquí crece a 0.7rem de relleno (~43px de alto): el
+       cuadrado sube a 44×44 para compartir el alto de la fila y ser un objetivo táctil de 44px. Ancho FIJO. */
+    .shareBtn {
+        width: 44px;
+        min-height: 44px;
+    }
     /* [P1-DIARY-EDITABLE · 2026-07-28] Menos padding vertical en móvil,
        consistente con el resto de la card en este breakpoint. */
     .mealsSection {
@@ -781,6 +815,20 @@
 }
 
 :global(html[data-theme="dark"]) .scanBtn:hover svg { color: #A5B4FC; }
+
+/* [P1-COMPARTIR-DIA · 2026-09-23] El oscuro de «Compartir mi día»: el de `.scanBtn`, valor por valor. */
+:global(html[data-theme="dark"]) .shareBtn {
+    border-color: rgba(129, 140, 248, 0.45);
+    color: #A5B4FC;
+    background: rgba(99, 102, 241, 0.12);
+}
+
+:global(html[data-theme="dark"]) .shareBtn svg { color: #A5B4FC; }
+
+:global(html[data-theme="dark"]) .shareBtn:hover {
+    border-color: rgba(129, 140, 248, 0.75);
+    background: rgba(99, 102, 241, 0.2);
+}
 
 /* [P1-DIARY-EDITABLE · 2026-07-28] Oscuro: mismos pares de variables que el
    resto de la card (border/bg-muted/text-*). */

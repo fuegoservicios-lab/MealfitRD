@@ -1,0 +1,302 @@
+/* [P1-COMPARTIR-DIA · 2026-09-23] «Compartir tu día». MISMA piel que la hoja de «Registrar comida»
+   (LogMealModal.module.css): fondo oscurecido, tokens del tema (`--bg-card`, `--bg-muted`, `--border`, `--text-*`,
+   `--primary*`) para que el oscuro salga solo, y lo poco que no, al final.
+   · Teléfono (≤640px): hoja inferior pegada abajo, esquinas arriba, cabecera y pie fijos, cuerpo desplazable.
+   · Escritorio: centrada, 440px.
+   · Objetivos táctiles de 44px o más; el verde de WhatsApp con texto oscuro (6,4:1). */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    /* Portalizado a <body>: mismo peldaño que el resto de modales (z-scale). */
+    z-index: var(--z-modal, 1000);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: sdFadeIn 0.2s ease;
+}
+
+@keyframes sdFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes sdRise {
+    from { transform: translateY(24px); }
+    to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overlay, .sheet { animation: none; }
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: default;
+}
+
+.sheet {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /* `dvh`: la barra del navegador del teléfono se esconde al desplazar y `vh` la cuenta siempre. */
+    max-height: 92vh;
+    max-height: 92dvh;
+    min-height: 0;
+    background:
+        radial-gradient(130% 40% at 50% 0%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 60%),
+        var(--bg-card, #ffffff);
+    color: var(--text-main, #0F172A);
+    border: 1px solid var(--border, #E2E8F0);
+    border-bottom: 0;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -20px 60px -20px rgba(2, 6, 23, 0.5);
+    outline: none;
+    animation: sdRise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (min-width: 641px) {
+    .overlay { align-items: center; padding: 1rem; }
+    .sheet {
+        max-width: 440px;
+        border-bottom: 1px solid var(--border, #E2E8F0);
+        border-radius: 20px;
+        box-shadow: 0 28px 70px -16px rgba(2, 6, 23, 0.45);
+    }
+}
+
+/* ---- Cabecera fija ---- */
+.head {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 1.1rem 0.75rem;
+    border-bottom: 1px solid var(--border, #E2E8F0);
+}
+
+/* El asa: solo decora (cierran la X, el fondo, Escape o deslizar), y solo en el teléfono. */
+.grip {
+    align-self: center;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-muted, #64748B) 35%, transparent);
+}
+
+@media (min-width: 641px) {
+    .grip { display: none; }
+    .head { padding-top: 1rem; }
+}
+
+.headRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-main, #0F172A);
+}
+
+.close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--primary, #4F46E5);
+    cursor: pointer;
+}
+
+/* ---- Cuerpo desplazable: la vista previa ---- */
+.body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    padding: 1rem 1.1rem;
+}
+
+/* Reserva casi el alto de la imagen mientras se dibuja: la hoja no salta al llegar. */
+.preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 16rem;
+    min-height: min(52dvh, 26rem);
+    padding: 0.75rem;
+    border-radius: 16px;
+    background: var(--bg-muted, #F1F5F9);
+    color: var(--text-muted, #64748B);
+}
+
+/* La caja mide lo que la imagen (no `width: 100%`): así el radio redondea la IMAGEN y no una caja con franjas. */
+.img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 52vh;
+    max-height: 52dvh;
+    object-fit: contain;
+    border-radius: 14px;
+    box-shadow: 0 14px 34px -16px rgba(2, 6, 23, 0.6);
+}
+
+/* Sin canvas (WebView rara): el texto que se compartiría, tal cual. */
+.textoPlano {
+    margin: 0;
+    width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: inherit;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    text-align: left;
+    color: var(--text-main, #0F172A);
+}
+
+/* ---- Pie fijo: interruptor y acciones ---- */
+.footer {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.8rem 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border, #E2E8F0);
+    background: var(--bg-card, #ffffff);
+}
+
+@media (min-width: 641px) {
+    .footer { border-radius: 0 0 20px 20px; }
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 46px;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid var(--border, #E2E8F0);
+    border-radius: 12px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-main, #0F172A);
+}
+
+.toggle input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--primary-fill, #4F46E5);
+    flex-shrink: 0;
+}
+
+/* Dos por fila; la que queda sola en la última fila crece al ancho entero (flex-grow), y «Compartir» va entera. */
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.primary,
+.whatsapp,
+.secondary {
+    flex: 1 1 140px;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 46px;
+    padding: 0.4rem 0.9rem;
+    border-radius: 12px;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.primary > svg,
+.whatsapp > svg,
+.secondary > svg { flex-shrink: 0; }
+
+.primary {
+    flex-basis: 100%;
+    min-height: 48px;
+    border: 0;
+    background: var(--primary-fill, #4F46E5);
+    color: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px -10px rgba(79, 70, 229, 0.7);
+}
+
+.whatsapp {
+    border: 0;
+    background: #25D366;
+    color: #073B22;
+}
+
+.secondary {
+    border: 1px solid var(--border, #E2E8F0);
+    background: var(--bg-muted, #F1F5F9);
+    color: var(--text-main, #0F172A);
+    font-weight: 700;
+}
+
+.primary:hover:not(:disabled),
+.whatsapp:hover { filter: brightness(1.05); }
+
+.secondary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary, #6366F1) 8%, var(--bg-muted, #F1F5F9));
+}
+
+.primary:disabled,
+.secondary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+
+.primary:focus-visible,
+.whatsapp:focus-visible,
+.secondary:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, 0.5);
+    outline-offset: 2px;
+}
+
+/* ---- Tema oscuro: solo lo que los tokens no cubren ---- */
+:global(html[data-theme="dark"]) .sheet {
+    background:
+        radial-gradient(130% 40% at 50% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 60%),
+        var(--bg-card, #0F172A);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+
+:global(html[data-theme="dark"]) .primary { box-shadow: 0 8px 20px -10px rgba(99, 102, 241, 0.55); }
+
+:global(html[data-theme="dark"]) .secondary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary, #6366F1) 16%, var(--bg-muted, #1E293B));
+}
