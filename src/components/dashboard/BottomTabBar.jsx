@@ -5,7 +5,7 @@ import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 // [P1-GUEST-NAV-LOCK · 2026-06-15] Modo invitado: secciones que requieren cuenta.
 import { useAssessment } from '../../context/AssessmentContext';
-import { navItemsFor, isTrackingMode, repartoTelefono } from '../../config/dashboardNav';
+import { navItemsFor, isTrackingMode, repartoTelefono, neveraActiva } from '../../config/dashboardNav';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al touchstart
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del data del Historial
@@ -33,7 +33,7 @@ const BottomTabBar = () => {
     const { isGuest, userProfile, planData } = useAssessment();
     // [P1-PLAN-LOTE-119] La barra lleva como mucho 5: lo que no cabe (el Historial, con el generador encendido) vive
     // en el menú ☰ de la cabecera. El reparto es del SSOT (`repartoTelefono`), no de aquí.
-    const tabs = repartoTelefono(navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })).barra
+    const tabs = repartoTelefono(navItemsFor({ trackingMode: isTrackingMode(userProfile, planData), nevera: neveraActiva(userProfile) })).barra
         .map((it) => ({ ...it, ..._tabIcons[it.key] }));
 
     // [P1-GUEST-NAV-LOCK · 2026-06-15] Para invitados, todo salvo Plan requiere

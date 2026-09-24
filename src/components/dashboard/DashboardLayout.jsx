@@ -13,7 +13,7 @@ import { LayoutDashboard, Activity, Settings, LogOut, Menu, X, Clock, Refrigerat
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
-import { navItemsFor, isTrackingMode, repartoTelefono } from '../../config/dashboardNav';
+import { navItemsFor, isTrackingMode, repartoTelefono, neveraActiva } from '../../config/dashboardNav';
 // [P3-DASH-MODALS-A11Y · 2026-05-30] Hook SSOT de a11y (ESC + focus-trap +
 // restore + body-overflow) para el "Mobile More Menu" — overlay full-screen
 // con acción destructiva (Cerrar Sesión) que era el único surface modal-like
@@ -180,7 +180,7 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
         recipes: { icon: RecipesIcon },
         history: { icon: Clock },
     };
-    const menuItems = navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })
+    const menuItems = navItemsFor({ trackingMode: isTrackingMode(userProfile, planData), nevera: neveraActiva(userProfile) })
         .map((it) => ({ ...it, ..._navIcons[it.key] }));
     // [P1-PLAN-LOTE-119] Lo que no cabe en la barra de pestañas del teléfono (el Historial, con el generador
     // encendido) encabeza el menú ☰. Mismo SSOT que la barra: lo que sale de un sitio entra en el otro.

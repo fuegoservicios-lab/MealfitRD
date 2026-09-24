@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react';
+// [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada la ruta redirige al panel (envoltorio al final del fichero).
+import { Navigate } from 'react-router-dom';
 // [P2-PANTRY-MODALS-A11Y · 2026-05-30] Los 3 modales custom de Pantry
 // (añadir / ajustar cantidad / vaciar nevera destructivo) eran divs fixed sin
 // role=dialog/focus-trap/ESC/restore-focus. SSOT P2-CUSTOM-MODALS-A11Y.
@@ -9,7 +11,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useDisabledIngredients } from '../hooks/useDisabledIngredients';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssessment } from '../context/AssessmentContext';
-import { isTrackingMode } from '../config/dashboardNav';
+import { isTrackingMode, neveraActiva } from '../config/dashboardNav';
 import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. El hook es lo que suscribe el
 // componente al cambio de catálogo; las tablas de copy de abajo son FUNCIONES por
@@ -393,7 +395,10 @@ const CATEGORY_NORMALIZE = {
     'Carbohidratos': 'Cereales y Granos',
 };
 
-const Pantry = () => {
+// [P1-NEVERA-OPCIONAL · 2026-09-23] Renombrado de `Pantry` a `PantryPage`: el nombre `Pantry` pasa a ser el
+// envoltorio de abajo (que decide si esta página se pinta), y NO lleva `export default` — sin él no hay riesgo de
+// que un import despistado se salte el guard de ruta.
+const PantryPage = () => {
     // [P1-I18N-DASHBOARD] Sombrea al `t` de módulo a propósito: es la MISMA
     // función, pero pasar por el hook es lo que suscribe este componente al
     // cambio de idioma. Las tablas de copy de arriba usan el de módulo porque
@@ -3860,4 +3865,10 @@ const Pantry = () => {
     );
 };
 
-export default Pantry;
+// [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada (modo contador) la ruta existe —pushes viejas, enlaces
+// guardados— pero lleva al panel. Envoltorio aparte para no romper el orden de los hooks de la página.
+export default function Pantry(props) {
+    const { userProfile } = useAssessment();
+    if (!neveraActiva(userProfile)) return <Navigate to="/dashboard" replace />;
+    return <PantryPage {...props} />;
+}

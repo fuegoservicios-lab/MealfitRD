@@ -18,7 +18,7 @@
 import { t } from '../i18n';
 import { safeLocalStorageGet } from '../utils/safeLocalStorage';
 
-export const navItemsFor = ({ trackingMode = false } = {}) => [
+export const navItemsFor = ({ trackingMode = false, nevera = true } = {}) => [
     // [P1-PLAN-LOTE-102 · 2026-09-18] «Progreso», no «Hoy»: la pestaña es el contador (macros, hidratación), y «Hoy»
     // no decía de qué (el dueño).
     { key: 'plan', label: trackingMode ? t('Progreso') : t('Plan|nav'), path: '/dashboard' },
@@ -27,7 +27,10 @@ export const navItemsFor = ({ trackingMode = false } = {}) => [
     // En modo contador NO se duplica: ahí «Progreso» ya es la primera.
     ...(trackingMode ? [] : [{ key: 'progress', label: t('Progreso'), path: '/dashboard/progress' }]),
     { key: 'agent', label: t('Agente'), path: '/dashboard/agent' },
-    { key: 'pantry', label: t('Nevera'), path: '/dashboard/pantry' },
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada (modo contador + apagado propio o automático) su
+    // pestaña desaparece — igual que «Recetas»/«Progreso» arriba, la entrada nace y muere aquí, no con un guard
+    // aguas abajo por consumidor.
+    ...(nevera ? [{ key: 'pantry', label: t('Nevera'), path: '/dashboard/pantry' }] : []),
     ...(trackingMode ? [] : [{ key: 'recipes', label: t('Recetas'), path: '/dashboard/recipes' }]),
     { key: 'history', label: t('Historial'), path: '/history' },
 ];
@@ -73,4 +76,13 @@ export const isTrackingMode = (userProfile, _planData) => {
     if (mode === 'tracking') return true;   // elección explícita: contador manda
     if (mode === 'plan') return false;
     return false; // desconocido: jamás ocultar por ignorancia (planData ya no pesa)
+};
+
+/** [P1-NEVERA-OPCIONAL · 2026-09-23] ¿Se ve la Nevera? LA regla vive en el servidor (`nevera_opcional.nevera_activa_de`:
+ *  apagada solo en modo contador y si el usuario —o el apagado automático tras 48 h vacía— la apagó) y llega
+ *  CALCULADA en el perfil (`nevera_activa`). Aquí solo se lee: primero el perfil, después el espejo que siembra
+ *  `fetchProfile`, y sin nada, ACTIVA — ocultar por ignorancia es peor que mostrar de más (la doctrina del modo). */
+export const neveraActiva = (userProfile) => {
+    if (userProfile && typeof userProfile.nevera_activa === 'boolean') return userProfile.nevera_activa;
+    return safeLocalStorageGet('mealfit_nevera_activa', null) !== 'false';
 };

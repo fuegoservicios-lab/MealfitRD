@@ -66,8 +66,9 @@ describe('la barra', () => {
         const layout = leer('components/dashboard/DashboardLayout.jsx');
         expect(layout).toContain('const menuTelefono = repartoTelefono(menuItems).menu;');
         expect(layout).toContain('{menuTelefono.map((item) => {');
+        // [P1-NEVERA-OPCIONAL] la nav también depende de la Nevera
         expect(leer('components/dashboard/BottomTabBar.jsx'))
-            .toContain('repartoTelefono(navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })).barra');
+            .toContain('repartoTelefono(navItemsFor({ trackingMode: isTrackingMode(userProfile, planData), nevera: neveraActiva(userProfile) })).barra');
     });
 });
 

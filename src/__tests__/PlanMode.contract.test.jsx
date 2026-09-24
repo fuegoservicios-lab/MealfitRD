@@ -191,7 +191,8 @@ describe('[P1-PLAN-MODE] anclas de los archivos tocados', () => {
         for (const rel of ['components/dashboard/DashboardLayout.jsx', 'components/dashboard/BottomTabBar.jsx']) {
             const s = read(rel);
             expect(s, rel).toContain("from '../../config/dashboardNav'");
-            expect(s, rel).toContain('navItemsFor({ trackingMode: isTrackingMode(userProfile, planData) })');
+            // [P1-NEVERA-OPCIONAL] la nav también depende de la Nevera
+            expect(s, rel).toContain('navItemsFor({ trackingMode: isTrackingMode(userProfile, planData), nevera: neveraActiva(userProfile) })');
             // la copia vieja murió: nadie declara label Recetas con path inline
             expect(s, rel).not.toContain("label: 'Recetas', path: '/dashboard/recipes'");
         }

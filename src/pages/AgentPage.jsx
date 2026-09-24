@@ -4,7 +4,7 @@ import { useAutosizeTextarea, CHAT_TEXTAREA_MAX_HEIGHT_PX } from '../utils/autos
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
-import { isTrackingMode, navItemsFor } from '../config/dashboardNav';
+import { isTrackingMode, navItemsFor, neveraActiva } from '../config/dashboardNav';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
@@ -387,7 +387,7 @@ const _computeFetchBackoffMs = (baseDelayMs, attempt) => {
  * dentro «Configuración», que no navega sino que abre ventana (P1-SETTINGS-DIALOG)
  * para que la conversación siga detrás y no se desmonte.
  */
-export const menuItemsDelAgente = (enModoContador) => {
+export const menuItemsDelAgente = (enModoContador, userProfile) => {
     // [P1-PLAN-LOTE-137 · 2026-09-20] `progress` faltaba desde el lote 103 (la pestaña «Progreso» del modo plan): la
     // entrada llegaba con `icon: undefined` y `<item.icon/>` tumbaba el menú ☰ del Agente en modo plan. El respaldo
     // (`?? LayoutDashboard`) es para la PRÓXIMA entrada que alguien añada a la nav sin pasar por aquí.
@@ -399,7 +399,9 @@ export const menuItemsDelAgente = (enModoContador) => {
         history: Clock,
     };
     return [
-        ...navItemsFor({ trackingMode: enModoContador })
+        // [P1-NEVERA-OPCIONAL · 2026-09-23] `userProfile` es un parámetro aparte (esta función vive fuera del
+        // componente, como `generateIntelligentWelcome`): el caller se lo pasa desde su propio ámbito.
+        ...navItemsFor({ trackingMode: enModoContador, nevera: neveraActiva(userProfile) })
             .filter((i) => i.key !== 'agent')
             .map((i) => ({ icon: iconoPorKey[i.key] ?? LayoutDashboard, label: i.label, path: i.path })),
         { icon: Settings, label: t('Configuración'), path: '/dashboard/settings', asDialog: true },
@@ -5715,7 +5717,7 @@ const AgentPage = () => {
                                     animation: 'fadeSlideDown 0.2s ease'
                                 }}>
                                     {isMobile && <CoachQuotaMeter quota={coachQuota} variant="row" />}
-                                    {menuItemsDelAgente(enModoContador).map((item) => (
+                                    {menuItemsDelAgente(enModoContador, userProfile).map((item) => (
                                         <button
                                             role="menuitem"
                                             key={item.path}

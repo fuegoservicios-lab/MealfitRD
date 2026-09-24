@@ -315,6 +315,10 @@ const _clearUserScopedCaches = () => {
     safeLocalStorageRemove('mealfit_plan_mode');
     safeLocalStorageRemove('mealfit_water_tracker_enabled');
     safeLocalStorageRemove('mealfit_water_auto_off_visto');
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] Mismo motivo que el trío de arriba: en un dispositivo compartido, la
+    // cuenta B heredaría la Nevera apagada de A sin haber preguntado jamás al servidor.
+    safeLocalStorageRemove('mealfit_nevera_activa');
+    safeLocalStorageRemove('mealfit_nevera_auto_off_visto');
 };
 
 
@@ -1347,6 +1351,11 @@ export const AssessmentProvider = ({ children }) => {
                 if (data.plan_mode === 'tracking' || data.plan_mode === 'plan') {
                     safeLocalStorageSet('mealfit_plan_mode', data.plan_mode);
                 }
+                // [P1-NEVERA-OPCIONAL · 2026-09-23] El espejo de la Nevera, por la misma razón que el del modo: que la
+                // nav no pinte un instante una pestaña que el usuario apagó.
+                if (typeof data.nevera_activa === 'boolean') {
+                    safeLocalStorageSet('mealfit_nevera_activa', String(data.nevera_activa));
+                }
                 // [P1-I18N-DASHBOARD · 2026-08-15] El idioma sigue al USUARIO,
                 // no al dispositivo: `user_profiles.locale` es la fuente de
                 // verdad y este es el punto donde llega. `localStorage` ya
@@ -1453,6 +1462,12 @@ export const AssessmentProvider = ({ children }) => {
 
                 if (data) {
                     setUserProfile(data);
+                    // [P1-NEVERA-OPCIONAL · 2026-09-23] Mismo espejo que `fetchProfile`: este path asigna el perfil
+                    // por su PROPIO fetch (no llama a `fetchProfile`), así que sin esto el espejo quedaba stale tras
+                    // un focus/visibilitychange que cambiara `nevera_activa` (p.ej. el apagado automático a las 48 h).
+                    if (typeof data.nevera_activa === 'boolean') {
+                        safeLocalStorageSet('mealfit_nevera_activa', String(data.nevera_activa));
+                    }
 
                     if (data.health_profile && Object.keys(data.health_profile).length > 0) {
                         // [P0-FORM-3] Mismo filtro que `fetchProfile`. Este path
