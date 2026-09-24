@@ -209,16 +209,19 @@ const DashboardTracking = ({ modo = 'contador' }) => {
 
     // [P1-NEVERA-OPCIONAL · 2026-09-23] La Nevera se apaga SOLA tras 48 h vacía en modo contador; que no sea en
     // silencio: se dice UNA vez por apagado y por dispositivo, con el camino de vuelta (mismo patrón que la hidratación).
+    // Solo en el panel del CONTADOR (`modo === 'contador'`, como la invitación de abajo): este componente es también la
+    // pestaña «Progreso» del modo plan, donde la Nevera es obligatoria. La guarda es del cliente —no se apoya en que el
+    // servidor nunca mande `nevera_activa: false` en modo plan— y corta ANTES de dar la nota por vista.
     useEffect(() => {
         const at = userProfile?.nevera_auto_off_at;
-        if (userProfile?.nevera_activa !== false || typeof at !== 'string' || !at) return;
+        if (modo !== 'contador' || userProfile?.nevera_activa !== false || typeof at !== 'string' || !at) return;
         if (safeLocalStorageGet('mealfit_nevera_auto_off_visto', null) === at) return;
         safeLocalStorageSet('mealfit_nevera_auto_off_visto', at);
         toast(t('Ocultamos tu Nevera'), {
             description: t('Llevaba 2 días vacía. Puedes volver a encenderla en Configuración → Capacidades.'),
             duration: 6000,
         });
-    }, [userProfile?.nevera_activa, userProfile?.nevera_auto_off_at, t]);
+    }, [modo, userProfile?.nevera_activa, userProfile?.nevera_auto_off_at, t]);
 
     // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile` en las dos secciones grandes: en el teléfono van SIN
     // marco de tarjeta y a todo el ancho (el dueño: «quitamos eso de las tarjeticas en móviles»). Sigue

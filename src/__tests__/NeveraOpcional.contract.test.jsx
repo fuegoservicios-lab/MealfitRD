@@ -158,7 +158,7 @@ describe('Configuración → Capacidades: la tarjeta «Nevera»', () => {
 // ── F5 · la nota ÚNICA del apagado automático en el panel del contador (montaje de lote112) ───────────────────────
 describe('el panel del contador avisa UNA vez del apagado automático', () => {
     const AT = '2026-09-25T12:00:00+00:00';
-    const pintar = (perfil) => render(<DashboardTracking />, {
+    const pintar = (perfil, props = {}) => render(<DashboardTracking {...props} />, {
         customContext: {
             userProfile: { id: 'u1', plan_mode: 'tracking', ...perfil },
             planData: null, formData: {}, session: { user: { id: 'u1' } }, updateData: vi.fn(),
@@ -184,5 +184,16 @@ describe('el panel del contador avisa UNA vez del apagado automático', () => {
         cleanup();
         pintar({ nevera_activa: false, nevera_auto_off_at: null });
         expect(_toast).not.toHaveBeenCalled();
+    });
+
+    // [Fix round 1] Este componente es TAMBIÉN la pestaña «Progreso» del modo plan (ProgressPage monta
+    // `<DashboardTracking modo="plan" />`). La nota es del panel del contador: la guarda vive en el cliente, no solo en
+    // que el servidor nunca mande `nevera_activa: false` en modo plan.
+    it('en la pestaña «Progreso» del modo plan no avisa, ni da la nota por vista', () => {
+        pintar({ plan_mode: 'plan', nevera_activa: false, nevera_auto_off_at: AT }, { modo: 'plan' });
+        expect(_toast).not.toHaveBeenCalled();
+        cleanup();
+        pintar({ nevera_activa: false, nevera_auto_off_at: AT });   // el contador la sigue diciendo cuando toque
+        expect(_toast).toHaveBeenCalledTimes(1);
     });
 });
