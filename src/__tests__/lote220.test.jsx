@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-216 · 2026-09-24] Cada recordatorio de comida, con su interruptor y su hora.
+// [P1-PLAN-LOTE-220 · 2026-09-24] Cada recordatorio de comida, con su interruptor y su hora.
 //
 // El dueño, con el aviso del desayuno todavía en el chat a la 1:18 p. m.: «¿y qué tal si el usuario lo puede decidir?
 // … no sería más flexible?». Su almuerzo sonaba hacia las 2:15 porque la hora salía de cuándo REGISTRABA (siempre
@@ -45,7 +45,7 @@ const montar = async (props = {}) => {
 const hora = (nombre) => screen.getByLabelText(`Hora del recordatorio: ${nombre}`);
 const interruptor = (nombre) => screen.getByLabelText(`Recordatorio: ${nombre}`);
 
-describe('lote 216 · el panel pinta lo que dice el servidor', () => {
+describe('lote 220 · el panel pinta lo que dice el servidor', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         comidasDelServidor = COMIDAS_NORMALES;
@@ -94,7 +94,7 @@ describe('lote 216 · el panel pinta lo que dice el servidor', () => {
     });
 });
 
-describe('lote 216 · lo que se guarda', () => {
+describe('lote 220 · lo que se guarda', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         comidasDelServidor = COMIDAS_NORMALES;
@@ -270,7 +270,7 @@ describe('lote 216 · lo que se guarda', () => {
     });
 });
 
-describe('lote 216 · lo puro', () => {
+describe('lote 220 · lo puro', () => {
     it('configParaGuardar: la hora solo viaja si la persona la eligió', () => {
         expect(configParaGuardar([
             fila('desayuno', 7, 5, { chosen: true }),
@@ -299,7 +299,7 @@ describe('lote 216 · lo puro', () => {
     });
 });
 
-describe('lote 216 · Configuración lo pinta donde toca', () => {
+describe('lote 220 · Configuración lo pinta donde toca', () => {
     const S = leer('src/pages/Settings.jsx');
 
     it('solo con los recordatorios de comida encendidos, y al guardar el teléfono reprograma', () => {

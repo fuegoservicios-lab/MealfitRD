@@ -45,7 +45,7 @@ describe('lote 150 · los dos interruptores de avisos', () => {
     it('los cuatro textos están en los cuatro catálogos', () => {
         for (const loc of ['en-US', 'pt-BR', 'fr-FR', 'it-IT']) {
             const cat = JSON.parse(leer(`src/i18n/locales/${loc}.json`));
-            // [P1-PLAN-LOTE-216] el subtítulo dejó de prometer «tu hora habitual»: la hora ahora la eliges tú
+            // [P1-PLAN-LOTE-220] el subtítulo dejó de prometer «tu hora habitual»: la hora ahora la eliges tú
             for (const k of ['Recordatorios de comida', 'Recordatorios de agua',
                 'Un aviso por comida, a la hora que elijas.',
                 'Avisos para que no se te olvide beber durante el día.']) {

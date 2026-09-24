@@ -65,7 +65,7 @@ import StapleFoodsPanel from '../components/settings/StapleFoodsPanel';
 // [P1-CLINICAL-PANEL · 2026-07-03] Panel opt-in de perfil clínico avanzado
 // (labs, historia ponderal, digestión, entrenamiento) → health_profile.clinical_profile.
 import ClinicalProfilePanel from '../components/settings/ClinicalProfilePanel';
-// [P1-PLAN-LOTE-216 · 2026-09-24] Interruptor y hora de cada recordatorio de comida (health_profile.avisos_por_comida).
+// [P1-PLAN-LOTE-220 · 2026-09-24] Interruptor y hora de cada recordatorio de comida (health_profile.avisos_por_comida).
 import RecordatoriosPorComida from '../components/settings/RecordatoriosPorComida';
 import { acusePrioritario } from '../hooks/useAutoguardado';
 // [P1-ACCOUNT-DELETE-1 · 2026-06-22] Misma sección "Eliminar cuenta" que /configuracion.
@@ -3480,7 +3480,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                     <span className={styles.toggleSlider}></span>
                                                 </label>
                                             </div>
-                                            {/* [P1-PLAN-LOTE-216] Con los de comida encendidos: cada comida, su interruptor y su hora. Tras
+                                            {/* [P1-PLAN-LOTE-220] Con los de comida encendidos: cada comida, su interruptor y su hora. Tras
                                                 guardar, el teléfono reprograma con lo que diga el servidor (en web no hace nada). */}
                                             {clave === 'avisos_comida' && valor && (
                                                 <RecordatoriosPorComida
