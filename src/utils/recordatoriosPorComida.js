@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-213 · 2026-09-24] Lo puro de «Configuración → Recordatorios de comida»: qué se guarda y cómo se lee una
+// [P1-PLAN-LOTE-216 · 2026-09-24] Lo puro de «Configuración → Recordatorios de comida»: qué se guarda y cómo se lee una
 // hora. Fuera del componente para que se pruebe sin DOM (y para que ese fichero solo exporte el componente).
 
 /** La clave de `health_profile` (el servidor la valida en `PATCH /api/profile`). */
