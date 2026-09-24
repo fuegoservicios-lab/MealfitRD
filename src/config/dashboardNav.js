@@ -80,9 +80,16 @@ export const isTrackingMode = (userProfile, _planData) => {
 
 /** [P1-NEVERA-OPCIONAL · 2026-09-23] ¿Se ve la Nevera? LA regla vive en el servidor (`nevera_opcional.nevera_activa_de`:
  *  apagada solo en modo contador y si el usuario —o el apagado automático tras 48 h vacía— la apagó) y llega
- *  CALCULADA en el perfil (`nevera_activa`). Aquí solo se lee: primero el perfil, después el espejo que siembra
- *  `fetchProfile`, y sin nada, ACTIVA — ocultar por ignorancia es peor que mostrar de más (la doctrina del modo). */
+ *  CALCULADA en el perfil (`nevera_activa`). Aquí solo se LEE, en este orden (ola final de la revisión):
+ *   1. Fuera del modo contador, ACTIVA siempre. Es la mitad de la regla que el cliente sí tiene que aplicar:
+ *      `saveGeneratedPlan` pasa `plan_mode` a 'plan' EN MEMORIA sin volver a pedir el perfil, así que el
+ *      `nevera_activa: false` del contador seguiría ahí y el recién llegado al plan se quedaría sin Nevera.
+ *   2. Con perfil cargado, su campo; SIN el campo (backend viejo, rollback) cuenta como activa — nunca el espejo,
+ *      que puede guardar una decisión que ese backend ya no sostiene.
+ *   3. Solo sin perfil (el primer pintado), el espejo que siembra `fetchProfile`.
+ *  «No sé» ⇒ ACTIVA: ocultar por ignorancia es peor que mostrar de más (la doctrina del modo). */
 export const neveraActiva = (userProfile) => {
-    if (userProfile && typeof userProfile.nevera_activa === 'boolean') return userProfile.nevera_activa;
+    if (!isTrackingMode(userProfile)) return true;
+    if (userProfile) return userProfile.nevera_activa !== false;
     return safeLocalStorageGet('mealfit_nevera_activa', null) !== 'false';
 };

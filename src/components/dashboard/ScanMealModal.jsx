@@ -144,20 +144,30 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     // en el submit ("2 unidades de huevo"), no aquí, para que editar la
     // cantidad no obligue a re-serializar en cada tecla.
     const [components, setComponents] = useState([]);
+    // UNA sola lectura del contexto: el perfil (la Nevera, aquí) y el formulario (el país, más abajo). `|| {}`: este
+    // modal se renderiza AISLADO en sus tests (y podría montarse fuera del provider en un futuro shell), y sin la
+    // guarda `useAssessment()` devuelve undefined y el destructuring revienta el componente entero. Un aviso
+    // informativo no puede ser la razón por la que el escáner deja de abrirse: 10 tests lo dijeron al primer intento.
+    const { userProfile: _perfilNevera, formData: _scanFormData } = useAssessment() || {};
     // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada (modo contador, apagada a mano o automáticamente tras
-    // 48 h vacía) no hay inventario que consultar: nace directo en `false` — la misma rama que ya existía para
-    // «no se sabe si hay algo» (lote 162), no una tercera. Mismo SSOT que la nav (`neveraActiva`, dashboardNav.js).
-    const { userProfile: _perfilNevera } = useAssessment() || {};
+    // 48 h vacía) no hay inventario que consultar: se trata como VACÍA — la misma rama que ya existía para la Nevera
+    // sin nada (lote 162), no una tercera. Mismo SSOT que la nav (`neveraActiva`, dashboardNav.js).
     const _neveraOn = neveraActiva(_perfilNevera);
     // [P1-PLAN-LOTE-162 · 2026-09-22] ¿Hay algo en la Nevera? `null` = no se sabe. Quien usa la app como contador casi
     // nunca la llena, y cada foto terminaba en «Descontamos 0 de tu Nevera. No estaban registrados: arroz, pollo…»:
     // un mensaje que suena a error sobre algo que esa persona no usa. Con la Nevera vacía la sección se llama por lo
     // que es (los ingredientes que se guardan con la comida) y el aviso no habla de la Nevera. Los ingredientes se
     // siguen enviando igual: son el detalle de la comida en el diario, no solo lo que se descuenta.
-    const [neveraConCosas, setNeveraConCosas] = useState(() => (_neveraOn ? null : false));
+    // [P1-NEVERA-OPCIONAL · ola final · 2026-09-23] Lo LEÍDO del servidor (`neveraLeida`) y lo que ven los rótulos
+    // (`neveraConCosas`) van separados: el modal vive siempre montado y el perfil cambia debajo de él (el refresco al
+    // volver a la app tras el apagado automático; apagarla en Configuración). Congelar el valor al montar dejaba
+    // «Descontar de tu Nevera» y sus interruptores con la Nevera ya apagada — y, al revés, sin volver a preguntar al
+    // encenderla. Derivado en cada render: apagada ⇒ `false`; encendida ⇒ lo leído, y si no se leyó aún (`null`),
+    // el efecto de abajo pregunta.
+    const [neveraLeida, setNeveraLeida] = useState(null);
     useEffect(() => {
-        if (!_neveraOn) return undefined;
-        if (!components.length || neveraConCosas !== null || !userId) return undefined;
+        if (!_neveraOn) return undefined;   // apagada: jamás se pide el inventario
+        if (!components.length || neveraLeida !== null || !userId) return undefined;
         let cancelado = false;
         (async () => {
             try {
@@ -165,11 +175,12 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                 if (!res.ok || cancelado) return;
                 const datos = await res.json();
                 const items = Array.isArray(datos?.items) ? datos.items : null;
-                if (items && !cancelado) setNeveraConCosas(items.some((it) => Number(it?.quantity) > 0));
+                if (items && !cancelado) setNeveraLeida(items.some((it) => Number(it?.quantity) > 0));
             } catch { /* se queda en «no se sabe»: la conducta de antes */ }
         })();
         return () => { cancelado = true; };
-    }, [_neveraOn, components.length, neveraConCosas, userId]);
+    }, [_neveraOn, components.length, neveraLeida, userId]);
+    const neveraConCosas = _neveraOn ? neveraLeida : false;
     const [multiplier, setMultiplier] = useState(1);
     // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
     const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
@@ -191,12 +202,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
 
     // [P2-VISION-COUNTRY-COPY · 2026-08-21] El país del usuario, sólo para decidir si se
     // muestra el aviso de calibración del escáner. Mismo patrón que el resto del
-    // dashboard (`DashboardTracking` ya lee `formData` de aquí).
-    // `|| {}`: este modal se renderiza AISLADO en sus tests (y podría montarse fuera del
-    // provider en un futuro shell), y sin la guarda `useAssessment()` devuelve undefined y
-    // el destructuring revienta el componente entero. Un aviso informativo no puede ser la
-    // razón por la que el escáner deja de abrirse: 10 tests lo dijeron al primer intento.
-    const { formData: _scanFormData } = useAssessment() || {};
+    // dashboard (`DashboardTracking` ya lee `formData` de aquí). Sale de la MISMA lectura de
+    // `useAssessment()` que el perfil de la Nevera (arriba), con su guarda `|| {}`.
     const country = _scanFormData?.country;
     const { containerRef } = useModalAccessibility({
         isOpen,

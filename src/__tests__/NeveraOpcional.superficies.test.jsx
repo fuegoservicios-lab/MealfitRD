@@ -33,6 +33,8 @@ const FOODS = [
 const respuesta = (body, ok = true, status = 200) => ({ ok, status, json: async () => body });
 
 // ── LogMealModal: el interruptor de la Nevera sigue al perfil, no a un estado propio ──────────────────────────────
+// [Final fix wave] Los perfiles llevan `plan_mode: 'tracking'`: fuera del modo contador `neveraActiva` devuelve
+// `true` siempre (la Nevera solo se apaga en modo contador), así que un perfil sin modo ya no la apaga.
 describe('[P1-NEVERA-OPCIONAL] LogMealModal — el interruptor de la Nevera', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -52,7 +54,7 @@ describe('[P1-NEVERA-OPCIONAL] LogMealModal — el interruptor de la Nevera', ()
 
     it('con nevera_activa: false, el interruptor no se pinta', async () => {
         const user = userEvent.setup();
-        render(<LogMealModal onClose={vi.fn()} />, { customContext: { userProfile: { nevera_activa: false } } });
+        render(<LogMealModal onClose={vi.fn()} />, { customContext: { userProfile: { plan_mode: 'tracking', nevera_activa: false } } });
         await agregarArroz(user);
         expect(screen.getByText('Tu plato')).toBeInTheDocument();
         expect(screen.queryByText('Descontar de mi Nevera')).toBeNull();
@@ -60,14 +62,14 @@ describe('[P1-NEVERA-OPCIONAL] LogMealModal — el interruptor de la Nevera', ()
 
     it('con nevera_activa: true, el interruptor existe', async () => {
         const user = userEvent.setup();
-        render(<LogMealModal onClose={vi.fn()} />, { customContext: { userProfile: { nevera_activa: true } } });
+        render(<LogMealModal onClose={vi.fn()} />, { customContext: { userProfile: { plan_mode: 'tracking', nevera_activa: true } } });
         await agregarArroz(user);
         expect(screen.getByText('Descontar de mi Nevera')).toBeInTheDocument();
     });
 
     it('sin Nevera, el POST nunca pide la resta (aunque el estado interno quedara en `true`)', async () => {
         const user = userEvent.setup();
-        render(<LogMealModal onClose={vi.fn()} />, { customContext: { userProfile: { nevera_activa: false } } });
+        render(<LogMealModal onClose={vi.fn()} />, { customContext: { userProfile: { plan_mode: 'tracking', nevera_activa: false } } });
         await agregarArroz(user);
         await user.click(screen.getByRole('button', { name: 'Registrar' }));
         await waitFor(() => {
@@ -114,13 +116,13 @@ describe('[P1-NEVERA-OPCIONAL] generateIntelligentWelcome — el almuerzo sin pl
     // el mealContext por `toContain`, no por igualdad exacta del saludo entero.
     it('con la Nevera activa, la variante puede mencionarla', () => {
         vi.spyOn(Math, 'random').mockReturnValue(0.99); // fuerza la 3ª (última) variante del array de 3
-        const saludo = generateIntelligentWelcome({ id: 'u1', nevera_activa: true }, {}, null);
+        const saludo = generateIntelligentWelcome({ id: 'u1', plan_mode: 'tracking', nevera_activa: true }, {}, null);
         expect(saludo).toContain('¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.');
     });
 
     it('con la Nevera apagada, no la menciona', () => {
         vi.spyOn(Math, 'random').mockReturnValue(0.99);
-        const saludo = generateIntelligentWelcome({ id: 'u1', nevera_activa: false }, {}, null);
+        const saludo = generateIntelligentWelcome({ id: 'u1', plan_mode: 'tracking', nevera_activa: false }, {}, null);
         expect(saludo).toContain('¿Necesitas ideas para tu comida del mediodía? Cuéntame qué se te antoja.');
         expect(saludo.toLowerCase()).not.toContain('nevera');
     });

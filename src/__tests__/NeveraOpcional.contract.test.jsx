@@ -53,16 +53,33 @@ afterEach(() => {
 });
 
 describe('neveraActiva', () => {
-    it('manda el perfil', () => {
-        expect(neveraActiva({ nevera_activa: false })).toBe(false);
-        expect(neveraActiva({ nevera_activa: true })).toBe(true);
+    it('en modo contador manda el perfil', () => {
+        expect(neveraActiva({ plan_mode: 'tracking', nevera_activa: false })).toBe(false);
+        expect(neveraActiva({ plan_mode: 'tracking', nevera_activa: true })).toBe(true);
     });
-    it('sin perfil, el espejo; sin nada, activa', () => {
+    // [Final fix wave] `saveGeneratedPlan` pasa `plan_mode` a 'plan' EN MEMORIA sin volver a pedir el perfil: el
+    // `nevera_activa: false` del contador seguiría ahí. La regla del servidor ya dice que en modo plan está activa.
+    it('en modo plan siempre activa, aunque el perfil en memoria traiga el false del contador', () => {
+        expect(neveraActiva({ plan_mode: 'plan', nevera_activa: false })).toBe(true);
+        localStorage.setItem('mealfit_plan_mode', 'plan');
+        localStorage.setItem('mealfit_nevera_activa', 'false');
+        expect(neveraActiva(null)).toBe(true);   // tampoco el espejo: el modo manda
+    });
+    it('sin perfil, el espejo (solo en modo contador); sin nada, activa', () => {
         expect(neveraActiva(null)).toBe(true);
         localStorage.setItem('mealfit_nevera_activa', 'false');
+        expect(neveraActiva(null)).toBe(true);   // modo desconocido: jamás ocultar por ignorancia
+        localStorage.setItem('mealfit_plan_mode', 'tracking');
         expect(neveraActiva(null)).toBe(false);
-        expect(neveraActiva({})).toBe(false);          // perfil de un backend viejo: sin el campo, manda el espejo
-        expect(neveraActiva({ nevera_activa: true })).toBe(true);
+    });
+    // [Final fix wave] El espejo es SOLO para el primer pintado. Un perfil cargado sin el campo es un backend viejo (o
+    // un rollback): caer al espejo aplicaría una decisión que ese backend ya no sostiene.
+    it('un perfil cargado sin el campo cuenta como activa, sin mirar el espejo', () => {
+        localStorage.setItem('mealfit_plan_mode', 'tracking');
+        localStorage.setItem('mealfit_nevera_activa', 'false');
+        expect(neveraActiva({ plan_mode: 'tracking' })).toBe(true);
+        expect(neveraActiva({})).toBe(true);
+        expect(neveraActiva({ plan_mode: 'tracking', nevera_activa: false })).toBe(false);
     });
 });
 

@@ -15,7 +15,8 @@
 //   4. Un plato sin componentes detectados sigue registrando macros — el bloque
 //      simplemente no aparece.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from './utils/test-utils';
+import { render, screen, waitFor, fireEvent, mockAssessmentContext } from './utils/test-utils';
+import * as assessmentModule from '../context/AssessmentContext';
 import ScanMealModal from '../components/dashboard/ScanMealModal';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
@@ -207,14 +208,72 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
 
     // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada (modo contador), el escáner nace ya sabiendo que
     // no hay inventario que consultar: no pregunta al servidor y no habla de "descontar de la Nevera".
+    // [Final fix wave] Los perfiles llevan `plan_mode: 'tracking'`: fuera del modo contador la Nevera está SIEMPRE
+    // activa (`neveraActiva`), también para el cliente.
     describe('con la Nevera apagada', () => {
-        it('no consulta /api/inventory y llama a los componentes "Ingredientes que detectamos"', async () => {
-            await _scan({ userProfile: { nevera_activa: false } });
+        const APAGADA = { userProfile: { plan_mode: 'tracking', nevera_activa: false } };
+        const ENCENDIDA = { userProfile: { plan_mode: 'tracking', nevera_activa: true } };
+        const llamadasInventario = () => vi.mocked(fetchWithAuth).mock.calls
+            .filter(([u]) => typeof u === 'string' && u.includes('/api/inventory'));
+        /** El modal vive SIEMPRE montado en el panel y el perfil cambia debajo de él (el refresco al volver a la app
+         * tras el apagado automático, o apagarla en Configuración). Escanea y devuelve `cambiarPerfil(ctx)`: cambia lo
+         * que devuelve `useAssessment` y vuelve a pintar el MISMO modal (mismo árbol: el estado se conserva), como
+         * haría el provider. Con un elemento NUEVO en cada pintado: el espía no es un contexto de verdad, y con el
+         * mismo objeto de props React se salta el re-render y el modal jamás vuelve a leer el perfil. */
+        const escanearMontado = async (ctx) => {
+            const onClose = vi.fn();
+            const modal = () => <ScanMealModal isOpen onClose={onClose} userId={_UID} />;
+            const { rerender } = render(modal(), { customContext: ctx });
+            const file = new File([new Uint8Array([1, 2, 3])], 'plato.jpg', { type: 'image/jpeg' });
+            const inputs = document.querySelectorAll('input[type="file"]');
+            fireEvent.change(inputs[inputs.length - 1], { target: { files: [file] } });
+            await screen.findByText(/Registrar comida/i);
+            return (nuevo) => {
+                vi.spyOn(assessmentModule, 'useAssessment').mockReturnValue({ ...mockAssessmentContext, ...nuevo });
+                rerender(modal());
+            };
+        };
+
+        it('si el perfil la apaga con el escáner montado, «Descontar de tu Nevera» y sus interruptores se van; y vuelven', async () => {
+            const cambiarPerfil = await escanearMontado(ENCENDIDA);
+            expect(screen.getByText('Descontar de tu Nevera')).toBeInTheDocument();
+            expect(screen.getByLabelText('Descontar huevo de tu Nevera')).toBeInTheDocument();
+
+            cambiarPerfil(APAGADA);
             expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
             expect(screen.queryByText(/Descontar de tu Nevera/i)).not.toBeInTheDocument();
-            const llamadasInventario = vi.mocked(fetchWithAuth).mock.calls
-                .filter(([u]) => typeof u === 'string' && u.includes('/api/inventory'));
-            expect(llamadasInventario).toHaveLength(0);
+            expect(screen.queryByLabelText(/Descontar .* de tu Nevera/i)).not.toBeInTheDocument();
+            expect(screen.getByLabelText('Incluir huevo')).toBeInTheDocument();
+
+            cambiarPerfil(ENCENDIDA);
+            expect(screen.getByText('Descontar de tu Nevera')).toBeInTheDocument();
+            expect(screen.getByLabelText('Descontar huevo de tu Nevera')).toBeInTheDocument();
+        });
+
+        it('montado con la Nevera apagada no pide el inventario; al encenderla, lo pide y lo usa', async () => {
+            const base = _routeFetch({ consumed: _consumedResponse({ deducted: [], not_in_pantry: ['2 unidad de huevo'] }) });
+            vi.mocked(fetchWithAuth).mockImplementation(async (url, opts) => (
+                typeof url === 'string' && url.includes('/api/inventory')
+                    ? { ok: true, json: async () => ({ items: [{ name: 'Leche', quantity: 1 }] }) }
+                    : base(url, opts)));
+            const cambiarPerfil = await escanearMontado(APAGADA);
+            expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
+            expect(llamadasInventario()).toHaveLength(0);
+
+            cambiarPerfil(ENCENDIDA);
+            await waitFor(() => expect(llamadasInventario()).toHaveLength(1));
+            expect(screen.getByText('Descontar de tu Nevera')).toBeInTheDocument();
+            // lo leído SÍ se usa: la Nevera tiene cosas, así que el aviso nombra lo que no estaba en ella
+            fireEvent.click(screen.getByRole('button', { name: /Registrar comida/i }));
+            await waitFor(() => expect(toast.success).toHaveBeenCalled());
+            expect(vi.mocked(toast.success).mock.calls[0][1]?.description || '').toMatch(/no estaban registrados/i);
+        });
+
+        it('no consulta /api/inventory y llama a los componentes "Ingredientes que detectamos"', async () => {
+            await _scan(APAGADA);
+            expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
+            expect(screen.queryByText(/Descontar de tu Nevera/i)).not.toBeInTheDocument();
+            expect(llamadasInventario()).toHaveLength(0);
         });
 
         it('el aviso de "esto es una compra" ya no manda a "Escanear mi nevera"', async () => {
@@ -230,9 +289,7 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
                 }
                 return { ok: true, json: async () => ({}) };
             });
-            render(<ScanMealModal isOpen onClose={vi.fn()} userId={_UID} />, {
-                customContext: { userProfile: { nevera_activa: false } },
-            });
+            render(<ScanMealModal isOpen onClose={vi.fn()} userId={_UID} />, { customContext: APAGADA });
             const file = new File([new Uint8Array([1, 2, 3])], 'compra.jpg', { type: 'image/jpeg' });
             const inputs = document.querySelectorAll('input[type="file"]');
             fireEvent.change(inputs[inputs.length - 1], { target: { files: [file] } });
