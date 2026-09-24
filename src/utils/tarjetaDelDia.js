@@ -10,7 +10,7 @@ import { BRAND } from '../data/routeMeta';
 const ANCHO = 1080;
 const M = 72;                        // margen lateral
 const FUENTE = '"Outfit", system-ui, -apple-system, "Segoe UI", sans-serif';
-const ALTO = { cabecera: 250, calorias: 250, macro: 124, microsCab: 110, microFila: 112, comidasCab: 90, comida: 58, pie: 190 };
+const ALTO = { cabecera: 250, calorias: 250, macro: 124, microsCab: 110, microFila: 112, comidasCab: 90, comida: 58, pie: 190, comidasBuffer: 50 };
 const COLOR = {
     calories: ['#FCD34D', '#F59E0B'], protein: ['#93C5FD', '#3B82F6'], carbs: ['#6EE7B7', '#10B981'], fats: ['#F9A8D4', '#EC4899'],
 };
@@ -18,7 +18,7 @@ const COLOR = {
 export function altoDeLaTarjeta(r) {
     let h = ALTO.cabecera + ALTO.calorias + 3 * ALTO.macro + ALTO.pie;
     if (r.micros.length) h += ALTO.microsCab + Math.ceil(r.micros.length / 2) * ALTO.microFila;
-    if (r.comidas.length) h += ALTO.comidasCab + Math.min(r.comidas.length, 6) * ALTO.comida;
+    if (r.comidas.length) h += ALTO.comidasCab + Math.min(r.comidas.length, 6) * ALTO.comida + ALTO.comidasBuffer;
     return Math.max(1080, h);
 }
 
@@ -58,16 +58,27 @@ const _texto = (ctx, s, x, y, { tam = 32, peso = 600, color = '#E2E8F0', alinear
 };
 
 const _aBlob = (canvas) => new Promise((resolve) => {
+    let resolved = false;
+    const timeout = setTimeout(() => {
+        if (!resolved) { resolved = true; resolve(null); }
+    }, 4000);
     try {
-        if (typeof canvas.toBlob === 'function') { canvas.toBlob((b) => resolve(b || null), 'image/png'); return; }
+        if (typeof canvas.toBlob === 'function') {
+            canvas.toBlob((b) => {
+                if (!resolved) { resolved = true; clearTimeout(timeout); resolve(b || null); }
+            }, 'image/png');
+            return;
+        }
     } catch { /* cae al dataURL */ }
     try {
         const [cab, datos] = canvas.toDataURL('image/png').split(',');
         const bin = atob(datos);
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        resolve(new Blob([bytes], { type: cab.includes('png') ? 'image/png' : 'application/octet-stream' }));
-    } catch { resolve(null); }
+        if (!resolved) { resolved = true; clearTimeout(timeout); resolve(new Blob([bytes], { type: cab.includes('png') ? 'image/png' : 'application/octet-stream' })); }
+    } catch {
+        if (!resolved) { resolved = true; clearTimeout(timeout); resolve(null); }
+    }
 });
 
 export async function dibujarTarjetaDelDia(r) {
@@ -79,9 +90,12 @@ export async function dibujarTarjetaDelDia(r) {
     try { ctx = canvas.getContext('2d'); } catch { ctx = null; }
     if (!ctx) return null;
     try {
-        await Promise.all([
-            document.fonts?.load?.(`800 64px ${FUENTE}`), document.fonts?.load?.(`600 32px ${FUENTE}`),
-        ].filter(Boolean));
+        await Promise.race([
+            Promise.all([
+                document.fonts?.load?.(`800 64px ${FUENTE}`), document.fonts?.load?.(`700 32px ${FUENTE}`), document.fonts?.load?.(`600 32px ${FUENTE}`),
+            ].filter(Boolean)),
+            new Promise((r) => setTimeout(r, 1500)),
+        ]);
     } catch { /* la fuente del sistema sirve */ }
 
     // Fondo
@@ -107,7 +121,6 @@ export async function dibujarTarjetaDelDia(r) {
     _texto(ctx, cal.etiqueta, M, y, { tam: 34, peso: 700, color: '#FCD34D' });
     y += 100;
     _texto(ctx, formatNumber(cal.valor), M, y, { tam: 110, peso: 800, color: '#FFFFFF' });
-    ctx.font = `800 110px ${FUENTE}`;
     const anchoNum = ctx.measureText(formatNumber(cal.valor)).width;
     if (cal.meta > 0) {
         _texto(ctx, ` / ${formatNumber(cal.meta)} kcal`, M + anchoNum, y, { tam: 40, peso: 600, color: '#94A3B8' });
@@ -142,8 +155,8 @@ export async function dibujarTarjetaDelDia(r) {
             const x = M + (i % 2) * (col + 48);
             const yy = y + Math.floor(i / 2) * ALTO.microFila + 44;
             _texto(ctx, f.label, x, yy, { tam: 30, peso: 700, color: '#E2E8F0', max: col * 0.5 });
-            const valor = f.meta ? `${formatoMicro(f.valor, f.unit)} / ${formatoMicro(f.meta, f.unit)} ${f.unit}` : `${formatoMicro(f.valor, f.unit)} ${f.unit}`;
-            _texto(ctx, valor, x + col, yy, { tam: 28, peso: 800, color: '#FFFFFF', alinear: 'right' });
+            const valor = f.techo && f.meta ? `${formatoMicro(f.valor, f.unit)} ${f.unit} · ${t('máx.')} ${formatoMicro(f.meta, f.unit)}` : (f.meta ? `${formatoMicro(f.valor, f.unit)} / ${formatoMicro(f.meta, f.unit)} ${f.unit}` : `${formatoMicro(f.valor, f.unit)} ${f.unit}`);
+            _texto(ctx, valor, x + col, yy, { tam: 28, peso: 800, color: '#FFFFFF', alinear: 'right', max: col * 0.62 });
             const pct = f.meta ? (f.valor / f.meta) * 100 : 0;
             const colores = f.techo ? (pct > 100 ? ['#F87171', '#EF4444'] : ['#67E8F9', '#22D3EE']) : ['#6EE7B7', '#10B981'];
             _barra(ctx, x, yy + 22, col, 12, pct, colores);
@@ -161,6 +174,7 @@ export async function dibujarTarjetaDelDia(r) {
             _texto(ctx, `• ${x.nombre}`, M, y, { tam: 30, color: '#CBD5E1', max: ANCHO - 2 * M - 200 });
             _texto(ctx, `${formatNumber(x.kcal)} kcal`, ANCHO - M, y, { tam: 30, peso: 700, color: '#94A3B8', alinear: 'right' });
         });
+        y += ALTO.comidasBuffer;
     }
 
     // Pie
