@@ -14,6 +14,18 @@ const ALTO = { cabecera: 250, calorias: 250, macro: 124, microsCab: 110, microFi
 const COLOR = {
     calories: ['#FCD34D', '#F59E0B'], protein: ['#93C5FD', '#3B82F6'], carbs: ['#6EE7B7', '#10B981'], fats: ['#F9A8D4', '#EC4899'],
 };
+// La tinta de la imagen. Colores FIJOS a propósito: esto es un PNG con su propio fondo oscuro que viaja a WhatsApp,
+// no estilo de la interfaz, así que el tema de la app no le aplica (P1_shelf_chip_veil vigila los helpers que SÍ
+// pintan UI con estilos inline). Con nombre, además, se lee qué papel tiene cada tono.
+const TINTA = {
+    blanco: '#FFFFFF',    // las cifras
+    texto: '#E2E8F0',     // etiquetas y cierre
+    suave: '#CBD5E1',     // nombres de las comidas
+    apagado: '#94A3B8',   // fecha, metas y notas
+    marca: '#A5B4FC',     // BIOBOROS y el sitio
+    micros: '#C4B5FD',    // el título «Micros»
+    calorias: '#FCD34D',  // etiqueta y % de las calorías
+};
 // La etiqueta «máx.» de los techos (la de MicrosList en la app): píldora en mayúsculas junto al nombre del micro.
 const ETIQUETA = { tam: 20, padX: 9, alto: 30, radio: 6, aire: 10 };
 
@@ -47,7 +59,7 @@ const _barra = (ctx, x, y, w, h, pct, [c1, c2]) => {
 };
 
 /** Pinta `s` (recortado con «…» si pasa de `max`) y devuelve el ancho que ocupó: quien pinta al lado lo necesita. */
-const _texto = (ctx, s, x, y, { tam = 32, peso = 600, color = '#E2E8F0', alinear = 'left', max = null } = {}) => {
+const _texto = (ctx, s, x, y, { tam = 32, peso = 600, color = TINTA.texto, alinear = 'left', max = null } = {}) => {
     ctx.font = `${peso} ${tam}px ${FUENTE}`;
     ctx.fillStyle = color;
     ctx.textAlign = alinear;
@@ -72,7 +84,7 @@ const _etiqueta = (ctx, s, x, yCentro) => {
     const w = _anchoEtiqueta(ctx, s);
     ctx.fillStyle = 'rgba(148, 163, 184, 0.18)';
     _rect(ctx, x, yCentro - ETIQUETA.alto / 2, w, ETIQUETA.alto, ETIQUETA.radio); ctx.fill();
-    ctx.fillStyle = '#94A3B8';
+    ctx.fillStyle = TINTA.apagado;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(s).toUpperCase(), x + ETIQUETA.padX, yCentro);
@@ -131,23 +143,23 @@ export async function dibujarTarjetaDelDia(r) {
 
     // Cabecera
     let y = 110;
-    _texto(ctx, BRAND.toUpperCase(), M, y, { tam: 30, peso: 800, color: '#A5B4FC' });
-    _texto(ctx, fechaLarga(r.fecha), ANCHO - M, y, { tam: 30, peso: 600, color: '#94A3B8', alinear: 'right' });
+    _texto(ctx, BRAND.toUpperCase(), M, y, { tam: 30, peso: 800, color: TINTA.marca });
+    _texto(ctx, fechaLarga(r.fecha), ANCHO - M, y, { tam: 30, peso: 600, color: TINTA.apagado, alinear: 'right' });
     y += 90;
-    _texto(ctx, t('Mi día'), M, y, { tam: 72, peso: 800, color: '#FFFFFF' });
+    _texto(ctx, t('Mi día'), M, y, { tam: 72, peso: 800, color: TINTA.blanco });
     y += 50;
-    _texto(ctx, tn(r.comidasRegistradas, '{n} comida registrada', '{n} comidas registradas', { n: r.comidasRegistradas }), M, y, { tam: 30, color: '#94A3B8' });
+    _texto(ctx, tn(r.comidasRegistradas, '{n} comida registrada', '{n} comidas registradas', { n: r.comidasRegistradas }), M, y, { tam: 30, color: TINTA.apagado });
 
     // Calorías
     y += 110;
     const cal = r.calorias;
-    _texto(ctx, cal.etiqueta, M, y, { tam: 34, peso: 700, color: '#FCD34D' });
+    _texto(ctx, cal.etiqueta, M, y, { tam: 34, peso: 700, color: TINTA.calorias });
     y += 100;
-    _texto(ctx, formatNumber(cal.valor), M, y, { tam: 110, peso: 800, color: '#FFFFFF' });
+    _texto(ctx, formatNumber(cal.valor), M, y, { tam: 110, peso: 800, color: TINTA.blanco });
     const anchoNum = ctx.measureText(formatNumber(cal.valor)).width;
     if (cal.meta > 0) {
-        _texto(ctx, ` / ${formatNumber(cal.meta)} kcal`, M + anchoNum, y, { tam: 40, peso: 600, color: '#94A3B8' });
-        _texto(ctx, formatPercent(cal.pct), ANCHO - M, y, { tam: 44, peso: 800, color: '#FCD34D', alinear: 'right' });
+        _texto(ctx, ` / ${formatNumber(cal.meta)} kcal`, M + anchoNum, y, { tam: 40, peso: 600, color: TINTA.apagado });
+        _texto(ctx, formatPercent(cal.pct), ANCHO - M, y, { tam: 44, peso: 800, color: TINTA.calorias, alinear: 'right' });
     }
     y += 40;
     _barra(ctx, M, y, ANCHO - 2 * M, 26, cal.pct, COLOR.calories);
@@ -156,9 +168,9 @@ export async function dibujarTarjetaDelDia(r) {
     y += 40;
     r.macros.forEach((mc) => {
         y += 70;
-        _texto(ctx, mc.etiqueta, M, y, { tam: 36, peso: 700, color: '#E2E8F0' });
+        _texto(ctx, mc.etiqueta, M, y, { tam: 36, peso: 700, color: TINTA.texto });
         _texto(ctx, mc.meta > 0 ? `${formatNumber(mc.valor)} / ${formatNumber(mc.meta)} g` : `${formatNumber(mc.valor)} g`,
-            ANCHO - M, y, { tam: 36, peso: 800, color: '#FFFFFF', alinear: 'right' });
+            ANCHO - M, y, { tam: 36, peso: 800, color: TINTA.blanco, alinear: 'right' });
         y += 26;
         _barra(ctx, M, y, ANCHO - 2 * M, 18, mc.pct, COLOR[mc.clave]);
         y += ALTO.macro - 96;
@@ -167,10 +179,10 @@ export async function dibujarTarjetaDelDia(r) {
     // Micros (solo si hay datos: nunca una barra contra un cero inventado)
     if (r.micros.length) {
         y += 80;
-        _texto(ctx, t('Micros'), M, y, { tam: 38, peso: 800, color: '#C4B5FD' });
+        _texto(ctx, t('Micros'), M, y, { tam: 38, peso: 800, color: TINTA.micros });
         if (r.cobertura.con_datos < r.cobertura.total) {
             _texto(ctx, t('(micros de {n} de {total} comidas)', { n: r.cobertura.con_datos, total: r.cobertura.total }),
-                ANCHO - M, y, { tam: 26, color: '#94A3B8', alinear: 'right' });
+                ANCHO - M, y, { tam: 26, color: TINTA.apagado, alinear: 'right' });
         }
         y += ALTO.microsCab - 80;
         const col = (ANCHO - 2 * M - 48) / 2;
@@ -181,11 +193,11 @@ export async function dibujarTarjetaDelDia(r) {
             // cabía. El techo lo dice la etiqueta «máx.» junto al nombre, como en la tarjeta de la app (MicrosList).
             // El valor va primero: el nombre y la etiqueta se quedan con el ancho que sobra.
             const valor = f.meta ? `${formatoMicro(f.valor, f.unit)} / ${formatoMicro(f.meta, f.unit)} ${f.unit}` : `${formatoMicro(f.valor, f.unit)} ${f.unit}`;
-            const anchoValor = _texto(ctx, valor, x + col, yy, { tam: 28, peso: 800, color: '#FFFFFF', alinear: 'right', max: col * 0.62 });
+            const anchoValor = _texto(ctx, valor, x + col, yy, { tam: 28, peso: 800, color: TINTA.blanco, alinear: 'right', max: col * 0.62 });
             const maximo = f.techo ? t('máx.') : '';
             const anchoEtiqueta = maximo ? _anchoEtiqueta(ctx, maximo) + ETIQUETA.aire : 0;
             const anchoNombre = _texto(ctx, f.label, x, yy, {
-                tam: 30, peso: 700, color: '#E2E8F0', max: Math.max(60, col - anchoValor - 16 - anchoEtiqueta),
+                tam: 30, peso: 700, color: TINTA.texto, max: Math.max(60, col - anchoValor - 16 - anchoEtiqueta),
             });
             if (maximo) _etiqueta(ctx, maximo, x + anchoNombre + ETIQUETA.aire, yy - 11);   // centro de las mayúsculas a 30 px
             const pct = f.meta ? (f.valor / f.meta) * 100 : 0;
@@ -198,12 +210,12 @@ export async function dibujarTarjetaDelDia(r) {
     // Comidas (solo si el usuario lo eligió)
     if (r.comidas.length) {
         y += 70;
-        _texto(ctx, t('Lo que comí'), M, y, { tam: 36, peso: 800, color: '#E2E8F0' });
+        _texto(ctx, t('Lo que comí'), M, y, { tam: 36, peso: 800, color: TINTA.texto });
         y += ALTO.comidasCab - 70;
         r.comidas.slice(0, 6).forEach((x) => {
             y += ALTO.comida;
-            _texto(ctx, `• ${x.nombre}`, M, y, { tam: 30, color: '#CBD5E1', max: ANCHO - 2 * M - 200 });
-            _texto(ctx, `${formatNumber(x.kcal)} kcal`, ANCHO - M, y, { tam: 30, peso: 700, color: '#94A3B8', alinear: 'right' });
+            _texto(ctx, `• ${x.nombre}`, M, y, { tam: 30, color: TINTA.suave, max: ANCHO - 2 * M - 200 });
+            _texto(ctx, `${formatNumber(x.kcal)} kcal`, ANCHO - M, y, { tam: 30, peso: 700, color: TINTA.apagado, alinear: 'right' });
         });
         y += ALTO.comidasBuffer;
     }
@@ -212,8 +224,8 @@ export async function dibujarTarjetaDelDia(r) {
     // con 24 px de aire, y nunca pisa «bioboros.com» en la misma línea.
     const yp = alto - 80;
     ctx.fillStyle = 'rgba(148, 163, 184, 0.25)'; ctx.fillRect(M, yp - 70, ANCHO - 2 * M, 2);
-    const anchoSitio = _texto(ctx, SITIO, ANCHO - M, yp, { tam: 34, peso: 800, color: '#A5B4FC', alinear: 'right' });
-    _texto(ctx, t('¿Y tú, cómo vas hoy?'), M, yp, { tam: 34, peso: 700, color: '#E2E8F0', max: ANCHO - 2 * M - anchoSitio - 24 });
+    const anchoSitio = _texto(ctx, SITIO, ANCHO - M, yp, { tam: 34, peso: 800, color: TINTA.marca, alinear: 'right' });
+    _texto(ctx, t('¿Y tú, cómo vas hoy?'), M, yp, { tam: 34, peso: 700, color: TINTA.texto, max: ANCHO - 2 * M - anchoSitio - 24 });
 
     return _aBlob(canvas);
 }
