@@ -3342,6 +3342,8 @@
   "Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.": "O que você tem em casa: o coach cozinha com isso e o que você come é descontado. Se você só usa o contador e o coach, desligue-a.",
   "Si pasa 2 días vacía, la apagamos por ti.": "Se ficar 2 dias vazia, desligamos por você.",
   "Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.": "Oculta: registrar refeições não desconta nada e o coach não a usa. Seu inventário é mantido se você reativá-la.",
+  "Lo que tienes en casa: tu plan se cocina con ello, lo que comes se descuenta y la lista te pide solo lo que falta. Si no la llevas, apágala: tu plan sigue igual.": "O que você tem em casa: seu plano cozinha com isso, o que você come é descontado e a lista pede só o que falta. Se não usar, desligue: seu plano continua igual.",
+  "Oculta: tu plan se genera sin mirarla, la lista te pide todo y registrar comidas no descuenta nada. Tu inventario se conserva si la reactivas.": "Oculta: seu plano é gerado sem ela, a lista pede tudo e registrar refeições não desconta nada. Seu inventário é mantido se você reativá-la.",
   "La apagamos el {fecha} porque seguía vacía.": "Desligamos em {fecha} porque continuava vazia.",
   "Activar o desactivar la Nevera": "Ativar ou desativar a Geladeira",
   "Nevera activada.": "Geladeira ativada.",

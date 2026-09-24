@@ -57,20 +57,21 @@ describe('neveraActiva', () => {
         expect(neveraActiva({ plan_mode: 'tracking', nevera_activa: false })).toBe(false);
         expect(neveraActiva({ plan_mode: 'tracking', nevera_activa: true })).toBe(true);
     });
-    // [Final fix wave] `saveGeneratedPlan` pasa `plan_mode` a 'plan' EN MEMORIA sin volver a pedir el perfil: el
-    // `nevera_activa: false` del contador seguiría ahí. La regla del servidor ya dice que en modo plan está activa.
-    it('en modo plan siempre activa, aunque el perfil en memoria traiga el false del contador', () => {
-        expect(neveraActiva({ plan_mode: 'plan', nevera_activa: false })).toBe(true);
+    // [P1-PLAN-LOTE-217 · 2026-09-24] La Nevera también se apaga en modo plan: el servidor lo dice en `nevera_activa` y
+    // el cliente ya no lo pisa con «fuera del contador, activa siempre».
+    it('en modo plan también manda el perfil', () => {
+        expect(neveraActiva({ plan_mode: 'plan', nevera_activa: false })).toBe(false);
+        expect(neveraActiva({ plan_mode: 'plan', nevera_activa: true })).toBe(true);
         localStorage.setItem('mealfit_plan_mode', 'plan');
         localStorage.setItem('mealfit_nevera_activa', 'false');
-        expect(neveraActiva(null)).toBe(true);   // tampoco el espejo: el modo manda
+        expect(neveraActiva(null)).toBe(false);   // el espejo es el último valor del servidor, en cualquier modo
     });
-    it('sin perfil, el espejo (solo en modo contador); sin nada, activa', () => {
+    it('sin perfil, el espejo; sin nada, activa', () => {
         expect(neveraActiva(null)).toBe(true);
         localStorage.setItem('mealfit_nevera_activa', 'false');
-        expect(neveraActiva(null)).toBe(true);   // modo desconocido: jamás ocultar por ignorancia
-        localStorage.setItem('mealfit_plan_mode', 'tracking');
         expect(neveraActiva(null)).toBe(false);
+        localStorage.setItem('mealfit_nevera_activa', 'true');
+        expect(neveraActiva(null)).toBe(true);
     });
     // [Final fix wave] El espejo es SOLO para el primer pintado. Un perfil cargado sin el campo es un backend viejo (o
     // un rollback): caer al espejo aplicaría una decisión que ese backend ya no sostiene.
@@ -155,12 +156,15 @@ describe('Configuración → Capacidades: la tarjeta «Nevera»', () => {
         expect(_toast.success).toHaveBeenCalledWith('Nevera oculta. Tu inventario se conserva.', expect.anything());
     }, _TOPE_MS);
 
-    it('en modo plan la tarjeta NO existe (ni se pregunta al servidor)', async () => {
+    // [P1-PLAN-LOTE-217 · 2026-09-24] En modo plan la tarjeta existe y dice lo que cambia EN EL PLAN.
+    it('en modo plan la tarjeta también existe y habla del plan', async () => {
         _srv.planMode = 'plan';
         _srv.nevera = { enabled: null, activa: true, auto_off_at: null, disponible: true };
         await abrirCapacidades(contextoDe('plan'));
-        expect(screen.queryByRole('switch', { name: /nevera/i })).not.toBeInTheDocument();
-        expect(_srv.fetchWithAuth.mock.calls.some(([url]) => String(url).includes('/preferences/nevera'))).toBe(false);
+        const interruptor = await screen.findByRole('switch', { name: /nevera/i }, { timeout: 8000 });
+        expect(interruptor).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByText(/tu plan se cocina con ello/i)).toBeInTheDocument();
+        expect(_srv.fetchWithAuth.mock.calls.some(([url]) => String(url).includes('/preferences/nevera'))).toBe(true);
     }, _TOPE_MS);
 
     it('si la apagó el sistema, lo dice con la fecha', async () => {
