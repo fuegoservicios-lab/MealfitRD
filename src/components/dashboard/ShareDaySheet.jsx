@@ -42,14 +42,19 @@ const ShareDaySheet = ({ onClose, consumed, metas, microMetas = null }) => {
 
     useEffect(() => {
         let vivo = true;
-        let url = null;
         dibujarTarjetaDelDia(resumen).then((blob) => {
             if (!vivo) return;
-            url = blob ? URL.createObjectURL(blob) : null;
-            setImagen({ blob, url, para: resumen });
+            setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen });
         }).catch(() => { if (vivo) setImagen({ blob: null, url: null, para: resumen }); });
-        return () => { vivo = false; if (url) URL.revokeObjectURL(url); };
+        return () => { vivo = false; };
     }, [resumen]);
+
+    // La URL en pantalla se revoca cuando otra YA la sustituyó (la limpieza de este efecto corre tras el commit de la
+    // nueva) o al cerrar la hoja; antes se revocaba al EMPEZAR cada redibujo, con la imagen vieja aún en el <img>.
+    useEffect(() => {
+        const url = imagen.url;
+        return () => { if (url) URL.revokeObjectURL(url); };
+    }, [imagen.url]);
 
     const archivo = useMemo(() => archivoDeImagen(imagen.blob), [imagen.blob]);
     const conImagen = puedeCompartirImagen(archivo);
@@ -59,17 +64,32 @@ const ShareDaySheet = ({ onClose, consumed, metas, microMetas = null }) => {
     // ni se descarga: saldría la versión vieja.
     const dibujando = imagen.para !== resumen;
 
+    // Un segundo toque mientras la hoja del sistema se abre hace que `navigator.share` rechace (InvalidStateError) y
+    // saldría un «no dejó compartir» falso: se ignora. La marca se pone DESPUÉS de llamar a `compartir`, que invoca
+    // `navigator.share` sin esperar nada antes (el gesto del usuario sigue vivo); el botón queda apagado mientras tanto.
+    const compartiendoRef = useRef(false);
+    const [compartiendo, setCompartiendo] = useState(false);
     const onCompartir = useCallback(async () => {
-        const r = await compartir({ archivo, texto });
-        if (r === 'fallo') toast.error(t('Tu dispositivo no dejó compartir. Usa WhatsApp o copia el texto.'));
+        if (compartiendoRef.current) return;
+        const enCurso = compartir({ archivo, texto });
+        compartiendoRef.current = true;
+        setCompartiendo(true);
+        try {
+            const r = await enCurso;
+            if (r === 'fallo') toast.error(t('Tu dispositivo no dejó compartir. Usa WhatsApp o copia el texto.'), { id: 'share-day-share' });
+        } finally {
+            compartiendoRef.current = false;
+            setCompartiendo(false);
+        }
     }, [archivo, texto, t]);
 
+    // Con `id` (P2-TOAST-POLICY): copiar tres veces reemplaza el aviso en vez de apilar tres.
     const onCopiar = useCallback(async () => {
         try {
             await navigator.clipboard.writeText(texto);
-            toast.success(t('Texto copiado: pégalo en tu chat.'));
+            toast.success(t('Texto copiado: pégalo en tu chat.'), { id: 'share-day-copy' });
         } catch {
-            toast.error(t('No se pudo copiar el texto.'));
+            toast.error(t('No se pudo copiar el texto.'), { id: 'share-day-copy' });
         }
     }, [texto, t]);
 
@@ -123,7 +143,7 @@ const ShareDaySheet = ({ onClose, consumed, metas, microMetas = null }) => {
                     </label>
                     <div className={styles.actions}>
                         {hojaDelSistema && (
-                            <button type="button" className={styles.primary} onClick={onCompartir} disabled={dibujando}>
+                            <button type="button" className={styles.primary} onClick={onCompartir} disabled={dibujando || compartiendo}>
                                 <Share2 size={18} aria-hidden="true" />{t('Compartir')}
                             </button>
                         )}

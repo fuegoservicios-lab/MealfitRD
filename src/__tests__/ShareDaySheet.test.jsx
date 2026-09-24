@@ -1,13 +1,16 @@
 // [P1-COMPARTIR-DIA · 2026-09-23] La hoja: vista previa, compartir con imagen, WhatsApp, copiar y privacidad.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import fs from 'node:fs';
 import path from 'node:path';
 
 vi.mock('../utils/tarjetaDelDia', () => ({ dibujarTarjetaDelDia: vi.fn(async () => new Blob(['png'], { type: 'image/png' })) }));
-vi.mock('../config/platform', async (orig) => ({ ...(await orig()), isNativeApp: () => false }));
+vi.mock('../config/platform', async (orig) => ({ ...(await orig()), isNativeApp: vi.fn(() => false) }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
 
+import { toast } from 'sonner';
+import { isNativeApp } from '../config/platform';
+import { dibujarTarjetaDelDia } from '../utils/tarjetaDelDia';
 import ShareDaySheet from '../components/dashboard/ShareDaySheet';
 
 const props = {
@@ -20,6 +23,7 @@ const props = {
 beforeEach(() => {
     globalThis.URL.createObjectURL = vi.fn(() => 'blob:x');
     globalThis.URL.revokeObjectURL = vi.fn();
+    vi.mocked(isNativeApp).mockReturnValue(false);   // `clearAllMocks` no deshace un `mockReturnValue`
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
@@ -58,6 +62,78 @@ describe('ShareDaySheet', () => {
         vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText: vi.fn() } });
         render(<ShareDaySheet {...props} />);
         expect(await screen.findByRole('button', { name: /descargar imagen/i })).toBeInTheDocument();
+    });
+
+    // [P1-COMPARTIR-DIA · fix round 1]
+    it('en la app nativa no se ofrece descargar (Capacitor no gestiona `a.download`): quedan WhatsApp y copiar', async () => {
+        vi.mocked(isNativeApp).mockReturnValue(true);
+        vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText: vi.fn() } });
+        render(<ShareDaySheet {...props} />);
+        await screen.findByRole('img', { name: /mi día/i });
+        expect(screen.queryByRole('button', { name: /descargar imagen/i })).toBeNull();
+        expect(screen.getByRole('link', { name: /whatsapp/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /copiar texto/i })).toBeInTheDocument();
+    });
+
+    it('un segundo toque mientras se abre la hoja del sistema no vuelve a compartir ni avisa de un fallo falso', async () => {
+        let terminar;
+        const share = vi.fn(() => new Promise((r) => { terminar = r; }));
+        vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true, clipboard: { writeText: vi.fn() } });
+        render(<ShareDaySheet {...props} />);
+        await screen.findByRole('img', { name: /mi día/i });
+        const boton = screen.getByRole('button', { name: /^compartir$/i });
+        // Los dos toques en el mismo lote: el botón todavía no se ha deshabilitado; los para la marca de «pendiente».
+        act(() => { boton.click(); boton.click(); });
+        expect(share).toHaveBeenCalledTimes(1);
+        expect(boton).toBeDisabled();
+        await act(async () => { terminar(); });
+        await waitFor(() => expect(boton).not.toBeDisabled());
+        expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it('«Texto copiado» lleva id: tocar «Copiar texto» varias veces reemplaza el aviso en vez de apilarlo', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText } });
+        render(<ShareDaySheet {...props} />);
+        const copiar = await screen.findByRole('button', { name: /copiar texto/i });
+        fireEvent.click(copiar);
+        fireEvent.click(copiar);
+        await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(2));
+        const [primero, segundo] = toast.success.mock.calls.map((c) => c[1]?.id);
+        expect(primero).toEqual(expect.any(String));
+        expect(segundo).toBe(primero);
+    });
+
+    it('al cerrar la hoja se revoca la URL que estaba en pantalla', async () => {
+        vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText: vi.fn() } });
+        const { unmount } = render(<ShareDaySheet {...props} />);
+        const enPantalla = (await screen.findByRole('img', { name: /mi día/i })).getAttribute('src');
+        expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+        unmount();
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith(enPantalla);
+    });
+
+    it('al redibujar, la imagen en pantalla no se revoca hasta que la nueva está puesta; al cerrar, se revoca la última', async () => {
+        let terminarSegunda;
+        vi.mocked(dibujarTarjetaDelDia)
+            .mockImplementationOnce(async () => new Blob(['1'], { type: 'image/png' }))
+            .mockImplementationOnce(() => new Promise((r) => { terminarSegunda = r; }));
+        URL.createObjectURL.mockReturnValueOnce('blob:1').mockReturnValueOnce('blob:2');
+        vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText: vi.fn() } });
+        const { unmount } = render(<ShareDaySheet {...props} />);
+        expect((await screen.findByRole('img', { name: /mi día/i })).getAttribute('src')).toBe('blob:1');
+
+        fireEvent.click(screen.getByRole('checkbox', { name: /incluir lo que comí/i }));   // redibujo en curso
+        expect(screen.getByRole('img', { name: /mi día/i }).getAttribute('src')).toBe('blob:1');
+        expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+
+        await act(async () => { terminarSegunda(new Blob(['2'], { type: 'image/png' })); });
+        await waitFor(() => expect(screen.getByRole('img', { name: /mi día/i }).getAttribute('src')).toBe('blob:2'));
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:1');
+        expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:2');
+
+        unmount();
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:2');
     });
 });
 
