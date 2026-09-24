@@ -8,8 +8,11 @@
 import { t, formatDate, formatNumber, formatPercent } from '../i18n';
 import { formatoMicro, filasMicros } from '../components/dashboard/microsShared';
 import { BRAND } from '../data/routeMeta';
+import { SITE_DOMAIN } from '../config/site';
 
-export const SITIO = 'bioboros.com';
+// El pie de la imagen y el cierre del texto: el dominio sale de SU SSOT (`config/site.js`, P1-DOMAIN-CUTOVER-BIOBOROS),
+// no de un literal que el próximo cambio de dominio olvidaría. `SITIO` queda como alias: lo importa `tarjetaDelDia.js`.
+export const SITIO = SITE_DOMAIN;
 const LLENO = '▰';
 const VACIO = '▱';
 
