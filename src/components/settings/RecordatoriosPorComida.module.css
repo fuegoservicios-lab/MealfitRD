@@ -1,0 +1,93 @@
+/* [P1-PLAN-LOTE-213 · 2026-09-24] Configuración → Recordatorios de comida: una fila por comida (nombre · hora ·
+   interruptor). Solo tokens del tema (`--text-*`, `--border`, `--bg-*`): el oscuro sale solo. El interruptor es el de
+   Configuración (lo pasa la página), para que las cinco palancas del bloque se vean iguales. */
+
+.lista {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin: 0.15rem 0 0.35rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 0.8rem;
+    background: var(--bg-muted, transparent);
+}
+
+.fila {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.75rem;
+    row-gap: 0.3rem;
+    min-height: 44px;                 /* objetivo táctil */
+}
+
+/* El nombre no se encoge por debajo de su palabra: si no cabe junto a los controles, son ELLOS los que bajan (y se
+   quedan a la derecha). Encogerlo montaba «Desayuno» encima de la hora a 320 px. */
+.nombre {
+    flex: 1 0 auto;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.controles {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+.apagada { color: var(--text-muted); }
+
+/* El selector nativo: la rueda en iOS, el reloj del sistema en Android y escritorio. */
+.hora {
+    flex-shrink: 0;
+    min-height: 36px;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.55rem;
+    background: var(--bg-card, transparent);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.86rem;
+    font-variant-numeric: tabular-nums;
+    /* El icono del reloj (y el selector que abre) lo pinta el sistema según el `color-scheme` DEL ELEMENTO. Con
+       `light dark` elegía el del SO y en el tema oscuro salía un reloj negro sobre fondo negro: se ata al tema de la
+       app, como `.mf-chip-select` (index.css). */
+    color-scheme: light;
+}
+
+:global(html[data-theme="dark"]) .hora { color-scheme: dark; }
+
+.hora:disabled { opacity: 0.45; }
+
+.hora:focus-visible {
+    outline: 2px solid var(--primary, #4F46E5);
+    outline-offset: 2px;
+}
+
+.enlace {
+    align-self: flex-start;
+    padding: 0.25rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.enlace:hover { color: var(--text-main); }
+
+.nota {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}

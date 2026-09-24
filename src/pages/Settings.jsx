@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import { nativeHidesCommerce, nativePlatform, isNativeApp } from '../config/platform';
 import { BIO_RANGES } from '../config/formValidation';
 import { useCampoVisibleConTeclado } from '../hooks/useCampoVisibleConTeclado';
@@ -65,6 +65,8 @@ import StapleFoodsPanel from '../components/settings/StapleFoodsPanel';
 // [P1-CLINICAL-PANEL · 2026-07-03] Panel opt-in de perfil clínico avanzado
 // (labs, historia ponderal, digestión, entrenamiento) → health_profile.clinical_profile.
 import ClinicalProfilePanel from '../components/settings/ClinicalProfilePanel';
+// [P1-PLAN-LOTE-213 · 2026-09-24] Interruptor y hora de cada recordatorio de comida (health_profile.avisos_por_comida).
+import RecordatoriosPorComida from '../components/settings/RecordatoriosPorComida';
 import { acusePrioritario } from '../hooks/useAutoguardado';
 // [P1-ACCOUNT-DELETE-1 · 2026-06-22] Misma sección "Eliminar cuenta" que /configuracion.
 import DeleteAccountSection from '../components/account/DeleteAccountSection';
@@ -3464,19 +3466,30 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             {pushEnabled && !isPushBlocked && (canalAvisos === 'web-push' || canalAvisos === 'local') && (
                                 <div style={{ marginTop: '0.85rem', paddingTop: '0.85rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                     {[
-                                        { clave: 'avisos_comida', valor: avisosComida, titulo: t('Recordatorios de comida'), sub: t('Un aviso por comida, justo antes de tu hora habitual.') },
+                                        { clave: 'avisos_comida', valor: avisosComida, titulo: t('Recordatorios de comida'), sub: t('Un aviso por comida, a la hora que elijas.') },
                                         { clave: 'avisos_agua', valor: avisosAgua, titulo: t('Recordatorios de agua'), sub: t('Avisos para que no se te olvide beber durante el día.') },
                                     ].map(({ clave, valor, titulo, sub }) => (
-                                        <div key={clave} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)' }}>{titulo}</div>
-                                                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '0.15rem' }}>{sub}</div>
+                                        <Fragment key={clave}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)' }}>{titulo}</div>
+                                                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '0.15rem' }}>{sub}</div>
+                                                </div>
+                                                <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
+                                                    <input type="checkbox" checked={valor} onChange={(e) => cambiarPrefDeAviso(clave, e.target.checked)} aria-label={titulo} />
+                                                    <span className={styles.toggleSlider}></span>
+                                                </label>
                                             </div>
-                                            <label className={styles.toggleSwitch} style={{ flexShrink: 0 }}>
-                                                <input type="checkbox" checked={valor} onChange={(e) => cambiarPrefDeAviso(clave, e.target.checked)} aria-label={titulo} />
-                                                <span className={styles.toggleSlider}></span>
-                                            </label>
-                                        </div>
+                                            {/* [P1-PLAN-LOTE-213] Con los de comida encendidos: cada comida, su interruptor y su hora. Tras
+                                                guardar, el teléfono reprograma con lo que diga el servidor (en web no hace nada). */}
+                                            {clave === 'avisos_comida' && valor && (
+                                                <RecordatoriosPorComida
+                                                    claseInterruptor={styles.toggleSwitch}
+                                                    claseDeslizador={styles.toggleSlider}
+                                                    onGuardado={sincronizarAvisosLocales}
+                                                />
+                                            )}
+                                        </Fragment>
                                     ))}
                                 </div>
                             )}
