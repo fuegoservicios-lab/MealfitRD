@@ -8,7 +8,7 @@ import { Input } from '../../common/FormUI';
 // `frontend/src/config/sentinels.js` para el contrato con backend
 // (`_SENTINEL_NONE_VALUES` en `graph_orchestrator.py`).
 import { SENTINELS } from '../../../config/sentinels';
-import { Ban, Egg, Fish, Leaf, Milk, Nut, Wheat } from 'lucide-react';
+import { Ban, Egg, Fish, Leaf, Milk, Nut, Shrimp, Wheat } from 'lucide-react';
 import { ChipOption, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
 import { useT } from '../../../i18n';
@@ -59,7 +59,10 @@ export const QAllergies = ({ onManualAdvance }) => {
                     { val: "Lacteos", label: t('Lácteos'), icon: Milk },
                     { val: "Gluten", label: t('Gluten'), icon: Wheat },
                     { val: "Huevo", label: t('Huevo'), icon: Egg },
-                    { val: "Mariscos", label: t('Mariscos'), icon: Fish },
+                    // [P1-PLAN-LOTE-210] camarón, no pez: con el mismo icono que «Pescado» el chip parecía cubrir el
+                    // pescado, y el revisor preguntaba en cada plan si el pescado servido estaba permitido. El glifo ya
+                    // viaja en el bundle (QDislikes lo usa para el mismo alimento).
+                    { val: "Mariscos", label: t('Mariscos'), icon: Shrimp },
                     // [P2-ALLERGEN-CHIPS-REACH-ENGINE · 2026-08-21] Dos chips que el motor YA sabía
                     // bloquear y que el formulario no tenía cómo pedirle:
                     //
