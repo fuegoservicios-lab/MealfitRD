@@ -11,6 +11,7 @@ vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 import { toast } from 'sonner';
 import { isNativeApp } from '../config/platform';
 import { dibujarTarjetaDelDia } from '../utils/tarjetaDelDia';
+import { fechaLarga } from '../utils/compartirDia';
 import ShareDaySheet from '../components/dashboard/ShareDaySheet';
 
 const props = {
@@ -134,6 +135,53 @@ describe('ShareDaySheet', () => {
 
         unmount();
         expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:2');
+    });
+});
+
+// [P1-COMPARTIR-DIA-PASADO · 2026-09-24] Desde el Diario llega el día que se mira.
+describe('ShareDaySheet · un día pasado', () => {
+    it('con `fecha`, la imagen, el texto y la cabecera dicen ESE día', async () => {
+        vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText: vi.fn() } });
+        const ayer = new Date(2026, 8, 23, 12);
+        render(<ShareDaySheet {...props} fecha={ayer} />);
+        await screen.findByRole('img', { name: /mi día/i });
+        expect(dibujarTarjetaDelDia.mock.calls[0][0].fecha.getTime()).toBe(ayer.getTime());
+        expect(decodeURIComponent(screen.getByRole('link', { name: /whatsapp/i }).getAttribute('href'))).toContain(fechaLarga(ayer));
+        const fecha = screen.getByText(fechaLarga(ayer));
+        expect(screen.getByRole('dialog', { name: 'Compartir tu día' }).getAttribute('aria-describedby')).toBe(fecha.id);
+    });
+
+    it('otra `Date` con el mismo instante (un render nuevo del padre) no redibuja la imagen', async () => {
+        vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText: vi.fn() } });
+        const { rerender } = render(<ShareDaySheet {...props} fecha={new Date(2026, 8, 23, 12)} />);
+        await screen.findByRole('img', { name: /mi día/i });
+        rerender(<ShareDaySheet {...props} fecha={new Date(2026, 8, 23, 12)} />);
+        await act(async () => {});
+        expect(dibujarTarjetaDelDia).toHaveBeenCalledTimes(1);
+    });
+
+    it('con `diario` (el día tal cual del endpoint) comparte los totales del servidor', async () => {
+        vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText: vi.fn() } });
+        const diario = {
+            meals: [{ meal_name: 'Mangú', calories: 510 }, { meal_name: 'Pollo', calories: 695 }, { meal_name: 'Tortilla', calories: 620 }],
+            totals: { calories: 1825, protein: 113, carbs: 161, healthy_fats: 78, micros: null, micros_coverage: { con_datos: 0, total: 3 } },
+        };
+        render(<ShareDaySheet onClose={vi.fn()} diario={diario} metas={props.metas} fecha={new Date(2026, 8, 23, 12)} />);
+        await screen.findByRole('img', { name: /mi día/i });
+        const r = dibujarTarjetaDelDia.mock.calls[0][0];
+        expect(r.calorias).toMatchObject({ valor: 1825, meta: 2050 });
+        expect(r.macros.map((m) => m.valor)).toEqual([113, 161, 78]);
+        expect(r.comidasRegistradas).toBe(3);
+        expect(decodeURIComponent(screen.getByRole('link', { name: /whatsapp/i }).getAttribute('href'))).toMatch(/78 \/ 57 g/);
+    });
+
+    it('sin `fecha` (la tarjeta de hoy) es hoy y la cabecera queda como estaba', async () => {
+        vi.stubGlobal('navigator', { ...navigator, share: undefined, canShare: undefined, clipboard: { writeText: vi.fn() } });
+        render(<ShareDaySheet {...props} />);
+        await screen.findByRole('img', { name: /mi día/i });
+        expect(fechaLarga(dibujarTarjetaDelDia.mock.calls[0][0].fecha)).toBe(fechaLarga(new Date()));
+        expect(screen.getByRole('dialog', { name: 'Compartir tu día' }).hasAttribute('aria-describedby')).toBe(false);
+        expect(document.getElementById('share-day-fecha')).toBeNull();
     });
 });
 

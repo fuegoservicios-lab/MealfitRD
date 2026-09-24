@@ -224,6 +224,46 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* [P1-COMPARTIR-DIA-PASADO · 2026-09-24] Compartir el día que se mira: el MISMO cuadrado índigo que la tarjeta de hoy
+ * (`.shareBtn` de TrackingProgress.module.css), a la derecha del total. Caja de 40 px —la de la X— con -4 px de margen
+ * arriba y abajo: ocupa lo mismo que la cifra (2.05rem, line-height 1), así la fila no cambia de alto al pasar de un
+ * día con comidas a uno sin ellas, que no lleva botón. */
+.shareBtn {
+    flex-shrink: 0;
+    align-self: center;
+    margin: -4px 0 -4px auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid #C7D2FE;
+    background: rgba(99, 102, 241, 0.06);
+    color: #4F46E5;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.shareBtn svg { color: #6366F1; }
+.shareBtn:hover:not(:disabled) { border-color: #A5B4FC; background: rgba(99, 102, 241, 0.13); }
+.shareBtn:disabled { opacity: 0.5; cursor: default; }
+.shareBtn:focus-visible { outline: 2px solid #818CF8; outline-offset: 2px; }
+
+:global(html[data-theme="dark"]) .shareBtn {
+    border-color: rgba(129, 140, 248, 0.45);
+    color: #A5B4FC;
+    background: rgba(99, 102, 241, 0.12);
+}
+
+:global(html[data-theme="dark"]) .shareBtn svg { color: #A5B4FC; }
+
+:global(html[data-theme="dark"]) .shareBtn:hover:not(:disabled) {
+    border-color: rgba(129, 140, 248, 0.75);
+    background: rgba(99, 102, 241, 0.2);
+}
+
 .quotaBar {
     margin-top: 0.6rem;
     height: 3px;
@@ -449,6 +489,8 @@
 @media (max-width: 520px) {
     .drawer { width: 100vw; }
     .quotaNum { font-size: 1.85rem; }
+    /* [P1-COMPARTIR-DIA-PASADO] con la cifra a 1.85rem (29,6 px) el botón cede 6 px por lado: sigue sin mover la fila */
+    .shareBtn { margin-top: -6px; margin-bottom: -6px; }
     .macroRow { gap: 0.6rem; }
 }
 

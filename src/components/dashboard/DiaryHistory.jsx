@@ -33,11 +33,15 @@
 //  · REGISTRAR en el día que miras (hasta 7 atrás, el tope del backend), con el mismo componedor;
 //  · ver MÁS de 14 días (hasta 90, el tope del endpoint) y la media de la semana;
 //  · se refresca solo cuando algo cambia mientras está abierto (registrar/borrar en la tarjeta o en el chat).
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+//
+// [P1-COMPARTIR-DIA-PASADO · 2026-09-24] Compartir CUALQUIER día, no solo hoy (el dueño: «¿y si yo quisiera compartir
+// días pasados?»): el botón de la tarjeta de hoy vive también aquí, junto al total del día, y abre la MISMA hoja con el
+// día que se mira y su fecha.
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarDays, ChevronRight, Trash2, Loader2, Plus, FlaskConical } from 'lucide-react';
+import { X, CalendarDays, ChevronRight, Trash2, Loader2, Plus, FlaskConical, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
@@ -47,6 +51,11 @@ import { useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
 import ScanMealModal from './ScanMealModal';
 import styles from './DiaryHistory.module.css';
+
+// [P1-COMPARTIR-DIA-PASADO] La hoja se carga al abrirla, como en la tarjeta (el mismo trozo: canvas + textos). Recibe
+// el día TAL CUAL llega del endpoint (`diario`) y lo adapta ella: importar aquí `compartirDia.js` lo metía entero en el
+// trozo del panel, que el precache del apex descarga siempre (+1,5 kB gz, por encima del techo de precache-guard).
+const ShareDaySheet = lazy(() => import('./ShareDaySheet'));
 
 // [P1-PLAN-LOTE-165 · 2026-09-22] El día de la semana DENTRO de una frase: en minúscula en español, portugués, francés e
 // italiano; en inglés va con mayúscula (salía «You logged it on monday 21»).
@@ -117,6 +126,14 @@ const desdeISO = (iso) => {
     return new Date(a, (m || 1) - 1, d || 1);
 };
 
+/** [P1-COMPARTIR-DIA-PASADO] El día `iso` a mediodía LOCAL: lo que se comparte es un DÍA, y a mediodía ningún cambio
+ *  de hora lo mueve de fecha (el mismo porqué que la tira). */
+const mediodiaDe = (iso) => {
+    const d = desdeISO(iso);
+    d.setHours(12, 0, 0, 0);
+    return d;
+};
+
 /** Cuántos días atrás queda `iso` respecto a hoy (local). */
 const diasAtras = (iso, hoyISO) => Math.round((desdeISO(hoyISO) - desdeISO(iso)) / 86400000);
 
@@ -178,6 +195,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     // mediante la cámara o foto». El componedor se montaba aquí sin `onScan`, y sin él no pinta las pestañas
     // «Buscar o escribir / Escanear con foto». Ahora cede el paso al escáner, que nace YA en el día que se mira.
     const [escaneando, setEscaneando] = useState(false);
+    // [P1-COMPARTIR-DIA-PASADO] `{ dia, fecha }` del día que se comparte, fijado al tocar el botón; null = cerrada
+    const [aCompartir, setACompartir] = useState(null);
     const cierreRef = useRef(null);
     const stripRef = useRef(null);
     const activoRef = useRef(null);
@@ -231,7 +250,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 );
                 if (!res.ok) throw new Error('respuesta no OK');
                 const data = await res.json();
-                if (vivo) setDia({ meals: data?.meals || [], totals: data?.totals || {} });
+                // [P1-COMPARTIR-DIA-PASADO] `iso`: la fecha viaja CON sus datos. Mientras carga otro día, `dia` sigue
+                // siendo el anterior, y compartir no puede juntar las cifras de uno con la fecha del otro.
+                if (vivo) setDia({ iso: selected, meals: data?.meals || [], totals: data?.totals || {} });
             } catch {
                 if (vivo) {
                     setDia(null);
@@ -287,6 +308,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         const onKey = (e) => {
             // con el componedor abierto encima, las teclas son suyas (Escape lo cierra a él, no al cajón)
             if (registrando || escaneando) return;
+            // [P1-COMPARTIR-DIA-PASADO] con la hoja de compartir, igual: Escape (y el «atrás» de Android, que lo
+            // simula) la cierra a ella, y las flechas no cambian el día que hay debajo
+            if (aCompartir) return;
             if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); moverDia(-1); }
             else if (e.key === 'ArrowRight') { e.preventDefault(); moverDia(1); }
@@ -298,9 +322,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         // checkpoint de microtasks a mitad del dispatch). En captura este handler corre ANTES que nadie, con el
         // estado de antes de la tecla.
         window.addEventListener('keydown', onKey, true);
-        if (!registrando && !escaneando) cierreRef.current?.focus({ preventScroll: true });
+        if (!registrando && !escaneando && !aCompartir) cierreRef.current?.focus({ preventScroll: true });
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [open, onClose, moverDia, registrando, escaneando]);
+    }, [open, onClose, moverDia, registrando, escaneando, aCompartir]);
 
     // [P1-PLAN-LOTE-105] Borrar desde cualquier día: el mismo DELETE (filtrado por user_id) que la papelera de la
     // tarjeta de hoy. Tras borrar se vuelve a pedir el día y la tira, y se avisa a la tarjeta (si era hoy, sus
@@ -333,6 +357,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const cerrarComponedor = useCallback(() => setRegistrando(false), []);
     const pasarAlEscaner = useCallback(() => { setRegistrando(false); setEscaneando(true); }, []);
     const cerrarEscaner = useCallback(() => setEscaneando(false), []);
+    // memoizado: `onClose` va en las deps de `useModalAccessibility` y uno nuevo por render le robaría el foco
+    const cerrarCompartir = useCallback(() => setACompartir(null), []);
 
     const fecha = desdeISO(selected);
     const esHoy = selected === hoyISO;
@@ -365,8 +391,17 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     }, [dias, porFecha]);
 
     const sinNada = !cargando && !error && (dia?.meals || []).length === 0;
+    // [P1-COMPARTIR-DIA-PASADO] Como en la tarjeta, se comparte un día CON comidas. Mientras carga otro, el botón se
+    // queda (no parpadea al pasar entre días con registro) pero apagado: `dia` todavía es el anterior.
+    const conComidas = (dia?.meals || []).length > 0;
 
     if (!open) return null;
+
+    const etiquetaCompartir = esHoy ? t('Compartir mi día') : t('Compartir este día');
+    const abrirCompartir = () => {
+        if (!conComidas || cargando) return;
+        setACompartir({ dia, fecha: mediodiaDe(dia.iso || selected) });
+    };
 
     const renderComida = (meal) => {
         const h = horaFiable(meal);
@@ -509,6 +544,20 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     <div className={styles.quotaTop}>
                         <span className={styles.quotaNum}>{num(totales.calories)}</span>
                         <span className={styles.quotaOf}>{t('de {kcal} kcal', { kcal: targetCalories })}</span>
+                        {/* [P1-COMPARTIR-DIA-PASADO] junto a las cifras que se comparten, no en la cabecera: con la X al
+                            lado, «Miércoles 23 de septiembre» ya no cabe en una línea en un teléfono */}
+                        {conComidas && (
+                            <button
+                                type="button"
+                                className={styles.shareBtn}
+                                onClick={abrirCompartir}
+                                disabled={cargando}
+                                aria-label={etiquetaCompartir}
+                                title={etiquetaCompartir}
+                            >
+                                <Share2 size={18} strokeWidth={2.5} aria-hidden="true" />
+                            </button>
+                        )}
                     </div>
                     <div className={styles.quotaBar}>
                         <motion.div
@@ -633,6 +682,22 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             )}
             {escaneando && (
                 <ScanMealModal isOpen onClose={cerrarEscaner} userId={userId || 'guest'} initialDaysAgo={atras} />
+            )}
+            {aCompartir && (
+                <Suspense fallback={null}>
+                    <ShareDaySheet
+                        onClose={cerrarCompartir}
+                        diario={aCompartir.dia}
+                        fecha={aCompartir.fecha}
+                        metas={{
+                            calories: targetCalories,
+                            protein: num(targetMacros?.protein),
+                            carbs: num(targetMacros?.carbs),
+                            fats: num(targetMacros?.fats),
+                        }}
+                        microMetas={targetMicros}
+                    />
+                </Suspense>
             )}
         </>
     );

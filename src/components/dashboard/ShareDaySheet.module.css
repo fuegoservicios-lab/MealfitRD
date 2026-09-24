@@ -112,6 +112,19 @@
     color: var(--text-main, #0F172A);
 }
 
+/* [P1-COMPARTIR-DIA-PASADO · 2026-09-24] El día que se comparte, bajo el título, cuando llega del Diario. Es la misma
+   fecha que la imagen (`fechaLarga`), que en español la escribe en minúscula: aquí abre una línea, va con mayúscula. */
+.headText { min-width: 0; }
+
+.fecha {
+    margin: 0.12rem 0 0;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-muted, #64748B);
+}
+
+.fecha::first-letter { text-transform: uppercase; }
+
 .close {
     display: inline-flex;
     align-items: center;

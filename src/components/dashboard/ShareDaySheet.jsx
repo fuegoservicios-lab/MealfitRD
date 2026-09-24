@@ -5,6 +5,12 @@
 // La hoja es la de «Registrar comida» (LogMealModal): portal a <body>, fondo que cierra, `useModalAccessibility`
 // y, en el teléfono, hoja inferior con cabecera y pie fijos que se cierra deslizando (`useBottomSheet`). Las
 // acciones van en el pie: con la vista previa alta, en un teléfono pequeño no se pierden bajo el pliegue.
+//
+// [P1-COMPARTIR-DIA-PASADO · 2026-09-24] Dos puertas: la tarjeta de hoy (su snapshot en `consumed`, sin `fecha`: hoy) y
+// el Diario de días anteriores, que manda el día que se mira TAL CUAL lo devuelve el endpoint (`diario`) y su `fecha`;
+// entonces la cabecera la dice bajo el título, porque en el teléfono la hoja tapa la del cajón y la imagen la lleva en
+// letra pequeña. `diario` se adapta aquí (`consumidoDelDiario`) y no en el cajón: así `compartirDia.js` sigue en este
+// trozo perezoso y no en el del panel, que el precache del apex descarga siempre.
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
@@ -14,11 +20,11 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
-import { resumenDelDia, textoDelDia, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, puedeCompartirTexto, compartir } from '../../utils/compartirDia';
+import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, puedeCompartirTexto, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
 import styles from './ShareDaySheet.module.css';
 
-const ShareDaySheet = ({ onClose, consumed, metas, microMetas = null }) => {
+const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMetas = null, fecha = null }) => {
     const t = useT();
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
     const bodyRef = useRef(null);
@@ -33,10 +39,16 @@ const ShareDaySheet = ({ onClose, consumed, metas, microMetas = null }) => {
     // «Compartir» mientras tanto. (Si cambia `consumed` —un refetch— sí se redibuja: puede traer otra comida.)
     const { calories, protein, carbs, fats } = metas || {};
     const metasDelDia = useMemo(() => ({ calories, protein, carbs, fats }), [calories, protein, carbs, fats]);
+    // [P1-COMPARTIR-DIA-PASADO] El día también se fija por su VALOR (el instante), no por la referencia: un
+    // `new Date()` nuevo en cada render del padre redibujaría la imagen sin parar. Sin `fecha`, hoy.
+    const instante = fecha instanceof Date ? fecha.getTime() : NaN;
+    const conFecha = Number.isFinite(instante);
+    const fechaDelDia = useMemo(() => (Number.isFinite(instante) ? new Date(instante) : new Date()), [instante]);
+    const delDia = useMemo(() => consumed || consumidoDelDiario(diario), [consumed, diario]);
 
     const resumen = useMemo(
-        () => resumenDelDia({ consumed, metas: metasDelDia, microMetas, incluirComidas }),
-        [consumed, metasDelDia, microMetas, incluirComidas],
+        () => resumenDelDia({ consumed: delDia, metas: metasDelDia, microMetas, incluirComidas, fecha: fechaDelDia }),
+        [delDia, metasDelDia, microMetas, incluirComidas, fechaDelDia],
     );
     const texto = useMemo(() => textoDelDia(resumen), [resumen]);
 
@@ -110,6 +122,7 @@ const ShareDaySheet = ({ onClose, consumed, metas, microMetas = null }) => {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="share-day-title"
+                aria-describedby={conFecha ? 'share-day-fecha' : undefined}
                 tabIndex={-1}
                 onTouchStart={hoja.onTouchStart}
                 onTouchMove={hoja.onTouchMove}
@@ -119,7 +132,10 @@ const ShareDaySheet = ({ onClose, consumed, metas, microMetas = null }) => {
                 <div className={styles.head}>
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
-                        <h2 id="share-day-title" className={styles.title}>{t('Compartir tu día')}</h2>
+                        <div className={styles.headText}>
+                            <h2 id="share-day-title" className={styles.title}>{t('Compartir tu día')}</h2>
+                            {conFecha && <p id="share-day-fecha" className={styles.fecha}>{fechaLarga(fechaDelDia)}</p>}
+                        </div>
                         <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>
@@ -171,9 +187,13 @@ const ShareDaySheet = ({ onClose, consumed, metas, microMetas = null }) => {
 
 ShareDaySheet.propTypes = {
     onClose: PropTypes.func.isRequired,
-    consumed: PropTypes.object.isRequired,
+    // uno de los dos: el snapshot de la tarjeta de hoy, o el día del Diario tal cual (`{meals, totals}` del endpoint)
+    consumed: PropTypes.object,
+    diario: PropTypes.shape({ meals: PropTypes.array, totals: PropTypes.object }),
     metas: PropTypes.object.isRequired,
     microMetas: PropTypes.object,
+    // [P1-COMPARTIR-DIA-PASADO] el día que se comparte (desde el Diario); sin ella, hoy
+    fecha: PropTypes.instanceOf(Date),
 };
 
 export default ShareDaySheet;

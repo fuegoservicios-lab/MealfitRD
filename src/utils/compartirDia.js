@@ -54,6 +54,25 @@ export function resumenDelDia({ consumed, metas, microMetas = null, incluirComid
     };
 }
 
+/**
+ * [P1-COMPARTIR-DIA-PASADO · 2026-09-24] Un día del Diario (`GET /api/diary/consumed/{id}?date=…` → `{meals, totals}`)
+ * en la forma que lee `resumenDelDia`. Se comparten los MISMOS totales que pinta el cajón —los del servidor—, no una
+ * suma rehecha aquí: la imagen no puede decir otra cifra que la pantalla desde la que se comparte.
+ */
+export function consumidoDelDiario(dia) {
+    const meals = Array.isArray(dia?.meals) ? dia.meals : [];
+    const tot = dia?.totals || {};
+    return {
+        calories: Number(tot.calories) || 0,
+        protein: Number(tot.protein) || 0,
+        carbs: Number(tot.carbs) || 0,
+        fats: Number(tot.healthy_fats ?? tot.fats) || 0,
+        meals,
+        micros: tot.micros || null,
+        microsCoverage: tot.micros_coverage || { con_datos: 0, total: meals.length },
+    };
+}
+
 export const fechaLarga = (fecha) => formatDate(fecha, { weekday: 'long', day: 'numeric', month: 'long' });
 
 const _EMOJI = { calories: '🔥', protein: '💪', carbs: '🌾', fats: '🥑' };
