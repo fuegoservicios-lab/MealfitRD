@@ -2955,7 +2955,9 @@ const DashboardInner = () => {
             // Exclude expired items so they don't suppress the shopping list delta
             if (!PANTRY_STAPLES_DELTA.has(name) && item.created_at) {
                 const category = (item.master_ingredients?.category || '').toLowerCase();
-                const shelfLife = item.master_ingredients?.shelf_life_days || inferShelfLifeDays(name, category);
+                // [P1-PLAN-LOTE-202] `shelf_life_days` vale 14 en 333 de 349 filas (relleno): la inferencia por nombre sabe
+                // que un seco dura 180 días. Manda el MAYOR (nunca acorta lo perecedero).
+                const shelfLife = Math.max(Number(item.master_ingredients?.shelf_life_days) || 0, inferShelfLifeDays(name, category));
                 const daysOld = Math.floor((Date.now() - new Date(item.created_at).getTime()) / 86400000);
                 if (daysOld > shelfLife) return;
             }
