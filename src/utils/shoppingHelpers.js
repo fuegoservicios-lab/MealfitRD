@@ -704,10 +704,13 @@ const _deltaKey = (it) => (typeof it === 'object' && it ? (it.name || '') : Stri
 // perecedero agotado que el backend quitó de la lista de ciclo se vuelve a chequear contra la
 // Nevera y reaparece si está ausente. Dedupe por nombre normalizado (sin duplicar filas en
 // PDF/restock). Para un plan NUEVO (ciclo no recortado) la unión no agrega nada → idéntico al previo.
-export const getDeltaSourceList = (planData, duration) => {
+export const getDeltaSourceList = (planData, duration, { conNevera = true } = {}) => {
     // Preserva `null` (no `[]`) cuando NO hay lista — el guard del PDF lo usa para detectar
     // "plan sin lista de compras".
     const durationList = getActiveShoppingList(planData, duration);
+    // [P1-PLAN-LOTE-217 · 2026-09-24] Sin Nevera no se recupera lo que el ciclo suprimió: esa recuperación existe para
+    // re-chequear contra la Nevera lo agotado, y sin Nevera devolvía a la lista TODO lo ya comprado.
+    if (!conNevera) return durationList;
     const canonical = getCanonicalIngredientSet(planData);
     if (!Array.isArray(canonical) || canonical.length === 0) return durationList;
     const base = Array.isArray(durationList) ? durationList : [];

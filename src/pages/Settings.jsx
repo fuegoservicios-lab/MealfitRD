@@ -1093,7 +1093,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [waterTrackerEnabled, setWaterTrackerEnabled] = useState(null);
     const [isWaterTrackerToggling, setIsWaterTrackerToggling] = useState(false);
 
-    // [P1-NEVERA-OPCIONAL · 2026-09-23] Tarjeta «Nevera» (solo modo contador). Lo que dice el servidor, tal cual:
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] Tarjeta «Nevera» (en los dos modos desde P1-PLAN-LOTE-217). Lo que dice el servidor, tal cual:
     // `{enabled: true|false|null, activa, auto_off_at, disponible}`. `null` = aún sin respuesta: no se pinta.
     const [neveraEstado, setNeveraEstado] = useState(null);
     const [isNeveraToggling, setIsNeveraToggling] = useState(false);
@@ -1556,11 +1556,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         return () => { cancelled = true; };
     }, [userProfile?.id]);
 
-    // [P1-NEVERA-OPCIONAL · 2026-09-23] La tarjeta de la Nevera solo existe en modo contador (en modo plan la Nevera
-    // es obligatoria: lista de compras, reposición, «Me lo comí»). Sin respuesta, no se pinta: mejor sin tarjeta que
-    // con un interruptor que miente.
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] La tarjeta de la Nevera. [P1-PLAN-LOTE-217 · 2026-09-24] También en modo plan
+    // (antes allí era obligatoria y, vacía, congelaba el plan). Se vuelve a pedir al cambiar de modo. Sin respuesta, no
+    // se pinta: mejor sin tarjeta que con un interruptor que miente.
     useEffect(() => {
-        if (!userProfile?.id || !enModoContador) { setNeveraEstado(null); return undefined; }
+        if (!userProfile?.id) { setNeveraEstado(null); return undefined; }
         let cancelled = false;
         (async () => {
             try {
@@ -3799,12 +3799,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                     </div>
                                 )}
 
-                                {/* [P1-NEVERA-OPCIONAL · 2026-09-23] Toggle: Nevera — SOLO en modo contador (con el
-                                    generador encendido la Nevera es obligatoria: lista de compras, reposición, «Me lo
-                                    comí»). Apagada, sale de la navegación y registrar comidas no descuenta nada; el
+                                {/* [P1-NEVERA-OPCIONAL · 2026-09-23] Toggle: Nevera — en los dos modos desde
+                                    P1-PLAN-LOTE-217. Apagada, sale de la navegación, registrar comidas no descuenta
+                                    nada y, en modo plan, los bloques se generan sin mirarla y la lista pide todo; el
                                     inventario se conserva. Si el usuario nunca eligió, se apaga sola tras 2 días vacía
                                     y aquí queda dicho con la fecha. Sin `disponible` (knob apagado) no hay tarjeta. */}
-                                {enModoContador && neveraEstado?.disponible && (
+                                {neveraEstado?.disponible && (
                                     <div
                                         className={`${styles.preferenceCard} ${styles.preferenceCardGreen} ${neveraEstado.activa ? styles.preferenceCardActive : ''}`}
                                     >
@@ -3819,14 +3819,18 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                 <div className={styles.preferenceCardDesc}>
                                                     {neveraEstado.activa ? (
                                                         <>
-                                                            {t('Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.')}
+                                                            {enModoContador
+                                                                ? t('Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.')
+                                                                : t('Lo que tienes en casa: tu plan se cocina con ello, lo que comes se descuenta y la lista te pide solo lo que falta. Si no la llevas, apágala: tu plan sigue igual.')}
                                                             {neveraEstado.enabled === null && (
                                                                 <>{' '}{t('Si pasa 2 días vacía, la apagamos por ti.')}</>
                                                             )}
                                                         </>
                                                     ) : (
                                                         <>
-                                                            {t('Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.')}
+                                                            {enModoContador
+                                                                ? t('Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.')
+                                                                : t('Oculta: tu plan se genera sin mirarla, la lista te pide todo y registrar comidas no descuenta nada. Tu inventario se conserva si la reactivas.')}
                                                             {neveraEstado.auto_off_at && (
                                                                 <>{' '}{t('La apagamos el {fecha} porque seguía vacía.', { fecha: formatDate(neveraEstado.auto_off_at, { day: 'numeric', month: 'long' }) })}</>
                                                             )}

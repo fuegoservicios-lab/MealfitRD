@@ -3350,6 +3350,8 @@
   "Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.": "Quello che hai in casa: il coach ci cucina e ciò che mangi viene scalato. Se usi solo il contatore e il coach, disattivalo.",
   "Si pasa 2 días vacía, la apagamos por ti.": "Se resta vuoto per 2 giorni, lo disattiviamo noi.",
   "Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.": "Nascosto: registrare i pasti non scala nulla e il coach non lo usa. Il tuo inventario si conserva se lo riattivi.",
+  "Lo que tienes en casa: tu plan se cocina con ello, lo que comes se descuenta y la lista te pide solo lo que falta. Si no la llevas, apágala: tu plan sigue igual.": "Quello che hai in casa: il tuo piano cucina con quello, ciò che mangi viene scalato e la lista chiede solo ciò che manca. Se non la usi, disattivala: il tuo piano resta uguale.",
+  "Oculta: tu plan se genera sin mirarla, la lista te pide todo y registrar comidas no descuenta nada. Tu inventario se conserva si la reactivas.": "Nascosto: il tuo piano viene generato senza guardarlo, la lista chiede tutto e registrare i pasti non scala nulla. Il tuo inventario resta se lo riattivi.",
   "La apagamos el {fecha} porque seguía vacía.": "L'abbiamo disattivato il {fecha} perché era ancora vuoto.",
   "Activar o desactivar la Nevera": "Attiva o disattiva il Frigo",
   "Nevera activada.": "Frigo attivato.",

@@ -89,7 +89,9 @@ export const isTrackingMode = (userProfile, _planData) => {
  *   3. Solo sin perfil (el primer pintado), el espejo que siembra `fetchProfile`.
  *  «No sé» ⇒ ACTIVA: ocultar por ignorancia es peor que mostrar de más (la doctrina del modo). */
 export const neveraActiva = (userProfile) => {
-    if (!isTrackingMode(userProfile)) return true;
+    // [P1-PLAN-LOTE-217 · 2026-09-24] Ya no hay «fuera del contador, activa siempre»: la Nevera también se apaga en modo
+    // plan y el servidor lo dice en `nevera_activa` (su regla ya cubre el modo). El `false` que el perfil en memoria
+    // arrastra del contador al pasar al plan es ahora el valor CIERTO (la elección se conserva en los dos modos).
     if (userProfile) return userProfile.nevera_activa !== false;
     return safeLocalStorageGet('mealfit_nevera_activa', null) !== 'false';
 };

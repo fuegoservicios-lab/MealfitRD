@@ -3350,6 +3350,8 @@
   "Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.": "What you have at home: the coach cooks with it and what you eat is deducted from it. If you only use the counter and the coach, turn it off.",
   "Si pasa 2 días vacía, la apagamos por ti.": "If it stays empty for 2 days, we turn it off for you.",
   "Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.": "Hidden: logging meals doesn't deduct anything and the coach doesn't use it. Your inventory is kept if you turn it back on.",
+  "Lo que tienes en casa: tu plan se cocina con ello, lo que comes se descuenta y la lista te pide solo lo que falta. Si no la llevas, apágala: tu plan sigue igual.": "What you have at home: your plan cooks with it, what you eat is deducted and the list only asks for what's missing. If you don't keep it, turn it off: your plan stays the same.",
+  "Oculta: tu plan se genera sin mirarla, la lista te pide todo y registrar comidas no descuenta nada. Tu inventario se conserva si la reactivas.": "Hidden: your plan is generated without it, the list asks for everything and logging meals deducts nothing. Your inventory is kept if you turn it back on.",
   "La apagamos el {fecha} porque seguía vacía.": "We turned it off on {fecha} because it was still empty.",
   "Activar o desactivar la Nevera": "Turn the Fridge on or off",
   "Nevera activada.": "Fridge turned on.",

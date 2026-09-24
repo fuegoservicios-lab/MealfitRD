@@ -189,6 +189,7 @@ import {
 // [P2-3 · 2026-07-09] Cache del planCount keyed por usuario (antes window.__cachedQuota).
 import { getFreshPlanCount } from '../utils/quotaCache';
 import { glossClinicalNote } from '../utils/clinicalNoteGloss';
+import { neveraActiva } from '../config/dashboardNav';  // [P1-PLAN-LOTE-217]
 import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory, buildGlossIndex, glossShoppingName } from '../utils/shoppingHelpers';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
@@ -2824,8 +2825,12 @@ const DashboardInner = () => {
 
     // 🔄 DELTA SHOPPING: Lista de compras inteligente que resta lo que ya hay en la Nevera.
     // Si el usuario tiene 5 lb de pollo en inventario, el PDF/restock no mostrará pollo (o mostrará la diferencia).
+    // [P1-PLAN-LOTE-217 · 2026-09-24] Con la Nevera APAGADA (también en modo plan) no hay delta: la lista del ciclo tal
+    // cual —lo que el servidor ya suprimió tras «Ya compré»—, sin restar un inventario oculto que nadie mantiene.
+    const _neveraOn = neveraActiva(userProfile);
     const buildDeltaShoppingList = useCallback((shoppingList, inventoryOverride = null) => {
         if (!shoppingList || !Array.isArray(shoppingList) || shoppingList.length === 0) return shoppingList || [];
+        if (!_neveraOn) return shoppingList;
         // [P3-DEDUP-EXPLICIT-OVERRIDE · 2026-05-18] Distinguir "no override
         // pasado" vs "override = []" usando undefined check (no `||`). Esto
         // permite que el caller pase explícitamente [] para significar
@@ -3163,20 +3168,20 @@ const DashboardInner = () => {
         // (off-by-one-día, ~14% sobre-escala). Son primitivos numéricos
         // (comparados por valor → sin re-creación espuria). groceryDuration/
         // todayDate quedan subsumidos (maxDays/daysLeft derivan de ellos).
-    }, [liveInventory, planData, maxDays, daysLeft, daysSinceCreation]);
+    }, [liveInventory, planData, maxDays, daysLeft, daysSinceCreation, _neveraOn]);
 
     // Calcular si la delta list de esta sesión actual todavia requiere compras
     // GUARD: No calcular hasta que liveInventory se haya cargado (evita flash del botón).
     const computedHasPendingShoppingItems = useMemo(() => {
         if (liveInventory !== null && planData && (planData.aggregated_shopping_list || allPlanIngredients)) {
             const duration = formData?.groceryDuration || 'weekly';
-            const rawList = getDeltaSourceList(planData, duration) || allPlanIngredients || [];
+            const rawList = getDeltaSourceList(planData, duration, { conNevera: _neveraOn }) || allPlanIngredients || [];
 
             const currentDelta = buildDeltaShoppingList(rawList);
             return currentDelta.length > 0;
         }
         return null;  // null = "no sabemos aún" (vs false = "sabemos que NO hay items")
-    }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList]);
+    }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList, _neveraOn]);
 
     // [P2-BRANDS-CANONICAL-SOURCE · 2026-07-06] Fuente del panel "Marcas y precios
     // del súper": la lista CANÓNICA semanal (necesidades completas del plan),
@@ -3215,7 +3220,7 @@ const DashboardInner = () => {
     const restockPreview = useMemo(() => {
         try {
             const duration = formData?.groceryDuration || 'weekly';
-            const raw = getDeltaSourceList(planData, duration) || allPlanIngredients || [];
+            const raw = getDeltaSourceList(planData, duration, { conNevera: _neveraOn }) || allPlanIngredients || [];
             const delta = buildDeltaShoppingList(raw, Array.isArray(liveInventory) ? liveInventory : []);
             const names = delta
                 .map((it) => (it && typeof it === 'object' ? (it.name || it.item || '') : String(it || '')))
@@ -3234,7 +3239,7 @@ const DashboardInner = () => {
         } catch {
             return { count: 0, sample: [], duration: 'weekly' };
         }
-    }, [planData, formData?.groceryDuration, allPlanIngredients, liveInventory, buildDeltaShoppingList]);
+    }, [planData, formData?.groceryDuration, allPlanIngredients, liveInventory, buildDeltaShoppingList, _neveraOn]);
 
     // Rotulado fuera del memo: barato y siempre en el idioma activo.
     const _restockDurationLabel = {
@@ -3261,7 +3266,7 @@ const DashboardInner = () => {
     const shoppingDeltaMeta = useMemo(() => {
         if (liveInventory !== null && planData && (planData.aggregated_shopping_list || allPlanIngredients)) {
             const duration = formData?.groceryDuration || 'weekly';
-            const rawList = getDeltaSourceList(planData, duration) || allPlanIngredients || [];
+            const rawList = getDeltaSourceList(planData, duration, { conNevera: _neveraOn }) || allPlanIngredients || [];
             const currentDelta = buildDeltaShoppingList(rawList);
             const itemsRemoved = currentDelta._itemsRemoved || 0;
             const hasItems = currentDelta.length > 0;
@@ -3306,7 +3311,7 @@ const DashboardInner = () => {
             };
         }
         return null;
-    }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList]);
+    }, [liveInventory, planData, formData?.groceryDuration, allPlanIngredients, buildDeltaShoppingList, _neveraOn]);
 
     // [P3-RESTOCK-BTN-STABLE · 2026-05-19] Cache localStorage del último valor
     // conocido de `hasPendingShoppingItems` para bootstrap del primer paint del
@@ -3616,7 +3621,7 @@ const DashboardInner = () => {
             })();
 
             // Usar la lista consolidada correcta según el ciclo seleccionado
-            const aggregatedList = getDeltaSourceList(effectivePlanData, duration);
+            const aggregatedList = getDeltaSourceList(effectivePlanData, duration, { conNevera: _neveraOn });
             // [P2-PDF-NO-AGG-GUARD · 2026-06-17] Si NO existe lista AGREGADA real (ni
             // la del ciclo ni la base), el plan está incompleto/fallido. El fallback
             // `allPlanIngredients` lista ingredientes CRUDOS por-comida (agua, sal "al
@@ -4762,7 +4767,7 @@ const DashboardInner = () => {
 
             // Fuente Verdadera: Solo enviar a la BD lo que es estrictamente NUEVO de la Lista de Compras del Plan!
             const duration = formData?.groceryDuration || 'weekly';
-            const rawActiveShoppingList = getDeltaSourceList(planData, duration) || allPlanIngredients || [];
+            const rawActiveShoppingList = getDeltaSourceList(planData, duration, { conNevera: _neveraOn }) || allPlanIngredients || [];
 
             // 🔄 Delta Shopping: solo enviar lo que NO está ya en la Nevera
             const activeShoppingList = buildDeltaShoppingList(rawActiveShoppingList, freshInventoryForRestock);
