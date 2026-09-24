@@ -15,7 +15,9 @@ import { readTargetsCache, writeTargetsCache } from '../../utils/targetsCache';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { Loader2, Gauge } from 'lucide-react';
+import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../../utils/safeLocalStorage';
 import { reanudarPlanes } from '../../utils/planModeResume';
 import { useAssessment } from '../../context/AssessmentContext';
 import { missingPlanQuestionsCount } from '../../config/formValidation';
@@ -204,6 +206,19 @@ const DashboardTracking = ({ modo = 'contador' }) => {
         window.addEventListener('mealfit:targets-changed', cargar);
         return () => window.removeEventListener('mealfit:targets-changed', cargar);
     }, [cargar]);
+
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] La Nevera se apaga SOLA tras 48 h vacía en modo contador; que no sea en
+    // silencio: se dice UNA vez por apagado y por dispositivo, con el camino de vuelta (mismo patrón que la hidratación).
+    useEffect(() => {
+        const at = userProfile?.nevera_auto_off_at;
+        if (userProfile?.nevera_activa !== false || typeof at !== 'string' || !at) return;
+        if (safeLocalStorageGet('mealfit_nevera_auto_off_visto', null) === at) return;
+        safeLocalStorageSet('mealfit_nevera_auto_off_visto', at);
+        toast(t('Ocultamos tu Nevera'), {
+            description: t('Llevaba 2 días vacía. Puedes volver a encenderla en Configuración → Capacidades.'),
+            duration: 6000,
+        });
+    }, [userProfile?.nevera_activa, userProfile?.nevera_auto_off_at, t]);
 
     // [P1-PLAN-LOTE-88 · 2026-09-17] `flatOnMobile` en las dos secciones grandes: en el teléfono van SIN
     // marco de tarjeta y a todo el ancho (el dueño: «quitamos eso de las tarjeticas en móviles»). Sigue

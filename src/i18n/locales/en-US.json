@@ -3336,5 +3336,14 @@
   "Descargar imagen": "Download image",
   "Tu dispositivo no dejó compartir. Usa WhatsApp o copia el texto.": "Your device didn't allow sharing. Use WhatsApp or copy the text.",
   "Texto copiado: pégalo en tu chat.": "Text copied: paste it into your chat.",
-  "No se pudo copiar el texto.": "Couldn't copy the text."
+  "No se pudo copiar el texto.": "Couldn't copy the text.",
+  "Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.": "What you have at home: the coach cooks with it and what you eat is deducted from it. If you only use the counter and the coach, turn it off.",
+  "Si pasa 2 días vacía, la apagamos por ti.": "If it stays empty for 2 days, we turn it off for you.",
+  "Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.": "Hidden: logging meals doesn't deduct anything and the coach doesn't use it. Your inventory is kept if you turn it back on.",
+  "La apagamos el {fecha} porque seguía vacía.": "We turned it off on {fecha} because it was still empty.",
+  "Activar o desactivar la Nevera": "Turn the Fridge on or off",
+  "Nevera activada.": "Fridge turned on.",
+  "Nevera oculta. Tu inventario se conserva.": "Fridge hidden. Your inventory is kept.",
+  "Ocultamos tu Nevera": "We hid your Fridge",
+  "Llevaba 2 días vacía. Puedes volver a encenderla en Configuración → Capacidades.": "It had been empty for 2 days. You can turn it back on in Settings → Capabilities."
 }

@@ -3336,5 +3336,14 @@
   "Descargar imagen": "Baixar imagem",
   "Tu dispositivo no dejó compartir. Usa WhatsApp o copia el texto.": "Seu dispositivo não permitiu compartilhar. Use o WhatsApp ou copie o texto.",
   "Texto copiado: pégalo en tu chat.": "Texto copiado: cole-o no seu chat.",
-  "No se pudo copiar el texto.": "Não foi possível copiar o texto."
+  "No se pudo copiar el texto.": "Não foi possível copiar o texto.",
+  "Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.": "O que você tem em casa: o coach cozinha com isso e o que você come é descontado. Se você só usa o contador e o coach, desligue-a.",
+  "Si pasa 2 días vacía, la apagamos por ti.": "Se ficar 2 dias vazia, desligamos por você.",
+  "Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.": "Oculta: registrar refeições não desconta nada e o coach não a usa. Seu inventário é mantido se você reativá-la.",
+  "La apagamos el {fecha} porque seguía vacía.": "Desligamos em {fecha} porque continuava vazia.",
+  "Activar o desactivar la Nevera": "Ativar ou desativar a Geladeira",
+  "Nevera activada.": "Geladeira ativada.",
+  "Nevera oculta. Tu inventario se conserva.": "Geladeira oculta. Seu inventário é mantido.",
+  "Ocultamos tu Nevera": "Ocultamos sua Geladeira",
+  "Llevaba 2 días vacía. Puedes volver a encenderla en Configuración → Capacidades.": "Ficou vazia por 2 dias. Dá para reativar em Configurações → Capacidades."
 }

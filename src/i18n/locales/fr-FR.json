@@ -3336,5 +3336,14 @@
   "Descargar imagen": "Télécharger l'image",
   "Tu dispositivo no dejó compartir. Usa WhatsApp o copia el texto.": "Votre appareil n'a pas permis le partage. Utilisez WhatsApp ou copiez le texte.",
   "Texto copiado: pégalo en tu chat.": "Texte copié : collez-le dans votre discussion.",
-  "No se pudo copiar el texto.": "Impossible de copier le texte."
+  "No se pudo copiar el texto.": "Impossible de copier le texte.",
+  "Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.": "Ce que vous avez chez vous : le coach s'en sert pour cuisiner et ce que vous mangez en est déduit. Si vous n'utilisez que le compteur et le coach, désactivez-le.",
+  "Si pasa 2 días vacía, la apagamos por ti.": "S'il reste vide 2 jours, on le désactive pour vous.",
+  "Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.": "Masqué : enregistrer des repas ne déduit rien et le coach ne l'utilise pas. Votre inventaire est conservé si vous le réactivez.",
+  "La apagamos el {fecha} porque seguía vacía.": "On l'a désactivé le {fecha} car il restait vide.",
+  "Activar o desactivar la Nevera": "Activer ou désactiver le Frigo",
+  "Nevera activada.": "Frigo activé.",
+  "Nevera oculta. Tu inventario se conserva.": "Frigo masqué. Votre inventaire est conservé.",
+  "Ocultamos tu Nevera": "Frigo masqué",
+  "Llevaba 2 días vacía. Puedes volver a encenderla en Configuración → Capacidades.": "Il était vide depuis 2 jours. Vous pouvez le réactiver dans Réglages → Capacités."
 }

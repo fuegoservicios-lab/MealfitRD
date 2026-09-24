@@ -8,7 +8,7 @@ import { LAUNCH_OFFER, PRICING, TIER_CREDITS, TIER_RANK, isLaunchOfferActive, pe
 import {
     User, Shield, ChevronRight, ArrowLeft,
     LogOut, Save, Trash2, Trophy, Mail, Brain, CreditCard, AlertCircle, X, AlertTriangle, Lock, Loader2, Clock, Zap, Check, SlidersHorizontal, RefreshCw, GlassWater, Cog, Fingerprint,
-    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon, Stethoscope, ShieldCheck, Download, ExternalLink, CalendarDays
+    Dumbbell, TrendingDown, Target, Activity, ArrowRight, Monitor, Sun, Moon, Stethoscope, ShieldCheck, Download, ExternalLink, CalendarDays, Refrigerator
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessment } from '../context/AssessmentContext';
@@ -1091,6 +1091,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [waterTrackerEnabled, setWaterTrackerEnabled] = useState(null);
     const [isWaterTrackerToggling, setIsWaterTrackerToggling] = useState(false);
 
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] Tarjeta «Nevera» (solo modo contador). Lo que dice el servidor, tal cual:
+    // `{enabled: true|false|null, activa, auto_off_at, disponible}`. `null` = aún sin respuesta: no se pinta.
+    const [neveraEstado, setNeveraEstado] = useState(null);
+    const [isNeveraToggling, setIsNeveraToggling] = useState(false);
+
     // --- ESTADOS DE PAGO ---
     const [isCancelling, setIsCancelling] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -1548,6 +1553,21 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         fetchWaterTrackerState();
         return () => { cancelled = true; };
     }, [userProfile?.id]);
+
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] La tarjeta de la Nevera solo existe en modo contador (en modo plan la Nevera
+    // es obligatoria: lista de compras, reposición, «Me lo comí»). Sin respuesta, no se pinta: mejor sin tarjeta que
+    // con un interruptor que miente.
+    useEffect(() => {
+        if (!userProfile?.id || !enModoContador) { setNeveraEstado(null); return undefined; }
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetchWithAuth('/api/user/preferences/nevera');
+                if (!cancelled && res.ok) setNeveraEstado(await res.json());
+            } catch { /* sin tarjeta */ }
+        })();
+        return () => { cancelled = true; };
+    }, [userProfile?.id, enModoContador]);
 
     // --- MANEJADORES (HANDLERS) ---
     
@@ -2020,6 +2040,33 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             toast.error(t('No pudimos actualizar tu preferencia. Intentalo de nuevo.'));
         } finally {
             setIsWaterTrackerToggling(false);
+        }
+    };
+
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] Toggle de la tarjeta «Nevera». SIN update optimista: lo que queda pintado es lo
+    // que devuelve el servidor (la regla vive allí). Después, el espejo del primer pintado y el perfil del contexto
+    // —que es lo que lee la navegación (`neveraActiva`)— para que la pestaña aparezca o se vaya sin recargar.
+    const handleToggleNevera = async () => {
+        if (isNeveraToggling || !neveraEstado) return;
+        const next = !neveraEstado.activa;
+        setIsNeveraToggling(true);
+        try {
+            const res = await fetchWithAuth('/api/user/preferences/nevera', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: next }),
+            });
+            if (!res.ok) throw new Error('PATCH failed');
+            const data = await res.json();
+            setNeveraEstado(data);
+            safeLocalStorageSet('mealfit_nevera_activa', String(Boolean(data.activa)));
+            toast.success(next ? t('Nevera activada.') : t('Nevera oculta. Tu inventario se conserva.'), { duration: 3500 });
+            await refreshProfileAndPlan?.();
+        } catch (error) {
+            console.error('Error toggling nevera:', error);
+            toast.error(t('No pudimos actualizar tu preferencia. Intentalo de nuevo.'));
+        } finally {
+            setIsNeveraToggling(false);
         }
     };
 
@@ -3727,6 +3774,83 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                     position: 'absolute',
                                                     top: '3px',
                                                     left: waterTrackerEnabled ? '25px' : '3px',
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    borderRadius: '50%',
+                                                    background: '#FFFFFF',
+                                                    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.45)',
+                                                    transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                }}
+                                            />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* [P1-NEVERA-OPCIONAL · 2026-09-23] Toggle: Nevera — SOLO en modo contador (con el
+                                    generador encendido la Nevera es obligatoria: lista de compras, reposición, «Me lo
+                                    comí»). Apagada, sale de la navegación y registrar comidas no descuenta nada; el
+                                    inventario se conserva. Si el usuario nunca eligió, se apaga sola tras 2 días vacía
+                                    y aquí queda dicho con la fecha. Sin `disponible` (knob apagado) no hay tarjeta. */}
+                                {enModoContador && neveraEstado?.disponible && (
+                                    <div
+                                        className={`${styles.preferenceCard} ${styles.preferenceCardGreen} ${neveraEstado.activa ? styles.preferenceCardActive : ''}`}
+                                    >
+                                        <div className={styles.preferenceCardBody}>
+                                            <div className={styles.preferenceCardIcon}>
+                                                <Refrigerator size={20} color="#FFFFFF" />
+                                            </div>
+                                            <div className={styles.preferenceCardText}>
+                                                <div className={styles.preferenceCardTitle}>
+                                                    {t('Nevera')}
+                                                </div>
+                                                <div className={styles.preferenceCardDesc}>
+                                                    {neveraEstado.activa ? (
+                                                        <>
+                                                            {t('Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.')}
+                                                            {neveraEstado.enabled === null && (
+                                                                <>{' '}{t('Si pasa 2 días vacía, la apagamos por ti.')}</>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {t('Oculta: registrar comidas no descuenta nada y el coach no la usa. Tu inventario se conserva si la reactivas.')}
+                                                            {neveraEstado.auto_off_at && (
+                                                                <>{' '}{t('La apagamos el {fecha} porque seguía vacía.', { fecha: formatDate(neveraEstado.auto_off_at, { day: 'numeric', month: 'long' }) })}</>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleToggleNevera}
+                                            disabled={isNeveraToggling}
+                                            role="switch"
+                                            aria-checked={Boolean(neveraEstado.activa)}
+                                            aria-label={t('Activar o desactivar la Nevera')}
+                                            style={{
+                                                position: 'relative',
+                                                width: '52px',
+                                                height: '30px',
+                                                borderRadius: '999px',
+                                                border: 'none',
+                                                background: neveraEstado.activa ? '#10B981' : 'var(--toggle-track-off)',
+                                                boxShadow: neveraEstado.activa
+                                                    ? '0 0 12px rgba(16, 185, 129, 0.5)'
+                                                    : 'inset 0 0 0 1px rgba(255, 255, 255, 0.18), inset 0 1px 2px rgba(0, 0, 0, 0.25)',
+                                                cursor: isNeveraToggling ? 'wait' : 'pointer',
+                                                transition: 'background 0.2s ease, box-shadow 0.2s ease',
+                                                flexShrink: 0,
+                                                padding: 0,
+                                                opacity: isNeveraToggling ? 0.6 : 1,
+                                            }}
+                                        >
+                                            <span
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: '3px',
+                                                    left: neveraEstado.activa ? '25px' : '3px',
                                                     width: '24px',
                                                     height: '24px',
                                                     borderRadius: '50%',
