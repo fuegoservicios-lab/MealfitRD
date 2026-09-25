@@ -212,7 +212,8 @@ describe('lote 137 · los avisos del teléfono suenan', () => {
         expect(av).toContain("export const SONIDO_DEL_AVISO = 'default';");
         const programados = av.match(/schedule: \{ at, allowWhileIdle: true \},/g) || [];
         const conSonido = av.match(/schedule: \{ at, allowWhileIdle: true \},\s*sound: SONIDO_DEL_AVISO,/g) || [];
-        expect(programados.length).toBe(2);
+        // comidas, agua y [P1-PLAN-LOTE-228] el aviso suelto («Tu plan está listo»)
+        expect(programados.length).toBe(3);
         expect(conSonido.length).toBe(programados.length);
     });
 });

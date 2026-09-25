@@ -490,3 +490,59 @@ export async function iniciarAvisosLocales() {
     });
     resincronizar(0)();
 }
+
+// [P1-PLAN-LOTE-228 · 2026-09-25] Avisos locales SUELTOS (hoy: «Tu plan está listo», `utils/avisoPlanListo.js`), con
+// el mismo plugin, canal Android, sonido y regla de alarma exacta que las comidas. No dependen del interruptor de los
+// recordatorios: es la respuesta a algo que el usuario acaba de pedir. Sus ids viven FUERA de `idsPropios()` (4300+),
+// así que la resincronización de comidas/agua no los cancela.
+
+/** Permiso de notificaciones locales: 'granted' | 'denied' | 'prompt' | null (no nativa o sin plugin). */
+export async function permisoAvisosLocales({ pedir = false } = {}) {
+    if (!isNativeApp()) return null;
+    const LN = (await _pluginLocal())?.LN;
+    if (!LN) return null;
+    try {
+        let r = await LN.checkPermissions();
+        if (pedir && r?.display && r.display !== 'granted' && r.display !== 'denied') r = await LN.requestPermissions();
+        const d = r?.display;
+        if (d === 'granted' || d === 'denied') return d;
+        return d ? 'prompt' : null;
+    } catch {
+        return null;
+    }
+}
+
+/** Programa UN aviso local (`{ id, title, body, at, url, kind }`). true si quedó programado. Nunca lanza. */
+export async function programarAvisoLocal({ id, title, body, at, url = '/dashboard', kind = '' } = {}) {
+    if (!isNativeApp() || !Number.isInteger(id) || !(at instanceof Date)) return false;
+    const LN = (await _pluginLocal())?.LN;
+    if (!LN) return false;
+    try {
+        if ((await permisoAvisosLocales()) !== 'granted') return false;
+        const exacta = (await _alarmaExactaConcedida(LN)) === true;
+        const canal = await _canalAndroid(LN);
+        await LN.schedule({
+            notifications: [{
+                id,
+                title: String(title || BRAND),
+                body: String(body || ''),
+                schedule: { at, allowWhileIdle: true },
+                sound: SONIDO_DEL_AVISO,
+                extra: { url, kind },
+                isExactNotification: exacta,
+                ...(canal ? { channelId: CANAL_ANDROID } : {}),
+            }],
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/** Cancela avisos locales por id. Nunca lanza. */
+export async function cancelarAvisosLocales(ids) {
+    if (!isNativeApp() || !Array.isArray(ids) || !ids.length) return;
+    const LN = (await _pluginLocal())?.LN;
+    if (!LN) return;
+    try { await LN.cancel({ notifications: ids.map((id) => ({ id })) }); } catch { /* nada que cancelar */ }
+}

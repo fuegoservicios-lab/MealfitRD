@@ -170,6 +170,18 @@ self.addEventListener('push', (event) => {
         notificationOptions.renotify = true;
     }
 
+    // [P1-PLAN-LOTE-228 · 2026-09-25] «Tu plan está listo»: si la app está A LA VISTA, el usuario ya lo ve terminar en
+    // pantalla (y sale el toast): no se repite en la barra. Solo se omite con una ventana VISIBLE — sin ninguna, Chrome
+    // exige mostrar algo por cada push, y es justo el caso para el que existe el aviso.
+    if (data.solo_si_no_mira) {
+        event.waitUntil(
+            self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
+                if (ventanas.some((v) => v.visibilityState === 'visible')) return undefined;
+                return self.registration.showNotification(title, notificationOptions);
+            })
+        );
+        return;
+    }
     event.waitUntil(
         self.registration.showNotification(title, notificationOptions)
     );

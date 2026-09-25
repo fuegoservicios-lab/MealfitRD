@@ -1330,6 +1330,8 @@ const Plan = () => {
                         started_at: new Date().toISOString(),
                     }));
                 } catch (_lsErr) { /* localStorage full / disabled — best-effort */ }
+                // [P1-PLAN-LOTE-228] En la app nativa, el permiso para avisar «Tu plan está listo» si sale de la app.
+                import('../utils/avisoPlanListo').then((m) => m.prepararAvisoPlanListo()).catch(() => {});
 
                 const generatedPlan = await generateAIPlanStream(dataToSend, handleProgress);
 
