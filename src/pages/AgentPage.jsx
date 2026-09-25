@@ -98,7 +98,7 @@ const MIC_REPONER_TECLADO_MS = [350, 700, 1200, 2000];
 const MIC_CLIC_FANTASMA_MS = 700;
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
-import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency } from '../utils/chatImageProcessing';
+import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen } from '../utils/chatImageProcessing';
 import { isNativeApp } from '../config/platform';
 import {
     chooseNativeChatImages,
@@ -1834,6 +1834,9 @@ const AgentPage = () => {
     const prepareAttachmentPickerGesture = useCallback(() => {
         const abierto = tecladoAbiertoRef.current || medirTecladoDeVentana(window).abierto;
         attachmentPickerHadKeyboardRef.current = abierto;
+        // [P1-PLAN-LOTE-306] El worker que prepara la foto arranca ahora, mientras eliges: si no, su arranque caía
+        // encima de la vuelta del teclado.
+        precalentarWorkerDeImagen();
         // [P1-PLAN-LOTE-111] En la app nativa el teclado NO se cierra para adjuntar (menú sobre el «+», como
         // Gemini). En la web sí: el menú de iOS se dibuja mal con el teclado en pantalla (P1-CHAT-PICKER-...).
         if (abierto && !isNativeApp()) chatInputRef.current?.blur();

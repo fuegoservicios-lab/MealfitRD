@@ -89,21 +89,110 @@ const drawScaled = (source, sourceWidth, sourceHeight, maxSide) => {
     return canvas;
 };
 
+const nombreJpg = (file) => `${String(file.name || 'imagen').replace(/\.[^.]+$/, '')}.jpg`;
+
+const errorConCodigo = (code) => {
+    const error = new Error(code);
+    error.code = code;
+    return error;
+};
+
+// ── [P1-PLAN-LOTE-306 · 2026-09-25] La foto se prepara en un Web Worker ─────────────────────────────────────────────
+// Al volver del selector de fotos el teclado vuelve a subir; decodificar y reducir una foto de 12 MP en el hilo
+// principal (con la miniatura en `toDataURL`, síncrono) le robaba los fotogramas a esa animación. El worker hace lo
+// mismo con OffscreenCanvas. Sin Worker/OffscreenCanvas (Safari < 16.4), o si el worker no sabe decodificar el
+// formato (HEIC en algunos WebKit) o revienta, se repite en el hilo principal: el contrato no cambia.
+let workerCompartido = null;
+let workerDesactivado = false;
+let siguienteId = 0;
+
+const workerDisponible = () => !workerDesactivado
+    && typeof Worker === 'function' && typeof OffscreenCanvas === 'function';
+
+const obtenerWorker = () => {
+    if (workerCompartido) return workerCompartido;
+    workerCompartido = new Worker(new URL('../workers/chatImage.worker.js', import.meta.url), { type: 'module' });
+    return workerCompartido;
+};
+
+/** Arranca el worker sin mandarle trabajo: su arranque (cargar y compilar el módulo) le costaba ~130 ms al hilo
+ *  principal con la CPU de un teléfono, medido. El «+» lo llama mientras el usuario elige la foto. */
+export function precalentarWorkerDeImagen() {
+    if (!workerDisponible()) return;
+    try { obtenerWorker(); } catch { desactivarWorker(); }
+}
+
+const desactivarWorker = () => {
+    workerDesactivado = true;
+    try { workerCompartido?.terminate?.(); } catch { /* ya terminado */ }
+    workerCompartido = null;
+};
+
+const prepararEnWorker = (file, { signal, maxSide }) => new Promise((resolve, reject) => {
+    let worker;
+    try { worker = obtenerWorker(); } catch (error) { desactivarWorker(); reject(errorConCodigo('WORKER_UNAVAILABLE')); return; }
+    const id = ++siguienteId;
+    const limpiar = () => {
+        worker.removeEventListener('message', alMensaje);
+        worker.removeEventListener('error', alError);
+        signal?.removeEventListener('abort', alAbortar);
+    };
+    function alMensaje({ data }) {
+        if (data?.id !== id) return;
+        limpiar();
+        if (data.ok) resolve(data);
+        else reject(errorConCodigo(data.code || 'WORKER_FAILED'));
+    }
+    function alError() {
+        limpiar();
+        desactivarWorker();
+        reject(errorConCodigo('WORKER_UNAVAILABLE'));
+    }
+    function alAbortar() {
+        limpiar();
+        reject(abortError());
+    }
+    worker.addEventListener('message', alMensaje);
+    worker.addEventListener('error', alError);
+    signal?.addEventListener('abort', alAbortar, { once: true });
+    worker.postMessage({ id, file, maxSide, thumbSide: 360 });
+});
+
+const blobADataUrl = (blob) => new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(String(lector.result));
+    lector.onerror = () => reject(lector.error || new Error('No se pudo leer la miniatura'));
+    lector.readAsDataURL(blob);
+});
+
 /**
  * Decodifica una sola vez y deriva de esa decodificación tanto el archivo de
- * subida como la miniatura. createImageBitmap mueve la decodificación fuera del
- * camino principal en los navegadores que lo soportan.
+ * subida como la miniatura: en un Web Worker cuando se puede (lote 306), si no
+ * en el hilo principal.
  */
 export async function prepareChatImage(file, { signal, maxSide = 1600 } = {}) {
     if (!(file instanceof Blob) || !String(file.type || '').startsWith('image/')) {
         throw new TypeError('Formato de imagen no soportado');
     }
-    if (file.size > CHAT_IMAGE_MAX_SOURCE_BYTES) {
-        const error = new Error('IMAGE_TOO_LARGE');
-        error.code = 'IMAGE_TOO_LARGE';
-        throw error;
-    }
+    if (file.size > CHAT_IMAGE_MAX_SOURCE_BYTES) throw errorConCodigo('IMAGE_TOO_LARGE');
+    assertNotAborted(signal);
 
+    if (workerDisponible()) {
+        try {
+            const r = await prepararEnWorker(file, { signal, maxSide });
+            const thumbDataUrl = await blobADataUrl(r.thumb);
+            assertNotAborted(signal);
+            const uploadFile = new File([r.upload], nombreJpg(file), { type: 'image/jpeg', lastModified: Date.now() });
+            return { file: uploadFile, thumbDataUrl, width: r.width, height: r.height };
+        } catch (error) {
+            if (error?.name === 'AbortError' || error?.code === 'IMAGE_DIMENSIONS_TOO_LARGE') throw error;
+            // DECODE_FAILED / WORKER_FAILED / WORKER_UNAVAILABLE: el hilo principal lo intenta con su Image del sistema.
+        }
+    }
+    return _internals.prepararEnHiloPrincipal(file, { signal, maxSide });
+}
+
+async function prepararEnHiloPrincipal(file, { signal, maxSide = 1600 } = {}) {
     const decoded = await decodeImage(file, signal);
     let uploadCanvas = null;
     let thumbCanvas = null;
@@ -124,11 +213,7 @@ export async function prepareChatImage(file, { signal, maxSide = 1600 } = {}) {
 
         thumbCanvas = drawScaled(decoded, width, height, 360);
         const thumbDataUrl = thumbCanvas.toDataURL('image/jpeg', 0.72);
-        const uploadFile = new File(
-            [uploadBlob],
-            `${String(file.name || 'imagen').replace(/\.[^.]+$/, '')}.jpg`,
-            { type: 'image/jpeg', lastModified: Date.now() },
-        );
+        const uploadFile = new File([uploadBlob], nombreJpg(file), { type: 'image/jpeg', lastModified: Date.now() });
         return { file: uploadFile, thumbDataUrl, width, height };
     } finally {
         if (uploadCanvas) { uploadCanvas.width = 1; uploadCanvas.height = 1; }
@@ -136,3 +221,6 @@ export async function prepareChatImage(file, { signal, maxSide = 1600 } = {}) {
         try { decoded.close?.(); } catch { /* ImageBitmap ya cerrado */ }
     }
 }
+
+/** Puntos de prueba (los tests espían el camino del hilo principal). */
+export const _internals = { prepararEnHiloPrincipal };
