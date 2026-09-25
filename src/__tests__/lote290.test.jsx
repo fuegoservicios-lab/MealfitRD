@@ -53,3 +53,13 @@ describe('[290] Alacena → Suplementos', () => {
         expect((src.match(/<GrupoSuplementos /g) || []).length).toBe(2);
     });
 });
+
+describe('[292 · revisión C1] pote sin porciones conocidas', () => {
+    it('no dice «~0 scoops»: pide el dato al coach', () => {
+        const { potes } = agrupar([{ ...WHEY, quantity: 0, serving_label: null }], []);
+        render(<GrupoSuplementos potes={potes} soloDelPlan={[]} />);
+        expect(screen.queryByText(/~0/)).toBeNull();
+        expect(screen.getByText('Porciones por confirmar — díselas al coach')).toBeInTheDocument();
+    });
+});
+

@@ -1373,7 +1373,7 @@ const PantryPage = () => {
             // GET /api/catalog devuelve {items} con master_ingredients
             // completo. el SDK anterior ya no habla con la DB post-cutover.
             const needMaster = !masterListLoaded.current;
-            const invPromise = _apiJson('/api/inventory');
+            const invPromise = _apiJson('/api/inventory?incluir_suplementos=1');   // [P1-PLAN-LOTE-292] la única que ve los potes
             const masterPromise = needMaster ? _apiJson('/api/catalog') : null;
 
             const [invJson, masterJson] = await Promise.all([

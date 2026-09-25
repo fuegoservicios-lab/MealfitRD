@@ -29,7 +29,11 @@ export default function GrupoSuplementos({ potes = [], soloDelPlan = [] }) {
                     return (
                         <li key={p.id} style={estilos.pote}>
                             <span style={estilos.nombre}>{p.nombre}{p.marca ? ` · ${p.marca}` : ''}</span>
-                            <span style={estilos.fino}>{t('~{n} {unidad}', { n, unidad: unidadTexto(p.unidad, n, t) })}</span>
+                            <span style={estilos.fino}>
+                                {n > 0
+                                    ? t('~{n} {unidad}', { n, unidad: unidadTexto(p.unidad, n, t) })
+                                    : t('Porciones por confirmar — díselas al coach')}
+                            </span>
                             <span style={estilos.fino}>{lineaEtiqueta(p.etiqueta, p.unidad, t)}</span>
                             {p.delPlan && (
                                 <span style={estilos.plan}>{t('Plan: {dosis} · {cuando}', { dosis: p.delPlan.dose || '', cuando: p.delPlan.timing || '' })}</span>
