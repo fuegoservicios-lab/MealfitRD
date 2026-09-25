@@ -223,3 +223,14 @@ describe('TrackingProgress · compartir', () => {
         }
     });
 });
+
+// [P1-PLAN-LOTE-300] el selector de formato existe y redibuja
+import { readFileSync as _leer300 } from 'node:fs';
+import { resolve as _res300 } from 'node:path';
+describe('[300] formato de la imagen', () => {
+    it('ofrece Publicación e Historia y dibuja con el formato elegido', () => {
+        const src = _leer300(_res300(__dirname, '..', 'components', 'dashboard', 'ShareDaySheet.jsx'), 'utf8');
+        expect(src).toContain("[['publicacion', t('Publicación')], ['historia', t('Historia')]]");
+        expect(src).toContain('dibujarTarjetaDelDia(resumen, { formato })');
+    });
+});

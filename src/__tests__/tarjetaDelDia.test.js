@@ -150,3 +150,37 @@ describe('dibujarTarjetaDelDia', () => {
         }
     });
 });
+
+// [P1-PLAN-LOTE-300 · 2026-09-25] Rediseño: formatos 4:5 y 9:16, anillos y el brote de la marca.
+import { FORMATOS, altoDelContenido } from '../utils/tarjetaDelDia';
+
+describe('[300] rediseño de la tarjeta', () => {
+    const r = () => resumenDelDia({ consumed: base, metas: METAS });
+    it('publicación 1080×1350 e historia 1080×1920; si el contenido no cabe, crece y no recorta', () => {
+        expect(FORMATOS).toEqual({ publicacion: 1350, historia: 1920 });
+        expect(altoDeLaTarjeta(r())).toBe(Math.max(1350, altoDelContenido(r())));
+        expect(altoDeLaTarjeta(r(), 'historia')).toBe(Math.max(1920, altoDelContenido(r())));
+    });
+    it('pinta anillos (arcos) para las calorías y las tres macros, y el brote junto a la marca', async () => {
+        const arcos = [];
+        const curvas = [];
+        const ctx = new Proxy({}, {
+            get: (obj, k) => {
+                if (k === 'arc') return (...a) => arcos.push(a);
+                if (k === 'bezierCurveTo') return (...a) => curvas.push(a);
+                if (k === 'measureText') return (s) => ({ width: String(s).length * 10 });
+                if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop: () => {} });
+                if (k in obj) return obj[k];
+                return () => {};
+            },
+            set: (obj, k, v) => { obj[k] = v; return true; },
+        });
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx);
+        vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (cb) { cb(new Blob(['png'], { type: 'image/png' })); });
+        await dibujarTarjetaDelDia(r(), { formato: 'historia' });
+        const radios = arcos.map((a) => a[2]);
+        expect(radios.filter((x) => x === 200).length).toBeGreaterThanOrEqual(2);   // pista + progreso de las calorías
+        expect(radios.filter((x) => x === 92).length).toBeGreaterThanOrEqual(3);    // una pista por macro
+        expect(curvas.length).toBeGreaterThanOrEqual(4);                              // las dos hojas del brote
+    });
+});

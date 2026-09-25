@@ -10,7 +10,11 @@ import { BRAND } from '../data/routeMeta';
 const ANCHO = 1080;
 const M = 72;                        // margen lateral
 const FUENTE = '"Outfit", system-ui, -apple-system, "Segoe UI", sans-serif';
-const ALTO = { cabecera: 250, calorias: 250, macro: 124, microsCab: 110, microFila: 112, comidasCab: 90, comida: 58, pie: 190, comidasBuffer: 50 };
+// [P1-PLAN-LOTE-300 · 2026-09-25] Rediseño (el dueño: «más visual, más atractivo y profesional»): anillo grande de
+// calorías, tres anillos de macros, el brote de la marca. Formato 4:5 (1080×1350, el que mejor luce en WhatsApp e
+// Instagram) o historia 9:16 (1080×1920), con el contenido centrado en vertical si sobra alto.
+const ALTO = { cabecera: 250, anillo: 520, macros: 330, microsCab: 110, microFila: 112, comidasCab: 90, comida: 58, pie: 190, comidasBuffer: 50 };
+export const FORMATOS = { publicacion: 1350, historia: 1920 };
 const COLOR = {
     calories: ['#FCD34D', '#F59E0B'], protein: ['#93C5FD', '#3B82F6'], carbs: ['#6EE7B7', '#10B981'], fats: ['#F9A8D4', '#EC4899'],
 };
@@ -29,12 +33,50 @@ const TINTA = {
 // La etiqueta «máx.» de los techos (la de MicrosList en la app): píldora en mayúsculas junto al nombre del micro.
 const ETIQUETA = { tam: 20, padX: 9, alto: 30, radio: 6, aire: 10 };
 
-export function altoDeLaTarjeta(r) {
-    let h = ALTO.cabecera + ALTO.calorias + 3 * ALTO.macro + ALTO.pie;
+/** Alto del CONTENIDO (sin relleno de formato). */
+export function altoDelContenido(r) {
+    let h = ALTO.cabecera + ALTO.anillo + ALTO.macros + ALTO.pie;
     if (r.micros.length) h += ALTO.microsCab + Math.ceil(r.micros.length / 2) * ALTO.microFila;
     if (r.comidas.length) h += ALTO.comidasCab + Math.min(r.comidas.length, 6) * ALTO.comida + ALTO.comidasBuffer;
-    return Math.max(1080, h);
+    return h;
 }
+
+/** Alto del lienzo: el del formato, o el del contenido si no cabe (nunca se recorta nada). */
+export function altoDeLaTarjeta(r, formato = 'publicacion') {
+    return Math.max(FORMATOS[formato] || FORMATOS.publicacion, altoDelContenido(r));
+}
+
+/** Arco de progreso con extremos redondeados; empieza arriba y va en el sentido del reloj. */
+const _anillo = (ctx, cx, cy, radio, grosor, pct, [c1, c2]) => {
+    ctx.save();
+    ctx.lineWidth = grosor;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
+    ctx.beginPath(); ctx.arc(cx, cy, radio, 0, Math.PI * 2); ctx.stroke();
+    const frac = Math.max(0, Math.min(1, (Number(pct) || 0) / 100));
+    if (frac > 0) {
+        const g = ctx.createLinearGradient(cx - radio, cy - radio, cx + radio, cy + radio);
+        g.addColorStop(0, c1); g.addColorStop(1, c2);
+        ctx.strokeStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radio, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2 - (frac >= 1 ? 0.0001 : 0));
+        ctx.stroke();
+    }
+    ctx.restore();
+};
+
+/** El brote de la marca (el mismo dibujo que el icono de la app), en `tam` px con la esquina en (x, y). */
+const _brote = (ctx, x, y, tam, color) => {
+    const k = tam / 24;
+    ctx.save();
+    ctx.translate(x, y); ctx.scale(k, k);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1.9; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(12, 12.2); ctx.lineTo(12, 21); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(12, 12.2); ctx.bezierCurveTo(12, 8.6, 9.2, 6.6, 4.6, 6.6); ctx.bezierCurveTo(4.6, 10.2, 7.4, 12.2, 12, 12.2); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(12, 12.2); ctx.bezierCurveTo(12, 8.6, 14.8, 6.6, 19.4, 6.6); ctx.bezierCurveTo(19.4, 10.2, 16.6, 12.2, 12, 12.2); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(12, 4.1, 1.7, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+};
 
 const _rect = (ctx, x, y, w, h, r) => {
     const rr = Math.min(r, h / 2, w / 2);
@@ -116,10 +158,10 @@ const _aBlob = (canvas) => new Promise((resolve) => {
     }
 });
 
-export async function dibujarTarjetaDelDia(r) {
+export async function dibujarTarjetaDelDia(r, { formato = 'publicacion' } = {}) {
     if (typeof document === 'undefined') return null;
     const canvas = document.createElement('canvas');
-    const alto = altoDeLaTarjeta(r);
+    const alto = altoDeLaTarjeta(r, formato);
     canvas.width = ANCHO; canvas.height = alto;
     let ctx = null;
     try { ctx = canvas.getContext('2d'); } catch { ctx = null; }
@@ -133,48 +175,56 @@ export async function dibujarTarjetaDelDia(r) {
         ]);
     } catch { /* la fuente del sistema sirve */ }
 
-    // Fondo
-    const fondo = ctx.createLinearGradient(0, 0, 0, alto);
-    fondo.addColorStop(0, '#0B1120'); fondo.addColorStop(1, '#111827');
+    // Fondo: la noche de la app con dos brillos (índigo arriba, esmeralda abajo).
+    const fondo = ctx.createLinearGradient(0, 0, ANCHO * 0.4, alto);
+    fondo.addColorStop(0, '#0B1120'); fondo.addColorStop(0.55, '#111827'); fondo.addColorStop(1, '#1E1B4B');
     ctx.fillStyle = fondo; ctx.fillRect(0, 0, ANCHO, alto);
-    const brillo = ctx.createRadialGradient(ANCHO * 0.85, 0, 0, ANCHO * 0.85, 0, 700);
-    brillo.addColorStop(0, 'rgba(99, 102, 241, 0.35)'); brillo.addColorStop(1, 'rgba(99, 102, 241, 0)');
+    const brillo = ctx.createRadialGradient(ANCHO * 0.85, 0, 0, ANCHO * 0.85, 0, 760);
+    brillo.addColorStop(0, 'rgba(99, 102, 241, 0.38)'); brillo.addColorStop(1, 'rgba(99, 102, 241, 0)');
     ctx.fillStyle = brillo; ctx.fillRect(0, 0, ANCHO, alto);
+    const brillo2 = ctx.createRadialGradient(0, alto, 0, 0, alto, 720);
+    brillo2.addColorStop(0, 'rgba(16, 185, 129, 0.16)'); brillo2.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    ctx.fillStyle = brillo2; ctx.fillRect(0, 0, ANCHO, alto);
 
-    // Cabecera
-    let y = 110;
-    _texto(ctx, BRAND.toUpperCase(), M, y, { tam: 30, peso: 800, color: TINTA.marca });
+    // Si el formato es más alto que el contenido (historia), el contenido va centrado; el pie queda abajo.
+    const sobra = Math.max(0, alto - altoDelContenido(r));
+    let y = 110 + Math.round(sobra / 2);
+
+    // Cabecera: el brote + la marca, la fecha, «Mi día».
+    _brote(ctx, M, y - 42, 50, TINTA.marca);
+    _texto(ctx, BRAND.toUpperCase(), M + 62, y, { tam: 32, peso: 800, color: TINTA.marca });
     _texto(ctx, fechaLarga(r.fecha), ANCHO - M, y, { tam: 30, peso: 600, color: TINTA.apagado, alinear: 'right' });
     y += 90;
     _texto(ctx, t('Mi día'), M, y, { tam: 72, peso: 800, color: TINTA.blanco });
     y += 50;
     _texto(ctx, tn(r.comidasRegistradas, '{n} comida registrada', '{n} comidas registradas', { n: r.comidasRegistradas }), M, y, { tam: 30, color: TINTA.apagado });
 
-    // Calorías
-    y += 110;
+    // Calorías: el anillo grande, con la cifra dentro.
     const cal = r.calorias;
-    _texto(ctx, cal.etiqueta, M, y, { tam: 34, peso: 700, color: TINTA.calorias });
-    y += 100;
-    _texto(ctx, formatNumber(cal.valor), M, y, { tam: 110, peso: 800, color: TINTA.blanco });
-    const anchoNum = ctx.measureText(formatNumber(cal.valor)).width;
+    const cy = y + 60 + 220;
+    _anillo(ctx, ANCHO / 2, cy, 200, 36, cal.pct, COLOR.calories);
+    _texto(ctx, formatNumber(cal.valor), ANCHO / 2, cy + 18, { tam: 104, peso: 800, color: TINTA.blanco, alinear: 'center' });
     if (cal.meta > 0) {
-        _texto(ctx, ` / ${formatNumber(cal.meta)} kcal`, M + anchoNum, y, { tam: 40, peso: 600, color: TINTA.apagado });
-        _texto(ctx, formatPercent(cal.pct), ANCHO - M, y, { tam: 44, peso: 800, color: TINTA.calorias, alinear: 'right' });
+        _texto(ctx, `/ ${formatNumber(cal.meta)} kcal`, ANCHO / 2, cy + 70, { tam: 34, peso: 600, color: TINTA.apagado, alinear: 'center' });
+        _texto(ctx, formatPercent(cal.pct), ANCHO / 2, cy - 88, { tam: 38, peso: 800, color: TINTA.calorias, alinear: 'center' });
+    } else {
+        _texto(ctx, 'kcal', ANCHO / 2, cy + 70, { tam: 34, peso: 600, color: TINTA.apagado, alinear: 'center' });
     }
-    y += 40;
-    _barra(ctx, M, y, ANCHO - 2 * M, 26, cal.pct, COLOR.calories);
+    y += ALTO.anillo;
 
-    // Macros
-    y += 40;
-    r.macros.forEach((mc) => {
-        y += 70;
-        _texto(ctx, mc.etiqueta, M, y, { tam: 36, peso: 700, color: TINTA.texto });
+    // Macros: tres anillos con su porcentaje dentro, y debajo el nombre y «78 / 134 g».
+    const cols = [ANCHO / 2 - 330, ANCHO / 2, ANCHO / 2 + 330];
+    const my = y + 110;
+    r.macros.forEach((mc, i) => {
+        const cx = cols[i];
+        _anillo(ctx, cx, my, 92, 18, mc.pct, COLOR[mc.clave]);
+        _texto(ctx, mc.meta > 0 ? formatPercent(mc.pct) : `${formatNumber(mc.valor)} g`, cx, my + 14,
+            { tam: mc.meta > 0 ? 40 : 34, peso: 800, color: TINTA.blanco, alinear: 'center' });
+        _texto(ctx, mc.etiqueta, cx, my + 150, { tam: 32, peso: 700, color: TINTA.texto, alinear: 'center', max: 300 });
         _texto(ctx, mc.meta > 0 ? `${formatNumber(mc.valor)} / ${formatNumber(mc.meta)} g` : `${formatNumber(mc.valor)} g`,
-            ANCHO - M, y, { tam: 36, peso: 800, color: TINTA.blanco, alinear: 'right' });
-        y += 26;
-        _barra(ctx, M, y, ANCHO - 2 * M, 18, mc.pct, COLOR[mc.clave]);
-        y += ALTO.macro - 96;
+            cx, my + 196, { tam: 30, peso: 700, color: TINTA.apagado, alinear: 'center', max: 300 });
     });
+    y += ALTO.macros;
 
     // Micros (solo si hay datos: nunca una barra contra un cero inventado)
     if (r.micros.length) {

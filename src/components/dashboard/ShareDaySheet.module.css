@@ -313,3 +313,30 @@
 :global(html[data-theme="dark"]) .secondary:hover:not(:disabled) {
     background: color-mix(in srgb, var(--primary, #6366F1) 16%, var(--bg-muted, #1E293B));
 }
+
+/* [P1-PLAN-LOTE-300] Publicación (4:5) o historia (9:16). */
+.formatos {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    margin-bottom: 0.6rem;
+}
+.formato {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    cursor: pointer;
+}
+.formatoActivo {
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    color: var(--primary);
+}
+

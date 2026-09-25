@@ -32,6 +32,8 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose });
     const [incluirComidas, setIncluirComidas] = useState(false);
+    // [P1-PLAN-LOTE-300] Publicación 4:5 (chats, feed) o historia 9:16 (estados de WhatsApp, historias de Instagram).
+    const [formato, setFormato] = useState('publicacion');
     // `para`: el resumen con el que se dibujó. «Dibujando» se DERIVA (el resumen vigente aún no tiene imagen) en vez
     // de marcarse con un setState síncrono en el efecto (react-hooks/set-state-in-effect, con techo en lint-count).
     const [imagen, setImagen] = useState({ blob: null, url: null, para: null });
@@ -60,12 +62,12 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
 
     useEffect(() => {
         let vivo = true;
-        dibujarTarjetaDelDia(resumen).then((blob) => {
+        dibujarTarjetaDelDia(resumen, { formato }).then((blob) => {
             if (!vivo) return;
-            setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen });
-        }).catch(() => { if (vivo) setImagen({ blob: null, url: null, para: resumen }); });
+            setImagen({ blob, url: blob ? URL.createObjectURL(blob) : null, para: resumen, formato });
+        }).catch(() => { if (vivo) setImagen({ blob: null, url: null, para: resumen, formato }); });
         return () => { vivo = false; };
-    }, [resumen]);
+    }, [resumen, formato]);
 
     // La URL en pantalla se revoca cuando otra YA la sustituyó (la limpieza de este efecto corre tras el commit de la
     // nueva) o al cerrar la hoja; antes se revocaba al EMPEZAR cada redibujo, con la imagen vieja aún en el <img>.
@@ -80,7 +82,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const puedeDescargar = !isNativeApp() && !conImagen && !!imagen.blob;
     // Mientras se redibuja (al cambiar «Incluir lo que comí») se sigue viendo la imagen anterior, pero no se comparte
     // ni se descarga: saldría la versión vieja.
-    const dibujando = imagen.para !== resumen;
+    const dibujando = imagen.para !== resumen || imagen.formato !== formato;
 
     // Un segundo toque mientras la hoja del sistema se abre hace que `navigator.share` rechace (InvalidStateError) y
     // saldría un «no dejó compartir» falso: se ignora. La marca se pone DESPUÉS de llamar a `compartir`, que invoca
@@ -159,6 +161,17 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                 </div>
 
                 <div className={styles.footer}>
+                    <div className={styles.formatos} role="radiogroup" aria-label={t('Formato de la imagen')}>
+                        {[['publicacion', t('Publicación')], ['historia', t('Historia')]].map(([clave, rotulo]) => (
+                            <button
+                                key={clave} type="button" role="radio" aria-checked={formato === clave}
+                                className={formato === clave ? `${styles.formato} ${styles.formatoActivo}` : styles.formato}
+                                onClick={() => setFormato(clave)}
+                            >
+                                {rotulo}
+                            </button>
+                        ))}
+                    </div>
                     <label className={styles.toggle}>
                         <input type="checkbox" checked={incluirComidas} onChange={(e) => setIncluirComidas(e.target.checked)} />
                         <span>{t('Incluir lo que comí')}</span>
