@@ -179,7 +179,9 @@ describe('[P1-PLAN-LOTE-73] una elección a mano se respeta', () => {
         const entrada = await screen.findByText('Cena', {}, { timeout: 10000 });
         await act(async () => { entrada.closest('button').click(); });
         expect(await screen.findByText(TEXTO_DE_AYER, {}, { timeout: 10000 })).toBeInTheDocument();
-        expect(window.localStorage.getItem('mealfit_current_session_day')).toBe('2026-09-17');
+        // [P1-PLAN-LOTE-226] Conserva SU día (antes se anotaba hoy y «Nuevo chat» quedaba bloqueado sin salida);
+        // lo que evita que la renovación te lo quite mientras lo lees es la elección a mano, no el día.
+        expect(window.localStorage.getItem('mealfit_current_session_day')).toBe('2026-09-16');
         vi.setSystemTime(local(17, 10, 30));
         await volverALaPestana();
         expect(screen.getByText(TEXTO_DE_AYER)).toBeInTheDocument();

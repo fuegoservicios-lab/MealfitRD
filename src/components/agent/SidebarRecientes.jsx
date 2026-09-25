@@ -1,13 +1,16 @@
 import React from 'react';
-import { Plus, Loader2, Ghost, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Ghost, Trash2, ArrowLeft } from 'lucide-react';
 import { formatDate, useT } from '../../i18n';
 import CuentaRegresivaChat from './CuentaRegresivaChat';
-import { nuevoChatBloqueado } from '../../utils/chatSessionDay';
+import { nuevoChatBloqueado, diaAlElegir } from '../../utils/chatSessionDay';
 
 export const SidebarRecientes = ({
     showSidebar,
     setShowSidebar,
     handleNewChat,
+    // [P1-PLAN-LOTE-226] leyendo un chat de otro día: el botón de arriba vuelve al de hoy
+    chatDeOtroDia = false,
+    onVolverAHoy = null,
     isLoadingSessions,
     chatSessions,
     groupedSessions,
@@ -24,7 +27,10 @@ export const SidebarRecientes = ({
 }) => {
     const t = useT();
     // [P1-PLAN-LOTE-76 · 2026-09-17] bloqueo total mientras el chat abierto es el de hoy (se renueva solo)
-    const bloqueado = nuevoChatBloqueado(currentSessionId);
+    // [P1-PLAN-LOTE-226 · 2026-09-25] Con un chat de otro día abierto, el mismo botón te devuelve al de hoy (nunca
+    // bloqueado): antes elegir un chat viejo lo volvía «el de hoy» y no había salida hasta medianoche.
+    const volverAHoy = chatDeOtroDia && typeof onVolverAHoy === 'function';
+    const bloqueado = !volverAHoy && nuevoChatBloqueado(currentSessionId);
     return (
         <div
             ref={sidebarRef}
@@ -54,7 +60,7 @@ export const SidebarRecientes = ({
                 arranca a esa altura (P2-CHAT-SCROLLBAR-TWINS). */}
             <div className="sidebar-header-padding" style={{ padding: '0.75rem 1rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <button
-                    onClick={handleNewChat}
+                    onClick={volverAHoy ? onVolverAHoy : handleNewChat}
                     disabled={bloqueado}
                     aria-disabled={bloqueado}
                     title={bloqueado ? t('El chat se renueva solo cada día a medianoche, si no estás escribiendo.') : undefined}
@@ -90,7 +96,9 @@ export const SidebarRecientes = ({
                         e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--primary) 32%, transparent)';
                     }}
                 >
-                    <Plus size={18} /> <span>{t('Nuevo chat')}</span>
+                    {volverAHoy
+                        ? <><ArrowLeft size={18} /> <span>{t('Volver al chat de hoy')}</span></>
+                        : <><Plus size={18} /> <span>{t('Nuevo chat')}</span></>}
                 </button>
                 <CuentaRegresivaChat />
             </div>
@@ -192,7 +200,8 @@ export const SidebarRecientes = ({
                                                 // B (corrupción restaurada al re-montar). El botón
                                                 // Detener es la salida intencional durante stream.
                                                 if (isLoading && currentSessionId !== s.id) return;
-                                                setCurrentSessionId(s.id);
+                                                // [P1-PLAN-LOTE-226] con SU día: un chat viejo no pasa a ser el de hoy
+                                                setCurrentSessionId(s.id, diaAlElegir(s));
                                                 if (window.innerWidth <= 768) {
                                                     setShowSidebar(false);
                                                 }

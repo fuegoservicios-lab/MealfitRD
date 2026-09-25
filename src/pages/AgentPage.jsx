@@ -35,6 +35,7 @@ import { safeLocalStorageSet, safeLocalStorageGet, safeLocalStorageRemove } from
 import {
     resolverSesionDelDia, marcarActividad, sesionDelDiaAAdoptar, esSesionAutomatica,
     abrirSesionAutomatica, debeRenovarse, diaDeActividad, nuevoChatBloqueado,
+    esChatDeOtroDia, hoyLocal, sesionDeHoyEnServidor,
 } from '../utils/chatSessionDay';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat desde el módulo SSOT (mismas
 // que _clearUserScopedCaches borra en logout/user-switch). Los aliases `_CHAT_*`
@@ -1392,10 +1393,15 @@ const AgentPage = () => {
         // DÍA. La regla vive en `utils/chatSessionDay` con sus propios tests.
         return resolverSesionDelDia().sessionId;
     });
-    const setCurrentSessionId = (id) => {
+    // [P1-PLAN-LOTE-226] El chat de otro día que elegiste a mano en «Recientes» (null si no): la renovación no lo toca.
+    const chatViejoElegidoRef = useRef(null);
+    const setCurrentSessionId = (id, dia) => {
         // Elegir una sesión a mano (crear una nueva, o abrir otra de
         // «Recientes») cuenta como actividad de HOY: es tu chat del día.
-        marcarActividad(id);
+        // [P1-PLAN-LOTE-226] Salvo un chat de otro día elegido en «Recientes»: conserva SU día (`dia`), así
+        // «Nuevo chat» no se bloquea, la renovación no te lo quita mientras lo lees y al volver a entrar abre el de hoy.
+        marcarActividad(id, dia || undefined);
+        chatViejoElegidoRef.current = dia && dia < hoyLocal() ? id : null;
         // [P1-PLAN-LOTE-71] Elegir a mano durante la espera del chat de hoy la termina (la adopción ya la
         // dio por cerrada antes de llamar aquí).
         if (esperandoChatDelDiaRef.current) {
@@ -2681,6 +2687,8 @@ const AgentPage = () => {
         const borrador = draftSnapshotRef.current;
         if (borrador && ((borrador.text || '').trim() || (borrador.files || []).length > 0)) return false;
         if (!debeRenovarse({ messages: messagesRef.current, sessionId: currentSessionIdRef.current })) return false;
+        // [P1-PLAN-LOTE-226] Lo abriste tú para leerlo: se sale con «Volver al chat de hoy», no de un tirón.
+        if (chatViejoElegidoRef.current && chatViejoElegidoRef.current === currentSessionIdRef.current) return false;
         if (motivo === 'reloj' && Date.now() - ultimaInteraccionRef.current < 5 * 60 * 1000) return false;
         const nuevoId = abrirSesionAutomatica();
         if (!session?.user?.id && !userProfile?.id) {
@@ -3315,6 +3323,34 @@ const AgentPage = () => {
         if (window.innerWidth <= 768) {
             setShowSidebar(false);
         }
+    };
+
+    // [P1-PLAN-LOTE-226 · 2026-09-25] Desde un chat de otro día, de vuelta al de hoy: el que el servidor ya tiene de
+    // hoy si existe; si no, uno en blanco a nombre de la regla del día (automático: la adopción puede cambiarlo por el
+    // de otro dispositivo). Nunca con un turno en marcha. tooltip-anchor: P1-PLAN-LOTE-226-VOLVER-A-HOY
+    const chatDeOtroDia = !isLoadingHistory && esChatDeOtroDia(messages);
+    const handleVolverAHoy = () => {
+        if (isTurnActiveRef.current) return;
+        chatViejoElegidoRef.current = null;
+        const deHoy = sesionDeHoyEnServidor((chatSessions || []).filter((s) => s && s.id !== currentSessionIdRef.current));
+        if (deHoy) {
+            setCurrentSessionId(deHoy);
+        } else {
+            const nuevoId = abrirSesionAutomatica();
+            if (!session?.user?.id && !userProfile?.id) {
+                setGuestSessionIds((prev) => {
+                    const lista = [nuevoId, ...prev].slice(0, 40);
+                    safeLocalStorageSet('mealfit_guest_sessions_list', JSON.stringify(lista));
+                    return lista;
+                });
+            }
+            adopcionDelDiaHechaRef.current = false;
+            // Sin el envoltorio: marcaría actividad y la sesión dejaría de ser la automática del día.
+            _setCurrentSessionId(nuevoId);
+            setMessages([{ role: 'model', content: generateIntelligentWelcome(userProfile, formData, planData), isWelcome: true, welcomeAt: Date.now() }]);
+            fetchChatSessions();
+        }
+        if (window.innerWidth <= 768) setShowSidebar(false);
     };
 
     const handleSend = async (overrideInput = null, options = {}) => {
@@ -4631,6 +4667,15 @@ const AgentPage = () => {
                     ))}
                 </div>
             )}
+            {/* [P1-PLAN-LOTE-226] Leyendo un chat de otro día: la salida al de hoy, a la vista (en el teléfono la
+                barra lateral está escondida). */}
+            {chatDeOtroDia && !isTurnActive && (
+                <div className="chat-quick-chips chat-otro-dia" role="group" aria-label={t('Chat de otro día')}>
+                    <button type="button" className="chat-quick-chip" onClick={handleVolverAHoy}>
+                        {t('Volver al chat de hoy')}
+                    </button>
+                </div>
+            )}
             <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>
 
                 {isSpeaking && (
@@ -5513,6 +5558,8 @@ const AgentPage = () => {
                     showSidebar={showSidebar}
                     setShowSidebar={setShowSidebar}
                     handleNewChat={handleNewChat}
+                    chatDeOtroDia={chatDeOtroDia}
+                    onVolverAHoy={handleVolverAHoy}
                     isLoadingSessions={isLoadingSessions}
                     chatSessions={chatSessions}
                     groupedSessions={gruposConEtiqueta}

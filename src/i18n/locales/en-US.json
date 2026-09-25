@@ -3595,5 +3595,7 @@
   "Nevera activada.": "Fridge turned on.",
   "Nevera oculta. Tu inventario se conserva.": "Fridge hidden. Your inventory is kept.",
   "Ocultamos tu Nevera": "We hid your Fridge",
-  "Llevaba 2 días vacía. Puedes volver a encenderla en Configuración → Capacidades.": "It had been empty for 2 days. You can turn it back on in Settings → Capabilities."
+  "Llevaba 2 días vacía. Puedes volver a encenderla en Configuración → Capacidades.": "It had been empty for 2 days. You can turn it back on in Settings → Capabilities.",
+  "Volver al chat de hoy": "Back to today's chat",
+  "Chat de otro día": "Chat from another day"
 }

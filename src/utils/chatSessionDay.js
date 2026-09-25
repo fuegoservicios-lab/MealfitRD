@@ -237,3 +237,20 @@ export const textoCuentaRegresiva = (ms, t) => {
     if (h === 0) return t('Nuevo chat automático en {m} min', { m });
     return t('Nuevo chat automático en {h} h {m} min', { h, m });
 };
+
+// [P1-PLAN-LOTE-226 · 2026-09-25] «Si entro a un chat pasado, ¿cómo vuelvo al de hoy?». Elegir un chat de
+// «Recientes» lo anotaba como el de HOY (`marcarActividad` con hoy): «Nuevo chat» quedaba bloqueado hasta medianoche
+// (P1-PLAN-LOTE-76) y al volver a entrar resucitaba el chat viejo. Ahora el chat elegido conserva SU día (hasta que
+// escribas en él: entonces sí pasa a ser el de hoy) y, mientras lo lees, el botón dice «Volver al chat de hoy».
+
+/** ¿La conversación abierta es de un día anterior (por su último mensaje real)? Sin mensajes reales: no. */
+export const esChatDeOtroDia = (messages, hoy = hoyLocal()) => {
+    const ultimo = ultimoMensajeReal(messages);
+    return ultimo !== null && hoyLocal(new Date(ultimo)) < hoy;
+};
+
+/** Día que anotar al elegir `sesion` de «Recientes»: el de su última actividad, nunca posterior a hoy. */
+export const diaAlElegir = (sesion, hoy = hoyLocal()) => {
+    const dia = diaLocalDe(sesion?.last_activity || sesion?.created_at);
+    return dia && dia < hoy ? dia : hoy;
+};
