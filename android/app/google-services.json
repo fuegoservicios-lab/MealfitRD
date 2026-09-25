@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "526015960234",
+    "project_id": "bioboros-9e71d",
+    "storage_bucket": "bioboros-9e71d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:526015960234:android:a74cccaa146c101b0fecd3",
+        "android_client_info": {
+          "package_name": "com.bioboros.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtmUEEEpNyWNJRiJxvZ9kD0iC_MN-nvFc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

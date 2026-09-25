@@ -373,6 +373,8 @@ export async function activarAvisos() {
         if (permiso !== 'granted') permiso = (await LN.requestPermissions())?.display;
         if (permiso !== 'granted') return { ok: false, canal, code: 'permiso_denegado' };
         safeLocalStorageSet(CLAVE_AVISOS_LOCALES, '1');
+        // [P1-PLAN-LOTE-280] con el permiso recién dado, el teléfono se registra también para la push nativa (FCM)
+        import('../native/pushNativa').then((m) => m.registrarSiHayPermiso()).catch(() => {});
         const r = await sincronizarAvisosLocales();
         if (!r.ok) {
             safeLocalStorageSet(CLAVE_AVISOS_LOCALES, '0');
@@ -421,6 +423,8 @@ export async function apagarAvisosAlCerrarSesion() {
     try {
         if (isNativeApp()) {
             if (safeLocalStorageGet(CLAVE_AVISOS_LOCALES, null) === '1') await desactivarAvisos();
+            // [P1-PLAN-LOTE-280] la push nativa (FCM) de ESTA cuenta deja de llegar a este teléfono
+            try { await (await import('../native/pushNativa')).olvidarTokenAlCerrarSesion(); } catch { /* sigue */ }
         } else if (isPushSupported() && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             await Promise.race([
                 unsubscribeFromPushNotifications(),

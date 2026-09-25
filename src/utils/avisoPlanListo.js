@@ -23,6 +23,7 @@ import { t } from '../i18n';
 import { hasPendingPipelineInFlight, readPendingFlag } from './pendingPipelineFlag';
 import { safeLocalStorageGet } from './safeLocalStorage';
 import { permisoAvisosLocales, programarAvisoLocal, cancelarAvisosLocales } from './avisosDeComida';
+import { pushNativaActiva } from '../native/pushNativa';
 
 export const ID_PLAN_LISTO = 4300;
 export const ID_PLAN_RESPALDO = 4301;
@@ -65,7 +66,10 @@ export function decidir({ estado, firmaAntes, firmaAhora, hayFlag }) {
 /** Al empezar a generar en la app nativa: pide el permiso de notificaciones si aún no se ha decidido. */
 export function prepararAvisoPlanListo() {
     if (!isNativeApp()) return;
-    permisoAvisosLocales({ pedir: true }).catch(() => {});
+    permisoAvisosLocales({ pedir: true })
+        // [P1-PLAN-LOTE-280] con el permiso, también la push nativa: el servidor avisará aunque Android cierre la app
+        .then((p) => (p === 'granted' ? import('../native/pushNativa').then((m) => m.registrarSiHayPermiso()) : null))
+        .catch(() => {});
 }
 
 const _firmaActual = () => firmaDelPlan(safeLocalStorageGet('mealfit_plan', null));
@@ -111,6 +115,8 @@ export function iniciarVigiaPlanListo() {
         parar();
         await cancelarAvisosLocales([ID_PLAN_RESPALDO]);
         if (document.visibilityState === 'visible') return;   // volvió justo ahora: lo ve en pantalla
+        // [P1-PLAN-LOTE-280] con la push nativa registrada, el aviso lo manda el servidor por FCM: no se duplica.
+        if (pushNativaActiva()) return;
         await programarAvisoLocal(tipo === 'listo'
             ? { id: ID_PLAN_LISTO, title: t('Tu plan está listo 🎉'), body: t('Toca para verlo.'),
                 at: new Date(Date.now() + 1000), url: '/dashboard', kind: 'plan' }

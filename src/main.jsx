@@ -238,6 +238,10 @@ if (isNativeApp()) {
     .catch(() => { /* sin sincronizar, los avisos ya programados siguen saliendo */ });
   // [P1-PLAN-LOTE-163 · 2026-09-22] El gesto «atrás» de Android (ver native/botonAtras.js). Sin él, cerraba la app.
   // [P1-PLAN-LOTE-228 · 2026-09-25] «Tu plan está listo» con la app en segundo plano (ver utils/avisoPlanListo.js).
+  // [P1-PLAN-LOTE-280 · 2026-09-25] Push nativa (FCM): lo que decide el servidor llega con la app cerrada.
+  import('./native/pushNativa')
+    .then((m) => m.iniciarPushNativa())
+    .catch(() => { /* sin plugin (binario anterior), solo avisos locales */ });
   import('./utils/avisoPlanListo')
     .then((m) => m.iniciarVigiaPlanListo())
     .catch(() => { /* sin vigia, el plan se ve al volver a abrir la app */ });
