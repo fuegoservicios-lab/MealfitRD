@@ -3614,5 +3614,12 @@
   "Solo lo que tiene respaldo: proteína, creatina, omega 3, vitaminas y minerales.": "Only what's backed by evidence: protein, creatine, omega-3, vitamins and minerals.",
   "Lo que ya tomas va a tu Alacena y al plan; si quieres, te recomendamos lo que tiene respaldo.": "What you already take goes to your Pantry and your plan; if you like, we'll recommend what's backed by evidence.",
   "Lo que ya tomas va a tu Alacena: el coach lo usa para registrar tus scoops.": "What you already take goes to your Pantry: the coach uses it to log your scoops.",
-  "Porciones por confirmar — díselas al coach": "Servings to confirm — tell the coach"
+  "Porciones por confirmar — díselas al coach": "Servings to confirm — tell the coach",
+  "Porciones de {nombre}": "Servings of {nombre}",
+  "Porciones": "Servings",
+  "Guardar porciones de {nombre}": "Save servings of {nombre}",
+  "Porciones guardadas": "Servings saved",
+  "No se pudo guardar. Inténtalo de nuevo.": "Couldn't save. Please try again.",
+  "Suplemento quitado de tu Alacena": "Supplement removed from your Pantry",
+  "No se pudo quitar. Inténtalo de nuevo.": "Couldn't remove it. Please try again."
 }

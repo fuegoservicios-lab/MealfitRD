@@ -653,6 +653,31 @@ const PantryPage = () => {
     // la preferencia (el item ya quedó etiquetado).
     // Función plana (NO useCallback): cierra sobre fetchData/brandCache frescos
     // de cada render — un useCallback([]) capturaría instancias stale.
+    // [P1-PLAN-LOTE-300] Editar las porciones de un pote y quitarlo (los mismos endpoints que cualquier fila).
+    const cambiarPorcionesSuplemento = async (id, porciones) => {
+        try {
+            await _apiJson(`/api/inventory/items/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quantity: porciones }),
+            });
+            invalidateInventoryCache();
+            fetchData(false);
+            toast.success(t('Porciones guardadas'));
+        } catch {
+            toast.error(t('No se pudo guardar. Inténtalo de nuevo.'));
+        }
+    };
+    const borrarSuplemento = async (id) => {
+        try {
+            await _apiJson(`/api/inventory/items/${id}`, { method: 'DELETE' });
+            invalidateInventoryCache();
+            fetchData(false);
+            toast.success(t('Suplemento quitado de tu Alacena'));
+        } catch {
+            toast.error(t('No se pudo quitar. Inténtalo de nuevo.'));
+        }
+    };
     const changeItemBrand = async (item, newBrand) => {
         const _clean = (newBrand === 'Genérico' ? '' : (newBrand || ''));  // BrandSelect manda '' para Genérico
         try {
@@ -2873,7 +2898,7 @@ const PantryPage = () => {
                     </div>
                 )}
 
-                {tempZone === 'seco' && <GrupoSuplementos potes={potesSuplementos} soloDelPlan={suplementosSoloDelPlan} />}
+                {tempZone === 'seco' && <GrupoSuplementos potes={potesSuplementos} soloDelPlan={suplementosSoloDelPlan} onCambiarPorciones={cambiarPorcionesSuplemento} onBorrar={borrarSuplemento} />}
                 {visibleZones.map(({ z, list }) => {
                     const Icon = z.icon;
                     return (
@@ -3155,7 +3180,7 @@ const PantryPage = () => {
                                 </div>
                             )}
 
-                            {tempZone === 'seco' && <GrupoSuplementos potes={potesSuplementos} soloDelPlan={suplementosSoloDelPlan} />}
+                            {tempZone === 'seco' && <GrupoSuplementos potes={potesSuplementos} soloDelPlan={suplementosSoloDelPlan} onCambiarPorciones={cambiarPorcionesSuplemento} onBorrar={borrarSuplemento} />}
                             {visibleZones.map(({ z, list }) => (
                                 <div key={z.key} className={fstyles.group} style={{ '--cat': zoneColor(z.key), '--cat-ink': zoneInk(z.key) }}>
                                     {effFilter === 'todos' && (

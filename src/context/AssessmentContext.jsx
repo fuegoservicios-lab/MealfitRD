@@ -1536,6 +1536,7 @@ export const AssessmentProvider = ({ children }) => {
     // re-suscripción del listener. Mismo patrón P1-B9.
     // [P3-4 · 2026-07-09] Hook SSOT useLatestRef (antes mirror manual en effect).
     const refreshProfileAndPlanRef = useLatestRef(refreshProfileAndPlan);
+    const perfilParaNeveraRef = useLatestRef(userProfile);   // [P1-PLAN-LOTE-300]
     // [P1-CREDITS-REFRESH-ON-ADOPT · 2026-07-25] El contador de créditos sólo se pedía al
     // montar. Tras generar, el plan SÍ se adoptaba (verificado en el log:
     // `planwrite-adopt-plan-page` con el id nuevo) pero la cabecera seguía mostrando el
@@ -2171,9 +2172,16 @@ export const AssessmentProvider = ({ children }) => {
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', refreshProfileOnWake);
+        // [P1-PLAN-LOTE-300] El coach puede ENCENDER la Nevera al guardar algo (lote 290): con la Nevera apagada en el
+        // perfil, cada refresco de la Nevera desde el chat relee el perfil para que el menú la muestre al instante.
+        const releerSiNeveraApagada = () => {
+            if (perfilParaNeveraRef.current?.nevera_activa === false) refreshProfileAndPlanRef.current?.();
+        };
+        window.addEventListener('mealfit:refresh-inventory', releerSiNeveraApagada);
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', refreshProfileOnWake);
+            window.removeEventListener('mealfit:refresh-inventory', releerSiNeveraApagada);
         };
         // Dep estrechada a `session?.user?.id` (paridad con el canal previo):
         // no re-armar listeners en cada rotación de token de la misma cuenta.

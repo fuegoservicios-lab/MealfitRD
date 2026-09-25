@@ -3614,5 +3614,12 @@
   "Solo lo que tiene respaldo: proteína, creatina, omega 3, vitaminas y minerales.": "Solo ciò che ha evidenze: proteine, creatina, omega 3, vitamine e minerali.",
   "Lo que ya tomas va a tu Alacena y al plan; si quieres, te recomendamos lo que tiene respaldo.": "Ciò che prendi già va nella tua Dispensa e nel piano; se vuoi, ti consigliamo ciò che ha evidenze.",
   "Lo que ya tomas va a tu Alacena: el coach lo usa para registrar tus scoops.": "Ciò che prendi già va nella tua Dispensa: il coach lo usa per registrare i tuoi misurini.",
-  "Porciones por confirmar — díselas al coach": "Porzioni da confermare — dille al coach"
+  "Porciones por confirmar — díselas al coach": "Porzioni da confermare — dille al coach",
+  "Porciones de {nombre}": "Porzioni di {nombre}",
+  "Porciones": "Porzioni",
+  "Guardar porciones de {nombre}": "Salva le porzioni di {nombre}",
+  "Porciones guardadas": "Porzioni salvate",
+  "No se pudo guardar. Inténtalo de nuevo.": "Impossibile salvare. Riprova.",
+  "Suplemento quitado de tu Alacena": "Integratore rimosso dalla tua Dispensa",
+  "No se pudo quitar. Inténtalo de nuevo.": "Impossibile rimuoverlo. Riprova."
 }

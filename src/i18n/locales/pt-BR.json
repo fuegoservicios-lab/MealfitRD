@@ -3614,5 +3614,12 @@
   "Solo lo que tiene respaldo: proteína, creatina, omega 3, vitaminas y minerales.": "Só o que tem respaldo: proteína, creatina, ômega 3, vitaminas e minerais.",
   "Lo que ya tomas va a tu Alacena y al plan; si quieres, te recomendamos lo que tiene respaldo.": "O que você já toma vai para a sua Despensa e para o plano; se quiser, recomendamos o que tem respaldo.",
   "Lo que ya tomas va a tu Alacena: el coach lo usa para registrar tus scoops.": "O que você já toma vai para a sua Despensa: o coach usa isso para registrar seus scoops.",
-  "Porciones por confirmar — díselas al coach": "Porções a confirmar — diga ao coach"
+  "Porciones por confirmar — díselas al coach": "Porções a confirmar — diga ao coach",
+  "Porciones de {nombre}": "Porções de {nombre}",
+  "Porciones": "Porções",
+  "Guardar porciones de {nombre}": "Salvar porções de {nombre}",
+  "Porciones guardadas": "Porções salvas",
+  "No se pudo guardar. Inténtalo de nuevo.": "Não foi possível salvar. Tente de novo.",
+  "Suplemento quitado de tu Alacena": "Suplemento removido da sua Despensa",
+  "No se pudo quitar. Inténtalo de nuevo.": "Não foi possível remover. Tente de novo."
 }
