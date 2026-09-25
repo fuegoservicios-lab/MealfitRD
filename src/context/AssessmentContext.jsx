@@ -140,7 +140,7 @@ import { clearUserQueryCache } from '../queryClient';
 // [P1-XTAB-CACHE-LEAK · 2026-05-30] Invalidadores de caches con KEY GLOBAL
 // (sin user_id) — se limpian en logout / user-switch para evitar leak
 // cross-user en dispositivo compartido (ver _clearUserScopedCaches).
-import { invalidateInventoryCache } from '../utils/pantryCache';
+import { borrarCacheDeInventario } from '../utils/pantryCache';
 // [P1-CREDITS-LIVE-REFRESH · 2026-07-10] tras consumir crédito (regen-day / swap) el contador
 // se refresca en vivo (invalidate + re-fetch) — antes solo se actualizaba al refrescar la web.
 import { invalidatePlanCountCache } from '../utils/quotaCache';
@@ -236,7 +236,8 @@ const _clearUserScopedCaches = () => {
     // keyed [recurso, userId]). Reemplazará estructuralmente los purgados a mano
     // de abajo a medida que los surfaces migren a useQuery (P2-1).
     try { clearUserQueryCache(); } catch { /* noop */ }
-    try { invalidateInventoryCache(); } catch { /* noop */ }
+    // [P1-PLAN-LOTE-320] BORRAR, no invalidar: invalidar ahora deja la copia vieja para pintar (otra cuenta la vería).
+    try { borrarCacheDeInventario(); } catch { /* noop */ }
     try { invalidateHistoryListCache(); } catch { /* noop */ }
     // [P3-HIST-MODAL-CACHE-XUSER · 2026-05-30] Además del cache del LISTADO,
     // limpiar los 5 caches singleton per-plan del modal del Historial

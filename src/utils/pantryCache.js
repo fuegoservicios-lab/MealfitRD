@@ -62,12 +62,10 @@ const _safeLsRemove = (key) => {
 };
 
 export const getCachedInventory = () => {
-    // Fast path: in-memory.
+    // Fast path: in-memory. [320] Vencida = fallo, pero NO se borra: queda como copia vieja (getStaleInventory).
     if (_inventoryEntry) {
         if (typeof _inventoryEntry.expiresAt === 'number'
             && Date.now() > _inventoryEntry.expiresAt) {
-            _inventoryEntry = null;
-            _safeLsRemove(_INVENTORY_LS_KEY);
             return undefined;
         }
         return _inventoryEntry.value;
@@ -82,7 +80,7 @@ export const getCachedInventory = () => {
             if (parsed && Array.isArray(parsed.value)) {
                 if (typeof parsed.expiresAt === 'number'
                     && Date.now() > parsed.expiresAt) {
-                    _safeLsRemove(_INVENTORY_LS_KEY);
+                    _inventoryEntry = parsed;   // [320] queda como copia vieja
                     return undefined;
                 }
                 // Hidratar in-memory para próximas llamadas (fast path).
@@ -109,13 +107,45 @@ export const setCachedInventory = (rows, ttlMs = _INVENTORY_TTL_MS) => {
     } catch { /* ignore */ }
 };
 
+// [P1-PLAN-LOTE-320 · 2026-09-25] Invalidar ya NO borra: marca la copia como vieja (expiresAt = 0). `getCachedInventory`
+// la trata como fallo (se refetchea), pero `getStaleInventory` la sigue dando para pintar la Nevera al instante mientras
+// llega la fresca — antes el esqueleto esperaba a la red y a la sesión. Para BORRAR de verdad (cerrar sesión, cambiar de
+// usuario: nada de ver la Nevera de otra cuenta) está `borrarCacheDeInventario`.
 export const invalidateInventoryCache = () => {
-    _inventoryEntry = null;
-    _safeLsRemove(_INVENTORY_LS_KEY);
+    const actual = _inventoryEntry?.value ?? getStaleInventory();
+    if (Array.isArray(actual)) {
+        _inventoryEntry = { value: actual, expiresAt: 0 };
+        try { safeLocalStorageSet(_INVENTORY_LS_KEY, JSON.stringify(_inventoryEntry)); } catch { /* ignore */ }
+    } else {
+        _inventoryEntry = null;
+        _safeLsRemove(_INVENTORY_LS_KEY);
+    }
     // El status se conserva como snapshot stale hasta que /pantry-status lo
     // revalide. Borrarlo aquí abría un hueco visual al navegar/refrescar justo
     // después de una invalidación. Las mutaciones siguen disparando el fetch;
     // el snapshot no decide el estado final, solo evita un frame sin aviso.
+};
+
+/** [P1-PLAN-LOTE-320] La última copia conocida, aunque esté vencida o invalidada: para PINTAR mientras se refetchea. */
+export const getStaleInventory = () => {
+    if (_inventoryEntry && Array.isArray(_inventoryEntry.value)) return _inventoryEntry.value;
+    try {
+        const raw = safeLocalStorageGet(_INVENTORY_LS_KEY, null);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.value)) {
+                _inventoryEntry = parsed;
+                return parsed.value;
+            }
+        }
+    } catch { /* fail-open */ }
+    return undefined;
+};
+
+/** [P1-PLAN-LOTE-320] Borrado TOTAL (cerrar sesión / cambiar de usuario): ni fresca ni vieja. */
+export const borrarCacheDeInventario = () => {
+    _inventoryEntry = null;
+    _safeLsRemove(_INVENTORY_LS_KEY);
 };
 
 export const getCachedMasterList = () => {

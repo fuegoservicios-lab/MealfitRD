@@ -64,6 +64,8 @@ import { APP_ORIGIN, isApexHost } from './config/site';
 // modulepreload eager de /login y /register (rutas públicas que NUNCA muestran el
 // landing). Renderiza dentro del <Suspense> de AnimatedLayout (mismo patrón que las
 // páginas legales, que ya usan <Layout><X/></Layout> lazy y funcionan).
+// [P1-PLAN-LOTE-320] Las páginas del menú inferior comparten cargador con su precarga (utils/precargaDePaginas.js).
+import { cargarPagina, precargarPaginasDelMenu } from './utils/precargaDePaginas';
 const Home = lazy(() => import('./pages/Home'));
 // [P3-APP-SUBDOMAIN-BUILD-SEP · 2026-06-28] Login y DashboardLayout son código
 // EXCLUSIVO del app (app.mealfitrd.com); antes eran imports eager → engordaban el
@@ -74,10 +76,10 @@ const Login = lazy(() => import('./pages/Login'));
 const DashboardLayout = lazy(() => import('./components/dashboard/DashboardLayout'));
 const Assessment = lazy(() => import('./pages/Assessment'));
 const Plan = lazy(() => import('./pages/Plan'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Dashboard = lazy(cargarPagina.hoy);
 
-const Pantry = lazy(() => import('./pages/Pantry'));
-const ProgressPage = lazy(() => import('./pages/ProgressPage'));
+const Pantry = lazy(cargarPagina.nevera);
+const ProgressPage = lazy(cargarPagina.progreso);
 const Recipes = lazy(() => import('./pages/Recipes'));
 const Settings = lazy(() => import('./pages/Settings'));
 // [P1-SETTINGS-DIALOG · 2026-08-10] La ventana de configuración. Lazy igual que
@@ -91,9 +93,9 @@ const SettingsDialog = lazy(() => import('./components/dashboard/SettingsDialog'
 // primer cambio que alguien haga en una sola. El ⚙ del Header ahora apunta a la
 // del dashboard, y `ProtectedRoute` exime esa ruta del gate de assessment para
 // que una cuenta sin plan siga llegando a su cuenta (y a borrarla).
-const History = lazy(() => import('./pages/History'));
+const History = lazy(cargarPagina.historial);
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
-const AgentPage = lazy(() => import('./pages/AgentPage'));
+const AgentPage = lazy(cargarPagina.agente);
 // [P3-UPGRADE-PAGE · 2026-05-26] Página de comparación de planes accesible
 // desde el chip de plan tier del Dashboard. Lazy porque solo se carga cuando
 // el usuario hace click explícito (no es golden path) — patrón espejo de
@@ -285,6 +287,8 @@ const DashboardAnimatedLayout = () => {
   // el mismo render del primer visit (keep-alive instantáneo preservado).
   const [hasVisitedAgent, setHasVisitedAgent] = useState(false);
   if (isAgent && !hasVisitedAgent) setHasVisitedAgent(true);
+  // [P1-PLAN-LOTE-320] En reposo, el código de las páginas del menú: la primera visita a la Nevera tardaba 622 ms.
+  useEffect(() => { precargarPaginasDelMenu(); }, []);
 
   return (
     <DashboardLayout noPaddingMobile={isAgent}>

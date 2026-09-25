@@ -40,7 +40,7 @@ import { safeJSONParseObject } from '../utils/safeJSONParse';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 // [P3-PANTRY-CACHE · 2026-05-19] Stale-while-revalidate del mount de Pantry
-import { getCachedInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus, reconcilePantryStatus } from '../utils/pantryCache';
+import { getCachedInventory, getStaleInventory, setCachedInventory, getCachedMasterList, setCachedMasterList, invalidateInventoryCache, getCachedBrands, setCachedBrands, getCachedPantryStatus, setCachedPantryStatus, reconcilePantryStatus } from '../utils/pantryCache';
 import { medirTecladoDeVentana } from '../utils/keyboardViewport';
 // [P1-PANTRY-DASH-PARITY - 2026-07-11] Escaner por foto compartido con el paso 21.
 import { PantryScanButton } from '../components/pantry/PantryScanButton';
@@ -426,7 +426,8 @@ const PantryPage = () => {
     // del useEffect mount sigue corriendo para pisar con datos frescos.
     // Pre-fix: dos queries el backend anterior serializadas bloqueaban render con
     // skeleton 300-1500ms cada entrada al apartado.
-    const [inventory, setInventory] = useState(() => getCachedInventory() || []);
+    // [P1-PLAN-LOTE-320] Con la copia vieja si no hay fresca: se pinta al instante y el montaje la refresca en silencio.
+    const [inventory, setInventory] = useState(() => getCachedInventory() || getStaleInventory() || []);
 
     // [P1-PANTRY-RECONCILIATION · 2026-08-07] "Esto no se ha movido en N días:
     // ¿lo usaste, se dañó, o sigue ahí?".
@@ -443,7 +444,7 @@ const PantryPage = () => {
     const [reconcileItems, setReconcileItems] = useState([]);
     const [reconcileBusyId, setReconcileBusyId] = useState(null);
     const [masterList, setMasterList] = useState(() => getCachedMasterList() || []);
-    const [loading, setLoading] = useState(() => !getCachedInventory());
+    const [loading, setLoading] = useState(() => !getCachedInventory() && !getStaleInventory());
     const [searchQuery, setSearchQuery] = useState('');
     // [P3-PANTRY-FRIDGE-REDESIGN · 2026-06-24] Mueble activo (Nevera/Alacena)
     // + filtro de categoría (zona física) del sidebar. 'todos' = todas las
@@ -1286,7 +1287,8 @@ const PantryPage = () => {
             // adicional al mount. Datos cacheados quedan visibles snap.
             return;
         }
-        fetchData(true);
+        // [P1-PLAN-LOTE-320] Con copia vieja en pantalla, refresco SILENCIOSO (sin esqueleto); sin ninguna, el de siempre.
+        fetchData(!Array.isArray(getStaleInventory()));
     }, [session?.user?.id]);
 
     // [P3-PANTRY-SYNC-CACHE · 2026-05-27] Sincronizar el estado local `inventory`
