@@ -3602,5 +3602,15 @@
   "No pudimos terminar tu plan": "Não conseguimos terminar seu plano",
   "Toca para intentarlo de nuevo.": "Toque para tentar de novo.",
   "Tu plan ya debería estar listo": "Seu plano já deve estar pronto",
-  "Ábrelo para verlo.": "Abra para ver."
+  "Ábrelo para verlo.": "Abra para ver.",
+  "Suplementos": "Suplementos",
+  "Sin etiqueta — pídesela al coach": "Sem rótulo — peça ao coach",
+  "1 {unidad}{gramos} · {kcal} kcal · {prot} g proteína": "1 {unidad}{gramos} · {kcal} kcal · {prot} g de proteína",
+  "~{n} {unidad}": "~{n} {unidad}",
+  "Plan: {dosis} · {cuando}": "Plano: {dosis} · {cuando}",
+  "Del plan": "Do plano",
+  "scoop": "scoop",
+  "scoops": "scoops",
+  "cápsula": "cápsula",
+  "cápsulas": "cápsulas"
 }

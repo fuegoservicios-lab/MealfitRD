@@ -3602,5 +3602,15 @@
   "No pudimos terminar tu plan": "Nous n’avons pas pu terminer votre plan",
   "Toca para intentarlo de nuevo.": "Touchez pour réessayer.",
   "Tu plan ya debería estar listo": "Votre plan devrait être prêt",
-  "Ábrelo para verlo.": "Ouvrez-le pour le voir."
+  "Ábrelo para verlo.": "Ouvrez-le pour le voir.",
+  "Suplementos": "Compléments",
+  "Sin etiqueta — pídesela al coach": "Sans étiquette — demandez-la au coach",
+  "1 {unidad}{gramos} · {kcal} kcal · {prot} g proteína": "1 {unidad}{gramos} · {kcal} kcal · {prot} g de protéines",
+  "~{n} {unidad}": "~{n} {unidad}",
+  "Plan: {dosis} · {cuando}": "Plan : {dosis} · {cuando}",
+  "Del plan": "Du plan",
+  "scoop": "dose",
+  "scoops": "doses",
+  "cápsula": "gélule",
+  "cápsulas": "gélules"
 }

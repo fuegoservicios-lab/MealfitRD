@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react';
 // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada la ruta redirige al panel (envoltorio al final del fichero).
+import GrupoSuplementos from '../components/pantry/GrupoSuplementos';
+import { agrupar, sinSuplementos } from '../utils/suplementosAlacena';
 import { Navigate } from 'react-router-dom';
 // [P2-PANTRY-MODALS-A11Y · 2026-05-30] Los 3 modales custom de Pantry
 // (añadir / ajustar cantidad / vaciar nevera destructivo) eran divs fixed sin
@@ -2198,8 +2200,18 @@ const PantryPage = () => {
     };
 
     // 3. Computed Views
+    // [P1-PLAN-LOTE-290 · 2026-09-25] Los suplementos no son alimentos: salen de las zonas y van a su grupo de la
+    // Alacena. El plan repite los mismos suplementos cada día; se toman los del primer día que los traiga.
+    const suplementosDelPlan = useMemo(
+        () => (planData?.days || []).find((d) => Array.isArray(d?.supplements) && d.supplements.length)?.supplements || [],
+        [planData],
+    );
+    const { potes: potesSuplementos, soloDelPlan: suplementosSoloDelPlan } = useMemo(
+        () => agrupar(inventory, suplementosDelPlan),
+        [inventory, suplementosDelPlan],
+    );
     const filteredInventory = useMemo(() => {
-        let textMatch = inventory;
+        let textMatch = sinSuplementos(inventory);
         if (deferredSearchQuery.trim()) {
             const q = deferredSearchQuery.toLowerCase();
             textMatch = textMatch.filter(i =>
@@ -2861,6 +2873,7 @@ const PantryPage = () => {
                     </div>
                 )}
 
+                {tempZone === 'seco' && <GrupoSuplementos potes={potesSuplementos} soloDelPlan={suplementosSoloDelPlan} />}
                 {visibleZones.map(({ z, list }) => {
                     const Icon = z.icon;
                     return (
@@ -3142,6 +3155,7 @@ const PantryPage = () => {
                                 </div>
                             )}
 
+                            {tempZone === 'seco' && <GrupoSuplementos potes={potesSuplementos} soloDelPlan={suplementosSoloDelPlan} />}
                             {visibleZones.map(({ z, list }) => (
                                 <div key={z.key} className={fstyles.group} style={{ '--cat': zoneColor(z.key), '--cat-ink': zoneInk(z.key) }}>
                                     {effFilter === 'todos' && (
