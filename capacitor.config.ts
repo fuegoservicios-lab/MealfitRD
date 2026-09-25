@@ -55,7 +55,9 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: true,
   },
   plugins: {
-    PushNotifications: { presentationOptions: ['badge', 'sound', 'alert'] },
+    // [P1-PLAN-LOTE-300] Con la app DELANTE, iOS no pinta la push: la pinta la app como aviso local (native/pushNativa.js),
+    // y no la pinta si trae `solo_si_no_mira` (el plan listo: ya se ve en pantalla). Con esto iba dos veces.
+    PushNotifications: { presentationOptions: [] },
     // [P1-PLAN-LOTE-280 · 2026-09-25] Icono de la barra de estado de los avisos locales (comidas, agua, plan listo):
     // la silueta blanca del brote (res/drawable/ic_stat_bioboros.xml). Sin esto Android pintaba el icono de la app,
     // que es a color con fondo, como un cuadrado blanco. Config del binario: llega con el APK, no por OTA.

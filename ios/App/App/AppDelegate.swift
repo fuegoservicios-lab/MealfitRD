@@ -38,6 +38,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
+    // [P1-PLAN-LOTE-300 · 2026-09-25] Push de Apple: iOS entrega el token (o el error) al AppDelegate y Capacitor lo
+    // escucha por NotificationCenter; sin estos dos métodos, `PushNotifications.register()` nunca responde.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
     func applicationWillTerminate(_ application: UIApplication) {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
