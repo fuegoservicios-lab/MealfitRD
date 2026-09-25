@@ -69,4 +69,15 @@ describe('[306] abrir el teclado no fuerza layout', () => {
     it('las medidas se guardan donde ya están frescas: al hacer scroll y en el ResizeObserver', () => {
         expect(ap.split('metricasScrollRef.current = {').length - 1).toBeGreaterThanOrEqual(2);
     });
+
+    it('en modo libre, el ResizeObserver guarda la posición YA corregida (si no, «nada» dejaba el último mensaje bajo la caja)', () => {
+        const i = ap.indexOf('el.scrollTop = Math.max(0, el.scrollTop + delta);');
+        const tramo = ap.slice(i, i + 300);
+        expect(tramo).toContain('metricasScrollRef.current = {');
+    });
+
+    it('ningún comentario dice ya que --kb-ms vive en <html>', () => {
+        expect(ap).not.toMatch(/Se fija en <html>/);
+        expect(leer('src/components/dashboard/BottomTabBar.module.css')).not.toMatch(/fijada en <html>/);
+    });
 });

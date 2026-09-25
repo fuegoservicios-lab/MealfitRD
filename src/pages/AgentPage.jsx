@@ -933,7 +933,7 @@ const AgentPage = () => {
         };
 
         // [P1-PLAN-LOTE-129] La DURACIÓN con la que se mueven las tres piezas (alto del chat, relleno de la caja y barra de
-        // pestañas: `var(--kb-ms, 0.25s)` en las tres). Se fija en <html> —la barra vive fuera del chat— y se RETIRA al
+        // pestañas: `var(--kb-ms, 0.25s)` en las tres). Se escribe en cada una (`data-kb-anima`, lote 306) —no en <html>— y se RETIRA al
         // acabar la animación: la barra también usa esa transición para plegarse, y plegar no es cosa del teclado.
         let msTimer = null;
         const piezasQueAnimanAlTeclado = () => document.querySelectorAll('[data-kb-anima]');
@@ -2436,6 +2436,8 @@ const AgentPage = () => {
             } else if (delta !== 0) {
                 el.scrollTop = Math.max(0, el.scrollTop + delta);
                 lastScrollTopRef.current = el.scrollTop;
+                // [P1-PLAN-LOTE-306] la posición YA corregida: el aviso de teclado puede llegar antes del evento `scroll`
+                metricasScrollRef.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight };
             }
         });
         ro.observe(list);

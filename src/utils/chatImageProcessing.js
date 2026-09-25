@@ -105,14 +105,23 @@ const errorConCodigo = (code) => {
 let workerCompartido = null;
 let workerDesactivado = false;
 let siguienteId = 0;
+/** Plazo para que el worker responda. Si no carga (red, esquema del WebView) o se cuelga, la foto no puede quedarse
+ *  «preparando» para siempre: pasado el plazo se da por muerto y todo sigue por el hilo principal. */
+export const WORKER_IMAGEN_PLAZO_MS = 10_000;
 
 const workerDisponible = () => !workerDesactivado
     && typeof Worker === 'function' && typeof OffscreenCanvas === 'function';
 
 const obtenerWorker = () => {
     if (workerCompartido) return workerCompartido;
-    workerCompartido = new Worker(new URL('../workers/chatImage.worker.js', import.meta.url), { type: 'module' });
-    return workerCompartido;
+    const worker = new Worker(new URL('../workers/chatImage.worker.js', import.meta.url), { type: 'module' });
+    // Oyente PERMANENTE: un fallo al cargar el script llega una sola vez, a menudo antes de que haya trabajo escuchando
+    // (lo precalienta el «+»). Sin esto el worker quedaba «vivo» y la foto siguiente esperaba una respuesta que no llega.
+    const alMorir = () => { if (workerCompartido === worker) desactivarWorker(); };
+    worker.addEventListener('error', alMorir);
+    worker.addEventListener('messageerror', alMorir);
+    workerCompartido = worker;
+    return worker;
 };
 
 /** Arranca el worker sin mandarle trabajo: su arranque (cargar y compilar el módulo) le costaba ~130 ms al hilo
@@ -132,9 +141,16 @@ const prepararEnWorker = (file, { signal, maxSide }) => new Promise((resolve, re
     let worker;
     try { worker = obtenerWorker(); } catch (error) { desactivarWorker(); reject(errorConCodigo('WORKER_UNAVAILABLE')); return; }
     const id = ++siguienteId;
+    const plazo = setTimeout(() => {
+        limpiar();
+        desactivarWorker();
+        reject(errorConCodigo('WORKER_UNAVAILABLE'));
+    }, WORKER_IMAGEN_PLAZO_MS);
     const limpiar = () => {
+        clearTimeout(plazo);
         worker.removeEventListener('message', alMensaje);
         worker.removeEventListener('error', alError);
+        worker.removeEventListener('messageerror', alError);
         signal?.removeEventListener('abort', alAbortar);
     };
     function alMensaje({ data }) {
@@ -150,12 +166,20 @@ const prepararEnWorker = (file, { signal, maxSide }) => new Promise((resolve, re
     }
     function alAbortar() {
         limpiar();
+        // Que el worker suelte la foto (un bitmap de 12 MP son ~48 MB) en vez de terminar dos codificaciones que ya nadie quiere.
+        try { worker.postMessage({ cancel: id }); } catch { /* worker ya muerto */ }
         reject(abortError());
     }
     worker.addEventListener('message', alMensaje);
     worker.addEventListener('error', alError);
+    worker.addEventListener('messageerror', alError);
     signal?.addEventListener('abort', alAbortar, { once: true });
-    worker.postMessage({ id, file, maxSide, thumbSide: 360 });
+    try {
+        worker.postMessage({ id, file, maxSide, thumbSide: 360 });
+    } catch {
+        limpiar();
+        reject(errorConCodigo('WORKER_FAILED'));
+    }
 });
 
 const blobADataUrl = (blob) => new Promise((resolve, reject) => {

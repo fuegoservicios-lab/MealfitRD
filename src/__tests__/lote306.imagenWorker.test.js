@@ -19,8 +19,8 @@ class FakeWorker {
         this.mensajes = [];
         FakeWorker.instancias.push(this);
     }
-    addEventListener(tipo, fn) { this.listeners[tipo].push(fn); }
-    removeEventListener(tipo, fn) { this.listeners[tipo] = this.listeners[tipo].filter((f) => f !== fn); }
+    addEventListener(tipo, fn) { (this.listeners[tipo] ||= []).push(fn); }
+    removeEventListener(tipo, fn) { this.listeners[tipo] = (this.listeners[tipo] || []).filter((f) => f !== fn); }
     postMessage(msg) {
         this.mensajes.push(msg);
         const r = FakeWorker.respuesta?.(msg);
@@ -121,5 +121,39 @@ describe('[306] la foto del chat se prepara en un Web Worker', () => {
         const src = readFileSync(resolve(__dirname, '..', 'pages', 'AgentPage.jsx'), 'utf8');
         const gesto = src.slice(src.indexOf('const prepareAttachmentPickerGesture'), src.indexOf('const waitForAttachmentKeyboardClose'));
         expect(gesto).toContain('precalentarWorkerDeImagen()');
+    });
+
+    // ── Revisión final (hallazgo importante): un worker que no carga no puede dejar la foto «preparando» para siempre ──
+    it('si el worker falla al CARGAR tras precalentarlo (sin trabajo en curso), la foto cae al hilo principal', async () => {
+        mod.precalentarWorkerDeImagen();
+        FakeWorker.instancias[0].listeners.error.forEach((fn) => fn(new Event('error')));
+        const principal = vi.spyOn(mod._internals, 'prepararEnHiloPrincipal')
+            .mockResolvedValue({ file: foto(), thumbDataUrl: 'data:,', width: 1, height: 1 });
+        await mod.prepareChatImage(foto());
+        expect(principal).toHaveBeenCalledTimes(1);
+        expect(FakeWorker.instancias[0].mensajes).toHaveLength(0);
+    });
+
+    it('un worker que nunca responde: a los 10 s se da por muerto y la foto cae al hilo principal', async () => {
+        vi.useFakeTimers();
+        try {
+            FakeWorker.respuesta = () => null;
+            const principal = vi.spyOn(mod._internals, 'prepararEnHiloPrincipal')
+                .mockResolvedValue({ file: foto(), thumbDataUrl: 'data:,', width: 1, height: 1 });
+            const p = mod.prepareChatImage(foto());
+            await vi.advanceTimersByTimeAsync(mod.WORKER_IMAGEN_PLAZO_MS + 1);
+            await p;
+            expect(principal).toHaveBeenCalledTimes(1);
+        } finally { vi.useRealTimers(); }
+    });
+
+    it('cancelar avisa al worker para que suelte la foto', async () => {
+        FakeWorker.respuesta = () => null;
+        const ctl = new AbortController();
+        const p = mod.prepareChatImage(foto(), { signal: ctl.signal });
+        ctl.abort();
+        await expect(p).rejects.toMatchObject({ name: 'AbortError' });
+        const [trabajo, cancelar] = FakeWorker.instancias[0].mensajes;
+        expect(cancelar).toEqual({ cancel: trabajo.id });
     });
 });

@@ -22,9 +22,14 @@ const decodificar = async (file) => {
     }
 };
 
+// Trabajos cancelados por el hilo principal (quitó la foto): se abandonan entre pasos y sueltan su bitmap.
+const cancelados = new Set();
+
 self.addEventListener('message', async ({ data }) => {
+    if (data && data.cancel != null) { cancelados.add(data.cancel); return; }
     const { id, file, maxSide = 1600, thumbSide = 360 } = data || {};
     let bitmap = null;
+    const cancelado = () => cancelados.delete(id);
     try {
         try {
             bitmap = await decodificar(file);
@@ -42,7 +47,9 @@ self.addEventListener('message', async ({ data }) => {
             self.postMessage({ id, ok: false, code: 'IMAGE_DIMENSIONS_TOO_LARGE' });
             return;
         }
+        if (cancelado()) return;
         const upload = await escalar(bitmap, width, height, maxSide).convertToBlob({ type: 'image/jpeg', quality: 0.82 });
+        if (cancelado()) return;
         const thumb = await escalar(bitmap, width, height, thumbSide).convertToBlob({ type: 'image/jpeg', quality: 0.72 });
         self.postMessage({ id, ok: true, upload, thumb, width, height });
     } catch {
