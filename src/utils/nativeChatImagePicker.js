@@ -54,7 +54,7 @@ export async function takeNativeChatPhoto() {
     return [await mediaResultToFile(result, 0)];
 }
 
-// [P1-PLAN-LOTE-221 · 2026-09-24] VARIAS fotos de la fototeca para el escáner de comida (un plato por foto, hasta 4,
+// [P1-PLAN-LOTE-224 · 2026-09-24] VARIAS fotos de la fototeca para el escáner de comida (un plato por foto, hasta 4,
 // como el chat). Es el mismo selector del chat, que ya sabe elegir varias: un alias con el nombre del uso, no una copia.
 export const chooseNativeGalleryImages = (limit = 4) => chooseNativeChatImages(limit);
 

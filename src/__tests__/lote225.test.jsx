@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] El sistema de idiomas, al 100 % para producción.
+// [P1-PLAN-LOTE-225 · 2026-09-24] El sistema de idiomas, al 100 % para producción.
 //
 // Un tester con la app en inglés: «What is it?: Un tazón de avena cocida con leche» en el escáner y «Other (e.g. Maní,
 // Fresa...)» en el paso de alergias. El dueño: «el sistema de idiomas no está al 100 %, vamos a dejarlo al 100 % listo
@@ -14,7 +14,7 @@
 //      un plato que cambió.
 //   5. El texto libre fuera del plan (recuerdos, suplementos): se pide una vez y se guarda.
 //
-// Las anclas del backend están en `test_p1_plan_lote_222.py` (que también lee este archivo para saber qué árbol es).
+// Las anclas del backend están en `test_p1_plan_lote_225.py` (que también lee este archivo para saber qué árbol es).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { readFileSync } from 'node:fs';

@@ -49,7 +49,7 @@ import { TIER_CREDITS, creditsVsPredecessor, includesPredecessor } from '../../c
 // copia el resultado sino la FUENTE — `creditsVsPredecessor`/`includesPredecessor`
 // son los mismos helpers que usan las otras dos superficies, así que el próximo
 // cambio de ladder llega aquí solo.
-// [P1-PLAN-LOTE-222 · 2026-09-24] Por qué `/api/discount/validate` rechaza un código (routers/billing.py): frases
+// [P1-PLAN-LOTE-225 · 2026-09-24] Por qué `/api/discount/validate` rechaza un código (routers/billing.py): frases
 // fijas en español, traducidas al pintar. El «¡N% de descuento aplicado!» lleva la cifra y se recompone aquí.
 const MENSAJES_CUPON = [
     i18nKey('Código no encontrado o inactivo.'),
@@ -203,7 +203,7 @@ const PaymentModal = ({
                 body: JSON.stringify({ code: couponCode.trim(), tier })
             });
             const data = await response.json().catch(() => ({}));
-            // [P1-PLAN-LOTE-222 · 2026-09-24] El mensaje en el idioma del usuario. Además, un 4xx/5xx trae `detail`
+            // [P1-PLAN-LOTE-225 · 2026-09-24] El mensaje en el idioma del usuario. Además, un 4xx/5xx trae `detail`
             // y no `message`: antes la fila roja salía vacía (un 429 del limitador, por ejemplo).
             if (data?.valid) {
                 // En español, la frase del servidor tal cual (como `mensajeDelServidor`); en los demás, recompuesta.

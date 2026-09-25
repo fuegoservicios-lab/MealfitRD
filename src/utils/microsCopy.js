@@ -1,11 +1,11 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] El panel de micronutrientes, en el idioma del usuario.
+// [P1-PLAN-LOTE-225 · 2026-09-24] El panel de micronutrientes, en el idioma del usuario.
 //
 // El backend compone en español el nombre de cada micronutriente, su nota («Refuerza con…»), las notas especiales
 // (potasio con medicación, fibra con enfermedad renal, techo o piso estimados, sin fuente segura) y el consejo de
 // suplemento (nombre, dosis, alimentos, precaución), y todo eso queda guardado en el plan. Se pintaba crudo: español en
 // los cuatro idiomas, en el panel más mirado del Dashboard. Aquí se traduce AL PINTAR, sin tocar el dato: el nombre
 // por la CLAVE del nutriente y los textos por coincidencia exacta con los literales del backend, que este archivo
-// declara (`i18nKey`) y que `test_p1_plan_lote_222.py` compara con `micronutrients.py` y `micros_seguros.py`: si el
+// declara (`i18nKey`) y que `test_p1_plan_lote_225.py` compara con `micronutrients.py` y `micros_seguros.py`: si el
 // backend cambia una coma, el test lo dice antes de que el panel vuelva al español sin que nadie lo note.
 //
 // Lo que no se reconoce se pinta tal cual (en español): nunca una clave ni un hueco. En es-DO todo sale byte-idéntico.

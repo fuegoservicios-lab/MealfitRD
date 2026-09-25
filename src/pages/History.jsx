@@ -54,7 +54,7 @@ import { isAnomalousCoherenceAction } from '../utils/coherenceActions';
 // [P2-HIST-NEW-1 · 2026-05-09] Map reason_code → label es-DO para el
 // chip "Acción: <reason>" en cards. Mirror del catálogo de
 // /blocked_reasons (~3670+) con labels más cortos para chip layout.
-// [P1-PLAN-LOTE-222 · 2026-09-24] Vuelve a tener uso: el detalle por bloque del
+// [P1-PLAN-LOTE-225 · 2026-09-24] Vuelve a tener uso: el detalle por bloque del
 // aviso «Acción requerida» lo pinta cuando el servidor no manda título (antes
 // salía el `reason_code` crudo). El import sigue siendo además anchor del test
 // parser-based History.p2_action_chip_with_reason.test.js.
@@ -2249,7 +2249,7 @@ const History = () => {
                                     // accept solo strings, fallback a copy
                                     // genérico. Sin esto, un title que sea un
                                     // objeto rompería el render.
-                                    // [P1-PLAN-LOTE-222 · 2026-09-24] Título, cuerpo y botón vienen del servidor en
+                                    // [P1-PLAN-LOTE-225 · 2026-09-24] Título, cuerpo y botón vienen del servidor en
                                     // español: se traducen al pintar (utils/textosDelServidor.js).
                                     const _title = (_hasAction && typeof _actionReq.title === 'string'
                                         && _actionReq.title.trim())
@@ -2373,7 +2373,7 @@ const History = () => {
                                                                 const _wk = (typeof r.week_number === 'number')
                                                                     ? t('Semana {n}', { n: r.week_number })
                                                                     : t('Chunk');
-                                                                // [P1-PLAN-LOTE-222] En el idioma del usuario; sin título,
+                                                                // [P1-PLAN-LOTE-225] En el idioma del usuario; sin título,
                                                                 // la etiqueta del código (nunca el código crudo).
                                                                 const _t = (typeof r.title === 'string' && r.title.trim())
                                                                     ? textoDelServidor(r.title, t)

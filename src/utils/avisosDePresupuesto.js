@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] El aviso de presupuesto de la lista (Dashboard), en el idioma del usuario.
+// [P1-PLAN-LOTE-225 · 2026-09-24] El aviso de presupuesto de la lista (Dashboard), en el idioma del usuario.
 //
 // El titular del aviso ya se traducía; debajo, las sustituciones («salmón → Pescado blanco») y las sugerencias de
 // ahorro («Avena: la opción más económica del súper es Wala Funda 650 gr (RD$47)») llegaban del backend en español y

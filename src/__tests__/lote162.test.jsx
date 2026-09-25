@@ -191,7 +191,7 @@ describe('lote 162 · lo demás que se veía mal', () => {
     it('el escáner solo habla de la Nevera si está en uso', () => {
         const M = leer('src/components/dashboard/ScanMealModal.jsx');
         expect(M).toContain('if (ausentes.length > 0 && (bajaron > 0 || neveraConCosas === true)) {');
-        // [P1-PLAN-LOTE-221] la Nevera salió del título de la lista a un interruptor propio: con la Nevera vacía
+        // [P1-PLAN-LOTE-224] la Nevera salió del título de la lista a un interruptor propio: con la Nevera vacía
         // (o apagada) no se pinta, y la lista se llama siempre por lo que es.
         expect(M).toContain('const mostrarNevera = _neveraOn && neveraConCosas !== false');
         expect(M).toContain("<h4 className={styles.componentsTitle}>{t('Ingredientes que detectamos')}</h4>");

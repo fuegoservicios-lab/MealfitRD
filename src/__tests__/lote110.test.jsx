@@ -22,7 +22,7 @@ vi.mock('../config/platform', () => ({ isNativeApp: vi.fn(() => false) }));
 vi.mock('../utils/observability', () => ({ captureException: vi.fn() }));
 vi.mock('../utils/nativeChatImagePicker', () => ({
     chooseNativeGalleryImage: vi.fn(),
-    // [P1-PLAN-LOTE-221] el de comida elige VARIAS fotos (un plato por foto)
+    // [P1-PLAN-LOTE-224] el de comida elige VARIAS fotos (un plato por foto)
     chooseNativeGalleryImages: vi.fn(),
     isNativePickerCancellation: (e) => `${e?.code || ''} ${e?.message || ''}`.toLowerCase().includes('cancel'),
 }));
@@ -65,7 +65,7 @@ beforeEach(() => {
     toast.error.mockReset();
 });
 
-// [P1-PLAN-LOTE-221] Cada escáner con SU selector: el de comida elige varias fotos (un plato por foto), el de la
+// [P1-PLAN-LOTE-224] Cada escáner con SU selector: el de comida elige varias fotos (un plato por foto), el de la
 // Nevera una. Se resuelve al correr el test (el mock ya existe entonces).
 describe.each([
     ['escáner de comida', abrirEscanerDeComida, 'ScanMealModal', () => chooseNativeGalleryImages],

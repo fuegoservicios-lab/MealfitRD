@@ -4,7 +4,7 @@ import { t } from '../i18n';
 // [P1-PLAN-LOTE-165 · 2026-09-22] La porción del catálogo llega como palabra española («taza», «unidad»): el
 // `unit` es vocabulario del motor y no se toca; solo el RÓTULO que se pinta pasa por la glosa de la Nevera.
 import { glossUnitWord } from './shoppingHelpers';
-// [P1-PLAN-LOTE-222] El nombre que se pinta y las formas de buscar, en los 5 idiomas.
+// [P1-PLAN-LOTE-225] El nombre que se pinta y las formas de buscar, en los 5 idiomas.
 import { nombreDeFila, formasDeBuscar } from './nombresDeAlimentos';
 // ARITMÉTICA en el servidor.
 //
@@ -78,7 +78,7 @@ export function searchFoods(query, foods, dishes, max = 12) {
     }
 
     for (const f of foods || []) {
-        // [P1-PLAN-LOTE-222 · 2026-09-24] El nombre en el idioma del usuario es el PROPIO: rango limpio. El canónico
+        // [P1-PLAN-LOTE-225 · 2026-09-24] El nombre en el idioma del usuario es el PROPIO: rango limpio. El canónico
         // español, sus 825 alias curados («guineo» tiene que encontrar el banano) y los nombres en los otros idiomas
         // son VÍAS DE ENTRADA al mismo identificador, con +0.5 para que el nombre propio gane en empate. Antes sólo
         // existía el inglés (P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4) y un francés que escribía «poulet» no

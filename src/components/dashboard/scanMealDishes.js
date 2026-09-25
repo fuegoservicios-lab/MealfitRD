@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-221 · 2026-09-24] La cuenta de cada plato del escáner de comida, sin React: lo que precarga la foto,
+// [P1-PLAN-LOTE-224 · 2026-09-24] La cuenta de cada plato del escáner de comida, sin React: lo que precarga la foto,
 // lo que el usuario corrige y lo que viaja al servidor. Pura para poder probarla sin montar la hoja.
 //
 // Un plato es { base, componentes, desglose, porcion, ajuste, nombre }:
@@ -43,7 +43,7 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
             return {
                 key: String(i),
                 name: String(it.name).slice(0, 60),
-                // [P1-PLAN-LOTE-222] El nombre traducido que manda el servidor PARA LEER; `name` sigue siendo el que se
+                // [P1-PLAN-LOTE-225] El nombre traducido que manda el servidor PARA LEER; `name` sigue siendo el que se
                 // guarda (identificador de la Nevera). Sin él, se pinta con el léxico del catálogo o en español.
                 display: typeof it.display_name === 'string' && it.display_name.trim() ? it.display_name.trim().slice(0, 60) : '',
                 unit: String(it.unit || 'unidad').slice(0, 20),

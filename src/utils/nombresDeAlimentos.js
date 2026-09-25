@@ -1,11 +1,11 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] El nombre de un alimento del catálogo en el idioma del usuario.
+// [P1-PLAN-LOTE-225 · 2026-09-24] El nombre de un alimento del catálogo en el idioma del usuario.
 //
 // El catálogo tiene UN nombre por alimento, el canónico español, y es el identificador del motor: con él resuelven la
 // Nevera (`pantry_names_match`), el guard de coherencia y el backstop de alergias. Eso no se toca: lo que se GUARDA y se
 // ENVÍA sigue siendo `name`. Hasta este lote además sólo había un gloss inglés, así que la Nevera, el escáner y los
 // buscadores hablaban español a un francés, y el buscador no encontraba «poulet».
 //
-// Desde el lote 222, cada fila de /api/catalog trae `names = {en-US, pt-BR, fr-FR, it-IT}` (backend
+// Desde el lote 225, cada fila de /api/catalog trae `names = {en-US, pt-BR, fr-FR, it-IT}` (backend
 // `food_names_i18n.py`, el mismo léxico con que el backstop entiende una alergia escrita en otro idioma). Este módulo
 // decide QUÉ SE PINTA y POR DÓNDE SE BUSCA. Sin traducción para un alimento (alta posterior al léxico), se pinta el
 // inglés si el idioma es inglés y, si no, el español: nunca una clave ni un hueco.

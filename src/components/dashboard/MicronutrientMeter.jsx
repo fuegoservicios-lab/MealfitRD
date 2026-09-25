@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPercent, useT, useTn } from '../../i18n';
 import styles from './MicronutrientMeter.module.css';
-// [P1-PLAN-LOTE-222] Nombres, notas, dosis y avisos que compone el backend en español, traducidos al pintar.
+// [P1-PLAN-LOTE-225] Nombres, notas, dosis y avisos que compone el backend en español, traducidos al pintar.
 import { etiquetaMicro, notaMicro, textoSuplemento, alimentosSuplemento, avisoMicro } from '../../utils/microsCopy';
 
 /* [P1-MICRO-FOCO-PANEL · 2026-06-26] Rediseño "Foco" del panel de micronutrientes.
@@ -72,7 +72,7 @@ function findAdvice(e, items) {
 function AttentionCard({ e, adviceItem, onAsk }) {
     const t = useT();
     const s = classifyRow(e, t);
-    // [P1-PLAN-LOTE-222 · 2026-09-24] Los textos los compone el backend en español y se traducen AL PINTAR
+    // [P1-PLAN-LOTE-225 · 2026-09-24] Los textos los compone el backend en español y se traducen AL PINTAR
     // (`microsCopy.js`): el dato guardado en el plan no cambia.
     const food = adviceItem?.primero_alimentos
         ? alimentosSuplemento(adviceItem.primero_alimentos, t)
@@ -414,7 +414,7 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
 // usuario lo LEE y lo edita antes de mandarlo. Con la app en inglés aterrizaba en el chat
 // con la caja ya escrita en español, que es más raro todavía que una etiqueta sin traducir.
 //
-// [P1-PLAN-LOTE-222] El NOMBRE del nutriente va traducido: no es identificador del motor, y la frase la LEE el
+// [P1-PLAN-LOTE-225] El NOMBRE del nutriente va traducido: no es identificador del motor, y la frase la LEE el
 // usuario en su caja de chat («My plan falls short on hierro» mezclaba dos idiomas en una línea).
 function buildQuestion(e, t) {
     // El extractor del gate es TEXTUAL y solo reconoce `t(`: llamarlo por un alias

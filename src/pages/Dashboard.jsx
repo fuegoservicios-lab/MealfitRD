@@ -190,7 +190,7 @@ import { getFreshPlanCount } from '../utils/quotaCache';
 import { glossClinicalNote } from '../utils/clinicalNoteGloss';
 import { neveraActiva } from '../config/dashboardNav';  // [P1-PLAN-LOTE-217]
 import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory, buildGlossIndex, glossShoppingName } from '../utils/shoppingHelpers';
-// [P1-PLAN-LOTE-222] Las líneas «2 unidad de Huevo» que devuelve el servidor, en el idioma del usuario.
+// [P1-PLAN-LOTE-225] Las líneas «2 unidad de Huevo» que devuelve el servidor, en el idioma del usuario.
 import { lineaDeIngredienteVisible } from '../utils/nombresDeAlimentos';
 import { sugerenciaDePresupuesto, sustitucionDePresupuesto } from '../utils/avisosDePresupuesto';
 import { nombreDeRegistro } from '../utils/nombreDeRegistro';
@@ -240,11 +240,11 @@ import { isDarkActive } from '../utils/theme';
 import { hasPendingPipelineInFlight } from '../utils/pendingPipelineFlag';
 // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Ver la nota de errorCopy.js.
 import { mensajeDeError, mensajeDelServidor } from '../utils/errorCopy';
-// [P1-PLAN-LOTE-221 · 2026-09-24] El escáner de comida, perezoso y montado al pedirlo (ya se montaba así): el mismo
+// [P1-PLAN-LOTE-224 · 2026-09-24] El escáner de comida, perezoso y montado al pedirlo (ya se montaba así): el mismo
 // trozo que usan el panel de progreso y el diario, que se descarga cuando alguien lo abre.
 const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));
 
-// [P1-PLAN-LOTE-222 · 2026-09-24] Las frases fijas con que `/api/plans/restock` explica un fallo (routers/plans.py
+// [P1-PLAN-LOTE-225 · 2026-09-24] Las frases fijas con que `/api/plans/restock` explica un fallo (routers/plans.py
 // `api_restock`): se traducen al pintar; cualquier otra cae al aviso genérico traducido (`mensajeDelServidor`).
 const MENSAJES_RESTOCK = [
     i18nKey('Debes iniciar sesión para usar la nevera virtual.'),
@@ -944,7 +944,7 @@ const DashboardInner = () => {
         isGuest,
         // [P1-DASHBOARD-PLAN-SELFHEAL · 2026-07-25] Ver el efecto de auto-sanación abajo.
         hydrateLatestPlan,
-        // [P1-PLAN-LOTE-222 · 2026-09-24] Tras «Arreglar este día»: volver a por la traducción del plato nuevo.
+        // [P1-PLAN-LOTE-225 · 2026-09-24] Tras «Arreglar este día»: volver a por la traducción del plato nuevo.
         esperarTraduccionDelDia,
         // [P1-PLAN-POLL-BOUNDED · 2026-07-29] El poll de AssessmentContext se rindió tras
         // el tope de give-up — anotación mínima más abajo, ver render de isPlanCorrupted.
@@ -1314,7 +1314,7 @@ const DashboardInner = () => {
                     ...(Array.isArray(allowNewIngredients) && allowNewIngredients.length > 0
                         ? { allow_new_ingredients: allowNewIngredients }
                         : {}),
-                    // [P1-PLAN-LOTE-222 · 2026-09-24] Para `new_meal_display`: el plato nuevo en el idioma del usuario.
+                    // [P1-PLAN-LOTE-225 · 2026-09-24] Para `new_meal_display`: el plato nuevo en el idioma del usuario.
                     locale: _dashLocale,
                 }),
             });
@@ -1343,7 +1343,7 @@ const DashboardInner = () => {
             setPantryConsent(null);
             pantryConsentContext.current = null;
             if (result?.fixed === true) {
-                // [P1-PLAN-LOTE-222 · 2026-09-24] Los dos platos del aviso en el idioma del usuario: el viejo con su
+                // [P1-PLAN-LOTE-225 · 2026-09-24] Los dos platos del aviso en el idioma del usuario: el viejo con su
                 // `_display` del plan que aún tenemos (antes de refrescar), el nuevo con lo que mandó el servidor.
                 const _platoViejo = (planData?.days?.[Number(result.day)]?.meals || [])
                     .find((m) => m && m.name === result.old_meal);
@@ -1366,7 +1366,7 @@ const DashboardInner = () => {
                         }
                     }
                 } catch (_) { /* no-op: el toast ya confirma el éxito; el próximo poll refresca */ }
-                try { esperarTraduccionDelDia?.(Number(result.day)); } catch (_) { /* no-op */ }  // [P1-PLAN-LOTE-222]
+                try { esperarTraduccionDelDia?.(Number(result.day)); } catch (_) { /* no-op */ }  // [P1-PLAN-LOTE-225]
                 const underCeilingCopy = result.day_under_ceiling ? t(', bajo el techo ✓') : '';
                 // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] La CUARTA cadena de la misma
                 // clase en este fichero: el titulo del toast del arreglo de sodio.
@@ -1888,7 +1888,7 @@ const DashboardInner = () => {
     // [P1-PLAN-LOTE-103 · 2026-09-18] El contador ya no vive en esta pantalla (pestaña «Progreso»): el hook adopta su
     // evento si está montado y, si no, pide el diario él mismo con las mismas señales de refresco.
     const todaysConsumedMeals = useTodaysConsumedMeals(session?.user?.id || userProfile?.id);
-    // [P1-PLAN-LOTE-222 · 2026-09-24] Cómo se LEE el nombre de algo registrado en el diario (el plato del plan en el
+    // [P1-PLAN-LOTE-225 · 2026-09-24] Cómo se LEE el nombre de algo registrado en el diario (el plato del plan en el
     // idioma del usuario); el dato no cambia. Lo usa el aviso «Registraste … como tu {comida} de hoy».
     const _nombrarRegistro = useCallback((n) => nombreDeRegistro(n, planData, t, _dashLocale), [planData, t, _dashLocale]);
     // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] eliminado el estado
@@ -4924,7 +4924,7 @@ const DashboardInner = () => {
                 // errores tipados del backend (HTTPException) traen `detail`, no `message`, así que el
                 // genérico tragaba el motivo real. (El 402 del paywall ya no ocurre tras P1-NEVERA-QUOTA-EXEMPT.)
                 const _msg = data.detail || data.message;
-                // [P1-PLAN-LOTE-222 · 2026-09-24] El motivo en el idioma del usuario (el servidor lo escribe en español).
+                // [P1-PLAN-LOTE-225 · 2026-09-24] El motivo en el idioma del usuario (el servidor lo escribe en español).
                 if (!silent) toast.error(mensajeDelServidor(_msg, MENSAJES_RESTOCK, t('Error al actualizar la despensa.'), t));
                 else throw new Error(_msg || 'restock failed'); // deja que el nudge reintente
             }
@@ -5079,7 +5079,7 @@ const DashboardInner = () => {
 
     const currentDayMeals = currentDayRecord?.meals || [];
     const currentDaySupplements = currentDayRecord?.supplements || [];
-    // [P1-PLAN-LOTE-222 · 2026-09-24] Los suplementos del día los escribe el modelo en español y no viven en `_display`:
+    // [P1-PLAN-LOTE-225 · 2026-09-24] Los suplementos del día los escribe el modelo en español y no viven en `_display`:
     // se traducen al leer (hooks/useTextosTraducidos.js). El dato no cambia.
     const _trSupp = useTextosTraducidos(currentDaySupplements.flatMap((s) => (s && typeof s === 'object' ? [s.name, s.dose, s.timing, s.reason] : [])));
 
@@ -8717,7 +8717,7 @@ const DashboardInner = () => {
                                                             // Fallback al cálculo viejo si day_name ausente
                                                             // (planes legacy pre-backend-inject que aún
                                                             // están en localStorage).
-                                                            // [P1-PLAN-LOTE-222 · 2026-09-24] El backend
+                                                            // [P1-PLAN-LOTE-225 · 2026-09-24] El backend
                                                             // escribe el día en español («Lunes»): se
                                                             // traduce al pintar, con las MISMAS claves
                                                             // del cálculo de respaldo de abajo.

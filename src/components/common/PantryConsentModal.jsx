@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { getLocale, useT } from "../../i18n";
-// [P1-PLAN-LOTE-222 · 2026-09-24] El alimento y su unidad en el idioma del usuario (el dato sigue en español: es lo
+// [P1-PLAN-LOTE-225 · 2026-09-24] El alimento y su unidad en el idioma del usuario (el dato sigue en español: es lo
 // que se reenvía como `allow_new_ingredients`).
 import { nombreDelAlimento } from "../../utils/nombresDeAlimentos";
 import { glossUnitWord } from "../../utils/shoppingHelpers";

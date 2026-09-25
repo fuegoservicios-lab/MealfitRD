@@ -54,7 +54,7 @@ import {
     getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes,
 } from '../../utils/pantryCache';
 import { searchFoods, previewLine, unitsFor, defaultUnitFor, defaultQtyFor } from '../../utils/foodSearch';
-// [P1-PLAN-LOTE-222] Las líneas que no estaban en la Nevera, en el idioma del usuario.
+// [P1-PLAN-LOTE-225] Las líneas que no estaban en la Nevera, en el idioma del usuario.
 import { lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { getMealTypes, getMealTypeExtra, clampMacro } from './mealLogShared';
@@ -292,7 +292,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
             const res = await fetchWithAuth('/api/diary/consumed/estimate-macros', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: customDraft.name, meal_type: mealType, locale: getLocale() }),  // [P1-PLAN-LOTE-222]
+                body: JSON.stringify({ text: customDraft.name, meal_type: mealType, locale: getLocale() }),  // [P1-PLAN-LOTE-225]
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || data?.operation_failed || !data?.macros) {

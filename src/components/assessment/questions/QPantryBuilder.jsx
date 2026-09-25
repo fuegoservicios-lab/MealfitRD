@@ -27,7 +27,7 @@ import { useT } from '../../../i18n';
 // [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] SSOT del sistema de unidades por país.
 import { unitOptionsForCountry } from '../../../config/unitSystem';
 import { glossUnitWord } from '../../../utils/shoppingHelpers';
-// [P1-PLAN-LOTE-222] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
+// [P1-PLAN-LOTE-225] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
 import { nombreDeFila, nombreDelAlimento, formasDeBuscar } from '../../../utils/nombresDeAlimentos';
 
 // Helper de transporte (mismo contrato que Pantry.jsx::_apiJson — duplicado a
@@ -155,7 +155,7 @@ export const QPantryBuilder = ({ onFinish, isSubmitting }) => {
     const results = q.length >= 2
         // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] `name_en` como segunda
         // vía de entrada; lo seleccionado sigue siendo `m.name`.
-        // [P1-PLAN-LOTE-222 · 2026-09-24] Ya no 1 idioma de 4: el catálogo trae el nombre en los cinco.
+        // [P1-PLAN-LOTE-225 · 2026-09-24] Ya no 1 idioma de 4: el catálogo trae el nombre en los cinco.
         ? masterList.filter(m => formasDeBuscar(m).some((f) => norm(f).includes(q))).slice(0, 8)
         : [];
 

@@ -167,7 +167,7 @@ export const GLOSS_INDEX_LS_KEY = 'mealfit_gloss_index_v1';
 const _sinAcentos = (s) => String(s ?? '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
-// [P1-PLAN-LOTE-222] `names` = {locale: nombre}; sólo cadenas no vacías. null si no queda ninguna.
+// [P1-PLAN-LOTE-225] `names` = {locale: nombre}; sólo cadenas no vacías. null si no queda ninguna.
 const _nombresValidos = (names) => {
     if (!names || typeof names !== 'object') return null;
     const out = {};
@@ -184,7 +184,7 @@ const _publicarIndiceDelGloss = (rows, ttlMs) => {
             const es = m && typeof m.name === 'string' ? m.name : '';
             const en = m && typeof m.name_en === 'string' ? m.name_en.trim() : '';
             const glossEs = m && typeof m.gloss_es === 'string' ? m.gloss_es.trim() : '';
-            // [P1-PLAN-LOTE-222 · 2026-09-24] Y el nombre en cada idioma (`names`), para que la Nevera, el escáner y la
+            // [P1-PLAN-LOTE-225 · 2026-09-24] Y el nombre en cada idioma (`names`), para que la Nevera, el escáner y la
             // lista pinten «Fraises» y no «Fresas» sin tener que pedir el catálogo entero.
             const names = _nombresValidos(m && m.names);
             if (!es || (!en && !glossEs && !names)) continue;
@@ -205,11 +205,11 @@ const _publicarIndiceDelGloss = (rows, ttlMs) => {
 
 /**
  * El índice `nombre-sin-acentos -> name_en | {name_en, gloss_es?, names?}`, como `Map`.
- * La forma string v1 sigue aceptada, y la de objeto sin `names` (publicada antes del lote 222) también: esas
+ * La forma string v1 sigue aceptada, y la de objeto sin `names` (publicada antes del lote 225) también: esas
  * filas se pintan en inglés o en español hasta que el catálogo se vuelva a pedir. Vacío si no hay nada cacheado o
  * si caducó: el PDF sale en español, que es la conducta de antes, nunca un error.
  */
-// [P1-PLAN-LOTE-222 · 2026-09-24] El índice se lee en cada línea que se pinta (Nevera, escáner, lista): parsear el
+// [P1-PLAN-LOTE-225 · 2026-09-24] El índice se lee en cada línea que se pinta (Nevera, escáner, lista): parsear el
 // JSON de localStorage cada vez sería O(filas × ítems). Se memoriza por el TEXTO guardado, así que cualquier
 // publicación nueva (o su borrado) se ve en la siguiente lectura sin ningún aviso extra.
 let _indiceMemo = { raw: null, idx: null };

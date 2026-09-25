@@ -119,7 +119,7 @@ export function mensajeDeError(data, fallback, t) {
 export const CODIGOS_CON_COPY = Object.keys(COPY_POR_CODIGO);
 
 /**
- * [P1-PLAN-LOTE-222 · 2026-09-24] El `message`/`detail` en prosa de un endpoint que NO emite código (la Nevera, los
+ * [P1-PLAN-LOTE-225 · 2026-09-24] El `message`/`detail` en prosa de un endpoint que NO emite código (la Nevera, los
  * cupones, la verificación de la suscripción): frases FIJAS del backend, en español.
  *
  * En español se enseña tal cual: es la fuente y trae el motivo concreto («Lista de ingredientes demasiado grande»).
@@ -136,6 +136,6 @@ export function mensajeDelServidor(texto, conocidas, fallback, t, locale = getLo
     if (!s) return fallback;
     if (!locale || locale === 'es-DO' || typeof t !== 'function') return s;
     if (Array.isArray(conocidas) && conocidas.includes(s)) return t(s);
-    console.error('[P1-PLAN-LOTE-222] mensaje del servidor sin traducción:', s);
+    console.error('[P1-PLAN-LOTE-225] mensaje del servidor sin traducción:', s);
     return fallback;
 }

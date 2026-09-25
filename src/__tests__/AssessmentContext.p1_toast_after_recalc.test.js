@@ -36,7 +36,7 @@ describe('[P1-REGEN-DAY-TOAST-AFTER-RECALC] orden del aviso de desenlace', () =>
         expect(_src).toContain('let _emitirDesenlace = () => {};');
         // Las cuatro ramas del desenlace (IA interrumpida, bajo objetivo, platos
         // conservados, éxito limpio). El patrón excluye la declaración inicial
-        // `() => {};`, que también asigna la variable. [P1-PLAN-LOTE-222] La rama
+        // `() => {};`, que también asigna la variable. [P1-PLAN-LOTE-225] La rama
         // «bajo objetivo» registra un cuerpo con llaves (compone el aviso en el idioma
         // del usuario con `import()`), así que ya no todas empiezan por `=> toast`.
         const registros = _src.match(/_emitirDesenlace = \(\) => (?!\{\};)/g) || [];

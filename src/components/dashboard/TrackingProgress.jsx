@@ -16,7 +16,7 @@ import FlameMacroIcon from '../icons/FlameMacroIcon';
 import FatDropIcon from '../icons/FatDropIcon';
 import { isDarkActive } from '../../utils/theme';
 // [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
-// [P1-PLAN-LOTE-221 · 2026-09-24] Perezoso y montado al abrir, como «Compartir mi día»: el escáner reconstruido (varios
+// [P1-PLAN-LOTE-224 · 2026-09-24] Perezoso y montado al abrir, como «Compartir mi día»: el escáner reconstruido (varios
 // platos, la cantidad con −/+) no cabía en este trozo, que `precache-guard` limita a 30 KiB gz y ya estaba en 30,3.
 // Solo se descarga cuando alguien lo abre.
 const ScanMealModal = lazy(() => import('./ScanMealModal'));
@@ -613,7 +613,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                         className={styles.mealRow}
                                     >
                                         <div className={styles.mealInfo}>
-                                            {/* [P1-PLAN-LOTE-222] el nombre en el idioma del usuario (el dato no cambia) */}
+                                            {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
                                             <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t)}</span>
                                             <span className={styles.mealMeta}>
                                                 {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal

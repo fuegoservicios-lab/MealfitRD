@@ -15,7 +15,7 @@
 //   4. Un plato sin componentes detectados sigue registrando macros — el bloque
 //      simplemente no aparece.
 //
-// [P1-PLAN-LOTE-221 · 2026-09-24] La casilla de cada componente pasa a decir «lo comí» (mueve las macros) y la
+// [P1-PLAN-LOTE-224 · 2026-09-24] La casilla de cada componente pasa a decir «lo comí» (mueve las macros) y la
 // Nevera tiene su propio interruptor, «Descontar de mi Nevera», como el componedor: desmarcar el arroz del
 // restaurante para no descontarlo ya no puede quitarle sus calorías al plato.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -128,7 +128,7 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
     it('muestra los componentes detectados para confirmar, no los descuenta solos', async () => {
         await _scan();
         expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
-        // [P1-PLAN-LOTE-221] la Nevera es un interruptor propio, encendido como siempre
+        // [P1-PLAN-LOTE-224] la Nevera es un interruptor propio, encendido como siempre
         expect(screen.getByRole('checkbox', { name: /Descontar de mi Nevera/i })).toBeChecked();
         // Nacen marcados (el caso comun es que la deteccion sea correcta)...
         const chkHuevo = screen.getByLabelText('Incluir huevo');
@@ -152,7 +152,7 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
         expect(body.deduct_pantry).toBe(true);
     });
 
-    it('[lote 221] con «Descontar de mi Nevera» apagado, los ingredientes se GUARDAN pero no se descuentan', async () => {
+    it('[lote 224] con «Descontar de mi Nevera» apagado, los ingredientes se GUARDAN pero no se descuentan', async () => {
         await _scan();
         fireEvent.click(screen.getByRole('checkbox', { name: /Descontar de mi Nevera/i }));
         fireEvent.click(screen.getByRole('button', { name: /Registrar comida/i }));
@@ -262,7 +262,7 @@ describe('P1-PHOTO-DEDUCTS — el escaner descuenta lo que el usuario confirma',
             cambiarPerfil(APAGADA);
             expect(screen.getByText('Ingredientes que detectamos')).toBeInTheDocument();
             expect(screen.queryByText(/Descontar de mi Nevera/i)).not.toBeInTheDocument();
-            // [P1-PLAN-LOTE-221] la casilla de cada componente es «lo comí»: sigue ahí con la Nevera apagada
+            // [P1-PLAN-LOTE-224] la casilla de cada componente es «lo comí»: sigue ahí con la Nevera apagada
             expect(screen.getByLabelText('Incluir huevo')).toBeInTheDocument();
 
             cambiarPerfil(ENCENDIDA);

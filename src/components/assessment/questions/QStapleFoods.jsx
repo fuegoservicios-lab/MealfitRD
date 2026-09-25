@@ -26,7 +26,7 @@ import { ChipOption } from './_shared';
 import { PLAN_POLICY_FORM_UI, ANCHOR_SLOTS, ANCHOR_FREQUENCIES, PREPARATION_MODES, anchorDefaults, frequencyIdFor, slotLabel, frequencyLabel, preparationLabel } from '../../../config/planPolicy';
 import { NextButton } from './NextButton';
 import { getCachedMasterList, setCachedMasterList } from '../../../utils/pantryCache';
-// [P1-PLAN-LOTE-222] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
+// [P1-PLAN-LOTE-225] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
 import { nombreDeFila, nombreDelAlimento, formasDeBuscar } from '../../../utils/nombresDeAlimentos';
 import { useT, useTn } from '../../../i18n';
 
@@ -133,7 +133,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
             // ⚠️ Esto cubre UN idioma de los cuatro: `name_en` es un gloss inglés, no un
             // catálogo multilingüe. En fr/it/pt el buscador sigue exigiendo el español.
             //
-            // [P1-PLAN-LOTE-222 · 2026-09-24] Y en los otros tres: cada fila trae su nombre en los 5 idiomas
+            // [P1-PLAN-LOTE-225 · 2026-09-24] Y en los otros tres: cada fila trae su nombre en los 5 idiomas
             // (`names`), así que un francés que escribe «poulet» ya encuentra la pechuga. El rango se mide sobre el
             // nombre que se PINTA; las demás formas (canónico, alias, otros idiomas) entran con +0.5.
             .filter(m => formasDeBuscar(m).some((f) => norm(f).includes(q))
@@ -359,7 +359,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                             color: 'var(--text-main)', fontSize: '0.85rem', fontWeight: 600,
                         }}>
                             {nombreDelAlimento(name)}
-                            {/* [P1-PLAN-LOTE-222] Se GUARDA el canónico (SSOT del motor) y se PINTA en el idioma del usuario. */}
+                            {/* [P1-PLAN-LOTE-225] Se GUARDA el canónico (SSOT del motor) y se PINTA en el idioma del usuario. */}
                             {PLAN_POLICY_FORM_UI && (
                                 <button type="button" aria-label={t('Ajustar {alimento}', { alimento: nombreDelAlimento(name) })} aria-pressed={editing === name}
                                     onClick={() => setEditing(editing === name ? null : name)}

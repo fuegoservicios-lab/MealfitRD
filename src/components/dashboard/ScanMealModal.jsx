@@ -15,7 +15,7 @@ import { getDayOptionsCon as _getDayOptionsCon, normalizarDiasAtras, nombreDelDi
 // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] Hook SSOT de media queries (P2-14).
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 // [P1-PLAN-LOTE-105] fototeca directa en la app nativa (Capacitor Camera); en la web, null
-// [P1-PLAN-LOTE-221] y VARIAS fotos: un plato por foto, hasta 4, como en el chat
+// [P1-PLAN-LOTE-224] y VARIAS fotos: un plato por foto, hasta 4, como en el chat
 import { isNativeApp } from '../../config/platform';
 import { chooseNativeGalleryImages, isNativePickerCancellation } from '../../utils/nativeChatImagePicker';
 import { captureException } from '../../utils/observability';
@@ -25,12 +25,12 @@ import CameraViewfinder from '../common/CameraViewfinder';
 import styles from './ScanMealModal.module.css';
 // [P1-MANUAL-FOOD-LOG · 2026-08-11] El input de macros vive en common/, compartido con el componedor manual.
 import MacroInput from '../common/MacroInput';
-// [P1-PLAN-LOTE-221] La cantidad de cada ingrediente: «− [campo] +», sin el 0 que no se dejaba borrar.
+// [P1-PLAN-LOTE-224] La cantidad de cada ingrediente: «− [campo] +», sin el 0 que no se dejaba borrar.
 import QuantityStepper from '../common/QuantityStepper';
 import { useT, useTn, formatNumber, getLocale } from '../../i18n';
 import { glossUnitWord } from '../../utils/shoppingHelpers';
 import { unidadParaCantidad } from '../../utils/cantidadIngrediente';
-// [P1-PLAN-LOTE-222] Nombres de alimento y líneas de ingrediente en el idioma del usuario (para PINTAR).
+// [P1-PLAN-LOTE-225] Nombres de alimento y líneas de ingrediente en el idioma del usuario (para PINTAR).
 import { nombreDelAlimento, lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
 import { mensajeDeError } from '../../utils/errorCopy';
 import { useTecladoDeHoja, estilosDeHojaConTeclado } from '../../hooks/useTecladoDeHoja';
@@ -45,7 +45,7 @@ import {
     getMealTypes as _getMealTypes,
     guessMealType as _guessMealType,
 } from './mealLogShared';
-// [P1-PLAN-LOTE-221] La cuenta de cada plato (lo derivado de los ingredientes, las correcciones a mano, lo que viaja
+// [P1-PLAN-LOTE-224] La cuenta de cada plato (lo derivado de los ingredientes, las correcciones a mano, lo que viaja
 // al servidor) vive aparte y pura: ./scanMealDishes.js.
 import {
     PORCIONES,
@@ -79,7 +79,7 @@ import {
 // de progreso (TrackingProgress) refetchee al instante — mismo evento que usa el
 // chat-agent tras log_consumed_meal.
 //
-// [P1-PLAN-LOTE-221 · 2026-09-24] Reconstruido tras la captura de un tester de Android («no me deja quitar el 0 para
+// [P1-PLAN-LOTE-224 · 2026-09-24] Reconstruido tras la captura de un tester de Android («no me deja quitar el 0 para
 // agregar otro número»), con lo que el dueño pidió encima: «también debería poder mandarse platos múltiples como en el
 // agente IA chat… hazlo lo mejor y más cómodo posible para el usuario».
 //  · VARIOS PLATOS: hasta 4 fotos por registro (galería con selección múltiple, o «¿Comiste algo más?» para añadir
@@ -174,7 +174,7 @@ const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad }) => 
             <div className={styles.componentMain}>
                 <div className={styles.componentTop}>
                     {/* El nombre del alimento es el del motor (P1-I18N-DASHBOARD) y viaja así al servidor; se PINTA en el
-                        idioma del usuario [P1-PLAN-LOTE-222]. Es un <label> de la casilla: tocar el nombre marca o
+                        idioma del usuario [P1-PLAN-LOTE-225]. Es un <label> de la casilla: tocar el nombre marca o
                         desmarca. */}
                     <label htmlFor={idCasilla} className={styles.componentName}>{c.display || nombreDelAlimento(c.name)}</label>
                     {kcal !== null && c.checked && <span className={styles.componentKcal}>{formatNumber(kcal)} kcal</span>}
@@ -260,7 +260,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar }) => {
 
                 {/* [P1-PHOTO-DEDUCTS · 2026-08-07] Componentes detectados, confirmables uno a uno. Se pinta solo si la
                     IA detectó algo: un bloque vacío sugeriría que el escáner falló, cuando lo normal en platos
-                    difíciles de desglosar es registrar las macros. [P1-PLAN-LOTE-221] Con desglose, cada fila mueve
+                    difíciles de desglosar es registrar las macros. [P1-PLAN-LOTE-224] Con desglose, cada fila mueve
                     las macros de arriba. */}
                 {plato.componentes.length > 0 && (
                     <div className={styles.componentsBlock}>
@@ -310,7 +310,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     const t = useT();
     const tn = useTn();
     const isCoarsePointer = useMediaQuery('(pointer: coarse)');
-    // [P1-PLAN-LOTE-221] Los platos de este registro, en el orden en que llegaron las fotos. Cada uno:
+    // [P1-PLAN-LOTE-224] Los platos de este registro, en el orden en que llegaron las fotos. Cada uno:
     // { id, file, previewUrl, estado: 'analizando' | 'listo' | 'error', fallo, guardado, …campos de scanMealDishes }.
     const [platos, setPlatos] = useState([]);
     const platosRef = useRef([]);
@@ -322,7 +322,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     const [mealType, setMealType] = useState(_guessMealType);
     // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
     const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
-    // [P1-PLAN-LOTE-221] El interruptor de la Nevera, encendido como siempre: lo marcado se descuenta.
+    // [P1-PLAN-LOTE-224] El interruptor de la Nevera, encendido como siempre: lo marcado se descuenta.
     const [descontarNevera, setDescontarNevera] = useState(true);
     const [viewfinderOpen, setViewfinderOpen] = useState(false);
     const controladores = useRef(new Map());
@@ -446,7 +446,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             fd.append('file', uploadFile, uploadFile.name || 'meal.jpg');
             fd.append('user_id', userId);
             fd.append('tz_offset_mins', String(new Date().getTimezoneOffset()));
-            // [P1-PLAN-LOTE-222] El nombre del plato y el de sus ingredientes vuelven en el idioma de esta pantalla.
+            // [P1-PLAN-LOTE-225] El nombre del plato y el de sus ingredientes vuelven en el idioma de esta pantalla.
             fd.append('locale', getLocale());
 
             // fetchWithAuth NO setea Content-Type → el browser pone el boundary
@@ -456,7 +456,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             if (ctl.signal.aborted) return;
 
             if (!res.ok || !data?.success) {
-                // [P1-PLAN-LOTE-221] Cada foto dice lo suyo, con el copy del chat para los mismos códigos.
+                // [P1-PLAN-LOTE-224] Cada foto dice lo suyo, con el copy del chat para los mismos códigos.
                 if (res.status === 413) fallar(t('La imagen es muy grande (máx. 20 MB).'), false);
                 else if (res.status === 415) fallar(t('Formato no soportado. Usa una foto JPG, PNG, WebP o HEIC.'), false);
                 else if (res.status === 429) fallar(t('Vas muy rápido escaneando fotos. Espera unos segundos y reintenta.'), true);
@@ -577,7 +577,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     const onGalleryChange = (e) => { agregarFotos(e.target.files); e.target.value = ''; };
 
     // [P1-SCANNER-SHARED · 2026-08-10] Visor en vivo en el móvil, el MISMO que usa el escáner de la Nevera.
-    // [P1-PLAN-LOTE-221] El visor se cierra al disparar: el análisis sigue en la tarjeta del plato, y mientras tanto se
+    // [P1-PLAN-LOTE-224] El visor se cierra al disparar: el análisis sigue en la tarjeta del plato, y mientras tanto se
     // puede fotografiar el siguiente. Antes se quedaba abierto hasta que la IA terminaba (un plato cada vez).
     const hasCameraApi = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
     const useLiveViewfinder = isCoarsePointer && hasCameraApi;
@@ -638,7 +638,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
         // reintento lo manda con su «(2)» y no como un segundo «Jugo de chinola» que el servidor tomaría por un doble toque.
         const listosTodos = platosRef.current.filter((p) => p.estado === 'listo');
         const nombreFinal = new Map(nombresSinRepetir(listosTodos.map((p) => p.nombre)).map((n, i) => [listosTodos[i].id, n]));
-        // [P1-PLAN-LOTE-221] Con la Nevera apagada nunca se pide la resta; encendida, lo decide el interruptor.
+        // [P1-PLAN-LOTE-224] Con la Nevera apagada nunca se pide la resta; encendida, lo decide el interruptor.
         const descontar = _neveraOn && descontarNevera;
         const registrados = [];
         // En serie y no en paralelo: los descuentos de la Nevera de un plato no compiten con los del siguiente, y si
@@ -783,7 +783,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                         <span>{t('Analizando tu plato… puede tardar un minuto')}</span>
                     </div>
                 )}
-                {/* [P1-PLAN-LOTE-221] «Volver a escanear» vive sobre la foto que cambia, no en el pie: junto a
+                {/* [P1-PLAN-LOTE-224] «Volver a escanear» vive sobre la foto que cambia, no en el pie: junto a
                     «Registrar comida» no cabían los dos en un teléfono de 360 px y el botón verde se cortaba. */}
                 {p.estado === 'listo' && !guardando && (
                     <button type="button" className={styles.previewRetake} onClick={() => { quitarPlato(p.id); setError(null); }}>
@@ -980,7 +980,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                                 <ChevronRight size={18} className={styles.optionChev} aria-hidden="true" />
                             </button>
                         </div>
-                        {/* [P1-PLAN-LOTE-221] Que se sepa que se puede: como en el chat, varias fotos a la vez. */}
+                        {/* [P1-PLAN-LOTE-224] Que se sepa que se puede: como en el chat, varias fotos a la vez. */}
                         <p className={styles.multiHint}>
                             {t('¿Comiste varios platos? Puedes añadir hasta {n}, una foto por plato, y registrarlos juntos.', { n: MAX_PLATOS })}
                         </p>
@@ -1031,7 +1031,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                                     <Chips label={t('Día')} options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo} disabled={guardando} />
                                 </section>
 
-                                {/* [P1-PLAN-LOTE-221] El mismo interruptor que el componedor. Solo con la Nevera en uso
+                                {/* [P1-PLAN-LOTE-224] El mismo interruptor que el componedor. Solo con la Nevera en uso
                                     y algo marcado que descontar. */}
                                 {mostrarNevera && (
                                     <label className={styles.pantryToggle}>
@@ -1111,7 +1111,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             </div>
         </div>
 
-        {/* [P1-SCANNER-SHARED · 2026-08-10] El mismo visor del escáner de la Nevera. [P1-PLAN-LOTE-221] Se cierra al
+        {/* [P1-SCANNER-SHARED · 2026-08-10] El mismo visor del escáner de la Nevera. [P1-PLAN-LOTE-224] Se cierra al
             disparar (`handleViewfinderCapture`): el análisis sigue en la tarjeta del plato. */}
         <CameraViewfinder
             isOpen={viewfinderOpen}

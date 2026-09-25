@@ -121,7 +121,7 @@ function normalizePlan(raw, activePlanId, locale, inUsePlanId = null) {
   return {
     raw,
     id: String(raw.id),
-    // [P1-PLAN-LOTE-222] «Plan en preparación» (placeholder del servidor) también en el idioma del usuario.
+    // [P1-PLAN-LOTE-225] «Plan en preparación» (placeholder del servidor) también en el idioma del usuario.
     name: (locale && raw.plan_display_names?.[locale]) || textoDelServidor(raw.name, t, locale) || t("Plan Generado"),
     date: new Date(raw.created_at),
     active: !!activePlanId && raw.id === activePlanId,
