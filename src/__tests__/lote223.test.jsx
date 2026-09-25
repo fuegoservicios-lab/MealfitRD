@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-221 · 2026-09-24] El escáner de comida, reconstruido.
+// [P1-PLAN-LOTE-223 · 2026-09-24] El escáner de comida, reconstruido.
 //
 // Un tester de Android, con captura de «Revisa y registra»: «no me deja quitar el 0 para agregar otro número… no puedo
 // agregar cantidades por culpa del 0». El dueño, encima: «también debería poder mandarse platos múltiples como en el
@@ -44,7 +44,7 @@ const leer = (p) => readFileSync(resolve(process.cwd(), p), 'utf8').split(String
 // El código sin sus comentarios: la prosa que CUENTA el defecto («era `type="number"`») no es el defecto.
 const sinComentarios = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-// Lo que manda el servidor tras el lote 221: cada componente con su parte, que suma exactamente el total.
+// Lo que manda el servidor tras el lote 223: cada componente con su parte, que suma exactamente el total.
 const ESPAGUETIS = {
     success: true, is_food: true, photo_kind: 'plato', meal_name: 'Espaguetis con albóndigas',
     macros: { calories: 900, protein: 45, carbs: 100, healthy_fats: 35 },
@@ -120,7 +120,7 @@ const macro = (nombre) => screen.getByLabelText(new RegExp(`^${nombre}`));
 
 // ─────────────────────────────── 1. la cantidad ───────────────────────────────
 
-describe('lote 221 · leer y mover una cantidad', () => {
+describe('lote 223 · leer y mover una cantidad', () => {
     it('lee lo que la gente teclea: coma o punto, fracciones; lo demás no es un número', () => {
         expect(leerCantidad('10')).toBe(10);
         expect(leerCantidad('1,5')).toBe(1.5);
@@ -180,7 +180,7 @@ describe('lote 221 · leer y mover una cantidad', () => {
     });
 });
 
-describe('lote 221 · QuantityStepper', () => {
+describe('lote 223 · QuantityStepper', () => {
     const pintar = (props = {}) => {
         const onChange = vi.fn();
         const utils = render(<QuantityStepper value={4} unit="unidad" nombre="albóndigas" onChange={onChange}
@@ -223,7 +223,7 @@ describe('lote 221 · QuantityStepper', () => {
 
 // ─────────────────────────── 2. la cuenta de un plato ──────────────────────────
 
-describe('lote 221 · la cuenta de un plato (scanMealDishes)', () => {
+describe('lote 223 · la cuenta de un plato (scanMealDishes)', () => {
     it('con desglose, las macros SALEN de los ingredientes', () => {
         const p = platoDesdeAnalisis(ESPAGUETIS);
         expect(p.desglose).toBe(true);
@@ -267,7 +267,7 @@ describe('lote 221 · la cuenta de un plato (scanMealDishes)', () => {
 
 // ──────────────────────────────── 3. el escáner ────────────────────────────────
 
-describe('lote 221 · un plato', () => {
+describe('lote 223 · un plato', () => {
     it('EL DEFECTO, en el escáner: borrar, escribir 10 y que viajen 10 albóndigas', async () => {
         abrir();
         elegir(foto());
@@ -335,7 +335,7 @@ describe('lote 221 · un plato', () => {
     });
 });
 
-describe('lote 221 · varios platos', () => {
+describe('lote 223 · varios platos', () => {
     it('dos fotos a la vez: dos tarjetas, el total en el pie y dos registros en serie con el mismo día y tipo', async () => {
         colaAnalisis = [ESPAGUETIS, JUGO];
         abrir();
@@ -436,7 +436,7 @@ describe('lote 221 · varios platos', () => {
     });
 });
 
-describe('lote 221 · fuente y catálogos', () => {
+describe('lote 223 · fuente y catálogos', () => {
     it('el escáner usa el campo nuevo, el selector de varias fotos y el interruptor de la Nevera', () => {
         const sm = leer('src/components/dashboard/ScanMealModal.jsx');
         expect(sm).toContain("import QuantityStepper from '../common/QuantityStepper';");

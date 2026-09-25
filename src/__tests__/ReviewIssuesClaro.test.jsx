@@ -42,7 +42,7 @@ describe('avisos del plan', () => {
         const src = read('src/pages/Plan.jsx');
         expect(src).not.toContain('t("Plan generado con observaciones")');
         expect(src).toContain("toast.warning(t('Tu plan está listo, con un detalle por revisar')");
-        // [P1-PLAN-LOTE-222] glosada y LEGIBLE en el idioma activo: una observación que no se reconoce se omite en
+        // [P1-PLAN-LOTE-224] glosada y LEGIBLE en el idioma activo: una observación que no se reconoce se omite en
         // vez de salir en español bajo un título traducido (`reviewIssueLegible`, clinicalNoteGloss.js).
         expect(src).toContain('.map((x) => reviewIssueLegible(x, t)).filter(Boolean)');
         expect(src).toContain("const _first = _list[0] || '';");

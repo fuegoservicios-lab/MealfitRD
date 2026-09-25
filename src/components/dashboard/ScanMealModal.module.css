@@ -366,7 +366,7 @@
 
 .fieldRow > * { min-width: 0; }
 
-/* [P1-PLAN-LOTE-221] Con cuatro presets (½× 1× 1½× 2×) no caben junto al rótulo a 320-380 px: el rótulo sube. */
+/* [P1-PLAN-LOTE-223] Con cuatro presets (½× 1× 1½× 2×) no caben junto al rótulo a 320-380 px: el rótulo sube. */
 @media (max-width: 380px) {
     .fieldRow { grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
 }
@@ -515,7 +515,7 @@
 /* [P1-MEAL-SCAN-POLISH · 2026-07-12] Una sola fila: "Volver a escanear"
    compacto a la izquierda, "Registrar comida" protagonista a la derecha.
    [P1-PLAN-LOTE-106] Vive en el pie FIJO: siempre a la vista en el teléfono.
-   [P1-PLAN-LOTE-221] «Volver a escanear» se mudó a la foto (`.previewRetake`): en español los dos botones no cabían
+   [P1-PLAN-LOTE-223] «Volver a escanear» se mudó a la foto (`.previewRetake`): en español los dos botones no cabían
    en 360 px y «Registrar comida» se cortaba. La fila se queda: el pie sigue siendo la fila de acciones. */
 .actions {
     display: flex;
@@ -547,7 +547,7 @@
 .saveBtn:hover:not(:disabled) { box-shadow: 0 10px 24px -6px rgba(5, 150, 105, 0.6); filter: brightness(1.05); }
 .saveBtn:disabled { opacity: 0.7; cursor: not-allowed; }
 
-/* [P1-PLAN-LOTE-221] «Volver a escanear» sobre la foto (antes en el pie, donde a 360 px cortaba «Registrar comida»). */
+/* [P1-PLAN-LOTE-223] «Volver a escanear» sobre la foto (antes en el pie, donde a 360 px cortaba «Registrar comida»). */
 .previewRetake {
     position: absolute;
     right: 0.6rem;
@@ -638,7 +638,7 @@
 }
 
 /* [P1-PHOTO-DEDUCTS · 2026-08-07] Checklist de componentes detectados en el plato.
-   [P1-PLAN-LOTE-221 · 2026-09-24] Dentro de «¿Cuánto comiste?»: con desglose, cada fila mueve las macros de arriba.
+   [P1-PLAN-LOTE-223 · 2026-09-24] Dentro de «¿Cuánto comiste?»: con desglose, cada fila mueve las macros de arriba.
    Cada fila son dos líneas — nombre y lo que aporta; la cantidad con −/+ y su unidad — para que a 320 px el nombre no
    se monte encima del número y los botones tengan dedo (40 px). */
 .componentsBlock {
@@ -797,7 +797,7 @@
 
 .componentQty:disabled { cursor: not-allowed; }
 
-/* ---- [P1-PLAN-LOTE-221] Varios platos ---- */
+/* ---- [P1-PLAN-LOTE-223] Varios platos ---- */
 .multiHint {
     margin: 0.9rem 0 0;
     font-size: 0.82rem;
@@ -1095,7 +1095,7 @@
     color: #B45309;
 }
 
-/* ====== TEMA OSCURO · lote 221 ====== */
+/* ====== TEMA OSCURO · lote 223 ====== */
 :global(html[data-theme="dark"]) .componentsTitle,
 :global(html[data-theme="dark"]) .componentName,
 :global(html[data-theme="dark"]) .platoNombre,

@@ -53,7 +53,7 @@ import { useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
 import styles from './DiaryHistory.module.css';
 
-// [P1-PLAN-LOTE-221 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
+// [P1-PLAN-LOTE-223 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
 // vive en el mismo trozo del panel, y el escáner reconstruido lo pasaba del techo de precache-guard.
 const ScanMealModal = lazy(() => import('./ScanMealModal'));
 
@@ -181,7 +181,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const t = useT();
     const tn = useTn();
     const subtituloMicros = useMicrosSubtitulo();
-    // [P1-PLAN-LOTE-222] Para pintar el nombre de lo comido del plan en el idioma del usuario (`nombreDeRegistro`).
+    // [P1-PLAN-LOTE-224] Para pintar el nombre de lo comido del plan en el idioma del usuario (`nombreDeRegistro`).
     const { planData } = useAssessment() || {};
     // [P1-PLAN-LOTE-162 · 2026-09-22] «Hoy» se recalcula al ABRIR. El cajón vive montado dentro de la tarjeta aunque
     // esté cerrado, así que con `[]` el «hoy» era el del día en que se montó: con la app abierta desde anoche, la tira
@@ -417,7 +417,7 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         return (
             <div key={meal.id || meal.meal_name} className={styles.meal}>
                 <div className={styles.mealBody}>
-                    {/* [P1-PLAN-LOTE-222] el nombre en el idioma del usuario (el dato no cambia) */}
+                    {/* [P1-PLAN-LOTE-224] el nombre en el idioma del usuario (el dato no cambia) */}
                     <div className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t) || t('Sin nombre')}</div>
                     <div className={styles.mealMacros}>
                         <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>

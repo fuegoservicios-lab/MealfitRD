@@ -15,7 +15,7 @@ import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
 import useAutoguardado from '../../hooks/useAutoguardado';
 import { getCachedMasterList, setCachedMasterList } from '../../utils/pantryCache';
-// [P1-PLAN-LOTE-222] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
+// [P1-PLAN-LOTE-224] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
 import { nombreDeFila, nombreDelAlimento, formasDeBuscar } from '../../utils/nombresDeAlimentos';
 import { useT } from '../../i18n';
 import styles from './SuperPersonalizationPanel.module.css';

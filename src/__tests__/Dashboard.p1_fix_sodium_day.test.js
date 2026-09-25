@@ -96,7 +96,7 @@ describe('P1-FIX-SODIUM-DAY', () => {
         const win = _sliceFrom("result?.fixed === true", 4000);
         expect(win).toMatch(/toast\.success\(/);
         expect(win).toContain('Number(result.day) + 1');
-        // [P1-PLAN-LOTE-222 · 2026-09-24] Viejo→nuevo por su nombre VISIBLE (el viejo por su `_display`, el nuevo
+        // [P1-PLAN-LOTE-224 · 2026-09-24] Viejo→nuevo por su nombre VISIBLE (el viejo por su `_display`, el nuevo
         // por `new_meal_display`), con el español del servidor como respaldo de cada uno.
         expect(win).toContain('${_viejoVisible} → ${_nuevoVisible}');
         expect(win).toMatch(/_viejoVisible = [^;]*\|\| result\.old_meal;/);

@@ -60,7 +60,7 @@ describe('lote 165 · las unidades del catálogo y del escáner se glosan al pin
 
     it('el escáner glosa la unidad de cada componente (el nombre no: es del motor)', () => {
         const s = leer('src/components/dashboard/ScanMealModal.jsx');
-        // [P1-PLAN-LOTE-221] la unidad va junto a su cantidad («− 2 + tazas»), con su plural, y se sigue glosando
+        // [P1-PLAN-LOTE-223] la unidad va junto a su cantidad («− 2 + tazas»), con su plural, y se sigue glosando
         expect(s).toContain('{glossUnitWord(unidadParaCantidad(c.unit, c.qty), t)}');
     });
 });

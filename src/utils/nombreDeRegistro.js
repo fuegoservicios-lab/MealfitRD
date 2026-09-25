@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] El nombre de una comida del DIARIO, para leerlo en el idioma del usuario.
+// [P1-PLAN-LOTE-224 · 2026-09-24] El nombre de una comida del DIARIO, para leerlo en el idioma del usuario.
 //
 // El diario guarda el nombre tal como nació, y casi siempre nació en español: «Me lo comí» guarda el nombre canónico
 // del plato del plan, el componedor sin nombre escrito guarda los alimentos del catálogo («Pollo, Arroz y

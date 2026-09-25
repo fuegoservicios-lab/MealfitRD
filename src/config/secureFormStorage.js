@@ -672,7 +672,7 @@ const _coerceNumericHealthFields = (payload) => {
 // perfil que encuentre vacía — y ahí se CONGELAN: la copia local no se refresca nunca. Si viajaran en el payload
 // completo, cada «Guardar» (o el del otro dispositivo) devolvería al servidor el valor de la primera carga: fue así
 // como apagar el agua y luego tocar «comida» volvía a encender el agua. El formulario no es su dueño: no las manda.
-// [P1-PLAN-LOTE-220] `avisos_por_comida`: la hora y el interruptor de cada recordatorio (Configuración). Con la copia
+// [P1-PLAN-LOTE-222] `avisos_por_comida`: la hora y el interruptor de cada recordatorio (Configuración). Con la copia
 // congelada viajando, el siguiente «Guardar» del formulario devolvería las horas de la primera carga.
 export const CLAVES_CON_CONTROL_PROPIO = Object.freeze(['avisos_comida', 'avisos_agua', 'avisos_por_comida']);
 

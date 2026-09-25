@@ -18,7 +18,7 @@ import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // eso mismo (una constante con `t()` se congelaría en español al importar).
 import { compareText, formatNumber, t, useT, useTn, formatTemperature, i18nKey } from '../i18n';
 import { glossUnitWord } from '../utils/shoppingHelpers';
-// [P1-PLAN-LOTE-222] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
+// [P1-PLAN-LOTE-224] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
 import { nombreDeFila, nombreDelAlimento, formasDeBuscar } from '../utils/nombresDeAlimentos';
 // [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] SSOT del sistema de unidades por país. La
 // proyección es de DISPLAY: `item.quantity`/`item.unit` (el dato que el backend deduce) no se
@@ -352,7 +352,7 @@ const getZoneDefinitions = () => {
 // "Añade a tu Nevera". [P3-PANTRY-RECENT-ADDS · 2026-07-07] 1-toque: si la palabra
 // resuelve a un master item ÚNICO se añade directo (unidad recomendada); si es
 // ambigua (varios "aceite"/"pollo") siembra la búsqueda — nunca adivina cuál.
-// [P1-PLAN-LOTE-222 · 2026-09-24] La palabra española es lo que `handleChipAdd` resuelve contra el catálogo; lo que se
+// [P1-PLAN-LOTE-224 · 2026-09-24] La palabra española es lo que `handleChipAdd` resuelve contra el catálogo; lo que se
 // PINTA es su traducción (`t(word)`). Antes el chip decía «Pollo» a un francés.
 const QUICK_ADD_SUGGESTIONS = [i18nKey('Pollo'), i18nKey('Arroz'), i18nKey('Huevos'), i18nKey('Leche'), i18nKey('Aceite'), i18nKey('Cebolla')];
 
@@ -2120,7 +2120,7 @@ const PantryPage = () => {
             || masterList.find(m => (m.name || '').toLowerCase() === qs);
         if (!hit) {
             // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] El gloss inglés como vía de entrada; lo
-            // seleccionado sigue siendo `m.name`. [P1-PLAN-LOTE-222] Y los otros tres idiomas: `formasDeBuscar`.
+            // seleccionado sigue siendo `m.name`. [P1-PLAN-LOTE-224] Y los otros tres idiomas: `formasDeBuscar`.
             const matches = masterList.filter(m =>
                 formasDeBuscar(m).some((f) => f.toLowerCase().includes(q))
             );
@@ -2266,7 +2266,7 @@ const PantryPage = () => {
     const suggestedMasterItems = useMemo(() => {
         if (!addItemSearch.trim()) return [];
         const q = addItemSearch.toLowerCase();
-        // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4] ver arriba. [P1-PLAN-LOTE-222] los cinco idiomas, sin acentos.
+        // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4] ver arriba. [P1-PLAN-LOTE-224] los cinco idiomas, sin acentos.
         const qn = q.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         return masterList.filter(m =>
             formasDeBuscar(m).some((f) => f.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(qn))
@@ -2411,7 +2411,7 @@ const PantryPage = () => {
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
         const atFloor = item.quantity <= 1;
-        // [P1-PLAN-LOTE-222] El alimento en el idioma del usuario, una vez por fila (el dato sigue en español).
+        // [P1-PLAN-LOTE-224] El alimento en el idioma del usuario, una vez por fila (el dato sigue en español).
         const nombreVisible = nombreDelAlimento(item.ingredient_name);
         const badge = getShelfLifeBadge(item, t, tn);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
@@ -2569,7 +2569,7 @@ const PantryPage = () => {
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
         const atFloor = item.quantity <= 1;
-        // [P1-PLAN-LOTE-222] El alimento en el idioma del usuario, una vez por tarjeta (el dato sigue en español).
+        // [P1-PLAN-LOTE-224] El alimento en el idioma del usuario, una vez por tarjeta (el dato sigue en español).
         const nombreVisible = nombreDelAlimento(item.ingredient_name);
         const badge = getShelfLifeBadge(item, t, tn);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;

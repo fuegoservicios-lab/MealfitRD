@@ -12,7 +12,7 @@ import { addNotification } from '../../utils/notifications';
 // activo en cada llamada, no al importar).
 import { t as _t, tn as _tn, useT, useTn } from '../../i18n';
 import styles from './MicronutrientPanel.module.css';
-// [P1-PLAN-LOTE-222] Nombres, dosis y alimentos que compone el backend en español, traducidos al pintar.
+// [P1-PLAN-LOTE-224] Nombres, dosis y alimentos que compone el backend en español, traducidos al pintar.
 import { etiquetaMicro, textoSuplemento, alimentosSuplemento } from '../../utils/microsCopy';
 
 // [P3-MICROS-RESTORE · 2026-06-19] "Desocultar" desde el centro de notificaciones.
@@ -153,7 +153,7 @@ function buildQuestion(g, t) {
     const isCeil = g.techo !== undefined && g.techo !== null;
     // Ver la nota del gemelo en MicronutrientMeter: el extractor solo ve `t(`.
     if (typeof t !== 'function') t = (s) => s;
-    const n = (etiquetaMicro(g, t) || '').toLowerCase();  // [P1-PLAN-LOTE-222] traducido: lo lee el usuario
+    const n = (etiquetaMicro(g, t) || '').toLowerCase();  // [P1-PLAN-LOTE-224] traducido: lo lee el usuario
     if (isCeil) {
         return t('En mi plan, el {nutriente} quedó por encima del objetivo ({valor}{unidad}, techo {techo}{unidad}). ¿Cómo lo reduzco sin afectar mis otras metas?', {
             nutriente: n, valor: g.valor, unidad: g.unidad, techo: g.techo,

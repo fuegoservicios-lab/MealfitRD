@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-221 · 2026-09-24] La cantidad de un ingrediente del escáner de comida: leerla como la teclea la gente,
+// [P1-PLAN-LOTE-223 · 2026-09-24] La cantidad de un ingrediente del escáner de comida: leerla como la teclea la gente,
 // moverla con −/+ a pasos que tengan sentido para su unidad y escribirla de vuelta (en pantalla y para el servidor).
 //
 // EL DEFECTO QUE LA ORIGINA (un tester de Android, con captura): el campo era `type="number"` controlado con el número

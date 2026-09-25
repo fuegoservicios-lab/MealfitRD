@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] Los avisos de calidad de «Cambiar plato» y «Regenerar día», en el idioma del
+// [P1-PLAN-LOTE-224 · 2026-09-24] Los avisos de calidad de «Cambiar plato» y «Regenerar día», en el idioma del
 // usuario.
 //
 // El backend los escribe en español (`swap_quality_warning`, `day_quality_warning`) y el cliente los pintaba tal

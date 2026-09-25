@@ -67,7 +67,7 @@ import StapleFoodsPanel from '../components/settings/StapleFoodsPanel';
 // [P1-CLINICAL-PANEL · 2026-07-03] Panel opt-in de perfil clínico avanzado
 // (labs, historia ponderal, digestión, entrenamiento) → health_profile.clinical_profile.
 import ClinicalProfilePanel from '../components/settings/ClinicalProfilePanel';
-// [P1-PLAN-LOTE-220 · 2026-09-24] Interruptor y hora de cada recordatorio de comida (health_profile.avisos_por_comida).
+// [P1-PLAN-LOTE-222 · 2026-09-24] Interruptor y hora de cada recordatorio de comida (health_profile.avisos_por_comida).
 import RecordatoriosPorComida from '../components/settings/RecordatoriosPorComida';
 import { acusePrioritario } from '../hooks/useAutoguardado';
 // [P1-ACCOUNT-DELETE-1 · 2026-06-22] Misma sección "Eliminar cuenta" que /configuracion.
@@ -204,7 +204,7 @@ const _UnitToggle = ({ unit, options, onChange }) => (
    X, el fondo y la tecla ESC del diálogo pasen por el MISMO sitio que el botón
    «Volver». Sin ella, cada forma de cerrar sería una forma nueva de perder los
    números que el usuario acababa de escribir. */
-// [P1-PLAN-LOTE-222 · 2026-09-24] La categoría de un recuerdo del coach. El extractor la escribe en `metadata.category`
+// [P1-PLAN-LOTE-224 · 2026-09-24] La categoría de un recuerdo del coach. El extractor la escribe en `metadata.category`
 // (fact_extractor.py, `FactCategoryLiteral`); esta pantalla leía `metadata.categoria`, que no existe, así que todos
 // salían como «Dato». `categoria` se sigue aceptando por si algún recuerdo viejo la trae. Traducida al pintar.
 function etiquetaDeRecuerdo(metadata, t) {
@@ -1096,7 +1096,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [userFacts, setUserFacts] = useState([]);
     const [isLoadingFacts, setIsLoadingFacts] = useState(false);
     const [isDeletingFact, setIsDeletingFact] = useState(null); // ID del fact que se está borrando
-    // [P1-PLAN-LOTE-222 · 2026-09-24] Lo que el coach recuerda lo escribe el modelo en español: se traduce al leer
+    // [P1-PLAN-LOTE-224 · 2026-09-24] Lo que el coach recuerda lo escribe el modelo en español: se traduce al leer
     // (hooks/useTextosTraducidos.js). El dato no cambia.
     const _trFact = useTextosTraducidos(userFacts.map((f) => f?.fact));
 
@@ -3500,7 +3500,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                                     <span className={styles.toggleSlider}></span>
                                                 </label>
                                             </div>
-                                            {/* [P1-PLAN-LOTE-220] Con los de comida encendidos: cada comida, su interruptor y su hora. Tras
+                                            {/* [P1-PLAN-LOTE-222] Con los de comida encendidos: cada comida, su interruptor y su hora. Tras
                                                 guardar, el teléfono reprograma con lo que diga el servidor (en web no hace nada). */}
                                             {clave === 'avisos_comida' && valor && (
                                                 <RecordatoriosPorComida

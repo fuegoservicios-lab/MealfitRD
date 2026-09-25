@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] El plan del INVITADO en su idioma.
+// [P1-PLAN-LOTE-224 · 2026-09-24] El plan del INVITADO en su idioma.
 //
 // Las cuentas reciben la traducción del plan (`_display[locale]`) desde el servidor: se escribe en la base de datos
 // después de generar, de cambiar un plato o de cambiar de idioma. El invitado —el embudo del plan gratis— no tiene

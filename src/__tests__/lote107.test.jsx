@@ -4,7 +4,7 @@
 // dueño, dos veces: «sigue igual»). Ahora: cancelar no es error; cualquier otro fallo se reporta, se dice con su
 // código y después se abre el input para no dejar al usuario sin camino. En la web (PWA) nada cambia: allí el menú
 // de iOS no se puede evitar.
-// [P1-PLAN-LOTE-221 · 2026-09-24] El escáner de comida elige VARIAS fotos (un plato por foto): usa
+// [P1-PLAN-LOTE-223 · 2026-09-24] El escáner de comida elige VARIAS fotos (un plato por foto): usa
 // `chooseNativeGalleryImages`; lo que este archivo vigila —directo en nativo, cancelar no es error, el fallo se dice y
 // cae al input— no cambia.
 import { describe, it, expect, vi, beforeEach } from 'vitest';

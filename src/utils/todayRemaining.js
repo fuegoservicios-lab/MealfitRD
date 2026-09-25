@@ -266,7 +266,7 @@ export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unloc
   };
   const _clave = canonicalSlotKey(slotMealType);
   const slotNoun = (_clave && _slots[_clave]) || t('comida');
-  // [P1-PLAN-LOTE-222 · 2026-09-24] `nombrar`: cómo se LEE cada nombre (utils/nombreDeRegistro.js — el plato del plan
+  // [P1-PLAN-LOTE-224 · 2026-09-24] `nombrar`: cómo se LEE cada nombre (utils/nombreDeRegistro.js — el plato del plan
   // en el idioma del usuario). El dato del diario no cambia; sin `nombrar`, tal cual.
   const names = eatenNamesForSlot(consumedTodayMeals, slotMealType)
     .map((n) => (typeof nombrar === 'function' ? (nombrar(n) || n) : n));

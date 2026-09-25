@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] Texto libre del modelo, traducido AL LEER.
+// [P1-PLAN-LOTE-224 · 2026-09-24] Texto libre del modelo, traducido AL LEER.
 //
 // Casi todo lo que el modelo escribe para el usuario vive en el plan y lo traduce la capa `_display` en el servidor.
 // Quedaba fuera el texto que no es del plan traducido: lo que el coach recuerda del usuario (Configuración →

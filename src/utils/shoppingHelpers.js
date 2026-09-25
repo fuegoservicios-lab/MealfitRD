@@ -193,7 +193,7 @@ export const buildGlossIndex = (masterList) => {
         const es = m && typeof m.name === 'string' ? m.name : '';
         const en = m && typeof m.name_en === 'string' ? m.name_en.trim() : '';
         const glossEs = m && typeof m.gloss_es === 'string' ? m.gloss_es.trim() : '';
-        // [P1-PLAN-LOTE-222 · 2026-09-24] Y el nombre en cada idioma, la misma forma que publica `pantryCache`.
+        // [P1-PLAN-LOTE-224 · 2026-09-24] Y el nombre en cada idioma, la misma forma que publica `pantryCache`.
         const names = _nombresValidos(m && m.names);
         if (!es || (!en && !glossEs && !names)) continue;
         // Compatibilidad: las filas sin gloss_es ni names conservan el valor string que ya
@@ -274,7 +274,7 @@ export const glossShoppingItemName = (
         return `${spanishName} (${_glossEs})`;
     }
 
-    // [P1-PLAN-LOTE-222 · 2026-09-24] El gloss en el IDIOMA DEL USUARIO. Hasta este lote era inglés para cualquier
+    // [P1-PLAN-LOTE-224 · 2026-09-24] El gloss en el IDIOMA DEL USUARIO. Hasta este lote era inglés para cualquier
     // locale («Black beans (Habichuelas negras)» también a un francés) porque el catálogo no tenía otro. Ahora cada
     // fila trae `names`: en pt/fr/it gana el nombre propio y el inglés queda de respaldo (fila sin traducción, índice
     // publicado antes del lote). En inglés el campo embebido sigue mandando, como siempre.

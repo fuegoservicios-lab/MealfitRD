@@ -259,7 +259,7 @@ export const glossReviewIssue = (texto, t) => {
 };
 
 /**
- * [P1-PLAN-LOTE-222 · 2026-09-24] Una observación del revisor LEGIBLE en el idioma activo, o `null`.
+ * [P1-PLAN-LOTE-224 · 2026-09-24] Una observación del revisor LEGIBLE en el idioma activo, o `null`.
  *
  * `glossReviewIssue` es fail-soft: lo que no reconoce lo devuelve tal cual, y eso es español. En una interfaz en
  * español está bien; en otra, la observación desconocida salía en español bajo un título traducido. Aquí, fuera

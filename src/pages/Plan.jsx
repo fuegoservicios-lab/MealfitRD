@@ -36,7 +36,7 @@ import { textoDelServidor } from '../utils/textosDelServidor';
 // [P1-I18N-SERVER-COPY-GANA-SIGUE-ABIERTO · 2026-08-23] El `_review_disclaimer` del backend
 // viene siempre en español; se glosa al imprimir, igual que la nota clínica.
 import { glossReviewDisclaimer, reviewIssueLegible } from '../utils/clinicalNoteGloss';
-// [P1-PLAN-LOTE-222 · 2026-09-24] La frase con que el servidor explica el 409 `plan_recently_created`
+// [P1-PLAN-LOTE-224 · 2026-09-24] La frase con que el servidor explica el 409 `plan_recently_created`
 // (routers/plans.py, P1-DEDUP-RECENT-PLAN), byte a byte: se traduce al pintar.
 const MENSAJE_PLAN_RECIENTE = i18nKey('Tu plan ya estaba listo (quizá se te cayó la conexión). Te lo mostramos en vez de crear otro, para no duplicarlo. Si quieres uno distinto, intenta de nuevo en unos minutos.');
 
@@ -1454,7 +1454,7 @@ const Plan = () => {
                             // observación (ya humanizada por el backend, glosada aquí) y cuántas más hay.
                             // El mismo título que el banner del Dashboard, para que se lea como el
                             // mismo hecho y no como dos problemas distintos.
-                            // [P1-PLAN-LOTE-222] Sólo las observaciones legibles en el idioma activo: una que
+                            // [P1-PLAN-LOTE-224] Sólo las observaciones legibles en el idioma activo: una que
                             // no se reconoce saldría en español bajo un título traducido (`reviewIssueLegible`).
                             const _list = Array.isArray(generatedPlan?._review_issues)
                                 ? generatedPlan._review_issues.map(String).filter(Boolean)
@@ -1551,7 +1551,7 @@ const Plan = () => {
                         await tryAdoptDedupedPlan(error.planId);
                         import('sonner').then(({ toast }) => {
                             toast.info(t("Tu plan ya estaba listo"), {
-                                // [P1-PLAN-LOTE-222] La frase del servidor, en el idioma del usuario.
+                                // [P1-PLAN-LOTE-224] La frase del servidor, en el idioma del usuario.
                                 description: mensajeDelServidor(error.message, [MENSAJE_PLAN_RECIENTE], t("Te lo mostramos en vez de crear otro, para no duplicarlo."), t),
                                 duration: 6000,
                             });
@@ -2134,7 +2134,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
     const showReviewWarningBanner = !!(
         newPlan?._review_failed_but_delivered && !showReviewCriticalBanner
     );
-    // [P1-PLAN-LOTE-222 · 2026-09-24] Las observaciones del revisor legibles en el idioma activo: una que no se
+    // [P1-PLAN-LOTE-224 · 2026-09-24] Las observaciones del revisor legibles en el idioma activo: una que no se
     // reconoce saldría en español bajo un título traducido, y se omite (el párrafo de arriba ya lo resume).
     const reviewIssuesLegibles = Array.isArray(newPlan?._review_issues)
         ? newPlan._review_issues.map(String).map((x) => reviewIssueLegible(x, t)).filter(Boolean)
@@ -2417,7 +2417,7 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             <ShieldCheck size={20} /> {t('Verificación médica con observaciones')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                            {/* [P1-PLAN-LOTE-222] glosado como en el aviso (el servidor lo manda en español) */}
+                            {/* [P1-PLAN-LOTE-224] glosado como en el aviso (el servidor lo manda en español) */}
                             {glossReviewDisclaimer(newPlan?._review_disclaimer, t)
                                 || t('Este plan no superó completamente la verificación médica automática. Las observaciones encontradas son no-críticas, pero te recomendamos regenerarlo o revisarlo con tu nutricionista.')}
                         </p>

@@ -48,7 +48,7 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const fechaDelDia = useMemo(() => (Number.isFinite(instante) ? new Date(instante) : new Date()), [instante]);
     const delDia = useMemo(() => consumed || consumidoDelDiario(diario), [consumed, diario]);
 
-    // [P1-PLAN-LOTE-222 · 2026-09-24] Los nombres de lo comido, en el idioma del usuario (utils/nombreDeRegistro.js).
+    // [P1-PLAN-LOTE-224 · 2026-09-24] Los nombres de lo comido, en el idioma del usuario (utils/nombreDeRegistro.js).
     // Estable (useCallback): una función nueva en cada render redibujaría la imagen sin parar.
     const { planData } = useAssessment() || {};
     const nombrar = useCallback((n) => nombreDeRegistro(n, planData, t), [planData, t]);

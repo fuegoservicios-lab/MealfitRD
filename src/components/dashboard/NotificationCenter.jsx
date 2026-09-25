@@ -32,7 +32,7 @@ import { restoreInsightsPanel } from '../../utils/insightsPanel';
 import { useT } from '../../i18n';
 import styles from './NotificationCenter.module.css';
 import Wordmark from '../common/Wordmark';
-// [P1-PLAN-LOTE-222] Nombres, dosis, alimentos y avisos de micronutrientes, traducidos al pintar.
+// [P1-PLAN-LOTE-224] Nombres, dosis, alimentos y avisos de micronutrientes, traducidos al pintar.
 import { etiquetaMicro, textoSuplemento, alimentosSuplemento, avisoMicro } from '../../utils/microsCopy';
 
 /* [P3-NOTIF-CENTER · 2026-06-16] Centro de notificaciones del dashboard.

@@ -1,10 +1,10 @@
-// [P1-PLAN-LOTE-222 · 2026-09-24] Las frases FIJAS que el servidor guarda en el plan o manda por endpoint para explicar
+// [P1-PLAN-LOTE-224 · 2026-09-24] Las frases FIJAS que el servidor guarda en el plan o manda por endpoint para explicar
 // que un plan necesita al usuario: el aviso «Acción requerida» (`plan_data._user_action_required`, escrito por
 // `cron_tasks.py`) y el detalle por bloque de `/blocked-reasons` (`routers/plans.py`, `reason_to_text`).
 //
 // Llegan en español y el Historial y la pantalla del plan los pintaban tal cual: el único aviso que pide al usuario
 // que HAGA algo, en un idioma que quizá no lee. Se traducen AL PINTAR por coincidencia exacta con estas frases, que
-// son claves del catálogo. `test_p1_plan_lote_222.py` las extrae del backend con `ast` y exige que estén TODAS
+// son claves del catálogo. `test_p1_plan_lote_224.py` las extrae del backend con `ast` y exige que estén TODAS
 // aquí: si alguien cambia una coma allá, el test lo dice antes de que el aviso vuelva al español sin que se note.
 //
 // Lo que no se reconoce se pinta tal cual. En es-DO, siempre tal cual.

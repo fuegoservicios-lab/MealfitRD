@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-221 · 2026-09-24] La cantidad de un ingrediente: «−  [campo]  +».
+// [P1-PLAN-LOTE-223 · 2026-09-24] La cantidad de un ingrediente: «−  [campo]  +».
 //
 // EL DEFECTO QUE RESUELVE (un tester de Android, con captura): el campo era `type="number"` controlado con el número
 // del estado, y `Number('')` es 0. Al borrar para escribir otra cantidad el 0 volvía al instante y lo que se tecleaba

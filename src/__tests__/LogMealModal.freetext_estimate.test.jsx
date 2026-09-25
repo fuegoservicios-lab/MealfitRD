@@ -47,7 +47,7 @@ describe('estimar macros de un texto libre', () => {
         await user.click(btn);
         await waitFor(() => expect(screen.getByLabelText(/^Calorías/)).toHaveValue(520));
         const llamada = fetchWithAuth.mock.calls.find(([u]) => String(u).includes('estimate-macros'));
-        // [P1-PLAN-LOTE-222] + el idioma: el nombre y la porción que estima el servidor vuelven en el del usuario.
+        // [P1-PLAN-LOTE-224] + el idioma: el nombre y la porción que estima el servidor vuelven en el del usuario.
         expect(JSON.parse(llamada[1].body)).toEqual({ text: 'mangú con huevo frito', meal_type: expect.any(String), locale: expect.any(String) });
         expect(screen.getByRole('status').textContent).toContain('Estimación aproximada (1 plato (~350 g)); ajústala si sabes más.');
         expect(screen.getByLabelText(/^Proteína/)).toHaveValue(18);
@@ -98,7 +98,7 @@ describe('foto desde el componedor', () => {
         expect(tp).toContain('<LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />');
         const dash = src('src/pages/Dashboard.jsx');
         expect(dash).toContain("onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }}");
-        // [P1-PLAN-LOTE-221] el escáner es perezoso: se monta al pedirlo, dentro de su propio Suspense
+        // [P1-PLAN-LOTE-223] el escáner es perezoso: se monta al pedirlo, dentro de su propio Suspense
         expect(dash).toContain('{scanMealOpen && (');
         expect(dash).toContain('<ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)}');
         expect(dash).toContain("const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));");

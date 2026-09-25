@@ -52,7 +52,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import CameraViewfinder from '../common/CameraViewfinder';
 import { useT, useTn } from '../../i18n';
 import { glossUnitWord } from '../../utils/shoppingHelpers';
-// [P1-PLAN-LOTE-222] El alimento del catálogo, en el idioma del usuario (lo que se añade sigue siendo el canónico).
+// [P1-PLAN-LOTE-224] El alimento del catálogo, en el idioma del usuario (lo que se añade sigue siendo el canónico).
 import { nombreDelAlimento } from '../../utils/nombresDeAlimentos';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.

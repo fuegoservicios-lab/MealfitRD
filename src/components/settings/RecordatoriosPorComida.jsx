@@ -1,4 +1,4 @@
-// [P1-PLAN-LOTE-220 · 2026-09-24] Cada recordatorio de comida con su interruptor y su hora.
+// [P1-PLAN-LOTE-222 · 2026-09-24] Cada recordatorio de comida con su interruptor y su hora.
 //
 // El dueño, con el aviso del desayuno todavía en el chat a la 1:18 p. m.: «¿y qué tal si el usuario lo puede decidir?
 // … no sería más flexible?». Su almuerzo sonaba hacia las 2:15 porque la hora salía de cuándo REGISTRABA, que es
@@ -124,7 +124,7 @@ const RecordatoriosPorComida = ({ claseInterruptor, claseDeslizador, onGuardado 
             </div>
         );
     }
-    // Leyendo, o un servidor anterior al lote 220: no se pinta nada (el interruptor general de arriba sigue).
+    // Leyendo, o un servidor anterior al lote 222: no se pinta nada (el interruptor general de arriba sigue).
     if (!comidas || !comidas.length) return null;
 
     const nombres = getNombres(t);
