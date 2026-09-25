@@ -464,3 +464,12 @@ describe('lote 224 · fuente y catálogos', () => {
         }
     });
 });
+
+describe('[P1-PLAN-LOTE-292] carrera del reintento (vista en dos gates bajo carga)', () => {
+    it('marcar un plato como guardado actualiza también la referencia al instante', () => {
+        const src = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '..', 'components', 'dashboard', 'ScanMealModal.jsx'), 'utf8');
+        const cuerpo = src.slice(src.indexOf('const _ponerPlato = useCallback('), src.indexOf('}, []);', src.indexOf('const _ponerPlato = useCallback(')));
+        expect(cuerpo).toContain('platosRef.current = platosRef.current.map(');
+    });
+});
+

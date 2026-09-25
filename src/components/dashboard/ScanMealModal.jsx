@@ -423,6 +423,10 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     }, []);
 
     const _ponerPlato = useCallback((id, cambios) => {
+        // [P1-PLAN-LOTE-292] La referencia se actualiza AL INSTANTE, no en el efecto tras el render: un reintento que
+        // llega antes de ese efecto veía el plato como «no guardado» y lo registraba dos veces (visto en dos gates
+        // bajo carga: «Espaguetis» entraba dos veces en el diario).
+        platosRef.current = platosRef.current.map((p) => (p.id === id ? { ...p, ...cambios } : p));
         setPlatos((prev) => prev.map((p) => (p.id === id ? { ...p, ...cambios } : p)));
     }, []);
 
