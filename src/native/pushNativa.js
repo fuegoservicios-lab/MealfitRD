@@ -14,6 +14,7 @@
 // Sin el plugin (binario anterior) todo es no-op: el JS llega por OTA, el plugin solo con un APK nuevo.
 import { isNativeApp, nativePluginAvailable, nativePlatform } from '../config/platform';
 import { fetchWithAuth } from '../config/api';
+import { t } from '../i18n';
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
 
 export const CLAVE_TOKEN = 'mealfit_fcm_token';
@@ -126,7 +127,9 @@ export async function iniciarPushNativa() {
     try {
         if (nativePlatform() === 'android') {
             await PN.createChannel({
-                id: CANAL_ANDROID, name: 'Bioboros', description: 'Avisos de Bioboros',
+                // Mismo canal y MISMOS textos que los avisos locales (avisosDeComida._canalAndroid): recrearlo con otro
+                // nombre lo renombraría en Ajustes de Android.
+                id: CANAL_ANDROID, name: t('Recordatorios'), description: t('Tus comidas y el agua, a su hora.'),
                 importance: 4, visibility: 1, vibration: true,
             });
         }
