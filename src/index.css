@@ -14,6 +14,15 @@
  * Anchor: P3-SELF-HOST-FONTS.
  */
 
+/* [P1-PLAN-LOTE-306 · 2026-09-25] Variables del teclado del chat, NO heredables. Cambiar una variable heredable en un
+ * ancestro obliga a recalcular el estilo de TODO su subárbol: `--kb-ms` en <html> costaba 97 ms y `--kb-inset` en el
+ * contenedor del chat 57 ms (80 mensajes, CPU x4, medido), en el primer fotograma de la animación del teclado. Cada una
+ * se escribe en la pieza que la usa (`data-kb-anima`). Sin valor inicial (`syntax: '*'`): `var(--kb-ms, 0.25s)` sigue
+ * cayendo a su respaldo. Navegadores sin @property: se heredan como antes. `--app-height` NO va aquí: el contenedor del
+ * dashboard la hereda de <html> en escritorio. */
+@property --kb-inset { syntax: '*'; inherits: false; }
+@property --kb-ms { syntax: '*'; inherits: false; }
+
 /* latin-ext */
 @font-face {
   font-family: 'Outfit';

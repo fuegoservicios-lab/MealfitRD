@@ -936,12 +936,17 @@ const AgentPage = () => {
         // pestañas: `var(--kb-ms, 0.25s)` en las tres). Se fija en <html> —la barra vive fuera del chat— y se RETIRA al
         // acabar la animación: la barra también usa esa transición para plegarse, y plegar no es cosa del teclado.
         let msTimer = null;
+        const piezasQueAnimanAlTeclado = () => document.querySelectorAll('[data-kb-anima]');
+        const quitarDuracionDelTeclado = () => piezasQueAnimanAlTeclado().forEach((el) => el.style.removeProperty('--kb-ms'));
         const fijarDuracionTeclado = (ms) => {
             if (!root || !(ms > 0)) return;
             msVigente = ms;
-            root.style.setProperty('--kb-ms', `${ms}ms`);
+            // [P1-PLAN-LOTE-306] En cada pieza que anima, NO en <html>: `--kb-ms` es no heredable (index.css) y escrita en
+            // la raíz le costaba al navegador recalcular el estilo de los ~2 650 nodos del chat (97 ms con CPU ×4, medido)
+            // al empezar la subida y otra vez al retirarla.
+            piezasQueAnimanAlTeclado().forEach((el) => el.style.setProperty('--kb-ms', `${ms}ms`));
             if (msTimer) clearTimeout(msTimer);
-            msTimer = setTimeout(() => { msTimer = null; root.style.removeProperty('--kb-ms'); }, ms + 150);
+            msTimer = setTimeout(() => { msTimer = null; quitarDuracionDelTeclado(); }, ms + 150);
         };
 
         // [P1-PLAN-LOTE-131 · 2026-09-19] COREOGRAFÍA SOLO CON `transform` (modo de prueba: `/fluido` en el chat nativo).
@@ -1303,7 +1308,7 @@ const AgentPage = () => {
             document.removeEventListener('focusin', alGanarElFoco);
             window.removeEventListener(EVENTO_TECLADO_NATIVO, alTecladoNativo);
             if (msTimer) clearTimeout(msTimer);
-            root?.style.removeProperty('--kb-ms');
+            quitarDuracionDelTeclado();
             if (asiento) clearTimeout(asiento);
             if (abriendoTimer) clearTimeout(abriendoTimer);
             // [131] la coreografia no deja piezas con transform ni llaves en <html> al salir del chat
@@ -2293,6 +2298,8 @@ const AgentPage = () => {
     // 'auto' (instantáneo) mientras el último mensaje stremea; 'smooth' solo en
     // el update final/no-streaming. Sin reflow read en código de app.
     const scrollRafRef = useRef(null);
+    /** [P1-PLAN-LOTE-306] Últimas medidas de la lista, tomadas donde el layout ya está fresco (scroll y ResizeObserver). */
+    const metricasScrollRef = useRef({ scrollHeight: 0, scrollTop: 0, clientHeight: 0 });
     // ===== [P2-CHAT-SCROLL-MODES · 2026-09-04] Un solo modelo de scroll, calcado de ChatGPT =====
     // mode: 'bottom'   → pegado al fondo: cualquier crecimiento (respuesta, imágenes, markdown) lo
     //                    mantiene abajo, SIN animar.
@@ -2417,6 +2424,7 @@ const AgentPage = () => {
         const ro = new ResizeObserver(() => {
             const delta = altoPrevio - el.clientHeight;
             altoPrevio = el.clientHeight;
+            metricasScrollRef.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight };
             ultimoCambioDeAltoRef.current = Date.now();
             if (settleTimerRef.current) { _pinBottomInstant(); _armSettle(); return; }
             const mode = scrollModeRef.current;
@@ -2492,16 +2500,19 @@ const AgentPage = () => {
 
     // [P1-PLAN-LOTE-115] Al abrir el teclado: que lo que el agente acaba de decir —casi siempre una pregunta— quede a
     // la vista encima de la caja. La decisión es pura (utils/chatKeyboardScroll.js); aquí solo se ejecuta.
+    // [P1-PLAN-LOTE-306] Las medidas salen de `metricasScrollRef` (las guardan el scroll y el ResizeObserver, donde el
+    // layout ya está calculado). Leerlas aquí —justo después de que el teclado escribe `--app-height`— forzaba un layout
+    // síncrono de toda la conversación: 82 ms en el primer fotograma de la subida (80 mensajes, CPU ×4, medido).
     alAbrirTecladoRef.current = () => {
-        const el = messagesContainerRef.current;
         const msgs = messagesRef.current || [];
+        const m = metricasScrollRef.current;
         const accion = decidirScrollAlAbrirTeclado({
             mode: scrollModeRef.current,
             streaming: Boolean(msgs[msgs.length - 1]?.isStreaming),
             virtualizada: msgs.length > VIRTUALIZE_THRESHOLD,
-            scrollHeight: el?.scrollHeight || 0,
-            scrollTop: el?.scrollTop || 0,
-            clientHeight: el?.clientHeight || 0,
+            scrollHeight: m.scrollHeight,
+            scrollTop: m.scrollTop,
+            clientHeight: m.clientHeight,
             spacerPx: spacerPxRef.current,
         });
         ultimaAccionAlAbrirRef.current = accion;   // [131] la coreografía del teclado lo lee: ¿la lista va a ir al final?
@@ -2514,6 +2525,7 @@ const AgentPage = () => {
         if (!el) return;
         try {
             const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+            metricasScrollRef.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop, clientHeight: el.clientHeight };
             const goingUp = el.scrollTop < lastScrollTopRef.current - 1;
             lastScrollTopRef.current = el.scrollTop;
             const mode = scrollModeRef.current;
@@ -4573,6 +4585,7 @@ const AgentPage = () => {
     const renderInputArea = (isCentered = false) => (
         <div
             className={`input-wrapper${isListening ? ' dictando' : ''}`}
+            data-kb-anima=""
             ref={inputWrapperRef}
             onPointerDownCapture={() => { composerPointerDownRef.current = true; }}
             onPointerUpCapture={() => {
@@ -5465,6 +5478,7 @@ const AgentPage = () => {
                 .attachment-remove:disabled { opacity: 0.5; cursor: default; }
             `}</style>
             <div className="agent-container"
+                data-kb-anima=""
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}

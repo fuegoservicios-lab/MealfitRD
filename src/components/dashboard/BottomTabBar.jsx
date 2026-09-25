@@ -59,7 +59,7 @@ const BottomTabBar = () => {
     };
 
     return (
-        <nav ref={navRef} className={`${styles.tabBar} ${plegada ? styles.plegada : ''}`} {...gestos}>
+        <nav ref={navRef} className={`${styles.tabBar} ${plegada ? styles.plegada : ''}`} data-kb-anima="" {...gestos}>
             {/* El asa. [P1-PLAN-LOTE-119] Abierta es una LENGÜETA con flecha que sobresale del borde superior (la píldora
                 gris del 118 no decía «tócame»: el dueño); plegada, toda la franja que queda a la vista, con la flecha
                 hacia arriba. `pista`: las primeras veces la flecha se mece para presentarse, y calla en cuanto se usa. */}

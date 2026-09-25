@@ -57,8 +57,9 @@ describe('lote 129 · el chat escucha el aviso y las TRES piezas comparten su du
         expect(ap).toContain("const CLAVE_MS_NATIVO = 'mf_kb_ms_nativo';");
         const k = ap.indexOf('const fijarDuracionTeclado = (ms) => {');
         const cuerpo = ap.slice(k, ap.indexOf('\n        };', k));
-        expect(cuerpo).toContain("root.style.setProperty('--kb-ms', `${ms}ms`);");
-        expect(cuerpo).toContain("root.style.removeProperty('--kb-ms');");
+        // [P1-PLAN-LOTE-306] ya no en <html> (recalculaba el estilo de todo el chat): en cada pieza que anima
+        expect(cuerpo).toContain("piezasQueAnimanAlTeclado().forEach((el) => el.style.setProperty('--kb-ms', `${ms}ms`));");
+        expect(cuerpo).toContain('quitarDuracionDelTeclado();');
         expect(ap.split('fijarDuracionTeclado(Number(safeLocalStorageGet(CLAVE_MS_NATIVO, 0)) || 0);').length - 1).toBe(2);
     });
 
