@@ -55,7 +55,8 @@ describe('wizard: preguntas §6.7 detrás del knob', () => {
         for (const id of ['habits', 'shoppingHabits', 'stapleFoods', 'goalTarget', 'supplements', 'pantryBuilder', 'trackingFinish']) {
             expect(FLOW).toContain(`id: '${id}',`);
         }
-        expect((FLOW.match(/^\s+id: '[A-Za-z]+',$/gm) || []).length).toBe(7);
+        // [P1-PLAN-LOTE-292] 'supplements' está en las DOS ramas (plan y contador; nunca a la vez): 8 líneas, 7 ids.
+        expect((FLOW.match(/^\s+id: '[A-Za-z]+',$/gm) || []).length).toBe(8);
         expect(FLOW).toContain("trackWizard('wizard_submit', {");
         expect(FLOW).toContain("window.addEventListener('pagehide', onHide);");
     });

@@ -65,6 +65,7 @@ const _CAMPO_EN_PASO = {
     bodyFat: 'age', waistCm: 'age', weightUnit: 'age',
     targetWeight: '#goalTarget', goalPace: '#goalTarget',
     selectedSupplements: '#supplements',
+    currentSupplements: '#supplements',   // [P1-PLAN-LOTE-292]
 };
 // El paso final (lleva el envío) nunca se filtra en «completar»: se añade siempre al final de la lista.
 const _PASOS_FINALES = ['supplements', 'pantryBuilder'];
@@ -629,8 +630,9 @@ const InteractiveAssessmentFlow = () => {
             component: <QMotivation onManualAdvance={nextStep} />
         },
         {
+            // [P1-PLAN-LOTE-292] «¿qué tomas?» + «¿te recomendamos?» (ver QSupplements)
             title: t('Suplementación (Opcional)'),
-            subtitle: t('¿Te gustaría incluir suplementos profesionales en tu plan?'),
+            subtitle: t('Lo que ya tomas va a tu Alacena y al plan; si quieres, te recomendamos lo que tiene respaldo.'),
             hasInternalNext: true,
             // [P1-PANTRY-WIZARD-STEP · 2026-07-11] En modo pantry este step ya NO es el
             // final: avanza al paso "Prepara tu Nevera" (abajo) y el submit vive allí.
@@ -728,6 +730,14 @@ const InteractiveAssessmentFlow = () => {
             // ENTRAR al paso, con dos llamadas de red aún por delante que pueden
             // fallar. El título nombra el paso; el «listo» lo declara el toast
             // de éxito, que sí sabe si lo está.
+            // [P1-PLAN-LOTE-292] también en modo contador: lo que toma va a su Alacena y el coach lo conoce.
+            title: t('Suplementación (Opcional)'),
+            subtitle: t('Lo que ya tomas va a tu Alacena: el coach lo usa para registrar tus scoops.'),
+            hasInternalNext: true,
+            id: 'supplements',
+            component: <QSupplements modoContador onFinish={() => nextStep()} finishLabel={t('Siguiente')} />
+        },
+        {
             title: <>{t('Último paso: tu contador')}</>,
             subtitle: t('Sin plan generado, sin gastar créditos. Lo enciendes cuando quieras.'),
             hasInternalNext: true,

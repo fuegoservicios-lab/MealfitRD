@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { Gauge, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../../config/api';
+import { guardarSuplementosEnAlacena } from '../../../utils/normalizarSuplementos';
 import { useAssessment } from '../../../context/AssessmentContext';
 import { TRACKING_REQUIRED_FIELDS } from '../../../config/formValidation';
 import { useT } from '../../../i18n';
@@ -137,6 +138,8 @@ export const QTrackingFinish = () => {
                 body: JSON.stringify({ plan_mode: 'tracking' }),
             });
             if (!r2.ok) throw Object.assign(new Error(t('No se pudo activar el modo contador.')), { paraMostrar: true });
+            // [P1-PLAN-LOTE-292] Lo que toma, a su Alacena (fire-and-forget: el contador ya quedó listo).
+            guardarSuplementosEnAlacena(hp, fetchWithAuth);
 
             safeLocalStorageSet('mealfit_plan_mode', 'tracking');
 

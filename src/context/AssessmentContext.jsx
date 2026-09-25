@@ -203,7 +203,7 @@ const AssessmentContext = createContext();
 // budgetCurrency hidrata cuando está vacío o cuando un formulario legacy conserva aquel default
 // DOP; el DB refleja la última elección persistida y la edición viva la protege editedFieldsRef.
 const _hydrateFieldQualifies = (k, cur, v) => {
-    if (k === 'targetWeightAuto' || k === 'includeSupplements') {
+    if (k === 'targetWeightAuto' || k === 'includeSupplements' || k === 'recommendSupplements') {   // +292
         return cur !== true && v === true;
     }
     if (k === 'budgetCurrency') {

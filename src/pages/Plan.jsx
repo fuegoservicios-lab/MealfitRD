@@ -1332,6 +1332,9 @@ const Plan = () => {
                 } catch (_lsErr) { /* localStorage full / disabled — best-effort */ }
                 // [P1-PLAN-LOTE-228] En la app nativa, el permiso para avisar «Tu plan está listo» si sale de la app.
                 import('../utils/avisoPlanListo').then((m) => m.prepararAvisoPlanListo()).catch(() => {});
+                // [P1-PLAN-LOTE-292] Lo que toma, a su Alacena (fire-and-forget: nunca frena la generación).
+                import('../utils/normalizarSuplementos')
+                    .then((m) => m.guardarSuplementosEnAlacena(dataToSend, fetchWithAuth)).catch(() => {});
 
                 const generatedPlan = await generateAIPlanStream(dataToSend, handleProgress);
 

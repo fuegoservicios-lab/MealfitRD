@@ -194,7 +194,6 @@ import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWit
 import { lineaDeIngredienteVisible } from '../utils/nombresDeAlimentos';
 import { sugerenciaDePresupuesto, sustitucionDePresupuesto } from '../utils/avisosDePresupuesto';
 import { nombreDeRegistro } from '../utils/nombreDeRegistro';
-import { useTextosTraducidos } from '../hooks/useTextosTraducidos';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
@@ -5078,10 +5077,6 @@ const DashboardInner = () => {
     const weekNavReady = useMemo(() => buildTimeline(planData).ok, [planData]);
 
     const currentDayMeals = currentDayRecord?.meals || [];
-    const currentDaySupplements = currentDayRecord?.supplements || [];
-    // [P1-PLAN-LOTE-225 · 2026-09-24] Los suplementos del día los escribe el modelo en español y no viven en `_display`:
-    // se traducen al leer (hooks/useTextosTraducidos.js). El dato no cambia.
-    const _trSupp = useTextosTraducidos(currentDaySupplements.flatMap((s) => (s && typeof s === 'object' ? [s.name, s.dose, s.timing, s.reason] : [])));
 
     // [P1-NOTEBOOK-MARGIN-EMPTY · 2026-08-21] ¿El día activo tiene platos que
     // renderizar? MISMA condición que decide EmptyState vs timeline en el render
@@ -9527,69 +9522,8 @@ const DashboardInner = () => {
 
                     </div>
 
-                    {/* SUPPLEMENTS SECTION */}
-                    {currentDaySupplements.length > 0 && (
-                        <div style={{
-                            marginTop: '1.5rem',
-                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(168, 85, 247, 0.08) 100%)',
-                            borderRadius: '1.5rem',
-                            border: '1px solid rgba(139, 92, 246, 0.15)',
-                            padding: '1.5rem',
-                            boxShadow: '0 4px 15px -5px rgba(139, 92, 246, 0.1)'
-                        }}>
-                            <h3 style={{
-                                fontSize: '1rem', fontWeight: 800, color: '#6D28D9',
-                                marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
-                            }}>
-                                <div style={{
-                                    background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
-                                    color: 'white', borderRadius: '10px',
-                                    width: 32, height: 32,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}>
-                                    <Pill size={16} />
-                                </div>
-                                {t('Suplementos del Día')}
-                                <span style={{
-                                    marginLeft: 'auto', fontSize: '0.75rem', fontWeight: 600,
-                                    background: 'color-mix(in srgb, var(--primary) 16%, transparent)', color: 'var(--primary)',
-                                    padding: '0.2rem 0.6rem', borderRadius: '9999px'
-                                }}>
-                                    {currentDaySupplements.length}
-                                </span>
-                            </h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                {currentDaySupplements.map((supp, i) => (
-                                    <div key={i} style={{
-                                        background: 'var(--bg-card)',
-                                        borderRadius: '1rem',
-                                        padding: '1rem 1.25rem',
-                                        border: '1px solid rgba(139, 92, 246, 0.1)',
-                                        display: 'flex', flexDirection: 'column', gap: '0.35rem'
-                                    }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
-                                                💊 {_trSupp(supp.name)}
-                                            </span>
-                                            <span style={{
-                                                fontSize: '0.7rem', fontWeight: 700,
-                                                background: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)',
-                                                padding: '0.15rem 0.5rem', borderRadius: '6px'
-                                            }}>
-                                                {_trSupp(supp.timing)}
-                                            </span>
-                                        </div>
-                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                            {t('Dosis: {dosis}', { dosis: _trSupp(supp.dose) })}
-                                        </div>
-                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                            {_trSupp(supp.reason)}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    {/* [P1-PLAN-LOTE-292 · 2026-09-25] Los suplementos ya no van aquí: viven en Nevera → Alacena,
+                        con porciones, etiqueta y lo que pide el plan (components/pantry/GrupoSuplementos.jsx). */}
                 </div>
 
                 {/* Right Column: INSIGHTS & INGREDIENTS */}

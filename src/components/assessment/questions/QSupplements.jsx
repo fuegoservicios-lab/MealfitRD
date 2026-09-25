@@ -7,6 +7,7 @@ import { Check, Pill, Zap, Ban } from 'lucide-react';
 import { handleActivationKey } from './_shared';
 import { NextButton } from './NextButton';
 import { useT } from '../../../i18n';
+import { normalizarSuplementos } from '../../../utils/normalizarSuplementos';
 
 // [P1-FORM-14] Metadata UI por suplemento. Las claves DEBEN coincidir EXACTAMENTE
 // con `SUPPLEMENTS` (SSOT en formValidation.js). El check de invariante debajo
@@ -74,130 +75,131 @@ if (import.meta.env?.MODE === 'development') {
 // [P1-PANTRY-WIZARD-STEP · 2026-07-11] `finishLabel` opcional: en modo pantry este
 // step ya no es el final del wizard (avanza al paso "Prepara tu Nevera") y el botón
 // dice "Siguiente" en vez de "Finalizar y Generar".
-export const QSupplements = ({ onFinish, isSubmitting, finishLabel }) => {
+//
+// [P1-PLAN-LOTE-292 · 2026-09-25] Dos preguntas que antes iban mezcladas en un interruptor: «¿Tomas algún
+// suplemento?» (también en modo contador: lo marcado se guarda en la Alacena y el plan lo incluye como SUYO) y, solo
+// con el generador, «¿Quieres que te recomendemos alguno para tu meta?» (la IA recomienda solo lo que tiene respaldo;
+// nunca quemadores, pre-entrenos ni BCAA). Campos `currentSupplements` + `recommendSupplements`; los viejos
+// (`includeSupplements`/`selectedSupplements`) se siguen escribiendo en espejo para los lectores antiguos.
+export const QSupplements = ({ onFinish, isSubmitting, finishLabel, modoContador = false }) => {
     const { formData, updateData } = useAssessment();
     const t = useT();
     const supplementLabels = getSupplementLabels(t);
     // Etiqueta visible: traducción si existe, y si no el label del SSOT (español).
     const labelOf = (val) => supplementLabels[val] ?? SUPPLEMENT_META[val]?.label ?? val;
 
-    // [P1-SUPPLEMENT-CLINICAL-GATE · 2026-08-12] Chips vetados por el perfil
-    // clínico (espejo UI de la tabla backend; el enforcement real es el gate
-    // del prompt + la barredora post-gen). Patrón dead-control con MOTIVO
-    // (P1-PLANSOURCE-DEAD-CONTROL): el chip se ve, no se puede marcar, y el
-    // tap explica por qué — un control que desaparece sin explicación parece
-    // un bug; uno gris que explica es una decisión clínica visible.
-    // [P1-I18N-SUPPLEMENT-HINT · 2026-08-22] `t` en render: el hint viaja al toast y al
-    // aria-label del chip vetado, y era la unica frase que explicaba POR QUE esta bloqueado.
+    // [P1-SUPPLEMENT-CLINICAL-GATE · 2026-08-12] Chips vetados por el perfil clínico (espejo UI de la tabla backend):
+    // el chip se ve, no se puede marcar, y el tap explica por qué.
     const blocked = blockedSupplementsFor(formData, t);
 
-    // Auto-limpieza: si una selección vieja quedó vetada (marcó el suplemento
-    // ANTES de declarar la condición y volvió atrás), se retira con aviso.
-    // Sin esto el estado mentiría: chip bloqueado pero internamente marcado.
+    const normal = normalizarSuplementos(formData);
+    const toma = Array.isArray(formData.currentSupplements) ? formData.currentSupplements : normal.toma;
+    const recomendar = typeof formData.recommendSupplements === 'boolean' ? formData.recommendSupplements : normal.recomendar;
+
+    const fijar = (lista, rec) => {
+        updateData('currentSupplements', lista);
+        updateData('recommendSupplements', rec);
+        updateData('includeSupplements', lista.length > 0 || rec);
+        updateData('selectedSupplements', lista);
+    };
+
+    // Un formulario guardado con el paso viejo arranca con lo que ya había elegido.
     useEffect(() => {
-        const current = formData.selectedSupplements || [];
-        const vetados = current.filter((s) => blocked[s]);
+        if (!Array.isArray(formData.currentSupplements)) fijar(normal.toma, normal.recomendar);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Auto-limpieza: si una selección vieja quedó vetada, se retira con aviso (el estado no miente).
+    useEffect(() => {
+        const vetados = toma.filter((s) => blocked[s]);
         if (vetados.length) {
-            updateData('selectedSupplements', current.filter((s) => !blocked[s]));
+            fijar(toma.filter((s) => !blocked[s]), recomendar);
             toast.info(t('Quitamos suplementos no recomendados con tu perfil.'), {
                 description: vetados.map((s) => labelOf(s) || s).join(', '),
                 duration: 5000,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [JSON.stringify(Object.keys(blocked)), JSON.stringify(formData.selectedSupplements || [])]);
+    }, [JSON.stringify(Object.keys(blocked)), JSON.stringify(toma)]);
+
+    const alternarRecomendar = () => fijar(toma, !recomendar);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div
-                onClick={() => {
-                    const newVal = !formData.includeSupplements;
-                    updateData('includeSupplements', newVal);
-                    if (!newVal) updateData('selectedSupplements', []);
-                }}
-                onKeyDown={handleActivationKey(() => {
-                    const newVal = !formData.includeSupplements;
-                    updateData('includeSupplements', newVal);
-                    if (!newVal) updateData('selectedSupplements', []);
-                })}
-                role="switch"
-                aria-checked={!!formData.includeSupplements}
-                aria-label={t('Incluir Suplementos')}
-                tabIndex={0}
-                style={{
-                    cursor: 'pointer', padding: '1.25rem 1.5rem',
-                    borderRadius: formData.includeSupplements ? '1rem 1rem 0 0' : '1rem',
-                    border: formData.includeSupplements ? '2px solid var(--supplement-accent)' : '1px solid var(--border)',
-                    backgroundColor: formData.includeSupplements ? 'var(--supplement-tint)' : 'var(--bg-card)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
-                }}
-            >
-                <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, color: formData.includeSupplements ? 'var(--supplement-accent)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <Pill size={20} style={{ color: formData.includeSupplements ? 'var(--supplement-accent)' : 'var(--text-muted)' }} />
-                        {t('Incluir Suplementos')}
-                    </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+                <div style={{ fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <Pill size={20} style={{ color: 'var(--supplement-accent)' }} />
+                    {t('¿Tomas algún suplemento?')}
                 </div>
-                {/* Toggle UI */}
-                <div style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: formData.includeSupplements ? 'var(--supplement-accent)' : 'var(--toggle-track-off)', boxShadow: formData.includeSupplements ? 'none' : 'inset 0 0 0 1px rgba(255,255,255,0.18), inset 0 1px 2px rgba(0,0,0,0.25)', position: 'relative', transition: 'background-color 0.2s', flexShrink: 0 }}>
-                     <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: 3, left: formData.includeSupplements ? 23 : 3, transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
+                <p style={{ margin: '0.35rem 0 0.9rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    {t('Márcalos y los guardamos en tu Alacena.')}
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.75rem' }}>
+                    {SUPPLEMENTS.map((val) => {
+                        const meta = SUPPLEMENT_META[val];
+                        if (!meta) return null;  // safety net — el invariante de arriba ya avisó
+                        const isSelected = toma.includes(val);
+                        const blockHint = blocked[val];
+                        const toggleSupplement = () => {
+                            if (blockHint) {
+                                toast.info(t('No recomendado con tu perfil médico.'), { description: blockHint, duration: 4500 });
+                                return;
+                            }
+                            fijar(isSelected ? toma.filter((s) => s !== val) : [...toma, val], recomendar);
+                        };
+                        return (
+                            <div
+                                key={val}
+                                onClick={(e) => { e.stopPropagation(); toggleSupplement(); }}
+                                onKeyDown={handleActivationKey(toggleSupplement)}
+                                role="button"
+                                aria-pressed={isSelected}
+                                aria-disabled={!!blockHint}
+                                aria-label={blockHint ? `${labelOf(val)} — ${blockHint}` : labelOf(val)}
+                                tabIndex={0}
+                                style={{
+                                    cursor: blockHint ? 'not-allowed' : 'pointer', padding: '0.75rem', borderRadius: '0.75rem',
+                                    border: isSelected ? '1.5px solid var(--supplement-accent)' : '1px solid var(--border)',
+                                    backgroundColor: isSelected ? 'var(--supplement-tint)' : 'var(--bg-card)', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                    opacity: blockHint ? 0.45 : 1,
+                                }}
+                            >
+                                <span>{meta.emoji}</span>
+                                <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--supplement-accent-strong)' : 'var(--text-main)' }}>{labelOf(val)}</span>
+                                {blockHint
+                                    ? <Ban size={14} style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }} />
+                                    : isSelected && <Check size={14} style={{ color: 'var(--supplement-accent)', marginLeft: 'auto' }} />}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
-            {formData.includeSupplements && (
-                <div style={{ padding: '1.5rem 1rem', border: '2px solid var(--supplement-accent)', borderTop: 'none', borderRadius: '0 0 1rem 1rem', marginTop: '-1.5rem', backgroundColor: 'var(--supplement-tint-soft)' }}>
-                    <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                        {t('* Si no marcas ninguno, la IA sugerirá los más adecuados para tu meta.')}
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.75rem' }}>
-                        {SUPPLEMENTS.map((val) => {
-                            const meta = SUPPLEMENT_META[val];
-                            if (!meta) return null;  // safety net — el invariante de arriba ya avisó
-                            const isSelected = (formData.selectedSupplements || []).includes(val);
-                            const blockHint = blocked[val];
-                            const toggleSupplement = () => {
-                                // [P1-SUPPLEMENT-CLINICAL-GATE] Vetado: el tap EXPLICA en vez
-                                // de marcar (aria-disabled emite click; disabled no emitiría
-                                // nada y el bloqueo parecería una app colgada).
-                                if (blockHint) {
-                                    toast.info(t('No recomendado con tu perfil médico.'), {
-                                        description: blockHint,
-                                        duration: 4500,
-                                    });
-                                    return;
-                                }
-                                const current = formData.selectedSupplements || [];
-                                const updated = current.includes(val) ? current.filter(s => s !== val) : [...current, val];
-                                updateData('selectedSupplements', updated);
-                            };
-                            return (
-                                <div
-                                    key={val}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleSupplement();
-                                    }}
-                                    onKeyDown={handleActivationKey(toggleSupplement)}
-                                    role="button"
-                                    aria-pressed={isSelected}
-                                    aria-disabled={!!blockHint}
-                                    aria-label={blockHint ? `${labelOf(val)} — ${blockHint}` : labelOf(val)}
-                                    tabIndex={0}
-                                    style={{
-                                        cursor: blockHint ? 'not-allowed' : 'pointer', padding: '0.75rem', borderRadius: '0.75rem',
-                                        border: isSelected ? '1.5px solid var(--supplement-accent)' : '1px solid var(--border)',
-                                        backgroundColor: isSelected ? 'var(--supplement-tint)' : 'var(--bg-card)', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                        opacity: blockHint ? 0.45 : 1,
-                                    }}
-                                >
-                                    <span>{meta.emoji}</span>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--supplement-accent-strong)' : 'var(--text-main)' }}>{labelOf(val)}</span>
-                                    {blockHint
-                                        ? <Ban size={14} style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }} />
-                                        : isSelected && <Check size={14} style={{ color: 'var(--supplement-accent)', marginLeft: 'auto' }} />}
-                                </div>
-                            );
-                        })}
+            {!modoContador && (
+                <div
+                    onClick={alternarRecomendar}
+                    onKeyDown={handleActivationKey(alternarRecomendar)}
+                    role="switch"
+                    aria-checked={!!recomendar}
+                    aria-label={t('¿Quieres que te recomendemos alguno para tu meta?')}
+                    tabIndex={0}
+                    style={{
+                        cursor: 'pointer', padding: '1rem 1.25rem', borderRadius: '1rem',
+                        border: recomendar ? '2px solid var(--supplement-accent)' : '1px solid var(--border)',
+                        backgroundColor: recomendar ? 'var(--supplement-tint)' : 'var(--bg-card)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+                    }}
+                >
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, color: recomendar ? 'var(--supplement-accent)' : 'var(--text-main)' }}>
+                            {t('¿Quieres que te recomendemos alguno para tu meta?')}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            {t('Solo lo que tiene respaldo: proteína, creatina, omega 3, vitaminas y minerales.')}
+                        </div>
+                    </div>
+                    <div style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: recomendar ? 'var(--supplement-accent)' : 'var(--toggle-track-off)', boxShadow: recomendar ? 'none' : 'inset 0 0 0 1px rgba(255,255,255,0.18), inset 0 1px 2px rgba(0,0,0,0.25)', position: 'relative', transition: 'background-color 0.2s', flexShrink: 0 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#fff', position: 'absolute', top: 3, left: recomendar ? 23 : 3, transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
                     </div>
                 </div>
             )}
