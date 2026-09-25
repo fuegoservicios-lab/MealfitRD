@@ -3625,5 +3625,9 @@
   "Formato de la imagen": "Image format",
   "Publicación": "Post",
   "Historia": "Story",
-  "Revisa esto antes de registrar:": "Check this before logging:"
+  "Revisa esto antes de registrar:": "Check this before logging:",
+  "Cambiar: {x}": "Change: {x}",
+  "Cambiar": "Change",
+  "Responde con un toque": "Answer with one tap",
+  "Responde con un toque:": "Answer with one tap:"
 }

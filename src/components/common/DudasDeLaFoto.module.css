@@ -1,0 +1,34 @@
+/* [P1-PLAN-LOTE-322] Dudas de la foto con respuestas de un toque (escáner y chat). */
+.lista { list-style: none; margin: 0.45rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.duda { display: flex; flex-direction: column; gap: 0.45rem; }
+.pregunta { line-height: 1.35; }
+.opciones { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.opcion {
+    min-height: 44px;
+    padding: 0.45rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid var(--border, rgba(148, 163, 184, 0.35));
+    background: var(--bg-card, transparent);
+    color: var(--text-main);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.opcion:disabled { opacity: 0.55; cursor: default; }
+.elegida {
+    border-color: var(--primary, #6366F1);
+    background: color-mix(in srgb, var(--primary, #6366F1) 22%, transparent);
+}
+.cerrada { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; min-height: 32px; }
+.cambiar {
+    margin-left: auto;
+    min-height: 32px;
+    padding: 0.2rem 0.7rem;
+    border: none;
+    background: none;
+    color: var(--primary, #6366F1);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}

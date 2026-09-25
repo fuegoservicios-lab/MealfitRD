@@ -1149,6 +1149,5 @@
     color: var(--text-main);
     font-size: 0.86rem;
 }
-.dudas ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
-.dudas li { margin: 0.15rem 0; }
+/* [P1-PLAN-LOTE-322] la lista de dudas la pinta DudasDeLaFoto (con sus propios márgenes) */
 

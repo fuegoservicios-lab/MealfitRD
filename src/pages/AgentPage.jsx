@@ -99,6 +99,8 @@ const MIC_CLIC_FANTASMA_MS = 700;
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen } from '../utils/chatImageProcessing';
+import { dudasDeLasFotos } from '../utils/dudasDeLaFoto';
+import RespuestasDeLaFoto from '../components/agent/RespuestasDeLaFoto';
 import { isNativeApp } from '../config/platform';
 import {
     chooseNativeChatImages,
@@ -1689,6 +1691,9 @@ const AgentPage = () => {
     // dentro del mismo frame de React verían ambos el state viejo (misma lección que
     // P1-FORM-4 en el formulario).
     const [isTurnActive, setIsTurnActive] = useState(false);
+    // [P1-PLAN-LOTE-322] Dudas de la foto con respuestas de un toque (y el chat al que pertenecen).
+    const [dudasDeLaFoto, setDudasDeLaFoto] = useState([]);
+    const dudasDeLaFotoSesionRef = useRef(null);
     const isTurnActiveRef = useRef(false);
     const _setTurnActive = useCallback((v) => {
         isTurnActiveRef.current = v;
@@ -3386,6 +3391,8 @@ const AgentPage = () => {
             toast.error(t('Estás sin conexión. Tu borrador está guardado y podrás enviarlo al volver.'));
             return;
         }
+        // [P1-PLAN-LOTE-322] Cualquier mensaje nuevo (incluida la respuesta de un toque) retira los botones.
+        setDudasDeLaFoto([]);
 
         // [P1-CHAT-TURN-ACTIVE · 2026-08-10] El guard mira el turno, no el «pensando»:
         // con `isLoading` quedaba abierto desde el primer token y se podían solapar
@@ -3675,6 +3682,8 @@ const AgentPage = () => {
                         image_url: data.image_url || '',
                         description: data.analysis_failed ? null : data.description,
                         kind: data.photo_kind || 'plato',
+                        // [P1-PLAN-LOTE-322] las dudas con opciones: bajo la respuesta del coach, como botones
+                        dudas: Array.isArray(data.dudas) ? data.dudas : [],
                         analysis_failed: Boolean(data.analysis_failed),
                         busy: Boolean(data.busy),
                     };
@@ -3769,6 +3778,9 @@ const AgentPage = () => {
                 const visionPayload = visionItems.length
                     ? { kind: 'multi', items: visionItems, has_text: !!userMsg }
                     : null;
+                // [P1-PLAN-LOTE-322] Las dudas de las fotos del turno, atadas a ESTE chat (no salen en otro).
+                setDudasDeLaFoto(dudasDeLasFotos(uploadedAttachments));
+                dudasDeLaFotoSesionRef.current = currentSessionId;
                 const enrichedPrompt = promptToSend;
 
                 setStreamingStatus(t('Conectando...'));
@@ -4685,6 +4697,10 @@ const AgentPage = () => {
                     ))}
                 </div>
             )}
+            {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó. */}
+            {dudasDeLaFoto.length > 0 && !isTurnActive && !chatDeOtroDia && dudasDeLaFotoSesionRef.current === currentSessionId && (
+                <RespuestasDeLaFoto dudas={dudasDeLaFoto} onEnviar={(texto) => handleSend(texto)} />
+            )}
             {/* [P1-PLAN-LOTE-226] Leyendo un chat de otro día: la salida al de hoy, a la vista (en el teléfono la
                 barra lateral está escondida). */}
             {chatDeOtroDia && !isTurnActive && (
@@ -5200,6 +5216,17 @@ const AgentPage = () => {
                    (Sin acentos graves en este comentario: vive dentro de un template literal.) */
                 .messages-container { overflow-x: hidden !important; }
                 /* [P2-CHAT-QUICK-CHIPS · 2026-09-03] Acciones rápidas sobre la caja. */
+                .chat-respuestas-foto {
+                    max-width: 800px;
+                    margin: 0 auto 0.5rem;
+                    padding: 0.7rem 0.9rem;
+                    border-radius: 1rem;
+                    border: 1px solid var(--border);
+                    background: var(--bg-card);
+                    width: calc(100% - 2rem);
+                    box-sizing: border-box;
+                }
+                .chat-respuestas-foto-titulo { font-size: 0.8rem; font-weight: 700; color: var(--text-muted, inherit); }
                 .chat-quick-chips {
                     display: flex;
                     gap: 0.45rem;

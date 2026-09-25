@@ -15,6 +15,7 @@
 //     congelar el número o de perderse.
 import { clampMacro } from './mealLogShared';
 import { redondearCantidad, cantidadParaServidor } from '../../utils/cantidadIngrediente';
+import { normalizarDudas } from '../../utils/dudasDeLaFoto';
 
 export const MACROS = ['calories', 'protein', 'carbs', 'healthy_fats'];
 // Los presets de porción. 1½× es nuevo: «repetí, pero menos» era imposible sin editar las cuatro macros a mano.
@@ -56,6 +57,13 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
     const desglose = componentes.length > 0
         && componentes.every((c) => c.macros)
         && componentes.some((c) => c.macros.calories > 0);
+    // [P1-PLAN-LOTE-322] Las dudas traen opciones de un toque; la que supuso la IA sale ya elegida (ajuste 0).
+    const dudas = normalizarDudas(data?.dudas);
+    const respuestas = {};
+    dudas.forEach((d, i) => {
+        const j = d.opciones.findIndex((o) => o.supuesta);
+        if (j >= 0) respuestas[i] = j;
+    });
     return {
         nombre: String(data?.meal_name || '').slice(0, 200) || nombrePorDefecto,
         base,
@@ -64,25 +72,51 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
         porcion: 1,
         ajuste: _cero(),
         // [P1-PLAN-LOTE-305] lo que la foto no deja saber (el análisis lo declara; máx. 2)
-        dudas: (Array.isArray(data?.dudas) ? data.dudas : [])
-            .filter((d) => d && typeof d === 'object' && String(d.pregunta || '').trim())
-            .slice(0, 2)
-            .map((d) => ({ sobre: String(d.sobre || '').slice(0, 60), pregunta: String(d.pregunta).trim().slice(0, 160) })),
+        dudas,
+        respuestas,
+        confirmadas: {},
     };
 }
 
-/** Lo derivado, sin redondear: la suma de los componentes marcados (con desglose) o el total de la foto × porción. */
+/** [P1-PLAN-LOTE-322] Lo que suman las opciones elegidas en las dudas (a porción 1×; la supuesta vale 0). */
+function ajusteDeRespuestas(plato) {
+    const out = _cero();
+    (plato.dudas || []).forEach((d, i) => {
+        const o = d.opciones?.[plato.respuestas?.[i]];
+        if (o) for (const k of MACROS) out[k] += Number(o.ajuste?.[k]) || 0;
+    });
+    return out;
+}
+
+/** Lo derivado, sin redondear: la suma de los componentes marcados (con desglose) o el total de la foto × porción,
+ *  más lo que cambian las opciones elegidas en las dudas (escaladas por la porción). */
 export function macrosDerivadas(plato) {
+    const extra = ajusteDeRespuestas(plato);
+    const f = plato.porcion || 1;
     if (plato.desglose) {
         const out = _cero();
         for (const c of plato.componentes) {
             if (!c.checked || !(c.qty > 0) || !(c.q0 > 0) || !c.macros) continue;
-            const f = c.qty / c.q0;
-            for (const k of MACROS) out[k] += c.macros[k] * f;
+            const r = c.qty / c.q0;
+            for (const k of MACROS) out[k] += c.macros[k] * r;
         }
+        for (const k of MACROS) out[k] += extra[k] * f;
         return out;
     }
-    return MACROS.reduce((acc, k) => ({ ...acc, [k]: (plato.base?.[k] || 0) * (plato.porcion || 1) }), {});
+    return MACROS.reduce((acc, k) => ({ ...acc, [k]: ((plato.base?.[k] || 0) + extra[k]) * f }), {});
+}
+
+/** [P1-PLAN-LOTE-322] Tocar una opción de una duda: la elige (las macros la reflejan al instante), la da por
+ *  confirmada y, si cambia qué es el plato («Arepa»), cambia el nombre. */
+export function conRespuesta(plato, iDuda, iOpcion) {
+    const o = plato.dudas?.[iDuda]?.opciones?.[iOpcion];
+    if (!o) return plato;
+    return {
+        ...plato,
+        nombre: o.nombre_plato || plato.nombre,
+        respuestas: { ...(plato.respuestas || {}), [iDuda]: iOpcion },
+        confirmadas: { ...(plato.confirmadas || {}), [iDuda]: true },
+    };
 }
 
 /** Lo que se pinta y se guarda: lo derivado más lo corregido a mano, con los topes del servidor (enteros). */

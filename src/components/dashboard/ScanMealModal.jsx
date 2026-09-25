@@ -28,6 +28,7 @@ import MacroInput from '../common/MacroInput';
 // [P1-PLAN-LOTE-224] La cantidad de cada ingrediente: «− [campo] +», sin el 0 que no se dejaba borrar.
 import QuantityStepper from '../common/QuantityStepper';
 import { useT, useTn, formatNumber, getLocale } from '../../i18n';
+import DudasDeLaFoto from '../common/DudasDeLaFoto';
 import { glossUnitWord } from '../../utils/shoppingHelpers';
 import { unidadParaCantidad } from '../../utils/cantidadIngrediente';
 // [P1-PLAN-LOTE-225] Nombres de alimento y líneas de ingrediente en el idioma del usuario (para PINTAR).
@@ -57,6 +58,7 @@ import {
     conPorcion,
     conCantidad,
     conComponenteAlternado,
+    conRespuesta,
     ingredientesParaGuardar,
     nombresSinRepetir,
     totalesDe,
@@ -215,7 +217,14 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar }) => {
             {Array.isArray(plato.dudas) && plato.dudas.length > 0 && (
                 <div role="note" className={styles.dudas}>
                     <strong>{t('Revisa esto antes de registrar:')}</strong>
-                    <ul>{plato.dudas.map((d) => <li key={d.pregunta}>{d.pregunta}</li>)}</ul>
+                    {/* [P1-PLAN-LOTE-322] Respuestas de un toque: la opción mueve las macros al instante. */}
+                    <DudasDeLaFoto
+                        dudas={plato.dudas}
+                        respuestas={plato.respuestas}
+                        confirmadas={plato.confirmadas}
+                        bloqueado={bloqueado}
+                        onElegir={(d, o) => onCambiar((p) => conRespuesta(p, d, o))}
+                    />
                 </div>
             )}
             <section className={styles.section} aria-labelledby={`${ids}-nombre`}>

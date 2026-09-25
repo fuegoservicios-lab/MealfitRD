@@ -15,8 +15,9 @@ describe('[305] dudas de la foto en el escáner', () => {
                 { sobre: 'aceite', pregunta: '¿Con aceite o mantequilla?' }, { pregunta: '¿Una tercera?' }],
         });
         expect(p.dudas).toEqual([
-            { sobre: 'huevo', pregunta: '¿Cuántos huevos eran?' },
-            { sobre: 'aceite', pregunta: '¿Con aceite o mantequilla?' },
+            // [P1-PLAN-LOTE-322] cada duda trae ahora sus opciones de un toque (aquí ninguna)
+            { sobre: 'huevo', pregunta: '¿Cuántos huevos eran?', opciones: [] },
+            { sobre: 'aceite', pregunta: '¿Con aceite o mantequilla?', opciones: [] },
         ]);
         expect(platoDesdeAnalisis({ macros: {} }).dudas).toEqual([]);
     });
