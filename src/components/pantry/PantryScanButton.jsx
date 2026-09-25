@@ -52,6 +52,8 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import CameraViewfinder from '../common/CameraViewfinder';
 import { useT, useTn } from '../../i18n';
 import { glossUnitWord } from '../../utils/shoppingHelpers';
+// [P1-PLAN-LOTE-222] El alimento del catálogo, en el idioma del usuario (lo que se añade sigue siendo el canónico).
+import { nombreDelAlimento } from '../../utils/nombresDeAlimentos';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
 import { mensajeDeError } from '../../utils/errorCopy';
@@ -297,7 +299,7 @@ export const PantryScanButton = ({ enabled, inventory, onInventoryChanged, style
                         onChange={() => setScanResults(prev => prev.map((p, i) =>
                             i === idx ? { ...p, selected: !p.selected } : p))} />
                     <span style={{ flex: 1 }}>
-                        {it.catalog_name || it.detected_name}
+                        {it.catalog_name ? nombreDelAlimento(it.catalog_name) : it.detected_name}
                         {it.detected_brand && (
                             <span style={{ color: 'var(--primary)', fontSize: '0.8rem' }}> · {it.detected_brand}</span>
                         )}

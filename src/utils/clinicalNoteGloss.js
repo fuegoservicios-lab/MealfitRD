@@ -40,7 +40,7 @@
 // así que ese caso sólo aparece si alguien cambia el texto del backend sin actualizar
 // aquí, y `test_p2_i18n_pdf_nota_clinica.py` lo convierte en rojo.
 
-import { i18nKey } from '../i18n';
+import { getLocale, i18nKey } from '../i18n';
 
 /**
  * Los diez fragmentos FIJOS de la advertencia. La clave es el texto español, igual que
@@ -256,4 +256,19 @@ export const glossReviewIssue = (texto, t) => {
     } catch {
         return texto;
     }
+};
+
+/**
+ * [P1-PLAN-LOTE-222 · 2026-09-24] Una observación del revisor LEGIBLE en el idioma activo, o `null`.
+ *
+ * `glossReviewIssue` es fail-soft: lo que no reconoce lo devuelve tal cual, y eso es español. En una interfaz en
+ * español está bien; en otra, la observación desconocida salía en español bajo un título traducido. Aquí, fuera
+ * del español, una observación que no casa con ninguna frase conocida devuelve `null` y quien la pinta decide (la
+ * omite y deja el aviso genérico, que sí está traducido).
+ */
+export const reviewIssueLegible = (texto, t, locale = getLocale()) => {
+    if (typeof texto !== 'string' || !texto.trim()) return null;
+    const out = glossReviewIssue(texto, t);
+    if (!locale || locale === 'es-DO') return out;
+    return CLAVES_REVIEW_ISSUE.some((c) => c && texto.includes(c)) ? out : null;
 };

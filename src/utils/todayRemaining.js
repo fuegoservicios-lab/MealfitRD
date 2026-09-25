@@ -247,7 +247,7 @@ export function eatenChipLabel(slotMealType) {
  *    cualquier superficie futura que anote sin bloquear.
  *  - 'none' — la frase sola, sin CTA.
  */
-export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unlock') {
+export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unlock', nombrar = null) {
   // [P1-I18N-EATEN-CLAIM-FRASE-FABRICADA · 2026-08-23] Esta frase se CONCATENABA en
   // español: era el único motivo por el que un control está bloqueado, y salía en
   // español en los cinco idiomas. Su hermana `eatenChipLabel`, 26 líneas más arriba, sí se
@@ -266,7 +266,10 @@ export function eatenClaimForSlot(consumedTodayMeals, slotMealType, cta = 'unloc
   };
   const _clave = canonicalSlotKey(slotMealType);
   const slotNoun = (_clave && _slots[_clave]) || t('comida');
-  const names = eatenNamesForSlot(consumedTodayMeals, slotMealType);
+  // [P1-PLAN-LOTE-222 · 2026-09-24] `nombrar`: cómo se LEE cada nombre (utils/nombreDeRegistro.js — el plato del plan
+  // en el idioma del usuario). El dato del diario no cambia; sin `nombrar`, tal cual.
+  const names = eatenNamesForSlot(consumedTodayMeals, slotMealType)
+    .map((n) => (typeof nombrar === 'function' ? (nombrar(n) || n) : n));
   const kcal = Math.round(eatenKcalForSlot(consumedTodayMeals, slotMealType));
   const namesLabel = names.length > 0 ? `«${joinNamesEsDo(names)}»` : t('algo');
   const kcalPart = kcal > 0 ? ` (~${kcal} kcal)` : '';

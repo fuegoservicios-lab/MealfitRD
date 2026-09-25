@@ -26,6 +26,8 @@ import { ChipOption } from './_shared';
 import { PLAN_POLICY_FORM_UI, ANCHOR_SLOTS, ANCHOR_FREQUENCIES, PREPARATION_MODES, anchorDefaults, frequencyIdFor, slotLabel, frequencyLabel, preparationLabel } from '../../../config/planPolicy';
 import { NextButton } from './NextButton';
 import { getCachedMasterList, setCachedMasterList } from '../../../utils/pantryCache';
+// [P1-PLAN-LOTE-222] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
+import { nombreDeFila, nombreDelAlimento, formasDeBuscar } from '../../../utils/nombresDeAlimentos';
 import { useT, useTn } from '../../../i18n';
 
 const STAPLE_FOODS_MAX = 8;
@@ -130,9 +132,18 @@ export const QStapleFoods = ({ onManualAdvance }) => {
             //
             // ⚠️ Esto cubre UN idioma de los cuatro: `name_en` es un gloss inglés, no un
             // catálogo multilingüe. En fr/it/pt el buscador sigue exigiendo el español.
-            .filter(m => (norm(m.name).includes(q) || norm(m.name_en || '').includes(q))
+            //
+            // [P1-PLAN-LOTE-222 · 2026-09-24] Y en los otros tres: cada fila trae su nombre en los 5 idiomas
+            // (`names`), así que un francés que escribe «poulet» ya encuentra la pechuga. El rango se mide sobre el
+            // nombre que se PINTA; las demás formas (canónico, alias, otros idiomas) entran con +0.5.
+            .filter(m => formasDeBuscar(m).some((f) => norm(f).includes(q))
                 && !selectedLower.has(norm(m.name)))
-            .map(m => ({ m, rank: rankOf(m.name, q) }))
+            .map(m => ({
+                m,
+                rank: norm(nombreDeFila(m)).includes(q)
+                    ? rankOf(nombreDeFila(m), q)
+                    : Math.min(...formasDeBuscar(m).filter((f) => norm(f).includes(q)).map((f) => rankOf(f, q))) + 0.5,
+            }))
             .sort((a, b) => a.rank - b.rank)
             .slice(0, MAX_RESULTS)
             .map(x => x.m)
@@ -180,11 +191,11 @@ export const QStapleFoods = ({ onManualAdvance }) => {
         const a = anchorFor(name);
         const freqId = frequencyIdFor(a.min_per_7d, a.max_per_7d);
         return (
-            <div role="group" aria-label={t('Ajustar {alimento}', { alimento: name })} style={{
+            <div role="group" aria-label={t('Ajustar {alimento}', { alimento: nombreDelAlimento(name) })} style={{
                 display: 'flex', flexDirection: 'column', gap: '0.8rem', padding: '0.9rem 1rem',
                 borderRadius: '0.9rem', border: '1px solid var(--border)', background: 'var(--bg-card)',
             }}>
-                <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{t('Ajustar {alimento}', { alimento: name })}</strong>
+                <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{t('Ajustar {alimento}', { alimento: nombreDelAlimento(name) })}</strong>
                 <div>
                     <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{t('¿En qué comidas?')}</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
@@ -312,7 +323,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                                     width: '100%', padding: '0.65rem 0.9rem', background: 'none',
                                     border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '0.9rem',
                                 }}>
-                                <span>{m.name}</span>
+                                <span>{nombreDeFila(m)}</span>
                             </button>
                         ))}
                     </div>
@@ -347,10 +358,10 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                             border: '1px solid var(--primary)', background: 'rgba(37, 99, 235, 0.12)',
                             color: 'var(--text-main)', fontSize: '0.85rem', fontWeight: 600,
                         }}>
-                            {name}
-                            {/* El nombre viene del catálogo (SSOT del motor): se interpola, no se traduce. */}
+                            {nombreDelAlimento(name)}
+                            {/* [P1-PLAN-LOTE-222] Se GUARDA el canónico (SSOT del motor) y se PINTA en el idioma del usuario. */}
                             {PLAN_POLICY_FORM_UI && (
-                                <button type="button" aria-label={t('Ajustar {alimento}', { alimento: name })} aria-pressed={editing === name}
+                                <button type="button" aria-label={t('Ajustar {alimento}', { alimento: nombreDelAlimento(name) })} aria-pressed={editing === name}
                                     onClick={() => setEditing(editing === name ? null : name)}
                                     style={{
                                         display: 'inline-flex', background: 'none', border: 'none',
@@ -359,7 +370,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                                     <SlidersHorizontal size={14} />
                                 </button>
                             )}
-                            <button type="button" aria-label={t('Quitar {alimento} de tus básicos', { alimento: name })}
+                            <button type="button" aria-label={t('Quitar {alimento} de tus básicos', { alimento: nombreDelAlimento(name) })}
                                 onClick={() => removeStaple(name)}
                                 style={{
                                     display: 'inline-flex', background: 'none', border: 'none',
@@ -384,7 +395,7 @@ export const QStapleFoods = ({ onManualAdvance }) => {
                         («uno», «ese espacio») ya existía escrita a mano. */}
                     {collapsedGroups.map((g) => (
                         <p key={g.join('|')} style={{ margin: '0 0 0.35rem' }}>
-                            {t('Para la variedad, {alimentos} cuentan como', { alimentos: g.map((n) => `«${n}»`).join(' y ') })}
+                            {t('Para la variedad, {alimentos} cuentan como', { alimentos: g.map((n) => `«${nombreDelAlimento(n)}»`).join(' y ') })}
                             {' '}<strong>{t('el mismo alimento')}</strong>{t(': con elegir uno basta.')}
                         </p>
                     ))}

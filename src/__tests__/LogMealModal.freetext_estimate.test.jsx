@@ -47,7 +47,8 @@ describe('estimar macros de un texto libre', () => {
         await user.click(btn);
         await waitFor(() => expect(screen.getByLabelText(/^Calorías/)).toHaveValue(520));
         const llamada = fetchWithAuth.mock.calls.find(([u]) => String(u).includes('estimate-macros'));
-        expect(JSON.parse(llamada[1].body)).toEqual({ text: 'mangú con huevo frito', meal_type: expect.any(String) });
+        // [P1-PLAN-LOTE-222] + el idioma: el nombre y la porción que estima el servidor vuelven en el del usuario.
+        expect(JSON.parse(llamada[1].body)).toEqual({ text: 'mangú con huevo frito', meal_type: expect.any(String), locale: expect.any(String) });
         expect(screen.getByRole('status').textContent).toContain('Estimación aproximada (1 plato (~350 g)); ajústala si sabes más.');
         expect(screen.getByLabelText(/^Proteína/)).toHaveValue(18);
         // sigue siendo editable: la estimación es un borrador, no una decisión

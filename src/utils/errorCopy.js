@@ -26,6 +26,8 @@
 // otros sólo miran `err.code`—, así que migrarlos a ciegas cambiaría comportamiento que
 // nadie ha medido. Quedan documentados en el guard como deuda con nombre.
 
+import { getLocale } from '../i18n';
+
 /**
  * Los códigos que el backend emite hoy, con su copy traducible.
  *
@@ -115,3 +117,25 @@ export function mensajeDeError(data, fallback, t) {
 
 /** Los códigos con copy, para que un test pueda cotejarlos contra el backend. */
 export const CODIGOS_CON_COPY = Object.keys(COPY_POR_CODIGO);
+
+/**
+ * [P1-PLAN-LOTE-222 · 2026-09-24] El `message`/`detail` en prosa de un endpoint que NO emite código (la Nevera, los
+ * cupones, la verificación de la suscripción): frases FIJAS del backend, en español.
+ *
+ * En español se enseña tal cual: es la fuente y trae el motivo concreto («Lista de ingredientes demasiado grande»).
+ * En los demás idiomas, su traducción si es una de las frases que el llamante declara conocidas (con `i18nKey`, para
+ * que el gate las extraiga), y si no, el `fallback` YA traducido: nunca la prosa española bajo un título traducido.
+ *
+ * @param {unknown} texto        lo que mandó el servidor
+ * @param {string[]} conocidas   las frases fijas de ese endpoint (claves del catálogo)
+ * @param {string} fallback      copy ya traducido (`t('…')` en el call site)
+ * @param {(k: string, v?: object) => string} t
+ */
+export function mensajeDelServidor(texto, conocidas, fallback, t, locale = getLocale()) {
+    const s = typeof texto === 'string' ? texto.trim() : '';
+    if (!s) return fallback;
+    if (!locale || locale === 'es-DO' || typeof t !== 'function') return s;
+    if (Array.isArray(conocidas) && conocidas.includes(s)) return t(s);
+    console.error('[P1-PLAN-LOTE-222] mensaje del servidor sin traducción:', s);
+    return fallback;
+}

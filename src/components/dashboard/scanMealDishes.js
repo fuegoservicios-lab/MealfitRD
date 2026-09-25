@@ -43,6 +43,9 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
             return {
                 key: String(i),
                 name: String(it.name).slice(0, 60),
+                // [P1-PLAN-LOTE-222] El nombre traducido que manda el servidor PARA LEER; `name` sigue siendo el que se
+                // guarda (identificador de la Nevera). Sin él, se pinta con el léxico del catálogo o en español.
+                display: typeof it.display_name === 'string' && it.display_name.trim() ? it.display_name.trim().slice(0, 60) : '',
                 unit: String(it.unit || 'unidad').slice(0, 20),
                 q0,
                 qty: q0,

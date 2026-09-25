@@ -27,6 +27,7 @@ import LogMealModal from './LogMealModal';
 import MicrosList from './MicrosList';
 import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
+import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import styles from './TrackingProgress.module.css';
 
 // [P1-COMPARTIR-DIA · 2026-09-23] La hoja se carga al abrirla: canvas + textos no pesan en el panel.
@@ -612,7 +613,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                         className={styles.mealRow}
                                     >
                                         <div className={styles.mealInfo}>
-                                            <span className={styles.mealName}>{meal.meal_name}</span>
+                                            {/* [P1-PLAN-LOTE-222] el nombre en el idioma del usuario (el dato no cambia) */}
+                                            <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t)}</span>
                                             <span className={styles.mealMeta}>
                                                 {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal
                                             </span>
@@ -621,7 +623,7 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                             <button
                                                 type="button"
                                                 className={styles.mealDeleteBtn}
-                                                aria-label={t('Eliminar {nombre} del diario', { nombre: meal.meal_name })}
+                                                aria-label={t('Eliminar {nombre} del diario', { nombre: nombreDeRegistro(meal.meal_name, planData, t) })}
                                                 onClick={() => handleDeleteMeal(meal)}
                                                 disabled={deletingMealId === meal.id}
                                             >

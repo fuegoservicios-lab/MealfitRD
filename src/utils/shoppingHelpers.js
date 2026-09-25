@@ -193,15 +193,28 @@ export const buildGlossIndex = (masterList) => {
         const es = m && typeof m.name === 'string' ? m.name : '';
         const en = m && typeof m.name_en === 'string' ? m.name_en.trim() : '';
         const glossEs = m && typeof m.gloss_es === 'string' ? m.gloss_es.trim() : '';
-        if (!es || (!en && !glossEs)) continue;
-        // Compatibilidad: las filas sin gloss_es conservan el valor string que ya
-        // persiste pantryCache v1; solo los regionalismos usan el objeto extendido.
+        // [P1-PLAN-LOTE-222 · 2026-09-24] Y el nombre en cada idioma, la misma forma que publica `pantryCache`.
+        const names = _nombresValidos(m && m.names);
+        if (!es || (!en && !glossEs && !names)) continue;
+        // Compatibilidad: las filas sin gloss_es ni names conservan el valor string que ya
+        // persiste pantryCache v1; el resto usa el objeto extendido.
         idx.set(
             _sinAcentos(es),
-            glossEs ? { name_en: en, gloss_es: glossEs } : en,
+            (glossEs || names)
+                ? { name_en: en, ...(glossEs ? { gloss_es: glossEs } : {}), ...(names ? { names } : {}) }
+                : en,
         );
     }
     return idx;
+};
+
+const _nombresValidos = (names) => {
+    if (!names || typeof names !== 'object') return null;
+    const out = {};
+    for (const [loc, v] of Object.entries(names)) {
+        if (typeof v === 'string' && v.trim()) out[loc] = v.trim();
+    }
+    return Object.keys(out).length ? out : null;
 };
 
 const _SPANISH_GLOSS_COUNTRIES = new Set(['ES', 'MX', 'CO', 'PR']);
@@ -261,8 +274,15 @@ export const glossShoppingItemName = (
         return `${spanishName} (${_glossEs})`;
     }
 
-    let _fuente = typeof displayNameEn === 'string' ? displayNameEn.trim() : '';
-    if (!_fuente) _fuente = _catalogEn.trim();
+    // [P1-PLAN-LOTE-222 · 2026-09-24] El gloss en el IDIOMA DEL USUARIO. Hasta este lote era inglés para cualquier
+    // locale («Black beans (Habichuelas negras)» también a un francés) porque el catálogo no tenía otro. Ahora cada
+    // fila trae `names`: en pt/fr/it gana el nombre propio y el inglés queda de respaldo (fila sin traducción, índice
+    // publicado antes del lote). En inglés el campo embebido sigue mandando, como siempre.
+    const _embebidoEn = typeof displayNameEn === 'string' ? displayNameEn.trim() : '';
+    const _propio = typeof _catalogEntry?.names?.[locale] === 'string' ? _catalogEntry.names[locale].trim() : '';
+    const _fuente = locale === 'en-US'
+        ? (_embebidoEn || _propio || _catalogEn.trim())
+        : (_propio || _embebidoEn || _catalogEn.trim());
     if (!_fuente) return spanishName;
     const englishGloss = _fuente;
     if (!spanishName) return englishGloss;

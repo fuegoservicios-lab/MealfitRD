@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPercent, useT, useTn } from '../../i18n';
 import styles from './MicronutrientMeter.module.css';
+// [P1-PLAN-LOTE-222] Nombres, notas, dosis y avisos que compone el backend en español, traducidos al pintar.
+import { etiquetaMicro, notaMicro, textoSuplemento, alimentosSuplemento, avisoMicro } from '../../utils/microsCopy';
 
 /* [P1-MICRO-FOCO-PANEL · 2026-06-26] Rediseño "Foco" del panel de micronutrientes.
    Reemplaza al medidor plano (muro de barras idénticas) por una vista con JERARQUÍA:
@@ -70,21 +72,26 @@ function findAdvice(e, items) {
 function AttentionCard({ e, adviceItem, onAsk }) {
     const t = useT();
     const s = classifyRow(e, t);
-    const food = adviceItem?.primero_alimentos || e.nota || '';
-    const dose = adviceItem?.dosis_sugerida || '';
+    // [P1-PLAN-LOTE-222 · 2026-09-24] Los textos los compone el backend en español y se traducen AL PINTAR
+    // (`microsCopy.js`): el dato guardado en el plan no cambia.
+    const food = adviceItem?.primero_alimentos
+        ? alimentosSuplemento(adviceItem.primero_alimentos, t)
+        : (notaMicro(e.nota, e.key, t) || '');
+    const dose = textoSuplemento(adviceItem?.dosis_sugerida || '', t);
     // [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] precaución del backend (UL / interacción / renal) — antes
     // se mostraba la dosis SIN ningún caveat de seguridad en un producto clínico-adyacente.
-    const caution = adviceItem?.precaucion || '';
+    const caution = textoSuplemento(adviceItem?.precaucion || '', t);
+    const nombre = etiquetaMicro(e, t);
     const Tag = onAsk ? 'button' : 'div';
     return (
         <Tag
             type={onAsk ? 'button' : undefined}
             onClick={onAsk}
             className={`${styles.att} ${styles[s.tone]} ${onAsk ? styles.clickable : ''}`}
-            title={onAsk ? t('Preguntarle al coach cómo subir tu {nutriente}', { nutriente: (e.nutriente || '').toLowerCase() }) : undefined}
+            title={onAsk ? t('Preguntarle al coach cómo subir tu {nutriente}', { nutriente: nombre.toLowerCase() }) : undefined}
         >
             <div className={styles.attTop}>
-                <span className={styles.attName}>{e.nutriente}</span>
+                <span className={styles.attName}>{nombre}</span>
                 <span className={styles.pill}>
                     <ArrowDown />{s.estimado ? t('Estimado') : s.statusWord}
                 </span>
@@ -97,7 +104,7 @@ function AttentionCard({ e, adviceItem, onAsk }) {
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-label={t('{nutriente}: {valor} de {objetivo} {unidad}', {
-                    nutriente: e.nutriente,
+                    nutriente: nombre,
                     valor: _fmtN(s.valor),
                     objetivo: _fmtN(s.target),
                     unidad: e.unidad,
@@ -142,7 +149,7 @@ function ReachedChip({ e, worstDayNum = null }) {
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             title={t('{nutriente}: {valor} de {objetivo} {unidad}', {
-                nutriente: e.nutriente,
+                nutriente: etiquetaMicro(e, t),
                 valor: _fmtN(s.valor),
                 objetivo: _fmtN(s.target),
                 unidad: e.unidad,
@@ -150,7 +157,7 @@ function ReachedChip({ e, worstDayNum = null }) {
         >
             <span className={styles.qRow}>
                 <span className={styles.chk}><CheckIcon /></span>
-                <span className={styles.qName}>{e.nutriente}</span>
+                <span className={styles.qName}>{etiquetaMicro(e, t)}</span>
                 {/* [P3-FLOOR-WORSTDAY-UI · 2026-07-04] el % es el PROMEDIO — si el chequeo
                     per-día flaggeó ESTE micro, el chip lo delata sin abrirlo (simétrico del
                     aviso per-día de techos: promedio verde + banner ámbar parecían contradictorios). */}
@@ -341,7 +348,7 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
                             return (
                                 <div key={`l-${e.key || i}`} className={`${styles.lim} ${styles[s.tone]}`}>
                                     <div className={styles.limTop}>
-                                        <span className={styles.limName}>{e.nutriente}</span>
+                                        <span className={styles.limName}>{etiquetaMicro(e, t)}</span>
                                         <span className={styles.limOk}>
                                             <ShieldIcon />{s.over ? t('Sobre el límite') : t('Bajo control')}
                                         </span>
@@ -393,7 +400,7 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
             )}
             {/* [P1-SUPPLEMENT-DISCLAIMER-UI · 2026-06-26] disclaimer médico global cuando se muestran dosis */}
             {advice?.disclaimer && adviceItems.length > 0 && (
-                <p className={styles.disclaimer}>{advice.disclaimer}</p>
+                <p className={styles.disclaimer}>{avisoMicro(advice.disclaimer, t)}</p>
             )}
         </motion.section>
     );
@@ -407,14 +414,14 @@ export default function MicronutrientMeter({ report, advice, onAsk }) {
 // usuario lo LEE y lo edita antes de mandarlo. Con la app en inglés aterrizaba en el chat
 // con la caja ya escrita en español, que es más raro todavía que una etiqueta sin traducir.
 //
-// El NOMBRE del nutriente se interpola tal cual: no es identificador del motor de
-// alimentos (esos no se traducen jamás), y traducirlo aquí no aportaría nada al coach.
+// [P1-PLAN-LOTE-222] El NOMBRE del nutriente va traducido: no es identificador del motor, y la frase la LEE el
+// usuario en su caja de chat («My plan falls short on hierro» mezclaba dos idiomas en una línea).
 function buildQuestion(e, t) {
-    const n = (e.nutriente || '').toLowerCase();
     // El extractor del gate es TEXTUAL y solo reconoce `t(`: llamarlo por un alias
     // local (`_t(`) dejaba estas claves invisibles para `i18n:check`, o sea sin entrar
     // nunca en los catalogos y en espanol para siempre. Se reasigna el parametro.
     if (typeof t !== 'function') t = (s) => s;
+    const n = (etiquetaMicro(e, t) || '').toLowerCase();
     return t('Mi plan se queda corto en {nutriente} ({valor}{unidad} de {piso}{unidad}). ¿Qué alimentos o ajustes me recomiendas para subirlo?', {
         nutriente: n,
         valor: _fmtN(e.valor),

@@ -54,9 +54,12 @@ import {
     getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes,
 } from '../../utils/pantryCache';
 import { searchFoods, previewLine, unitsFor, defaultUnitFor, defaultQtyFor } from '../../utils/foodSearch';
+// [P1-PLAN-LOTE-222] Las líneas que no estaban en la Nevera, en el idioma del usuario.
+import { lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
+import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import { getMealTypes, getMealTypeExtra, clampMacro } from './mealLogShared';
 import MacroInput from '../common/MacroInput';
-import { useT, useTn } from '../../i18n';
+import { useT, useTn, getLocale } from '../../i18n';
 import styles from './LogMealModal.module.css';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
@@ -95,7 +98,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     // [P1-NEVERA-OPCIONAL · 2026-09-23] Con la Nevera apagada no hay inventario que descontar: el interruptor
     // desaparece (no se deshabilita) y el POST nunca pide la resta, aunque `deductPantry` quedara en `true` de
     // una sesión anterior. Mismo SSOT que la nav (`neveraActiva`, config/dashboardNav.js).
-    const { userProfile } = useAssessment() || {};
+    const { userProfile, planData } = useAssessment() || {};
     const neveraOn = neveraActiva(userProfile);
     const [foods, setFoods] = useState(() => getCachedMasterList() || []);
     const [dishes, setDishes] = useState(() => getCachedDishes() || []);
@@ -266,7 +269,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
             if (deductPantry && (data.not_in_pantry?.length || data.failed_to_deduct?.length)) {
                 const faltan = [...(data.not_in_pantry || []), ...(data.failed_to_deduct || [])];
                 toast.info(t('No estaba en tu Nevera: {items}', {
-                    items: `${faltan.slice(0, 4).join(', ')}${faltan.length > 4 ? '…' : ''}`,
+                    items: `${faltan.slice(0, 4).map((l) => lineaDeIngredienteVisible(l, t)).join(', ')}${faltan.length > 4 ? '…' : ''}`,
                 }));
             }
             onClose();
@@ -289,7 +292,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
             const res = await fetchWithAuth('/api/diary/consumed/estimate-macros', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: customDraft.name, meal_type: mealType }),
+                body: JSON.stringify({ text: customDraft.name, meal_type: mealType, locale: getLocale() }),  // [P1-PLAN-LOTE-222]
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || data?.operation_failed || !data?.macros) {
@@ -492,7 +495,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                                 }}
                                             >
                                                 <span className={styles.resultText}>
-                                                    <span className={styles.resultLabel}>{f.meal_name}</span>
+                                                    <span className={styles.resultLabel}>{nombreDeRegistro(f.meal_name, planData, t)}</span>
                                                     <span className={styles.resultSub}>{tn(f.veces || 0, '{kcal} kcal · lo registraste {n} vez', '{kcal} kcal · lo registraste {n} veces', { kcal: f.kcal, n: f.veces })}</span>
                                                 </span>
                                                 <span className={styles.resultAdd} aria-hidden="true"><Plus size={18} strokeWidth={2.5} /></span>

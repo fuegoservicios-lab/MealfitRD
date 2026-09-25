@@ -1,6 +1,11 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useT } from "../../i18n";
+import { getLocale, useT } from "../../i18n";
+// [P1-PLAN-LOTE-222 · 2026-09-24] El alimento y su unidad en el idioma del usuario (el dato sigue en español: es lo
+// que se reenvía como `allow_new_ingredients`).
+import { nombreDelAlimento } from "../../utils/nombresDeAlimentos";
+import { glossUnitWord } from "../../utils/shoppingHelpers";
+import { unidadParaCantidad } from "../../utils/cantidadIngrediente";
 
 /**
  * PantryConsentModal — "Nevera estricta + consentimiento" [P1-PANTRY-STRICT-CONSENT · 2026-08-02]
@@ -69,10 +74,10 @@ function Icon({ name, size = 20, stroke = 2 }) {
   }
 }
 
-function formatQty(m) {
+function formatQty(m, t) {
   const qty = Number(m?.qty_needed);
   if (!qty || Number.isNaN(qty)) return "";
-  const unit = m?.unit ? String(m.unit) : "";
+  const unit = m?.unit ? glossUnitWord(unidadParaCantidad(String(m.unit), qty), t) : "";
   const qtyTxt = Number.isInteger(qty) ? String(qty) : qty.toFixed(1);
   return `${qtyTxt} ${unit}`.trim();
 }
@@ -85,7 +90,7 @@ function formatPrice(m) {
 
 function IngredientRow({ item }) {
   const t = useT();
-  const qtyTxt = formatQty(item);
+  const qtyTxt = formatQty(item, t);
   const priceTxt = formatPrice(item);
   return (
     <div
@@ -112,7 +117,7 @@ function IngredientRow({ item }) {
             whiteSpace: "nowrap",
           }}
         >
-          {item?.name || t("Ingrediente")}
+          {(item?.name && nombreDelAlimento(item.name)) || t("Ingrediente")}
         </span>
         {qtyTxt && (
           <span style={{ fontSize: ".76rem", color: "var(--text-muted)", fontWeight: 500 }}>{qtyTxt}</span>
@@ -178,7 +183,7 @@ export default function PantryConsentModal({
 
   if (!open) return null;
 
-  const names = (missing || []).map((m) => m?.name).filter(Boolean);
+  const names = (missing || []).map((m) => m?.name).filter(Boolean).map((n) => nombreDelAlimento(n, getLocale()));
 
   return createPortal(
     <>

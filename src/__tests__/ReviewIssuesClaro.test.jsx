@@ -42,7 +42,10 @@ describe('avisos del plan', () => {
         const src = read('src/pages/Plan.jsx');
         expect(src).not.toContain('t("Plan generado con observaciones")');
         expect(src).toContain("toast.warning(t('Tu plan está listo, con un detalle por revisar')");
-        expect(src).toContain('glossReviewIssue(_list[0], t)');
+        // [P1-PLAN-LOTE-222] glosada y LEGIBLE en el idioma activo: una observación que no se reconoce se omite en
+        // vez de salir en español bajo un título traducido (`reviewIssueLegible`, clinicalNoteGloss.js).
+        expect(src).toContain('.map((x) => reviewIssueLegible(x, t)).filter(Boolean)');
+        expect(src).toContain("const _first = _list[0] || '';");
         expect(src).toContain("sessionStorage.setItem('mealfit_plan_ready_toast_at'");
     });
     it('PendingPipelineRecovery: sin toast «se está generando» en /plan y sin «listo» duplicado', () => {

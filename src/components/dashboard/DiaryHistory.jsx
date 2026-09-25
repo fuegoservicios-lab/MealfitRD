@@ -46,6 +46,8 @@ import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { confirmToast } from '../../utils/confirmToast';
 import { formatDate, formatNumber, getLocale, useT, useTn } from '../../i18n';
+import { useAssessment } from '../../context/AssessmentContext';
+import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import MicrosList from './MicrosList';
 import { useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
@@ -179,6 +181,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const t = useT();
     const tn = useTn();
     const subtituloMicros = useMicrosSubtitulo();
+    // [P1-PLAN-LOTE-222] Para pintar el nombre de lo comido del plan en el idioma del usuario (`nombreDeRegistro`).
+    const { planData } = useAssessment() || {};
     // [P1-PLAN-LOTE-162 · 2026-09-22] «Hoy» se recalcula al ABRIR. El cajón vive montado dentro de la tarjeta aunque
     // esté cerrado, así que con `[]` el «hoy» era el del día en que se montó: con la app abierta desde anoche, la tira
     // seguía en ayer y lo que se registraba desde aquí caía en un día desplazado. Al abrir, además, se vuelve a HOY.
@@ -413,7 +417,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         return (
             <div key={meal.id || meal.meal_name} className={styles.meal}>
                 <div className={styles.mealBody}>
-                    <div className={styles.mealName}>{meal.meal_name || t('Sin nombre')}</div>
+                    {/* [P1-PLAN-LOTE-222] el nombre en el idioma del usuario (el dato no cambia) */}
+                    <div className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t) || t('Sin nombre')}</div>
                     <div className={styles.mealMacros}>
                         <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
                         {/* [P1-PLAN-LOTE-165] «P · C · G» fijas eran incorrectas en inglés (grasa = F) y en francés

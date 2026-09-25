@@ -154,7 +154,7 @@ import { clearDisabledIngredientsStore } from '../hooks/useDisabledIngredients';
 // corre dentro de `fetchProfile`, que no es un componente.
 // [P1-I18N-DASHBOARD] `t` de MODULO, no el hook: los avisos de abajo salen desde
 // dentro de callbacks (handlers, polling, catch), no en render.
-import { claimLocaleForUser, localeParaEstampar, syncLocaleFromProfile, t } from '../i18n';
+import { claimLocaleForUser, getLocale, localeParaEstampar, syncLocaleFromProfile, t, useI18n } from '../i18n';
 import { CLAVE_COMPLETAR } from '../utils/completarFormulario';
 // [P3-4 · 2026-07-09] Mirror SSOT valor→ref (antes 2 effects manuales).
 import { useLatestRef } from '../hooks/useLatestRef';
@@ -2432,6 +2432,42 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     // el wake ahora comparte el guard de "no apilar" con el poll de abajo.
     hydrateLatestPlanRef.current = _passiveHydrateLatestPlan;
 
+    // [P1-PLAN-LOTE-222 · 2026-09-24] Tras «Cambiar plato» / «Regenerar día» fuera del español, volver a por el plan
+    // cuando llegue su traducción.
+    //
+    // El servidor borra el `_display` del plato que cambia (DELETE-on-write en `/swap-meal/persist` y
+    // `/regenerate-day`) y encola la traducción del día, que tarda lo que tarda: 10-40 s. Con el plan completo el
+    // poll de 25 s está apagado (`isGeneratingForPoll`), así que el plato nuevo se quedaba en español hasta que el
+    // usuario cambiaba de pestaña o recargaba. Aquí se re-hidrata unas pocas veces, y se para en cuanto los platos
+    // del día traen su traducción (una entrada `_provisional` —sólo el nombre, puesta por el cliente— no cuenta).
+    const _traduccionTimersRef = useRef([]);
+    useEffect(() => () => { _traduccionTimersRef.current.forEach(clearTimeout); }, []);
+    const esperarTraduccionDelDia = useCallback((dayIndex) => {
+        const locale = getLocale();
+        if (!locale || locale === 'es-DO' || !Number.isInteger(dayIndex)) return;
+        _traduccionTimersRef.current.forEach(clearTimeout);
+        _traduccionTimersRef.current = [];
+        const falta = () => {
+            const comidas = planDataRef.current?.days?.[dayIndex]?.meals;
+            if (!Array.isArray(comidas)) return false;
+            return comidas.some((m) => {
+                const e = m && typeof m._display === 'object' && m._display ? m._display[locale] : null;
+                return !e || e._provisional === true;
+            });
+        };
+        for (const ms of [10000, 25000, 50000, 90000]) {
+            _traduccionTimersRef.current.push(setTimeout(() => {
+                if (!falta()) return;
+                Promise.resolve(_passiveHydrateLatestPlan({ src: 'display-i18n' })).catch(() => {});
+            }, ms));
+        }
+    }, [_passiveHydrateLatestPlan, planDataRef]);
+    // Para los efectos de reanudación (dependen sólo de la sesión): la versión viva, sin re-armarlos. `useRef` y no
+    // `useLatestRef`: el linter sólo reconoce como estable lo que sale de `useRef` (mismo patrón que
+    // `hydrateLatestPlanRef`, asignado en el render).
+    const esperarTraduccionRef = useRef(esperarTraduccionDelDia);
+    esperarTraduccionRef.current = esperarTraduccionDelDia;
+
     // [P1-PLAN-POLL-BOUNDED · 2026-07-29] Estado give-up: se rinde cuando el loop de abajo
     // lleva `PLAN_POLL_GIVEUP_MS` "activo sin progreso" (ver utils/planPollBackoff.js para
     // la medición que justifica el tope). Expuesto por el contexto para que Dashboard pueda
@@ -2939,7 +2975,20 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 const updatedPlan = { ...planData };
                 const days = [...(updatedPlan.days || [])];
                 if (days[dayIndex]) {
-                    days[dayIndex] = { ...days[dayIndex], meals: data.meals };
+                    // [P1-PLAN-LOTE-222 · 2026-09-24] El día vuelve SIN `_display` (el servidor lo borra y re-encola la
+                    // traducción). Si mandó los nombres ya traducidos (`meals_display_names`, alineados por índice),
+                    // entran como entrada PROVISIONAL hasta que llegue la traducción completa.
+                    const _locRd = getLocale();
+                    const _nombresRd = Array.isArray(data.meals_display_names)
+                        && data.meals_display_names.length === data.meals.length ? data.meals_display_names : null;
+                    const _mealsRd = (_nombresRd && _locRd && _locRd !== 'es-DO')
+                        ? data.meals.map((m, i) => {
+                            const n = typeof _nombresRd[i] === 'string' ? _nombresRd[i].trim() : '';
+                            if (!m || typeof m !== 'object' || !n || n === m.name) return m;
+                            return { ...m, _display: { [_locRd]: { name: n, _provisional: true } } };
+                        })
+                        : data.meals;
+                    days[dayIndex] = { ...days[dayIndex], meals: _mealsRd };
                     updatedPlan.days = days;
                     // [P5-REGEN-DAY-STALE-LIST · 2026-06-23] El backend strippea las CUATRO
                     // listas agregadas; el local debe hacer lo mismo o quedarían listas
@@ -2951,6 +3000,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     delete updatedPlan.aggregated_shopping_list_monthly;
                     setPlanData(updatedPlan);
                     safeLocalStorageSet('mealfit_plan', updatedPlan);
+                    esperarTraduccionDelDia(dayIndex);  // [P1-PLAN-LOTE-222]
                 }
             }
             const kept = (data?.slots_kept || []).filter(Boolean);
@@ -2980,11 +3030,17 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 // [P1-REGEN-DAY-WARNING-SURFACE · 2026-06-24] (re-audit P1-3) El backend computa este aviso
                 // honesto cuando el día quedó por debajo del objetivo de proteína; antes el frontend lo
                 // descartaba y mostraba "¡Día actualizado!" verde sobre un día sub-objetivo.
-                _emitirDesenlace = () => toast.warning(t('Día actualizado, pero por debajo de tu objetivo'), {
-                    description: data.day_quality_warning,
-                    duration: 6000, id: 'swap-result',
-                    action: { label: t('Mi Nevera'), onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
-                });
+                // [P1-PLAN-LOTE-222 · 2026-09-24] La descripción en el idioma del usuario (el servidor la escribe en español).
+                // `import()` y no estático: el contexto vive en el arranque de la app y el aviso sólo tras regenerar.
+                _emitirDesenlace = () => {
+                    const _aviso = (description) => toast.warning(t('Día actualizado, pero por debajo de tu objetivo'), {
+                        description, duration: 6000, id: 'swap-result',
+                        action: { label: t('Mi Nevera'), onClick: () => { try { window.location.assign('/dashboard/pantry'); } catch (_) { /* no-op */ } } },
+                    });
+                    import('../utils/avisosDeCalidad')
+                        .then(({ avisoDeCalidadDelDia }) => _aviso(avisoDeCalidadDelDia(data, t)))
+                        .catch(() => _aviso(data.day_quality_warning));
+                };
             } else if (kept.length > 0) {
                 // [P1-KEPT-REASON-HONEST · 2026-08-05] El motivo lo dice el BACKEND, no lo
                 // asumimos aquí. Antes esta línea culpaba siempre a la Nevera; medido en
@@ -3195,6 +3251,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                                 || JSON.stringify(namesNow) !== JSON.stringify(marker.names || []);
                             if (changed) {
                                 applyRegenPlan(plan);
+                                esperarTraduccionRef.current?.(Number(marker.dayIndex));  // [P1-PLAN-LOTE-222]
                                 finish(true);
                                 return;
                             }
@@ -3327,6 +3384,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                             const nameChanged = !!(newName && mk.name && newName !== mk.name);
                             if (modChanged || nameChanged) {
                                 applySwappedPlan(plan);
+                                esperarTraduccionRef.current?.(Number(mk.dayIndex));  // [P1-PLAN-LOTE-222]
                                 finish(true);
                                 return;
                             }
@@ -3460,6 +3518,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     ...(Array.isArray(allowNewIngredients) && allowNewIngredients.length > 0
                         ? { allow_new_ingredients: allowNewIngredients }
                         : {}),
+                    // [P1-PLAN-LOTE-222 · 2026-09-24] Para que el servidor devuelva `display_name`: el plato nuevo
+                    // en el idioma del usuario, para el aviso y la tarjeta mientras llega su traducción completa.
+                    locale: getLocale(),
                 })
             });
 
@@ -3556,8 +3617,18 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const updatedDayObj = { ...updatedDays[dayIndex] };
             const updatedMeals = [...updatedDayObj.meals];
 
+            // [P1-PLAN-LOTE-222 · 2026-09-24] El `_display` del plato VIEJO no viaja al nuevo: con el spread de abajo
+            // el Dashboard en inglés pintaba el nombre, la descripción y la receta del plato anterior sobre los datos
+            // del nuevo (el servidor ya lo borra al persistir; el estado local no). Si el servidor mandó el nombre
+            // traducido, entra como entrada PROVISIONAL (sólo el nombre) hasta que llegue la traducción completa.
+            const { _display: _displayDelPlatoViejo, ...platoAnterior } = updatedMeals[mealIndex] || {};
+            const _localeSwap = getLocale();
+            const _nombreVisible = typeof newMealData.display_name === 'string' ? newMealData.display_name.trim() : '';
             updatedMeals[mealIndex] = {
-                ...updatedMeals[mealIndex],
+                ...platoAnterior,
+                ...(_nombreVisible && _localeSwap && _localeSwap !== 'es-DO'
+                    ? { _display: { [_localeSwap]: { name: _nombreVisible, _provisional: true } } }
+                    : {}),
                 name: newMealData.name,
                 desc: newMealData.desc,
                 cals: newMealData.cals,
@@ -3578,10 +3649,13 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // telemetría muda `_macro_band_low` → entrega en silencio). Toast honesto + accionable
             // (espejo del day_quality_warning de regenerate-day).
             if (newMealData.swap_quality_warning) {
-                toast.warning(t('Plato cambiado, pero menos preciso'), {
-                    description: newMealData.swap_quality_warning,
-                    duration: 6000, id: 'swap-result',
+                // [P1-PLAN-LOTE-222] en el idioma del usuario; `import()` por la misma razón que el aviso del día.
+                const _avisoPlato = (description) => toast.warning(t('Plato cambiado, pero menos preciso'), {
+                    description, duration: 6000, id: 'swap-result',
                 });
+                import('../utils/avisosDeCalidad')
+                    .then(({ avisoDeCalidadDelPlato }) => _avisoPlato(avisoDeCalidadDelPlato(newMealData, t)))
+                    .catch(() => _avisoPlato(newMealData.swap_quality_warning));
             }
 
             updatedDayObj.meals = updatedMeals;
@@ -3799,7 +3873,10 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                 await checkPlanLimit();
             }, 1000);
 
-            return newMealData.name;
+            // [P1-PLAN-LOTE-222 · 2026-09-24] El plato en el idioma del usuario apenas llegue su traducción.
+            esperarTraduccionDelDia(dayIndex);
+            // Lo que se devuelve es para el aviso «Cambiado por: …»: el nombre que el usuario LEE.
+            return (typeof newMealData.display_name === 'string' && newMealData.display_name.trim()) || newMealData.name;
 
         } catch (error) {
             // [P1-SWAP-CLIENT-TIMEOUT · 2026-09-04] Venció el tope del cliente pero el servidor sigue
@@ -3879,8 +3956,10 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             const updatedDayObj = { ...updatedDays[dayIndex] };
             const updatedMeals = [...updatedDayObj.meals];
 
+            // [P1-PLAN-LOTE-222] Sin el `_display` del plato viejo (ver la rama del servidor, arriba).
+            const { _display: _displayViejoLocal, ...platoAnteriorLocal } = updatedMeals[mealIndex] || {};
             updatedMeals[mealIndex] = {
-                ...updatedMeals[mealIndex],
+                ...platoAnteriorLocal,
                 name: localFallback.name,
                 desc: localFallback.desc,
                 cals: localFallback.cals,
@@ -4447,6 +4526,17 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         ? Math.max(0, GUEST_PLAN_CREDITS - guestCreditsUsed)
         : (typeof userPlanLimit === 'number' ? Math.max(0, userPlanLimit - planCount) : '∞');
 
+    // [P1-PLAN-LOTE-222 · 2026-09-24] El plan del INVITADO en su idioma. No está en la base de datos, así que la
+    // traducción no le llega sola: se pide con su copia y se fusiona (utils/traduccionInvitado.js, que decide si falta,
+    // no repite la petición y nunca bloquea). `import()`: sólo le hace falta al invitado fuera del español.
+    const { locale: _localeDelInvitado } = useI18n();
+    useEffect(() => {
+        if (!isGuest || !planData || !_localeDelInvitado || _localeDelInvitado === 'es-DO') return;
+        import('../utils/traduccionInvitado')
+            .then(({ traducirPlanDelInvitado }) => traducirPlanDelInvitado(planData, _localeDelInvitado, setPlanData))
+            .catch(() => { /* el plan sigue en español */ });
+    }, [isGuest, planData, _localeDelInvitado, setPlanData]);
+
     // [P1-8 · 2026-07-09] Estabilizar las 13 funciones plain expuestas (identidad
     // constante, siempre ejecutan el closure más reciente vía useStableCallback) para
     // que el useMemo del value NO se invalide cada render → los 26 consumidores de
@@ -4545,6 +4635,8 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Ojo con el nombre de arriba:
             // `refreshProfileAndPlan` refresca SOLO el perfil. Esta es la que trae el plan.
             hydrateLatestPlan,
+            // [P1-PLAN-LOTE-222 · 2026-09-24] Re-hidratar hasta que el día cambiado traiga su traducción.
+            esperarTraduccionDelDia,
             // [P1-ARQ25-F1-CLOSE] plan que el servidor tiene generándose (placeholder) y que el
             // estado local aún no muestra — el Dashboard pinta el banner «se está generando».
             serverGeneratingPlanId,
@@ -4566,7 +4658,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
         _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restartPlanPoll, restoreSessionData, serverGeneratingPlanId,
-        setRecalcLock, withRecalcLock,
+        setRecalcLock, withRecalcLock, esperarTraduccionDelDia,
     ]);
 
     return (

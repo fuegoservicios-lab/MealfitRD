@@ -15,6 +15,8 @@ import { fetchWithAuth } from '../../config/api';
 import { useAssessment } from '../../context/AssessmentContext';
 import useAutoguardado from '../../hooks/useAutoguardado';
 import { getCachedMasterList, setCachedMasterList } from '../../utils/pantryCache';
+// [P1-PLAN-LOTE-222] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
+import { nombreDeFila, nombreDelAlimento, formasDeBuscar } from '../../utils/nombresDeAlimentos';
 import { useT } from '../../i18n';
 import styles from './SuperPersonalizationPanel.module.css';
 
@@ -81,7 +83,7 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
     const q = norm(query.trim());
     const selectedLower = new Set(staples.map(norm));
     const results = q.length >= 2
-        ? masterList.filter((m) => norm(m.name).includes(q) && !selectedLower.has(norm(m.name))).slice(0, 8)
+        ? masterList.filter((m) => formasDeBuscar(m).some((f) => norm(f).includes(q)) && !selectedLower.has(norm(m.name))).slice(0, 8)
         : [];
 
     const addStaple = (name) => {
@@ -186,7 +188,7 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
                                         padding: '0.6rem 0.9rem', background: 'none', border: 'none',
                                         cursor: 'pointer', color: 'var(--text-main)', fontSize: '0.9rem',
                                     }}>
-                                    {m.name}
+                                    {nombreDeFila(m)}
                                 </button>
                             ))}
                         </div>
@@ -199,10 +201,10 @@ export default function StapleFoodsPanel({ onSaved, onEstado }) {
                     <div className={styles.tagBox} style={{ cursor: 'default' }}>
                         {staples.map((name) => (
                             <span key={name} className={styles.tag}>
-                                {name}
+                                {nombreDelAlimento(name)}
                                 {/* `name` NO se traduce: es el nombre del alimento tal como vive
                                     en `master_ingredients` — el SSOT del motor clínico. */}
-                                <button type="button" aria-label={t('Quitar {alimento} de tus básicos', { alimento: name })} onClick={() => removeStaple(name)}>
+                                <button type="button" aria-label={t('Quitar {alimento} de tus básicos', { alimento: nombreDelAlimento(name) })} onClick={() => removeStaple(name)}>
                                     <X size={13} />
                                 </button>
                             </span>

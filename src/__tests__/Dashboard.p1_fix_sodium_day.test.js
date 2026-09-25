@@ -93,10 +93,14 @@ describe('P1-FIX-SODIUM-DAY', () => {
         // puede ser la razon de que una pantalla no se traduzca. Lo que hay que preservar
         // es QUE DATOS lleva el aviso: el dia 1-indexado, el plato viejo→nuevo y el delta
         // de sodio.
-        const win = _sliceFrom("result?.fixed === true", 3000);
+        const win = _sliceFrom("result?.fixed === true", 4000);
         expect(win).toMatch(/toast\.success\(/);
         expect(win).toContain('Number(result.day) + 1');
-        expect(win).toContain('${result.old_meal} → ${result.new_meal}');
+        // [P1-PLAN-LOTE-222 · 2026-09-24] Viejo→nuevo por su nombre VISIBLE (el viejo por su `_display`, el nuevo
+        // por `new_meal_display`), con el español del servidor como respaldo de cada uno.
+        expect(win).toContain('${_viejoVisible} → ${_nuevoVisible}');
+        expect(win).toMatch(/_viejoVisible = [^;]*\|\| result\.old_meal;/);
+        expect(win).toMatch(/_nuevoVisible = [\s\S]{0,160}\|\| result\.new_meal;/);
         expect(win).toMatch(/result\.sodio_antes_mg[\s\S]{0,80}result\.sodio_despues_mg/);
         expect(win).toContain('bajo el techo ✓');
     });

@@ -17,6 +17,7 @@ import { firstDayMeals } from "../../utils/normalizePlanDays";
 // estaban: los `toLocaleString('es-DO')` fijos de las kcal pintaban separadores
 // dominicanos en las cuatro traducciones, y en pt-BR la coma es DECIMAL.
 import { t, tn, useT, useI18n, formatDate, formatNumber } from "../../i18n";
+import { textoDelServidor } from "../../utils/textosDelServidor";
 
 /* --------------------------------------------------------- helpers */
 // [P1-HIST-PANEL-FECHA-I18N · 2026-08-20] Era un formateador de fechas escrito a
@@ -67,7 +68,8 @@ function normalizePlan(raw, activePlanId, locale, inUsePlanId = null) {
   return {
     raw,
     id: String(raw.id),
-    name: (locale && raw.plan_display_names?.[locale]) || raw.name || t("Plan Generado"),
+    // [P1-PLAN-LOTE-222] «Plan en preparación» (placeholder del servidor) también en el idioma del usuario.
+    name: (locale && raw.plan_display_names?.[locale]) || textoDelServidor(raw.name, t, locale) || t("Plan Generado"),
     date: new Date(raw.created_at),
     active: !!activePlanId && raw.id === activePlanId,
     // [P1-ARQ25-F1-CLOSE · 2026-09-02] Placeholder de la cola: `generating` y todavía sin días.

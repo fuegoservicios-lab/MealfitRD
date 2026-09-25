@@ -16,7 +16,8 @@ import { trackEvent } from '../../utils/analytics';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 // [P2-14 · 2026-07-09] Hook SSOT de viewport (antes useState + resize listener).
 import { useIsMobile } from '../../hooks/useMediaQuery';
-import { formatCurrency, useI18n } from '../../i18n';
+import { formatCurrency, formatPercent, getLocale, i18nKey, useI18n } from '../../i18n';
+import { mensajeDelServidor } from '../../utils/errorCopy';
 // [P1-CHECKOUT-CREDITS-TRUTH · 2026-08-22] SSOT del ladder: las cifras y los
 // múltiplos se derivan, jamás se copian (ver `getPlanFeatures`).
 import { TIER_CREDITS, creditsVsPredecessor, includesPredecessor } from '../../config/plans';
@@ -48,6 +49,18 @@ import { TIER_CREDITS, creditsVsPredecessor, includesPredecessor } from '../../c
 // copia el resultado sino la FUENTE — `creditsVsPredecessor`/`includesPredecessor`
 // son los mismos helpers que usan las otras dos superficies, así que el próximo
 // cambio de ladder llega aquí solo.
+// [P1-PLAN-LOTE-222 · 2026-09-24] Por qué `/api/discount/validate` rechaza un código (routers/billing.py): frases
+// fijas en español, traducidas al pintar. El «¡N% de descuento aplicado!» lleva la cifra y se recompone aquí.
+const MENSAJES_CUPON = [
+    i18nKey('Código no encontrado o inactivo.'),
+    i18nKey('Este código aún no está activo.'),
+    i18nKey('Este código ha expirado.'),
+    i18nKey('Este código ya alcanzó su límite de usos.'),
+    i18nKey('Este código no aplica al plan seleccionado.'),
+    i18nKey('Código requerido'),
+    i18nKey('Error validando código'),
+];
+
 const getPlanFeatures = (t) => ({
     basic: [
         { icon: "⚡", text: t("{n} Créditos de IA al mes", { n: TIER_CREDITS.basic }) },
@@ -189,8 +202,22 @@ const PaymentModal = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: couponCode.trim(), tier })
             });
-            const data = await response.json();
-            setCouponResult(data);
+            const data = await response.json().catch(() => ({}));
+            // [P1-PLAN-LOTE-222 · 2026-09-24] El mensaje en el idioma del usuario. Además, un 4xx/5xx trae `detail`
+            // y no `message`: antes la fila roja salía vacía (un 429 del limitador, por ejemplo).
+            if (data?.valid) {
+                // En español, la frase del servidor tal cual (como `mensajeDelServidor`); en los demás, recompuesta.
+                const _enEspanol = getLocale() === 'es-DO' && typeof data.message === 'string' && data.message.trim();
+                setCouponResult({ ...data, message: _enEspanol ? data.message : t('¡{porcentaje} de descuento aplicado!', { porcentaje: formatPercent(Number(data.discount_percent) || 0) }) });
+            } else {
+                // El motivo en prosa (`message` si se validó, `detail` en un 4xx/5xx) pasa por `mensajeDelServidor`,
+                // que sólo lo enseña tal cual en español; en otro idioma, su traducción o el aviso genérico.
+                const _motivo = data?.message || data?.detail;
+                setCouponResult({
+                    valid: false,
+                    message: mensajeDelServidor(_motivo, MENSAJES_CUPON, t('Error validando el código.'), t),
+                });
+            }
         } catch {
             setCouponResult({ valid: false, message: t('Error validando el código.') });
         } finally {

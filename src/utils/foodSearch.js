@@ -4,6 +4,8 @@ import { t } from '../i18n';
 // [P1-PLAN-LOTE-165 · 2026-09-22] La porción del catálogo llega como palabra española («taza», «unidad»): el
 // `unit` es vocabulario del motor y no se toca; solo el RÓTULO que se pinta pasa por la glosa de la Nevera.
 import { glossUnitWord } from './shoppingHelpers';
+// [P1-PLAN-LOTE-222] El nombre que se pinta y las formas de buscar, en los 5 idiomas.
+import { nombreDeFila, formasDeBuscar } from './nombresDeAlimentos';
 // ARITMÉTICA en el servidor.
 //
 // La lista (filtro + ranking + alias) corre aquí sobre el catálogo que el cliente ya
@@ -76,32 +78,25 @@ export function searchFoods(query, foods, dishes, max = 12) {
     }
 
     for (const f of foods || []) {
-        let r = rankOf(_norm(f.name), q);
-        // Los 825 alias curados del catálogo. Solo el buscador de la Nevera los
-        // miraba; aquí valen lo mismo: «guineo» tiene que encontrar el banano.
-        if (r === Infinity && Array.isArray(f.aliases)) {
-            for (const a of f.aliases) {
-                const ra = rankOf(_norm(a), q);
-                if (ra < r) r = ra;
+        // [P1-PLAN-LOTE-222 · 2026-09-24] El nombre en el idioma del usuario es el PROPIO: rango limpio. El canónico
+        // español, sus 825 alias curados («guineo» tiene que encontrar el banano) y los nombres en los otros idiomas
+        // son VÍAS DE ENTRADA al mismo identificador, con +0.5 para que el nombre propio gane en empate. Antes sólo
+        // existía el inglés (P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4) y un francés que escribía «poulet» no
+        // encontraba nada. Lo que se selecciona sigue siendo `f.name` (la ref), canónico español: la frontera.
+        const propio = nombreDeFila(f);
+        let r = rankOf(_norm(propio), q);
+        if (r === Infinity) {
+            for (const forma of formasDeBuscar(f)) {
+                const ra = rankOf(_norm(forma), q);
+                if (ra + 0.5 < r) r = ra + 0.5;
             }
-            if (r < Infinity) r += 0.5; // el nombre propio gana al alias en empate
-        }
-        // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] El gloss inglés como
-        // segunda VÍA DE ENTRADA al mismo identificador: «chicken» encuentra la pechuga y lo
-        // que se selecciona sigue siendo `f.name`, canónico español (la frontera). Mismo
-        // +0.5 que el alias: el nombre propio gana en empate.
-        // ⚠️ Cubre UN idioma de los cuatro — `name_en` es un gloss inglés, no un catálogo
-        // multilingüe. Un francés que escriba «poulet» seguirá sin encontrar nada.
-        if (r === Infinity && typeof f.name_en === 'string' && f.name_en) {
-            const re = rankOf(_norm(f.name_en), q);
-            if (re < Infinity) r = re + 0.5;
         }
         if (r < Infinity) {
             const porcionDefault = (f.portions || []).find((p) => p.default) || null;
             resultados.push({
                 kind: 'food',
                 ref: `food:${f.id}`,
-                label: f.name,
+                label: propio || f.name,
                 // [P2-I18N-FOODSEARCH-SUBTITULO-ALIMENTO · 2026-08-23] Los platos criollos
                 // (arriba) llevaban subtítulo traducido y los alimentos no — en la MISMA
                 // lista. Y era un TERNARIO, que es justo la forma que el escáner de

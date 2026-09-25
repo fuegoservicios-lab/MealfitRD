@@ -167,6 +167,16 @@ export const GLOSS_INDEX_LS_KEY = 'mealfit_gloss_index_v1';
 const _sinAcentos = (s) => String(s ?? '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
+// [P1-PLAN-LOTE-222] `names` = {locale: nombre}; sólo cadenas no vacías. null si no queda ninguna.
+const _nombresValidos = (names) => {
+    if (!names || typeof names !== 'object') return null;
+    const out = {};
+    for (const [loc, v] of Object.entries(names)) {
+        if (typeof v === 'string' && v.trim()) out[loc] = v.trim();
+    }
+    return Object.keys(out).length ? out : null;
+};
+
 const _publicarIndiceDelGloss = (rows, ttlMs) => {
     try {
         const pares = [];
@@ -174,10 +184,15 @@ const _publicarIndiceDelGloss = (rows, ttlMs) => {
             const es = m && typeof m.name === 'string' ? m.name : '';
             const en = m && typeof m.name_en === 'string' ? m.name_en.trim() : '';
             const glossEs = m && typeof m.gloss_es === 'string' ? m.gloss_es.trim() : '';
-            if (!es || (!en && !glossEs)) continue;
+            // [P1-PLAN-LOTE-222 · 2026-09-24] Y el nombre en cada idioma (`names`), para que la Nevera, el escáner y la
+            // lista pinten «Fraises» y no «Fresas» sin tener que pedir el catálogo entero.
+            const names = _nombresValidos(m && m.names);
+            if (!es || (!en && !glossEs && !names)) continue;
             pares.push([
                 _sinAcentos(es),
-                glossEs ? { name_en: en, gloss_es: glossEs } : en,
+                (glossEs || names)
+                    ? { name_en: en, ...(glossEs ? { gloss_es: glossEs } : {}), ...(names ? { names } : {}) }
+                    : en,
             ]);
         }
         if (!pares.length) return;
@@ -189,19 +204,31 @@ const _publicarIndiceDelGloss = (rows, ttlMs) => {
 };
 
 /**
- * El índice `nombre-sin-acentos -> name_en | {name_en, gloss_es}`, como `Map`.
- * La forma string v1 sigue aceptada. Vacío si no hay nada cacheado o
+ * El índice `nombre-sin-acentos -> name_en | {name_en, gloss_es?, names?}`, como `Map`.
+ * La forma string v1 sigue aceptada, y la de objeto sin `names` (publicada antes del lote 222) también: esas
+ * filas se pintan en inglés o en español hasta que el catálogo se vuelva a pedir. Vacío si no hay nada cacheado o
  * si caducó: el PDF sale en español, que es la conducta de antes, nunca un error.
  */
+// [P1-PLAN-LOTE-222 · 2026-09-24] El índice se lee en cada línea que se pinta (Nevera, escáner, lista): parsear el
+// JSON de localStorage cada vez sería O(filas × ítems). Se memoriza por el TEXTO guardado, así que cualquier
+// publicación nueva (o su borrado) se ve en la siguiente lectura sin ningún aviso extra.
+let _indiceMemo = { raw: null, idx: null };
+
 export const getCachedGlossIndex = () => {
+    let raw = null;
+    try { raw = safeLocalStorageGet(GLOSS_INDEX_LS_KEY, null); } catch { raw = null; }
+    if (raw && raw === _indiceMemo.raw && _indiceMemo.idx) {
+        // El memo no puede saltarse la caducidad: la guarda está dentro del texto.
+        if (!(typeof _indiceMemo.expiresAt === 'number' && Date.now() > _indiceMemo.expiresAt)) return _indiceMemo.idx;
+    }
     const idx = new Map();
     try {
-        const raw = safeLocalStorageGet(GLOSS_INDEX_LS_KEY, null);
         if (!raw) return idx;
         const parsed = JSON.parse(raw);
         if (!parsed || !Array.isArray(parsed.value)) return idx;
         if (typeof parsed.expiresAt === 'number' && Date.now() > parsed.expiresAt) {
             _safeLsRemove(GLOSS_INDEX_LS_KEY);
+            _indiceMemo = { raw: null, idx: null };
             return idx;
         }
         for (const par of parsed.value) {
@@ -209,9 +236,11 @@ export const getCachedGlossIndex = () => {
             const value = par[1];
             const validV1 = typeof value === 'string';
             const validV2 = value && typeof value === 'object'
-                && (typeof value.name_en === 'string' || typeof value.gloss_es === 'string');
+                && (typeof value.name_en === 'string' || typeof value.gloss_es === 'string'
+                    || (value.names && typeof value.names === 'object'));
             if (validV1 || validV2) idx.set(par[0], value);
         }
+        _indiceMemo = { raw, idx, expiresAt: parsed.expiresAt };
     } catch { /* JSON roto — fail-open */ }
     return idx;
 };

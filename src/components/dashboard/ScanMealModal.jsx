@@ -27,9 +27,11 @@ import styles from './ScanMealModal.module.css';
 import MacroInput from '../common/MacroInput';
 // [P1-PLAN-LOTE-221] La cantidad de cada ingrediente: «− [campo] +», sin el 0 que no se dejaba borrar.
 import QuantityStepper from '../common/QuantityStepper';
-import { useT, useTn, formatNumber } from '../../i18n';
+import { useT, useTn, formatNumber, getLocale } from '../../i18n';
 import { glossUnitWord } from '../../utils/shoppingHelpers';
 import { unidadParaCantidad } from '../../utils/cantidadIngrediente';
+// [P1-PLAN-LOTE-222] Nombres de alimento y líneas de ingrediente en el idioma del usuario (para PINTAR).
+import { nombreDelAlimento, lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
 import { mensajeDeError } from '../../utils/errorCopy';
 import { useTecladoDeHoja, estilosDeHojaConTeclado } from '../../hooks/useTecladoDeHoja';
 // [P2-VISION-COUNTRY-COPY · 2026-08-21] SSOT de países del frontend (espejo del backend con
@@ -167,20 +169,21 @@ const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad }) => 
                 checked={c.checked}
                 disabled={bloqueado}
                 onChange={onAlternar}
-                aria-label={t('Incluir {nombre}', { nombre: c.name })}
+                aria-label={t('Incluir {nombre}', { nombre: c.display || nombreDelAlimento(c.name) })}
             />
             <div className={styles.componentMain}>
                 <div className={styles.componentTop}>
-                    {/* El nombre del alimento viene del motor y no se traduce (P1-I18N-DASHBOARD): solo se glosa la
-                        unidad. Es un <label> de la casilla: tocar el nombre marca o desmarca. */}
-                    <label htmlFor={idCasilla} className={styles.componentName}>{c.name}</label>
+                    {/* El nombre del alimento es el del motor (P1-I18N-DASHBOARD) y viaja así al servidor; se PINTA en el
+                        idioma del usuario [P1-PLAN-LOTE-222]. Es un <label> de la casilla: tocar el nombre marca o
+                        desmarca. */}
+                    <label htmlFor={idCasilla} className={styles.componentName}>{c.display || nombreDelAlimento(c.name)}</label>
                     {kcal !== null && c.checked && <span className={styles.componentKcal}>{formatNumber(kcal)} kcal</span>}
                 </div>
                 <div className={styles.componentQtyRow}>
                     <QuantityStepper
                         value={c.qty}
                         unit={c.unit}
-                        nombre={c.name}
+                        nombre={c.display || nombreDelAlimento(c.name)}
                         disabled={bloqueado || !c.checked}
                         onChange={onCantidad}
                         classes={_STEPPER_CLASSES}
@@ -443,6 +446,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             fd.append('file', uploadFile, uploadFile.name || 'meal.jpg');
             fd.append('user_id', userId);
             fd.append('tz_offset_mins', String(new Date().getTimezoneOffset()));
+            // [P1-PLAN-LOTE-222] El nombre del plato y el de sus ingredientes vuelven en el idioma de esta pantalla.
+            fd.append('locale', getLocale());
 
             // fetchWithAuth NO setea Content-Type → el browser pone el boundary
             // multipart correcto (mismo patrón que AgentPage.jsx).
@@ -707,7 +712,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
         if (ausentes.length > 0 && (bajaron > 0 || neveraConCosas === true)) {
             descripcion = t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
                 n: bajaron,
-                faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
+                faltantes: `${ausentes.slice(0, 3).map((l) => lineaDeIngredienteVisible(l, t)).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
             });
         } else if (bajaron > 0) {
             descripcion = tn(

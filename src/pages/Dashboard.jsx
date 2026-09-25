@@ -190,6 +190,11 @@ import { getFreshPlanCount } from '../utils/quotaCache';
 import { glossClinicalNote } from '../utils/clinicalNoteGloss';
 import { neveraActiva } from '../config/dashboardNav';  // [P1-PLAN-LOTE-217]
 import { getDeltaSourceList, calculateAllPlanIngredients, fetchFreshInventoryWithTimeout, getInventoryFetchTimeoutMs, computePdfLayoutDensity, PDF_LAYOUT_THRESHOLDS, parseMarketQty, resolveShopQty, escapeHtml, glossShoppingItemName, glossShoppingQty, glossShoppingCategory, buildGlossIndex, glossShoppingName } from '../utils/shoppingHelpers';
+// [P1-PLAN-LOTE-222] Las líneas «2 unidad de Huevo» que devuelve el servidor, en el idioma del usuario.
+import { lineaDeIngredienteVisible } from '../utils/nombresDeAlimentos';
+import { sugerenciaDePresupuesto, sustitucionDePresupuesto } from '../utils/avisosDePresupuesto';
+import { nombreDeRegistro } from '../utils/nombreDeRegistro';
+import { useTextosTraducidos } from '../hooks/useTextosTraducidos';
 import { emitCoherenceToast, emitHistoricalCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { getMealAdvisories, diaEnBandaObjetivo } from '../utils/mealAdvisories';
 // [P1-TODAY-REMAINING · 2026-07-28] "Ya comiste esto hoy" — derivado del
@@ -234,10 +239,21 @@ import { isDarkActive } from '../utils/theme';
 // [P1-PLAN-HYDRATE-ON-COMPLETE · 2026-07-24] Dueño del flag de "generación en vuelo".
 import { hasPendingPipelineInFlight } from '../utils/pendingPipelineFlag';
 // [P1-I18N-SERVER-COPY-GANA · 2026-08-22] Ver la nota de errorCopy.js.
-import { mensajeDeError } from '../utils/errorCopy';
+import { mensajeDeError, mensajeDelServidor } from '../utils/errorCopy';
 // [P1-PLAN-LOTE-221 · 2026-09-24] El escáner de comida, perezoso y montado al pedirlo (ya se montaba así): el mismo
 // trozo que usan el panel de progreso y el diario, que se descarga cuando alguien lo abre.
 const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));
+
+// [P1-PLAN-LOTE-222 · 2026-09-24] Las frases fijas con que `/api/plans/restock` explica un fallo (routers/plans.py
+// `api_restock`): se traducen al pintar; cualquier otra cae al aviso genérico traducido (`mensajeDelServidor`).
+const MENSAJES_RESTOCK = [
+    i18nKey('Debes iniciar sesión para usar la nevera virtual.'),
+    i18nKey('Lista de ingredientes inválida.'),
+    i18nKey('Lista de ingredientes demasiado grande.'),
+    i18nKey('Hubo un problema actualizando algunos ingredientes.'),
+    i18nKey('Plan no encontrado'),
+    i18nKey('No autorizado.'),
+];
 
 // [P2-BRANDS-OPTIMISTIC · 2026-07-07] Update en TIEMPO REAL del brand elegido en
 // "Marcas del súper". El display de cada ítem es un solo string backend
@@ -928,6 +944,8 @@ const DashboardInner = () => {
         isGuest,
         // [P1-DASHBOARD-PLAN-SELFHEAL · 2026-07-25] Ver el efecto de auto-sanación abajo.
         hydrateLatestPlan,
+        // [P1-PLAN-LOTE-222 · 2026-09-24] Tras «Arreglar este día»: volver a por la traducción del plato nuevo.
+        esperarTraduccionDelDia,
         // [P1-PLAN-POLL-BOUNDED · 2026-07-29] El poll de AssessmentContext se rindió tras
         // el tope de give-up — anotación mínima más abajo, ver render de isPlanCorrupted.
         restartPlanPoll,
@@ -1260,7 +1278,7 @@ const DashboardInner = () => {
                 const _base = ausentes.length > 0
                     ? t('Descontamos {n} de tu Nevera. No estaban registrados: {faltantes}', {
                         n: descontados,
-                        faltantes: `${ausentes.slice(0, 3).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
+                        faltantes: `${ausentes.slice(0, 3).map((l) => lineaDeIngredienteVisible(l, t)).join(', ')}${ausentes.length > 3 ? '…' : ''}`,
                     })
                     : (descontados > 0
                         ? tn(descontados, 'Descontamos {n} ingrediente de tu Nevera.', 'Descontamos {n} ingredientes de tu Nevera.', { n: descontados })
@@ -1292,11 +1310,13 @@ const DashboardInner = () => {
             const resp = await fetchWithAuth(`${API_BASE}/api/plans/${planData.id}/fix-sodium-day`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(
-                    Array.isArray(allowNewIngredients) && allowNewIngredients.length > 0
+                body: JSON.stringify({
+                    ...(Array.isArray(allowNewIngredients) && allowNewIngredients.length > 0
                         ? { allow_new_ingredients: allowNewIngredients }
-                        : {}
-                ),
+                        : {}),
+                    // [P1-PLAN-LOTE-222 · 2026-09-24] Para `new_meal_display`: el plato nuevo en el idioma del usuario.
+                    locale: _dashLocale,
+                }),
             });
             let result = null;
             try { result = await resp.json(); } catch (_) { /* body vacío o no-JSON */ }
@@ -1323,6 +1343,13 @@ const DashboardInner = () => {
             setPantryConsent(null);
             pantryConsentContext.current = null;
             if (result?.fixed === true) {
+                // [P1-PLAN-LOTE-222 · 2026-09-24] Los dos platos del aviso en el idioma del usuario: el viejo con su
+                // `_display` del plan que aún tenemos (antes de refrescar), el nuevo con lo que mandó el servidor.
+                const _platoViejo = (planData?.days?.[Number(result.day)]?.meals || [])
+                    .find((m) => m && m.name === result.old_meal);
+                const _viejoVisible = (_platoViejo && mealDisplayName(_platoViejo, _dashLocale)) || result.old_meal;
+                const _nuevoVisible = (typeof result.new_meal_display === 'string' && result.new_meal_display.trim())
+                    || result.new_meal;
                 // El endpoint YA persistió atómicamente (mismo mutator que /swap-meal/persist:
                 // day-band rebalance + micros/techos + listas inline) — solo falta traer el plan
                 // fresco. Mismo mecanismo de refresh que usa el resume server-side del swap
@@ -1339,11 +1366,12 @@ const DashboardInner = () => {
                         }
                     }
                 } catch (_) { /* no-op: el toast ya confirma el éxito; el próximo poll refresca */ }
+                try { esperarTraduccionDelDia?.(Number(result.day)); } catch (_) { /* no-op */ }  // [P1-PLAN-LOTE-222]
                 const underCeilingCopy = result.day_under_ceiling ? t(', bajo el techo ✓') : '';
                 // [P1-I18N-TEST-CLAVA-EL-COPY · 2026-08-22] La CUARTA cadena de la misma
                 // clase en este fichero: el titulo del toast del arreglo de sodio.
                 toast.success(t('Día {n} arreglado', { n: Number(result.day) + 1 }), {
-                    description: `${result.old_meal} → ${result.new_meal} `
+                    description: `${_viejoVisible} → ${_nuevoVisible} `
                         + t('({antes}→{despues} mg de sodio{nota}).', {
                             antes: result.sodio_antes_mg,
                             despues: result.sodio_despues_mg,
@@ -1860,6 +1888,9 @@ const DashboardInner = () => {
     // [P1-PLAN-LOTE-103 · 2026-09-18] El contador ya no vive en esta pantalla (pestaña «Progreso»): el hook adopta su
     // evento si está montado y, si no, pide el diario él mismo con las mismas señales de refresco.
     const todaysConsumedMeals = useTodaysConsumedMeals(session?.user?.id || userProfile?.id);
+    // [P1-PLAN-LOTE-222 · 2026-09-24] Cómo se LEE el nombre de algo registrado en el diario (el plato del plan en el
+    // idioma del usuario); el dato no cambia. Lo usa el aviso «Registraste … como tu {comida} de hoy».
+    const _nombrarRegistro = useCallback((n) => nombreDeRegistro(n, planData, t, _dashLocale), [planData, t, _dashLocale]);
     // [P2-NEVERA-COMPLETION-REMOVED · 2026-07-06] eliminado el estado
     // `pantryCompletionList` junto con el panel "Para completar tu Nevera"
     // (decisión del owner: redundante con la lista de compras + ocupaba espacio).
@@ -4893,7 +4924,8 @@ const DashboardInner = () => {
                 // errores tipados del backend (HTTPException) traen `detail`, no `message`, así que el
                 // genérico tragaba el motivo real. (El 402 del paywall ya no ocurre tras P1-NEVERA-QUOTA-EXEMPT.)
                 const _msg = data.detail || data.message;
-                if (!silent) toast.error(_msg || t('Error al actualizar la despensa.'));
+                // [P1-PLAN-LOTE-222 · 2026-09-24] El motivo en el idioma del usuario (el servidor lo escribe en español).
+                if (!silent) toast.error(mensajeDelServidor(_msg, MENSAJES_RESTOCK, t('Error al actualizar la despensa.'), t));
                 else throw new Error(_msg || 'restock failed'); // deja que el nudge reintente
             }
         } catch (error) {
@@ -5047,6 +5079,9 @@ const DashboardInner = () => {
 
     const currentDayMeals = currentDayRecord?.meals || [];
     const currentDaySupplements = currentDayRecord?.supplements || [];
+    // [P1-PLAN-LOTE-222 · 2026-09-24] Los suplementos del día los escribe el modelo en español y no viven en `_display`:
+    // se traducen al leer (hooks/useTextosTraducidos.js). El dato no cambia.
+    const _trSupp = useTextosTraducidos(currentDaySupplements.flatMap((s) => (s && typeof s === 'object' ? [s.name, s.dose, s.timing, s.reason] : [])));
 
     // [P1-NOTEBOOK-MARGIN-EMPTY · 2026-08-21] ¿El día activo tiene platos que
     // renderizar? MISMA condición que decide EmptyState vs timeline en el render
@@ -7443,13 +7478,13 @@ const DashboardInner = () => {
                                     )}
                                     {_br.adjusted && _subs.length > 0 && (
                                         <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                            {t('Para cuidar tu bolsillo ajustamos: {sustituciones}', { sustituciones: _subs.join(' · ') })}
+                                            {t('Para cuidar tu bolsillo ajustamos: {sustituciones}', { sustituciones: _subs.map((x) => sustitucionDePresupuesto(x)).join(' · ') })}
                                         </p>
                                     )}
                                     {_br.status === 'excedido' && _sugs.length > 0 && (
                                         <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1.1rem', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                                             {_sugs.map((s, i) => (
-                                                <li key={i}>{typeof s === 'string' ? s : (s && s.text) || ''}</li>
+                                                <li key={i}>{sugerenciaDePresupuesto(s, t, _fmtRD)}</li>
                                             ))}
                                         </ul>
                                     )}
@@ -8682,7 +8717,11 @@ const DashboardInner = () => {
                                                             // Fallback al cálculo viejo si day_name ausente
                                                             // (planes legacy pre-backend-inject que aún
                                                             // están en localStorage).
-                                                            if (day?.day_name) return day.day_name;
+                                                            // [P1-PLAN-LOTE-222 · 2026-09-24] El backend
+                                                            // escribe el día en español («Lunes»): se
+                                                            // traduce al pintar, con las MISMAS claves
+                                                            // del cálculo de respaldo de abajo.
+                                                            if (day?.day_name) return t(day.day_name);
                                                             const diasSemana = [t('Domingo'), t('Lunes'), t('Martes'), t('Miércoles'), t('Jueves'), t('Viernes'), t('Sábado')];
                                                             const d = new Date();
                                                             d.setDate(d.getDate() + visibleIdx);
@@ -8920,7 +8959,7 @@ const DashboardInner = () => {
                                 // `null` cuando no está comido: cada callsite decide su
                                 // propio fallback (texto del control activo).
                                 const eatenClaim = isEatenToday
-                                    ? eatenClaimForSlot(todaysConsumedMeals, meal.meal, 'unlock')
+                                    ? eatenClaimForSlot(todaysConsumedMeals, meal.meal, 'unlock', _nombrarRegistro)
                                     : null;
 
                                 // [P1-SWAP-LOCK-EXPLAINS · 2026-08-11] El motivo del bloqueo de
@@ -9530,21 +9569,21 @@ const DashboardInner = () => {
                                     }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>
-                                                💊 {supp.name}
+                                                💊 {_trSupp(supp.name)}
                                             </span>
                                             <span style={{
                                                 fontSize: '0.7rem', fontWeight: 700,
                                                 background: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)',
                                                 padding: '0.15rem 0.5rem', borderRadius: '6px'
                                             }}>
-                                                {supp.timing}
+                                                {_trSupp(supp.timing)}
                                             </span>
                                         </div>
                                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                            {t('Dosis: {dosis}', { dosis: supp.dose })}
+                                            {t('Dosis: {dosis}', { dosis: _trSupp(supp.dose) })}
                                         </div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                            {supp.reason}
+                                            {_trSupp(supp.reason)}
                                         </div>
                                     </div>
                                 ))}

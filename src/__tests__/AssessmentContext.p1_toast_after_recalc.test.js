@@ -35,10 +35,13 @@ describe('[P1-REGEN-DAY-TOAST-AFTER-RECALC] orden del aviso de desenlace', () =>
     it('las ramas registran el aviso en vez de emitirlo al vuelo', () => {
         expect(_src).toContain('let _emitirDesenlace = () => {};');
         // Las cuatro ramas del desenlace (IA interrumpida, bajo objetivo, platos
-        // conservados, éxito limpio). El patrón exige `=> toast` para no contar la
-        // declaración inicial `() => {}`, que también asigna la variable.
-        const registros = _src.match(/_emitirDesenlace = \(\) => toast/g) || [];
+        // conservados, éxito limpio). El patrón excluye la declaración inicial
+        // `() => {};`, que también asigna la variable. [P1-PLAN-LOTE-222] La rama
+        // «bajo objetivo» registra un cuerpo con llaves (compone el aviso en el idioma
+        // del usuario con `import()`), así que ya no todas empiezan por `=> toast`.
+        const registros = _src.match(/_emitirDesenlace = \(\) => (?!\{\};)/g) || [];
         expect(registros.length).toBe(4);
+        expect(_src).toContain("import('../utils/avisosDeCalidad')\n                        .then(({ avisoDeCalidadDelDia }) => _aviso(avisoDeCalidadDelDia(data, t)))");
     });
 
     it('el aviso se emite DESPUÉS del recalc de la lista, no antes', () => {

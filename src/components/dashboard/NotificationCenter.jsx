@@ -32,6 +32,8 @@ import { restoreInsightsPanel } from '../../utils/insightsPanel';
 import { useT } from '../../i18n';
 import styles from './NotificationCenter.module.css';
 import Wordmark from '../common/Wordmark';
+// [P1-PLAN-LOTE-222] Nombres, dosis, alimentos y avisos de micronutrientes, traducidos al pintar.
+import { etiquetaMicro, textoSuplemento, alimentosSuplemento, avisoMicro } from '../../utils/microsCopy';
 
 /* [P3-NOTIF-CENTER · 2026-06-16] Centro de notificaciones del dashboard.
 
@@ -96,7 +98,7 @@ function MicrosDetail({ data, onAction }) {
                         return (
                             <div key={`g-${i}`} className={styles.exGap}>
                                 <div className={styles.exGapTop}>
-                                    <span className={styles.exNutrient}>{g.nutriente}</span>
+                                    <span className={styles.exNutrient}>{etiquetaMicro(g, t)}</span>
                                     <span className={`${styles.exPill} ${styles[`exTone_${s.tone}`]}`}>
                                         {s.kind === 'ceil'
                                             ? <ArrowUp size={10} strokeWidth={2.75} aria-hidden="true" />
@@ -122,15 +124,15 @@ function MicrosDetail({ data, onAction }) {
                         <div key={`s-${i}`} className={styles.exSupp}>
                             <Pill size={12} strokeWidth={2.25} aria-hidden="true" />
                             <span>
-                                <strong>{it.nutriente}</strong> · {it.suplemento} {it.dosis_sugerida}
+                                <strong>{etiquetaMicro(it, t)}</strong> · {textoSuplemento(it.suplemento, t)} {textoSuplemento(it.dosis_sugerida, t)}
                                 {it.primero_alimentos && (
-                                    <span className={styles.exHint}> {t('— primero alimentos: {alimentos}', { alimentos: it.primero_alimentos })}</span>
+                                    <span className={styles.exHint}> {t('— primero alimentos: {alimentos}', { alimentos: alimentosSuplemento(it.primero_alimentos, t) })}</span>
                                 )}
                                 {/* [P1-SUPPLEMENT-CAUTION-UI · 2026-06-26] precaución (UL / interacción / renal) */}
                                 {it.precaucion && (
                                     <span className={styles.exCaution}>
                                         <AlertTriangle size={11} strokeWidth={2.25} aria-hidden="true" />
-                                        <span>{it.precaucion}</span>
+                                        <span>{textoSuplemento(it.precaucion, t)}</span>
                                     </span>
                                 )}
                             </span>
@@ -143,7 +145,7 @@ function MicrosDetail({ data, onAction }) {
             {data?.disclaimer && (
                 <p className={styles.exDisclaimer}>
                     <Info size={12} strokeWidth={2.25} aria-hidden="true" />
-                    <span>{data.disclaimer}</span>
+                    <span>{avisoMicro(data.disclaimer, t)}</span>
                 </p>
             )}
 

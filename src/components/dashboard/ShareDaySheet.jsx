@@ -22,6 +22,8 @@ import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
 import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, puedeCompartirTexto, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
+import { useAssessment } from '../../context/AssessmentContext';
+import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import styles from './ShareDaySheet.module.css';
 
 const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMetas = null, fecha = null }) => {
@@ -46,9 +48,13 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const fechaDelDia = useMemo(() => (Number.isFinite(instante) ? new Date(instante) : new Date()), [instante]);
     const delDia = useMemo(() => consumed || consumidoDelDiario(diario), [consumed, diario]);
 
+    // [P1-PLAN-LOTE-222 · 2026-09-24] Los nombres de lo comido, en el idioma del usuario (utils/nombreDeRegistro.js).
+    // Estable (useCallback): una función nueva en cada render redibujaría la imagen sin parar.
+    const { planData } = useAssessment() || {};
+    const nombrar = useCallback((n) => nombreDeRegistro(n, planData, t), [planData, t]);
     const resumen = useMemo(
-        () => resumenDelDia({ consumed: delDia, metas: metasDelDia, microMetas, incluirComidas, fecha: fechaDelDia }),
-        [delDia, metasDelDia, microMetas, incluirComidas, fechaDelDia],
+        () => resumenDelDia({ consumed: delDia, metas: metasDelDia, microMetas, incluirComidas, fecha: fechaDelDia, nombrar }),
+        [delDia, metasDelDia, microMetas, incluirComidas, fechaDelDia, nombrar],
     );
     const texto = useMemo(() => textoDelDia(resumen), [resumen]);
 

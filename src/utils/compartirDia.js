@@ -26,7 +26,9 @@ export function barraTexto(pct, casillas = 10) {
 const _pct = (valor, meta) => (meta > 0 ? Math.round((valor / meta) * 100) : 0);
 
 /** Los números que se comparten, ya decididos: la imagen y el texto no redondean ni eligen nada. */
-export function resumenDelDia({ consumed, metas, microMetas = null, incluirComidas = false, fecha = new Date() }) {
+// [P1-PLAN-LOTE-222 · 2026-09-24] `nombrar`: cómo se LEE el nombre de cada comida (utils/nombreDeRegistro.js); por
+// defecto, tal cual.
+export function resumenDelDia({ consumed, metas, microMetas = null, incluirComidas = false, fecha = new Date(), nombrar = null }) {
     const c = consumed || {};
     const m = metas || {};
     const comidas = Array.isArray(c.meals) ? c.meals : [];
@@ -49,7 +51,11 @@ export function resumenDelDia({ consumed, metas, microMetas = null, incluirComid
         micros,
         cobertura,
         comidas: incluirComidas
-            ? comidas.map((x) => ({ nombre: String(x?.meal_name || '').trim(), kcal: Math.round(Number(x?.calories) || 0) })).filter((x) => x.nombre)
+            ? comidas.map((x) => {
+                const crudo = String(x?.meal_name || '').trim();
+                const nombre = crudo && typeof nombrar === 'function' ? String(nombrar(crudo) || crudo).trim() : crudo;
+                return { nombre, kcal: Math.round(Number(x?.calories) || 0) };
+            }).filter((x) => x.nombre)
             : [],
     };
 }

@@ -28,13 +28,17 @@ import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from
 // (`generateAIPlanStream` y sus helpers viven FUERA de React); `useT`/`useTn`
 // para los tres componentes de este archivo. Los mensajes de error que solo
 // alimentan un `console.*` o un `error.code` NO se traducen: nadie los lee.
-import { t, useT, useTn, useI18n, getLocale } from '../i18n';
+import { t, useT, useTn, useI18n, getLocale, i18nKey } from '../i18n';
 // [P1-I18N-BACKEND-DETAIL · 2026-08-21] El `detail` del servidor viene
 // en español SIEMPRE; el `||` hacía que ganara sobre el fallback traducido.
-import { mensajeDeError } from '../utils/errorCopy';
+import { mensajeDeError, mensajeDelServidor } from '../utils/errorCopy';
+import { textoDelServidor } from '../utils/textosDelServidor';
 // [P1-I18N-SERVER-COPY-GANA-SIGUE-ABIERTO · 2026-08-23] El `_review_disclaimer` del backend
 // viene siempre en español; se glosa al imprimir, igual que la nota clínica.
-import { glossReviewIssue, glossReviewDisclaimer } from '../utils/clinicalNoteGloss';
+import { glossReviewDisclaimer, reviewIssueLegible } from '../utils/clinicalNoteGloss';
+// [P1-PLAN-LOTE-222 · 2026-09-24] La frase con que el servidor explica el 409 `plan_recently_created`
+// (routers/plans.py, P1-DEDUP-RECENT-PLAN), byte a byte: se traduce al pintar.
+const MENSAJE_PLAN_RECIENTE = i18nKey('Tu plan ya estaba listo (quizá se te cayó la conexión). Te lo mostramos en vez de crear otro, para no duplicarlo. Si quieres uno distinto, intenta de nuevo en unos minutos.');
 
 // [P1-B10] Default conservador para countdown de 429 cuando el backend no
 // envía `Retry-After`. El RateLimiter del backend usa period=60s con
@@ -1450,10 +1454,13 @@ const Plan = () => {
                             // observación (ya humanizada por el backend, glosada aquí) y cuántas más hay.
                             // El mismo título que el banner del Dashboard, para que se lea como el
                             // mismo hecho y no como dos problemas distintos.
+                            // [P1-PLAN-LOTE-222] Sólo las observaciones legibles en el idioma activo: una que
+                            // no se reconoce saldría en español bajo un título traducido (`reviewIssueLegible`).
                             const _list = Array.isArray(generatedPlan?._review_issues)
                                 ? generatedPlan._review_issues.map(String).filter(Boolean)
+                                    .map((x) => reviewIssueLegible(x, t)).filter(Boolean)
                                 : [];
-                            const _first = _list[0] ? glossReviewIssue(_list[0], t) : '';
+                            const _first = _list[0] || '';
                             const _more = _list.length > 1 ? ' ' + t('(+{n} más en el Dashboard)', { n: _list.length - 1 }) : '';
                             try { sessionStorage.setItem('mealfit_plan_ready_toast_at', String(Date.now())); } catch { /* noop */ }
                             toast.warning(t('Tu plan está listo, con un detalle por revisar'), {
@@ -1544,7 +1551,8 @@ const Plan = () => {
                         await tryAdoptDedupedPlan(error.planId);
                         import('sonner').then(({ toast }) => {
                             toast.info(t("Tu plan ya estaba listo"), {
-                                description: error.message || t("Te lo mostramos en vez de crear otro, para no duplicarlo."),
+                                // [P1-PLAN-LOTE-222] La frase del servidor, en el idioma del usuario.
+                                description: mensajeDelServidor(error.message, [MENSAJE_PLAN_RECIENTE], t("Te lo mostramos en vez de crear otro, para no duplicarlo."), t),
                                 duration: 6000,
                             });
                         });
@@ -2126,6 +2134,11 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
     const showReviewWarningBanner = !!(
         newPlan?._review_failed_but_delivered && !showReviewCriticalBanner
     );
+    // [P1-PLAN-LOTE-222 · 2026-09-24] Las observaciones del revisor legibles en el idioma activo: una que no se
+    // reconoce saldría en español bajo un título traducido, y se omite (el párrafo de arriba ya lo resume).
+    const reviewIssuesLegibles = Array.isArray(newPlan?._review_issues)
+        ? newPlan._review_issues.map(String).map((x) => reviewIssueLegible(x, t)).filter(Boolean)
+        : [];
 
     // [P3-PLAN-AUTO-APPLY-CLEAN · 2026-05-15] Auto-apply + skip al dashboard
     // cuando el plan se aprobó LIMPIAMENTE (sin observaciones que requieran
@@ -2404,13 +2417,14 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                             <ShieldCheck size={20} /> {t('Verificación médica con observaciones')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                            {newPlan?._review_disclaimer
+                            {/* [P1-PLAN-LOTE-222] glosado como en el aviso (el servidor lo manda en español) */}
+                            {glossReviewDisclaimer(newPlan?._review_disclaimer, t)
                                 || t('Este plan no superó completamente la verificación médica automática. Las observaciones encontradas son no-críticas, pero te recomendamos regenerarlo o revisarlo con tu nutricionista.')}
                         </p>
-                        {Array.isArray(newPlan?._review_issues) && newPlan._review_issues.length > 0 && (
+                        {reviewIssuesLegibles.length > 0 && (
                             <ul style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '1rem', paddingLeft: '1.25rem' }}>
-                                {newPlan._review_issues.slice(0, 4).map((issue, idx) => (
-                                    <li key={idx} style={{ marginBottom: '0.25rem' }}>{String(issue)}</li>
+                                {reviewIssuesLegibles.slice(0, 4).map((issue, idx) => (
+                                    <li key={idx} style={{ marginBottom: '0.25rem' }}>{issue}</li>
                                 ))}
                             </ul>
                         )}
@@ -2484,10 +2498,10 @@ const PreviewScreen = ({ oldPlan, newPlan, onAccept, onReject, onRegenerate }) =
                 {(userActionRequired || recoveryExhausted.length > 0) && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '1rem', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
                         <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Activity size={20} /> {userActionRequired?.title || t('Tu plan necesita una decisión')}
+                            <Activity size={20} /> {textoDelServidor(userActionRequired?.title, t) || t('Tu plan necesita una decisión')}
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', marginBottom: '1rem' }}>
-                            {userActionRequired?.body
+                            {textoDelServidor(userActionRequired?.body, t)
                                 || t('Algunas semanas no se pudieron generar tras varios intentos automáticos. Puedes generar una versión simplificada (con ingredientes generales) para no perder tus próximos días.')}
                         </p>
                         {recoveryExhausted.length > 0 && recoveryExhausted.map((chunk) => {

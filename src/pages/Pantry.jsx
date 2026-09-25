@@ -16,8 +16,10 @@ import { textoNeveraBaja, tooltipCaducidad } from './pantryLowBannerCopy';
 // [P1-I18N-DASHBOARD · 2026-08-15] Motor de idioma. El hook es lo que suscribe el
 // componente al cambio de catálogo; las tablas de copy de abajo son FUNCIONES por
 // eso mismo (una constante con `t()` se congelaría en español al importar).
-import { compareText, formatNumber, t, useT, useTn, formatTemperature } from '../i18n';
+import { compareText, formatNumber, t, useT, useTn, formatTemperature, i18nKey } from '../i18n';
 import { glossUnitWord } from '../utils/shoppingHelpers';
+// [P1-PLAN-LOTE-222] El alimento se PINTA en el idioma del usuario y se BUSCA en los cinco; se guarda el canónico.
+import { nombreDeFila, nombreDelAlimento, formasDeBuscar } from '../utils/nombresDeAlimentos';
 // [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] SSOT del sistema de unidades por país. La
 // proyección es de DISPLAY: `item.quantity`/`item.unit` (el dato que el backend deduce) no se
 // tocan en ninguna de las superficies de abajo.
@@ -350,7 +352,9 @@ const getZoneDefinitions = () => {
 // "Añade a tu Nevera". [P3-PANTRY-RECENT-ADDS · 2026-07-07] 1-toque: si la palabra
 // resuelve a un master item ÚNICO se añade directo (unidad recomendada); si es
 // ambigua (varios "aceite"/"pollo") siembra la búsqueda — nunca adivina cuál.
-const QUICK_ADD_SUGGESTIONS = ['Pollo', 'Arroz', 'Huevos', 'Leche', 'Aceite', 'Cebolla'];
+// [P1-PLAN-LOTE-222 · 2026-09-24] La palabra española es lo que `handleChipAdd` resuelve contra el catálogo; lo que se
+// PINTA es su traducción (`t(word)`). Antes el chip decía «Pollo» a un francés.
+const QUICK_ADD_SUGGESTIONS = [i18nKey('Pollo'), i18nKey('Arroz'), i18nKey('Huevos'), i18nKey('Leche'), i18nKey('Aceite'), i18nKey('Cebolla')];
 
 // [P3-PANTRY-RECENT-ADDS · 2026-07-07] Estilo compartido de los chips (recientes +
 // sugerencias). Módulo-scope: valores estáticos, evita re-alocar por keystroke.
@@ -1332,12 +1336,12 @@ const PantryPage = () => {
             // Quitar del banner al instante; el refetch reconcilia.
             setReconcileItems((prev) => prev.filter((x) => x.id !== item.id));
             if (action === 'keep') {
-                toast.success(t('{alimento}: anotado, sigue en tu Nevera.', { alimento: item.ingredient_name }));
+                toast.success(t('{alimento}: anotado, sigue en tu Nevera.', { alimento: nombreDelAlimento(item.ingredient_name) }));
             } else {
                 toast.success(
                     action === 'spoiled'
-                        ? t('{alimento} fuera de la Nevera (se dañó).', { alimento: item.ingredient_name })
-                        : t('{alimento} fuera de la Nevera.', { alimento: item.ingredient_name })
+                        ? t('{alimento} fuera de la Nevera (se dañó).', { alimento: nombreDelAlimento(item.ingredient_name) })
+                        : t('{alimento} fuera de la Nevera.', { alimento: nombreDelAlimento(item.ingredient_name) })
                 );
                 // used/spoiled SÍ cambian el inventario → recargar la lista.
                 invalidateInventoryCache();
@@ -1840,7 +1844,7 @@ const PantryPage = () => {
                 console.error("Error deleting:", error);
                 // Revertir en la UI si falla
                 setInventory(prev => [...prev, deletedItem].sort((a,b) => compareText(a.ingredient_name, b.ingredient_name)));
-                toast.error(t('Error al eliminar {alimento}', { alimento: deletedItem.ingredient_name }));
+                toast.error(t('Error al eliminar {alimento}', { alimento: nombreDelAlimento(deletedItem.ingredient_name) }));
                 return;
             }
         }
@@ -1851,7 +1855,7 @@ const PantryPage = () => {
         if (markAsDepleted) _addDepleted(deletedItem);
 
         // Toast con opción de deshacer real (insert)
-        toast.success(t('{alimento} eliminado', { alimento: deletedItem.ingredient_name }), {
+        toast.success(t('{alimento} eliminado', { alimento: nombreDelAlimento(deletedItem.ingredient_name) }), {
             icon: '🗑️',
             duration: 5000,
             action: {
@@ -1886,7 +1890,7 @@ const PantryPage = () => {
                         );
                         // Salió del estado "agotado" porque el usuario lo recuperó.
                         _removeDepleted(deletedItem);
-                        toast.success(t('{alimento} restaurado', { alimento: deletedItem.ingredient_name }), { icon: '↩️', duration: 2000 });
+                        toast.success(t('{alimento} restaurado', { alimento: nombreDelAlimento(deletedItem.ingredient_name) }), { icon: '↩️', duration: 2000 });
                         // [P3-AUDIT-8] Revertir el delta: el item está de
                         // vuelta, la lista de compras debe excluirlo otra vez.
                         // [P2-NEW-12 · 2026-05-11] Debounced — undo masivo no
@@ -2009,7 +2013,7 @@ const PantryPage = () => {
             if (existing) {
                 await handleUpdateQuantity(existing.id, existing.quantity + safeQty);
                 toast.success(t('+{cantidad} {unidad} a {alimento}', {
-                    cantidad: safeQty, unidad: existing.unit || '', alimento: masterItem.name,
+                    cantidad: safeQty, unidad: glossUnitWord(existing.unit || '', t), alimento: nombreDeFila(masterItem),
                 }).trim());
                 _recordRecentAdd(masterItem, existing.unit || finalUnit);
                 setShowAddMenu(false);
@@ -2051,10 +2055,10 @@ const PantryPage = () => {
                     if (dup) {
                         await handleUpdateQuantity(dup.id, dup.quantity + safeQty);
                         toast.success(t('+{cantidad} {unidad} a {alimento}', {
-                            cantidad: safeQty, unidad: dup.unit || '', alimento: masterItem.name,
+                            cantidad: safeQty, unidad: glossUnitWord(dup.unit || '', t), alimento: nombreDeFila(masterItem),
                         }).trim());
                     } else {
-                        toast.success(t('{alimento} ya estaba en tu nevera', { alimento: masterItem.name }), { icon: '✅' });
+                        toast.success(t('{alimento} ya estaba en tu nevera', { alimento: nombreDeFila(masterItem) }), { icon: '✅' });
                     }
                     _recordRecentAdd(masterItem, (dup && dup.unit) || finalUnit);
                     setShowAddMenu(false);
@@ -2067,7 +2071,7 @@ const PantryPage = () => {
             if (!data) throw new Error('INSERT sin item en la respuesta.');
 
             toast.success(t('{cantidad} {unidad} de {alimento} en la nevera', {
-                cantidad: safeQty, unidad: finalUnit, alimento: masterItem.name,
+                cantidad: safeQty, unidad: finalUnit, alimento: nombreDeFila(masterItem),
             }));
             setInventory(prev => [...prev, data].sort((a,b) => compareText(a.ingredient_name, b.ingredient_name)));
             _recordRecentAdd(masterItem, finalUnit);
@@ -2115,12 +2119,10 @@ const PantryPage = () => {
         let hit = masterList.find(m => (m.name || '').toLowerCase() === q)
             || masterList.find(m => (m.name || '').toLowerCase() === qs);
         if (!hit) {
+            // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] El gloss inglés como vía de entrada; lo
+            // seleccionado sigue siendo `m.name`. [P1-PLAN-LOTE-222] Y los otros tres idiomas: `formasDeBuscar`.
             const matches = masterList.filter(m =>
-                (m.name || '').toLowerCase().includes(q)
-                || (m.aliases && m.aliases.some(a => (a || '').toLowerCase().includes(q)))
-                // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4 · 2026-08-23] El gloss inglés como
-                // vía de entrada; lo seleccionado sigue siendo `m.name`. Cubre 1 idioma de 4.
-                || (m.name_en || '').toLowerCase().includes(q)
+                formasDeBuscar(m).some((f) => f.toLowerCase().includes(q))
             );
             if (matches.length === 1) hit = matches[0];
         }
@@ -2168,7 +2170,7 @@ const PantryPage = () => {
                 if (insErr?.status === 409) {
                     await fetchData(false);
                     _removeDepleted(entry);
-                    toast.success(t('{alimento} ya estaba en tu nevera', { alimento: entry.ingredient_name }), { icon: '✅', duration: 2000 });
+                    toast.success(t('{alimento} ya estaba en tu nevera', { alimento: nombreDelAlimento(entry.ingredient_name) }), { icon: '✅', duration: 2000 });
                     return;
                 }
                 throw insErr;
@@ -2179,12 +2181,12 @@ const PantryPage = () => {
             ));
             _removeDepleted(entry);
             toast.success(t('{alimento} repuesto ({cantidad} {unidad})', {
-                alimento: entry.ingredient_name, cantidad: restoreQty, unidad: entry.unit || '',
+                alimento: nombreDelAlimento(entry.ingredient_name), cantidad: restoreQty, unidad: glossUnitWord(entry.unit || '', t),
             }).trim(), { icon: '✅', duration: 2000 });
             _scheduleRecalcShoppingList();
         } catch (err) {
             console.error('Restore depleted error:', err);
-            toast.error(t('No se pudo reponer {alimento}.', { alimento: entry.ingredient_name }));
+            toast.error(t('No se pudo reponer {alimento}.', { alimento: nombreDelAlimento(entry.ingredient_name) }));
         }
     };
 
@@ -2192,7 +2194,7 @@ const PantryPage = () => {
     // ya no existe; solo limpia el marcador localStorage).
     const handleDismissDepleted = (entry) => {
         _removeDepleted(entry);
-        toast(t('{alimento} removido de la lista de agotados', { alimento: entry.ingredient_name }), { duration: 2000 });
+        toast(t('{alimento} removido de la lista de agotados', { alimento: nombreDelAlimento(entry.ingredient_name) }), { duration: 2000 });
     };
 
     // 3. Computed Views
@@ -2264,11 +2266,10 @@ const PantryPage = () => {
     const suggestedMasterItems = useMemo(() => {
         if (!addItemSearch.trim()) return [];
         const q = addItemSearch.toLowerCase();
-        return masterList.filter(m => 
-            m.name.toLowerCase().includes(q) || 
-            (m.aliases && m.aliases.some(a => a.toLowerCase().includes(q))) ||
-            // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4] ver arriba.
-            (m.name_en || '').toLowerCase().includes(q)
+        // [P2-I18N-BUSCADOR-CATALOGO-PUENTE-EN-1-DE-4] ver arriba. [P1-PLAN-LOTE-222] los cinco idiomas, sin acentos.
+        const qn = q.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return masterList.filter(m =>
+            formasDeBuscar(m).some((f) => f.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(qn))
         ).slice(0, 8); // Top 8 suggestions
     }, [addItemSearch, masterList]);
 
@@ -2410,6 +2411,8 @@ const PantryPage = () => {
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
         const atFloor = item.quantity <= 1;
+        // [P1-PLAN-LOTE-222] El alimento en el idioma del usuario, una vez por fila (el dato sigue en español).
+        const nombreVisible = nombreDelAlimento(item.ingredient_name);
         const badge = getShelfLifeBadge(item, t, tn);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
         // [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] El estado de atención de la fila
@@ -2424,7 +2427,7 @@ const PantryPage = () => {
             >
                 <span className={fstyles.rdot} />
                 <span className={fstyles.rname} style={{ textDecoration: isDisabled ? 'line-through' : 'none' }}>
-                    {item.ingredient_name}
+                    {nombreVisible}
                 </span>
                 <span className={fstyles.unit} title={t('Medida: {unidad}', { unidad: displayUnit })}>{displayUnit}</span>
                 {/* [P2-NEVERA-BRANDS · 2026-07-06 · P1-PANTRY-DASH-PARITY 2026-07-11] Chip de
@@ -2441,7 +2444,7 @@ const PantryPage = () => {
                             brands={_brands}
                             onSelect={(b) => changeItemBrand(item, b)}
                             className={item.brand && item.brand !== 'Genérico' ? fstyles.brandChip : fstyles.brandChipGeneric}
-                            ariaLabel={t('Marca de {alimento}', { alimento: item.ingredient_name })}
+                            ariaLabel={t('Marca de {alimento}', { alimento: nombreVisible })}
                         />
                     );
                 })()}
@@ -2473,7 +2476,7 @@ const PantryPage = () => {
                         onPointerLeave={(e) => stopHolding(e, item.id)}
                         onContextMenu={(e) => e.preventDefault()}
                         disabled={atFloor}
-                        aria-label={atFloor ? t('Cantidad mínima — usa "Agotar" para eliminar') : t('Disminuir {alimento}', { alimento: item.ingredient_name })}
+                        aria-label={atFloor ? t('Cantidad mínima — usa "Agotar" para eliminar') : t('Disminuir {alimento}', { alimento: nombreVisible })}
                         title={atFloor ? t('Para eliminar, usa "Agotar"') : t('Mantener presionado para bajar rápido')}
                     >
                         <Minus size={15} strokeWidth={2.5} />
@@ -2483,7 +2486,7 @@ const PantryPage = () => {
                         className={fstyles.qty}
                         onClick={() => { setQtyEditItem(item); setQtyEditValue(item.quantity); }}
                         title={t('Tocar para ajustar a cantidad exacta')}
-                        aria-label={t('Ajustar cantidad de {alimento}', { alimento: item.ingredient_name })}
+                        aria-label={t('Ajustar cantidad de {alimento}', { alimento: nombreVisible })}
                     >
                         {fmtQty(_medida.qty)}
                     </button>
@@ -2494,7 +2497,7 @@ const PantryPage = () => {
                         onPointerUp={(e) => stopHolding(e, item.id)}
                         onPointerLeave={(e) => stopHolding(e, item.id)}
                         onContextMenu={(e) => e.preventDefault()}
-                        aria-label={t('Aumentar {alimento}', { alimento: item.ingredient_name })}
+                        aria-label={t('Aumentar {alimento}', { alimento: nombreVisible })}
                         title={t('Mantener presionado para subir rápido')}
                     >
                         <Plus size={15} strokeWidth={3} />
@@ -2505,7 +2508,7 @@ const PantryPage = () => {
                     className={fstyles.agotar}
                     onClick={() => handleDeleteItem(item.id)}
                     title={t('Marcar como agotado')}
-                    aria-label={t('Marcar {alimento} como agotado', { alimento: item.ingredient_name })}
+                    aria-label={t('Marcar {alimento} como agotado', { alimento: nombreVisible })}
                 >
                     {t('Agotar')}
                 </button>
@@ -2514,7 +2517,7 @@ const PantryPage = () => {
                     className={fstyles.del}
                     onClick={() => handleDeleteItem(item.id, { markAsDepleted: false })}
                     title={t('Eliminar definitivamente')}
-                    aria-label={t('Eliminar {alimento} definitivamente', { alimento: item.ingredient_name })}
+                    aria-label={t('Eliminar {alimento} definitivamente', { alimento: nombreVisible })}
                 >
                     <X size={15} strokeWidth={2.5} />
                 </button>
@@ -2525,8 +2528,8 @@ const PantryPage = () => {
     const renderDepletedRow = (entry) => (
         <div key={_depletedKey(entry)} className={fstyles.depRow}>
             <span className={fstyles.rdot} style={{ background: 'var(--text-light)' }} />
-            <span className={fstyles.depName}>{entry.ingredient_name}</span>
-            <span className={fstyles.depMeta}>{t('Tenías: {cantidad} {unidad}', { cantidad: fmtQty(entry.quantity || 1), unidad: entry.unit || 'unidad' })}</span>
+            <span className={fstyles.depName}>{nombreDelAlimento(entry.ingredient_name)}</span>
+            <span className={fstyles.depMeta}>{t('Tenías: {cantidad} {unidad}', { cantidad: fmtQty(entry.quantity || 1), unidad: glossUnitWord(entry.unit || 'unidad', t) })}</span>
             <span className={fstyles.sp} />
             <button
                 type="button"
@@ -2541,7 +2544,7 @@ const PantryPage = () => {
                 className={fstyles.dismiss}
                 onClick={() => handleDismissDepleted(entry)}
                 title={t('Quitar de agotados')}
-                aria-label={t('Quitar {alimento} de agotados', { alimento: entry.ingredient_name })}
+                aria-label={t('Quitar {alimento} de agotados', { alimento: nombreDelAlimento(entry.ingredient_name) })}
             >
                 <X size={14} strokeWidth={2.5} />
             </button>
@@ -2566,6 +2569,8 @@ const PantryPage = () => {
         // [P1-LIGHT-INK-CONTRACT] el color vivo pinta el punto; la tinta, el texto.
         const catInk = zoneInk(getZoneForCategory(item.master_ingredients?.category));
         const atFloor = item.quantity <= 1;
+        // [P1-PLAN-LOTE-222] El alimento en el idioma del usuario, una vez por tarjeta (el dato sigue en español).
+        const nombreVisible = nombreDelAlimento(item.ingredient_name);
         const badge = getShelfLifeBadge(item, t, tn);
         const badgeStyle = badge ? getShelfLifeBadgeStyle(badge.severity) : null;
         // [P1-PANTRY-LOW-IS-A-LIE · 2026-08-09] El estado de atención de la fila
@@ -2580,14 +2585,14 @@ const PantryPage = () => {
             >
                 <div className={mstyles.itop}>
                     <span className={mstyles.iname} style={{ textDecoration: isDisabled ? 'line-through' : 'none' }}>
-                        {item.ingredient_name}
+                        {nombreVisible}
                     </span>
                     <button
                         type="button"
                         className={mstyles.del}
                         onClick={() => handleDeleteItem(item.id, { markAsDepleted: false })}
                         title={t('Eliminar definitivamente')}
-                        aria-label={t('Eliminar {alimento} definitivamente', { alimento: item.ingredient_name })}
+                        aria-label={t('Eliminar {alimento} definitivamente', { alimento: nombreVisible })}
                     >
                         <X size={14} strokeWidth={2.5} />
                     </button>
@@ -2606,7 +2611,7 @@ const PantryPage = () => {
                                 brands={_brands}
                                 onSelect={(b) => changeItemBrand(item, b)}
                                 className={item.brand && item.brand !== 'Genérico' ? mstyles.brandChip : mstyles.brandChipGeneric}
-                                ariaLabel={t('Marca de {alimento}', { alimento: item.ingredient_name })}
+                                ariaLabel={t('Marca de {alimento}', { alimento: nombreVisible })}
                             />
                         );
                     })()}
@@ -2635,7 +2640,7 @@ const PantryPage = () => {
                             onPointerLeave={(e) => stopHolding(e, item.id)}
                             onContextMenu={(e) => e.preventDefault()}
                             disabled={atFloor}
-                            aria-label={atFloor ? t('Cantidad mínima — usa "Agotar" para eliminar') : t('Disminuir {alimento}', { alimento: item.ingredient_name })}
+                            aria-label={atFloor ? t('Cantidad mínima — usa "Agotar" para eliminar') : t('Disminuir {alimento}', { alimento: nombreVisible })}
                             title={atFloor ? t('Para eliminar, usa "Agotar"') : t('Mantener presionado para bajar rápido')}
                         >
                             <Minus size={15} strokeWidth={2.5} />
@@ -2645,7 +2650,7 @@ const PantryPage = () => {
                             className={mstyles.qty}
                             onClick={() => { setQtyEditItem(item); setQtyEditValue(item.quantity); }}
                             title={t('Tocar para ajustar a cantidad exacta')}
-                            aria-label={t('Ajustar cantidad de {alimento}', { alimento: item.ingredient_name })}
+                            aria-label={t('Ajustar cantidad de {alimento}', { alimento: nombreVisible })}
                         >
                             {fmtQty(_medida.qty)}
                         </button>
@@ -2656,7 +2661,7 @@ const PantryPage = () => {
                             onPointerUp={(e) => stopHolding(e, item.id)}
                             onPointerLeave={(e) => stopHolding(e, item.id)}
                             onContextMenu={(e) => e.preventDefault()}
-                            aria-label={t('Aumentar {alimento}', { alimento: item.ingredient_name })}
+                            aria-label={t('Aumentar {alimento}', { alimento: nombreVisible })}
                             title={t('Mantener presionado para subir rápido')}
                         >
                             <Plus size={15} strokeWidth={3} />
@@ -2667,7 +2672,7 @@ const PantryPage = () => {
                         className={mstyles.agotar}
                         onClick={() => handleDeleteItem(item.id)}
                         title={t('Marcar como agotado')}
-                        aria-label={t('Marcar {alimento} como agotado', { alimento: item.ingredient_name })}
+                        aria-label={t('Marcar {alimento} como agotado', { alimento: nombreVisible })}
                     >
                         {t('Agotar')}
                     </button>
@@ -2678,8 +2683,8 @@ const PantryPage = () => {
 
     const renderMobileDepleted = (entry) => (
         <div key={_depletedKey(entry)} className={mstyles.depItem}>
-            <span className={mstyles.depName}>{entry.ingredient_name}</span>
-            <span className={mstyles.depMeta}>{t('Tenías: {cantidad} {unidad}', { cantidad: fmtQty(entry.quantity || 1), unidad: entry.unit || 'unidad' })}</span>
+            <span className={mstyles.depName}>{nombreDelAlimento(entry.ingredient_name)}</span>
+            <span className={mstyles.depMeta}>{t('Tenías: {cantidad} {unidad}', { cantidad: fmtQty(entry.quantity || 1), unidad: glossUnitWord(entry.unit || 'unidad', t) })}</span>
             <button
                 type="button"
                 className={mstyles.reponer}
@@ -2693,7 +2698,7 @@ const PantryPage = () => {
                 className={mstyles.dismiss}
                 onClick={() => handleDismissDepleted(entry)}
                 title={t('Quitar de agotados')}
-                aria-label={t('Quitar {alimento} de agotados', { alimento: entry.ingredient_name })}
+                aria-label={t('Quitar {alimento} de agotados', { alimento: nombreDelAlimento(entry.ingredient_name) })}
             >
                 <X size={14} strokeWidth={2.5} />
             </button>
@@ -3092,28 +3097,28 @@ const PantryPage = () => {
                                 {reconcileItems.map((it) => (
                                     <div key={it.id} className={fstyles.reconcileRow}>
                                         <span className={fstyles.reconcileName}>
-                                            {it.ingredient_name}
+                                            {nombreDelAlimento(it.ingredient_name)}
                                             <em> · {tn(it.days_quiet, '{n} día', '{n} días', { n: it.days_quiet })}</em>
                                         </span>
                                         <div className={fstyles.reconcileActions}>
                                             <button
                                                 onClick={() => handleReconcile(it, 'used')}
                                                 disabled={reconcileBusyId !== null}
-                                                aria-label={t('Ya usé {alimento}', { alimento: it.ingredient_name })}
+                                                aria-label={t('Ya usé {alimento}', { alimento: nombreDelAlimento(it.ingredient_name) })}
                                             >
                                                 {t('Lo usé')}
                                             </button>
                                             <button
                                                 onClick={() => handleReconcile(it, 'spoiled')}
                                                 disabled={reconcileBusyId !== null}
-                                                aria-label={t('{alimento} se dañó', { alimento: it.ingredient_name })}
+                                                aria-label={t('{alimento} se dañó', { alimento: nombreDelAlimento(it.ingredient_name) })}
                                             >
                                                 {t('Se dañó')}
                                             </button>
                                             <button
                                                 onClick={() => handleReconcile(it, 'keep')}
                                                 disabled={reconcileBusyId !== null}
-                                                aria-label={t('{alimento} sigue en la nevera', { alimento: it.ingredient_name })}
+                                                aria-label={t('{alimento} sigue en la nevera', { alimento: nombreDelAlimento(it.ingredient_name) })}
                                             >
                                                 {t('Sigue ahí')}
                                             </button>
@@ -3308,10 +3313,10 @@ const PantryPage = () => {
                                             }}
                                         >
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{item.name}</h4>
+                                                <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>{nombreDeFila(item)}</h4>
                                                 {existing ? (
                                                     <span style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginTop: '0.2rem', display: 'block', fontWeight: 600 }}>
-                                                        {t('Ya tienes {cantidad} {unidad} · sumará a tu existente', { cantidad: existing.quantity, unidad: existing.unit })}
+                                                        {t('Ya tienes {cantidad} {unidad} · sumará a tu existente', { cantidad: existing.quantity, unidad: glossUnitWord(existing.unit, t) })}
                                                     </span>
                                                 ) : (
                                                     <span style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.2rem', display: 'block' }}>
@@ -3398,7 +3403,7 @@ const PantryPage = () => {
                                                         {/* Pills de unidades */}
                                                         {existing ? (
                                                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 1rem 0', fontStyle: 'italic' }}>
-                                                                {t('Se sumará usando la unidad actual ({unidad}).', { unidad: existing.unit })}
+                                                                {t('Se sumará usando la unidad actual ({unidad}).', { unidad: glossUnitWord(existing.unit, t) })}
                                                             </p>
                                                         ) : (
                                                             <>
@@ -3502,7 +3507,7 @@ const PantryPage = () => {
                                                             {isAdding ? (
                                                                 <><Loader2 size={18} className="spin-fast" /> {t('Añadiendo…')}</>
                                                             ) : existing ? (
-                                                                <><Plus size={18} strokeWidth={3} /> {t('Sumar {cantidad} {unidad} a la nevera', { cantidad: pickerQty, unidad: existing.unit })}</>
+                                                                <><Plus size={18} strokeWidth={3} /> {t('Sumar {cantidad} {unidad} a la nevera', { cantidad: pickerQty, unidad: glossUnitWord(existing.unit, t) })}</>
                                                             ) : (
                                                                 <><Plus size={18} strokeWidth={3} /> {t('Añadir {cantidad} {unidad}{marca} a la nevera', { cantidad: pickerQty, unidad: pickerUnit, marca: pickerBrand ? ` · ${pickerBrand}` : '' })}</>
                                                             )}
@@ -3550,9 +3555,9 @@ const PantryPage = () => {
                                                             disabled={isAdding}
                                                             onClick={() => handleRecentAdd(r)}
                                                             style={ADD_CHIP_STYLE}
-                                                            title={t('Añadir 1 {unidad} de {alimento}', { unidad: r.unit || '', alimento: r.name }).trim()}
+                                                            title={t('Añadir 1 {unidad} de {alimento}', { unidad: glossUnitWord(r.unit || '', t), alimento: nombreDelAlimento(r.name) }).trim()}
                                                         >
-                                                            <RotateCcw size={13} style={{ opacity: 0.5 }} /> {r.name}
+                                                            <RotateCcw size={13} style={{ opacity: 0.5 }} /> {nombreDelAlimento(r.name)}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -3571,7 +3576,7 @@ const PantryPage = () => {
                                                     onClick={() => handleChipAdd(word)}
                                                     style={ADD_CHIP_STYLE}
                                                 >
-                                                    <Plus size={13} style={{ opacity: 0.5 }} /> {word}
+                                                    <Plus size={13} style={{ opacity: 0.5 }} /> {t(word)}
                                                 </button>
                                             ))}
                                         </div>
@@ -3615,7 +3620,7 @@ const PantryPage = () => {
                                 {t('Ajustar cantidad')}
                             </h2>
                             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                                <strong style={{ color: 'var(--text-main)' }}>{qtyEditItem.ingredient_name}</strong>
+                                <strong style={{ color: 'var(--text-main)' }}>{nombreDelAlimento(qtyEditItem.ingredient_name)}</strong>
                                 {' '}{t('· medida:')} <span style={{ textTransform: 'capitalize' }}>{glossUnitWord(qtyEditItem.unit, t)}</span>
                                 {/* [P2-NEVERA-UNIT-SYSTEM-POR-PAIS · 2026-08-23] Este editor sigue en la unidad
                                     GUARDADA a propósito: es la que el backend deduce, y convertir de ida y vuelta
@@ -3768,9 +3773,9 @@ const PantryPage = () => {
                                         try {
                                             await handleUpdateQuantity(targetItem.id, target);
                                             if (target === 0) {
-                                                toast.success(t('{alimento} marcado como agotado', { alimento: targetItem.ingredient_name }));
+                                                toast.success(t('{alimento} marcado como agotado', { alimento: nombreDelAlimento(targetItem.ingredient_name) }));
                                             } else {
-                                                toast.success(`${targetItem.ingredient_name}: ${target} ${glossUnitWord(targetItem.unit, t)}`);
+                                                toast.success(`${nombreDelAlimento(targetItem.ingredient_name)}: ${target} ${glossUnitWord(targetItem.unit, t)}`);
                                             }
                                         } catch (err) {
                                             console.error('qty edit error', err);

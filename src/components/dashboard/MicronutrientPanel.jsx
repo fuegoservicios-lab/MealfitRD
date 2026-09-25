@@ -12,6 +12,8 @@ import { addNotification } from '../../utils/notifications';
 // activo en cada llamada, no al importar).
 import { t as _t, tn as _tn, useT, useTn } from '../../i18n';
 import styles from './MicronutrientPanel.module.css';
+// [P1-PLAN-LOTE-222] Nombres, dosis y alimentos que compone el backend en español, traducidos al pintar.
+import { etiquetaMicro, textoSuplemento, alimentosSuplemento } from '../../utils/microsCopy';
 
 // [P3-MICROS-RESTORE · 2026-06-19] "Desocultar" desde el centro de notificaciones.
 // El centro llama a `restoreMicrosPanel(sig)`: (1) limpia la dismissal persistida
@@ -119,7 +121,7 @@ export function buildMicrosNotification({ report, advice, t = _t, tn = _tn }) {
     const microSummary = gaps.length
         ? gaps.map((g) => {
             const s = classify(g, t);
-            return `${g.nutriente} ${g.valor}/${s.target}${g.unidad || ''}`;
+            return `${etiquetaMicro(g, t)} ${g.valor}/${s.target}${g.unidad || ''}`;
         }).join('  ·  ')
         : tn(supplements.length, '{n} sugerencia de suplementación', '{n} sugerencias de suplementación', { n: supplements.length });
     // [P3-NOTIF-CENTER-CONTENT-DISMISS · 2026-06-16] id ESTABLE por contenido
@@ -149,9 +151,9 @@ export function buildMicrosNotification({ report, advice, t = _t, tn = _tn }) {
 // su caja de chat y que él LEE y edita antes de enviar.
 function buildQuestion(g, t) {
     const isCeil = g.techo !== undefined && g.techo !== null;
-    const n = (g.nutriente || '').toLowerCase();
     // Ver la nota del gemelo en MicronutrientMeter: el extractor solo ve `t(`.
     if (typeof t !== 'function') t = (s) => s;
+    const n = (etiquetaMicro(g, t) || '').toLowerCase();  // [P1-PLAN-LOTE-222] traducido: lo lee el usuario
     if (isCeil) {
         return t('En mi plan, el {nutriente} quedó por encima del objetivo ({valor}{unidad}, techo {techo}{unidad}). ¿Cómo lo reduzco sin afectar mis otras metas?', {
             nutriente: n, valor: g.valor, unidad: g.unidad, techo: g.techo,
@@ -296,10 +298,10 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                         type={ask ? 'button' : undefined}
                                         onClick={ask}
                                         className={`${styles.meter} ${styles[s.tone]} ${ask ? styles.clickable : ''}`}
-                                        title={ask ? t('Preguntarle al coach cómo mejorar tu {nutriente}', { nutriente: (g.nutriente || '').toLowerCase() }) : undefined}
+                                        title={ask ? t('Preguntarle al coach cómo mejorar tu {nutriente}', { nutriente: (etiquetaMicro(g, t) || '').toLowerCase() }) : undefined}
                                     >
                                         <div className={styles.mtop}>
-                                            <span className={styles.mname}>{g.nutriente}</span>
+                                            <span className={styles.mname}>{etiquetaMicro(g, t)}</span>
                                             <span className={styles.pill}>
                                                 {s.direction === 'high' ? <ArrowUp /> : <ArrowDown />}
                                                 {s.statusWord}
@@ -313,7 +315,7 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                             aria-valuemin={0}
                                             aria-valuemax={100}
                                             aria-label={t('{nutriente}: {valor}{unidad} de {objetivo}{unidad}', {
-                                                nutriente: g.nutriente,
+                                                nutriente: etiquetaMicro(g, t),
                                                 valor: g.valor,
                                                 objetivo: _fmtN(s.target),
                                                 unidad: g.unidad,
@@ -346,17 +348,17 @@ export default function MicronutrientPanel({ report, advice, planId, onAsk }) {
                                     <span className={styles.suppIco} aria-hidden="true"><LinkIcon /></span>
                                     <div>
                                         <div className={styles.suppMain}>
-                                            <span className={styles.suppName}>{it.nutriente}</span>
+                                            <span className={styles.suppName}>{etiquetaMicro(it, t)}</span>
                                             {it.dosis_sugerida && (
-                                                <span className={styles.suppDose}>{it.dosis_sugerida}</span>
+                                                <span className={styles.suppDose}>{textoSuplemento(it.dosis_sugerida, t)}</span>
                                             )}
                                         </div>
                                         {(it.suplemento || it.primero_alimentos) && (
                                             <p className={styles.suppHint}>
-                                                {it.suplemento && (<>{t('Como')} <b>{it.suplemento}</b></>)}
+                                                {it.suplemento && (<>{t('Como')} <b>{textoSuplemento(it.suplemento, t)}</b></>)}
                                                 {it.suplemento && it.primero_alimentos && t(', o desde la comida: ')}
                                                 {!it.suplemento && it.primero_alimentos && t('Primero, desde la comida: ')}
-                                                {it.primero_alimentos}
+                                                {alimentosSuplemento(it.primero_alimentos, t)}
                                             </p>
                                         )}
                                     </div>

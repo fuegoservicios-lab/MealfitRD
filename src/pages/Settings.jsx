@@ -37,6 +37,8 @@ import { applyThemePref, isDarkActive } from '../utils/theme';
 // [P1-I18N-DASHBOARD · 2026-08-15] Selector de idioma de la interfaz.
 import { LOCALES } from '../i18n/locales';
 import { SUPERSEDED, formatDate, formatNumber, useI18n } from '../i18n';
+import { useTextosTraducidos } from '../hooks/useTextosTraducidos';
+import { nombreDelAlimento } from '../utils/nombresDeAlimentos';
 import { pedirCompletarFormulario } from '../utils/completarFormulario';
 // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Selector de país, en oscuro hasta el
 // flip global (COUNTRY_SYSTEM_UI). SSOT compartido con QCountry.jsx — el
@@ -202,6 +204,21 @@ const _UnitToggle = ({ unit, options, onChange }) => (
    X, el fondo y la tecla ESC del diálogo pasen por el MISMO sitio que el botón
    «Volver». Sin ella, cada forma de cerrar sería una forma nueva de perder los
    números que el usuario acababa de escribir. */
+// [P1-PLAN-LOTE-222 · 2026-09-24] La categoría de un recuerdo del coach. El extractor la escribe en `metadata.category`
+// (fact_extractor.py, `FactCategoryLiteral`); esta pantalla leía `metadata.categoria`, que no existe, así que todos
+// salían como «Dato». `categoria` se sigue aceptando por si algún recuerdo viejo la trae. Traducida al pintar.
+function etiquetaDeRecuerdo(metadata, t) {
+    const c = String(metadata?.category || metadata?.categoria || '').trim().toLowerCase();
+    if (c === 'alergia') return t('Alergia');
+    if (c === 'condicion_medica') return t('Condición médica');
+    if (c === 'dieta') return t('Dieta');
+    if (c === 'rechazo') return t('No te gusta');
+    if (c === 'preferencia') return t('Te gusta');
+    if (c === 'objetivo') return t('Objetivo');
+    if (c === 'sintoma_temporal') return t('Síntoma pasajero');
+    return t('Dato');
+}
+
 const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null }) => {
     const inDialog = variant === 'dialog';
     // [P1-PLAN-LOTE-166] el campo que se escribe (nombre, peso, edad…) no se queda debajo del teclado
@@ -1079,6 +1096,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     const [userFacts, setUserFacts] = useState([]);
     const [isLoadingFacts, setIsLoadingFacts] = useState(false);
     const [isDeletingFact, setIsDeletingFact] = useState(null); // ID del fact que se está borrando
+    // [P1-PLAN-LOTE-222 · 2026-09-24] Lo que el coach recuerda lo escribe el modelo en español: se traduce al leer
+    // (hooks/useTextosTraducidos.js). El dato no cambia.
+    const _trFact = useTextosTraducidos(userFacts.map((f) => f?.fact));
 
     // [LONG-TERM-MEMORY-TOGGLE · 2026-05-13] Estado del toggle del usuario.
     // `null` = aún no consultado al backend (loading). El componente del toggle
@@ -3935,15 +3955,15 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                             }}>
                                                 <div className={styles.factContent}>
                                                     <div className={styles.factText}>
-                                                        "{fact.fact}"
+                                                        "{_trFact(fact.fact)}"
                                                     </div>
                                                     <div className={styles.factMeta}>
                                                         <span style={{ background: 'var(--bg-muted)', padding: '2px 8px', borderRadius: '4px', textTransform: 'capitalize' }}>
-                                                            {fact.metadata?.categoria || t('Dato')}
+                                                            {etiquetaDeRecuerdo(fact.metadata, t)}
                                                         </span>
                                                         {fact.metadata?.ingrediente && (
                                                             <span style={{ border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '4px' }}>
-                                                                {fact.metadata.ingrediente}
+                                                                {nombreDelAlimento(fact.metadata.ingrediente)}
                                                             </span>
                                                         )}
                                                         {/* [P1-I18N-DASHBOARD · 2026-08-15] `formatDate` y no

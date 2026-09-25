@@ -54,11 +54,12 @@ import { isAnomalousCoherenceAction } from '../utils/coherenceActions';
 // [P2-HIST-NEW-1 · 2026-05-09] Map reason_code → label es-DO para el
 // chip "Acción: <reason>" en cards. Mirror del catálogo de
 // /blocked_reasons (~3670+) con labels más cortos para chip layout.
-// Sin callsite activo tras refactor de cards, pero el import es anchor
-// del test parser-based History.p2_action_chip_with_reason.test.js —
-// NO eliminar sin actualizar ese test.
-// eslint-disable-next-line no-unused-vars
+// [P1-PLAN-LOTE-222 · 2026-09-24] Vuelve a tener uso: el detalle por bloque del
+// aviso «Acción requerida» lo pinta cuando el servidor no manda título (antes
+// salía el `reason_code` crudo). El import sigue siendo además anchor del test
+// parser-based History.p2_action_chip_with_reason.test.js.
 import { getActionReasonLabel } from '../utils/actionReasons';
+import { textoDelServidor } from '../utils/textosDelServidor';
 // [P2-HIST-NEW-4 · 2026-05-09] Map chunk_kind → label es-DO. Mirror
 // del enum del backend (`initial_plan` / `rolling_refill` / `catchup`).
 // Test backend de paridad detecta drift cross-language.
@@ -2123,7 +2124,7 @@ const History = () => {
                                         del listado (`/history-list`) — cae a `name` canónico español cuando
                                         falta la traducción para este locale (es-DO, plan no enriquecido, o
                                         renombrado a mano y aún no re-traducido). */}
-                                    <h2 id="history-detail-title" className={styles.modalTitle}>{selectedPlan.plan_display_names?.[locale] || selectedPlan.name || t('Detalles del Plan')}</h2>
+                                    <h2 id="history-detail-title" className={styles.modalTitle}>{selectedPlan.plan_display_names?.[locale] || textoDelServidor(selectedPlan.name, t) || t('Detalles del Plan')}</h2>
                                     <span className={styles.modalDate}>
                                         {/* [P1-HIST-DIAS-I18N] Era un `toLocaleDateString('es-DO')` fijo.
                                             `formatDate` existe justo para esto: lee el locale ACTIVO. */}
@@ -2248,9 +2249,11 @@ const History = () => {
                                     // accept solo strings, fallback a copy
                                     // genérico. Sin esto, un title que sea un
                                     // objeto rompería el render.
+                                    // [P1-PLAN-LOTE-222 · 2026-09-24] Título, cuerpo y botón vienen del servidor en
+                                    // español: se traducen al pintar (utils/textosDelServidor.js).
                                     const _title = (_hasAction && typeof _actionReq.title === 'string'
                                         && _actionReq.title.trim())
-                                        ? _actionReq.title
+                                        ? textoDelServidor(_actionReq.title, t)
                                         : t('Acción requerida');
                                     // [P0-AUDIT-HIST-2 · 2026-05-09] Body
                                     // fallback específico para queue drift —
@@ -2262,7 +2265,7 @@ const History = () => {
                                         : null;
                                     const _body = (_hasAction && typeof _actionReq.body === 'string'
                                         && _actionReq.body.trim())
-                                        ? _actionReq.body
+                                        ? textoDelServidor(_actionReq.body, t)
                                         : _queueDriftBody;
                                     const _reason = (_hasAction && typeof _actionReq.reason === 'string'
                                         && _actionReq.reason.trim())
@@ -2294,7 +2297,7 @@ const History = () => {
                                     // silente vs disparar redirect malicioso.
                                     const _cta = (_hasAction && typeof _actionReq.cta === 'string'
                                         && _actionReq.cta.trim())
-                                        ? _actionReq.cta.trim()
+                                        ? textoDelServidor(_actionReq.cta.trim(), t)
                                         : null;
                                     const _urlRaw = (_hasAction && typeof _actionReq.url === 'string')
                                         ? _actionReq.url.trim()
@@ -2370,11 +2373,13 @@ const History = () => {
                                                                 const _wk = (typeof r.week_number === 'number')
                                                                     ? t('Semana {n}', { n: r.week_number })
                                                                     : t('Chunk');
+                                                                // [P1-PLAN-LOTE-222] En el idioma del usuario; sin título,
+                                                                // la etiqueta del código (nunca el código crudo).
                                                                 const _t = (typeof r.title === 'string' && r.title.trim())
-                                                                    ? r.title
-                                                                    : (r.reason_code || t('Bloqueado'));
+                                                                    ? textoDelServidor(r.title, t)
+                                                                    : (getActionReasonLabel(r.reason_code, t) || t('Bloqueado'));
                                                                 const _b = (typeof r.body === 'string' && r.body.trim())
-                                                                    ? r.body
+                                                                    ? textoDelServidor(r.body, t)
                                                                     : null;
                                                                 return (
                                                                     <li key={r.chunk_id}
