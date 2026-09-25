@@ -20,7 +20,7 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
-import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, puedeCompartirTexto, compartir } from '../../utils/compartirDia';
+import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, puedeCompartirTexto, puedeCompartirNativo, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
@@ -78,7 +78,8 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
 
     const archivo = useMemo(() => archivoDeImagen(imagen.blob), [imagen.blob]);
     const conImagen = puedeCompartirImagen(archivo);
-    const hojaDelSistema = conImagen || puedeCompartirTexto();
+    // [P1-PLAN-LOTE-300] en la app nativa, la hoja del sistema con la IMAGEN (plugins Share + Filesystem)
+    const hojaDelSistema = conImagen || puedeCompartirNativo() || puedeCompartirTexto();
     const puedeDescargar = !isNativeApp() && !conImagen && !!imagen.blob;
     // Mientras se redibuja (al cambiar «Incluir lo que comí») se sigue viendo la imagen anterior, pero no se comparte
     // ni se descarga: saldría la versión vieja.

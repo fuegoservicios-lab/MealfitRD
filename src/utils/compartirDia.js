@@ -6,6 +6,7 @@
 // llama decide ofrecer WhatsApp (`wa.me`) y copiar. `navigator.share` exige el gesto del usuario vivo: la imagen se
 // dibuja ANTES (al abrir la hoja) y aquí no se espera nada antes de llamar a `share`.
 import { t, formatDate, formatNumber, formatPercent } from '../i18n';
+import { isNativeApp, nativePluginAvailable } from '../config/platform';
 import { formatoMicro, filasMicros } from '../components/dashboard/microsShared';
 import { BRAND } from '../data/routeMeta';
 import { SITE_DOMAIN } from '../config/site';
@@ -129,8 +130,46 @@ export function puedeCompartirImagen(archivo) {
 
 export const puedeCompartirTexto = () => typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
+// [P1-PLAN-LOTE-300 · 2026-09-25] En la app nativa el WebView no comparte archivos (ni `navigator.canShare` con
+// ficheros): la imagen se escribe en la caché del teléfono (`@capacitor/filesystem`) y se entrega a la hoja del sistema
+// (`@capacitor/share`) junto con el texto. Los plugins viajan en el binario (APK 105 / build de iOS): sin ellos, lo de
+// siempre (solo texto). Los módulos se desestructuran, nunca se devuelve el plugin desde un `async` (Proxy, lote 135).
+export function puedeCompartirNativo() {
+    return isNativeApp() && nativePluginAvailable('Share') && nativePluginAvailable('Filesystem');
+}
+
+const _base64 = (blob) => new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(String(lector.result || '').split(',')[1] || '');
+    lector.onerror = () => reject(lector.error);
+    lector.readAsDataURL(blob);
+});
+
+async function _compartirNativo({ archivo, texto }) {
+    const [{ Share }, { Filesystem, Directory }] = await Promise.all([
+        import('@capacitor/share'), import('@capacitor/filesystem'),
+    ]);
+    const opciones = { title: t('Mi día'), text: texto, dialogTitle: t('Compartir tu día') };
+    if (archivo) {
+        const { uri } = await Filesystem.writeFile({
+            path: archivo.name || 'mi-dia-bioboros.png', data: await _base64(archivo), directory: Directory.Cache,
+        });
+        opciones.files = [uri];
+    }
+    await Share.share(opciones);
+    return 'compartido';
+}
+
 /** 'compartido' | 'cancelado' (el usuario cerró la hoja) | 'fallo' (no hay Web Share o el sistema lo rechazó). */
 export async function compartir({ archivo, texto }) {
+    if (puedeCompartirNativo()) {
+        try {
+            return await _compartirNativo({ archivo, texto });
+        } catch (e) {
+            if (/cancel/i.test(String(e?.message || e?.code || ''))) return 'cancelado';
+            // sin la imagen (o sin plugin a mitad), cae a la Web Share de abajo
+        }
+    }
     try {
         if (puedeCompartirImagen(archivo)) { await navigator.share({ files: [archivo], text: texto }); return 'compartido'; }
         if (puedeCompartirTexto()) { await navigator.share({ text: texto }); return 'compartido'; }
