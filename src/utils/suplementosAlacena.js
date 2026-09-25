@@ -45,7 +45,7 @@ export function unidadTexto(unidad, n, t) {
 
 export function lineaEtiqueta(e, unidad, t) {
     if (!e) return t('Sin etiqueta — pídesela al coach');
-    const gramos = e.serving_g ? ` (${Math.round(e.serving_g)} g)` : '';
+    const gramos = e.gramos_porcion ? ` (${Math.round(e.gramos_porcion)} g)` : '';
     return t('1 {unidad}{gramos} · {kcal} kcal · {prot} g proteína', {
         unidad: unidadTexto(unidad, 1, t), gramos, kcal: Math.round(e.kcal || 0), prot: Math.round(e.protein_g || 0),
     });

@@ -11,7 +11,7 @@ import GrupoSuplementos from '../components/pantry/GrupoSuplementos';
 
 const WHEY = {
     id: 1, ingredient_name: 'Proteína Whey', brand: 'Optimum', quantity: 27, unit: 'scoop', kind: 'supplement',
-    serving_unit: 'scoop', label_source: 'foto', serving_label: { serving_g: 31, kcal: 120, protein_g: 24, carbs_g: 3, fats_g: 1.5 },
+    serving_unit: 'scoop', label_source: 'foto', serving_label: { gramos_porcion: 31, kcal: 120, protein_g: 24, carbs_g: 3, fats_g: 1.5 },
 };
 const ARROZ = { id: 2, ingredient_name: 'Arroz', quantity: 2, unit: 'lb', kind: 'food' };
 const VIEJA = { id: 3, ingredient_name: 'Habichuelas', quantity: 1, unit: 'lb' };   // fila sin `kind` (cache vieja)
