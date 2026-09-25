@@ -111,3 +111,18 @@ describe('[280] cableado', () => {
         expect(gs.client.map((c) => c.client_info.android_client_info.package_name)).toContain('com.bioboros.app');
     });
 });
+
+describe('[280] icono de las notificaciones (silueta, no el icono a color)', () => {
+    const leerRaiz = (rel) => readFileSync(resolve(__dirname, '..', '..', rel), 'utf8');
+    it('existe el vector monocromo y lo usan FCM y los avisos locales', () => {
+        const icono = leerRaiz('android/app/src/main/res/drawable/ic_stat_bioboros.xml');
+        expect(icono).toContain('<vector');
+        // Android lo tiñe por el alfa: todo trazo/relleno blanco, sin colores de marca dentro
+        expect((icono.match(/#FF[0-9A-F]{6}/gi) || []).every((c) => c.toUpperCase() === '#FFFFFFFF')).toBe(true);
+        const man = leerRaiz('android/app/src/main/AndroidManifest.xml');
+        expect(man).toContain('com.google.firebase.messaging.default_notification_icon');
+        expect(man).toContain('android:resource="@drawable/ic_stat_bioboros"');
+        expect(man).toContain('android:value="bioboros-avisos"');
+        expect(leerRaiz('capacitor.config.ts')).toContain("LocalNotifications: { smallIcon: 'ic_stat_bioboros', iconColor: '#4F46E5' }");
+    });
+});

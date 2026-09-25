@@ -44,6 +44,17 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+        <!-- [P1-PLAN-LOTE-280 · 2026-09-25] La push de Firebase: icono en silueta (res/drawable/ic_stat_bioboros.xml),
+             el índigo de la marca y el canal de prioridad alta de los recordatorios (lo crea la app al arrancar). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_bioboros" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/colorPrimary" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="bioboros-avisos" />
     </application>
 
     <!-- Permissions -->

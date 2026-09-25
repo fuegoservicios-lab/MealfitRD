@@ -56,6 +56,10 @@ const config: CapacitorConfig = {
   },
   plugins: {
     PushNotifications: { presentationOptions: ['badge', 'sound', 'alert'] },
+    // [P1-PLAN-LOTE-280 · 2026-09-25] Icono de la barra de estado de los avisos locales (comidas, agua, plan listo):
+    // la silueta blanca del brote (res/drawable/ic_stat_bioboros.xml). Sin esto Android pintaba el icono de la app,
+    // que es a color con fondo, como un cuadrado blanco. Config del binario: llega con el APK, no por OTA.
+    LocalNotifications: { smallIcon: 'ic_stat_bioboros', iconColor: '#4F46E5' },
     // [P1-PLAN-LOTE-108] OTA autoalojada (src/native/liveUpdate.js). SIN `appId` ni
     // `autoUpdateStrategy`: eso es Capawesome Cloud y aquí los paquetes salen de nuestro
     // VPS. `readyTimeout` es la red de seguridad: un paquete que no llama a `ready()` en

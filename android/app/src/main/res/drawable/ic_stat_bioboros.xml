@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  [P1-PLAN-LOTE-280 · 2026-09-25] Icono PEQUEÑO de las notificaciones (barra de estado). Android lo pinta como
+  SILUETA: toma solo el canal alfa y lo tiñe él. Con el icono de la app (un PNG a color con fondo) salía un
+  cuadrado blanco. Es el brote del logo en trazo blanco sobre transparente. Lo usan la push de Firebase
+  (meta-data en AndroidManifest.xml) y los avisos locales (`smallIcon` en capacitor.config.ts).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- tallo -->
+    <path
+        android:pathData="M12,12.2L12,21"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineCap="round" />
+    <!-- hoja izquierda -->
+    <path
+        android:pathData="M12,12.2C12,8.6 9.2,6.6 4.6,6.6C4.6,10.2 7.4,12.2 12,12.2Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineJoin="round" />
+    <!-- hoja derecha -->
+    <path
+        android:pathData="M12,12.2C12,8.6 14.8,6.6 19.4,6.6C19.4,10.2 16.6,12.2 12,12.2Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.9"
+        android:strokeLineJoin="round" />
+    <!-- la cabeza -->
+    <path
+        android:pathData="M12,2.4a1.7,1.7 0,1 0,0.001 0Z"
+        android:fillColor="#FFFFFFFF" />
+</vector>
