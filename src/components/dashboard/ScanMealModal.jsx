@@ -211,6 +211,13 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar }) => {
     const ids = `scan-${plato.id}`;
     return (
         <>
+            {/* [P1-PLAN-LOTE-305] Lo que la foto no deja saber, a la vista antes de registrar. */}
+            {Array.isArray(plato.dudas) && plato.dudas.length > 0 && (
+                <div role="note" className={styles.dudas}>
+                    <strong>{t('Revisa esto antes de registrar:')}</strong>
+                    <ul>{plato.dudas.map((d) => <li key={d.pregunta}>{d.pregunta}</li>)}</ul>
+                </div>
+            )}
             <section className={styles.section} aria-labelledby={`${ids}-nombre`}>
                 <h3 id={`${ids}-nombre`} className={styles.sectionTitle}>{t('¿Qué es?')}</h3>
                 <input
