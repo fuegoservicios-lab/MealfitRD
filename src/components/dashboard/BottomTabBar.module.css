@@ -60,7 +60,7 @@
         padding-bottom: env(safe-area-inset-bottom, 0px);
         /* [P1-KB-SIN-GLITCH] La misma curva y duracion que el contenedor del chat y
            que el teclado de iOS: las tres piezas se mueven a la vez o se ve un tiron. */
-        /* [P1-PLAN-LOTE-129] La duracion la pone el teclado cuando avisa (`--kb-ms`, fijada en <html> por el chat solo
+        /* [P1-PLAN-LOTE-129] La duracion la pone el teclado cuando avisa (`--kb-ms`, escrita por el chat en esta barra -`data-kb-anima`, lote 306- solo
            mientras dura su animacion: 0,38-0,40 s en el iOS del dueno). Sin aviso, los 0,25 s de siempre. */
         transition: transform var(--kb-ms, 0.25s) cubic-bezier(0.32, 0.72, 0, 1), opacity 0.18s ease;
         box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.06);
