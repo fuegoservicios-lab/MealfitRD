@@ -12,11 +12,14 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/camera": "^8.2.3",
     "@capacitor/core": "^8.5.0",
+    "@capacitor/filesystem": "^8.1.3",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.5.0",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/share": "^8.0.2",
     "@capawesome/capacitor-live-update": "^8.4.2"
   },
-  "_nota_lote_133": "@capacitor/local-notifications entra SIN subir minNativeBuild, a proposito: el JS pregunta nativePluginAvailable('LocalNotifications') antes de importarlo y en un binario sin el plugin muestra 'Actualiza la app...'. Subirlo habria dejado sin OTA a los binarios instalados hasta el build nuevo."
+  "_nota_lote_133": "@capacitor/local-notifications entra SIN subir minNativeBuild, a proposito: el JS pregunta nativePluginAvailable('LocalNotifications') antes de importarlo y en un binario sin el plugin muestra 'Actualiza la app...'. Subirlo habria dejado sin OTA a los binarios instalados hasta el build nuevo.",
+  "_nota_lote_300": "@capacitor/share y @capacitor/filesystem (compartir la IMAGEN del dia) entran SIN subir minNativeBuild, por la MISMA razon que el 133, 152, 160 y 163: src/utils/compartirDia.js pregunta nativePluginAvailable('Share') y ('Filesystem') antes de usarlos (compartirNativo.lote300.test.js), y un binario sin ellos cae a la Web Share de siempre. La push de iOS (aps-environment, AppDelegate) es config del binario, no dependencia: llega con el TestFlight nuevo sin cerrar la OTA a los instalados."
 }
