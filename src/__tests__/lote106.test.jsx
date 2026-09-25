@@ -32,13 +32,16 @@ const ANALISIS = {
     items: [{ name: 'yuca hervida', quantity: 4, unit: 'unidad' }],
 };
 
+// Bajo la carga del gate (vitest en paralelo) el flujo de la modal pasó de 1 s: topes amplios, no lógica nueva.
+const ESPERA = { timeout: 5000 };
+
 const llegarARevision = async () => {
     // el input de galería siempre existe (el de cámara solo con puntero grueso)
     const inputs = document.querySelectorAll('input[type="file"]');
     const galeria = inputs[inputs.length - 1];
     const file = new File(['x'], 'plato.jpg', { type: 'image/jpeg' });
     fireEvent.change(galeria, { target: { files: [file] } });
-    await screen.findByText('Revisa y registra');
+    await screen.findByText('Revisa y registra', {}, ESPERA);
 };
 
 // jsdom no carga imágenes ni dispara onerror: el mismo FakeImage de ScanMealModal.photo_deducts (patrón del repo).
@@ -115,11 +118,11 @@ describe('la revisión como cuatro preguntas', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Ayer' }));
         fireEvent.click(screen.getByRole('button', { name: 'Cena' }));
         fireEvent.click(screen.getByRole('button', { name: /Registrar comida/ }));
-        await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/diary/consumed', expect.objectContaining({ method: 'POST' })));
+        await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/diary/consumed', expect.objectContaining({ method: 'POST' })), ESPERA);
         const body = JSON.parse(fetchWithAuth.mock.calls.find((c) => c[0] === '/api/diary/consumed')[1].body);
         expect(body.days_ago).toBe(1);
         expect(body.meal_type).toBe('cena');
-        await waitFor(() => expect(toast.success).toHaveBeenCalled());
+        await waitFor(() => expect(toast.success).toHaveBeenCalled(), ESPERA);
         expect(toast.success.mock.calls[0][1].description).toContain('Quedó en el diario de ayer; la ves en «Ver días anteriores».');
     });
 
@@ -127,7 +130,7 @@ describe('la revisión como cuatro preguntas', () => {
         render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" />);
         await llegarARevision();
         fireEvent.click(screen.getByRole('button', { name: /Registrar comida/ }));
-        await waitFor(() => expect(toast.success).toHaveBeenCalled());
+        await waitFor(() => expect(toast.success).toHaveBeenCalled(), ESPERA);
         const body = JSON.parse(fetchWithAuth.mock.calls.find((c) => c[0] === '/api/diary/consumed')[1].body);
         expect(body.days_ago).toBe(0);
         expect(toast.success.mock.calls[0][1]).toBeUndefined();
