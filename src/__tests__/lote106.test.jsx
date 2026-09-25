@@ -34,6 +34,9 @@ const ANALISIS = {
 
 // Bajo la carga del gate (vitest en paralelo) el flujo de la modal pasó de 1 s: topes amplios, no lógica nueva.
 const ESPERA = { timeout: 5000 };
+// …y el TEST entero seguía con el tope por defecto de vitest (5 s): una sola espera larga lo tumbaba (gate del 270,
+// «hoy manda days_ago=0…» a 5.015 ms). Tope por bloque holgado, sin tocar la lógica.
+const TOPE_TEST = { timeout: 20000 };
 
 const llegarARevision = async () => {
     // el input de galería siempre existe (el de cámara solo con puntero grueso)
@@ -68,7 +71,7 @@ beforeEach(() => {
     });
 });
 
-describe('la hoja del escáner', () => {
+describe('la hoja del escáner', TOPE_TEST, () => {
     it('tiene cabecera y pie fijos con cuerpo desplazable, la hoja inferior en el teléfono y el gesto compartido', () => {
         const css = src('src/components/dashboard/ScanMealModal.module.css');
         expect(regla(css, '.card')).toContain('display: flex; flex-direction: column;');
@@ -99,7 +102,7 @@ describe('la hoja del escáner', () => {
     });
 });
 
-describe('la revisión como cuatro preguntas', () => {
+describe('la revisión como cuatro preguntas', TOPE_TEST, () => {
     it('sin desplegables: tipo de comida y día son chips, y «Hoy» va marcado por defecto', async () => {
         render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" />);
         await llegarARevision();
