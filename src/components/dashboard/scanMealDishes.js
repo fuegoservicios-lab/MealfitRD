@@ -63,6 +63,11 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
         desglose,
         porcion: 1,
         ajuste: _cero(),
+        // [P1-PLAN-LOTE-305] lo que la foto no deja saber (el análisis lo declara; máx. 2)
+        dudas: (Array.isArray(data?.dudas) ? data.dudas : [])
+            .filter((d) => d && typeof d === 'object' && String(d.pregunta || '').trim())
+            .slice(0, 2)
+            .map((d) => ({ sobre: String(d.sobre || '').slice(0, 60), pregunta: String(d.pregunta).trim().slice(0, 160) })),
     };
 }
 
