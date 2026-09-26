@@ -94,13 +94,14 @@ describe('foto desde el componedor', () => {
 
     it('los dos padres lo cablean: TrackingProgress cierra el componedor y abre su escáner; Dashboard monta el escáner al pedirlo', () => {
         const tp = src('src/components/dashboard/TrackingProgress.jsx');
-        expect(tp).toContain('const handleLogToScan = useCallback(() => { setLogOpen(false); setScanOpen(true); }, []);');
+        // [P1-PLAN-LOTE-382] …y le pasa la comida y el día del componedor
+        expect(tp).toContain('const handleLogToScan = useCallback((d) => { setLogOpen(false); setScanOpen(d || true); }, []);');
         expect(tp).toContain('<LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />');
         const dash = src('src/pages/Dashboard.jsx');
-        expect(dash).toContain("onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }}");
+        expect(dash).toContain("onScan={(d) => { setLogMealOpen(false); setScanMealOpen(d || true); }}");
         // [P1-PLAN-LOTE-224] el escáner es perezoso: se monta al pedirlo, dentro de su propio Suspense
         expect(dash).toContain('{scanMealOpen && (');
-        expect(dash).toContain('<ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)}');
+        expect(dash).toContain('<ScanMealModal isOpen={!!scanMealOpen} onClose={() => setScanMealOpen(false)}');
         expect(dash).toContain("const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));");
     });
 

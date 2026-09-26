@@ -184,7 +184,8 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     const handleLogClose = useCallback(() => setLogOpen(false), []);
     const handleShareClose = useCallback(() => setShareOpen(false), []);
     // [P1-DIARY-FREETEXT-ESTIMATE] «Foto» desde el componedor: cierra el composedor y abre el escáner
-    const handleLogToScan = useCallback(() => { setLogOpen(false); setScanOpen(true); }, []);
+    // [P1-PLAN-LOTE-382] …con la comida y el día del componedor
+    const handleLogToScan = useCallback((d) => { setLogOpen(false); setScanOpen(d || true); }, []);
 
     // [P1-DIARY-EDITABLE · 2026-07-28] Estado de la lista de comidas de hoy.
     // `mealsExpanded` levanta el cap de `_MEALS_VISIBLE_CAP` filas visibles.
@@ -729,9 +730,11 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                     {scanOpen && (
                         <Suspense fallback={null}>
                             <ScanMealModal
-                                isOpen={scanOpen}
+                                isOpen={!!scanOpen}
                                 onClose={handleScanClose}
                                 userId={userId}
+                                initialMealType={scanOpen?.mealType}
+                                initialDaysAgo={scanOpen?.daysAgo || 0}
                             />
                         </Suspense>
                     )}

@@ -43,7 +43,8 @@ import { useAssessment } from '../../context/AssessmentContext';
 // [P1-NEVERA-OPCIONAL · 2026-09-23] Mismo SSOT que la nav del dashboard.
 import { neveraActiva } from '../../config/dashboardNav';
 import {
-    getMealTypes as _getMealTypes,
+    getMealTypes as _getMealTypesBase,
+    getMealTypeExtra as _getMealTypeExtra,
     guessMealType as _guessMealType,
 } from './mealLogShared';
 // [P1-PLAN-LOTE-224] La cuenta de cada plato (lo derivado de los ingredientes, las correcciones a mano, lo que viaja
@@ -168,7 +169,7 @@ const _downscaleToJpegFile = (file, maxSide = 1024) => new Promise((resolve, rej
 
 /** [P1-PLAN-LOTE-365] Un campo para corregir por texto: ✓, Intro o tocar fuera lo aplican; Escape lo cierra. Se
  *  centra en la pantalla al abrirse (el teclado del móvil lo taparía). */
-const CorregirConTexto = ({ etiqueta, placeholder, bloqueado, onAplicar, onCerrar }) => {
+const CorregirConTexto = ({ etiqueta, placeholder, bloqueado, onAplicar, onCerrar, minimo = 1 }) => {
     const t = useT();
     const [texto, setTexto] = useState('');
     const ref = useRef(null);
@@ -182,7 +183,8 @@ const CorregirConTexto = ({ etiqueta, placeholder, bloqueado, onAplicar, onCerra
         if (hecho.current) return;
         hecho.current = true;
         const limpio = texto.trim();
-        if (limpio) onAplicar(limpio); else onCerrar();
+        // [P1-PLAN-LOTE-382] lo que el servidor rechazaría (menos de `minimo` letras) cierra en vez de fallar
+        if (limpio.length >= minimo) onAplicar(limpio); else onCerrar();
     };
     return (
         <div className={styles.corregirCampo}>
@@ -207,7 +209,7 @@ const CorregirConTexto = ({ etiqueta, placeholder, bloqueado, onAplicar, onCerra
                 type="button"
                 className={styles.corregirAplicar}
                 aria-label={t('Aplicar')}
-                disabled={bloqueado || !texto.trim()}
+                disabled={bloqueado || texto.trim().length < minimo}
                 onPointerDown={(e) => e.preventDefault()}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={aplicar}
@@ -224,6 +226,7 @@ CorregirConTexto.propTypes = {
     bloqueado: PropTypes.bool,
     onAplicar: PropTypes.func.isRequired,
     onCerrar: PropTypes.func.isRequired,
+    minimo: PropTypes.number,
 };
 
 /** Una fila de «Ingredientes que detectamos»: casilla (¿lo comiste?), nombre, lo que aporta y la cantidad.
@@ -265,6 +268,7 @@ const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad, edita
                     <CorregirConTexto
                         etiqueta={t('¿Qué era {nombre}?', { nombre: nombreVisible })}
                         placeholder={t('Ej: Queso mozzarella')}
+                        minimo={2}
                         bloqueado={bloqueado}
                         onAplicar={onNombre}
                         onCerrar={onCerrar}
@@ -302,6 +306,10 @@ FilaComponente.propTypes = {
 };
 
 /** Lo editable de UN plato: «¿Qué es?» y «¿Cuánto comiste?» (porción, macros e ingredientes). */
+// [P1-PLAN-LOTE-382] el escáner ofrece también «Extra» (antojo o picoteo fuera de tus comidas), como el componedor:
+// sin él, un antojo escaneado marcaba un plato del plan
+const _getMealTypes = (t) => [..._getMealTypesBase(t), _getMealTypeExtra(t)];
+
 const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, destino = null, onDestino = null, opcionesDia = null, onOcupado = null }) => {
     const t = useT();
     // [P1-PLAN-LOTE-361] «Otra…»: lo escrito pide SU ajuste por texto y entra como una opción más de esa duda. Antes
@@ -428,6 +436,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, des
                         <CorregirConTexto
                             etiqueta={t('Describe lo que comiste')}
                             placeholder={t('Ej: batida de lechosa con leche')}
+                            minimo={3}
                             bloqueado={bloqueado}
                             onAplicar={describirPlato}
                             onCerrar={() => setCorrigiendo(null)}
@@ -491,7 +500,8 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, des
                         <p className={styles.componentsHint}>
                             {plato.desglose
                                 ? t('Desmarca lo que no comiste o ajusta la cantidad: las calorías se recalculan solas.')
-                                : t('Lo detectamos en la foto. Desmarca lo que no lleve o ajusta la cantidad.')}
+                                // [P1-PLAN-LOTE-382] sin desglose, desmarcar no mueve las calorías: decirlo
+                                : t('Desmarca lo que no lleve o ajusta la cantidad. Las calorías de arriba no cambian solas: corrígelas si hace falta.')}
                         </p>
                         <ul className={styles.componentList}>
                             {plato.componentes.map((c) => (
@@ -561,7 +571,7 @@ EditorDePlato.propTypes = {
     onOcupado: PropTypes.func,
 };
 
-const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
+const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMealType = null }) => {
     // [P2-SCAN-NO-WEBCAM-ON-DESKTOP · 2026-07-30] "Tomar foto" solo donde es el gesto natural.
     //
     // En escritorio, `<input capture="environment">` abre la WEBCAM: apuntar un portátil al plato
@@ -587,7 +597,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     const [abierto, setAbierto] = useState(null);
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState(null);
-    const [mealType, setMealType] = useState(_guessMealType);
+    // [P1-PLAN-LOTE-382] la comida que trae el componedor («Comí otra cosa» en el Almuerzo), si no la de la hora
+    const comidaInicial = () => (_getMealTypes((s) => s).some((o) => o.value === initialMealType) ? initialMealType : _guessMealType());
+    const [mealType, setMealType] = useState(comidaInicial);
     // [P1-PLAN-LOTE-106] el día de la comida: 0 = hoy · 1 = ayer · 2 = antier
     const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
     // [P1-PLAN-LOTE-224] El interruptor de la Nevera, encendido como siempre: lo marcado se descuenta.
@@ -681,7 +693,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             setAbierto(null);
             setGuardando(false);
             setError(null);
-            setMealType(_guessMealType());
+            setMealType(comidaInicial());
             setDaysAgo(normalizarDiasAtras(initialDaysAgo));
             setDescontarNevera(true);
             setViewfinderOpen(false);
@@ -1042,7 +1054,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
         const kcalTotal = nuevos.reduce((s, r) => s + r.kcal, 0);
         toast.success(
             nuevos.length === 1
-                ? t('{nombre} registrada ({kcal} kcal).', { nombre: nuevos[0].nombre, kcal: nuevos[0].kcal })
+                ? t('{nombre} registrada ({kcal} kcal).', { nombre: nuevos[0].nombre, kcal: formatNumber(nuevos[0].kcal) })
                 : tn(nuevos.length, '{n} plato registrado ({kcal} kcal).', '{n} platos registrados ({kcal} kcal).',
                     { n: nuevos.length, kcal: formatNumber(kcalTotal) }),
             descripcion ? { description: descripcion } : undefined
@@ -1464,6 +1476,7 @@ ScanMealModal.propTypes = {
     onClose: PropTypes.func.isRequired,
     userId: PropTypes.string.isRequired,
     initialDaysAgo: PropTypes.number,
+    initialMealType: PropTypes.string,
 };
 
 export default ScanMealModal;

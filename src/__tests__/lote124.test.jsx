@@ -119,7 +119,7 @@ describe('el escáner desde «Ver días anteriores»', () => {
     });
     it('el escáner nace en el día pedido, con su chip, y el aviso no llama «antier» a hace cinco días', () => {
         const sm = leer('components/dashboard/ScanMealModal.jsx');
-        expect(sm).toContain('const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {');
+        expect(sm).toContain('const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMealType = null }) => {');   // [P1-PLAN-LOTE-382]
         expect(sm).toContain('useState(() => normalizarDiasAtras(initialDaysAgo));');
         expect(sm).toContain('options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo}');
         // [P1-PLAN-LOTE-366] cada plato puede ir a su día: el aviso nombra el día de cada uno con el mismo helper

@@ -284,7 +284,7 @@ export function macrosDerivadas(plato) {
  *  tocan (antes se re-analizaba la foto entera y se perdían). */
 export function conRespuestaEscrita(plato, iDuda, texto, ajuste, nombrePlato = '', cantidad = null) {
     const d = plato.dudas?.[iDuda];
-    const limpio = String(texto || '').trim().slice(0, 40);
+    const limpio = String(texto || '').trim().slice(0, 60);   // [P1-PLAN-LOTE-382] 40 cortaba sin avisar
     if (!d || !limpio) return plato;
     const MAC = ['calories', 'protein', 'carbs', 'healthy_fats'];
     const op = {

@@ -1585,7 +1585,6 @@
   "Lo básico y esencial": "The basics and essentials",
   "Lo cociné igual, regístralo": "I cooked it anyway, log it",
   "Lo comí ahora": "I ate it just now",
-  "Lo detectamos en la foto. Desmarca lo que no lleve o ajusta la cantidad.": "We detected it in the photo. Uncheck anything it doesn't have or adjust the amount.",
   "Lo que el agente recuerda": "What the coach remembers",
   "Lo que haga falta": "Whatever is needed",
   "Lo que hay en tu Nevera no alcanza para tus metas.": "What's in your fridge isn't enough for your goals.",
@@ -3663,5 +3662,6 @@
   "Otra comida u otro día": "Another meal or day",
   "{nombre} quedó en el diario de {dia}.": "{nombre} was logged in {dia}’s diary.",
   "Lo ves en «Ver días anteriores».": "You’ll find it in “See previous days”.",
-  "Para los platos que no marcaste aparte.": "For the dishes you didn’t set separately."
+  "Para los platos que no marcaste aparte.": "For the dishes you didn’t set separately.",
+  "Desmarca lo que no lleve o ajusta la cantidad. Las calorías de arriba no cambian solas: corrígelas si hace falta.": "Untick what it doesn’t have or adjust the amount. The calories above don’t change on their own: fix them if needed."
 }

@@ -1585,7 +1585,6 @@
   "Lo básico y esencial": "Il minimo indispensabile",
   "Lo cociné igual, regístralo": "L’ho cucinato comunque, registralo",
   "Lo comí ahora": "L’ho mangiato adesso",
-  "Lo detectamos en la foto. Desmarca lo que no lleve o ajusta la cantidad.": "L'abbiamo rilevato nella foto. Deseleziona ciò che non c'è o correggi la quantità.",
   "Lo que el agente recuerda": "Ciò che l'agente ricorda",
   "Lo que haga falta": "Tutto quello che serve",
   "Lo que hay en tu Nevera no alcanza para tus metas.": "Quello che c'è nel tuo frigo non basta per i tuoi obiettivi.",
@@ -3663,5 +3662,6 @@
   "Otra comida u otro día": "Un altro pasto o un altro giorno",
   "{nombre} quedó en el diario de {dia}.": "{nombre} è finito nel diario di {dia}.",
   "Lo ves en «Ver días anteriores».": "Lo trovi in «Vedi giorni precedenti».",
-  "Para los platos que no marcaste aparte.": "Per i piatti che non hai impostato a parte."
+  "Para los platos que no marcaste aparte.": "Per i piatti che non hai impostato a parte.",
+  "Desmarca lo que no lleve o ajusta la cantidad. Las calorías de arriba no cambian solas: corrígelas si hace falta.": "Togli la spunta a ciò che non c’è o regola la quantità. Le calorie sopra non cambiano da sole: correggile se serve."
 }

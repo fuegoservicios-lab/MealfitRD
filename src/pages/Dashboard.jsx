@@ -9999,10 +9999,11 @@ const DashboardInner = () => {
                     onClose={() => setEatSheet(null)}
                 />
             )}
-            {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} onScan={() => { setLogMealOpen(false); setScanMealOpen(true); }} />}
+            {logMealOpen && <LogMealModal initialMealType={logMealOpen.mealType} onClose={() => setLogMealOpen(false)} onScan={(d) => { setLogMealOpen(false); setScanMealOpen(d || true); }} />}
             {scanMealOpen && (
                 <Suspense fallback={null}>
-                    <ScanMealModal isOpen={scanMealOpen} onClose={() => setScanMealOpen(false)} userId={session?.user?.id || userProfile?.id || 'guest'} />
+                    <ScanMealModal isOpen={!!scanMealOpen} onClose={() => setScanMealOpen(false)} userId={session?.user?.id || userProfile?.id || 'guest'}
+                        initialMealType={scanMealOpen?.mealType} initialDaysAgo={scanMealOpen?.daysAgo || 0} />
                 </Suspense>
             )}
 

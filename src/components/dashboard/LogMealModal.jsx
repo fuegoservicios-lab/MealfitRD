@@ -399,7 +399,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                 <Search size={15} strokeWidth={2.25} aria-hidden="true" />
                                 <span>{t('Buscar o escribir')}</span>
                             </button>
-                            <button type="button" className={styles.mode} onClick={onScan} aria-pressed="false" aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
+                            <button type="button" className={styles.mode} onClick={() => onScan({ mealType, daysAgo })} aria-pressed="false" aria-label={t('Escanear con foto')} title={t('Escanear con foto')}>
                                 <Camera size={15} strokeWidth={2.25} aria-hidden="true" />
                                 <span>{t('Escanear con foto')}</span>
                             </button>

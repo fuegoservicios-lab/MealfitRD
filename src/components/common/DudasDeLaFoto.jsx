@@ -72,7 +72,7 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                             <div className={styles.opciones} role="group" aria-label={d.pregunta}>
                                 {d.opciones.map((o, j) => (
                                     <button
-                                        key={o.texto}
+                                        key={`${j}-${o.texto}`}
                                         type="button"
                                         className={`${styles.opcion} ${elegida === j ? styles.elegida : ''}`}
                                         aria-pressed={elegida === j}
