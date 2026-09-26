@@ -93,6 +93,10 @@ function ajusteDeRespuestas(plato) {
         const o = d.opciones?.[plato.respuestas?.[i]];
         if (o) for (const k of MACROS) out[k] += Number(o.ajuste?.[k]) || 0;
     });
+    // [P1-PLAN-LOTE-365] sin desglose, un ingrediente cambiado mueve el plato por su diferencia (nuevo − anterior)
+    if (!plato.desglose) {
+        for (const d of Object.values(plato.cambios || {})) for (const k of MACROS) out[k] += Number(d?.[k]) || 0;
+    }
     return out;
 }
 
@@ -279,6 +283,90 @@ export function conPorcion(plato, m) {
         porcion: m,
         ajuste: _cero(),
         componentes: plato.componentes.map((c) => ({ ...c, qty: redondearCantidad(c.q0 * m, c.unit) })),
+    };
+}
+
+// ── [P1-PLAN-LOTE-365 · 2026-09-26] Corregir lo que la foto creyó ver ───────────────────────────────────────────
+// El dueño: «el queso no lo pude cambiar y nombrar su marca, mozzarella» y «no puedo decir que es una simple batida
+// de lechosa con leche». Un ingrediente se cambia por su nombre (el servidor da sus macros); el plato entero, por su
+// descripción (el mismo cálculo de «Descríbelo y lo calculo»).
+
+/** ¿El texto es el nombre que el ingrediente tenía antes de cambiarlo (sin mayúsculas, acentos ni espacios)? */
+export function esNombreOriginal(c, texto) {
+    const original = c?.antesDelCambio ? c.antesDelCambio.name : c?.name;
+    return _normNombre(texto) !== '' && _normNombre(texto) === _normNombre(original);
+}
+
+/** Cambia el ingrediente `key` por `nombre`. `macros` y `anteriores` son las del nuevo y del anterior en la cantidad
+ *  ACTUAL (`qty`), como las devuelve `/api/diary/scan/ingrediente`. Con desglose, la fila toma las nuevas (repartidas
+ *  a su cantidad detectada `q0`, que es la escala de `macros`); sin desglose, el plato guarda la diferencia por
+ *  porción 1×. El nombre original lo devuelve a como estaba, sin preguntar al servidor. */
+export function conIngredienteCambiado(plato, key, nombre, macros, anteriores) {
+    const c = plato.componentes.find((x) => x.key === key);
+    const limpio = String(nombre || '').trim().slice(0, 60);
+    if (!c || !limpio) return plato;
+    const cambios = { ...(plato.cambios || {}) };
+    delete cambios[key];
+    let nuevo;
+    if (esNombreOriginal(c, limpio)) {
+        if (!c.antesDelCambio) return plato;
+        const { antesDelCambio, ...resto } = c;
+        nuevo = { ...resto, name: antesDelCambio.name, display: antesDelCambio.display, macros: antesDelCambio.macros };
+    } else {
+        const antesDelCambio = c.antesDelCambio || { name: c.name, display: c.display, macros: c.macros };
+        const qty = Number(c.qty) > 0 ? Number(c.qty) : c.q0;
+        const aQ0 = qty > 0 ? c.q0 / qty : 1;
+        nuevo = { ...c, name: limpio, display: '', antesDelCambio, checked: true };
+        if (plato.desglose) {
+            nuevo.macros = MACROS.reduce((acc, k) => ({ ...acc, [k]: _noNegativo(macros?.[k]) * aQ0 }), {});
+        } else {
+            const f = plato.porcion || 1;
+            cambios[key] = MACROS.reduce((acc, k) => ({
+                ...acc, [k]: ((Number(macros?.[k]) || 0) - (Number(anteriores?.[k]) || 0)) / f,
+            }), {});
+        }
+    }
+    return { ...plato, cambios, componentes: plato.componentes.map((x) => (x.key === key ? nuevo : x)) };
+}
+
+/** «¿No es esto? Descríbelo»: el plato rehecho con la respuesta de `/api/diary/consumed/estimate-plate` (348).
+ *  Nombre, ingredientes (en gramos si los trae; si no, 1 porción) y macros salen de ahí; las dudas de la foto se van
+ *  (eran sobre lo que la IA creyó ver). Lo demás del plato (id, foto, estado) se conserva. Sin líneas, no cambia. */
+export function platoDesdeDescripcion(plato, data) {
+    const lineas = (Array.isArray(data?.lineas) ? data.lineas : []).filter((l) => l && l.name);
+    if (!lineas.length) return plato;
+    const componentes = lineas.slice(0, 30).map((l, i) => {
+        const gramos = Number(l.grams) > 0 ? Number(l.grams) : 0;
+        const m = l.macros || {};
+        return {
+            key: `d${i}`,
+            name: String(l.name).slice(0, 60),
+            display: '',
+            unit: gramos ? 'g' : 'porción',
+            q0: gramos || 1,
+            qty: gramos || 1,
+            checked: true,
+            macros: {
+                calories: _noNegativo(m.kcal), protein: _noNegativo(m.protein),
+                carbs: _noNegativo(m.carbs), healthy_fats: _noNegativo(m.fats),
+            },
+        };
+    });
+    const base = componentes.reduce((acc, c) => MACROS.reduce((a, k) => ({ ...a, [k]: a[k] + c.macros[k] }), acc), _cero());
+    return {
+        ...plato,
+        nombre: String(data?.name || '').trim().slice(0, 200) || plato.nombre,
+        base: MACROS.reduce((acc, k) => ({ ...acc, [k]: clampMacro(k, base[k]) }), {}),
+        componentes,
+        desglose: true,
+        porcion: 1,
+        ajuste: _cero(),
+        dudas: [],
+        respuestas: {},
+        confirmadas: {},
+        aplicadas: {},
+        detalles: {},
+        cambios: {},
     };
 }
 

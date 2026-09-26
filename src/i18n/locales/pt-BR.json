@@ -3647,5 +3647,13 @@
   "Editar {nombre}": "Editar {nombre}",
   "No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.": "Não conseguimos calcular seu prato agora; adicione os alimentos à mão ou tente de novo.",
   "No pudimos calcular tu respuesta ahora; elige una opción o corrige las calorías a mano.": "Não conseguimos calcular sua resposta agora; escolha uma opção ou corrija as calorias à mão.",
-  "Se aplica al tocar ✓, pulsar Intro o tocar fuera.": "Aplica ao tocar ✓, pressionar Enter ou tocar fora."
+  "Se aplica al tocar ✓, pulsar Intro o tocar fuera.": "Aplica ao tocar ✓, pressionar Enter ou tocar fora.",
+  "Cambiar {nombre}": "Alterar {nombre}",
+  "¿Qué era {nombre}?": "O que era {nombre}?",
+  "Ej: Queso mozzarella": "Ex.: Queijo muçarela",
+  "Ej: batida de lechosa con leche": "Ex.: vitamina de mamão com leite",
+  "Rehacemos el plato con tu descripción; la foto no se vuelve a analizar.": "Refazemos o prato com a sua descrição; a foto não é analisada de novo.",
+  "¿No es esto? Descríbelo": "Não é isso? Descreva",
+  "No pudimos calcular ese ingrediente ahora; inténtalo de nuevo o corrige las calorías a mano.": "Não conseguimos calcular esse ingrediente agora; tente de novo ou corrija as calorias à mão.",
+  "No pudimos calcular tu plato ahora; inténtalo de nuevo o corrige las calorías a mano.": "Não conseguimos calcular o seu prato agora; tente de novo ou corrija as calorias à mão."
 }

@@ -61,6 +61,9 @@ import {
     conRespuesta,
     conRespuestaEscrita,
     ingredienteDeLaDuda,
+    conIngredienteCambiado,
+    esNombreOriginal,
+    platoDesdeDescripcion,
     ingredientesParaGuardar,
     nombresSinRepetir,
     totalesDe,
@@ -161,10 +164,72 @@ const _downscaleToJpegFile = (file, maxSide = 1024) => new Promise((resolve, rej
     img.src = url;
 });
 
-/** Una fila de «Ingredientes que detectamos»: casilla (¿lo comiste?), nombre, lo que aporta y la cantidad. */
-const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad }) => {
+/** [P1-PLAN-LOTE-365] Un campo para corregir por texto: ✓, Intro o tocar fuera lo aplican; Escape lo cierra. Se
+ *  centra en la pantalla al abrirse (el teclado del móvil lo taparía). */
+const CorregirConTexto = ({ etiqueta, placeholder, bloqueado, onAplicar, onCerrar }) => {
+    const t = useT();
+    const [texto, setTexto] = useState('');
+    const ref = useRef(null);
+    const hecho = useRef(false);
+    useEffect(() => {
+        ref.current?.focus();
+        const id = setTimeout(() => ref.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 350);
+        return () => clearTimeout(id);
+    }, []);
+    const aplicar = () => {
+        if (hecho.current) return;
+        hecho.current = true;
+        const limpio = texto.trim();
+        if (limpio) onAplicar(limpio); else onCerrar();
+    };
+    return (
+        <div className={styles.corregirCampo}>
+            <input
+                ref={ref}
+                type="text"
+                value={texto}
+                maxLength={120}
+                disabled={bloqueado}
+                enterKeyHint="done"
+                className={styles.textInput}
+                placeholder={placeholder}
+                aria-label={etiqueta}
+                onChange={(e) => setTexto(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); aplicar(); }
+                    if (e.key === 'Escape') { e.preventDefault(); hecho.current = true; onCerrar(); }
+                }}
+                onBlur={aplicar}
+            />
+            <button
+                type="button"
+                className={styles.corregirAplicar}
+                aria-label={t('Aplicar')}
+                disabled={bloqueado || !texto.trim()}
+                onPointerDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={aplicar}
+            >
+                ✓
+            </button>
+        </div>
+    );
+};
+
+CorregirConTexto.propTypes = {
+    etiqueta: PropTypes.string.isRequired,
+    placeholder: PropTypes.string,
+    bloqueado: PropTypes.bool,
+    onAplicar: PropTypes.func.isRequired,
+    onCerrar: PropTypes.func.isRequired,
+};
+
+/** Una fila de «Ingredientes que detectamos»: casilla (¿lo comiste?), nombre, lo que aporta y la cantidad.
+ *  [P1-PLAN-LOTE-365] «Cambiar»: qué era de verdad («Queso» → «Queso mozzarella»). */
+const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad, editando = false, calculando = false, onEditar = null, onNombre = null, onCerrar = null }) => {
     const t = useT();
     const kcal = kcalDelComponente(c);
+    const nombreVisible = c.display || nombreDelAlimento(c.name);
     return (
         <li className={c.checked ? styles.componentRow : `${styles.componentRow} ${styles.componentOff}`}>
             <input
@@ -180,9 +245,30 @@ const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad }) => 
                     {/* El nombre del alimento es el del motor (P1-I18N-DASHBOARD) y viaja así al servidor; se PINTA en el
                         idioma del usuario [P1-PLAN-LOTE-225]. Es un <label> de la casilla: tocar el nombre marca o
                         desmarca. */}
-                    <label htmlFor={idCasilla} className={styles.componentName}>{c.display || nombreDelAlimento(c.name)}</label>
+                    <label htmlFor={idCasilla} className={styles.componentName}>{nombreVisible}</label>
                     {kcal !== null && c.checked && <span className={styles.componentKcal}>{formatNumber(kcal)} kcal</span>}
                 </div>
+                {onEditar && !editando && !calculando && (
+                    <button
+                        type="button"
+                        className={styles.componentCambiar}
+                        disabled={bloqueado}
+                        onClick={onEditar}
+                        aria-label={t('Cambiar {nombre}', { nombre: nombreVisible })}
+                    >
+                        {t('Cambiar')}
+                    </button>
+                )}
+                {editando && (
+                    <CorregirConTexto
+                        etiqueta={t('¿Qué era {nombre}?', { nombre: nombreVisible })}
+                        placeholder={t('Ej: Queso mozzarella')}
+                        bloqueado={bloqueado}
+                        onAplicar={onNombre}
+                        onCerrar={onCerrar}
+                    />
+                )}
+                {calculando && <span role="status" className={styles.corregirEstado}>{t('Calculando…')}</span>}
                 <div className={styles.componentQtyRow}>
                     <QuantityStepper
                         value={c.qty}
@@ -206,6 +292,11 @@ FilaComponente.propTypes = {
     bloqueado: PropTypes.bool,
     onAlternar: PropTypes.func.isRequired,
     onCantidad: PropTypes.func.isRequired,
+    editando: PropTypes.bool,
+    calculando: PropTypes.bool,
+    onEditar: PropTypes.func,
+    onNombre: PropTypes.func,
+    onCerrar: PropTypes.func,
 };
 
 /** Lo editable de UN plato: «¿Qué es?» y «¿Cuánto comiste?» (porción, macros e ingredientes). */
@@ -239,6 +330,57 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null }) =
             setCalculando(null);
         }
     };
+    // [P1-PLAN-LOTE-365] «Cambiar» un ingrediente y «¿No es esto? Descríbelo»: corregir por texto lo que la foto creyó
+    // ver. Uno a la vez: `corrigiendo` es la clave del ingrediente abierto o '*' (el plato entero).
+    const [corrigiendo, setCorrigiendo] = useState(null);
+    const [calculandoCorreccion, setCalculandoCorreccion] = useState(null);
+    // «Volver a escanear» se esconde mientras se escribe o se calcula, sea una duda o una corrección (362)
+    const [dudaAbierta, setDudaAbierta] = useState(false);
+    const editandoAlgo = dudaAbierta || corrigiendo !== null || calculandoCorreccion !== null;
+    useEffect(() => { onEditandoDuda?.(editandoAlgo); }, [editandoAlgo, onEditandoDuda]);
+    const cambiarIngrediente = async (c, texto) => {
+        setCorrigiendo(null);
+        if (esNombreOriginal(c, texto)) {
+            onCambiar((p) => conIngredienteCambiado(p, c.key, texto, null, null));
+            return;
+        }
+        setCalculandoCorreccion(c.key);
+        try {
+            const res = await fetchWithAuth('/api/diary/scan/ingrediente', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    plato: plato.nombre, anterior: c.name, nuevo: texto,
+                    cantidad: Number(c.qty) > 0 ? Number(c.qty) : c.q0, unidad: c.unit, locale: getLocale(),
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.operation_failed || !data?.macros) throw new Error('sin macros');
+            onCambiar((p) => conIngredienteCambiado(p, c.key, data.nombre || texto, data.macros, data.anteriores));
+        } catch {
+            toast.error(t('No pudimos calcular ese ingrediente ahora; inténtalo de nuevo o corrige las calorías a mano.'));
+        } finally {
+            setCalculandoCorreccion(null);
+        }
+    };
+    const describirPlato = async (texto) => {
+        setCorrigiendo(null);
+        setCalculandoCorreccion('*');
+        try {
+            const res = await fetchWithAuth('/api/diary/consumed/estimate-plate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: texto, locale: getLocale() }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.operation_failed || !Array.isArray(data?.lineas) || !data.lineas.length) throw new Error('sin líneas');
+            onCambiar((p) => platoDesdeDescripcion(p, data));
+        } catch {
+            toast.error(t('No pudimos calcular tu plato ahora; inténtalo de nuevo o corrige las calorías a mano.'));
+        } finally {
+            setCalculandoCorreccion(null);
+        }
+    };
     const m = macrosDelPlato(plato);
     const ids = `scan-${plato.id}`;
     return (
@@ -257,7 +399,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null }) =
                         otraConCampo
                         onOtra={responderOtra}
                         calculando={calculando}
-                        onEditando={onEditandoDuda}
+                        onEditando={setDudaAbierta}
                     />
                 </div>
             )}
@@ -273,6 +415,30 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null }) =
                     placeholder={t('Ej: Mangú con salami')}
                     aria-label={t('Nombre')}
                 />
+                {/* [P1-PLAN-LOTE-365] el dueño: «no puedo decir que es una simple batida de lechosa con leche» */}
+                {corrigiendo === '*' ? (
+                    <>
+                        <CorregirConTexto
+                            etiqueta={t('Describe lo que comiste')}
+                            placeholder={t('Ej: batida de lechosa con leche')}
+                            bloqueado={bloqueado}
+                            onAplicar={describirPlato}
+                            onCerrar={() => setCorrigiendo(null)}
+                        />
+                        <span className={styles.corregirAyuda}>{t('Rehacemos el plato con tu descripción; la foto no se vuelve a analizar.')}</span>
+                    </>
+                ) : calculandoCorreccion === '*' ? (
+                    <span role="status" className={styles.corregirEstado}>{t('Calculando…')}</span>
+                ) : (
+                    <button
+                        type="button"
+                        className={styles.corregirPlato}
+                        disabled={bloqueado || calculandoCorreccion !== null}
+                        onClick={() => setCorrigiendo('*')}
+                    >
+                        {t('¿No es esto? Descríbelo')}
+                    </button>
+                )}
             </section>
 
             <section className={styles.section} aria-labelledby={`${ids}-cuanto`}>
@@ -329,6 +495,11 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null }) =
                                     bloqueado={bloqueado}
                                     onAlternar={() => onCambiar((x) => conComponenteAlternado(x, c.key))}
                                     onCantidad={(q) => onCambiar((x) => conCantidad(x, c.key, q))}
+                                    editando={corrigiendo === c.key}
+                                    calculando={calculandoCorreccion === c.key}
+                                    onEditar={calculandoCorreccion === null ? () => setCorrigiendo(c.key) : null}
+                                    onNombre={(texto) => cambiarIngrediente(c, texto)}
+                                    onCerrar={() => setCorrigiendo(null)}
                                 />
                             ))}
                         </ul>
