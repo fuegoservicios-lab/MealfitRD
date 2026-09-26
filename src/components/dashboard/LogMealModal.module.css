@@ -735,24 +735,25 @@
     justify-content: center;
     gap: 6px;
     min-height: 44px;
-    border: 1.5px solid var(--primary-fill, #4F46E5);
-    background: transparent;
-    color: var(--primary-fill, #4F46E5);
+    /* [P1-PLAN-LOTE-368] tintado: el contorno fino en índigo sobre fondo oscuro parecía un botón apagado */
+    border: 1px solid transparent;
+    background: color-mix(in srgb, var(--primary-fill, #4F46E5) 14%, transparent);
+    color: var(--primary, #4F46E5);
     font: inherit;
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     font-weight: 700;
-    padding: 0.45rem 0.8rem;
-    border-radius: 10px;
+    padding: 0.5rem 0.9rem;
+    border-radius: 12px;
     cursor: pointer;
-    transition: box-shadow 0.15s ease, filter 0.15s ease;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .estimateBtn:hover:not(:disabled) {
-    box-shadow: 0 1px 6px rgba(79, 70, 229, 0.25);
-    filter: brightness(1.03);
+    background: color-mix(in srgb, var(--primary-fill, #4F46E5) 22%, transparent);
 }
 
-.estimateBtn:disabled { opacity: 0.65; cursor: wait; }
+.estimateBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.estimateBtn[aria-busy='true'] { cursor: wait; opacity: 0.8; }
 
 .estimateBtn:focus-visible {
     outline: 3px solid rgba(79, 70, 229, 0.5);
@@ -843,6 +844,12 @@
     font: inherit; text-align: left; cursor: pointer;
 }
 .forma > svg { flex-shrink: 0; color: var(--primary); }
+/* [P1-PLAN-LOTE-368] el icono de cada forma, en una pastilla tintada */
+.formaIcono {
+    flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 10px;
+    background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary);
+}
 .formaText { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
 .formaTitulo { font-weight: 700; }
 .formaSub { font-size: 0.8rem; color: var(--text-muted); }

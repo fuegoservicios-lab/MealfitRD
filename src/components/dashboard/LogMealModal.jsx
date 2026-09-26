@@ -38,7 +38,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import { X, Search, Plus, Trash2, Loader2, Refrigerator, Camera, Sparkles, History, PenLine, Pencil } from 'lucide-react';
+import { X, Search, Plus, Trash2, Loader2, Refrigerator, Camera, MessageSquareText, Calculator, History, PenLine, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -497,10 +497,11 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                         onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, fats: clampMacro('healthy_fats', v) } }))} />
                                 </div>
                                 <div className={styles.customActions}>
-                                    <button type="button" className={styles.estimateBtn} disabled={estimating || String(customDraft.name || '').trim().length < 3} onClick={estimarMacros}>
+                                    {/* [P1-PLAN-LOTE-368] una calculadora, no el destello de Gemini; tintado, no un contorno apagado */}
+                                    <button type="button" className={styles.estimateBtn} aria-busy={estimating} disabled={estimating || String(customDraft.name || '').trim().length < 3} onClick={estimarMacros}>
                                         {estimating
-                                            ? <Loader2 size={14} className={styles.spin} aria-hidden="true" />
-                                            : <Sparkles size={14} aria-hidden="true" />}
+                                            ? <Loader2 size={16} className={styles.spin} aria-hidden="true" />
+                                            : <Calculator size={16} aria-hidden="true" />}
                                         {estimating ? t('Estimando…') : t('Estimar macros por mí')}
                                     </button>
                                     <button type="button" className={styles.ghostBtn} onClick={() => setCustomDraft(null)}>{t('Cancelar')}</button>
@@ -521,7 +522,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                         {!buscando && !customDraft && !describiendo && !loadFailed && (
                             <div className={styles.formas} role="group" aria-label={t('Cómo armar tu plato')}>
                                 <button type="button" className={styles.forma} onClick={() => setDescribiendo({ texto: '' })}>
-                                    <Sparkles size={18} aria-hidden="true" />
+                                    {/* [P1-PLAN-LOTE-368] describir con palabras: un globo con texto (no el destello de Gemini) */}
+                                    <span className={styles.formaIcono}><MessageSquareText size={18} aria-hidden="true" /></span>
                                     <span className={styles.formaText}>
                                         <span className={styles.formaTitulo}>{t('Descríbelo y lo calculo')}</span>
                                         <span className={styles.formaSub}>{t('Escribe lo que comiste; lo separamos en partes que puedes corregir.')}</span>
@@ -529,7 +531,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                 </button>
                                 <button type="button" className={styles.forma}
                                     onClick={() => setCustomDraft({ name: '', macros: { kcal: 0, protein: 0, carbs: 0, fats: 0 } })}>
-                                    <PenLine size={18} aria-hidden="true" />
+                                    <span className={styles.formaIcono}><PenLine size={18} aria-hidden="true" /></span>
                                     <span className={styles.formaText}>
                                         <span className={styles.formaTitulo}>{t('Macros a mano')}</span>
                                         <span className={styles.formaSub}>{t('Si ya sabes sus calorías (una etiqueta, una receta).')}</span>
