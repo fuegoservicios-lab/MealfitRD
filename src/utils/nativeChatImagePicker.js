@@ -1,4 +1,5 @@
 import { isNativeApp } from '../config/platform';
+import { marcarSondaTeclado } from './keyboardProbe';
 
 const extensionFor = (type, format) => {
     const normalized = String(format || type?.split('/')[1] || 'jpg').toLowerCase();
@@ -27,31 +28,41 @@ export const isNativePickerCancellation = (error) => {
 export async function chooseNativeChatImages(limit = 4) {
     if (!isNativeApp()) return null;
     const { Camera, MediaTypeSelection } = await import('@capacitor/camera');
+    // [P1-PLAN-LOTE-346] Marcas de la sonda alrededor del plugin (¿el congelado es nativo o nuestro?) y la foto a
+    // 1600 px / calidad 85: la web la reduce a 1600 igualmente, así que 2000 px a calidad 90 era trabajo nativo tirado.
+    marcarSondaTeclado('fSel');
     const { results = [] } = await Camera.chooseFromGallery({
         mediaType: MediaTypeSelection.Photo,
         allowMultipleSelection: true,
         limit: Math.max(1, Math.min(Number(limit) || 1, 4)),
-        quality: 90,
-        targetWidth: 2000,
-        targetHeight: 2000,
+        quality: 85,
+        targetWidth: 1600,
+        targetHeight: 1600,
         correctOrientation: true,
         includeMetadata: true,
     });
-    return Promise.all(results.slice(0, 4).map(mediaResultToFile));
+    marcarSondaTeclado('fVuelve');
+    const files = await Promise.all(results.slice(0, 4).map(mediaResultToFile));
+    marcarSondaTeclado('fLeida');
+    return files;
 }
 
 export async function takeNativeChatPhoto() {
     if (!isNativeApp()) return null;
     const { Camera } = await import('@capacitor/camera');
+    marcarSondaTeclado('fSel');
     const result = await Camera.takePhoto({
-        quality: 90,
-        targetWidth: 2000,
-        targetHeight: 2000,
+        quality: 85,
+        targetWidth: 1600,
+        targetHeight: 1600,
         correctOrientation: true,
         includeMetadata: true,
         saveToGallery: false,
     });
-    return [await mediaResultToFile(result, 0)];
+    marcarSondaTeclado('fVuelve');
+    const file = await mediaResultToFile(result, 0);
+    marcarSondaTeclado('fLeida');
+    return [file];
 }
 
 // [P1-PLAN-LOTE-224 · 2026-09-24] VARIAS fotos de la fototeca para el escáner de comida (un plato por foto, hasta 4,

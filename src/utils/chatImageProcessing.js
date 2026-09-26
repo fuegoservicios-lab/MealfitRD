@@ -1,3 +1,5 @@
+import { marcarSondaTeclado } from './keyboardProbe';
+
 export const CHAT_IMAGE_MAX_COUNT = 4;
 export const CHAT_IMAGE_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
 export const CHAT_IMAGE_MAX_TOTAL_SOURCE_BYTES = 32 * 1024 * 1024;
@@ -203,17 +205,22 @@ export async function prepareChatImage(file, { signal, maxSide = 1600 } = {}) {
 
     if (workerDisponible()) {
         try {
+            marcarSondaTeclado('prepW');   // [P1-PLAN-LOTE-346] la sonda dice por dónde se preparó la foto
             const r = await prepararEnWorker(file, { signal, maxSide });
             const thumbDataUrl = await blobADataUrl(r.thumb);
             assertNotAborted(signal);
             const uploadFile = new File([r.upload], nombreJpg(file), { type: 'image/jpeg', lastModified: Date.now() });
+            marcarSondaTeclado('prepFin');
             return { file: uploadFile, thumbDataUrl, width: r.width, height: r.height };
         } catch (error) {
             if (error?.name === 'AbortError' || error?.code === 'IMAGE_DIMENSIONS_TOO_LARGE') throw error;
             // DECODE_FAILED / WORKER_FAILED / WORKER_UNAVAILABLE: el hilo principal lo intenta con su Image del sistema.
         }
     }
-    return _internals.prepararEnHiloPrincipal(file, { signal, maxSide });
+    marcarSondaTeclado('prepP');
+    const r = await _internals.prepararEnHiloPrincipal(file, { signal, maxSide });
+    marcarSondaTeclado('prepFin');
+    return r;
 }
 
 async function prepararEnHiloPrincipal(file, { signal, maxSide = 1600 } = {}) {

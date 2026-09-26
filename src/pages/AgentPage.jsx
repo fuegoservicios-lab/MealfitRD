@@ -2173,6 +2173,7 @@ const AgentPage = () => {
         setTimeout(() => {
             const campo = chatInputRef.current;
             if (!campo || medirTecladoDeVentana(window).abierto) return;
+            marcarSondaTeclado('fKb');   // [P1-PLAN-LOTE-346]
             if (document.activeElement === campo) campo.blur();
             campo.focus({ preventScroll: true });
         }, 350);
