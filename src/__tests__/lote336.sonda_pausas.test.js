@@ -40,6 +40,19 @@ describe('[336] la sonda las pinta', () => {
         alternarSondaTecladoNativa();
     });
 
+    it('tras un foco, traza fotograma a fotograma QUIÉN mueve la página (solo cuando algo cambia)', () => {
+        const vv = { height: 800, offsetTop: 0, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+        vi.stubGlobal('visualViewport', vv);
+        alternarSondaTecladoNativa();
+        document.dispatchEvent(new Event('focusin'));
+        fotograma(1000); fotograma(1016);                 // nada cambia: una sola fila
+        vv.offsetTop = 335; fotograma(1033);              // iOS panea: otra fila con S335
+        const filas = caja().textContent.split('\n').filter((l) => l.includes(' f '));
+        expect(filas).toHaveLength(2);
+        expect(filas[1]).toMatch(/S335 sy0 top-1 caja-1/);   // sin chat montado: -1
+        alternarSondaTecladoNativa();
+    });
+
     it('apagar la sonda para el bucle de fotogramas', () => {
         alternarSondaTecladoNativa();
         alternarSondaTecladoNativa();

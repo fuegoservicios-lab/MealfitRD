@@ -131,9 +131,17 @@ export function iniciarSondaTeclado() {
             `kb=${m.kb} var=${varInset} top=${tope} cont=${alto} caja=${fondo} ` +
             `${m.abierto ? 'AB' : 'ce'}${document.documentElement.hasAttribute('data-kb-open') ? 1 : 0}`;
         log.push(fila);
-        if (log.length > 40) log.shift();
+        // [P1-PLAN-LOTE-336] tras un toque, un foco o un aviso del teclado: 0,7 s de traza por fotograma
+        if (/^(toque|focus|blur|N)/.test(evento)) { trazaHasta = performance.now() + 700; previo = ''; }
+        repintar();
+    };
+    let trazaHasta = 0;
+    let previo = '';
+    const repintar = () => {
+        while (log.length > 60) log.shift();
         const recordado = safeLocalStorageGet('mf_kb_inset_nativo', '-');
-        caja.textContent = `[${modo}] paquete ${paquete} · inset recordado ${recordado}\n` + log.slice(-12).join('\n');
+        // 24 filas: la traza por fotograma ocupa más que los eventos (la captura del dueño cabe entera)
+        caja.textContent = `[${modo}] paquete ${paquete} · inset recordado ${recordado}\n` + log.slice(-24).join('\n');
         try { sessionStorage.setItem(CLAVE, log.join('\n')); } catch { /* lleno */ }
     };
 
@@ -170,12 +178,28 @@ export function iniciarSondaTeclado() {
     let rafId = 0;
     const alFotograma = (t) => {
         const hueco = huboPausa(t);
+        const ahora = performance.now();
+        let cambio = false;
         if (hueco !== null) {
-            log.push(`+${String(Math.round(performance.now() - t0)).padStart(4)} pausa   ${hueco}ms`);
-            if (log.length > 40) log.shift();
-            const recordado = safeLocalStorageGet('mf_kb_inset_nativo', '-');
-            caja.textContent = `[${modo}] paquete ${paquete} · inset recordado ${recordado}\n` + log.slice(-12).join('\n');
+            log.push(`+${String(Math.round(ahora - t0)).padStart(4)} pausa   ${hueco}ms`);
+            cambio = true;
         }
+        // [P1-PLAN-LOTE-336] ¿QUIÉN mueve la página? El video del dueño enseña fotogramas con la página desplazada al
+        // abrir y al cerrar; aquí, fotograma a fotograma: S = paneo del visual viewport (iOS), sy = scroll del
+        // documento, top = borde del contenedor del chat, caja = borde inferior de la caja. Solo cuando cambia.
+        if (ahora < trazaHasta) {
+            const _cont = document.querySelector('.agent-container');
+            const _caja = document.querySelector('.input-wrapper');
+            const v = window.visualViewport;
+            const estado = `S${Math.round(v?.offsetTop || 0)} sy${Math.round(window.scrollY)} ` +
+                `top${_cont ? Math.round(_cont.getBoundingClientRect().top) : -1} caja${_caja ? Math.round(_caja.getBoundingClientRect().bottom) : -1}`;
+            if (estado !== previo) {
+                previo = estado;
+                log.push(`+${String(Math.round(ahora - t0)).padStart(4)} f ${estado}`);
+                cambio = true;
+            }
+        }
+        if (cambio) repintar();
         rafId = requestAnimationFrame(alFotograma);
     };
     rafId = requestAnimationFrame(alFotograma);
