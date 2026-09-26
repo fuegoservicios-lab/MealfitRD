@@ -44,6 +44,16 @@ export function alternarSondaTecladoNativa() {
 /** [P1-PLAN-LOTE-127] Deja una marca con nombre en la sonda (si está encendida; si no, no cuesta nada). Para que
  *  una captura diga QUÉ hizo la app entre dos movimientos del teclado — p. ej. el dictado: `micKB`, `micON`, `kbRepon`. */
 export const EVENTO_MARCA_SONDA = 'mf:sonda-teclado';
+
+/** [P1-PLAN-LOTE-336] Devuelve el hueco (ms) entre dos fotogramas cuando supera `umbral`; si no, null. */
+export function detectorDePausas(umbral = 50) {
+    let anterior = null;
+    return (t) => {
+        const hueco = anterior === null ? 0 : t - anterior;
+        anterior = t;
+        return hueco > umbral ? Math.round(hueco) : null;
+    };
+}
 /** Lo emite el binario nativo (SceneDelegate.swift) al recibir keyboardWillShow/Hide: `{ tipo, alto, ms }`. */
 export const EVENTO_TECLADO_NATIVO = 'mf:teclado-nativo';
 export function marcarSondaTeclado(nombre) {
@@ -154,7 +164,24 @@ export function iniciarSondaTeclado() {
     document.addEventListener('focusout', onBlur);
     pintar('inicio');
 
+    // [P1-PLAN-LOTE-336] Pausas del hilo principal: un hueco entre fotogramas > 50 ms es una animación que se atasca.
+    // La fila NO lee el layout (una lectura forzada podría fabricar la pausa que mide).
+    const huboPausa = detectorDePausas(50);
+    let rafId = 0;
+    const alFotograma = (t) => {
+        const hueco = huboPausa(t);
+        if (hueco !== null) {
+            log.push(`+${String(Math.round(performance.now() - t0)).padStart(4)} pausa   ${hueco}ms`);
+            if (log.length > 40) log.shift();
+            const recordado = safeLocalStorageGet('mf_kb_inset_nativo', '-');
+            caja.textContent = `[${modo}] paquete ${paquete} · inset recordado ${recordado}\n` + log.slice(-12).join('\n');
+        }
+        rafId = requestAnimationFrame(alFotograma);
+    };
+    rafId = requestAnimationFrame(alFotograma);
+
     _pararSonda = () => {
+        cancelAnimationFrame(rafId);
         vv.removeEventListener('resize', onResize);
         vv.removeEventListener('scroll', onScroll);
         document.removeEventListener('focusin', onFocus);
