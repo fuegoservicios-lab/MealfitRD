@@ -2192,7 +2192,7 @@ const AgentPage = () => {
                 ? await takeNativeChatPhoto()
                 : await chooseNativeChatImages(remaining);
             // [P1-PLAN-LOTE-138] con teclado que reponer, la preparación de la foto espera a que acabe de subir
-            // [P1-PLAN-LOTE-360] la espera era para no competir en el hilo principal; con el worker solo retrasa la miniatura
+            // [360] sin worker, esperar
             if (files?.length) addFiles(files, { prepararTrasMs: reopenKeyboardAfterAttachmentRef.current && !workerDeImagenDisponible() ? ESPERA_PREPARAR_FOTO_MS : 0 });
         } catch (error) {
             if (!isNativePickerCancellation(error)) {
