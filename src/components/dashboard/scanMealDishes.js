@@ -78,14 +78,86 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
     };
 }
 
-/** [P1-PLAN-LOTE-322] Lo que suman las opciones elegidas en las dudas (a porción 1×; la supuesta vale 0). */
+/** [P1-PLAN-LOTE-322] Lo que suman las opciones elegidas en las dudas (a porción 1×; la supuesta vale 0).
+ *  [P1-PLAN-LOTE-362] Menos las que ya cambiaron la CANTIDAD de un ingrediente con desglose: esas macros salen del
+ *  ingrediente, y sumar además el ajuste las contaría dos veces. */
 function ajusteDeRespuestas(plato) {
     const out = _cero();
     (plato.dudas || []).forEach((d, i) => {
+        if (plato.desglose && plato.aplicadas?.[i] === 'cantidad') return;
         const o = d.opciones?.[plato.respuestas?.[i]];
         if (o) for (const k of MACROS) out[k] += Number(o.ajuste?.[k]) || 0;
     });
     return out;
+}
+
+// ── [P1-PLAN-LOTE-362 · 2026-09-26] La respuesta de una duda también cambia el INGREDIENTE ─────────────────────────
+// El dueño: «✓ 4 huevos» arriba y «Huevo revuelto · 2 unidades» abajo. La lista de ingredientes es lo que se ve, lo que
+// se guarda y lo que baja de la Nevera: tiene que decir lo mismo que la respuesta.
+
+const _normNombre = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+const _FRACCIONES = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3 };
+
+/** El número al principio de una respuesta («4 huevos», «1½ taza», «0,5 lasca», «1/2 taza»); null si no empieza por uno. */
+export function numeroDeRespuesta(texto) {
+    const t = String(texto || '').trim();
+    const redondo = (n) => (n > 0 ? Math.round(n * 100) / 100 : null);
+    // «1 1/2 tazas»
+    let m = t.match(/^(\d+)\s+(\d+)\/(\d+)/);
+    if (m && Number(m[3]) > 0) return redondo(Number(m[1]) + Number(m[2]) / Number(m[3]));
+    // «1/2 taza»
+    m = t.match(/^(\d+)\/(\d+)/);
+    if (m && Number(m[2]) > 0) return redondo(Number(m[1]) / Number(m[2]));
+    // «3 huevos», «2,5 onzas», «½ taza», «1½ lascas»
+    m = t.match(/^(\d+(?:[.,]\d+)?)?\s*([½¼¾⅓⅔])?/);
+    if (!m || (!m[1] && !m[2])) return null;
+    return redondo((m[1] ? Number(m[1].replace(',', '.')) : 0) + (m[2] ? _FRACCIONES[m[2]] : 0));
+}
+
+/** El ingrediente de la duda: el que se llama como `sobre`, o el ÚNICO que lo contiene (o está contenido en él). */
+function _componenteDeLaDuda(plato, d) {
+    const sobre = _normNombre(d?.sobre);
+    if (!sobre) return null;
+    const nombreDe = (c) => _normNombre(c.nombreOriginal || c.name);
+    const exactos = plato.componentes.filter((c) => nombreDe(c) === sobre);
+    if (exactos.length === 1) return exactos[0];
+    const parecidos = plato.componentes.filter((c) => nombreDe(c).includes(sobre) || sobre.includes(nombreDe(c)));
+    return parecidos.length === 1 ? parecidos[0] : null;
+}
+
+/** Lleva la opción elegida de la duda `i` al ingrediente: con número, su cantidad (nueva base del ingrediente, así la
+ *  porción la sigue escalando); sin número, su nombre (la supuesta devuelve el original). */
+function _reflejarEnIngredientes(plato, i) {
+    const d = plato.dudas?.[i];
+    const o = d?.opciones?.[plato.respuestas?.[i]];
+    const c = o && _componenteDeLaDuda(plato, d);
+    if (!c) return plato;
+    const n = numeroDeRespuesta(o.texto);
+    let nuevo;
+    let aplicada;
+    if (n) {
+        const f = c.q0 > 0 ? n / c.q0 : 1;
+        nuevo = {
+            ...c,
+            q0: n,
+            qty: redondearCantidad(n * (plato.porcion || 1), c.unit),
+            checked: true,
+            macros: c.macros ? MACROS.reduce((acc, k) => ({ ...acc, [k]: c.macros[k] * f }), {}) : c.macros,
+        };
+        aplicada = 'cantidad';
+    } else {
+        const original = c.nombreOriginal || c.name;
+        const displayOriginal = c.nombreOriginal ? c.displayOriginal : c.display;
+        nuevo = o.supuesta
+            ? { ...c, name: original, display: displayOriginal || '', nombreOriginal: undefined, displayOriginal: undefined }
+            : { ...c, name: o.texto, display: o.texto, nombreOriginal: original, displayOriginal: displayOriginal || '' };
+        aplicada = 'nombre';
+    }
+    return {
+        ...plato,
+        componentes: plato.componentes.map((x) => (x.key === c.key ? nuevo : x)),
+        aplicadas: { ...(plato.aplicadas || {}), [i]: aplicada },
+    };
 }
 
 /** Lo derivado, sin redondear: la suma de los componentes marcados (con desglose) o el total de la foto × porción,
@@ -120,13 +192,14 @@ export function conRespuestaEscrita(plato, iDuda, texto, ajuste, nombrePlato = '
     };
     const opciones = [...d.opciones.filter((o) => !o.escrita), op];
     const dudas = plato.dudas.map((x, i) => (i === iDuda ? { ...x, opciones } : x));
-    return {
+    const escrito = {
         ...plato,
         dudas,
         nombre: String(nombrePlato || '').trim() || plato.nombre,
         respuestas: { ...(plato.respuestas || {}), [iDuda]: opciones.length - 1 },
         confirmadas: { ...(plato.confirmadas || {}), [iDuda]: true },
     };
+    return _reflejarEnIngredientes(escrito, iDuda);   // [P1-PLAN-LOTE-362]
 }
 
 /** [P1-PLAN-LOTE-322] Tocar una opción de una duda: la elige (las macros la reflejan al instante), la da por
@@ -134,12 +207,12 @@ export function conRespuestaEscrita(plato, iDuda, texto, ajuste, nombrePlato = '
 export function conRespuesta(plato, iDuda, iOpcion) {
     const o = plato.dudas?.[iDuda]?.opciones?.[iOpcion];
     if (!o) return plato;
-    return {
+    return _reflejarEnIngredientes({   // [P1-PLAN-LOTE-362] la lista de ingredientes dice lo mismo que la respuesta
         ...plato,
         nombre: o.nombre_plato || plato.nombre,
         respuestas: { ...(plato.respuestas || {}), [iDuda]: iOpcion },
         confirmadas: { ...(plato.confirmadas || {}), [iDuda]: true },
-    };
+    }, iDuda);
 }
 
 /** Lo que se pinta y se guarda: lo derivado más lo corregido a mano, con los topes del servidor (enteros). */
