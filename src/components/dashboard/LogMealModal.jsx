@@ -58,7 +58,7 @@ import { lineasDelPlatoDescrito } from '../../utils/platoDescrito';
 // [P1-PLAN-LOTE-225] Las líneas que no estaban en la Nevera, en el idioma del usuario.
 import { lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
-import { getMealTypes, getMealTypeExtra, clampMacro } from './mealLogShared';
+import { getMealTypes, getMealTypeExtra, clampMacro, lineaDescontable } from './mealLogShared';
 import MacroInput from '../common/MacroInput';
 import { useT, useTn, getLocale } from '../../i18n';
 import styles from './LogMealModal.module.css';
@@ -230,6 +230,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
         inputRef.current?.focus();
     };
 
+    const hayQueDescontar = lines.some(lineaDescontable);   // [P1-PLAN-LOTE-383]
+
     const registrar = async () => {
         if (!lines.length || saving) return;
         setSaving(true);
@@ -238,13 +240,14 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    // [P1-PLAN-LOTE-383] una parte con gramos («Lechosa · 150 g») viaja con ellos: así también descuenta
                     lines: lines.map((l) => (l.ref === 'custom'
-                        ? { ref: 'custom', qty: 1, unit: 'g', name: l.name, macros: l.macros }
+                        ? { ref: 'custom', qty: 1, unit: 'g', name: l.name, macros: l.macros, ...(Number(l.grams) > 0 ? { grams: Number(l.grams) } : {}) }
                         : { ref: l.ref, qty: Number(l.qty) || 0, unit: l.unit })),
                     meal_name: mealName.trim() || undefined,
                     meal_type: mealType,
                     days_ago: daysAgo,
-                    deduct_pantry: neveraOn && deductPantry,
+                    deduct_pantry: neveraOn && deductPantry && hayQueDescontar,
                 }),
             });
             const data = await res.json().catch(() => null);
@@ -687,7 +690,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                 aria-label={t('Nombre de la comida')}
                             />
 
-                            {neveraOn && (
+                            {/* [P1-PLAN-LOTE-383] solo si hay algo que restar: con puros «Macros a mano» prometía y no restaba */}
+                            {neveraOn && hayQueDescontar && (
                                 <label className={styles.pantryToggle}>
                                     <input
                                         type="checkbox"

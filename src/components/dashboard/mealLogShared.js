@@ -41,3 +41,7 @@ export const clampMacro = (key, raw) => {
     if (!Number.isFinite(n) || n < 0) return 0;
     return Math.min(n, MACRO_MAX[key] ?? 100000);
 };
+
+/** [P1-PLAN-LOTE-383] ¿Esta línea del componedor baja de la Nevera? Las del catálogo sí; un `custom` solo si trae
+ *  gramos (las partes de «Descríbelo»: «Lechosa · 150 g»). «Macros a mano» sin gramos no tiene cantidad que restar. */
+export const lineaDescontable = (l) => !!l && (l.ref !== 'custom' || Number(l.grams) > 0);
