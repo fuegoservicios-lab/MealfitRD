@@ -60,6 +60,7 @@ import {
     conComponenteAlternado,
     conRespuesta,
     conRespuestaEscrita,
+    ingredienteDeLaDuda,
     ingredientesParaGuardar,
     nombresSinRepetir,
     totalesDe,
@@ -225,11 +226,13 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null }) =
                     plato: plato.nombre, macros: plato.base, pregunta: d.pregunta,
                     opciones: d.opciones.filter((o) => !o.escrita).map((o) => ({ texto: o.texto, supuesta: !!o.supuesta, ajuste: o.ajuste })),
                     respuesta: texto, locale: getLocale(),
+                    // [P1-PLAN-LOTE-363] con el ingrediente, el servidor dice cuántas unidades son («4 huevos con 3 yemas» → 4)
+                    ingrediente: ingredienteDeLaDuda(plato, i),
                 }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || data?.operation_failed || !data?.ajuste) throw new Error('sin ajuste');
-            onCambiar((p) => conRespuestaEscrita(p, i, data.texto || texto, data.ajuste, data.nombre_plato));
+            onCambiar((p) => conRespuestaEscrita(p, i, data.texto || texto, data.ajuste, data.nombre_plato, data.cantidad));
         } catch {
             toast.error(t('No pudimos calcular tu respuesta ahora; elige una opción o corrige las calorías a mano.'));
         } finally {

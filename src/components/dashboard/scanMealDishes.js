@@ -84,7 +84,12 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
 function ajusteDeRespuestas(plato) {
     const out = _cero();
     (plato.dudas || []).forEach((d, i) => {
-        if (plato.desglose && plato.aplicadas?.[i] === 'cantidad') return;
+        if (plato.desglose && plato.aplicadas?.[i] === 'cantidad') {
+            // [P1-PLAN-LOTE-363] lo dicho que no cabe en «N unidades» («con 3 yemas») sí se suma
+            const x = plato.detalles?.[i];
+            if (x) for (const k of MACROS) out[k] += Number(x[k]) || 0;
+            return;
+        }
         const o = d.opciones?.[plato.respuestas?.[i]];
         if (o) for (const k of MACROS) out[k] += Number(o.ajuste?.[k]) || 0;
     });
@@ -114,6 +119,10 @@ export function numeroDeRespuesta(texto) {
     return redondo((m[1] ? Number(m[1].replace(',', '.')) : 0) + (m[2] ? _FRACCIONES[m[2]] : 0));
 }
 
+/** [P1-PLAN-LOTE-363] ¿La respuesta es solo «número [palabra]» («4», «4 huevos», «½ taza»)? Si dice más («4 huevos
+ *  con 3 yemas»), ese detalle se ve junto al ingrediente y su efecto se suma aparte. */
+const _esRespuestaSimple = (texto) => /^[\d\s.,/½¼¾⅓⅔]*[\p{L}]*\s*$/u.test(String(texto || '').trim());
+
 /** El ingrediente de la duda: el que se llama como `sobre`, o el ÚNICO que lo contiene (o está contenido en él). */
 function _componenteDeLaDuda(plato, d) {
     const sobre = _normNombre(d?.sobre);
@@ -132,18 +141,37 @@ function _reflejarEnIngredientes(plato, i) {
     const o = d?.opciones?.[plato.respuestas?.[i]];
     const c = o && _componenteDeLaDuda(plato, d);
     if (!c) return plato;
-    const n = numeroDeRespuesta(o.texto);
+    // [P1-PLAN-LOTE-363] la cantidad que dijo el servidor gana al número del texto («tres huevos» → 3)
+    const n = Number(o.cantidad) > 0 ? Number(o.cantidad) : numeroDeRespuesta(o.texto);
+    const detalles = { ...(plato.detalles || {}) };
+    delete detalles[i];
     let nuevo;
     let aplicada;
     if (n) {
         const f = c.q0 > 0 ? n / c.q0 : 1;
+        const macros = c.macros ? MACROS.reduce((acc, k) => ({ ...acc, [k]: c.macros[k] * f }), {}) : c.macros;
+        // [P1-PLAN-LOTE-363] el ingrediente como vino de la foto (la supuesta): contra él se mide lo que queda del ajuste
+        const q0Foto = c.q0Foto ?? c.q0;
+        const macrosFoto = c.macrosFoto ?? c.macros;
+        const displayBase = 'displaySinNota' in c ? c.displaySinNota : c.display;
+        const conNota = o.escrita && !_esRespuestaSimple(o.texto);
         nuevo = {
             ...c,
             q0: n,
             qty: redondearCantidad(n * (plato.porcion || 1), c.unit),
             checked: true,
-            macros: c.macros ? MACROS.reduce((acc, k) => ({ ...acc, [k]: c.macros[k] * f }), {}) : c.macros,
+            macros,
+            q0Foto,
+            macrosFoto,
+            display: conNota ? `${displayBase || c.name} (${o.texto})` : displayBase,
+            displaySinNota: conNota ? displayBase : undefined,
         };
+        if (conNota && macros && macrosFoto) {
+            detalles[i] = MACROS.reduce((acc, k) => ({
+                ...acc, [k]: (Number(o.ajuste?.[k]) || 0) - (macros[k] - macrosFoto[k]),
+            }), {});
+        }
+        if (!('displaySinNota' in nuevo) || nuevo.displaySinNota === undefined) delete nuevo.displaySinNota;
         aplicada = 'cantidad';
     } else {
         const original = c.nombreOriginal || c.name;
@@ -157,7 +185,15 @@ function _reflejarEnIngredientes(plato, i) {
         ...plato,
         componentes: plato.componentes.map((x) => (x.key === c.key ? nuevo : x)),
         aplicadas: { ...(plato.aplicadas || {}), [i]: aplicada },
+        detalles,
     };
+}
+
+/** [P1-PLAN-LOTE-363] El ingrediente de la duda `i` para el servidor (nombre, cantidad, unidad), o null. */
+export function ingredienteDeLaDuda(plato, i) {
+    const c = _componenteDeLaDuda(plato, plato.dudas?.[i]);
+    if (!c) return null;
+    return { nombre: c.nombreOriginal || c.name, cantidad: Number(c.q0Foto ?? c.q0) || 0, unidad: c.unit || '' };
 }
 
 /** Lo derivado, sin redondear: la suma de los componentes marcados (con desglose) o el total de la foto × porción,
@@ -181,7 +217,7 @@ export function macrosDerivadas(plato) {
 /** [P1-PLAN-LOTE-361 · 2026-09-26] «Otra…»: lo escrito entra como UNA opción más de esa duda (su ajuste lo calculó el
  *  servidor por texto), elegida y confirmada. Escribir otra vez REEMPLAZA la escrita anterior; las demás dudas no se
  *  tocan (antes se re-analizaba la foto entera y se perdían). */
-export function conRespuestaEscrita(plato, iDuda, texto, ajuste, nombrePlato = '') {
+export function conRespuestaEscrita(plato, iDuda, texto, ajuste, nombrePlato = '', cantidad = null) {
     const d = plato.dudas?.[iDuda];
     const limpio = String(texto || '').trim().slice(0, 40);
     if (!d || !limpio) return plato;
@@ -189,6 +225,7 @@ export function conRespuestaEscrita(plato, iDuda, texto, ajuste, nombrePlato = '
     const op = {
         texto: limpio, supuesta: false, escrita: true,
         ajuste: MAC.reduce((acc, k) => ({ ...acc, [k]: Number(ajuste?.[k]) || 0 }), {}),
+        ...(Number(cantidad) > 0 ? { cantidad: Number(cantidad) } : {}),   // [P1-PLAN-LOTE-363]
     };
     const opciones = [...d.opciones.filter((o) => !o.escrita), op];
     const dudas = plato.dudas.map((x, i) => (i === iDuda ? { ...x, opciones } : x));
