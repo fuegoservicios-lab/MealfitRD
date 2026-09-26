@@ -10,7 +10,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const marcas = vi.hoisted(() => []);
 vi.mock('../utils/keyboardProbe', async (orig) => ({ ...(await orig()), marcarSondaTeclado: (n) => marcas.push(n) }));
-vi.mock('../config/platform', () => ({ isNativeApp: () => true }));
+// [P1-PLAN-LOTE-367] en Android sigue `chooseFromGallery` (en iOS, el selector de Apple: lote367.test.js)
+vi.mock('../config/platform', () => ({ isNativeApp: () => true, nativePlatform: () => 'android' }));
 const opciones = vi.hoisted(() => ({}));
 vi.mock('@capacitor/camera', () => ({
     MediaTypeSelection: { Photo: 'photo' },
