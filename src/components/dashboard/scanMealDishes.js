@@ -362,7 +362,7 @@ export function esNombreOriginal(c, texto) {
  *  ACTUAL (`qty`), como las devuelve `/api/diary/scan/ingrediente`. Con desglose, la fila toma las nuevas (repartidas
  *  a su cantidad detectada `q0`, que es la escala de `macros`); sin desglose, el plato guarda la diferencia por
  *  porción 1×. El nombre original lo devuelve a como estaba, sin preguntar al servidor. */
-export function conIngredienteCambiado(plato, key, nombre, macros, anteriores) {
+export function conIngredienteCambiado(plato, key, nombre, macros, anteriores, cantidadCalculada = null) {
     const c = plato.componentes.find((x) => x.key === key);
     const limpio = String(nombre || '').trim().slice(0, 60);
     if (!c || !limpio) return plato;
@@ -375,15 +375,16 @@ export function conIngredienteCambiado(plato, key, nombre, macros, anteriores) {
         nuevo = { ...resto, name: antesDelCambio.name, display: antesDelCambio.display, macros: antesDelCambio.macros };
     } else {
         const antesDelCambio = c.antesDelCambio || { name: c.name, display: c.display, macros: c.macros };
-        const qty = Number(c.qty) > 0 ? Number(c.qty) : c.q0;
+        // [P1-PLAN-LOTE-380] las macros son de la cantidad CON LA QUE SE CALCULÓ (el usuario pudo moverla mientras)
+        const qty = Number(cantidadCalculada) > 0 ? Number(cantidadCalculada) : (Number(c.qty) > 0 ? Number(c.qty) : c.q0);
         const aQ0 = qty > 0 ? c.q0 / qty : 1;
         nuevo = { ...c, name: limpio, display: '', antesDelCambio, checked: true };
         if (plato.desglose) {
             nuevo.macros = MACROS.reduce((acc, k) => ({ ...acc, [k]: _noNegativo(macros?.[k]) * aQ0 }), {});
         } else {
-            const f = plato.porcion || 1;
+            // diferencia por porción 1× (la cantidad detectada `q0`): la porción la vuelve a escalar
             cambios[key] = MACROS.reduce((acc, k) => ({
-                ...acc, [k]: ((Number(macros?.[k]) || 0) - (Number(anteriores?.[k]) || 0)) / f,
+                ...acc, [k]: ((Number(macros?.[k]) || 0) - (Number(anteriores?.[k]) || 0)) * aQ0,
             }), {});
         }
     }

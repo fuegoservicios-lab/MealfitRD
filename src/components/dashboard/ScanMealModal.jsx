@@ -276,7 +276,7 @@ const FilaComponente = ({ c, idCasilla, bloqueado, onAlternar, onCantidad, edita
                         value={c.qty}
                         unit={c.unit}
                         nombre={c.display || nombreDelAlimento(c.name)}
-                        disabled={bloqueado || !c.checked}
+                        disabled={bloqueado || !c.checked || calculando}
                         onChange={onCantidad}
                         classes={_STEPPER_CLASSES}
                     />
@@ -302,7 +302,7 @@ FilaComponente.propTypes = {
 };
 
 /** Lo editable de UN plato: «¿Qué es?» y «¿Cuánto comiste?» (porción, macros e ingredientes). */
-const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, destino = null, onDestino = null, opcionesDia = null }) => {
+const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, destino = null, onDestino = null, opcionesDia = null, onOcupado = null }) => {
     const t = useT();
     // [P1-PLAN-LOTE-361] «Otra…»: lo escrito pide SU ajuste por texto y entra como una opción más de esa duda. Antes
     // se re-analizaba la foto entera: el análisis nuevo traía otras dudas y borraba lo ya elegido en las demás.
@@ -340,6 +340,10 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, des
     const [dudaAbierta, setDudaAbierta] = useState(false);
     const editandoAlgo = dudaAbierta || corrigiendo !== null || calculandoCorreccion !== null;
     useEffect(() => { onEditandoDuda?.(editandoAlgo); }, [editandoAlgo, onEditandoDuda]);
+    // [P1-PLAN-LOTE-380] «Registrar» espera a que termine cualquier cálculo de este plato (si no, guardaba lo viejo)
+    const ocupado = calculando !== null || calculandoCorreccion !== null;
+    useEffect(() => { onOcupado?.(ocupado); }, [ocupado, onOcupado]);
+    useEffect(() => () => onOcupado?.(false), [onOcupado]);
     const cambiarIngrediente = async (c, texto) => {
         setCorrigiendo(null);
         if (esNombreOriginal(c, texto)) {
@@ -347,18 +351,19 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, des
             return;
         }
         setCalculandoCorreccion(c.key);
+        const cantidadCalculada = Number(c.qty) > 0 ? Number(c.qty) : c.q0;   // [P1-PLAN-LOTE-380]
         try {
             const res = await fetchWithAuth('/api/diary/scan/ingrediente', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     plato: plato.nombre, anterior: c.name, nuevo: texto,
-                    cantidad: Number(c.qty) > 0 ? Number(c.qty) : c.q0, unidad: c.unit, locale: getLocale(),
+                    cantidad: cantidadCalculada, unidad: c.unit, locale: getLocale(),
                 }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || data?.operation_failed || !data?.macros) throw new Error('sin macros');
-            onCambiar((p) => conIngredienteCambiado(p, c.key, data.nombre || texto, data.macros, data.anteriores));
+            onCambiar((p) => conIngredienteCambiado(p, c.key, data.nombre || texto, data.macros, data.anteriores, cantidadCalculada));
         } catch {
             toast.error(t('No pudimos calcular ese ingrediente ahora; inténtalo de nuevo o corrige las calorías a mano.'));
         } finally {
@@ -455,7 +460,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, des
                                 type="button"
                                 className={`${styles.portionBtn} ${plato.porcion === p ? styles.portionActive : ''}`}
                                 aria-pressed={plato.porcion === p}
-                                disabled={bloqueado}
+                                disabled={bloqueado || calculandoCorreccion !== null}
                                 onClick={() => onCambiar((x) => conPorcion(x, p))}
                                 title={t('Multiplica las macros estimadas; también puedes editarlas abajo')}
                             >
@@ -553,6 +558,7 @@ EditorDePlato.propTypes = {
     destino: PropTypes.object,
     onDestino: PropTypes.func,
     opcionesDia: PropTypes.array,
+    onOcupado: PropTypes.func,
 };
 
 const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
@@ -586,6 +592,20 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     const [daysAgo, setDaysAgo] = useState(() => normalizarDiasAtras(initialDaysAgo));
     // [P1-PLAN-LOTE-224] El interruptor de la Nevera, encendido como siempre: lo marcado se descuenta.
     const [descontarNevera, setDescontarNevera] = useState(true);
+    // [P1-PLAN-LOTE-380] platos con una corrección calculándose («Otra…», «Cambiar», «Descríbelo»)
+    const [calculandoEn, setCalculandoEn] = useState(() => new Set());
+    const calculandoRef = useRef(false);
+    const marcarCalculo = useCallback((id, on) => setCalculandoEn((prev) => {
+        if (prev.has(id) === on) return prev;
+        const nuevo = new Set(prev);
+        if (on) nuevo.add(id); else nuevo.delete(id);
+        return nuevo;
+    }), []);
+    const ocupadoPorPlato = useRef(new Map());
+    const onOcupadoDe = useCallback((id) => {
+        if (!ocupadoPorPlato.current.has(id)) ocupadoPorPlato.current.set(id, (on) => marcarCalculo(id, on));
+        return ocupadoPorPlato.current.get(id);
+    }, [marcarCalculo]);
     const [viewfinderOpen, setViewfinderOpen] = useState(false);
     const controladores = useRef(new Map());
     const urls = useRef(new Set());
@@ -634,6 +654,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     // Deslizar para cerrar se bloquea también mientras se analiza: un roce accidental tiraría las fotos. La X y el
     // «atrás» siguen cerrando (cancelan lo que esté en vuelo): son una decisión, no un accidente.
     const isBusy = guardando || analizando;
+    const calculandoAlgo = calculandoEn.size > 0;
+    calculandoRef.current = calculandoAlgo;
 
     // [P2-VISION-COUNTRY-COPY · 2026-08-21] El país del usuario, sólo para decidir si se
     // muestra el aviso de calibración del escáner. Sale de la MISMA lectura de
@@ -828,9 +850,20 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
         if (p) _soltarUrls(urls.current, [p.previewUrl]);
         platosRef.current = platosRef.current.filter((x) => x.id !== id);
         setPlatos((prev) => prev.filter((x) => x.id !== id));
+        marcarCalculo(id, false);
         setAbierto((a) => (a === id ? null : a));
         setError(null);
-    }, []);
+    }, [marcarCalculo]);
+
+    // [P1-PLAN-LOTE-380] con un solo plato no hay «comida y día de este plato»: su destino pasa a los de abajo (la vista
+    // de un plato no lo pinta, y los chips de abajo mentían: decían Almuerzo · Hoy y se guardaba Desayuno · Ayer)
+    useEffect(() => {
+        if (platos.length !== 1 || !platos[0].destino) return;
+        const { id, destino } = platos[0];
+        setMealType(destino.mealType);
+        setDaysAgo(destino.daysAgo);
+        setPlatos((prev) => prev.map((x) => (x.id === id ? conDestinoPropio(x, null) : x)));
+    }, [platos]);
 
     const reintentar = useCallback((id) => {
         const p = platosRef.current.find((x) => x.id === id);
@@ -893,7 +926,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
 
     const registrar = useCallback(async () => {
         const porGuardar = platosRef.current.filter((p) => p.estado === 'listo' && !p.guardado);
-        if (!porGuardar.length || guardando) return;
+        if (!porGuardar.length || guardando || calculandoRef.current) return;   // [P1-PLAN-LOTE-380]
         const sinNombre = porGuardar.find((p) => !String(p.nombre || '').trim());
         if (sinNombre) {
             setAbierto(sinNombre.id);
@@ -1077,6 +1110,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                     bloqueado={guardando || p.guardado}
                     onCambiar={(fn) => cambiarPlato(p.id, fn)}
                     onEditandoDuda={setEditandoDuda}
+                    onOcupado={onOcupadoDe(p.id)}
                 />
             )}
         </>
@@ -1149,6 +1183,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                             bloqueado={guardando}
                             onCambiar={(fn) => cambiarPlato(p.id, fn)}
                             onEditandoDuda={setEditandoDuda}
+                            onOcupado={onOcupadoDe(p.id)}
                             destino={destino}
                             opcionesDia={opcionesDia}
                             onDestino={(nuevo) => cambiarPlato(p.id, (x) => conDestinoPropio(x, nuevo))}
@@ -1391,12 +1426,14 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                             <button
                                 className={styles.saveBtn}
                                 onClick={registrar}
-                                disabled={guardando || analizando || pendientes.length === 0}
+                                disabled={guardando || analizando || calculandoAlgo || pendientes.length === 0}
                             >
                                 {guardando
                                     ? <><Loader2 size={16} className={styles.spinner} /> {t('Registrando…')}</>
                                     : analizando
                                         ? <><Loader2 size={16} className={styles.spinner} /> {t('Analizando…')}</>
+                                    : calculandoAlgo
+                                        ? <><Loader2 size={16} className={styles.spinner} /> {t('Calculando…')}</>
                                         : <><Check size={16} /> {pendientes.length > 1
                                             ? tn(pendientes.length, 'Registrar {n} plato', 'Registrar {n} platos', { n: pendientes.length })
                                             : t('Registrar comida')}</>}
