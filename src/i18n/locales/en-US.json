@@ -3632,5 +3632,19 @@
   "Responde con un toque:": "Answer with one tap:",
   "Tu respuesta: {x}": "Your answer: {x}",
   "Escríbelo: ej. 4 huevos con queso": "Type it: e.g. 4 eggs with cheese",
-  "Recalcular": "Recalculate"
+  "Recalcular": "Recalculate",
+  "Ej.: batida de lechosa": "E.g.: papaya smoothie",
+  "Nombre del alimento": "Food name",
+  "Guardar cambios": "Save changes",
+  "Cómo armar tu plato": "How to build your plate",
+  "Descríbelo y lo calculo": "Describe it and I'll calculate it",
+  "Escribe lo que comiste; lo separamos en partes que puedes corregir.": "Write what you ate; we split it into parts you can correct.",
+  "Macros a mano": "Macros by hand",
+  "Si ya sabes sus calorías (una etiqueta, una receta).": "If you already know its calories (a label, a recipe).",
+  "Ej.: arroz con habichuelas, pollo guisado y medio aguacate": "E.g.: rice and beans, stewed chicken and half an avocado",
+  "Describe lo que comiste": "Describe what you ate",
+  "Calculando…": "Calculating…",
+  "Calcular mi plato": "Calculate my plate",
+  "Editar {nombre}": "Edit {nombre}",
+  "No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.": "We couldn't calculate your plate right now; add the foods by hand or try again."
 }

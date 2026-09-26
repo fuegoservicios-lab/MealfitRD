@@ -3632,5 +3632,19 @@
   "Responde con un toque:": "Rispondi con un tocco:",
   "Tu respuesta: {x}": "La tua risposta: {x}",
   "Escríbelo: ej. 4 huevos con queso": "Scrivilo: es. 4 uova con formaggio",
-  "Recalcular": "Ricalcola"
+  "Recalcular": "Ricalcola",
+  "Ej.: batida de lechosa": "Es.: frullato di papaia",
+  "Nombre del alimento": "Nome dell'alimento",
+  "Guardar cambios": "Salva modifiche",
+  "Cómo armar tu plato": "Come comporre il tuo piatto",
+  "Descríbelo y lo calculo": "Descrivilo e lo calcolo",
+  "Escribe lo que comiste; lo separamos en partes que puedes corregir.": "Scrivi cosa hai mangiato; lo dividiamo in parti che puoi correggere.",
+  "Macros a mano": "Macro a mano",
+  "Si ya sabes sus calorías (una etiqueta, una receta).": "Se conosci già le sue calorie (un'etichetta, una ricetta).",
+  "Ej.: arroz con habichuelas, pollo guisado y medio aguacate": "Es.: riso e fagioli, pollo in umido e mezzo avocado",
+  "Describe lo que comiste": "Descrivi cosa hai mangiato",
+  "Calculando…": "Calcolo…",
+  "Calcular mi plato": "Calcola il mio piatto",
+  "Editar {nombre}": "Modifica {nombre}",
+  "No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.": "Non siamo riusciti a calcolare il tuo piatto; aggiungi gli alimenti a mano o riprova."
 }

@@ -38,7 +38,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import { X, Search, Plus, Trash2, Loader2, Refrigerator, Camera, Sparkles, History } from 'lucide-react';
+import { X, Search, Plus, Trash2, Loader2, Refrigerator, Camera, Sparkles, History, PenLine, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -54,6 +54,7 @@ import {
     getCachedMasterList, setCachedMasterList, getCachedDishes, setCachedDishes,
 } from '../../utils/pantryCache';
 import { searchFoods, previewLine, unitsFor, defaultUnitFor, defaultQtyFor } from '../../utils/foodSearch';
+import { lineasDelPlatoDescrito } from '../../utils/platoDescrito';
 // [P1-PLAN-LOTE-225] Las líneas que no estaban en la Nevera, en el idioma del usuario.
 import { lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
@@ -125,6 +126,9 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const [customDraft, setCustomDraft] = useState(null);
     // [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] «Escríbelo y estimamos las macros»
     const [estimating, setEstimating] = useState(false);
+    // [P1-PLAN-LOTE-348] «Descríbelo y lo calculo»: el texto libre del plato y si se está calculando
+    const [describiendo, setDescribiendo] = useState(null);
+    const [calculando, setCalculando] = useState(false);
     const inputRef = useRef(null);
 
     const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
@@ -320,6 +324,44 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
         }
     };
 
+    // [P1-PLAN-LOTE-348 · 2026-09-26] «Descríbelo y lo calculo»: el servidor separa el texto en partes (un plato del
+    // catálogo casa y toma SUS macros; lo demás vuelve estimado) y cada parte entra al plato como línea editable.
+    const calcularPlato = async () => {
+        const texto = String(describiendo?.texto || '').trim();
+        if (texto.length < 3 || calculando) return;
+        setCalculando(true);
+        try {
+            const res = await fetchWithAuth('/api/diary/consumed/estimate-plate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: texto, meal_type: mealType, locale: getLocale() }),
+            });
+            const data = await res.json().catch(() => ({}));
+            const nuevas = res.ok && !data?.operation_failed ? lineasDelPlatoDescrito(data?.lineas, dishes) : [];
+            if (!nuevas.length) throw new Error('vacío');
+            setLines((prev) => [...prev, ...nuevas]);
+            if (!mealName.trim() && data?.name) setMealName(String(data.name).slice(0, 200));
+            setDescribiendo(null);
+        } catch {
+            toast.error(t('No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.'));
+        } finally {
+            setCalculando(false);
+        }
+    };
+
+    const guardarBorrador = () => {
+        if (!customDraft || !String(customDraft.name || '').trim()) return;
+        const linea = {
+            ref: 'custom', name: String(customDraft.name).trim().slice(0, 120), macros: customDraft.macros,
+            estimated: !!customDraft.estimated, grams: customDraft.grams || null,
+        };
+        setLines((prev) => (customDraft.editId
+            ? prev.map((x) => (x.id === customDraft.editId ? { ...x, ...linea } : x))
+            : [...prev, { id: `custom-${Date.now()}-${prev.length}`, ...linea }]));
+        setCustomDraft(null);
+        setQuery('');
+    };
+
     const buscando = query.trim().length >= 2;
     const mealTypeOptions = [...getMealTypes(t), getMealTypeExtra(t)];
 
@@ -424,7 +466,16 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
                         {customDraft && (
                             <div className={styles.customBox}>
-                                <span className={styles.customName}>{customDraft.name}</span>
+                                {/* [P1-PLAN-LOTE-348] el nombre se escribe (macros a mano) o se corrige (editar una línea) */}
+                                <input
+                                    className={styles.customNameInput}
+                                    value={customDraft.name}
+                                    maxLength={120}
+                                    autoFocus={!customDraft.name}
+                                    onChange={(e) => { const v = e.target.value; setCustomDraft((p) => ({ ...p, name: v })); }}
+                                    placeholder={t('Ej.: batida de lechosa')}
+                                    aria-label={t('Nombre del alimento')}
+                                />
                                 <span className={styles.customHint}>
                                     {t('No está en el catálogo: escribe sus macros o deja que las estimemos.')}
                                 </span>
@@ -446,7 +497,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                         onChange={(v) => setCustomDraft((p) => ({ ...p, macros: { ...p.macros, fats: clampMacro('healthy_fats', v) } }))} />
                                 </div>
                                 <div className={styles.customActions}>
-                                    <button type="button" className={styles.estimateBtn} disabled={estimating} onClick={estimarMacros}>
+                                    <button type="button" className={styles.estimateBtn} disabled={estimating || String(customDraft.name || '').trim().length < 3} onClick={estimarMacros}>
                                         {estimating
                                             ? <Loader2 size={14} className={styles.spin} aria-hidden="true" />
                                             : <Sparkles size={14} aria-hidden="true" />}
@@ -456,23 +507,62 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                     <button
                                         type="button"
                                         className={styles.smallBtn}
-                                        onClick={() => {
-                                            setLines((prev) => [...prev, {
-                                                id: `custom-${prev.length}`, ref: 'custom',
-                                                name: customDraft.name, macros: customDraft.macros,
-                                                estimated: !!customDraft.estimated,
-                                            }]);
-                                            setCustomDraft(null);
-                                            setQuery('');
-                                        }}
+                                        disabled={!String(customDraft.name || '').trim()}
+                                        onClick={guardarBorrador}
                                     >
-                                        {t('Añadir al plato')}
+                                        {customDraft.editId ? t('Guardar cambios') : t('Añadir al plato')}
                                     </button>
                                 </div>
                             </div>
                         )}
 
-                        {!buscando && !customDraft && !loadFailed && !lines.length && (frequent.length > 0 ? (
+                        {/* [P1-PLAN-LOTE-348] Las formas de armar el plato, A LA VISTA: antes solo se veía el buscador y
+                            «lo que más registras», y parecía que solo se podían repetir comidas. */}
+                        {!buscando && !customDraft && !describiendo && !loadFailed && (
+                            <div className={styles.formas} role="group" aria-label={t('Cómo armar tu plato')}>
+                                <button type="button" className={styles.forma} onClick={() => setDescribiendo({ texto: '' })}>
+                                    <Sparkles size={18} aria-hidden="true" />
+                                    <span className={styles.formaText}>
+                                        <span className={styles.formaTitulo}>{t('Descríbelo y lo calculo')}</span>
+                                        <span className={styles.formaSub}>{t('Escribe lo que comiste; lo separamos en partes que puedes corregir.')}</span>
+                                    </span>
+                                </button>
+                                <button type="button" className={styles.forma}
+                                    onClick={() => setCustomDraft({ name: '', macros: { kcal: 0, protein: 0, carbs: 0, fats: 0 } })}>
+                                    <PenLine size={18} aria-hidden="true" />
+                                    <span className={styles.formaText}>
+                                        <span className={styles.formaTitulo}>{t('Macros a mano')}</span>
+                                        <span className={styles.formaSub}>{t('Si ya sabes sus calorías (una etiqueta, una receta).')}</span>
+                                    </span>
+                                </button>
+                            </div>
+                        )}
+
+                        {describiendo && (
+                            <div className={styles.customBox}>
+                                <textarea
+                                    className={styles.describeInput}
+                                    value={describiendo.texto}
+                                    maxLength={300}
+                                    rows={3}
+                                    autoFocus
+                                    onChange={(e) => { const v = e.target.value; setDescribiendo({ texto: v }); }}
+                                    placeholder={t('Ej.: arroz con habichuelas, pollo guisado y medio aguacate')}
+                                    aria-label={t('Describe lo que comiste')}
+                                />
+                                <div className={styles.customActions}>
+                                    <button type="button" className={styles.ghostBtn} disabled={calculando} onClick={() => setDescribiendo(null)}>{t('Cancelar')}</button>
+                                    <button type="button" className={styles.smallBtn}
+                                        disabled={calculando || describiendo.texto.trim().length < 3} onClick={calcularPlato}>
+                                        {calculando
+                                            ? <><Loader2 size={14} className={styles.spin} aria-hidden="true" /> {t('Calculando…')}</>
+                                            : t('Calcular mi plato')}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {!buscando && !customDraft && !describiendo && !loadFailed && !lines.length && (frequent.length > 0 ? (
                             <div className={styles.frequent}>
                                 <span className={styles.subTitle}>
                                     <History size={14} aria-hidden="true" /> {t('Lo que más registras')}
@@ -518,20 +608,25 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                                 <span>{t('Tu plato')}</span>
                                 <span className={styles.sectionCount}>{lines.length}</span>
                             </h3>
-                            <ul className={styles.plate}>
+                            <ul className={styles.plate} aria-label={t('Tu plato')}>
                                 {lines.map((l) => {
                                     if (l.ref === 'custom') {
                                         return (
                                             <li key={l.id} className={styles.line}>
                                                 <div className={styles.lineTop}>
                                                     <span className={styles.lineName}>{l.name}</span>
+                                                    {/* [P1-PLAN-LOTE-348] las líneas estimadas o a mano también se corrigen */}
+                                                    <button type="button" className={styles.lineDel} aria-label={t('Editar {nombre}', { nombre: l.name })}
+                                                        onClick={() => { setDescribiendo(null); setCustomDraft({ ...l, editId: l.id }); }}>
+                                                        <Pencil size={16} aria-hidden="true" />
+                                                    </button>
                                                     <button type="button" className={styles.lineDel} aria-label={t('Quitar {nombre}', { nombre: l.name })}
                                                         onClick={() => setLines((prev) => prev.filter((x) => x.id !== l.id))}>
                                                         <Trash2 size={17} aria-hidden="true" />
                                                     </button>
                                                 </div>
                                                 <div className={styles.lineBottom}>
-                                                    <span className={styles.lineMeta}>{Math.round(l.macros.kcal)} kcal{l.estimated ? ` · ${t('estimado')}` : ''}</span>
+                                                    <span className={styles.lineMeta}>{l.grams ? `~${Math.round(l.grams)} g · ` : ''}{Math.round(l.macros.kcal)} kcal{l.estimated ? ` · ${t('estimado')}` : ''}</span>
                                                 </div>
                                             </li>
                                         );
