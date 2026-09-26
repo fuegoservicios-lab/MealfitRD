@@ -90,6 +90,8 @@ const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
 // [P1-PLAN-LOTE-138] Lo que tarda iOS en reponer el teclado al volver del selector (medido: 0,40 s) más el relevo y
 // la medición de asiento. Hasta entonces la foto no se reduce ni se recodifica: el hilo principal es del teclado.
 const ESPERA_PREPARAR_FOTO_MS = 650;
+// [P1-PLAN-LOTE-360] iOS decodifica la foto grande en el hilo principal: la caja espera a la miniatura (utils/vistaPreviaDelAdjunto.js)
+const _esIOS = esIOS(typeof navigator !== 'undefined' ? navigator : null, isNativeApp());
 // [P1-PLAN-LOTE-129] La duración REAL de la animación del teclado, tal como la dio UIKit la última vez (ms).
 const CLAVE_MS_NATIVO = 'mf_kb_ms_nativo';
 // [P1-PLAN-LOTE-127] Cuando se mira si iOS escondio el teclado al encender el microfono (ms desde que empieza a escuchar).
@@ -98,7 +100,8 @@ const MIC_REPONER_TECLADO_MS = [350, 700, 1200, 2000];
 const MIC_CLIC_FANTASMA_MS = 700;
 import { useChatAttachments } from '../hooks/useChatAttachments';
 import { useStableCallback } from '../hooks/useStableCallback';
-import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen } from '../utils/chatImageProcessing';
+import { CHAT_IMAGE_MAX_COUNT, mapWithConcurrency, precalentarWorkerDeImagen, workerDeImagenDisponible } from '../utils/chatImageProcessing';
+import { vistaPreviaDelAdjunto, esIOS } from '../utils/vistaPreviaDelAdjunto';
 import { dudasDeLasFotos } from '../utils/dudasDeLaFoto';
 import RespuestasDeLaFoto from '../components/agent/RespuestasDeLaFoto';
 import { isNativeApp } from '../config/platform';
@@ -2189,7 +2192,8 @@ const AgentPage = () => {
                 ? await takeNativeChatPhoto()
                 : await chooseNativeChatImages(remaining);
             // [P1-PLAN-LOTE-138] con teclado que reponer, la preparación de la foto espera a que acabe de subir
-            if (files?.length) addFiles(files, { prepararTrasMs: reopenKeyboardAfterAttachmentRef.current ? ESPERA_PREPARAR_FOTO_MS : 0 });
+            // [P1-PLAN-LOTE-360] la espera era para no competir en el hilo principal; con el worker solo retrasa la miniatura
+            if (files?.length) addFiles(files, { prepararTrasMs: reopenKeyboardAfterAttachmentRef.current && !workerDeImagenDisponible() ? ESPERA_PREPARAR_FOTO_MS : 0 });
         } catch (error) {
             if (!isNativePickerCancellation(error)) {
                 _captureAgentPageException(error, { action: `native_${source}_picker` });
@@ -4777,14 +4781,17 @@ const AgentPage = () => {
                             aria-label={t('Imágenes adjuntas')}
                             aria-busy={attachmentsPreparing}
                         >
-                            {attachments.map((item, index) => (
+                            {attachments.map((item, index) => {
+                            const srcVista = vistaPreviaDelAdjunto(item, { ios: _esIOS, rota: previewsRotas.has(item.id) });   // [P1-PLAN-LOTE-360]
+                            return (
+
                                 <div className={`attachment-preview ${item.status}`} role="listitem" key={item.id}>
                                     {/* [P1-PLAN-LOTE-138] La foto se VE en cuanto se elige (`previewUrl`, decodificada fuera del
                                         hilo principal); antes salía un hueco con un icono hasta que acababa la preparación. Si el
                                         navegador no sabe pintarla (un HEIC en escritorio), vuelve el hueco. */}
-                                    {item.status !== 'error' && (item.thumbDataUrl || (item.previewUrl && !previewsRotas.has(item.id))) ? (
+                                    {srcVista ? (
                                         <img
-                                            src={item.thumbDataUrl || item.previewUrl}
+                                            src={srcVista}
                                             alt={t('Imagen adjunta {number}', { number: index + 1 })}
                                             decoding={item.thumbDataUrl ? 'sync' : 'async'}
                                             onError={() => marcarPreviewRota(item.id)}
@@ -4804,7 +4811,8 @@ const AgentPage = () => {
                                         <X size={12} strokeWidth={2.75} aria-hidden="true" />
                                     </button>
                                 </div>
-                            ))}
+                            );
+                            })}
                         </div>
                     )}
 

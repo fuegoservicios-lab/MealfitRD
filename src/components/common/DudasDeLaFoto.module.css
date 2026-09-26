@@ -47,15 +47,4 @@
     font: inherit;
     font-size: 1rem; /* 16 px: iOS no hace zoom al enfocar */
 }
-.recalcular {
-    min-height: 44px;
-    padding: 0.5rem 0.9rem;
-    border-radius: 0.75rem;
-    border: none;
-    background: var(--primary-fill); /* P1-PRIMARY-FILL-DEPTH: en oscuro --primary es tinta, no relleno */
-    color: #fff;
-    font: inherit;
-    font-weight: 700;
-    cursor: pointer;
-}
-.recalcular:disabled { opacity: 0.5; cursor: default; }
+/* [P1-PLAN-LOTE-360] sin botón «Recalcular»: se recalcula al terminar de escribir */

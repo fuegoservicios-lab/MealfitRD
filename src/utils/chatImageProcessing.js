@@ -128,6 +128,9 @@ const obtenerWorker = () => {
 
 /** Arranca el worker sin mandarle trabajo: su arranque (cargar y compilar el módulo) le costaba ~130 ms al hilo
  *  principal con la CPU de un teléfono, medido. El «+» lo llama mientras el usuario elige la foto. */
+/** [P1-PLAN-LOTE-360] ¿La foto se preparará en el worker? (entonces no hace falta aplazarla por el teclado) */
+export const workerDeImagenDisponible = () => workerDisponible();
+
 export function precalentarWorkerDeImagen() {
     if (!workerDisponible()) return;
     try { obtenerWorker(); } catch { desactivarWorker(); }

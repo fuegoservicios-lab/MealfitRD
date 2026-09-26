@@ -3,7 +3,10 @@
 // línea («✓ 4 huevos») con «Cambiar».
 // [P1-PLAN-LOTE-347 · 2026-09-26] «Otra…» cuando ninguna opción encaja: con campo (escáner: escribir y «Recalcular»,
 // que re-analiza la foto con lo escrito) o sin él (chat: el cursor va a la caja de escribir).
-import React, { useState } from 'react';
+// [P1-PLAN-LOTE-360 · 2026-09-26] El dueño: «que se guarde en automático». Sin botón: recalcula al TERMINAR de escribir
+// (Intro/«Listo» del teclado, o al salir del campo), nunca a media palabra — un análisis por letra gastaría de más. Y
+// el campo se centra a la vista al abrirse: con el teclado arriba, la hoja lo dejaba tapado bajo el pie.
+import React, { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useT } from '../../i18n';
 import styles from './DudasDeLaFoto.module.css';
@@ -13,6 +16,13 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
     const [reabiertas, setReabiertas] = useState({});
     const [otraAbierta, setOtraAbierta] = useState(null);
     const [otraTexto, setOtraTexto] = useState('');
+    const campoRef = useRef(null);
+    useEffect(() => {
+        if (!otraConCampo || otraAbierta === null) return undefined;
+        // tras la subida del teclado (~0,4 s en iOS): antes la hoja subía de más y el campo quedaba tapado
+        const reloj = setTimeout(() => campoRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 350);
+        return () => clearTimeout(reloj);
+    }, [otraAbierta, otraConCampo]);
     const tocarOtra = (i) => {
         if (!otraConCampo) { onOtra(i); return; }
         setOtraAbierta(i);
@@ -20,8 +30,9 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
     };
     const enviarOtra = (i) => {
         const texto = otraTexto.trim();
-        if (!texto) return;
+        if (otraAbierta !== i || !texto) return;   // Intro y luego el blur del mismo campo: una sola vez
         setOtraAbierta(null);
+        setOtraTexto('');
         onOtra(i, texto);
     };
     return (
@@ -79,25 +90,20 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                         {otraConCampo && otraAbierta === i && (
                             <div className={styles.otraCampo}>
                                 <input
+                                    ref={campoRef}
                                     type="text"
                                     className={styles.otraInput}
                                     value={otraTexto}
                                     maxLength={200}
                                     autoFocus
+                                    enterKeyHint="done"
                                     disabled={bloqueado}
                                     aria-label={t('Tu respuesta: {x}', { x: d.pregunta })}
                                     placeholder={t('Escríbelo: ej. 4 huevos con queso')}
                                     onChange={(e) => setOtraTexto(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enviarOtra(i); } }}
+                                    onBlur={() => enviarOtra(i)}
                                 />
-                                <button
-                                    type="button"
-                                    className={styles.recalcular}
-                                    disabled={bloqueado || !otraTexto.trim()}
-                                    onClick={() => enviarOtra(i)}
-                                >
-                                    {t('Recalcular')}
-                                </button>
                             </div>
                         )}
                     </li>
