@@ -131,11 +131,64 @@ const _esRespuestaSimple = (texto) => /^[\d\s.,/½¼¾⅓⅔]*[\p{L}]*\s*$/u.tes
 function _componenteDeLaDuda(plato, d) {
     const sobre = _normNombre(d?.sobre);
     if (!sobre) return null;
-    const nombreDe = (c) => _normNombre(c.nombreOriginal || c.name);
-    const exactos = plato.componentes.filter((c) => nombreDe(c) === sobre);
+    // [P1-PLAN-LOTE-369] también por el nombre de antes de «Cambiar» (365): si no, la duda perdía su ingrediente
+    const nombresDe = (c) => [c.nombreOriginal, c.antesDelCambio?.name, c.name].filter(Boolean).map(_normNombre);
+    const exactos = plato.componentes.filter((c) => nombresDe(c).includes(sobre));
     if (exactos.length === 1) return exactos[0];
-    const parecidos = plato.componentes.filter((c) => nombreDe(c).includes(sobre) || sobre.includes(nombreDe(c)));
+    const parecidos = plato.componentes.filter((c) => nombresDe(c).some((n) => n.includes(sobre) || sobre.includes(n)));
     return parecidos.length === 1 ? parecidos[0] : null;
+}
+
+// ── [P1-PLAN-LOTE-369 · 2026-09-26] La respuesta toca el ingrediente solo cuando habla de él ──────────────────────
+const _singular = (w) => w.replace(/(es|s)$/, '');
+const _ALIAS_UNIDAD = { gramo: 'g', gr: 'g', onza: 'oz', mililitro: 'ml', cucharada: 'cda', cucharadita: 'cdta' };
+const _unidadCanonica = (w) => { const s = _singular(_normNombre(w)); return _ALIAS_UNIDAD[s] || s; };
+const _CONTABLES = new Set(['unidad', 'pieza', '']);
+
+/** La cantidad que dice la respuesta EN LA UNIDAD DEL INGREDIENTE, o null si habla en otra («1 taza» de un arroz
+ *  en gramos) o no dice ninguna. La `cantidad` del servidor (363) ya viene en esa unidad. */
+function _cantidadEnSuUnidad(o, c) {
+    if (Number(o?.cantidad) > 0) return Number(o.cantidad);
+    const n = numeroDeRespuesta(o?.texto);
+    if (!n) return null;
+    const palabra = _normNombre(String(o.texto).replace(/^[\d\s.,/½¼¾⅓⅔]+/, '')).split(/\s+/)[0] || '';
+    if (!palabra) return n;                                   // «4»
+    const unidad = _unidadCanonica(c.unit);
+    if (_unidadCanonica(palabra) === unidad) return n;        // «2 tazas» con taza, «30 gramos» con g
+    if (_CONTABLES.has(unidad)) {                             // «4 huevos» con «Huevo revuelto · unidad»
+        const nombres = [c.nombreOriginal, c.antesDelCambio?.name, c.name].filter(Boolean)
+            .flatMap((x) => _normNombre(x).split(/\s+/)).map(_singular);
+        if (nombres.includes(_singular(palabra)) || _CONTABLES.has(_unidadCanonica(palabra))) return n;
+    }
+    return null;
+}
+
+/** ¿Las opciones de la duda NOMBRAN el ingrediente? Sí cuando la supuesta es su nombre («Panecillo» / «Arepitas de
+ *  maíz»); no cuando describen otra cosa de él («Frito» / «A la plancha» del pollo). */
+function _opcionesNombranElIngrediente(d, c) {
+    const supuesta = d?.opciones?.find((x) => x.supuesta);
+    const original = c.nombreOriginal || c.name;
+    return !!supuesta && _normNombre(supuesta.texto) === _normNombre(original);
+}
+
+/** El ingrediente sin lo que le hizo una respuesta anterior de la duda `i` (cantidad o nombre). */
+function _sinLoQueHizoLaDuda(c, aplicada) {
+    if (aplicada === 'cantidad' && c.q0Foto != null) {
+        const f = c.q0 > 0 ? c.q0Foto / c.q0 : 1;
+        const base = 'displaySinNota' in c ? c.displaySinNota : c.display;
+        const { displaySinNota: _d, ...resto } = c;
+        return {
+            ...resto,
+            q0: c.q0Foto,
+            qty: c.q0Foto,
+            macros: c.macros ? MACROS.reduce((acc, k) => ({ ...acc, [k]: c.macros[k] * f }), {}) : c.macros,
+            display: base,
+        };
+    }
+    if (aplicada === 'nombre' && c.nombreOriginal) {
+        return { ...c, name: c.nombreOriginal, display: c.displayOriginal || '', nombreOriginal: undefined, displayOriginal: undefined };
+    }
+    return c;
 }
 
 /** Lleva la opción elegida de la duda `i` al ingrediente: con número, su cantidad (nueva base del ingrediente, así la
@@ -146,9 +199,11 @@ function _reflejarEnIngredientes(plato, i) {
     const c = o && _componenteDeLaDuda(plato, d);
     if (!c) return plato;
     // [P1-PLAN-LOTE-363] la cantidad que dijo el servidor gana al número del texto («tres huevos» → 3)
-    const n = Number(o.cantidad) > 0 ? Number(o.cantidad) : numeroDeRespuesta(o.texto);
+    // [P1-PLAN-LOTE-369] …y el número solo cuenta si habla en la unidad del ingrediente
+    const n = _cantidadEnSuUnidad(o, c);
     const detalles = { ...(plato.detalles || {}) };
     delete detalles[i];
+    const aplicadas = { ...(plato.aplicadas || {}) };
     let nuevo;
     let aplicada;
     if (n) {
@@ -177,6 +232,11 @@ function _reflejarEnIngredientes(plato, i) {
         }
         if (!('displaySinNota' in nuevo) || nuevo.displaySinNota === undefined) delete nuevo.displaySinNota;
         aplicada = 'cantidad';
+    } else if (numeroDeRespuesta(o.texto) || !_opcionesNombranElIngrediente(d, c)) {
+        // [P1-PLAN-LOTE-369] no habla del ingrediente («A la plancha», «1 taza» de un arroz en gramos): manda el
+        // ajuste, y lo que una respuesta anterior de esta duda le hizo al ingrediente se deshace
+        nuevo = _sinLoQueHizoLaDuda(c, aplicadas[i]);
+        aplicada = undefined;
     } else {
         const original = c.nombreOriginal || c.name;
         const displayOriginal = c.nombreOriginal ? c.displayOriginal : c.display;
@@ -185,10 +245,11 @@ function _reflejarEnIngredientes(plato, i) {
             : { ...c, name: o.texto, display: o.texto, nombreOriginal: original, displayOriginal: displayOriginal || '' };
         aplicada = 'nombre';
     }
+    if (aplicada) aplicadas[i] = aplicada; else delete aplicadas[i];
     return {
         ...plato,
         componentes: plato.componentes.map((x) => (x.key === c.key ? nuevo : x)),
-        aplicadas: { ...(plato.aplicadas || {}), [i]: aplicada },
+        aplicadas,
         detalles,
     };
 }
