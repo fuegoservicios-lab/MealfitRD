@@ -122,7 +122,9 @@ describe('el escáner desde «Ver días anteriores»', () => {
         expect(sm).toContain('const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {');
         expect(sm).toContain('useState(() => normalizarDiasAtras(initialDaysAgo));');
         expect(sm).toContain('options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo}');
-        expect(sm).toContain('const dia = nombreDelDiaAtras(t, daysAgo);');
+        // [P1-PLAN-LOTE-366] cada plato puede ir a su día: el aviso nombra el día de cada uno con el mismo helper
+        expect(sm).toContain('nombreDelDiaAtras(t, conDia[0].daysAgo)');
+        expect(sm).toContain('nombreDelDiaAtras(t, r.daysAgo)');
     });
     it('los chips del día: un solo sitio para el componedor y el escáner', () => {
         const t = (s) => s;
