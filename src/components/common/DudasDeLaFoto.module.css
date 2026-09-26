@@ -48,3 +48,5 @@
     font-size: 1rem; /* 16 px: iOS no hace zoom al enfocar */
 }
 /* [P1-PLAN-LOTE-360] sin botón «Recalcular»: se recalcula al terminar de escribir */
+/* [P1-PLAN-LOTE-361] la duda cuya respuesta escrita se está calculando */
+.calculando { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }

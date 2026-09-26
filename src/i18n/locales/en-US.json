@@ -3645,5 +3645,6 @@
   "Calculando…": "Calculating…",
   "Calcular mi plato": "Calculate my plate",
   "Editar {nombre}": "Edit {nombre}",
-  "No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.": "We couldn't calculate your plate right now; add the foods by hand or try again."
+  "No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.": "We couldn't calculate your plate right now; add the foods by hand or try again.",
+  "No pudimos calcular tu respuesta ahora; elige una opción o corrige las calorías a mano.": "We couldn't calculate your answer right now; pick an option or correct the calories by hand."
 }

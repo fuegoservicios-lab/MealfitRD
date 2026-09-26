@@ -59,6 +59,7 @@ import {
     conCantidad,
     conComponenteAlternado,
     conRespuesta,
+    conRespuestaEscrita,
     ingredientesParaGuardar,
     nombresSinRepetir,
     totalesDe,
@@ -207,8 +208,34 @@ FilaComponente.propTypes = {
 };
 
 /** Lo editable de UN plato: «¿Qué es?» y «¿Cuánto comiste?» (porción, macros e ingredientes). */
-const EditorDePlato = ({ plato, bloqueado, onCambiar, onOtra = null }) => {
+const EditorDePlato = ({ plato, bloqueado, onCambiar }) => {
     const t = useT();
+    // [P1-PLAN-LOTE-361] «Otra…»: lo escrito pide SU ajuste por texto y entra como una opción más de esa duda. Antes
+    // se re-analizaba la foto entera: el análisis nuevo traía otras dudas y borraba lo ya elegido en las demás.
+    const [calculando, setCalculando] = useState(null);
+    const responderOtra = async (i, texto) => {
+        const d = plato.dudas?.[i];
+        if (!d || calculando !== null) return;
+        setCalculando(i);
+        try {
+            const res = await fetchWithAuth('/api/diary/scan/ajuste-duda', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    plato: plato.nombre, macros: plato.base, pregunta: d.pregunta,
+                    opciones: d.opciones.filter((o) => !o.escrita).map((o) => ({ texto: o.texto, supuesta: !!o.supuesta, ajuste: o.ajuste })),
+                    respuesta: texto, locale: getLocale(),
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.operation_failed || !data?.ajuste) throw new Error('sin ajuste');
+            onCambiar((p) => conRespuestaEscrita(p, i, data.texto || texto, data.ajuste, data.nombre_plato));
+        } catch {
+            toast.error(t('No pudimos calcular tu respuesta ahora; elige una opción o corrige las calorías a mano.'));
+        } finally {
+            setCalculando(null);
+        }
+    };
     const m = macrosDelPlato(plato);
     const ids = `scan-${plato.id}`;
     return (
@@ -225,7 +252,8 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onOtra = null }) => {
                         bloqueado={bloqueado}
                         onElegir={(d, o) => onCambiar((p) => conRespuesta(p, d, o))}
                         otraConCampo
-                        onOtra={onOtra ? (i, texto) => onOtra(`${plato.dudas[i].pregunta} ${texto}`) : null}
+                        onOtra={responderOtra}
+                        calculando={calculando}
                     />
                 </div>
             )}
@@ -311,7 +339,6 @@ EditorDePlato.propTypes = {
     plato: PropTypes.object.isRequired,
     bloqueado: PropTypes.bool,
     onCambiar: PropTypes.func.isRequired,
-    onOtra: PropTypes.func,
 };
 
 const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
@@ -823,7 +850,6 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                     plato={p}
                     bloqueado={guardando || p.guardado}
                     onCambiar={(fn) => cambiarPlato(p.id, fn)}
-                    onOtra={(texto) => { const x = platosRef.current.find((q) => q.id === p.id); if (x?.file) void analizar(p.id, x.file, texto); }}
                 />
             )}
         </>
@@ -885,7 +911,6 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                             plato={p}
                             bloqueado={guardando}
                             onCambiar={(fn) => cambiarPlato(p.id, fn)}
-                            onOtra={(texto) => { const x = platosRef.current.find((q) => q.id === p.id); if (x?.file) void analizar(p.id, x.file, texto); }}
                         />
                     </div>
                 )}

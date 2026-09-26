@@ -3645,5 +3645,6 @@
   "Calculando…": "Calcul…",
   "Calcular mi plato": "Calculer mon assiette",
   "Editar {nombre}": "Modifier {nombre}",
-  "No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.": "Impossible de calculer votre assiette pour l’instant ; ajoutez les aliments à la main ou réessayez."
+  "No pudimos calcular tu plato ahora; añade los alimentos a mano o inténtalo de nuevo.": "Impossible de calculer votre assiette pour l’instant ; ajoutez les aliments à la main ou réessayez.",
+  "No pudimos calcular tu respuesta ahora; elige una opción o corrige las calorías a mano.": "Impossible de calculer votre réponse pour l’instant ; choisissez une option ou corrigez les calories à la main."
 }

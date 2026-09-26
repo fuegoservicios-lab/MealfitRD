@@ -106,6 +106,29 @@ export function macrosDerivadas(plato) {
     return MACROS.reduce((acc, k) => ({ ...acc, [k]: ((plato.base?.[k] || 0) + extra[k]) * f }), {});
 }
 
+/** [P1-PLAN-LOTE-361 · 2026-09-26] «Otra…»: lo escrito entra como UNA opción más de esa duda (su ajuste lo calculó el
+ *  servidor por texto), elegida y confirmada. Escribir otra vez REEMPLAZA la escrita anterior; las demás dudas no se
+ *  tocan (antes se re-analizaba la foto entera y se perdían). */
+export function conRespuestaEscrita(plato, iDuda, texto, ajuste, nombrePlato = '') {
+    const d = plato.dudas?.[iDuda];
+    const limpio = String(texto || '').trim().slice(0, 40);
+    if (!d || !limpio) return plato;
+    const MAC = ['calories', 'protein', 'carbs', 'healthy_fats'];
+    const op = {
+        texto: limpio, supuesta: false, escrita: true,
+        ajuste: MAC.reduce((acc, k) => ({ ...acc, [k]: Number(ajuste?.[k]) || 0 }), {}),
+    };
+    const opciones = [...d.opciones.filter((o) => !o.escrita), op];
+    const dudas = plato.dudas.map((x, i) => (i === iDuda ? { ...x, opciones } : x));
+    return {
+        ...plato,
+        dudas,
+        nombre: String(nombrePlato || '').trim() || plato.nombre,
+        respuestas: { ...(plato.respuestas || {}), [iDuda]: opciones.length - 1 },
+        confirmadas: { ...(plato.confirmadas || {}), [iDuda]: true },
+    };
+}
+
 /** [P1-PLAN-LOTE-322] Tocar una opción de una duda: la elige (las macros la reflejan al instante), la da por
  *  confirmada y, si cambia qué es el plato («Arepa»), cambia el nombre. */
 export function conRespuesta(plato, iDuda, iOpcion) {

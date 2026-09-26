@@ -74,10 +74,11 @@ describe('[347] «Otra…» en los botones de la duda', () => {
 });
 
 describe('[347] cableado', () => {
-    it('el escáner re-analiza la misma foto con la aclaración', () => {
+    // [P1-PLAN-LOTE-361] ya NO re-analiza la foto (borraba lo elegido en las otras dudas): pide el ajuste por texto
+    it('el escáner aplica «Otra…» como una opción (lote361.test.jsx), no re-analizando la foto', () => {
         const src = leer('components/dashboard/ScanMealModal.jsx');
-        expect(src).toContain("if (aclaracion) fd.append('aclaracion', aclaracion);");
-        expect(src).toContain('onOtra={(texto) => { const x = platosRef.current.find((q) => q.id === p.id); if (x?.file) void analizar(p.id, x.file, texto); }}');
+        expect(src).toContain('onOtra={responderOtra}');
+        expect(src).not.toContain('void analizar(p.id, x.file, texto)');
     });
 
     it('el chat pone el cursor en la caja con la pregunta como pista', () => {

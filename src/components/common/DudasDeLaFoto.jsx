@@ -11,7 +11,7 @@ import PropTypes from 'prop-types';
 import { useT } from '../../i18n';
 import styles from './DudasDeLaFoto.module.css';
 
-const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = false, onOtra = null, otraConCampo = false }) => {
+const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = false, onOtra = null, otraConCampo = false, calculando = null }) => {
     const t = useT();
     const [reabiertas, setReabiertas] = useState({});
     const [otraAbierta, setOtraAbierta] = useState(null);
@@ -57,9 +57,12 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                         </li>
                     );
                 }
+                // [P1-PLAN-LOTE-361] mientras se calcula lo escrito, SOLO esta duda espera; las demás siguen tocables
+                const esperando = calculando === i;
                 return (
                     <li key={d.pregunta} className={styles.duda}>
                         <span className={styles.pregunta}>{d.pregunta}</span>
+                        {esperando && <span role="status" className={styles.calculando}>{t('Calculando…')}</span>}
                         {(d.opciones.length > 0 || onOtra) && (
                             <div className={styles.opciones} role="group" aria-label={d.pregunta}>
                                 {d.opciones.map((o, j) => (
@@ -68,7 +71,7 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                                         type="button"
                                         className={`${styles.opcion} ${elegida === j ? styles.elegida : ''}`}
                                         aria-pressed={elegida === j}
-                                        disabled={bloqueado}
+                                        disabled={bloqueado || esperando}
                                         onClick={() => { setReabiertas((r) => ({ ...r, [i]: false })); onElegir(i, j); }}
                                     >
                                         {o.texto}
@@ -79,7 +82,7 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                                         type="button"
                                         className={`${styles.opcion} ${styles.otra} ${otraAbierta === i ? styles.elegida : ''}`}
                                         aria-expanded={otraConCampo ? otraAbierta === i : undefined}
-                                        disabled={bloqueado}
+                                        disabled={bloqueado || esperando}
                                         onClick={() => tocarOtra(i)}
                                     >
                                         {t('Otra…')}
@@ -124,6 +127,7 @@ DudasDeLaFoto.propTypes = {
     bloqueado: PropTypes.bool,
     onOtra: PropTypes.func,
     otraConCampo: PropTypes.bool,
+    calculando: PropTypes.number,
 };
 
 export default DudasDeLaFoto;
