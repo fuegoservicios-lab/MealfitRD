@@ -50,3 +50,10 @@
 /* [P1-PLAN-LOTE-360] sin botón «Recalcular»: se recalcula al terminar de escribir */
 /* [P1-PLAN-LOTE-361] la duda cuya respuesta escrita se está calculando */
 .calculando { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+/* [P1-PLAN-LOTE-362] el ✓ de «Otra…» y cómo se aplica */
+.aplicar {
+    min-width: 44px; min-height: 44px; border: none; border-radius: 0.75rem;
+    background: var(--primary-fill); color: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+}
+.aplicar:disabled { opacity: 0.45; cursor: default; }
+.otraAyuda { font-size: 0.78rem; color: var(--text-muted); }

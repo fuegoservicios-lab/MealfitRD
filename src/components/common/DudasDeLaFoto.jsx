@@ -11,7 +11,7 @@ import PropTypes from 'prop-types';
 import { useT } from '../../i18n';
 import styles from './DudasDeLaFoto.module.css';
 
-const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = false, onOtra = null, otraConCampo = false, calculando = null }) => {
+const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = false, onOtra = null, otraConCampo = false, calculando = null, onEditando = null }) => {
     const t = useT();
     const [reabiertas, setReabiertas] = useState({});
     const [otraAbierta, setOtraAbierta] = useState(null);
@@ -23,6 +23,11 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
         const reloj = setTimeout(() => campoRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 350);
         return () => clearTimeout(reloj);
     }, [otraAbierta, otraConCampo]);
+    // [P1-PLAN-LOTE-362] el escáner esconde «Volver a escanear» mientras se escribe o se calcula: parecía el botón de
+    // guardar la respuesta
+    const editando = otraAbierta !== null || calculando !== null;
+    useEffect(() => { onEditando?.(editando); }, [editando, onEditando]);
+    useEffect(() => () => { onEditando?.(false); }, [onEditando]);   // si el bloque desaparece, el botón vuelve
     const tocarOtra = (i) => {
         if (!otraConCampo) { onOtra(i); return; }
         setOtraAbierta(i);
@@ -107,7 +112,22 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); enviarOtra(i); } }}
                                     onBlur={() => enviarOtra(i)}
                                 />
+                                {/* [P1-PLAN-LOTE-362] un ✓ explícito: deja claro cómo se guarda (Intro y tocar fuera siguen valiendo) */}
+                                <button
+                                    type="button"
+                                    className={styles.aplicar}
+                                    aria-label={t('Aplicar')}
+                                    disabled={bloqueado || !otraTexto.trim()}
+                                    onPointerDown={(e) => e.preventDefault()}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => enviarOtra(i)}
+                                >
+                                    ✓
+                                </button>
                             </div>
+                        )}
+                        {otraConCampo && otraAbierta === i && (
+                            <span className={styles.otraAyuda}>{t('Se aplica al tocar ✓, pulsar Intro o tocar fuera.')}</span>
                         )}
                     </li>
                 );
@@ -128,6 +148,7 @@ DudasDeLaFoto.propTypes = {
     onOtra: PropTypes.func,
     otraConCampo: PropTypes.bool,
     calculando: PropTypes.number,
+    onEditando: PropTypes.func,
 };
 
 export default DudasDeLaFoto;

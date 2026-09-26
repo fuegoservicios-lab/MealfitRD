@@ -208,7 +208,7 @@ FilaComponente.propTypes = {
 };
 
 /** Lo editable de UN plato: «¿Qué es?» y «¿Cuánto comiste?» (porción, macros e ingredientes). */
-const EditorDePlato = ({ plato, bloqueado, onCambiar }) => {
+const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null }) => {
     const t = useT();
     // [P1-PLAN-LOTE-361] «Otra…»: lo escrito pide SU ajuste por texto y entra como una opción más de esa duda. Antes
     // se re-analizaba la foto entera: el análisis nuevo traía otras dudas y borraba lo ya elegido en las demás.
@@ -254,6 +254,7 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar }) => {
                         otraConCampo
                         onOtra={responderOtra}
                         calculando={calculando}
+                        onEditando={onEditandoDuda}
                     />
                 </div>
             )}
@@ -339,6 +340,7 @@ EditorDePlato.propTypes = {
     plato: PropTypes.object.isRequired,
     bloqueado: PropTypes.bool,
     onCambiar: PropTypes.func.isRequired,
+    onEditandoDuda: PropTypes.func,
 };
 
 const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
@@ -359,6 +361,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     // [P1-PLAN-LOTE-224] Los platos de este registro, en el orden en que llegaron las fotos. Cada uno:
     // { id, file, previewUrl, estado: 'analizando' | 'listo' | 'error', fallo, guardado, …campos de scanMealDishes }.
     const [platos, setPlatos] = useState([]);
+    // [P1-PLAN-LOTE-362] ¿hay un «Otra…» abierto o calculándose? (esconde «Volver a escanear»)
+    const [editandoDuda, setEditandoDuda] = useState(false);
     const platosRef = useRef([]);
     useEffect(() => { platosRef.current = platos; }, [platos]);
     // Con varios platos, el que está abierto para editar (los demás se ven resumidos).
@@ -837,7 +841,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                 )}
                 {/* [P1-PLAN-LOTE-224] «Volver a escanear» vive sobre la foto que cambia, no en el pie: junto a
                     «Registrar comida» no cabían los dos en un teléfono de 360 px y el botón verde se cortaba. */}
-                {p.estado === 'listo' && !guardando && (
+                {/* [P1-PLAN-LOTE-362] se esconde mientras se escribe/calcula un «Otra…»: parecía el botón de guardar */}
+                {p.estado === 'listo' && !guardando && !editandoDuda && (
                     <button type="button" className={styles.previewRetake} onClick={() => { quitarPlato(p.id); setError(null); }}>
                         <RotateCcw size={14} aria-hidden="true" /> {t('Volver a escanear')}
                     </button>
@@ -850,6 +855,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                     plato={p}
                     bloqueado={guardando || p.guardado}
                     onCambiar={(fn) => cambiarPlato(p.id, fn)}
+                    onEditandoDuda={setEditandoDuda}
                 />
             )}
         </>
@@ -911,6 +917,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                             plato={p}
                             bloqueado={guardando}
                             onCambiar={(fn) => cambiarPlato(p.id, fn)}
+                            onEditandoDuda={setEditandoDuda}
                         />
                     </div>
                 )}

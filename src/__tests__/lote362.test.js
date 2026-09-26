@@ -82,3 +82,38 @@ describe('[362] la respuesta toca el ingrediente', () => {
         expect(comp(conRespuesta(platoDesdeAnalisis(a), 0, 2), '2').qty).toBe(0.5);
     });
 });
+
+// ── [P1-PLAN-LOTE-362] El dueño: «Volver a escanear» confundía mientras se escribe en «Otra…» (parece el botón de
+// guardar la respuesta). Mientras hay un «Otra…» abierto o calculándose, el escáner lo esconde; el campo trae su ✓
+// y una línea que dice cómo se aplica. ───────────────────────────────────────────────────────────────────────────
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import DudasDeLaFoto from '../components/common/DudasDeLaFoto';
+
+describe('[362] «Otra…» deja claro cómo se guarda', () => {
+    const dudas = [{ pregunta: '¿De cuántos huevos?', opciones: [{ texto: '2 huevos', supuesta: true, ajuste: {} }, { texto: '3 huevos', supuesta: false, ajuste: {} }] }];
+
+    it('avisa de que se está editando (para esconder «Volver a escanear») y trae ✓ y la explicación', () => {
+        const estados = [];
+        const otras = [];
+        render(React.createElement(DudasDeLaFoto, {
+            dudas, respuestas: { 0: 0 }, confirmadas: {}, onElegir: () => {}, otraConCampo: true,
+            onOtra: (i, x) => otras.push(x), onEditando: (v) => estados.push(v),
+        }));
+        fireEvent.click(screen.getByRole('button', { name: 'Otra…' }));
+        expect(estados[estados.length - 1]).toBe(true);
+        expect(screen.getByText('Se aplica al tocar ✓, pulsar Intro o tocar fuera.')).toBeTruthy();
+        fireEvent.change(screen.getByLabelText('Tu respuesta: ¿De cuántos huevos?'), { target: { value: '4 huevos' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+        expect(otras).toEqual(['4 huevos']);
+        expect(estados[estados.length - 1]).toBe(false);
+    });
+
+    it('el escáner esconde «Volver a escanear» mientras se edita una duda', () => {
+        const src = readFileSync(resolve(__dirname, '..', 'components', 'dashboard', 'ScanMealModal.jsx'), 'utf8');
+        expect(src).toContain("{p.estado === 'listo' && !guardando && !editandoDuda && (");
+        expect(src).toContain('onEditandoDuda={setEditandoDuda}');
+    });
+});
