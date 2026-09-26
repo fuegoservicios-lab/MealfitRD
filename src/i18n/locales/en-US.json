@@ -3655,5 +3655,13 @@
   "Rehacemos el plato con tu descripción; la foto no se vuelve a analizar.": "We rebuild the dish from your description; the photo isn’t analyzed again.",
   "¿No es esto? Descríbelo": "Not this? Describe it",
   "No pudimos calcular ese ingrediente ahora; inténtalo de nuevo o corrige las calorías a mano.": "We couldn’t calculate that ingredient right now; try again or fix the calories by hand.",
-  "No pudimos calcular tu plato ahora; inténtalo de nuevo o corrige las calorías a mano.": "We couldn’t calculate your dish right now; try again or fix the calories by hand."
+  "No pudimos calcular tu plato ahora; inténtalo de nuevo o corrige las calorías a mano.": "We couldn’t calculate your dish right now; try again or fix the calories by hand.",
+  "¿Qué comida es este plato?": "Which meal is this dish?",
+  "Tipo de comida de este plato": "Meal type for this dish",
+  "Día de este plato": "Day for this dish",
+  "Usar lo de abajo": "Use the one below",
+  "Otra comida u otro día": "Another meal or day",
+  "{nombre} quedó en el diario de {dia}.": "{nombre} was logged in {dia}’s diary.",
+  "Lo ves en «Ver días anteriores».": "You’ll find it in “See previous days”.",
+  "Para los platos que no marcaste aparte.": "For the dishes you didn’t set separately."
 }

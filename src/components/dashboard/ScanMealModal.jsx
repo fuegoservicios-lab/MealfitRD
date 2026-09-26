@@ -64,6 +64,8 @@ import {
     conIngredienteCambiado,
     esNombreOriginal,
     platoDesdeDescripcion,
+    destinoDelPlato,
+    conDestinoPropio,
     ingredientesParaGuardar,
     nombresSinRepetir,
     totalesDe,
@@ -300,7 +302,7 @@ FilaComponente.propTypes = {
 };
 
 /** Lo editable de UN plato: «¿Qué es?» y «¿Cuánto comiste?» (porción, macros e ingredientes). */
-const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null }) => {
+const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, destino = null, onDestino = null, opcionesDia = null }) => {
     const t = useT();
     // [P1-PLAN-LOTE-361] «Otra…»: lo escrito pide SU ajuste por texto y entra como una opción más de esa duda. Antes
     // se re-analizaba la foto entera: el análisis nuevo traía otras dudas y borraba lo ya elegido en las demás.
@@ -506,6 +508,39 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null }) =
                     </div>
                 )}
             </section>
+            {/* [P1-PLAN-LOTE-366] Con varios platos: este va a su propia comida y su propio día (la batida al desayuno
+                de ayer, el plátano al almuerzo de hoy). Sin marcarlo, sigue lo elegido abajo para todos. */}
+            {destino && onDestino && (destino.propio ? (
+                <section className={styles.section} aria-labelledby={`${ids}-destino`}>
+                    <h3 id={`${ids}-destino`} className={styles.sectionTitle}>{t('¿Qué comida es este plato?')}</h3>
+                    <Chips
+                        label={t('Tipo de comida de este plato')}
+                        options={_getMealTypes(t)}
+                        value={destino.mealType}
+                        onChange={(v) => onDestino({ mealType: v, daysAgo: destino.daysAgo })}
+                        disabled={bloqueado}
+                    />
+                    <Chips
+                        label={t('Día de este plato')}
+                        options={opcionesDia || []}
+                        value={destino.daysAgo}
+                        onChange={(v) => onDestino({ mealType: destino.mealType, daysAgo: v })}
+                        disabled={bloqueado}
+                    />
+                    <button type="button" className={styles.corregirPlato} disabled={bloqueado} onClick={() => onDestino(null)}>
+                        {t('Usar lo de abajo')}
+                    </button>
+                </section>
+            ) : (
+                <button
+                    type="button"
+                    className={styles.corregirPlato}
+                    disabled={bloqueado}
+                    onClick={() => onDestino({ mealType: destino.mealType, daysAgo: destino.daysAgo })}
+                >
+                    {t('Otra comida u otro día')}
+                </button>
+            ))}
         </>
     );
 };
@@ -515,6 +550,9 @@ EditorDePlato.propTypes = {
     bloqueado: PropTypes.bool,
     onCambiar: PropTypes.func.isRequired,
     onEditandoDuda: PropTypes.func,
+    destino: PropTypes.object,
+    onDestino: PropTypes.func,
+    opcionesDia: PropTypes.array,
 };
 
 const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
@@ -877,6 +915,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             const p = porGuardar[i];
             const nombre = (nombreFinal.get(p.id) || String(p.nombre).trim()).slice(0, 200);
             const macros = macrosDelPlato(p);
+            const destino = destinoDelPlato(p, mealType, daysAgo);   // [P1-PLAN-LOTE-366]
             try {
                 const res = await fetchWithAuth('/api/diary/consumed', {
                     method: 'POST',
@@ -884,13 +923,13 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                     body: JSON.stringify({
                         user_id: userId,
                         meal_name: nombre,
-                        meal_type: mealType,
+                        meal_type: destino.mealType,
                         calories: macros.calories,
                         protein: macros.protein,
                         carbs: macros.carbs,
                         healthy_fats: macros.healthy_fats,
                         // [P1-PLAN-LOTE-106] el día elegido en «¿Cuándo?» (0 = hoy); el backend retrodata `consumed_at`
-                        days_ago: daysAgo,
+                        days_ago: destino.daysAgo,
                         // [P1-PHOTO-DEDUCTS · 2026-08-07] Solo los MARCADOS, con el formato que `_parse_quantity`
                         // entiende desde siempre: "<qty> <unit> de <nombre>". Se guardan con la comida (son su
                         // detalle) y, si el interruptor lo pide, se descuentan de la Nevera.
@@ -906,7 +945,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                         : mensajeDeError(data, t('No pudimos registrar la comida. Intenta de nuevo.'), t);
                     throw Object.assign(new Error(msg), { paraMostrar: true });
                 }
-                registrados.push({ nombre, kcal: macros.calories, data });
+                registrados.push({ nombre, kcal: macros.calories, data, daysAgo: destino.daysAgo });
                 _ponerPlato(p.id, { guardado: true });
             } catch (err) {
                 console.error('Error registrando comida:', err);
@@ -954,10 +993,18 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
         }
         // [P1-PLAN-LOTE-106] si no es de hoy, decirlo: no aparece en «Tus macros y micros de hoy», sino en
         // «Ver días anteriores» — la misma regla que el coach.
-        if (daysAgo > 0) {
-            const dia = nombreDelDiaAtras(t, daysAgo); // [P1-PLAN-LOTE-124] más de dos días atrás ya no es «antier»
-            descripcion = [descripcion, t('Quedó en el diario de {dia}; la ves en «Ver días anteriores».', { dia })]
-                .filter(Boolean).join(' ');
+        // [P1-PLAN-LOTE-366] con platos a días distintos, se nombra cada uno que no quedó en hoy
+        const conDia = nuevos.filter((r) => r.daysAgo > 0);
+        if (conDia.length) {
+            const todosIgual = conDia.length === nuevos.length && new Set(conDia.map((r) => r.daysAgo)).size === 1;
+            // [P1-PLAN-LOTE-124] más de dos días atrás ya no es «antier»
+            const aviso = todosIgual
+                ? t('Quedó en el diario de {dia}; la ves en «Ver días anteriores».', { dia: nombreDelDiaAtras(t, conDia[0].daysAgo) })
+                : [
+                    ...conDia.map((r) => t('{nombre} quedó en el diario de {dia}.', { nombre: r.nombre, dia: nombreDelDiaAtras(t, r.daysAgo) })),
+                    t('Lo ves en «Ver días anteriores».'),
+                ].join(' ');
+            descripcion = [descripcion, aviso].filter(Boolean).join(' ');
         }
         const kcalTotal = nuevos.reduce((s, r) => s + r.kcal, 0);
         toast.success(
@@ -1041,6 +1088,13 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
         const esAbierto = listo && !p.guardado && abierto === p.id;
         const m = listo ? macrosDelPlato(p) : null;
         const titulo = listo ? (p.nombre || t('Comida escaneada')) : (p.estado === 'analizando' ? t('Analizando tu plato…') : t('Foto sin analizar'));
+        // [P1-PLAN-LOTE-366] a qué comida y día va este plato
+        const destino = destinoDelPlato(p, mealType, daysAgo);
+        const opcionesDia = _getDayOptionsCon(t, destino.daysAgo);
+        const etiquetaDestino = [
+            _getMealTypes(t).find((o) => o.value === destino.mealType)?.label,
+            opcionesDia.find((o) => o.value === destino.daysAgo)?.label,
+        ].filter(Boolean).join(' · ');
         return (
             <li key={p.id} className={`${styles.platoCard} ${esAbierto ? styles.platoCardOpen : ''}`}>
                 <div className={styles.platoHead}>
@@ -1065,6 +1119,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                                         ? <><Check size={13} aria-hidden="true" /> {t('Registrado')}</>
                                         : t('{kcal} kcal · {p} g proteína', { kcal: formatNumber(m.calories), p: m.protein })}
                                 </span>
+                            )}
+                            {listo && !p.guardado && enRevision && (
+                                <span className={`${styles.platoDestino} ${destino.propio ? styles.platoDestinoPropio : ''}`}>{etiquetaDestino}</span>
                             )}
                         </span>
                         {listo && !p.guardado && (
@@ -1092,6 +1149,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                             bloqueado={guardando}
                             onCambiar={(fn) => cambiarPlato(p.id, fn)}
                             onEditandoDuda={setEditandoDuda}
+                            destino={destino}
+                            opcionesDia={opcionesDia}
+                            onDestino={(nuevo) => cambiarPlato(p.id, (x) => conDestinoPropio(x, nuevo))}
                         />
                     </div>
                 )}
@@ -1250,6 +1310,9 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                             <>
                                 <section className={styles.section} aria-labelledby="scan-q-tipo">
                                     <h3 id="scan-q-tipo" className={styles.sectionTitle}>{t('¿Qué comida es?')}</h3>
+                                    {!unSolo && platos.some((x) => x.destino) && (
+                                        <p className={styles.componentsHint}>{t('Para los platos que no marcaste aparte.')}</p>
+                                    )}
                                     <Chips
                                         label={t('Tipo de comida')}
                                         options={_getMealTypes(t)}

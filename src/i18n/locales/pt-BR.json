@@ -3655,5 +3655,13 @@
   "Rehacemos el plato con tu descripción; la foto no se vuelve a analizar.": "Refazemos o prato com a sua descrição; a foto não é analisada de novo.",
   "¿No es esto? Descríbelo": "Não é isso? Descreva",
   "No pudimos calcular ese ingrediente ahora; inténtalo de nuevo o corrige las calorías a mano.": "Não conseguimos calcular esse ingrediente agora; tente de novo ou corrija as calorias à mão.",
-  "No pudimos calcular tu plato ahora; inténtalo de nuevo o corrige las calorías a mano.": "Não conseguimos calcular o seu prato agora; tente de novo ou corrija as calorias à mão."
+  "No pudimos calcular tu plato ahora; inténtalo de nuevo o corrige las calorías a mano.": "Não conseguimos calcular o seu prato agora; tente de novo ou corrija as calorias à mão.",
+  "¿Qué comida es este plato?": "Qual refeição é este prato?",
+  "Tipo de comida de este plato": "Tipo de refeição deste prato",
+  "Día de este plato": "Dia deste prato",
+  "Usar lo de abajo": "Usar o de baixo",
+  "Otra comida u otro día": "Outra refeição ou outro dia",
+  "{nombre} quedó en el diario de {dia}.": "{nombre} ficou no diário de {dia}.",
+  "Lo ves en «Ver días anteriores».": "Você vê em «Ver dias anteriores».",
+  "Para los platos que no marcaste aparte.": "Para os pratos que você não marcou à parte."
 }

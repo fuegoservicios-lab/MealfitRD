@@ -370,6 +370,25 @@ export function platoDesdeDescripcion(plato, data) {
     };
 }
 
+// ── [P1-PLAN-LOTE-366 · 2026-09-26] Cada plato, su comida y su día ──────────────────────────────────────────────
+// El dueño: «si subo dos fotos, ¿puedo dividir sus horarios y para qué día va cada plato?». Un plato sin `destino`
+// sigue lo elegido abajo para todo el registro; con `destino`, va a su propia comida y su propio día.
+
+/** A qué comida y día va el plato: el suyo si lo marcó aparte (`propio`), si no el común. */
+export function destinoDelPlato(plato, mealType, daysAgo) {
+    const d = plato?.destino;
+    return d ? { mealType: d.mealType, daysAgo: d.daysAgo, propio: true } : { mealType, daysAgo, propio: false };
+}
+
+/** Marca (o, con `null`, quita) la comida y el día propios del plato. */
+export function conDestinoPropio(plato, destino) {
+    if (!destino) {
+        const { destino: _quitado, ...resto } = plato;
+        return resto;
+    }
+    return { ...plato, destino: { mealType: destino.mealType, daysAgo: destino.daysAgo } };
+}
+
 export function conCantidad(plato, key, qty) {
     return { ...plato, componentes: plato.componentes.map((c) => (c.key === key ? { ...c, qty } : c)) };
 }

@@ -1166,3 +1166,7 @@
 }
 .corregirAplicar:disabled { opacity: 0.45; cursor: default; }
 .corregirAyuda, .corregirEstado { display: block; margin-top: 0.35rem; font-size: 0.78rem; color: var(--text-muted); }
+
+/* [P1-PLAN-LOTE-366] a qué comida y día va cada plato (en su tarjeta) */
+.platoDestino { display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem; }
+.platoDestinoPropio { color: var(--primary); font-weight: 600; }
