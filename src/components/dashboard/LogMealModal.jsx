@@ -131,7 +131,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     const [calculando, setCalculando] = useState(false);
     const inputRef = useRef(null);
 
-    const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
+    // [P1-PLAN-LOTE-384] mientras registra no se cierra (como el escáner)
+    const { containerRef } = useModalAccessibility({ isOpen: true, onClose, disableClose: saving });
 
     // [P1-PLAN-LOTE-101 · 2026-09-18] Dos cosas del mismo gesto, copiadas de la hoja de actualizar platos
     // (MotivoActualizarModal, P2-SWAP-SHEET-SCROLL v4/v5), sin framer:
@@ -231,9 +232,11 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
     };
 
     const hayQueDescontar = lines.some(lineaDescontable);   // [P1-PLAN-LOTE-383]
+    // [P1-PLAN-LOTE-384] un «Macros a mano» o un «Descríbelo» a medio escribir: registrar sin él lo tiraba en silencio
+    const borradorAbierto = !!customDraft || !!String(describiendo?.texto || '').trim();
 
     const registrar = async () => {
-        if (!lines.length || saving) return;
+        if (!lines.length || saving || borradorAbierto) return;
         setSaving(true);
         try {
             const res = await fetchWithAuth('/api/diary/consumed/manual', {
@@ -370,7 +373,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
     const cuerpo = (
         <div className={styles.overlay} style={teclado.fondo}>
-            <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={onClose} />
+            <button type="button" className={styles.backdrop} aria-hidden="true" tabIndex={-1} onClick={saving ? undefined : onClose} />
             <div
                 ref={containerRef}
                 className={styles.panel}
@@ -388,7 +391,7 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
                         <h2 className={styles.title}>{t('Registrar comida')}</h2>
-                        <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
+                        <button type="button" className={`${styles.close} ui-close`} onClick={onClose} disabled={saving} aria-label={t('Cerrar')}>
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
                         </button>
                     </div>
@@ -725,14 +728,16 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
 
                 <div className={styles.footer}>
                     <span className={styles.footerInfo} aria-live="polite">
-                        {lines.length
-                            ? <><b>{Math.round(totales.kcal)} kcal</b> · {t('{n} en tu plato', { n: lines.length })}</>
-                            : t('Añade al menos un alimento para registrar.')}
+                        {lines.length && borradorAbierto
+                            ? t('Añade o cancela lo que estás escribiendo para registrar.')
+                            : lines.length
+                                ? <><b>{Math.round(totales.kcal)} kcal</b> · {t('{n} en tu plato', { n: lines.length })}</>
+                                : t('Añade al menos un alimento para registrar.')}
                     </span>
                     <button
                         type="button"
                         className={styles.primaryBtn}
-                        disabled={!lines.length || saving}
+                        disabled={!lines.length || saving || borradorAbierto}
                         onClick={registrar}
                     >
                         {saving ? (<><Loader2 size={16} className={styles.spin} /> {t('Registrando…')}</>) : t('Registrar')}

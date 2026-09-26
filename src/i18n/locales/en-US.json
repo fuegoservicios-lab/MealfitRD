@@ -3663,5 +3663,6 @@
   "{nombre} quedó en el diario de {dia}.": "{nombre} was logged in {dia}’s diary.",
   "Lo ves en «Ver días anteriores».": "You’ll find it in “See previous days”.",
   "Para los platos que no marcaste aparte.": "For the dishes you didn’t set separately.",
-  "Desmarca lo que no lleve o ajusta la cantidad. Las calorías de arriba no cambian solas: corrígelas si hace falta.": "Untick what it doesn’t have or adjust the amount. The calories above don’t change on their own: fix them if needed."
+  "Desmarca lo que no lleve o ajusta la cantidad. Las calorías de arriba no cambian solas: corrígelas si hace falta.": "Untick what it doesn’t have or adjust the amount. The calories above don’t change on their own: fix them if needed.",
+  "Añade o cancela lo que estás escribiendo para registrar.": "Add or cancel what you’re typing to log."
 }
