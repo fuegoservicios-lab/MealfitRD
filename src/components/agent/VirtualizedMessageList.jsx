@@ -47,11 +47,11 @@ import BotAvatar from './BotAvatar';
 // react-virtuoso). Re-exportado aquí para back-compat de cualquier importador.
 import { VIRTUALIZE_THRESHOLD } from './virtualizeThreshold';
 import { useT, formatDate } from '../../i18n';
-import { daySeparatorLabel, previousDatedMessage } from '../../utils/chatTimeline';
+import { daySeparatorLabel, previousDatedMessage, respondeAlUsuario } from '../../utils/chatTimeline';
 
 export { VIRTUALIZE_THRESHOLD };
 
-const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null }) => (
+const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null, puedeRegenerar = true }) => (
     <div style={{ paddingBottom: '2rem' }}>
         <MemoizedMessageBubble
             msg={msg}
@@ -60,6 +60,7 @@ const ItemContent = ({ msg, index, currentSessionId, onRegenerate, onErrorRetry,
             onRegenerate={onRegenerate}
             onErrorRetry={onErrorRetry}
             daySeparator={daySeparator}
+            puedeRegenerar={puedeRegenerar}
         />
     </div>
 );
@@ -137,6 +138,7 @@ export const VirtualizedMessageList = React.forwardRef(({
             onRegenerate={onRegenerate}
             onErrorRetry={onErrorRetry}
             daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, index), { t, formatDate })}
+            puedeRegenerar={respondeAlUsuario(messages, index)}
         />
     ), [currentSessionId, onRegenerate, onErrorRetry, messages, t]);
 

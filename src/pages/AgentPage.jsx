@@ -115,7 +115,7 @@ import { deleteChatDraft, loadChatDraft, saveChatDraft } from '../utils/chatDraf
 // [P2-CHAT-DELETE-CONFIRM · 2026-09-03] Hoja de confirmación antes de borrar un chat.
 import Modal from '../components/common/Modal';
 // [P2-CHAT-TIMELINE · 2026-09-03] separadores de día + hora por mensaje.
-import { daySeparatorLabel, previousDatedMessage } from '../utils/chatTimeline';
+import { daySeparatorLabel, previousDatedMessage, respondeAlUsuario } from '../utils/chatTimeline';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import Wordmark from '../components/common/Wordmark';
 // [P1-I18N-DASHBOARD · 2026-08-15] `t` de módulo para los helpers que viven fuera
@@ -4462,6 +4462,8 @@ const AgentPage = () => {
         if (isTurnActiveRef.current) return;   // [P1-CHAT-TURN-ACTIVE] regenerar durante un turno abria un 2o stream
 
         const targetMsg = messagesRef.current[modelMsgIndex];
+        // [P1-PLAN-LOTE-364] un aviso automático no responde a nada: sin esto, re-respondía la última pregunta vieja
+        if (!targetMsg?.isWelcome && !respondeAlUsuario(messagesRef.current, modelMsgIndex)) return;
 
         // 1. Mensaje de bienvenida autónomo (se reemplaza en el mismo lugar)
         if (targetMsg?.isWelcome) {
@@ -6080,6 +6082,7 @@ const AgentPage = () => {
                                             onRegenerate={handleRegenerate}
                                             onErrorRetry={retryErrorMessage}
                                             daySeparator={daySeparatorLabel(msg, previousDatedMessage(messages, i), { t, formatDate })}
+                                            puedeRegenerar={respondeAlUsuario(messages, i)}
                                         />
                                     ))
                                 )}

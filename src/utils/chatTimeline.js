@@ -55,3 +55,9 @@ export function timeLabel(msg, formatDate) {
     const d = messageDate(msg);
     return d ? formatDate(d, { hour: '2-digit', minute: '2-digit' }) : '';
 }
+
+/** [P1-PLAN-LOTE-364] ¿Esta respuesta contesta a un mensaje del usuario? Los avisos automáticos del coach no: no
+ *  hay nada que regenerar, y «Regenerar» re-respondía una pregunta vieja y borraba el aviso. */
+export function respondeAlUsuario(messages, index) {
+    return index > 0 && messages?.[index - 1]?.role === 'user';
+}

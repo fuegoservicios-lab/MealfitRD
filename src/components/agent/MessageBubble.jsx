@@ -146,7 +146,7 @@ const ErrorRetryButton = ({ onClick, reload = false }) => {
     );
 };
 
-export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null }) => {
+export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId, onRegenerate, onErrorRetry, daySeparator = null, puedeRegenerar = true }) => {
     const t = useT();
     const [viewerIndex, setViewerIndex] = useState(null);
     const [brokenImages, setBrokenImages] = useState(() => new Set());
@@ -415,7 +415,7 @@ export const MemoizedMessageBubble = React.memo(({ msg, index, currentSessionId,
                         content={msg.content}
                         sessionId={currentSessionId}
                         onRegenerate={() => onRegenerate(index)}
-                        showRegenerate={!msg.isWelcome}
+                        showRegenerate={!msg.isWelcome && puedeRegenerar}
                     />
                 )}
             </div>
