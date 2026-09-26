@@ -4898,7 +4898,7 @@ const AgentPage = () => {
                             onChange={(e) => { if (isListening) dictado.cancelar(); setInput(e.target.value); }}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
-                            placeholder={pistaDeRespuesta || (isListening ? t('Te escucho…') : (micErrorMsg || t("Pregúntale a {app}", { app: BRAND })))}
+                            placeholder={isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg || t("Pregúntale a {app}", { app: BRAND }))}
                             onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se

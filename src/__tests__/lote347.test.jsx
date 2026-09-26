@@ -53,6 +53,7 @@ describe('[347] cableado', () => {
     it('el chat pone el cursor en la caja con la pregunta como pista', () => {
         const ap = leer('pages/AgentPage.jsx');
         expect(ap).toContain('onOtra={(pregunta) => { setPistaDeRespuesta(pregunta); chatInputRef.current?.focus(); }}');
-        expect(ap).toContain('placeholder={pistaDeRespuesta');
+        // el micrófono manda (lote 125); después, la pista de «Otra…»
+        expect(ap).toContain("placeholder={isListening ? t('Te escucho…') : (pistaDeRespuesta || micErrorMsg");
     });
 });
