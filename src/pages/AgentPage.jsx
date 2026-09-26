@@ -1694,6 +1694,8 @@ const AgentPage = () => {
     // [P1-PLAN-LOTE-322] Dudas de la foto con respuestas de un toque (y el chat al que pertenecen).
     const [dudasDeLaFoto, setDudasDeLaFoto] = useState([]);
     const dudasDeLaFotoSesionRef = useRef(null);
+    // [P1-PLAN-LOTE-347] «Otra…»: la pregunta de la duda como pista en la caja, hasta el siguiente envío.
+    const [pistaDeRespuesta, setPistaDeRespuesta] = useState('');
     const isTurnActiveRef = useRef(false);
     const _setTurnActive = useCallback((v) => {
         isTurnActiveRef.current = v;
@@ -3394,6 +3396,7 @@ const AgentPage = () => {
         }
         // [P1-PLAN-LOTE-322] Cualquier mensaje nuevo (incluida la respuesta de un toque) retira los botones.
         setDudasDeLaFoto([]);
+        setPistaDeRespuesta('');
 
         // [P1-CHAT-TURN-ACTIVE · 2026-08-10] El guard mira el turno, no el «pensando»:
         // con `isLoading` quedaba abierto desde el primer token y se podían solapar
@@ -4700,7 +4703,8 @@ const AgentPage = () => {
             )}
             {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó. */}
             {dudasDeLaFoto.length > 0 && !isTurnActive && !chatDeOtroDia && dudasDeLaFotoSesionRef.current === currentSessionId && (
-                <RespuestasDeLaFoto dudas={dudasDeLaFoto} onEnviar={(texto) => handleSend(texto)} />
+                <RespuestasDeLaFoto dudas={dudasDeLaFoto} onEnviar={(texto) => handleSend(texto)}
+                    onOtra={(pregunta) => { setPistaDeRespuesta(pregunta); chatInputRef.current?.focus(); }} />
             )}
             {/* [P1-PLAN-LOTE-226] Leyendo un chat de otro día: la salida al de hoy, a la vista (en el teléfono la
                 barra lateral está escondida). */}
@@ -4894,7 +4898,7 @@ const AgentPage = () => {
                             onChange={(e) => { if (isListening) dictado.cancelar(); setInput(e.target.value); }}
                             onKeyDown={handleKeyDown}
                             onPaste={handlePaste}
-                            placeholder={isListening ? t('Te escucho…') : (micErrorMsg || t("Pregúntale a {app}", { app: BRAND }))}
+                            placeholder={pistaDeRespuesta || (isListening ? t('Te escucho…') : (micErrorMsg || t("Pregúntale a {app}", { app: BRAND })))}
                             onFocus={() => { if (isMobile) setTimeout(scrollToBottom, 300); }}  // [P2-CHAT-ANCHOR-SENT-TOP] en PC no salta
                             // [P2-CHAT-TEXTAREA-AUTOSIZE · 2026-07-24] El
                             // auto-resize NO vive aquí: `onInput` solo se

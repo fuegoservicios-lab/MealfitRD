@@ -207,7 +207,7 @@ FilaComponente.propTypes = {
 };
 
 /** Lo editable de UN plato: «¿Qué es?» y «¿Cuánto comiste?» (porción, macros e ingredientes). */
-const EditorDePlato = ({ plato, bloqueado, onCambiar }) => {
+const EditorDePlato = ({ plato, bloqueado, onCambiar, onOtra = null }) => {
     const t = useT();
     const m = macrosDelPlato(plato);
     const ids = `scan-${plato.id}`;
@@ -224,6 +224,8 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar }) => {
                         confirmadas={plato.confirmadas}
                         bloqueado={bloqueado}
                         onElegir={(d, o) => onCambiar((p) => conRespuesta(p, d, o))}
+                        otraConCampo
+                        onOtra={onOtra ? (i, texto) => onOtra(`${plato.dudas[i].pregunta} ${texto}`) : null}
                     />
                 </div>
             )}
@@ -309,6 +311,7 @@ EditorDePlato.propTypes = {
     plato: PropTypes.object.isRequired,
     bloqueado: PropTypes.bool,
     onCambiar: PropTypes.func.isRequired,
+    onOtra: PropTypes.func,
 };
 
 const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
@@ -447,7 +450,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
     }, []);
 
     // Un plato a la IA. Resuelve cuando el análisis terminó; cada foto por su cuenta (una que falla no tumba a otra).
-    const analizar = useCallback(async (id, file) => {
+    // [P1-PLAN-LOTE-347] `aclaracion`: «Otra…» de una duda — re-analiza la MISMA foto con lo que escribió el usuario.
+    const analizar = useCallback(async (id, file, aclaracion = '') => {
         controladores.current.get(id)?.abort();
         const ctl = new AbortController();
         controladores.current.set(id, ctl);
@@ -468,6 +472,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
             fd.append('tz_offset_mins', String(new Date().getTimezoneOffset()));
             // [P1-PLAN-LOTE-225] El nombre del plato y el de sus ingredientes vuelven en el idioma de esta pantalla.
             fd.append('locale', getLocale());
+            if (aclaracion) fd.append('aclaracion', aclaracion);
 
             // fetchWithAuth NO setea Content-Type → el browser pone el boundary
             // multipart correcto (mismo patrón que AgentPage.jsx).
@@ -818,6 +823,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                     plato={p}
                     bloqueado={guardando || p.guardado}
                     onCambiar={(fn) => cambiarPlato(p.id, fn)}
+                    onOtra={(texto) => { const x = platosRef.current.find((q) => q.id === p.id); if (x?.file) void analizar(p.id, x.file, texto); }}
                 />
             )}
         </>
@@ -879,6 +885,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0 }) => {
                             plato={p}
                             bloqueado={guardando}
                             onCambiar={(fn) => cambiarPlato(p.id, fn)}
+                            onOtra={(texto) => { const x = platosRef.current.find((q) => q.id === p.id); if (x?.file) void analizar(p.id, x.file, texto); }}
                         />
                     </div>
                 )}

@@ -32,3 +32,30 @@
     font-weight: 600;
     cursor: pointer;
 }
+/* [P1-PLAN-LOTE-347] «Otra…» y su campo */
+.otra { border-style: dashed; border-color: color-mix(in srgb, var(--text-main) 40%, transparent); }
+.otraCampo { display: flex; gap: 0.5rem; align-items: stretch; }
+.otraInput {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.5rem 0.8rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 1rem; /* 16 px: iOS no hace zoom al enfocar */
+}
+.recalcular {
+    min-height: 44px;
+    padding: 0.5rem 0.9rem;
+    border-radius: 0.75rem;
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.recalcular:disabled { opacity: 0.5; cursor: default; }

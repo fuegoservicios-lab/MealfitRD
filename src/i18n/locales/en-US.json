@@ -3629,5 +3629,8 @@
   "Cambiar: {x}": "Change: {x}",
   "Cambiar": "Change",
   "Responde con un toque": "Answer with one tap",
-  "Responde con un toque:": "Answer with one tap:"
+  "Responde con un toque:": "Answer with one tap:",
+  "Tu respuesta: {x}": "Your answer: {x}",
+  "Escríbelo: ej. 4 huevos con queso": "Type it: e.g. 4 eggs with cheese",
+  "Recalcular": "Recalculate"
 }

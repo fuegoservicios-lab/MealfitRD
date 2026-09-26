@@ -7,7 +7,7 @@ import { useT } from '../../i18n';
 import DudasDeLaFoto from '../common/DudasDeLaFoto';
 import { mensajeDeRespuestas } from '../../utils/dudasDeLaFoto';
 
-const RespuestasDeLaFoto = ({ dudas, onEnviar }) => {
+const RespuestasDeLaFoto = ({ dudas, onEnviar, onOtra = null }) => {
     const t = useT();
     const [elegidas, setElegidas] = useState({});
     const elegir = (i, j) => {
@@ -18,7 +18,9 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar }) => {
     return (
         <div className="chat-respuestas-foto" role="group" aria-label={t('Responde con un toque')}>
             <span className="chat-respuestas-foto-titulo">{t('Responde con un toque:')}</span>
-            <DudasDeLaFoto dudas={dudas} respuestas={elegidas} confirmadas={{}} onElegir={elegir} />
+            {/* [P1-PLAN-LOTE-347] «Otra…»: el cursor a la caja de escribir, con la pregunta como pista */}
+            <DudasDeLaFoto dudas={dudas} respuestas={elegidas} confirmadas={{}} onElegir={elegir}
+                onOtra={onOtra ? (i) => onOtra(dudas[i].pregunta) : null} />
         </div>
     );
 };
@@ -26,6 +28,7 @@ const RespuestasDeLaFoto = ({ dudas, onEnviar }) => {
 RespuestasDeLaFoto.propTypes = {
     dudas: PropTypes.array.isRequired,
     onEnviar: PropTypes.func.isRequired,
+    onOtra: PropTypes.func,
 };
 
 export default RespuestasDeLaFoto;

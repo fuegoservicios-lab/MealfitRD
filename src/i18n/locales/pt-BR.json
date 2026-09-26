@@ -3629,5 +3629,8 @@
   "Cambiar: {x}": "Alterar: {x}",
   "Cambiar": "Alterar",
   "Responde con un toque": "Responda com um toque",
-  "Responde con un toque:": "Responda com um toque:"
+  "Responde con un toque:": "Responda com um toque:",
+  "Tu respuesta: {x}": "Sua resposta: {x}",
+  "Escríbelo: ej. 4 huevos con queso": "Escreva: ex. 4 ovos com queijo",
+  "Recalcular": "Recalcular"
 }
