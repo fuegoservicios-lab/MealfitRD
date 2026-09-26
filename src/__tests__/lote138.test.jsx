@@ -167,9 +167,11 @@ describe('lote 138 · la foto se ve al instante y su preparación no le quita el
     });
 
     it('el chat solo aplaza cuando hay un teclado que reponer, y pinta la foto sin esperar a «ready»', () => {
-        expect(ap).toContain('if (files?.length) addFiles(files, { prepararTrasMs: reopenKeyboardAfterAttachmentRef.current ? ESPERA_PREPARAR_FOTO_MS : 0 });');
+        // [P1-PLAN-LOTE-360] aplaza solo si la foto se prepara en el hilo principal (sin worker), y en iOS la caja no pinta
+        // la foto GRANDE mientras se prepara (WebKit la decodificaba en el hilo principal: 769 ms congelado) — lote360.test.js
+        expect(ap).toContain('if (files?.length) addFiles(files, { prepararTrasMs: reopenKeyboardAfterAttachmentRef.current && !workerDeImagenDisponible() ? ESPERA_PREPARAR_FOTO_MS : 0 });');
         expect(ap).toContain('const ESPERA_PREPARAR_FOTO_MS = 650;');
-        expect(ap).toContain("{item.status !== 'error' && (item.thumbDataUrl || (item.previewUrl && !previewsRotas.has(item.id))) ? (");
+        expect(ap).toContain('const srcVista = vistaPreviaDelAdjunto(item, { ios: _esIOS, rota: previewsRotas.has(item.id) });');
         expect(ap).toContain("decoding={item.thumbDataUrl ? 'sync' : 'async'}");
         expect(ap).toContain('onError={() => marcarPreviewRota(item.id)}');
         // el selector de la WEB (input file) no aplaza nada

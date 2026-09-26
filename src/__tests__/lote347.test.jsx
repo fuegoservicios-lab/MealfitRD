@@ -5,7 +5,7 @@
  * esas opciones». En el escáner, «Otra…» abre un campo y «Recalcular» vuelve a analizar la MISMA foto con lo escrito;
  * en el chat, pone el cursor en la caja con la pregunta como pista (el coach lee la respuesta y corrige).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -18,16 +18,46 @@ const DUDAS = [{ pregunta: '¿De cuántos huevos preparaste la tortilla?', opcio
 const leer = (rel) => readFileSync(resolve(__dirname, '..', rel), 'utf8');
 
 describe('[347] «Otra…» en los botones de la duda', () => {
-    it('con campo (escáner): escribir y «Recalcular» avisa con (duda, texto); vacío no deja recalcular', () => {
+    // [P1-PLAN-LOTE-360] el dueño: «que se guarde en automático» — sin botón: se recalcula al terminar de escribir
+    // (Intro/«Listo» o al salir del campo), nunca a media palabra (un análisis por letra gastaría de más).
+    it('con campo (escáner): Intro recalcula solo, sin botón', () => {
         const otras = [];
         render(<DudasDeLaFoto dudas={DUDAS} respuestas={{ 0: 0 }} confirmadas={{}} onElegir={() => {}}
             otraConCampo onOtra={(i, texto) => otras.push([i, texto])} />);
         fireEvent.click(screen.getByRole('button', { name: 'Otra…' }));
-        const boton = screen.getByRole('button', { name: 'Recalcular' });
-        expect(boton.disabled).toBe(true);
-        fireEvent.change(screen.getByLabelText('Tu respuesta: ¿De cuántos huevos preparaste la tortilla?'), { target: { value: ' 4 huevos con queso ' } });
-        fireEvent.click(boton);
+        expect(screen.queryByRole('button', { name: 'Recalcular' })).toBeNull();
+        const campo = screen.getByLabelText('Tu respuesta: ¿De cuántos huevos preparaste la tortilla?');
+        expect(campo.getAttribute('enterkeyhint')).toBe('done');
+        fireEvent.change(campo, { target: { value: ' 4 huevos con queso ' } });
+        fireEvent.keyDown(campo, { key: 'Enter' });
         expect(otras).toEqual([[0, '4 huevos con queso']]);
+    });
+
+    it('con campo (escáner): cerrar el teclado / salir del campo también recalcula; vacío no', () => {
+        const otras = [];
+        render(<DudasDeLaFoto dudas={DUDAS} respuestas={{ 0: 0 }} confirmadas={{}} onElegir={() => {}}
+            otraConCampo onOtra={(i, texto) => otras.push([i, texto])} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Otra…' }));
+        const campo = screen.getByLabelText('Tu respuesta: ¿De cuántos huevos preparaste la tortilla?');
+        fireEvent.blur(campo);
+        expect(otras).toEqual([]);
+        fireEvent.click(screen.getByRole('button', { name: 'Otra…' }));
+        const campo2 = screen.getByLabelText('Tu respuesta: ¿De cuántos huevos preparaste la tortilla?');
+        fireEvent.change(campo2, { target: { value: 'solo claras' } });
+        fireEvent.blur(campo2);
+        expect(otras).toEqual([[0, 'solo claras']]);
+    });
+
+    it('al abrir el campo, se centra a la vista (el teclado no lo tapa)', async () => {
+        vi.useFakeTimers();
+        const centrar = vi.fn();
+        Element.prototype.scrollIntoView = centrar;
+        try {
+            render(<DudasDeLaFoto dudas={DUDAS} respuestas={{}} confirmadas={{}} onElegir={() => {}} otraConCampo onOtra={() => {}} />);
+            fireEvent.click(screen.getByRole('button', { name: 'Otra…' }));
+            vi.advanceTimersByTime(400);
+            expect(centrar).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' });
+        } finally { vi.useRealTimers(); }
     });
 
     it('sin campo (chat): «Otra…» avisa al momento con la pregunta', () => {

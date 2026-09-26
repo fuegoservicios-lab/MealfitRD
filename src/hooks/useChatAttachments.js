@@ -5,6 +5,7 @@ import {
     CHAT_IMAGE_MAX_TOTAL_SOURCE_BYTES,
     prepareChatImage,
 } from '../utils/chatImageProcessing';
+import { marcarSondaTeclado } from '../utils/keyboardProbe';
 
 export const initialChatAttachmentsState = { items: [] };
 
@@ -58,6 +59,7 @@ export function useChatAttachments({ onReject, concurrency = 2 } = {}) {
                 .then((prepared) => {
                     if (!mountedRef.current || job.controller.signal.aborted) return;
                     dispatch({ type: 'ready', id: job.id, payload: prepared });
+                    marcarSondaTeclado('fMini');   // [P1-PLAN-LOTE-360] la miniatura ya se puede pintar
                 })
                 .catch((error) => {
                     if (!mountedRef.current || error?.name === 'AbortError') return;
@@ -124,6 +126,7 @@ export function useChatAttachments({ onReject, concurrency = 2 } = {}) {
         if (accepted.length) {
             itemsRef.current = [...existing, ...accepted].slice(0, CHAT_IMAGE_MAX_COUNT);
             dispatch({ type: 'add', items: accepted });
+            marcarSondaTeclado('fAdd');   // [P1-PLAN-LOTE-360] la foto entra en la caja
             programarPump(prepararTrasMs);
         }
         return accepted.map((item) => item.id);
