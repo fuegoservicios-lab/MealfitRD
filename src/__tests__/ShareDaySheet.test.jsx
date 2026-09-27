@@ -29,16 +29,16 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe('ShareDaySheet', () => {
-    it('pinta la vista previa y comparte imagen + texto', async () => {
+    it('pinta la vista previa y comparte la imagen (sola, lote 386)', async () => {
         const share = vi.fn().mockResolvedValue(undefined);
         vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true, clipboard: { writeText: vi.fn() } });
         render(<ShareDaySheet {...props} />);
         await waitFor(() => expect(screen.getByRole('img', { name: /mi día/i })).toBeInTheDocument());
-        fireEvent.click(screen.getByRole('button', { name: /^compartir$/i }));
+        fireEvent.click(screen.getByRole('button', { name: /compartir imagen/i }));
         await waitFor(() => expect(share).toHaveBeenCalled());
         const arg = share.mock.calls[0][0];
         expect(arg.files).toHaveLength(1);
-        expect(arg.text).toContain('Bioboros');
+        expect(arg.text).toBeUndefined();
     });
 
     it('WhatsApp siempre disponible, con el texto codificado y sin las comidas por defecto', async () => {
@@ -82,7 +82,7 @@ describe('ShareDaySheet', () => {
         vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true, clipboard: { writeText: vi.fn() } });
         render(<ShareDaySheet {...props} />);
         await screen.findByRole('img', { name: /mi día/i });
-        const boton = screen.getByRole('button', { name: /^compartir$/i });
+        const boton = screen.getByRole('button', { name: /compartir imagen/i });
         // Los dos toques en el mismo lote: el botón todavía no se ha deshabilitado; los para la marca de «pendiente».
         act(() => { boton.click(); boton.click(); });
         expect(share).toHaveBeenCalledTimes(1);

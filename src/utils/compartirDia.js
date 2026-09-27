@@ -128,6 +128,15 @@ export function puedeCompartirImagen(archivo) {
     } catch { return false; }
 }
 
+/** [P1-PLAN-LOTE-386] ¿Este teléfono sabe compartir una imagen? Se pregunta ANTES de tenerla dibujada (con un PNG
+ *  vacío de prueba): decidir con la imagen lista hacía asomar los botones de texto mientras se dibujaba. */
+export function sabeCompartirImagenes() {
+    if (puedeCompartirNativo()) return true;
+    try {
+        return typeof File === 'function' && puedeCompartirImagen(new File([''], 'prueba.png', { type: 'image/png' }));
+    } catch { return false; }
+}
+
 export const puedeCompartirTexto = () => typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
 // [P1-PLAN-LOTE-300 · 2026-09-25] En la app nativa el WebView no comparte archivos (ni `navigator.canShare` con
@@ -149,7 +158,8 @@ async function _compartirNativo({ archivo, texto }) {
     const [{ Share }, { Filesystem, Directory }] = await Promise.all([
         import('@capacitor/share'), import('@capacitor/filesystem'),
     ]);
-    const opciones = { title: t('Mi día'), text: texto, dialogTitle: t('Compartir tu día') };
+    // [P1-PLAN-LOTE-386] con imagen, la imagen SOLA (el texto pegado debajo «se ve raro», dijo el dueño)
+    const opciones = { title: t('Mi día'), dialogTitle: t('Compartir tu día'), ...(archivo ? {} : { text: texto }) };
     if (archivo) {
         const { uri } = await Filesystem.writeFile({
             path: archivo.name || 'mi-dia-bioboros.png', data: await _base64(archivo), directory: Directory.Cache,
@@ -171,7 +181,12 @@ export async function compartir({ archivo, texto }) {
         }
     }
     try {
-        if (puedeCompartirImagen(archivo)) { await navigator.share({ files: [archivo], text: texto }); return 'compartido'; }
+        // [P1-PLAN-LOTE-386] con imagen, solo la imagen; y si no se puede, 'fallo' (no se cambia en silencio por texto)
+        if (archivo) {
+            if (!puedeCompartirImagen(archivo)) return 'fallo';
+            await navigator.share({ files: [archivo] });
+            return 'compartido';
+        }
         if (puedeCompartirTexto()) { await navigator.share({ text: texto }); return 'compartido'; }
         return 'fallo';
     } catch (e) {

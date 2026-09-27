@@ -340,3 +340,7 @@
     color: var(--primary);
 }
 
+/* [P1-PLAN-LOTE-386] «Compartir imagen» es LA acción: ocupa la fila y dice a dónde va */
+.principal { grid-column: 1 / -1; min-height: 58px; }
+.principalTexto { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.principalSub { font-size: 0.78rem; font-weight: 500; opacity: 0.85; }

@@ -34,13 +34,14 @@ beforeEach(() => {
 });
 
 describe('[300] compartir la imagen en la app nativa', () => {
-    it('escribe el PNG en la caché y lo comparte con el texto', async () => {
+    it('escribe el PNG en la caché y lo comparte SOLO (sin texto, lote 386)', async () => {
         expect(puedeCompartirNativo()).toBe(true);
         expect(await compartir({ archivo: png(), texto: 'Mi día en Bioboros' })).toBe('compartido');
         expect(escritos[0]).toMatchObject({ path: 'mi-dia-bioboros.png', directory: 'CACHE' });
         expect(escritos[0].data.length).toBeGreaterThan(0);                      // base64, sin el prefijo data:
         expect(escritos[0].data.startsWith('data:')).toBe(false);
-        expect(compartidos[0]).toMatchObject({ text: 'Mi día en Bioboros', files: ['file:///cache/mi-dia-bioboros.png'] });
+        expect(compartidos[0]).toMatchObject({ files: ['file:///cache/mi-dia-bioboros.png'] });
+        expect(compartidos[0].text).toBeUndefined();
     });
 
     it('si el usuario cierra la hoja, es «cancelado», no un error', async () => {

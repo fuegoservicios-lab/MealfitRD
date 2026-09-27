@@ -20,7 +20,7 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useBottomSheet } from '../../hooks/useBottomSheet';
 import { isNativeApp } from '../../config/platform';
 import { useT } from '../../i18n';
-import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, puedeCompartirTexto, puedeCompartirNativo, compartir } from '../../utils/compartirDia';
+import { resumenDelDia, textoDelDia, fechaLarga, consumidoDelDiario, urlWhatsApp, archivoDeImagen, puedeCompartirImagen, sabeCompartirImagenes, compartir } from '../../utils/compartirDia';
 import { dibujarTarjetaDelDia } from '../../utils/tarjetaDelDia';
 import { useAssessment } from '../../context/AssessmentContext';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
@@ -79,7 +79,11 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
     const archivo = useMemo(() => archivoDeImagen(imagen.blob), [imagen.blob]);
     const conImagen = puedeCompartirImagen(archivo);
     // [P1-PLAN-LOTE-300] en la app nativa, la hoja del sistema con la IMAGEN (plugins Share + Filesystem)
-    const hojaDelSistema = conImagen || puedeCompartirNativo() || puedeCompartirTexto();
+    // [P1-PLAN-LOTE-386] la imagen es LA forma de compartir: una acción clara y la imagen sola. El texto (WhatsApp por
+    // enlace, copiar) queda de reserva donde no se puede compartir la imagen, o si el sistema la rechazó.
+    const compartirImagen = sabeCompartirImagenes();
+    const [alternativas, setAlternativas] = useState(false);
+    const verAlternativas = !compartirImagen || alternativas;
     const puedeDescargar = !isNativeApp() && !conImagen && !!imagen.blob;
     // Mientras se redibuja (al cambiar «Incluir lo que comí») se sigue viendo la imagen anterior, pero no se comparte
     // ni se descarga: saldría la versión vieja.
@@ -97,7 +101,10 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
         setCompartiendo(true);
         try {
             const r = await enCurso;
-            if (r === 'fallo') toast.error(t('Tu dispositivo no dejó compartir. Usa WhatsApp o copia el texto.'), { id: 'share-day-share' });
+            if (r === 'fallo') {
+                toast.error(t('Tu teléfono no dejó compartir la imagen. Prueba con el texto.'), { id: 'share-day-share' });
+                setAlternativas(true);
+            }
         } finally {
             compartiendoRef.current = false;
             setCompartiendo(false);
@@ -178,21 +185,29 @@ const ShareDaySheet = ({ onClose, consumed = null, diario = null, metas, microMe
                         <span>{t('Incluir lo que comí')}</span>
                     </label>
                     <div className={styles.actions}>
-                        {hojaDelSistema && (
-                            <button type="button" className={styles.primary} onClick={onCompartir} disabled={dibujando || compartiendo}>
-                                <Share2 size={18} aria-hidden="true" />{t('Compartir')}
+                        {compartirImagen && (
+                            <button type="button" className={`${styles.primary} ${styles.principal}`} onClick={onCompartir} disabled={dibujando || compartiendo || !archivo}>
+                                <Share2 size={18} aria-hidden="true" />
+                                <span className={styles.principalTexto}>
+                                    <span>{t('Compartir imagen')}</span>
+                                    <span className={styles.principalSub}>{t('WhatsApp, Instagram, Mensajes…')}</span>
+                                </span>
                             </button>
                         )}
-                        <a className={styles.whatsapp} href={urlWhatsApp(texto)} target="_blank" rel="noopener noreferrer">
-                            <MessageCircle size={18} aria-hidden="true" />{t('WhatsApp')}
-                        </a>
-                        <button type="button" className={styles.secondary} onClick={onCopiar}>
-                            <Copy size={18} aria-hidden="true" />{t('Copiar texto')}
-                        </button>
                         {puedeDescargar && (
-                            <button type="button" className={styles.secondary} onClick={onDescargar} disabled={dibujando}>
+                            <button type="button" className={compartirImagen ? styles.secondary : styles.primary} onClick={onDescargar} disabled={dibujando}>
                                 <Download size={18} aria-hidden="true" />{t('Descargar imagen')}
                             </button>
+                        )}
+                        {verAlternativas && (
+                            <>
+                                <a className={styles.secondary} href={urlWhatsApp(texto)} target="_blank" rel="noopener noreferrer">
+                                    <MessageCircle size={18} aria-hidden="true" />{t('Texto por WhatsApp')}
+                                </a>
+                                <button type="button" className={styles.secondary} onClick={onCopiar}>
+                                    <Copy size={18} aria-hidden="true" />{t('Copiar texto')}
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>

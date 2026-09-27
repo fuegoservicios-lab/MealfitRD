@@ -99,18 +99,23 @@ describe('barraTexto y wa.me', () => {
 
 describe('compartir', () => {
     const blob = new Blob(['x'], { type: 'image/png' });
-    it('con archivos: imagen + texto', async () => {
+    // [P1-PLAN-LOTE-386] con imagen, la imagen SOLA (el texto pegado «se ve raro»)
+    it('con archivos: solo la imagen', async () => {
         const share = vi.fn().mockResolvedValue(undefined);
         vi.stubGlobal('navigator', { ...navigator, share, canShare: () => true });
         const archivo = archivoDeImagen(blob);
         expect(puedeCompartirImagen(archivo)).toBe(true);
         await expect(compartir({ archivo, texto: 't' })).resolves.toBe('compartido');
-        expect(share).toHaveBeenCalledWith({ files: [archivo], text: 't' });
+        expect(share).toHaveBeenCalledWith({ files: [archivo] });
     });
-    it('sin archivos pero con share: solo texto', async () => {
+    // [P1-PLAN-LOTE-386] una imagen que el sistema no deja compartir es 'fallo' (la hoja ofrece el texto), no un
+    // cambio silencioso a texto; sin imagen, el texto
+    it('imagen que no se puede compartir: fallo; sin imagen: solo texto', async () => {
         const share = vi.fn().mockResolvedValue(undefined);
         vi.stubGlobal('navigator', { ...navigator, share, canShare: () => false });
-        await expect(compartir({ archivo: archivoDeImagen(blob), texto: 't' })).resolves.toBe('compartido');
+        await expect(compartir({ archivo: archivoDeImagen(blob), texto: 't' })).resolves.toBe('fallo');
+        expect(share).not.toHaveBeenCalled();
+        await expect(compartir({ archivo: null, texto: 't' })).resolves.toBe('compartido');
         expect(share).toHaveBeenCalledWith({ text: 't' });
     });
     it('cerrar la hoja no es un fallo', async () => {

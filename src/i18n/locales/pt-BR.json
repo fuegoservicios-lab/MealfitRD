@@ -3572,11 +3572,8 @@
   "Mi día: calorías, macros y micros": "Meu dia: calorias, macros e micros",
   "Preparando la imagen…": "Preparando a imagem…",
   "Incluir lo que comí": "Incluir o que comi",
-  "Compartir": "Compartilhar",
-  "WhatsApp": "WhatsApp",
   "Copiar texto": "Copiar texto",
   "Descargar imagen": "Baixar imagem",
-  "Tu dispositivo no dejó compartir. Usa WhatsApp o copia el texto.": "Seu dispositivo não permitiu compartilhar. Use o WhatsApp ou copie o texto.",
   "Texto copiado: pégalo en tu chat.": "Texto copiado: cole-o no seu chat.",
   "No se pudo copiar el texto.": "Não foi possível copiar o texto.",
   "Lo que tienes en casa: el coach cocina con ello y lo que comes se descuenta. Si solo usas el contador y el coach, apágala.": "O que você tem em casa: o coach cozinha com isso e o que você come é descontado. Se você só usa o contador e o coach, desligue-a.",
@@ -3664,5 +3661,9 @@
   "Lo ves en «Ver días anteriores».": "Você vê em «Ver dias anteriores».",
   "Para los platos que no marcaste aparte.": "Para os pratos que você não marcou à parte.",
   "Desmarca lo que no lleve o ajusta la cantidad. Las calorías de arriba no cambian solas: corrígelas si hace falta.": "Desmarque o que não tem ou ajuste a quantidade. As calorias acima não mudam sozinhas: corrija-as se precisar.",
-  "Añade o cancela lo que estás escribiendo para registrar.": "Adicione ou cancele o que está escrevendo para registrar."
+  "Añade o cancela lo que estás escribiendo para registrar.": "Adicione ou cancele o que está escrevendo para registrar.",
+  "Compartir imagen": "Compartilhar imagem",
+  "WhatsApp, Instagram, Mensajes…": "WhatsApp, Instagram, Mensagens…",
+  "Texto por WhatsApp": "Texto pelo WhatsApp",
+  "Tu teléfono no dejó compartir la imagen. Prueba con el texto.": "Seu telefone não deixou compartilhar a imagem. Tente com o texto."
 }
