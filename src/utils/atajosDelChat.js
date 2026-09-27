@@ -33,7 +33,7 @@ export function metasEnNumeros(m) {
  */
 export function atajosDelChat({ hora, modoContador, metas = null, totales = null, comidas = null, t }) {
     const acciones = [
-        { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: t('📷 Escanear mi plato') },
+        { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: t('Escanear mi plato') },
         { id: 'anotar', tipo: 'accion', accion: 'anotar', texto: t('Anotar comida') },
     ];
     const msg = (id, texto) => ({ id, tipo: 'mensaje', mensaje: texto, texto });

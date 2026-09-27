@@ -4,7 +4,7 @@
 // comida»): «¿estos textos son útiles? reemplázalos por mejores». Eran tres frases fijas, iguales a mediodía y de
 // madrugada; «Registrar lo que comí» mandaba un mensaje (gastaba uno del mes) para que el coach preguntara «¿qué
 // comiste?». Ahora:
-//   · dos ACCIONES que no gastan mensajes: «📷 Escanear mi plato» y «Anotar comida» abren sus hojas;
+//   · dos ACCIONES que no gastan mensajes: «Escanear mi plato» y «Anotar comida» abren sus hojas;
 //   · la pregunta del momento con TUS números (me faltan 41 g de proteína, voy alto en grasa, de madrugada algo
 //     ligero, sin desayuno por la mañana…);
 //   · y la de tu modo (plan: «¿Qué me toca ahora?»; contador: «¿Cómo voy hoy?»).
@@ -19,7 +19,7 @@ describe('[411] atajos del chat', () => {
     it('siempre empiezan con las dos acciones que no gastan mensajes', () => {
         const a = atajosDelChat({ hora: 13, modoContador: true, t });
         expect(a.slice(0, 2)).toEqual([
-            { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: '📷 Escanear mi plato' },
+            { id: 'escanear', tipo: 'accion', accion: 'escanear', texto: 'Escanear mi plato' },
             { id: 'anotar', tipo: 'accion', accion: 'anotar', texto: 'Anotar comida' },
         ]);
         expect(a.every((x) => x.tipo === 'accion' || typeof x.mensaje === 'string')).toBe(true);
