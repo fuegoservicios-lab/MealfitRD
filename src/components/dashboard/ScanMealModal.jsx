@@ -71,7 +71,9 @@ import {
     ingredientesParaGuardar,
     nombresSinRepetir,
     totalesDe,
+    resumenDeCorrecciones,
 } from './scanMealDishes';
+import { isAnalyticsOptedOut } from '../../utils/analytics';
 
 // [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
 //
@@ -1001,6 +1003,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                         // detalle) y, si el interruptor lo pide, se descuentan de la Nevera.
                         ingredients: ingredientesParaGuardar(p),
                         deduct_pantry: descontar,
+                        // [P1-PLAN-LOTE-578] cuánto corrigió a la IA (solo conteos); respeta la analítica desactivada
+                        scan_meta: isAnalyticsOptedOut() ? undefined : (resumenDeCorrecciones(p) || undefined),
                     }),
                 });
                 const data = await res.json().catch(() => null);

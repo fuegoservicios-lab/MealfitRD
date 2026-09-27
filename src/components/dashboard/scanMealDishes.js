@@ -75,6 +75,9 @@ export function platoDesdeAnalisis(data, nombrePorDefecto = '') {
         dudas,
         respuestas,
         confirmadas: {},
+        // [P1-PLAN-LOTE-578] Lo que dijo la IA, intacto: al registrar se compara con lo que quedó (panel de
+        // administración). Sobrevive a todas las correcciones porque cada `con*` conserva las claves del plato.
+        ia: { nombre: String(data?.meal_name || '').slice(0, 200), componentes: componentes.length, kcal: Math.round(base.calories) },
     };
 }
 
@@ -429,6 +432,8 @@ export function platoDesdeDescripcion(plato, data) {
         aplicadas: {},
         detalles: {},
         cambios: {},
+        // [P1-PLAN-LOTE-578] «Descríbelo» reemplaza todo lo de la foto: queda dicho para el panel.
+        redescrito: true,
     };
 }
 
@@ -490,4 +495,33 @@ export function totalesDe(platos) {
         for (const k of MACROS) acc[k] += m[k];
         return acc;
     }, _cero());
+}
+
+/** [P1-PLAN-LOTE-578 · 2026-09-27] Cuánto corrigió el usuario lo que dijo la IA, en CONTEOS (sin texto): viaja como
+ * `scan_meta` al registrar y alimenta el panel de administración. `null` si el plato no nació de un análisis. */
+export function resumenDeCorrecciones(plato) {
+    const ia = plato?.ia;
+    if (!ia) return null;
+    const comps = Array.isArray(plato.componentes) ? plato.componentes : [];
+    const redescrito = plato.redescrito === true;
+    const porcion = Number(plato.porcion) || 1;
+    const dudas = Array.isArray(plato.dudas) ? plato.dudas : [];
+    return {
+        componentes: ia.componentes,
+        cambiados: redescrito ? 0 : comps.filter((c) => c.antesDelCambio).length,
+        cantidades_editadas: redescrito ? 0 : comps.filter(
+            (c) => c.checked && Number(c.qty) !== redondearCantidad(c.q0 * porcion, c.unit)).length,
+        desmarcados: comps.filter((c) => !c.checked).length,
+        porcion,
+        dudas: dudas.length,
+        dudas_cambiadas: dudas.filter((d, i) => {
+            const j = plato.respuestas?.[i];
+            return plato.confirmadas?.[i] && Number.isInteger(j) && !d.opciones?.[j]?.supuesta;
+        }).length,
+        redescrito,
+        nombre_editado: !!ia.nombre && String(plato.nombre || '') !== ia.nombre,
+        macros_tecleadas: MACROS.some((k) => Math.abs(Number(plato.ajuste?.[k]) || 0) >= 0.5),
+        kcal_ia: ia.kcal,
+        kcal_final: Math.round(macrosDelPlato(plato).calories),
+    };
 }
