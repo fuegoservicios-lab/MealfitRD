@@ -37,14 +37,16 @@ export const QPlanSource = ({ onAutoAdvance }) => {
                 IA ni siquiera se plantea, y el resto nombra el ÚNICO eje real: de
                 dónde salen los ingredientes.
 
-                «No mira tu Nevera» es literal, no retórica: el inventario se
-                inyecta server-side SOLO en modo `pantry` (ver la cabecera de este
-                archivo). Si algún día el modo libre también lo consulta, esta
-                frase pasa a ser mentira y hay que cambiarla. */}
+                [P1-PLAN-LOTE-418 · 2026-09-27] Decía «No mira tu Nevera», literal
+                solo mientras el inventario se inyectara ÚNICAMENTE en modo `pantry`.
+                Ya no es así: los bloques 2+ de cualquier plan refrescan la Nevera
+                (`_refresh_chunk_pantry`), el cambio de plato la usa y «Actualizar
+                platos» la pide. Lo cierto desde el primer día: elige libre y te da
+                la lista. No vuelvas a negar la Nevera aquí. */}
             <RadioCard
                 name="planSource" value="scratch" icon={Bot}
                 label={t('Que la IA elija los ingredientes')}
-                desc={t('Diseña tu plan libremente, con lo que mejor encaje en tus metas. No mira tu Nevera.')}
+                desc={t('Diseña tu plan libremente, con lo que mejor encaje en tus metas, y te da la lista para comprarlo.')}
                 checked={value === 'scratch'}
                 onChange={(e) => { set(e.target.value); onAutoAdvance(); }}
                 onClick={() => { if (value === 'scratch') onAutoAdvance(); }}
