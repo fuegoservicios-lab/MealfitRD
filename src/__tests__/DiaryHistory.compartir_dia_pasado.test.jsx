@@ -174,4 +174,20 @@ describe('[P1-COMPARTIR-DIA-PASADO] compartir desde el Diario', () => {
         fireEvent.click(boton);
         expect(screen.queryByRole('dialog', { name: 'Compartir tu día' })).toBeNull();
     });
+
+    // [P1-PLAN-LOTE-388 · 2026-09-27] El dueño: el cuadrado de compartir junto a «1520 de 2050 kcal» pesaba tanto como la
+    // cifra del día. Va arriba, en la fila de «DIARIO», junto a la X y con su misma piel; el título, debajo y con todo
+    // el ancho (con los dos botones a su lado «Miércoles 23 de septiembre» no cabía: por eso se había bajado).
+    it('compartir vive arriba, junto a la X, no junto a las cifras', async () => {
+        fetchWithAuth.mockImplementation(enrutar({ [AYER]: DIA_AYER }));
+        abrir();
+        await irAAyer();
+        const boton = screen.getByRole('button', { name: 'Compartir este día' });
+        const fila = boton.parentElement;
+        expect(within(fila).getByRole('button', { name: 'Cerrar' })).toBeInTheDocument();
+        const cabecera = boton.closest('header');
+        expect(cabecera).not.toBeNull();
+        // el título NO comparte fila con los botones: tiene todo el ancho
+        expect(fila.contains(cabecera.querySelector('h2'))).toBe(false);
+    });
 });

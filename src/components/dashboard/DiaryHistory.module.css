@@ -47,12 +47,25 @@
 /* ------------------------------------------------------------- cabecera */
 
 .head {
+    /* [P1-PLAN-LOTE-388] dos filas: «DIARIO» con compartir y la X; debajo, el título con todo el ancho */
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.85rem 1.15rem 0.9rem;
+}
+
+.headTop {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1.15rem 1.15rem 0.9rem;
 }
+
+.headActions { display: flex; align-items: center; gap: 0.5rem; }
+
+.shareHead svg { color: #6366F1; }
+.shareHead:disabled { opacity: 0.5; cursor: default; }
+:global(html[data-theme="dark"]) .shareHead svg { color: #A5B4FC; }
 
 .eyebrow {
     font-size: 0.66rem;

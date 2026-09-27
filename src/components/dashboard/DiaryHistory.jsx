@@ -468,9 +468,34 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                 initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                 transition={{ type: 'spring', stiffness: 340, damping: 34 }}
             >
+                {/* [P1-PLAN-LOTE-388] compartir sube a la fila de «DIARIO», junto a la X y con su piel (junto a las cifras
+                    pesaba tanto como el total del día); el título baja con todo el ancho, así «Miércoles 23 de
+                    septiembre» sigue cabiendo en una línea */}
                 <header className={styles.head}>
-                    <div>
+                    <div className={styles.headTop}>
                         <div className={styles.eyebrow}>{t('Diario')}</div>
+                        <div className={styles.headActions}>
+                            {conComidas && (
+                                <button
+                                    type="button"
+                                    className={`${styles.closeBtn} ${styles.shareHead}`}
+                                    onClick={abrirCompartir}
+                                    disabled={cargando}
+                                    aria-label={etiquetaCompartir}
+                                    title={etiquetaCompartir}
+                                >
+                                    <Share2 size={18} strokeWidth={2.25} aria-hidden="true" />
+                                </button>
+                            )}
+                            <button
+                                ref={cierreRef} type="button" className={`${styles.closeBtn} ui-close`}
+                                onClick={onClose} aria-label={t('Cerrar')}
+                            >
+                                <X size={20} strokeWidth={2.25} aria-hidden="true" />
+                            </button>
+                        </div>
+                    </div>
+                    <div>
                         <h2 className={styles.dateTitle}>
                             {t('{diaSemana} {dia} de {mes}', {
                                 diaSemana: getDiasLargo(t)[fecha.getDay()],
@@ -482,12 +507,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                             <div className={styles.dateRelative}>{esHoy ? t('Hoy') : t('Ayer')}</div>
                         )}
                     </div>
-                    <button
-                        ref={cierreRef} type="button" className={`${styles.closeBtn} ui-close`}
-                        onClick={onClose} aria-label={t('Cerrar')}
-                    >
-                        <X size={20} strokeWidth={2.25} aria-hidden="true" />
-                    </button>
                 </header>
 
                 <div ref={stripRef} className={styles.strip} role="tablist" aria-label={t('Elegir día')}>
@@ -552,20 +571,6 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
                     <div className={styles.quotaTop}>
                         <span className={styles.quotaNum}>{num(totales.calories)}</span>
                         <span className={styles.quotaOf}>{t('de {kcal} kcal', { kcal: targetCalories })}</span>
-                        {/* [P1-COMPARTIR-DIA-PASADO] junto a las cifras que se comparten, no en la cabecera: con la X al
-                            lado, «Miércoles 23 de septiembre» ya no cabe en una línea en un teléfono */}
-                        {conComidas && (
-                            <button
-                                type="button"
-                                className={styles.shareBtn}
-                                onClick={abrirCompartir}
-                                disabled={cargando}
-                                aria-label={etiquetaCompartir}
-                                title={etiquetaCompartir}
-                            >
-                                <Share2 size={18} strokeWidth={2.5} aria-hidden="true" />
-                            </button>
-                        )}
                     </div>
                     <div className={styles.quotaBar}>
                         <motion.div
