@@ -1179,8 +1179,3 @@
 }
 .destinoBtn:disabled { opacity: 0.5; cursor: default; }
 .destinoPanel { display: flex; flex-direction: column; gap: 0.6rem; padding: 0 1rem 1rem; }
-.destinoAcciones { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-.destinoListo {
-    margin-left: auto; min-height: 40px; padding: 0.45rem 1.1rem; border: none; border-radius: 10px;
-    background: var(--primary-fill); color: #fff; font: inherit; font-weight: 700; cursor: pointer;
-}

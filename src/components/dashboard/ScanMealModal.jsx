@@ -311,7 +311,8 @@ FilaComponente.propTypes = {
 const _getMealTypes = (t) => [..._getMealTypesBase(t), _getMealTypeExtra(t)];
 
 /** [P1-PLAN-LOTE-387] La comida y el día de UN plato, en su tarjeta: «Extra · Hoy ✎» abre ahí mismo las opciones (el
- *  366 las escondía al final del editor y el dueño no las encontró). Elegir marca el plato aparte; «Listo» cierra.
+ *  366 las escondía al final del editor y el dueño no las encontró). [P1-PLAN-LOTE-410] Tocar una opción la aplica y
+ *  cierra el panel (sin «Listo»: el dueño lo vio innecesario); cambiar comida Y día son dos aperturas.
  *  [P1-PLAN-LOTE-389] Con varios platos es el ÚNICO sitio (ya no hay «lo de abajo» al que volver). */
 const DestinoDelPlato = ({ nombre, destino, etiqueta, opcionesDia, abierto, bloqueado, onAbrir, onCerrar, onDestino }) => {
     const t = useT();
@@ -337,19 +338,16 @@ const DestinoDelPlato = ({ nombre, destino, etiqueta, opcionesDia, abierto, bloq
                 label={t('Tipo de comida de este plato')}
                 options={_getMealTypes(t)}
                 value={destino.mealType}
-                onChange={(v) => onDestino({ mealType: v, daysAgo: destino.daysAgo })}
+                onChange={(v) => { onDestino({ mealType: v, daysAgo: destino.daysAgo }); onCerrar(); }}
                 disabled={bloqueado}
             />
             <Chips
                 label={t('Día de este plato')}
                 options={opcionesDia}
                 value={destino.daysAgo}
-                onChange={(v) => onDestino({ mealType: destino.mealType, daysAgo: v })}
+                onChange={(v) => { onDestino({ mealType: destino.mealType, daysAgo: v }); onCerrar(); }}
                 disabled={bloqueado}
             />
-            <div className={styles.destinoAcciones}>
-                <button type="button" className={styles.destinoListo} onClick={onCerrar}>{t('Listo')}</button>
-            </div>
         </section>
     );
 };

@@ -88,15 +88,15 @@ describe('[366] dos fotos, dos comidas', () => {
         fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Batida de lechosa/ }));
         const propio = screen.getByRole('region', { name: '¿Qué comida es este plato?' });
         fireEvent.click(within(propio).getByRole('button', { name: 'Desayuno' }));
-        fireEvent.click(within(propio).getByRole('button', { name: 'Ayer' }));
-        fireEvent.click(within(propio).getByRole('button', { name: 'Listo' }));
+        // [P1-PLAN-LOTE-410] cada opción aplica y cierra: el día, en otra apertura
+        fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Batida de lechosa/ }));
+        fireEvent.click(within(screen.getByRole('region', { name: '¿Qué comida es este plato?' })).getByRole('button', { name: 'Ayer' }));
         expect(screen.getByText('Desayuno · Ayer')).toBeInTheDocument();
 
         // el otro plato, a la cena, también desde su tarjeta
         fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Plátano con chuleta/ }));
         const otro = screen.getByRole('region', { name: '¿Qué comida es este plato?' });
         fireEvent.click(within(otro).getByRole('button', { name: 'Cena' }));
-        fireEvent.click(within(otro).getByRole('button', { name: 'Listo' }));
         expect(screen.getByText('Desayuno · Ayer')).toBeInTheDocument();
         expect(screen.getByText('Cena · Hoy')).toBeInTheDocument();
 

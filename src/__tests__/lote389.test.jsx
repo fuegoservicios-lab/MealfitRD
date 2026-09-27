@@ -64,8 +64,7 @@ describe('[389] un solo sitio para la comida y el día', () => {
         fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Sardinas con garbanzos/ }));
         const region = within(screen.getByRole('region', { name: '¿Qué comida es este plato?' }));
         expect(region.queryByRole('button', { name: 'Usar lo de abajo' })).toBeNull();
-        fireEvent.click(region.getByRole('button', { name: 'Cena' }));
-        fireEvent.click(region.getByRole('button', { name: 'Listo' }));
+        fireEvent.click(region.getByRole('button', { name: 'Cena' }));   // [P1-PLAN-LOTE-410] aplica y cierra
 
         fireEvent.click(registrar);
         await waitFor(() => expect(consumidas).toHaveLength(2));

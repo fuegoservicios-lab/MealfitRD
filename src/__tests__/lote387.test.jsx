@@ -59,14 +59,12 @@ describe('[387] comida y día desde la tarjeta', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Yuca con chicharrón/ }));
         const region = within(screen.getByRole('region', { name: '¿Qué comida es este plato?' }));
-        fireEvent.click(region.getByRole('button', { name: 'Almuerzo' }));
-        fireEvent.click(region.getByRole('button', { name: 'Listo' }));
+        fireEvent.click(region.getByRole('button', { name: 'Almuerzo' }));   // [P1-PLAN-LOTE-410] aplica y cierra
         expect(screen.queryByRole('region', { name: '¿Qué comida es este plato?' })).toBeNull();
 
         fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Garbanzos con sardinas/ }));
         const region2 = within(screen.getByRole('region', { name: '¿Qué comida es este plato?' }));
         fireEvent.click(region2.getByRole('button', { name: 'Cena' }));
-        fireEvent.click(region2.getByRole('button', { name: 'Listo' }));
 
         expect(screen.getByText('Almuerzo · Hoy')).toBeInTheDocument();
         expect(screen.getByText('Cena · Hoy')).toBeInTheDocument();

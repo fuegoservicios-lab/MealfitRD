@@ -7,9 +7,10 @@
 //  1. [P1-PLAN-LOTE-101] El toque no pasa al fondo: un `touchmove` no pasivo sobre el panel cancela lo que el
 //     cuerpo desplazable no puede consumir (arriba del todo bajando, abajo del todo subiendo, o sin scroll).
 //  2. [P1-PLAN-LOTE-101] Deslizar hacia abajo cierra (como los menús de actualizar platos): la hoja sigue al dedo
-//     desde 8 px si el cuerpo está arriba; si el dedo sube o el cuerpo no está arriba, el gesto es del scroll, y si
-//     el scroll llega arriba con el dedo aún bajando, la hoja toma el relevo. Cierra con 70 px, un flick corto o lo
-//     recorrido más la inercia proyectada.
+//     desde 8 px si el cuerpo está arriba; si el dedo sube o el cuerpo no está arriba, el gesto es del scroll.
+//     [P1-PLAN-LOTE-410] Y SIGUE siendo del scroll hasta que se levanta el dedo: antes, si el scroll llegaba arriba
+//     con el dedo aún bajando, la hoja «tomaba el relevo» y ese mismo gesto la cerraba (el dueño: «se me sale sin
+//     querer»). Cierra con 110 px, un flick con al menos 40 px recorridos, o lo recorrido más la inercia proyectada.
 //  3. [P1-PLAN-LOTE-100] «Al cerrar se scrollea un poco hacia abajo»: iOS desplaza el DOCUMENTO de fondo para
 //     revelar el campo enfocado aunque el body lleve `overflow: hidden`. Se recuerda el scroll al abrir y se
 //     restaura al desmontar (y en cuanto el visual viewport recupera su alto, por si el teclado se cierra antes).
@@ -65,9 +66,8 @@ export function useBottomSheet({ containerRef, bodyRef, onClose, disabled = fals
         const atTop = !sc || sc.scrollTop <= 0;
         if (!g.active) {
             if (g.ceded) {
-                // el scroll llevaba el gesto; si el cuerpo ya está arriba y el dedo sigue bajando, relevo
-                if (atTop && t.clientY - g.lastY > 0) { g.y0 = t.clientY; g.off = 0; g.ceded = false; g.active = true; }
-                else { g.lastY = t.clientY; g.lastT = e.timeStamp; return; }
+                // [P1-PLAN-LOTE-410] el gesto es del scroll hasta el final: sin relevo (cerraba la hoja sin querer)
+                g.lastY = t.clientY; g.lastT = e.timeStamp; return;
             } else {
                 const dy0 = t.clientY - g.y0;
                 if (dy0 > 8 && atTop) g.active = true;
@@ -88,8 +88,9 @@ export function useBottomSheet({ containerRef, bodyRef, onClose, disabled = fals
         const vy = g.vy;
         gestureRef.current = { y0: null, active: false, ceded: false, off: 8, lastY: 0, lastT: 0, vy: 0 };
         if (!wasActive) return;
-        // cierra con poco: 70 px, o un flick corto, o lo recorrido más la inercia proyectada (150 ms)
-        if (y > 70 || vy > 0.35 || y + vy * 150 > 100) {
+        // [P1-PLAN-LOTE-410] cierra con decisión: 110 px, o —con al menos 40 px recorridos— un flick o lo recorrido más
+        // la inercia proyectada (150 ms) pasando de 170 (con 70 px y cualquier flick se cerraba sin querer)
+        if (y > 110 || (y > 40 && (vy > 0.5 || y + vy * 150 > 170))) {
             cerrandoRef.current = true;
             const el = containerRef.current;
             if (el) { el.style.transition = 'transform 0.18s ease-in'; el.style.transform = 'translateY(110%)'; }

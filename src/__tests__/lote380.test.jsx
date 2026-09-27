@@ -104,7 +104,9 @@ describe('[380] al quedar un plato, su comida y su día pasan a los de abajo', (
         fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Jugo/ }));   // [P1-PLAN-LOTE-387]
         const propio = within(screen.getByRole('region', { name: '¿Qué comida es este plato?' }));
         fireEvent.click(propio.getByRole('button', { name: 'Desayuno' }));
-        fireEvent.click(propio.getByRole('button', { name: 'Ayer' }));
+        // [P1-PLAN-LOTE-410] cada opción cierra el panel: el día, en otra apertura
+        fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Jugo/ }));
+        fireEvent.click(within(screen.getByRole('region', { name: '¿Qué comida es este plato?' })).getByRole('button', { name: 'Ayer' }));
         fireEvent.click(screen.getByRole('button', { name: 'Quitar Sándwich' }));
         const registrar = await screen.findByRole('button', { name: /Registrar comida/ });
         expect(abajo('Tipo de comida').getByRole('button', { name: 'Desayuno' })).toHaveAttribute('aria-pressed', 'true');

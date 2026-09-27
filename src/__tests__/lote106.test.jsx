@@ -90,7 +90,8 @@ describe('la hoja del escáner', TOPE_TEST, () => {
         }
         // el componedor usa EL MISMO hook (extraído, no copiado)
         expect(src('src/components/dashboard/LogMealModal.jsx')).toContain("import { useBottomSheet } from '../../hooks/useBottomSheet';");
-        expect(src('src/hooks/useBottomSheet.js')).toContain('if (y > 70 || vy > 0.35 || y + vy * 150 > 100) {');
+        // [P1-PLAN-LOTE-410] umbrales más firmes (se cerraba sin querer al subir el scroll)
+        expect(src('src/hooks/useBottomSheet.js')).toContain('if (y > 110 || (y > 40 && (vy > 0.5 || y + vy * 150 > 170))) {');
     });
 
     it('ningún campo de texto baja de 1rem y el nombre no lleva la flecha del desplegable', () => {
