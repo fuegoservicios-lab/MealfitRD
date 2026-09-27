@@ -4623,26 +4623,6 @@ const AgentPage = () => {
                     ))}
                 </div>
             )}
-            {hojaDeComida?.tipo === 'anotar' && (
-                <Suspense fallback={null}>
-                    <LogMealModal
-                        userId={chatUserId}
-                        onClose={() => setHojaDeComida(null)}
-                        onScan={(d) => setHojaDeComida({ tipo: 'escanear', ...(d || {}) })}
-                    />
-                </Suspense>
-            )}
-            {hojaDeComida?.tipo === 'escanear' && (
-                <Suspense fallback={null}>
-                    <ScanMealModal
-                        isOpen
-                        userId={chatUserId}
-                        onClose={() => setHojaDeComida(null)}
-                        initialMealType={hojaDeComida.mealType}
-                        initialDaysAgo={hojaDeComida.daysAgo || 0}
-                    />
-                </Suspense>
-            )}
             {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó. */}
             {dudasDeLaFoto.length > 0 && !isTurnActive && !chatDeOtroDia && dudasDeLaFotoSesionRef.current === currentSessionId && (
                 <RespuestasDeLaFoto dudas={dudasDeLaFoto} onEnviar={(texto) => handleSend(texto)}
@@ -6123,6 +6103,30 @@ const AgentPage = () => {
 
                 </div> {/* End of Chat Area Container */}
             </div>
+
+            {/* [P1-PLAN-LOTE-411 → 415] Las hojas de los atajos, FUERA de la caja de escribir: dentro, la caja
+                (`will-change: transform` + `z-index: 10`) encerraba la del escáner bajo la barra de pestañas, y su
+                `onPointerDownCapture` tomaba cada toque en la hoja por un toque en el compositor. */}
+            {hojaDeComida?.tipo === 'anotar' && (
+                <Suspense fallback={null}>
+                    <LogMealModal
+                        userId={chatUserId}
+                        onClose={() => setHojaDeComida(null)}
+                        onScan={(d) => setHojaDeComida({ tipo: 'escanear', ...(d || {}) })}
+                    />
+                </Suspense>
+            )}
+            {hojaDeComida?.tipo === 'escanear' && (
+                <Suspense fallback={null}>
+                    <ScanMealModal
+                        isOpen
+                        userId={chatUserId}
+                        onClose={() => setHojaDeComida(null)}
+                        initialMealType={hojaDeComida.mealType}
+                        initialDaysAgo={hojaDeComida.daysAgo || 0}
+                    />
+                </Suspense>
+            )}
 
             <AttachmentSourceSheet
                 open={showAttachmentSource}

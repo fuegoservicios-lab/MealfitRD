@@ -36,6 +36,8 @@ const matchMediaWith = (coarse) => vi.fn().mockImplementation((query) => ({
     dispatchEvent: vi.fn(),
 }));
 
+// [P1-PLAN-LOTE-415] La hoja va a <body> (createPortal): se busca en `baseElement`; en `container` el
+// `toBeNull()` de la cámara pasaría por VACÍO.
 const renderModal = () => render(
     <ScanMealModal isOpen onClose={vi.fn()} userId="u-1" />
 );
@@ -69,8 +71,8 @@ describe('[P2-SCAN-NO-WEBCAM-ON-DESKTOP] ScanMealModal — la cámara solo en t�
         });
 
         it('no deja ningún input con `capture` en el DOM', () => {
-            const { container } = renderModal();
-            expect(container.querySelector('input[capture]')).toBeNull();
+            const { baseElement } = renderModal();
+            expect(baseElement.querySelector('input[capture]')).toBeNull();
         });
 
         it('el texto de ayuda dice SUBE, no TOMA', () => {
@@ -82,8 +84,8 @@ describe('[P2-SCAN-NO-WEBCAM-ON-DESKTOP] ScanMealModal — la cámara solo en t�
         it('la única opción NO puede verse como la secundaria', () => {
             // La tarjeta primaria era la de la cámara; al quitarla, la galería hereda ese tile o la
             // pantalla queda con su única acción en gris.
-            const { container } = renderModal();
-            const primarios = container.querySelectorAll('[class*="optionIcoPrimary"]');
+            const { baseElement } = renderModal();
+            const primarios = baseElement.querySelectorAll('[class*="optionIcoPrimary"]');
             expect(primarios.length).toBe(1);
         });
     });
@@ -103,15 +105,15 @@ describe('[P2-SCAN-NO-WEBCAM-ON-DESKTOP] ScanMealModal — la cámara solo en t�
         });
 
         it('conserva el input con `capture="environment"`', () => {
-            const { container } = renderModal();
-            const cam = container.querySelector('input[capture]');
+            const { baseElement } = renderModal();
+            const cam = baseElement.querySelector('input[capture]');
             expect(cam).not.toBeNull();
             expect(cam.getAttribute('capture')).toBe('environment');
         });
 
         it('la cámara sigue siendo la tarjeta primaria', () => {
-            const { container } = renderModal();
-            const primarios = container.querySelectorAll('[class*="optionIcoPrimary"]');
+            const { baseElement } = renderModal();
+            const primarios = baseElement.querySelectorAll('[class*="optionIcoPrimary"]');
             expect(primarios.length).toBe(1);
         });
 

@@ -53,19 +53,20 @@ describe('[P1-SCAN-NO-VERB-ECHO] el rótulo de una opción no repite el verbo de
         window.matchMedia = matchMediaWith(true); // táctil: es donde se ven las dos filas
     });
 
+    // [P1-PLAN-LOTE-415] La hoja va a <body> (createPortal): se busca en `baseElement`, no en `container`.
     const montar = () => render(<ScanMealModal isOpen onClose={vi.fn()} userId="u-1" />);
 
     it('el título sigue existiendo y aporta el verbo', () => {
-        const { container } = montar();
-        const titulo = container.querySelector('#scan-meal-title');
+        const { baseElement } = montar();
+        const titulo = baseElement.querySelector('#scan-meal-title');
         expect(titulo, 'desapareció el título del modal de escaneo').not.toBeNull();
         expect(raizDelVerbo(titulo.textContent).length).toBe(6);
     });
 
     it('ningún rótulo de opción repite esa raíz', () => {
-        const { container } = montar();
-        const raiz = raizDelVerbo(container.querySelector('#scan-meal-title').textContent);
-        const rotulos = [...container.querySelectorAll('[class*="optionLabel"]')]
+        const { baseElement } = montar();
+        const raiz = raizDelVerbo(baseElement.querySelector('#scan-meal-title').textContent);
+        const rotulos = [...baseElement.querySelectorAll('[class*="optionLabel"]')]
             .map((n) => n.textContent.trim());
 
         expect(rotulos.length, 'no se renderizó ninguna tarjeta de opción').toBeGreaterThan(1);
@@ -75,17 +76,17 @@ describe('[P1-SCAN-NO-VERB-ECHO] el rótulo de una opción no repite el verbo de
     });
 
     it('las dos filas siguen diciendo en qué se diferencian: la fuente de la foto', () => {
-        const { container } = montar();
-        const rotulos = [...container.querySelectorAll('[class*="optionLabel"]')]
+        const { baseElement } = montar();
+        const rotulos = [...baseElement.querySelectorAll('[class*="optionLabel"]')]
             .map((n) => sinAcentos(n.textContent));
         expect(rotulos.some((r) => r.includes('camara'))).toBe(true);
         expect(rotulos.some((r) => r.includes('galeria'))).toBe(true);
     });
 
     it('el sublabel tampoco vuelve a decirlo (donde sí se ve, no debe sonar a eco)', () => {
-        const { container } = montar();
-        const raiz = raizDelVerbo(container.querySelector('#scan-meal-title').textContent);
-        const subs = [...container.querySelectorAll('[class*="optionSub"]')]
+        const { baseElement } = montar();
+        const raiz = raizDelVerbo(baseElement.querySelector('#scan-meal-title').textContent);
+        const subs = [...baseElement.querySelectorAll('[class*="optionSub"]')]
             .map((n) => n.textContent.trim());
         const repetidos = subs.filter((s) => sinAcentos(s).includes(raiz));
         expect(repetidos, `sublabels que repiten el verbo del título: ${repetidos.join(' / ')}`)

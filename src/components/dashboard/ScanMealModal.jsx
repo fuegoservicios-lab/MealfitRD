@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import {
     Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle, ChevronRight, ChevronDown, Trash2, RotateCcw,
@@ -1233,7 +1234,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
         );
     };
 
-    return (
+    const pantalla = (
         <>
         <div className={styles.overlay} onClick={handleOverlayClick} style={teclado.fondo}>
             {/* [P1-PLAN-LOTE-106 · 2026-09-18] La misma hoja que «Registrar comida» (lote 99): cabecera y pie FIJOS,
@@ -1497,6 +1498,10 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
         />
         </>
     );
+
+    // [P1-PLAN-LOTE-415] A <body>, como «Registrar comida»: montada en la caja del chat (`will-change: transform`,
+    // `backdrop-filter`, `z-index: 10`) el `inset: 0` medía la caja y la barra de pestañas la tapaba.
+    return typeof document === 'undefined' ? null : createPortal(pantalla, document.body);
 };
 
 ScanMealModal.propTypes = {
