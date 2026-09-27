@@ -506,11 +506,17 @@ export function resumenDeCorrecciones(plato) {
     const redescrito = plato.redescrito === true;
     const porcion = Number(plato.porcion) || 1;
     const dudas = Array.isArray(plato.dudas) ? plato.dudas : [];
+    // Editada = distinta de lo detectado tanto CRUDO como redondeado: `qty` nace como `q0` sin redondear y un preset de
+    // porción la redondea, así que ninguna de las dos formas cuenta como mano del usuario (revisión final).
+    const editada = (c) => {
+        const esperada = c.q0 * porcion;
+        const q = Number(c.qty);
+        return Math.abs(q - esperada) > 1e-6 && q !== redondearCantidad(esperada, c.unit);
+    };
     return {
         componentes: ia.componentes,
         cambiados: redescrito ? 0 : comps.filter((c) => c.antesDelCambio).length,
-        cantidades_editadas: redescrito ? 0 : comps.filter(
-            (c) => c.checked && Number(c.qty) !== redondearCantidad(c.q0 * porcion, c.unit)).length,
+        cantidades_editadas: redescrito ? 0 : comps.filter((c) => c.checked && editada(c)).length,
         desmarcados: comps.filter((c) => !c.checked).length,
         porcion,
         dudas: dudas.length,

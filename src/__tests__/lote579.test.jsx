@@ -52,6 +52,24 @@ describe('[579] /admin', () => {
         await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledWith('/api/admin/metricas?dias=30'));
     });
 
+    it('pulsar el periodo que ya está activo no deja la página cargando', async () => {
+        // Revisión final: setDias con el mismo valor no relanza el efecto y «Cargando…» se quedaba para siempre.
+        fetchWithAuth.mockImplementation(async () => respuesta(METRICAS));
+        montar();
+        await screen.findByText('Cuentas');
+        fireEvent.click(screen.getByRole('button', { name: '7 días' }));
+        expect(screen.queryByText('Cargando…')).toBeNull();
+        expect(screen.getByText('Cuentas')).toBeInTheDocument();
+    });
+
+    it('en el dominio principal /admin salta a app.* conservando la ruta', () => {
+        // Revisión final: sin esto el apex mandaba a su /login, el salto a app.* perdía el destino y el panel no se
+        // alcanzaba desde bioboros.com/admin.
+        const app = readFileSync(resolve(process.cwd(), 'src/App.jsx'), 'utf8');
+        const lista = app.match(/const APP_ROUTE_PREFIXES = \[([^\]]*)\]/)[1];
+        expect(lista).toContain("'/admin'");
+    });
+
     it('a quien no es admin lo devuelve al dashboard', async () => {
         fetchWithAuth.mockImplementation(async () => respuesta({ detail: 'Not Found' }, 404));
         montar();

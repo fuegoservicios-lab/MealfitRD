@@ -158,7 +158,8 @@ const NATIVE_NO_COMMERCE = nativeHidesCommerce();
 // sesión es per-origen (localStorage): un usuario logueado en el apex re-loguea en
 // app.* — fricción mínima y aceptada para cerrar el split.
 const IS_APEX_HOST = typeof window !== 'undefined' && isApexHost();
-const APP_ROUTE_PREFIXES = ['/login', '/register', '/reset-password', '/assessment', '/plan', '/configuracion', '/dashboard', '/history'];
+// [P1-PLAN-LOTE-579] `/admin` también: en el apex su login perdía el destino y el panel no se alcanzaba.
+const APP_ROUTE_PREFIXES = ['/login', '/register', '/reset-password', '/assessment', '/plan', '/configuracion', '/dashboard', '/history', '/admin'];
 
 const ApexAppRedirect = () => {
   const location = useLocation();

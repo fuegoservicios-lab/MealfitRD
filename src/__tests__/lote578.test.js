@@ -53,6 +53,16 @@ describe('[578] resumenDeCorrecciones', () => {
                                   kcal_ia: 600, kcal_final: 300 });
     });
 
+    it('una cantidad sin tocar que el servidor no redondeó no cuenta como editada', () => {
+        // Revisión final: `qty` nace como `q0` SIN redondear y se comparaba con redondearCantidad(q0): «37.5 g» sin
+        // tocar contaba como editado e inflaba «Corregidos por el usuario».
+        const p = platoDesdeAnalisis({ ...ANALISIS, items: [
+            { name: 'Queso', quantity: 37.5, unit: 'g', macros: { calories: 150, protein: 9, carbs: 1, healthy_fats: 12 } },
+            { name: 'Pan', quantity: 1.3, unit: 'unidad', macros: { calories: 100, protein: 3, carbs: 20, healthy_fats: 1 } },
+        ] });
+        expect(resumenDeCorrecciones(p).cantidades_editadas).toBe(0);
+    });
+
     it('un plato que no nació de un análisis no manda nada', () => {
         expect(resumenDeCorrecciones({ nombre: 'x', componentes: [] })).toBeNull();
     });

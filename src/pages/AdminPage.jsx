@@ -75,7 +75,8 @@ export default function AdminPage() {
         return () => { vivo = false; };
     }, [dias, intento]);
 
-    const elegir = (d) => { setEstado('cargando'); setDias(d); };
+    // El periodo que ya está activo no relanzaría el efecto: sin este corte, «Cargando…» se quedaba para siempre.
+    const elegir = (d) => { if (d === dias) return; setEstado('cargando'); setDias(d); };
     const reintentar = () => { setEstado('cargando'); setIntento((n) => n + 1); };
 
     if (estado === 'fuera') return <Navigate to="/dashboard" replace />;
