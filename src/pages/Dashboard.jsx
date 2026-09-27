@@ -2661,7 +2661,9 @@ const DashboardInner = () => {
     // (fail-open preservado para usuarios sin historial cacheado).
     const _liveCount = Array.isArray(liveInventory) ? liveInventory.length : null;
     const pantryItemCount = _liveCount !== null ? _liveCount : cachedPantryCount;
-    const isPantryTooEmpty = computePantryGate(pantryItemCount, PANTRY_MIN_ITEMS_FOR_UPDATE);
+    // [P1-PLAN-LOTE-416] Con la Nevera apagada (también en modo plan, lote 217) ninguna de las dos puertas la pide.
+    const _neveraOnPuertas = neveraActiva(userProfile);
+    const isPantryTooEmpty = computePantryGate(pantryItemCount, PANTRY_MIN_ITEMS_FOR_UPDATE, { neveraOn: _neveraOnPuertas });
 
     // [P1-SWAP-PANTRY-GATE · 2026-07-30] Gate del swap INDIVIDUAL ("Cambiar
     // Plato"), que hasta ahora no miraba la Nevera: el modal abría con la
@@ -2672,7 +2674,7 @@ const DashboardInner = () => {
     // reservan inventario entre sí; esto regenera 1. Mismo `pantryItemCount` y
     // por tanto el mismo fail-open — con el inventario sin cargar no se bloquea
     // nada.
-    const isPantryTooEmptyForSwap = computePantryGate(pantryItemCount, PANTRY_MIN_ITEMS_FOR_SWAP);
+    const isPantryTooEmptyForSwap = computePantryGate(pantryItemCount, PANTRY_MIN_ITEMS_FOR_SWAP, { neveraOn: _neveraOnPuertas });
 
     // Copy del bloqueo, compartido por el `title` y el `aria-label` del botón.
     const swapPantryClaim = t('Tu Nevera tiene muy pocos alimentos para cambiar un plato. Necesitas al menos {minimo} — añádelos en "Nevera".', { minimo: PANTRY_MIN_ITEMS_FOR_SWAP });

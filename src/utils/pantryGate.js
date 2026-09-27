@@ -82,11 +82,17 @@ export const SWAP_REASONS_REQUIRING_PANTRY = ['variety', 'time', 'similar'];
  * `if (!count)` lo confundiría con "no cargado" y haría fail-open justo en el
  * escenario que este gate existe para cerrar.
  *
+ * [P1-PLAN-LOTE-416] Con la Nevera APAGADA (`neveraOn: false`, `neveraActiva` de config/dashboardNav) no bloquea
+ * nunca: sus bloques se generan sin mirarla (lote 217), y exigir alimentos a una Nevera que ni sale en el menú dejaba
+ * el botón muerto para siempre. Sin la opción, la conducta de siempre.
+ *
  * @param {number|null|undefined} pantryItemCount filas con quantity > 0
  * @param {number} minItems umbral aplicable
+ * @param {{ neveraOn?: boolean }} [opciones]
  * @returns {boolean} true = bloquear
  */
-export function computePantryGate(pantryItemCount, minItems) {
+export function computePantryGate(pantryItemCount, minItems, { neveraOn = true } = {}) {
+    if (neveraOn === false) return false;
     if (typeof pantryItemCount !== 'number' || Number.isNaN(pantryItemCount)) return false;
     return pantryItemCount < minItems;
 }
