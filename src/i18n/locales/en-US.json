@@ -3656,7 +3656,6 @@
   "Tipo de comida de este plato": "Meal type for this dish",
   "Día de este plato": "Day for this dish",
   "Usar lo de abajo": "Use the one below",
-  "Otra comida u otro día": "Another meal or day",
   "{nombre} quedó en el diario de {dia}.": "{nombre} was logged in {dia}’s diary.",
   "Lo ves en «Ver días anteriores».": "You’ll find it in “See previous days”.",
   "Para los platos que no marcaste aparte.": "For the dishes you didn’t set separately.",
@@ -3665,5 +3664,6 @@
   "Compartir imagen": "Share image",
   "WhatsApp, Instagram, Mensajes…": "WhatsApp, Instagram, Messages…",
   "Texto por WhatsApp": "Text via WhatsApp",
-  "Tu teléfono no dejó compartir la imagen. Prueba con el texto.": "Your phone didn’t allow sharing the image. Try the text instead."
+  "Tu teléfono no dejó compartir la imagen. Prueba con el texto.": "Your phone didn’t allow sharing the image. Try the text instead.",
+  "Comida y día de {nombre}: {destino}": "Meal and day of {nombre}: {destino}"
 }

@@ -1170,3 +1170,17 @@
 /* [P1-PLAN-LOTE-366] a qué comida y día va cada plato (en su tarjeta) */
 .platoDestino { display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem; }
 .platoDestinoPropio { color: var(--primary); font-weight: 600; }
+
+/* [P1-PLAN-LOTE-387] comida y día de cada plato, en su tarjeta */
+.destinoBtn {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin: 0 0 0.75rem 1rem; min-height: 36px;
+    padding: 0.35rem 0.75rem; border-radius: 999px; border: 1px solid var(--border); background: transparent;
+    color: var(--text-muted); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.destinoBtn:disabled { opacity: 0.5; cursor: default; }
+.destinoPanel { display: flex; flex-direction: column; gap: 0.6rem; padding: 0 1rem 1rem; }
+.destinoAcciones { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.destinoListo {
+    margin-left: auto; min-height: 40px; padding: 0.45rem 1.1rem; border: none; border-radius: 10px;
+    background: var(--primary-fill); color: #fff; font: inherit; font-weight: 700; cursor: pointer;
+}

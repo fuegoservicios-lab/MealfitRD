@@ -86,11 +86,12 @@ describe('[366] dos fotos, dos comidas', () => {
         // cada tarjeta dice a dónde va
         expect(screen.getAllByText('Almuerzo · Hoy')).toHaveLength(2);
 
-        fireEvent.click(screen.getByRole('button', { name: /^Batida de lechosa/ }));
-        fireEvent.click(screen.getByRole('button', { name: 'Otra comida u otro día' }));
+        // [P1-PLAN-LOTE-387] desde la tarjeta, sin abrir el editor
+        fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Batida de lechosa/ }));
         const propio = screen.getByRole('region', { name: '¿Qué comida es este plato?' });
         fireEvent.click(within(propio).getByRole('button', { name: 'Desayuno' }));
         fireEvent.click(within(propio).getByRole('button', { name: 'Ayer' }));
+        fireEvent.click(within(propio).getByRole('button', { name: 'Listo' }));
         expect(screen.getByText('Desayuno · Ayer')).toBeInTheDocument();
 
         // cambiar lo de abajo ya no la mueve
@@ -114,8 +115,7 @@ describe('[366] dos fotos, dos comidas', () => {
         elegir(foto('a.jpg'), foto('b.jpg'));
         await screen.findByRole('button', { name: /Registrar 2 platos/ });
         fireEvent.click(grupoDeAbajo('Tipo de comida').getByRole('button', { name: 'Almuerzo' }));
-        fireEvent.click(screen.getByRole('button', { name: /^Batida de lechosa/ }));
-        fireEvent.click(screen.getByRole('button', { name: 'Otra comida u otro día' }));
+        fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Batida de lechosa/ }));
         fireEvent.click(within(screen.getByRole('region', { name: '¿Qué comida es este plato?' })).getByRole('button', { name: 'Desayuno' }));
         fireEvent.click(screen.getByRole('button', { name: 'Usar lo de abajo' }));
         expect(screen.queryByRole('region', { name: '¿Qué comida es este plato?' })).toBeNull();
@@ -127,6 +127,6 @@ describe('[366] dos fotos, dos comidas', () => {
         render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" />);
         elegir(foto('b.jpg'));
         await screen.findByRole('button', { name: /Registrar comida/ });
-        expect(screen.queryByRole('button', { name: 'Otra comida u otro día' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /^Comida y día de/ })).toBeNull();
     });
 });

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
     Camera, Image as ImageIcon, Loader2, Check, X, AlertTriangle, ChevronRight, ChevronDown, Trash2, RotateCcw,
-    Refrigerator,
+    Refrigerator, Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -310,7 +310,68 @@ FilaComponente.propTypes = {
 // sin él, un antojo escaneado marcaba un plato del plan
 const _getMealTypes = (t) => [..._getMealTypesBase(t), _getMealTypeExtra(t)];
 
-const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, destino = null, onDestino = null, opcionesDia = null, onOcupado = null }) => {
+/** [P1-PLAN-LOTE-387] La comida y el día de UN plato, en su tarjeta: «Extra · Hoy ✎» abre ahí mismo las opciones (el
+ *  366 las escondía al final del editor y el dueño no las encontró). Elegir marca el plato aparte; «Usar lo de abajo»
+ *  lo devuelve a lo común; «Listo» cierra. */
+const DestinoDelPlato = ({ nombre, destino, etiqueta, opcionesDia, abierto, bloqueado, onAbrir, onCerrar, onDestino }) => {
+    const t = useT();
+    const idRegion = `destino-${String(nombre).replace(/\W+/g, '-')}`;
+    if (!abierto) {
+        return (
+            <button
+                type="button"
+                className={`${styles.destinoBtn} ${destino.propio ? styles.platoDestinoPropio : ''}`}
+                disabled={bloqueado}
+                onClick={onAbrir}
+                aria-label={t('Comida y día de {nombre}: {destino}', { nombre, destino: etiqueta })}
+            >
+                <span>{etiqueta}</span>
+                <Pencil size={13} aria-hidden="true" />
+            </button>
+        );
+    }
+    return (
+        <section className={styles.destinoPanel} aria-labelledby={idRegion}>
+            <h3 id={idRegion} className={styles.sectionTitle}>{t('¿Qué comida es este plato?')}</h3>
+            <Chips
+                label={t('Tipo de comida de este plato')}
+                options={_getMealTypes(t)}
+                value={destino.mealType}
+                onChange={(v) => onDestino({ mealType: v, daysAgo: destino.daysAgo })}
+                disabled={bloqueado}
+            />
+            <Chips
+                label={t('Día de este plato')}
+                options={opcionesDia}
+                value={destino.daysAgo}
+                onChange={(v) => onDestino({ mealType: destino.mealType, daysAgo: v })}
+                disabled={bloqueado}
+            />
+            <div className={styles.destinoAcciones}>
+                {destino.propio && (
+                    <button type="button" className={styles.corregirPlato} disabled={bloqueado} onClick={() => { onDestino(null); onCerrar(); }}>
+                        {t('Usar lo de abajo')}
+                    </button>
+                )}
+                <button type="button" className={styles.destinoListo} onClick={onCerrar}>{t('Listo')}</button>
+            </div>
+        </section>
+    );
+};
+
+DestinoDelPlato.propTypes = {
+    nombre: PropTypes.string.isRequired,
+    destino: PropTypes.object.isRequired,
+    etiqueta: PropTypes.string.isRequired,
+    opcionesDia: PropTypes.array.isRequired,
+    abierto: PropTypes.bool,
+    bloqueado: PropTypes.bool,
+    onAbrir: PropTypes.func.isRequired,
+    onCerrar: PropTypes.func.isRequired,
+    onDestino: PropTypes.func.isRequired,
+};
+
+const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, onOcupado = null }) => {
     const t = useT();
     // [P1-PLAN-LOTE-361] «Otra…»: lo escrito pide SU ajuste por texto y entra como una opción más de esa duda. Antes
     // se re-analizaba la foto entera: el análisis nuevo traía otras dudas y borraba lo ya elegido en las demás.
@@ -523,39 +584,6 @@ const EditorDePlato = ({ plato, bloqueado, onCambiar, onEditandoDuda = null, des
                     </div>
                 )}
             </section>
-            {/* [P1-PLAN-LOTE-366] Con varios platos: este va a su propia comida y su propio día (la batida al desayuno
-                de ayer, el plátano al almuerzo de hoy). Sin marcarlo, sigue lo elegido abajo para todos. */}
-            {destino && onDestino && (destino.propio ? (
-                <section className={styles.section} aria-labelledby={`${ids}-destino`}>
-                    <h3 id={`${ids}-destino`} className={styles.sectionTitle}>{t('¿Qué comida es este plato?')}</h3>
-                    <Chips
-                        label={t('Tipo de comida de este plato')}
-                        options={_getMealTypes(t)}
-                        value={destino.mealType}
-                        onChange={(v) => onDestino({ mealType: v, daysAgo: destino.daysAgo })}
-                        disabled={bloqueado}
-                    />
-                    <Chips
-                        label={t('Día de este plato')}
-                        options={opcionesDia || []}
-                        value={destino.daysAgo}
-                        onChange={(v) => onDestino({ mealType: destino.mealType, daysAgo: v })}
-                        disabled={bloqueado}
-                    />
-                    <button type="button" className={styles.corregirPlato} disabled={bloqueado} onClick={() => onDestino(null)}>
-                        {t('Usar lo de abajo')}
-                    </button>
-                </section>
-            ) : (
-                <button
-                    type="button"
-                    className={styles.corregirPlato}
-                    disabled={bloqueado}
-                    onClick={() => onDestino({ mealType: destino.mealType, daysAgo: destino.daysAgo })}
-                >
-                    {t('Otra comida u otro día')}
-                </button>
-            ))}
         </>
     );
 };
@@ -565,9 +593,6 @@ EditorDePlato.propTypes = {
     bloqueado: PropTypes.bool,
     onCambiar: PropTypes.func.isRequired,
     onEditandoDuda: PropTypes.func,
-    destino: PropTypes.object,
-    onDestino: PropTypes.func,
-    opcionesDia: PropTypes.array,
     onOcupado: PropTypes.func,
 };
 
@@ -595,6 +620,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
     useEffect(() => { platosRef.current = platos; }, [platos]);
     // Con varios platos, el que está abierto para editar (los demás se ven resumidos).
     const [abierto, setAbierto] = useState(null);
+    // [P1-PLAN-LOTE-387] la tarjeta con su «comida y día» desplegado
+    const [destinoAbierto, setDestinoAbierto] = useState(null);
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState(null);
     // [P1-PLAN-LOTE-382] la comida que trae el componedor («Comí otra cosa» en el Almuerzo), si no la de la hora
@@ -1166,9 +1193,6 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                                         : t('{kcal} kcal · {p} g proteína', { kcal: formatNumber(m.calories), p: m.protein })}
                                 </span>
                             )}
-                            {listo && !p.guardado && enRevision && (
-                                <span className={`${styles.platoDestino} ${destino.propio ? styles.platoDestinoPropio : ''}`}>{etiquetaDestino}</span>
-                            )}
                         </span>
                         {listo && !p.guardado && (
                             <ChevronDown size={18} className={`${styles.platoChev} ${esAbierto ? styles.platoChevOpen : ''}`} aria-hidden="true" />
@@ -1186,6 +1210,19 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                         </button>
                     )}
                 </div>
+                {listo && !p.guardado && enRevision && (
+                    <DestinoDelPlato
+                        nombre={titulo}
+                        destino={destino}
+                        etiqueta={etiquetaDestino}
+                        opcionesDia={opcionesDia}
+                        abierto={destinoAbierto === p.id}
+                        bloqueado={guardando}
+                        onAbrir={() => setDestinoAbierto(p.id)}
+                        onCerrar={() => setDestinoAbierto(null)}
+                        onDestino={(nuevo) => cambiarPlato(p.id, (x) => conDestinoPropio(x, nuevo))}
+                    />
+                )}
                 {p.estado === 'error' && renderFallo(p)}
                 {esAbierto && (
                     <div className={styles.platoEditor}>
@@ -1196,9 +1233,6 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                             onCambiar={(fn) => cambiarPlato(p.id, fn)}
                             onEditandoDuda={setEditandoDuda}
                             onOcupado={onOcupadoDe(p.id)}
-                            destino={destino}
-                            opcionesDia={opcionesDia}
-                            onDestino={(nuevo) => cambiarPlato(p.id, (x) => conDestinoPropio(x, nuevo))}
                         />
                     </div>
                 )}

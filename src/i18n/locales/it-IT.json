@@ -3656,7 +3656,6 @@
   "Tipo de comida de este plato": "Tipo di pasto di questo piatto",
   "Día de este plato": "Giorno di questo piatto",
   "Usar lo de abajo": "Usa quello sotto",
-  "Otra comida u otro día": "Un altro pasto o un altro giorno",
   "{nombre} quedó en el diario de {dia}.": "{nombre} è finito nel diario di {dia}.",
   "Lo ves en «Ver días anteriores».": "Lo trovi in «Vedi giorni precedenti».",
   "Para los platos que no marcaste aparte.": "Per i piatti che non hai impostato a parte.",
@@ -3665,5 +3664,6 @@
   "Compartir imagen": "Condividi immagine",
   "WhatsApp, Instagram, Mensajes…": "WhatsApp, Instagram, Messaggi…",
   "Texto por WhatsApp": "Testo via WhatsApp",
-  "Tu teléfono no dejó compartir la imagen. Prueba con el texto.": "Il tuo telefono non ha permesso di condividere l’immagine. Prova con il testo."
+  "Tu teléfono no dejó compartir la imagen. Prueba con el texto.": "Il tuo telefono non ha permesso di condividere l’immagine. Prova con il testo.",
+  "Comida y día de {nombre}: {destino}": "Pasto e giorno di {nombre}: {destino}"
 }
