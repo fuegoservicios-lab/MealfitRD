@@ -3696,5 +3696,6 @@
   "Te faltan {n} g de proteína: un par de huevos o un yogur griego lo resuelven.": "Faltam {n} g de proteína: um par de ovos ou um iogurte grego resolvem.",
   "Para merendar te toca **{plato}**.": "No lanche você tem **{plato}**.",
   "¡Buenas, {nombre}!": "E aí, {nombre}!",
-  "¡Buenas!": "E aí!"
+  "¡Buenas!": "E aí!",
+  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (você não indicou: usamos o mais comum)"
 }

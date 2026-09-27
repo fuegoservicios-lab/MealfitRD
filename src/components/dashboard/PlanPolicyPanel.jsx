@@ -10,6 +10,7 @@ import { useT } from '../../i18n';
 import {
     slotLabel, freezerFact, batchFact, topupFact, frequencyLabel, frequencyIdFor,
     relaxationCopy, relaxationTitle, relaxationIsBlocking, prepTimeFact, prepTimeCopy,
+    camposSupuestos, hechoSupuesto,
 } from '../../config/planPolicy';
 import styles from './PlanPolicyPanel.module.css';
 
@@ -61,6 +62,8 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
     const relaxations = Array.isArray(policy?.relaxations) ? policy.relaxations : [];
     const enforced = fidelity?.mode === 'enforce' || fidelity?.enforced === true;
     const shop = effective.shopping || {};
+    // [P1-PLAN-LOTE-417] lo que el plan SUPUSO (sin respuesta del usuario) se dice como supuesto, no como «lo que pediste»
+    const supuestos = camposSupuestos(policy);
     const reqAnchors = _anchorsById(requested);
     const appAnchors = _anchorsById(effective);
     const anchorIds = [...new Set([...reqAnchors.keys(), ...appAnchors.keys()])];
@@ -119,9 +122,9 @@ export default function PlanPolicyPanel({ policy, fidelity = null, onEdit = null
                     <ul className={styles.facts}>
                         <li><ShoppingBasket size={15} aria-hidden="true" />
                             <span><b>{t('Compra principal:')}</b> {t('cada {n} días', { n: shop.main_cycle_days ?? 7 })}</span></li>
-                        <li><Leaf size={15} aria-hidden="true" /> <span>{topupFact(t, shop.fresh_topup_days)}</span></li>
-                        <li><Snowflake size={15} aria-hidden="true" /> <span>{freezerFact(t, shop.freezer_mode)}</span></li>
-                        <li><CookingPot size={15} aria-hidden="true" /> <span>{batchFact(t, shop.batch_cooking)}</span></li>
+                        <li><Leaf size={15} aria-hidden="true" /> <span>{hechoSupuesto(t, topupFact(t, shop.fresh_topup_days), supuestos.has('fresh_topup_days'))}</span></li>
+                        <li><Snowflake size={15} aria-hidden="true" /> <span>{hechoSupuesto(t, freezerFact(t, shop.freezer_mode), supuestos.has('freezer_mode'))}</span></li>
+                        <li><CookingPot size={15} aria-hidden="true" /> <span>{hechoSupuesto(t, batchFact(t, shop.batch_cooking), supuestos.has('batch_cooking'))}</span></li>
                         {/* [P2-POLICY-PANEL-UI · 2026-09-05 · r2] Sin la etiqueta «Cocina:»: los nombres de perfil YA
                             empiezan por «Cocina …» («Cocina estadounidense cotidiana»), así que la fila leía «Cocina:
                             Cocina estadounidense cotidiana». El icono de cubiertos da el contexto. */}

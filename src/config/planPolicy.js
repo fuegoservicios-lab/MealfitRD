@@ -83,6 +83,19 @@ export const topupFact = (t, days) => (days
     ? t('Compras frescos cada {n} días', { n: days })
     : t('Sin compras adicionales'));
 
+/* [P1-PLAN-LOTE-417 · 2026-09-27] Los campos de compra que el usuario NO contestó (paso opcional, sin valores sembrados):
+   la política los rellena con lo más habitual y los DECLARA, sellados con el plan, en `requested.source.defaulted`
+   (`freezer_mode`, `batch_cooking`, `fresh_topup_days`). Sin la lista —planes anteriores al contrato— no se marca nada:
+   el panel nunca inventa, ni en un sentido ni en el otro. */
+export const camposSupuestos = (policy) => {
+    const lista = policy?.requested?.source?.defaulted;
+    return new Set(Array.isArray(lista) ? lista : []);
+};
+
+export const hechoSupuesto = (t, hecho, supuesto) => (supuesto
+    ? t('{hecho} (no lo indicaste: usamos lo más habitual)', { hecho })
+    : hecho);
+
 export const frequencyLabel = (t, id) => ({
     some: t('2-3 veces por semana'), most: t('4-5 veces por semana'), daily: t('Todos los días'),
 })[id] || id;

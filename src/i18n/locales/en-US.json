@@ -3696,5 +3696,6 @@
   "Te faltan {n} g de proteína: un par de huevos o un yogur griego lo resuelven.": "You’re {n} g short on protein: a couple of eggs or a Greek yogurt sorts it out.",
   "Para merendar te toca **{plato}**.": "For your snack you have **{plato}**.",
   "¡Buenas, {nombre}!": "Hey, {nombre}!",
-  "¡Buenas!": "Hey!"
+  "¡Buenas!": "Hey!",
+  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (you didn’t say: we used the most common option)"
 }

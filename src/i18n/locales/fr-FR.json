@@ -3696,5 +3696,6 @@
   "Te faltan {n} g de proteína: un par de huevos o un yogur griego lo resuelven.": "Il vous manque {n} g de protéines : deux œufs ou un yaourt grec règlent ça.",
   "Para merendar te toca **{plato}**.": "Pour le goûter, vous avez **{plato}**.",
   "¡Buenas, {nombre}!": "Bonjour, {nombre} !",
-  "¡Buenas!": "Bonjour !"
+  "¡Buenas!": "Bonjour !",
+  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (vous ne l’avez pas indiqué : nous avons pris le plus courant)"
 }
