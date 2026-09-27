@@ -131,7 +131,8 @@ import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
 import { atajosDelChat, metasEnNumeros } from '../utils/atajosDelChat';
-import { useResumenDeHoy } from '../hooks/useResumenDeHoy';
+import { useResumenDeHoy, leerResumenDeHoy } from '../hooks/useResumenDeHoy';
+import { saludoDelCoach, franjaDeLaHora } from '../utils/saludoDelCoach';
 import { nativeHidesCommerce } from '../config/platform';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
@@ -421,27 +422,19 @@ export const menuItemsDelAgente = (enModoContador, userProfile) => {
 
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] Exportada con nombre para poder
 // testear el gate del modo sin montar el componente entero (~3.800 líneas).
-export const generateIntelligentWelcome = (userProfile, formData, planData) => {
+export const generateIntelligentWelcome = (userProfile, formData, planData, resumen = leerResumenDeHoy(userProfile?.id)) => {
     const nameStr = formData?.name || userProfile?.name || userProfile?.first_name || '';
-    const nameParts = nameStr.split(' ');
-    const firstName = nameParts[0] ? ' ' + nameParts[0] : '';
+    const firstName = String(nameStr).trim().split(/\s+/)[0] || '';
 
     const now = new Date();
     const hour = now.getHours();
 
-    // [P2-AGENT-WELCOME-I18N · 2026-08-19] El welcome es INTERFAZ templada client-side,
-    // no prosa del LLM — se traduce con t() como el resto del dashboard (el usuario
-    // reportó el saludo automático en español con la app en inglés). Los NOMBRES de
-    // platos ({plato}) siguen en español: son identificadores del sistema, la misma
-    // frontera dura del coach (Addendum §2).
-    let timeGreeting = t('¡Hola');
-    if (hour >= 0 && hour < 5) timeGreeting = t('¡Buenas madrugadas');
-    else if (hour >= 5 && hour < 12) timeGreeting = t('¡Buenos días');
-    else if (hour >= 12 && hour < 19) timeGreeting = t('¡Buenas tardes');
-    else timeGreeting = t('¡Buenas noches');
-
-    let mealContext = '';
-
+    // [P1-PLAN-LOTE-412 · 2026-09-27] El saludo habla de TU día (saludoDelCoach.js): lo que llevas hoy —la misma
+    // lectura que los atajos del 411—, el plato del plan si esa comida aún no está registrada y una invitación de la
+    // franja. Antes era saludo de la hora + una de tres frases fijas + «Seguimos enfocados en tu meta de…», sin mirar
+    // nada, y de madrugada sermoneaba. Sigue siendo INTERFAZ templada client-side (P2-AGENT-WELCOME-I18N): se traduce
+    // con t(), y los nombres de platos ({plato}) siguen en español porque son identificadores del sistema.
+    //
     // Cycle and exact meal logic safely
     let rawStartDate = planData?.grocery_start_date || planData?.created_at;
     let cycleDayNum = 1;
@@ -470,14 +463,7 @@ export const generateIntelligentWelcome = (userProfile, formData, planData) => {
         }
     }
 
-    // Explicit logical meal intervals
-    let mealKeyword = '';
-    if (hour >= 0 && hour < 5) mealKeyword = 'madrugada';
-    else if (hour >= 5 && hour < 11) mealKeyword = 'desayuno';
-    else if (hour >= 11 && hour < 12) mealKeyword = 'snack';
-    else if (hour >= 12 && hour < 15) mealKeyword = 'almuerzo';
-    else if (hour >= 15 && hour < 19) mealKeyword = 'snack';
-    else mealKeyword = 'cena';
+    const franja = franjaDeLaHora(hour);
 
     // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] En modo CONTADOR el saludo no
     // recita el plan. La pausa CONSERVA `plan_data` a propósito (es lo que
@@ -490,117 +476,42 @@ export const generateIntelligentWelcome = (userProfile, formData, planData) => {
     // Se consulta el MISMO SSOT que la nav del dashboard (`isTrackingMode`,
     // config/dashboardNav.js) — perfil primero, espejo de localStorage después —
     // en vez de reimplementar el modo aquí, que es como nacen las 4ªs tablas.
-    // Con `exactMealName` vacío, cada franja cae a sus variantes genéricas
-    // («¿Ya sabes qué vas a cenar?»): coaching de contador, que ya existía.
     const enModoContador = isTrackingMode(userProfile, planData);
-    // [P1-NEVERA-OPCIONAL · 2026-09-23] La variante genérica de almuerzo invitaba a mirar la Nevera aunque el
-    // usuario la haya apagado (modo contador, Configuración → Capacidades). Mismo SSOT que la nav (`neveraActiva`).
+    // [P1-NEVERA-OPCIONAL · 2026-09-23] La invitación genérica ofrecía mirar la Nevera aunque el usuario la haya apagado
+    // (modo contador, Configuración → Capacidades). Mismo SSOT que la nav (`neveraActiva`).
     const neveraOn = neveraActiva(userProfile);
 
-    if (planData && !isPlanExpired && !enModoContador && mealKeyword !== 'madrugada') {
+    if (planData && !isPlanExpired && !enModoContador && franja !== 'madrugada') {
         const planDays = planData?.days || [{ day: 1, meals: planData?.meals || planData?.perfectDay || [] }];
         if (planDays.length > 0 && !isNaN(cycleDayNum)) {
             const activeDayIndex = (cycleDayNum - 1) % planDays.length;
             const currentDayMeals = planDays[activeDayIndex]?.meals || [];
-
             // Search by m.meal field (type: "Desayuno") NOT by m.name (dish: "Mangú con Huevo")
-            let exactMeal = null;
-            if (mealKeyword === 'desayuno') {
-                exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('desayuno'));
-            } else if (mealKeyword === 'almuerzo') {
-                exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('almuerzo'));
-            } else if (mealKeyword === 'cena') {
-                exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('cena'));
-            } else {
-                exactMeal = currentDayMeals.find(m => m?.meal?.toLowerCase().includes('snack') || m?.meal?.toLowerCase().includes('merienda'));
-            }
-
-            if (exactMeal && exactMeal.name) {
-                exactMealName = exactMeal.name.trim();
-            }
+            const tipo = (m) => String(m?.meal || '').toLowerCase();
+            const exactMeal = franja === 'merienda'
+                ? currentDayMeals.find((m) => tipo(m).includes('snack') || tipo(m).includes('merienda'))
+                : currentDayMeals.find((m) => tipo(m).includes(franja));
+            if (exactMeal && exactMeal.name) exactMealName = exactMeal.name.trim();
         }
     }
 
-    if (mealKeyword === 'madrugada') {
-        const variants = [
-            t('Veo que sigues despierto, ¡recuerda que el buen descanso es clave para tu progreso! Si necesitas ayuda con algo, aquí estoy.'),
-            t('A esta hora lo ideal es descansar, así que no te recomendaré comidas pesadas. ¡Cuéntame si puedo ayudarte en algo más!'),
-            t('¿Despierto hasta tarde? Si de verdad tienes hambre y necesitas algo súper ligero, pregúntame para no alterar tu meta.')
-        ];
-        mealContext = variants[Math.floor(Math.random() * variants.length)];
-    } else if (mealKeyword === 'desayuno') {
-        const variants = exactMealName ? [
-            t('Según tu plan, hoy te toca **{plato}** de desayuno, ¿tienes los ingredientes listos o armamos una alternativa rápida?', { plato: exactMealName }),
-            t('Para desayunar hoy tienes marcado **{plato}**. ¡Cuéntame si ya lo preparaste o si quieres cambiar algo!', { plato: exactMealName }),
-            t('Tu desayuno sugerido de hoy es **{plato}**. ¿Preparado para arrancar el día con energía?', { plato: exactMealName })
-        ] : [
-            t('¿Listo para tu desayuno o necesitas una idea rápida?'),
-            t('¡Es hora de desayunar! ¿Ya sabes qué vas a preparar?'),
-            t('¿Qué tienes pensado para el desayuno de hoy? Si no sabes, ¡te ayudo!')
-        ];
-        mealContext = variants[Math.floor(Math.random() * variants.length)];
-    } else if (mealKeyword === 'almuerzo') {
-        const variants = exactMealName ? [
-            t('Hoy de almuerzo tienes marcado **{plato}**. ¿Ya lo preparaste o necesitas cambiar algo con los ingredientes que tienes?', { plato: exactMealName }),
-            t('Es la hora del almuerzo y te toca **{plato}**. ¿Te ayudo con la receta o tienes un plan distinto?', { plato: exactMealName }),
-            t('Para tu almuerzo de hoy está planeado **{plato}**. ¡Avisa si necesitas reemplazar algún ingrediente!', { plato: exactMealName })
-        ] : [
-            t('¿Preparando ya el almuerzo o necesitas una receta rápida?'),
-            t('¡Llegó la hora de almorzar! ¿Qué vas a preparar?'),
-            neveraOn
-                ? t('¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.')
-                : t('¿Necesitas ideas para tu comida del mediodía? Cuéntame qué se te antoja.')
-        ];
-        mealContext = variants[Math.floor(Math.random() * variants.length)];
-    } else if (mealKeyword === 'cena') {
-        const variants = exactMealName ? [
-            t('De cena para hoy tienes: **{plato}**. ¿Quieres que te pase las instrucciones paso a paso o prefieres otra cosa?', { plato: exactMealName }),
-            t('Para cerrar el día, tu cena sugerida es **{plato}**. ¿Qué te parece?', { plato: exactMealName }),
-            t('Tu cena de hoy será **{plato}**. ¡Si necesitas hacerlo más fácil o cambiar ingredientes, estoy aquí!', { plato: exactMealName })
-        ] : [
-            t('¿Buscando algo ligero antes de dormir o tu cena completa?'),
-            t('¡Es hora de cenar! ¿Ya sabes qué harás?'),
-            t('¿Qué cenaremos hoy? Dime tus opciones y te recomiendo algo rápido.')
-        ];
-        mealContext = variants[Math.floor(Math.random() * variants.length)];
-    } else {
-        // snack
-        const variants = exactMealName ? [
-            t('Es hora de tu snack o merienda: **{plato}**. Si no lo tienes, dime qué hay en tu refri y lo resolvemos.', { plato: exactMealName }),
-            t('Para tu merienda te toca **{plato}**. ¿Listo para disfrutarla?', { plato: exactMealName }),
-            t('Tu snack sugerido es **{plato}**. ¡Cuéntame si prefieres otra opción dulce o salada!', { plato: exactMealName })
-        ] : [
-            t('¿Necesitas un buen snack para calmar el hambre?'),
-            t('¡Hora de una merienda rápida! ¿Quieres ideas?'),
-            t('¿Qué te provoca de snack ahora mismo? Tengo varias opciones.')
-        ];
-        mealContext = variants[Math.floor(Math.random() * variants.length)];
-    }
+    // metas: las del plan vigente en modo plan (misma forma que /nutrition/targets); si no, las del perfil
+    const metas = metasEnNumeros(!enModoContador && planData?.calories ? planData : resumen?.metas);
+    const fechaHoy = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+    const semilla = `${userProfile?.id || 'anon'}|${fechaHoy}|${Math.floor((hour * 60 + now.getMinutes()) / 30)}`;
 
-    let goalContext = '';
-    // Schema field is "main_goal", with fallbacks for legacy data
-    const goalField = planData?.main_goal || planData?.goal || planData?.objective || '';
-    if (goalField) {
-        const lowerGoal = goalField.toLowerCase();
-        let goalText = '';
-        if (lowerGoal.includes('pérdida') || lowerGoal.includes('peso') || lowerGoal.includes('déficit') || lowerGoal.includes('bajar')) goalText = t('bajar de peso');
-        else if (lowerGoal.includes('músculo') || lowerGoal.includes('masa') || lowerGoal.includes('ganar')) goalText = t('ganar masa muscular');
-        else if (lowerGoal.includes('mantenimiento') || lowerGoal.includes('mantener')) goalText = t('mantenerte en forma');
-        else if (lowerGoal.includes('recomp')) goalText = t('recomponer tu cuerpo');
-
-        if (goalText) {
-            goalContext = t('Seguimos enfocados en tu meta de {meta}. ', { meta: goalText });
-        }
-    }
-
-    // [P1-AGENT-WELCOME-NO-TIME · 2026-05-20] Removida la hora literal
-    // ("Son las 04:29 a. m..") del welcome. Razón UX: el welcome se
-    // regenera cada 30min (no en cada navegación), por lo que la hora
-    // mostrada podría desfasarse ±30min de la hora real y se ve raro
-    // ("dice 04:29 pero son las 04:55"). El `timeGreeting` ya da
-    // contexto temporal grueso ("Buenas madrugadas/días/tardes/noches")
-    // sin precisión innecesaria.
-    return `${timeGreeting}${firstName}! ${goalContext}${mealContext}`.trim().replace(/\s+/g, ' ');
+    // [P1-AGENT-WELCOME-NO-TIME · 2026-05-20] Sin la hora literal ("Son las 04:29 a. m."): el welcome se regenera
+    // cada 30 min y la hora mostrada se desfasaba. El saludo de la franja da el contexto sin precisión innecesaria.
+    return `${saludoDelCoach({
+        hora: hour,
+        nombre: firstName,
+        modoContador: enModoContador,
+        plato: exactMealName,
+        nevera: neveraOn,
+        resumen: resumen ? { ...resumen, metas } : null,
+        semilla,
+        t,
+    })}`;
 };
 
 const AgentPage = () => {
@@ -5204,7 +5115,20 @@ const AgentPage = () => {
     const atajosVisibles = isMobile && messages.length > 0 && messages.length <= 4 && !isTurnActive
         && !isLoadingHistory && !input.trim();
     const chatUserId = session?.user?.id || userProfile?.id || 'guest';
-    const resumenHoy = useResumenDeHoy(chatUserId, atajosVisibles);
+    // [P1-PLAN-LOTE-412] con el chat abierto (no solo con los atajos): el saludo también los usa
+    const resumenHoy = useResumenDeHoy(chatUserId, true);
+    // [P1-PLAN-LOTE-412] el saludo se escribió antes de tener los números (primera visita del día o sin caché): si el
+    // hilo sigue siendo solo el saludo y es de hace un momento, se reescribe con ellos. La semilla es la misma, así que
+    // si los números no cambiaron el texto tampoco.
+    useEffect(() => {
+        if (!resumenHoy.totales) return;
+        setMessages((prev) => {
+            if (!Array.isArray(prev) || prev.length !== 1 || !prev[0]?.isWelcome) return prev;
+            if (Date.now() - (prev[0].welcomeAt || 0) > 15000) return prev;
+            const nuevo = generateIntelligentWelcome(userProfile, formData, planData, resumenHoy);
+            return nuevo === prev[0].content ? prev : [{ ...prev[0], content: nuevo }];
+        });
+    }, [resumenHoy, userProfile, formData, planData]);
     const atajos = atajosDelChat({
         hora: new Date().getHours(),
         modoContador: enModoContador,

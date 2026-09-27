@@ -114,23 +114,35 @@ describe('[P1-NEVERA-OPCIONAL] generateIntelligentWelcome — el almuerzo sin pl
 
     // El saludo completo es `${timeGreeting}${firstName}! ${mealContext}` (P1-WELCOME-TEST-CLOCK): se comprueba
     // el mealContext por `toContain`, no por igualdad exacta del saludo entero.
-    it('con la Nevera activa, la variante puede mencionarla', () => {
-        vi.spyOn(Math, 'random').mockReturnValue(0.99); // fuerza la 3ª (última) variante del array de 3
-        const saludo = generateIntelligentWelcome({ id: 'u1', plan_mode: 'tracking', nevera_activa: true }, {}, null);
-        expect(saludo).toContain('¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.');
+    // [P1-PLAN-LOTE-412] El saludo ya no elige con `Math.random` sino con una semilla (usuario, día, media hora) y
+    // su invitación de la franja puede ofrecer «¿Qué tienes en la nevera?». El contrato es el mismo: con la Nevera
+    // activa ALGUNA variante la ofrece; apagada, NINGUNA la menciona. Se recorren las medias horas del almuerzo.
+    const saludosDelAlmuerzo = (perfil) => {
+        const salida = [];
+        for (let m = 0; m < 180; m += 30) {
+            vi.setSystemTime(new Date(2026, 8, 23, 12, m, 0));
+            for (const id of ['u1', 'u2', 'u3', 'u4']) {
+                salida.push(generateIntelligentWelcome(perfil === null ? null : { id, ...perfil }, {}, null));
+            }
+        }
+        return salida;
+    };
+
+    it('con la Nevera activa, alguna variante la ofrece', () => {
+        const saludos = saludosDelAlmuerzo({ plan_mode: 'tracking', nevera_activa: true });
+        expect(saludos.some((s) => s.includes('¿Qué tienes en la nevera? Con eso te armo una idea.'))).toBe(true);
     });
 
-    it('con la Nevera apagada, no la menciona', () => {
-        vi.spyOn(Math, 'random').mockReturnValue(0.99);
-        const saludo = generateIntelligentWelcome({ id: 'u1', plan_mode: 'tracking', nevera_activa: false }, {}, null);
-        expect(saludo).toContain('¿Necesitas ideas para tu comida del mediodía? Cuéntame qué se te antoja.');
-        expect(saludo.toLowerCase()).not.toContain('nevera');
+    it('con la Nevera apagada, ninguna la menciona', () => {
+        const saludos = saludosDelAlmuerzo({ plan_mode: 'tracking', nevera_activa: false });
+        expect(saludos.length).toBeGreaterThan(10);
+        expect(saludos.some((s) => s.toLowerCase().includes('nevera'))).toBe(false);
     });
 
     it('sin perfil (invitado), la Nevera se asume activa: no rompe el saludo por defecto', () => {
-        vi.spyOn(Math, 'random').mockReturnValue(0.99);
-        const saludo = generateIntelligentWelcome(null, {}, null);
-        expect(saludo).toContain('¿Necesitas ideas para tu comida del mediodía? Dime qué hay en tu nevera.');
+        const saludos = saludosDelAlmuerzo(null);
+        expect(saludos.every((s) => s.length > 10)).toBe(true);
+        expect(saludos.some((s) => s.includes('nevera'))).toBe(true);
     });
 });
 

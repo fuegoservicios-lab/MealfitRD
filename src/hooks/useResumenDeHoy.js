@@ -4,11 +4,27 @@
 // (`mealfit:refresh-inventory`, que emiten el escáner, el componedor y el coach al registrar).
 import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '../config/api';
+import { safeLocalStorageGet, safeLocalStorageSet } from '../utils/safeLocalStorage';
 
 const _hoy = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+
+// [P1-PLAN-LOTE-412] el último resumen del día, para que el saludo del coach lo use al instante (sin esperar la red).
+// Por usuario y por fecha: otro usuario u otro día no lo ven.
+const CLAVE = 'mealfit_resumen_hoy';
+export function leerResumenDeHoy(userId) {
+    if (!userId || userId === 'guest') return null;
+    try {
+        const d = JSON.parse(safeLocalStorageGet(CLAVE, 'null'));
+        return d && d.uid === userId && d.fecha === _hoy() ? d.resumen : null;
+    } catch {
+        return null;
+    }
+}
+// sin almacenamiento (modo privado de iOS, cuota) el saludo sale sin números: no pasa nada
+const _guardar = (userId, resumen) => safeLocalStorageSet(CLAVE, { uid: userId, fecha: _hoy(), resumen });
 
 export function useResumenDeHoy(userId, activo) {
     const [resumen, setResumen] = useState({ totales: null, comidas: null, metas: null });
@@ -26,11 +42,14 @@ export function useResumenDeHoy(userId, activo) {
                 const m = await rt.json().catch(() => null);
                 if (!vivo) return;
                 const tot = c?.totals;
-                setResumen({
+                const nuevo = {
                     totales: tot ? { calories: tot.calories, protein: tot.protein, carbs: tot.carbs, fats: tot.healthy_fats ?? tot.fats } : null,
                     comidas: Array.isArray(c?.meals) ? c.meals.map((x) => String(x.meal_type || '').toLowerCase()) : null,
-                    metas: m?.ok ? m : null,
-                });
+                    // solo lo que usan el saludo y los atajos (los micros no hacen falta en la caché)
+                    metas: m?.ok ? { ok: true, calories: m.calories, macros: m.macros } : null,
+                };
+                _guardar(userId, nuevo);
+                setResumen(nuevo);
             } catch {
                 // sin números, los atajos salen sin cifras
             }
