@@ -1,7 +1,7 @@
 // frontend/src/pages/AdminPage.jsx
 // [P1-PLAN-LOTE-579 · 2026-09-27] Panel de administración, capa 1 (docs/superpowers/specs/2026-09-27-panel-admin-design.md).
 // Pintor GENÉRICO: el servidor manda cada bloque con su título y sus filas ya redactadas (una métrica nueva es solo
-// backend) y aquí solo se pintan. Es interno —solo el dueño, solo español—: los pocos textos fijos van con I18N-EXEMPT.
+// backend) y aquí solo se pintan. Es interno —solo el dueño, solo español—: los pocos textos fijos llevan su marca de exención de i18n, una por línea.
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { fetchWithAuth } from '../config/api';
