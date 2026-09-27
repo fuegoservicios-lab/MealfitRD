@@ -23,17 +23,19 @@ beforeEach(() => {
 
 describe('lote 135 · la invitación al plan: una vez por semana y por usuario', () => {
     it('el «1» heredado y el espejo de OTRO usuario no esconden nada: se pregunta al servidor', () => {
+        // [P1-PLAN-LOTE-419 · 2026-09-27] Con AHORA explícito, como el resto del archivo: sin él `escondidaHasta` mide
+        // contra el reloj REAL y el test caducó el 27-sep a las 15:00 UTC (AHORA + SEMANA_MS), tumbando un gate.
         localStorage.setItem(CLAVE, '1');
-        expect(escondidaHasta(CLAVE, 'u1')).toBe(0);
+        expect(escondidaHasta(CLAVE, 'u1', AHORA)).toBe(0);
         localStorage.setItem(CLAVE, JSON.stringify({ u: 'u2', until: AHORA + SEMANA_MS }));
-        expect(escondidaHasta(CLAVE, 'u1')).toBe(0);
-        expect(escondidaHasta(CLAVE, 'u2')).toBe(AHORA + SEMANA_MS);
+        expect(escondidaHasta(CLAVE, 'u1', AHORA)).toBe(0);
+        expect(escondidaHasta(CLAVE, 'u2', AHORA)).toBe(AHORA + SEMANA_MS);
     });
 
     it('«Ahora no» la esconde EN EL ACTO una semana, con o sin red, y se lo dice al servidor', async () => {
         fetchWithAuth.mockRejectedValue(new Error('sin red'));
         await anotarInvitacion(CLAVE, 'u1', 'dismiss', AHORA);
-        expect(escondidaHasta(CLAVE, 'u1')).toBe(AHORA + SEMANA_MS);
+        expect(escondidaHasta(CLAVE, 'u1', AHORA)).toBe(AHORA + SEMANA_MS);
         expect(fetchWithAuth).toHaveBeenCalledWith('/api/user/preferences/plan-invite', expect.objectContaining({
             method: 'PATCH', body: JSON.stringify({ action: 'dismiss' }),
         }));
