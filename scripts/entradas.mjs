@@ -31,4 +31,8 @@
  * como service worker aparte, así que sin declararlo aquí su subárbol entero queda fuera
  * del alcance —y es donde vive el copy de las notificaciones push.
  */
-export const ENTRADAS = ['main.jsx', 'custom-sw.js'];
+// [P1-PLAN-LOTE-431 · 2026-09-27] `workers/chatImage.worker.js` (lote 306): lo carga
+// `new Worker(new URL('../workers/chatImage.worker.js', import.meta.url))` en chatImageProcessing.js, una forma que el
+// grafo de imports no sigue — sin declararlo aquí era «huérfano» y `huerfanos.mjs --gate` tenía la CI en rojo desde
+// ese lote. No lleva copy de interfaz, así que entrar en el alcance de i18n no mueve el trinquete.
+export const ENTRADAS = ['main.jsx', 'custom-sw.js', 'workers/chatImage.worker.js'];
