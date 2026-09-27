@@ -119,6 +119,7 @@ const NewsArticlePage = lazy(() => import('./pages/NewsArticlePage'));
 // [P1-SUPERMARKET-DB · 2026-07-02] Supermercado RD: base de datos pública de alimentos
 // verificados (+variantes de marca) con edición admin en la misma página.
 const SupermarketPage = lazy(() => import('./pages/SupermarketPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 // [P3-RESPONSIBLE-DISCLOSURE · 2026-06-30] Política de divulgación responsable (seguridad).
 const ResponsibleDisclosure = lazy(() => import('./pages/legal/LegalPages').then(m => ({ default: m.ResponsibleDisclosure })));
 // [P3-ENGINE-INFO-PAGE · 2026-06-28] Página pública informativa del motor v1.0.0.
@@ -678,6 +679,14 @@ function App() {
               NATIVE_NO_COMMERCE
                 ? <Navigate to="/dashboard" replace />
                 : <Layout><SupermarketPage /></Layout>
+            } />
+
+            {/* [P1-PLAN-LOTE-579] Panel interno del dueño: solo web (en la app nativa no existe) y con sesión; el
+                servidor decide quién entra (404 fuera de MEALFIT_ADMIN_USER_IDS) y aquí eso vuelve al dashboard. */}
+            <Route path="/admin" element={
+              NATIVE_NO_COMMERCE
+                ? <Navigate to="/dashboard" replace />
+                : <ProtectedRoute><AdminPage /></ProtectedRoute>
             } />
 
             {/* [P3-ENGINE-INFO-PAGE · 2026-06-28] Motor v1.0.0 (pública, indexable, en el apex). */}
