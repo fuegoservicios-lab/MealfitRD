@@ -26,6 +26,9 @@ import BotAvatar from '../components/agent/BotAvatar';
 // se monta keep-alive para todos los que abren el chat. Espejo de LazyMarkdown.
 import { VIRTUALIZE_THRESHOLD } from '../components/agent/virtualizeThreshold';
 const VirtualizedMessageList = lazy(() => import('../components/agent/VirtualizedMessageList'));
+// [P1-PLAN-LOTE-411] los atajos «Escanear mi plato» y «Anotar comida» abren sus hojas aquí mismo (bajo demanda)
+const ScanMealModal = lazy(() => import('../components/dashboard/ScanMealModal'));
+const LogMealModal = lazy(() => import('../components/dashboard/LogMealModal'));
 import { SidebarRecientes } from '../components/agent/SidebarRecientes';
 import { safeJSONParse } from '../utils/safeJSONParse';
 // [P2-NEW-LOCALSTORAGE-MIGRATION-DEBT · 2026-05-15] Ver ChatWidget.jsx para
@@ -127,6 +130,8 @@ import { useDictado } from '../hooks/useDictado';
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
+import { atajosDelChat, metasEnNumeros } from '../utils/atajosDelChat';
+import { useResumenDeHoy } from '../hooks/useResumenDeHoy';
 import { nativeHidesCommerce } from '../config/platform';
 
 // [P3-I18N-MARCA-HORNEADA-EN-26-CLAVES] la marca entra como variable, no horneada en la clave.
@@ -617,6 +622,8 @@ const AgentPage = () => {
     // saludo tiene su propio cálculo porque es una función pura fuera de React;
     // el menú se pinta aquí dentro y necesita el suyo. Mismo SSOT, dos ámbitos.
     const enModoContador = isTrackingMode(userProfile, planData);
+    // [P1-PLAN-LOTE-411] la hoja que abrió un atajo: { tipo: 'escanear'|'anotar', mealType?, daysAgo? }
+    const [hojaDeComida, setHojaDeComida] = useState(null);
     const navigate = useNavigate();
     // [P1-SETTINGS-DIALOG · 2026-08-10] Ubicación de fondo para abrir la
     // configuración como ventana sin desmontar la conversación.
@@ -4689,23 +4696,41 @@ const AgentPage = () => {
                 en un teléfono cuesta; en PC el usuario ya tiene el teclado delante y las tres frases ocupan una
                 fila entera sobre la caja sin ahorrarle nada. `isMobile` es el mismo corte de 1024 px que decide
                 si la caja va pegajosa o fija, así que el atajo aparece exactamente donde la caja es «de móvil». */}
-            {isMobile && !isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (
+            {!isCentered && atajosVisibles && (
                 <div className="chat-quick-chips" role="group" aria-label={t('Acciones rápidas')}>
-                    {/* [P1-PLAN-LOTE-137] Con el generador apagado no hay nada que «toque» ni plato que cambiar: un
-                        toque gastaba 1 de los mensajes del mes en un «no puedo». El contador tiene sus tres. */}
-                    {(enModoContador
-                        ? [t('¿Qué me falta hoy?'), t('Registrar lo que comí'), t('Proponme una comida')]
-                        : [t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')]).map((texto) => (
+                    {/* [P1-PLAN-LOTE-411] dos acciones que abren sus hojas (no gastan mensajes) y la pregunta del momento
+                        con los números del día; el modo contador no ofrece «qué me toca» (P1-PLAN-LOTE-137). */}
+                    {atajos.map((a) => (
                         <button
-                            key={texto}
+                            key={a.id}
                             type="button"
-                            className="chat-quick-chip"
-                            onClick={() => handleSend(texto)}
+                            className={a.tipo === 'accion' ? 'chat-quick-chip chat-quick-chip-accion' : 'chat-quick-chip'}
+                            onClick={() => (a.tipo === 'accion' ? setHojaDeComida({ tipo: a.accion }) : handleSend(a.mensaje))}
                         >
-                            {texto}
+                            {a.texto}
                         </button>
                     ))}
                 </div>
+            )}
+            {hojaDeComida?.tipo === 'anotar' && (
+                <Suspense fallback={null}>
+                    <LogMealModal
+                        userId={chatUserId}
+                        onClose={() => setHojaDeComida(null)}
+                        onScan={(d) => setHojaDeComida({ tipo: 'escanear', ...(d || {}) })}
+                    />
+                </Suspense>
+            )}
+            {hojaDeComida?.tipo === 'escanear' && (
+                <Suspense fallback={null}>
+                    <ScanMealModal
+                        isOpen
+                        userId={chatUserId}
+                        onClose={() => setHojaDeComida(null)}
+                        initialMealType={hojaDeComida.mealType}
+                        initialDaysAgo={hojaDeComida.daysAgo || 0}
+                    />
+                </Suspense>
             )}
             {/* [P1-PLAN-LOTE-322] Las dudas de la foto, respondibles con un toque, cuando el coach ya contestó. */}
             {dudasDeLaFoto.length > 0 && !isTurnActive && !chatDeOtroDia && dudasDeLaFotoSesionRef.current === currentSessionId && (
@@ -5174,6 +5199,20 @@ const AgentPage = () => {
     const gruposConEtiqueta = groupedSessions.map(
         (g) => ({ ...g, label: ETIQUETA_GRUPO[g.id] ?? '' })
     );
+    // [P1-PLAN-LOTE-411] los atajos: se ven con el hilo recién empezado (≤4 mensajes), en el teléfono y sin escribir;
+    // los números del día se piden solo mientras se ven
+    const atajosVisibles = isMobile && messages.length > 0 && messages.length <= 4 && !isTurnActive
+        && !isLoadingHistory && !input.trim();
+    const chatUserId = session?.user?.id || userProfile?.id || 'guest';
+    const resumenHoy = useResumenDeHoy(chatUserId, atajosVisibles);
+    const atajos = atajosDelChat({
+        hora: new Date().getHours(),
+        modoContador: enModoContador,
+        metas: metasEnNumeros(!enModoContador && planData?.calories ? planData : resumenHoy.metas),
+        totales: resumenHoy.totales,
+        comidas: resumenHoy.comidas,
+        t,
+    });
     return (
         <>
             <style>{`
@@ -5267,6 +5306,13 @@ const AgentPage = () => {
                     cursor: pointer;
                     white-space: nowrap;
                     transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+                }
+                /* [P1-PLAN-LOTE-411] las dos acciones (abren su hoja, no gastan mensajes) se distinguen de las preguntas */
+                .chat-quick-chip.chat-quick-chip-accion {
+                    border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+                    background: color-mix(in srgb, var(--primary) 12%, var(--bg-card));
+                    color: var(--primary);
+                    font-weight: 600;
                 }
                 .chat-quick-chip:hover,
                 .chat-quick-chip:focus-visible {

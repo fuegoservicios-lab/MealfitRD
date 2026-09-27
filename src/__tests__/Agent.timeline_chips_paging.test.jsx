@@ -78,12 +78,15 @@ describe('acciones rápidas con el hilo corto', () => {
         // [P2-CHAT-CHIPS-MOBILE-ONLY · 2026-09-05] La guarda gana `isMobile &&` por delante: en PC los tres
         // atajos ocupaban una fila entera sobre la caja sin ahorrar nada (el teclado ya está delante). Las
         // cinco condiciones que este test vigila —hilo corto, sin turno activo, caja vacía— siguen intactas.
-        expect(AGENT).toContain('{isMobile && !isCentered && messages.length > 0 && messages.length <= 4 && !isTurnActive && !isLoadingHistory && !input.trim() && (');
+        // [P1-PLAN-LOTE-411] la guarda vive en `atajosVisibles` (la usa también la lectura de los números del día)
+        expect(AGENT).toContain('const atajosVisibles = isMobile && messages.length > 0 && messages.length <= 4 && !isTurnActive');
+        expect(AGENT).toContain('&& !isLoadingHistory && !input.trim();');
+        expect(AGENT).toContain('{!isCentered && atajosVisibles && (');
         // dentro del wrapper sticky de la caja (fuera, la caja los tapaba en escritorio)
         expect(AGENT.indexOf('className="chat-quick-chips"')).toBeGreaterThan(AGENT.indexOf('const renderInputArea = (isCentered = false) => ('));
         expect(AGENT.indexOf('className="chat-quick-chips"')).toBeLessThan(AGENT.indexOf("<div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', minWidth: 0, position: 'relative' }}>"));
-        expect(AGENT).toContain("[t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')]");
-        expect(AGENT).toContain('onClick={() => handleSend(texto)}');
+        // [P1-PLAN-LOTE-411] acciones que abren su hoja y preguntas del momento (atajosDelChat.js, lote411.test.js)
+        expect(AGENT).toContain("onClick={() => (a.tipo === 'accion' ? setHojaDeComida({ tipo: a.accion }) : handleSend(a.mensaje))}");
         expect(AGENT).toContain('.chat-quick-chip {');
         // el hilo nunca desplaza en horizontal (barra gruesa al pie del hilo en Windows)
         expect(AGENT).toContain('.messages-container { overflow-x: hidden !important; }');
@@ -103,7 +106,7 @@ describe('Recientes: «Ver más»', () => {
     it('catálogos: claves nuevas en los 4 idiomas', () => {
         for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
             const cat = JSON.parse(read(`src/i18n/locales/${loc}.json`));
-            for (const k of ['¿Qué me toca ahora?', 'Registrar lo que comí', 'Cambiar un plato', 'Ver más', 'Acciones rápidas', 'Hoy', 'Ayer']) {
+            for (const k of ['¿Qué me toca ahora?', 'Ver más', 'Acciones rápidas', 'Hoy', 'Ayer']) {
                 expect(cat[k], `${loc}: ${k}`).toBeTruthy();
             }
         }

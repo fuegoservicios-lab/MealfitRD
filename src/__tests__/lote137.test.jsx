@@ -182,8 +182,9 @@ describe('lote 137 · el Agente', () => {
 
     it('los atajos del teléfono y las píldoras del estado vacío son los del contador', () => {
         const a = leer('src/pages/AgentPage.jsx');
-        expect(a).toContain("? [t('¿Qué me falta hoy?'), t('Registrar lo que comí'), t('Proponme una comida')]");
-        expect(a).toContain(": [t('¿Qué me toca ahora?'), t('Registrar lo que comí'), t('Cambiar un plato')]).map((texto) => (");
+        // [P1-PLAN-LOTE-411] el contador no ofrece «qué me toca»: su atajo de modo es «¿Cómo voy hoy?»
+        expect(a).toContain('modoContador: enModoContador,');
+        expect(leer('src/utils/atajosDelChat.js')).toContain("candidatos.push(modoContador ? msg('como-voy', t('¿Cómo voy hoy?')) : msg('me-toca', t('¿Qué me toca ahora?')));");
         expect(a).toContain("? [{ icon: '💪', text: t('¿Cuánta proteína me falta hoy?') },");
     });
 
