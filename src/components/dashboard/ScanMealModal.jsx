@@ -311,8 +311,8 @@ FilaComponente.propTypes = {
 const _getMealTypes = (t) => [..._getMealTypesBase(t), _getMealTypeExtra(t)];
 
 /** [P1-PLAN-LOTE-387] La comida y el día de UN plato, en su tarjeta: «Extra · Hoy ✎» abre ahí mismo las opciones (el
- *  366 las escondía al final del editor y el dueño no las encontró). Elegir marca el plato aparte; «Usar lo de abajo»
- *  lo devuelve a lo común; «Listo» cierra. */
+ *  366 las escondía al final del editor y el dueño no las encontró). Elegir marca el plato aparte; «Listo» cierra.
+ *  [P1-PLAN-LOTE-389] Con varios platos es el ÚNICO sitio (ya no hay «lo de abajo» al que volver). */
 const DestinoDelPlato = ({ nombre, destino, etiqueta, opcionesDia, abierto, bloqueado, onAbrir, onCerrar, onDestino }) => {
     const t = useT();
     const idRegion = `destino-${String(nombre).replace(/\W+/g, '-')}`;
@@ -320,7 +320,7 @@ const DestinoDelPlato = ({ nombre, destino, etiqueta, opcionesDia, abierto, bloq
         return (
             <button
                 type="button"
-                className={`${styles.destinoBtn} ${destino.propio ? styles.platoDestinoPropio : ''}`}
+                className={styles.destinoBtn}
                 disabled={bloqueado}
                 onClick={onAbrir}
                 aria-label={t('Comida y día de {nombre}: {destino}', { nombre, destino: etiqueta })}
@@ -348,11 +348,6 @@ const DestinoDelPlato = ({ nombre, destino, etiqueta, opcionesDia, abierto, bloq
                 disabled={bloqueado}
             />
             <div className={styles.destinoAcciones}>
-                {destino.propio && (
-                    <button type="button" className={styles.corregirPlato} disabled={bloqueado} onClick={() => { onDestino(null); onCerrar(); }}>
-                        {t('Usar lo de abajo')}
-                    </button>
-                )}
                 <button type="button" className={styles.destinoListo} onClick={onCerrar}>{t('Listo')}</button>
             </div>
         </section>
@@ -1389,11 +1384,11 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
 
                         {enRevision && (
                             <>
+                                {/* [P1-PLAN-LOTE-389] con varios platos, la comida y el día están en cada tarjeta: aquí sobraban
+                                    (dos sitios para lo mismo). Con uno, aquí, como siempre. */}
+                                {unSolo && (<>
                                 <section className={styles.section} aria-labelledby="scan-q-tipo">
                                     <h3 id="scan-q-tipo" className={styles.sectionTitle}>{t('¿Qué comida es?')}</h3>
-                                    {!unSolo && platos.some((x) => x.destino) && (
-                                        <p className={styles.componentsHint}>{t('Para los platos que no marcaste aparte.')}</p>
-                                    )}
                                     <Chips
                                         label={t('Tipo de comida')}
                                         options={_getMealTypes(t)}
@@ -1407,6 +1402,7 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                                     <h3 id="scan-q-cuando" className={styles.sectionTitle}>{t('¿Cuándo?')}</h3>
                                     <Chips label={t('Día')} options={_getDayOptionsCon(t, initialDaysAgo)} value={daysAgo} onChange={setDaysAgo} disabled={guardando} />
                                 </section>
+                                </>)}
 
                                 {/* [P1-PLAN-LOTE-224] El mismo interruptor que el componedor. Solo con la Nevera en uso
                                     y algo marcado que descontar. */}

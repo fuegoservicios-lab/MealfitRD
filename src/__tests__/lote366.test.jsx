@@ -63,7 +63,6 @@ const elegir = (...files) => {
     const inputs = document.querySelectorAll('input[type="file"]');
     fireEvent.change(inputs[inputs.length - 1], { target: { files } });
 };
-const grupoDeAbajo = (nombre) => within(screen.getAllByRole('group', { name: nombre }).at(-1));
 
 describe('[366] el destino de un plato', () => {
     it('sin destino propio sigue lo de abajo; con destino propio, el suyo', () => {
@@ -77,11 +76,10 @@ describe('[366] el destino de un plato', () => {
 describe('[366] dos fotos, dos comidas', () => {
     it('la batida va al desayuno de ayer y el plátano al almuerzo de hoy', async () => {
         cola = [PLATANO, BATIDA];
-        render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" />);
+        // [P1-PLAN-LOTE-389] con varios platos no hay sección de abajo: nacen en la comida pedida y se cambian en la tarjeta
+        render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" initialMealType="almuerzo" />);
         elegir(foto('a.jpg'), foto('b.jpg'));
         const registrar = await screen.findByRole('button', { name: /Registrar 2 platos/ });
-        fireEvent.click(grupoDeAbajo('Tipo de comida').getByRole('button', { name: 'Almuerzo' }));
-        fireEvent.click(grupoDeAbajo('Día').getByRole('button', { name: 'Hoy' }));
 
         // cada tarjeta dice a dónde va
         expect(screen.getAllByText('Almuerzo · Hoy')).toHaveLength(2);
@@ -94,8 +92,11 @@ describe('[366] dos fotos, dos comidas', () => {
         fireEvent.click(within(propio).getByRole('button', { name: 'Listo' }));
         expect(screen.getByText('Desayuno · Ayer')).toBeInTheDocument();
 
-        // cambiar lo de abajo ya no la mueve
-        fireEvent.click(grupoDeAbajo('Tipo de comida').getByRole('button', { name: 'Cena' }));
+        // el otro plato, a la cena, también desde su tarjeta
+        fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Plátano con chuleta/ }));
+        const otro = screen.getByRole('region', { name: '¿Qué comida es este plato?' });
+        fireEvent.click(within(otro).getByRole('button', { name: 'Cena' }));
+        fireEvent.click(within(otro).getByRole('button', { name: 'Listo' }));
         expect(screen.getByText('Desayuno · Ayer')).toBeInTheDocument();
         expect(screen.getByText('Cena · Hoy')).toBeInTheDocument();
 
@@ -109,18 +110,7 @@ describe('[366] dos fotos, dos comidas', () => {
         expect(toast.success.mock.calls[0][1].description).toContain('Batida de lechosa quedó en el diario de ayer');
     });
 
-    it('«Usar lo de abajo» la devuelve al destino común', async () => {
-        cola = [PLATANO, BATIDA];
-        render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" />);
-        elegir(foto('a.jpg'), foto('b.jpg'));
-        await screen.findByRole('button', { name: /Registrar 2 platos/ });
-        fireEvent.click(grupoDeAbajo('Tipo de comida').getByRole('button', { name: 'Almuerzo' }));
-        fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Batida de lechosa/ }));
-        fireEvent.click(within(screen.getByRole('region', { name: '¿Qué comida es este plato?' })).getByRole('button', { name: 'Desayuno' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Usar lo de abajo' }));
-        expect(screen.queryByRole('region', { name: '¿Qué comida es este plato?' })).toBeNull();
-        expect(screen.queryByText(/^Desayuno · /)).toBeNull();
-    });
+    // [P1-PLAN-LOTE-389] «Usar lo de abajo» se retiró con la sección de abajo (lote389.test.jsx)
 
     it('con una sola foto no aparece nada nuevo', async () => {
         cola = [BATIDA];

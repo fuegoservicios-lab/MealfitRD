@@ -101,7 +101,6 @@ describe('[380] al quedar un plato, su comida y su día pasan a los de abajo', (
         elegir(foto('a.jpg'), foto('b.jpg'));
         await screen.findByRole('button', { name: /Registrar 2 platos/ });
         const abajo = (n) => within(screen.getAllByRole('group', { name: n }).at(-1));
-        fireEvent.click(abajo('Tipo de comida').getByRole('button', { name: 'Almuerzo' }));
         fireEvent.click(screen.getByRole('button', { name: /^Comida y día de Jugo/ }));   // [P1-PLAN-LOTE-387]
         const propio = within(screen.getByRole('region', { name: '¿Qué comida es este plato?' }));
         fireEvent.click(propio.getByRole('button', { name: 'Desayuno' }));

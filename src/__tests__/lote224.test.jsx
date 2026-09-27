@@ -338,12 +338,12 @@ describe('lote 224 · un plato', () => {
 describe('lote 224 · varios platos', () => {
     it('dos fotos a la vez: dos tarjetas, el total en el pie y dos registros en serie con el mismo día y tipo', async () => {
         colaAnalisis = [ESPAGUETIS, JUGO];
-        abrir();
+        // [P1-PLAN-LOTE-389] con varios platos no hay chips de abajo: el día llega de quien abre el escáner (el Diario)
+        render(<ScanMealModal isOpen onClose={vi.fn()} userId="u1" initialDaysAgo={1} />);
         elegir(foto('a.jpg'), foto('b.jpg'));
         const boton = await screen.findByRole('button', { name: /Registrar 2 platos/ });
         expect(screen.getByText(/^2 platos · /)).toBeInTheDocument();
         expect(screen.getByText('La IA estimó esto por las fotos. Corrige lo que no cuadre.')).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Ayer' }));
         fireEvent.click(boton);
         await waitFor(() => expect(consumidas).toHaveLength(2));
         expect(consumidas.map((b) => b.meal_name)).toEqual(['Espaguetis con albóndigas', 'Jugo de chinola']);
