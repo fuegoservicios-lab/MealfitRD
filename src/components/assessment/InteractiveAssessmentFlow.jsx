@@ -18,6 +18,7 @@ import { QStapleFoods } from './questions/QStapleFoods';
 // [P1-ARQ25-F4-FORM · 2026-09-03] Formulario progresivo (Fase 4) + embudo del wizard.
 import { QMealOrganization } from './questions/QMealOrganization';
 import { QShoppingHabits } from './questions/QShoppingHabits';
+import { metaDePesoAplica } from '../../utils/metaDePeso';
 import { PLAN_POLICY_FORM_UI } from '../../config/planPolicy';
 import { trackWizard, flushWizardTelemetry } from '../../utils/wizardTelemetry';
 // [P1-PLAN-MODE · 2026-08-11] El paso 0 (¿plan o contador?) y el cierre del modo
@@ -359,7 +360,7 @@ const InteractiveAssessmentFlow = () => {
     // de verdad: el orden determina el índice, y `buildFieldToStepIndex` (más
     // abajo) construye el mapping `field → step index` en runtime. Reordenar
     // o insertar steps no rompe la navegación a campo faltante.
-    const planOnlySteps = [
+    const _pasosDelPlan = [
         // [P1-PANTRY-FIRST-PLAN · 2026-07-11] F3: primera decisión del formulario —
         // plan libre vs construido desde la Nevera. Campo `planSource` viaja en el
         // payload del SSE (spread de formData); el backend inyecta el inventario
@@ -658,6 +659,10 @@ const InteractiveAssessmentFlow = () => {
             component: <QPantryBuilder onFinish={submitAndGenerate} isSubmitting={isSubmitting} />
         }] : [])
     ];
+    // [P1-PLAN-LOTE-430] «Tu meta de peso» solo cuando se usa (perder grasa / ganar músculo): con mantenimiento o
+    // rendimiento nadie la lee. Se quita aquí, en el origen, para que las tres ramas (plan, contador y completar) lo
+    // hereden; el array de arriba conserva su final (el paso Nevera, ÚLTIMO) tal cual.
+    const planOnlySteps = _pasosDelPlan.filter((st) => st.id !== 'goalTarget' || metaDePesoAplica(formData.mainGoal));
 
     // [P1-PLAN-MODE · 2026-08-11] EL FORMULARIO SE BIFURCA POR MODO.
     //
