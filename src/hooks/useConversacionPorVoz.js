@@ -66,6 +66,9 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
     const silenciadoRef = useRef(false);   // el usuario lo interrumpió: el resto de ESTE turno no se dice
     const llegoTextoRef = useRef(false);   // este turno trajo algo que decir
     const escucharRef = useRef(null);
+    // Safari puede exigir un toque para cada arranque del micrófono. Si un arranque AUTOMÁTICO se niega, el resto de la
+    // sesión sigue por toques («Toca el círculo para hablar») en vez de enseñar un error de permisos que no es tal.
+    const soloConToqueRef = useRef(false);
 
     const soltarTemporizadores = () => {
         for (const r of [finFraseRef, sinVozRef, topeRef, reanudarRef]) {
@@ -79,7 +82,9 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         if (reanudarRef.current) clearTimeout(reanudarRef.current);
         reanudarRef.current = setTimeout(() => {
             reanudarRef.current = null;
-            if (estadoRef.current !== 'cerrado') escucharRef.current?.();
+            if (estadoRef.current === 'cerrado') return;
+            if (soloConToqueRef.current) { setEstado('pausa'); return; }
+            escucharRef.current?.(false);
         }, VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS);
     };
 
@@ -134,7 +139,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         if (!vozRef.current?.ocupada) programarEscucha();
     };
 
-    const escuchar = useCallback(() => {
+    const escuchar = useCallback((desdeToque = true) => {
         if (estadoRef.current === 'cerrado') return;
         const Motor = motorDeDictado();
         if (!Motor) {
@@ -197,7 +202,12 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
             if (id !== sesionRef.current) return;
             recRef.current = null;
             soltarTemporizadores();
-            if (reintentar) { escucharRef.current?.(); return; }
+            if (reintentar) { escucharRef.current?.(desdeToque); return; }
+            if (fallo && !desdeToque && (fallo === 'not-allowed' || fallo === 'service-not-allowed')) {
+                soloConToqueRef.current = true;
+                setEstado('pausa');
+                return;
+            }
             if (fallo) {
                 setError(mensajeDeErrorDeDictado(fallo));
                 setEstado('error');
@@ -213,6 +223,11 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
             rec.start();
         } catch {
             recRef.current = null;
+            if (!desdeToque) {
+                soloConToqueRef.current = true;
+                setEstado('pausa');
+                return;
+            }
             setError(mensajeDeErrorDeDictado('start'));
             setEstado('error');
         }
@@ -230,6 +245,7 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         idiomaRef.current = 0;
         turnoRef.current = false;
         silenciadoRef.current = false;
+        soloConToqueRef.current = false;
         const v = voz();
         v.desbloquear();
         triggerMobileHaptic('medium');
@@ -271,8 +287,10 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         }
         if (e === 'pausa' || e === 'error') {
             vozRef.current?.desbloquear();
-            escuchar();
+            escuchar(true);
         }
+        // `programarEscucha` solo toca refs y setters estables: no hace falta en las dependencias.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [escuchar, setEstado]);
 
     const cerrar = useCallback(() => {
@@ -284,6 +302,11 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
         setDicho('');
         setError(null);
     }, [setEstado]);
+
+    // Chrome carga las voces tarde: pedirlas ya hace que estén cuando el usuario abra el modo voz.
+    useEffect(() => {
+        if (disponible) { try { window.speechSynthesis.getVoices(); } catch { /* sin voces todavía */ } }
+    }, [disponible]);
 
     useEffect(() => {
         const alEsconderse = () => {

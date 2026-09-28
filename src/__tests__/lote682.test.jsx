@@ -167,6 +167,21 @@ describe('useConversacionPorVoz', () => {
         expect(result.current.error).toMatch(/No hubo respuesta/);
     });
 
+    it('si el navegador niega el micrófono sin toque (Safari), sigue por toques y sin error de permisos', async () => {
+        const enviar = vi.fn(() => Promise.resolve());
+        const { result } = montar(enviar);
+        act(() => result.current.abrir());
+        await avanzar(20 + VOZ_PAUSA_ANTES_DE_ESCUCHAR_MS + 10);   // arranque automático tras el saludo
+        const rec = ReconocimientoFalso.ultimo;
+        act(() => { rec.onerror?.({ error: 'not-allowed' }); rec.onend?.(); });
+        expect(result.current.estado).toBe('pausa');
+        expect(result.current.error).toBeNull();
+
+        act(() => result.current.tocar());                          // con toque sí arranca
+        await avanzar(10);
+        expect(result.current.estado).toBe('escuchando');
+    });
+
     it('tocar mientras habla lo interrumpe y, acabado el turno, escucha', async () => {
         let terminarTurno;
         const enviar = vi.fn(() => new Promise((r) => { terminarTurno = r; }));

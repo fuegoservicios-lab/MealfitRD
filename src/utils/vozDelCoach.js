@@ -80,6 +80,11 @@ const PREFERENCIAS = {
 // Las voces buenas se delatan en el nombre: «Google español de Estados Unidos», «Paulina (Mejorada)», «… Natural».
 const CALIDAD = /(natural|neural|premium|enhanced|mejorad|google|siri)/i;
 
+/** El idioma que se le pide al motor cuando aún no hay voz elegida (Chrome carga las voces tarde): uno que exista. */
+export function idiomaDeVoz(locale = 'es-DO') {
+    return (PREFERENCIAS[locale] || PREFERENCIAS['es-DO'])[locale === 'es-DO' ? 1 : 0];
+}
+
 export function elegirVoz(voces, locale = 'es-DO') {
     const orden = (PREFERENCIAS[locale] || PREFERENCIAS['es-DO']).map((p) => p.toLowerCase());
     let mejor = null;
@@ -134,7 +139,8 @@ export function crearVozDelCoach({
         if (frase === undefined) { alVaciarse?.(); return; }
         const gen = generacion;
         const loc = new Locucion(frase);
-        if (voz) { loc.voice = voz; loc.lang = voz.lang; } else loc.lang = locale;
+        if (!voz) cargarVoz();   // la primera frase puede llegar antes que `voiceschanged`
+        if (voz) { loc.voice = voz; loc.lang = voz.lang; } else loc.lang = idiomaDeVoz(locale);
         loc.rate = velocidad;
         loc.pitch = 1;
         let terminada = false;
