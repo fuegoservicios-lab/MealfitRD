@@ -177,16 +177,40 @@ export function crearSintesisNativa({ cargar = cargarSintesis } = {}) {
         else if (tipo === 'error') { porId.delete(id); loc.onerror?.({ error: e?.error }); }
     };
 
+    // El TextToSpeech de Android arranca asíncrono: pedidas demasiado pronto, las voces llegan VACÍAS (no es un
+    // error). Entonces no se da por buena la lista y se vuelve a pedir en el siguiente `getVoices()`.
+    let pidiendoVoces = null;
+    const pedirVoces = (p) => {
+        if (pidiendoVoces) return pidiendoVoces;
+        pidiendoVoces = Promise.resolve()
+            .then(() => p.getVoices())
+            .then((r) => {
+                const lista = (r?.voices || [])
+                    // Las locales primero: `elegirVoz` desempata por orden, y una voz de red tarda en cada frase.
+                    .slice()
+                    .sort((a, b) => Number(Boolean(a?.isNetworkConnectionRequired)) - Number(Boolean(b?.isNetworkConnectionRequired)))
+                    .map((v) => ({
+                        name: v.name,
+                        lang: v.language,
+                        id: v.id,
+                        default: Boolean(v.default),
+                        localService: !v.isNetworkConnectionRequired,
+                    }));
+                if (!lista.length) return;
+                voces = lista;
+                for (const f of oyentesDeVoces) { try { f(); } catch { /* un oyente roto no para a los demás */ } }
+            })
+            .catch(() => { /* sin lista: se habla con el idioma pedido */ })
+            .finally(() => { pidiendoVoces = null; });
+        return pidiendoVoces;
+    };
+
     const listo = cargar().then(async (p) => {
         plugin = p;
         for (const tipo of ['start', 'end', 'boundary', 'error']) {
             await p.addListener(tipo, (e) => despachar(tipo, e));
         }
-        try {
-            const r = await p.getVoices();
-            voces = (r?.voices || []).map((v) => ({ name: v.name, lang: v.language, id: v.id, default: Boolean(v.default) }));
-            for (const f of oyentesDeVoces) { try { f(); } catch { /* un oyente roto no para a los demás */ } }
-        } catch { /* sin lista: se habla con el idioma pedido */ }
+        await pedirVoces(p);
         return p;
     });
 
@@ -232,7 +256,10 @@ export function crearSintesisNativa({ cargar = cargarSintesis } = {}) {
             adelantados.clear();
             try { Promise.resolve(plugin?.cancel?.()).catch(() => {}); } catch { /* nada que cortar */ }
         },
-        getVoices: () => voces,
+        getVoices() {
+            if (!voces.length && plugin) pedirVoces(plugin);    // llegaron vacías: el motor aún arrancaba
+            return voces;
+        },
         addEventListener(tipo, f) { if (tipo === 'voiceschanged') oyentesDeVoces.add(f); },
         removeEventListener(tipo, f) { if (tipo === 'voiceschanged') oyentesDeVoces.delete(f); },
     };

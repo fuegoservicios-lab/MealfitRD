@@ -17,7 +17,7 @@ vi.mock('../config/platform', async (orig) => ({
 
 import { ReconocimientoNativo, crearSintesisNativa, errorWebDesdeAndroid, vozNativaDisponible } from '../utils/vozNativa';
 import { dictadoDisponible, motorDeDictado } from '../utils/dictado';
-import { sintesisDisponible } from '../utils/vozDelCoach';
+import { elegirVoz, sintesisDisponible } from '../utils/vozDelCoach';
 
 const esperar = () => new Promise((r) => setTimeout(r, 0));
 
@@ -202,7 +202,7 @@ describe('crearSintesisNativa', () => {
         synth.addEventListener('voiceschanged', alCargarVoces);
         await esperar(); await esperar(); await esperar();
         expect(alCargarVoces).toHaveBeenCalled();
-        expect(synth.getVoices()).toEqual([{ id: 'es-us-x-sfb-local', name: 'es-us-x-sfb-local', lang: 'es-US', default: false }]);
+        expect(synth.getVoices()).toEqual([{ id: 'es-us-x-sfb-local', name: 'es-us-x-sfb-local', lang: 'es-US', default: false, localService: true }]);
 
         const loc = new Loc('Listo, anoté dos huevos.');
         loc.lang = 'es-US';
@@ -229,6 +229,42 @@ describe('crearSintesisNativa', () => {
         expect(p.speak).toHaveBeenCalledTimes(1);
         synth.cancel();
         expect(p.cancel).toHaveBeenCalled();
+    });
+});
+
+describe('crearSintesisNativa: las voces', () => {
+    it('llegan vacías si el motor aún arrancaba: se vuelven a pedir y avisan cuando llegan', async () => {
+        const p = sintesisFalsa();
+        p.getVoices
+            .mockResolvedValueOnce({ voices: [] })
+            .mockResolvedValueOnce({ voices: [{ id: 'es-us-x-esc-local', name: 'es-us-x-esc-local', language: 'es-US' }] });
+        const { speechSynthesis: synth } = crearSintesisNativa({ cargar: async () => p });
+        const alCargarVoces = vi.fn();
+        synth.addEventListener('voiceschanged', alCargarVoces);
+        await esperar(); await esperar(); await esperar();
+        expect(alCargarVoces).not.toHaveBeenCalled();           // una lista vacía no es «ya están»
+        expect(synth.getVoices()).toEqual([]);                  // …y pedirlas otra vez lanza la segunda petición
+        await esperar(); await esperar();
+        expect(p.getVoices).toHaveBeenCalledTimes(2);
+        expect(alCargarVoces).toHaveBeenCalledTimes(1);
+        expect(synth.getVoices().map((v) => v.id)).toEqual(['es-us-x-esc-local']);
+    });
+
+    it('las locales van antes que las de red (elegirVoz desempata por orden)', async () => {
+        const p = sintesisFalsa();
+        p.getVoices.mockResolvedValueOnce({
+            voices: [
+                { id: 'es-us-x-esf-network', name: 'es-us-x-esf-network', language: 'es-US', isNetworkConnectionRequired: true },
+                { id: 'es-us-x-esc-local', name: 'es-us-x-esc-local', language: 'es-US', isNetworkConnectionRequired: false },
+            ],
+        });
+        const { speechSynthesis: synth } = crearSintesisNativa({ cargar: async () => p });
+        await esperar(); await esperar(); await esperar();
+        expect(synth.getVoices().map((v) => [v.id, v.localService])).toEqual([
+            ['es-us-x-esc-local', true],
+            ['es-us-x-esf-network', false],
+        ]);
+        expect(elegirVoz(synth.getVoices(), 'es-DO').id).toBe('es-us-x-esc-local');
     });
 });
 
