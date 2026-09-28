@@ -11,8 +11,12 @@
 // `resumen` (la franja de arriba: cifra, cambio frente al periodo anterior con su tono y qué significa), `avisos`
 // (alertas por tipo con su gravedad), `serie` (barras por día o semana) y `embudo`. Las filas pueden traer `ayuda`.
 // Los títulos dejan las MAYÚSCULAS espaciadas y las cifras destacadas dejan de ser cajas dentro de cajas.
+// [P1-PLAN-LOTE-770 · 2026-09-28] El dueño: «cuando paso de 7 a 30 parece de repente». La pastilla del periodo se
+// desliza, los datos viejos se quedan atenuados mientras llegan los nuevos (antes la página entera se cambiaba por
+// «Cargando…») y los nuevos entran con un fundido; «Volver a la app» es un botón. Sin animación si el sistema lo pide.
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import styles from './AdminPage.module.css';
 
@@ -27,6 +31,8 @@ const TEXTOS = {
     cargando: 'Cargando…',
     errorCarga: 'No se pudieron cargar las métricas.',
     reintentar: 'Reintentar',
+    actualizando: 'Actualizando…',
+    errorRefresco: 'No se pudo actualizar; sigues viendo los datos anteriores.',
     actualizar: 'Actualizar',
     actualizado: (hora) => `Actualizado a las ${hora}`,
     principales: 'Cifras principales',
@@ -278,6 +284,12 @@ export default function AdminPage() {
     const [estado, setEstado] = useState('cargando');
     const [datos, setDatos] = useState(null);
     const [intento, setIntento] = useState(0);
+    // [P1-PLAN-LOTE-770] Con datos ya pintados, cambiar de periodo NO vuelve a «Cargando…»: los datos se quedan,
+    // atenuados, hasta que llegan los nuevos (y entran con un fundido). `pendiente` es esa espera; `fallo`, que el
+    // refresco falló pero sigue habiendo algo que mostrar.
+    const [pendiente, setPendiente] = useState(false);
+    const [fallo, setFallo] = useState(false);
+    const [version, setVersion] = useState(0);
 
     useEffect(() => {
         fetchWithAuth('/api/admin/yo').catch(() => {});
@@ -285,26 +297,34 @@ export default function AdminPage() {
 
     useEffect(() => {
         let vivo = true;
+        const fallar = () => { if (!vivo) return; setPendiente(false); setFallo(true); setEstado((e) => (e === 'listo' ? e : 'error')); };
         (async () => {
             try {
                 const r = await fetchWithAuth(`/api/admin/metricas?dias=${dias}`);
                 if (!vivo) return;
                 if (r.status === 404 || r.status === 401) { setEstado('fuera'); return; }
-                if (!r.ok) { setEstado('error'); return; }
+                if (!r.ok) { fallar(); return; }
                 const cuerpo = await r.json();
                 if (!vivo) return;
                 setDatos(cuerpo);
+                setVersion((v) => v + 1);
+                setPendiente(false);
+                setFallo(false);
                 setEstado('listo');
             } catch {
-                if (vivo) setEstado('error');
+                fallar();
             }
         })();
         return () => { vivo = false; };
     }, [dias, intento]);
 
-    // El periodo que ya está activo no relanzaría el efecto: sin este corte, «Cargando…» se quedaba para siempre.
-    const elegir = (d) => { if (d === dias) return; setEstado('cargando'); setDias(d); };
-    const recargar = () => { setEstado('cargando'); setIntento((n) => n + 1); };
+    // Con datos a la vista se espera sobre ellos; sin datos, «Cargando…».
+    const empezar = () => { setFallo(false); if (datos) setPendiente(true); else setEstado('cargando'); };
+    // El periodo que ya está activo no relanzaría el efecto: sin este corte, la espera se quedaba para siempre.
+    const elegir = (d) => { if (d === dias) return; empezar(); setDias(d); };
+    const recargar = () => { empezar(); setIntento((n) => n + 1); };
+    const ocupado = estado === 'cargando' || pendiente;
+    const iActivo = Math.max(0, RANGOS.indexOf(dias));
 
     if (estado === 'fuera') return <Navigate to="/dashboard" replace />;
     return (
@@ -314,15 +334,19 @@ export default function AdminPage() {
                     <h1 className={styles.h1}>{TEXTOS.titulo}</h1>
                     {estado === 'listo' && datos && <p className={styles.sub}>{TEXTOS.actualizado(horaDe(datos.generado))}</p>}
                 </div>
-                <Link to="/dashboard" className={styles.volver}>{TEXTOS.volver}</Link>
+                <Link to="/dashboard" className={styles.volver}>
+                    <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
+                    {TEXTOS.volver}
+                </Link>
             </header>
             <div className={styles.barraHerramientas}>
-                <div className={styles.rangos} role="group" aria-label={TEXTOS.periodo}>
+                <div className={styles.rangos} role="group" aria-label={TEXTOS.periodo} style={{ '--i': iActivo, '--n': RANGOS.length }}>
+                    <span className={styles.indicador} aria-hidden="true" data-indicador="" />
                     {RANGOS.map((d) => (
                         <button
                             key={d}
                             type="button"
-                            className={d === dias ? styles.rangoActivo : styles.rango}
+                            className={d === dias ? `${styles.rango} ${styles.rangoActivo}` : styles.rango}
                             aria-pressed={d === dias}
                             onClick={() => elegir(d)}
                         >
@@ -330,7 +354,15 @@ export default function AdminPage() {
                         </button>
                     ))}
                 </div>
-                <button type="button" className={styles.boton} onClick={recargar} disabled={estado === 'cargando'}>{TEXTOS.actualizar}</button>
+                <div className={styles.acciones}>
+                    <span className={styles.refresco} role="status" aria-live="polite">
+                        {pendiente && <><span className={styles.girando} aria-hidden="true" />{TEXTOS.actualizando}</>}
+                        {!pendiente && fallo && estado === 'listo' && TEXTOS.errorRefresco}
+                    </span>
+                    <button type="button" className={styles.boton} onClick={recargar} disabled={ocupado}>
+                        {fallo && estado === 'listo' ? TEXTOS.reintentar : TEXTOS.actualizar}
+                    </button>
+                </div>
             </div>
             {estado === 'cargando' && <p className={styles.estado}>{TEXTOS.cargando}</p>}
             {estado === 'error' && (
@@ -339,14 +371,23 @@ export default function AdminPage() {
                     <button type="button" className={styles.boton} onClick={recargar}>{TEXTOS.reintentar}</button>
                 </div>
             )}
-            {estado === 'listo' && datos && seccionesDe(datos.bloques).map((s, i) => (
-                <div key={`${s.nombre}-${i}`} className={styles.seccion} data-seccion={s.nombre || undefined}>
-                    {s.nombre && <h2 className={styles.seccionTitulo}>{s.nombre}</h2>}
-                    <div className={styles.rejilla}>
-                        {s.bloques.map((b) => <Bloque key={b.id} bloque={b} />)}
-                    </div>
+            {estado === 'listo' && datos && (
+                <div
+                    key={version}
+                    className={pendiente ? `${styles.contenido} ${styles.contenidoEspera}` : styles.contenido}
+                    aria-busy={pendiente ? 'true' : undefined}
+                    data-contenido=""
+                >
+                    {seccionesDe(datos.bloques).map((s, i) => (
+                        <div key={`${s.nombre}-${i}`} className={styles.seccion} data-seccion={s.nombre || undefined}>
+                            {s.nombre && <h2 className={styles.seccionTitulo}>{s.nombre}</h2>}
+                            <div className={styles.rejilla}>
+                                {s.bloques.map((b) => <Bloque key={b.id} bloque={b} />)}
+                            </div>
+                        </div>
+                    ))}
                 </div>
-            ))}
+            )}
         </main>
     );
 }
