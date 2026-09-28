@@ -5139,11 +5139,11 @@ const AgentPage = () => {
                                         onTouchEnd={handleMicTouchEnd}
                                         onClick={handleMicClick}
                                     >
-                                        {isListening ? (
-                                            <span className="chat-mic-ondas" aria-hidden="true"><i /><i /><i /><i /></span>
-                                        ) : (
-                                            <Mic size={21} strokeWidth={2.1} />
-                                        )}
+                                        {/* [P1-PLAN-LOTE-725 · 2026-09-28] El micrófono SIEMPRE es un micrófono: escuchando se pone
+                                            rojo de «grabando». Antes pintaba ondas moradas en un círculo morado y, al lado del
+                                            botón del modo voz (ondas, degradado), eran el mismo botón (el dueño: «tienen que
+                                            verse visualmente diferente»). */}
+                                        <Mic size={21} strokeWidth={2.1} aria-hidden="true" />
                                     </button>
                                 )}
                                 {/* [P1-PLAN-LOTE-682] El modo voz: conversar hablando, con el coach contestando en voz alta.
@@ -5555,10 +5555,11 @@ const AgentPage = () => {
                 .chat-mic-btn:hover { color: var(--primary); background: var(--bg-muted); }
                 .chat-mic-btn:active { transform: scale(0.9); }
                 .chat-mic-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+                /* [P1-PLAN-LOTE-725] Dictando = rojo de grabación (el modo voz es el degradado azul con ondas). */
                 .chat-mic-btn.escuchando {
                     color: #fff;
-                    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-                    box-shadow: 0 6px 18px -6px rgba(79, 70, 229, 0.7);
+                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                    box-shadow: 0 6px 18px -6px rgba(220, 38, 38, 0.7);
                 }
                 .chat-mic-btn.escuchando::before,
                 .chat-mic-btn.escuchando::after {
@@ -5566,7 +5567,7 @@ const AgentPage = () => {
                     position: absolute;
                     inset: 0;
                     border-radius: 50%;
-                    border: 2px solid rgba(99, 102, 241, 0.55);
+                    border: 2px solid rgba(239, 68, 68, 0.55);
                     animation: chat-mic-anillo 1.8s ease-out infinite;
                     pointer-events: none;
                 }
@@ -5574,24 +5575,6 @@ const AgentPage = () => {
                 @keyframes chat-mic-anillo {
                     0% { transform: scale(1); opacity: 0.7; }
                     100% { transform: scale(1.75); opacity: 0; }
-                }
-                .chat-mic-ondas { display: inline-flex; align-items: center; gap: 3px; height: 18px; }
-                .chat-mic-ondas i {
-                    display: block;
-                    width: 3px;
-                    height: 100%;
-                    border-radius: 2px;
-                    background: currentColor;
-                    transform-origin: center;
-                    animation: chat-mic-onda 0.9s ease-in-out infinite;
-                }
-                .chat-mic-ondas i:nth-child(1) { animation-delay: -0.45s; }
-                .chat-mic-ondas i:nth-child(2) { animation-delay: -0.15s; }
-                .chat-mic-ondas i:nth-child(3) { animation-delay: -0.6s; }
-                .chat-mic-ondas i:nth-child(4) { animation-delay: -0.3s; }
-                @keyframes chat-mic-onda {
-                    0%, 100% { transform: scaleY(0.3); }
-                    50% { transform: scaleY(1); }
                 }
                 /* [P1-PLAN-LOTE-682] El boton del modo voz: relleno como ENVIAR (es la accion principal con la caja
                    vacia) y con un brillo que respira para que se descubra sin explicarlo. */
@@ -5632,15 +5615,14 @@ const AgentPage = () => {
                     50% { transform: scale(1.18); opacity: 1; }
                 }
                 .input-wrapper.dictando .input-box-dictable {
-                    border-color: color-mix(in srgb, var(--primary) 60%, var(--border)) !important;
-                    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent) !important;
+                    border-color: color-mix(in srgb, #ef4444 60%, var(--border)) !important;
+                    box-shadow: 0 0 0 3px color-mix(in srgb, #ef4444 16%, transparent) !important;
                 }
                 @media (prefers-reduced-motion: reduce) {
                     .chat-mic-btn { transition: none; }
                     .chat-mic-btn.escuchando::before,
                     .chat-mic-btn.escuchando::after { animation: none; opacity: 0.45; transform: scale(1.18); }
                     .chat-mic-btn.escuchando::after { display: none; }
-                    .chat-mic-ondas i { animation: none; transform: scaleY(0.6); }
                     .chat-voz-btn { transition: none; }
                     .chat-voz-btn::after { animation: none; opacity: 0; }
                 }
