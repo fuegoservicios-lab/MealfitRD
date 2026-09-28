@@ -1,21 +1,59 @@
-/* frontend/src/pages/AdminPage.module.css — [P1-PLAN-LOTE-579] panel interno: sobrio, legible en el teléfono. */
-.pagina { min-height: 100dvh; background: var(--bg-page); color: var(--text-main); padding: 1.25rem 1rem 3rem; max-width: 1100px; margin: 0 auto; }
-.cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.h1 { font-size: 1.35rem; margin: 0; }
+/* frontend/src/pages/AdminPage.module.css — [P1-PLAN-LOTE-579] panel interno: sobrio, legible en el teléfono.
+   [P1-PLAN-LOTE-621] cifras principales en grande, subfilas sangradas, ceros apagados, tablas a lo ancho. */
+.pagina { min-height: 100dvh; background: var(--bg-page); color: var(--text-main); padding: 1.75rem 1.25rem 3rem; max-width: 1180px; margin: 0 auto; }
+.cabecera { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
+.sub { color: var(--text-muted); font-size: 0.82rem; margin: 0.3rem 0 0; }
 .volver { color: var(--primary); font-size: 0.9rem; }
-.rangos { display: flex; gap: 0.5rem; margin: 1rem 0; }
-.rango, .rangoActivo { border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); border-radius: 999px; padding: 0.35rem 0.9rem; font-size: 0.85rem; cursor: pointer; }
+.barraHerramientas { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin: 1.1rem 0 1.25rem; }
+.rangos { display: flex; gap: 0.5rem; }
+.rango, .rangoActivo { border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); border-radius: 999px; padding: 0.4rem 1rem; font-size: 0.85rem; cursor: pointer; }
+.rango:disabled { opacity: 0.5; cursor: default; }
 .rangoActivo { border-color: var(--primary); color: var(--primary); font-weight: 700; }
 .estado { color: var(--text-muted); }
-.rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
-.bloque { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; min-width: 0; }
-.titulo { font-size: 1rem; margin: 0 0 0.75rem; }
+.rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); grid-auto-flow: row dense; gap: 1rem; align-items: start; }
+.bloque { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.1rem 1.25rem 1.2rem; min-width: 0; }
+.bloqueAncho { grid-column: 1 / -1; }
+.titulo { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 0.9rem; }
 .error { color: var(--text-muted); margin: 0; }
-.kpis { margin: 0; display: grid; gap: 0.4rem; }
-.kpi { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.9rem; }
-.kpi dt { color: var(--text-muted); }
-.kpi dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.nota { color: var(--text-muted); font-size: 0.78rem; line-height: 1.45; margin: 0.9rem 0 0; }
+
+/* cifras principales */
+.destacados { list-style: none; margin: 0 0 0.9rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.6rem; }
+.destacado { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.destacadoValor { font-size: 1.85rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text-main); }
+.destacadoEtiqueta { font-size: 0.78rem; color: var(--text-muted); line-height: 1.3; }
+/* en un bloque a lo ancho las cifras no se estiran a media pantalla */
+.bloqueAncho .destacados { grid-template-columns: repeat(auto-fill, minmax(150px, 210px)); }
+
+/* filas */
+.kpis { margin: 0; }
+.kpisAncho { columns: 2 280px; column-gap: 2.5rem; }
+.grupo { break-inside: avoid; }
+.kpi { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; font-size: 0.9rem; padding: 0.45rem 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.etiqueta { color: var(--text-main); }
+.valor { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.subfila { padding-left: 1rem; font-size: 0.84rem; }
+.subfila .etiqueta { color: var(--text-muted); }
+.valorCero { color: var(--text-muted); opacity: 0.55; font-weight: 500; }
+
+/* tablas */
 .tablaScroll { overflow-x: auto; }
-.tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.tabla th, .tabla td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.tabla th { color: var(--text-muted); font-weight: 600; }
+/* en el móvil la tabla no se estruja: pide ~6rem por columna y, si no cabe, la tarjeta se desplaza en horizontal */
+.tabla { width: 100%; min-width: calc(var(--columnas, 3) * 6rem); border-collapse: collapse; font-size: 0.88rem; }
+.tabla th, .tabla td { text-align: left; padding: 0.55rem 0.65rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); vertical-align: top; }
+.tabla th { color: var(--text-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.tabla tbody tr:last-child td { border-bottom: 0; }
+.tabla tbody tr:hover { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.num { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sinPartir { white-space: nowrap; }
+.textoLargo { min-width: 13rem; }
+.barra { display: block; height: 4px; min-width: 2px; margin-top: 0.4rem; border-radius: 999px; background: var(--primary); opacity: 0.8; }
+
+@media (max-width: 640px) {
+    .pagina { padding: 1.25rem 1rem 2.5rem; }
+    .rejilla { grid-template-columns: 1fr; }
+    .kpisAncho { columns: 1; }
+    .bloqueAncho .destacados { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+    .destacadoValor { font-size: 1.5rem; }
+}
