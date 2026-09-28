@@ -573,6 +573,7 @@ export default defineConfig(({ mode }) => {
     // con la realidad y falla si se separan más de 40: es lo que hace que una corrida
     // incompleta se note. Dejarla vieja convierte el guard en ruido que se aprende a ignorar.
     // [2026-09-26 · P1-PLAN-LOTE-364] 492 archivos / 4.459 tests, exit 0 con los mismos 4 workers.
+    // [2026-09-28 · P1-PLAN-LOTE-744] 535 archivos / 4.671 tests, exit 0 con los mismos 4 workers (gate del 744).
     maxWorkers: Number(process.env.VITEST_MAX_WORKERS) || 4,
     minWorkers: 1,
     // [P1-4 · COVERAGE-REPORT-ONLY · 2026-07-09] @vitest/coverage-v8 en modo
