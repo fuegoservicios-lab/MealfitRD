@@ -42,7 +42,9 @@ import { useTextosTraducidos } from '../hooks/useTextosTraducidos';
 import { nombreDelAlimento } from '../utils/nombresDeAlimentos';
 import { pedirCompletarFormulario } from '../utils/completarFormulario';
 // [P1-PLAN-LOTE-776 · 2026-09-28] Suscripción y Pagos decide por el plan PAGADO, no el efectivo (una cortesía no es una suscripción).
-import { esSuscriptorDePago, planPagado } from '../utils/regalosCuenta';
+// [fix-ronda-1 · 2026-09-28] `planDeCobro` normaliza igual que `_tier` pero sobre lo pagado (escalera de
+// «Otros planes»); `ultimoDiaDeRegalo` fija el huso RD para que la fecha no cambie según quién la mire.
+import { esSuscriptorDePago, planPagado, planDeCobro, ultimoDiaDeRegalo } from '../utils/regalosCuenta';
 // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Selector de país, en oscuro hasta el
 // flip global (COUNTRY_SYSTEM_UI). SSOT compartido con QCountry.jsx — el
 // `code` es el dato del motor, `coerceCountry` es el mismo fail-safe que usa
@@ -2366,6 +2368,12 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         const _rawTier = userProfile?.plan_tier;
         const _tier = (_PAID_TIERS.includes(_rawTier) || _rawTier === 'admin') ? _rawTier : 'gratis';
         const _isAdmin = _tier === 'admin';
+        // [fix-ronda-1 · 2026-09-28] El plan que se PAGA, normalizado igual que `_tier` (efectivo)
+        // arriba. La escalera de abajo decide por este — no por `_tier` — o una cortesía Max sin
+        // pagar nada la deja sin nada seleccionable (Básico/Plus «por debajo», Max «Tu plan»). El
+        // NOMBRE de la card y la pastilla de estado siguen en `_tier`/`_tierName`/`_pill`: esos SÍ
+        // son el plan efectivo.
+        const _tierPagado = planDeCobro(userProfile);
         const _cancelled = isPaidSubscriber && (userProfile?.subscription_status === 'CANCELLED' || subStatus?.paypal_status === 'CANCELLED');
         // [P1-PLAN-LOTE-714] Pago rechazado (PayPal reintenta) o suscripción suspendida: antes salía «Activo» hasta
         // que el webhook de SUSPENDED bajaba al usuario a Gratis sin aviso.
@@ -2375,8 +2383,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // devolvía siempre un 400 en inglés. Mientras el estado carga, se decide por el perfil como antes.
         const _tienePaypal = subStatus ? Boolean(subStatus.has_paypal_subscription) : true;
         const _cortesia = userProfile?.cortesia || null;   // [P1-PLAN-LOTE-776] solo viene si está en efecto
-        const _cortesiaHasta = _cortesia?.hasta
-            ? formatDate(new Date(Date.parse(_cortesia.hasta) - 1), { day: 'numeric', month: 'long' }) : null;
+        // [fix-ronda-1 · 2026-09-28] Huso fijo a RD (America/Santo_Domingo): formatear en el huso del
+        // DISPOSITIVO desplazaba la fecha un día en Europa/Brasil (el fin que manda el servidor es
+        // exclusivo — 00:00 del día siguiente en RD).
+        const _cortesiaHasta = _cortesia?.hasta ? ultimoDiaDeRegalo(_cortesia.hasta, formatDate) : null;
         const _tierName = _isAdmin ? t('Administrador') : tierDisplayName(_tier, t);
         const _pill = _isAdmin ? ['free', t('Administrador')]
             : _cancelled ? ['ending', t('No se renueva')]
@@ -2580,8 +2590,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                             {_offer && <span className="sub-ladder-offer">{t('Precio de lanzamiento hasta el {fecha}', { fecha: _offerDate })}</span>}
                         </div>
                         {_PAID_TIERS.map((tier) => {
-                            const isCurrent = tier === _tier;
-                            const isBelow = (TIER_RANK[tier] || 0) < (TIER_RANK[_tier] || 0);
+                            // [fix-ronda-1 · 2026-09-28] Por el plan PAGADO (`_tierPagado`), no el efectivo
+                            // (`_tier`): con una cortesía, lo que decide qué fila es «Tu plan» / está «por
+                            // debajo» / se puede elegir es lo que la persona paga, no lo que tiene de regalo.
+                            const isCurrent = tier === _tierPagado;
+                            const isBelow = (TIER_RANK[tier] || 0) < (TIER_RANK[_tierPagado] || 0);
                             const selectable = !isCurrent && !isBelow;
                             const Row = selectable ? 'button' : 'div';
                             return (

@@ -6,15 +6,16 @@ import { toast } from 'sonner';
 import { useAssessment } from '../../context/AssessmentContext';
 import { formatDate, useT, useTn } from '../../i18n';
 import { addNotification } from '../../utils/notifications';
-import { regalosPorAnunciar, textoDeRegalo } from '../../utils/regalosCuenta';
+import { regalosPorAnunciar, textoDeRegalo, ultimoDiaDeRegalo } from '../../utils/regalosCuenta';
 
 export default function AvisoRegalos() {
     const { regalosRecientes } = useAssessment();
     const t = useT();
     const tn = useTn();
     useEffect(() => {
-        // El fin es EXCLUSIVO (1-oct 00:00 ⇒ vale hasta el 30-sep): se enseña el último día que vale.
-        const fecha = (iso) => formatDate(new Date(Date.parse(iso) - 1), { day: 'numeric', month: 'long' });
+        // [fix-ronda-1] El fin es EXCLUSIVO (1-oct 00:00 ⇒ vale hasta el 30-sep) y fijo a RD: NO el
+        // huso del dispositivo (Europa leía 1-oct en vez de 30-sep para un regalo de créditos).
+        const fecha = (iso) => ultimoDiaDeRegalo(iso, formatDate);
         for (const regalo of regalosPorAnunciar(regalosRecientes)) {
             const { title, message } = textoDeRegalo(regalo, { t, tn, fecha });
             addNotification({ id: `regalo-${regalo.id}`, kind: 'regalo', title, message });

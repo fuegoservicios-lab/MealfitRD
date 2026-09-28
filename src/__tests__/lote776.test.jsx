@@ -14,7 +14,11 @@ let regalos = [];
 vi.mock('../context/AssessmentContext', () => ({ useAssessment: () => ({ regalosRecientes: regalos }) }));
 import { toast } from 'sonner';
 import { addNotification } from '../utils/notifications';
-import { limiteDePlanes, planPagado, esSuscriptorDePago, regalosPorAnunciar, textoDeRegalo } from '../utils/regalosCuenta';
+import {
+    limiteDePlanes, planPagado, esSuscriptorDePago, regalosPorAnunciar, textoDeRegalo,
+    planDeCobro, ultimoDiaDeRegalo,
+} from '../utils/regalosCuenta';
+import { formatDate } from '../i18n';
 import AvisoRegalos from '../components/dashboard/AvisoRegalos';
 import CreditsMeter from '../components/dashboard/CreditsMeter';
 
@@ -40,10 +44,35 @@ describe('[776] el tope y el plan que ve la persona', () => {
         expect(esSuscriptorDePago({ plan_tier: 'admin' })).toBe(false);
     });
 
+    // [fix-ronda-1 · 2026-09-28] La escalera de «Otros planes» (Settings) decidía por el plan
+    // EFECTIVO: una cortesía Max sin pagar nada la dejaba sin nada seleccionable.
+    it('planDeCobro normaliza igual que _tier, pero sobre lo PAGADO', () => {
+        expect(planDeCobro({ plan_tier: 'ultra', plan_tier_pagado: 'gratis' })).toBe('gratis'); // cortesía Max, paga nada
+        expect(planDeCobro({ plan_tier: 'plus', plan_tier_pagado: 'basic' })).toBe('basic'); // paga básico, cortesía plus
+        expect(planDeCobro({ plan_tier: 'admin' })).toBe('admin');
+        expect(planDeCobro({ plan_tier: 'no-existe' })).toBe('gratis');
+        expect(planDeCobro(null)).toBe('gratis');
+    });
+
+    // [fix-ronda-1 · 2026-09-28] El fin que manda el servidor es EXCLUSIVO y de RD (00:00 UTC para
+    // créditos, 00:00 America/Santo_Domingo para cortesías) — formatear en el huso del DISPOSITIVO
+    // corría la fecha un día en Europa (créditos) y Brasil (cortesías). Determinista: sin importar
+    // el huso de la máquina que corre el test, el resultado es el mismo (huso fijo dentro de la función).
+    it('el último día del regalo es fijo a RD, para los dos tipos', () => {
+        expect(ultimoDiaDeRegalo('2026-10-01T00:00:00+00:00', formatDate)).toBe('30 de septiembre'); // créditos, 00:00 UTC
+        expect(ultimoDiaDeRegalo('2026-10-01T04:00:00+00:00', formatDate)).toBe('30 de septiembre'); // cortesía, 00:00 RD
+    });
+
     it('las pantallas usan esas reglas (anclas del código)', () => {
         const settings = fuente('src/pages/Settings.jsx');
         expect(settings).toContain('esSuscriptorDePago(userProfile)');
         expect(settings).toContain("planPagado(userProfile) !== 'ultra'");
+        // [fix-ronda-1] la escalera decide por el plan PAGADO, no el efectivo.
+        expect(settings).toContain('const _tierPagado = planDeCobro(userProfile);');
+        expect(settings).toContain('const isCurrent = tier === _tierPagado;');
+        expect(settings).toContain('(TIER_RANK[tier] || 0) < (TIER_RANK[_tierPagado] || 0);');
+        // [fix-ronda-1] la fecha de la cortesía, fija a RD.
+        expect(settings).toContain('ultimoDiaDeRegalo(_cortesia.hasta, formatDate)');
         expect(fuente('src/pages/Upgrade.jsx')).toContain('planPagado(userProfile)');
         expect(fuente('src/components/home/Pricing.jsx')).toContain('planPagado(userProfile)');
         const ctx = fuente('src/context/AssessmentContext.jsx');
@@ -52,6 +81,8 @@ describe('[776] el tope y el plan que ve la persona', () => {
         expect(fuente('src/components/dashboard/DashboardLayout.jsx')).toContain('<AvisoRegalos');
         expect(fuente('src/components/dashboard/NotificationCenter.jsx')).toContain('regalo: { Icon: Gift');
         expect(fuente('src/pages/Dashboard.jsx')).toContain('regalo={creditosRegalo}');
+        // [fix-ronda-1] el toast/notificación también usa el huso fijo, no el del dispositivo.
+        expect(fuente('src/components/dashboard/AvisoRegalos.jsx')).toContain('ultimoDiaDeRegalo(iso, formatDate)');
     });
 });
 

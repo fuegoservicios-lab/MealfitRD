@@ -28,6 +28,26 @@ export function esSuscriptorDePago(perfil) {
     return ['basic', 'plus', 'ultra'].includes(planPagado(perfil));
 }
 
+// [P1-PLAN-LOTE-776 · fix-ronda-1 · 2026-09-28] La escalera de «Otros planes» (Settings) decidía
+// `isCurrent`/`isBelow`/`selectable` por el plan EFECTIVO (`plan_tier`), así que una cortesía Max
+// sin pagar nada mostraba Básico/Plus atenuados «por debajo» y Max marcado «Tu plan» — la misma
+// escalera que `_canUpgrade` ya corrige por separado quedaba contradictoria consigo misma. Mismo
+// alfabeto que `_tier` (Settings.jsx) pero sobre `planPagado`, no sobre `plan_tier`.
+export function planDeCobro(perfil) {
+    const p = planPagado(perfil);
+    return (['basic', 'plus', 'ultra'].includes(p) || p === 'admin') ? p : 'gratis';
+}
+
+// [P1-PLAN-LOTE-776 · fix-ronda-1 · 2026-09-28] El fin que manda el servidor es EXCLUSIVO (00:00 del
+// día siguiente) — créditos a 00:00 UTC, cortesías a 00:00 America/Santo_Domingo. Formatear
+// `hasta - 1ms` en el huso del DISPOSITIVO cambiaba de día según dónde estuviera viendo la pantalla
+// la persona: en Europe/Madrid un regalo de créditos leía «1 de octubre» (no 30 de septiembre), y en
+// America/Sao_Paulo una cortesía leía lo mismo. Fijar el huso a America/Santo_Domingo (el de la
+// propia validez) da la MISMA fecha sin importar desde dónde se mire, para los dos tipos de regalo.
+export function ultimoDiaDeRegalo(iso, formatear) {
+    return formatear(new Date(Date.parse(iso) - 1), { day: 'numeric', month: 'long', timeZone: 'America/Santo_Domingo' });
+}
+
 function leerVistos() {
     try {
         const v = JSON.parse(safeLocalStorageGet(CLAVE_VISTOS, '[]'));
