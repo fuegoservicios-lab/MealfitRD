@@ -25,6 +25,8 @@ import { getFreshPlanCount } from '../utils/quotaCache';
 // [P1-PLAN-LOTE-133] el interruptor habla con UNA fachada: Web Push en navegador/PWA, avisos locales en la app nativa
 import { estadoDeAvisos, activarAvisos, desactivarAvisos, interruptorAlNacer, elPermisoEsDelNavegador, alarmaExactaPendiente, pedirAlarmaExacta, sincronizarAvisosLocales } from '../utils/avisosDeComida';
 import { trackEvent, isAnalyticsOptedOut, persistAnalyticsOptOut } from '../utils/analytics';
+// [P1-PLAN-LOTE-794 · ronda 1] Al volver a encender, la sesión de esta carga recupera su identidad.
+import { reaplicarIdentidadPostHog } from '../utils/posthogClient';
 // [P2-LOCALSTORAGE-REMOVEITEM · 2026-05-15] Helper defensivo para removeItem
 // — iOS Private Mode lanza SecurityError y corta el cleanup del reset
 // preferences (líneas ~775+).
@@ -1351,6 +1353,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         setAnalyticsEnabled((prev) => {
             const next = !prev;
             persistAnalyticsOptOut(!next);
+            // [P1-PLAN-LOTE-794 · ronda 1] Apagar deja la sesión anónima (reset); encender la
+            // devuelve ya, sin esperar a la próxima carga. Apagada, no identifica nada.
+            if (next) reaplicarIdentidadPostHog();
             toast.success(next
                 ? t('Gracias por ayudar a mejorar {app}.', { app: BRAND })
                 : t('Eventos de uso desactivados en este dispositivo.'));

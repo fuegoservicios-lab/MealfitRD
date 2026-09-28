@@ -1741,6 +1741,14 @@ export const AssessmentProvider = ({ children }) => {
 
             setSession(currentSession);
 
+            // [P1-PLAN-LOTE-794 · 2026-09-28] PostHog sin cookies no recuerda a nadie entre
+            // cargas: la identidad se declara AQUÍ, por donde pasan las tres entradas de sesión
+            // (inicial, reconstruida por la cookie first-party y onAuthStateChange). Antes sólo
+            // la declaraba el callback de onAuthStateChange, confiando en que «identify persiste».
+            // Si el SDK (import diferido en idle) aún no llegó, posthogClient la aplica al cargar.
+            if (currentSession?.user?.id) identifyPostHog(currentSession.user.id);
+            else resetPostHog();
+
             if (currentSession?.user) {
                 const userId = currentSession.user.id;
                 safeLocalStorageSet('mealfit_user_id', userId);
@@ -2097,11 +2105,9 @@ export const AssessmentProvider = ({ children }) => {
                 if (await _resolveViaFirstParty()) return;
             }
             handleAuthChange(newSession);
-            // [POSTHOG-ANALYTICS · 2026-07-12] Asocia/desasocia los eventos al usuario.
-            // No-op sin window.posthog (sin key o opt-out). El caso first-party (return
-            // arriba) ya quedó identificado en su sesión previa (identify persiste).
-            if (newSession?.user?.id) identifyPostHog(newSession.user.id);
-            else resetPostHog();
+            // [POSTHOG-ANALYTICS · 2026-07-12 → P1-PLAN-LOTE-794 · 2026-09-28] Asociar/desasociar
+            // los eventos al usuario vive ahora dentro de `handleAuthChange`: sin cookies,
+            // identify ya no persiste y hay que declararlo en cada carga, no sólo aquí.
         });
 
         return () => subscription.unsubscribe();

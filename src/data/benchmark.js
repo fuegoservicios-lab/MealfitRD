@@ -88,7 +88,10 @@ export const CAPS = [
     {
         key: 'clinical',
         label: 'Se ajusta a tus condiciones',
-        sub: 'DM2 · renal · HTA · alergias',
+        // [P1-PLAN-LOTE-795 · 2026-09-28] Sin «renal»: la matriz medida (CLINICAL, 20 perfiles,
+        // agosto de 2026) no tuvo perfil renal; los 21-25 (renal_hta incluido) no se han corrido.
+        // Aquí sólo se nombran condiciones que la matriz ejercitó. Ancla: test_p1_plan_lote_795.py
+        sub: 'DM2 · HTA · colesterol · alergias',
         mealfit: 'yes',
         llm: 'partial',
     },

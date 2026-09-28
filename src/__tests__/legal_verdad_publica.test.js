@@ -60,7 +60,7 @@ const REFUTADAS = [
     // (P1-IOS-NATIVE-SHELL). Las mismas frases se retiraron del apex ese día.
     {
         frase: 'actualmente el proveedor es',
-        porque: 'nombra UN proveedor de IA y hay dos (Z.ai + OpenAI); omitir al que recibe las fotos es omitir a un destinatario',
+        porque: 'nombra UN proveedor de IA y hay varios (medido el 2026-09-28: DeepSeek, OpenAI, Google/Gemini y Cohere); omitir al que recibe las fotos es omitir a un destinatario',
     },
     {
         frase: 'actualmente el proveedor de inferencia es',
@@ -68,7 +68,7 @@ const REFUTADAS = [
     },
     {
         frase: 'cuando el análisis visual esté habilitado',
-        porque: 'el escáner de fotos está habilitado en producción y las fotos van a OpenAI; presentarlo como futuro oculta un tratamiento que ya ocurre',
+        porque: 'el escáner de fotos está habilitado en producción (hoy las fotos van a Gemini); presentarlo como futuro oculta un tratamiento que ya ocurre',
     },
     {
         frase: 'cuando esta función esté disponible',
@@ -82,6 +82,77 @@ const REFUTADAS = [
         frase: 'consentimiento expreso de un padre o tutor',
         porque: 'decisión del dueño 2026-08-22: solo 18+, sin excepción — datos de salud y medicación, sin mecanismo de consentimiento parental, y los otros dos documentos ya decían 18+',
     },
+    // [P1-PLAN-LOTE-794 · 2026-09-28 · ronda 2] Las frases que `verdad-publica.json` del landing (rama
+    // ia6d-legal, 2ab05b9/e94872d) ya prohíbe y que esta copia seguía diciendo. Con ellas la app y
+    // bioboros.com volvían a publicar dos contratos distintos.
+    {
+        frase: 'Sin datos de salud, correo ni nombre',
+        porque: 'el autocapture de PostHog está encendido en la app (observabilityScope.js) y manda el texto visible de lo que se pulsa: el chip «Diabetes T2» del formulario es un div role="button" con cursor: pointer, y con identify queda unido a la cuenta',
+    },
+    {
+        frase: 'su nombre completo, correo',
+        porque: 'agent.py pone user_profiles.full_name en el prompt del coach: el proveedor que mueve el chat SÍ recibe el nombre de la cuenta',
+    },
+    {
+        frase: 'tu nombre completo, tu correo',
+        porque: 'la misma promesa falsa, tuteada, en la Política de IA',
+    },
+    {
+        frase: 'ni fingerprinting del navegador',
+        porque: 'en modo sin cookies PostHog calcula en su servidor un código a partir de la IP, el navegador y una clave diaria; el landing retiró la frase',
+    },
+    // [P1-PLAN-LOTE-794 · ronda 2] (re-verificación, defecto 4) Proveedores medidos contra el VPS el
+    // 2026-09-28 (/opt/mealfit/backend/.env): MEALFIT_LLM_PROVIDER=deepseek; las fotos van a Gemini
+    // (MEALFIT_VISION_MODEL=gemini-3.8-flash, base generativelanguage.googleapis.com); OPENAI_API_KEY y
+    // COHERE_API_KEY vivas. La copia decía «dos: Z.ai y OpenAI», y que OpenAI analiza las fotos.
+    {
+        frase: 'sólo a OpenAI',
+        porque: 'las fotos del escáner las analiza Google (Gemini), no OpenAI',
+    },
+    {
+        frase: 'Hoy son <strong>dos</strong>',
+        porque: 'son cuatro proveedores de IA (DeepSeek, OpenAI, Google/Gemini y Cohere)',
+    },
+    {
+        frase: 'Hoy son dos proveedores',
+        porque: 'misma cuenta vieja, en la Política de IA',
+    },
+    {
+        frase: 'revisión clínica de los planes de pago',
+        porque: 'la revisión clínica corre también en el plan gratis (P1-REVIEWER-TIER-MODELS: free → Luna)',
+    },
+    {
+        frase: 'a partir de su mensaje para recuperarlas',
+        porque: 'Cohere recibe además un resumen del perfil al generar el plan, la descripción de las comidas escaneadas y el resumen de las no registradas (landing, ronda 2)',
+    },
+    {
+        frase: 'PayPal, Z.ai, Neon',
+        porque: 'la Política de Divulgación Responsable nombraba a Z.ai entre los encargados; hoy es DeepSeek (el landing ya lo dice)',
+    },
+    {
+        frase: 'ElevenLabs',
+        porque: 'producción no le envía nada desde el 31-may (P1-DEADCODE-TTS); nombrarlo declara un tratamiento que no ocurre',
+    },
+];
+
+// [P1-PLAN-LOTE-794 · ronda 2] Lo que la copia TIENE que decir, igual que las `exigidas` del landing. Sin
+// esto, retirar una frase falsa dejando el hueco pasaría por «no afirma nada falso».
+const EXIGIDAS = [
+    { frase: 'sin cookies ni almacenamiento local', porque: 'PostHog en cookieless_mode (§7/§13)' },
+    { frase: 'una clave que cambia cada día', porque: 'el código seudónimo diario que PostHog calcula en su servidor (§7)' },
+    { frase: 'texto visible', porque: 'el autocapture manda el texto de lo que se pulsa, chips de salud incluidos (§7/§8)' },
+    { frase: 'el nombre de su cuenta', porque: 'el coach recibe el nombre (Privacidad §4)' },
+    { frase: 'el nombre de tu cuenta', porque: 'el coach recibe el nombre (Política de IA §2)' },
+    { frase: 'Hoy son <strong>cuatro</strong>', porque: 'DeepSeek, OpenAI, Google/Gemini y Cohere (Privacidad §4)' },
+    { frase: 'Hoy son cuatro proveedores de IA', porque: 'la misma cuenta en la Política de IA' },
+    { frase: 'DeepSeek', porque: 'MEALFIT_LLM_PROVIDER=deepseek en producción' },
+    { frase: 'Gemini', porque: 'el escáner de fotos usa gemini-3.8-flash' },
+    { frase: '<strong>Cohere</strong>', porque: '«cohere» es subcadena de «coherencia»: se exige el nombre marcado' },
+    { frase: 'un resumen de su perfil (objetivo, alergias', porque: 'lo que Cohere recibe al generar el plan (Privacidad)' },
+    { frase: 'un resumen de tu perfil (objetivo, alergias', porque: 'lo mismo en la Política de IA' },
+    { frase: 'Google LLC', porque: 'Google en sus tres papeles: fotos, avisos de Android e identidad' },
+    { frase: 'Firebase Cloud Messaging', porque: 'los avisos de Android llevan texto que puede mencionar la salud' },
+    { frase: 'Apple Push Notification', porque: 'los avisos del iPhone, ídem' },
 ];
 
 describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
@@ -96,6 +167,14 @@ describe('P1-VERDAD-PUBLICA · la copia legal del dashboard', () => {
             + `en el repo del landing: si vuelve aquí, el usuario con sesión iniciada lee un `
             + `contrato distinto del que lee el visitante.`,
         ).toBe(-1);
+    });
+
+    it.each(EXIGIDAS)('dice «$frase»', ({ frase, porque }) => {
+        expect(
+            texto.toLowerCase().includes(frase.toLowerCase()),
+            `LegalPages.jsx ya no dice «${frase}» (${porque}). El landing lo exige en su copia `
+            + `(verdad-publica.json): sin ello las dos políticas vuelven a decir cosas distintas.`,
+        ).toBe(true);
     });
 
     // Sin esta comprobación, borrar la sección entera dejaría el test en verde: el

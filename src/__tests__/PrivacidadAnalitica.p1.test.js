@@ -74,7 +74,13 @@ describe('P1-PRIVACY-STOP-NOW · apagar surte efecto en la sesión en curso', ()
     });
     afterEach(() => { delete window.posthog; });
 
-    it('al apagar, PostHog deja de capturar Y suelta los identificadores', async () => {
+    // [P1-PLAN-LOTE-794 · 2026-09-28] Estos dos tests pedían `opt_out_capturing` /
+    // `opt_in_capturing`. En modo sin cookies ambos son no-op en el SDK, y la prueba
+    // con el SDK REAL (lote794.test.js) enseñó además que la pareja
+    // `opt_out_capturing()` + `reset(true)` nunca cortó nada: el reset reinicia el
+    // consentimiento. Que PostHog deje de capturar y vuelva a hacerlo se comprueba
+    // allí, contra el SDK; aquí queda el contrato con `window.posthog`.
+    it('al apagar, PostHog suelta la identidad (el corte de eventos es el before_send)', async () => {
         const opt_out_capturing = vi.fn();
         const reset = vi.fn();
         window.posthog = { opt_out_capturing, reset, opt_in_capturing: vi.fn() };
@@ -82,20 +88,23 @@ describe('P1-PRIVACY-STOP-NOW · apagar surte efecto en la sesión en curso', ()
         const { persistAnalyticsOptOut } = await cargar();
         persistAnalyticsOptOut(true);
 
-        expect(opt_out_capturing).toHaveBeenCalledTimes(1);
-        // `reset(true)` es lo que suelta el distinct_id: sin él el usuario deja
-        // de emitir pero sigue marcado en localStorage y cookie.
+        // `reset(true)` suelta el distinct_id de la cuenta, que sigue en memoria.
         expect(reset).toHaveBeenCalledWith(true);
+        // No-op en modo sin cookies: llamarlo sería aparentar un corte que no ocurre.
+        expect(opt_out_capturing).not.toHaveBeenCalled();
     });
 
-    it('al volver a encender, PostHog vuelve a capturar', async () => {
+    it('al volver a encender no se toca la identidad (la bandera basta para el before_send)', async () => {
         const opt_in_capturing = vi.fn();
-        window.posthog = { opt_in_capturing, opt_out_capturing: vi.fn(), reset: vi.fn() };
+        const reset = vi.fn();
+        window.posthog = { opt_in_capturing, opt_out_capturing: vi.fn(), reset };
 
-        const { persistAnalyticsOptOut } = await cargar();
+        const { persistAnalyticsOptOut, isAnalyticsOptedOut } = await cargar();
         persistAnalyticsOptOut(false);
 
-        expect(opt_in_capturing).toHaveBeenCalledTimes(1);
+        expect(isAnalyticsOptedOut()).toBe(false);
+        expect(reset).not.toHaveBeenCalled();
+        expect(opt_in_capturing).not.toHaveBeenCalled();
     });
 
     it('un PostHog sin esos métodos no rompe el interruptor', async () => {
