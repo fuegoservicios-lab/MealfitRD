@@ -56,21 +56,31 @@ export class ReconocimientoNativo {
         this._subs = [];
         this._texto = '';
         this._empezado = false;
+        this._arrancado = false;
         this._terminado = false;
         this._plugin = null;
+    }
+
+    // Los oyentes del plugin son GLOBALES: uno que se queda colgado oye las sesiones siguientes.
+    // Se vacía el MISMO array (splice), nunca `this._subs = []`: `this._subs.push(await …)` resuelve `this._subs`
+    // ANTES del await, y el enganche que llegase tarde caería en un array huérfano que nadie suelta.
+    _soltar() {
+        for (const s of this._subs.splice(0)) {
+            try { Promise.resolve(s?.remove?.()).catch(() => {}); } catch { /* ya estaba suelto */ }
+        }
     }
 
     _terminar() {
         if (this._terminado) return;
         this._terminado = true;
-        for (const s of this._subs) { try { s.remove(); } catch { /* ya estaba suelto */ } }
-        this._subs = [];
+        this._soltar();
         this.onend?.();
     }
 
     start() {
         // La Web Speech API arranca sin promesa: aquí todo fallo se convierte en onerror + onend, nunca en un rechazo.
         this._arrancar().catch(() => {
+            if (this._terminado) return;
             this.onerror?.({ error: 'start' });
             this._terminar();
         });
@@ -81,12 +91,12 @@ export class ReconocimientoNativo {
         this._plugin = plugin;
         let permiso = await plugin.checkPermissions();
         if (permiso?.speechRecognition !== 'granted') permiso = await plugin.requestPermissions();
+        if (this._terminado) return;       // lo abortaron mientras se pedía el permiso
         if (permiso?.speechRecognition !== 'granted') {
             this.onerror?.({ error: 'not-allowed' });
             this._terminar();
             return;
         }
-        if (this._terminado) return;       // lo abortaron mientras se pedía el permiso
         this._subs.push(await plugin.addListener('partialResults', (e) => {
             const t = (e?.matches && e.matches[0]) || e?.accumulatedText || '';
             if (!t) return;
@@ -113,6 +123,9 @@ export class ReconocimientoNativo {
         this._subs.push(await plugin.addListener('error', (e) => {
             this.onerror?.({ error: errorWebDesdeAndroid(e?.code) });
         }));
+        // Abortado mientras se enganchaban los oyentes: soltarlos y NO abrir el micrófono.
+        if (this._terminado) { this._soltar(); return; }
+        this._arrancado = true;
         await plugin.start({
             language: this.lang,
             partialResults: true,
@@ -123,11 +136,15 @@ export class ReconocimientoNativo {
     }
 
     stop() {
-        try { this._plugin?.stop(); } catch { /* ya paraba */ }
+        // Aún no oía (el plugin cargaba o pedía permiso): parar es no empezar, con su onend, como en el navegador.
+        if (!this._arrancado) { this.abort(); return; }
+        try { Promise.resolve(this._plugin?.stop?.()).catch(() => {}); } catch { /* ya paraba */ }
     }
 
     abort() {
-        try { this._plugin?.forceStop?.(); } catch { /* ya paraba */ }
+        if (this._arrancado) {
+            try { Promise.resolve(this._plugin?.forceStop?.()).catch(() => {}); } catch { /* ya paraba */ }
+        }
         this._terminar();
     }
 }
@@ -213,7 +230,7 @@ export function crearSintesisNativa({ cargar = cargarSintesis } = {}) {
         cancel() {
             porId.clear();
             adelantados.clear();
-            try { plugin?.cancel(); } catch { /* nada que cortar */ }
+            try { Promise.resolve(plugin?.cancel?.()).catch(() => {}); } catch { /* nada que cortar */ }
         },
         getVoices: () => voces,
         addEventListener(tipo, f) { if (tipo === 'voiceschanged') oyentesDeVoces.add(f); },

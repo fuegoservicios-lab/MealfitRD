@@ -23,11 +23,18 @@ const esperar = () => new Promise((r) => setTimeout(r, 0));
 
 function reconocedorFalso({ permiso = 'granted' } = {}) {
     const oyentes = {};
+    const enganches = [];
     return {
         oyentes,
+        enganches,
         checkPermissions: vi.fn(async () => ({ speechRecognition: permiso })),
         requestPermissions: vi.fn(async () => ({ speechRecognition: permiso })),
-        addListener: vi.fn(async (ev, f) => { oyentes[ev] = f; return { remove: vi.fn() }; }),
+        addListener: vi.fn(async (ev, f) => {
+            oyentes[ev] = f;
+            const h = { remove: vi.fn(async () => {}) };
+            enganches.push(h);
+            return h;
+        }),
         start: vi.fn(async () => ({})),
         stop: vi.fn(async () => {}),
         forceStop: vi.fn(async () => {}),
@@ -124,6 +131,66 @@ describe('ReconocimientoNativo', () => {
         rec.abort();
         expect(p.forceStop).toHaveBeenCalled();
         expect(rec.onend).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('ReconocimientoNativo: cancelar a mitad del arranque', () => {
+    it('abortado mientras se pedía el permiso: ni oyentes ni micrófono, un solo onend', async () => {
+        const p = reconocedorFalso({ permiso: 'prompt' });
+        let conceder;
+        p.requestPermissions.mockImplementation(() => new Promise((r) => { conceder = r; }));
+        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        rec.onend = vi.fn();
+        rec.onerror = vi.fn();
+        rec.start();
+        await esperar();
+        rec.abort();                                            // el usuario cierra con el diálogo abierto
+        conceder({ speechRecognition: 'granted' });
+        await esperar(); await esperar();
+        expect(p.addListener).not.toHaveBeenCalled();
+        expect(p.start).not.toHaveBeenCalled();
+        expect(p.forceStop).not.toHaveBeenCalled();
+        expect(rec.onerror).not.toHaveBeenCalled();
+        expect(rec.onend).toHaveBeenCalledTimes(1);
+    });
+
+    it('abortado mientras se enganchaban los oyentes: se sueltan TODOS y no se abre el micrófono', async () => {
+        const p = reconocedorFalso();
+        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        const enganchar = p.addListener.getMockImplementation();
+        p.addListener.mockImplementation(async (ev, f) => {
+            const h = await enganchar(ev, f);
+            if (ev === 'listeningState') rec.abort();           // llega a mitad de los tres
+            return h;
+        });
+        rec.onend = vi.fn();
+        rec.start();
+        await esperar(); await esperar(); await esperar();
+        expect(p.enganches).toHaveLength(3);
+        for (const h of p.enganches) expect(h.remove).toHaveBeenCalled();
+        expect(p.start).not.toHaveBeenCalled();
+        expect(rec.onend).toHaveBeenCalledTimes(1);
+    });
+
+    it('stop() antes de oír no se pierde: termina sin abrir el micrófono', async () => {
+        const p = reconocedorFalso();
+        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        rec.onend = vi.fn();
+        rec.start();
+        rec.stop();                                             // el plugin aún se estaba cargando
+        await esperar(); await esperar(); await esperar();
+        expect(p.start).not.toHaveBeenCalled();
+        expect(rec.onend).toHaveBeenCalledTimes(1);
+    });
+
+    it('al cerrar la sesión, sus oyentes se sueltan (no oyen la siguiente)', async () => {
+        const p = reconocedorFalso();
+        const rec = new ReconocimientoNativo({ cargar: async () => p });
+        rec.start();
+        await esperar(); await esperar(); await esperar();
+        await p.oyentes.listeningState({ state: 'stopped', reason: 'silence' });
+        expect(p.enganches).toHaveLength(3);
+        for (const h of p.enganches) expect(h.remove).toHaveBeenCalled();
     });
 });
 
