@@ -302,13 +302,16 @@
     padding: 0.95rem 1.15rem 1.15rem;
 }
 
-.macroCell { min-width: 0; }
+/* [P1-PLAN-LOTE-722 · 2026-09-28] El nombre ARRIBA y la cifra debajo, en las tres celdas. En el teléfono «80/134 g» no
+   cabía junto a «PROTEÍNA» y partía la «g» a otra línea, pero «52/57 g» sí cabía junto a «GRASAS»: su barra quedaba
+   más arriba que las otras dos (captura del dueño). Con la misma estructura en las tres, las barras se alinean solas. */
+.macroCell { min-width: 0; display: flex; flex-direction: column; }
 
 .macroTop {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.3rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
     font-size: 0.75rem;
     color: var(--text-muted);
 }
@@ -324,10 +327,14 @@
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
+    white-space: nowrap;
 }
 
+.macroTop { margin-bottom: 0.35rem; }
+
 .macroBar {
-    margin-top: 0.3rem;
+    /* al fondo de la celda: si una cifra ocupa más, la barra no sube */
+    margin-top: auto;
     height: 2px;
     border-radius: 999px;
     background: rgba(148, 163, 184, 0.12);

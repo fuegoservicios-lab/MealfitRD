@@ -3727,11 +3727,13 @@
   "No pudimos cargar los ingredientes.": "Não conseguimos carregar os ingredientes.",
   "Registrada otra vez": "Registrada de novo",
   "Registrada otra vez hoy: {kcal} kcal.": "Registrada de novo hoje: {kcal} kcal.",
-  "Registrar otra vez hoy": "Registrar de novo hoje",
   "Sin micros para esta comida: hacen falta sus ingredientes con cantidad.": "Sem micros para esta refeição: faltam os ingredientes com quantidade.",
   "Solo en este dispositivo": "Só neste dispositivo",
   "Ver la foto en grande": "Ver a foto maior",
   "{pct} de tu meta del día": "{pct} da sua meta do dia",
   "Guarda tu plan": "Salve seu plano",
-  "Si es tu primera vez, tu plan de muestra se queda guardado en tu cuenta.": "Se for sua primeira vez, seu plano de amostra fica salvo na sua conta."
+  "Si es tu primera vez, tu plan de muestra se queda guardado en tu cuenta.": "Se for sua primeira vez, seu plano de amostra fica salvo na sua conta.",
+  "Sin foto en este teléfono": "Sem foto neste telefone",
+  "El escáner guarda la foto solo en el teléfono donde la tomas, desde el 28 de septiembre de 2026.": "O scanner guarda a foto só no telefone onde você a tira, desde 28 de setembro de 2026.",
+  "Repetir hoy": "Repetir hoje"
 }

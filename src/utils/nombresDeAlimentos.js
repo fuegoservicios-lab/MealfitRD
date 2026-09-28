@@ -128,3 +128,19 @@ export function lineaDeIngredienteVisible(linea, t, locale = getLocale()) {
         alimento: nombreDelAlimento(nombre, locale),
     });
 }
+
+/**
+ * [P1-PLAN-LOTE-722 · 2026-09-28] Como `lineaDeIngredienteVisible`, pero en español también concuerda la unidad con la
+ * cantidad: el motor escribe «2 unidad de huevo hervido» (la unidad va en singular porque es un IDENTIFICADOR del dato)
+ * y la ficha del plato lo pintaba tal cual. Aquí sale «2 unidades de huevo hervido». Solo para pintar.
+ */
+export function lineaDeIngredienteLegible(linea, t, locale = getLocale()) {
+    const s = _texto(linea);
+    if (!s || !String(locale || '').startsWith('es')) return lineaDeIngredienteVisible(linea, t, locale);
+    const m = _LINEA.exec(s);
+    if (!m) return linea;
+    const [, cantidadTexto, unidad, nombre] = m;
+    const q = leerCantidad(cantidadTexto);
+    if (q === null) return linea;
+    return `${formatearCantidad(q)} ${unidadParaCantidad(unidad, q)} de ${nombre}`;
+}

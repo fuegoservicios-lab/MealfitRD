@@ -12,14 +12,21 @@
 //  · los ingredientes, pedidos al abrir (`GET /api/diary/meal/{id}`: la lista del día no los trae), con kcal por
 //    renglón SOLO si cuadran con la comida (el servidor lo decide; aquí solo se pinta);
 //  · si vino del plan, su descripción y cómo se prepara (`mealDisplay`, en el idioma del usuario);
-//  · «Registrar otra vez hoy» y «Eliminar» (el borrado es el MISMO de la fila: lo pasa el padre).
+//  · «Repetir hoy» y «Eliminar» (el borrado es el MISMO de la fila: lo pasa el padre).
 //
 // Hoja inferior como «Compartir tu día» (portal a <body>, `useModalAccessibility`, `useBottomSheet`), cargada perezosa:
 // el trozo del panel está en el techo de `precache-guard`.
+//
+// [P1-PLAN-LOTE-722 · 2026-09-28] Pulido tras verla en el iPhone del dueño («poco pulido», «¿y lo de la foto?»):
+//  · la cabecera dice franja · Hoy/Ayer · hora en UNA línea (con la fecha larga ocupaba dos) y la franja lleva su color,
+//    el del cajón de días anteriores; el emoji suelto sale;
+//  · una comida escaneada SIN foto en este teléfono lo explica en la hoja (antes: «Escaneada con foto» y ninguna foto);
+//  · las macros van en tres columnas alineadas, y «2 unidad de huevo» se lee «2 unidades de huevo»;
+//  · «Registrar otra vez hoy» partía en dos líneas: «Repetir hoy».
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Camera, PenLine, Sparkles, CalendarCheck, MessageCircle, RotateCcw, Trash2, Loader2, Smartphone, FlaskConical } from 'lucide-react';
+import { X, Camera, CameraOff, PenLine, Sparkles, CalendarCheck, MessageCircle, RotateCcw, Trash2, Loader2, Smartphone, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -28,19 +35,24 @@ import { useFotoDeComida } from '../../hooks/useFotosDeComidas';
 import { useAssessment } from '../../context/AssessmentContext';
 import { formatDate, formatNumber, formatPercent, getLocale, useT } from '../../i18n';
 import { nombreDeRegistro, platoDelPlan } from '../../utils/nombreDeRegistro';
-import { lineaDeIngredienteVisible } from '../../utils/nombresDeAlimentos';
+import { lineaDeIngredienteLegible } from '../../utils/nombresDeAlimentos';
 import { mealDisplay, langDeCampo } from '../../utils/displayMeal';
 import { numberRecipeSteps, parseRecipeStep, glossAnnotationLabel } from '../../utils/recipeSteps';
-import { mealEmojiFor } from '../../utils/mealEmoji';
 import { mensajeDeError } from '../../utils/errorCopy';
 import MicrosList from './MicrosList';
 import styles from './FichaDeComida.module.css';
 
 // Las franjas del backend (`meal_type`); las claves NO se traducen. Función: un t() de módulo se congela en español.
+// El color es el de la franja en el cajón de días anteriores (`DiaryHistory.getFranjas`): la misma comida se reconoce
+// por el mismo color en las dos superficies.
 const getFranjas = (t) => {
     return {
-        desayuno: t('Desayuno'), almuerzo: t('Almuerzo'), cena: t('Cena'),
-        merienda: t('Merienda'), snack: t('Snack'), extra: t('Extra'),
+        desayuno: { texto: t('Desayuno'), color: '#FBBF24' },
+        almuerzo: { texto: t('Almuerzo'), color: '#34D399' },
+        merienda: { texto: t('Merienda'), color: '#F472B6' },
+        cena: { texto: t('Cena'), color: '#818CF8' },
+        snack: { texto: t('Snack'), color: '#94A3B8' },
+        extra: { texto: t('Extra'), color: '#94A3B8' },
     };
 };
 
@@ -91,6 +103,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const [eliminando, setEliminando] = useState(false);
     const [ampliada, setAmpliada] = useState(false);
 
+    // `undefined` mientras se mira el dispositivo, `null` si no hay foto, la URL si la hay (ver `useFotoDeComida`)
     const fotoUrl = useFotoDeComida(userId, meal?.id, 'foto');
     const nombre = nombreDeRegistro(meal?.meal_name, planData, t) || t('Sin nombre');
 
@@ -133,27 +146,33 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const creado = aFecha(detalle.meal?.created_at || meal?.created_at);
     // Una comida anotada OTRO día lleva la hora del registro, no la de la comida: entonces se dice cuándo se anotó.
     const horaFiable = !!consumido && (!creado || mismoDia(creado, consumido));
-    const esHoy = !!consumido && mismoDia(consumido, new Date());
-    const franja = getFranjas(t)[String(meal?.meal_type || '').toLowerCase()] || (meal?.meal_type ? String(meal.meal_type) : t('Comida'));
-    const cuando = [
-        franja,
-        consumido ? (esHoy ? t('Hoy') : formatDate(consumido, { weekday: 'long', day: 'numeric', month: 'long' })) : null,
-        horaFiable ? formatDate(consumido, { timeStyle: 'short' }) : null,
-    ].filter(Boolean).join(' · ');
+    const hoy = new Date();
+    const ayer = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1, 12);
+    const franja = getFranjas(t)[String(meal?.meal_type || '').toLowerCase()]
+        || { texto: meal?.meal_type ? String(meal.meal_type) : t('Comida'), color: '#94A3B8' };
+    let dia = null;
+    if (consumido) {
+        if (mismoDia(consumido, hoy)) dia = t('Hoy');
+        else if (mismoDia(consumido, ayer)) dia = t('Ayer');
+        else dia = formatDate(consumido, { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+    const cuando = [dia, horaFiable ? formatDate(consumido, { timeStyle: 'short' }) : null].filter(Boolean).join(' · ');
 
-    const origen = getOrigenes(t)[detalle.meal?.source] || null;
+    const fuente = detalle.meal?.source;
+    const origen = getOrigenes(t)[fuente] || null;
     const kcal = num(meal?.calories);
     const metaKcal = num(metas?.calories);
     const macros = [
         { clave: 'protein', rotulo: t('Proteína'), g: num(meal?.protein), meta: num(metas?.protein), color: '#3B82F6' },
-        { clave: 'carbs', rotulo: t('Carbohidratos'), g: num(meal?.carbs), meta: num(metas?.carbs), color: '#10B981' },
+        { clave: 'carbs', rotulo: t('Carbos'), g: num(meal?.carbs), meta: num(metas?.carbs), color: '#10B981' },
         { clave: 'fats', rotulo: t('Grasas'), g: num(meal?.healthy_fats ?? meal?.fats), meta: num(metas?.fats), color: '#EC4899' },
     ];
     const microsDeLaComida = meal?.micros?.values || null;
+    // Escaneada y sin foto en ESTE teléfono (otro teléfono, o registrada antes de que el escáner las guardara): se dice.
+    const sinFotoAqui = fuente === 'photo' && fotoUrl === null;
 
     // El plato del plan (misma búsqueda que traduce su nombre). Solo si vino del plan, o si la fila es anterior al
     // origen guardado: un «Mangú» escrito a mano no es la receta del plan aunque se llame igual.
-    const fuente = detalle.meal?.source;
     const plato = useMemo(
         () => ((fuente === 'plan_meal' || (detalle.estado === 'listo' && !fuente)) ? platoDelPlan(planData, meal?.meal_name) : null),
         [fuente, detalle.estado, planData, meal?.meal_name],
@@ -226,10 +245,30 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                 <div className={styles.head}>
                     <span className={styles.grip} aria-hidden="true" />
                     <div className={styles.headRow}>
-                        {!fotoUrl && <span className={styles.emoji} aria-hidden="true">{mealEmojiFor(meal?.meal_type)}</span>}
                         <div className={styles.headText}>
+                            <p id="ficha-comida-cuando" className={styles.eyebrow}>
+                                <span className={styles.franja} style={{ '--franja': franja.color }}>{franja.texto}</span>
+                                {cuando && <span className={styles.cuando}>{` · ${cuando}`}</span>}
+                            </p>
                             <h2 id="ficha-comida-titulo" className={styles.title}>{nombre}</h2>
-                            <p id="ficha-comida-cuando" className={styles.cuando}>{cuando}</p>
+                            {(origen || (!horaFiable && creado)) && (
+                                <p className={styles.origen}>
+                                    {origen && (
+                                        <span className={styles.origenItem}>
+                                            <origen.Icono size={14} strokeWidth={2.4} aria-hidden="true" />
+                                            {origen.texto}
+                                        </span>
+                                    )}
+                                    {!horaFiable && creado && (
+                                        <span className={styles.origenItem}>
+                                            {t('Lo anotaste el {diaSemana} {dia}', {
+                                                diaSemana: formatDate(creado, { weekday: 'long' }),
+                                                dia: creado.getDate(),
+                                            })}
+                                        </span>
+                                    )}
+                                </p>
+                            )}
                         </div>
                         <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
@@ -249,49 +288,39 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                             </figcaption>
                         </figure>
                     )}
-
-                    {(origen || (!horaFiable && creado)) && (
-                        <div className={styles.chips}>
-                            {origen && (
-                                <span className={styles.chip}>
-                                    <origen.Icono size={14} strokeWidth={2.4} aria-hidden="true" />
-                                    {origen.texto}
-                                </span>
-                            )}
-                            {!horaFiable && creado && (
-                                <span className={styles.chip}>
-                                    {t('Lo anotaste el {diaSemana} {dia}', {
-                                        diaSemana: formatDate(creado, { weekday: 'long' }),
-                                        dia: creado.getDate(),
-                                    })}
-                                </span>
-                            )}
+                    {sinFotoAqui && (
+                        <div className={styles.sinFoto}>
+                            <CameraOff size={18} strokeWidth={2.2} aria-hidden="true" />
+                            <div>
+                                <p className={styles.sinFotoTitulo}>{t('Sin foto en este teléfono')}</p>
+                                <p className={styles.sinFotoTexto}>
+                                    {t('El escáner guarda la foto solo en el teléfono donde la tomas, desde el 28 de septiembre de 2026.')}
+                                </p>
+                            </div>
                         </div>
                     )}
 
                     <section className={styles.energia} aria-label={t('Calorías')}>
-                        <div className={styles.kcal}>
-                            <span className={styles.kcalNum}>{formatNumber(kcal)}</span>
-                            <span className={styles.kcalUnidad}>kcal</span>
+                        <div className={styles.kcalFila}>
+                            <p className={styles.kcal}>
+                                <span className={styles.kcalNum}>{formatNumber(kcal)}</span>
+                                <span className={styles.kcalUnidad}>kcal</span>
+                            </p>
+                            {metaKcal > 0 && (
+                                <p className={styles.kcalMeta}>{t('{pct} de tu meta del día', { pct: formatPercent(Math.round((kcal / metaKcal) * 100)) })}</p>
+                            )}
                         </div>
-                        {metaKcal > 0 && (
-                            <p className={styles.kcalMeta}>{t('{pct} de tu meta del día', { pct: formatPercent(Math.round((kcal / metaKcal) * 100)) })}</p>
-                        )}
                         <ul className={styles.macros}>
                             {macros.map((m) => {
                                 const pct = m.meta > 0 ? Math.round((m.g / m.meta) * 100) : null;
                                 return (
                                     <li key={m.clave} className={styles.macro}>
-                                        <div className={styles.macroTop}>
-                                            <span className={styles.macroRotulo}>{m.rotulo}</span>
-                                            <span className={styles.macroValor}>
-                                                <b>{formatNumber(m.g)} g</b>
-                                                {pct !== null && <span className={styles.macroPct}>{formatPercent(pct)}</span>}
-                                            </span>
-                                        </div>
-                                        <div className={styles.macroPista} aria-hidden="true">
-                                            <div className={styles.macroRelleno} style={{ width: `${Math.min(100, pct ?? 0)}%`, background: m.color }} />
-                                        </div>
+                                        <span className={styles.macroRotulo}>{m.rotulo}</span>
+                                        <span className={styles.macroValor}>{formatNumber(m.g)} g</span>
+                                        <span className={styles.macroPista} aria-hidden="true">
+                                            <span className={styles.macroRelleno} style={{ width: `${Math.min(100, pct ?? 0)}%`, background: m.color }} />
+                                        </span>
+                                        {pct !== null && <span className={styles.macroPct}>{formatPercent(pct)}</span>}
                                     </li>
                                 );
                             })}
@@ -316,7 +345,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                             <ul className={styles.ingredientes}>
                                 {lineas.map((l, i) => (
                                     <li key={`${l.texto}-${i}`} className={styles.ingrediente}>
-                                        <span>{lineaDeIngredienteVisible(l.texto, t)}</span>
+                                        <span>{lineaDeIngredienteLegible(l.texto, t)}</span>
                                         {Number.isFinite(l.kcal) && <span className={styles.ingredienteKcal}>{formatNumber(l.kcal)} kcal</span>}
                                     </li>
                                 ))}
@@ -372,7 +401,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                         {repitiendo
                             ? <Loader2 size={17} className="spin-animation" aria-hidden="true" />
                             : <RotateCcw size={17} strokeWidth={2.4} aria-hidden="true" />}
-                        {t('Registrar otra vez hoy')}
+                        {t('Repetir hoy')}
                     </button>
                     {onEliminar && (
                         <button type="button" className={styles.peligro} onClick={eliminar} disabled={repitiendo || eliminando}>

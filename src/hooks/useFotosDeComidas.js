@@ -33,9 +33,11 @@ export function useIdsConFoto(userId) {
     return estado.userId === userId ? estado.ids : VACIO;
 }
 
-/** Una URL `blob:` de la foto (`'foto'`) o miniatura (`'mini'`) de la comida, o null. Se suelta al desmontar. */
+/** Una URL `blob:` de la foto (`'foto'`) o miniatura (`'mini'`) de la comida; `null` si este dispositivo no la tiene y
+ *  `undefined` MIENTRAS se mira (la ficha distingue «no hay foto» de «todavía no sé»: si no, su aviso de «sin foto»
+ *  parpadearía antes de la foto real). Se suelta al desmontar. */
 export function useFotoDeComida(userId, mealId, tipo = 'foto', activa = true) {
-    const [estado, setEstado] = useState({ clave: null, url: null });
+    const [estado, setEstado] = useState({ clave: null, url: undefined });
     const clave = activa && _conUsuario(userId) && mealId ? `${userId}:${mealId}:${tipo}` : null;
     useEffect(() => {
         if (!clave) return undefined;
@@ -56,7 +58,7 @@ export function useFotoDeComida(userId, mealId, tipo = 'foto', activa = true) {
                     url = blob ? URL.createObjectURL(blob) : null;
                     setEstado({ clave, url });
                 })
-                .catch(() => { /* sin foto */ });
+                .catch(() => { if (vivo) setEstado({ clave, url: null }); });
         };
         cargar();
         window.addEventListener(EVENTO, cargar);
@@ -66,7 +68,8 @@ export function useFotoDeComida(userId, mealId, tipo = 'foto', activa = true) {
             soltar();
         };
     }, [clave, userId, mealId, tipo]);
-    return estado.clave === clave ? estado.url : null;
+    if (!clave) return null;
+    return estado.clave === clave ? estado.url : undefined;
 }
 
 /** Borra la foto de una comida (fuego y olvido: la comida ya se borró; la foto no puede tumbar nada). */

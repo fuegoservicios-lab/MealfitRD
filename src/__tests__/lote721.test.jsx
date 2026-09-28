@@ -4,7 +4,7 @@
 //   1. La fila del contador (hoy) y la del cajón de días anteriores ABREN la ficha; con foto, llevan su miniatura.
 //   2. La ficha: foto «Solo en este dispositivo», de dónde vino, kcal y P/C/G contra la meta, ingredientes (con kcal
 //      por renglón solo si el servidor las dio), micros o por qué no hay, y la receta si vino del plan.
-//   3. «Registrar otra vez hoy» manda COORDENADAS (`source_meal_id`) y avisa a la tarjeta; «Eliminar» usa el borrado
+//   3. «Repetir hoy» (antes «Registrar otra vez hoy») manda COORDENADAS (`source_meal_id`) y avisa a la tarjeta; «Eliminar» usa el borrado
 //      de la fila y cierra la ficha solo si se borró.
 //   4. El almacén de fotos: la poda (90 días / 400) y que sin IndexedDB nada revienta.
 //   5. La foto nunca viaja: el almacén no llama a la red y el escáner la guarda con el `meal_id` que devolvió el alta.
@@ -74,7 +74,9 @@ describe('FichaDeComida', () => {
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: MEAL.meal_name })).toBeInTheDocument();
-        expect(screen.getByText(/Almuerzo · Hoy/)).toBeInTheDocument();
+        // [P1-PLAN-LOTE-722] la cabecera: la franja y «Hoy · hora» en la misma línea (spans hermanos)
+        const cuando = document.getElementById('ficha-comida-cuando');
+        expect(cuando.textContent).toMatch(/^Almuerzo · Hoy · /);
         expect(fetchWithAuth).toHaveBeenCalledWith('/api/diary/meal/meal-1');
         expect(await screen.findByText('Escaneada con foto')).toBeInTheDocument();
         expect(screen.getByText('150 g de Pechuga de pollo')).toBeInTheDocument();
@@ -137,7 +139,7 @@ describe('FichaDeComida', () => {
         expect(screen.queryByText('Un clásico de mediodía.')).not.toBeInTheDocument();
     });
 
-    it('«Registrar otra vez hoy» manda coordenadas, avisa a la tarjeta y cierra', async () => {
+    it('«Repetir hoy» manda coordenadas, avisa a la tarjeta y cierra', async () => {
         const onClose = vi.fn();
         const oyente = vi.fn();
         window.addEventListener('mealfit:refresh-inventory', oyente);
@@ -145,7 +147,7 @@ describe('FichaDeComida', () => {
             ? respuesta({ success: true, already_logged: false, meal_id: 'meal-2' })
             : respuesta(detalle())));
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={onClose} />);
-        fireEvent.click(screen.getByRole('button', { name: /Registrar otra vez hoy/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Repetir hoy/ }));
         await waitFor(() => expect(onClose).toHaveBeenCalled());
         const llamada = vi.mocked(fetchWithAuth).mock.calls.find(([u]) => u === '/api/diary/consumed/repeat');
         expect(JSON.parse(llamada[1].body)).toEqual({ source_meal_id: 'meal-1', meal_type: 'almuerzo', days_ago: 0 });
@@ -189,7 +191,8 @@ describe('FichaDeComida', () => {
         const meal = { ...MEAL, consumed_at: ayer.toISOString(), created_at: new Date().toISOString() };
         render(<FichaDeComida meal={meal} userId={UID} metas={METAS} onClose={vi.fn()} />);
         expect(screen.getByText(/Lo anotaste el/)).toBeInTheDocument();
-        expect(screen.getByText(/^Almuerzo · [^·]+$/)).toBeInTheDocument();   // franja · día, sin hora
+        // franja y día, sin hora (la de un registro retrodatado es la del REGISTRO)
+        expect(document.getElementById('ficha-comida-cuando').textContent).toMatch(/^Almuerzo · Ayer$/);
     });
 });
 
