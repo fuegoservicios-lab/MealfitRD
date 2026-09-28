@@ -74,6 +74,9 @@ import {
     resumenDeCorrecciones,
 } from './scanMealDishes';
 import { isAnalyticsOptedOut } from '../../utils/analytics';
+// [P1-PLAN-LOTE-721 · 2026-09-28] La foto del plato registrado, guardada SOLO en este dispositivo (la ficha del plato
+// la enseña; el servidor sigue sin retenerla, como promete la Política de Privacidad).
+import { guardarFotoDeComida } from '../../utils/fotosDeComidas';
 
 // [P2-DIARY-SCAN-MACROS · 2026-05-30] Modal "Escanear comida → registrar macros".
 //
@@ -1017,6 +1020,8 @@ const ScanMealModal = ({ isOpen, onClose, userId, initialDaysAgo = 0, initialMea
                 }
                 registrados.push({ nombre, kcal: macros.calories, data, daysAgo: destino.daysAgo });
                 _ponerPlato(p.id, { guardado: true });
+                // [P1-PLAN-LOTE-721] fuego y olvido: la comida ya quedó; sin foto (HEIC en escritorio, sin espacio) no pasa nada
+                if (data.meal_id && !data.already_logged) void guardarFotoDeComida(userId, data.meal_id, p.file).catch(() => {});
             } catch (err) {
                 console.error('Error registrando comida:', err);
                 if (registrados.length) window.dispatchEvent(new Event('mealfit:refresh-inventory'));

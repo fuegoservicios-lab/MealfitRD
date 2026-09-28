@@ -51,6 +51,10 @@ import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
 import MicrosList from './MicrosList';
 import { useMicrosSubtitulo } from './microsShared';
 import LogMealModal from './LogMealModal';
+// [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato (perezosa, como el escáner) y lleva la miniatura de la
+// foto del escáner si este dispositivo la guardó.
+import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
+import MiniaturaDeComida from './MiniaturaDeComida';
 import styles from './DiaryHistory.module.css';
 
 // [P1-PLAN-LOTE-224 · 2026-09-24] El escáner, igual: perezoso y montado al abrirlo (ver TrackingProgress). Este cajón
@@ -61,6 +65,7 @@ const ScanMealModal = lazy(() => import('./ScanMealModal'));
 // el día TAL CUAL llega del endpoint (`diario`) y lo adapta ella: importar aquí `compartirDia.js` lo metía entero en el
 // trozo del panel, que el precache del apex descarga siempre (+1,5 kB gz, por encima del techo de precache-guard).
 const ShareDaySheet = lazy(() => import('./ShareDaySheet'));
+const FichaDeComida = lazy(() => import('./FichaDeComida'));
 
 // [P1-PLAN-LOTE-165 · 2026-09-22] El día de la semana DENTRO de una frase: en minúscula en español, portugués, francés e
 // italiano; en inglés va con mayúscula (salía «You logged it on monday 21»).
@@ -205,6 +210,9 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
     const [escaneando, setEscaneando] = useState(false);
     // [P1-COMPARTIR-DIA-PASADO] `{ dia, fecha }` del día que se comparte, fijado al tocar el botón; null = cerrada
     const [aCompartir, setACompartir] = useState(null);
+    // [P1-PLAN-LOTE-721] la comida cuya ficha está abierta, o null
+    const [fichaMeal, setFichaMeal] = useState(null);
+    const idsConFoto = useIdsConFoto(userId);
     const cierreRef = useRef(null);
     const stripRef = useRef(null);
     const activoRef = useRef(null);
@@ -318,7 +326,8 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             if (registrando || escaneando) return;
             // [P1-COMPARTIR-DIA-PASADO] con la hoja de compartir, igual: Escape (y el «atrás» de Android, que lo
             // simula) la cierra a ella, y las flechas no cambian el día que hay debajo
-            if (aCompartir) return;
+            // [P1-PLAN-LOTE-721] y con la ficha de un plato abierta, lo mismo
+            if (aCompartir || fichaMeal) return;
             if (e.key === 'Escape') { e.preventDefault(); onClose?.(); }
             else if (e.key === 'ArrowLeft') { e.preventDefault(); moverDia(-1); }
             else if (e.key === 'ArrowRight') { e.preventDefault(); moverDia(1); }
@@ -330,20 +339,21 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         // checkpoint de microtasks a mitad del dispatch). En captura este handler corre ANTES que nadie, con el
         // estado de antes de la tecla.
         window.addEventListener('keydown', onKey, true);
-        if (!registrando && !escaneando && !aCompartir) cierreRef.current?.focus({ preventScroll: true });
+        if (!registrando && !escaneando && !aCompartir && !fichaMeal) cierreRef.current?.focus({ preventScroll: true });
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [open, onClose, moverDia, registrando, escaneando, aCompartir]);
+    }, [open, onClose, moverDia, registrando, escaneando, aCompartir, fichaMeal]);
 
     // [P1-PLAN-LOTE-105] Borrar desde cualquier día: el mismo DELETE (filtrado por user_id) que la papelera de la
     // tarjeta de hoy. Tras borrar se vuelve a pedir el día y la tira, y se avisa a la tarjeta (si era hoy, sus
     // barras cambian) y a quien más escuche.
+    // [P1-PLAN-LOTE-721] true si se borró (la ficha se cierra entonces); borra también la foto del dispositivo.
     const borrarComida = useCallback(async (meal) => {
-        if (!meal?.id || borrandoId) return;
+        if (!meal?.id || borrandoId) return false;
         const ok = await confirmToast(
             t('¿Eliminar "{nombre}" del diario? Esta acción no se puede deshacer.', { nombre: meal.meal_name }),
             { confirmLabel: t('Eliminar'), cancelLabel: t('Cancelar'), danger: true }
         );
-        if (!ok) return;
+        if (!ok) return false;
         setBorrandoId(meal.id);
         try {
             const res = await fetchWithAuth(`/api/diary/consumed/${meal.id}`, { method: 'DELETE' });
@@ -353,20 +363,24 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             try {
                 window.dispatchEvent(new CustomEvent('mealfit:diary-changed', { detail: { source: 'diary-history', date: selected } }));
             } catch { /* best-effort */ }
+            borrarFotoDeComidaEnSegundoPlano(userId, meal.id);
             toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
+            return true;
         } catch (err) {
             console.error('Error eliminando comida del diario:', err);
             toast.error(t('No se pudo eliminar la comida. Intenta de nuevo.'));
+            return false;
         } finally {
             setBorrandoId(null);
         }
-    }, [borrandoId, selected, t]);
+    }, [borrandoId, selected, t, userId]);
 
     const cerrarComponedor = useCallback(() => setRegistrando(false), []);
     const pasarAlEscaner = useCallback(() => { setRegistrando(false); setEscaneando(true); }, []);
     const cerrarEscaner = useCallback(() => setEscaneando(false), []);
     // memoizado: `onClose` va en las deps de `useModalAccessibility` y uno nuevo por render le robaría el foco
     const cerrarCompartir = useCallback(() => setACompartir(null), []);
+    const cerrarFicha = useCallback(() => setFichaMeal(null), []);
 
     const fecha = desdeISO(selected);
     const esHoy = selected === hoyISO;
@@ -417,27 +431,33 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
         const borrando = borrandoId === meal.id;
         return (
             <div key={meal.id || meal.meal_name} className={styles.meal}>
-                <div className={styles.mealBody}>
+                {/* [P1-PLAN-LOTE-721] la fila abre la ficha del plato (sin id no: no hay qué pedir) */}
+                <button type="button" className={styles.mealBody} onClick={() => setFichaMeal(meal)} disabled={!meal.id}>
+                    {meal.id && idsConFoto.has(meal.id) && (
+                        <MiniaturaDeComida userId={userId} mealId={meal.id} className={styles.mealThumb} />
+                    )}
+                    <span className={styles.mealText}>
                     {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
-                    <div className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t) || t('Sin nombre')}</div>
-                    <div className={styles.mealMacros}>
+                    <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t) || t('Sin nombre')}</span>
+                    <span className={styles.mealMacros}>
                         <span className={styles.mealKcal}>{num(meal.calories)} kcal</span>
                         {/* [P1-PLAN-LOTE-165] «P · C · G» fijas eran incorrectas en inglés (grasa = F) y en francés
                             (glucides/lipides = G/L): la abreviatura es de cada idioma. */}
                         {' · '}{t('P {p} · C {c} · G {g}', { p: num(meal.protein), c: num(meal.carbs), g: num(meal.healthy_fats) })}
-                    </div>
+                    </span>
                     {/* La hora solo si es de fiar. Si se anotó otro día, se dice ESO
                         — que es verdad y además útil — en vez de una hora inventada. */}
                     {!h && creado && (
-                        <div className={styles.loggedOn}>
+                        <span className={styles.loggedOn}>
                             {t('Lo anotaste el {diaSemana} {dia}', {
                                 // [P1-PLAN-LOTE-165] en minúscula en es/pt/fr/it; en inglés el día va con mayúscula
                                 diaSemana: _diaEnFrase(getDiasLargo(t)[creado.getDay()]),
                                 dia: creado.getDate(),
                             })}
-                        </div>
+                        </span>
                     )}
-                </div>
+                    </span>
+                </button>
                 {meal.id && (
                     <button
                         type="button"
@@ -697,6 +717,24 @@ const DiaryHistory = ({ userId, open, onClose, targetCalories = 2000, targetMacr
             {escaneando && (
                 <Suspense fallback={null}>
                     <ScanMealModal isOpen onClose={cerrarEscaner} userId={userId || 'guest'} initialDaysAgo={atras} />
+                </Suspense>
+            )}
+            {fichaMeal && (
+                <Suspense fallback={null}>
+                    <FichaDeComida
+                        key={fichaMeal.id}
+                        meal={fichaMeal}
+                        userId={userId}
+                        metas={{
+                            calories: targetCalories,
+                            protein: num(targetMacros?.protein),
+                            carbs: num(targetMacros?.carbs),
+                            fats: num(targetMacros?.fats),
+                        }}
+                        microMetas={targetMicros}
+                        onClose={cerrarFicha}
+                        onEliminar={borrarComida}
+                    />
                 </Suspense>
             )}
             {aCompartir && (

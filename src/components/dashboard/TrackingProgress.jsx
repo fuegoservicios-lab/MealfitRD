@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share2 } from 'lucide-react';
+import { Flame, Dumbbell, Wheat, Droplet, Activity, Flag, Trash2, Loader2, Plus, FlaskConical, Share2, ChevronRight } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
@@ -28,10 +28,16 @@ import MicrosList from './MicrosList';
 import { resumirMicros, useMicrosSubtitulo } from './microsShared';
 import { formatNumber, formatPercent, useT, useTn } from '../../i18n';
 import { nombreDeRegistro } from '../../utils/nombreDeRegistro';
+// [P1-PLAN-LOTE-721 · 2026-09-28] La fila abre la ficha del plato; la foto del escáner (solo en este dispositivo) sale
+// en miniatura. El almacén de fotos se importa dinámico dentro del hook: este trozo está en el techo de precache-guard.
+import { useIdsConFoto, borrarFotoDeComidaEnSegundoPlano } from '../../hooks/useFotosDeComidas';
+import MiniaturaDeComida from './MiniaturaDeComida';
 import styles from './TrackingProgress.module.css';
 
 // [P1-COMPARTIR-DIA · 2026-09-23] La hoja se carga al abrirla: canvas + textos no pesan en el panel.
 const ShareDaySheet = lazy(() => import('./ShareDaySheet'));
+// [P1-PLAN-LOTE-721] La ficha de un plato registrado, igual: se carga al abrirla.
+const FichaDeComida = lazy(() => import('./FichaDeComida'));
 
 // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20] Cache local del card
 // "Progreso en Tiempo Real" para arranque instantáneo al re-mount.
@@ -70,6 +76,8 @@ const _getMealTypeLabels = (t) => ({
     cena: t('Cena'),
     merienda: t('Merienda'),
     snack: t('Snack'),
+    // [P1-PLAN-LOTE-721] el default del componedor; sin entrada salía «Extra» capitalizado a mano en todos los idiomas
+    extra: t('Extra'),
 });
 
 const _mealTypeLabel = (mealType, t) => {
@@ -193,6 +201,10 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // para que un doble-tap no dispare dos DELETE del mismo id.
     const [mealsExpanded, setMealsExpanded] = useState(false);
     const [deletingMealId, setDeletingMealId] = useState(null);
+    // [P1-PLAN-LOTE-721] La comida cuya ficha está abierta (la fila tal cual llegó del día), o null.
+    const [fichaMeal, setFichaMeal] = useState(null);
+    const handleFichaClose = useCallback(() => setFichaMeal(null), []);
+    const idsConFoto = useIdsConFoto(userId);
 
     const [consumed, setConsumed] = useState(() => {
         // [P1-TRACKING-CACHE-CONSUMED · 2026-05-20]
@@ -390,14 +402,15 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
     // comida que el usuario acaba de borrar — el mismo bug que
     // P1-TRACKING-CACHE-CONSUMED documenta para el flash de zeros, en
     // reversa.
+    // [P1-PLAN-LOTE-721] Devuelve true si se borró (la ficha se cierra entonces) y borra también la foto del dispositivo.
     const handleDeleteMeal = useCallback(async (meal) => {
-        if (!meal?.id || deletingMealId) return;
+        if (!meal?.id || deletingMealId) return false;
 
         const ok = await confirmToast(
             t('¿Eliminar "{nombre}" del diario? Esta acción no se puede deshacer.', { nombre: meal.meal_name }),
             { confirmLabel: t('Eliminar'), cancelLabel: t('Cancelar'), danger: true }
         );
-        if (!ok) return;
+        if (!ok) return false;
 
         setDeletingMealId(meal.id);
         try {
@@ -416,14 +429,17 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                 meals: (prev?.meals || []).filter((m) => m.id !== meal.id),
                 cacheKey: consumedCacheKey,
             }));
+            borrarFotoDeComidaEnSegundoPlano(userId, meal.id);
             toast.success(t('"{nombre}" eliminada del diario.', { nombre: meal.meal_name }));
+            return true;
         } catch (err) {
             console.error('Error eliminando comida del diario:', err);
             toast.error(t('No se pudo eliminar la comida. Intenta de nuevo.'));
+            return false;
         } finally {
             setDeletingMealId(null);
         }
-    }, [deletingMealId, consumedCacheKey, t]);
+    }, [deletingMealId, consumedCacheKey, t, userId]);
 
     // Funciones Helper para calcular Progreso
     // [P1-DIARY-HISTORY · 2026-07-31]
@@ -613,13 +629,25 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                                         key={meal.id || `${meal.meal_name}-${meal.consumed_at || idx}`}
                                         className={styles.mealRow}
                                     >
-                                        <div className={styles.mealInfo}>
-                                            {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
-                                            <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t)}</span>
-                                            <span className={styles.mealMeta}>
-                                                {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal
+                                        {/* [P1-PLAN-LOTE-721] la fila abre la ficha del plato (sin id —una fila vieja en caché— no) */}
+                                        <button
+                                            type="button"
+                                            className={styles.mealOpen}
+                                            onClick={() => setFichaMeal(meal)}
+                                            disabled={!meal.id}
+                                        >
+                                            {meal.id && idsConFoto.has(meal.id) && (
+                                                <MiniaturaDeComida userId={userId} mealId={meal.id} className={styles.mealThumb} />
+                                            )}
+                                            <span className={styles.mealInfo}>
+                                                {/* [P1-PLAN-LOTE-225] el nombre en el idioma del usuario (el dato no cambia) */}
+                                                <span className={styles.mealName}>{nombreDeRegistro(meal.meal_name, planData, t)}</span>
+                                                <span className={styles.mealMeta}>
+                                                    {_mealTypeLabel(meal.meal_type, t)} · {Math.round(meal.calories) || 0} kcal
+                                                </span>
                                             </span>
-                                        </div>
+                                            {meal.id && <ChevronRight size={16} strokeWidth={2.4} className={styles.mealChevron} aria-hidden="true" />}
+                                        </button>
                                         {meal.id && (
                                             <button
                                                 type="button"
@@ -716,6 +744,19 @@ const TrackingProgress = ({ planData, userId, flatOnMobile = false, microTargets
                         pagar ese fetch en cada visita al dashboard. */}
                     {logOpen && (
                         <LogMealModal onClose={handleLogClose} onScan={handleLogToScan} />
+                    )}
+                    {fichaMeal && (
+                        <Suspense fallback={null}>
+                            <FichaDeComida
+                                key={fichaMeal.id}
+                                meal={fichaMeal}
+                                userId={userId}
+                                metas={{ calories: goalCal, protein: goalPro, carbs: goalCarb, fats: goalFat }}
+                                microMetas={microTargets}
+                                onClose={handleFichaClose}
+                                onEliminar={handleDeleteMeal}
+                            />
+                        </Suspense>
                     )}
                     {shareOpen && (
                         <Suspense fallback={null}>

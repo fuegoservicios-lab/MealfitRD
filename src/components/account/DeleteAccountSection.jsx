@@ -84,7 +84,7 @@ const DZ_STYLES = `
 export default function DeleteAccountSection() {
     const t = useT();
     const navigate = useNavigate();
-    const { resetApp } = useAssessment();
+    const { resetApp, session } = useAssessment();
     const [showModal, setShowModal] = useState(false);
     const [confirmText, setConfirmText] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
@@ -121,6 +121,10 @@ export default function DeleteAccountSection() {
             // aunque quedaran datos. Se dice lo que pasó y cómo terminarlo; la sesión se cierra igual.
             let _resultado = null;
             try { _resultado = await res.json(); } catch { /* sin cuerpo JSON: se trata como hecho */ }
+            // [P1-PLAN-LOTE-721 · 2026-09-28] Las fotos de sus platos viven SOLO en este dispositivo: con la cuenta se van.
+            // Fuego y olvido: el borrado del servidor ya ocurrió y el logout no puede esperar a IndexedDB.
+            const _uid = session?.user?.id;
+            if (_uid) import('../../utils/fotosDeComidas').then((m) => m.borrarFotosDelUsuario(_uid)).catch(() => {});
             if (_resultado && _resultado.success === false) {
                 console.error('Borrado de cuenta incompleto:', _resultado.errors);
                 toast.warning(

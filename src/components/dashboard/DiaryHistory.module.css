@@ -554,7 +554,42 @@
     gap: 0.6rem;
 }
 
-.mealBody { min-width: 0; flex: 1 1 auto; }
+/* [P1-PLAN-LOTE-721 · 2026-09-28] El cuerpo de la fila es el botón que abre la ficha del plato: a sangre, la piel es
+   la de la franja. Con miniatura si el escáner dejó foto en este dispositivo. */
+.mealBody {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    min-height: 44px;
+    margin: 0;
+    padding: 0.1rem 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mealBody:disabled { cursor: default; }
+.mealBody:focus-visible { outline: 2px solid #818CF8; outline-offset: 2px; }
+.mealBody:hover:not(:disabled) .mealName { color: var(--primary, #4F46E5); }
+
+.mealText { min-width: 0; display: block; }
+.mealText > span { display: block; }
+
+.mealThumb {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    margin-top: 0.2rem;
+    border-radius: 9px;
+    object-fit: cover;
+    background: var(--bg-muted, #E2E8F0);
+}
 
 .mealDel {
     flex: 0 0 auto;

@@ -3716,5 +3716,20 @@
   "Sin más reintentos: {cuando}": "Sem mais tentativas: {cuando}",
   "Aprendizaje guardado: {cuando}": "Aprendizado salvo: {cuando}",
   "Tiempo esperado: {n}s": "Tempo esperado: {n}s",
-  "Demora: {x} lo esperado": "Demora: {x} o esperado"
+  "Demora: {x} lo esperado": "Demora: {x} o esperado",
+  "Anotada a mano": "Anotada à mão",
+  "Anotada por el coach": "Anotada pelo coach",
+  "Con estimación de la IA": "Com estimativa da IA",
+  "Cómo se prepara": "Como se prepara",
+  "Escaneada con foto": "Escaneada com foto",
+  "Esta comida se registró sin ingredientes.": "Esta refeição foi registrada sem ingredientes.",
+  "Foto de {nombre}": "Foto de {nombre}",
+  "No pudimos cargar los ingredientes.": "Não conseguimos carregar os ingredientes.",
+  "Registrada otra vez": "Registrada de novo",
+  "Registrada otra vez hoy: {kcal} kcal.": "Registrada de novo hoje: {kcal} kcal.",
+  "Registrar otra vez hoy": "Registrar de novo hoje",
+  "Sin micros para esta comida: hacen falta sus ingredientes con cantidad.": "Sem micros para esta refeição: faltam os ingredientes com quantidade.",
+  "Solo en este dispositivo": "Só neste dispositivo",
+  "Ver la foto en grande": "Ver a foto maior",
+  "{pct} de tu meta del día": "{pct} da sua meta do dia"
 }

@@ -37,6 +37,13 @@ function _platoDelPlan(plan, nombre) {
     return _memo.porNombre.get(nombre) || null;
 }
 
+/** [P1-PLAN-LOTE-721 · 2026-09-28] El plato del plan que se llama `nombre` (el más reciente gana), o null. La ficha de
+ *  un registro lo usa para enseñar su descripción y cómo se prepara; la misma búsqueda que traduce su nombre. */
+export function platoDelPlan(planData, nombre) {
+    const s = typeof nombre === 'string' ? nombre.trim() : '';
+    return s ? _platoDelPlan(planData, s) : null;
+}
+
 function _partes(s) {
     if (esAlimentoDelCatalogo(s)) return [s];
     const trozos = s.split(', ');

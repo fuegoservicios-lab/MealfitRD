@@ -251,6 +251,8 @@ const LogMealModal = ({ onScan, onClose, initialMealType = null, initialDaysAgo 
                     meal_type: mealType,
                     days_ago: daysAgo,
                     deduct_pantry: neveraOn && deductPantry && hayQueDescontar,
+                    // [P1-PLAN-LOTE-721] la ficha del plato dirá «Con estimación de la IA» (etiqueta; no toca la aritmética)
+                    origin: lines.some((l) => l.estimated) ? 'estimate' : undefined,
                 }),
             });
             const data = await res.json().catch(() => null);

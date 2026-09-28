@@ -3716,5 +3716,20 @@
   "Sin más reintentos: {cuando}": "No more retries: {cuando}",
   "Aprendizaje guardado: {cuando}": "Learning saved: {cuando}",
   "Tiempo esperado: {n}s": "Expected time: {n}s",
-  "Demora: {x} lo esperado": "Delay: {x} the expected time"
+  "Demora: {x} lo esperado": "Delay: {x} the expected time",
+  "Anotada a mano": "Logged by hand",
+  "Anotada por el coach": "Logged by your coach",
+  "Con estimación de la IA": "Includes an AI estimate",
+  "Cómo se prepara": "How to make it",
+  "Escaneada con foto": "Scanned from a photo",
+  "Esta comida se registró sin ingredientes.": "This meal was logged without ingredients.",
+  "Foto de {nombre}": "Photo of {nombre}",
+  "No pudimos cargar los ingredientes.": "We couldn't load the ingredients.",
+  "Registrada otra vez": "Logged again",
+  "Registrada otra vez hoy: {kcal} kcal.": "Logged again today: {kcal} kcal.",
+  "Registrar otra vez hoy": "Log again today",
+  "Sin micros para esta comida: hacen falta sus ingredientes con cantidad.": "No micros for this meal: they need its ingredients with amounts.",
+  "Solo en este dispositivo": "Only on this device",
+  "Ver la foto en grande": "View the photo larger",
+  "{pct} de tu meta del día": "{pct} of your daily goal"
 }
