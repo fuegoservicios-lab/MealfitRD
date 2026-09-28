@@ -168,6 +168,21 @@ describe('FichaDeComida', () => {
         expect(onEliminar).toHaveBeenCalledWith(MEAL);
     });
 
+    it('con la confirmación de «Eliminar» abierta, Escape no cierra la ficha', async () => {
+        vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle()));
+        const onClose = vi.fn();
+        let responder;
+        const onEliminar = vi.fn(() => new Promise((r) => { responder = r; }));   // la confirmación, abierta
+        render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={onClose} onEliminar={onEliminar} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+        await waitFor(() => expect(onEliminar).toHaveBeenCalled());
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(onClose).not.toHaveBeenCalled();
+        await act(async () => { responder(false); });   // el usuario canceló
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
     it('una comida anotada otro día dice cuándo se anotó y no inventa la hora', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle()));
         const ayer = new Date(Date.now() - 86400000);

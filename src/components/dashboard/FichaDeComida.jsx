@@ -77,7 +77,10 @@ const conNegritas = (texto) => String(texto).split(/(\*\*.*?\*\*)/g).map((parte,
 const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose, onEliminar = null }) => {
     const t = useT();
     const locale = getLocale();
-    const { containerRef } = useModalAccessibility({ isOpen: true, onClose });
+    // Mientras la confirmación de «Eliminar» está abierta (otro diálogo, fuera de esta hoja) la ficha NO es la capa de
+    // arriba: sin esto, Escape cancelaba la confirmación Y cerraba la ficha de una sola tecla.
+    const eliminandoRef = useRef(false);
+    const { containerRef } = useModalAccessibility({ isOpen: true, onClose, isTopmost: () => !eliminandoRef.current });
     const bodyRef = useRef(null);
     const hoja = useBottomSheet({ containerRef, bodyRef, onClose });
     const { planData } = useAssessment() || {};
@@ -191,12 +194,15 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     const eliminar = async () => {
         if (!onEliminar || eliminando) return;
         setEliminando(true);
+        eliminandoRef.current = true;
+        let borrada = false;
         try {
-            const borrada = await onEliminar(meal);
-            if (borrada) onClose?.();
+            borrada = await onEliminar(meal);
         } finally {
+            eliminandoRef.current = false;
             setEliminando(false);
         }
+        if (borrada) onClose?.();
     };
 
     const lineas = detalle.meal?.ingredientes?.lineas || [];
