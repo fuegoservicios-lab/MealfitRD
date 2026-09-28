@@ -1,10 +1,13 @@
 // [P1-PLAN-LOTE-290 · 2026-09-25] El grupo «Suplementos» arriba de la Alacena: cada pote con sus porciones, su
 // etiqueta por porción y, si el plan de hoy lo incluye, cuándo y cuánto. Lo que el plan pide sin pote sale como
 // «Del plan». Antes vivían en una tarjeta del Dashboard que no decía cuánto quedaba ni de dónde salían las cifras.
+// [P1-PLAN-LOTE-627 · 2026-09-27] Lo que escribe el PLAN (nombre, dosis, momento) sale en el idioma del usuario por la
+// traducción de textos libres; el nombre del pote que escribió el usuario, tal cual.
 import React, { useState } from 'react';
 import { Pill, Trash2 } from 'lucide-react';
 import { useT } from '../../i18n';
 import { lineaEtiqueta, unidadTexto } from '../../utils/suplementosAlacena';
+import { useTextosTraducidos } from '../../hooks/useTextosTraducidos';
 
 const estilos = {
     grupo: { border: '1px solid var(--border)', borderRadius: '0.9rem', background: 'var(--bg-card)', padding: '0.85rem 1rem', marginBottom: '0.9rem' },
@@ -25,6 +28,10 @@ export default function GrupoSuplementos({ potes = [], soloDelPlan = [], onCambi
     const t = useT();
     // [P1-PLAN-LOTE-300] Editar porciones y quitar un pote (detalle pedido por el dueño): borrador por pote.
     const [borrador, setBorrador] = useState({});
+    const tr = useTextosTraducidos([
+        ...potes.flatMap((p) => [p.delPlan?.dose, p.delPlan?.timing]),
+        ...soloDelPlan.flatMap((x) => [x.name, x.dose, x.timing]),
+    ]);
     if (!potes.length && !soloDelPlan.length) return null;
     return (
         <section style={estilos.grupo} aria-label={t('Suplementos')}>
@@ -42,7 +49,7 @@ export default function GrupoSuplementos({ potes = [], soloDelPlan = [], onCambi
                             </span>
                             <span style={estilos.fino}>{lineaEtiqueta(p.etiqueta, p.unidad, t)}</span>
                             {p.delPlan && (
-                                <span style={estilos.plan}>{t('Plan: {dosis} · {cuando}', { dosis: p.delPlan.dose || '', cuando: p.delPlan.timing || '' })}</span>
+                                <span style={estilos.plan}>{t('Plan: {dosis} · {cuando}', { dosis: tr(p.delPlan.dose || ''), cuando: tr(p.delPlan.timing || '') })}</span>
                             )}
                             {(onCambiarPorciones || onBorrar) && (
                                 <div style={estilos.acciones}>
@@ -84,8 +91,8 @@ export default function GrupoSuplementos({ potes = [], soloDelPlan = [], onCambi
                 })}
                 {soloDelPlan.map((s) => (
                     <li key={`plan-${s.name}`} style={estilos.pote}>
-                        <span style={estilos.nombre}>{s.name}<span style={estilos.chip}>{t('Del plan')}</span></span>
-                        <span style={estilos.plan}>{t('Plan: {dosis} · {cuando}', { dosis: s.dose || '', cuando: s.timing || '' })}</span>
+                        <span style={estilos.nombre}>{tr(s.name)}<span style={estilos.chip}>{t('Del plan')}</span></span>
+                        <span style={estilos.plan}>{t('Plan: {dosis} · {cuando}', { dosis: tr(s.dose || ''), cuando: tr(s.timing || '') })}</span>
                     </li>
                 ))}
             </ul>
