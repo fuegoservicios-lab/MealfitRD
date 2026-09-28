@@ -13,7 +13,9 @@ import { ChipOption, toggleArrayWithExclusiveSentinel } from './_shared';
 import { NextButton } from './NextButton';
 import { useT } from '../../../i18n';
 
-export const QAllergies = ({ onManualAdvance }) => {
+// [P1-PLAN-LOTE-719 · 2026-09-28] `nextLabel`: Configuración → «Alergias y dieta» reutiliza esta pregunta (con su
+// misma validación de seguridad) y su botón guarda en vez de avanzar. En el formulario no se pasa y dice «Siguiente».
+export const QAllergies = ({ onManualAdvance, nextLabel }) => {
     // [P2-FORM-ALLERGY-SEVERITY · 2026-06-22] (audit fresco P2-25) DECISIÓN DE PRODUCTO documentada (el
     // audit permite "implementar toggle de severidad O documentar la decisión fail-safe"): este step NO
     // distingue alergia severa (IgE) de intolerancia leve — ambas se tratan como exclusión DURA. La dirección
@@ -131,6 +133,7 @@ export const QAllergies = ({ onManualAdvance }) => {
                 ambigüedad en consentimiento informado. */}
             <NextButton
                 onClick={onManualAdvance}
+                label={nextLabel}
                 disabled={
                     (formData.allergies || []).length === 0 &&
                     (formData.otherAllergies || '').trim() === ''

@@ -34,8 +34,12 @@ export const useRegeneratePlan = () => {
         toastId = null,
         entry_point = null
     } = {}) => {
+        // [P1-PLAN-LOTE-715 · 2026-09-28] Devuelve CÓMO terminó: 'navegado' (fue a /plan), 'formulario' (faltaba un
+        // dato y fue al cuestionario), 'sin_creditos', 'ocupado', 'cargando' o 'error'. Antes no devolvía nada y nunca
+        // lanzaba: Configuración anunciaba «Datos guardados. Regenerando plan…» aunque el plan no se regenerara.
+        // Los callers que ignoran el valor siguen igual.
         // Protección contra doble disparo (auto-rotación + clic manual simultáneo)
-        if (isNavigatingRef.current) return;
+        if (isNavigatingRef.current) return 'ocupado';
 
         // [P1-3] Si el descifrado del sensitive cifrado todavía está en vuelo
         // (50-200ms post-login), abortamos sin tocar `isNavigatingRef`. Sin
@@ -50,7 +54,7 @@ export const useRegeneratePlan = () => {
                 description: t('Esperando a que se sincronice tu perfil. Inténtalo en unos segundos.'),
                 duration: 3000,
             });
-            return;
+            return 'cargando';
         }
         isNavigatingRef.current = true;
 
@@ -105,7 +109,7 @@ export const useRegeneratePlan = () => {
                 toast.error(t('Límite de regeneraciones alcanzado'), {
                     description: t('Has usado todos tus créditos de regeneración este mes.')
                 });
-                return;
+                return 'sin_creditos';
             }
 
             let previousMeals = [];
@@ -264,6 +268,7 @@ export const useRegeneratePlan = () => {
             // check-in "Antes de tu nuevo ciclo" cuando el plan es reciente (renovar el mismo día
             // por variedad/test = mismas características físicas, cero señal que medir).
             navigate('/plan', { state: { previous_meals: previousMeals, current_pantry_ingredients: typeof currentIngredients !== 'undefined' ? currentIngredients : [], update_reason: reason, renewal_pantry_aware: renewalPantryAware, durable_pantry_ingredients: durablePantryIngredients, is_plan_expired: actualIsPlanExpired, entry_point, disliked_meals: Object.keys(dislikedMeals || {}), plan_created_at: planData?.created_at || planData?.plan_start_date || null } });
+            return 'navegado';
         } else {
             // [P1-B6] Falta algún campo requerido. Toast informativo + redirect
             // a /assessment (antes el redirect era silencioso y el usuario no
@@ -278,15 +283,15 @@ export const useRegeneratePlan = () => {
             });
             setCurrentStep(0);
             navigate('/assessment');
+            return 'formulario';
         }
         } catch (error) {
             isNavigatingRef.current = false;
-            if (toastId) {
-                toast.dismiss(toastId);
-                toast.error(t('Error de conexión'), { description: t('Hubo un problema preparando la regeneración.') });
-            }
+            // [P1-PLAN-LOTE-715] El aviso salía SOLO si el caller había pasado `toastId`: sin él, el fallo era mudo.
+            if (toastId) toast.dismiss(toastId);
+            toast.error(t('Error de conexión'), { description: t('Hubo un problema preparando la regeneración.') });
             console.error('Error during plan regeneration:', error);
-            // throw error; // Remove throw to prevent unhandled promise rejection if not caught upstream. The UI is already handled via toast.
+            return 'error';
         }
     };
 

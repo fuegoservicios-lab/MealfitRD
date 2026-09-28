@@ -294,6 +294,19 @@
    Se alinea con el botón, no con el texto: `align-self: center` dentro de una fila que
    es `align-items: flex-start`, para que con un título de dos líneas el acuse siga a la
    altura de la X y no bailando a media caja. */
+/* [P1-PLAN-LOTE-718 · 2026-09-28] El acuse solo tenía estilo DENTRO de la ventana: en la ruta
+   /dashboard/settings (enlace directo, refresco) salía como texto plano y «No se guardó» no se
+   pintaba en rojo. Tipografía y color valen en los dos marcos; la colocación sigue siendo de la ventana. */
+.acuse {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.acuseError {
+    color: var(--danger-text);
+}
+
 .inDialog .acuse {
     flex-shrink: 0;
     align-self: center;
@@ -1052,6 +1065,13 @@
     transform: translateX(22px);
 }
 
+/* [P1-PLAN-LOTE-718 · 2026-09-28] El checkbox real mide 0×0: sin esto, quien navega con teclado no veía en
+   qué interruptor estaba (Alertas, recordatorios, generación de planes, modo automático, analítica…). */
+.toggleSwitch input:focus-visible + .toggleSlider {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 /* [P3-PREFERENCES-CARD-POLISH · 2026-05-27] Cards de toggles del bloque
    "Comportamiento del agente" (Modo automático, Hidratación, Memoria a
    Largo Plazo). Refactor de inline styles a clases compartidas con
@@ -1431,7 +1451,9 @@
    dos habría hecho que el rótulo cambiara de tamaño al tocar el peso. */
 .updatePlanBtn {
     background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-    color: white;
+    /* [P1-PLAN-LOTE-718] Blanco sobre ámbar daba 2,2–3,2:1 — en el botón que gasta un crédito. Tinta oscura:
+       ~10:1 sobre #F59E0B y ~7:1 sobre #D97706 (la misma pareja que usa el Dashboard). */
+    color: #1F1300;
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 0.75rem;
@@ -1492,7 +1514,8 @@
 }
 
 .saveChangesBtnSuccess {
-    background: #10B981;
+    /* [P1-PLAN-LOTE-718] Blanco sobre #10B981 = 2,5:1; #047857 = 5,5:1. */
+    background: #047857;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
@@ -1839,7 +1862,8 @@
 }
 
 .modalBtnConfirm {
-    background: #EF4444;
+    /* [P1-PLAN-LOTE-718] Blanco sobre #EF4444 = 3,76:1 («Sí, Cancelar», «Descartar y salir»). */
+    background: var(--danger-fill, #DC2626);
     color: white;
     border: none;
     padding: 0.7rem 1.25rem;
@@ -1855,7 +1879,7 @@
 }
 
 .modalBtnConfirm:hover {
-    background: #DC2626;
+    background: #B91C1C;
     box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
 }
 

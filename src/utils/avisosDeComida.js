@@ -26,7 +26,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from './safeLocalStorage';
 import { safeJSONParse } from './safeJSONParse';
 import {
     isPushSupported,
-    requestNotificationPermission,
+    pedirPermisoDeNotificaciones,
     subscribeToPushNotifications,
     unsubscribeFromPushNotifications,
 } from './pushNotifications';
@@ -364,15 +364,31 @@ export async function estadoDeAvisos() {
     return { canal, activo: false, bloqueado: false };
 }
 
-/** Enciende los avisos en este dispositivo. `{ ok, canal, code?, status?, error? }` — códigos, nunca copy. */
+/**
+ * Enciende los avisos en este dispositivo. Códigos, nunca copy:
+ *   `{ ok: true, canal, programadas?, motivo? }`
+ *   `{ ok: false, canal, code: 'permiso_denegado', reason: 'denied' | 'dismissed' }`
+ *   `{ ok: false, canal, code, status?, error? }`   (server_error, local_error, sw_missing, brave_blocks_push…)
+ *
+ * [P1-PLAN-LOTE-718 · 2026-09-28] `reason` separa «lo BLOQUEÓ» (`denied`: solo se arregla en los ajustes del
+ * navegador o del teléfono) de «CERRÓ el diálogo sin elegir» (`dismissed`: `Notification.permission` sigue en
+ * 'default' y basta con volver a pulsar). Antes los dos salían como `permiso_denegado` a secas y Configuración
+ * mandaba a la persona a desbloquear en los ajustes algo que no estaba bloqueado. El `code` se queda igual a
+ * propósito: el aviso de bienvenida del Dashboard ya trata `permiso_denegado` como «omitidas», que vale para los dos.
+ */
 export async function activarAvisos() {
     const canal = await canalDeEsteDispositivo();
     if (canal === 'local') {
         const LN = (await _pluginLocal())?.LN;
         let permiso = (await LN.checkPermissions())?.display;
         if (permiso !== 'granted') permiso = (await LN.requestPermissions())?.display;
-        if (permiso !== 'granted') return { ok: false, canal, code: 'permiso_denegado' };
+        if (permiso !== 'granted') {
+            return { ok: false, canal, code: 'permiso_denegado', reason: permiso === 'denied' ? 'denied' : 'dismissed' };
+        }
         safeLocalStorageSet(CLAVE_AVISOS_LOCALES, '1');
+        // [P1-PLAN-LOTE-718] Encender quita la marca de «apagada» de la push nativa (la puso `desactivarAvisos`) y
+        // registra el token; sin esto el registro de abajo se quedaría callado mientras la marca siguiera ahí.
+        import('../native/pushNativa').then((m) => m.permitirPushNativa()).catch(() => {});
         // [P1-PLAN-LOTE-280] con el permiso recién dado, el teléfono se registra también para la push nativa (FCM)
         import('../native/pushNativa').then((m) => m.registrarSiHayPermiso()).catch(() => {});
         const r = await sincronizarAvisosLocales();
@@ -383,27 +399,42 @@ export async function activarAvisos() {
         return { ok: true, canal, programadas: r.programadas, motivo: r.motivo };
     }
     if (canal === 'web-push') {
-        const concedido = await requestNotificationPermission();
-        if (!concedido) return { ok: false, canal, code: 'permiso_denegado' };
+        const permiso = await pedirPermisoDeNotificaciones();
+        if (permiso === 'unsupported') return { ok: false, canal, code: 'push_unsupported' };
+        if (permiso !== 'granted') {
+            return { ok: false, canal, code: 'permiso_denegado', reason: permiso === 'denied' ? 'denied' : 'dismissed' };
+        }
         const r = await subscribeToPushNotifications();
         if (r?.success) {
             safeLocalStorageSet(CLAVE_PUSH_WEB, 'true');
             return { ok: true, canal };
         }
-        return { ok: false, canal, code: r?.code || 'desconocido', status: r?.status, error: r?.error };
+        return {
+            ok: false, canal, code: r?.code || 'desconocido', status: r?.status, error: r?.error,
+            ...(r?.reason ? { reason: r.reason } : {}),
+        };
     }
     return { ok: false, canal, code: canal };
+}
+
+/** Cancela los recordatorios locales de este teléfono y marca el interruptor apagado. Sin tocar la push nativa. */
+async function _apagarAvisosLocales() {
+    safeLocalStorageSet(CLAVE_AVISOS_LOCALES, '0');
+    try {
+        const LN = (await _pluginLocal())?.LN;
+        await LN.cancel({ notifications: idsPropios().map((id) => ({ id })) });
+    } catch { /* nada que cancelar */ }
 }
 
 /** Apaga los avisos en este dispositivo. */
 export async function desactivarAvisos() {
     const canal = await canalDeEsteDispositivo();
     if (canal === 'local') {
-        safeLocalStorageSet(CLAVE_AVISOS_LOCALES, '0');
-        try {
-            const LN = (await _pluginLocal())?.LN;
-            await LN.cancel({ notifications: idsPropios().map((id) => ({ id })) });
-        } catch { /* nada que cancelar */ }
+        await _apagarAvisosLocales();
+        // [P1-PLAN-LOTE-718 · 2026-09-28] …y la push NATIVA del servidor (FCM/APNs). Antes apagar solo callaba los
+        // recordatorios del teléfono: el plan listo, el coach y la Nevera seguían llegando, y al volver a la app el
+        // token se registraba otra vez. Acotado a 2,5 s dentro; si no hay red, queda pendiente y se reintenta.
+        try { await (await import('../native/pushNativa')).apagarPushNativa(); } catch { /* el interruptor queda apagado igual */ }
         return { ok: true, canal };
     }
     if (canal === 'web-push') {
@@ -422,7 +453,9 @@ export async function desactivarAvisos() {
 export async function apagarAvisosAlCerrarSesion() {
     try {
         if (isNativeApp()) {
-            if (safeLocalStorageGet(CLAVE_AVISOS_LOCALES, null) === '1') await desactivarAvisos();
+            // [P1-PLAN-LOTE-718] Solo los locales: `desactivarAvisos` además marcaría la push nativa como apagada POR
+            // DECISIÓN del usuario, y cerrar sesión no es esa decisión (al volver a entrar se registraría callada).
+            if (safeLocalStorageGet(CLAVE_AVISOS_LOCALES, null) === '1') await _apagarAvisosLocales();
             // [P1-PLAN-LOTE-280] la push nativa (FCM) de ESTA cuenta deja de llegar a este teléfono
             try { await (await import('../native/pushNativa')).olvidarTokenAlCerrarSesion(); } catch { /* sigue */ }
         } else if (isPushSupported() && typeof Notification !== 'undefined' && Notification.permission === 'granted') {

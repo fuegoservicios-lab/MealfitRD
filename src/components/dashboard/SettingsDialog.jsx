@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import useModalAccessibility from '../../hooks/useModalAccessibility';
@@ -45,6 +45,16 @@ import styles from './SettingsDialog.module.css';
    donde está.
    ========================================================================= */
 
+/* [P1-PLAN-LOTE-718 · 2026-09-28] Qué cuenta como «otra capa». `alertdialog` también: el
+   `ConfirmDialog` de `confirmToast` lo pinta dentro de su `Modal`, y el gesto «atrás» de
+   Android (`native/botonAtras.js`) ya pregunta por los dos roles. */
+const SELECTOR_CAPA_MODAL = '[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]';
+
+const _capasAbiertas = () => {
+    if (typeof document === 'undefined') return [];
+    try { return Array.from(document.querySelectorAll(SELECTOR_CAPA_MODAL)); } catch { return []; }
+};
+
 const SettingsDialog = () => {
     const t = useT();
     const navigate = useNavigate();
@@ -78,12 +88,31 @@ const SettingsDialog = () => {
        si Settings tiene abierto su modal de descarte (o el de cancelar
        suscripción), ese `[role="dialog"]` vive DENTRO de este contenedor y
        entonces ESC le pertenece a él. Sin esto, una sola tecla cerraba la
-       confirmación Y la ventana — que es perder el aviso y los datos a la vez. */
+       confirmación Y la ventana — que es perder el aviso y los datos a la vez.
+
+       [P1-PLAN-LOTE-718 · 2026-09-28] «Dentro de este contenedor» era la mitad del
+       caso. `EvaluarDeNuevoModal` portaliza a `document.body` y las confirmaciones
+       de `confirmToast` las pinta el `ConfirmDialogHost` de App: los dos son hijos
+       de Settings en el árbol de React, pero en el DOM viven FUERA del panel, y la
+       pregunta es al DOM. Así, ESC —y el «atrás» de Android, que sintetiza un ESC
+       (`native/botonAtras.js`)— cerraba la confirmación Y la ventana entera.
+
+       Ahora la pregunta es al documento: la ventana solo es la capa de arriba si no
+       hay OTRO diálogo modal abierto en toda la página… salvo los que ya estaban
+       abiertos DEBAJO cuando la ventana se abrió (el cajón del historial del chat en
+       móvil es un `role="dialog"` modal mientras está desplegado). Esos se anotan al
+       nacer —en el inicializador, antes de que exista ningún hijo que pueda abrir
+       nada— y no cuentan: sin esa excepción, abrir Configuración con el cajón
+       desplegado dejaba la ventana sin ESC ni trampa de foco para siempre. */
+    const [capasDeFondo] = useState(() => new Set(_capasAbiertas()));
+
     const isTopmost = useCallback(() => {
         const root = containerElRef.current;
         if (!root) return true;
-        return !root.querySelector('[role="dialog"][aria-modal="true"]');
-    }, []);
+        return !_capasAbiertas().some((capa) => (
+            capa !== root && (root.contains(capa) || !capasDeFondo.has(capa))
+        ));
+    }, [capasDeFondo]);
 
     const { containerRef } = useModalAccessibility({
         isOpen: true,

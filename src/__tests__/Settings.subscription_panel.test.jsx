@@ -28,9 +28,12 @@ describe('Suscripción y Pagos: card del plan actual', () => {
         expect(PANEL).toContain("t('de {total}', { total: formatNumber(_total) })");
         // rojo SOLO en 0, ámbar en el último (P3-CREDITS-LAST-ONE)
         expect(PANEL).toContain("const _barState = _left === 0 ? 'is-out' : (_left === 1 ? 'is-low' : '');");
-        expect(PANEL).toContain("_cancelled && _endLabel ? [t('Acceso hasta'), _endLabel]");
-        expect(PANEL).toContain("isPaidSubscriber && !_cancelled && _endLabel ? [t('Próximo cobro'), _endLabel]");
-        expect(PANEL).toContain("[t('Se renuevan'), creditsRenewalLabel()]");
+        // [P1-PLAN-LOTE-714] cada fecha con su fuente: «Acceso hasta» = fin del periodo pagado; «Próximo cobro» = PayPal
+        // (`next_billing_time` de /api/subscription/status); si no, el reinicio de créditos, dicho como tal.
+        expect(PANEL).toContain("_cancelled && _accesoHasta ? [t('Acceso hasta'), _accesoHasta]");
+        expect(PANEL).toContain("isPaidSubscriber && !_cancelled && _proximoCobro ? [t('Próximo cobro'), _proximoCobro]");
+        expect(PANEL).toContain("[t('Créditos se renuevan'), creditsRenewalLabel()]");
+        expect(PANEL).toContain('const _proximoCobro = _fecha(subStatus?.next_billing_time);');
     });
     it('la fecha de renovación de créditos es UNA aritmética compartida con Plan & Objetivo', () => {
         expect(CODE).toContain('const creditsRenewalLabel = () => {');
@@ -51,12 +54,13 @@ describe('Suscripción y Pagos: escalera de planes', () => {
         expect(PANEL).toContain('const _goCheckout = (tier) => navigate(`/dashboard/upgrade?checkout=${tier}&billing=monthly`);');
         expect(PANEL).toContain("{isCurrent && <span className=\"sub-tier-tag\">{t('Tu plan')}</span>}");
         expect(PANEL).toContain("t('{n} créditos al mes', { n: formatNumber(TIER_CREDITS[tier]) })");
-        expect(PANEL).toContain('US${PRICING[tier].monthly.price}');
+        // [P1-PLAN-LOTE-714] precio con el formato del idioma (era «US$9.99» con punto en los 5 idiomas)
+        expect(PANEL).toContain("formatCurrency(PRICING[tier].monthly.price, 'USD')");
         // filas por debajo del tier actual: visibles pero sin acción (no se ofrece bajar de plan aquí)
         expect(PANEL).toContain("const selectable = !isCurrent && !isBelow;");
         expect(PANEL).toContain("const Row = selectable ? 'button' : 'div';");
         // oferta de lanzamiento: precio futuro tachado + fecha desde el SSOT, no a mano
-        expect(PANEL).toContain('{_offer && <s>US${LAUNCH_OFFER.futureMonthly[tier]}</s>}');
+        expect(PANEL).toContain("{_offer && <s>{formatCurrency(LAUNCH_OFFER.futureMonthly[tier], 'USD')}</s>}");
         expect(PANEL).toContain('new Date(`${LAUNCH_OFFER.deadlineISO}T00:00:00Z`)');
     });
     it('no hay escalera ni «Mejorar mi plan» para Max ni para administradores', () => {
@@ -69,7 +73,8 @@ describe('catálogos', () => {
     it('las claves nuevas están en los 4 idiomas y las huérfanas salieron', () => {
         for (const loc of ['en-US', 'fr-FR', 'it-IT', 'pt-BR']) {
             const cat = JSON.parse(read(`src/i18n/locales/${loc}.json`));
-            for (const k of ['Créditos disponibles', 'de {total}', 'Se renuevan', 'Próximo cobro', 'Acceso hasta',
+            // [P1-PLAN-LOTE-714] «Se renuevan» pasó a «Créditos se renuevan» (el hecho es el reinicio de créditos, no un cobro).
+            for (const k of ['Créditos disponibles', 'de {total}', 'Créditos se renuevan', 'Próximo cobro', 'Acceso hasta',
                 'No se renueva', 'Otros planes', 'Precio de lanzamiento hasta el {fecha}', '{n} créditos al mes']) {
                 expect(cat[k], `${loc}: ${k}`).toBeTruthy();
             }

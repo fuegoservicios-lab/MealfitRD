@@ -159,6 +159,15 @@ export const fetchWithAuth = async (url: string, options: ApiRequestOptions = {}
     if (token) {
         headers.set('Authorization', `Bearer ${token}`);
     }
+    // [P1-PLAN-LOTE-714 · 2026-09-28] Un cuerpo `JSON.stringify(...)` sin cabecera sale como
+    // `text/plain;charset=UTF-8` (así lo fija el navegador para un string), y FastAPI 0.136 solo
+    // lee JSON con `application/json`: el endpoint responde 422 antes de ejecutarse. Así murió
+    // «Cancelar suscripción» desde marzo — PayPal seguía cobrando. El caller que manda JSON ya no
+    // tiene que acordarse; FormData, Blob y cabeceras explícitas no se tocan.
+    if (typeof options.body === 'string' && !headers.has('Content-Type')) {
+        const primero = options.body.trimStart().charAt(0);
+        if (primero === '{' || primero === '[') headers.set('Content-Type', 'application/json');
+    }
     // [P1-FIRST-PARTY-SESSION · 2026-06-16] Token de sesión first-party guardado
     // en localStorage → header X-MF-Session. Hace que las requests autenticadas
     // funcionen al reabrir el PWA de iOS (donde la cookie no persiste pero

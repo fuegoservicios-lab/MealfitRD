@@ -74,7 +74,8 @@ describe('lote 136 · el interruptor del generador', () => {
     });
 
     it('sin plan no hay recarga: el perfil en memoria se refresca para que el resto de la pantalla cambie de modo', () => {
-        expect(h).toMatch(/if \(planData\) \{\s*setTimeout\(\(\) => window\.location\.reload\(\), 900\);\s*\} else \{[\s\S]{0,700}await refreshProfileAndPlan\(\);/);
+        // [P1-PLAN-LOTE-717] con «tu plan venció la ventana» la recarga espera 3 s para que el aviso se lea.
+        expect(h).toMatch(/if \(planData\) \{[\s\S]{0,300}setTimeout\(\(\) => window\.location\.reload\(\), data\.plan_expired \? 3000 : 900\);\s*\} else \{[\s\S]{0,700}await refreshProfileAndPlan\(\);/);
         expect(h).toContain("if (!pausing) updateData('appMode', 'plan');");
     });
 
@@ -89,12 +90,15 @@ describe('lote 136 · el interruptor del generador', () => {
 describe('lote 136 · guardar y salir en modo contador', () => {
     it('«Guardar» no escribe el formulario entero (campos nunca preguntados, appMode) en health_profile', () => {
         const g = st.slice(st.indexOf('const handleSaveTracking = async () => {'), st.indexOf('const handleUpdatePlanWithMetrics = async () => {'));
-        expect(g).toContain('const hp = Object.keys(overrides).length ? { ...(userProfile?.health_profile || {}), ...overrides } : null;');
+        // [P1-PLAN-LOTE-715] solo lo editado (ni el formulario ni el perfil en memoria enteros).
+        expect(g).toContain('const hp = Object.keys(overrides).length ? { ...overrides } : null;');
+        expect(g).not.toContain('...(userProfile?.health_profile');
         expect(g).not.toContain('buildHealthProfilePayload(formData, overrides, session)');
     });
 
     it('el aviso de salir sin guardar no habla de un plan que no hay', () => {
-        expect(st).toContain("t('Editaste tu peso o altura pero no guardaste los cambios. Si sales ahora, los nuevos valores se')");
+        // [P1-PLAN-LOTE-715] el aviso cubre ahora nombre, edad y sexo además de peso y altura: texto general.
+        expect(st).toContain("t('Editaste tus datos pero no guardaste los cambios. Si sales ahora, los nuevos valores se')");
     });
 
     it('los textos nuevos están en los cuatro catálogos', () => {

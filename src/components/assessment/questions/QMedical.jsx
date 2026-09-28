@@ -106,7 +106,9 @@ export const hasOutOfScopeMedical = (fd) =>
     (fd?.medicalConditions || []).includes(OUT_OF_SCOPE_CONDITION)
     || (fd?.medications || []).includes(OUT_OF_SCOPE_MEDICATION);
 
-export const QMedical = ({ onManualAdvance }) => {
+// [P1-PLAN-LOTE-719 · 2026-09-28] `nextLabel`: Configuración → «Alergias y dieta» reutiliza esta pregunta (con su
+// misma validación de seguridad) y su botón guarda en vez de avanzar. En el formulario no se pasa y dice «Siguiente».
+export const QMedical = ({ onManualAdvance, nextLabel }) => {
     const { formData, updateData } = useAssessment();
     const t = useT();
     // [P0-B1] sentinel exclusivo con cualquier condición médica real.
@@ -446,6 +448,7 @@ export const QMedical = ({ onManualAdvance }) => {
                 de cliente es puenteable y aquí el punto entero es la seguridad. */}
             <NextButton
                 onClick={onManualAdvance}
+                label={nextLabel}
                 disabled={(formData.medicalConditions || []).length === 0 || (outOfScopeSelected && !enContador)}
             />
         </div>

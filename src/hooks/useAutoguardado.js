@@ -75,9 +75,24 @@
    `acusePrioritario`, abajo: se muestra el PEOR estado, nunca el más optimista.
    Cada panel sigue siendo dueño de su propio guardado; lo único compartido es
    cómo se resumen para una sola línea de texto.
+
+   ── [P1-PLAN-LOTE-718 · 2026-09-28] DOS HUECOS EN «VOLCAR SIN PODER ESPERAR» ──
+   1. Cerrar la ventana con un PUT EN VUELO perdía la última edición. El desmontaje
+      solo volcaba «si no hay nada en vuelo», y lo que esperaba en el temporizador
+      no dejaba marca: al volver el PUT no había nada pendiente que repetir. Ahora
+      el desmontaje marca «pendiente» y el `finally` del PUT en vuelo lo manda.
+      Lo mismo al irse la página, con una diferencia: ahí no se puede esperar a
+      que vuelva el PUT, así que lo último sale YA por keepalive (ver `transmitir`).
+   2. El keepalive no salía de verdad síncrono: `fetchWithAuth` ESPERA un token
+      asíncrono antes de llamar a `fetch`, y la página puede morir en esa espera.
+      `enviarAlIrse` (abajo) lo lanza en el mismo tic con la sesión first-party
+      que ya está en localStorage (`X-MF-Session`, que el backend acepta como
+      respaldo del Bearer — `auth.py::get_verified_user_id`, paso 3).
    ========================================================================= */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLatestRef } from './useLatestRef';
+import { api, fetchWithAuth } from '../config/api';
+import { getStoredMfSession } from '../utils/firstPartySession';
 
 /** Un clic ya es una decisión, pero se hacen en ráfaga: marcar cuatro síntomas
  *  son cuatro clics en tres segundos y debe salir un solo PUT. */
@@ -115,10 +130,46 @@ export function acusePrioritario(estados) {
 }
 
 /**
+ * [P1-PLAN-LOTE-718 · 2026-09-28] El PUT de la despedida (`pagehide`, `visibilitychange`
+ * a oculto), lanzado en ESTE MISMO TIC.
+ *
+ * `fetchWithAuth` hace `await` del token de Neon antes de llamar a `fetch`; en una
+ * descarga de verdad la página puede morir en esa espera y la petición no sale nunca,
+ * con `keepalive` o sin él (keepalive protege una petición YA lanzada, no una por
+ * lanzar). Aquí no hay nada que esperar: la credencial es la sesión first-party que
+ * vive en localStorage y viaja en `X-MF-Session` (y su cookie gemela, si el API es del
+ * mismo origen), que `get_verified_user_id` acepta cuando no hay Bearer.
+ *
+ * Sin sesión propia guardada no queda otra credencial síncrona: se cae a
+ * `fetchWithAuth` con keepalive, que es lo que había — mejor intentarlo que no.
+ *
+ * Los paneles la usan SOLO cuando el hook les pasa `{ keepalive: true }`; el resto del
+ * tiempo siguen con `fetchWithAuth` (timeout, aviso de sesión caducada, Bearer).
+ *
+ * @param {string} ruta  ruta relativa del API (`/api/...`)
+ * @param {RequestInit} init
+ * @returns {Promise<Response>}
+ */
+export function enviarAlIrse(ruta, init = {}) {
+    const sesion = getStoredMfSession();
+    if (!sesion) return fetchWithAuth(ruta, { ...init, keepalive: true });
+    const headers = new Headers(init.headers || {});
+    headers.set('X-MF-Session', sesion);
+    if (typeof init.body === 'string' && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+    }
+    const url = typeof ruta === 'string' && ruta.startsWith('http') ? ruta : api(ruta);
+    return fetch(url, { ...init, headers, keepalive: true });
+}
+
+/**
  * @param {object}   opciones
  * @param {object}   opciones.valor        Estado a persistir (objeto plano).
- * @param {Function} opciones.guardar      async (valor) => valorAdoptado | undefined.
- *                                         Debe LANZAR si el guardado falló.
+ * @param {Function} opciones.guardar      async (valor, { keepalive }) => valorAdoptado | undefined.
+ *                                         Debe LANZAR si el guardado falló. Con `keepalive`
+ *                                         la página se está yendo: el PUT tiene que SALIR en
+ *                                         este mismo tic, sin ningún `await` antes
+ *                                         (`enviarAlIrse`). [P1-PLAN-LOTE-718]
  * @param {boolean}  opciones.habilitado   Solo true tras una carga con éxito.
  * @param {string[]} [opciones.instantaneos] Claves de nivel 1 que van a 400 ms.
  * @param {string[]} [opciones.alVolcar]     Claves que NO usan temporizador.
@@ -144,8 +195,12 @@ export default function useAutoguardado({
     const baseRef = useRef(null);
     const temporizadorRef = useRef(null);
     const enVueloRef = useRef(false);
+    /** [P1-PLAN-LOTE-718] La foto de lo que viaja en el PUT en vuelo (o null). */
+    const enVueloFotoRef = useRef(null);
     /** Un cambio llegó mientras había un PUT en vuelo: hay que repetir al acabar. */
     const pendienteRef = useRef(false);
+    /** [P1-PLAN-LOTE-718] …y esa repetición tiene que salir con keepalive (la pidió una despedida). */
+    const pendienteKeepaliveRef = useRef(false);
     const montadoRef = useRef(true);
 
     const anunciar = useCallback((e) => {
@@ -167,6 +222,13 @@ export default function useAutoguardado({
         return foto;
     }, []);
 
+    /** ¿El valor de ahora difiere de una foto dada? (la del PUT en vuelo, por ejemplo) */
+    const difiereDe = useCallback((foto) => {
+        if (!foto) return true;
+        const v = valorRef.current || {};
+        return Object.keys(v).some((k) => claveEstable(v[k]) !== foto[k]);
+    }, [valorRef]);
+
     const transmitir = useCallback(async (opciones = {}) => {
         // (3) sin lectura no hay escritura. REDUNDANTE a propósito: `cambiadas()` ya
         // devuelve vacío cuando no hay base, así que quitar esta línea no cambia el
@@ -174,11 +236,32 @@ export default function useAutoguardado({
         // Se queda porque la regla que protege el dato tiene que leerse arriba de la
         // función que escribe, no deducirse de lo que devuelve un ayudante.
         if (!baseRef.current) return;
-        if (enVueloRef.current) { pendienteRef.current = true; return; }
+        if (enVueloRef.current) {
+            pendienteRef.current = true;
+            if (opciones && opciones.keepalive) {
+                // [P1-PLAN-LOTE-718 · 2026-09-28] La página se va con un PUT en vuelo. Esperar a
+                // que vuelva para mandar lo último es esperar algo que quizá no ocurra: una
+                // descarga mata el `finally`. Así que lo último sale YA, fuera de turno.
+                //
+                // Esto rompe (1) —dos PUT en vuelo— a sabiendas, y no puede dejar peor el dato:
+                // cada PUT lleva el objeto ENTERO, así que en el peor orden (el viejo llega
+                // después) queda lo mismo que si no se hubiera mandado este. Y si la página
+                // sobrevive (volver a la pestaña), la repetición ordenada de abajo —marcada
+                // keepalive por si la página muere justo entonces— deja el último valor.
+                pendienteKeepaliveRef.current = true;
+                if (difiereDe(enVueloFotoRef.current)) {
+                    try {
+                        Promise.resolve(guardarRef.current(valorRef.current, opciones)).catch(() => { /* la repetición lo reintenta */ });
+                    } catch { /* guardar lanzó en síncrono: la repetición lo reintenta */ }
+                }
+            }
+            return;
+        }
         if (cambiadas().length === 0) return;
 
         const enviado = valorRef.current;
         enVueloRef.current = true;
+        enVueloFotoRef.current = instantanea(enviado);
         anunciar('guardando');
         try {
             const adoptado = await guardarRef.current(enviado, opciones);
@@ -189,13 +272,16 @@ export default function useAutoguardado({
             anunciar('error');
         } finally {
             enVueloRef.current = false;
+            enVueloFotoRef.current = null;
             if (pendienteRef.current) {
                 pendienteRef.current = false;
+                const conKeepalive = pendienteKeepaliveRef.current;
+                pendienteKeepaliveRef.current = false;
                 // (1) el siguiente PUT solo arranca cuando el anterior ya acabó.
-                transmitir();
+                transmitir(conKeepalive ? { keepalive: true } : undefined);
             }
         }
-    }, [anunciar, cambiadas, guardarRef, instantanea, valorRef]);
+    }, [anunciar, cambiadas, difiereDe, guardarRef, instantanea, valorRef]);
 
     const volcar = useCallback((opciones) => {
         if (temporizadorRef.current) {
@@ -279,9 +365,18 @@ export default function useAutoguardado({
                 clearTimeout(temporizadorRef.current);
                 temporizadorRef.current = null;
             }
-            if (baseRef.current && !enVueloRef.current && cambiadas().length > 0) {
-                transmitir();
+            if (!baseRef.current) return;
+            if (enVueloRef.current) {
+                // [P1-PLAN-LOTE-718 · 2026-09-28] Antes esta rama no existía: con un PUT en
+                // vuelo el desmontaje no hacía NADA, y la edición que esperaba en el
+                // temporizador (que se acaba de cancelar arriba) moría sin dejar marca. Se
+                // marca pendiente y el `finally` del PUT en vuelo la manda al volver; los refs
+                // sobreviven al desmontaje, así que `valorRef` sigue teniendo lo último.
+                // Cerrar la ventana no es descargar la página: esperar al PUT sí es posible.
+                pendienteRef.current = true;
+                return;
             }
+            if (cambiadas().length > 0) transmitir();
         };
     }, [cambiadas, transmitir]);
 
