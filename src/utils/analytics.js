@@ -171,20 +171,25 @@ export const persistAnalyticsOptOut = (optedOut) => {
  * en la cabecera de este fichero desde P2-PRIVACY-SETTINGS—. El replay sí cae,
  * porque grabar la pantalla de alguien que acaba de pedir que no le sigan los
  * pasos contradice lo que acaba de pedir.
+ *
+ * [P1-PLAN-LOTE-794 · 2026-09-28] Cómo se corta PostHog AHORA. Con
+ * `cookieless_mode: 'always'` (posthogClient.js) `opt_out_capturing()` y
+ * `opt_in_capturing()` son no-op en el SDK: avisan y salen. El corte vive en el
+ * `before_send` de `posthogClient.js`, que consulta `isAnalyticsOptedOut()` en
+ * cada evento — basta con que la bandera cambie, que es lo que hace
+ * `persistAnalyticsOptOut` justo antes de llamar aquí. Y encender vuelve a dejar
+ * pasar los eventos por el mismo camino.
+ * Lo que la prueba con el SDK REAL (lote794.test.js) enseñó de paso: la versión
+ * anterior tampoco cortaba nada. `reset(true)` justo después de
+ * `opt_out_capturing()` reinicia el consentimiento del SDK a «pendiente», y con
+ * él la captura; el mock de este fichero sólo comprobaba que se llamaran.
+ * Aquí queda soltar la identidad: sin persistencia no hay nada que borrar del
+ * dispositivo, pero el `distinct_id` de la cuenta sigue en memoria hasta el reset.
  */
 const _aplicarOptOutEnCaliente = (optedOut) => {
     try {
         const ph = typeof window !== 'undefined' ? window.posthog : null;
-        if (ph) {
-            if (optedOut) {
-                ph.opt_out_capturing?.();
-                // `reset` suelta el `distinct_id` y la persistencia asociada:
-                // sin esto el usuario deja de emitir pero sigue MARCADO.
-                ph.reset?.(true);
-            } else {
-                ph.opt_in_capturing?.();
-            }
-        }
+        if (ph && optedOut) ph.reset?.(true);
     } catch { /* la analítica jamás rompe la app */ }
 
     if (!optedOut) return;
