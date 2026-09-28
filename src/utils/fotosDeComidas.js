@@ -52,8 +52,12 @@ function _abrir() {
             }
         };
         req.onsuccess = () => {
-            req.result.onversionchange = () => req.result.close();
-            resolve(req.result);
+            const db = req.result;
+            // Safari (iOS) puede cerrar la conexión con la app en segundo plano («Connection to Indexed Database server
+            // lost»): se olvida la cacheada para que la próxima operación abra otra en vez de fallar hasta recargar.
+            db.onclose = () => { _db = null; };
+            db.onversionchange = () => { db.close(); _db = null; };
+            resolve(db);
         };
         req.onerror = () => resolve(null);
         req.onblocked = () => resolve(null);
@@ -66,7 +70,7 @@ function _abrir() {
 
 /** Corre `fn(almacen)` en una transacción. `{ valor }` al completarse (una petición → su `result`; un `delete`
  *  completa con `valor: undefined`, que NO es un fallo), o null si la transacción falló o no hay base. */
-async function _conAlmacen(modo, fn) {
+async function _conAlmacen(modo, fn, reintento = true) {
     const db = await _abrir();
     if (!db) return null;
     return new Promise((resolve) => {
@@ -75,7 +79,13 @@ async function _conAlmacen(modo, fn) {
         try {
             tx = db.transaction(ALMACEN, modo);
             peticion = fn(tx.objectStore(ALMACEN));
-        } catch {
+        } catch (e) {
+            // una conexión que se estaba cerrando (InvalidStateError): una vez, con otra conexión
+            if (reintento && e && e.name === 'InvalidStateError') {
+                _db = null;
+                resolve(_conAlmacen(modo, fn, false));
+                return;
+            }
             resolve(null);
             return;
         }
