@@ -206,6 +206,23 @@ describe('la fila del contador', () => {
     });
 });
 
+// ─────────────────────────── la capa de la ficha ───────────────────────────
+
+describe('la ficha en la escala de capas', () => {
+    it('gana al cajón de días anteriores y deja la confirmación de «Eliminar» por encima', async () => {
+        const { cargarEscala } = await import('./utils/zLayers');
+        const escala = cargarEscala();
+        const css = leer('components/dashboard/FichaDeComida.module.css');
+        const token = /\.overlay\s*\{[^}]*z-index:\s*var\((--z-[a-z-]+)/.exec(css)?.[1];
+        expect(token).toBe('--z-drawer');
+        // el cajón usa --z-cover / --z-cover-top; la confirmación, el Modal común en --z-modal (dentro de #root)
+        expect(escala[token]).toBeGreaterThan(escala['--z-cover-top']);
+        expect(escala[token]).toBeLessThan(escala['--z-modal']);
+        expect(leer('components/dashboard/DiaryHistory.module.css')).toMatch(/z-index:\s*var\(--z-cover-top\)/);
+        expect(leer('components/common/Modal.jsx')).toContain("zIndex: 'var(--z-modal)'");
+    });
+});
+
 // ─────────────────────────── el almacén de fotos ───────────────────────────
 
 describe('fotosDeComidas', () => {

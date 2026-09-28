@@ -11,7 +11,11 @@
     background: rgba(2, 6, 23, 0.6);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    z-index: var(--z-modal, 1000);
+    /* `--z-drawer` y NO `--z-modal`: la ficha se abre también desde el cajón de días anteriores (`--z-cover`/`-top`) y
+       tiene que ganarle; pero su «Eliminar» abre la confirmación (`ConfirmDialogHost`, un `Modal` en `--z-modal`
+       dentro de #root) y esa tiene que ganarle a la ficha. A igual número ganaría la ficha (portal a <body>, después
+       en el DOM) y el botón de confirmar quedaría tapado. */
+    z-index: var(--z-drawer, 720);
     display: flex;
     align-items: flex-end;
     justify-content: center;
