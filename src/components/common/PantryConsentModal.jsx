@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { getLocale, useT } from "../../i18n";
+import { formatNumber, getLocale, useT } from "../../i18n";
 // [P1-PLAN-LOTE-225 · 2026-09-24] El alimento y su unidad en el idioma del usuario (el dato sigue en español: es lo
 // que se reenvía como `allow_new_ingredients`).
 import { nombreDelAlimento } from "../../utils/nombresDeAlimentos";
@@ -78,7 +78,8 @@ function formatQty(m, t) {
   const qty = Number(m?.qty_needed);
   if (!qty || Number.isNaN(qty)) return "";
   const unit = m?.unit ? glossUnitWord(unidadParaCantidad(String(m.unit), qty), t) : "";
-  const qtyTxt = Number.isInteger(qty) ? String(qty) : qty.toFixed(1);
+  // [P1-PLAN-LOTE-648] la coma o el punto decimal del idioma del usuario («1,5» en fr/pt/it), no siempre «1.5»
+  const qtyTxt = Number.isInteger(qty) ? String(qty) : formatNumber(qty, { maximumFractionDigits: 1 });
   return `${qtyTxt} ${unit}`.trim();
 }
 

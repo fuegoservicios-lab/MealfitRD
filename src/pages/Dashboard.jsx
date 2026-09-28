@@ -10157,7 +10157,7 @@ const DashboardInner = () => {
                         <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--text-muted)' }} />
                         <div>
                             {hoveredOption === 'dislike' ? (
-                                <><strong>{t('Se evitarán:')}</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => m.name).join(', ') : t('los platos actuales')}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
+                                <><strong>{t('Se evitarán:')}</strong> {currentDayMeals.length > 0 ? currentDayMeals.map(m => mealDisplayName(m, _dashLocale) || m.name).join(', ') : t('los platos actuales')}.<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'variety' ? (
                                 <><strong>{t('Variedad:')}</strong> {t('platos de diferentes cocinas y perfiles de sabor.')}<br/><span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{t('Tiempo est.: ~12s.')} {isPremium ? t('Sin costo (Premium)') : t('Consumirá 1 regeneración')}.</span></>
                             ) : hoveredOption === 'time' ? (
@@ -10318,7 +10318,7 @@ const DashboardInner = () => {
                         {currentDayMeals.length > 0 && (
                             <ul style={{ margin: '0.35rem 0 0 0', padding: '0 0 0 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                                 {currentDayMeals.map((m, i) => (
-                                    <li key={i} style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.82rem' }}>{m.name}</li>
+                                    <li key={i} style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.82rem' }}>{mealDisplayName(m, _dashLocale) || m.name}</li>
                                 ))}
                             </ul>
                         )}
