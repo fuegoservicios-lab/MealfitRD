@@ -181,7 +181,10 @@ export const REQUIRED_FORM_FIELDS = [
 // [P1-PLAN-LOTE-792 · 2026-09-28] (G13, decisión del dueño) EUR/MXN/COP dejan de ser
 // conversiones FX de la cesta dominicana (antes EUR=USD×0,95 · MXN=USD×18 · COP=USD×4200).
 // Fuente: Banco Mundial, «Food Prices for Nutrition 5.0», indicador CoHD_LCU (coste de una
-// dieta sana por persona y día, en moneda local), licencia CC BY 4.0; datos del 2026-07-21.
+// dieta sana por persona y día, en moneda local), licencia CC BY 4.0; base actualizada el 2026-07-21,
+// observación del año 2025. Los insumos por país (133,32 DOP · 2,55 EUR · 49,51 MXN · 7.952,04 COP), la
+// regla de redondeo y el cálculo del USDA para USD están en backend/docs/country_system_f1.md
+// («Pisos de presupuesto por país»), y test_p1_plan_lote_792.py rehace las cuentas.
 // Método: piso semanal = dieta sana × 7 × 4,286 (la proporción del piso dominicano respecto a
 // su propia dieta sana). Escalones como en DO: ×1,75 a 15 días y ×3,25 a 30, a la unidad.
 //   EUR: 75 (igual) → 131 (131,25) · 244 (243,75)
