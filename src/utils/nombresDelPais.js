@@ -6,22 +6,19 @@
 // cada texto: «1 guineo (plátano) mediano». La tabla es espejo de `backend/data/food_names_i18n.json`
 // (`nombre_por_pais`, SSOT); `backend/tests/test_p1_plan_lote_649.py` los compara.
 import NOMBRES_POR_PAIS from '../data/nombresPorPais.json';
+import { getPaisDelUsuario, setPaisDeLectura } from './paisDelUsuario';
 
-let _pais = null;
-let _paisUsuario = null;
+// [P1-PLAN-LOTE-702] El estado vive en `paisDelUsuario.js` (el arranque lo fija sin cargar esta tabla).
+export { getPaisDelUsuario, setPaisDeLectura };
 
-/** El país del perfil. Para los nombres solo cuenta si tiene tabla (RD y EE. UU. no la tienen); para los °F, US y PR. */
-export function setPaisDeLectura(pais) {
-    const p = typeof pais === 'string' ? pais.trim().toUpperCase() : '';
-    _pais = NOMBRES_POR_PAIS[p] ? p : null;
-    _paisUsuario = /^[A-Z]{2}$/.test(p) ? p : null;
-}
-
-export const getPaisDeLectura = () => _pais;
-export const getPaisDelUsuario = () => _paisUsuario;
+/** El país del perfil si tiene tabla de nombres (RD y EE. UU. no la tienen), o null. Para los °F cuenta US y PR. */
+export const getPaisDeLectura = () => {
+    const p = getPaisDelUsuario();
+    return p && NOMBRES_POR_PAIS[p] ? p : null;
+};
 
 /** Cómo llaman al alimento `canonico` en el país de lectura, o '' (sin país o si allí se llama igual). */
-export function nombreLocal(canonico, pais = _pais) {
+export function nombreLocal(canonico, pais = getPaisDeLectura()) {
     const tabla = NOMBRES_POR_PAIS[typeof pais === 'string' ? pais.toUpperCase() : ''];
     return (tabla && typeof canonico === 'string' && tabla[canonico.trim()]) || '';
 }
@@ -44,7 +41,7 @@ function _patronesDe(pais) {
 }
 
 /** `texto` con el nombre local de `pais` tras la primera aparición de cada alimento; igual si no hay nada que glosar. */
-export function glosarTexto(texto, pais = _pais) {
+export function glosarTexto(texto, pais = getPaisDeLectura()) {
     const p = typeof pais === 'string' ? pais.toUpperCase() : '';
     if (typeof texto !== 'string' || !texto || !NOMBRES_POR_PAIS[p]) return texto;
     const ocupados = [];
@@ -68,7 +65,7 @@ export function glosarTexto(texto, pais = _pais) {
 }
 
 /** Igual que `glosarTexto`, respetando la forma: un array se glosa elemento a elemento; lo demás, tal cual. */
-export function glosarValor(valor, pais = _pais) {
+export function glosarValor(valor, pais = getPaisDeLectura()) {
     if (Array.isArray(valor)) {
         const nuevo = valor.map((v) => glosarTexto(v, pais));
         return nuevo.some((v, i) => v !== valor[i]) ? nuevo : valor;
@@ -82,7 +79,7 @@ const PAISES_FAHRENHEIT = new Set(['US', 'PR']);
 const _GRADOS_C = /(\d{2,3})(\s*[°º]\s*C)(?![A-Za-z])(?!\s*\(\s*\d{2,3}\s*°\s*F\))/g;
 
 /** `texto` con los °F tras cada temperatura en °C, solo si `pais` es US o PR. */
-export function conFahrenheit(texto, pais = _paisUsuario) {
+export function conFahrenheit(texto, pais = getPaisDelUsuario()) {
     if (typeof texto !== 'string' || !texto || !PAISES_FAHRENHEIT.has(pais)) return texto;
     return texto.replace(_GRADOS_C, (todo, c, sufijo) => {
         const f = Math.round((Number(c) * 9 / 5 + 32) / 5) * 5;
@@ -91,7 +88,7 @@ export function conFahrenheit(texto, pais = _paisUsuario) {
 }
 
 /** Igual que `conFahrenheit`, respetando la forma (array → elemento a elemento; mismo array si nada cambia). */
-export function conFahrenheitValor(valor, pais = _paisUsuario) {
+export function conFahrenheitValor(valor, pais = getPaisDelUsuario()) {
     if (Array.isArray(valor)) {
         const nuevo = valor.map((v) => conFahrenheit(v, pais));
         return nuevo.some((v, i) => v !== valor[i]) ? nuevo : valor;

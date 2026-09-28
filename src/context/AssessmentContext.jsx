@@ -123,7 +123,7 @@ import { toast } from 'sonner';
 // backend con test de paridad). Comparar contra 'DO' a mano aquí sería la tabla que
 // P1-DIET-CANON-SSOT prohíbe.
 import { coerceCountry, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI } from '../config/countries';
-import { setPaisDeLectura } from '../utils/nombresDelPais';
+import { setPaisDeLectura } from '../utils/paisDelUsuario';
 // [P1-GENERATE-TURNS-MODE-ON · 2026-08-14] Espejo local del modo tras generar.
 import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
