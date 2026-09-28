@@ -14,7 +14,7 @@ import { pedirCodigoDeGoogle } from '../utils/googleSignInNative';
 import { pedirTokenDeGoogle } from '../utils/googleSignInAndroid';
 import { marcarInicioGoogle } from '../utils/cuentasDelDispositivo';
 import { humanizeAuthError } from '../utils/authErrors';
-import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '../utils/safeLocalStorage';
+import { loadPendingOtp, savePendingOtp, clearPendingOtp } from '../utils/otpPendiente';
 import PlanShowcase from '../components/auth/PlanShowcase';
 // [P1-PLAN-LOTE-144] la ilustración hero del móvil, ahora animada, vive en su fichero
 import HeroIllustration from '../components/auth/HeroIllustration';
@@ -61,40 +61,20 @@ function GoogleIcon() {
 }
 
 // [P1-LOGIN-OTP-RESUME · 2026-08-10] El paso del código sobrevive a que el usuario
-// salga de la app.
-//
-// EL FALLO QUE CIERRA: todo el flujo vivía en `useState`. Pero este flujo EXIGE salir
-// de la app a leer el correo, y el manifiesto declara `display: standalone` — modo en
-// el que iOS termina el proceso al pasar a segundo plano y lo relanza limpio. El
-// usuario volvía al paso 1 con el código ya gastado en la mano. Es, además,
-// exactamente lo que hará un revisor de tienda.
-//
-// localStorage y NO sessionStorage: esta última muere con el webview, que es justo el
-// evento del que hay que sobrevivir.
-const OTP_PENDING_KEY = 'mf_otp_pending';
-const OTP_PENDING_TTL_MS = 15 * 60 * 1000; // ventana generosa sobre la validez del código
+// salga de la app: el sello vive en localStorage (`utils/otpPendiente.js`, donde está
+// el porqué entero). [P1-PLAN-LOTE-680] Salió de aquí para que la hoja del invitado
+// lo lea sin cargar esta pantalla.
 
-const loadPendingOtp = () => {
-    try {
-        const raw = safeLocalStorageGet(OTP_PENDING_KEY, null);
-        if (!raw) return null;
-        const p = JSON.parse(raw);
-        if (!p?.email || !p?.sentAt) return null;
-        if (Date.now() - p.sentAt > OTP_PENDING_TTL_MS) {
-            safeLocalStorageRemove(OTP_PENDING_KEY);
-            return null;
-        }
-        return p;
-    } catch { return null; }
-};
-const savePendingOtp = (email) => {
-    safeLocalStorageSet(OTP_PENDING_KEY, JSON.stringify({ email, sentAt: Date.now() }));
-};
-const clearPendingOtp = () => {
-    safeLocalStorageRemove(OTP_PENDING_KEY);
-};
-
-const Login = () => {
+// [P1-PLAN-LOTE-680] `embedded`: el MISMO login, dentro de la hoja «Guarda tu plan» que
+// se le abre al invitado cuando intenta algo que pide cuenta (cambiar un plato, la
+// receta, el coach…). Antes era un toast y un salto a `/register` → `/login`: sacaba
+// al invitado de su plan justo en el momento en que tenía algo que perder. Toda la
+// lógica de auth es la de aquí —no hay un segundo formulario que mantener—; `embedded`
+// sólo cambia el marco: sin pantalla completa ni escaparate, sin «Probar sin cuenta»
+// (ya lo es) y sin tocar el historial del navegador (la hoja no es una ruta). Tras
+// entrar, la recarga completa de siempre: `restoreSessionData` ve `lastOwner==='guest'`
+// y adopta el plan de muestra (`/adopt-guest-plan`).
+const Login = ({ embedded = false }) => {
     // [P1-I18N-AUTH-COPY · 2026-08-21] `useI18n()` y no `useT()`: `humanizeAuthError`
     // necesita el `locale` además del `t`. Sin él no puede decidir si un mensaje
     // español suelto del servidor es copy útil (en es-DO lo es) o ruido que el usuario
@@ -124,7 +104,8 @@ const Login = () => {
     const codeInputRef = useRef(null);
 
     useEffect(() => {
-        if (location.state) navigate(location.pathname, { replace: true, state: null });
+        // Embebido, `location` es la del Dashboard: su `state` no es nuestro.
+        if (!embedded && location.state) navigate(location.pathname, { replace: true, state: null });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -154,6 +135,7 @@ const Login = () => {
     // del componente rompe con el render concurrente (React puede renderizar y descartar).
     useEffect(() => { pasoRef.current = step; }, [step]);
     useEffect(() => {
+        if (embedded) return undefined; // la hoja no empuja historial: no hay atrás que escuchar
         const alVolver = () => {
             if (pasoRef.current === 'code') {
                 clearPendingOtp();
@@ -164,7 +146,7 @@ const Login = () => {
         };
         window.addEventListener('popstate', alVolver);
         return () => window.removeEventListener('popstate', alVolver);
-    }, []);
+    }, [embedded]);
 
     const requestCode = async (targetEmail) => {
         const { error: sendError } = await sendEmailOtp(targetEmail);
@@ -195,7 +177,9 @@ const Login = () => {
             // código ya consumido y el usuario sin forma de corregir un correo mal
             // tecleado, porque el botón «Usar otro correo» tampoco es lo que su reflejo
             // le pide pulsar.
-            try { window.history.pushState({ mfOtp: 1 }, ''); } catch { /* noop */ }
+            if (!embedded) {
+                try { window.history.pushState({ mfOtp: 1 }, ''); } catch { /* noop */ }
+            }
             setStep('code');
             setCooldown(RESEND_COOLDOWN_S);
         }
@@ -397,12 +381,14 @@ const Login = () => {
         // empujó el paso del código. Sin esto quedaría huérfana y al usuario le haría
         // falta un gesto atrás de más para salir de /login. El oyente de `popstate` ya
         // está guardado por el paso actual, así que repetir el reseteo es inocuo.
-        try { window.history.back(); } catch { /* noop */ }
+        if (!embedded) {
+            try { window.history.back(); } catch { /* noop */ }
+        }
     };
 
     // [LOGIN-REDIRECT-IF-AUTHED · 2026-06-21] Sesión viva → entra directo a la app.
     if (session) {
-        return <Navigate to="/" replace />;
+        return embedded ? null : <Navigate to="/" replace />;
     }
 
     // [P2-13 · 2026-07-09] id para que el campo activo lo referencie vía aria-describedby
@@ -423,6 +409,155 @@ const Login = () => {
             {error}
         </div>
     ) : null;
+
+    const cuerpo = (
+        <>
+            {step === 'email' ? (
+                <>
+                    <form className="mf-card" onSubmit={handleEmailSubmit}>
+                        {/* [P1-IOS-OAUTH-GATE] En nativo el OAuth por redirección no
+                            vuelve a la app (capacitor:// no es una URL que Safari abra):
+                            el botón no se pinta hasta que exista el deep link. */}
+                        {!nativeHidesOAuthRedirect() && (
+                            <button type="button" className="mf-btn mf-btn--google" onClick={handleGoogle} disabled={googleLoading}>
+                                <GoogleIcon /> {googleLoading ? t('Conectando con Google…') : t('Continuar con Google')}
+                            </button>
+                        )}
+                        {/* [P1-IOS-NATIVE-SHELL] Apple exige el botón con la MISMA prominencia
+                            que Google (4.8). Gateado por env hasta que el provider exista en
+                            Neon Auth; sin provider, un botón que falla sería peor que ninguno. */}
+                        {appleSignInEnabled() && (
+                            <button type="button" className="mf-btn mf-btn--apple" onClick={handleApple} disabled={googleLoading}>
+                                <AppleIcon /> {t('Continuar con Apple')}
+                            </button>
+                        )}
+
+                        {/* El «o» separa OAuth de correo: sin ningún botón encima
+                            (nativo sin deep link, sin provider Apple) quedaría colgado. */}
+                        {/* [P1-PLAN-LOTE-165] la «o» era la única palabra sin traducir de la primera pantalla */}
+                        {(!nativeHidesOAuthRedirect() || appleSignInEnabled()) && (
+                            <div className="mf-divider"><span>{t('o')}</span></div>
+                        )}
+
+                        <input
+                            id="login-email"
+                            className="mf-input"
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder={t('Ingresa tu correo electrónico')}
+                            aria-label={t('Correo electrónico')}
+                            // [P2-13] liga el error al campo para lectores de pantalla.
+                            aria-invalid={!!error}
+                            aria-describedby={error ? 'login-error' : undefined}
+                            autoComplete="email"
+                            inputMode="email"
+                            enterKeyHint="send"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck="false"
+                            // [P1-LOGIN-KEYBOARD · 2026-08-10] Sin `autoFocus`: en Android
+                            // abría el teclado al CARGAR, y el teclado tapa el botón de
+                            // abajo — el usuario aterrizaba con el CTA ya oculto sin haber
+                            // tocado nada. En escritorio el foco lo pone el efecto de arriba.
+                            ref={(el) => { if (el && esPantallaAncha() && !email) el.focus(); }}
+                        />
+
+                        {avisoError}
+
+                        <button type="submit" className="mf-btn mf-btn--primary" disabled={loading}>
+                            {loading ? (
+                                <><Loader2 className="mf-loader" size={18} /> {t('Enviando código…')}</>
+                            ) : (
+                                <>{t('Continuar con correo')} <ArrowRight size={18} /></>
+                            )}
+                        </button>
+
+                        {/* [P1-LOGIN-LEGAL-TERMS · 2026-08-10] Faltaba Términos de Uso.
+                            Apple lo comprueba de forma vinculante en la revisión, y la
+                            ruta y el helper ya existían — era una omisión, no una
+                            decisión. Enlazar solo privacidad deja el consentimiento a
+                            medias: son dos documentos distintos. */}
+                        <p className="mf-privacy">
+                            {t('Al continuar, aceptas nuestros')}{' '}
+                            <a href={apexUrl('/terms')} target="_blank" rel="noopener noreferrer">{t('Términos de Uso')}</a>
+                            {' '}{t('y reconoces nuestra')}{' '}
+                            <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer">{t('Política de Privacidad')}</a>.
+                        </p>
+                    </form>
+
+                    {!embedded && (
+                        <>
+                            <button type="button" className="mf-btn mf-btn--ghost" onClick={handleGuest} disabled={guestLoading}>
+                                {guestLoading ? t('Entrando…') : t('Probar sin cuenta')}
+                            </button>
+                            <p className="mf-guest-sub">
+                                {t('Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.')}
+                            </p>
+                        </>
+                    )}
+                </>
+            ) : (
+                <form className="mf-card" onSubmit={handleCodeSubmit}>
+                    <p className="mf-code-hint">
+                        {t('Te enviamos un código a')} <strong>{email.trim()}</strong>.
+                    </p>
+
+                    <input
+                        id="login-code"
+                        ref={codeInputRef}
+                        className="mf-input mf-input--code"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        required
+                        value={code}
+                        onChange={handleCodeChange}
+                        enterKeyHint="go"
+                        placeholder="123456"
+                        aria-label={t('Código de verificación')}
+                        // [P2-13] liga el error al campo para lectores de pantalla.
+                        aria-invalid={!!error}
+                        aria-describedby={error ? 'login-error' : undefined}
+                        maxLength={8}
+                    />
+
+                    {avisoError}
+
+                    <button type="submit" className="mf-btn mf-btn--primary" disabled={loading}>
+                        {loading ? (
+                            <><Loader2 className="mf-loader" size={18} /> {t('Verificando…')}</>
+                        ) : (
+                            <>{t('Entrar')} <ArrowRight size={18} /></>
+                        )}
+                    </button>
+
+                    <div className="mf-code-actions">
+                        <button type="button" onClick={backToEmail}>
+                            <ArrowLeft size={14} aria-hidden="true" /> {t('Usar otro correo')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleResend}
+                            disabled={cooldown > 0 || loading}
+                            style={{ opacity: cooldown > 0 ? 0.55 : 1 }}
+                        >
+                            {cooldown > 0 ? t('Reenviar código ({segundos}s)', { segundos: cooldown }) : t('Reenviar código')}
+                        </button>
+                    </div>
+
+                    <p className="mf-privacy">
+                        {t('¿Primera vez? Con el código creamos tu cuenta automáticamente. Revisa también el spam.')}
+                    </p>
+                </form>
+            )}
+        </>
+    );
+
+    if (embedded) {
+        return <div className="mf-auth-sheet">{cuerpo}</div>;
+    }
 
     return (
         <div className="mf-login" data-side="left" data-anim="on">
@@ -453,142 +588,7 @@ const Login = () => {
                         {t('Planes de comida personalizados a tu objetivo, calculados a tu perfil y listos en minutos.')}
                     </p>
 
-                    {step === 'email' ? (
-                        <>
-                            <form className="mf-card" onSubmit={handleEmailSubmit}>
-                                {/* [P1-IOS-OAUTH-GATE] En nativo el OAuth por redirección no
-                                    vuelve a la app (capacitor:// no es una URL que Safari abra):
-                                    el botón no se pinta hasta que exista el deep link. */}
-                                {!nativeHidesOAuthRedirect() && (
-                                    <button type="button" className="mf-btn mf-btn--google" onClick={handleGoogle} disabled={googleLoading}>
-                                        <GoogleIcon /> {googleLoading ? t('Conectando con Google…') : t('Continuar con Google')}
-                                    </button>
-                                )}
-                                {/* [P1-IOS-NATIVE-SHELL] Apple exige el botón con la MISMA prominencia
-                                    que Google (4.8). Gateado por env hasta que el provider exista en
-                                    Neon Auth; sin provider, un botón que falla sería peor que ninguno. */}
-                                {appleSignInEnabled() && (
-                                    <button type="button" className="mf-btn mf-btn--apple" onClick={handleApple} disabled={googleLoading}>
-                                        <AppleIcon /> {t('Continuar con Apple')}
-                                    </button>
-                                )}
-
-                                {/* El «o» separa OAuth de correo: sin ningún botón encima
-                                    (nativo sin deep link, sin provider Apple) quedaría colgado. */}
-                                {/* [P1-PLAN-LOTE-165] la «o» era la única palabra sin traducir de la primera pantalla */}
-                                {(!nativeHidesOAuthRedirect() || appleSignInEnabled()) && (
-                                    <div className="mf-divider"><span>{t('o')}</span></div>
-                                )}
-
-                                <input
-                                    id="login-email"
-                                    className="mf-input"
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder={t('Ingresa tu correo electrónico')}
-                                    aria-label={t('Correo electrónico')}
-                                    // [P2-13] liga el error al campo para lectores de pantalla.
-                                    aria-invalid={!!error}
-                                    aria-describedby={error ? 'login-error' : undefined}
-                                    autoComplete="email"
-                                    inputMode="email"
-                                    enterKeyHint="send"
-                                    autoCapitalize="none"
-                                    autoCorrect="off"
-                                    spellCheck="false"
-                                    // [P1-LOGIN-KEYBOARD · 2026-08-10] Sin `autoFocus`: en Android
-                                    // abría el teclado al CARGAR, y el teclado tapa el botón de
-                                    // abajo — el usuario aterrizaba con el CTA ya oculto sin haber
-                                    // tocado nada. En escritorio el foco lo pone el efecto de arriba.
-                                    ref={(el) => { if (el && esPantallaAncha() && !email) el.focus(); }}
-                                />
-
-                                {avisoError}
-
-                                <button type="submit" className="mf-btn mf-btn--primary" disabled={loading}>
-                                    {loading ? (
-                                        <><Loader2 className="mf-loader" size={18} /> {t('Enviando código…')}</>
-                                    ) : (
-                                        <>{t('Continuar con correo')} <ArrowRight size={18} /></>
-                                    )}
-                                </button>
-
-                                {/* [P1-LOGIN-LEGAL-TERMS · 2026-08-10] Faltaba Términos de Uso.
-                                    Apple lo comprueba de forma vinculante en la revisión, y la
-                                    ruta y el helper ya existían — era una omisión, no una
-                                    decisión. Enlazar solo privacidad deja el consentimiento a
-                                    medias: son dos documentos distintos. */}
-                                <p className="mf-privacy">
-                                    {t('Al continuar, aceptas nuestros')}{' '}
-                                    <a href={apexUrl('/terms')} target="_blank" rel="noopener noreferrer">{t('Términos de Uso')}</a>
-                                    {' '}{t('y reconoces nuestra')}{' '}
-                                    <a href={apexUrl('/privacy')} target="_blank" rel="noopener noreferrer">{t('Política de Privacidad')}</a>.
-                                </p>
-                            </form>
-
-                            <button type="button" className="mf-btn mf-btn--ghost" onClick={handleGuest} disabled={guestLoading}>
-                                {guestLoading ? t('Entrando…') : t('Probar sin cuenta')}
-                            </button>
-                            <p className="mf-guest-sub">
-                                {t('Genera un plan de muestra gratis. Crea tu cuenta cuando quieras guardarlo.')}
-                            </p>
-                        </>
-                    ) : (
-                        <form className="mf-card" onSubmit={handleCodeSubmit}>
-                            <p className="mf-code-hint">
-                                {t('Te enviamos un código a')} <strong>{email.trim()}</strong>.
-                            </p>
-
-                            <input
-                                id="login-code"
-                                ref={codeInputRef}
-                                className="mf-input mf-input--code"
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete="one-time-code"
-                                required
-                                value={code}
-                                onChange={handleCodeChange}
-                                enterKeyHint="go"
-                                placeholder="123456"
-                                aria-label={t('Código de verificación')}
-                                // [P2-13] liga el error al campo para lectores de pantalla.
-                                aria-invalid={!!error}
-                                aria-describedby={error ? 'login-error' : undefined}
-                                maxLength={8}
-                            />
-
-                            {avisoError}
-
-                            <button type="submit" className="mf-btn mf-btn--primary" disabled={loading}>
-                                {loading ? (
-                                    <><Loader2 className="mf-loader" size={18} /> {t('Verificando…')}</>
-                                ) : (
-                                    <>{t('Entrar')} <ArrowRight size={18} /></>
-                                )}
-                            </button>
-
-                            <div className="mf-code-actions">
-                                <button type="button" onClick={backToEmail}>
-                                    <ArrowLeft size={14} aria-hidden="true" /> {t('Usar otro correo')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleResend}
-                                    disabled={cooldown > 0 || loading}
-                                    style={{ opacity: cooldown > 0 ? 0.55 : 1 }}
-                                >
-                                    {cooldown > 0 ? t('Reenviar código ({segundos}s)', { segundos: cooldown }) : t('Reenviar código')}
-                                </button>
-                            </div>
-
-                            <p className="mf-privacy">
-                                {t('¿Primera vez? Con el código creamos tu cuenta automáticamente. Revisa también el spam.')}
-                            </p>
-                        </form>
-                    )}
+                    {cuerpo}
                 </div>
             </section>
         </div>

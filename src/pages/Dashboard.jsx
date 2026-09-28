@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } fro
 // conserva un transform — el portal lo hace inmune a eso).
 import { createPortal } from 'react-dom';
 import { useAssessment, conservarPlanId } from '../context/AssessmentContext';
+// [P1-PLAN-LOTE-680] El invitado que toca algo que pide cuenta ve el login en una hoja, sin salir de su plan.
+import { pedirCuentaInvitado } from '../utils/hojaGuardarPlan';
 import { useRegeneratePlan } from '../hooks/useRegeneratePlan';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 // [P1-PLAN-LOTE-133] Web Push en navegador/PWA y avisos locales en la app nativa, detrás de UNA fachada
@@ -1177,7 +1179,7 @@ const DashboardInner = () => {
     // [P1-DIARY-FREETEXT-ESTIMATE · 2026-09-04] «Foto» desde el componedor en modo plan
     const [scanMealOpen, setScanMealOpen] = useState(false);
     const handleEatPlanMeal = async (meal, index) => {
-        if (isGuest) { toast(t('Crea tu cuenta para registrar lo que comes')); return; }
+        if (isGuest) { if (!pedirCuentaInvitado('registrar')) toast(t('Crea tu cuenta para registrar lo que comes')); return; }
         if (!planData?.id || eatMealInFlight !== null) return;
         const timing = mealTimingIssue(meal?.meal);
         let coverage = null;
@@ -7684,7 +7686,7 @@ const DashboardInner = () => {
                     </div>
                     <button data-hover="boton"
                         type="button"
-                        onClick={() => navigate('/register')}
+                        onClick={() => { if (!pedirCuentaInvitado('guardar')) navigate('/login'); }}
                         style={{
                             flexShrink: 0,
                             display: 'inline-flex',
@@ -8051,11 +8053,14 @@ const DashboardInner = () => {
                         // [P3-AGENT-PREFILL · 2026-06-15] El chat es solo para
                         // cuentas (el invitado no accede a /dashboard/agent). Para
                         // invitados, convertir el tap en gancho de registro.
+                        // [P1-PLAN-LOTE-680] Ahora la hoja «Guarda tu plan» (login sin salir del plan);
+                        // el toast + /login queda de respaldo si el host aún no cargó.
                         if (isGuest) {
+                            if (pedirCuentaInvitado('coach')) return;
                             toast(t('Crea tu cuenta para hablar con tu coach IA'), {
                                 description: t('Te dirá exactamente cómo mejorar cada micronutriente de tu plan.'),
                             });
-                            navigate('/register');
+                            navigate('/login');
                             return;
                         }
                         requestAgentPrefill(question);
@@ -9226,7 +9231,7 @@ const DashboardInner = () => {
                                                     className="meal-act-btn"
                                                     onClick={() => {
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: ver recetas requiere cuenta.
-                                                        if (isGuest) { toast(t('Crea tu cuenta para ver las recetas paso a paso')); return; }
+                                                        if (isGuest) { if (!pedirCuentaInvitado('receta')) toast(t('Crea tu cuenta para ver las recetas paso a paso')); return; }
                                                         navigate('/dashboard/recipes');
                                                     }}
                                                     style={{
@@ -9287,7 +9292,7 @@ const DashboardInner = () => {
                                                         // el early-return cubre cualquier dispatch sintético.
                                                         if (isPantryTooEmptyForSwap) return;
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: cambiar plato (IA) requiere cuenta.
-                                                        if (isGuest) { toast(t('Crea tu cuenta para cambiar platos con IA')); return; }
+                                                        if (isGuest) { if (!pedirCuentaInvitado('cambiar')) toast(t('Crea tu cuenta para cambiar platos con IA')); return; }
                                                         if (regeneratingId === index || isDayUpdating) return;
                                                         // [P1-DASH-WEEK-NAV] Un dia archivado no se edita.
                                                         if (isReadOnlyDay) return;
@@ -9382,7 +9387,7 @@ const DashboardInner = () => {
                                                     onClick={() => {
                                                         if (isEatenToday) return;
                                                         // [P3-GUEST-GATE-MEAL-ACTIONS · 2026-06-21] Invitado: guardar favoritos requiere cuenta.
-                                                        if (isGuest) { toast(t('Crea tu cuenta para guardar tus favoritos')); return; }
+                                                        if (isGuest) { if (!pedirCuentaInvitado('favoritos')) toast(t('Crea tu cuenta para guardar tus favoritos')); return; }
                                                         const currentlyLiked = !!likedMeals[meal.name];
                                                         toggleMealLike(meal.name, meal.meal);
                                                         if (!currentlyLiked) {

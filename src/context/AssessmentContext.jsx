@@ -38,6 +38,8 @@ import {
     exitGuestMode,
     clearGuestModeStorage,
 } from '../utils/guestMode';
+// [P1-PLAN-LOTE-680] Invitado → hoja «Guarda tu plan» (login sin salir del plan) en vez de toast + /register.
+import { pedirCuentaInvitado } from '../utils/hojaGuardarPlan';
 // [P2-CHAT-CACHE-XUSER · 2026-05-31] Keys del chat del Agente para limpiar en
 // logout/user-switch (SSOT en módulo liviano — no arrastra AgentPage al bundle).
 import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY, CHAT_CURRENT_SESSION_KEY } from '../utils/chatCacheKeys';
@@ -2882,7 +2884,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
     const regenerateDay = async (dayIndex, reason = 'variety') => {
         const userId = session?.user?.id || safeLocalStorageGet('mealfit_user_id', null);
         if (!userId || userId === 'guest') {
-            toast.error(t('Crea tu cuenta para actualizar platos con IA.'));
+            if (!(userId === 'guest' && pedirCuentaInvitado('cambiar'))) {
+                toast.error(t('Crea tu cuenta para actualizar platos con IA.'));
+            }
             return { ok: false };
         }
         const planId = planData?.id || planData?.plan_id;

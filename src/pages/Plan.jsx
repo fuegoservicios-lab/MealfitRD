@@ -6,6 +6,8 @@ import { CheckCircle, Loader2, Server, Activity, PieChart, Utensils, UtensilsCro
 import PropTypes from 'prop-types';
 
 import { useAssessment } from '../context/AssessmentContext';
+// [P1-PLAN-LOTE-680] Invitado → hoja «Guarda tu plan» (login sin salir del plan) en vez de toast + /register.
+import { pedirCuentaInvitado } from '../utils/hojaGuardarPlan';
 import { TIER_CREDITS } from '../config/plans';
 import { isTrackingMode } from '../config/dashboardNav';
 import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
@@ -1225,13 +1227,15 @@ const Plan = () => {
                 // otra generación; invitarlo a crear cuenta. La 1ª generación SÍ
                 // pasa (arranca con GUEST_PLAN_CREDITS disponibles).
                 if (isGuest && typeof remainingCredits === 'number' && remainingCredits <= 0) {
+                    navigate('/dashboard', { replace: true });
+                    // [P1-PLAN-LOTE-680] La hoja vive en App (sobrevive al cambio de ruta): el login, ahí mismo.
+                    if (pedirCuentaInvitado('otroPlan')) return;
                     import('sonner').then(({ toast }) => {
                         toast.info(t('Crea tu cuenta para generar más planes'), {
                             description: t('Ya usaste tu plan de prueba gratis. Regístrate para obtener los créditos del plan gratuito ({n}/mes).', { n: TIER_CREDITS.gratis }),
                             duration: 6000, id: 'plan-ready',
                         });
                     });
-                    navigate('/dashboard', { replace: true });
                     return;
                 }
 

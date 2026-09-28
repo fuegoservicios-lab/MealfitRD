@@ -33,6 +33,8 @@
 import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
+// [P1-PLAN-LOTE-680] Invitado → hoja «Guarda tu plan» (login sin salir del plan) en vez de toast + /register.
+import { pedirCuentaInvitado } from '../utils/hojaGuardarPlan';
 import {
     ArrowLeft, Check, X, Zap, ChevronDown,
     ShieldCheck, RefreshCw, CreditCard, BadgeCheck,
@@ -365,8 +367,9 @@ const Upgrade = () => {
         // [P1-GUEST-PRICING · 2026-06-21] Invitado → crear cuenta antes de suscribirse
         // (el checkout/verify requiere auth).
         if (isGuest) {
+            if (pedirCuentaInvitado('guardar')) return;
             window.scrollTo(0, 0);
-            navigate('/register');
+            navigate('/login');
             return;
         }
         const targetRank = TIER_RANK[tier] || 1;

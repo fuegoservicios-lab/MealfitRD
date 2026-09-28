@@ -100,7 +100,8 @@ const KNOWN_PATHS = new Set([...Object.keys(TITLES), ...SELF_MANAGED]);
 const KNOWN_PREFIXES = ['/novedades/', '/dashboard'];
 // Rutas vivas que no tienen título propio porque sólo redirigen (P3-COOKIES-MERGE,
 // P1-PANTRY-ROUTE-ALIAS, P1-SETTINGS-ONE-SURFACE, P2-LANDING-MANIFEST-SHORTCUT).
-const KNOWN_REDIRECTS = ['/cookies', '/pantry', '/mi-nevera', '/configuracion', '/register'];
+// [P1-PLAN-LOTE-680] `/probar` también: activa el modo invitado y redirige al formulario al instante.
+const KNOWN_REDIRECTS = ['/cookies', '/pantry', '/mi-nevera', '/configuracion', '/register', '/probar'];
 
 // [P1-PLAN-LOTE-639 · 2026-09-28] Rutas internas: existen (App.jsx) pero no son de marketing ni de la app del usuario,
 // así que no estaban en ninguna lista y la pestaña de /admin decía «Página no encontrada». Solo el dueño las abre: ni

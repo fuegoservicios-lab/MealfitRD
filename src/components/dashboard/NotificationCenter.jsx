@@ -23,6 +23,8 @@ import { useModalAccessibility } from '../../hooks/useModalAccessibility';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { subscribeNotifSlot, getNotifSlot } from '../../utils/notifSlot';
 import { useAssessment } from '../../context/AssessmentContext';
+// [P1-PLAN-LOTE-680] Invitado → hoja «Guarda tu plan» (login sin salir del plan) en vez de toast + /register.
+import { pedirCuentaInvitado } from '../../utils/hojaGuardarPlan';
 import { requestAgentPrefill } from '../../utils/agentPrefill';
 // classify = SSOT del cálculo de las mini-barras (mismo que el panel de micros).
 // restoreMicrosPanel = "desocultar" el panel desde aquí (P3-MICROS-RESTORE).
@@ -440,11 +442,12 @@ export default function NotificationCenter({ hidden = false }) {
                 ? t('Mi plan se queda corto/desbalanceado en: {nutrientes}. ¿Qué alimentos o ajustes concretos me recomiendas para mejorarlos sin afectar mis otras metas?', { nutrientes: names })
                 : t('Mi plan tiene algunos micronutrientes fuera de objetivo. ¿Qué alimentos o ajustes me recomiendas?');
             if (isGuest) {
+                closeDrawer();
+                if (pedirCuentaInvitado('coach')) return;
                 toast(t('Crea tu cuenta para hablar con tu coach IA'), {
                     description: t('Te dirá exactamente cómo mejorar cada micronutriente de tu plan.'),
                 });
-                navigate('/register');
-                closeDrawer();
+                navigate('/login');
                 return;
             }
             requestAgentPrefill(question);

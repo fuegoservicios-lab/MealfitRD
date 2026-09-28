@@ -42,6 +42,10 @@ const PendingPipelineRecovery = lazy(() => import('./components/PendingPipelineR
 // [P1-PLAN-LOTE-97 · 2026-09-18] «¿Es la cuenta que querías?» tras un acceso con Google a una cuenta que el
 // dispositivo no conocía. Perezoso y fuera del apex por lo mismo que PendingPipelineRecovery: en el landing no hay sesión.
 const AvisoCuentaGoogle = lazy(() => import('./components/auth/AvisoCuentaGoogle'));
+// [P1-PLAN-LOTE-680] La hoja «Guarda tu plan» del invitado (login dentro del Dashboard). Perezoso y fuera del apex
+// como sus vecinos: en el landing no hay invitado. Mientras el chunk viaja, `pedirCuentaInvitado` devuelve false y
+// cada llamador cae a su aviso de siempre.
+const HojaGuardarPlanHost = lazy(() => import('./components/auth/HojaGuardarPlanHost'));
 // [SCROLL-RESTORE-REFRESH · 2026-06-19] Restaura la posición de scroll al
 // refrescar (el landing/otras páginas viven tras ProtectedRoute + lazy chunks, y
 // el restore nativo del browser falla porque el contenido aún no tiene altura).
@@ -73,6 +77,8 @@ const Home = lazy(() => import('./pages/Home'));
 // los saca del entry → marketing más liviano. Suspense ya provisto por
 // AnimatedLayout/DashboardAnimatedLayout.
 const Login = lazy(() => import('./pages/Login'));
+// [P1-PLAN-LOTE-680] `/probar`: la entrada directa del landing al modo invitado, sin pasar por la pantalla de login.
+const ProbarSinCuenta = lazy(() => import('./pages/ProbarSinCuenta'));
 const DashboardLayout = lazy(() => import('./components/dashboard/DashboardLayout'));
 const Assessment = lazy(() => import('./pages/Assessment'));
 const Plan = lazy(() => import('./pages/Plan'));
@@ -159,7 +165,9 @@ const NATIVE_NO_COMMERCE = nativeHidesCommerce();
 // app.* — fricción mínima y aceptada para cerrar el split.
 const IS_APEX_HOST = typeof window !== 'undefined' && isApexHost();
 // [P1-PLAN-LOTE-579] `/admin` también: en el apex su login perdía el destino y el panel no se alcanzaba.
-const APP_ROUTE_PREFIXES = ['/login', '/register', '/reset-password', '/assessment', '/plan', '/configuracion', '/dashboard', '/history', '/admin'];
+// [P1-PLAN-LOTE-680] `/probar` también: el modo invitado vive en localStorage, que es POR ORIGEN — activarlo en el apex
+// dejaría al visitante en app.* sin él, de vuelta en el login.
+const APP_ROUTE_PREFIXES = ['/login', '/register', '/reset-password', '/assessment', '/plan', '/configuracion', '/dashboard', '/history', '/admin', '/probar'];
 
 const ApexAppRedirect = () => {
   const location = useLocation();
@@ -534,6 +542,11 @@ function App() {
             <AvisoCuentaGoogle />
           </Suspense>
         )}
+        {!IS_APEX_HOST && (
+          <Suspense fallback={null}>
+            <HojaGuardarPlanHost />
+          </Suspense>
+        )}
         {/* [P2-8 · 2026-07-09] Banner "Sin conexión" (bottom, no-bloqueante). */}
         <OfflineBanner />
         <ModalAwareRoutes>
@@ -541,6 +554,7 @@ function App() {
             {/* Public Routes: Auth */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Navigate to="/login" replace />} />
+            <Route path="/probar" element={<ProbarSinCuenta />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Rutas Protegidas */}

@@ -5,6 +5,8 @@ import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 // [P1-GUEST-NAV-LOCK · 2026-06-15] Modo invitado: secciones que requieren cuenta.
 import { useAssessment } from '../../context/AssessmentContext';
+// [P1-PLAN-LOTE-680] Pestaña con candado → hoja «Guarda tu plan» (login sin salir del plan) en vez de /register.
+import { pedirCuentaInvitado } from '../../utils/hojaGuardarPlan';
 import { navItemsFor, isTrackingMode, repartoTelefono, neveraActiva } from '../../config/dashboardNav';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al touchstart
 import { prefetchRoute } from '../../utils/routePreload';
@@ -49,7 +51,11 @@ const BottomTabBar = () => {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate(15);
         }
-        navigate(isTabLocked(path) ? '/register' : path);
+        if (isTabLocked(path)) {
+            if (!pedirCuentaInvitado('desbloquear')) navigate('/login');
+            return;
+        }
+        navigate(path);
         // Wait for React to render the new route, then force scroll to absolute top
         setTimeout(() => {
             window.scrollTo(0, 0);

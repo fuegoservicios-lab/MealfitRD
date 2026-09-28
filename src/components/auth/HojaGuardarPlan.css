@@ -1,0 +1,85 @@
+/* [P1-PLAN-LOTE-680] La hoja «Guarda tu plan» del invitado.
+ *
+ * Dentro va `<Login embedded />`, cuyos controles (`.mf-card`, `.mf-btn`, `.mf-input`…)
+ * leen la paleta PRIVADA `--mf-*` de Login.css, que es oscura fija. Aquí esa paleta se
+ * re-apunta a los tokens de la app (index.css), así la hoja sigue el tema del Dashboard
+ * —claro u oscuro— en vez de abrir un recorte de la pantalla de login en medio de la
+ * app. Se re-apunta, no se copia: si un token cambia, la hoja lo hereda.
+ *
+ * Lo que Login.css escribe con color fijo (hover blanco translúcido, fondo del campo,
+ * error rosa claro) sólo se ve bien sobre su fondo casi negro; en claro desaparecía o
+ * no pasaba contraste, así que se sobrescribe con tokens.
+ */
+
+.mf-hoja-guardar {
+  --mf-primary: var(--primary);
+  --mf-bg: var(--bg-card);
+  --mf-panel: var(--bg-card);
+  --mf-panel-2: var(--bg-muted);
+  --mf-border: var(--border);
+  --mf-text: var(--text-main);
+  --mf-text-dim: var(--text-muted);
+  --mf-text-faint: var(--text-muted);
+
+  color: var(--text-main);
+  font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif);
+  /* hoja inferior con teclado abierto: que se pueda desplazar en vez de cortar */
+  max-height: calc(100dvh - 5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mf-hoja-guardar__titulo {
+  margin: 0 2.5rem 0.4rem 0; /* deja sitio a la ✕ del Modal */
+  font-family: var(--font-heading, 'Outfit', sans-serif);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+
+.mf-hoja-guardar__motivo {
+  margin: 0 0 1.25rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.mf-hoja-guardar__nota {
+  margin: 1rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* La hoja YA es la tarjeta: sin tarjeta dentro de tarjeta. Especificidad de dos clases
+   para ganarle también al bloque móvil de Login.css (≤880 px). */
+.mf-hoja-guardar .mf-card {
+  margin-top: 0;
+  padding: 0;
+  gap: 0.85rem;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.mf-hoja-guardar .mf-divider { display: flex; }
+
+.mf-hoja-guardar .mf-btn--google:hover:not(:disabled) {
+  background: var(--bg-muted);
+  border-color: var(--text-light);
+}
+
+.mf-hoja-guardar .mf-input {
+  background: var(--surface-sunken, var(--bg-muted));
+}
+.mf-hoja-guardar .mf-input:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.mf-hoja-guardar .mf-error {
+  margin-bottom: 0;
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}

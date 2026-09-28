@@ -13,6 +13,8 @@ import { LayoutDashboard, Activity, Settings, LogOut, Menu, X, Clock, Refrigerat
 import RecipesIcon from '../icons/RecipesIcon';
 import AgentIcon from '../icons/AgentIcon';
 import { useAssessment } from '../../context/AssessmentContext';
+// [P1-PLAN-LOTE-680] Pestaña con candado → hoja «Guarda tu plan» (login sin salir del plan) en vez de /register.
+import { pedirCuentaInvitado } from '../../utils/hojaGuardarPlan';
 import { navItemsFor, isTrackingMode, repartoTelefono, neveraActiva } from '../../config/dashboardNav';
 // [P3-DASH-MODALS-A11Y · 2026-05-30] Hook SSOT de a11y (ESC + focus-trap +
 // restore + body-overflow) para el "Mobile More Menu" — overlay full-screen
@@ -268,10 +270,10 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                         if (isGuest && item.path !== '/dashboard') {
                             return (
                                 <Link
-                                    to="/register"
+                                    to="/login"
                                     key={item.path}
                                     className={styles.navItem}
-                                    onClick={closeMenu}
+                                    onClick={(e) => { closeMenu(); if (pedirCuentaInvitado('desbloquear')) e.preventDefault(); }}
                                     style={{ color: 'var(--text-muted)' }}
                                     title={t('Crea tu cuenta para desbloquear')}
                                 >
@@ -498,9 +500,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
                             return (
                                 <Link
                                     key={item.path}
-                                    to={bloqueada ? '/register' : item.path}
+                                    to={bloqueada ? '/login' : item.path}
                                     className={styles.mobileMoreItem}
-                                    onClick={closeMoreMenu}
+                                    onClick={(e) => { closeMoreMenu(); if (bloqueada && pedirCuentaInvitado('desbloquear')) e.preventDefault(); }}
                                     onTouchStart={_prefetch}
                                     role="menuitem"
                                     aria-current={location.pathname === item.path ? 'page' : undefined}
