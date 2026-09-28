@@ -7,6 +7,9 @@ import { useAssessment } from '../context/AssessmentContext';
 import { isTrackingMode, navItemsFor, neveraActiva } from '../config/dashboardNav';
 import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
+// [P1-PLAN-LOTE-726] la foto de plato que se manda al chat pasa a la ficha de la comida que el coach registra. Import
+// DINÁMICO: el almacén de fotos (IndexedDB) no entra en el trozo de esta página, que tiene techo de peso.
+const cargarFotosDelChat = () => import('../utils/fotosDelChat');
 import { toast } from 'sonner';
 // [P3-LAZY-MARKDOWN · 2026-05-12] import de `react-markdown` eliminado:
 // no se usa en este archivo. Pre-fix bundle includuía `react-markdown` +
@@ -3752,6 +3755,10 @@ const AgentPage = () => {
                 }
 
                 uploadedImageUrl = uploadedAttachments.find((item) => item.image_url)?.image_url || null;
+                // [P1-PLAN-LOTE-726] las fotos de PLATO de este turno: al cerrarlo (o el de sus dudas) se enlazan a la
+                // comida que el coach registre con ellas
+                const _uidFotos = session?.user?.id;
+                cargarFotosDelChat().then((m) => m.recordarFotosDelChat(_uidFotos, uploadedAttachments)).catch(() => {});
                 setMessages((prev) => prev.map((message, index) => {
                     if (index !== prev.length - 1 || message.role !== 'user' || !message.isImage) return message;
                     const remote = uploadedAttachments.map((item) => ({
@@ -4084,6 +4091,13 @@ const AgentPage = () => {
                                             });
                                         }
                                     } else if (dataObj.type === 'done') {
+                                        // [P1-PLAN-LOTE-726] si el coach registró una comida tras una foto de plato, la foto
+                                        // va a su ficha (en este teléfono). Fuego y olvido: no toca el turno.
+                                        const _uidVinculo = session?.user?.id;
+                                        cargarFotosDelChat().then((m) => m.vincularFotosDelChat(_uidVinculo, {
+                                            fetchJson: async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.json() : null; },
+                                            fetchBlob: async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.blob() : null; },
+                                        })).catch(() => {});
                                         // [P3-CHAT-FOCUS-TELEM · 2026-05-19]
                                         // Emitir telemetría de latencia +
                                         // chunk count. Sentry breadcrumb +
