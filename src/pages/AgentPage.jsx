@@ -4091,13 +4091,6 @@ const AgentPage = () => {
                                             });
                                         }
                                     } else if (dataObj.type === 'done') {
-                                        // [P1-PLAN-LOTE-726] si el coach registró una comida tras una foto de plato, la foto
-                                        // va a su ficha (en este teléfono). Fuego y olvido: no toca el turno.
-                                        const _uidVinculo = session?.user?.id;
-                                        cargarFotosDelChat().then((m) => m.vincularFotosDelChat(_uidVinculo, {
-                                            fetchJson: async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.json() : null; },
-                                            fetchBlob: async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.blob() : null; },
-                                        })).catch(() => {});
                                         // [P3-CHAT-FOCUS-TELEM · 2026-05-19]
                                         // Emitir telemetría de latencia +
                                         // chunk count. Sentry breadcrumb +
@@ -4112,6 +4105,13 @@ const AgentPage = () => {
                                             isCallMode: !!callModeRef.current,
                                             sessionId: currentSessionId,
                                         });
+                                        // [P1-PLAN-LOTE-726] (tras la telemetría, que va la primera) si el coach registró una comida tras una foto de plato, la foto
+                                        // va a su ficha (en este teléfono). Fuego y olvido: no toca el turno.
+                                        const _uidVinculo = session?.user?.id;
+                                        cargarFotosDelChat().then((m) => m.vincularFotosDelChat(_uidVinculo, {
+                                            fetchJson: async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.json() : null; },
+                                            fetchBlob: async (url) => { const r = await fetchWithAuth(url); return r.ok ? r.blob() : null; },
+                                        })).catch(() => {});
                                         _sawDone = true; // [P2-CHAT-FRONT-AUDIT] el turno terminó bien
                                         setIsLoading(false);
                                         setStreamingStatus(null);
