@@ -1673,8 +1673,9 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
 
     // [P3-WATER-TRACKER · 2026-05-16] Carga el estado actual del toggle
     // del water tracker. Disponible para todos los usuarios autenticados.
-    // Default optimista TRUE si el GET falla — fail-open consistente con
-    // el backend que asume TRUE para perfiles legacy.
+    // Si el GET falla, el último valor que confirmó el servidor (la caché de abajo); sin caché, TRUE como el
+    // backend para perfiles legacy. [P1-PLAN-LOTE-719] Antes era TRUE a secas: quien lo había apagado lo veía
+    // encendido cada vez que la red fallaba.
     useEffect(() => {
         if (!userProfile?.id) {
             setWaterTrackerEnabled(null);
@@ -1694,10 +1695,10 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     // pre-render sin esperar al GET (evita el flash de "cargando").
                     safeLocalStorageSet('mealfit_water_tracker_enabled', String(value));
                 } else {
-                    setWaterTrackerEnabled(true);
+                    setWaterTrackerEnabled(safeLocalStorageGet('mealfit_water_tracker_enabled', 'true') !== 'false');
                 }
             } catch {
-                if (!cancelled) setWaterTrackerEnabled(true);
+                if (!cancelled) setWaterTrackerEnabled(safeLocalStorageGet('mealfit_water_tracker_enabled', 'true') !== 'false');
             }
         };
         fetchWaterTrackerState();
