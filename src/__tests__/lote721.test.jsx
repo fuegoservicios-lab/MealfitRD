@@ -221,6 +221,30 @@ describe('la fila del contador', () => {
     });
 });
 
+describe('la fila del cajón de días anteriores', () => {
+    it('abre la ficha; Escape la cierra a ELLA y no al cajón', async () => {
+        const { default: DiaryHistory } = await import('../components/dashboard/DiaryHistory');
+        vi.mocked(fetchWithAuth).mockImplementation(async (url) => {
+            const u = String(url);
+            if (u.startsWith('/api/diary/consumed-range/')) return respuesta({ days: [] });
+            if (u.startsWith('/api/diary/consumed/')) {
+                return respuesta({ meals: [MEAL], totals: { calories: 740, protein: 42, carbs: 95, healthy_fats: 18, micros: null, micros_coverage: { con_datos: 0, total: 1 } } });
+            }
+            return respuesta(detalle());
+        });
+        const onClose = vi.fn();
+        render(<DiaryHistory open userId={UID} onClose={onClose} targetCalories={2000} targetMacros={{ protein: 150, carbs: 250, fats: 60 }} />);
+        const fila = await screen.findByRole('button', { name: new RegExp(`^${MEAL.meal_name}`) });
+        await act(async () => { fireEvent.click(fila); });
+        const titulo = await screen.findByRole('heading', { name: MEAL.meal_name }, { timeout: 3000 });
+        expect(titulo.id).toBe('ficha-comida-titulo');
+        fireEvent.keyDown(window, { key: 'Escape' });
+        fireEvent.keyDown(document, { key: 'Escape' });
+        await waitFor(() => expect(document.getElementById('ficha-comida-titulo')).toBeNull());
+        expect(onClose).not.toHaveBeenCalled();
+    });
+});
+
 // ─────────────────────────── la capa de la ficha ───────────────────────────
 
 describe('la ficha en la escala de capas', () => {
