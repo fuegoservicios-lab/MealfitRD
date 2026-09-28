@@ -1,4 +1,4 @@
-import { conFahrenheitValor, getPaisDeLectura, glosarValor } from './nombresDelPais';
+import { conFahrenheitValor, conOnzasValor, getPaisDeLectura, glosarValor } from './nombresDelPais';
 // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
 // del usuario. El motor SIEMPRE genera y persiste `plan_data` en español
 // canónico (backend/plan_display_i18n.py; contrato completo en
@@ -63,8 +63,10 @@ export function mealDisplay(meal, locale) {
     // [P1-PLAN-LOTE-650] (G84) En EE. UU. y Puerto Rico, los °F al lado de los °C del paso, en cualquier idioma.
     const d = _mealDisplayBase(meal, locale);
     if (d === EMPTY_DISPLAY) return d;
-    const recipe = conFahrenheitValor(d.recipe);
-    return recipe === d.recipe ? d : { ...d, recipe };
+    // [P1-PLAN-LOTE-708] (G84) y las onzas al lado de gramos y mililitros, en ingredientes y pasos.
+    const recipe = conOnzasValor(conFahrenheitValor(d.recipe));
+    const ingredients = conOnzasValor(d.ingredients);
+    return recipe === d.recipe && ingredients === d.ingredients ? d : { ...d, recipe, ingredients };
 }
 
 function _mealDisplayBase(meal, locale) {

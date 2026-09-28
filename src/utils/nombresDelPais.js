@@ -6,7 +6,8 @@
 // cada texto: «1 guineo (plátano) mediano». La tabla es espejo de `backend/data/food_names_i18n.json`
 // (`nombre_por_pais`, SSOT); `backend/tests/test_p1_plan_lote_649.py` los compara.
 import NOMBRES_POR_PAIS from '../data/nombresPorPais.json';
-import { getPaisDelUsuario, setPaisDeLectura } from './paisDelUsuario';
+import { getLocale } from '../i18n';
+import { formatRegionFor, getPaisDelUsuario, setPaisDeLectura } from './paisDelUsuario';
 
 // [P1-PLAN-LOTE-702] El estado vive en `paisDelUsuario.js` (el arranque lo fija sin cargar esta tabla).
 export { getPaisDelUsuario, setPaisDeLectura };
@@ -94,4 +95,47 @@ export function conFahrenheitValor(valor, pais = getPaisDelUsuario()) {
         return nuevo.some((v, i) => v !== valor[i]) ? nuevo : valor;
     }
     return conFahrenheit(valor, pais);
+}
+
+// [P1-PLAN-LOTE-708 · 2026-09-28] (G84) En EE. UU. y Puerto Rico, las onzas al lado de los gramos y mililitros del plan
+// («180 g (6.3 oz) de pollo»), como los °F: sólo al pintar, en cualquier idioma, sin tocar el dato ni ningún nombre.
+// Las pizcas (<15 g/ml) no se convierten. El separador decimal es el del idioma con la región del país.
+const _A_IMPERIAL = [
+    [/^(kilogramos?|kg)$/iu, (n) => [n * 2.20462, 'lb']],
+    [/^(gramos?|gr|g)$/iu, (n) => (n >= 15 ? [n / 28.3495, 'oz'] : null)],
+    [/^(mililitros?|ml)$/iu, (n) => (n >= 15 ? [n / 29.5735, 'fl oz'] : null)],
+    [/^(litros?|l)$/iu, (n) => [n * 1.05669, 'qt']],
+];
+const _CANTIDAD_METRICA = /(?<![\p{L}\p{N}.,/])(\d+(?:[.,]\d+)?)(\s*)(kilogramos?|kg|gramos?|gr|g|mililitros?|ml|litros?|l)(?![\p{L}\p{N}])(?!\s*\(\s*[\d.,]+\s*(?:oz|lb|fl oz|qt)\))/giu;
+
+/** `texto` con la medida imperial tras cada cantidad métrica, sólo si `pais` es US o PR. */
+export function conOnzas(texto, pais = getPaisDelUsuario()) {
+    if (typeof texto !== 'string' || !texto || !PAISES_FAHRENHEIT.has(pais)) return texto;
+    let fmt;
+    try {
+        fmt = (d) => new Intl.NumberFormat(formatRegionFor(pais, getLocale()), { maximumFractionDigits: d });
+    } catch {
+        return texto;
+    }
+    return texto.replace(_CANTIDAD_METRICA, (todo, num, esp, unidad) => {
+        const n = Number(num.replace(',', '.'));
+        const regla = _A_IMPERIAL.find(([re]) => re.test(unidad));
+        const conv = regla && Number.isFinite(n) ? regla[1](n) : null;
+        if (!conv) return todo;
+        const [v, u] = conv;
+        try {
+            return `${num}${esp}${unidad} (${fmt(v < 10 ? 1 : 0).format(v)} ${u})`;
+        } catch {
+            return todo;
+        }
+    });
+}
+
+/** Igual que `conOnzas`, respetando la forma (array → elemento a elemento; mismo array si nada cambia). */
+export function conOnzasValor(valor, pais = getPaisDelUsuario()) {
+    if (Array.isArray(valor)) {
+        const nuevo = valor.map((v) => conOnzas(v, pais));
+        return nuevo.some((v, i) => v !== valor[i]) ? nuevo : valor;
+    }
+    return conOnzas(valor, pais);
 }

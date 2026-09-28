@@ -1,5 +1,5 @@
 import { formatNumber, getLocale, i18nKey } from '../i18n';
-import { getPaisDelUsuario } from './paisDelUsuario';
+import { formatRegionFor, getPaisDelUsuario } from './paisDelUsuario';
 
 // ============================================================
 // [P0-2] Parser robusto de `market_qty` para items del shopping list.
@@ -481,17 +481,8 @@ const _UNIDADES_NO_TRADUCIBLES = new Set(['lb', 'lbs', 'kg', 'g', 'gr', 'ml', 'l
  * como vino. Una cifra con el separador del idioma equivocado se lee; una cifra
  * corrompida por un reemplazo a ciegas, no.
  */
-/**
- * [P1-PLAN-LOTE-703 · 2026-09-28] (G85) La etiqueta BCP-47 con la que se formatea una cantidad que decide el PAÍS:
- * el idioma del usuario con la región de su país (`es` + ES → `es-ES`, `en` + CO → `en-CO`). Sin país válido, el
- * idioma tal cual. Sólo para lo que produce el motor de países (la cantidad métrica de la lista); el resto del
- * formato (horas, fechas, kcal) sigue al idioma.
- */
-export const formatRegionFor = (country, locale) => {
-    const idioma = typeof locale === 'string' ? locale.split('-')[0] : '';
-    const region = typeof country === 'string' ? country.trim().toUpperCase() : '';
-    return idioma && /^[A-Z]{2}$/.test(region) ? `${idioma}-${region}` : locale;
-};
+// [P1-PLAN-LOTE-708] `formatRegionFor` vive en `paisDelUsuario.js` (sin dependencias) y se re-exporta aquí.
+export { formatRegionFor };
 
 const _separadorDecimal = () => {
     try {
