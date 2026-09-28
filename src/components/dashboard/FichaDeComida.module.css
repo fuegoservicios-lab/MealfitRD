@@ -158,23 +158,8 @@
     overflow-wrap: anywhere;
 }
 
-.origen {
-    margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.75rem;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--text-muted, #64748B);
-}
 
-.origenItem {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-}
 
-.origenItem > svg { color: var(--primary, #4F46E5); }
 
 .close {
     flex: 0 0 auto;
@@ -234,40 +219,10 @@
     object-fit: cover;
 }
 
-.fotoNota {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.76rem;
-    font-weight: 600;
-    color: var(--text-muted, #64748B);
-}
 
-/* Escaneada, pero la foto no está en ESTE teléfono: se dice, con la misma piel tranquila que una nota. */
-.sinFoto {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.7rem;
-    padding: 0.8rem 0.9rem;
-    border: 1px dashed color-mix(in srgb, var(--text-muted, #64748B) 45%, transparent);
-    border-radius: 14px;
-    color: var(--text-muted, #64748B);
-}
 
-.sinFoto > svg { flex: 0 0 auto; margin-top: 0.1rem; }
 
-.sinFotoTitulo {
-    margin: 0;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--text-main, #0F172A);
-}
 
-.sinFotoTexto {
-    margin: 0.15rem 0 0;
-    font-size: 0.82rem;
-    line-height: 1.45;
-}
 
 /* ---- Energía y macros ---- */
 .energia {
@@ -317,7 +272,7 @@
     color: var(--text-muted, #64748B);
 }
 
-/* Tres columnas con la MISMA estructura (nombre, gramos, barra, porcentaje): las barras quedan a la misma altura. */
+/* Tres columnas con la MISMA estructura (nombre, gramos, barra): las barras quedan a la misma altura. */
 .macros {
     list-style: none;
     margin: 0;
@@ -368,12 +323,6 @@
     border-radius: 999px;
 }
 
-.macroPct {
-    font-size: 0.76rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-muted, #64748B);
-}
 
 /* ---- Secciones ---- */
 .seccion {

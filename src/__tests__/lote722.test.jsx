@@ -2,8 +2,7 @@
 //
 // «¿y lo de la foto? también el diseño se ve poco pulido, aparte lo de grasa fíjate como se ve la barra que está más
 // arriba que las otras». Lo que se ancla:
-//   1. Una comida ESCANEADA sin foto en este teléfono lo explica (antes: «Escaneada con foto» y ninguna foto); mientras
-//      se mira el dispositivo (`undefined`) no hay aviso, y una comida que no era de foto nunca lo lleva.
+//   1. (Retirado en el 762: la caja «Sin foto en este teléfono» salió; ver el bloque [762] abajo.)
 //   2. La cabecera: franja · Hoy/Ayer/fecha corta · hora en una línea (con la fecha larga ocupaba dos).
 //   3. «2 unidad de huevo hervido» se lee «2 unidades de huevo hervido» (el dato no se toca).
 //   4. Macros en tres columnas con la misma estructura; «Repetir hoy» en una línea.
@@ -56,37 +55,26 @@ beforeEach(() => {
 });
 afterEach(() => { vi.clearAllMocks(); });
 
-describe('la foto que no está en este teléfono', () => {
-    it('una comida escaneada sin foto aquí lo explica', async () => {
+// [P1-PLAN-LOTE-762] El dueño: «que no aparezcan detalles innecesarios». La caja «Sin foto en este teléfono» (y su fecha
+// de corte) salió: sin foto no se pinta NADA, ni se explica. Con foto, la foto — sin pie ni etiqueta de origen.
+describe('la foto: está o no está, sin explicaciones [762]', () => {
+    it('una comida escaneada sin foto aquí no pinta caja ni aviso', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle('photo')));
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
-        expect(await screen.findByText('Sin foto en este teléfono')).toBeInTheDocument();
-        expect(screen.getByText(/El escáner guarda la foto solo en el teléfono donde la tomas/)).toBeInTheDocument();
-        expect(screen.getByText('Escaneada con foto')).toBeInTheDocument();
-    });
-
-    it('mientras se mira el dispositivo no hay aviso (sin parpadeo antes de la foto real)', async () => {
-        vi.mocked(useFotoDeComida).mockReturnValue(undefined);
-        vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle('photo')));
-        render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
-        await screen.findByText('Escaneada con foto');
+        await screen.findByText(/unidades de huevo hervido/);
         expect(screen.queryByText('Sin foto en este teléfono')).not.toBeInTheDocument();
+        expect(screen.queryByText(/El escáner guarda la foto/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Escaneada con foto')).not.toBeInTheDocument();
+        expect(screen.queryByRole('img')).not.toBeInTheDocument();
     });
 
-    it('con la foto, la foto y no el aviso', async () => {
+    it('con la foto, la foto (y nada más a su alrededor)', async () => {
         vi.mocked(useFotoDeComida).mockReturnValue('blob:foto');
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle('photo')));
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
-        await screen.findByText('Escaneada con foto');
         expect(screen.getByRole('img', { name: `Foto de ${MEAL.meal_name}` })).toBeInTheDocument();
-        expect(screen.queryByText('Sin foto en este teléfono')).not.toBeInTheDocument();
-    });
-
-    it('una comida que no era de foto nunca lleva el aviso', async () => {
-        vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle('chat')));
-        render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
-        await screen.findByText('Anotada por el coach');
-        expect(screen.queryByText('Sin foto en este teléfono')).not.toBeInTheDocument();
+        await screen.findByText(/unidades de huevo hervido/);
+        expect(screen.queryByText('Solo en este dispositivo')).not.toBeInTheDocument();
     });
 });
 

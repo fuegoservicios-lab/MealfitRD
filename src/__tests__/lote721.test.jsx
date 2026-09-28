@@ -69,7 +69,8 @@ afterEach(() => { vi.clearAllMocks(); });
 // ─────────────────────────── la ficha ───────────────────────────
 
 describe('FichaDeComida', () => {
-    it('pinta la comida: cuándo, de dónde vino, kcal contra la meta y los ingredientes con sus kcal', async () => {
+    // [P1-PLAN-LOTE-762] «de dónde vino» ya no se pinta (el dueño: «que no aparezcan detalles innecesarios»)
+    it('pinta la comida: cuándo, kcal contra la meta y los ingredientes con sus kcal', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle()));
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
         expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -78,12 +79,14 @@ describe('FichaDeComida', () => {
         const cuando = document.getElementById('ficha-comida-cuando');
         expect(cuando.textContent).toMatch(/^Almuerzo · Hoy · /);
         expect(fetchWithAuth).toHaveBeenCalledWith('/api/diary/meal/meal-1');
-        expect(await screen.findByText('Escaneada con foto')).toBeInTheDocument();
-        expect(screen.getByText('150 g de Pechuga de pollo')).toBeInTheDocument();
+        expect(await screen.findByText('150 g de Pechuga de pollo')).toBeInTheDocument();
+        expect(screen.queryByText('Escaneada con foto')).not.toBeInTheDocument();
         expect(screen.getByText('161 kcal')).toBeInTheDocument();
         // 740 / 2000 = 37 %
         expect(screen.getByText(/37\s?% de tu meta del día/)).toBeInTheDocument();
-        expect(screen.getByText(/hacen falta sus ingredientes con cantidad/)).toBeInTheDocument();
+        // sin micros: ni sección ni nota técnica [762]
+        expect(screen.queryByText(/hacen falta sus ingredientes con cantidad/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Micronutrientes')).not.toBeInTheDocument();
     });
 
     it('sin kcal por renglón (no cuadraban) pinta solo los textos', async () => {
@@ -95,13 +98,13 @@ describe('FichaDeComida', () => {
         expect(screen.queryByText(/\d+ kcal$/, { selector: 'span' })).not.toBeInTheDocument();
     });
 
-    it('la foto del dispositivo, con su aviso de dónde vive', async () => {
+    it('la foto del dispositivo, sin pie de página [762]', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle()));
         vi.mocked(useFotoDeComida).mockReturnValue('blob:foto');
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
         const img = screen.getByRole('img', { name: `Foto de ${MEAL.meal_name}` });
         expect(img.getAttribute('src')).toBe('blob:foto');
-        expect(screen.getByText('Solo en este dispositivo')).toBeInTheDocument();
+        expect(screen.queryByText('Solo en este dispositivo')).not.toBeInTheDocument();
         expect(useFotoDeComida).toHaveBeenCalledWith(UID, 'meal-1', 'foto');
         fireEvent.click(screen.getByRole('button', { name: 'Ver la foto en grande' }));
         expect(screen.getAllByRole('img', { name: `Foto de ${MEAL.meal_name}` })).toHaveLength(2);
@@ -124,7 +127,7 @@ describe('FichaDeComida', () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle({ source: 'plan_meal', plan_ref: { plan_id: 'p', day_index: 0, meal_index: 0 } })));
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
         expect(await screen.findByText('Un clásico de mediodía.')).toBeInTheDocument();
-        expect(screen.getAllByText('Del plan').length).toBeGreaterThanOrEqual(2);   // la etiqueta y la sección
+        expect(screen.getAllByText('Del plan')).toHaveLength(1);   // [762] solo la sección: la etiqueta de origen salió
         expect(screen.getByText('Cómo se prepara')).toBeInTheDocument();
         expect(screen.getByText('Cocina el arroz con los fideos.')).toBeInTheDocument();
     });
@@ -135,7 +138,7 @@ describe('FichaDeComida', () => {
         }] }] } });
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle({ source: 'manual' })));
         render(<FichaDeComida meal={MEAL} userId={UID} metas={METAS} onClose={vi.fn()} />);
-        expect(await screen.findByText('Anotada a mano')).toBeInTheDocument();
+        expect(await screen.findByText('150 g de Pechuga de pollo')).toBeInTheDocument();
         expect(screen.queryByText('Un clásico de mediodía.')).not.toBeInTheDocument();
     });
 
@@ -185,12 +188,12 @@ describe('FichaDeComida', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it('una comida anotada otro día dice cuándo se anotó y no inventa la hora', async () => {
+    it('una comida anotada otro día no inventa la hora (y ya no explica cuándo se anotó [762])', async () => {
         vi.mocked(fetchWithAuth).mockResolvedValue(respuesta(detalle()));
         const ayer = new Date(Date.now() - 86400000);
         const meal = { ...MEAL, consumed_at: ayer.toISOString(), created_at: new Date().toISOString() };
         render(<FichaDeComida meal={meal} userId={UID} metas={METAS} onClose={vi.fn()} />);
-        expect(screen.getByText(/Lo anotaste el/)).toBeInTheDocument();
+        expect(screen.queryByText(/Lo anotaste el/)).not.toBeInTheDocument();
         // franja y día, sin hora (la de un registro retrodatado es la del REGISTRO)
         expect(document.getElementById('ficha-comida-cuando').textContent).toMatch(/^Almuerzo · Ayer$/);
     });

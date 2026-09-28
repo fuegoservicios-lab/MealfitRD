@@ -23,10 +23,17 @@
 //  · una comida escaneada SIN foto en este teléfono lo explica en la hoja (antes: «Escaneada con foto» y ninguna foto);
 //  · las macros van en tres columnas alineadas, y «2 unidad de huevo» se lee «2 unidades de huevo»;
 //  · «Registrar otra vez hoy» partía en dos líneas: «Repetir hoy».
+//
+// [P1-PLAN-LOTE-762 · 2026-09-28] El dueño, con la captura de un plato escaneado el 27-sep: «que no aparezcan detalles
+// innecesarios». Fuera lo que explica al sistema en vez de al plato: la línea de origen («Escaneada con foto», «Lo
+// anotaste el…»), el pie «Solo en este dispositivo», la caja «Sin foto en este teléfono» con su fecha de corte, y el
+// porcentaje junto a cada macro (la barra ya lo dice). Los micros, plegados: son para quien los busca. La foto se queda:
+// los platos escaneados desde el 28-sep la tienen en el teléfono. La del 27 no existe en ningún sitio (el servidor no
+// la guarda y el teléfono aún no la guardaba): sin foto no se pinta nada, no se explica.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { X, Camera, CameraOff, PenLine, Sparkles, CalendarCheck, MessageCircle, RotateCcw, Trash2, Loader2, Smartphone, FlaskConical } from 'lucide-react';
+import { X, RotateCcw, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '../../config/api';
 import { useModalAccessibility } from '../../hooks/useModalAccessibility';
@@ -53,18 +60,6 @@ const getFranjas = (t) => {
         cena: { texto: t('Cena'), color: '#818CF8' },
         snack: { texto: t('Snack'), color: '#94A3B8' },
         extra: { texto: t('Extra'), color: '#94A3B8' },
-    };
-};
-
-// De dónde vino, por `consumed_meals.source` (vocabulario de `ficha_comida.ORIGENES_DE_COMIDA`).
-const getOrigenes = (t) => {
-    return {
-        photo: { Icono: Camera, texto: t('Escaneada con foto') },
-        manual: { Icono: PenLine, texto: t('Anotada a mano') },
-        estimate: { Icono: Sparkles, texto: t('Con estimación de la IA') },
-        plan_meal: { Icono: CalendarCheck, texto: t('Del plan') },
-        chat: { Icono: MessageCircle, texto: t('Anotada por el coach') },
-        repeat: { Icono: RotateCcw, texto: t('Registrada otra vez') },
     };
 };
 
@@ -158,8 +153,8 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
     }
     const cuando = [dia, horaFiable ? formatDate(consumido, { timeStyle: 'short' }) : null].filter(Boolean).join(' · ');
 
+    // De dónde vino (`consumed_meals.source`): ya no se pinta [762], pero decide si la receta del plan es la de ESTE plato.
     const fuente = detalle.meal?.source;
-    const origen = getOrigenes(t)[fuente] || null;
     const kcal = num(meal?.calories);
     const metaKcal = num(metas?.calories);
     const macros = [
@@ -168,8 +163,6 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
         { clave: 'fats', rotulo: t('Grasas'), g: num(meal?.healthy_fats ?? meal?.fats), meta: num(metas?.fats), color: '#EC4899' },
     ];
     const microsDeLaComida = meal?.micros?.values || null;
-    // Escaneada y sin foto en ESTE teléfono (otro teléfono, o registrada antes de que el escáner las guardara): se dice.
-    const sinFotoAqui = fuente === 'photo' && fotoUrl === null;
 
     // El plato del plan (misma búsqueda que traduce su nombre). Solo si vino del plan, o si la fila es anterior al
     // origen guardado: un «Mangú» escrito a mano no es la receta del plan aunque se llame igual.
@@ -251,24 +244,6 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                 {cuando && <span className={styles.cuando}>{` · ${cuando}`}</span>}
                             </p>
                             <h2 id="ficha-comida-titulo" className={styles.title}>{nombre}</h2>
-                            {(origen || (!horaFiable && creado)) && (
-                                <p className={styles.origen}>
-                                    {origen && (
-                                        <span className={styles.origenItem}>
-                                            <origen.Icono size={14} strokeWidth={2.4} aria-hidden="true" />
-                                            {origen.texto}
-                                        </span>
-                                    )}
-                                    {!horaFiable && creado && (
-                                        <span className={styles.origenItem}>
-                                            {t('Lo anotaste el {diaSemana} {dia}', {
-                                                diaSemana: formatDate(creado, { weekday: 'long' }),
-                                                dia: creado.getDate(),
-                                            })}
-                                        </span>
-                                    )}
-                                </p>
-                            )}
                         </div>
                         <button type="button" className={`${styles.close} ui-close`} onClick={onClose} aria-label={t('Cerrar')}>
                             <X size={20} strokeWidth={2.25} aria-hidden="true" />
@@ -282,22 +257,7 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                             <button type="button" className={styles.fotoBtn} onClick={() => setAmpliada(true)} aria-label={t('Ver la foto en grande')}>
                                 <img src={fotoUrl} alt={t('Foto de {nombre}', { nombre })} className={styles.fotoImg} />
                             </button>
-                            <figcaption className={styles.fotoNota}>
-                                <Smartphone size={13} strokeWidth={2.4} aria-hidden="true" />
-                                {t('Solo en este dispositivo')}
-                            </figcaption>
                         </figure>
-                    )}
-                    {sinFotoAqui && (
-                        <div className={styles.sinFoto}>
-                            <CameraOff size={18} strokeWidth={2.2} aria-hidden="true" />
-                            <div>
-                                <p className={styles.sinFotoTitulo}>{t('Sin foto en este teléfono')}</p>
-                                <p className={styles.sinFotoTexto}>
-                                    {t('El escáner guarda la foto solo en el teléfono donde la tomas, desde el 28 de septiembre de 2026.')}
-                                </p>
-                            </div>
-                        </div>
                     )}
 
                     <section className={styles.energia} aria-label={t('Calorías')}>
@@ -320,7 +280,6 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                                         <span className={styles.macroPista} aria-hidden="true">
                                             <span className={styles.macroRelleno} style={{ width: `${Math.min(100, pct ?? 0)}%`, background: m.color }} />
                                         </span>
-                                        {pct !== null && <span className={styles.macroPct}>{formatPercent(pct)}</span>}
                                     </li>
                                 );
                             })}
@@ -355,17 +314,15 @@ const FichaDeComida = ({ meal, userId, metas = null, microMetas = null, onClose,
                         ))}
                     </section>
 
-                    <section className={styles.seccion} aria-labelledby="ficha-comida-micros">
-                        <h3 id="ficha-comida-micros" className={styles.seccionTitulo}>
-                            <FlaskConical size={14} strokeWidth={2.4} aria-hidden="true" />
-                            {t('Micros')}
-                        </h3>
-                        {microsDeLaComida ? (
-                            <MicrosList micros={microsDeLaComida} coverage={{ con_datos: 1, total: 1 }} metas={microMetas} compact showNotes={false} />
-                        ) : (
-                            <p className={styles.nota}>{t('Sin micros para esta comida: hacen falta sus ingredientes con cantidad.')}</p>
-                        )}
-                    </section>
+                    {/* [P1-PLAN-LOTE-762] Plegados: para quien los busca. Sin micros, ni sección ni nota técnica. */}
+                    {microsDeLaComida && (
+                        <section className={styles.seccion} aria-label={t('Micronutrientes')}>
+                            <details className={styles.receta}>
+                                <summary className={styles.recetaResumen}>{t('Micronutrientes')}</summary>
+                                <MicrosList micros={microsDeLaComida} coverage={{ con_datos: 1, total: 1 }} metas={microMetas} compact showNotes={false} />
+                            </details>
+                        </section>
+                    )}
 
                     {delPlan && (delPlan.description || pasos.length > 0) && (
                         <section className={styles.seccion} aria-labelledby="ficha-comida-plan">
