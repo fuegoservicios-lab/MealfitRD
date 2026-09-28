@@ -6873,7 +6873,7 @@ const DashboardInner = () => {
                                                         // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16 (T7, fold de la review de T6)]
                                                         // `budgetCurrency` crudo puede quedar STALE en una moneda beta
                                                         // (bandera apagada tras rollback, país cambiado) — `minBudgetFor`
-                                                        // con esa moneda cruda leería el piso EUR/MXN/COP (75/1400/350000)
+                                                        // con esa moneda cruda leería el piso EUR/MXN/COP (75/1500/240000)
                                                         // mientras el símbolo mostrado ya volvió a 'RD$', autorellenando un
                                                         // monto absurdamente bajo. Mismo fix que QBudget/InteractiveAssessmentFlow/
                                                         // useBudgetFloor (T6 fix-round 1).

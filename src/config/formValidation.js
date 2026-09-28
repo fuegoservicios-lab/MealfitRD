@@ -178,19 +178,25 @@ export const REQUIRED_FORM_FIELDS = [
 // 7d=US$80 → 15d=US$140, 30d=US$260. DEBE quedar CONSISTENTE con el piso del backend
 // (_budget_cycle_floor_dop en nutrition_calculator.py: 4000/7000/13000) para que el form
 // no permita un monto que el backend después rechace.
-// [P1-COUNTRY-SYSTEM-F1] Pisos PROVISIONALES derivados del piso USD por factor fijo
-// (EUR×0.95, MXN×18, COP×4200) — Fase 3 los sustituye por precios reales de mercado.
-// Espejo del backend (_budget_cycle_floor_dop region); test de paridad en
-// test_p1_country_system_f1.py.
-//   EUR: 80×0.95=76→75   140×0.95=133→135   260×0.95=247→245
-//   MXN: 80×18=1440→1400 140×18=2520→2500   260×18=4680→4700
-//   COP: 80×4200=336000→350000 140×4200=588000→600000 260×4200=1092000→1100000
+// [P1-PLAN-LOTE-792 · 2026-09-28] (G13, decisión del dueño) EUR/MXN/COP dejan de ser
+// conversiones FX de la cesta dominicana (antes EUR=USD×0,95 · MXN=USD×18 · COP=USD×4200).
+// Fuente: Banco Mundial, «Food Prices for Nutrition 5.0», indicador CoHD_LCU (coste de una
+// dieta sana por persona y día, en moneda local), licencia CC BY 4.0; datos del 2026-07-21.
+// Método: piso semanal = dieta sana × 7 × 4,286 (la proporción del piso dominicano respecto a
+// su propia dieta sana). Escalones como en DO: ×1,75 a 15 días y ×3,25 a 30, a la unidad.
+//   EUR: 75 (igual) → 131 (131,25) · 244 (243,75)
+//   MXN: 1500 → 2625 · 4875
+//   COP: 240000 → 420000 · 780000
+//   USD: 80 → 140 · 260 (se mantiene: lo respalda el USDA Thrifty Food Plan; PR usa lo de US)
+// Espejo EXACTO del backend (`_BUDGET_CYCLE_FLOOR_DEFAULTS_*` en nutrition_calculator.py);
+// paridad en test_p1_country_system_f1.py, test_p1_budget_floor_usd.py y test_p1_plan_lote_792.py.
+// Si el piso BLOQUEA o sólo ORIENTA lo decide el país de mercado: `pisoSoloOrienta` (countries.js).
 export const BUDGET_MIN_TOTAL = {
     DOP: { weekly: 4000, biweekly: 7000, monthly: 13000 },
     USD: { weekly: 80, biweekly: 140, monthly: 260 },
-    EUR: { weekly: 75, biweekly: 135, monthly: 245 },
-    MXN: { weekly: 1400, biweekly: 2500, monthly: 4700 },
-    COP: { weekly: 350000, biweekly: 600000, monthly: 1100000 },
+    EUR: { weekly: 75, biweekly: 131, monthly: 244 },
+    MXN: { weekly: 1500, biweekly: 2625, monthly: 4875 },
+    COP: { weekly: 240000, biweekly: 420000, monthly: 780000 },
 };
 export const BUDGET_CYCLE_DAYS = { weekly: 7, biweekly: 15, monthly: 30 };
 
