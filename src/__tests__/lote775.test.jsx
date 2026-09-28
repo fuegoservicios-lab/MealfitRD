@@ -152,4 +152,34 @@ describe('[775] /admin · Cuentas', () => {
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Regalar 10 créditos' }));
         expect(await within(dialogo).findByRole('alert')).toHaveTextContent('No se pudo registrar la acción');
     });
+
+    it('el diálogo atrapa el foco (Tab no se escapa a la Ficha detrás del velo) y ESC lo cierra', async () => {
+        // [FIX ROUND 1 · 2026-09-28] Sin useModalAccessibility, Tab/Shift+Tab se escapaba del diálogo a los
+        // botones de acción de la Ficha (Regalar créditos / Recargar al completo / Plan de cortesía) detrás
+        // del velo — activar uno cambiaba `accion` sobre el mismo diálogo abierto.
+        servidor([['/api/admin/cuentas/buscar', async () => respuesta({ cuenta: ficha() })]]);
+        await buscar();
+        fireEvent.click(await screen.findByRole('button', { name: 'Regalar créditos' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Regalar créditos' });
+
+        const focosables = [...dialogo.querySelectorAll(
+            'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+        )];
+        expect(focosables.length).toBeGreaterThan(1);
+        const primero = focosables[0];
+        const ultimo = focosables[focosables.length - 1];
+
+        primero.focus();
+        expect(document.activeElement).toBe(primero);
+        // El hook escucha en `document` (useModalAccessibility.js: `document.addEventListener('keydown', ...)`),
+        // igual que lo haría el navegador — de ahí la re-focalización de Shift+Tab desde el PRIMER focosable.
+        fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+        expect(document.activeElement).toBe(ultimo);
+        expect(dialogo.contains(document.activeElement)).toBe(true);
+        // Los botones de la Ficha (detrás del velo) siguen sin foco y el diálogo sigue siendo el mismo.
+        expect(screen.getByRole('dialog', { name: 'Regalar créditos' })).toBe(dialogo);
+
+        fireEvent.keyDown(document, { key: 'Escape' });
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
 });

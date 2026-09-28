@@ -3,9 +3,10 @@
 // design.md §4.2): buscar una cuenta por su correo EXACTO (no hay lista), ver su ficha y regalarle créditos o un plan
 // de cortesía, o revertir un regalo. Cada acción pide un motivo y enseña su efecto antes de aplicarse; el servidor la
 // anota antes de escribir. Interno —solo el dueño, solo español—: los textos fijos viven en TEXTOS.
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import { fetchWithAuth } from '../config/api';
 import { formatDate } from '../i18n';
+import { useModalAccessibility } from '../hooks/useModalAccessibility';
 import styles from './AdminCuentas.module.css';
 
 // [I18N-EXEMPT: panel interno del dueño, solo español]
@@ -178,7 +179,6 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
     // [CORRECCIÓN CONTROLADOR · 2026-09-28] `idMotivo` separado de `idTitulo`: el campo Motivo
     // necesita su propio `htmlFor`/`id` explícito (ver más abajo, y su nota junto al <textarea>).
     const idMotivo = useId();
-    const primerCampo = useRef(null);
     const mejores = planesMejores(ficha.plan_pagado);
     const [medidor, setMedidor] = useState('generacion');
     const [cantidad, setCantidad] = useState('10');
@@ -190,12 +190,12 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
     const [enviando, setEnviando] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => { primerCampo.current?.focus(); }, []);
-    useEffect(() => {
-        const alTeclear = (e) => { if (e.key === 'Escape' && !enviando) onCerrar(); };
-        window.addEventListener('keydown', alTeclear);
-        return () => window.removeEventListener('keydown', alTeclear);
-    }, [enviando, onCerrar]);
+    // [FIX ROUND 1 · 2026-09-28] SSOT a11y de modales custom (P2-CUSTOM-MODALS-A11Y): focus trap
+    // (Tab/Shift+Tab ya NO se escapa a los botones de acción de la Ficha detrás del velo — antes
+    // activaba uno y cambiaba `accion` sobre el mismo diálogo abierto), ESC, foco inicial al
+    // contenedor y restaurar foco al disparador al cerrar. Sustituye el `useEffect` de ESC a mano y
+    // el foco inicial a `primerCampo` que tenía este componente (el hook enfoca el contenedor).
+    const { containerRef } = useModalAccessibility({ isOpen: true, onClose: onCerrar, disableClose: enviando });
 
     const m = medidor === 'coach' ? ficha.coach : ficha.creditos;
     const n = Math.max(0, Math.trunc(Number(cantidad) || 0));
@@ -251,15 +251,15 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
 
     return (
         <div className={styles.velo} role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !enviando) onCerrar(); }}>
-            <form className={styles.dialogo} role="dialog" aria-modal="true" aria-labelledby={idTitulo} onSubmit={enviar}>
+            <form ref={containerRef} className={styles.dialogo} role="dialog" aria-modal="true" aria-labelledby={idTitulo} tabIndex={-1} onSubmit={enviar}>
                 <h3 id={idTitulo} className={styles.dialogoTitulo}>{titulo}</h3>
                 {esCreditos && (
                     <fieldset className={styles.campo}>
                         <legend className={styles.etiqueta}>{TEXTOS.medidor}</legend>
                         <div className={styles.opciones}>
-                            {[['generacion', TEXTOS.planes], ['coach', TEXTOS.mensajes]].map(([id, texto], i) => (
+                            {[['generacion', TEXTOS.planes], ['coach', TEXTOS.mensajes]].map(([id, texto]) => (
                                 <label key={id} className={styles.opcion}>
-                                    <input ref={i === 0 ? primerCampo : undefined} type="radio" name="medidor" value={id} checked={medidor === id} onChange={() => setMedidor(id)} />
+                                    <input type="radio" name="medidor" value={id} checked={medidor === id} onChange={() => setMedidor(id)} />
                                     {texto}
                                 </label>
                             ))}
@@ -285,7 +285,7 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
                     <>
                         <label className={styles.campo}>
                             <span className={styles.etiqueta}>{TEXTOS.elPlan}</span>
-                            <select ref={primerCampo} className={styles.input} value={plan} onChange={(e) => setPlan(e.target.value)}>
+                            <select className={styles.input} value={plan} onChange={(e) => setPlan(e.target.value)}>
                                 {mejores.map((p) => <option key={p} value={p}>{NOMBRE_PLAN[p]}</option>)}
                             </select>
                         </label>
@@ -307,7 +307,6 @@ function Dialogo({ accion, ficha, onCerrar, onHecho }) {
                     <label htmlFor={idMotivo} className={styles.etiqueta}>{TEXTOS.motivo}</label>
                     <textarea
                         id={idMotivo}
-                        ref={accion.tipo === 'revocar' ? primerCampo : undefined}
                         className={styles.input}
                         rows={2}
                         maxLength={300}
