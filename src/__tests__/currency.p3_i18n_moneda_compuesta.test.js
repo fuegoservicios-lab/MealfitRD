@@ -41,7 +41,8 @@ describe('[P3-I18N-MONEDA-COMPUESTA-A-MANO-EN-EL-PRESUPUESTO]', () => {
         const src = readFileSync(resolve(__dirname, '../components/assessment/questions/QBudget.jsx'), 'utf8');
         expect(src).not.toMatch(/\{simbolo\}\{monto\}/);
         expect(src).not.toMatch(/effectiveCurrency === 'USD' \? 'US\$'/);
-        expect(src).toMatch(/currencySymbolFor\(effectiveCurrency\)/);
+        // [P1-PLAN-LOTE-656] el símbolo sale del resolvedor COMPARTIDO con el Dashboard (que ya usa Intl para las beta)
+        expect(src).toMatch(/budgetCurrencySymbol\(effectiveCurrency\)/);
         expect(src).toMatch(/formatCurrency\(v, effectiveCurrency/);
     });
 });

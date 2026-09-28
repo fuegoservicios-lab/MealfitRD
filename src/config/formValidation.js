@@ -1,6 +1,7 @@
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16, fix-round 1] `coerceCountry`/`COUNTRY_SYSTEM_UI`
 // para `currencyOptionsForCountry`/`effectiveBudgetCurrency` más abajo. Import a nivel
 // de módulo (no local) porque este archivo no tiene ningún otro import — la única
+import { currencySymbol } from '../i18n';
 import { CULTURE_PROFILES_UI } from './cultures';
 // excepción se documenta aquí para que no sorprenda en review.
 import {
@@ -290,7 +291,9 @@ export function budgetCurrencySymbol(currency) {
     const cur = String(currency ?? '').trim();
     if (cur === 'USD') return 'US$';
     if (cur === 'DOP' || cur === '') return 'RD$';
-    return cur;
+    // [P1-PLAN-LOTE-656] (G82) las monedas beta con el símbolo del idioma activo («€», «MX$»); si `Intl` no lo
+    // conoce, el código. Es el ÚNICO resolvedor: el formulario (QBudget) y el Dashboard lo comparten.
+    return currencySymbol(cur) || cur;
 }
 
 export function effectiveBudgetCurrency(country, budgetCurrency, countrySystemUI = COUNTRY_SYSTEM_UI) {

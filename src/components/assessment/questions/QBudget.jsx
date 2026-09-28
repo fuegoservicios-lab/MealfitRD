@@ -8,11 +8,11 @@ import { RadioCard, Input, Label } from '../../common/FormUI';
 // viven en formValidation.js, no aquí — InteractiveAssessmentFlow.jsx y
 // useBudgetFloor.js también las necesitan y ambos ya importan de ese módulo.
 // COUNTRY_SYSTEM_UI sigue haciendo falta AQUÍ para pasárselo explícito a currencyOptionsForCountry.
-import { budgetCycleDays, currencyOptionsForCountry, effectiveBudgetCurrency } from '../../../config/formValidation';
+import { budgetCurrencySymbol, budgetCycleDays, currencyOptionsForCountry, effectiveBudgetCurrency } from '../../../config/formValidation';
 // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo personalizado por las metas (backend).
 import { useBudgetFloor } from '../../../hooks/useBudgetFloor';
 import { Banknote, Infinity as InfinityIcon, Landmark, SlidersHorizontal, Wallet } from 'lucide-react';
-import { useT, formatCurrency, currencySymbol as currencySymbolFor } from '../../../i18n';
+import { useT, formatCurrency } from '../../../i18n';
 // [P1-COUNTRY-SYSTEM-F1 · 2026-08-16] Bandera dark del frontend (mismo SSOT que
 // QCountry.jsx/Settings.jsx).
 import { COUNTRY_SYSTEM_UI, defaultCurrencyForCountry } from '../../../config/countries';
@@ -53,7 +53,8 @@ export const QBudget = ({ onAutoAdvance }) => {
     // ISO y los importes salían «EUR 1.200». Ahora el símbolo del adorno lo da `Intl` para el
     // locale activo y los IMPORTES de los avisos pasan enteros por `formatCurrency`, que
     // pone el símbolo donde cada idioma lo escribe («1 200 €», «$1,200», «RD$1,200»).
-    const currencySymbol = currencySymbolFor(effectiveCurrency);
+    // [P1-PLAN-LOTE-656] el MISMO resolvedor que el Dashboard (antes, en inglés, aquí «DOP» y allí «RD$»)
+    const currencySymbol = budgetCurrencySymbol(effectiveCurrency);
     const money = (v) => formatCurrency(v, effectiveCurrency, { maximumFractionDigits: 0 });
     // [P1-BUDGET-FLOOR-PERSONALIZED · 2026-06-23] Mínimo PERSONALIZADO por las metas (calorías ×
     // hogar × ciclo) vía backend — el MISMO número que exige el gate de generación; fail-open al
