@@ -46,6 +46,8 @@
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/share": "^8.0.2",
     "@capawesome/capacitor-live-update": "^8.4.2",
+    "@capgo/capacitor-speech-recognition": "^8.3.2",
+    "@capgo/capacitor-speech-synthesis": "^8.0.22",
     "@neondatabase/neon-js": "^0.6.2-beta",
     "@paypal/react-paypal-js": "^8.9.2",
     "@sentry/react": "^10.47.0",

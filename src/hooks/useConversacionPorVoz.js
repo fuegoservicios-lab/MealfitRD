@@ -21,6 +21,7 @@ import {
     motorDeDictado,
 } from '../utils/dictado';
 import { crearVozDelCoach, rutaDeAudio, sintesisDisponible } from '../utils/vozDelCoach';
+import { sintesisNativa, vozNativaDisponible } from '../utils/vozNativa';
 import { triggerMobileHaptic } from '../utils/mobileHaptics';
 import { i18nKey } from '../i18n';
 
@@ -305,7 +306,11 @@ export function useConversacionPorVoz({ locale, esNativa = false, enviar, saludo
 
     // Chrome carga las voces tarde: pedirlas ya hace que estén cuando el usuario abra el modo voz.
     useEffect(() => {
-        if (disponible) { try { window.speechSynthesis.getVoices(); } catch { /* sin voces todavía */ } }
+        if (!disponible) return;
+        try {
+            if (window.speechSynthesis) window.speechSynthesis.getVoices();
+            else if (vozNativaDisponible()) sintesisNativa();   // Android: arranca el motor y pide sus voces ya
+        } catch { /* sin voces todavía */ }
     }, [disponible]);
 
     useEffect(() => {

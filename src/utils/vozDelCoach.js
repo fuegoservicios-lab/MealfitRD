@@ -12,8 +12,11 @@
 // enteras), cómo se trocea, qué voz se elige y la cola que las encadena. El bucle de la conversación (escuchar →
 // enviar → hablar → escuchar) está en `hooks/useConversacionPorVoz.js`.
 
+import { sintesisNativa, vozNativaDisponible } from './vozNativa';
+
 export function sintesisDisponible(win = typeof window !== 'undefined' ? window : undefined) {
-    return Boolean(win?.speechSynthesis && typeof win.SpeechSynthesisUtterance === 'function');
+    // [P1-PLAN-LOTE-683] En la app de Android habla el TextToSpeech del sistema (plugin) con la misma forma.
+    return Boolean(win?.speechSynthesis && typeof win.SpeechSynthesisUtterance === 'function') || vozNativaDisponible();
 }
 
 // «~650 kcal» se lee «aproximadamente 650 calorías»: una abreviatura leída letra a letra rompe el efecto entero.
@@ -119,8 +122,10 @@ export function crearVozDelCoach({
     alPalabra,
     alVaciarse,
 } = {}) {
-    const synth = win?.speechSynthesis;
-    const Locucion = win?.SpeechSynthesisUtterance;
+    // Sin `speechSynthesis` en el WebView (Android), la voz nativa del plugin con la misma forma (P1-PLAN-LOTE-683).
+    const fuente = win?.speechSynthesis ? win : (vozNativaDisponible() ? sintesisNativa() : win);
+    const synth = fuente?.speechSynthesis;
+    const Locucion = fuente?.SpeechSynthesisUtterance;
     let voz = null;
     let cola = [];
     let hablando = false;

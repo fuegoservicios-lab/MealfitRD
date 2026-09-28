@@ -57,6 +57,19 @@
             android:value="bioboros-avisos" />
     </application>
 
+    <!-- [P1-PLAN-LOTE-683 · 2026-09-28] Voz: desde Android 11 (API 30) una app solo VE los servicios del sistema que
+         declara aquí. Sin estas dos consultas, el reconocedor de voz (RecognitionService, el de la app de Google) y el
+         motor de TextToSpeech existen en el teléfono pero la app no los encuentra: `available()` diría que no hay voz.
+         RECORD_AUDIO no va aquí: lo declara su propio plugin (@capgo/capacitor-speech-recognition). -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />

@@ -16,6 +16,8 @@
 //
 // El ciclo de vida (arrancar, reiniciar, silencio, cancelar) vive en `hooks/useDictado.js`.
 import { i18nKey } from '../i18n';
+// [P1-PLAN-LOTE-683] En la app de Android el motor es el reconocedor nativo (plugin), con la misma forma.
+import { ReconocimientoNativo, vozNativaDisponible } from './vozNativa';
 
 /** Lo añade al user agent el binario nativo que YA declara los permisos de micrófono y voz. */
 export const DICTADO_UA_NATIVO = 'BioborosNative/mic';
@@ -27,7 +29,7 @@ export const DICTADO_SIN_VOZ_MS = 9000;
 export const DICTADO_MAX_CHARS = 8192;
 
 export function motorDeDictado(win = typeof window !== 'undefined' ? window : undefined) {
-    return win?.SpeechRecognition || win?.webkitSpeechRecognition || null;
+    return win?.SpeechRecognition || win?.webkitSpeechRecognition || (vozNativaDisponible() ? ReconocimientoNativo : null);
 }
 
 function politicaPermiteMicrofono(doc) {
@@ -45,7 +47,9 @@ export function dictadoDisponible({
     userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '',
 } = {}) {
     if (!motorDeDictado(win)) return false;
-    if (esNativa) return String(userAgent || '').includes(DICTADO_UA_NATIVO);
+    // iOS: el binario declara los permisos con la marca del user agent. Android: los trae el plugin, y que el plugin
+    // esté en ESTE binario ya lo comprueba `vozNativaDisponible` (P1-PLAN-LOTE-683).
+    if (esNativa) return String(userAgent || '').includes(DICTADO_UA_NATIVO) || vozNativaDisponible();
     return politicaPermiteMicrofono(doc);
 }
 
