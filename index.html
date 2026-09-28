@@ -315,6 +315,10 @@
   </script>
 
   <!-- [P3-2-SOFTWARE-APP-JSONLD · 2026-08-14] Structured data SoftwareApplication (HealthApplication) para Rich Results en Google Search -->
+  <!-- [P1-PLAN-LOTE-793 · 2026-09-28] (G95) La oferta va en USD, la MISMA moneda que declara el apex
+       (bioboros.com, generado desde contract/commercial.json): dos datos estructurados del mismo
+       producto con dos monedas no le dicen nada a un buscador. Decisión del dueño.
+       Ancla: backend/tests/test_p1_plan_lote_793.py -->
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -325,7 +329,7 @@
       "offers": {
         "@type": "Offer",
         "price": "0",
-        "priceCurrency": "DOP"
+        "priceCurrency": "USD"
       },
       "description": "Planes de nutrición personalizada con Inteligencia Artificial avanzada."
     }
