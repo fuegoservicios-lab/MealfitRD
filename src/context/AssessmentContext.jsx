@@ -123,6 +123,7 @@ import { toast } from 'sonner';
 // backend con test de paridad). Comparar contra 'DO' a mano aquí sería la tabla que
 // P1-DIET-CANON-SSOT prohíbe.
 import { coerceCountry, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI } from '../config/countries';
+import { setPaisDeLectura } from '../utils/nombresDelPais';
 // [P1-GENERATE-TURNS-MODE-ON · 2026-08-14] Espejo local del modo tras generar.
 import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
 import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
@@ -681,6 +682,8 @@ export const AssessmentProvider = ({ children }) => {
         ...(_parsedSavedForm || {}),
         ...(_legacySensitive || {}),
     });
+    // [P1-PLAN-LOTE-649] El país con que se LEE el plan en español: «guineo (plátano)» para quien vive en España.
+    useEffect(() => { setPaisDeLectura(COUNTRY_SYSTEM_UI ? formData?.country : null); }, [formData?.country]);
 
     // [P1-GUEST-COUNTRY-ADOPT · 2026-08-21] Espejo de `formData` para los cuerpos ASÍNCRONOS que
     // lo leen sin querer re-ejecutarse cuando cambia: la adopción del plan de invitado (dentro de

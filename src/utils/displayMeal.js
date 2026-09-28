@@ -1,3 +1,4 @@
+import { getPaisDeLectura, glosarValor } from './nombresDelPais';
 // [P1-PLAN-DISPLAY-I18N · 2026-08-19] Capa de lectura del plan en el idioma
 // del usuario. El motor SIEMPRE genera y persiste `plan_data` en español
 // canónico (backend/plan_display_i18n.py; contrato completo en
@@ -85,6 +86,16 @@ export function mealDisplay(meal, locale) {
     const entry = displayMap && typeof displayMap === 'object' ? displayMap[locale] : null;
 
     if (!entry || typeof entry !== 'object') {
+        // [P1-PLAN-LOTE-649] En español fuera de RD, el nombre local del alimento entre paréntesis («guineo (plátano)»).
+        // Sin país de lectura (RD, EE. UU., o el sistema de países apagado) son los originales, byte a byte.
+        if (getPaisDeLectura() && (!locale || String(locale).startsWith('es'))) {
+            return {
+                name: glosarValor(originalName),
+                description: glosarValor(originalDescription),
+                recipe: glosarValor(originalRecipe),
+                ingredients: glosarValor(originalIngredients),
+            };
+        }
         return {
             name: originalName,
             description: originalDescription,

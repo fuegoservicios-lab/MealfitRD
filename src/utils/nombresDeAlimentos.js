@@ -10,6 +10,7 @@
 // decide QUÉ SE PINTA y POR DÓNDE SE BUSCA. Sin traducción para un alimento (alta posterior al léxico), se pinta el
 // inglés si el idioma es inglés y, si no, el español: nunca una clave ni un hueco.
 import { getLocale } from '../i18n';
+import { glosarTexto, nombreLocal } from './nombresDelPais';
 import { getCachedMasterList, getCachedGlossIndex } from './pantryCache';
 import { glossUnitWord } from './shoppingHelpers';
 import { leerCantidad, unidadParaCantidad, formatearCantidad } from './cantidadIngrediente';
@@ -22,7 +23,7 @@ const _texto = (v) => (typeof v === 'string' ? v.trim() : '');
 /** El nombre de una FILA del catálogo en `locale` (por defecto, el activo). */
 export function nombreDeFila(fila, locale = getLocale()) {
     const es = _texto(fila?.name);
-    if (!locale || locale === 'es-DO') return es;
+    if (!locale || locale === 'es-DO') return glosarTexto(es);   // [P1-PLAN-LOTE-649] «Guineo (plátano)» en España
     const propio = _texto(fila?.names?.[locale]);
     if (propio) return propio;
     if (locale === 'en-US') return _texto(fila?.name_en) || es;
@@ -52,7 +53,11 @@ const _porNombre = () => {
  */
 export function nombreDelAlimento(nombreEs, locale = getLocale()) {
     const es = _texto(nombreEs);
-    if (!es || !locale || locale === 'es-DO') return nombreEs;
+    if (!es || !locale || locale === 'es-DO') {
+        // [P1-PLAN-LOTE-649] en español fuera de RD, el nombre local entre paréntesis; si no hay nada que glosar, tal cual
+        const g = es ? glosarTexto(es) : es;
+        return g !== es ? g : nombreEs;
+    }
     const k = _sinAcentos(es);
     const fila = _porNombre()?.get(k);
     if (fila) {
@@ -96,6 +101,7 @@ export function formasDeBuscar(fila) {
     if (fila?.names && typeof fila.names === 'object') Object.values(fila.names).forEach(add);
     add(fila?.name_en);
     if (Array.isArray(fila?.aliases)) fila.aliases.forEach(add);
+    add(nombreLocal(fila?.name));   // [P1-PLAN-LOTE-649] un español que busca «plátano» encuentra el Guineo
     return out;
 }
 

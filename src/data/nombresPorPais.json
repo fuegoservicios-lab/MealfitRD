@@ -1,0 +1,58 @@
+{
+  "ES": {
+    "Guineo": "plátano",
+    "Guineo verde": "plátano verde",
+    "Plátano verde": "plátano macho verde",
+    "Plátano maduro": "plátano macho maduro",
+    "Duraznos": "melocotones",
+    "Durazno en almíbar": "melocotón en almíbar",
+    "Batata": "boniato",
+    "Vainitas": "judías verdes",
+    "Auyama": "calabaza",
+    "Chinola": "maracuyá",
+    "Habichuelas negras": "alubias negras",
+    "Habichuelas rojas": "alubias rojas",
+    "Habichuelas blancas": "alubias blancas",
+    "Papa": "patata",
+    "Ají morrón": "pimiento",
+    "Lechosa": "papaya",
+    "Tayota": "chayote"
+  },
+  "MX": {
+    "Guineo": "plátano",
+    "Guineo verde": "plátano verde",
+    "Plátano verde": "plátano macho verde",
+    "Plátano maduro": "plátano macho maduro",
+    "Habichuelas negras": "frijoles negros",
+    "Habichuelas rojas": "frijoles rojos",
+    "Habichuelas blancas": "frijoles blancos",
+    "Batata": "camote",
+    "Vainitas": "ejotes",
+    "Auyama": "calabaza",
+    "Chinola": "maracuyá",
+    "Lechosa": "papaya",
+    "Tayota": "chayote",
+    "Ají morrón": "pimiento morrón",
+    "Maíz dulce en granos": "elote en granos",
+    "Guisantes secos": "chícharos secos"
+  },
+  "CO": {
+    "Guineo": "banano",
+    "Guineo verde": "banano verde",
+    "Habichuelas negras": "fríjoles negros",
+    "Habichuelas rojas": "fríjoles rojos",
+    "Habichuelas blancas": "fríjoles blancos",
+    "Auyama": "ahuyama",
+    "Chinola": "maracuyá",
+    "Lechosa": "papaya",
+    "Tayota": "guatila",
+    "Ají morrón": "pimentón"
+  },
+  "PR": {
+    "Auyama": "calabaza",
+    "Chinola": "parcha",
+    "Lechosa": "papaya",
+    "Vainitas": "habichuelas tiernas",
+    "Ají morrón": "pimiento"
+  }
+}
