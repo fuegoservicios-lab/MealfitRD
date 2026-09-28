@@ -87,6 +87,8 @@ import { decidirScrollAlAbrirTeclado, decidirArrastreConTeclado, scrollerPuedeMo
 import { hayTurnoQueRescatar } from '../utils/rescateDelTurno';
 // [P1-PLAN-LOTE-157] ¿Este turno lleva tanto rato mudo que ya no va a volver?
 import { hayQueCortarPorSilencio } from '../utils/silencioDelStream';
+// [P1-PLAN-LOTE-761] al volver a la app con una respuesta en vuelo
+import { ESPERA_TRAS_VOLVER_MS, debeConsultarAlVolver, servidorYaTermino } from '../utils/vueltaConTurno';
 import { decidirAlAlejarseDelFondo } from '../utils/chatScrollIntent';
 // [P1-PLAN-LOTE-111] Inset firme del teclado en la app nativa, recordado entre aperturas (ver `alGanarElFoco`).
 const CLAVE_INSET_NATIVO = 'mf_kb_inset_nativo';
@@ -1693,6 +1695,8 @@ const AgentPage = () => {
     const [streamingStatus, setStreamingStatus] = useState(null);
     const [abortController, setAbortController] = useState(null);
     const abortControllerRef = useRef(null);
+    // [P1-PLAN-LOTE-761] Corta el stream del turno vigente como lo haría el vigilante del silencio (502 → rescate).
+    const cortarStreamRef = useRef(null);
     // [P3-AUDIT-2] Feedback no bloqueante: los rechazos del nuevo pipeline
     // múltiple conservan `toast.error` y nunca vuelven al alert nativo.
     const handleAttachmentReject = useCallback((code) => {
@@ -3625,6 +3629,7 @@ const AgentPage = () => {
         // 502, que es la puerta del rescate del 156.
         let _cortadoPorSilencio = false;
         let _vigilanteDelSilencio = null;
+        let _cortarEsteStream = null;   // [P1-PLAN-LOTE-761]
         const _pushTurnError = (args) => {
             if (!_isCurrentTurn() || _turnErrorShown) return;
             if (_sawDone) {
@@ -3918,6 +3923,12 @@ const AgentPage = () => {
                         try { controller.abort(); } catch { /* ya cerrado */ }
                     }, 30_000);
                     _vigilanteDelSilencio = _vigilante;
+                    // [P1-PLAN-LOTE-761] el mismo corte, a mano: al volver a la app con la conexión colgada
+                    _cortarEsteStream = () => {
+                        _cortadoPorSilencio = true;
+                        try { controller.abort(); } catch { /* ya cerrado */ }
+                    };
+                    cortarStreamRef.current = _cortarEsteStream;
 
                     while (true) {
                         const { done, value } = await reader.read();
@@ -4392,6 +4403,7 @@ const AgentPage = () => {
             // arriba manda el candado del turno (P2-CHAT-FRONT-AUDIT) y su comprobación tiene
             // que seguir siendo lo primero que se lee.
             if (_vigilanteDelSilencio) { clearInterval(_vigilanteDelSilencio); _vigilanteDelSilencio = null; }
+            if (cortarStreamRef.current === _cortarEsteStream) cortarStreamRef.current = null;   // [P1-PLAN-LOTE-761]
         }
     };
 
@@ -4440,12 +4452,51 @@ const AgentPage = () => {
         }
     }, [currentSessionId, _setFotoPendienteMem]);
 
+    // [P1-PLAN-LOTE-761] Volver a la app con una respuesta en vuelo: si la conexión quedó colgada (el teléfono la
+    // suspendió sin cerrarla) y el servidor ya terminó —desde el 760 la respuesta se guarda aunque salgas—, se corta
+    // el stream y el rescate del 156 la adopta, en vez de esperar 5 min al vigilante del silencio.
+    useEffect(() => {
+        let ocultaDesde = null;
+        let espera = null;
+        const alCambiarVisibilidad = () => {
+            if (document.hidden) { ocultaDesde = Date.now(); return; }
+            const fueraMs = ocultaDesde ? Date.now() - ocultaDesde : 0;
+            ocultaDesde = null;
+            if (!debeConsultarAlVolver({ fueraMs, turnoActivo: isTurnActiveRef.current })) return;
+            clearTimeout(espera);
+            espera = setTimeout(async () => {
+                if (!isTurnActiveRef.current || !cortarStreamRef.current) return;   // terminó solo mientras tanto
+                try {
+                    const res = await fetchWithAuth(`/api/chat/history/${currentSessionIdRef.current}`);
+                    const data = res.ok ? await res.json() : null;
+                    if (servidorYaTermino(data) && isTurnActiveRef.current) cortarStreamRef.current?.();
+                } catch { /* sin red: el vigilante del silencio sigue ahí */ }
+            }, ESPERA_TRAS_VOLVER_MS);
+        };
+        document.addEventListener('visibilitychange', alCambiarVisibilidad);
+        return () => {
+            document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+            clearTimeout(espera);
+        };
+    }, []);
+
+    // [P1-PLAN-LOTE-760] El turno ya no muere con la conexión: sigue en el servidor aunque salgas de la app (y así la
+    // respuesta llega igual). Cortar el fetch ya no lo para; esto sí. Sin esperar: la UI responde al toque.
+    const _avisarStopAlServidor = () => {
+        fetchWithAuth('/api/chat/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: currentSessionIdRef.current }),
+        }).catch(() => { /* sin red: el turno sigue y su respuesta se verá al volver */ });
+    };
+
     const handleStopGeneration = () => {
         // [P2-CHAT-FRONT-AUDIT · 2026-09-14] Detener aborta el controller VIGENTE (el ref, no
         // el state, que puede ir un render por detrás) e invalida el turno: su `finally` ya no
         // toca el candado ni el controller de un turno posterior.
         const _ctrl = abortControllerRef.current || abortController;
         if (_ctrl || isTurnActiveRef.current) turnGateRef.current.invalidate();
+        if (_ctrl || isTurnActiveRef.current) _avisarStopAlServidor();   // [P1-PLAN-LOTE-760]
         if (_ctrl) {
             _ctrl.abort();
             setAbortController(null);
