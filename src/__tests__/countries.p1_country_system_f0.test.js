@@ -23,8 +23,10 @@ describe('countries SSOT', () => {
             expect(c.labelKey.length).toBeGreaterThan(3);
         }
     });
-    it('la bandera de UI nace apagada sin la env', () => {
-        // En el runner vitest VITE_COUNTRY_SYSTEM no está definida.
-        expect(COUNTRY_SYSTEM_UI).toBe(false);
+    it('la bandera de UI es la env VITE_COUNTRY_SYSTEM (1/true), sin default escondido', () => {
+        // [P1-PLAN-LOTE-706] (G36) Antes fijaba el VALOR del build (false): con la env encendida —como en
+        // producción desde el 18-ago— el test fallaba contra código correcto. Ahora ancla la REGLA.
+        const env = String(import.meta.env.VITE_COUNTRY_SYSTEM ?? '').toLowerCase();
+        expect(COUNTRY_SYSTEM_UI).toBe(['1', 'true'].includes(env));
     });
 });

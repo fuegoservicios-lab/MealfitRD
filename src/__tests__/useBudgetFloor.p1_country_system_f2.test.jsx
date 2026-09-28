@@ -18,6 +18,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useBudgetFloor } from '../hooks/useBudgetFloor';
 
+// [P1-PLAN-LOTE-706] (G36) Estos casos son la rama de ROLLBACK (moneda beta stale con la bandera apagada): se fuerza
+// con un mock explícito en vez de depender de que el runner no defina VITE_COUNTRY_SYSTEM.
+vi.mock('../config/countries', async () => {
+    const actual = await vi.importActual('../config/countries');
+    return { ...actual, COUNTRY_SYSTEM_UI: false };
+});
+
 async function flushDebounce() {
     // El hook debounce-ea 400ms antes de disparar el fetch; tras eso, `fetch` + `res.json()`
     // son 2 rondas extra de microtasks que `advanceTimersByTimeAsync` no siempre agota en una

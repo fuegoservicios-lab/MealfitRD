@@ -18,6 +18,7 @@
 // mostrando/comparando en EUR. `effectiveBudgetCurrency` es la ÚNICA puerta correcta.
 import { describe, it, expect } from 'vitest';
 import { currencyOptionsForCountry, BETA_CURRENCY_BY_COUNTRY, effectiveBudgetCurrency } from '../config/formValidation';
+import { COUNTRY_SYSTEM_UI } from '../config/countries';
 
 const DOP_USD = [
     { value: 'DOP', label: 'RD$' },
@@ -125,10 +126,11 @@ describe('P1-COUNTRY-SYSTEM-F1 · effectiveBudgetCurrency (fix-round 1)', () => 
         expect(effectiveBudgetCurrency(undefined, 'EUR', true)).toBe('DOP');
     });
 
-    it('el 3er parámetro (countrySystemUI) es OPCIONAL — sin pasarlo, usa la bandera real del build (false en test)', () => {
+    it('el 3er parámetro (countrySystemUI) es OPCIONAL — sin pasarlo, usa la bandera real del build', () => {
         // El punto: los call sites de producción llaman con 2 argumentos
-        // (país, budgetCurrency) — el 3ro es solo para tests.
-        expect(effectiveBudgetCurrency('ES', 'EUR')).toBe('DOP');
+        // (país, budgetCurrency) — el 3ro es solo para tests. [P1-PLAN-LOTE-706] (G36) sin fijar el VALOR del build.
+        expect(effectiveBudgetCurrency('ES', 'EUR')).toBe(effectiveBudgetCurrency('ES', 'EUR', COUNTRY_SYSTEM_UI));
+        expect(effectiveBudgetCurrency('ES', 'EUR')).toBe(COUNTRY_SYSTEM_UI ? 'EUR' : 'DOP');
         expect(effectiveBudgetCurrency('ES', 'DOP')).toBe('DOP');
     });
 });

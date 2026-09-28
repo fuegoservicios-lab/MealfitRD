@@ -16,6 +16,13 @@ import * as assessmentModule from '../context/AssessmentContext';
 import { QCountry } from '../components/assessment/questions/QCountry';
 import { COUNTRY_SYSTEM_UI, DEFAULT_COUNTRY } from '../config/countries';
 
+// [P1-PLAN-LOTE-706] (G36) La rama de ROLLBACK se fuerza con un mock explícito: producción corre con la bandera
+// ENCENDIDA desde el 18-ago, así que «el valor real del build» ya no es el apagado, y el runner puede encenderla.
+vi.mock('../config/countries', async () => {
+    const actual = await vi.importActual('../config/countries');
+    return { ...actual, COUNTRY_SYSTEM_UI: false };
+});
+
 vi.mock('../authClient', () => ({
     authClient: {
         auth: {
@@ -52,7 +59,7 @@ beforeEach(() => {
 });
 
 describe('[P1-COUNTRY-SYSTEM-F2] QCountry — defensa en profundidad (COUNTRY_SYSTEM_UI apagado)', () => {
-    it('guard: este archivo prueba justo el valor que corre en producción hoy', () => {
+    it('guard: este archivo prueba la rama de rollback (bandera apagada por mock, no por el build)', () => {
         expect(COUNTRY_SYSTEM_UI).toBe(false);
     });
 
