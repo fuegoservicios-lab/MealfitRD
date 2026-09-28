@@ -126,7 +126,6 @@ import { coerceCountry, DEFAULT_COUNTRY, COUNTRY_SYSTEM_UI } from '../config/cou
 import { setPaisDeLectura } from '../utils/paisDelUsuario';
 // [P1-GENERATE-TURNS-MODE-ON · 2026-08-14] Espejo local del modo tras generar.
 import { marcarModoPlanTrasGenerar } from '../utils/planModeMirror';
-import { emitCoherenceToast } from '../utils/renderCoherenceWarnings';
 import { fetchWithAuth, restorePlanFromHistory as restorePlanFromHistoryApi, getPlanChunkStatus } from '../config/api';
 // [P1-DAY-REGEN-CLIENT-TIMEOUT · 2026-09-03] Tope del cliente para «actualizar día» (4-5 swaps en serie).
 const DAY_REGEN_TIMEOUT_MS = 6 * 60 * 1000;
@@ -3105,7 +3104,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                     // [P1-PLANDATA-ID-HYDRATE-2] conservar el id (no viene en plan_data)
                     setPlanData(prev => conservarPlanId(rd.plan_data, prev));
                     safeLocalStorageSet('mealfit_plan', conservarPlanId(rd.plan_data, planData));
-                    emitCoherenceToast(toast, rd._coherence_warnings);
+                    import('../utils/renderCoherenceWarnings').then(({ emitCoherenceToast }) => emitCoherenceToast(toast, rd._coherence_warnings)).catch(() => {});  // [P1-PLAN-LOTE-629] fuera del arranque
                     return true;
                 }
                 return false;
@@ -3845,7 +3844,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
                                         // [P1-PLANDATA-ID-RECALC · 2026-09-02] la copia local también con id
                                         safeLocalStorageSet('mealfit_plan', conservarPlanId(rd.plan_data, planData));
                                         // [P2-AUDIT-NEW-1 · 2026-05-12] Consumir `_coherence_warnings` post-swap-recalc.
-                                        emitCoherenceToast(toast, rd._coherence_warnings);
+                                        import('../utils/renderCoherenceWarnings').then(({ emitCoherenceToast }) => emitCoherenceToast(toast, rd._coherence_warnings)).catch(() => {});  // [P1-PLAN-LOTE-629]
                                         return true;
                                     }
                                     return false;
