@@ -189,6 +189,50 @@ describe('P1-PLAN-LOTE-794 · PostHog sin cookies ni almacenamiento (SDK real)',
         expect(window.posthog.get_distinct_id()).toBe('usuario-B-optout');
         expect(rastrosDePostHog()).toEqual([]);
     });
+
+    // [P1-PLAN-LOTE-794 · ronda 2] (re-verificación, defecto 3) `/flags` no es un evento: `before_send` no lo
+    // ve. Con la analítica apagada seguía saliendo por dos caminos, medidos con este mismo SDK:
+    //   · apagar en caliente: `reset(true)` recarga los flags → POST /flags con `$posthog_cookieless`, la URL
+    //     y el referrer (PostHog recibe además la IP y el navegador);
+    //   · apagar desde OTRA pestaña: ésta no hace `reset`, conserva el `distinct_id` de la cuenta y el refresco
+    //     de cada 5 min (`remote-config.js`, `refresh()` → `reloadFeatureFlags()`) lo sigue mandando.
+    // La app no usa feature flags (su única llamada al SDK es `capture`): `advanced_disable_flags` corta /flags
+    // de raíz, que es además por donde salía el id del defecto 1.
+    const aFlags = () => peticiones.filter((p) => p.url.includes('/flags')).map((p) => p.url);
+
+    it('arranca con /flags apagado: la app no usa feature flags', () => {
+        expect(window.posthog.config.advanced_disable_flags).toBe(true);
+    });
+
+    // Sin remote config, el autocapture lo decide la config local (autocapture.js `isEnabled`): sigue vivo
+    // dentro de la app, que es lo que la Política de Privacidad §7 declara («el texto visible» de lo que se pulsa).
+    it('el autocapture sigue encendido sin remote config', () => {
+        expect(window.posthog.autocapture.isEnabled).toBe(true);
+    });
+
+    it('apagada desde OTRA pestaña, el refresco periódico de flags no manda el id de la cuenta', async () => {
+        analytics.persistAnalyticsOptOut(false);
+        cliente.identifyPostHog('usuario-otra-pestana');
+        await new Promise((r) => setTimeout(r, 100));
+        // La otra pestaña sólo cambia la bandera compartida; ésta no se entera hasta el próximo evento.
+        localStorage.setItem('mealfit_analytics_opt_out', '1');
+        peticiones.length = 0;
+        window.posthog.reloadFeatureFlags();            // lo que hace el refresco de cada 5 min
+        await new Promise((r) => setTimeout(r, 100));
+        expect(peticionesQueNombran('usuario-otra-pestana')).toEqual([]);
+        expect(aFlags()).toEqual([]);
+    });
+
+    it('apagar en caliente (reset) no llama a /flags', async () => {
+        analytics.persistAnalyticsOptOut(false);
+        cliente.identifyPostHog('usuario-reset');
+        await new Promise((r) => setTimeout(r, 100));
+        peticiones.length = 0;
+        analytics.persistAnalyticsOptOut(true);         // → reset(true)
+        await new Promise((r) => setTimeout(r, 100));
+        expect(aFlags()).toEqual([]);
+        analytics.persistAnalyticsOptOut(false);
+    });
 });
 
 describe('P1-PLAN-LOTE-794 · ronda 1 · Configuración reaplica la identidad al volver a encender', () => {
@@ -261,6 +305,30 @@ describe('P1-PLAN-LOTE-794 · la Política de Privacidad dice lo que hace el có
         expect(s7).toMatch(/no cargan PostHog/);
         expect(s7).toMatch(/PostHog recibe la dirección IP y el tipo de navegador o dispositivo/);
         expect(s7).toMatch(/sin cookies ni almacenamiento local/);
+    });
+
+    // [P1-PLAN-LOTE-794 · ronda 2] (re-verificación, defecto 1) §7 decía menos que el landing (2ab05b9):
+    // faltaban el código seudónimo diario que PostHog calcula en su servidor y que el autocapture manda el
+    // texto visible de lo que se pulsa —chips de salud incluidos—. Y §8 afirmaba «Sin datos de salud».
+    it('§7 cuenta el código diario del servidor y que se captura el texto de lo que se pulsa', () => {
+        const s7 = seccion('7. Monitoreo de Errores y Telemetría');
+        expect(s7).toMatch(/código seudónimo a partir de su dirección IP, su navegador y una clave que cambia cada día/);
+        expect(s7).toMatch(/con el texto visible de cada uno/);
+        expect(s7).toMatch(/Diabetes tipo 2/);
+        expect(s7).toMatch(/No registra lo que usted escribe en los campos de texto/);
+    });
+
+    it('§8 ya no promete que PostHog no recibe datos de salud', () => {
+        const s8 = seccion('8. Proveedores Subcontratados (Encargados de Tratamiento)');
+        const posthog = s8.slice(s8.indexOf('<strong>PostHog, Inc.</strong>'));
+        expect(posthog.slice(0, 400)).not.toMatch(/Sin datos de salud/);
+        expect(posthog.slice(0, 400)).toMatch(/texto visible de las opciones que usted pulsa/);
+    });
+
+    it('§13 no dice «ni fingerprinting» y remite al código diario', () => {
+        const s13 = seccion('13. Cookies y Almacenamiento Local');
+        expect(s13).not.toMatch(/fingerprinting/);
+        expect(s13).toMatch(/código seudónimo que cambia cada día/);
     });
 
     it('§13 no llama «anónimo» al identificador que PostHog calcula en su servidor', () => {

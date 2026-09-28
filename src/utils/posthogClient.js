@@ -47,6 +47,14 @@
 // privacy benefit of this mode»). Aquí se identifica en cada carga con sesión (analítica por
 // cuenta, bajo el interés legítimo de §7/§13); la alternativa es `person_profiles: 'never'`
 // y no identificar. Sin banner se cumple ePrivacy (nada en el dispositivo); lo otro es RGPD.
+// DECISIÓN ABIERTA DEL DUEÑO [ronda 2]: el autocapture (encendido en la app,
+// observabilityScope.js) manda el TEXTO VISIBLE de lo que se pulsa, y los chips del formulario
+// (`ChipOption`, div role="button" con cursor: pointer) lo cumplen: pulsar «Diabetes T2» llega a
+// PostHog, unido a la cuenta tras `identify` — un dato de salud (art. 9 RGPD) bajo interés
+// legítimo y sin banner. Hoy la Política de Privacidad §7/§8 y Protección de Datos §5 lo DECLARAN,
+// igual que el landing (rama ia6d-legal). La alternativa es no mandarlo: `ph-no-capture` en los
+// chips de salud, alergias y medicamentos (o `mask_all_text: true`), y entonces las dos copias de
+// la política retiran el aviso a la vez.
 // Ancla: src/__tests__/lote794.test.js (con el SDK real, no con un mock de `init`).
 import { isAnalyticsOptedOut } from './analytics';
 import { posthogCaptureOptions } from './observabilityScope';
@@ -131,6 +139,14 @@ export async function initPostHog() {
             disable_surveys: true,
             disable_product_tours: true,
             disable_conversations: true,
+            // [P1-PLAN-LOTE-794 · ronda 2] Sin /flags (ni remote config). `before_send` sólo ve
+            // EVENTOS, y /flags no lo es: con la analítica apagada, el `reset(true)` de apagar
+            // en caliente y el refresco de cada 5 min (remote-config.js) seguían mandando a
+            // PostHog la URL, el referrer y —si se apagó desde otra pestaña— el `distinct_id`
+            // de la cuenta. La app no usa feature flags (su única llamada al SDK es `capture`).
+            // Lo que se pierde: los ajustes que el panel de PostHog empuja por remote config
+            // (heatmaps, web vitals, dead clicks); el autocapture sigue, decidido aquí.
+            advanced_disable_flags: true,
             before_send: _descartarSiOptOut,
         });
         window.posthog = posthog;
