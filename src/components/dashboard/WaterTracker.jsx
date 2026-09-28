@@ -158,7 +158,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [avisoApagadoRef]);   // [P1-PLAN-LOTE-640] el ref de `useLatestRef` es estable: declararlo no re-crea nada
 
     useEffect(() => {
         if (!enabled) { setLoading(false); return; }
@@ -250,7 +250,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
                 if (next !== target) flushPersist(next);
             }
         }
-    }, [currentDate, t]);
+    }, [currentDate, t, goalRef]);
 
     // Setea un valor absoluto (clamp [0, goal]) optimista + persiste coalescido.
     const persist = useCallback((rawTarget) => {
@@ -259,7 +259,7 @@ const WaterTracker = ({ userId, flatOnMobile = false }) => {
         setGlasses(target);
         if (inFlightRef.current) { pendingTargetRef.current = target; return; }
         flushPersist(target);
-    }, [flushPersist]);
+    }, [flushPersist, goalRef]);
 
     // [P1-PLAN-LOTE-162] Un toque con la fecha vieja no se guarda: se pone el día al corriente (eso recarga los vasos
     // de hoy) y el toque se descarta. Perder un «+1» se nota y se repite; escribirlo en el día de ayer, no.

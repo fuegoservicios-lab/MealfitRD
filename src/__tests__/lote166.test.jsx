@@ -12,7 +12,7 @@
 // 7. Configuración usa los MISMOS rangos que el formulario (aceptaba 25 kg y el servidor rechaza por debajo de 30).
 // 8. Los avisos de Android van por un canal propio con nombre traducido y aviso emergente (era «Default», normal).
 // 9. La cantidad del componedor acepta coma decimal (teclados en español, francés, italiano, portugués).
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { render, screen, fireEvent } from './utils/test-utils';

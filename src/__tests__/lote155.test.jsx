@@ -94,7 +94,6 @@ describe('[P1-PLAN-LOTE-155 · C] el aviso de motor viejo, ejecutado de verdad',
         document.body.innerHTML = '<div id="pwa-splash"></div><div id="root"></div>';
         window.__mfLocale = locale;
         window.CSS = { supports: () => soportado };
-        // eslint-disable-next-line no-new-func
         new Function(guion)();
     };
 
@@ -137,7 +136,6 @@ describe('[P1-PLAN-LOTE-155 · C] el aviso de motor viejo, ejecutado de verdad',
         document.body.innerHTML = '<div id="pwa-splash"></div>';
         window.__mfLocale = 'es-DO';
         window.CSS = undefined;
-        // eslint-disable-next-line no-new-func
         new Function(guion)();
         expect(document.getElementById('mf-motor-viejo')).toBeTruthy();
     });
