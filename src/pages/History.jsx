@@ -2063,7 +2063,7 @@ const History = () => {
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     onOpen={openPlanModal}
-                    onEdit={(raw) => { setIsEditing(raw.id); setTempName(raw.name || 'Plan Generado'); }}
+                    onEdit={(raw) => { setIsEditing(raw.id); setTempName(raw.name || t('Plan Generado')); }}
                     onDelete={(raw) => setConfirmDelete(raw)}
                     editingId={isEditing}
                     tempName={tempName}
@@ -2084,7 +2084,7 @@ const History = () => {
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     onOpen={openPlanModal}
-                    onEdit={(raw) => { setIsEditing(raw.id); setTempName(raw.name || 'Plan Generado'); }}
+                    onEdit={(raw) => { setIsEditing(raw.id); setTempName(raw.name || t('Plan Generado')); }}
                     onDelete={(raw) => setConfirmDelete(raw)}
                     editingId={isEditing}
                     tempName={tempName}
@@ -3072,9 +3072,9 @@ const History = () => {
                                                     : (_signal === 'strong' ? '' : '')
                                                 );
                                                 const _signalLabel = (
-                                                    _signal === 'weak' ? 'débil'
-                                                    : _signal === 'medium' ? 'media'
-                                                    : _signal === 'strong' ? 'fuerte'
+                                                    _signal === 'weak' ? t('débil')
+                                                    : _signal === 'medium' ? t('media')
+                                                    : _signal === 'strong' ? t('fuerte')
                                                     : _signal
                                                 );
 
@@ -3325,12 +3325,12 @@ const History = () => {
                                                                     <div className={styles.detailItemBody}>
                                                                         {_alg > 0 && (
                                                                             <span className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}>
-                                                                                Alergias: {_alg}
+                                                                                {t('Alergias: {n}', { n: _alg })}
                                                                             </span>
                                                                         )}
                                                                         {_rej > 0 && (
                                                                             <span className={styles.detailItemCounter}>
-                                                                                Rechazos: {_rej}
+                                                                                {t('Rechazos: {n}', { n: _rej })}
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -3398,17 +3398,17 @@ const History = () => {
                                                                     <div className={styles.detailItemBody}>
                                                                         {_rej > 0 && (
                                                                             <span className={styles.detailItemCounter}>
-                                                                                Rechazos: {_rej}
+                                                                                {t('Rechazos: {n}', { n: _rej })}
                                                                             </span>
                                                                         )}
                                                                         {_alg > 0 && (
                                                                             <span className={`${styles.detailItemCounter} ${styles.tierBadgeBad}`}>
-                                                                                Alergias: {_alg}
+                                                                                {t('Alergias: {n}', { n: _alg })}
                                                                             </span>
                                                                         )}
                                                                         {_repNames > 0 && (
                                                                             <span className={styles.detailItemCounter}>
-                                                                                Repetidos: {_repNames}
+                                                                                {t('Repetidos: {n}', { n: _repNames })}
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -3964,7 +3964,7 @@ const History = () => {
                                         switch (type) {
                                             case 'bool':
                                                 if (typeof v !== 'boolean') return null;
-                                                return { text: v ? 'Sí' : 'No', severity: null };
+                                                return { text: v ? t('Sí') : t('No'), severity: null };
                                             case 'int': {
                                                 const _n = Number(v);
                                                 if (!Number.isFinite(_n)) return null;
@@ -4192,8 +4192,8 @@ const History = () => {
                                                     const _start = _adjustedOffset + 1;
                                                     const _end = _adjustedOffset + _adjustedCount;
                                                     _daysLabel = _adjustedCount === 1
-                                                        ? ` · Día ${_start}`
-                                                        : ` · Días ${_start}–${_end}`;
+                                                        ? ` · ${t('Día {n}', { n: _start })}`
+                                                        : ` · ${t('Días {a}–{b}', { a: _start, b: _end })}`;
                                                 }
                                                 const _tier = c.quality_tier || '—';
                                                 const _duration = c.metrics
@@ -4358,7 +4358,7 @@ const History = () => {
                                                                         className={`${styles.detailItemCounter} ${styles.tierBadgeBad} ${styles.errorMessageBadge}`}
                                                                         title={_raw}
                                                                     >
-                                                                        Error: {_short}
+                                                                        {t('Error: {x}', { x: _short })}
                                                                     </span>
                                                                 );
                                                             })()}
@@ -4565,7 +4565,7 @@ const History = () => {
                                                                                   { n: _n })
                                                                               + ' ' + t('Razones: {razones}.', { razones: _reasonsTxt })
                                                                           }>
-                                                                        Diferido {_n}×
+                                                                        {t('Diferido {n}×', { n: _n })}
                                                                     </span>
                                                                 );
                                                             })()}
@@ -4794,7 +4794,7 @@ const History = () => {
                                                         <ChevronLeft size={16} />
                                                     </button>
                                                     <span className={styles.chunkNavLabel}>
-                                                        {`Días ${_chunkStart + 1}–${_chunkEnd} de ${_totalDays}`}
+                                                        {t('Días {a}–{b} de {n}', { a: _chunkStart + 1, b: _chunkEnd, n: _totalDays })}
                                                     </span>
                                                     <button
                                                         type="button"

@@ -179,7 +179,8 @@ describe('[P0-HIST-FIX-9] error_message solo render cuando accionable', () => {
         // entre el `>` de apertura del span y el texto.
         const idx = src.indexOf('c.metrics.error_message');
         const block = src.slice(idx, idx + 5000);
-        expect(block).toMatch(/Error:\s*\{_short\}/);
+        // [P1-PLAN-LOTE-644] la etiqueta pasa por t(): la traducción, no el literal español
+        expect(block).toMatch(/t\('Error: \{x\}', \{ x: _short \}\)/);
     });
 });
 

@@ -3697,5 +3697,15 @@
   "Para merendar te toca **{plato}**.": "No lanche você tem **{plato}**.",
   "¡Buenas, {nombre}!": "E aí, {nombre}!",
   "¡Buenas!": "E aí!",
-  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (você não indicou: usamos o mais comum)"
+  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (você não indicou: usamos o mais comum)",
+  "Repetidos: {n}": "Repetidos: {n}",
+  "débil": "fraca",
+  "media": "média",
+  "fuerte": "forte",
+  "Sí": "Sim",
+  "No": "Não",
+  "Días {a}–{b}": "Dias {a}–{b}",
+  "Error: {x}": "Erro: {x}",
+  "Diferido {n}×": "Adiado {n}×",
+  "Días {a}–{b} de {n}": "Dias {a}–{b} de {n}"
 }

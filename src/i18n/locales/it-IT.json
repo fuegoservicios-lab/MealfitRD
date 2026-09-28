@@ -3697,5 +3697,15 @@
   "Para merendar te toca **{plato}**.": "Per la merenda hai **{plato}**.",
   "¡Buenas, {nombre}!": "Ehi, {nombre}!",
   "¡Buenas!": "Ehi!",
-  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (non l’hai indicato: abbiamo usato l’opzione più comune)"
+  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (non l’hai indicato: abbiamo usato l’opzione più comune)",
+  "Repetidos: {n}": "Ripetuti: {n}",
+  "débil": "debole",
+  "media": "media",
+  "fuerte": "forte",
+  "Sí": "Sì",
+  "No": "No",
+  "Días {a}–{b}": "Giorni {a}–{b}",
+  "Error: {x}": "Errore: {x}",
+  "Diferido {n}×": "Rinviato {n}×",
+  "Días {a}–{b} de {n}": "Giorni {a}–{b} di {n}"
 }

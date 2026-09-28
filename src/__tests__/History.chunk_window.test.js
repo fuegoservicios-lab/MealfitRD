@@ -126,8 +126,8 @@ describe('[P1-HIST-1] History.jsx — selector con navegación read-only entre c
     it('label "Días X–Y de N" muestra rango actual + total absoluto', () => {
         // El usuario debe poder orientarse en planes de 30d. El label
         // se compone con _chunkStart+1, _chunkEnd, _totalDays.
-        expect(src).toMatch(/D[ií]as\s+\$\{_chunkStart\s*\+\s*1\}/);
-        expect(src).toMatch(/de\s+\$\{_totalDays\}/);
+        // [P1-PLAN-LOTE-644] la etiqueta pasa por t(): la traducción, no el literal español
+        expect(src).toMatch(/t\('Días \{a\}–\{b\} de \{n\}', \{ a: _chunkStart \+ 1, b: _chunkEnd, n: _totalDays \}\)/);
     });
 
     it('label del día usa nombre de semana anclado a la FECHA del día', () => {

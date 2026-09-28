@@ -3697,5 +3697,15 @@
   "Para merendar te toca **{plato}**.": "For your snack you have **{plato}**.",
   "¡Buenas, {nombre}!": "Hey, {nombre}!",
   "¡Buenas!": "Hey!",
-  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (you didn’t say: we used the most common option)"
+  "{hecho} (no lo indicaste: usamos lo más habitual)": "{hecho} (you didn’t say: we used the most common option)",
+  "Repetidos: {n}": "Repeated: {n}",
+  "débil": "weak",
+  "media": "medium",
+  "fuerte": "strong",
+  "Sí": "Yes",
+  "No": "No",
+  "Días {a}–{b}": "Days {a}–{b}",
+  "Error: {x}": "Error: {x}",
+  "Diferido {n}×": "Deferred {n}×",
+  "Días {a}–{b} de {n}": "Days {a}–{b} of {n}"
 }

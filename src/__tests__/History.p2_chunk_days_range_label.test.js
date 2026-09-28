@@ -93,7 +93,8 @@ describe('[P2-HIST-NEW-3 + P0-HIST-FIX-6] conversión 1-indexed + label format',
         const idx = src.indexOf('[P2-HIST-NEW-3');
         const block = src.slice(idx, idx + 8000);
         expect(block).toMatch(/_adjustedCount\s*===\s*1/);
-        expect(block).toMatch(/D[ií]a\s+\$\{_start\}/);
+        // [P1-PLAN-LOTE-644] la etiqueta pasa por t(): la traducción, no el literal español
+        expect(block).toMatch(/t\('Día \{n\}', \{ n: _start \}\)/);
     });
 
     it('plural: "Días N–M" con en-dash (no hyphen-minus)', () => {
@@ -105,7 +106,8 @@ describe('[P2-HIST-NEW-3 + P0-HIST-FIX-6] conversión 1-indexed + label format',
         const idx = src.indexOf('[P2-HIST-NEW-3');
         const block = src.slice(idx, idx + 8000);
         // El template literal incluye –.
-        expect(block).toMatch(/D[ií]as\s+\$\{_start\}–\$\{_end\}/);
+        // [P1-PLAN-LOTE-644] la etiqueta pasa por t(): la traducción, no el literal español
+        expect(block).toMatch(/t\('Días \{a\}–\{b\}', \{ a: _start, b: _end \}\)/);
     });
 
     it('default _daysLabel = "" cuando inputs inválidos (legacy)', () => {
@@ -195,7 +197,8 @@ describe('[P2-HIST-NEW-3] render en el badge', () => {
         // bloque de adjusted offset/count para shift_plan.
         const idx = src.indexOf('[P2-HIST-NEW-3');
         const block = src.slice(idx, idx + 8000);
-        expect(block).toMatch(/['"`]\s+·\s+D[ií]a/);
-        expect(block).toMatch(/['"`]\s+·\s+D[ií]as/);
+        // [P1-PLAN-LOTE-644] la etiqueta pasa por t(): la traducción, no el literal español
+        expect(block).toMatch(/`\s+·\s+\$\{t\('Día \{n\}'/);
+        expect(block).toMatch(/`\s+·\s+\$\{t\('Días \{a\}–\{b\}'/);
     });
 });

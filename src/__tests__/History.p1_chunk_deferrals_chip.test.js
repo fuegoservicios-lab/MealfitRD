@@ -87,7 +87,8 @@ describe('[P1-HIST-NEW-6] label + tooltip', () => {
     it('label muestra "Diferido N×"', () => {
         const idx = src.indexOf('c.deferrals_count');
         const block = src.slice(idx, idx + 2000);
-        expect(block).toMatch(/Diferido\s*\{_n\}×/);
+        // [P1-PLAN-LOTE-644] la etiqueta pasa por t(): la traducción, no el literal español
+        expect(block).toMatch(/t\('Diferido \{n\}×', \{ n: _n \}\)/);
     });
 
     it('tooltip incluye count + plural correcto', () => {
