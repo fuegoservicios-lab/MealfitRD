@@ -53,7 +53,9 @@ describe('lote 151 · el velo del ratón tiene la forma del control', () => {
             }
         }
         expect(sinRadio, 'un `data-hover` sin radio pinta el velo cuadrado sobre un control redondeado').toEqual([]);
-    });
+    // [P1-PLAN-LOTE-762] Recorre TODO src: aislado tarda ~3 s, pero con la suite entera en paralelo pasó de los 5 s por
+    // defecto y tumbó el gate del 762 con «Test timed out» (la aserción pasaba). Techo holgado, la lógica no cambia.
+    }, 30_000);
 
     it('el disparador de «Marcas del súper» usa el radio INTERIOR de su tarjeta', () => {
         const src = leer('src/components/dashboard/SupermarketBrands.jsx');
