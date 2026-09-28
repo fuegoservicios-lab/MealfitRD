@@ -24,6 +24,11 @@ export function normalizarOpciones(opciones) {
             };
             const nombre = String(o.nombre_plato || '').trim();
             if (nombre) op.nombre_plato = nombre.slice(0, 200);
+            // [P1-PLAN-LOTE-626] lo que se LEE en el idioma del usuario; `texto` y `nombre_plato` siguen en español
+            const textoMostrar = String(o.texto_mostrar || '').trim();
+            if (textoMostrar) op.texto_mostrar = textoMostrar.slice(0, 60);
+            const nombreMostrar = String(o.nombre_plato_mostrar || '').trim();
+            if (nombreMostrar) op.nombre_plato_mostrar = nombreMostrar.slice(0, 200);
             return op;
         });
     return out.length >= 2 ? out : [];
@@ -53,10 +58,11 @@ export function dudasDeLasFotos(subidas) {
     return out;
 }
 
-/** Chat: UN mensaje con todas las respuestas («4 huevos · Arepa») — un solo turno del coach, no uno por duda. */
+/** Chat: UN mensaje con todas las respuestas («4 huevos · Arepa») — un solo turno del coach, no uno por duda.
+ *  [P1-PLAN-LOTE-626] con lo que el usuario leyó (el coach entiende cualquier idioma). */
 export function mensajeDeRespuestas(dudas, elegidas) {
     return dudas
-        .map((d, i) => d.opciones[elegidas?.[i]]?.texto)
+        .map((d, i) => { const o = d.opciones[elegidas?.[i]]; return o?.texto_mostrar || o?.texto; })
         .filter(Boolean)
         .join(' · ');
 }

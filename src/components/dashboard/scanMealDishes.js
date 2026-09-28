@@ -245,7 +245,8 @@ function _reflejarEnIngredientes(plato, i) {
         const displayOriginal = c.nombreOriginal ? c.displayOriginal : c.display;
         nuevo = o.supuesta
             ? { ...c, name: original, display: displayOriginal || '', nombreOriginal: undefined, displayOriginal: undefined }
-            : { ...c, name: o.texto, display: o.texto, nombreOriginal: original, displayOriginal: displayOriginal || '' };
+            // [P1-PLAN-LOTE-626] el nombre (identificador) en español; lo que se lee, en el idioma del usuario
+            : { ...c, name: o.texto, display: o.texto_mostrar || o.texto, nombreOriginal: original, displayOriginal: displayOriginal || '' };
         aplicada = 'nombre';
     }
     if (aplicada) aplicadas[i] = aplicada; else delete aplicadas[i];
@@ -314,7 +315,7 @@ export function conRespuesta(plato, iDuda, iOpcion) {
     if (!o) return plato;
     return _reflejarEnIngredientes({   // [P1-PLAN-LOTE-362] la lista de ingredientes dice lo mismo que la respuesta
         ...plato,
-        nombre: o.nombre_plato || plato.nombre,
+        nombre: o.nombre_plato_mostrar || o.nombre_plato || plato.nombre,   // [P1-PLAN-LOTE-626]
         respuestas: { ...(plato.respuestas || {}), [iDuda]: iOpcion },
         confirmadas: { ...(plato.confirmadas || {}), [iDuda]: true },
     }, iDuda);

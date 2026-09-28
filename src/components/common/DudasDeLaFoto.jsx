@@ -46,7 +46,7 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                 const elegida = respuestas?.[i];
                 const cerrada = confirmadas?.[i] && !reabiertas[i] && d.opciones[elegida];
                 if (cerrada) {
-                    const texto = d.opciones[elegida].texto;
+                    const texto = d.opciones[elegida].texto_mostrar || d.opciones[elegida].texto;   // [P1-PLAN-LOTE-626]
                     return (
                         <li key={d.pregunta} className={styles.cerrada}>
                             <span aria-hidden="true">✓</span> <span>{texto}</span>
@@ -79,7 +79,7 @@ const DudasDeLaFoto = ({ dudas, respuestas, confirmadas, onElegir, bloqueado = f
                                         disabled={bloqueado || esperando}
                                         onClick={() => { setReabiertas((r) => ({ ...r, [i]: false })); onElegir(i, j); }}
                                     >
-                                        {o.texto}
+                                        {o.texto_mostrar || o.texto}
                                     </button>
                                 ))}
                                 {onOtra && (
