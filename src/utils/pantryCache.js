@@ -1,4 +1,6 @@
 import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from './safeLocalStorage';
+// [P1-PLAN-LOTE-742] el estado del inventario vive en el módulo mínimo que carga el arranque; aquí se comparte
+import { INVENTARIO as _INV, INVENTORY_LS_KEY as _INVENTORY_LS_KEY, borrarCacheDeInventario } from './inventarioEnMemoria';
 // [P3-PANTRY-CACHE · 2026-05-19] Cache singleton de los dos datasets que
 // `Pantry.jsx` descarga al mount: `user_inventory` (varía con cada
 // add/delete/increment/restock) y `master_ingredients` (cuasi-inmutable,
@@ -48,14 +50,12 @@ import { safeLocalStorageGet, safeLocalStorageRemove, safeLocalStorageSet } from
 // fallback a localStorage si no hay in-memory. Escritura: ambos
 // simultáneamente. Invalidación: ambos.
 
-let _inventoryEntry = null;
 let _masterListEntry = null;
 
 const _INVENTORY_TTL_MS = 10 * 60 * 1000; // 10 min (era 30s)
 const _MASTER_LIST_TTL_MS = 24 * 60 * 60 * 1000;
 
 // [P1-PANTRY-CACHE-LOCALSTORAGE · 2026-05-20] Keys de localStorage.
-const _INVENTORY_LS_KEY = 'mealfit_pantry_inventory_cache_v1';
 
 const _safeLsRemove = (key) => {
     safeLocalStorageRemove(key);
@@ -63,16 +63,16 @@ const _safeLsRemove = (key) => {
 
 export const getCachedInventory = () => {
     // Fast path: in-memory. [320] Vencida = fallo, pero NO se borra: queda como copia vieja (getStaleInventory).
-    if (_inventoryEntry) {
-        if (typeof _inventoryEntry.expiresAt === 'number'
-            && Date.now() > _inventoryEntry.expiresAt) {
+    if (_INV.entrada) {
+        if (typeof _INV.entrada.expiresAt === 'number'
+            && Date.now() > _INV.entrada.expiresAt) {
             return undefined;
         }
-        return _inventoryEntry.value;
+        return _INV.entrada.value;
     }
     // [P1-PANTRY-CACHE-LOCALSTORAGE · 2026-05-20] Slow path: localStorage
     // fallback. Cubre el caso post page reload donde el módulo se
-    // re-evaluó y `_inventoryEntry` arrancó null.
+    // re-evaluó y `_INV.entrada` arrancó null.
     try {
         const raw = safeLocalStorageGet(_INVENTORY_LS_KEY, null);
         if (raw) {
@@ -80,11 +80,11 @@ export const getCachedInventory = () => {
             if (parsed && Array.isArray(parsed.value)) {
                 if (typeof parsed.expiresAt === 'number'
                     && Date.now() > parsed.expiresAt) {
-                    _inventoryEntry = parsed;   // [320] queda como copia vieja
+                    _INV.entrada = parsed;   // [320] queda como copia vieja
                     return undefined;
                 }
                 // Hidratar in-memory para próximas llamadas (fast path).
-                _inventoryEntry = parsed;
+                _INV.entrada = parsed;
                 return parsed.value;
             }
         }
@@ -98,7 +98,7 @@ export const setCachedInventory = (rows, ttlMs = _INVENTORY_TTL_MS) => {
         value: rows,
         expiresAt: ttlMs > 0 ? Date.now() + ttlMs : null,
     };
-    _inventoryEntry = entry;
+    _INV.entrada = entry;
     // [P1-PANTRY-CACHE-LOCALSTORAGE · 2026-05-20] Persist also to
     // localStorage para sobrevivir page reload. Best-effort: QuotaExceeded
     // en iOS Private Mode se ignora — el in-memory sigue activo.
@@ -112,12 +112,12 @@ export const setCachedInventory = (rows, ttlMs = _INVENTORY_TTL_MS) => {
 // llega la fresca — antes el esqueleto esperaba a la red y a la sesión. Para BORRAR de verdad (cerrar sesión, cambiar de
 // usuario: nada de ver la Nevera de otra cuenta) está `borrarCacheDeInventario`.
 export const invalidateInventoryCache = () => {
-    const actual = _inventoryEntry?.value ?? getStaleInventory();
+    const actual = _INV.entrada?.value ?? getStaleInventory();
     if (Array.isArray(actual)) {
-        _inventoryEntry = { value: actual, expiresAt: 0 };
-        try { safeLocalStorageSet(_INVENTORY_LS_KEY, JSON.stringify(_inventoryEntry)); } catch { /* ignore */ }
+        _INV.entrada = { value: actual, expiresAt: 0 };
+        try { safeLocalStorageSet(_INVENTORY_LS_KEY, JSON.stringify(_INV.entrada)); } catch { /* ignore */ }
     } else {
-        _inventoryEntry = null;
+        _INV.entrada = null;
         _safeLsRemove(_INVENTORY_LS_KEY);
     }
     // El status se conserva como snapshot stale hasta que /pantry-status lo
@@ -128,13 +128,13 @@ export const invalidateInventoryCache = () => {
 
 /** [P1-PLAN-LOTE-320] La última copia conocida, aunque esté vencida o invalidada: para PINTAR mientras se refetchea. */
 export const getStaleInventory = () => {
-    if (_inventoryEntry && Array.isArray(_inventoryEntry.value)) return _inventoryEntry.value;
+    if (_INV.entrada && Array.isArray(_INV.entrada.value)) return _INV.entrada.value;
     try {
         const raw = safeLocalStorageGet(_INVENTORY_LS_KEY, null);
         if (raw) {
             const parsed = JSON.parse(raw);
             if (parsed && Array.isArray(parsed.value)) {
-                _inventoryEntry = parsed;
+                _INV.entrada = parsed;
                 return parsed.value;
             }
         }
@@ -143,10 +143,7 @@ export const getStaleInventory = () => {
 };
 
 /** [P1-PLAN-LOTE-320] Borrado TOTAL (cerrar sesión / cambiar de usuario): ni fresca ni vieja. */
-export const borrarCacheDeInventario = () => {
-    _inventoryEntry = null;
-    _safeLsRemove(_INVENTORY_LS_KEY);
-};
+export { borrarCacheDeInventario };
 
 export const getCachedMasterList = () => {
     if (!_masterListEntry) return undefined;
@@ -434,7 +431,7 @@ export const invalidatePantryStatusCache = () => {
 };
 
 export const _resetPantryCacheForTests = () => {
-    _inventoryEntry = null;
+    _INV.entrada = null;
     _masterListEntry = null;
     _dishesEntry = null;
     _brandsEntry = null;

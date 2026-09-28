@@ -140,7 +140,7 @@ import { clearUserQueryCache } from '../queryClient';
 // [P1-XTAB-CACHE-LEAK · 2026-05-30] Invalidadores de caches con KEY GLOBAL
 // (sin user_id) — se limpian en logout / user-switch para evitar leak
 // cross-user en dispositivo compartido (ver _clearUserScopedCaches).
-import { borrarCacheDeInventario } from '../utils/pantryCache';
+import { borrarCacheDeInventario } from '../utils/inventarioEnMemoria';
 // [P1-CREDITS-LIVE-REFRESH · 2026-07-10] tras consumir crédito (regen-day / swap) el contador
 // se refresca en vivo (invalidate + re-fetch) — antes solo se actualizaba al refrescar la web.
 import { invalidatePlanCountCache } from '../utils/quotaCache';
