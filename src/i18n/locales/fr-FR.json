@@ -3782,5 +3782,21 @@
   "Permitir eventos de uso": "Autoriser les événements d'utilisation",
   "No pudimos cargar esta preferencia.": "Impossible de charger cette préférence.",
   "Controla si la IA aprende de tus conversaciones. Se activa o se pausa en Capacidades.": "Détermine si l'IA apprend de vos conversations. Vous l'activez ou la mettez en pause dans Capacités.",
-  "Tus créditos se renuevan el día 1 de cada mes. Si necesitas más antes, puedes pasarte a un plan superior y su límite se aplica al momento. El cambio es una suscripción nueva a precio completo: la anterior se cancela en ese momento, sin prorrateo ni reembolso de lo ya pagado.": "Vos crédits se renouvellent le 1er de chaque mois. Si vous en avez besoin de plus avant, vous pouvez passer à un plan supérieur et sa limite s'applique aussitôt. Le changement est un nouvel abonnement au plein tarif : l'ancien est annulé à ce moment-là, sans prorata ni remboursement de ce qui a déjà été payé."
+  "Tus créditos se renuevan el día 1 de cada mes. Si necesitas más antes, puedes pasarte a un plan superior y su límite se aplica al momento. El cambio es una suscripción nueva a precio completo: la anterior se cancela en ese momento, sin prorrateo ni reembolso de lo ya pagado.": "Vos crédits se renouvellent le 1er de chaque mois. Si vous en avez besoin de plus avant, vous pouvez passer à un plan supérieur et sa limite s'applique aussitôt. Le changement est un nouvel abonnement au plein tarif : l'ancien est annulé à ce moment-là, sans prorata ni remboursement de ce qui a déjà été payé.",
+  "Tienes un regalo 🎁": "Vous avez un cadeau 🎁",
+  "Tienes {nombre} de cortesía hasta el {fecha}.": "Vous bénéficiez de {nombre} offert jusqu’au {fecha}.",
+  "Ahora tienes {nombre} de cortesía.": "Vous bénéficiez désormais de {nombre} offert.",
+  "Cortesía": "Offert",
+  "Cortesía hasta": "Offert jusqu’au",
+  "Incluye {n} de regalo": "Dont {n} offerts",
+  "(incluye {n} de regalo)": "(dont {n} offerts)",
+  "Tienes {nombre} de cortesía. Si te suscribes, lo conservas cuando termine.": "Vous bénéficiez de {nombre} offert. Abonnez-vous pour le garder ensuite.",
+  "Te regalamos {n} créditos para crear planes, válidos hasta el {fecha}.": {
+    "one": "Nous vous offrons {n} crédit pour créer des plans, valable jusqu’au {fecha}.",
+    "other": "Nous vous offrons {n} crédits pour créer des plans, valables jusqu’au {fecha}."
+  },
+  "Te regalamos {n} mensajes más con tu coach, válidos hasta el {fecha}.": {
+    "one": "Nous vous offrons {n} message de plus avec votre coach, valable jusqu’au {fecha}.",
+    "other": "Nous vous offrons {n} messages de plus avec votre coach, valables jusqu’au {fecha}."
+  }
 }

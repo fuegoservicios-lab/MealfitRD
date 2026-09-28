@@ -927,6 +927,7 @@ const DashboardInner = () => {
         planCount,
         PLAN_LIMIT,
         userPlanLimit,
+        creditosRegalo, // [P1-PLAN-LOTE-776] cuánto del tope es regalo (CreditsMeter)
         remainingCredits,
         isPremium,
         userProfile,
@@ -6641,6 +6642,7 @@ const DashboardInner = () => {
                             userPlanLimit={userPlanLimit}
                             isLimitReached={isLimitReached}
                             isGuest={isGuest}
+                            regalo={creditosRegalo}
                         />
                     </div>
                 </div>

@@ -49,6 +49,8 @@ import { getAvatarId, subscribeAvatar } from '../../utils/avatarStore';
 // portal a <body>, así que basta montarlo una vez aquí.
 import NotificationCenter from './NotificationCenter';
 import NotificationSlot from './NotificationSlot';
+// [P1-PLAN-LOTE-776 · 2026-09-28] Anuncia (toast + centro) cada regalo de la cuenta, una vez por dispositivo.
+import AvisoRegalos from './AvisoRegalos';
 // [P3-DASH-CROSSFADE-PRELOAD · 2026-05-19] Preload de chunks lazy al hover/touch
 import { prefetchRoute } from '../../utils/routePreload';
 // [P3-HIST-LIST-ALWAYS-INSTANT · 2026-05-19] Prefetch del listado del Historial
@@ -477,6 +479,9 @@ const DashboardLayout = ({ children, noPaddingMobile = false }) => {
             {showNotifCenter && (
                 <NotificationCenter hidden={isMobileMoreMenuOpen || isHelpChatOpen} />
             )}
+            {/* [P1-PLAN-LOTE-776] Global al dashboard autenticado (no depende de showNotifCenter: un
+                regalo puede llegar en cualquier página). El invitado no tiene cuenta que reciba regalos. */}
+            {!isGuest && <AvisoRegalos />}
 
 
             {/* Mobile More Menu (Configuración + Cerrar Sesión) — rendered at container root to escape stacking contexts */}

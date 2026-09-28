@@ -3782,5 +3782,21 @@
   "Permitir eventos de uso": "Allow usage events",
   "No pudimos cargar esta preferencia.": "We couldn't load this preference.",
   "Controla si la IA aprende de tus conversaciones. Se activa o se pausa en Capacidades.": "Controls whether the AI learns from your conversations. You turn it on or pause it in Capabilities.",
-  "Tus créditos se renuevan el día 1 de cada mes. Si necesitas más antes, puedes pasarte a un plan superior y su límite se aplica al momento. El cambio es una suscripción nueva a precio completo: la anterior se cancela en ese momento, sin prorrateo ni reembolso de lo ya pagado.": "Your credits renew on the 1st of every month. If you need more sooner, you can move to a higher plan and its limit applies right away. The switch is a new subscription at full price: the previous one is canceled at that moment, with no proration and no refund of what you already paid."
+  "Tus créditos se renuevan el día 1 de cada mes. Si necesitas más antes, puedes pasarte a un plan superior y su límite se aplica al momento. El cambio es una suscripción nueva a precio completo: la anterior se cancela en ese momento, sin prorrateo ni reembolso de lo ya pagado.": "Your credits renew on the 1st of every month. If you need more sooner, you can move to a higher plan and its limit applies right away. The switch is a new subscription at full price: the previous one is canceled at that moment, with no proration and no refund of what you already paid.",
+  "Tienes un regalo 🎁": "You have a gift 🎁",
+  "Tienes {nombre} de cortesía hasta el {fecha}.": "You have {nombre} on us until {fecha}.",
+  "Ahora tienes {nombre} de cortesía.": "You now have {nombre} on us.",
+  "Cortesía": "Complimentary",
+  "Cortesía hasta": "Complimentary until",
+  "Incluye {n} de regalo": "Includes {n} as a gift",
+  "(incluye {n} de regalo)": "(includes {n} as a gift)",
+  "Tienes {nombre} de cortesía. Si te suscribes, lo conservas cuando termine.": "You have {nombre} on us. Subscribe to keep it when it ends.",
+  "Te regalamos {n} créditos para crear planes, válidos hasta el {fecha}.": {
+    "one": "We gave you {n} credit to create plans, valid until {fecha}.",
+    "other": "We gave you {n} credits to create plans, valid until {fecha}."
+  },
+  "Te regalamos {n} mensajes más con tu coach, válidos hasta el {fecha}.": {
+    "one": "We gave you {n} more message with your coach, valid until {fecha}.",
+    "other": "We gave you {n} more messages with your coach, valid until {fecha}."
+  }
 }

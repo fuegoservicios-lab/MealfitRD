@@ -28,6 +28,7 @@ import {
     creditsVsPredecessor, includesPredecessor,
     PRICING, NAME_BY_TIER, TIER_RANK, isLaunchOfferActive, monthlyEquivalent,
 } from '../../config/plans';
+import { planPagado } from '../../utils/regalosCuenta';
 
 
 // [P2-TIER-DISPLAY-NAME · 2026-07-31] Nombre comercial por tier — SSOT en
@@ -134,7 +135,7 @@ const Pricing = () => {
 
     // Lógica para determinar el estado del usuario
     const hasStarted = !!planData;
-    const rawTier = (userProfile?.plan_tier || '').toLowerCase().trim(); // Ensure lowercase
+    const rawTier = (planPagado(userProfile) || '').toLowerCase().trim(); // [P1-PLAN-LOTE-776] lo que se PAGA
     const currentTier = ['gratis', 'basic', 'plus', 'ultra', 'admin'].includes(rawTier) ? rawTier : 'gratis';
     
     // Jerarquía de planes

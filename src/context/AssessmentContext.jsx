@@ -46,6 +46,8 @@ import { pedirCuentaInvitado } from '../utils/hojaGuardarPlan';
 import { CHAT_MESSAGES_CACHE_KEY, CHAT_SESSIONS_CACHE_KEY, CHAT_CURRENT_SESSION_KEY } from '../utils/chatCacheKeys';
 import { clearAllChatDrafts } from '../utils/chatDraftStore';
 import { isApexHost } from '../config/site';
+// [P1-PLAN-LOTE-776 · 2026-09-28] Tope real (servidor) + fallback SSOT — reemplaza la copia a mano de abajo.
+import { limiteDePlanes } from '../utils/regalosCuenta';
 // --- BASE DE DATOS LOCAL DE RECETAS (FALLBACK) ---
 //
 // [P1-I18N-MODULOS-SIN-T · 2026-08-21] Esta tabla NO se traduce, y no es un olvido.
@@ -776,6 +778,9 @@ export const AssessmentProvider = ({ children }) => {
     // [P1-CREDITS-LADDER · 2026-07-31] 15→10, PARIDAD con backend
     // auth._TIER_LIMITS["gratis"] (test_p1_credits_ladder.py ancla ambos lados).
     const PLAN_LIMIT = 10; // Límite del plan gratuito
+    // [P1-PLAN-LOTE-776] el tope real y los regalos recientes que devuelve `GET /api/user/credits`
+    const [creditosServidor, setCreditosServidor] = useState(null);
+    const [regalosRecientes, setRegalosRecientes] = useState([]);
 
     // [P1-GUEST-MODE · 2026-06-15] Estado del modo invitado. `guestFlag` espeja
     // el flag de localStorage (re-render al activar); `guestCreditsUsed` espeja
@@ -1281,6 +1286,7 @@ export const AssessmentProvider = ({ children }) => {
 
             if (!userId || userId === 'guest') {
                 setPlanCount(0);
+                setCreditosServidor(null); setRegalosRecientes([]);
                 return 0;
             }
 
@@ -1292,6 +1298,10 @@ export const AssessmentProvider = ({ children }) => {
             const data = await response.json();
 
             setPlanCount(data.credits || 0);
+            setCreditosServidor(typeof data.limit === 'number'
+                ? { limit: data.limit, bonus: Number(data.bonus) || 0, bonusHasta: data.bonus_hasta || null }
+                : null);
+            setRegalosRecientes(Array.isArray(data.regalos_recientes) ? data.regalos_recientes : []);
             return data.credits || 0;
         } catch (error) {
             console.error("Error verificando límites de API:", error);
@@ -4372,6 +4382,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         setDislikedMeals({});
         setUserProfile(null);
         setPlanCount(0);
+        setCreditosServidor(null); setRegalosRecientes([]);
         setCurrentStep(0);
         setMaxReachedStep(0);
         setLoadingData(false);
@@ -4440,6 +4451,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         setDislikedMeals({});
         setUserProfile(null);
         setPlanCount(0);
+        setCreditosServidor(null); setRegalosRecientes([]);
         setCurrentStep(0);
         setMaxReachedStep(0);
         editedFieldsRef.current.clear();
@@ -4532,10 +4544,9 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
 
     const isPremium = ['basic', 'plus', 'admin', 'ultra'].includes(userProfile?.plan_tier);
 
-    let userPlanLimit = PLAN_LIMIT;
-    if (userProfile?.plan_tier === 'basic') userPlanLimit = 50;
-    else if (userProfile?.plan_tier === 'plus') userPlanLimit = 200;
-    else if (['ultra', 'admin'].includes(userProfile?.plan_tier)) userPlanLimit = userProfile?.plan_tier === 'ultra' ? 500 : 'Ilimitado';   // [P1-PLAN-LOTE-714] Max corta en 500 (auth._TIER_LIMITS); solo admin es ilimitado
+    // [P1-PLAN-LOTE-776] El tope lo dice el servidor (plan efectivo + regalos); `config/plans.js` solo cubre el
+    // hueco antes de que responda. Era una copia a mano (50/200) que a Ultra le decía «Ilimitado» con un tope de 500.
+    const userPlanLimit = limiteDePlanes(userProfile?.plan_tier || 'gratis', creditosServidor);
 
     // [P1-GUEST-MODE · 2026-06-15] Para invitados los créditos vienen del
     // contador local (GUEST_PLAN_CREDITS), no del backend. `isGuest` es true
@@ -4635,6 +4646,11 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
             planCount: effectivePlanCount,
             PLAN_LIMIT,
             userPlanLimit: effectivePlanLimit,
+            // [P1-PLAN-LOTE-776] Regalos de la cuenta: cuánto del tope es regalo (medidor) + el
+            // rastro reciente para anunciarlos una vez por dispositivo (AvisoRegalos).
+            creditosRegalo: isGuest ? 0 : (creditosServidor?.bonus || 0),
+            regaloHasta: isGuest ? null : (creditosServidor?.bonusHasta || null),
+            regalosRecientes: isGuest ? [] : regalosRecientes,
             checkPlanLimit,
             isPremium,
             remainingCredits: effectiveRemaining,
@@ -4677,6 +4693,7 @@ const hydrateLatestPlan = useCallback(async ({ shouldAbort, force = false, expec
         _updateData, planData, setPlanData, _saveGeneratedPlan, likedMeals, _toggleMealLike,
         dislikedMeals, _regenerateSingleMeal, _regenerateDay, dayRegenInFlight, dayRegenIndex, mealRegenInFlight, _resetApp, _resetForNewAssessment,
         effectivePlanCount, effectivePlanLimit, checkPlanLimit, isPremium, effectiveRemaining,
+        creditosServidor, regalosRecientes,
         isGuest, activateGuestMode, consumeGuestCredit, exitGuestSession, _upgradeUserPlan,
         _restorePlan, _restorePlanFromHistory, refreshProfileAndPlan, hydrateLatestPlan, planPollGaveUp, restartPlanPoll, restoreSessionData, serverGeneratingPlanId,
         setRecalcLock, withRecalcLock, esperarTraduccionDelDia,

@@ -41,6 +41,8 @@ import { SUPERSEDED, formatCurrency, formatDate, formatNumber, useI18n } from '.
 import { useTextosTraducidos } from '../hooks/useTextosTraducidos';
 import { nombreDelAlimento } from '../utils/nombresDeAlimentos';
 import { pedirCompletarFormulario } from '../utils/completarFormulario';
+// [P1-PLAN-LOTE-776 · 2026-09-28] Suscripción y Pagos decide por el plan PAGADO, no el efectivo (una cortesía no es una suscripción).
+import { esSuscriptorDePago, planPagado } from '../utils/regalosCuenta';
 // [P1-COUNTRY-SYSTEM-F0 · 2026-08-16] Selector de país, en oscuro hasta el
 // flip global (COUNTRY_SYSTEM_UI). SSOT compartido con QCountry.jsx — el
 // `code` es el dato del motor, `coerceCountry` es el mismo fail-safe que usa
@@ -255,7 +257,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // merge superficial de `updateUserProfile` — ese pisaría TODO
     // `health_profile` local con `{ country }` porque el PATCH manda solo la
     // clave cambiada (I6: jsonb_set quirúrgico, no full-overwrite).
-    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, checkPlanLimit, session, isGuest, updateData, refreshProfileAndPlan } = useAssessment();
+    const { planData, formData, resetForNewAssessment, userProfile, updateUserProfile, setCurrentStep, userPlanLimit, planCount, creditosRegalo, checkPlanLimit, session, isGuest, updateData, refreshProfileAndPlan } = useAssessment();
 
     const navigate = useNavigate();
     const { regeneratePlan } = useRegeneratePlan();
@@ -2349,7 +2351,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
     // mostraban "Cancelar Suscripción" a un usuario gratis. 'admin' es interno
     // (no es suscriptor PayPal) → queda fuera del allowlist.
     const _PAID_TIERS = ['basic', 'plus', 'ultra'];
-    const isPaidSubscriber = _PAID_TIERS.includes(userProfile?.plan_tier);
+    const isPaidSubscriber = esSuscriptorDePago(userProfile);  // [P1-PLAN-LOTE-776] una cortesía no es suscripción
 
     // [P2-SUBSCRIPTION-PANEL · 2026-09-03] Suscripción y Pagos era una card con un párrafo y un
     // botón; los estados de pago iban en 3 bloques de colores hardcodeados con ternarios de tema.
@@ -2372,10 +2374,14 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
         // Un plan de pago SIN suscripción de PayPal (cortesía, alta manual) no tiene nada que cancelar: el botón
         // devolvía siempre un 400 en inglés. Mientras el estado carga, se decide por el perfil como antes.
         const _tienePaypal = subStatus ? Boolean(subStatus.has_paypal_subscription) : true;
+        const _cortesia = userProfile?.cortesia || null;   // [P1-PLAN-LOTE-776] solo viene si está en efecto
+        const _cortesiaHasta = _cortesia?.hasta
+            ? formatDate(new Date(Date.parse(_cortesia.hasta) - 1), { day: 'numeric', month: 'long' }) : null;
         const _tierName = _isAdmin ? t('Administrador') : tierDisplayName(_tier, t);
         const _pill = _isAdmin ? ['free', t('Administrador')]
             : _cancelled ? ['ending', t('No se renueva')]
             : _pagoConProblema ? ['problem', t('Problema con el pago')]
+            : _cortesia ? ['courtesy', t('Cortesía')]
             : isPaidSubscriber ? ['active', t('Activo')]
             : ['free', t('Gratis')];
         const _total = typeof userPlanLimit === 'number' ? userPlanLimit : (TIER_CREDITS[_tier] ?? null);
@@ -2392,10 +2398,11 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
             : null);
         const _accesoHasta = _fecha(subStatus?.access_until || userProfile?.subscription_end_date);
         const _proximoCobro = _fecha(subStatus?.next_billing_time);
-        const _dateFact = _cancelled && _accesoHasta ? [t('Acceso hasta'), _accesoHasta]
+        const _dateFact = _cortesiaHasta ? [t('Cortesía hasta'), _cortesiaHasta]
+            : _cancelled && _accesoHasta ? [t('Acceso hasta'), _accesoHasta]
             : isPaidSubscriber && !_cancelled && _proximoCobro ? [t('Próximo cobro'), _proximoCobro]
             : [t('Créditos se renuevan'), creditsRenewalLabel()];
-        const _canUpgrade = !_isAdmin && _tier !== 'ultra';
+        const _canUpgrade = !_isAdmin && planPagado(userProfile) !== 'ultra';
         const _showLadder = _canUpgrade;
         const _offer = isLaunchOfferActive();
         const _offerDate = _offer ? formatDate(new Date(`${LAUNCH_OFFER.deadlineISO}T00:00:00Z`), { day: 'numeric', month: 'long', timeZone: 'UTC' }) : null;
@@ -2424,6 +2431,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     .sub-pill--active { color: var(--ink-good); background: color-mix(in srgb, #22C55E 12%, transparent); border-color: color-mix(in srgb, #22C55E 32%, transparent); }
                     .sub-pill--ending { color: var(--ink-pantry); background: color-mix(in srgb, #F59E0B 12%, transparent); border-color: color-mix(in srgb, #F59E0B 32%, transparent); }
                     .sub-pill--problem { color: var(--danger-text); background: color-mix(in srgb, #EF4444 12%, transparent); border-color: color-mix(in srgb, #EF4444 32%, transparent); }
+                    .sub-pill--courtesy { color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: color-mix(in srgb, var(--primary) 32%, transparent); }
                     .sub-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
                     .sub-fact-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
                     .sub-fact-value { margin-top: 0.25rem; font-family: var(--font-heading); font-size: 1.2rem; font-weight: 700; color: var(--text-main); font-variant-numeric: tabular-nums; }
@@ -2432,6 +2440,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                     .sub-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
                     .sub-bar > span.is-low { background: #F59E0B; }
                     .sub-bar > span.is-out { background: var(--accent); }
+                    .sub-fact-note { margin-top: 0.45rem; font-size: 0.78rem; font-weight: 600; color: var(--primary); }
                     .sub-note {
                         display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.8rem 0.95rem; border-radius: 0.8rem;
                         font-size: 0.84rem; line-height: 1.5; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border);
@@ -2521,6 +2530,7 @@ const Settings = ({ variant = 'page', onRequestClose = null, exitGateRef = null 
                                         <span className="sub-fact-of">{t('de {total}', { total: formatNumber(_total) })}</span>
                                     </div>
                                     <div className="sub-bar" aria-hidden="true"><span className={_barState} style={{ width: `${_barPct}%` }} /></div>
+                                    {creditosRegalo > 0 && <div className="sub-fact-note">{t('Incluye {n} de regalo', { n: formatNumber(creditosRegalo) })}</div>}
                                 </>
                             )}
                         </div>
