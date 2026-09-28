@@ -139,6 +139,7 @@ import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
 // [P1-PLAN-LOTE-682] Modo voz del coach: hablarle y oírle con la voz del propio dispositivo (cero coste de API).
 import { useConversacionPorVoz } from '../hooks/useConversacionPorVoz';
+import { siguienteTrozoParaVoz } from '../utils/vozDelCoach';
 import { trackEvent } from '../utils/analytics';
 // La pantalla del modo voz se pide al abrirlo: quien nunca lo usa no la descarga.
 const ModoVoz = lazy(() => import('../components/agent/ModoVoz'));
@@ -4064,15 +4065,15 @@ const AgentPage = () => {
                                         displayContent = fullText.replace(/\[UI_ACT[^\]]*$/g, '');
 
                                         // Extraer oraciones completas para TTS en Modo Llamada
+                                        // [P1-PLAN-LOTE-684] TODAS las que ya estén (antes salía una por evento del
+                                        // stream) y la primera en su primera coma: ver `siguienteTrozoParaVoz`.
                                         if (callModeRef.current) {
-                                            const textSoFar = fullText.substring(lastSpokenIndex);
-                                            const match = textSoFar.match(/.*?[.!?\n](?=\s|$)/);
-                                            if (match) {
-                                                const sentenceToSpeak = match[0].trim();
-                                                lastSpokenIndex += match[0].length;
-                                                if (sentenceToSpeak) {
-                                                    queueTTS(sentenceToSpeak);
-                                                }
+                                            let largo = siguienteTrozoParaVoz(fullText.substring(lastSpokenIndex), lastSpokenIndex === 0);
+                                            while (largo > 0) {
+                                                const sentenceToSpeak = fullText.substring(lastSpokenIndex, lastSpokenIndex + largo).trim();
+                                                lastSpokenIndex += largo;
+                                                if (sentenceToSpeak) queueTTS(sentenceToSpeak);
+                                                largo = siguienteTrozoParaVoz(fullText.substring(lastSpokenIndex), false);
                                             }
                                         }
 

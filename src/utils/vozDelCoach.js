@@ -50,6 +50,8 @@ export function textoParaHablar(texto, locale = 'es-DO') {
     s = s.replace(/(\d)\s*g\b/g, `$1 ${u.g}`);
     s = s.replace(/\s*\n+\s*/g, '. ');                      // un salto de línea es una pausa
     s = s.replace(/([.!?…])\s*\.+/g, '$1');
+    // [P1-PLAN-LOTE-685] «**2 huevos**.» dejaba «huevos .»: se veía en el círculo y viajaba así a la voz de la nube.
+    s = s.replace(/\s+([.,;:!?…)])/g, '$1');
     s = s.replace(/\s{2,}/g, ' ').trim();
     return s;
 }
@@ -110,14 +112,37 @@ export function rutaDeAudio(win, tipo) {
 }
 
 /**
+ * [P1-PLAN-LOTE-684] Cuánto del texto que va llegando por el stream ya se puede decir (0 = nada completo todavía).
+ * La PRIMERA frase de la respuesta sale en su primera coma, dos puntos o punto y coma si ya lleva `minComa`
+ * caracteres: la voz en la nube tarda ~2 s por petición y cuanto antes salga el primer trozo, antes suena. Las
+ * demás, por oraciones completas.
+ */
+export function siguienteTrozoParaVoz(texto, esPrimero = false, minComa = 24) {
+    const s = String(texto || '');
+    const oracion = s.match(/^.*?[.!?\n](?=\s|$)/s);
+    if (esPrimero) {
+        const clausula = s.match(new RegExp(`^.{${minComa},}?[,;:](?=\\s)`, 's'));
+        if (clausula && (!oracion || clausula[0].length < oracion[0].length)) return clausula[0].length;
+    }
+    return oracion ? oracion[0].length : 0;
+}
+
+/**
  * La cola de voz. `encolar(texto)` acepta trozos del stream tal como llegan; cada frase es una locución propia
  * (así la primera suena en cuanto llega, y Chrome no corta las largas). `cancelar()` sube la generación: las
  * locuciones de antes que aún disparen `onend` ya no mueven la cola.
+ *
+ * [P1-PLAN-LOTE-685] Con `nube` ({ pedir(texto, { signal }) → ArrayBuffer | null }) habla la voz de Gemini: cada
+ * frase se PIDE en cuanto se encola (en paralelo: la síntesis tarda ~2 s y así la siguiente ya está cuando acaba la
+ * anterior) y SUENA en orden por Web Audio; el círculo late con la amplitud de la voz. La primera vez que la nube no
+ * da audio (204, fallo, AudioContext roto) la sesión pasa entera a la voz del teléfono: nunca dos voces en la misma
+ * respuesta salvo esa frase de transición, y nunca un silencio.
  */
 export function crearVozDelCoach({
     win = typeof window !== 'undefined' ? window : undefined,
     locale = 'es-DO',
     velocidad = 1.04,
+    nube = null,
     alEmpezarFrase,
     alPalabra,
     alVaciarse,
@@ -126,8 +151,13 @@ export function crearVozDelCoach({
     const fuente = win?.speechSynthesis ? win : (vozNativaDisponible() ? sintesisNativa() : win);
     const synth = fuente?.speechSynthesis;
     const Locucion = fuente?.SpeechSynthesisUtterance;
+    const ContextoDeAudio = win?.AudioContext || win?.webkitAudioContext;
+    let usarNube = Boolean(nube?.pedir && ContextoDeAudio);
+    let ctx = null;
+    let sonando = null;       // el AudioBufferSourceNode de la frase en curso (voz en la nube)
+    let pulso = null;         // requestAnimationFrame del latido
     let voz = null;
-    let cola = [];
+    let cola = [];            // [{ frase, audio: Promise<ArrayBuffer|null> | null, ctrl: AbortController | null }]
     let hablando = false;
     let generacion = 0;
     let vigia = null;
@@ -137,12 +167,31 @@ export function crearVozDelCoach({
     try { synth?.addEventListener?.('voiceschanged', cargarVoz); } catch { /* navegador sin el evento */ }
 
     const soltarVigia = () => { if (vigia) clearTimeout(vigia); vigia = null; };
+    const pararPulso = () => {
+        if (pulso) { try { win?.cancelAnimationFrame?.(pulso); } catch { /* ya no corría */ } }
+        pulso = null;
+    };
+    const contexto = () => {
+        if (ctx || !ContextoDeAudio) return ctx;
+        try { ctx = new ContextoDeAudio(); } catch { ctx = null; }
+        return ctx;
+    };
+    const pasarAlTelefono = () => {
+        usarNube = false;
+        for (const it of cola) { try { it.ctrl?.abort(); } catch { /* ya terminó */ } }
+    };
 
-    const siguiente = () => {
-        if (hablando || !synth || !Locucion) return;
-        const frase = cola.shift();
-        if (frase === undefined) { alVaciarse?.(); return; }
-        const gen = generacion;
+    const terminarFrase = (gen) => {
+        if (gen !== generacion) return;
+        soltarVigia();
+        pararPulso();
+        sonando = null;
+        hablando = false;
+        siguiente();
+    };
+
+    const hablarEnElTelefono = (frase, gen) => {
+        if (!synth || !Locucion) { terminarFrase(gen); return; }
         const loc = new Locucion(frase);
         if (!voz) cargarVoz();   // la primera frase puede llegar antes que `voiceschanged`
         if (voz) { loc.voice = voz; loc.lang = voz.lang; } else loc.lang = idiomaDeVoz(locale);
@@ -150,17 +199,14 @@ export function crearVozDelCoach({
         loc.pitch = 1;
         let terminada = false;
         const fin = () => {
-            if (terminada || gen !== generacion) return;
+            if (terminada) return;
             terminada = true;
-            soltarVigia();
-            hablando = false;
-            siguiente();
+            terminarFrase(gen);
         };
         loc.onstart = () => { if (gen === generacion) alEmpezarFrase?.(frase); };
         loc.onboundary = (e) => { if (gen === generacion && e?.name !== 'sentence') alPalabra?.(); };
         loc.onend = fin;
         loc.onerror = fin;
-        hablando = true;
         // Red: hay motores que a veces no disparan `onend` y la conversación se quedaría muda para siempre.
         const palabras = frase.split(/\s+/).length;
         vigia = setTimeout(fin, 4000 + (palabras * 520) / velocidad);
@@ -172,20 +218,116 @@ export function crearVozDelCoach({
         }
     };
 
+    // El latido del círculo: un pico de amplitud (una sílaba fuerte) = una «palabra».
+    const latir = (analizador, gen) => {
+        if (!analizador || !win?.requestAnimationFrame) return;
+        const datos = new Uint8Array(analizador.fftSize);
+        let arriba = false;
+        let ultimo = -1000;
+        const paso = (t) => {
+            if (gen !== generacion || !sonando) return;
+            analizador.getByteTimeDomainData(datos);
+            let suma = 0;
+            for (let i = 0; i < datos.length; i += 1) { const v = (datos[i] - 128) / 128; suma += v * v; }
+            const rms = Math.sqrt(suma / datos.length);
+            if (!arriba && rms > 0.08 && t - ultimo > 170) { arriba = true; ultimo = t; alPalabra?.(); }
+            else if (arriba && rms < 0.04) arriba = false;
+            pulso = win.requestAnimationFrame(paso);
+        };
+        pulso = win.requestAnimationFrame(paso);
+    };
+
+    const sonar = async (bytes, frase, gen) => {
+        const c = contexto();
+        let audio = null;
+        try { audio = c ? await c.decodeAudioData(bytes.slice(0)) : null; } catch { audio = null; }
+        if (gen !== generacion) return;
+        if (!audio) { pasarAlTelefono(); hablarEnElTelefono(frase, gen); return; }
+        try { if (c.state === 'suspended') await c.resume(); } catch { /* el próximo toque lo reanuda */ }
+        if (gen !== generacion) return;
+        const src = c.createBufferSource();
+        src.buffer = audio;
+        let analizador = null;
+        try {
+            analizador = c.createAnalyser();
+            analizador.fftSize = 512;
+            src.connect(analizador);
+            analizador.connect(c.destination);
+        } catch {
+            analizador = null;
+            src.connect(c.destination);
+        }
+        let terminada = false;
+        const fin = () => {
+            if (terminada) return;
+            terminada = true;
+            terminarFrase(gen);
+        };
+        src.onended = fin;
+        sonando = src;
+        vigia = setTimeout(fin, audio.duration * 1000 + 3000);   // red por si `onended` no llega
+        rutaDeAudio(win, 'playback');
+        alEmpezarFrase?.(frase);
+        try { src.start(); } catch { fin(); return; }
+        latir(analizador, gen);
+    };
+
+    const siguiente = () => {
+        if (hablando) return;
+        const item = cola.shift();
+        if (item === undefined) { alVaciarse?.(); return; }
+        hablando = true;
+        const gen = generacion;
+        if (usarNube && item.audio) {
+            item.audio.then((bytes) => {
+                if (gen !== generacion) return;
+                if (!bytes) { pasarAlTelefono(); hablarEnElTelefono(item.frase, gen); return; }
+                sonar(bytes, item.frase, gen);
+            });
+            return;
+        }
+        hablarEnElTelefono(item.frase, gen);
+    };
+
     return {
         encolar(texto) {
-            for (const f of trocearParaVoz(textoParaHablar(texto, locale))) cola.push(f);
+            for (const frase of trocearParaVoz(textoParaHablar(texto, locale))) {
+                const item = { frase, audio: null, ctrl: null };
+                if (usarNube) {
+                    item.ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                    item.audio = Promise.resolve()
+                        .then(() => nube.pedir(frase, { signal: item.ctrl?.signal }))
+                        .catch(() => null);
+                }
+                cola.push(item);
+            }
             siguiente();
         },
         cancelar() {
             generacion += 1;
+            for (const it of cola) { try { it.ctrl?.abort(); } catch { /* ya terminó */ } }
             cola = [];
             hablando = false;
             soltarVigia();
+            pararPulso();
+            try { sonando?.stop(); } catch { /* ya había terminado */ }
+            sonando = null;
             try { synth?.cancel(); } catch { /* nada que cortar */ }
         },
-        /** La primera locución de iOS tiene que salir de un toque del usuario: esta, muda, la desbloquea. */
+        /** La primera locución de iOS tiene que salir de un toque del usuario: esta, muda, la desbloquea. Con la voz en
+         * la nube, el AudioContext también nace (o se reanuda) dentro de ese toque, con un sonido de una muestra. */
         desbloquear() {
+            if (usarNube) {
+                const c = contexto();
+                try { if (c?.state === 'suspended') c.resume(); } catch { /* sin audio: el texto sigue en pantalla */ }
+                try {
+                    const b = c.createBuffer(1, 1, 22050);
+                    const s = c.createBufferSource();
+                    s.buffer = b;
+                    s.connect(c.destination);
+                    s.start(0);
+                } catch { /* sin Web Audio: hablará el teléfono */ }
+            }
             if (!synth || !Locucion) return;
             try {
                 const muda = new Locucion(' ');
@@ -194,9 +336,13 @@ export function crearVozDelCoach({
             } catch { /* sin voz: el texto sigue en pantalla */ }
         },
         get ocupada() { return hablando || cola.length > 0; },
+        /** ¿Habla la voz de la nube? (el saludo se omite: esperar ~2 s su audio tras el toque parecería roto). */
+        get enLaNube() { return usarNube; },
         destruir() {
             this.cancelar();
             try { synth?.removeEventListener?.('voiceschanged', cargarVoz); } catch { /* noop */ }
+            try { ctx?.close?.(); } catch { /* ya cerrado */ }
+            ctx = null;
         },
     };
 }
