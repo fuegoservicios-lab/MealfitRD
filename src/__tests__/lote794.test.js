@@ -25,6 +25,23 @@ import path from 'node:path';
 
 const TOKEN = 'phc_test_lote794';
 const NOMBRE_PERSISTENCIA = `ph_${TOKEN}_posthog`;
+// [P1-PLAN-LOTE-794 · ronda 1] La clave de consentimiento que escribía el `opt_in_capturing()` de antes
+// (encender el interruptor de Configuración). Vive FUERA de la persistencia: `disable_persistence` no la toca.
+const CLAVE_CONSENTIMIENTO = `__ph_opt_in_out_${TOKEN}`;
+
+// [P1-PLAN-LOTE-794 · ronda 1] Todo lo que el SDK intenta mandar (fetch y XHR), para poder buscar un id.
+const peticiones = [];
+const legible = (cuerpo) => {
+    if (typeof cuerpo !== 'string') return '';
+    // /flags y /e van como `data=<base64>` (Compression.Base64): se decodifica para poder leerlos.
+    if (cuerpo.startsWith('data=')) {
+        try { return atob(decodeURIComponent(cuerpo.slice(5))); } catch { /* sigue crudo */ }
+    }
+    return cuerpo;
+};
+const peticionesQueNombran = (id) => peticiones
+    .filter((p) => `${p.url} ${legible(p.cuerpo)}`.includes(id))
+    .map((p) => p.url);
 
 const rastrosDePostHog = () => {
     const esDePostHog = (k) => /(^|_)ph_|posthog/i.test(k);
@@ -47,18 +64,26 @@ describe('P1-PLAN-LOTE-794 · PostHog sin cookies ni almacenamiento (SDK real)',
         localStorage.clear();
         sessionStorage.clear();
         // Red cortada: nada sale del proceso de test.
-        vi.stubGlobal('fetch', vi.fn(async () => ({
-            ok: true, status: 200, headers: new Map(),
-            json: async () => ({}), text: async () => '{}',
-        })));
+        vi.stubGlobal('fetch', vi.fn(async (url, opciones) => {
+            peticiones.push({ url: String(url), cuerpo: opciones?.body });
+            return {
+                ok: true, status: 200, headers: new Map(),
+                json: async () => ({}), text: async () => '{}',
+            };
+        }));
         vi.stubGlobal('XMLHttpRequest', class {
-            open() {} send() {} setRequestHeader() {} abort() {}
+            open(_metodo, url) { this._url = url; }
+            send(cuerpo) { peticiones.push({ url: String(this._url), cuerpo }); }
+            setRequestHeader() {} abort() {}
         });
         vi.stubEnv('VITE_POSTHOG_KEY', TOKEN);
 
         // Un visitante que ya traía el identificador de la configuración vieja.
         document.cookie = `${NOMBRE_PERSISTENCIA}=%7B%22distinct_id%22%3A%22viejo%22%7D; path=/`;
         localStorage.setItem(NOMBRE_PERSISTENCIA, '{"distinct_id":"viejo"}');
+        // …y la clave de consentimiento de quien alguna vez ENCENDIÓ el interruptor (opt_in_capturing).
+        document.cookie = `${CLAVE_CONSENTIMIENTO}=1; path=/`;
+        localStorage.setItem(CLAVE_CONSENTIMIENTO, '1');
 
         vi.resetModules();
         analytics = await import('../utils/analytics');
@@ -91,6 +116,22 @@ describe('P1-PLAN-LOTE-794 · PostHog sin cookies ni almacenamiento (SDK real)',
     it('borra la cookie y el localStorage que el visitante traía de antes', () => {
         expect(document.cookie).not.toContain(NOMBRE_PERSISTENCIA);
         expect(localStorage.getItem(NOMBRE_PERSISTENCIA)).toBeNull();
+    });
+
+    // [P1-PLAN-LOTE-794 · ronda 1] La persistencia deshabilitada no toca la clave de consentimiento: vive
+    // en otro almacén del SDK. Sobrevivía al arranque y contradecía «sin guardar nada en su dispositivo».
+    it('borra también la clave de consentimiento `__ph_opt_in_out_` que dejaba el opt_in_capturing de antes', () => {
+        expect(localStorage.getItem(CLAVE_CONSENTIMIENTO)).toBeNull();
+        expect(document.cookie).not.toContain(CLAVE_CONSENTIMIENTO);
+        expect(rastrosDePostHog()).toEqual([]);
+    });
+
+    // [P1-PLAN-LOTE-794 · ronda 1] Conversaciones, como encuestas y tours, escribe su propio
+    // `localStorage` si se enciende desde el panel, y su carga no se bloquea en modo `always`.
+    it('las extensiones que escriben su propio almacenamiento quedan apagadas (encuestas, tours, conversaciones)', () => {
+        expect(window.posthog.config.disable_surveys).toBe(true);
+        expect(window.posthog.config.disable_product_tours).toBe(true);
+        expect(window.posthog.config.disable_conversations).toBe(true);
     });
 
     it('la identidad pedida ANTES de cargar el SDK se aplica al cargarlo', () => {
@@ -126,6 +167,42 @@ describe('P1-PLAN-LOTE-794 · PostHog sin cookies ni almacenamiento (SDK real)',
         expect(capturados).toContain('tras_encender');
         expect(rastrosDePostHog()).toEqual([]);
     });
+
+    // [P1-PLAN-LOTE-794 · ronda 1] (revisión, defecto 1) `before_send` sólo filtra EVENTOS. `identify()`
+    // además recarga los flags: un POST a /flags con `distinct_id` y `person_properties` que no es un
+    // evento y que nada cortaba. Apagar → cerrar sesión → entrar con otra cuenta (login por código, en
+    // la misma carga) mandaba el id de la cuenta NUEVA a PostHog con la analítica apagada.
+    it('apagada la analítica, otra sesión en la misma carga NO manda su id a PostHog (ni a /flags)', async () => {
+        analytics.persistAnalyticsOptOut(true);
+        cliente.resetPostHog();                         // cierre de sesión
+        peticiones.length = 0;
+        cliente.identifyPostHog('usuario-B-optout');    // otra cuenta, misma carga
+        await new Promise((r) => setTimeout(r, 100));   // el SDK recarga los flags tras un debounce
+        expect(peticionesQueNombran('usuario-B-optout')).toEqual([]);
+        expect(window.posthog.get_distinct_id()).not.toBe('usuario-B-optout');
+    });
+
+    // …y el caso que el informe daba por aceptado: encender otra vez dejaba la sesión anónima hasta recargar.
+    it('al volver a encender, la sesión de esta carga recupera su identidad sin recargar', () => {
+        analytics.persistAnalyticsOptOut(false);
+        cliente.reaplicarIdentidadPostHog();
+        expect(window.posthog.get_distinct_id()).toBe('usuario-B-optout');
+        expect(rastrosDePostHog()).toEqual([]);
+    });
+});
+
+describe('P1-PLAN-LOTE-794 · ronda 1 · Configuración reaplica la identidad al volver a encender', () => {
+    const SETTINGS = fs.readFileSync(path.resolve(__dirname, '../pages/Settings.jsx'), 'utf8');
+    const ini = SETTINGS.indexOf('const handleToggleAnalytics = () => {');
+    const cuerpo = SETTINGS.slice(ini, SETTINGS.indexOf('\n    };', ini));
+
+    it('handleToggleAnalytics llama a reaplicarIdentidadPostHog DESPUÉS de persistir el «sí»', () => {
+        expect(ini).toBeGreaterThan(-1);
+        const persistir = cuerpo.indexOf('persistAnalyticsOptOut(!next)');
+        const reaplicar = cuerpo.indexOf('reaplicarIdentidadPostHog()');
+        expect(persistir).toBeGreaterThan(-1);
+        expect(reaplicar).toBeGreaterThan(persistir);
+    });
 });
 
 describe('P1-PLAN-LOTE-794 · la identidad se declara en CADA carga con sesión', () => {
@@ -159,10 +236,81 @@ describe('P1-PLAN-LOTE-794 · la Política de Privacidad dice lo que hace el có
 
     it('dice que PostHog no guarda nada en el dispositivo', () => {
         const linea = privacidad.slice(privacidad.indexOf('<strong>PostHog (analítica de producto):</strong>'));
-        expect(linea.slice(0, 600)).toMatch(/sin cookies/);
+        // [ronda 1] Redacción del landing: «no guarda cookies ni entradas de localStorage».
+        expect(linea.slice(0, 600)).toMatch(/no guarda cookies ni entradas de <code>localStorage<\/code>/);
     });
 
     it('la fecha de la política se movió con el cambio', () => {
         expect(privacidad).toContain('lastUpdated="28 de Septiembre, 2026"');
+    });
+
+    // [P1-PLAN-LOTE-794 · ronda 1] (revisión, defecto 7) La copia React y la del landing (rama
+    // ia6d-legal, content/privacy.html) decían cosas distintas de PostHog. La del landing es la
+    // cierta: bioboros.com es el sitio estático, que NO carga PostHog; y el identificador que PostHog
+    // calcula en su servidor no se vende como «anónimo» — se dice qué recibe (IP y navegador).
+    const seccion = (titulo) => {
+        const ini = privacidad.indexOf(`<h3>${titulo}</h3>`);
+        expect(ini, `falta la sección «${titulo}»`).toBeGreaterThan(-1);
+        return privacidad.slice(ini, privacidad.indexOf('<h3>', ini + 4));
+    };
+
+    it('§7 dice lo mismo que el landing: las páginas de bioboros.com no cargan PostHog', () => {
+        const s7 = seccion('7. Monitoreo de Errores y Telemetría');
+        expect(s7).not.toMatch(/registramos únicamente la visita/);
+        expect(s7).not.toMatch(/tanto dentro de la aplicación como en el sitio público/);
+        expect(s7).toMatch(/no cargan PostHog/);
+        expect(s7).toMatch(/PostHog recibe la dirección IP y el tipo de navegador o dispositivo/);
+        expect(s7).toMatch(/sin cookies ni almacenamiento local/);
+    });
+
+    it('§13 no llama «anónimo» al identificador que PostHog calcula en su servidor', () => {
+        const s13 = seccion('13. Cookies y Almacenamiento Local');
+        expect(s13).not.toMatch(/identificador anónimo de visitante/);
+        expect(s13).toMatch(/no guarda cookies ni entradas de <code>localStorage<\/code> en su dispositivo/);
+        expect(s13).toMatch(/Contiene sólo esa elección, ningún identificador/);
+    });
+
+    // [P1-PLAN-LOTE-794 · ronda 1] (pedido del orquestador) ElevenLabs: el TTS del Modo Llamada está
+    // apagado desde mayo (P1-DEADCODE-TTS, AgentPage.jsx vacía la cola sin llamar a /api/chat/tts), así
+    // que producción no le envía nada. Nombrarlo como destinatario declara un tratamiento que no ocurre.
+    it('no nombra a ElevenLabs como destinatario (producción no le envía nada desde mayo)', () => {
+        expect(privacidad).not.toMatch(/ElevenLabs/i);
+    });
+});
+
+describe('P1-PLAN-LOTE-794 · ronda 1 · quien tiene la analítica APAGADA también queda limpio', () => {
+    // El `opt_out_capturing()` de antes TAMBIÉN escribía `__ph_opt_in_out_<token>` (con 0), así que la
+    // clave la tiene sobre todo quien apagó la analítica. Y a ese usuario `initPostHog` no llega a
+    // arrancar el SDK (sale por el opt-out), así que la limpieza no puede depender del SDK.
+    let cliente;
+
+    beforeAll(async () => {
+        localStorage.clear();
+        vi.stubEnv('VITE_POSTHOG_KEY', TOKEN);
+        localStorage.setItem('mealfit_analytics_opt_out', '1');
+        document.cookie = `${CLAVE_CONSENTIMIENTO}=0; path=/`;
+        localStorage.setItem(CLAVE_CONSENTIMIENTO, '0');
+        document.cookie = `${NOMBRE_PERSISTENCIA}=%7B%22distinct_id%22%3A%22viejo%22%7D; path=/`;
+        localStorage.setItem(NOMBRE_PERSISTENCIA, '{"distinct_id":"viejo"}');
+        delete window.posthog;
+        vi.resetModules();
+        cliente = await import('../utils/posthogClient');
+        await cliente.initPostHog();
+    });
+
+    afterAll(() => {
+        localStorage.clear();
+        vi.unstubAllEnvs();
+    });
+
+    it('no arranca el SDK, pero borra la clave de consentimiento y la persistencia vieja', () => {
+        expect(window.posthog).toBeUndefined();
+        expect(localStorage.getItem(CLAVE_CONSENTIMIENTO)).toBeNull();
+        expect(localStorage.getItem(NOMBRE_PERSISTENCIA)).toBeNull();
+        expect(document.cookie).not.toContain(CLAVE_CONSENTIMIENTO);
+        expect(document.cookie).not.toContain(NOMBRE_PERSISTENCIA);
+        expect(rastrosDePostHog()).toEqual([]);
+        // La preferencia del usuario NO es un rastro de PostHog: se queda.
+        expect(localStorage.getItem('mealfit_analytics_opt_out')).toBe('1');
     });
 });

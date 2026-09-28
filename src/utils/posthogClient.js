@@ -31,12 +31,27 @@
 //   3. La persistencia deshabilitada BORRA al arrancar la entrada de su almacén. Por eso
 //      `persistence` sigue en 'localStorage+cookie' aunque no se use: es el almacén donde
 //      los visitantes de antes tienen el identificador, y así se les limpia la cookie y
-//      el `localStorage`. Con 'memory' esa cookie viviría un año más.
-// ⚠️ PostHog IGNORA los eventos cookieless si el proyecto no tiene activado el modo sin
-// cookies en sus ajustes (lo dice su propia documentación del tipo `cookieless_mode`).
+//      el `localStorage`. Con 'memory' esa cookie viviría un año más. [ronda 1] Además se
+//      borran a mano antes de arrancar (`_borrarRestosDelModoConCookies`), también a quien
+//      tiene la analítica apagada, al que el SDK no llega a arrancar.
+// ⚠️ BLOQUEANTE DE DESPLIEGUE: PostHog DESCARTA todos los eventos cookieless si el proyecto
+// no tiene activado «Cookieless server hash mode» (Project Settings → Web analytics). Se
+// activa ANTES de desplegar este frontend, no después (lo dice la documentación del tipo
+// `cookieless_mode`).
+// LO QUE ESTE MODO QUITA [ronda 1]: el SDK no crea el grabador de sesiones ni el
+// `SessionIdManager` (session-recording / posthog-core en 1.399.2): sin replay de PostHog y
+// sin `$session_id` de cliente — las sesiones las calcula el servidor. El error de la app
+// sigue en Sentry.
+// DECISIÓN ABIERTA DEL DUEÑO [ronda 1]: PostHog aconseja NO llamar a `identify()` en este
+// modo («a persistent distinct ID is considered Personal Data under GDPR… which undoes the
+// privacy benefit of this mode»). Aquí se identifica en cada carga con sesión (analítica por
+// cuenta, bajo el interés legítimo de §7/§13); la alternativa es `person_profiles: 'never'`
+// y no identificar. Sin banner se cumple ePrivacy (nada en el dispositivo); lo otro es RGPD.
 // Ancla: src/__tests__/lote794.test.js (con el SDK real, no con un mock de `init`).
 import { isAnalyticsOptedOut } from './analytics';
 import { posthogCaptureOptions } from './observabilityScope';
+import { safeLocalStorageRemove } from './safeLocalStorage';
+import { SITE_DOMAIN, isSiteHost } from '../config/site';
 
 let _initialized = false;
 
@@ -44,12 +59,45 @@ let _initialized = false;
 // justo lo que el modo sin cookies no deja guardar en el dispositivo.
 let _usuario = null;
 
+// [P1-PLAN-LOTE-794 · ronda 1] Con la analítica apagada NO se identifica. `before_send`
+// sólo filtra EVENTOS, y `identify()` además recarga los flags: un POST a /flags con el
+// `distinct_id` de la cuenta que no es un evento y que nada cortaba (apagar → cerrar
+// sesión → entrar con otra cuenta en la misma carga mandaba el id NUEVO). `_usuario` se
+// conserva igual: si el usuario vuelve a encender, `reaplicarIdentidadPostHog` lo usa.
 const _aplicarIdentidad = () => {
     try {
+        if (isAnalyticsOptedOut()) return;
         if (typeof window !== 'undefined' && window.posthog && _usuario) {
             window.posthog.identify(_usuario.id, _usuario.props);
         }
     } catch { /* noop */ }
+};
+
+// [P1-PLAN-LOTE-794 · ronda 1] Restos del modo con cookies, borrados A MANO y ANTES de
+// mirar el opt-out:
+//   · `__ph_opt_in_out_<token>`: la clave de consentimiento que escribían el
+//     `opt_in_capturing()` Y el `opt_out_capturing()` de antes. Vive fuera de la
+//     persistencia, así que `disable_persistence` no la toca y sobrevivía al arranque,
+//     contra el «sin guardar nada en su dispositivo» de la Política de Privacidad. Ni
+//     `clear_opt_in_out_capturing()` basta: la borra del `localStorage` pero deja la copia en
+//     cookie (medido con el SDK real: su almacén ya quedó fijado durante `init`).
+//   · `ph_<token>_posthog`: la persistencia vieja (cookie + `localStorage`). El SDK la
+//     limpia al arrancar (cabecera, punto 3), pero sólo a quien lo arranca.
+// Quien más probablemente tiene la clave es quien APAGÓ la analítica, y a ese usuario
+// `initPostHog` no le arranca el SDK: por eso la limpieza no depende del SDK ni del opt-out.
+// Cookie en los dos ámbitos: la del host y la de `.bioboros.com` (el SDK de antes usaba
+// `cross_subdomain_cookie`).
+const _borrarRestosDelModoConCookies = (token) => {
+    for (const clave of [`__ph_opt_in_out_${token}`, `ph_${token}_posthog`]) {
+        safeLocalStorageRemove(clave);
+        try {
+            const caduca = `${clave}=; Max-Age=0; path=/`;
+            document.cookie = caduca;                                   // cookie del host
+            if (isSiteHost(window.location.hostname)) {
+                document.cookie = `${caduca}; domain=.${SITE_DOMAIN}`;  // cookie de dominio
+            }
+        } catch { /* noop */ }
+    }
 };
 
 // [P1-PLAN-LOTE-794] El corte del opt-out, evento a evento. Devolver null descarta.
@@ -60,6 +108,7 @@ export async function initPostHog() {
     if (typeof window === 'undefined') return;
     const key = import.meta.env.VITE_POSTHOG_KEY;
     if (!key) return;                    // gated OFF sin key → no-op total
+    _borrarRestosDelModoConCookies(key); // [P1-PLAN-LOTE-794 · ronda 1] también con opt-out
     if (isAnalyticsOptedOut()) return;   // respeta el opt-out del usuario
     try {
         const { default: posthog } = await import('posthog-js');
@@ -75,10 +124,13 @@ export async function initPostHog() {
             cookieless_mode: 'always',
             disable_persistence: true,
             persistence: 'localStorage+cookie',
-            // Encuestas y tours de producto escriben su propio `localStorage` fuera de la
-            // persistencia; se encienden desde el panel de PostHog, no desde aquí.
+            // Encuestas, tours de producto y conversaciones escriben su propio `localStorage`
+            // fuera de la persistencia; se encienden desde el panel de PostHog, no desde aquí.
+            // [P1-PLAN-LOTE-794 · ronda 1] Conversaciones faltaba: su carga no se bloquea en
+            // modo `always` (posthog-conversations.js).
             disable_surveys: true,
             disable_product_tours: true,
+            disable_conversations: true,
             before_send: _descartarSiOptOut,
         });
         window.posthog = posthog;
@@ -97,6 +149,14 @@ export async function initPostHog() {
 export function identifyPostHog(userId, props) {
     if (!userId) return;
     _usuario = { id: String(userId), props: props || {} };
+    _aplicarIdentidad();
+}
+
+// [P1-PLAN-LOTE-794 · ronda 1] Al volver a ENCENDER la analítica en Configuración. Apagar
+// hace `reset(true)` (la sesión pasa al centinela anónimo) y sin persistencia nada la
+// devolvía hasta la próxima carga. La llama Configuración y no `analytics.js` porque
+// este módulo importa de allí: el import de vuelta cerraría el ciclo.
+export function reaplicarIdentidadPostHog() {
     _aplicarIdentidad();
 }
 
