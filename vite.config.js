@@ -542,6 +542,10 @@ export default defineConfig(({ mode }) => {
   test: {
     globals: true,
     environment: 'jsdom',
+    // [P1-PLAN-LOTE-743 · G36 paso 3] El runner prueba lo que corre en producción: `.env.production` construye con el
+    // sistema de países ENCENDIDO desde el 18-ago. La rama de rollback (bandera apagada) se prueba con `vi.mock` explícito
+    // en sus ficheros (lote 706), no dependiendo de que el runner no defina la variable.
+    env: { VITE_COUNTRY_SYSTEM: 'true' },
     setupFiles: './src/setupTests.js',
     css: true,
     // [P1-VITEST-WORKER-STABILITY · 2026-08-20] Sin este tope, vitest arranca

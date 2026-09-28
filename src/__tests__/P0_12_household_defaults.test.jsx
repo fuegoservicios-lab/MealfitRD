@@ -48,6 +48,9 @@ describe('P0-12 — findFirstIncompleteField con el contrato nuevo (household fi
         dietType: 'balanced', allergies: ['Ninguna'], dislikes: ['Ninguno'],
         medicalConditions: ['Ninguna'], mainGoal: 'lose', struggles: ['Ninguno'],
         motivation: 'salud',
+        // [P1-PLAN-LOTE-706 · G36 paso 3] con el sistema de países encendido (el valor del build de producción) la
+        // cocina es obligatoria; sin ella el formulario «completo» no lo era y el test sólo pasaba con la bandera apagada.
+        cultureProfiles: { main: 'dominicana', secondary: [] },
         ...overrides,
     });
 
