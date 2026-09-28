@@ -8,14 +8,17 @@
 import NOMBRES_POR_PAIS from '../data/nombresPorPais.json';
 
 let _pais = null;
+let _paisUsuario = null;
 
-/** El país con que se lee (el del perfil). Solo cuenta si tiene tabla: RD y EE. UU. no la tienen. */
+/** El país del perfil. Para los nombres solo cuenta si tiene tabla (RD y EE. UU. no la tienen); para los °F, US y PR. */
 export function setPaisDeLectura(pais) {
     const p = typeof pais === 'string' ? pais.trim().toUpperCase() : '';
     _pais = NOMBRES_POR_PAIS[p] ? p : null;
+    _paisUsuario = /^[A-Z]{2}$/.test(p) ? p : null;
 }
 
 export const getPaisDeLectura = () => _pais;
+export const getPaisDelUsuario = () => _paisUsuario;
 
 /** Cómo llaman al alimento `canonico` en el país de lectura, o '' (sin país o si allí se llama igual). */
 export function nombreLocal(canonico, pais = _pais) {
@@ -71,4 +74,27 @@ export function glosarValor(valor, pais = _pais) {
         return nuevo.some((v, i) => v !== valor[i]) ? nuevo : valor;
     }
     return glosarTexto(valor, pais);
+}
+
+// [P1-PLAN-LOTE-650 · 2026-09-27] (G84) En EE. UU. y Puerto Rico el horno y el termómetro marcan °F: se añade la
+// conversión entre paréntesis, redondeada a 5 («180°C (355 °F)»). Va con el PAÍS, en cualquier idioma.
+const PAISES_FAHRENHEIT = new Set(['US', 'PR']);
+const _GRADOS_C = /(\d{2,3})(\s*[°º]\s*C)(?![A-Za-z])(?!\s*\(\s*\d{2,3}\s*°\s*F\))/g;
+
+/** `texto` con los °F tras cada temperatura en °C, solo si `pais` es US o PR. */
+export function conFahrenheit(texto, pais = _paisUsuario) {
+    if (typeof texto !== 'string' || !texto || !PAISES_FAHRENHEIT.has(pais)) return texto;
+    return texto.replace(_GRADOS_C, (todo, c, sufijo) => {
+        const f = Math.round((Number(c) * 9 / 5 + 32) / 5) * 5;
+        return `${c}${sufijo} (${f} °F)`;
+    });
+}
+
+/** Igual que `conFahrenheit`, respetando la forma (array → elemento a elemento; mismo array si nada cambia). */
+export function conFahrenheitValor(valor, pais = _paisUsuario) {
+    if (Array.isArray(valor)) {
+        const nuevo = valor.map((v) => conFahrenheit(v, pais));
+        return nuevo.some((v, i) => v !== valor[i]) ? nuevo : valor;
+    }
+    return conFahrenheit(valor, pais);
 }
