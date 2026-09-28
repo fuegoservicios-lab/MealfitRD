@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAssessment } from '../context/AssessmentContext';
 // [P1-AGENT-WELCOME-TRACKING · 2026-08-14] SSOT del modo (perfil → espejo local).
 import { isTrackingMode, navItemsFor, neveraActiva } from '../config/dashboardNav';
-import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
+import { Send, Bot, Loader2, Paperclip, X, Image as ImageIcon, Plus, MessageSquare, History, Menu, Apple, Dumbbell, Utensils, Camera, Sparkles, Trash2, Check, Mic, PhoneCall, AudioLines, ArrowUp, ArrowDown, Square, ThumbsUp, ThumbsDown, RefreshCw, Copy, MoreVertical, LayoutDashboard, Clock, Settings, Edit2, Ghost, Refrigerator, Activity } from 'lucide-react';
 import { fetchWithAuth } from '../config/api';
 import { toast } from 'sonner';
 // [P3-LAZY-MARKDOWN · 2026-05-12] import de `react-markdown` eliminado:
@@ -134,6 +134,11 @@ import Wordmark from '../components/common/Wordmark';
 import { t, useT, formatDate } from '../i18n';
 import { getLocale } from '../i18n';
 import { useDictado } from '../hooks/useDictado';
+// [P1-PLAN-LOTE-682] Modo voz del coach: hablarle y oírle con la voz del propio dispositivo (cero coste de API).
+import { useConversacionPorVoz } from '../hooks/useConversacionPorVoz';
+import { trackEvent } from '../utils/analytics';
+// La pantalla del modo voz se pide al abrirlo: quien nunca lo usa no la descarga.
+const ModoVoz = lazy(() => import('../components/agent/ModoVoz'));
 import { useToqueSinFoco } from '../hooks/useToqueSinFoco';
 import { coreografiaEncendida, alternarCoreografia, recorridoDelTeclado, listaAcompana, duracionDeApertura, insetDeApertura, CURVA_TECLADO, KB_PAD_ABIERTO_REM, RELEVO_MARGEN_MS } from '../utils/keyboardChoreography';
 import CoachQuotaMeter from '../components/agent/CoachQuotaMeter';
@@ -2018,9 +2023,21 @@ const AgentPage = () => {
 
     const handleSendRef = useRef(null);
 
-    // --- Lógica de Modo Llamada (Voz Nativa) ---
-    // (setter eliminado con toggleCallMode — dead code post P1-DEADCODE-TTS)
-    const [isCallModeActive] = useState(false);
+    // --- Modo voz (antes «Modo Llamada») ---
+    // [P1-PLAN-LOTE-682 · 2026-09-28] Vuelve con la voz del propio dispositivo: el reconocimiento del dictado para oír
+    // y `speechSynthesis` para hablar (el ElevenLabs de pago que lo apagó ya no interviene). Cada turno hablado es un
+    // mensaje normal de este chat —cuota, memoria, herramientas y filtros clínicos de siempre— con `is_call_mode`,
+    // que en el backend elige el prompt de voz (breve, sin formato). El bucle vive en `useConversacionPorVoz`.
+    const vozCoach = useConversacionPorVoz({
+        locale: getLocale(),
+        esNativa: isNativeApp(),
+        saludo: t('Te escucho.'),
+        enviar: (texto) => {
+            trackEvent('coach_voz_turno');
+            return handleSendRef.current?.(texto);
+        },
+    });
+    const isCallModeActive = vozCoach.abierto;
     const callModeRef = useRef(false);
     useEffect(() => { callModeRef.current = isCallModeActive; }, [isCallModeActive]);
 
@@ -2052,22 +2069,26 @@ const AgentPage = () => {
         try { audioPlayerRef.current?.pause(); } catch (_e) { /* noop */ }
     }, []);
 
-    const processTTSQueue = async () => {
-        // [P1-DEADCODE-TTS · 2026-05-31] VOZ DESACTIVADA TEMPORALMENTE (Plan
-        // Gratuito ElevenLabs). Vaciamos la cola para no reproducir ni llamar a
-        // la API. El bloque de reproducción (fetch /api/chat/tts + audio playback
-        // + handleEnded) se eliminó por ser código muerto tras el `return`
-        // (lint no-unreachable). Recuperable desde git history si se reactiva TTS.
-        if (isPlayingAudio.current || ttsQueue.current.length === 0) return;
-        ttsQueue.current = [];
-    };
-
+    // [P1-PLAN-LOTE-682] Las frases que el stream suelta en modo voz (ver «Extraer oraciones completas para TTS» en
+    // handleSend) las dice ahora el propio dispositivo. La limpieza del texto (formato, emojis, unidades) es de
+    // `utils/vozDelCoach.js`. El motor de ElevenLabs (P1-DEADCODE-TTS) ya no se usa para nada.
+    const hablarModoVoz = vozCoach.hablar;
     const queueTTS = useCallback((text) => {
-        const cleanText = text.replace(/[*_#[\]]/g, '').trim();
-        if (!cleanText) return;
-        ttsQueue.current.push(cleanText);
-        processTTSQueue();
-    }, []);
+        hablarModoVoz(text);
+    }, [hablarModoVoz]);
+    // Abrir el modo voz es un TOQUE (iOS no deja hablar sin gesto). Con un turno en vuelo no se abre: el primer
+    // mensaje hablado chocaría con el candado del turno y se perdería.
+    const abrirModoVoz = () => {
+        if (isTurnActiveRef.current) return;
+        if (dictado.escuchando) dictado.cancelar();
+        try { chatInputRef.current?.blur(); } catch (_e) { /* sin foco que soltar */ }
+        trackEvent('coach_voz_abierto');
+        vozCoach.abrir();
+    };
+    const cerrarModoVoz = () => {
+        vozCoach.cerrar();
+        trackEvent('coach_voz_cerrado');
+    };
 
     // [P1-DEADCODE-TTS · seguimiento] `toggleCallMode` y `toggleDictation`
     // eliminados como dead code (0 callers tras desactivar la VOZ — ver marker
@@ -5125,6 +5146,23 @@ const AgentPage = () => {
                                         )}
                                     </button>
                                 )}
+                                {/* [P1-PLAN-LOTE-682] El modo voz: conversar hablando, con el coach contestando en voz alta.
+                                    Ocupa el sitio de ENVIAR cuando la caja está vacía (con texto, manda enviar). Por ahora
+                                    solo en modo seguimiento (el dueño: «primero con el generador de planes apagado»): allí
+                                    el coach registra comidas y no toca un plan. */}
+                                {vozCoach.disponible && enModoContador && !input.trim() && attachments.length === 0 && (
+                                    <button
+                                        type="button"
+                                        className="chat-voz-btn"
+                                        aria-label={t('Conversar por voz con tu coach')}
+                                        title={t('Modo voz')}
+                                        onPointerDown={(e) => e.preventDefault()}
+                                        onClick={abrirModoVoz}
+                                        disabled={isTurnActive}
+                                    >
+                                        <AudioLines size={21} strokeWidth={2.2} aria-hidden="true" />
+                                    </button>
+                                )}
                                 {(input.trim() || attachments.length > 0) && (
                                     <button
                                         type="button"
@@ -5555,6 +5593,44 @@ const AgentPage = () => {
                     0%, 100% { transform: scaleY(0.3); }
                     50% { transform: scaleY(1); }
                 }
+                /* [P1-PLAN-LOTE-682] El boton del modo voz: relleno como ENVIAR (es la accion principal con la caja
+                   vacia) y con un brillo que respira para que se descubra sin explicarlo. */
+                .chat-voz-btn {
+                    position: relative;
+                    color: #fff;
+                    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+                    border: none;
+                    border-radius: 50%;
+                    width: 44px;
+                    height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                    margin-right: 2px;
+                    outline: none;
+                    -webkit-tap-highlight-color: transparent;
+                    box-shadow: 0 6px 18px -6px rgba(79, 70, 229, 0.7);
+                    transition: transform 0.12s ease, opacity 0.15s ease;
+                }
+                .chat-voz-btn::after {
+                    content: '';
+                    position: absolute;
+                    inset: -3px;
+                    border-radius: 50%;
+                    border: 2px solid rgba(99, 102, 241, 0.45);
+                    animation: chat-voz-brillo 2.8s ease-in-out infinite;
+                    pointer-events: none;
+                }
+                .chat-voz-btn:active { transform: scale(0.9); }
+                .chat-voz-btn:disabled { opacity: 0.5; cursor: default; }
+                .chat-voz-btn:disabled::after { animation: none; opacity: 0; }
+                .chat-voz-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+                @keyframes chat-voz-brillo {
+                    0%, 100% { transform: scale(1); opacity: 0; }
+                    50% { transform: scale(1.18); opacity: 1; }
+                }
                 .input-wrapper.dictando .input-box-dictable {
                     border-color: color-mix(in srgb, var(--primary) 60%, var(--border)) !important;
                     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent) !important;
@@ -5565,6 +5641,8 @@ const AgentPage = () => {
                     .chat-mic-btn.escuchando::after { animation: none; opacity: 0.45; transform: scale(1.18); }
                     .chat-mic-btn.escuchando::after { display: none; }
                     .chat-mic-ondas i { animation: none; transform: scaleY(0.6); }
+                    .chat-voz-btn { transition: none; }
+                    .chat-voz-btn::after { animation: none; opacity: 0; }
                 }
                 .chat-offline-status {
                     width: fit-content;
@@ -6333,6 +6411,22 @@ const AgentPage = () => {
 
                 </div> {/* End of Chat Area Container */}
             </div>
+
+            {/* [P1-PLAN-LOTE-682] La pantalla del modo voz (portal a body, como las hojas de abajo). */}
+            {vozCoach.abierto && (
+                <Suspense fallback={null}>
+                    <ModoVoz
+                        estado={vozCoach.estado}
+                        oido={vozCoach.oido}
+                        dicho={vozCoach.dicho}
+                        error={vozCoach.error}
+                        pulso={vozCoach.pulso}
+                        estadoDelTurno={typeof streamingStatus === 'string' ? streamingStatus : ''}
+                        onTocar={vozCoach.tocar}
+                        onCerrar={cerrarModoVoz}
+                    />
+                </Suspense>
+            )}
 
             {/* [P1-PLAN-LOTE-411 → 415] Las hojas de los atajos, FUERA de la caja de escribir: dentro, la caja
                 (`will-change: transform` + `z-index: 10`) encerraba la del escáner bajo la barra de pestañas, y su

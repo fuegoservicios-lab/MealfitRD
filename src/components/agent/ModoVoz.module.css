@@ -1,0 +1,202 @@
+/* [P1-PLAN-LOTE-682 · 2026-09-28] Modo voz: pantalla completa con un círculo que escucha, piensa y habla.
+   Solo tokens (claro y oscuro salen solos). El círculo cambia de gesto por estado: respira y lanza ondas mientras
+   escucha, gira un brillo mientras piensa y late con cada palabra mientras habla. Sin movimiento si el sistema lo pide. */
+
+.capa {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px);
+  background: var(--bg-page);
+  color: var(--text-main);
+  animation: entrar 260ms ease-out;
+  outline: none;
+}
+
+.fondo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 50% 42%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%),
+    radial-gradient(40% 30% at 72% 72%, color-mix(in srgb, var(--secondary) 14%, transparent), transparent 70%);
+}
+
+.cabecera {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+}
+
+.titulo {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cerrar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+  color: var(--text-main);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cerrar:focus-visible,
+.terminar:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.centro {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  text-align: center;
+  min-height: 0;
+}
+
+.orbe {
+  position: relative;
+  width: min(54vw, 230px);
+  aspect-ratio: 1;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.orbe:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 10px;
+}
+
+.nucleo {
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  scale: 1;
+  background: radial-gradient(
+    circle at 34% 30%,
+    color-mix(in srgb, #fff 55%, var(--primary)) 0%,
+    var(--primary) 46%,
+    color-mix(in srgb, var(--primary) 55%, var(--secondary)) 100%
+  );
+  box-shadow:
+    0 20px 60px -12px color-mix(in srgb, var(--primary) 70%, transparent),
+    inset 0 -12px 30px color-mix(in srgb, #000 22%, transparent);
+  transition: scale 110ms ease-out, filter 300ms ease;
+}
+
+.halo {
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Escuchando: respira y lanza ondas. */
+.orbe[data-estado='escuchando'] .nucleo { animation: respirar 1.8s ease-in-out infinite; }
+.orbe[data-estado='escuchando'] .halo { animation: onda 2s ease-out infinite; }
+.orbe[data-estado='escuchando'] .halo2 { animation-delay: 1s; }
+
+/* Pensando: gira un brillo. */
+.orbe[data-estado='pensando'] .nucleo {
+  background: conic-gradient(from 0deg, var(--primary), var(--secondary), var(--accent), var(--primary));
+  animation: girar 1.4s linear infinite;
+}
+
+/* Hablando: ondea despacio y late con cada palabra (data-latido cambia en cada límite de palabra). */
+.orbe[data-estado='hablando'] .nucleo { animation: hablar 2.4s ease-in-out infinite; }
+.orbe[data-estado='hablando'][data-latido='1'] .nucleo { scale: 1.07; }
+.orbe[data-estado='hablando'] .halo {
+  border-color: color-mix(in srgb, var(--secondary) 55%, transparent);
+  animation: onda 1.4s ease-out infinite;
+}
+.orbe[data-estado='hablando'] .halo2 { animation-delay: 0.7s; }
+
+/* En pausa o con error: quieto, y con color de aviso si falló. */
+.orbe[data-estado='pausa'] .nucleo { filter: grayscale(0.35) brightness(0.92); }
+.orbe[data-estado='error'] .nucleo {
+  background: radial-gradient(circle at 34% 30%, color-mix(in srgb, #fff 45%, var(--danger)) 0%, var(--danger) 70%);
+}
+
+.estado {
+  margin: 0;
+  min-height: 1.5em;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.estadoError { color: var(--danger-text); }
+
+.subtitulo {
+  margin: 0;
+  max-width: 34rem;
+  min-height: 4.2em;
+  font-size: 1.375rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.pista {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.pie {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 24px;
+}
+
+.terminar {
+  min-height: 48px;
+  padding: 0 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes entrar { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes respirar { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes onda { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes hablar { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.03) rotate(4deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .capa,
+  .nucleo,
+  .halo { animation: none !important; }
+  .nucleo { transition: none; }
+  .orbe[data-estado='hablando'][data-latido='1'] .nucleo { scale: 1; }
+}
