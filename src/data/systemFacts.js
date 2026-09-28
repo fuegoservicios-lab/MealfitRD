@@ -26,8 +26,11 @@ export const MICROS_TRACKED = 17;
 
 /* Catálogo de alimentos verificados. El conteo medido era 252 (2026-07-02,
    master_ingredients); el label público redondea hacia abajo a la centena para
-   no tener que tocarlo con cada alta. */
-export const VERIFIED_FOODS_LABEL = '200+';
+   no tener que tocarlo con cada alta.
+   [P1-PLAN-LOTE-795 · 2026-09-28] Medido de nuevo: 354 filas
+   (`SELECT count(*) FROM master_ingredients`, 2026-09-28). «200+» se había
+   quedado una centena por debajo. */
+export const VERIFIED_FOODS_LABEL = '300+';
 
 /* Variables de entrada del formulario (los pasos del wizard; el numero vive en el array de steps). */
 export const INPUT_VARIABLES_LABEL = '20+';

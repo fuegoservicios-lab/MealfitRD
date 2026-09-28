@@ -35,8 +35,11 @@ const ClosingBand = () => {
     return (
         <section className={styles.closing}>
             <div className={styles.container}>
+                {/* [P1-PLAN-LOTE-795 · 2026-09-28] Sin número: lo medido es bloque 1 p50 ~4 min y
+                    hasta ~10 (ver /generation-eta, P2-LOADING-ETA-HONEST). «Cinco minutos» era
+                    falso para la mitad de los planes. Ancla: test_p1_plan_lote_795.py */}
                 <h2 className={styles.title}>
-                    Tu primer plan, calculado, en cinco minutos.
+                    Tu primer plan, calculado, en minutos.
                 </h2>
 
                 {/* Mismo literal atado por Header.sticky_cta.test.jsx que el CTA

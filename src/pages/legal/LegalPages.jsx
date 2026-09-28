@@ -338,7 +338,7 @@ export const Terms = () => (
    AVISO MÉDICO
    ============================================================================ */
 export const MedicalDisclaimer = () => (
-    <LegalLayout title="Aviso Médico" lastUpdated="12 de Julio, 2026">
+    <LegalLayout title="Aviso Médico" lastUpdated="28 de Septiembre, 2026">
         <div className={styles.alertBox}>
             <p className={styles.alertTitle}>
                 <AlertTriangle size={20} /> IMPORTANTE
@@ -396,7 +396,7 @@ export const MedicalDisclaimer = () => (
         <p>El uso de Bioboros <strong>no establece una relación médico-paciente, terapéutica, ni profesional</strong> entre usted y Bioboros, sus empleados, contratistas, accionistas o desarrolladores. No somos su nutricionista, su médico, ni su psicólogo.</p>
 
         <h3>6. Emergencias Médicas</h3>
-        <p>Si experimenta <strong>una emergencia médica</strong> — incluyendo, sin limitación: reacción alérgica severa, dolor de pecho, dificultad para respirar, hipoglucemia, deshidratación severa, pensamientos suicidas o ideación de autolesión, vómito persistente, signos de shock anafiláctico, o cualquier signo de gravedad — <strong>no use Bioboros para resolverla</strong>. Llame de inmediato al <strong>9-1-1</strong> (República Dominicana), acuda a la sala de emergencia más cercana, o contacte a su médico tratante. Si está en otro país, use el número de emergencias local.</p>
+        <p>Si experimenta <strong>una emergencia médica</strong> — incluyendo, sin limitación: reacción alérgica severa, dolor de pecho, dificultad para respirar, hipoglucemia, deshidratación severa, pensamientos suicidas o ideación de autolesión, vómito persistente, signos de shock anafiláctico, o cualquier signo de gravedad — <strong>no use Bioboros para resolverla</strong>. Llame de inmediato al número de emergencias del lugar donde se encuentre, acuda a la sala de emergencia más cercana, o contacte a su médico tratante. En los países donde Bioboros está disponible, ese número es el <strong>9-1-1</strong> en República Dominicana; el <strong>911</strong> en Estados Unidos, Puerto Rico y México; el <strong>112</strong> en España; y el <strong>123</strong> en Colombia. Si se encuentra en cualquier otro país, use el número de emergencias local.</p>
 
         <h3>7. Exención de Responsabilidad</h3>
         <p>Usted reconoce y acepta que la decisión de seguir cualquier plan, recomendación o sugerencia provista por Bioboros es <strong>exclusivamente suya</strong>. En la máxima medida permitida por la ley, Bioboros no asume responsabilidad alguna por consecuencias adversas para la salud, alteraciones nutricionales, reacciones alérgicas o cualquier otro perjuicio que pudiera resultar del uso de la plataforma sin consulta profesional previa.</p>
