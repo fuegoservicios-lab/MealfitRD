@@ -243,7 +243,8 @@ export function crearVozDelCoach({
         try { audio = c ? await c.decodeAudioData(bytes.slice(0)) : null; } catch { audio = null; }
         if (gen !== generacion) return;
         if (!audio) { pasarAlTelefono(); hablarEnElTelefono(frase, gen); return; }
-        try { if (c.state === 'suspended') await c.resume(); } catch { /* el próximo toque lo reanuda */ }
+        // Safari deja el contexto en «interrupted» (no solo «suspended») tras usar el micrófono: se reanuda igual.
+        try { if (c.state !== 'running') await c.resume(); } catch { /* el próximo toque lo reanuda */ }
         if (gen !== generacion) return;
         const src = c.createBufferSource();
         src.buffer = audio;
@@ -319,7 +320,7 @@ export function crearVozDelCoach({
         desbloquear() {
             if (usarNube) {
                 const c = contexto();
-                try { if (c?.state === 'suspended') c.resume(); } catch { /* sin audio: el texto sigue en pantalla */ }
+                try { if (c && c.state !== 'running') c.resume(); } catch { /* sin audio: el texto sigue en pantalla */ }
                 try {
                     const b = c.createBuffer(1, 1, 22050);
                     const s = c.createBufferSource();
