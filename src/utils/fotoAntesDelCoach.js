@@ -38,6 +38,26 @@ export function respuestasElegidas(dudas, elegidas) {
     return { texto: mensajeDeRespuestas(dudas, elegidas), ajuste: ajusteDeRespuestas(dudas, elegidas) };
 }
 
+/**
+ * [P1-PLAN-LOTE-763] Con respuestas ESCRITAS («Otra…» dentro del panel): cada duda aporta lo tocado o lo escrito, en su
+ * orden. Lo escrito no trae ajuste, así que con UNA escrita el ajuste es null y el servidor pide recalcular
+ * (backend/respuestas_de_la_foto.py): sumar solo lo tocado registraría el plato sin lo que el usuario escribió.
+ */
+export function respuestasConEscritas(dudas, elegidas, escritas) {
+    const lista = Array.isArray(dudas) ? dudas : [];
+    const escrito = (i) => String(escritas?.[i] || '').trim();
+    if (!lista.some((_, i) => escrito(i))) return respuestasElegidas(lista, elegidas);
+    const texto = lista
+        .map((d, i) => {
+            if (escrito(i)) return escrito(i);
+            const o = d?.opciones?.[elegidas?.[i]];
+            return o?.texto_mostrar || o?.texto;
+        })
+        .filter(Boolean)
+        .join(' · ');
+    return { texto, ajuste: null };
+}
+
 /** Lo que dice la burbuja del usuario (y se guarda) al contestar: su texto y, debajo, las respuestas. */
 export function textoDelTurno(pie, respuestas) {
     return [String(pie || '').trim(), String(respuestas || '').trim()].filter(Boolean).join('\n');
